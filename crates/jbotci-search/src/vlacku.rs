@@ -142,6 +142,10 @@ pub fn normalize_word_type_filter(raw: &str) -> String {
 pub fn matches_word_type_filter(wanted: &str, normalized_type: &str) -> bool {
     wanted == normalized_type
         || (wanted == "cmavo" && is_cmavo_like(normalized_type))
+        || (wanted == "cmevla" && is_cmevla_like(normalized_type))
+        || (wanted == "gismu" && is_gismu_like(normalized_type))
+        || (wanted == "fu'ivla" && is_fuhivla_like(normalized_type))
+        || (wanted == "lujvo" && is_lujvo_like(normalized_type))
         || (wanted == "brivla" && is_brivla_like(normalized_type))
 }
 
@@ -152,14 +156,39 @@ pub fn is_cmavo_like(normalized_type: &str) -> bool {
         || normalized_type.starts_with("cmavo-")
         || normalized_type == "experimental-cmavo"
         || normalized_type == "obsolete-cmavo"
+        || normalized_type == "bu-letteral"
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn is_cmevla_like(normalized_type: &str) -> bool {
+    normalized_type == "cmevla" || normalized_type == "obsolete-cmevla"
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn is_gismu_like(normalized_type: &str) -> bool {
+    normalized_type == "gismu" || normalized_type == "experimental-gismu"
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn is_fuhivla_like(normalized_type: &str) -> bool {
+    normalized_type == "fu'ivla" || normalized_type == "obsolete-fu'ivla"
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn is_lujvo_like(normalized_type: &str) -> bool {
+    normalized_type == "lujvo"
+        || normalized_type == "zei-lujvo"
+        || normalized_type == "obsolete-zei-lujvo"
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub fn is_brivla_like(normalized_type: &str) -> bool {
-    !is_cmavo_like(normalized_type)
-        && normalized_type != "cmevla"
-        && normalized_type != "obsolete-cmevla"
+    !is_cmavo_like(normalized_type) && !is_cmevla_like(normalized_type)
 }
 
 #[requires(true)]

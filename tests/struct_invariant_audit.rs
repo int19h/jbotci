@@ -56,6 +56,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "vlacku jvozba pane state is transient persisted UI state normalized by load/save helpers",
     ),
     (
+        "apps/jbotci-web/src/main.rs:VlackuJvozbaDragState",
+        "vlacku jvozba drag state is transient browser pointer state constrained by drag handlers",
+    ),
+    (
         "apps/jbotci/src/main.rs:Cli",
         "CLI root delegates input validation to clap",
     ),

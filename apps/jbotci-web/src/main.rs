@@ -5,15 +5,17 @@ use jbotci_web_core::{
     GentufaWebOptions, GentufaWebRequest, GentufaWebResult, GentufaWebViewMode, ReferenceLabel,
     ReferenceMarker, ReferenceMarkerRole, ReferenceSlotLabel, VLACKU_WEB_DEFAULT_COUNT,
     VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece, VlackuCompositionPieceKind, VlackuDictionaryInfo,
-    VlackuInline, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
-    VlackuJvozbaSegmentKind, VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebState,
-    VlackuWordTypeOption, VlackuWordTypeSection, WebFeatureAvailability,
-    build_vlacku_jvozba_output, build_vlacku_web_result, parse_gentufa_for_web,
-    parse_vlacku_web_route, vlacku_web_url,
+    VlackuInline, VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode,
+    VlackuJvozbaOutput, VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
+    VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebState, VlackuWordTypeOption,
+    VlackuWordTypeSection, WebFeatureAvailability, build_vlacku_jvozba_output,
+    build_vlacku_web_result, parse_gentufa_for_web, parse_vlacku_web_route,
+    toggle_vlacku_word_type_selection, vlacku_brivla_filter_indeterminate, vlacku_web_url,
+    vlacku_word_type_options,
 };
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, requires};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
@@ -31,10 +33,13 @@ const NOTO_SANS_ITALIC: Asset = asset!("/assets/fonts/noto-sans-italic-variable.
 const NOTO_SANS_MATH: Asset = asset!("/assets/fonts/noto-sans-math-regular.otf");
 const CRISA: Asset = asset!("/assets/fonts/crisa-regular.otf");
 const DEFAULT_GENTUFA_TEXT: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
+const VLACKU_SEARCH_DEBOUNCE_MS: i32 = 900;
+const VLACKU_URL_DEBOUNCE_MS: i32 = 450;
 
 #[cfg(target_arch = "wasm32")]
 thread_local! {
     static VLACKU_URL_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
+    static VLACKU_SEARCH_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,6 +108,15 @@ struct VlackuJvozbaPaneState {
     open: bool,
     mode: VlackuJvozbaMode,
     items: Vec<VlackuJvozbaItem>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct VlackuJvozbaDragState {
+    start_index: usize,
+    target_index: usize,
+    item_height: usize,
+    preview_visible: bool,
 }
 
 impl Default for UserSettings {
@@ -192,8 +206,11 @@ fn App() -> Element {
     let base_path = base_path_from_current_path();
     let settings = use_signal(load_settings);
     let view_mode = use_signal(initial_view_mode);
-    let vlacku_state = use_signal(initial_vlacku_state);
+    let initial_vlacku = initial_vlacku_state();
+    let vlacku_draft_state = use_signal(|| initial_vlacku.clone());
+    let vlacku_committed_state = use_signal(|| initial_vlacku);
     let jvozba_pane = use_signal(load_vlacku_jvozba_pane_state);
+    let jvozba_drag = use_signal(|| None::<VlackuJvozbaDragState>);
     let mut input_text = use_signal(|| DEFAULT_GENTUFA_TEXT.to_owned());
     let mut parsed_text = use_signal(|| DEFAULT_GENTUFA_TEXT.to_owned());
     let dialect = use_signal(String::new);
@@ -214,8 +231,15 @@ fn App() -> Element {
     let vlacku_url_base_path = base_path.clone();
     use_effect(move || {
         if route == AppRoute::Vlacku {
-            let state = vlacku_state.read().clone();
+            let state = vlacku_committed_state.read().clone();
             schedule_vlacku_url_push(&vlacku_url_base_path, &state);
+        }
+    });
+    use_effect(move || {
+        if route == AppRoute::Vlacku {
+            let state = vlacku_draft_state.read().clone();
+            set_brivla_toggle_indeterminate(vlacku_brivla_filter_indeterminate(&state.word_types));
+            sync_vlacku_jvozba_pane_metrics();
         }
     });
     let app_class = format!(
@@ -277,7 +301,13 @@ fn App() -> Element {
                             AppRoute::Settings => render_settings(settings, settings_value),
                             AppRoute::Cukta => render_disabled("cukta"),
                             AppRoute::Vlacku => {
-                                render_vlacku_page(vlacku_state, jvozba_pane, &base_path)
+                                render_vlacku_page(
+                                    vlacku_draft_state,
+                                    vlacku_committed_state,
+                                    jvozba_pane,
+                                    jvozba_drag,
+                                    &base_path,
+                                )
                             },
                         }
                     }
@@ -456,20 +486,31 @@ fn render_dialect_control(mut dialect: Signal<String>) -> Element {
 #[requires(true)]
 #[ensures(true)]
 fn render_vlacku_page(
-    vlacku_state: Signal<VlackuWebState>,
+    vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_committed_state: Signal<VlackuWebState>,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
     base_path: &str,
 ) -> Element {
-    let result = build_vlacku_web_result(&vlacku_state.read());
+    let result = build_vlacku_web_result(&vlacku_committed_state.read());
+    let draft_state = vlacku_draft_state.read().clone();
+    let word_type_options = vlacku_word_type_options(&draft_state.word_types);
+    let shell_class = if jvozba_pane.read().open {
+        "dictionary-shell dictionary-jvozba-hints-active"
+    } else {
+        "dictionary-shell"
+    };
     rsx! {
-        section { class: "spa-page vlacku-page",
+        section { class: "spa-page dictionary-page vlacku-page",
             h1 { class: "sr-only", "jbotci vlacku" }
-            div { class: "page-container vlacku-layout",
-                div { class: "vlacku-main",
-                    { render_vlacku_controls(vlacku_state, &result) }
-                    { render_vlacku_body(&result, vlacku_state, jvozba_pane, base_path) }
+            div { class: "{shell_class}",
+                div { class: "dictionary-layout",
+                    div { class: "dictionary-main-column",
+                        { render_vlacku_controls(vlacku_draft_state, vlacku_committed_state, &draft_state, &word_type_options) }
+                        { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, base_path) }
+                    }
+                    { render_vlacku_jvozba_pane(jvozba_pane, jvozba_drag) }
                 }
-                { render_vlacku_jvozba_pane(jvozba_pane) }
             }
         }
     }
@@ -478,35 +519,45 @@ fn render_vlacku_page(
 #[requires(true)]
 #[ensures(true)]
 fn render_vlacku_controls(
-    mut vlacku_state: Signal<VlackuWebState>,
-    result: &jbotci_web_core::VlackuWebResult,
+    mut vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_committed_state: Signal<VlackuWebState>,
+    state: &VlackuWebState,
+    word_type_options: &[VlackuWordTypeOption],
 ) -> Element {
-    let state = result.state.clone();
     rsx! {
-        div { class: "vlacku-controls",
-            div { class: "vlacku-mode-row", role: "group", aria_label: "Dictionary search mode",
-                { render_vlacku_mode_button(vlacku_state, state.mode, VlackuWebMode::Word, "word", false) }
-                { render_vlacku_mode_button(vlacku_state, state.mode, VlackuWebMode::Rafsi, "rafsi", false) }
-                { render_vlacku_mode_button(vlacku_state, state.mode, VlackuWebMode::Sound, "sound", false) }
-                { render_vlacku_mode_button(vlacku_state, state.mode, VlackuWebMode::Meaning, "meaning", true) }
+        div { class: "dictionary-form",
+            div { class: "dictionary-controls",
+                div { class: "dictionary-fieldset",
+                    p { class: "dictionary-fieldset-title", "Search mode" }
+                    div { class: "mode-toggle-row",
+                        div { class: "mode-toggle-group", role: "group", aria_label: "Dictionary search mode",
+                            { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Meaning, "meaning", true) }
+                            { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Sound, "sound", false) }
+                            { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Word, "word", false) }
+                            { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Rafsi, "rafsi", false) }
+                        }
+                    }
+                }
+                div { class: "dictionary-fieldset",
+                    p { class: "dictionary-fieldset-title", "Word types" }
+                    { render_vlacku_word_type_controls(vlacku_draft_state, vlacku_committed_state, word_type_options) }
+                }
             }
-            input {
-                class: "vlacku-query-input",
-                r#type: "search",
-                aria_label: "Dictionary query",
-                placeholder: vlacku_query_placeholder(state.mode),
-                spellcheck: "false",
-                value: "{state.query}",
-                oninput: move |event| {
-                    let mut next = vlacku_state.read().clone();
-                    next.query = event.value();
-                    next.count = VLACKU_WEB_DEFAULT_COUNT;
-                    vlacku_state.set(next);
-                },
-            }
-            div { class: "vlacku-filter-grid", aria_label: "Word type filters",
-                for option in result.word_type_options.iter() {
-                    { render_word_type_filter(vlacku_state, option) }
+            div { class: "dictionary-query-row",
+                input {
+                    class: "query-input",
+                    r#type: "search",
+                    aria_label: "Dictionary query",
+                    placeholder: vlacku_query_placeholder(state.mode),
+                    spellcheck: "false",
+                    value: "{state.query}",
+                    oninput: move |event| {
+                        let mut next = vlacku_draft_state.read().clone();
+                        next.query = event.value();
+                        next.count = VLACKU_WEB_DEFAULT_COUNT;
+                        vlacku_draft_state.set(next.clone());
+                        schedule_vlacku_search_commit(vlacku_committed_state, next);
+                    },
                 }
             }
         }
@@ -516,7 +567,8 @@ fn render_vlacku_controls(
 #[requires(true)]
 #[ensures(true)]
 fn render_vlacku_mode_button(
-    mut vlacku_state: Signal<VlackuWebState>,
+    mut vlacku_draft_state: Signal<VlackuWebState>,
+    mut vlacku_committed_state: Signal<VlackuWebState>,
     current: VlackuWebMode,
     mode: VlackuWebMode,
     label: &'static str,
@@ -531,10 +583,14 @@ fn render_vlacku_mode_button(
             aria_pressed: pressed_attr(current == mode),
             onclick: move |_| {
                 if !disabled {
-                    let mut next = vlacku_state.read().clone();
+                    let mut next = vlacku_draft_state.read().clone();
                     next.mode = mode;
                     next.count = VLACKU_WEB_DEFAULT_COUNT;
-                    vlacku_state.set(next);
+                    set_vlacku_state_immediate(
+                        &mut vlacku_draft_state,
+                        &mut vlacku_committed_state,
+                        next,
+                    );
                 }
             },
             "{label}"
@@ -544,23 +600,48 @@ fn render_vlacku_mode_button(
 
 #[requires(true)]
 #[ensures(true)]
+fn render_vlacku_word_type_controls(
+    vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_committed_state: Signal<VlackuWebState>,
+    options: &[VlackuWordTypeOption],
+) -> Element {
+    rsx! {
+        div { class: "word-type-grid", aria_label: "Word type filters",
+            for option in options.iter() {
+                { render_word_type_filter(vlacku_draft_state, vlacku_committed_state, option) }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn render_word_type_filter(
-    mut vlacku_state: Signal<VlackuWebState>,
+    mut vlacku_draft_state: Signal<VlackuWebState>,
+    mut vlacku_committed_state: Signal<VlackuWebState>,
     option: &VlackuWordTypeOption,
 ) -> Element {
     let value = option.value.clone();
     let is_parent = value == "brivla";
+    let filter_class = class_names(
+        word_type_filter_class(option.section, is_parent),
+        &[("is-selected", option.selected)],
+    );
     rsx! {
         label {
-            class: word_type_filter_class(option.section, is_parent),
-            title: "{option.count} entries",
+            class: "{filter_class}",
             input {
                 r#type: "checkbox",
                 checked: option.selected,
-                onchange: move |_| toggle_vlacku_word_type(&mut vlacku_state, &value),
+                "data-brivla-toggle": if is_parent { "1" } else { "0" },
+                "data-brivla-member": if option.section == VlackuWordTypeSection::Brivla && !is_parent { "1" } else { "0" },
+                onchange: move |_| toggle_vlacku_word_type(
+                    &mut vlacku_draft_state,
+                    &mut vlacku_committed_state,
+                    &value,
+                ),
             }
             span { class: "vlacku-filter-label", "{option.label}" }
-            span { class: "vlacku-filter-count", "{option.count}" }
         }
     }
 }
@@ -569,38 +650,45 @@ fn render_word_type_filter(
 #[ensures(true)]
 fn render_vlacku_body(
     result: &jbotci_web_core::VlackuWebResult,
-    mut vlacku_state: Signal<VlackuWebState>,
+    mut vlacku_draft_state: Signal<VlackuWebState>,
+    mut vlacku_committed_state: Signal<VlackuWebState>,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     base_path: &str,
 ) -> Element {
     rsx! {
-        div { class: "vlacku-results",
+        div { class: "dictionary-results",
             for error in result.errors.iter() {
-                div { class: "error-box failure-errors", "{error}" }
+                div { class: "spa-error dictionary-error", "{error}" }
             }
             if let Some(message) = &result.message {
-                div { class: "vlacku-empty-message", "{message}" }
+                p { class: "dictionary-empty", "{message}" }
             }
             if let Some(info) = &result.dictionary_info {
                 { render_dictionary_info(info) }
             }
             if !result.cards.is_empty() {
-                div { class: "vlacku-card-grid",
+                div { class: "dictionary-results-grid",
                     for card in result.cards.iter() {
                         { render_vlacku_card(card, jvozba_pane, base_path) }
                     }
                 }
             }
             if result.has_more {
-                button {
-                    class: "btn-parse vlacku-load-more",
-                    r#type: "button",
-                    onclick: move |_| {
-                        let mut next = vlacku_state.read().clone();
-                        next.count = next.count.saturating_mul(2).clamp(1, VLACKU_WEB_MAX_COUNT);
-                        vlacku_state.set(next);
-                    },
-                    "Load more"
+                div { class: "load-more-wrap",
+                    button {
+                        class: "btn-parse load-more-link",
+                        r#type: "button",
+                        onclick: move |_| {
+                            let mut next = vlacku_draft_state.read().clone();
+                            next.count = next.count.saturating_mul(2).clamp(1, VLACKU_WEB_MAX_COUNT);
+                            set_vlacku_state_immediate(
+                                &mut vlacku_draft_state,
+                                &mut vlacku_committed_state,
+                                next,
+                            );
+                        },
+                        "Load more"
+                    }
                 }
             }
         }
@@ -611,19 +699,21 @@ fn render_vlacku_body(
 #[ensures(true)]
 fn render_dictionary_info(info: &VlackuDictionaryInfo) -> Element {
     rsx! {
-        div { class: "vlacku-dictionary-info",
-            div { class: "vlacku-info-metric",
-                span { class: "vlacku-info-value", "{info.entry_count}" }
-                span { class: "vlacku-info-label", "entries" }
-            }
-            div { class: "vlacku-info-metric",
-                span { class: "vlacku-info-value", "{info.rafsi_count}" }
-                span { class: "vlacku-info-label", "rafsi" }
-            }
-            for word_type in info.word_type_counts.iter() {
-                div { class: "vlacku-info-metric",
-                    span { class: "vlacku-info-value", "{word_type.count}" }
-                    span { class: "vlacku-info-label", "{word_type.label}" }
+        div { class: "dictionary-info",
+            div { class: "dictionary-info-grid",
+                div { class: "dictionary-info-metric",
+                    span { class: "dictionary-info-metric-value", "{info.entry_count}" }
+                    span { class: "dictionary-info-metric-label", "entries" }
+                }
+                div { class: "dictionary-info-metric",
+                    span { class: "dictionary-info-metric-value", "{info.rafsi_count}" }
+                    span { class: "dictionary-info-metric-label", "rafsi" }
+                }
+                for word_type in info.word_type_counts.iter() {
+                    div { class: "dictionary-info-metric",
+                        span { class: "dictionary-info-metric-value", "{word_type.count}" }
+                        span { class: "dictionary-info-metric-label", "{word_type.label}" }
+                    }
                 }
             }
         }
@@ -633,6 +723,46 @@ fn render_dictionary_info(info: &VlackuDictionaryInfo) -> Element {
 #[requires(true)]
 #[ensures(true)]
 fn render_vlacku_card(
+    card: &VlackuWebCard,
+    jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    base_path: &str,
+) -> Element {
+    rsx! {
+        section { class: "result-card",
+            header { class: "result-header",
+                h2 { class: "word",
+                    span { class: "dictionary-word-line",
+                        { render_vlacku_headword_line(card, jvozba_pane, base_path) }
+                    }
+                }
+                div { class: "tag-row",
+                    { render_vlacku_metadata_pill(card, base_path) }
+                }
+            }
+            if !card.definition.is_empty() {
+                p { class: "dictionary-definition-copy",
+                    { render_inline_spans(&card.definition, jvozba_pane, base_path) }
+                }
+            }
+            if !card.glosses.is_empty() {
+                div { class: "chip-row dictionary-gloss-row",
+                    for gloss in card.glosses.iter() {
+                        span { class: "chip dictionary-gloss-pill", title: "Gloss word", "{gloss}" }
+                    }
+                }
+            }
+            if !card.notes.is_empty() {
+                p { class: "dictionary-note-copy", title: "Dictionary note",
+                    { render_inline_spans(&card.notes, jvozba_pane, base_path) }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_headword_line(
     card: &VlackuWebCard,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     base_path: &str,
@@ -647,62 +777,118 @@ fn render_vlacku_card(
         },
     );
     rsx! {
-        article { class: "vlacku-card",
-            header { class: "vlacku-card-header",
-                span { class: "vlacku-card-rank", "{card.rank}." }
-                { render_vlacku_word_action(jvozba_pane, card.can_add_to_jvozba, &card.word, &word_href) }
-                span { class: "vlacku-card-type", "{card.word_type}" }
-                if let Some(selmaho) = &card.selmaho {
-                    span { class: "vlacku-card-selmaho", "{selmaho}" }
-                }
-                if let Some(similarity) = card.similarity {
-                    span { class: "vlacku-card-meta", "similarity: {format_similarity(similarity)}" }
-                }
-                { render_vote_display(&card.votes) }
-            }
-            if let Some(ipa) = &card.ipa {
-                div { class: "vlacku-ipa", "{ipa}" }
-            }
-            if !card.decomposition.is_empty() {
-                div { class: "vlacku-decomposition",
-                    for piece in card.decomposition.iter() {
-                        { render_composition_piece(piece, jvozba_pane, base_path) }
-                    }
-                }
-            }
-            if !card.rafsi.is_empty() {
-                div { class: "vlacku-rafsi-row",
-                    span { class: "vlacku-detail-label", "rafsi" }
-                    for rafsi in card.rafsi.iter() {
-                        { render_rafsi_pill(jvozba_pane, rafsi) }
-                    }
-                }
-            }
-            if !card.glosses.is_empty() {
-                div { class: "vlacku-gloss-row",
-                    span { class: "vlacku-detail-label", "glosses" }
-                    for gloss in card.glosses.iter() {
-                        span { class: "vlacku-gloss-chip", "{gloss}" }
-                    }
-                }
-            }
-            if !card.definition.is_empty() {
-                div { class: "vlacku-text-row",
-                    span { class: "vlacku-detail-label", "definition" }
-                    p { class: "vlacku-definition-text",
-                        { render_inline_spans(&card.definition, jvozba_pane) }
-                    }
-                }
-            }
-            if !card.notes.is_empty() {
-                div { class: "vlacku-text-row",
-                    span { class: "vlacku-detail-label", "notes" }
-                    p { class: "vlacku-note-text",
-                        { render_inline_spans(&card.notes, jvozba_pane) }
-                    }
+        { render_vlacku_word_action(
+            jvozba_pane,
+            card.can_add_to_jvozba,
+            &card.word,
+            &card.display_word,
+            &word_href,
+            "dictionary-headword-link dictionary-jvozba-highlighted-word",
+        ) }
+        if let Some(ipa) = &card.ipa {
+            span { class: "dictionary-headword-ipa", "/{ipa}/" }
+        }
+        if !card.decomposition.is_empty() {
+            { render_vlacku_inline_separator("=") }
+            { render_vlacku_decomposition_inline(card, jvozba_pane, base_path) }
+        } else if !card.rafsi.is_empty() {
+            { render_vlacku_inline_separator("≘") }
+            span { class: "dictionary-inline-pill-row",
+                for rafsi in card.rafsi.iter() {
+                    { render_rafsi_pill(jvozba_pane, &card.word, rafsi) }
                 }
             }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_decomposition_inline(
+    card: &VlackuWebCard,
+    jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    base_path: &str,
+) -> Element {
+    let visible_pieces = card
+        .decomposition
+        .iter()
+        .filter(|piece| piece.kind != VlackuCompositionPieceKind::Hyphen)
+        .collect::<Vec<_>>();
+    rsx! {
+        for (index, piece) in visible_pieces.iter().enumerate() {
+            if index > 0 {
+                { render_vlacku_inline_separator("+") }
+            }
+            { render_composition_piece(piece, jvozba_pane, base_path) }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_inline_separator(text: &str) -> Element {
+    rsx! { span { class: "dictionary-word-inline-separator", "{text}" } }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_metadata_pill(card: &VlackuWebCard, base_path: &str) -> Element {
+    rsx! {
+        div { class: "dictionary-meta-pill",
+            span { class: word_type_tag_class(&card.word_type_key), "{card.word_type}" }
+            if let Some(selmaho) = &card.selmaho {
+                { render_vlacku_selmaho_segment(card, selmaho, base_path) }
+            }
+            if let Some(similarity) = card.similarity {
+                span { class: "dictionary-meta-segment dictionary-meta-tooltip", title: "Phonetic similarity to the current query.",
+                    "{format_similarity(similarity)}"
+                }
+            }
+            { render_vote_display(&card.votes) }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_selmaho_segment(card: &VlackuWebCard, selmaho: &str, base_path: &str) -> Element {
+    if card.word_type_key == "gismu" {
+        let href = format!("{}/cukta", base_path.trim_end_matches('/'));
+        rsx! {
+            a { class: "dictionary-meta-segment dictionary-selmaho-tag", href: "{href}", title: "CLL gismu section",
+                em { "{selmaho}" }
+            }
+        }
+    } else {
+        rsx! {
+            span { class: "dictionary-meta-segment dictionary-selmaho-tag", title: "selma'o classification",
+                em { "{selmaho}" }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn word_type_tag_class(word_type_key: &str) -> String {
+    format!(
+        "dictionary-meta-segment dictionary-word-type-tag {}",
+        vlacku_word_type_tag_class(word_type_key)
+    )
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn vlacku_word_type_tag_class(word_type_key: &str) -> &'static str {
+    match word_type_key {
+        "gismu" | "experimental-gismu" => "is-gismu",
+        "lujvo" | "zei-lujvo" | "obsolete-zei-lujvo" => "is-lujvo",
+        "cmevla" | "obsolete-cmevla" => "is-cmevla",
+        "fu'ivla" | "obsolete-fu'ivla" => "is-fuhivla",
+        "cmavo" | "cmavo-compound" | "experimental-cmavo" | "obsolete-cmavo" | "bu-letteral" => {
+            "is-cmavo"
+        }
+        _ => "is-other",
     }
 }
 
@@ -712,23 +898,37 @@ fn render_vlacku_word_action(
     mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
     can_add_to_jvozba: bool,
     word: &str,
+    display_word: &str,
     href: &str,
+    class_name: &str,
 ) -> Element {
     let pane_open = jvozba_pane.read().open;
     let word_value = word.to_owned();
+    let static_class_name = class_name
+        .split_whitespace()
+        .filter(|class| {
+            *class != "dictionary-jvozba-add-link-hint"
+                && *class != "dictionary-jvozba-highlighted-word"
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
     if pane_open && can_add_to_jvozba {
         rsx! {
             button {
-                class: "vlacku-headword vlacku-jvozba-add-link-hint",
+                class: "{class_name}",
                 r#type: "button",
                 title: "Add to jvozba",
-                onclick: move |_| add_vlacku_jvozba_item(&mut jvozba_pane, VlackuJvozbaItemKind::Word, word_value.clone()),
-                "{word}"
+                onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
+                "{display_word}"
             }
+        }
+    } else if pane_open {
+        rsx! {
+            span { class: "{static_class_name}", "{display_word}" }
         }
     } else {
         rsx! {
-            a { class: "vlacku-headword", href: "{href}", "{word}" }
+            a { class: "{class_name}", href: "{href}", "{display_word}" }
         }
     }
 }
@@ -738,10 +938,10 @@ fn render_vlacku_word_action(
 fn render_vote_display(votes: &VlackuVoteDisplay) -> Element {
     match votes {
         VlackuVoteDisplay::Known(value) => rsx! {
-            span { class: vote_class(value), title: vote_title(value), "votes: {value}" }
+            span { class: vote_class(value), title: vote_title(value), "{value}" }
         },
         VlackuVoteDisplay::Unknown => rsx! {
-            span { class: "vlacku-card-meta vlacku-votes is-unknown", title: "No dictionary vote count", "votes: ?" }
+            span { class: "dictionary-meta-segment dictionary-meta-tooltip dictionary-vote-tag is-unknown", title: "This parses as a valid Lojban word, but it is not present in the embedded dictionary, so no Lensisku vote tally is available.", "?" }
         },
         VlackuVoteDisplay::Hidden => rsx! {},
     }
@@ -756,7 +956,7 @@ fn render_composition_piece(
 ) -> Element {
     match piece.kind {
         VlackuCompositionPieceKind::Hyphen => rsx! {
-            span { class: "vlacku-composition-hyphen", "{piece.surface}" }
+            span { class: "dictionary-word-inline-separator", "{piece.display_surface}" }
         },
         VlackuCompositionPieceKind::Rafsi => {
             if let Some(source) = &piece.source {
@@ -770,14 +970,23 @@ fn render_composition_piece(
                     },
                 );
                 rsx! {
-                    span { class: "vlacku-composition-rafsi",
-                        span { class: "vlacku-composition-surface", "{piece.surface}" }
-                        { render_vlacku_word_action(jvozba_pane, true, source, &href) }
+                    span { class: "rafsi-split-pill",
+                        { render_vlacku_rafsi_add_piece(jvozba_pane, &piece.surface, source, &piece.display_surface) }
+                        span { class: "rafsi-split-right",
+                            { render_vlacku_word_action(
+                                jvozba_pane,
+                                true,
+                                source,
+                                piece.display_source.as_deref().unwrap_or(source),
+                                &href,
+                                "dictionary-word-link rafsi-source-link dictionary-jvozba-add-link-hint",
+                            ) }
+                        }
                     }
                 }
             } else {
                 rsx! {
-                    span { class: "vlacku-composition-rafsi", "{piece.surface}" }
+                    span { class: "chip rafsi-chip", "{piece.display_surface}" }
                 }
             }
         }
@@ -786,21 +995,60 @@ fn render_composition_piece(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_rafsi_pill(mut jvozba_pane: Signal<VlackuJvozbaPaneState>, rafsi: &str) -> Element {
+fn render_vlacku_rafsi_add_piece(
+    mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    rafsi: &str,
+    source_word: &str,
+    display_rafsi: &str,
+) -> Element {
     let pane_open = jvozba_pane.read().open;
     let rafsi_value = rafsi.to_owned();
+    let source_value = source_word.to_owned();
     if pane_open {
         rsx! {
             button {
-                class: "vlacku-rafsi-pill vlacku-jvozba-add-pill-hint",
+                class: "rafsi-split-left dictionary-jvozba-add-pill dictionary-jvozba-add-pill-hint",
                 r#type: "button",
-                title: "Add fixed rafsi to jvozba",
-                onclick: move |_| add_vlacku_jvozba_item(&mut jvozba_pane, VlackuJvozbaItemKind::FixedRafsi, rafsi_value.clone()),
+                aria_label: "Add rafsi {rafsi} from {source_word}",
+                onclick: move |_| add_vlacku_jvozba_rafsi(
+                    &mut jvozba_pane,
+                    rafsi_value.clone(),
+                    Some(source_value.clone()),
+                ),
+                "{display_rafsi}"
+            }
+        }
+    } else {
+        rsx! { span { class: "rafsi-split-left", "{display_rafsi}" } }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_rafsi_pill(
+    mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    source_word: &str,
+    rafsi: &str,
+) -> Element {
+    let pane_open = jvozba_pane.read().open;
+    let rafsi_value = rafsi.to_owned();
+    let source_value = source_word.to_owned();
+    if pane_open {
+        rsx! {
+            button {
+                class: "chip rafsi-chip dictionary-jvozba-add-pill dictionary-jvozba-add-pill-hint",
+                r#type: "button",
+                aria_label: "Add rafsi {rafsi} from {source_word}",
+                onclick: move |_| add_vlacku_jvozba_rafsi(
+                    &mut jvozba_pane,
+                    rafsi_value.clone(),
+                    Some(source_value.clone()),
+                ),
                 "{rafsi}"
             }
         }
     } else {
-        rsx! { span { class: "vlacku-rafsi-pill", "{rafsi}" } }
+        rsx! { span { class: "chip rafsi-chip", "{rafsi}" } }
     }
 }
 
@@ -809,15 +1057,16 @@ fn render_rafsi_pill(mut jvozba_pane: Signal<VlackuJvozbaPaneState>, rafsi: &str
 fn render_inline_spans(
     spans: &[VlackuInline],
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    base_path: &str,
 ) -> Element {
     rsx! {
         for span in spans.iter() {
             {
-                match span {
-                    VlackuInline::Text(text) => rsx! { "{text}" },
-                    VlackuInline::Place { label } => rsx! { span { class: "vlacku-place-ref", "{label}" } },
-                    VlackuInline::WordRef { label, href } => {
-                        render_vlacku_inline_word_ref(jvozba_pane, label, href)
+                match span.as_data() {
+                    data!(VlackuInline::Text(text)) => rsx! { "{text}" },
+                    data!(VlackuInline::Math(math)) => render_vlacku_math(math),
+                    data!(VlackuInline::WordRef { label, href, can_add_to_jvozba }) => {
+                        render_vlacku_inline_word_ref(jvozba_pane, *can_add_to_jvozba, label, href, base_path)
                     }
                 }
             }
@@ -829,39 +1078,102 @@ fn render_inline_spans(
 #[ensures(true)]
 fn render_vlacku_inline_word_ref(
     mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    can_add_to_jvozba: bool,
     label: &str,
     href: &str,
+    base_path: &str,
 ) -> Element {
     let pane_open = jvozba_pane.read().open;
     let word_value = label.to_owned();
-    if pane_open {
+    let resolved_href = resolved_href_with_base_path(base_path, href);
+    if pane_open && can_add_to_jvozba {
         rsx! {
             button {
-                class: "vlacku-inline-word-ref",
+                class: "dictionary-word-link dictionary-jvozba-add-link-hint",
                 r#type: "button",
                 title: "Add to jvozba",
-                onclick: move |_| add_vlacku_jvozba_item(&mut jvozba_pane, VlackuJvozbaItemKind::Word, word_value.clone()),
+                onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
                 "{label}"
             }
         }
+    } else if pane_open {
+        rsx! {
+            span { class: "dictionary-word-link", "{label}" }
+        }
     } else {
         rsx! {
-            a { class: "vlacku-inline-word-ref", href: "{href}", "{label}" }
+            a { class: "dictionary-word-link dictionary-jvozba-add-link-hint", href: "{resolved_href}", "{label}" }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty() || href.is_empty())]
+fn resolved_href_with_base_path(base_path: &str, href: &str) -> String {
+    if href.starts_with('/') {
+        format!("{}{}", base_path.trim_end_matches('/'), href)
+    } else {
+        href.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_math(math: &VlackuMath) -> Element {
+    rsx! {
+        span { class: "spa-cll-math",
+            math { class: "math-var", display: "inline",
+                mrow {
+                    for part in math.parts.iter() {
+                        { render_vlacku_math_part(part) }
+                    }
+                }
+            }
         }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_vlacku_jvozba_pane(mut jvozba_pane: Signal<VlackuJvozbaPaneState>) -> Element {
+fn render_vlacku_math_part(part: &VlackuMathPart) -> Element {
+    match part.as_data() {
+        data!(VlackuMathPart::Text(text)) => rsx! { mtext { "{text}" } },
+        data!(VlackuMathPart::Operator(text)) => rsx! { mo { "{text}" } },
+        data!(VlackuMathPart::Variable { stem, subscript }) => {
+            let math_stem = math_alphanumeric_stem(stem);
+            if let Some(subscript) = subscript {
+                rsx! {
+                    msub {
+                        mi { "{math_stem}" }
+                        mn { "{subscript}" }
+                    }
+                }
+            } else {
+                rsx! { mi { "{math_stem}" } }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_jvozba_pane(
+    mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
+) -> Element {
     let pane = jvozba_pane.read().clone();
     let output = build_vlacku_jvozba_output(pane.mode, &pane.items);
     rsx! {
-        aside { class: jvozba_pane_class(pane.open),
+        aside {
+            class: "dictionary-jvozba-pane",
+            "data-jvozba-open": if pane.open { "1" } else { "0" },
+            "data-jvozba-pane": "1",
             button {
-                class: "vlacku-jvozba-tab",
+                class: "dictionary-jvozba-tab",
                 r#type: "button",
                 aria_expanded: if pane.open { "true" } else { "false" },
+                aria_controls: "dictionary-jvozba-body",
+                "data-jvozba-toggle": "1",
                 onclick: move |_| {
                     let mut next = jvozba_pane.read().clone();
                     next.open = !next.open;
@@ -869,43 +1181,57 @@ fn render_vlacku_jvozba_pane(mut jvozba_pane: Signal<VlackuJvozbaPaneState>) -> 
                 },
                 "jvozba"
             }
-            if pane.open {
-                div { class: "vlacku-jvozba-body",
-                    div { class: "vlacku-jvozba-toolbar",
-                        button {
-                            class: vlacku_jvozba_mode_class(pane.mode == VlackuJvozbaMode::Lujvo),
-                            r#type: "button",
-                            onclick: move |_| set_vlacku_jvozba_mode(&mut jvozba_pane, VlackuJvozbaMode::Lujvo),
-                            "lujvo"
-                        }
-                        button {
-                            class: vlacku_jvozba_mode_class(pane.mode == VlackuJvozbaMode::Cmevla),
-                            r#type: "button",
-                            onclick: move |_| set_vlacku_jvozba_mode(&mut jvozba_pane, VlackuJvozbaMode::Cmevla),
-                            "cmevla"
-                        }
-                        button {
-                            class: "vlacku-jvozba-clear",
-                            r#type: "button",
-                            disabled: pane.items.is_empty(),
-                            onclick: move |_| {
-                                let mut next = jvozba_pane.read().clone();
-                                next.items.clear();
-                                set_vlacku_jvozba_pane(&mut jvozba_pane, next);
-                            },
-                            "clear"
-                        }
-                    }
-                    if pane.items.is_empty() {
-                        p { class: "vlacku-jvozba-empty", "Click highlighted words or rafsi to add them here." }
-                    } else {
-                        ol { class: "vlacku-jvozba-items",
-                            for (index, item) in pane.items.iter().enumerate() {
-                                { render_jvozba_item(jvozba_pane, index, item) }
+            section {
+                class: "dictionary-jvozba-body",
+                id: "dictionary-jvozba-body",
+                "data-jvozba-body": "1",
+                div { class: "dictionary-jvozba-output",
+                    div { class: "dictionary-jvozba-output-row",
+                        div { class: "dictionary-jvozba-output-controls",
+                            div { class: "dictionary-jvozba-mode-toggle-group", role: "group", aria_label: "jvozba output mode",
+                                button {
+                                    class: vlacku_jvozba_mode_class(pane.mode == VlackuJvozbaMode::Lujvo),
+                                    r#type: "button",
+                                    aria_pressed: pressed_attr(pane.mode == VlackuJvozbaMode::Lujvo),
+                                    onclick: move |_| set_vlacku_jvozba_mode(&mut jvozba_pane, VlackuJvozbaMode::Lujvo),
+                                    "lujvo"
+                                }
+                                button {
+                                    class: vlacku_jvozba_mode_class(pane.mode == VlackuJvozbaMode::Cmevla),
+                                    r#type: "button",
+                                    aria_pressed: pressed_attr(pane.mode == VlackuJvozbaMode::Cmevla),
+                                    onclick: move |_| set_vlacku_jvozba_mode(&mut jvozba_pane, VlackuJvozbaMode::Cmevla),
+                                    "cmevla"
+                                }
+                            }
+                            button {
+                                class: "dictionary-jvozba-clear",
+                                r#type: "button",
+                                disabled: pane.items.is_empty(),
+                                "data-jvozba-clear": "1",
+                                onclick: move |_| clear_vlacku_jvozba_items(&mut jvozba_pane),
+                                "Clear"
                             }
                         }
+                        { render_jvozba_output(&output) }
                     }
-                    { render_jvozba_output(&output) }
+                }
+                if pane.items.is_empty() {
+                    div { class: "dictionary-jvozba-empty", "data-jvozba-empty": "1",
+                        p {
+                            "Click on "
+                            span { class: "dictionary-jvozba-highlighted-word", "highlighted items" }
+                            " to add them here."
+                        }
+                        p { "Added words are represented by their best scoring rafsi." }
+                        p { em { "Added rafsi are used as-is regardless of their score." } }
+                    }
+                } else {
+                    ol { class: "dictionary-jvozba-list", "data-jvozba-list": "1",
+                        for (index, item) in pane.items.iter().enumerate() {
+                            { render_jvozba_item(jvozba_pane, jvozba_drag, index, item) }
+                        }
+                    }
                 }
             }
         }
@@ -916,30 +1242,95 @@ fn render_vlacku_jvozba_pane(mut jvozba_pane: Signal<VlackuJvozbaPaneState>) -> 
 #[ensures(true)]
 fn render_jvozba_item(
     mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    mut jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
     index: usize,
     item: &VlackuJvozbaItem,
 ) -> Element {
+    let drag = *jvozba_drag.read();
+    let is_dragging = drag.is_some_and(|state| state.preview_visible && state.start_index == index);
+    let is_drop_before = drag.is_some_and(|state| {
+        state.preview_visible
+            && state.target_index < state.start_index
+            && state.target_index == index
+    });
+    let is_drop_after = drag.is_some_and(|state| {
+        state.preview_visible
+            && state.target_index > state.start_index
+            && state.target_index == index
+    });
+    let item_class = class_names(
+        "dictionary-jvozba-pane-item",
+        &[
+            ("is-dragging", is_dragging),
+            ("is-drop-before", is_drop_before),
+            ("is-drop-after", is_drop_after),
+        ],
+    );
+    let item_height = drag.map(|state| state.item_height).unwrap_or(32);
+    let item_style = if is_drop_before {
+        format!("--jvozba-drop-gap-before:{item_height}px;")
+    } else if is_drop_after {
+        format!("--jvozba-drop-gap-after:{item_height}px;")
+    } else {
+        String::new()
+    };
     rsx! {
-        li { class: "vlacku-jvozba-item",
-            span { class: "vlacku-jvozba-item-kind", "{jvozba_item_kind_label(item.kind)}" }
-            span { class: "vlacku-jvozba-item-value", "{item.value}" }
-            button {
-                class: "vlacku-jvozba-move",
-                r#type: "button",
-                disabled: index == 0,
-                aria_label: "Move up",
-                onclick: move |_| move_vlacku_jvozba_item(&mut jvozba_pane, index, -1),
-                "↑"
+        li {
+            class: "{item_class}",
+            style: "{item_style}",
+            draggable: "true",
+            "data-jvozba-item-index": "{index}",
+            ondragstart: move |_| start_vlacku_jvozba_drag(&mut jvozba_drag, index),
+            ondragenter: move |event| {
+                event.prevent_default();
+                set_vlacku_jvozba_drag_target(&mut jvozba_drag, index);
+            },
+            ondragover: move |event| {
+                event.prevent_default();
+                set_vlacku_jvozba_drag_target(&mut jvozba_drag, index);
+            },
+            ondrop: move |event| {
+                event.prevent_default();
+                commit_vlacku_jvozba_drag(&mut jvozba_pane, &mut jvozba_drag);
+            },
+            ondragend: move |_| finish_vlacku_jvozba_drag(&mut jvozba_pane, &mut jvozba_drag),
+            div { class: "dictionary-jvozba-item-reorder",
+                div {
+                    class: "dictionary-jvozba-drag-handle",
+                    role: "button",
+                    aria_label: "Drag to reorder",
+                    "data-jvozba-drag-handle": "1",
+                    "::"
+                }
+                button {
+                    class: "sr-only",
+                    r#type: "button",
+                    aria_label: "Move item later",
+                    onclick: move |_| move_vlacku_jvozba_item(&mut jvozba_pane, index, 1),
+                    "Move later"
+                }
+                button {
+                    class: "sr-only",
+                    r#type: "button",
+                    aria_label: "Move item earlier",
+                    onclick: move |_| move_vlacku_jvozba_item(&mut jvozba_pane, index, -1),
+                    "Move earlier"
+                }
+            }
+            div {
+                class: "dictionary-jvozba-pane-item-content",
+                style: "--rafsi-indent-level:{item.indent_level};",
+                if item.indent_level > 0 {
+                    span { class: "dictionary-jvozba-indent-markers", aria_hidden: "true",
+                        for _ in 0..item.indent_level.min(4) {
+                            span { class: "dictionary-jvozba-indent-marker-step", "⇥" }
+                        }
+                    }
+                }
+                { render_jvozba_item_chip(item) }
             }
             button {
-                class: "vlacku-jvozba-move",
-                r#type: "button",
-                aria_label: "Move down",
-                onclick: move |_| move_vlacku_jvozba_item(&mut jvozba_pane, index, 1),
-                "↓"
-            }
-            button {
-                class: "vlacku-jvozba-remove",
+                class: "dictionary-jvozba-item-remove",
                 r#type: "button",
                 aria_label: "Remove",
                 onclick: move |_| remove_vlacku_jvozba_item(&mut jvozba_pane, index),
@@ -951,22 +1342,38 @@ fn render_jvozba_item(
 
 #[requires(true)]
 #[ensures(true)]
+fn render_jvozba_item_chip(item: &VlackuJvozbaItem) -> Element {
+    match item.kind {
+        VlackuJvozbaItemKind::FixedRafsi => {
+            let source_label = item.source.as_deref().unwrap_or("rafsi");
+            rsx! {
+                span { class: "rafsi-split-pill dictionary-jvozba-pane-rafsi-pill",
+                    span { class: "rafsi-split-left", "{item.value}" }
+                    span { class: "rafsi-split-right", "{source_label}" }
+                }
+            }
+        }
+        VlackuJvozbaItemKind::Word => rsx! {
+            span { class: "chip dictionary-jvozba-pane-word-chip", "{item.value}" }
+        },
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn render_jvozba_output(output: &VlackuJvozbaOutput) -> Element {
     match output {
         VlackuJvozbaOutput::Empty => rsx! {},
         VlackuJvozbaOutput::NeedsMore => rsx! {
-            div { class: "vlacku-jvozba-output is-muted", "Add at least two items." }
+            p { class: "dictionary-jvozba-output-line is-pending", "Add at least two words or rafsi." }
         },
         VlackuJvozbaOutput::Error { message } => rsx! {
-            div { class: "vlacku-jvozba-output is-error", "{message}" }
+            p { class: "dictionary-jvozba-output-line is-error", "{message}" }
         },
-        VlackuJvozbaOutput::Success { word, segments } => rsx! {
-            div { class: "vlacku-jvozba-output",
-                div { class: "vlacku-jvozba-word", "{word}" }
-                div { class: "vlacku-jvozba-segments",
-                    for segment in segments.iter() {
-                        span { class: jvozba_segment_class(segment.kind), "{segment.text}" }
-                    }
+        VlackuJvozbaOutput::Success { word: _, segments } => rsx! {
+            p { class: "dictionary-jvozba-output-line",
+                for segment in segments.iter() {
+                    span { class: jvozba_segment_class(segment.tone), "{segment.text}" }
                 }
             }
         },
@@ -977,9 +1384,9 @@ fn render_jvozba_output(output: &VlackuJvozbaOutput) -> Element {
 #[ensures(!ret.is_empty())]
 fn vlacku_mode_class(active: bool) -> &'static str {
     if active {
-        "vlacku-mode-button active"
+        "dictionary-mode-toggle active"
     } else {
-        "vlacku-mode-button"
+        "dictionary-mode-toggle"
     }
 }
 
@@ -1015,34 +1422,22 @@ fn vlacku_query_placeholder(mode: VlackuWebMode) -> &'static str {
 #[ensures(!ret.is_empty())]
 fn word_type_filter_class(section: VlackuWordTypeSection, parent: bool) -> &'static str {
     match (section, parent) {
-        (VlackuWordTypeSection::Brivla, true) => "vlacku-filter is-brivla-parent",
-        (VlackuWordTypeSection::Brivla, false) => "vlacku-filter is-brivla-child",
-        (VlackuWordTypeSection::Cmavo, _) => "vlacku-filter is-cmavo",
-        (VlackuWordTypeSection::Cmevla, _) => "vlacku-filter is-cmevla",
-        (VlackuWordTypeSection::Other, _) => "vlacku-filter is-other",
+        (VlackuWordTypeSection::Brivla, true) => "compact-check compact-check-brivla",
+        _ => "compact-check",
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn toggle_vlacku_word_type(vlacku_state: &mut Signal<VlackuWebState>, value: &str) {
-    let mut next = vlacku_state.read().clone();
-    if next.word_types.iter().any(|candidate| candidate == value) {
-        next.word_types.retain(|candidate| candidate != value);
-    } else {
-        if value == "brivla" {
-            next.word_types.retain(|candidate| {
-                !candidate.contains("gismu")
-                    && !candidate.contains("lujvo")
-                    && !candidate.contains("fu'ivla")
-            });
-        } else if value.contains("gismu") || value.contains("lujvo") || value.contains("fu'ivla") {
-            next.word_types.retain(|candidate| candidate != "brivla");
-        }
-        next.word_types.push(value.to_owned());
-    }
+fn toggle_vlacku_word_type(
+    vlacku_draft_state: &mut Signal<VlackuWebState>,
+    vlacku_committed_state: &mut Signal<VlackuWebState>,
+    value: &str,
+) {
+    let mut next = vlacku_draft_state.read().clone();
+    next.word_types = toggle_vlacku_word_type_selection(&next.word_types, value);
     next.count = VLACKU_WEB_DEFAULT_COUNT;
-    vlacku_state.set(next);
+    set_vlacku_state_immediate(vlacku_draft_state, vlacku_committed_state, next);
 }
 
 #[requires(true)]
@@ -1055,9 +1450,13 @@ fn format_similarity(value: f32) -> String {
 #[ensures(!ret.is_empty())]
 fn vote_class(value: &str) -> &'static str {
     if value == "∞" {
-        "vlacku-card-meta vlacku-votes is-official"
+        "dictionary-meta-segment dictionary-meta-tooltip dictionary-vote-tag is-official"
+    } else if parsed_vote_value(value).is_some_and(|count| count >= 5) {
+        "dictionary-meta-segment dictionary-meta-tooltip dictionary-vote-tag is-high"
+    } else if parsed_vote_value(value).is_some_and(|count| count >= 2) {
+        "dictionary-meta-segment dictionary-meta-tooltip dictionary-vote-tag is-medium"
     } else {
-        "vlacku-card-meta vlacku-votes"
+        "dictionary-meta-segment dictionary-meta-tooltip dictionary-vote-tag is-low"
     }
 }
 
@@ -1065,60 +1464,73 @@ fn vote_class(value: &str) -> &'static str {
 #[ensures(!ret.is_empty())]
 fn vote_title(value: &str) -> &'static str {
     if value == "∞" {
-        "Official word"
+        "Official baseline lexicon word. The infinity marker replaces the raw Lensisku community tally once the official-word threshold is exceeded."
     } else {
-        "Dictionary vote count"
+        "Community upvote/downvote tally from Lensisku contributors."
     }
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn jvozba_pane_class(open: bool) -> &'static str {
-    if open {
-        "vlacku-jvozba-pane is-open"
-    } else {
-        "vlacku-jvozba-pane"
-    }
+#[ensures(true)]
+fn parsed_vote_value(value: &str) -> Option<i32> {
+    value.trim_start_matches('+').parse().ok()
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn vlacku_jvozba_mode_class(active: bool) -> &'static str {
     if active {
-        "vlacku-jvozba-mode active"
+        "dictionary-jvozba-mode-toggle active"
     } else {
-        "vlacku-jvozba-mode"
+        "dictionary-jvozba-mode-toggle"
     }
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn jvozba_item_kind_label(kind: VlackuJvozbaItemKind) -> &'static str {
-    match kind {
-        VlackuJvozbaItemKind::Word => "word",
-        VlackuJvozbaItemKind::FixedRafsi => "rafsi",
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn jvozba_segment_class(kind: VlackuJvozbaSegmentKind) -> &'static str {
-    match kind {
-        VlackuJvozbaSegmentKind::Rafsi => "vlacku-jvozba-segment is-rafsi",
-        VlackuJvozbaSegmentKind::Hyphen => "vlacku-jvozba-segment is-hyphen",
+fn jvozba_segment_class(tone: VlackuJvozbaSegmentTone) -> &'static str {
+    match tone {
+        VlackuJvozbaSegmentTone::RafsiA => "dictionary-jvozba-output-segment is-rafsi-a",
+        VlackuJvozbaSegmentTone::RafsiB => "dictionary-jvozba-output-segment is-rafsi-b",
+        VlackuJvozbaSegmentTone::Hyphen => "dictionary-jvozba-output-segment is-hyphen",
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn add_vlacku_jvozba_item(
-    jvozba_pane: &mut Signal<VlackuJvozbaPaneState>,
-    kind: VlackuJvozbaItemKind,
-    value: String,
-) {
+fn add_vlacku_jvozba_word(jvozba_pane: &mut Signal<VlackuJvozbaPaneState>, value: String) {
+    if value.trim().is_empty() {
+        return;
+    }
     let mut next = jvozba_pane.read().clone();
     next.open = true;
-    next.items.push(VlackuJvozbaItem { kind, value });
+    next.items.push(VlackuJvozbaItem {
+        kind: VlackuJvozbaItemKind::Word,
+        value: value.trim().to_owned(),
+        source: None,
+        indent_level: 0,
+    });
+    set_vlacku_jvozba_pane(jvozba_pane, next);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn add_vlacku_jvozba_rafsi(
+    jvozba_pane: &mut Signal<VlackuJvozbaPaneState>,
+    value: String,
+    source: Option<String>,
+) {
+    if value.trim().is_empty() {
+        return;
+    }
+    let mut next = jvozba_pane.read().clone();
+    next.open = true;
+    next.items.push(VlackuJvozbaItem {
+        kind: VlackuJvozbaItemKind::FixedRafsi,
+        value: value.trim().to_owned(),
+        source: source.map(|value| value.trim().to_owned()),
+        indent_level: 0,
+    });
     set_vlacku_jvozba_pane(jvozba_pane, next);
 }
 
@@ -1155,6 +1567,87 @@ fn remove_vlacku_jvozba_item(jvozba_pane: &mut Signal<VlackuJvozbaPaneState>, in
         next.items.remove(index);
         set_vlacku_jvozba_pane(jvozba_pane, next);
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn clear_vlacku_jvozba_items(jvozba_pane: &mut Signal<VlackuJvozbaPaneState>) {
+    let mut next = jvozba_pane.read().clone();
+    next.items.clear();
+    set_vlacku_jvozba_pane(jvozba_pane, next);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn start_vlacku_jvozba_drag(jvozba_drag: &mut Signal<Option<VlackuJvozbaDragState>>, index: usize) {
+    let state = VlackuJvozbaDragState {
+        start_index: index,
+        target_index: index,
+        item_height: measure_vlacku_jvozba_item_height(index)
+            .filter(|height| *height > 0)
+            .unwrap_or(32),
+        preview_visible: true,
+    };
+    jvozba_drag.set(Some(state));
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_vlacku_jvozba_drag_target(
+    jvozba_drag: &mut Signal<Option<VlackuJvozbaDragState>>,
+    index: usize,
+) {
+    let current = *jvozba_drag.read();
+    if let Some(mut state) = current {
+        state.target_index = index;
+        jvozba_drag.set(Some(state));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn commit_vlacku_jvozba_drag(
+    jvozba_pane: &mut Signal<VlackuJvozbaPaneState>,
+    jvozba_drag: &mut Signal<Option<VlackuJvozbaDragState>>,
+) {
+    let Some(state) = *jvozba_drag.read() else {
+        return;
+    };
+    let mut next = jvozba_pane.read().clone();
+    if state.start_index < next.items.len() && state.target_index < next.items.len() {
+        let item = next.items.remove(state.start_index);
+        next.items.insert(state.target_index, item);
+        set_vlacku_jvozba_pane(jvozba_pane, next);
+    }
+    jvozba_drag.set(None);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn finish_vlacku_jvozba_drag(
+    jvozba_pane: &mut Signal<VlackuJvozbaPaneState>,
+    jvozba_drag: &mut Signal<Option<VlackuJvozbaDragState>>,
+) {
+    let Some(state) = *jvozba_drag.read() else {
+        return;
+    };
+    if state.start_index != state.target_index {
+        commit_vlacku_jvozba_drag(jvozba_pane, jvozba_drag);
+    } else {
+        jvozba_drag.set(None);
+    }
+}
+
+#[requires(!base.is_empty())]
+#[ensures(!ret.is_empty())]
+fn class_names(base: &str, conditional: &[(&str, bool)]) -> String {
+    let mut classes = vec![base.to_owned()];
+    classes.extend(
+        conditional
+            .iter()
+            .filter_map(|(class, enabled)| enabled.then_some((*class).to_owned())),
+    );
+    classes.join(" ")
 }
 
 #[requires(true)]
@@ -2336,6 +2829,72 @@ fn logical_current_path() -> String {
     path.strip_prefix("/jbotci").unwrap_or(&path).to_owned()
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn set_vlacku_state_immediate(
+    draft_state: &mut Signal<VlackuWebState>,
+    committed_state: &mut Signal<VlackuWebState>,
+    state: VlackuWebState,
+) {
+    clear_vlacku_search_timer();
+    draft_state.set(state.clone());
+    committed_state.set(state);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_vlacku_search_commit(
+    mut committed_state: Signal<VlackuWebState>,
+    state: VlackuWebState,
+) {
+    let Some(window) = web_sys::window() else {
+        committed_state.set(state);
+        return;
+    };
+    clear_vlacku_search_timer();
+    let closure = Closure::once(move || {
+        committed_state.set(state);
+    });
+    if let Ok(handle) = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        closure.as_ref().unchecked_ref(),
+        VLACKU_SEARCH_DEBOUNCE_MS,
+    ) {
+        VLACKU_SEARCH_TIMER.with(|timer| timer.set(Some(handle)));
+        closure.forget();
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_vlacku_search_commit(
+    mut committed_state: Signal<VlackuWebState>,
+    state: VlackuWebState,
+) {
+    let _ = VLACKU_SEARCH_DEBOUNCE_MS;
+    committed_state.set(state);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn clear_vlacku_search_timer() {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    VLACKU_SEARCH_TIMER.with(|timer| {
+        if let Some(handle) = timer.replace(None) {
+            window.clear_timeout_with_handle(handle);
+        }
+    });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn clear_vlacku_search_timer() {}
+
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
@@ -2368,7 +2927,7 @@ fn schedule_vlacku_url_push(base_path: &str, state: &VlackuWebState) {
     });
     if let Ok(handle) = window.set_timeout_with_callback_and_timeout_and_arguments_0(
         closure.as_ref().unchecked_ref(),
-        450,
+        VLACKU_URL_DEBOUNCE_MS,
     ) {
         VLACKU_URL_TIMER.with(|timer| timer.set(Some(handle)));
         closure.forget();
@@ -2379,6 +2938,7 @@ fn schedule_vlacku_url_push(base_path: &str, state: &VlackuWebState) {
 #[requires(true)]
 #[ensures(true)]
 fn schedule_vlacku_url_push(base_path: &str, state: &VlackuWebState) {
+    let _ = VLACKU_URL_DEBOUNCE_MS;
     let _ = (base_path, state);
 }
 
@@ -2397,6 +2957,84 @@ fn current_path() -> String {
 #[ensures(ret.starts_with('/'))]
 fn current_path() -> String {
     "/gentufa".to_owned()
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn set_brivla_toggle_indeterminate(indeterminate: bool) {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Ok(Some(element)) = document.query_selector("input[data-brivla-toggle='1']") else {
+        return;
+    };
+    if let Some(input) = element.dyn_ref::<web_sys::HtmlInputElement>() {
+        input.set_indeterminate(indeterminate);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn set_brivla_toggle_indeterminate(_indeterminate: bool) {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn sync_vlacku_jvozba_pane_metrics() {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let Some(document) = window.document() else {
+        return;
+    };
+    let Ok(Some(pane)) = document.query_selector("[data-jvozba-pane='1']") else {
+        return;
+    };
+    let Some(pane) = pane.dyn_ref::<web_sys::HtmlElement>() else {
+        return;
+    };
+    let topbar_bottom = document
+        .query_selector(".app-topbar")
+        .ok()
+        .flatten()
+        .map(|element| element.get_bounding_client_rect().bottom())
+        .unwrap_or(0.0);
+    let viewport_height = window
+        .inner_height()
+        .ok()
+        .and_then(|value| value.as_f64())
+        .unwrap_or(720.0);
+    let top = topbar_bottom + 12.0;
+    let bottom = 12.0;
+    let height = (viewport_height - top - bottom).max(280.0);
+    let style = pane.style();
+    let _ = style.set_property("--jvozba-pane-top", &format!("{top}px"));
+    let _ = style.set_property("--jvozba-pane-bottom", &format!("{bottom}px"));
+    let _ = style.set_property("--jvozba-pane-height", &format!("{height}px"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn sync_vlacku_jvozba_pane_metrics() {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn measure_vlacku_jvozba_item_height(index: usize) -> Option<usize> {
+    let document = web_sys::window()?.document()?;
+    let selector = format!("[data-jvozba-item-index='{index}']");
+    let element = document.query_selector(&selector).ok().flatten()?;
+    Some(element.get_bounding_client_rect().height().round().max(1.0) as usize)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn measure_vlacku_jvozba_item_height(_index: usize) -> Option<usize> {
+    None
 }
 
 #[requires(true)]
@@ -2483,7 +3121,10 @@ fn save_settings(settings: &UserSettings) {
 #[requires(true)]
 #[ensures(true)]
 fn load_vlacku_jvozba_pane_state() -> VlackuJvozbaPaneState {
-    let open = storage_get("jbotci.vlacku.jvozba.open.v1").as_deref() == Some("true");
+    let open = matches!(
+        storage_get("jbotci.vlacku.jvozba.open.v1").as_deref(),
+        Some("1" | "true")
+    );
     let mode = storage_get("jbotci.vlacku.jvozba.mode.v1")
         .as_deref()
         .and_then(parse_vlacku_jvozba_mode)
@@ -2499,7 +3140,7 @@ fn load_vlacku_jvozba_pane_state() -> VlackuJvozbaPaneState {
 fn save_vlacku_jvozba_pane_state(state: &VlackuJvozbaPaneState) {
     storage_set(
         "jbotci.vlacku.jvozba.open.v1",
-        if state.open { "true" } else { "false" },
+        if state.open { "1" } else { "0" },
     );
     storage_set(
         "jbotci.vlacku.jvozba.mode.v1",
@@ -2510,12 +3151,7 @@ fn save_vlacku_jvozba_pane_state(state: &VlackuJvozbaPaneState) {
     );
     storage_set(
         "jbotci.vlacku.jvozba.items.v1",
-        &state
-            .items
-            .iter()
-            .map(format_vlacku_jvozba_item)
-            .collect::<Vec<_>>()
-            .join("\n"),
+        &format_vlacku_jvozba_items(&state.items),
     );
 }
 
@@ -2532,6 +3168,54 @@ fn parse_vlacku_jvozba_mode(value: &str) -> Option<VlackuJvozbaMode> {
 #[requires(true)]
 #[ensures(true)]
 fn parse_vlacku_jvozba_items(raw: &str) -> Vec<VlackuJvozbaItem> {
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(raw) {
+        if let Some(items) = value.as_array() {
+            return items
+                .iter()
+                .filter_map(parse_vlacku_jvozba_json_item)
+                .collect();
+        }
+    }
+    parse_vlacku_jvozba_legacy_items(raw)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_vlacku_jvozba_json_item(value: &serde_json::Value) -> Option<VlackuJvozbaItem> {
+    let object = value.as_object()?;
+    let kind_text = object.get("kind")?.as_str()?;
+    let item_kind = match kind_text {
+        "word" => VlackuJvozbaItemKind::Word,
+        "rafsi" | "fixed-rafsi" => VlackuJvozbaItemKind::FixedRafsi,
+        _ => return None,
+    };
+    let item_value = object.get("value")?.as_str()?.trim();
+    if item_value.is_empty() {
+        return None;
+    }
+    let source = object
+        .get("source")
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned);
+    let indent_level = object
+        .get("indentLevel")
+        .or_else(|| object.get("indent_level"))
+        .and_then(serde_json::Value::as_u64)
+        .map(|value| value as usize)
+        .unwrap_or(0);
+    Some(VlackuJvozbaItem {
+        kind: item_kind,
+        value: item_value.to_owned(),
+        source,
+        indent_level,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_vlacku_jvozba_legacy_items(raw: &str) -> Vec<VlackuJvozbaItem> {
     raw.lines()
         .filter_map(|line| {
             let (kind, value) = line.split_once('\t')?;
@@ -2543,19 +3227,31 @@ fn parse_vlacku_jvozba_items(raw: &str) -> Vec<VlackuJvozbaItem> {
             (!value.is_empty()).then(|| VlackuJvozbaItem {
                 kind: item_kind,
                 value: value.to_owned(),
+                source: None,
+                indent_level: 0,
             })
         })
         .collect()
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty() || item.value.is_empty())]
-fn format_vlacku_jvozba_item(item: &VlackuJvozbaItem) -> String {
-    let kind = match item.kind {
-        VlackuJvozbaItemKind::Word => "word",
-        VlackuJvozbaItemKind::FixedRafsi => "rafsi",
-    };
-    format!("{kind}\t{}", item.value.replace('\n', " "))
+#[ensures(!ret.is_empty())]
+fn format_vlacku_jvozba_items(items: &[VlackuJvozbaItem]) -> String {
+    let values = items
+        .iter()
+        .map(|item| {
+            serde_json::json!({
+                "kind": match item.kind {
+                    VlackuJvozbaItemKind::Word => "word",
+                    VlackuJvozbaItemKind::FixedRafsi => "rafsi",
+                },
+                "value": item.value.as_str(),
+                "source": item.source.as_deref(),
+                "indentLevel": item.indent_level,
+            })
+        })
+        .collect::<Vec<_>>();
+    serde_json::to_string(&values).unwrap_or_else(|_| "[]".to_owned())
 }
 
 #[requires(true)]
@@ -2608,4 +3304,92 @@ fn storage_set(key: &str, value: &str) {
 #[ensures(ret.gentufa)]
 fn _feature_availability_for_linking() -> WebFeatureAvailability {
     WebFeatureAvailability::default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_search_debounce_is_longer_than_url_debounce() {
+        assert_eq!(VLACKU_SEARCH_DEBOUNCE_MS, 900);
+        assert!(VLACKU_SEARCH_DEBOUNCE_MS > VLACKU_URL_DEBOUNCE_MS);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_jvozba_storage_reads_v0_json_items() {
+        let raw = r#"
+            [
+              {"kind":"word","value":"cmene","indentLevel":2},
+              {"kind":"rafsi","value":"vla","source":"valsi"}
+            ]
+        "#;
+
+        let items = parse_vlacku_jvozba_items(raw);
+        assert_eq!(
+            items,
+            vec![
+                VlackuJvozbaItem {
+                    kind: VlackuJvozbaItemKind::Word,
+                    value: "cmene".to_owned(),
+                    source: None,
+                    indent_level: 2,
+                },
+                VlackuJvozbaItem {
+                    kind: VlackuJvozbaItemKind::FixedRafsi,
+                    value: "vla".to_owned(),
+                    source: Some("valsi".to_owned()),
+                    indent_level: 0,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_jvozba_storage_migrates_legacy_newline_items() {
+        let items = parse_vlacku_jvozba_items("word\tcmene\nrafsi\tvla\nbad\tno\nword\t");
+
+        assert_eq!(
+            items,
+            vec![
+                VlackuJvozbaItem {
+                    kind: VlackuJvozbaItemKind::Word,
+                    value: "cmene".to_owned(),
+                    source: None,
+                    indent_level: 0,
+                },
+                VlackuJvozbaItem {
+                    kind: VlackuJvozbaItemKind::FixedRafsi,
+                    value: "vla".to_owned(),
+                    source: None,
+                    indent_level: 0,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_jvozba_storage_writes_v0_json_shape() {
+        let raw = format_vlacku_jvozba_items(&[VlackuJvozbaItem {
+            kind: VlackuJvozbaItemKind::FixedRafsi,
+            value: "vla".to_owned(),
+            source: Some("valsi".to_owned()),
+            indent_level: 1,
+        }]);
+
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&raw).expect("valid json"),
+            serde_json::json!([
+                {"kind":"rafsi","value":"vla","source":"valsi","indentLevel":1}
+            ])
+        );
+    }
 }
