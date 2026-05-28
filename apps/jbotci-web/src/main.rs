@@ -533,7 +533,7 @@ fn render_vlacku_controls(
     rsx! {
         div { class: "dictionary-form",
             div { class: "dictionary-controls",
-                div { class: "dictionary-fieldset dictionary-mode-fieldset",
+                div { class: "dictionary-mode-control",
                     div { class: "mode-toggle-row",
                         div { class: "mode-selector-wrap",
                             div { class: "mode-bracket-row", aria_hidden: "true",
@@ -549,7 +549,7 @@ fn render_vlacku_controls(
                         }
                     }
                 }
-                div { class: "dictionary-fieldset",
+                div { class: "dictionary-word-type-control",
                     { render_vlacku_word_type_controls(vlacku_draft_state, vlacku_committed_state, word_type_options) }
                 }
             }
@@ -617,20 +617,29 @@ fn render_vlacku_word_type_controls(
 ) -> Element {
     rsx! {
         div { class: "word-type-grid", aria_label: "Word type filters",
-            div { class: "brivla-filter-group",
-                div { class: "brivla-filter-parent",
-                    { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "brivla") }
-                }
-                div { class: "brivla-filter-children",
-                    { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "gismu") }
-                    { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "lujvo") }
-                    { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "fu'ivla") }
-                }
+            div { class: "word-type-divider", aria_hidden: "true" }
+            div { class: "word-type-cell word-type-cell-brivla",
+                { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "brivla") }
             }
-            div { class: "other-filter-grid",
+            div { class: "word-type-cell word-type-cell-gismu",
+                { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "gismu") }
+            }
+            div { class: "word-type-cell word-type-cell-cmavo",
                 { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "cmavo") }
+            }
+            div { class: "word-type-cell word-type-cell-letteral",
                 { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "letteral") }
+            }
+            div { class: "word-type-cell word-type-cell-fuhivla",
+                { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "fu'ivla") }
+            }
+            div { class: "word-type-cell word-type-cell-lujvo",
+                { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "lujvo") }
+            }
+            div { class: "word-type-cell word-type-cell-cmevla",
                 { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "cmevla") }
+            }
+            div { class: "word-type-cell word-type-cell-phrase",
                 { render_word_type_filter_value(vlacku_draft_state, vlacku_committed_state, options, "phrase") }
             }
         }
@@ -662,8 +671,11 @@ fn render_word_type_filter(
     let value = option.value.clone();
     let is_parent = value == "brivla";
     let filter_class = class_names(
-        word_type_filter_class(option.section, is_parent),
-        &[("is-selected", option.selected)],
+        "compact-check",
+        &[
+            ("is-selected", option.selected),
+            ("is-indeterminate", option.indeterminate),
+        ],
     );
     rsx! {
         label {
@@ -1448,19 +1460,10 @@ fn vlacku_mode_title(mode: VlackuWebMode, disabled: bool) -> &'static str {
 #[ensures(!ret.is_empty())]
 fn vlacku_query_placeholder(mode: VlackuWebMode) -> &'static str {
     match mode {
-        VlackuWebMode::Word => "word",
+        VlackuWebMode::Word => "valsi",
         VlackuWebMode::Rafsi => "rafsi",
-        VlackuWebMode::Sound => "sound or [IPA]",
+        VlackuWebMode::Sound => "Lojban or [aj piː ej]",
         VlackuWebMode::Meaning => "meaning search disabled",
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn word_type_filter_class(section: VlackuWordTypeSection, parent: bool) -> &'static str {
-    match (section, parent) {
-        (VlackuWordTypeSection::Brivla, true) => "compact-check compact-check-brivla",
-        _ => "compact-check",
     }
 }
 
