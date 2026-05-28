@@ -216,6 +216,7 @@ pub enum CllEbnfToken {
 #[invariant(::LujvoMaking { .. } => true)]
 #[invariant(::GrammarTemplate { .. } => true)]
 #[invariant(::Ebnf { .. } => true)]
+#[invariant(::DisplayMath { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CllBlock {
@@ -276,6 +277,7 @@ pub enum CllBlock {
     InterlinearGloss {
         id: Option<String>,
         aligned: bool,
+        itemized: bool,
         rows: Vec<CllInterlinearRow>,
         natlang: Vec<Vec<CllInline>>,
         comments: Vec<Vec<CllInline>>,
@@ -301,6 +303,12 @@ pub enum CllBlock {
     Ebnf {
         id: Option<String>,
         entries: Vec<CllEbnfEntry>,
+    },
+    DisplayMath {
+        id: Option<String>,
+        text: String,
+        latex: String,
+        markup: String,
     },
 }
 
@@ -356,10 +364,27 @@ pub enum CllInline {
     },
     InlineMath {
         text: String,
+        latex: String,
+        markup: String,
     },
     Anchor {
         id: String,
     },
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CllMathDisplay {
+    Inline,
+    Block,
+}
+
+#[invariant(markup.starts_with("<math") && markup.ends_with("</math>"))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CllMathRender {
+    text: String,
+    latex: String,
+    markup: String,
 }
 
 #[invariant(true)]
@@ -918,6 +943,17 @@ fn parse_block(
             .then_some(CllBlock::Heading { level: 3, title })
             .into_iter()
             .collect();
+    }
+    if node.has_tag_name("dbmath") || node.has_tag_name("math") {
+        let rendered = render_math_node(node, CllMathDisplay::Block).into_data();
+        return Some(CllBlock::DisplayMath {
+            id: block_anchor_id_for("math", anchor_mode, context, node),
+            text: rendered.text,
+            latex: rendered.latex,
+            markup: rendered.markup,
+        })
+        .into_iter()
+        .collect();
     }
     if node.has_tag_name("blockquote") {
         let blocks = parse_blocks_from_nodes(
@@ -1658,9 +1694,13 @@ fn parse_inline_nodes(nodes: &[Node<'_, '_>]) -> Vec<CllInline> {
                     });
                 }
                 "dbmath" | "dbinlinemath" | "mmlmath" | "mmlinlinemath" | "math" => {
-                    let text = visible_text(*child);
-                    if !text.is_empty() {
-                        inlines.push(CllInline::InlineMath { text });
+                    let rendered = render_math_node(*child, CllMathDisplay::Inline).into_data();
+                    if !rendered.text.is_empty() || !rendered.markup.is_empty() {
+                        inlines.push(CllInline::InlineMath {
+                            text: rendered.text,
+                            latex: rendered.latex,
+                            markup: rendered.markup,
+                        });
                     }
                 }
                 _ => {
@@ -1682,6 +1722,9 @@ fn parse_inline_nodes(nodes: &[Node<'_, '_>]) -> Vec<CllInline> {
 fn push_text_inline(inlines: &mut Vec<CllInline>, text: &str) {
     let normalized = normalize_text_fragment(text);
     if normalized.trim().is_empty() {
+        if !inlines.is_empty() && !normalized.is_empty() {
+            inlines.push(CllInline::Text(normalized));
+        }
         return;
     }
     let piece = if inlines.is_empty() {
@@ -1708,6 +1751,285 @@ fn merge_adjacent_text_inlines(inlines: Vec<CllInline>) -> Vec<CllInline> {
         }
     }
     merged
+}
+
+#[requires(node.is_element())]
+#[ensures(!ret.markup.is_empty())]
+fn render_math_node(node: Node<'_, '_>, display: CllMathDisplay) -> CllMathRender {
+    let text = normalized_plain_text(&raw_text(node));
+    let latex = render_math_latex_node(node);
+    let tag_name = node.tag_name().name();
+    let markup = if tag_name == "math" {
+        render_math_element(node)
+    } else {
+        let display_attr = match display {
+            CllMathDisplay::Inline => "",
+            CllMathDisplay::Block => " display=\"block\"",
+        };
+        format!("<math{display_attr}>{}</math>", render_math_body(node))
+    };
+    new!(CllMathRender {
+        text,
+        latex,
+        markup,
+    })
+}
+
+#[requires(node.is_element())]
+#[ensures(!ret.is_empty())]
+fn render_math_body(node: Node<'_, '_>) -> String {
+    let rendered = render_math_nodes(node);
+    if rendered.is_empty() {
+        format!(
+            "<mtext>{}</mtext>",
+            escape_html(&normalized_plain_text(&raw_text(node)))
+        )
+    } else {
+        rendered
+    }
+}
+
+#[requires(parent.is_element())]
+#[ensures(true)]
+fn render_math_nodes(parent: Node<'_, '_>) -> String {
+    let mut parts = Vec::new();
+    for child in parent.children() {
+        if child.is_text() {
+            let text = child.text().unwrap_or_default().trim();
+            if !text.is_empty() {
+                parts.push(format!("<mtext>{}</mtext>", escape_html(text)));
+            }
+        } else if child.is_element() {
+            let child_tag = child.tag_name().name();
+            match child_tag {
+                "superscript" => attach_math_script(&mut parts, "msup", render_math_script(child)),
+                "subscript" => attach_math_script(&mut parts, "msub", render_math_script(child)),
+                "indexterm" => {}
+                _ if is_math_ml_tag_name(child_tag) => parts.push(render_math_element(child)),
+                _ => {
+                    let rendered = render_math_nodes(child);
+                    if !rendered.is_empty() {
+                        parts.push(rendered);
+                    }
+                }
+            }
+        }
+    }
+    parts.concat()
+}
+
+#[requires(node.is_element())]
+#[ensures(!ret.is_empty())]
+fn render_math_script(node: Node<'_, '_>) -> String {
+    let rendered = render_math_nodes(node);
+    if rendered.is_empty() {
+        "<mtext></mtext>".to_owned()
+    } else {
+        rendered
+    }
+}
+
+#[requires(!tag_name.is_empty())]
+#[ensures(true)]
+fn attach_math_script(parts: &mut Vec<String>, tag_name: &str, script: String) {
+    let base = parts.pop().unwrap_or_else(|| "<mtext></mtext>".to_owned());
+    parts.push(format!(
+        "<{tag_name}><mrow>{base}</mrow><mrow>{script}</mrow></{tag_name}>"
+    ));
+}
+
+#[requires(node.is_element())]
+#[ensures(!ret.is_empty())]
+fn render_math_element(node: Node<'_, '_>) -> String {
+    let tag_name = node.tag_name().name();
+    let attrs = node
+        .attributes()
+        .map(|attribute| {
+            format!(
+                " {}=\"{}\"",
+                escape_html(attribute.name()),
+                escape_html(attribute.value())
+            )
+        })
+        .collect::<String>();
+    format!(
+        "<{tag_name}{attrs}>{}</{tag_name}>",
+        render_math_nodes(node)
+    )
+}
+
+#[requires(!tag_name.is_empty())]
+#[ensures(true)]
+fn is_math_ml_tag_name(tag_name: &str) -> bool {
+    matches!(
+        tag_name,
+        "math"
+            | "mrow"
+            | "mfrac"
+            | "msqrt"
+            | "mroot"
+            | "msub"
+            | "msup"
+            | "msubsup"
+            | "munder"
+            | "mover"
+            | "munderover"
+            | "mi"
+            | "mn"
+            | "mo"
+            | "mtext"
+            | "mtable"
+            | "mtr"
+            | "mtd"
+            | "mlabeledtr"
+            | "mstyle"
+            | "mspace"
+            | "mfenced"
+            | "menclose"
+            | "semantics"
+            | "annotation"
+            | "annotation-xml"
+    )
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn render_math_latex_node(node: Node<'_, '_>) -> String {
+    match node.tag_name().name() {
+        "superscript" => format!("^{{{}}}", render_math_latex_children(node)),
+        "subscript" => format!("_{{{}}}", render_math_latex_children(node)),
+        "math" | "mrow" | "mstyle" | "semantics" | "annotation" | "annotation-xml" => {
+            render_math_latex_children(node)
+        }
+        "mfrac" => {
+            let children = math_latex_child_elements(node);
+            let numerator = children
+                .first()
+                .map(|child| render_math_latex_node(*child))
+                .unwrap_or_default();
+            let denominator = children
+                .get(1)
+                .map(|child| render_math_latex_node(*child))
+                .unwrap_or_default();
+            format!("\\frac{{{numerator}}}{{{denominator}}}")
+        }
+        "msqrt" => format!("\\sqrt{{{}}}", render_math_latex_children(node)),
+        "mroot" => {
+            let children = math_latex_child_elements(node);
+            let body = children
+                .first()
+                .map(|child| render_math_latex_node(*child))
+                .unwrap_or_default();
+            let root = children
+                .get(1)
+                .map(|child| render_math_latex_node(*child))
+                .unwrap_or_default();
+            format!("\\sqrt[{root}]{{{body}}}")
+        }
+        "msub" | "msup" | "msubsup" | "munder" | "mover" | "munderover" => {
+            render_math_latex_scripted(node)
+        }
+        "mfenced" => format!("({})", render_math_latex_children(node)),
+        "mtable" => format!(
+            "\\begin{{matrix}}{}\\end{{matrix}}",
+            render_math_latex_table(node)
+        ),
+        "mtr" | "mlabeledtr" => render_math_latex_row(node),
+        "mtd" => render_math_latex_children(node),
+        "mi" | "mn" | "mo" | "mtext" => math_latex_text(&raw_text(node)),
+        "mspace" => " ".to_owned(),
+        "indexterm" => String::new(),
+        _ => render_math_latex_children(node),
+    }
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn render_math_latex_children(node: Node<'_, '_>) -> String {
+    let mut output = String::new();
+    for child in node.children() {
+        if child.is_text() {
+            output.push_str(&math_latex_text(child.text().unwrap_or_default()));
+        } else if child.is_element() {
+            output.push_str(&render_math_latex_node(child));
+        }
+    }
+    normalized_plain_text(&output)
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn render_math_latex_scripted(node: Node<'_, '_>) -> String {
+    let children = math_latex_child_elements(node);
+    let base = children
+        .first()
+        .map(|child| render_math_latex_node(*child))
+        .unwrap_or_default();
+    let first_script = children
+        .get(1)
+        .map(|child| render_math_latex_node(*child))
+        .unwrap_or_default();
+    let second_script = children
+        .get(2)
+        .map(|child| render_math_latex_node(*child))
+        .unwrap_or_default();
+    match node.tag_name().name() {
+        "msub" | "munder" => format!("{base}_{{{first_script}}}"),
+        "msup" | "mover" => format!("{base}^{{{first_script}}}"),
+        "msubsup" | "munderover" => format!("{base}_{{{first_script}}}^{{{second_script}}}"),
+        _ => base,
+    }
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn render_math_latex_table(node: Node<'_, '_>) -> String {
+    node.children()
+        .filter(|child| child.is_element() && !child.has_tag_name("indexterm"))
+        .map(render_math_latex_node)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join(" \\\\ ")
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn render_math_latex_row(node: Node<'_, '_>) -> String {
+    node.children()
+        .filter(|child| child.is_element() && !child.has_tag_name("indexterm"))
+        .map(render_math_latex_node)
+        .collect::<Vec<_>>()
+        .join(" & ")
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn math_latex_child_elements<'a, 'input>(node: Node<'a, 'input>) -> Vec<Node<'a, 'input>> {
+    node.children()
+        .filter(|child| child.is_element() && !child.has_tag_name("indexterm"))
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn math_latex_text(text: &str) -> String {
+    let normalized = normalized_plain_text(text);
+    let mut output = String::new();
+    for character in normalized.chars() {
+        match character {
+            '\u{2062}' => {}
+            '×' => output.push_str("\\times"),
+            '∞' => output.push_str("\\infty"),
+            '≠' => output.push_str("\\ne"),
+            '≤' => output.push_str("\\le"),
+            '≥' => output.push_str("\\ge"),
+            '%' => output.push_str("\\%"),
+            '{' => output.push_str("\\{"),
+            '}' => output.push_str("\\}"),
+            _ => output.push(character),
+        }
+    }
+    output
 }
 
 #[requires(node.is_element())]
@@ -1844,12 +2166,17 @@ fn inline_is_whitespace(inline: &CllInline) -> bool {
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.chars().all(|character| character.is_ascii_lowercase() || character.is_ascii_digit() || character == '\''))]
 fn normalize_valsis_query(text: &str) -> String {
     text.trim()
         .trim_matches('.')
         .to_ascii_lowercase()
         .replace('h', "'")
+        .chars()
+        .filter(|character| {
+            character.is_ascii_lowercase() || character.is_ascii_digit() || *character == '\''
+        })
+        .collect()
 }
 
 #[requires(true)]
@@ -1928,6 +2255,7 @@ fn parse_interlinear_gloss_block(
         CllBlock::InterlinearGloss {
             id: block_anchor_id_for("interlinear", anchor_mode, context, node),
             aligned: maybe_aligned.is_some(),
+            itemized: false,
             rows,
             natlang,
             comments,
@@ -1997,6 +2325,16 @@ fn plain_interlinear_row(line: Node<'_, '_>) -> Option<CllInterlinearRow> {
     let kind = line.tag_name().name().to_owned();
     let body = if line.has_tag_name("jbo") || line.has_tag_name("jbophrase") {
         linked_jbo_text_inlines(&normalized_plain_text(&visible_text_raw(line)))
+    } else if line.has_tag_name("dbmath")
+        || line.has_tag_name("mmlmath")
+        || line.has_tag_name("math")
+    {
+        let rendered = render_math_node(line, CllMathDisplay::Inline).into_data();
+        vec![CllInline::InlineMath {
+            text: rendered.text,
+            latex: rendered.latex,
+            markup: rendered.markup,
+        }]
     } else {
         trim_inline_runs(parse_inlines(line))
     };
@@ -2039,6 +2377,7 @@ fn parse_interlinear_gloss_itemized_block(
         CllBlock::InterlinearGloss {
             id: block_anchor_id_for("interlinear", anchor_mode, context, node),
             aligned: true,
+            itemized: true,
             rows,
             natlang,
             comments,
@@ -2086,6 +2425,14 @@ fn collect_interlinear_cell(node: Node<'_, '_>, kind: &str) -> Vec<Vec<CllInline
             }]];
         }
         return vec![linked_jbo_text_inlines(&visible_text(node))];
+    }
+    if node.has_tag_name("dbmath") || node.has_tag_name("mmlmath") || node.has_tag_name("math") {
+        let rendered = render_math_node(node, CllMathDisplay::Inline).into_data();
+        return vec![vec![CllInline::InlineMath {
+            text: rendered.text,
+            latex: rendered.latex,
+            markup: rendered.markup,
+        }]];
     }
     vec![parse_inlines(node)]
 }
@@ -2855,7 +3202,10 @@ fn resolve_block_links(blocks: &mut [CllBlock], resolutions: &BTreeMap<String, L
                     .map(|part| resolve_lujvo_part_links(part, resolutions))
                     .collect();
             }
-            CllBlock::Code { .. } | CllBlock::Heading { .. } | CllBlock::Ebnf { .. } => {}
+            CllBlock::Code { .. }
+            | CllBlock::Heading { .. }
+            | CllBlock::Ebnf { .. }
+            | CllBlock::DisplayMath { .. } => {}
         }
     }
 }
@@ -3090,7 +3440,8 @@ fn collect_block_search_chunks(
             | CllBlock::Lojbanization { .. }
             | CllBlock::LujvoMaking { .. }
             | CllBlock::GrammarTemplate { .. }
-            | CllBlock::Ebnf { .. } => {}
+            | CllBlock::Ebnf { .. }
+            | CllBlock::DisplayMath { .. } => {}
         }
     }
 }
@@ -3648,7 +3999,8 @@ fn block_tagged_words(block: &CllBlock) -> BTreeSet<String> {
         | CllBlock::Lojbanization { .. }
         | CllBlock::LujvoMaking { .. }
         | CllBlock::GrammarTemplate { .. }
-        | CllBlock::Ebnf { .. } => BTreeSet::new(),
+        | CllBlock::Ebnf { .. }
+        | CllBlock::DisplayMath { .. } => BTreeSet::new(),
     }
 }
 
@@ -3797,6 +4149,11 @@ fn render_block_markdown(site: &CllSite, block: &CllBlock, output: &mut String, 
             output.push_str(text);
             output.push_str("\n```\n\n");
         }
+        CllBlock::DisplayMath { latex, .. } => {
+            output.push_str("$$\n");
+            output.push_str(latex);
+            output.push_str("\n$$\n\n");
+        }
         CllBlock::Heading { level, title } => {
             output.push_str(&"#".repeat(usize::from(*level)));
             output.push(' ');
@@ -3820,11 +4177,12 @@ fn render_block_markdown(site: &CllSite, block: &CllBlock, output: &mut String, 
             output.push_str("\n\n");
         }
         CllBlock::InterlinearGloss {
+            aligned,
             rows,
             natlang,
             comments,
             ..
-        } => render_interlinear_markdown(site, rows, natlang, comments, output),
+        } => render_interlinear_markdown(site, *aligned, rows, natlang, comments, output),
         CllBlock::CmavoList {
             titles,
             headers,
@@ -3975,6 +4333,11 @@ fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
                 escape_html(text)
             )
         }
+        CllBlock::DisplayMath { id, markup, .. } => format!(
+            "<div{} class=\"cll-math-block\">{}</div>",
+            render_optional_id(id.as_deref()),
+            markup
+        ),
         CllBlock::Heading { level, title } => {
             let level = (*level).clamp(2, 6);
             format!("<h{level}>{}</h{level}>", escape_html(title))
@@ -3998,10 +4361,19 @@ fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
         CllBlock::InterlinearGloss {
             id,
             aligned,
+            itemized,
             rows,
             natlang,
             comments,
-        } => render_interlinear_html(site, id.as_deref(), *aligned, rows, natlang, comments),
+        } => render_interlinear_html(
+            site,
+            id.as_deref(),
+            *aligned,
+            *itemized,
+            rows,
+            natlang,
+            comments,
+        ),
         CllBlock::CmavoList {
             id,
             titles,
@@ -4062,7 +4434,11 @@ fn render_inlines_markdown(site: &CllSite, inlines: &[CllInline]) -> String {
                 } else {
                     &text
                 };
-                output.push_str(&format!("[{text}]({})", cll_link_href(site, *kind, target)));
+                output.push_str(&format!(
+                    "[{}]({})",
+                    markdown_link_label_text(text),
+                    cll_link_href(site, *kind, target)
+                ));
             }
             CllInline::Code(text) => output.push_str(&format!("`{text}`")),
             CllInline::Elidable { shown, inlines, .. } => {
@@ -4075,7 +4451,11 @@ fn render_inlines_markdown(site: &CllSite, inlines: &[CllInline]) -> String {
                 }
                 output.push(']');
             }
-            CllInline::InlineMath { text } => output.push_str(text),
+            CllInline::InlineMath { latex, .. } => {
+                output.push('$');
+                output.push_str(latex);
+                output.push('$');
+            }
             CllInline::Anchor { .. } => {}
         }
     }
@@ -4169,9 +4549,9 @@ fn render_inlines_html(site: &CllSite, inlines: &[CllInline]) -> String {
                 }
                 output.push_str("</span>");
             }
-            CllInline::InlineMath { text } => {
+            CllInline::InlineMath { markup, .. } => {
                 output.push_str("<span class=\"cll-inline-math\">");
-                output.push_str(&escape_html(text));
+                output.push_str(markup);
                 output.push_str("</span>");
             }
             CllInline::Anchor { id } => {
@@ -4276,13 +4656,50 @@ fn markdown_table_cell_text(text: &str) -> String {
 
 #[requires(true)]
 #[ensures(true)]
+fn markdown_link_label_text(text: &str) -> String {
+    text.replace('[', "\\[").replace(']', "\\]")
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn render_interlinear_markdown(
     site: &CllSite,
+    aligned: bool,
     rows: &[CllInterlinearRow],
     natlang: &[Vec<CllInline>],
     comments: &[Vec<CllInline>],
     output: &mut String,
 ) {
+    if !aligned {
+        for row in rows {
+            let body = row
+                .cells
+                .iter()
+                .map(|cell| render_inlines_markdown(site, cell))
+                .filter(|cell| !cell.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ");
+            if !body.is_empty() {
+                output.push_str(&row.kind);
+                output.push_str(": ");
+                output.push_str(&body);
+                output.push('\n');
+            }
+        }
+        for line in comments {
+            output.push_str("comment: ");
+            output.push_str(&render_inlines_markdown(site, line));
+            output.push('\n');
+        }
+        for line in natlang {
+            output.push_str("natlang: ");
+            output.push_str(&render_inlines_markdown(site, line));
+            output.push('\n');
+        }
+        output.push('\n');
+        return;
+    }
+
     let table_rows = rows
         .iter()
         .map(|row| {
@@ -4365,8 +4782,12 @@ fn render_ebnf_markdown(site: &CllSite, entries: &[CllEbnfEntry], output: &mut S
     for entry in entries {
         output.push_str("**");
         output.push_str(&entry.rule_name);
-        output.push_str("** = ");
-        output.push_str(&render_ebnf_tokens_markdown(site, &entry.rhs));
+        output.push_str("** ⩴\n");
+        for line in wrap_ebnf_choice_lines(&entry.rhs) {
+            output.push_str("  ");
+            output.push_str(&render_ebnf_tokens_markdown(site, &line));
+            output.push('\n');
+        }
         output.push_str("\n\n");
     }
 }
@@ -4498,6 +4919,7 @@ fn render_interlinear_html(
     site: &CllSite,
     id: Option<&str>,
     aligned: bool,
+    itemized: bool,
     rows: &[CllInterlinearRow],
     natlang: &[Vec<CllInline>],
     comments: &[Vec<CllInline>],
@@ -4505,26 +4927,46 @@ fn render_interlinear_html(
     let mut output = format!(
         "<div{} class=\"cll-interlinear{}\">",
         render_optional_id(id),
-        if aligned {
+        if aligned || itemized {
             " cll-interlinear-aligned"
         } else {
             ""
         }
     );
     if !rows.is_empty() {
-        output.push_str("<table class=\"cll-interlinear-table\"><tbody>");
-        for row in rows {
-            output.push_str("<tr class=\"cll-interlinear-row cll-interlinear-row-");
-            output.push_str(&escape_html(&row.kind));
-            output.push_str("\">");
-            for cell in &row.cells {
-                output.push_str("<td>");
-                output.push_str(&render_inlines_html(site, cell));
-                output.push_str("</td>");
+        if aligned {
+            output.push_str("<table class=\"cll-interlinear-table");
+            if !itemized {
+                output.push_str(" cll-interlinear-table-plain");
             }
-            output.push_str("</tr>");
+            output.push_str("\"><tbody>");
+            for row in rows {
+                output.push_str("<tr class=\"cll-interlinear-row cll-interlinear-row-");
+                output.push_str(&escape_html(&row.kind));
+                output.push_str("\">");
+                for cell in &row.cells {
+                    output.push_str("<td>");
+                    output.push_str(&render_inlines_html(site, cell));
+                    output.push_str("</td>");
+                }
+                output.push_str("</tr>");
+            }
+            output.push_str("</tbody></table>");
+        } else {
+            output.push_str("<div class=\"cll-interlinear-itemized\">");
+            for row in rows {
+                output.push_str(
+                    "<div class=\"cll-ig-line-wrap\"><p class=\"cll-ig-line cll-ig-inline cll-ig-",
+                );
+                output.push_str(&escape_html(&row.kind));
+                output.push_str("\">");
+                for cell in &row.cells {
+                    output.push_str(&render_inlines_html(site, cell));
+                }
+                output.push_str("</p></div>");
+            }
+            output.push_str("</div>");
         }
-        output.push_str("</tbody></table>");
     }
     for line in comments {
         output.push_str("<p class=\"cll-interlinear-comment\">");
@@ -4626,40 +5068,54 @@ fn render_lujvo_making_html(site: &CllSite, id: Option<&str>, parts: &[CllLujvoP
 #[requires(true)]
 #[ensures(true)]
 fn render_ebnf_html(site: &CllSite, id: Option<&str>, entries: &[CllEbnfEntry]) -> String {
-    let mut output = format!("<dl{} class=\"cll-ebnf\">", render_optional_id(id));
+    let mut output = format!("<div{} class=\"cll-ebnf\">", render_optional_id(id));
     for entry in entries {
-        output.push_str("<dt id=\"");
+        output.push_str("<section class=\"cll-ebnf-entry\" id=\"");
         output.push_str(&escape_html(&entry.anchor_id));
-        output.push_str("\"><a class=\"cll-ebnf-rule-name\" href=\"");
-        output.push_str(&escape_html(
-            &entry
-                .rule_href
-                .clone()
-                .unwrap_or_else(|| format!("#{}", entry.anchor_id)),
-        ));
-        output.push_str("\">");
-        output.push_str(&escape_html(&entry.rule_name));
-        output.push_str("</a></dt><dd>");
+        output.push_str("\"><div class=\"cll-ebnf-head\">");
+        render_ebnf_link_html(
+            site,
+            "cll-ebnf-rule",
+            &entry.rule_name,
+            &entry.rule_href,
+            &mut output,
+        );
+        output.push_str(" <span class=\"cll-ebnf-assign\">⩴</span></div>");
+        output.push_str("<pre class=\"cll-ebnf-rhs\">");
         output.push_str(&render_ebnf_tokens_html(site, &entry.rhs));
-        output.push_str("</dd>");
+        output.push_str("</pre></section>");
     }
-    output.push_str("</dl>");
+    output.push_str("</div>");
     output
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn render_ebnf_tokens_html(site: &CllSite, tokens: &[CllEbnfToken]) -> String {
+    let lines = wrap_ebnf_choice_lines(tokens);
+    if lines.len() == 1 {
+        return render_ebnf_token_line_html(site, &lines[0]);
+    }
+    let mut output = String::new();
+    for line in lines {
+        output.push_str("<span class=\"cll-ebnf-choice-line\">");
+        output.push_str(&render_ebnf_token_line_html(site, &line));
+        output.push_str("</span>");
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_ebnf_token_line_html(site: &CllSite, tokens: &[CllEbnfToken]) -> String {
     let mut output = String::new();
     for token in tokens {
         match token {
             CllEbnfToken::Text { body } => {
-                output.push_str("<span class=\"cll-ebnf-text\">");
                 output.push_str(&escape_html(body));
-                output.push_str("</span>");
             }
             CllEbnfToken::Operator { body } => {
-                output.push_str("<span class=\"cll-ebnf-operator\">");
+                output.push_str("<span class=\"cll-ebnf-op\">");
                 output.push_str(&escape_html(body));
                 output.push_str("</span>");
             }
@@ -4672,7 +5128,7 @@ fn render_ebnf_tokens_html(site: &CllSite, tokens: &[CllEbnfToken]) -> String {
                 render_ebnf_link_html(site, "cll-ebnf-terminal", body, href, &mut output);
             }
             CllEbnfToken::ElidableTerminator { body, href } => {
-                render_ebnf_link_html(site, "cll-ebnf-elidable", body, href, &mut output);
+                render_ebnf_elidable_html(site, body, href, &mut output);
             }
             CllEbnfToken::Nonterminal { body, href } => {
                 render_ebnf_link_html(site, "cll-ebnf-nonterminal", body, href, &mut output);
@@ -4680,6 +5136,34 @@ fn render_ebnf_tokens_html(site: &CllSite, tokens: &[CllEbnfToken]) -> String {
         }
     }
     output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_ebnf_elidable_html(
+    site: &CllSite,
+    body: &str,
+    href: &Option<String>,
+    output: &mut String,
+) {
+    let body_html = if let Some((prefix, suffix)) = cll_ebnf_elidable_hash_pieces(body) {
+        format!(
+            "{}<span class=\"cll-ebnf-hash\">#</span>{}",
+            escape_html(&prefix),
+            escape_html(&suffix)
+        )
+    } else {
+        escape_html(body)
+    };
+    render_ebnf_link_body_html(site, "cll-ebnf-elidable", &body_html, href, output);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_ebnf_elidable_hash_pieces(body: &str) -> Option<(String, String)> {
+    let inner = body.strip_prefix('/')?.strip_suffix('/')?;
+    let inner_without_hash = inner.strip_suffix('#')?;
+    Some((format!("/{inner_without_hash}"), "/".to_owned()))
 }
 
 #[requires(!class_name.is_empty())]
@@ -4691,19 +5175,31 @@ fn render_ebnf_link_html(
     href: &Option<String>,
     output: &mut String,
 ) {
+    render_ebnf_link_body_html(site, class_name, &escape_html(body), href, output);
+}
+
+#[requires(!class_name.is_empty())]
+#[ensures(true)]
+fn render_ebnf_link_body_html(
+    site: &CllSite,
+    class_name: &str,
+    body_html: &str,
+    href: &Option<String>,
+    output: &mut String,
+) {
     if let Some(href) = href {
         output.push_str("<a class=\"");
         output.push_str(class_name);
         output.push_str("\" href=\"");
         output.push_str(&escape_html(&render_ebnf_href(site, href)));
         output.push_str("\">");
-        output.push_str(&escape_html(body));
+        output.push_str(body_html);
         output.push_str("</a>");
     } else {
         output.push_str("<span class=\"");
         output.push_str(class_name);
         output.push_str("\">");
-        output.push_str(&escape_html(body));
+        output.push_str(body_html);
         output.push_str("</span>");
     }
 }
@@ -4903,7 +5399,7 @@ fn inline_plain_text(inlines: &[CllInline]) -> String {
     let mut output = String::new();
     for inline in inlines {
         match inline {
-            CllInline::Text(text) | CllInline::Code(text) | CllInline::InlineMath { text } => {
+            CllInline::Text(text) | CllInline::Code(text) | CllInline::InlineMath { text, .. } => {
                 output.push_str(text);
                 output.push(' ');
             }
@@ -4939,7 +5435,8 @@ fn blocks_plain_text(blocks: &[CllBlock]) -> String {
         match block {
             CllBlock::Paragraph { text, .. }
             | CllBlock::Code { text, .. }
-            | CllBlock::Heading { title: text, .. } => {
+            | CllBlock::Heading { title: text, .. }
+            | CllBlock::DisplayMath { text, .. } => {
                 output.push_str(text);
                 output.push('\n');
             }
@@ -5157,6 +5654,35 @@ mod tests {
         assert!(rendered.contains("Example 2.1"));
         assert!(rendered.contains("John is the father of Sam."));
         assert!(!rendered.contains("[example-random-id-qIuj]"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn multiline_interlinear_examples_keep_line_rendering() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section = cll_lookup_section(site, "section-quantifier-grouping")
+            .expect("quantifier grouping section should exist");
+
+        let markdown = render_section(site, section, CllRenderFormat::Markdown);
+        assert!(markdown.contains("### Example 16.45"));
+        assert!(markdown.contains("jbo: - [ci](../vlacku/ci)"));
+        assert!(markdown.contains("jbo: [nu'i](../vlacku/nu'i)"));
+        assert!(markdown.contains("gloss: - Three dogs [plus] two men, - - bite."));
+        assert!(!markdown.contains("| - [ci](../vlacku/ci)"));
+
+        let html = render_section(site, section, CllRenderFormat::Html);
+        let example_start = html
+            .find("Example 16.45")
+            .expect("Example 16.45 should render in HTML");
+        let example_end = html[example_start..]
+            .find("</figure>")
+            .map(|offset| example_start + offset)
+            .expect("example figure should close");
+        let example_html = &html[example_start..example_end];
+        assert!(example_html.contains("cll-interlinear-itemized"));
+        assert!(example_html.contains("cll-ig-line cll-ig-inline cll-ig-jbo"));
+        assert!(!example_html.contains("cll-interlinear-table"));
     }
 
     #[test]

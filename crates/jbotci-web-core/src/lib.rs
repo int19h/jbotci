@@ -2600,7 +2600,7 @@ pub fn normalize_cukta_state(state: &CuktaWebState) -> CuktaWebState {
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_cukta_web_route(path: &str, query: &str) -> CuktaWebState {
-    let logical = path.trim_start_matches('/');
+    let logical = path.trim_start_matches('/').trim_end_matches('/');
     let mut state = if logical == "cukta" || logical.is_empty() {
         CuktaWebState::default()
     } else if logical == "cukta/index" {
@@ -4092,6 +4092,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn cukta_route_parses_section_index_and_search_shapes() {
+        let root = parse_cukta_web_route("/cukta/", "");
+        assert_eq!(
+            cukta_web_url("", &root),
+            "/cukta/section/section-what-is-lojban"
+        );
+
         let section = parse_cukta_web_route("/cukta/section/section-what-is-lojban", "");
         assert_eq!(
             cukta_web_url("", &section),

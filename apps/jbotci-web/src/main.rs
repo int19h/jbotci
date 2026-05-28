@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 use jbotci_cll::{
     CllBlock, CllEbnfEntry, CllEbnfToken, CllInline, CllInterlinearRow, CllLanguageSpanKind,
     CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation, cll_link_href,
-    embedded_cll_site,
+    embedded_cll_site, wrap_ebnf_choice_lines,
 };
 use jbotci_output::{GlideMark, PhonemeRenderOptions, StressMark};
 use jbotci_web_core::{
@@ -24,7 +24,7 @@ use jbotci_web_core::{
 };
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
@@ -155,6 +155,14 @@ struct VlackuJvozbaDragState {
     preview_visible: bool,
 }
 
+#[invariant(self.start_x.is_finite())]
+#[invariant(self.start_width >= cukta_toc_width_min() && self.start_width <= cukta_toc_width_max())]
+#[derive(Debug, Clone, PartialEq)]
+struct CuktaTocResizeState {
+    start_x: f64,
+    start_width: f64,
+}
+
 impl Default for UserSettings {
     #[requires(true)]
     #[ensures(ret.theme == ThemeMode::Auto)]
@@ -247,6 +255,8 @@ fn App() -> Element {
     let cukta_toc_filter = use_signal(String::new);
     let cukta_toc_pinned = use_signal(|| true);
     let cukta_toc_toggles = use_signal(Vec::<String>::new);
+    let cukta_toc_width = use_signal(default_cukta_toc_width);
+    let cukta_toc_resize = use_signal(|| None::<CuktaTocResizeState>);
     let initial_vlacku = initial_vlacku_state();
     let vlacku_draft_state = use_signal(|| initial_vlacku.clone());
     let vlacku_committed_state = use_signal(|| initial_vlacku);
@@ -363,6 +373,8 @@ fn App() -> Element {
                                     cukta_toc_filter,
                                     cukta_toc_pinned,
                                     cukta_toc_toggles,
+                                    cukta_toc_width,
+                                    cukta_toc_resize,
                                     &base_path,
                                 )
                             }
@@ -559,15 +571,36 @@ fn render_cukta_page(
     mut toc_filter: Signal<String>,
     mut toc_pinned: Signal<bool>,
     toc_toggles: Signal<Vec<String>>,
+    toc_width: Signal<f64>,
+    mut toc_resize: Signal<Option<CuktaTocResizeState>>,
     base_path: &str,
 ) -> Element {
     let page = cukta_page.read();
     let toc_is_pinned = *toc_pinned.read();
-    let shell_class = class_names("cll-shell", &[("cll-toc-autohide", !toc_is_pinned)]);
+    let is_resizing = toc_resize.read().is_some();
+    let shell_class = class_names(
+        "cll-shell",
+        &[
+            ("cll-toc-autohide", !toc_is_pinned),
+            ("cll-is-resizing", is_resizing),
+        ],
+    );
+    let current_toc_width = clamp_cukta_toc_width(*toc_width.read());
+    let shell_style = format!("--cll-sidebar-width:{current_toc_width:.0}px;");
     rsx! {
         section { class: "spa-page cll-page spa-cukta-page",
             h1 { class: "sr-only", "jbotci cukta" }
-            div { class: "{shell_class}",
+            div {
+                class: "{shell_class}",
+                style: "{shell_style}",
+                onmousemove: move |event| {
+                    if let Some(resize) = toc_resize.read().clone() {
+                        let x = event.data().client_coordinates().x;
+                        set_cukta_toc_width(&mut toc_width.clone(), resize.start_width + x - resize.start_x);
+                    }
+                },
+                onmouseup: move |_| toc_resize.set(None),
+                onmouseleave: move |_| toc_resize.set(None),
                 aside { class: "cll-sidebar",
                     button {
                         class: "cll-sidebar-toggle",
@@ -576,6 +609,7 @@ fn render_cukta_page(
                         aria_pressed: pressed_attr(toc_is_pinned),
                         onclick: move |_| toc_pinned.set(!toc_is_pinned),
                         svg {
+                            class: "cll-sidebar-toggle-icon",
                             view_box: "0 0 24 24",
                             path {
                                 d: "M4.5 5.5H19.5 M4.5 11.5H7.5 M9.75 11.5H19.5 M7.5 17.5H10.5 M12.75 17.5H19.5",
@@ -599,7 +633,16 @@ fn render_cukta_page(
                             }
                             div { class: "cll-toc-search-meta",
                                 a {
-                                    class: "cll-toc-advanced-link",
+                                    class: "cll-toc-header-link cll-toc-index-link",
+                                    href: cukta_web_url(base_path, &CuktaWebState { view: CuktaWebView::Index }),
+                                    onclick: move |event| {
+                                        event.prevent_default();
+                                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState { view: CuktaWebView::Index });
+                                    },
+                                    "index"
+                                }
+                                a {
+                                    class: "cll-toc-header-link cll-toc-advanced-link",
                                     href: cukta_web_url(base_path, &CuktaWebState { view: CuktaWebView::Search(CuktaWebSearchState::default()) }),
                                     onclick: move |event| {
                                         event.prevent_default();
@@ -610,16 +653,6 @@ fn render_cukta_page(
                             }
                         }
                         nav { class: "cll-toc-scroll", aria_label: "CLL table of contents",
-                            div { class: "cll-toc-index-link",
-                                a {
-                                    href: cukta_web_url(base_path, &CuktaWebState { view: CuktaWebView::Index }),
-                                    onclick: move |event| {
-                                        event.prevent_default();
-                                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState { view: CuktaWebView::Index });
-                                    },
-                                    "Index"
-                                }
-                            }
                             ol { class: "cll-toc-tree",
                                 for node in page.toc.iter() {
                                     { render_cukta_toc_node(cukta_state, toc_toggles, node, &toc_filter.read()) }
@@ -628,7 +661,23 @@ fn render_cukta_page(
                         }
                     }
                 }
-                div { class: "cll-splitter", aria_hidden: "true" }
+                div {
+                    class: "cll-splitter",
+                    role: "separator",
+                    aria_orientation: "vertical",
+                    aria_label: "Resize table of contents",
+                    onmousedown: move |event| {
+                        event.prevent_default();
+                        if toc_is_pinned {
+                            let x = event.data().client_coordinates().x;
+                            toc_resize.set(Some(new!(CuktaTocResizeState {
+                                start_x: x,
+                                start_width: *toc_width.read(),
+                            })));
+                        }
+                    },
+                    span { class: "cll-splitter-grip", aria_hidden: "true" }
+                }
                 main { class: "cll-main",
                     {
                         match &page.page_kind {
@@ -679,6 +728,38 @@ fn render_cukta_page(
 }
 
 #[requires(true)]
+#[ensures(ret >= cukta_toc_width_min())]
+#[ensures(ret <= cukta_toc_width_max())]
+fn clamp_cukta_toc_width(width: f64) -> f64 {
+    width.max(cukta_toc_width_min()).min(cukta_toc_width_max())
+}
+
+#[requires(true)]
+#[ensures(ret > 0.0)]
+fn cukta_toc_width_min() -> f64 {
+    300.0
+}
+
+#[requires(true)]
+#[ensures(ret > cukta_toc_width_min())]
+fn cukta_toc_width_max() -> f64 {
+    560.0
+}
+
+#[requires(true)]
+#[ensures(ret >= cukta_toc_width_min())]
+#[ensures(ret <= cukta_toc_width_max())]
+fn default_cukta_toc_width() -> f64 {
+    390.0
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_cukta_toc_width(width: &mut Signal<f64>, next_width: f64) {
+    width.set(clamp_cukta_toc_width(next_width));
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn render_cukta_toc_node(
     cukta_state: Signal<CuktaWebState>,
@@ -704,6 +785,11 @@ fn render_cukta_toc_node(
         return rsx! {};
     }
     let expanded = toc_node_expanded(node, &filter, &toc_toggles.read());
+    let target_reference = node
+        .section_id
+        .clone()
+        .or_else(|| cukta_section_reference_from_href(&node.href));
+    let number_has_trailing_dot = node.section_id.is_none();
     let class = class_names(
         "cll-toc-node",
         &[
@@ -741,20 +827,20 @@ fn render_cukta_toc_node(
                     class: "cll-toc-link",
                     href: "{node.href}",
                     onclick: {
-                        let section_id = node.section_id.clone();
+                        let target_reference = target_reference.clone();
                         move |event| {
-                            if let Some(section_id) = section_id.clone() {
+                            if let Some(reference) = target_reference.clone() {
                                 event.prevent_default();
                                 set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                                    view: CuktaWebView::Section { reference: section_id },
+                                    view: CuktaWebView::Section { reference },
                                 });
                             }
                         }
                     },
                     if let Some(number) = &node.number_label {
-                        span { class: "cll-toc-number", "{number}" }
+                        { render_cukta_toc_number(number, number_has_trailing_dot) }
                     }
-                    span { class: "cll-toc-title", "{node.label}" }
+                    { render_cukta_toc_title(&node.label) }
                 }
             }
             if !node.children.is_empty() && expanded {
@@ -765,6 +851,50 @@ fn render_cukta_toc_node(
                 }
             }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cukta_toc_number(number: &str, trailing_dot: bool) -> Element {
+    if let Some((before_dot, after_dot)) = number.split_once('.') {
+        return rsx! {
+            span { class: "cll-toc-number",
+                span { class: "cll-toc-number-before-dot", "{before_dot}" }
+                span { class: "cll-toc-number-dot", "." }
+                span { class: "cll-toc-number-after-dot", "{after_dot}" }
+            }
+        };
+    }
+
+    rsx! {
+        span { class: "cll-toc-number",
+            span { class: "cll-toc-number-before-dot", "{number}" }
+            if trailing_dot {
+                span { class: "cll-toc-number-dot", "." }
+            } else {
+                span { class: "cll-toc-number-dot" }
+            }
+            span { class: "cll-toc-number-after-dot" }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cukta_toc_title(label: &str) -> Element {
+    if let Some((prefix, suffix)) = label.split_once(':') {
+        let prefix = format!("{prefix}:");
+        let suffix = suffix.trim_start();
+        return rsx! {
+            span { class: "cll-toc-title cll-toc-title-has-colon",
+                span { class: "cll-toc-title-before-colon", "{prefix}" }
+                span { class: "cll-toc-title-after-colon", "{suffix}" }
+            }
+        };
+    }
+    rsx! {
+        span { class: "cll-toc-title", "{label}" }
     }
 }
 
@@ -820,44 +950,44 @@ fn render_cukta_section(
             for block in blocks.iter() {
                 { render_cll_block(cukta_state, block, base_path) }
             }
-            nav { class: "cll-section-nav",
-                if let Some(previous) = previous {
-                    a {
-                        class: "cll-prev",
-                        href: "{previous.href}",
-                        onclick: {
-                            let href = previous.href.clone();
-                            move |event| {
-                                event.prevent_default();
-                                if let Some(section_id) = href.rsplit('/').next() {
-                                    set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                                        view: CuktaWebView::Section { reference: section_id.to_owned() },
-                                    });
-                                }
-                            }
-                        },
-                        "{previous.label}"
+            if previous.is_some() || next.is_some() {
+                nav { class: "cll-section-pager",
+                    if let Some(previous) = previous {
+                        { render_cukta_section_pager_link(cukta_state, previous, "prev") }
                     }
-                }
-                if let Some(next) = next {
-                    a {
-                        class: "cll-next",
-                        href: "{next.href}",
-                        onclick: {
-                            let href = next.href.clone();
-                            move |event| {
-                                event.prevent_default();
-                                if let Some(section_id) = href.rsplit('/').next() {
-                                    set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                                        view: CuktaWebView::Section { reference: section_id.to_owned() },
-                                    });
-                                }
-                            }
-                        },
-                        "{next.label}"
+                    if let Some(next) = next {
+                        { render_cukta_section_pager_link(cukta_state, next, "next") }
                     }
                 }
             }
+        }
+    }
+}
+
+#[requires(direction == "prev" || direction == "next")]
+#[ensures(true)]
+fn render_cukta_section_pager_link(
+    cukta_state: Signal<CuktaWebState>,
+    section: &jbotci_web_core::CuktaSectionLink,
+    direction: &str,
+) -> Element {
+    let class_name = format!("cll-section-pager-link cll-section-pager-link-{direction}");
+    rsx! {
+        a {
+            class: "{class_name}",
+            href: "{section.href}",
+            onclick: {
+                let href = section.href.clone();
+                move |event| {
+                    event.prevent_default();
+                    if let Some(reference) = cukta_section_reference_from_href(&href) {
+                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                            view: CuktaWebView::Section { reference },
+                        });
+                    }
+                }
+            },
+            span { class: "cll-section-pager-link-label", "{section.label}" }
         }
     }
 }
@@ -960,8 +1090,8 @@ fn render_cukta_search_controls(
                     div { class: "mode-toggle-row",
                         div { class: "mode-selector-wrap",
                             div { class: "mode-bracket-row", aria_hidden: "true",
-                                span { class: "mode-bracket-label", "similar to" }
-                                span { class: "mode-bracket-label", "exact match" }
+                                span { class: "mode-bracket-label", "similar" }
+                                span { class: "mode-bracket-label", "contains" }
                             }
                             div { class: "mode-toggle-group", role: "group", aria_label: "CLL search mode",
                                 for option in mode_options.iter() {
@@ -1022,7 +1152,7 @@ fn render_cukta_mode_button(
             class: vlacku_mode_class(option_selected),
             r#type: "button",
             disabled: option_disabled,
-            title: if option_disabled { "Meaning search will be enabled when vector search is ported" } else { "Find exact CLL word mentions" },
+            title: if option_disabled { "Meaning search will be enabled when vector search is ported" } else { "Find CLL passages containing this word" },
             aria_pressed: pressed_attr(option_selected),
             onclick: move |_| {
                 if !option_disabled {
@@ -1324,6 +1454,13 @@ fn render_cll_block(
         CllBlock::Code { text, .. } => rsx! {
             pre { class: "cll-code", code { "{text}" } }
         },
+        CllBlock::DisplayMath { id, markup, .. } => rsx! {
+            div {
+                id: id.clone().unwrap_or_default(),
+                class: "cll-math-block",
+                dangerous_inner_html: "{markup}"
+            }
+        },
         CllBlock::Heading { level, title } => {
             let class_name = format!("cll-heading cll-heading-{level}");
             rsx! { h2 { class: "{class_name}", "{title}" } }
@@ -1345,6 +1482,7 @@ fn render_cll_block(
         CllBlock::InterlinearGloss {
             id,
             aligned,
+            itemized,
             rows,
             natlang,
             comments,
@@ -1352,6 +1490,7 @@ fn render_cll_block(
             cukta_state,
             id.as_deref(),
             *aligned,
+            *itemized,
             rows,
             natlang,
             comments,
@@ -1486,7 +1625,9 @@ fn render_cll_inline(
                 }
             }
         }
-        CllInline::InlineMath { text } => rsx! { span { class: "cll-inline-math", "{text}" } },
+        CllInline::InlineMath { markup, .. } => rsx! {
+            span { class: "cll-inline-math", dangerous_inner_html: "{markup}" }
+        },
         CllInline::Anchor { id } => rsx! { span { id: "{id}" } },
     }
 }
@@ -1497,21 +1638,45 @@ fn render_cll_interlinear(
     cukta_state: Signal<CuktaWebState>,
     id: Option<&str>,
     aligned: bool,
+    itemized: bool,
     rows: &[CllInterlinearRow],
     natlang: &[Vec<CllInline>],
     comments: &[Vec<CllInline>],
     base_path: &str,
 ) -> Element {
-    let class_name = class_names("cll-interlinear", &[("cll-interlinear-aligned", aligned)]);
+    let class_name = class_names(
+        "cll-interlinear",
+        &[("cll-interlinear-aligned", aligned || itemized)],
+    );
+    let table_class = class_names(
+        "cll-interlinear-table",
+        &[("cll-interlinear-table-plain", aligned && !itemized)],
+    );
     rsx! {
         div { id: id.unwrap_or_default(), class: "{class_name}",
             if !rows.is_empty() {
-                table { class: "cll-interlinear-table",
-                    tbody {
+                if aligned {
+                    table { class: "{table_class}",
+                        tbody {
+                            for row in rows.iter() {
+                                tr { class: "cll-ig-row cll-ig-{row.kind} cll-interlinear-row cll-interlinear-row-{row.kind}",
+                                    for cell in row.cells.iter() {
+                                        td { class: "cll-ig-cell",
+                                            for inline in cell.iter() {
+                                                { render_cll_inline(cukta_state, inline, base_path) }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    div { class: "cll-interlinear-itemized",
                         for row in rows.iter() {
-                            tr { class: "cll-ig-row cll-ig-{row.kind} cll-interlinear-row cll-interlinear-row-{row.kind}",
-                                for cell in row.cells.iter() {
-                                    td {
+                            div { class: "cll-ig-line-wrap",
+                                p { class: "cll-ig-line cll-ig-inline cll-ig-{row.kind}",
+                                    for cell in row.cells.iter() {
                                         for inline in cell.iter() {
                                             { render_cll_inline(cukta_state, inline, base_path) }
                                         }
@@ -1648,19 +1813,40 @@ fn render_cll_lujvo_making(
 #[ensures(true)]
 fn render_cll_ebnf(id: Option<&str>, entries: &[CllEbnfEntry], base_path: &str) -> Element {
     rsx! {
-        dl { id: id.unwrap_or_default(), class: "cll-ebnf",
+        div { id: id.unwrap_or_default(), class: "cll-ebnf",
             for entry in entries.iter() {
-                dt { id: "{entry.anchor_id}", class: "cll-ebnf-head",
-                    a {
-                        class: "cll-ebnf-rule cll-ebnf-rule-name",
-                        href: entry.rule_href.clone().unwrap_or_else(|| format!("#{}", entry.anchor_id)),
-                        "{entry.rule_name}"
+                section { id: "{entry.anchor_id}", class: "cll-ebnf-entry",
+                    div { class: "cll-ebnf-head",
+                        { render_cll_ebnf_link("cll-ebnf-rule", &entry.rule_name, entry.rule_href.as_deref(), base_path) }
+                        " "
+                        span { class: "cll-ebnf-assign", "⩴" }
+                    }
+                    pre { class: "cll-ebnf-rhs",
+                        { render_cll_ebnf_rhs(&entry.rhs, base_path) }
                     }
                 }
-                dd { class: "cll-ebnf-rhs",
-                    for token in entry.rhs.iter() {
-                        { render_cll_ebnf_token(token, base_path) }
-                    }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cll_ebnf_rhs(tokens: &[CllEbnfToken], base_path: &str) -> Element {
+    let lines = wrap_ebnf_choice_lines(tokens);
+    if lines.len() == 1 {
+        let line = lines.into_iter().next().unwrap_or_default();
+        return rsx! {
+            for token in line.iter() {
+                { render_cll_ebnf_token(token, base_path) }
+            }
+        };
+    }
+    rsx! {
+        for line in lines.iter() {
+            span { class: "cll-ebnf-choice-line",
+                for token in line.iter() {
+                    { render_cll_ebnf_token(token, base_path) }
                 }
             }
         }
@@ -1671,19 +1857,51 @@ fn render_cll_ebnf(id: Option<&str>, entries: &[CllEbnfEntry], base_path: &str) 
 #[ensures(true)]
 fn render_cll_ebnf_token(token: &CllEbnfToken, base_path: &str) -> Element {
     match token {
-        CllEbnfToken::Text { body } => rsx! { span { class: "cll-ebnf-text", "{body}" } },
+        CllEbnfToken::Text { body } => rsx! { "{body}" },
         CllEbnfToken::Operator { body } => {
-            rsx! { span { class: "cll-ebnf-op cll-ebnf-operator", "{body}" } }
+            rsx! { span { class: "cll-ebnf-op", "{body}" } }
         }
         CllEbnfToken::Hash { body } => rsx! { span { class: "cll-ebnf-hash", "{body}" } },
         CllEbnfToken::Terminal { body, href } => {
             render_cll_ebnf_link("cll-ebnf-terminal", body, href.as_deref(), base_path)
         }
         CllEbnfToken::ElidableTerminator { body, href } => {
-            render_cll_ebnf_link("cll-ebnf-elidable", body, href.as_deref(), base_path)
+            render_cll_ebnf_elidable(body, href.as_deref(), base_path)
         }
         CllEbnfToken::Nonterminal { body, href } => {
             render_cll_ebnf_link("cll-ebnf-nonterminal", body, href.as_deref(), base_path)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cll_ebnf_elidable(body: &str, href: Option<&str>, base_path: &str) -> Element {
+    let pieces = cll_ebnf_elidable_hash_pieces(body);
+    if let Some(href) = href {
+        let href = cll_ebnf_href(base_path, href);
+        rsx! {
+            a { class: "cll-ebnf-elidable", href: "{href}",
+                if let Some((prefix, suffix)) = pieces {
+                    "{prefix}"
+                    span { class: "cll-ebnf-hash", "#" }
+                    "{suffix}"
+                } else {
+                    "{body}"
+                }
+            }
+        }
+    } else {
+        rsx! {
+            span { class: "cll-ebnf-elidable",
+                if let Some((prefix, suffix)) = pieces {
+                    "{prefix}"
+                    span { class: "cll-ebnf-hash", "#" }
+                    "{suffix}"
+                } else {
+                    "{body}"
+                }
+            }
         }
     }
 }
@@ -1704,6 +1922,14 @@ fn render_cll_ebnf_link(
     } else {
         rsx! { span { class: "{class_name}", "{body}" } }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_ebnf_elidable_hash_pieces(body: &str) -> Option<(String, String)> {
+    let inner = body.strip_prefix('/')?.strip_suffix('/')?;
+    let inner_without_hash = inner.strip_suffix('#')?;
+    Some((format!("/{inner_without_hash}"), "/".to_owned()))
 }
 
 #[requires(true)]
@@ -1944,8 +2170,8 @@ fn render_vlacku_controls(
                     div { class: "mode-toggle-row",
                         div { class: "mode-selector-wrap",
                             div { class: "mode-bracket-row", aria_hidden: "true",
-                                span { class: "mode-bracket-label", "similar to" }
-                                span { class: "mode-bracket-label", "exact match" }
+                                span { class: "mode-bracket-label", "similar" }
+                                span { class: "mode-bracket-label", "exact" }
                             }
                             div { class: "mode-toggle-group", role: "group", aria_label: "Dictionary search mode",
                                 { render_vlacku_mode_button(vlacku_draft_state, vlacku_committed_state, state.mode, VlackuWebMode::Meaning, "meaning", true) }
@@ -4265,6 +4491,11 @@ fn base_path_from_current_path() -> String {
 #[ensures(true)]
 fn route_from_path(path: &str) -> AppRoute {
     let logical = path.strip_prefix("/jbotci").unwrap_or(path);
+    let logical = if logical == "/" {
+        logical
+    } else {
+        logical.trim_end_matches('/')
+    };
     match logical {
         "" | "/" | "/gentufa" => AppRoute::Gentufa,
         "/settings" => AppRoute::Settings,
@@ -4799,6 +5030,15 @@ mod tests {
     fn vlacku_search_debounce_is_longer_than_url_debounce() {
         assert_eq!(VLACKU_SEARCH_DEBOUNCE_MS, 900);
         assert!(VLACKU_SEARCH_DEBOUNCE_MS > VLACKU_URL_DEBOUNCE_MS);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn top_level_routes_accept_trailing_slashes() {
+        assert_eq!(route_from_path("/jbotci/cukta/"), AppRoute::Cukta);
+        assert_eq!(route_from_path("/jbotci/vlacku/"), AppRoute::Vlacku);
+        assert_eq!(route_from_path("/jbotci/settings/"), AppRoute::Settings);
     }
 
     #[test]

@@ -164,6 +164,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
+        "crates/jbotci-cll/src/lib.rs:CllBlock::DisplayMath",
+        "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
+    ),
+    (
         "crates/jbotci-cll/src/lib.rs:CllBlock::Ebnf",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
