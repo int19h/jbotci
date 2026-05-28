@@ -63,6 +63,8 @@ struct Cli {
 #[invariant(::FixtureVectorStats(..) => true)]
 #[invariant(::FixtureTest(..) => true)]
 #[invariant(::VendorDictionary(..) => true)]
+#[invariant(::BuildWebRelease(..) => true)]
+#[invariant(::ServeWebRelease(..) => true)]
 #[invariant(::DistServer(..) => true)]
 enum Command {
     Check,
@@ -83,6 +85,8 @@ enum Command {
     FixtureVectorStats(FixtureVectorStatsArgs),
     FixtureTest(FixtureRunArgs),
     VendorDictionary(VendorDictionaryArgs),
+    BuildWebRelease(BuildWebReleaseArgs),
+    ServeWebRelease(ServeWebReleaseArgs),
     DistServer(DistServerArgs),
 }
 
@@ -186,6 +190,22 @@ struct VendorDictionaryArgs {
 
 #[derive(Debug, Args)]
 #[invariant(true)]
+struct BuildWebReleaseArgs {
+    #[arg(long)]
+    base_path: Option<String>,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct ServeWebReleaseArgs {
+    #[arg(long, default_value_t = 8081)]
+    port: u16,
+    #[arg(long, default_value_t = false, num_args = 0..=1, default_missing_value = "true")]
+    open: bool,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
 struct DistServerArgs {
     #[arg(long, default_value = ".jbotci-build/jbotci-web")]
     out_dir: PathBuf,
@@ -274,8 +294,49 @@ fn main() -> Result<()> {
         Command::FixtureVectorStats(args) => fixture_vector_stats(args),
         Command::FixtureTest(args) => fixture_test(args),
         Command::VendorDictionary(args) => vendor_dictionary(args),
+        Command::BuildWebRelease(args) => build_web_release(args),
+        Command::ServeWebRelease(args) => serve_web_release(args),
         Command::DistServer(args) => dist_server(args),
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
+    let mut command = dx_web_release_command("build");
+    if let Some(base_path) = args.base_path {
+        command.arg("--base-path").arg(base_path);
+    }
+    let status = command.status().context("failed to run `dx build`")?;
+    check_status(status, "dx build --web --release --debug-symbols=false")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn serve_web_release(args: ServeWebReleaseArgs) -> Result<()> {
+    let status = dx_web_release_command("serve")
+        .arg("--port")
+        .arg(args.port.to_string())
+        .arg("--open")
+        .arg(args.open.to_string())
+        .status()
+        .context("failed to run `dx serve`")?;
+    check_status(status, "dx serve --web --release --debug-symbols=false")
+}
+
+#[requires(matches!(subcommand, "build" | "bundle" | "serve"))]
+#[ensures(true)]
+fn dx_web_release_command(subcommand: &str) -> ProcessCommand {
+    let mut command = ProcessCommand::new("dx");
+    command
+        .arg(subcommand)
+        .arg("--web")
+        .arg("--release")
+        .arg("-p")
+        .arg("jbotci-web")
+        // Dioxus 0.7.x can emit DWARF that makes wasm-opt abort during release web builds.
+        .arg("--debug-symbols=false");
+    command
 }
 
 #[requires(true)]
@@ -303,20 +364,14 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
         fs::remove_dir_all(dioxus_public)
             .with_context(|| format!("removing old Dioxus output `{}`", dioxus_public.display()))?;
     }
-    let mut command = ProcessCommand::new("dx");
+    let mut command = dx_web_release_command("bundle");
     command
-        .arg("bundle")
-        .arg("--web")
-        .arg("--release")
-        .arg("--debug-symbols")
-        .arg("false")
         .arg("--out-dir")
         .arg(out_dir)
         .arg("--base-path")
-        .arg(base_path)
-        .current_dir("apps/jbotci-web");
+        .arg(base_path);
     let status = command.status().context("failed to run `dx bundle`")?;
-    check_status(status, "dx bundle --web --release")
+    check_status(status, "dx bundle --web --release --debug-symbols=false")
 }
 
 #[requires(true)]
