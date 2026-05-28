@@ -206,6 +206,9 @@ async fn static_or_spa(
 #[requires(base_path.starts_with('/'))]
 #[ensures(ret.as_ref().is_none_or(|path| path.starts_with('/')))]
 fn asset_path_for_request(path: &str, base_path: &str) -> Option<String> {
+    if path.starts_with("/assets/") && has_file_extension(path) {
+        return Some(path.to_owned());
+    }
     let stripped = strip_base_path(path, base_path)?;
     if stripped == "/" || !has_file_extension(&stripped) {
         return Some("/index.html".to_owned());
@@ -415,6 +418,20 @@ mod tests {
         assert_eq!(normalize_base_path(""), "/");
         assert_eq!(normalize_base_path("/"), "/");
         assert_eq!(normalize_base_path("jbotci/"), "/jbotci");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn root_absolute_assets_work_with_non_root_base_path() {
+        assert_eq!(
+            asset_path_for_request("/assets/app.js", "/jbotci").as_deref(),
+            Some("/assets/app.js")
+        );
+        assert_eq!(
+            asset_path_for_request("/jbotci/cukta", "/jbotci").as_deref(),
+            Some("/index.html")
+        );
     }
 
     #[test]

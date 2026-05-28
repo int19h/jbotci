@@ -148,6 +148,118 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "web search mode is a closed UI selector serialized directly in URLs and local state",
     ),
     (
+        "crates/jbotci-cll/src/lib.rs:CllBlock::Code",
+        "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllBlock::Example",
+        "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllBlock::Heading",
+        "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllBlock::List",
+        "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllBlock::Media",
+        "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllBlock::Paragraph",
+        "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllBlock::Rule",
+        "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllBlock::Table",
+        "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllError::Load",
+        "CLL errors carry renderer/loader diagnostic text without additional semantic invariants",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllError::NotFound",
+        "CLL errors carry renderer/loader diagnostic text without additional semantic invariants",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllError::Parse",
+        "CLL errors carry renderer/loader diagnostic text without additional semantic invariants",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllInline::Code",
+        "CLL inline variants are generated from normalized DocBook inline nodes",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllInline::Emphasis",
+        "CLL inline variants are generated from normalized DocBook inline nodes",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllInline::Link",
+        "CLL inline variants are generated from normalized DocBook inline nodes",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllInline::Quote",
+        "CLL inline variants are generated from normalized DocBook inline nodes",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllInline::Text",
+        "CLL inline variants are generated from normalized DocBook inline nodes",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CuktaRequest::Example",
+        "cukta request variants are validated from CLI/web mode parsing before execution",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CuktaRequest::Search",
+        "cukta request variants are validated from CLI/web mode parsing before execution",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CuktaRequest::Section",
+        "cukta request variants are validated from CLI/web mode parsing before execution",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaPageKind::Error",
+        "web Cukta page variants are presentation states produced by build_cukta_web_page",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaPageKind::Index",
+        "web Cukta page variants are presentation states produced by build_cukta_web_page",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaPageKind::Search",
+        "web Cukta page variants are presentation states produced by build_cukta_web_page",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaPageKind::Section",
+        "web Cukta page variants are presentation states produced by build_cukta_web_page",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaWebMode::Meaning",
+        "web Cukta search mode is a closed URL/UI selector with disabled semantic mode preserved",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaWebMode::Word",
+        "web Cukta search mode is a closed URL/UI selector with disabled semantic mode preserved",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaWebView::Index",
+        "web Cukta view is a closed route selector parsed from the current client URL",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaWebView::Search",
+        "web Cukta view is a closed route selector parsed from the current client URL",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaWebView::Section",
+        "web Cukta view is a closed route selector parsed from the current client URL",
+    ),
+    (
         "crates/jbotci-web-core/src/lib.rs:VlackuVoteDisplay::Hidden",
         "vote display variant carries no payload beyond the discriminant",
     ),

@@ -9,6 +9,10 @@ use clap::{
     Arg, ArgAction, ArgMatches, Args, Command as ClapCommand, FromArgMatches, Parser, Subcommand,
     ValueEnum, value_parser,
 };
+use jbotci_cll::{
+    CllError, CllRenderFormat, CuktaRequest, CuktaSearchMode, CuktaTargetFilter,
+    DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site, render_cukta_request,
+};
 use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport,
 };
@@ -91,7 +95,7 @@ enum Command {
     #[command(name = "jvozba")]
     Jvozba(JvozbaInput),
     #[command(name = "cukta", visible_alias = "book")]
-    Cukta(SearchInput),
+    Cukta(CuktaInput),
     #[command(name = "zbasu")]
     Zbasu(TextInput),
     #[cfg(feature = "grammar-debug")]
@@ -461,17 +465,56 @@ impl GernaInput {
 
 #[derive(Debug, Args)]
 #[invariant(true)]
-struct SearchInput {
+struct CuktaInput {
     #[arg(short = 'n', long = "count")]
     count: Option<usize>,
     #[arg(long = "index")]
     index: bool,
-    #[arg(long = "valsi")]
+    #[arg(long = "toc")]
+    toc: bool,
+    #[arg(long = "section", value_name = "REF")]
+    section: Option<String>,
+    #[arg(long = "example", value_name = "REF")]
+    example: Option<String>,
+    #[arg(long = "valsi", value_name = "WORD")]
     valsi: Option<String>,
-    #[arg(long = "rafsi")]
-    rafsi: Option<String>,
+    #[arg(long = "target", value_name = "section|paragraph|example", action = ArgAction::Append)]
+    targets: Vec<String>,
+    #[arg(long = "sections")]
+    target_sections: bool,
+    #[arg(long = "paragraphs")]
+    target_paragraphs: bool,
+    #[arg(long = "examples")]
+    target_examples: bool,
+    #[arg(
+        long = "turtai",
+        visible_alias = "format",
+        default_value_t = CuktaCliFormat::Markdown,
+        value_enum
+    )]
+    format: CuktaCliFormat,
     #[arg()]
     query: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum CuktaCliFormat {
+    Markdown,
+    Html,
+    #[value(alias = "docbook")]
+    Raw,
+}
+
+impl From<CuktaCliFormat> for CllRenderFormat {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(value: CuktaCliFormat) -> Self {
+        match value {
+            CuktaCliFormat::Markdown => Self::Markdown,
+            CuktaCliFormat::Html => Self::Html,
+            CuktaCliFormat::Raw => Self::Raw,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1123,10 +1166,7 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
             )
         }
         Command::Jvozba(input) => run_jvozba(input, stdout, color_policy.stdout),
-        Command::Cukta(_input) => {
-            command_not_implemented("cukta")?;
-            Ok(CliStatus::Success)
-        }
+        Command::Cukta(input) => run_cukta(input, stdout, stderr),
         Command::Zbasu(input) => {
             validate_trace_controls_for_unsupported_command(
                 "zbasu",
@@ -1176,6 +1216,183 @@ fn run_vlacku<WOut: Write, WErr: Write>(
         )?;
     }
     Ok(cli_status_from_vlacku_outcome(output.outcome))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_cukta<WOut: Write, WErr: Write>(
+    input: CuktaInput,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+) -> Result<CliStatus> {
+    validate_cukta_input(&input)?;
+    let request = cukta_request_from_input(&input)?;
+    let site = embedded_cll_site().map_err(|error| anyhow!(error.to_string()))?;
+    let rendered = match render_cukta_request(site, &request, input.format.into()) {
+        Ok(rendered) => rendered,
+        Err(CllError::SemanticSearchDisabled) => {
+            writeln!(stderr, "{}", CllError::SemanticSearchDisabled)?;
+            return Ok(CliStatus::InvalidInput);
+        }
+        Err(error) => return Err(anyhow!(error.to_string())),
+    };
+    write!(stdout, "{rendered}")?;
+    if !rendered.ends_with('\n') {
+        writeln!(stdout)?;
+    }
+    Ok(CliStatus::Success)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_cukta_input(input: &CuktaInput) -> Result<()> {
+    if input.count == Some(0) {
+        bail!("`--count` must be greater than 0");
+    }
+    let request_mode_count = usize::from(input.toc)
+        + usize::from(input.section.is_some())
+        + usize::from(input.example.is_some())
+        + usize::from(input.valsi.is_some())
+        + usize::from(!input.query.is_empty());
+    if request_mode_count > 1 {
+        bail!(
+            "Choose only one cukta mode: --toc, --section, --example, --valsi, or a positional query."
+        );
+    }
+    if input.index {
+        if request_mode_count > 0 || cukta_target_flags_present(input) {
+            bail!("`cukta --index` does not accept fetch/search modes or target filters.");
+        }
+        bail!("`cukta --index` is reserved for future semantic embeddings.");
+    }
+    if !input.targets.is_empty()
+        || input.target_sections
+        || input.target_paragraphs
+        || input.target_examples
+    {
+        let _ = cukta_target_filter_from_input(input)?;
+        if input.toc || input.section.is_some() || input.example.is_some() {
+            bail!("Cukta target filters are only valid with search modes.");
+        }
+    }
+    if request_mode_count == 0 {
+        return Ok(());
+    }
+    if let Some(valsi) = &input.valsi
+        && valsi.trim().is_empty()
+    {
+        bail!("`--valsi` requires a non-empty query.");
+    }
+    if let Some(section) = &input.section
+        && section.trim().is_empty()
+    {
+        bail!("`--section` requires a non-empty reference.");
+    }
+    if let Some(example) = &input.example
+        && example.trim().is_empty()
+    {
+        bail!("`--example` requires a non-empty reference.");
+    }
+    if !input.query.is_empty() && joined_query_text(&input.query).trim().is_empty() {
+        bail!("cukta query text must be non-empty.");
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn cukta_request_from_input(input: &CuktaInput) -> Result<CuktaRequest> {
+    if input.toc {
+        return Ok(CuktaRequest::Toc);
+    }
+    if let Some(reference) = &input.section {
+        return Ok(CuktaRequest::Section {
+            reference: reference.trim().to_owned(),
+        });
+    }
+    if let Some(reference) = &input.example {
+        return Ok(CuktaRequest::Example {
+            reference: reference.trim().to_owned(),
+        });
+    }
+    if let Some(query) = &input.valsi {
+        return Ok(CuktaRequest::Search {
+            mode: CuktaSearchMode::Word,
+            query: query.trim().to_owned(),
+            count: input.count.unwrap_or(DEFAULT_CUKTA_CLI_RESULT_COUNT),
+            targets: cukta_target_filter_from_input(input)?,
+        });
+    }
+    if !input.query.is_empty() {
+        return Ok(CuktaRequest::Search {
+            mode: CuktaSearchMode::Meaning,
+            query: joined_query_text(&input.query).trim().to_owned(),
+            count: input.count.unwrap_or(DEFAULT_CUKTA_CLI_RESULT_COUNT),
+            targets: cukta_target_filter_from_input(input)?,
+        });
+    }
+    Ok(CuktaRequest::Section {
+        reference: jbotci_cll::DEFAULT_CUKTA_SECTION_ID.to_owned(),
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn cukta_target_filter_from_input(input: &CuktaInput) -> Result<CuktaTargetFilter> {
+    let mut explicit = input.target_sections || input.target_paragraphs || input.target_examples;
+    let mut sections = input.target_sections;
+    let mut paragraphs = input.target_paragraphs;
+    let mut examples = input.target_examples;
+    for raw_target in &input.targets {
+        for target in raw_target.split(',') {
+            match target.trim().to_ascii_lowercase().as_str() {
+                "" => {}
+                "section" | "sections" => {
+                    explicit = true;
+                    sections = true;
+                }
+                "paragraph" | "paragraphs" => {
+                    explicit = true;
+                    paragraphs = true;
+                }
+                "example" | "examples" => {
+                    explicit = true;
+                    examples = true;
+                }
+                other => {
+                    bail!(
+                        "Unknown cukta search target `{other}`. Use section, paragraph, or example."
+                    );
+                }
+            }
+        }
+    }
+    if !explicit {
+        return Ok(CuktaTargetFilter::default());
+    }
+    if !(sections || paragraphs || examples) {
+        bail!("Select at least one cukta search target.");
+    }
+    Ok(CuktaTargetFilter {
+        sections,
+        paragraphs,
+        examples,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_target_flags_present(input: &CuktaInput) -> bool {
+    !input.targets.is_empty()
+        || input.target_sections
+        || input.target_paragraphs
+        || input.target_examples
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn joined_query_text(query: &[String]) -> String {
+    query.join(" ")
 }
 
 #[requires(true)]
@@ -4687,6 +4904,65 @@ mod tests {
         assert!(run.stdout.contains("  rafsi: "));
         assert!(run.stdout.contains("  glosses:"));
         assert!(run.stdout.contains("  definitions:"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_section_fetch_outputs_default_section() {
+        let run = run_cli_capture(
+            &["jbotci", "cukta", "--section", "section-what-is-lojban"],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(run.stdout.starts_with("# 1.1. What is Lojban?"));
+        assert!(run.stdout.contains("Lojban (pronounced"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_book_alias_exact_word_search_uses_tagged_content() {
+        let run = run_cli_capture(&["jbotci", "book", "--valsi", "lojban", "-n", "3"], false);
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert_in_order(
+            &run.stdout,
+            &[
+                "### 1. 4.3. brivla",
+                "### 2. Paragraph in 4.3. brivla",
+                "### 3.",
+            ],
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_toc_outputs_table_of_contents() {
+        let run = run_cli_capture(&["jbotci", "cukta", "--toc"], false);
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(run.stdout.starts_with("# Table of Contents"));
+        assert!(run.stdout.contains("1.1. What is Lojban?"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_semantic_search_is_disabled() {
+        let run = run_cli_capture(&["jbotci", "cukta", "lojban"], false);
+
+        assert_eq!(run.status, CliStatus::InvalidInput);
+        assert!(run.stdout.is_empty(), "{}", run.stdout);
+        assert!(
+            run.stderr
+                .contains("cukta meaning search is not available yet")
+        );
     }
 
     #[test]

@@ -76,8 +76,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
     (
-        "apps/jbotci/src/main.rs:SearchInput",
-        "CLI input selector permits stdin, file, and literal text shapes",
+        "apps/jbotci/src/main.rs:CuktaInput",
+        "CLI cukta input delegates raw mode and target validation to validate_cukta_input",
     ),
     (
         "apps/jbotci/src/main.rs:TextInput",
@@ -118,6 +118,106 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/bityzba/tests/type_invariant.rs:PlainMarker",
         "bityzba fixture covers explicit no-op type markers",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllAnchor",
+        "CLL anchor records are constructed from parsed DocBook ids and grouped in site indexes",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllChapter",
+        "CLL chapter records are constructed by the embedded DocBook loader from ordered chapter files",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllExample",
+        "CLL examples are assembled by parse_example_block from section context and interlinear lines",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllExampleLine",
+        "CLL example lines preserve upstream DocBook line kind and normalized text",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllIndexEntry",
+        "CLL index entries are grouped from parsed indexterm nodes with duplicate section ids removed",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllMetadata",
+        "CLL metadata is fixed by the embedded loader for the bundled CLL corpus",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllReference",
+        "CLL references are created from parsed section/example context in the embedded loader",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllSearchChunk",
+        "CLL search chunks are generated from parsed sections and tagged-word extraction",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllSearchMatch",
+        "CLL search matches are ranked only by cukta_word_search_matches after target filtering",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllSection",
+        "CLL sections are constructed from DocBook section nodes with computed numbering and text",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CllSite",
+        "CLL site is assembled once by load_embedded_cll_site and owns all derived indexes",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CuktaSearchOutput",
+        "cukta search output is built by cukta_search from normalized query/count inputs",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:CuktaTargetFilter",
+        "target filters intentionally preserve all checkbox states before validation/defaulting",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:LinkResolution",
+        "link resolutions are private loader intermediates derived from the completed anchor index",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:PendingIndexEntry",
+        "pending index entries are private loader intermediates from DocBook indexterm nodes",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:SectionParseContext",
+        "section parse context is private loader state derived from an already parsed section heading",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaIndexEntry",
+        "web Cukta index entries are presentation DTOs projected from validated CLL site data",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaModeOption",
+        "web Cukta mode options are fixed UI selector DTOs built by cukta_mode_options",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaPageData",
+        "web Cukta page data is a presentation DTO produced by build_cukta_web_page",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaSearchResultCard",
+        "web Cukta result cards are projected from ranked CLL search matches",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaSectionLink",
+        "web Cukta section links are presentation DTOs built from resolved CLL sections",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaTargetOption",
+        "web Cukta target options are fixed checkbox DTOs built from normalized target state",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaTocNode",
+        "web Cukta TOC nodes are presentation DTOs built from the parsed CLL chapter tree",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaWebSearchState",
+        "web Cukta search state is normalized by normalize_cukta_state before page building",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:CuktaWebState",
+        "web Cukta route state is normalized by parse_cukta_web_route and normalize_cukta_state",
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:LujvoDecomposition",

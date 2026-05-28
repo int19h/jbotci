@@ -308,6 +308,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bzip2"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3a53fac24f34a81bc9954b5d6cfce0c21e18ec6959f44f56e8e90e4bb7c346c"
+dependencies = [
+ "libbz2-rs-sys",
+]
+
+[[package]]
 name = "cc"
 version = "1.2.62"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1927,6 +1936,7 @@ dependencies = [
  "clap",
  "concolor",
  "concolor-clap",
+ "jbotci-cll",
  "jbotci-diagnostics",
  "jbotci-dialect",
  "jbotci-dictionary",
@@ -1948,6 +1958,8 @@ name = "jbotci-cll"
 version = "0.1.0"
 dependencies = [
  "bityzba",
+ "bzip2",
+ "roxmltree 0.21.1",
  "serde",
  "thiserror 2.0.18",
 ]
@@ -2139,6 +2151,7 @@ version = "0.1.0"
 dependencies = [
  "bityzba",
  "dioxus",
+ "jbotci-cll",
  "jbotci-diagnostics",
  "jbotci-output",
  "jbotci-web-core",
@@ -2152,6 +2165,7 @@ name = "jbotci-web-core"
 version = "0.1.0"
 dependencies = [
  "bityzba",
+ "jbotci-cll",
  "jbotci-diagnostics",
  "jbotci-dialect",
  "jbotci-dictionary",
@@ -2291,6 +2305,12 @@ name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
+
+[[package]]
+name = "libbz2-rs-sys"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34b357333733e8260735ba5894eb928c02ecc69c78715f01a8019e7fa7f2db4c"
 
 [[package]]
 name = "libc"

@@ -1,17 +1,22 @@
 use dioxus::prelude::*;
+use jbotci_cll::{CllBlock, CllInline, CllLinkKind, cll_link_href, embedded_cll_site};
 use jbotci_output::{GlideMark, PhonemeRenderOptions, StressMark};
 use jbotci_web_core::{
-    GentufaBlock, GentufaCell, GentufaError, GentufaScript, GentufaSuccess, GentufaTreeRow,
-    GentufaWebOptions, GentufaWebRequest, GentufaWebResult, GentufaWebViewMode, ReferenceLabel,
-    ReferenceMarker, ReferenceMarkerRole, ReferenceSlotLabel, VLACKU_WEB_DEFAULT_COUNT,
-    VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece, VlackuCompositionPieceKind, VlackuDictionaryInfo,
-    VlackuInline, VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode,
-    VlackuJvozbaOutput, VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
-    VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebResult, VlackuWebState,
-    VlackuWordTypeOption, VlackuWordTypeSection, WebFeatureAvailability,
-    build_vlacku_jvozba_output, build_vlacku_web_result, parse_gentufa_for_web,
-    parse_vlacku_web_route, toggle_vlacku_word_type_selection, vlacku_brivla_filter_indeterminate,
-    vlacku_web_url, vlacku_word_type_options,
+    CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption, CuktaPageData, CuktaPageKind,
+    CuktaSearchResultCard, CuktaTargetOption, CuktaTocNode, CuktaWebMode, CuktaWebSearchState,
+    CuktaWebState, CuktaWebView, GentufaBlock, GentufaCell, GentufaError, GentufaScript,
+    GentufaSuccess, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest, GentufaWebResult,
+    GentufaWebViewMode, ReferenceLabel, ReferenceMarker, ReferenceMarkerRole, ReferenceSlotLabel,
+    VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece,
+    VlackuCompositionPieceKind, VlackuDictionaryInfo, VlackuInline, VlackuInlineData,
+    VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
+    VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData, VlackuVoteDisplay,
+    VlackuWebCard, VlackuWebMode, VlackuWebResult, VlackuWebState, VlackuWordTypeOption,
+    VlackuWordTypeSection, WebFeatureAvailability, build_cukta_web_page,
+    build_vlacku_jvozba_output, build_vlacku_web_result, cukta_web_url, parse_cukta_web_route,
+    parse_gentufa_for_web, parse_vlacku_web_route, toggle_cukta_target_selection,
+    toggle_vlacku_word_type_selection, vlacku_brivla_filter_indeterminate, vlacku_web_url,
+    vlacku_word_type_options,
 };
 
 #[allow(unused_imports)]
@@ -32,6 +37,33 @@ const NOTO_SANS: Asset = asset!("/assets/fonts/noto-sans-variable.ttf");
 const NOTO_SANS_ITALIC: Asset = asset!("/assets/fonts/noto-sans-italic-variable.ttf");
 const NOTO_SANS_MATH: Asset = asset!("/assets/fonts/noto-sans-math-regular.otf");
 const CRISA: Asset = asset!("/assets/fonts/crisa-regular.otf");
+const CLL_MEDIA_CHAPTER_2_DIAGRAM: Asset = asset!("/assets/cll/media/chapter-2-diagram.svg.png");
+const CLL_MEDIA_CHAPTER_ABOUT: Asset = asset!("/assets/cll/media/chapter-about.svg.png");
+const CLL_MEDIA_CHAPTER_ABSTRACTIONS: Asset =
+    asset!("/assets/cll/media/chapter-abstractions.svg.png");
+const CLL_MEDIA_CHAPTER_ANAPHORIC_CMAVO: Asset =
+    asset!("/assets/cll/media/chapter-anaphoric-cmavo.svg.png");
+const CLL_MEDIA_CHAPTER_ATTITUDINALS: Asset = asset!("/assets/cll/media/chapter-attitudinals.gif");
+const CLL_MEDIA_CHAPTER_CATALOGUE: Asset = asset!("/assets/cll/media/chapter-catalogue.svg.png");
+const CLL_MEDIA_CHAPTER_CONNECTIVES: Asset =
+    asset!("/assets/cll/media/chapter-connectives.svg.png");
+const CLL_MEDIA_CHAPTER_GRAMMARS: Asset = asset!("/assets/cll/media/chapter-grammars.svg.png");
+const CLL_MEDIA_CHAPTER_LETTERALS: Asset = asset!("/assets/cll/media/chapter-letterals.svg.png");
+const CLL_MEDIA_CHAPTER_LUJVO: Asset = asset!("/assets/cll/media/chapter-lujvo.svg.png");
+const CLL_MEDIA_CHAPTER_MEKSO: Asset = asset!("/assets/cll/media/chapter-mekso.gif");
+const CLL_MEDIA_CHAPTER_MORPHOLOGY: Asset = asset!("/assets/cll/media/chapter-morphology.gif");
+const CLL_MEDIA_CHAPTER_NEGATION: Asset = asset!("/assets/cll/media/chapter-negation.gif");
+const CLL_MEDIA_CHAPTER_PHONOLOGY: Asset = asset!("/assets/cll/media/chapter-phonology.gif");
+const CLL_MEDIA_CHAPTER_QUANTIFIERS: Asset = asset!("/assets/cll/media/chapter-quantifiers.gif");
+const CLL_MEDIA_CHAPTER_RELATIVE_CLAUSES: Asset =
+    asset!("/assets/cll/media/chapter-relative-clauses.svg.png");
+const CLL_MEDIA_CHAPTER_SELBRI: Asset = asset!("/assets/cll/media/chapter-selbri.svg.png");
+const CLL_MEDIA_CHAPTER_STRUCTURE: Asset = asset!("/assets/cll/media/chapter-structure.svg.png");
+const CLL_MEDIA_CHAPTER_SUMTI: Asset = asset!("/assets/cll/media/chapter-sumti.gif");
+const CLL_MEDIA_CHAPTER_SUMTI_TCITA: Asset = asset!("/assets/cll/media/chapter-sumti-tcita.gif");
+const CLL_MEDIA_CHAPTER_TENSES: Asset = asset!("/assets/cll/media/chapter-tenses.gif");
+const CLL_MEDIA_CHAPTER_TOUR: Asset = asset!("/assets/cll/media/chapter-tour.svg.png");
+const CLL_MEDIA_LOGO: Asset = asset!("/assets/cll/media/logo.png");
 const DEFAULT_GENTUFA_TEXT: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
 const VLACKU_SEARCH_DEBOUNCE_MS: i32 = 900;
 const VLACKU_URL_DEBOUNCE_MS: i32 = 450;
@@ -206,12 +238,20 @@ fn App() -> Element {
     let base_path = base_path_from_current_path();
     let settings = use_signal(load_settings);
     let view_mode = use_signal(initial_view_mode);
+    let initial_cukta = initial_cukta_state();
+    let cukta_state = use_signal(|| initial_cukta);
+    let cukta_toc_filter = use_signal(String::new);
     let initial_vlacku = initial_vlacku_state();
     let vlacku_draft_state = use_signal(|| initial_vlacku.clone());
     let vlacku_committed_state = use_signal(|| initial_vlacku);
     let vlacku_result = use_memo(move || {
         let state = vlacku_committed_state.read().clone();
         build_vlacku_web_result(&state)
+    });
+    let cukta_page_base_path = base_path.clone();
+    let cukta_page = use_memo(move || {
+        let state = cukta_state.read().clone();
+        build_cukta_web_page(&cukta_page_base_path, &state)
     });
     let jvozba_pane = use_signal(load_vlacku_jvozba_pane_state);
     let jvozba_drag = use_signal(|| None::<VlackuJvozbaDragState>);
@@ -237,6 +277,13 @@ fn App() -> Element {
         if route == AppRoute::Vlacku {
             let state = vlacku_committed_state.read().clone();
             schedule_vlacku_url_push(&vlacku_url_base_path, &state);
+        }
+    });
+    let cukta_url_base_path = base_path.clone();
+    use_effect(move || {
+        if route == AppRoute::Cukta {
+            let state = cukta_state.read().clone();
+            push_cukta_url(&cukta_url_base_path, &state);
         }
     });
     use_effect(move || {
@@ -303,7 +350,9 @@ fn App() -> Element {
                                 }
                             },
                             AppRoute::Settings => render_settings(settings, settings_value),
-                            AppRoute::Cukta => render_disabled("cukta"),
+                            AppRoute::Cukta => {
+                                render_cukta_page(cukta_state, cukta_page, cukta_toc_filter, &base_path)
+                            }
                             AppRoute::Vlacku => {
                                 render_vlacku_page(
                                     vlacku_draft_state,
@@ -348,9 +397,10 @@ fn render_topbar(
                         { render_script_switch(settings, current.script) }
                     }
                     nav { class: "spa-nav", aria_label: "Primary navigation",
-                        span {
-                            class: "app-topbar-link is-disabled",
-                            aria_disabled: "true",
+                        a {
+                            class: topbar_link_class(route == AppRoute::Cukta),
+                            href: nav_href(base_path, AppRoute::Cukta),
+                            aria_current: if route == AppRoute::Cukta { "page" } else { "false" },
                             span { class: "app-topbar-link-label", "cukta" }
                         }
                         a {
@@ -486,6 +536,686 @@ fn render_dialect_control(mut dialect: Signal<String>) -> Element {
             }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cukta_page(
+    cukta_state: Signal<CuktaWebState>,
+    cukta_page: Memo<CuktaPageData>,
+    mut toc_filter: Signal<String>,
+    base_path: &str,
+) -> Element {
+    let page = cukta_page.read();
+    rsx! {
+        section { class: "spa-page cll-page spa-cukta-page",
+            h1 { class: "sr-only", "jbotci cukta" }
+            div { class: "cll-shell",
+                aside { class: "cll-sidebar",
+                    button { class: "cll-sidebar-toggle", r#type: "button", title: "Table of contents", "☰" }
+                    div { class: "cll-toc-popup",
+                        div { class: "cll-toc-head",
+                            label { class: "cll-toc-search",
+                                input {
+                                    class: "cll-toc-search-input",
+                                    r#type: "search",
+                                    placeholder: "Search sections",
+                                    value: "{toc_filter.read()}",
+                                    oninput: move |event| toc_filter.set(event.value()),
+                                }
+                            }
+                            div { class: "cll-toc-search-meta",
+                                a {
+                                    class: "cll-toc-advanced-link",
+                                    href: cukta_web_url(base_path, &CuktaWebState { view: CuktaWebView::Search(CuktaWebSearchState::default()) }),
+                                    onclick: move |event| {
+                                        event.prevent_default();
+                                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState { view: CuktaWebView::Search(CuktaWebSearchState::default()) });
+                                    },
+                                    "advanced search"
+                                }
+                            }
+                        }
+                        nav { class: "cll-toc-scroll", aria_label: "CLL table of contents",
+                            div { class: "cll-toc-index-link",
+                                a {
+                                    href: cukta_web_url(base_path, &CuktaWebState { view: CuktaWebView::Index }),
+                                    onclick: move |event| {
+                                        event.prevent_default();
+                                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState { view: CuktaWebView::Index });
+                                    },
+                                    "Index"
+                                }
+                            }
+                            ol { class: "cll-toc-tree",
+                                for node in page.toc.iter() {
+                                    { render_cukta_toc_node(cukta_state, node, &toc_filter.read()) }
+                                }
+                            }
+                        }
+                    }
+                }
+                div { class: "cll-splitter", aria_hidden: "true" }
+                main { class: "cll-main",
+                    {
+                        match &page.page_kind {
+                            CuktaPageKind::Section {
+                                section_heading,
+                                chapter_title,
+                                previous_section,
+                                next_section,
+                                chapter_prelude_blocks,
+                                blocks,
+                            } => render_cukta_section(
+                                cukta_state,
+                                section_heading,
+                                chapter_title.as_deref(),
+                                previous_section.as_ref(),
+                                next_section.as_ref(),
+                                chapter_prelude_blocks,
+                                blocks,
+                                base_path,
+                            ),
+                            CuktaPageKind::Index { entries } => render_cukta_index(cukta_state, entries),
+                            CuktaPageKind::Search {
+                                state,
+                                mode_options,
+                                target_options,
+                                results,
+                                message,
+                                has_more,
+                                load_more_href: _,
+                            } => render_cukta_search(
+                                cukta_state,
+                                state,
+                                mode_options,
+                                target_options,
+                                results,
+                                message.as_deref(),
+                                *has_more,
+                            ),
+                            CuktaPageKind::Error { message } => rsx! {
+                                div { class: "spa-error", "{message}" }
+                            },
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cukta_toc_node(
+    cukta_state: Signal<CuktaWebState>,
+    node: &CuktaTocNode,
+    filter: &str,
+) -> Element {
+    let filter = filter.trim().to_ascii_lowercase();
+    let visible = filter.is_empty()
+        || node.label.to_ascii_lowercase().contains(&filter)
+        || node
+            .number_label
+            .as_ref()
+            .is_some_and(|number| number.contains(&filter))
+        || node.children.iter().any(|child| {
+            child.label.to_ascii_lowercase().contains(&filter)
+                || child
+                    .number_label
+                    .as_ref()
+                    .is_some_and(|number| number.contains(&filter))
+        });
+    if !visible {
+        return rsx! {};
+    }
+    let class = class_names(
+        "cll-toc-node",
+        &[
+            ("is-active", node.active),
+            ("is-current", node.current),
+            ("is-chapter", node.section_id.is_none()),
+        ],
+    );
+    let expanded = node.active || (!filter.is_empty() && visible);
+    rsx! {
+        li { class: "{class}",
+            a {
+                class: "cll-toc-link",
+                href: "{node.href}",
+                onclick: {
+                    let section_id = node.section_id.clone();
+                    move |event| {
+                        if let Some(section_id) = section_id.clone() {
+                            event.prevent_default();
+                            set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                                view: CuktaWebView::Section { reference: section_id },
+                            });
+                        }
+                    }
+                },
+                if node.section_id.is_none() {
+                    span { class: "cll-toc-expander", aria_hidden: "true",
+                        if expanded { "▾" } else { "▸" }
+                    }
+                }
+                if let Some(number) = &node.number_label {
+                    span { class: "cll-toc-number", "{number}" }
+                }
+                span { class: "cll-toc-title", "{node.label}" }
+            }
+            if !node.children.is_empty() && expanded {
+                ol {
+                    for child in node.children.iter() {
+                        { render_cukta_toc_node(cukta_state, child, &filter) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cukta_section(
+    cukta_state: Signal<CuktaWebState>,
+    heading: &str,
+    chapter_title: Option<&str>,
+    previous: Option<&jbotci_web_core::CuktaSectionLink>,
+    next: Option<&jbotci_web_core::CuktaSectionLink>,
+    prelude_blocks: &[CllBlock],
+    blocks: &[CllBlock],
+    base_path: &str,
+) -> Element {
+    let _ = chapter_title;
+    rsx! {
+        article { class: "cll-section-content",
+            h1 { "{heading}" }
+            if !prelude_blocks.is_empty() {
+                div { class: "cll-chapter-prelude",
+                    for block in prelude_blocks.iter() {
+                        { render_cll_block(block, base_path) }
+                    }
+                }
+            }
+            for block in blocks.iter() {
+                { render_cll_block(block, base_path) }
+            }
+            nav { class: "cll-section-nav",
+                if let Some(previous) = previous {
+                    a {
+                        class: "cll-prev",
+                        href: "{previous.href}",
+                        onclick: {
+                            let href = previous.href.clone();
+                            move |event| {
+                                event.prevent_default();
+                                if let Some(section_id) = href.rsplit('/').next() {
+                                    set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                                        view: CuktaWebView::Section { reference: section_id.to_owned() },
+                                    });
+                                }
+                            }
+                        },
+                        "{previous.label}"
+                    }
+                }
+                if let Some(next) = next {
+                    a {
+                        class: "cll-next",
+                        href: "{next.href}",
+                        onclick: {
+                            let href = next.href.clone();
+                            move |event| {
+                                event.prevent_default();
+                                if let Some(section_id) = href.rsplit('/').next() {
+                                    set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                                        view: CuktaWebView::Section { reference: section_id.to_owned() },
+                                    });
+                                }
+                            }
+                        },
+                        "{next.label}"
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cukta_index(
+    cukta_state: Signal<CuktaWebState>,
+    entries: &[jbotci_web_core::CuktaIndexEntry],
+) -> Element {
+    rsx! {
+        section { class: "cll-index-view",
+            h1 { "Index" }
+            div { class: "cll-index-list",
+                for entry in entries.iter() {
+                    div { class: "cll-index-entry",
+                        span { class: "cll-index-key", "{entry.key}" }
+                        span { class: "cll-index-refs",
+                            for reference in entry.references.iter() {
+                                a {
+                                    href: "{reference.href}",
+                                    onclick: {
+                                        let href = reference.href.clone();
+                                        move |event| {
+                                            event.prevent_default();
+                                            if let Some(section_id) = href.rsplit('/').next() {
+                                                set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                                                    view: CuktaWebView::Section { reference: section_id.to_owned() },
+                                                });
+                                            }
+                                        }
+                                    },
+                                    "{reference.label}"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cukta_search(
+    cukta_state: Signal<CuktaWebState>,
+    state: &CuktaWebSearchState,
+    mode_options: &[CuktaModeOption],
+    target_options: &[CuktaTargetOption],
+    results: &[CuktaSearchResultCard],
+    message: Option<&str>,
+    has_more: bool,
+) -> Element {
+    let state_for_load_more = state.clone();
+    rsx! {
+        section { class: "cll-search-view dictionary-page",
+            { render_cukta_search_controls(cukta_state, state, mode_options, target_options) }
+            if let Some(message) = message {
+                p { class: "dictionary-empty cll-search-message", "{message}" }
+            }
+            div { class: "cll-search-results",
+                for card in results.iter() {
+                    { render_cukta_search_card(card) }
+                }
+            }
+            if has_more {
+                div { class: "load-more-wrap",
+                    button {
+                        class: "btn-parse load-more-link",
+                        r#type: "button",
+                        onclick: move |_| {
+                            let mut next = state_for_load_more.clone();
+                            next.count = next.count.saturating_mul(2).clamp(1, CUKTA_WEB_MAX_COUNT);
+                            set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                                view: CuktaWebView::Search(next),
+                            });
+                        },
+                        "Load more"
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cukta_search_controls(
+    cukta_state: Signal<CuktaWebState>,
+    state: &CuktaWebSearchState,
+    mode_options: &[CuktaModeOption],
+    target_options: &[CuktaTargetOption],
+) -> Element {
+    let state_for_input = state.clone();
+    rsx! {
+        div { class: "dictionary-form cll-search-form",
+            div { class: "dictionary-controls cll-search-controls",
+                div { class: "dictionary-mode-control",
+                    div { class: "mode-toggle-row",
+                        div { class: "mode-selector-wrap",
+                            div { class: "mode-bracket-row", aria_hidden: "true",
+                                span { class: "mode-bracket-label", "similar to" }
+                                span { class: "mode-bracket-label", "exact match" }
+                            }
+                            div { class: "mode-toggle-group", role: "group", aria_label: "CLL search mode",
+                                for option in mode_options.iter() {
+                                    { render_cukta_mode_button(cukta_state, state, option) }
+                                }
+                            }
+                        }
+                    }
+                }
+                div { class: "cll-target-control",
+                    div { class: "cll-target-grid", aria_label: "CLL search targets",
+                        for option in target_options.iter() {
+                            { render_cukta_target_check(cukta_state, state, option) }
+                        }
+                    }
+                }
+            }
+            div { class: "dictionary-query-row",
+                input {
+                    class: "query-input",
+                    r#type: "search",
+                    aria_label: "CLL search query",
+                    placeholder: if state.mode == CuktaWebMode::Word { "valsi" } else { "meaning search disabled" },
+                    spellcheck: "false",
+                    value: "{state.query}",
+                    oninput: move |event| {
+                        let mut next = state_for_input.clone();
+                        next.query = event.value();
+                        next.count = CUKTA_WEB_DEFAULT_COUNT;
+                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                            view: CuktaWebView::Search(next),
+                        });
+                    },
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cukta_mode_button(
+    cukta_state: Signal<CuktaWebState>,
+    state: &CuktaWebSearchState,
+    option: &CuktaModeOption,
+) -> Element {
+    let state_for_click = state.clone();
+    let option_disabled = option.disabled;
+    let option_selected = option.selected;
+    let option_label = option.label.clone();
+    let mode = if option.value == "valsi" {
+        CuktaWebMode::Word
+    } else {
+        CuktaWebMode::Meaning
+    };
+    rsx! {
+        button {
+            class: vlacku_mode_class(option_selected),
+            r#type: "button",
+            disabled: option_disabled,
+            title: if option_disabled { "Meaning search will be enabled when vector search is ported" } else { "Find exact CLL word mentions" },
+            aria_pressed: pressed_attr(option_selected),
+            onclick: move |_| {
+                if !option_disabled {
+                    let mut next = state_for_click.clone();
+                    next.mode = mode;
+                    next.count = CUKTA_WEB_DEFAULT_COUNT;
+                    set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                        view: CuktaWebView::Search(next),
+                    });
+                }
+            },
+            "{option_label}"
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cukta_target_check(
+    cukta_state: Signal<CuktaWebState>,
+    state: &CuktaWebSearchState,
+    option: &CuktaTargetOption,
+) -> Element {
+    let state_for_change = state.clone();
+    let class_name = if option.selected {
+        "compact-check is-selected"
+    } else {
+        "compact-check"
+    };
+    let value = option.value.clone();
+    rsx! {
+        label { class: "{class_name}",
+            input {
+                r#type: "checkbox",
+                checked: option.selected,
+                onchange: move |_| {
+                    let mut next = state_for_change.clone();
+                    next.targets = toggle_cukta_target_selection(&next.targets, &value);
+                    next.count = CUKTA_WEB_DEFAULT_COUNT;
+                    set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                        view: CuktaWebView::Search(next),
+                    });
+                },
+            }
+            span { class: "vlacku-filter-label", "{option.label}" }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cukta_search_card(card: &CuktaSearchResultCard) -> Element {
+    rsx! {
+        article { class: "cll-search-result-card result-card",
+            header { class: "cll-search-result-head result-header",
+                div {
+                    p { class: "cll-search-result-meta", "{card.kind} · {card.section_label}" }
+                    h2 { class: "cll-search-result-title",
+                        a { href: "{card.href}", "{card.rank}. {card.label}" }
+                    }
+                }
+                if let Some(similarity) = &card.similarity_label {
+                    span { class: "dictionary-meta-segment dictionary-meta-tooltip", "{similarity}" }
+                }
+            }
+            p { class: "cll-search-preview", "{card.preview}" }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cll_block(block: &CllBlock, base_path: &str) -> Element {
+    match block {
+        CllBlock::Paragraph {
+            anchor_id,
+            role,
+            inlines,
+            text,
+        } => {
+            let class_name = role
+                .as_ref()
+                .map(|role| format!("cll-para cll-para-{role}"))
+                .unwrap_or_else(|| "cll-para".to_owned());
+            rsx! {
+                p { id: anchor_id.clone().unwrap_or_default(), class: "{class_name}",
+                    if inlines.is_empty() {
+                        "{text}"
+                    } else {
+                        for inline in inlines.iter() {
+                            { render_cll_inline(inline, base_path) }
+                        }
+                    }
+                }
+            }
+        }
+        CllBlock::List { ordered, items } => {
+            if *ordered {
+                rsx! {
+                    ol { class: "cll-list",
+                        for item in items.iter() {
+                            li {
+                                for child in item.iter() {
+                                    { render_cll_block(child, base_path) }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                rsx! {
+                    ul { class: "cll-list",
+                        for item in items.iter() {
+                            li {
+                                for child in item.iter() {
+                                    { render_cll_block(child, base_path) }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        CllBlock::Example(example) => rsx! {
+            figure { id: "{example.anchor_id}", class: "cll-example",
+                figcaption { "Example {example.label}" }
+                div { class: "cll-interlinear",
+                    for line in example.lines.iter() {
+                        p { class: "cll-ig-line cll-ig-{line.kind}", "{line.text}" }
+                    }
+                }
+            }
+        },
+        CllBlock::Table { caption, rows } => rsx! {
+            table { class: "cll-table",
+                if let Some(caption) = caption {
+                    caption { "{caption}" }
+                }
+                tbody {
+                    for row in rows.iter() {
+                        tr {
+                            for cell in row.iter() {
+                                td {
+                                    for child in cell.iter() {
+                                        { render_cll_block(child, base_path) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        CllBlock::Media { id, src, alt } => {
+            let asset_src = cll_asset_href(base_path, src);
+            rsx! {
+                figure { id: id.clone().unwrap_or_default(), class: "cll-media",
+                    img { src: "{asset_src}", alt: "{alt}" }
+                }
+            }
+        }
+        CllBlock::Rule { id, term, body } => rsx! {
+            div { id: id.clone().unwrap_or_default(), class: "cll-rule",
+                dt { "{term}" }
+                dd {
+                    for child in body.iter() {
+                        { render_cll_block(child, base_path) }
+                    }
+                }
+            }
+        },
+        CllBlock::Code { text, .. } => rsx! {
+            pre { class: "cll-code", code { "{text}" } }
+        },
+        CllBlock::Heading { level, title } => {
+            let class_name = format!("cll-heading cll-heading-{level}");
+            rsx! { h2 { class: "{class_name}", "{title}" } }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cll_inline(inline: &CllInline, base_path: &str) -> Element {
+    match inline {
+        CllInline::Text(text) => rsx! { "{text}" },
+        CllInline::Emphasis { text, .. } => rsx! { em { "{text}" } },
+        CllInline::Quote { text } => rsx! { q { "{text}" } },
+        CllInline::Link { target, text, kind } => {
+            let href = cll_inline_href(base_path, *kind, target);
+            rsx! { a { class: "cll-inline-link", href: "{href}", "{text}" } }
+        }
+        CllInline::Code(text) => rsx! { code { "{text}" } },
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_inline_href(base_path: &str, kind: CllLinkKind, target: &str) -> String {
+    let prefix = base_path.trim_end_matches('/');
+    match kind {
+        CllLinkKind::Dictionary => format!("{prefix}/vlacku/{target}"),
+        CllLinkKind::Rafsi => format!("{prefix}/vlacku?mode=rafsi&q={target}"),
+        CllLinkKind::Parse => format!("{prefix}/gentufa?text={target}&dialect=allow-cgv"),
+        CllLinkKind::Asset => cll_asset_href(base_path, target),
+        CllLinkKind::Section | CllLinkKind::Example => embedded_cll_site()
+            .map(|site| {
+                let relative = cll_link_href(site, kind, target);
+                if let Some(section) = relative.strip_prefix("section/") {
+                    format!("{prefix}/cukta/section/{section}")
+                } else {
+                    relative
+                }
+            })
+            .unwrap_or_else(|_| format!("{prefix}/cukta/section/{target}")),
+        CllLinkKind::External => target.to_owned(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_asset_href(base_path: &str, src: &str) -> String {
+    let media_name = src
+        .trim_start_matches("assets/media/")
+        .trim_start_matches("media/")
+        .trim_start_matches("assets/cll/media/")
+        .trim_start_matches("cll/media/");
+    if let Some(href) = cll_known_media_href(media_name) {
+        return href;
+    }
+    format!(
+        "{}/assets/cll/{}",
+        base_path.trim_end_matches('/'),
+        src.trim_start_matches("assets/")
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_known_media_href(file_name: &str) -> Option<String> {
+    match file_name {
+        "chapter-2-diagram.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_2_DIAGRAM}")),
+        "chapter-about.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_ABOUT}")),
+        "chapter-abstractions.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_ABSTRACTIONS}")),
+        "chapter-anaphoric-cmavo.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_ANAPHORIC_CMAVO}")),
+        "chapter-attitudinals.gif" => Some(format!("{CLL_MEDIA_CHAPTER_ATTITUDINALS}")),
+        "chapter-catalogue.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_CATALOGUE}")),
+        "chapter-connectives.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_CONNECTIVES}")),
+        "chapter-grammars.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_GRAMMARS}")),
+        "chapter-letterals.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_LETTERALS}")),
+        "chapter-lujvo.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_LUJVO}")),
+        "chapter-mekso.gif" => Some(format!("{CLL_MEDIA_CHAPTER_MEKSO}")),
+        "chapter-morphology.gif" => Some(format!("{CLL_MEDIA_CHAPTER_MORPHOLOGY}")),
+        "chapter-negation.gif" => Some(format!("{CLL_MEDIA_CHAPTER_NEGATION}")),
+        "chapter-phonology.gif" => Some(format!("{CLL_MEDIA_CHAPTER_PHONOLOGY}")),
+        "chapter-quantifiers.gif" => Some(format!("{CLL_MEDIA_CHAPTER_QUANTIFIERS}")),
+        "chapter-relative-clauses.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_RELATIVE_CLAUSES}")),
+        "chapter-selbri.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_SELBRI}")),
+        "chapter-structure.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_STRUCTURE}")),
+        "chapter-sumti.gif" => Some(format!("{CLL_MEDIA_CHAPTER_SUMTI}")),
+        "chapter-sumti-tcita.gif" => Some(format!("{CLL_MEDIA_CHAPTER_SUMTI_TCITA}")),
+        "chapter-tenses.gif" => Some(format!("{CLL_MEDIA_CHAPTER_TENSES}")),
+        "chapter-tour.svg.png" => Some(format!("{CLL_MEDIA_CHAPTER_TOUR}")),
+        "logo.png" => Some(format!("{CLL_MEDIA_LOGO}")),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_cukta_state(cukta_state: &mut Signal<CuktaWebState>, state: CuktaWebState) {
+    cukta_state.set(state);
 }
 
 #[requires(true)]
@@ -2823,6 +3553,12 @@ fn initial_vlacku_state() -> VlackuWebState {
 
 #[requires(true)]
 #[ensures(true)]
+fn initial_cukta_state() -> CuktaWebState {
+    parse_cukta_web_route(&logical_current_path(), &current_query())
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn parse_view_mode(value: &str) -> Option<GentufaWebViewMode> {
     match value {
         "tree" | "table" => Some(GentufaWebViewMode::Tree),
@@ -2856,7 +3592,9 @@ fn route_from_path(path: &str) -> AppRoute {
         "" | "/" | "/gentufa" => AppRoute::Gentufa,
         "/settings" => AppRoute::Settings,
         "/cukta" => AppRoute::Cukta,
+        "/cukta/index" | "/cukta/search" => AppRoute::Cukta,
         "/vlacku" => AppRoute::Vlacku,
+        _ if logical.starts_with("/cukta/section/") => AppRoute::Cukta,
         _ if logical.starts_with("/vlacku/") => AppRoute::Vlacku,
         _ => AppRoute::Gentufa,
     }
@@ -2979,6 +3717,34 @@ fn schedule_vlacku_url_push(base_path: &str, state: &VlackuWebState) {
 #[ensures(true)]
 fn schedule_vlacku_url_push(base_path: &str, state: &VlackuWebState) {
     let _ = VLACKU_URL_DEBOUNCE_MS;
+    let _ = (base_path, state);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn push_cukta_url(base_path: &str, state: &CuktaWebState) {
+    let target = cukta_web_url(base_path, state);
+    if let Some(window) = web_sys::window() {
+        let location = window.location();
+        let current_url = format!(
+            "{}{}",
+            location.pathname().unwrap_or_default(),
+            location.search().unwrap_or_default()
+        );
+        if current_url == target {
+            return;
+        }
+        if let Ok(history) = window.history() {
+            let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&target));
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn push_cukta_url(base_path: &str, state: &CuktaWebState) {
     let _ = (base_path, state);
 }
 

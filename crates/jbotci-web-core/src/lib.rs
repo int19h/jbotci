@@ -7,6 +7,13 @@ use std::sync::OnceLock;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
+use jbotci_cll::{
+    CllBlock, CllSearchChunkKind, CuktaSearchMode, CuktaTargetFilter, DEFAULT_CUKTA_SECTION_ID,
+    DEFAULT_CUKTA_WEB_RESULT_COUNT, MAX_CUKTA_RESULT_COUNT, cll_first_section_id,
+    cll_index_entries, cll_lookup_section, cll_next_section_id, cll_previous_section_id,
+    cll_resolve_section_reference, cll_search_chunk_href, cll_section_chapter_title, cukta_search,
+    embedded_cll_site, format_section_display_title, truncate_preview,
+};
 use jbotci_diagnostics::{Diagnostic, DiagnosticPhase};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_dictionary::{Dictionary, DictionaryEntry};
@@ -148,13 +155,13 @@ pub struct WebFeatureAvailability {
 impl Default for WebFeatureAvailability {
     #[requires(true)]
     #[ensures(ret.gentufa)]
-    #[ensures(!ret.cukta)]
-    #[ensures(!ret.vlacku)]
+    #[ensures(ret.cukta)]
+    #[ensures(ret.vlacku)]
     fn default() -> Self {
         Self {
             gentufa: true,
-            cukta: false,
-            vlacku: false,
+            cukta: true,
+            vlacku: true,
             glosses: false,
             definitions: false,
             rafsi_breakdown: false,
@@ -1879,6 +1886,196 @@ impl fmt::Display for GentufaScript {
 pub const VLACKU_WEB_DEFAULT_COUNT: usize = DEFAULT_VLACKU_RESULT_COUNT;
 pub const VLACKU_WEB_MAX_COUNT: usize = 2048;
 
+pub const CUKTA_WEB_DEFAULT_COUNT: usize = DEFAULT_CUKTA_WEB_RESULT_COUNT;
+pub const CUKTA_WEB_MAX_COUNT: usize = MAX_CUKTA_RESULT_COUNT;
+
+#[invariant(true)]
+#[invariant(::Meaning => true)]
+#[invariant(::Word => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CuktaWebMode {
+    Meaning,
+    Word,
+}
+
+impl Default for CuktaWebMode {
+    #[requires(true)]
+    #[ensures(ret == CuktaWebMode::Meaning)]
+    fn default() -> Self {
+        Self::Meaning
+    }
+}
+
+impl From<CuktaWebMode> for CuktaSearchMode {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(value: CuktaWebMode) -> Self {
+        match value {
+            CuktaWebMode::Meaning => Self::Meaning,
+            CuktaWebMode::Word => Self::Word,
+        }
+    }
+}
+
+#[invariant(true)]
+#[invariant(::Section { .. } => true)]
+#[invariant(::Index => true)]
+#[invariant(::Search(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CuktaWebView {
+    Section { reference: String },
+    Index,
+    Search(CuktaWebSearchState),
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CuktaWebState {
+    pub view: CuktaWebView,
+}
+
+impl Default for CuktaWebState {
+    #[requires(true)]
+    #[ensures(matches!(ret.view, CuktaWebView::Section { .. }))]
+    fn default() -> Self {
+        Self {
+            view: CuktaWebView::Section {
+                reference: DEFAULT_CUKTA_SECTION_ID.to_owned(),
+            },
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CuktaWebSearchState {
+    pub mode: CuktaWebMode,
+    pub query: String,
+    pub count: usize,
+    pub targets: Vec<String>,
+}
+
+impl Default for CuktaWebSearchState {
+    #[requires(true)]
+    #[ensures(ret.count == CUKTA_WEB_DEFAULT_COUNT)]
+    fn default() -> Self {
+        Self {
+            mode: CuktaWebMode::Meaning,
+            query: String::new(),
+            count: CUKTA_WEB_DEFAULT_COUNT,
+            targets: default_cukta_target_values(),
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CuktaTocNode {
+    pub node_id: String,
+    pub number_label: Option<String>,
+    pub label: String,
+    pub href: String,
+    pub active: bool,
+    pub section_id: Option<String>,
+    pub current: bool,
+    pub children: Vec<CuktaTocNode>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CuktaSectionLink {
+    pub label: String,
+    pub href: String,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CuktaIndexEntry {
+    pub key: String,
+    pub references: Vec<CuktaSectionLink>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CuktaModeOption {
+    pub value: String,
+    pub label: String,
+    pub selected: bool,
+    pub disabled: bool,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CuktaTargetOption {
+    pub value: String,
+    pub label: String,
+    pub selected: bool,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CuktaSearchResultCard {
+    pub rank: usize,
+    pub similarity_label: Option<String>,
+    pub kind: String,
+    pub label: String,
+    pub href: String,
+    pub section_label: String,
+    pub preview: String,
+}
+
+#[invariant(true)]
+#[invariant(::Section { .. } => true)]
+#[invariant(::Index { .. } => true)]
+#[invariant(::Search { .. } => true)]
+#[invariant(::Error { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CuktaPageKind {
+    Section {
+        section_heading: String,
+        chapter_title: Option<String>,
+        previous_section: Option<CuktaSectionLink>,
+        next_section: Option<CuktaSectionLink>,
+        chapter_prelude_blocks: Vec<CllBlock>,
+        blocks: Vec<CllBlock>,
+    },
+    Index {
+        entries: Vec<CuktaIndexEntry>,
+    },
+    Search {
+        state: CuktaWebSearchState,
+        mode_options: Vec<CuktaModeOption>,
+        target_options: Vec<CuktaTargetOption>,
+        results: Vec<CuktaSearchResultCard>,
+        message: Option<String>,
+        has_more: bool,
+        load_more_href: Option<String>,
+    },
+    Error {
+        message: String,
+    },
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CuktaPageData {
+    pub toc: Vec<CuktaTocNode>,
+    pub current_section_id: Option<String>,
+    pub page_kind: CuktaPageKind,
+}
+
 #[invariant(true)]
 #[invariant(::Word => true)]
 #[invariant(::Rafsi => true)]
@@ -2237,6 +2434,501 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
         has_more,
         message,
         errors: output.diagnostics,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPageData {
+    let normalized_state = normalize_cukta_state(state);
+    let site = match embedded_cll_site() {
+        Ok(site) => site,
+        Err(error) => {
+            return CuktaPageData {
+                toc: Vec::new(),
+                current_section_id: None,
+                page_kind: CuktaPageKind::Error {
+                    message: error.to_string(),
+                },
+            };
+        }
+    };
+    match normalized_state.view {
+        CuktaWebView::Section { reference } => {
+            let section_id = cll_resolve_section_reference(site, &reference)
+                .or_else(|| cll_first_section_id(site).map(str::to_owned))
+                .unwrap_or_else(|| DEFAULT_CUKTA_SECTION_ID.to_owned());
+            let Some(section) = cll_lookup_section(site, &section_id) else {
+                return CuktaPageData {
+                    toc: build_cukta_toc(site, base_path, None),
+                    current_section_id: None,
+                    page_kind: CuktaPageKind::Error {
+                        message: "CLL section not found.".to_owned(),
+                    },
+                };
+            };
+            let chapter_prelude_blocks = site
+                .chapters
+                .iter()
+                .find(|chapter| chapter.chapter_id == section.chapter_id)
+                .map(|chapter| chapter.prelude_blocks.clone())
+                .unwrap_or_default();
+            CuktaPageData {
+                toc: build_cukta_toc(site, base_path, Some(&section.section_id)),
+                current_section_id: Some(section.section_id.clone()),
+                page_kind: CuktaPageKind::Section {
+                    section_heading: format_section_display_title(section),
+                    chapter_title: cll_section_chapter_title(site, &section.section_id),
+                    previous_section: cll_previous_section_id(site, &section.section_id).and_then(
+                        |section_id| build_cukta_section_link(site, base_path, section_id),
+                    ),
+                    next_section: cll_next_section_id(site, &section.section_id).and_then(
+                        |section_id| build_cukta_section_link(site, base_path, section_id),
+                    ),
+                    chapter_prelude_blocks,
+                    blocks: section.blocks.clone(),
+                },
+            }
+        }
+        CuktaWebView::Index => CuktaPageData {
+            toc: build_cukta_toc(site, base_path, None),
+            current_section_id: None,
+            page_kind: CuktaPageKind::Index {
+                entries: cll_index_entries(site)
+                    .iter()
+                    .map(|entry| CuktaIndexEntry {
+                        key: entry.key.clone(),
+                        references: entry
+                            .section_ids
+                            .iter()
+                            .filter_map(|section_id| {
+                                build_cukta_section_link(site, base_path, section_id)
+                            })
+                            .collect(),
+                    })
+                    .collect(),
+            },
+        },
+        CuktaWebView::Search(search_state) => {
+            let output = cukta_search(
+                site,
+                search_state.mode.into(),
+                &search_state.query,
+                search_state.count,
+                cukta_target_filter(&search_state.targets),
+            );
+            let results = output
+                .matches
+                .into_iter()
+                .map(|item| CuktaSearchResultCard {
+                    rank: item.rank,
+                    similarity_label: item
+                        .similarity
+                        .map(|similarity| format!("{:.0}%", similarity * 100.0)),
+                    kind: cukta_chunk_kind_label(item.chunk.kind).to_owned(),
+                    label: item.chunk.label.clone(),
+                    href: cukta_chunk_href(base_path, &item.chunk),
+                    section_label: format!(
+                        "{}. {}",
+                        item.chunk.section_number, item.chunk.section_title
+                    ),
+                    preview: truncate_preview(&item.chunk.text, 420),
+                })
+                .collect::<Vec<_>>();
+            let has_more = output.has_more;
+            CuktaPageData {
+                toc: build_cukta_toc(site, base_path, None),
+                current_section_id: None,
+                page_kind: CuktaPageKind::Search {
+                    state: search_state.clone(),
+                    mode_options: cukta_mode_options(search_state.mode),
+                    target_options: cukta_target_options(&search_state.targets),
+                    results,
+                    message: output.message,
+                    has_more,
+                    load_more_href: if has_more {
+                        let mut next = search_state;
+                        next.count = next.count.saturating_mul(2).clamp(1, CUKTA_WEB_MAX_COUNT);
+                        Some(cukta_web_url(
+                            base_path,
+                            &CuktaWebState {
+                                view: CuktaWebView::Search(next),
+                            },
+                        ))
+                    } else {
+                        None
+                    },
+                },
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn normalize_cukta_state(state: &CuktaWebState) -> CuktaWebState {
+    match &state.view {
+        CuktaWebView::Section { reference } => CuktaWebState {
+            view: CuktaWebView::Section {
+                reference: if reference.trim().is_empty() {
+                    DEFAULT_CUKTA_SECTION_ID.to_owned()
+                } else {
+                    reference.trim().to_owned()
+                },
+            },
+        },
+        CuktaWebView::Index => CuktaWebState {
+            view: CuktaWebView::Index,
+        },
+        CuktaWebView::Search(search) => CuktaWebState {
+            view: CuktaWebView::Search(CuktaWebSearchState {
+                mode: search.mode,
+                query: search.query.trim().to_owned(),
+                count: search.count.clamp(1, CUKTA_WEB_MAX_COUNT),
+                targets: normalize_cukta_targets(&search.targets),
+            }),
+        },
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_cukta_web_route(path: &str, query: &str) -> CuktaWebState {
+    let logical = path.trim_start_matches('/');
+    let mut state = if logical == "cukta" || logical.is_empty() {
+        CuktaWebState::default()
+    } else if logical == "cukta/index" {
+        CuktaWebState {
+            view: CuktaWebView::Index,
+        }
+    } else if logical == "cukta/search" {
+        CuktaWebState {
+            view: CuktaWebView::Search(CuktaWebSearchState::default()),
+        }
+    } else if let Some(reference) = logical.strip_prefix("cukta/section/") {
+        CuktaWebState {
+            view: CuktaWebView::Section {
+                reference: percent_decode(reference),
+            },
+        }
+    } else {
+        CuktaWebState::default()
+    };
+    if let CuktaWebView::Search(search) = &mut state.view {
+        let mut target_seen = false;
+        for (key, value) in parse_query_pairs(query) {
+            match key.as_str() {
+                "mode" => {
+                    if let Some(mode) = parse_cukta_mode(&value) {
+                        search.mode = mode;
+                    }
+                }
+                "q" | "query" => search.query = value,
+                "count" => {
+                    if let Ok(count) = value.parse::<usize>() {
+                        search.count = count;
+                    }
+                }
+                "target" | "searchFor" | "search-for" => {
+                    if !target_seen {
+                        search.targets.clear();
+                        target_seen = true;
+                    }
+                    search.targets.push(value);
+                }
+                _ => {}
+            }
+        }
+    }
+    normalize_cukta_state(&state)
+}
+
+#[requires(true)]
+#[ensures(ret.starts_with(base_path) || base_path.is_empty())]
+pub fn cukta_web_url(base_path: &str, state: &CuktaWebState) -> String {
+    let state = normalize_cukta_state(state);
+    let prefix = base_path.trim_end_matches('/');
+    match state.view {
+        CuktaWebView::Section { reference } => {
+            format!("{prefix}/cukta/section/{}", percent_encode(&reference))
+        }
+        CuktaWebView::Index => format!("{prefix}/cukta/index"),
+        CuktaWebView::Search(search) => {
+            let mut pairs = Vec::new();
+            if search.mode != CuktaWebMode::Meaning {
+                pairs.push((
+                    "mode".to_owned(),
+                    cukta_mode_query_value(search.mode).to_owned(),
+                ));
+            }
+            if !search.query.is_empty() {
+                pairs.push(("q".to_owned(), search.query.clone()));
+            }
+            if search.count != CUKTA_WEB_DEFAULT_COUNT {
+                pairs.push(("count".to_owned(), search.count.to_string()));
+            }
+            for target in non_default_cukta_targets(&search.targets) {
+                pairs.push(("target".to_owned(), target));
+            }
+            if pairs.is_empty() {
+                format!("{prefix}/cukta/search")
+            } else {
+                format!(
+                    "{prefix}/cukta/search?{}",
+                    pairs
+                        .iter()
+                        .map(|(key, value)| format!("{key}={}", percent_encode(value)))
+                        .collect::<Vec<_>>()
+                        .join("&")
+                )
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn toggle_cukta_target_selection(current: &[String], value: &str) -> Vec<String> {
+    let mut targets = normalize_cukta_targets(current);
+    let normalized = normalize_cukta_target(value);
+    if normalized.is_empty() {
+        return targets;
+    }
+    if targets.iter().any(|target| target == &normalized) {
+        if targets.len() > 1 {
+            targets.retain(|target| target != &normalized);
+        }
+    } else {
+        targets.push(normalized);
+        targets = normalize_cukta_targets(&targets);
+    }
+    targets
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_cukta_toc(
+    site: &jbotci_cll::CllSite,
+    base_path: &str,
+    current_section_id: Option<&str>,
+) -> Vec<CuktaTocNode> {
+    site.chapters
+        .iter()
+        .map(|chapter| {
+            let children = chapter
+                .root_section_ids
+                .iter()
+                .filter_map(|section_id| {
+                    build_cukta_toc_section(site, base_path, current_section_id, section_id)
+                })
+                .collect::<Vec<_>>();
+            let href = children
+                .first()
+                .map(|node| node.href.clone())
+                .unwrap_or_else(|| format!("{}/cukta/index", base_path.trim_end_matches('/')));
+            CuktaTocNode {
+                node_id: chapter.chapter_id.clone(),
+                number_label: Some(chapter.chapter_number.to_string()),
+                label: chapter.chapter_title.clone(),
+                href,
+                active: children.iter().any(|child| child.active),
+                section_id: None,
+                current: false,
+                children,
+            }
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_cukta_toc_section(
+    site: &jbotci_cll::CllSite,
+    base_path: &str,
+    current_section_id: Option<&str>,
+    section_id: &str,
+) -> Option<CuktaTocNode> {
+    let section = cll_lookup_section(site, section_id)?;
+    let children = section
+        .child_section_ids
+        .iter()
+        .filter_map(|child_id| {
+            build_cukta_toc_section(site, base_path, current_section_id, child_id)
+        })
+        .collect::<Vec<_>>();
+    let current = current_section_id == Some(section.section_id.as_str());
+    Some(CuktaTocNode {
+        node_id: section.section_id.clone(),
+        number_label: Some(section.number.clone()),
+        label: section.title.clone(),
+        href: cukta_section_href(base_path, &section.section_id),
+        active: current || children.iter().any(|child| child.active),
+        section_id: Some(section.section_id.clone()),
+        current,
+        children,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_cukta_section_link(
+    site: &jbotci_cll::CllSite,
+    base_path: &str,
+    section_id: &str,
+) -> Option<CuktaSectionLink> {
+    let section = cll_lookup_section(site, section_id)?;
+    Some(CuktaSectionLink {
+        label: format_section_display_title(section),
+        href: cukta_section_href(base_path, &section.section_id),
+    })
+}
+
+#[requires(!section_id.is_empty())]
+#[ensures(ret.contains(section_id))]
+fn cukta_section_href(base_path: &str, section_id: &str) -> String {
+    format!(
+        "{}/cukta/section/{}",
+        base_path.trim_end_matches('/'),
+        percent_encode(section_id)
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_chunk_href(base_path: &str, chunk: &jbotci_cll::CllSearchChunk) -> String {
+    let relative = cll_search_chunk_href(chunk);
+    let relative = relative
+        .strip_prefix("section/")
+        .map(|section| format!("cukta/section/{section}"))
+        .unwrap_or(relative);
+    format!("{}/{}", base_path.trim_end_matches('/'), relative)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_mode_options(selected: CuktaWebMode) -> Vec<CuktaModeOption> {
+    vec![
+        CuktaModeOption {
+            value: "smuni".to_owned(),
+            label: "meaning".to_owned(),
+            selected: selected == CuktaWebMode::Meaning,
+            disabled: true,
+        },
+        CuktaModeOption {
+            value: "valsi".to_owned(),
+            label: "word".to_owned(),
+            selected: selected == CuktaWebMode::Word,
+            disabled: false,
+        },
+    ]
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_target_options(selected_targets: &[String]) -> Vec<CuktaTargetOption> {
+    let selected = normalize_cukta_targets(selected_targets);
+    [
+        ("section", "Sections"),
+        ("paragraph", "Paragraphs"),
+        ("example", "Examples"),
+    ]
+    .iter()
+    .map(|(value, label)| CuktaTargetOption {
+        value: (*value).to_owned(),
+        label: (*label).to_owned(),
+        selected: selected.iter().any(|target| target == value),
+    })
+    .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_cukta_targets(raw_targets: &[String]) -> Vec<String> {
+    let mut targets = Vec::new();
+    for raw in raw_targets {
+        for part in raw.split(',') {
+            let normalized = normalize_cukta_target(part);
+            if !normalized.is_empty() && !targets.iter().any(|target| target == &normalized) {
+                targets.push(normalized);
+            }
+        }
+    }
+    if targets.is_empty() {
+        default_cukta_target_values()
+    } else {
+        targets
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn non_default_cukta_targets(targets: &[String]) -> Vec<String> {
+    let normalized = normalize_cukta_targets(targets);
+    if normalized == default_cukta_target_values() {
+        Vec::new()
+    } else {
+        normalized
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn default_cukta_target_values() -> Vec<String> {
+    vec![
+        "section".to_owned(),
+        "paragraph".to_owned(),
+        "example".to_owned(),
+    ]
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_cukta_target(value: &str) -> String {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "section" | "sections" => "section".to_owned(),
+        "paragraph" | "paragraphs" => "paragraph".to_owned(),
+        "example" | "examples" => "example".to_owned(),
+        _ => String::new(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_target_filter(targets: &[String]) -> CuktaTargetFilter {
+    let normalized = normalize_cukta_targets(targets);
+    CuktaTargetFilter {
+        sections: normalized.iter().any(|target| target == "section"),
+        paragraphs: normalized.iter().any(|target| target == "paragraph"),
+        examples: normalized.iter().any(|target| target == "example"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_cukta_mode(value: &str) -> Option<CuktaWebMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "smuni" | "meaning" => Some(CuktaWebMode::Meaning),
+        "valsi" | "word" => Some(CuktaWebMode::Word),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn cukta_mode_query_value(mode: CuktaWebMode) -> &'static str {
+    match mode {
+        CuktaWebMode::Meaning => "smuni",
+        CuktaWebMode::Word => "valsi",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn cukta_chunk_kind_label(kind: CllSearchChunkKind) -> &'static str {
+    match kind {
+        CllSearchChunkKind::Section => "section",
+        CllSearchChunkKind::Paragraph => "paragraph",
+        CllSearchChunkKind::Example => "example",
     }
 }
 
@@ -3387,6 +4079,97 @@ mod tests {
         assert_eq!(
             vlacku_web_url("", &state),
             "/vlacku?mode=rafsi&q=kla&count=40&wordType=brivla"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_route_parses_section_index_and_search_shapes() {
+        let section = parse_cukta_web_route("/cukta/section/section-what-is-lojban", "");
+        assert_eq!(
+            cukta_web_url("", &section),
+            "/cukta/section/section-what-is-lojban"
+        );
+
+        let index = parse_cukta_web_route("/cukta/index", "");
+        assert_eq!(cukta_web_url("", &index), "/cukta/index");
+
+        let search = parse_cukta_web_route(
+            "/cukta/search",
+            "?mode=valsi&q=lojban&count=40&target=section,example",
+        );
+        let CuktaWebView::Search(search_state) = search.view else {
+            panic!("expected search state");
+        };
+        assert_eq!(search_state.mode, CuktaWebMode::Word);
+        assert_eq!(search_state.query, "lojban");
+        assert_eq!(search_state.count, 40);
+        assert_eq!(
+            search_state.targets,
+            vec!["section".to_owned(), "example".to_owned()]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_builds_section_word_search_and_disabled_meaning_pages() {
+        let section_page = build_cukta_web_page("", &CuktaWebState::default());
+        assert!(section_page.current_section_id.is_some());
+        assert!(matches!(
+            section_page.page_kind,
+            CuktaPageKind::Section { .. }
+        ));
+
+        let word_page = build_cukta_web_page(
+            "",
+            &CuktaWebState {
+                view: CuktaWebView::Search(CuktaWebSearchState {
+                    mode: CuktaWebMode::Word,
+                    query: "lojban".to_owned(),
+                    count: 3,
+                    targets: default_cukta_target_values(),
+                }),
+            },
+        );
+        let CuktaPageKind::Search {
+            results,
+            message,
+            has_more,
+            ..
+        } = word_page.page_kind
+        else {
+            panic!("expected word search page");
+        };
+        assert!(message.is_none(), "{message:?}");
+        assert!(has_more);
+        assert_eq!(
+            results.first().map(|card| card.label.as_str()),
+            Some("4.3. brivla")
+        );
+
+        let meaning_page = build_cukta_web_page(
+            "",
+            &CuktaWebState {
+                view: CuktaWebView::Search(CuktaWebSearchState {
+                    mode: CuktaWebMode::Meaning,
+                    query: "lojban".to_owned(),
+                    count: 3,
+                    targets: default_cukta_target_values(),
+                }),
+            },
+        );
+        let CuktaPageKind::Search {
+            results, message, ..
+        } = meaning_page.page_kind
+        else {
+            panic!("expected meaning search page");
+        };
+        assert!(results.is_empty());
+        assert_eq!(
+            message.as_deref(),
+            Some("Meaning search is not available yet.")
         );
     }
 
