@@ -1028,6 +1028,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask dist-server args delegate validation to clap defaults and command code",
     ),
     (
+        "xtask/src/main.rs:BuildWebReleaseArgs",
+        "xtask web release args delegate validation to clap defaults and command code",
+    ),
+    (
+        "xtask/src/main.rs:ServeWebReleaseArgs",
+        "xtask web release args delegate validation to clap defaults and command code",
+    ),
+    (
         "xtask/src/main.rs:RefsV0ParityArgs",
         "xtask command args delegate validation to clap and command code",
     ),

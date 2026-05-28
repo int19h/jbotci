@@ -717,6 +717,17 @@ fn parse_chapter(
         }
     }
 
+    anchors.push((
+        chapter_id.clone(),
+        CllAnchor {
+            section_id: root_section_ids
+                .first()
+                .cloned()
+                .unwrap_or_else(|| chapter_id.clone()),
+            label: chapter_xref_label(chapter_number),
+        },
+    ));
+
     Ok((
         CllChapter {
             chapter_id,
@@ -730,6 +741,12 @@ fn parse_chapter(
         anchors,
         index_entries,
     ))
+}
+
+#[requires(chapter_number > 0)]
+#[ensures(ret.starts_with("Chapter "))]
+fn chapter_xref_label(chapter_number: u16) -> String {
+    format!("Chapter {chapter_number}")
 }
 
 #[requires(section_node.is_element())]
@@ -5642,6 +5659,14 @@ mod tests {
             cll_link_href(site, CllLinkKind::Section, "example-random-id-qIuj"),
             "section/section-bridi#c2e1d1"
         );
+        assert_eq!(
+            cll_link_href(site, CllLinkKind::Section, "chapter-tour"),
+            "section/section-bridi#chapter-tour"
+        );
+        assert_eq!(
+            cll_link_href(site, CllLinkKind::Section, "chapter-grammars"),
+            "section/section-EBNF#chapter-grammars"
+        );
     }
 
     #[test]
@@ -5654,6 +5679,21 @@ mod tests {
         assert!(rendered.contains("Example 2.1"));
         assert!(rendered.contains("John is the father of Sam."));
         assert!(!rendered.contains("[example-random-id-qIuj]"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chapter_xrefs_render_as_chapter_labels_not_xml_ids() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section =
+            cll_lookup_section(site, "section-what-is-cll").expect("section should exist");
+        let rendered = render_section(site, section, CllRenderFormat::Markdown);
+
+        assert!(rendered.contains("[Chapter 21](section/section-EBNF#chapter-grammars)"));
+        assert!(rendered.contains("[Chapter 2](section/section-bridi#chapter-tour)"));
+        assert!(!rendered.contains("[chapter-grammars]"));
+        assert!(!rendered.contains("[chapter-tour]"));
     }
 
     #[test]

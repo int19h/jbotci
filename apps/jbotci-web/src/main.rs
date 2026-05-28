@@ -163,6 +163,19 @@ struct CuktaTocResizeState {
     start_width: f64,
 }
 
+#[invariant(self.expanded.iter().all(|node_id| !node_id.is_empty()))]
+#[invariant(self.collapsed.iter().all(|node_id| !node_id.is_empty()))]
+#[invariant(
+    self.expanded
+        .iter()
+        .all(|expanded| !self.collapsed.iter().any(|collapsed| collapsed == expanded))
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CuktaTocExpansionState {
+    expanded: Vec<String>,
+    collapsed: Vec<String>,
+}
+
 impl Default for UserSettings {
     #[requires(true)]
     #[ensures(ret.theme == ThemeMode::Auto)]
@@ -187,6 +200,18 @@ impl Default for VlackuJvozbaPaneState {
             mode: VlackuJvozbaMode::Lujvo,
             items: Vec::new(),
         }
+    }
+}
+
+impl Default for CuktaTocExpansionState {
+    #[requires(true)]
+    #[ensures(ret.expanded.is_empty())]
+    #[ensures(ret.collapsed.is_empty())]
+    fn default() -> Self {
+        new!(CuktaTocExpansionState {
+            expanded: Vec::new(),
+            collapsed: Vec::new(),
+        })
     }
 }
 
@@ -254,7 +279,7 @@ fn App() -> Element {
     let cukta_state = use_signal(|| initial_cukta);
     let cukta_toc_filter = use_signal(String::new);
     let cukta_toc_pinned = use_signal(|| true);
-    let cukta_toc_toggles = use_signal(Vec::<String>::new);
+    let cukta_toc_expansion = use_signal(CuktaTocExpansionState::default);
     let cukta_toc_width = use_signal(default_cukta_toc_width);
     let cukta_toc_resize = use_signal(|| None::<CuktaTocResizeState>);
     let initial_vlacku = initial_vlacku_state();
@@ -372,7 +397,7 @@ fn App() -> Element {
                                     cukta_page,
                                     cukta_toc_filter,
                                     cukta_toc_pinned,
-                                    cukta_toc_toggles,
+                                    cukta_toc_expansion,
                                     cukta_toc_width,
                                     cukta_toc_resize,
                                     &base_path,
@@ -570,7 +595,7 @@ fn render_cukta_page(
     cukta_page: Memo<CuktaPageData>,
     mut toc_filter: Signal<String>,
     mut toc_pinned: Signal<bool>,
-    toc_toggles: Signal<Vec<String>>,
+    toc_expansion: Signal<CuktaTocExpansionState>,
     toc_width: Signal<f64>,
     mut toc_resize: Signal<Option<CuktaTocResizeState>>,
     base_path: &str,
@@ -655,7 +680,7 @@ fn render_cukta_page(
                         nav { class: "cll-toc-scroll", aria_label: "CLL table of contents",
                             ol { class: "cll-toc-tree",
                                 for node in page.toc.iter() {
-                                    { render_cukta_toc_node(cukta_state, toc_toggles, node, &toc_filter.read()) }
+                                    { render_cukta_toc_node(cukta_state, toc_expansion, node, &toc_filter.read()) }
                                 }
                             }
                         }
@@ -763,7 +788,7 @@ fn set_cukta_toc_width(width: &mut Signal<f64>, next_width: f64) {
 #[ensures(true)]
 fn render_cukta_toc_node(
     cukta_state: Signal<CuktaWebState>,
-    toc_toggles: Signal<Vec<String>>,
+    toc_expansion: Signal<CuktaTocExpansionState>,
     node: &CuktaTocNode,
     filter: &str,
 ) -> Element {
@@ -784,7 +809,7 @@ fn render_cukta_toc_node(
     if !visible {
         return rsx! {};
     }
-    let expanded = toc_node_expanded(node, &filter, &toc_toggles.read());
+    let expanded = toc_node_expanded(node, &filter, &toc_expansion.read());
     let target_reference = node
         .section_id
         .clone()
@@ -804,7 +829,7 @@ fn render_cukta_toc_node(
         ],
     );
     rsx! {
-        li { class: "{class}",
+        li { key: "{node.node_id}", class: "{class}",
             div { class: "cll-toc-row",
                 if !node.children.is_empty() {
                     button {
@@ -814,7 +839,15 @@ fn render_cukta_toc_node(
                         title: if expanded { "Collapse" } else { "Expand" },
                         onclick: {
                             let node_id = node.node_id.clone();
-                            move |_| toggle_cukta_toc_node(&mut toc_toggles.clone(), &node_id)
+                            let default_expanded = node.active;
+                            move |_| {
+                                toggle_cukta_toc_node(
+                                    &mut toc_expansion.clone(),
+                                    &node_id,
+                                    default_expanded,
+                                    expanded,
+                                )
+                            }
                         },
                         span { aria_hidden: "true",
                             if expanded { "▾" } else { "▸" }
@@ -846,7 +879,7 @@ fn render_cukta_toc_node(
             if !node.children.is_empty() && expanded {
                 ol { class: "cll-toc-children",
                     for child in node.children.iter() {
-                        { render_cukta_toc_node(cukta_state, toc_toggles, child, &filter) }
+                        { render_cukta_toc_node(cukta_state, toc_expansion, child, &filter) }
                     }
                 }
             }
@@ -900,13 +933,28 @@ fn render_cukta_toc_title(label: &str) -> Element {
 
 #[requires(true)]
 #[ensures(true)]
-fn toc_node_expanded(node: &CuktaTocNode, filter: &str, toggles: &[String]) -> bool {
+fn toc_node_expanded(
+    node: &CuktaTocNode,
+    filter: &str,
+    expansion: &CuktaTocExpansionState,
+) -> bool {
     if !filter.trim().is_empty() {
         return true;
     }
-    let default_expanded = node.active;
-    if toggles.iter().any(|id| id == &node.node_id) {
-        !default_expanded
+    cukta_toc_node_expanded_with_default(&node.node_id, node.active, expansion)
+}
+
+#[requires(!node_id.is_empty())]
+#[ensures(true)]
+fn cukta_toc_node_expanded_with_default(
+    node_id: &str,
+    default_expanded: bool,
+    expansion: &CuktaTocExpansionState,
+) -> bool {
+    if expansion.expanded.iter().any(|id| id == node_id) {
+        true
+    } else if expansion.collapsed.iter().any(|id| id == node_id) {
+        false
     } else {
         default_expanded
     }
@@ -914,14 +962,46 @@ fn toc_node_expanded(node: &CuktaTocNode, filter: &str, toggles: &[String]) -> b
 
 #[requires(!node_id.is_empty())]
 #[ensures(true)]
-fn toggle_cukta_toc_node(toc_toggles: &mut Signal<Vec<String>>, node_id: &str) {
-    let mut toggles = toc_toggles.read().clone();
-    if let Some(index) = toggles.iter().position(|id| id == node_id) {
-        toggles.remove(index);
-    } else {
-        toggles.push(node_id.to_owned());
+fn toggle_cukta_toc_node(
+    toc_expansion: &mut Signal<CuktaTocExpansionState>,
+    node_id: &str,
+    default_expanded: bool,
+    currently_expanded: bool,
+) {
+    let current = toc_expansion.read().clone();
+    let next = cukta_toc_expansion_with_node_state(
+        &current,
+        node_id,
+        default_expanded,
+        !currently_expanded,
+    );
+    toc_expansion.set(next);
+}
+
+#[requires(!node_id.is_empty())]
+#[ensures(cukta_toc_node_expanded_with_default(node_id, default_expanded, &ret) == desired_expanded)]
+fn cukta_toc_expansion_with_node_state(
+    expansion: &CuktaTocExpansionState,
+    node_id: &str,
+    default_expanded: bool,
+    desired_expanded: bool,
+) -> CuktaTocExpansionState {
+    let data = expansion.clone().into_data();
+    let mut expanded = data.expanded;
+    let mut collapsed = data.collapsed;
+    expanded.retain(|id| id != node_id);
+    collapsed.retain(|id| id != node_id);
+    if desired_expanded != default_expanded {
+        if desired_expanded {
+            expanded.push(node_id.to_owned());
+        } else {
+            collapsed.push(node_id.to_owned());
+        }
     }
-    toc_toggles.set(toggles);
+    new!(CuktaTocExpansionState {
+        expanded,
+        collapsed,
+    })
 }
 
 #[requires(true)]
@@ -5039,6 +5119,48 @@ mod tests {
         assert_eq!(route_from_path("/jbotci/cukta/"), AppRoute::Cukta);
         assert_eq!(route_from_path("/jbotci/vlacku/"), AppRoute::Vlacku);
         assert_eq!(route_from_path("/jbotci/settings/"), AppRoute::Settings);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_toc_manual_expansion_survives_active_default_changes() {
+        let state = CuktaTocExpansionState::default();
+        assert!(!cukta_toc_node_expanded_with_default(
+            "chapter-tour",
+            false,
+            &state
+        ));
+
+        let state = cukta_toc_expansion_with_node_state(&state, "chapter-tour", false, true);
+
+        assert!(cukta_toc_node_expanded_with_default(
+            "chapter-tour",
+            false,
+            &state
+        ));
+        assert!(cukta_toc_node_expanded_with_default(
+            "chapter-tour",
+            true,
+            &state
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_toc_default_matching_toggle_prunes_override() {
+        let state = CuktaTocExpansionState::default();
+        let state = cukta_toc_expansion_with_node_state(&state, "chapter-tour", false, true);
+        let state = cukta_toc_expansion_with_node_state(&state, "chapter-tour", false, false);
+
+        assert!(state.expanded.is_empty());
+        assert!(state.collapsed.is_empty());
+        assert!(!cukta_toc_node_expanded_with_default(
+            "chapter-tour",
+            false,
+            &state
+        ));
     }
 
     #[test]
