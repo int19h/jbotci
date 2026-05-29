@@ -1,6 +1,7 @@
 //! EmbeddingGemma model and vector-pack support.
 
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::env;
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -14,8 +15,15 @@ use jbotci_cll::{
     CllSearchChunk, CllSearchMatch, CuktaSearchMode, CuktaSearchOutput, CuktaTargetFilter,
     clamp_cukta_result_count, cll_search_all_chunks,
 };
-use jbotci_dictionary::{Dictionary, DictionaryEntry};
-use jbotci_search::vlacku::{grouped_word_type_filter_key, normalize_word_type_filter};
+use jbotci_dictionary::Dictionary;
+pub use jbotci_embedding_inputs::{
+    CUKTA_CORPUS_ID, DEFAULT_INPUT_FORMAT_VERSION, DEFAULT_MODEL_DIMENSIONS, DEFAULT_MODEL_KEY,
+    DEFAULT_MODEL_REVISION, RETRIEVAL_DOCUMENT_PREFIX, RETRIEVAL_QUERY_PREFIX, VLACKU_CORPUS_ID,
+    build_retrieval_document_input, build_retrieval_query_input, cll_embedding_input,
+    cll_fingerprint, dictionary_embedding_input, dictionary_embedding_kind,
+    dictionary_fingerprint, sha256_hex_bytes,
+};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -29,15 +37,7 @@ pub const HF_ENDPOINT_ENV: &str = "HF_ENDPOINT";
 pub const HF_TOKEN_ENV: &str = "HF_TOKEN";
 pub const INDEX_SCHEMA_VERSION: u32 = 1;
 pub const INDEX_BASE_VERSION: &str = "v1";
-pub const DEFAULT_MODEL_KEY: &str = "embedding-gemma-300m-q4-768";
-pub const DEFAULT_MODEL_REVISION: &str = "8dd0ca2a66a8f14470acb0e2a71f801afbc5fb73";
-pub const DEFAULT_MODEL_DIMENSIONS: usize = 768;
-pub const DEFAULT_INPUT_FORMAT_VERSION: &str = "egemma-v0-parity-1";
 pub const DEFAULT_VECTOR_SHARD_TARGET_BYTES: usize = 8 * 1024 * 1024;
-pub const VLACKU_CORPUS_ID: &str = "vlacku-en";
-pub const CUKTA_CORPUS_ID: &str = "cukta-cll";
-pub const RETRIEVAL_QUERY_PREFIX: &str = "task: search result | query: ";
-pub const RETRIEVAL_DOCUMENT_PREFIX: &str = "title: {title} | text: {text}";
 
 const DEFAULT_HF_ENDPOINT: &str = "https://huggingface.co";
 const DEFAULT_GGUF_REPO: &str = "ggml-org/embeddinggemma-300M-qat-q4_0-GGUF";
@@ -273,6 +273,30 @@ pub struct SetupReport {
     pub cll_rows: usize,
 }
 
+#[derive(Debug, Clone, Default)]
+#[invariant(true)]
+struct ReusableVectorRows {
+    rows_by_input_hash: HashMap<String, Vec<f32>>,
+}
+
+impl ReusableVectorRows {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|row| row.len() == dimensions))]
+    fn row(&self, input_hash: &str, dimensions: usize) -> Option<&[f32]> {
+        self.rows_by_input_hash
+            .get(input_hash)
+            .filter(|row| row.len() == dimensions)
+            .map(Vec::as_slice)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+#[invariant(true)]
+struct ReusablePackRows {
+    dictionary: ReusableVectorRows,
+    cll: ReusableVectorRows,
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|path| !path.as_os_str().is_empty()) || ret.is_err())]
 pub fn default_model_root() -> Result<PathBuf, EmbeddingError> {
@@ -359,94 +383,6 @@ pub fn model_download_url(spec: &EmbeddingModelSpec) -> String {
         spec.model_revision,
         spec.native_hf_file
     )
-}
-
-#[requires(true)]
-#[ensures(ret.starts_with(RETRIEVAL_QUERY_PREFIX))]
-pub fn build_retrieval_query_input(content: &str) -> String {
-    format!("{RETRIEVAL_QUERY_PREFIX}{content}")
-}
-
-#[requires(true)]
-#[ensures(ret.contains(" | text: "))]
-pub fn build_retrieval_document_input(content: &str, title: &str) -> String {
-    let safe_title = if title.trim().is_empty() {
-        "none"
-    } else {
-        title
-    };
-    RETRIEVAL_DOCUMENT_PREFIX
-        .replace("{title}", safe_title)
-        .replace("{text}", content)
-}
-
-#[requires(true)]
-#[ensures(ret.contains(&entry.word))]
-pub fn dictionary_embedding_input(entry: &DictionaryEntry<'_>) -> String {
-    let mut body_parts = Vec::new();
-    let definition = replace_dollar_markup_with_placeholder(entry.definition);
-    if !definition.trim().is_empty() {
-        body_parts.push(definition);
-    }
-    let glosses = entry
-        .gloss_keywords
-        .iter()
-        .map(|keyword| match keyword.meaning {
-            Some(meaning) => format!("{} ({meaning})", keyword.word),
-            None => keyword.word.to_owned(),
-        })
-        .collect::<Vec<_>>()
-        .join("; ");
-    if !glosses.trim().is_empty() {
-        body_parts.push(glosses);
-    }
-    build_retrieval_document_input(&body_parts.join("\n"), entry.word)
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-pub fn dictionary_embedding_kind(entry: &DictionaryEntry<'_>) -> String {
-    grouped_word_type_filter_key(&normalize_word_type_filter(entry.word_type.as_str()))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn replace_dollar_markup_with_placeholder(input: &str) -> String {
-    let mut output = String::new();
-    let mut rest = input;
-    loop {
-        let Some(start) = rest.find('$') else {
-            output.push_str(rest);
-            break;
-        };
-        output.push_str(&rest[..start]);
-        let after_start = &rest[start + 1..];
-        let Some(end) = after_start.find('$') else {
-            output.push('$');
-            output.push_str(after_start);
-            break;
-        };
-        let inside = &after_start[..end];
-        if inside.trim().is_empty() {
-            output.push_str("$ $");
-        } else {
-            output.push_str("place");
-        }
-        rest = &after_start[end + 1..];
-    }
-    output
-}
-
-#[requires(true)]
-#[ensures(ret.contains(&chunk.label))]
-pub fn cll_embedding_input(chunk: &CllSearchChunk) -> String {
-    build_retrieval_document_input(&chunk.text, &chunk.label)
-}
-
-#[requires(true)]
-#[ensures(ret.len() == 64)]
-pub fn sha256_hex_bytes(bytes: &[u8]) -> String {
-    hex_digest(Sha256::digest(bytes))
 }
 
 #[requires(path.is_file())]
@@ -742,34 +678,6 @@ fn short_fingerprint(value: &str) -> String {
     value.chars().take(12).collect()
 }
 
-#[requires(true)]
-#[ensures(ret.len() == 64)]
-pub fn dictionary_fingerprint(dictionary: &Dictionary<'_>) -> String {
-    let mut hasher = Sha256::new();
-    for entry in dictionary.entries() {
-        hasher.update(entry.word.as_bytes());
-        hasher.update([0]);
-        hasher.update(entry.definition_id.0.to_le_bytes());
-        hasher.update([0]);
-        hasher.update(dictionary_embedding_input(entry).as_bytes());
-        hasher.update([0]);
-    }
-    hex_digest(hasher.finalize())
-}
-
-#[requires(true)]
-#[ensures(ret.len() == 64)]
-pub fn cll_fingerprint(chunks: &[CllSearchChunk]) -> String {
-    let mut hasher = Sha256::new();
-    for chunk in chunks {
-        hasher.update(chunk.label.as_bytes());
-        hasher.update([0]);
-        hasher.update(cll_embedding_input(chunk).as_bytes());
-        hasher.update([0]);
-    }
-    hex_digest(hasher.finalize())
-}
-
 #[requires(!path.as_os_str().is_empty())]
 #[ensures(true)]
 pub fn ensure_model_file(
@@ -904,6 +812,7 @@ pub fn build_embedding_pack<B: EmbeddingBackend>(
         context: format!("failed to create `{}`", temp_pack_root.display()),
         source,
     })?;
+    let reusable_rows = load_reusable_native_rows(index_root, &spec.model_key, dimensions);
 
     let dictionary_corpus = write_dictionary_corpus(
         backend,
@@ -912,6 +821,7 @@ pub fn build_embedding_pack<B: EmbeddingBackend>(
         &pack_id,
         dimensions,
         &dictionary_fingerprint,
+        reusable_rows.as_ref().map(|rows| &rows.dictionary),
     )?;
     let cll_corpus = write_cll_corpus(
         backend,
@@ -920,6 +830,7 @@ pub fn build_embedding_pack<B: EmbeddingBackend>(
         &pack_id,
         dimensions,
         &cll_fingerprint,
+        reusable_rows.as_ref().map(|rows| &rows.cll),
     )?;
     let manifest = EmbeddingPackManifest {
         schema_version: INDEX_SCHEMA_VERSION,
@@ -977,6 +888,7 @@ fn write_dictionary_corpus<B: EmbeddingBackend>(
     pack_id: &str,
     dimensions: usize,
     fingerprint: &str,
+    reusable_rows: Option<&ReusableVectorRows>,
 ) -> Result<CorpusManifest, EmbeddingError> {
     let corpus_dir = pack_dir.join("corpora").join(VLACKU_CORPUS_ID);
     let items = dictionary
@@ -995,7 +907,11 @@ fn write_dictionary_corpus<B: EmbeddingBackend>(
         })
         .collect::<Vec<_>>();
     let mut values = Vec::with_capacity(items.len() * dimensions);
-    for entry in dictionary.entries() {
+    for (entry, item) in dictionary.entries().iter().zip(items.iter()) {
+        if let Some(row) = reusable_rows.and_then(|rows| rows.row(&item.input_hash, dimensions)) {
+            values.extend_from_slice(row);
+            continue;
+        }
         let mut embedding = backend.embed(&dictionary_embedding_input(entry))?.values;
         if embedding.len() != dimensions {
             return Err(EmbeddingError::DimensionMismatch {
@@ -1027,6 +943,7 @@ fn write_cll_corpus<B: EmbeddingBackend>(
     pack_id: &str,
     dimensions: usize,
     fingerprint: &str,
+    reusable_rows: Option<&ReusableVectorRows>,
 ) -> Result<CorpusManifest, EmbeddingError> {
     let corpus_dir = pack_dir.join("corpora").join(CUKTA_CORPUS_ID);
     let items = chunks
@@ -1041,7 +958,11 @@ fn write_cll_corpus<B: EmbeddingBackend>(
         })
         .collect::<Vec<_>>();
     let mut values = Vec::with_capacity(items.len() * dimensions);
-    for chunk in chunks {
+    for (chunk, item) in chunks.iter().zip(items.iter()) {
+        if let Some(row) = reusable_rows.and_then(|rows| rows.row(&item.input_hash, dimensions)) {
+            values.extend_from_slice(row);
+            continue;
+        }
         let mut embedding = backend.embed(&cll_embedding_input(chunk))?.values;
         if embedding.len() != dimensions {
             return Err(EmbeddingError::DimensionMismatch {
@@ -1192,6 +1113,74 @@ pub fn load_latest_pack(
         });
     }
     Ok((pack_dir.to_owned(), manifest))
+}
+
+#[requires(dimensions > 0)]
+#[ensures(true)]
+fn load_reusable_native_rows(
+    index_root: &Path,
+    model_key: &str,
+    dimensions: usize,
+) -> Option<ReusablePackRows> {
+    if !catalog_path(index_root).ok()?.is_file() {
+        return None;
+    }
+    let (pack_dir, manifest) = load_latest_pack(index_root, model_key).ok()?;
+    if manifest.dimensions != dimensions {
+        return None;
+    }
+    let dictionary = manifest_corpus(&manifest, VLACKU_CORPUS_ID)
+        .ok()
+        .and_then(|corpus| {
+            load_reusable_corpus_rows::<DictionaryEmbeddingItem, _>(
+                &pack_dir,
+                corpus,
+                dimensions,
+                |item| item.input_hash.as_str(),
+            )
+            .ok()
+        })
+        .unwrap_or_default();
+    let cll = manifest_corpus(&manifest, CUKTA_CORPUS_ID)
+        .ok()
+        .and_then(|corpus| {
+            load_reusable_corpus_rows::<CllEmbeddingItem, _>(
+                &pack_dir,
+                corpus,
+                dimensions,
+                |item| item.input_hash.as_str(),
+            )
+            .ok()
+        })
+        .unwrap_or_default();
+    Some(ReusablePackRows { dictionary, cll })
+}
+
+#[requires(dimensions > 0)]
+#[ensures(true)]
+fn load_reusable_corpus_rows<T, F>(
+    pack_dir: &Path,
+    corpus: &CorpusManifest,
+    dimensions: usize,
+    input_hash: F,
+) -> Result<ReusableVectorRows, EmbeddingError>
+where
+    T: DeserializeOwned,
+    F: Fn(&T) -> &str,
+{
+    let items: Vec<T> = read_json_file(&pack_dir.join(&corpus.items_url))?;
+    let values = read_vector_shards(pack_dir, corpus, dimensions)?;
+    let mut rows_by_input_hash = HashMap::new();
+    for (row_index, item) in items.iter().enumerate() {
+        let start = row_index * dimensions;
+        let end = start + dimensions;
+        if end <= values.len() {
+            rows_by_input_hash
+                .entry(input_hash(item).to_owned())
+                .or_insert_with(|| values[start..end].to_vec());
+        }
+    }
+    Ok(ReusableVectorRows { rows_by_input_hash })
 }
 
 #[requires(true)]
@@ -1372,6 +1361,7 @@ mod tests {
     #[invariant(true)]
     struct FakeBackend {
         dimensions: usize,
+        calls: usize,
     }
 
     #[contract_trait]
@@ -1385,6 +1375,7 @@ mod tests {
         #[requires(!input.is_empty())]
         #[ensures(ret.as_ref().is_ok_and(|embedding| embedding.values.len() == self.dimensions) || ret.is_err())]
         fn embed(&mut self, input: &str) -> Result<QueryEmbedding, EmbeddingError> {
+            self.calls += 1;
             let mut values = (0..self.dimensions)
                 .map(|index| {
                     let byte = input.as_bytes()[index % input.len()];
@@ -1542,7 +1533,10 @@ mod tests {
         let entries = jbotci_dictionary_data::english();
         let cll_site = jbotci_cll::embedded_cll_site().expect("embedded CLL");
         let cll_chunks = &cll_site.search_chunks[..2];
-        let mut backend = FakeBackend { dimensions: 4 };
+        let mut backend = FakeBackend {
+            dimensions: 4,
+            calls: 0,
+        };
         let spec = EmbeddingModelSpec {
             dimensions: 4,
             ..EmbeddingModelSpec::default_embedding_gemma()
@@ -1570,6 +1564,35 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn force_rebuild_reuses_existing_native_rows() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dictionary = jbotci_dictionary_data::english();
+        let cll_site = jbotci_cll::embedded_cll_site().expect("embedded CLL");
+        let cll_chunks = &cll_site.search_chunks[..3];
+        let spec = EmbeddingModelSpec {
+            dimensions: 4,
+            ..EmbeddingModelSpec::default_embedding_gemma()
+        };
+        let mut first = FakeBackend {
+            dimensions: 4,
+            calls: 0,
+        };
+        build_embedding_pack(&mut first, dictionary, cll_chunks, dir.path(), &spec, false)
+            .expect("initial pack");
+        assert_eq!(first.calls, dictionary.entries().len() + cll_chunks.len());
+
+        let mut second = FakeBackend {
+            dimensions: 4,
+            calls: 0,
+        };
+        build_embedding_pack(&mut second, dictionary, cll_chunks, dir.path(), &spec, true)
+            .expect("force rebuild");
+        assert_eq!(second.calls, 0);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn fake_backend_pack_supports_semantic_search() {
         let dir = tempfile::tempdir().expect("tempdir");
         let dictionary = jbotci_dictionary_data::english();
@@ -1580,7 +1603,10 @@ mod tests {
             ..EmbeddingModelSpec::default_embedding_gemma()
         };
         build_embedding_pack(
-            &mut FakeBackend { dimensions: 4 },
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
             dictionary,
             cll_chunks,
             dir.path(),
@@ -1590,7 +1616,10 @@ mod tests {
         .expect("build fixture pack");
 
         let hits = semantic_vlacku_hits(
-            &mut FakeBackend { dimensions: 4 },
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
             "go somewhere",
             3,
             dir.path(),
@@ -1600,7 +1629,10 @@ mod tests {
         assert_eq!(hits.len(), 3);
 
         let output = semantic_cukta_output(
-            &mut FakeBackend { dimensions: 4 },
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
             cll_chunks,
             "grammar",
             2,

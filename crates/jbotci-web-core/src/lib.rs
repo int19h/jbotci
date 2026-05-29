@@ -8,7 +8,7 @@ use std::sync::OnceLock;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{
-    CllBlock, CllSearchChunk, CllSearchChunkKind, CuktaSearchMode, CuktaTargetFilter,
+    CllBlock, CllSearchChunkKind, CuktaSearchMode, CuktaTargetFilter,
     DEFAULT_CUKTA_SECTION_ID, DEFAULT_CUKTA_WEB_RESULT_COUNT, MAX_CUKTA_RESULT_COUNT,
     cll_first_section_id, cll_index_entries, cll_lookup_section, cll_next_section_id,
     cll_previous_section_id, cll_resolve_section_reference, cll_search_all_chunks,
@@ -18,6 +18,7 @@ use jbotci_cll::{
 use jbotci_diagnostics::{Diagnostic, DiagnosticPhase};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_dictionary::{Dictionary, DictionaryEntry};
+use jbotci_embedding_inputs::embedding_input_corpus_json;
 use jbotci_jvozba::{
     JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegment, JvozbaSegmentKind,
     build_best_jvozba_detailed,
@@ -1914,128 +1915,12 @@ pub const VLACKU_WEB_MAX_COUNT: usize = 2048;
 
 pub const CUKTA_WEB_DEFAULT_COUNT: usize = DEFAULT_CUKTA_WEB_RESULT_COUNT;
 pub const CUKTA_WEB_MAX_COUNT: usize = MAX_CUKTA_RESULT_COUNT;
-pub const WEB_EMBEDDING_MODEL_KEY: &str = "embedding-gemma-300m-q4-768";
-
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct EmbeddingWorkerCorpus {
-    model_key: String,
-    input_format_version: String,
-    dictionary: Vec<EmbeddingWorkerDocument>,
-    cll: Vec<EmbeddingWorkerDocument>,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "kebab-case")]
-struct EmbeddingWorkerDocument {
-    id: usize,
-    input: String,
-    kind: Option<String>,
-}
+pub const WEB_EMBEDDING_MODEL_KEY: &str = jbotci_embedding_inputs::DEFAULT_MODEL_KEY;
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub fn embedding_worker_corpus_json() -> String {
-    let dictionary = jbotci_dictionary_data::english()
-        .entries()
-        .iter()
-        .enumerate()
-        .map(|(id, entry)| EmbeddingWorkerDocument {
-            id,
-            input: dictionary_embedding_input(entry),
-            kind: Some(dictionary_option_key(entry)),
-        })
-        .collect::<Vec<_>>();
-    let cll = embedded_cll_site()
-        .map(|site| {
-            cll_search_all_chunks(site)
-                .iter()
-                .enumerate()
-                .map(|(id, chunk)| EmbeddingWorkerDocument {
-                    id,
-                    input: cll_embedding_input(chunk),
-                    kind: Some(cukta_chunk_kind_label(chunk.kind).to_owned()),
-                })
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-    serde_json::to_string(&EmbeddingWorkerCorpus {
-        model_key: WEB_EMBEDDING_MODEL_KEY.to_owned(),
-        input_format_version: "egemma-v0-parity-1".to_owned(),
-        dictionary,
-        cll,
-    })
-    .unwrap_or_else(|_| "{}".to_owned())
-}
-
-#[requires(true)]
-#[ensures(ret.contains(&entry.word))]
-fn dictionary_embedding_input(entry: &DictionaryEntry<'_>) -> String {
-    let mut body_parts = Vec::new();
-    let definition = replace_dollar_markup_with_placeholder(entry.definition);
-    if !definition.trim().is_empty() {
-        body_parts.push(definition);
-    }
-    let glosses = entry
-        .gloss_keywords
-        .iter()
-        .map(|keyword| match keyword.meaning {
-            Some(meaning) => format!("{} ({meaning})", keyword.word),
-            None => keyword.word.to_owned(),
-        })
-        .collect::<Vec<_>>()
-        .join("; ");
-    if !glosses.trim().is_empty() {
-        body_parts.push(glosses);
-    }
-    retrieval_document_input(&body_parts.join("\n"), entry.word)
-}
-
-#[requires(true)]
-#[ensures(ret.contains(&chunk.label))]
-fn cll_embedding_input(chunk: &CllSearchChunk) -> String {
-    retrieval_document_input(&chunk.text, &chunk.label)
-}
-
-#[requires(true)]
-#[ensures(ret.contains(" | text: "))]
-fn retrieval_document_input(content: &str, title: &str) -> String {
-    let safe_title = if title.trim().is_empty() {
-        "none"
-    } else {
-        title
-    };
-    format!("title: {safe_title} | text: {content}")
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn replace_dollar_markup_with_placeholder(input: &str) -> String {
-    let mut output = String::new();
-    let mut rest = input;
-    loop {
-        let Some(start) = rest.find('$') else {
-            output.push_str(rest);
-            break;
-        };
-        output.push_str(&rest[..start]);
-        let after_start = &rest[start + 1..];
-        let Some(end) = after_start.find('$') else {
-            output.push('$');
-            output.push_str(after_start);
-            break;
-        };
-        let inside = &after_start[..end];
-        if inside.trim().is_empty() {
-            output.push_str("$ $");
-        } else {
-            output.push_str("place");
-        }
-        rest = &after_start[end + 1..];
-    }
-    output
+    embedding_input_corpus_json()
 }
 
 #[invariant(true)]
