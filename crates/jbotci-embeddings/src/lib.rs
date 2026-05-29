@@ -20,8 +20,8 @@ pub use jbotci_embedding_inputs::{
     CUKTA_CORPUS_ID, DEFAULT_INPUT_FORMAT_VERSION, DEFAULT_MODEL_DIMENSIONS, DEFAULT_MODEL_KEY,
     DEFAULT_MODEL_REVISION, RETRIEVAL_DOCUMENT_PREFIX, RETRIEVAL_QUERY_PREFIX, VLACKU_CORPUS_ID,
     build_retrieval_document_input, build_retrieval_query_input, cll_embedding_input,
-    cll_fingerprint, dictionary_embedding_input, dictionary_embedding_kind,
-    dictionary_fingerprint, sha256_hex_bytes,
+    cll_fingerprint, dictionary_embedding_input, dictionary_embedding_kind, dictionary_fingerprint,
+    sha256_hex_bytes,
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};

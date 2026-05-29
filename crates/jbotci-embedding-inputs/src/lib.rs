@@ -156,11 +156,7 @@ fn extract_example_number(label: &str) -> Option<String> {
         .strip_prefix("Example ")
         .map(str::trim)
         .unwrap_or(label.trim());
-    parse_numeric_token(stripped).or_else(|| {
-        label
-            .split_whitespace()
-            .find_map(parse_numeric_token)
-    })
+    parse_numeric_token(stripped).or_else(|| label.split_whitespace().find_map(parse_numeric_token))
 }
 
 #[requires(true)]
@@ -427,7 +423,12 @@ mod tests {
         let corpus = embedding_input_corpus();
         assert_eq!(corpus.model_key, DEFAULT_MODEL_KEY);
         assert_eq!(corpus.input_hash.len(), 64);
-        assert!(corpus.dictionary.iter().all(|doc| doc.input_hash.len() == 64));
+        assert!(
+            corpus
+                .dictionary
+                .iter()
+                .all(|doc| doc.input_hash.len() == 64)
+        );
         assert!(corpus.cll.iter().all(|doc| doc.input_hash.len() == 64));
     }
 }

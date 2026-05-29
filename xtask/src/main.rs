@@ -405,7 +405,6 @@ fn dist_server(args: DistServerArgs) -> Result<()> {
         run_dx_bundle(&out_dir, &args.base_path)?;
     }
     let web_dist = web_dist_dir(&out_dir)?;
-    copy_required_web_assets(&web_dist)?;
     if !args.skip_web_embeddings {
         let corpus = absolute_path(Path::new(".jbotci-build/web-embedding-corpus.json"))?;
         write_web_embedding_corpus(&corpus)?;
@@ -460,34 +459,6 @@ fn web_dist_dir(out_dir: &Path) -> Result<PathBuf> {
 }
 
 #[requires(web_dist.is_dir())]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn copy_required_web_assets(web_dist: &Path) -> Result<()> {
-    let source_fonts = Path::new("apps/jbotci-web/assets/fonts");
-    let target_fonts = web_dist.join("assets").join("fonts");
-    fs::create_dir_all(&target_fonts)
-        .with_context(|| format!("creating `{}`", target_fonts.display()))?;
-    for font_name in [
-        "noto-sans-variable.ttf",
-        "noto-sans-italic-variable.ttf",
-        "noto-sans-math-regular.otf",
-        "crisa-regular.otf",
-    ] {
-        fs::copy(source_fonts.join(font_name), target_fonts.join(font_name))
-            .with_context(|| format!("copying web font `{font_name}`"))?;
-    }
-    let source_icons = Path::new("apps/jbotci-web/assets/icons");
-    let target_icons = web_dist.join("assets").join("icons");
-    fs::create_dir_all(&target_icons)
-        .with_context(|| format!("creating `{}`", target_icons.display()))?;
-    fs::copy(
-        source_icons.join("jbotci-icon-192.png"),
-        target_icons.join("jbotci-icon-192.png"),
-    )
-    .context("copying web favicon icon `jbotci-icon-192.png`")?;
-    Ok(())
-}
-
-#[requires(web_dist.is_dir())]
 #[requires(corpus.is_file())]
 #[requires(!dtypes.is_empty())]
 #[requires(!backend.is_empty())]
@@ -516,9 +487,12 @@ fn build_web_embedding_assets(
     for dtype in dtypes {
         command.arg("--dtype").arg(dtype);
     }
-    let status = command
-        .status()
-        .with_context(|| format!("failed to run web embedding builder for `{}`", output.display()))?;
+    let status = command.status().with_context(|| {
+        format!(
+            "failed to run web embedding builder for `{}`",
+            output.display()
+        )
+    })?;
     check_status(status, "node tools/embedding-pack/build-web-embeddings.mjs")
 }
 
@@ -528,14 +502,18 @@ fn write_web_embedding_corpus(output: &Path) -> Result<()> {
     if let Some(parent) = output.parent() {
         fs::create_dir_all(parent).with_context(|| format!("creating `{}`", parent.display()))?;
     }
-    fs::write(output, jbotci_embedding_inputs::embedding_input_corpus_json())
-        .with_context(|| format!("writing web embedding corpus `{}`", output.display()))
+    fs::write(
+        output,
+        jbotci_embedding_inputs::embedding_input_corpus_json(),
+    )
+    .with_context(|| format!("writing web embedding corpus `{}`", output.display()))
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn ensure_node_embedding_dependencies() -> Result<()> {
-    let dependency = Path::new("tools/embedding-pack/node_modules/@huggingface/transformers/package.json");
+    let dependency =
+        Path::new("tools/embedding-pack/node_modules/@huggingface/transformers/package.json");
     if dependency.is_file() {
         return Ok(());
     }
