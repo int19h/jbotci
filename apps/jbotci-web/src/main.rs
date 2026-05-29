@@ -3605,12 +3605,9 @@ fn render_dictionary_tooltip(
                 }
             }
             if !card.glosses.is_empty() {
-                span { class: "tooltip-row tooltip-glosses",
-                    span { class: "tooltip-label", "glosses" }
-                    span { class: "tooltip-chip-row",
-                        for gloss in card.glosses.iter() {
-                            span { class: "tooltip-chip", "{gloss}" }
-                        }
+                span { class: "tooltip-chip-row tooltip-glosses",
+                    for gloss in card.glosses.iter() {
+                        span { class: "tooltip-chip", "{gloss}" }
                     }
                 }
             }
