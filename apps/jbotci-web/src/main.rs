@@ -6137,7 +6137,71 @@ fn position_dictionary_tooltip_from_event(event: &web_sys::Event) {
     let Ok(Some(host)) = target.closest(".dictionary-tooltip-host") else {
         return;
     };
+    activate_dictionary_tooltip_host(&host);
     position_dictionary_tooltip(&host);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn activate_dictionary_tooltip_host(active_host: &web_sys::Element) {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Ok(hosts) = document.query_selector_all(".dictionary-tooltip-host") else {
+        return;
+    };
+    for index in 0..hosts.length() {
+        let Some(node) = hosts.item(index) else {
+            continue;
+        };
+        let Ok(host) = node.dyn_into::<web_sys::Element>() else {
+            continue;
+        };
+        if js_sys::Object::is(host.as_ref(), active_host.as_ref()) {
+            clear_dictionary_tooltip_immediate_hide(&host);
+        } else {
+            hide_dictionary_tooltip_immediately(&host);
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn hide_dictionary_tooltip_immediately(host: &web_sys::Element) {
+    let Some(tooltip) = dictionary_tooltip_element_for_host(host) else {
+        return;
+    };
+    let style = tooltip.style();
+    let _ = style.set_property("visibility", "hidden");
+    let _ = style.set_property("pointer-events", "none");
+    let _ = style.set_property("transform", "translateY(0.16rem)");
+    let _ = style.set_property("transition", "none");
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn clear_dictionary_tooltip_immediate_hide(host: &web_sys::Element) {
+    let Some(tooltip) = dictionary_tooltip_element_for_host(host) else {
+        return;
+    };
+    let style = tooltip.style();
+    let _ = style.remove_property("visibility");
+    let _ = style.remove_property("pointer-events");
+    let _ = style.remove_property("transform");
+    let _ = style.remove_property("transition");
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_tooltip_element_for_host(host: &web_sys::Element) -> Option<web_sys::HtmlElement> {
+    host.query_selector(".rich-dictionary-tooltip")
+        .ok()
+        .flatten()
+        .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok())
 }
 
 #[cfg(target_arch = "wasm32")]
