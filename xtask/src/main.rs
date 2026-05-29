@@ -65,6 +65,8 @@ struct Cli {
 #[invariant(::VendorDictionary(..) => true)]
 #[invariant(::BuildWebRelease(..) => true)]
 #[invariant(::ServeWebRelease(..) => true)]
+#[invariant(::ExportWebEmbeddingCorpus(..) => true)]
+#[invariant(::BuildWebEmbeddings(..) => true)]
 #[invariant(::DistServer(..) => true)]
 enum Command {
     Check,
@@ -87,6 +89,8 @@ enum Command {
     VendorDictionary(VendorDictionaryArgs),
     BuildWebRelease(BuildWebReleaseArgs),
     ServeWebRelease(ServeWebReleaseArgs),
+    ExportWebEmbeddingCorpus(ExportWebEmbeddingCorpusArgs),
+    BuildWebEmbeddings(BuildWebEmbeddingsArgs),
     DistServer(DistServerArgs),
 }
 
@@ -206,6 +210,26 @@ struct ServeWebReleaseArgs {
 
 #[derive(Debug, Args)]
 #[invariant(true)]
+struct ExportWebEmbeddingCorpusArgs {
+    #[arg(long, default_value = ".jbotci-build/web-embedding-corpus.json")]
+    output: PathBuf,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct BuildWebEmbeddingsArgs {
+    #[arg(long, default_value = ".jbotci-build/jbotci-web/public")]
+    web_dist: PathBuf,
+    #[arg(long)]
+    corpus: Option<PathBuf>,
+    #[arg(long = "dtype", default_values_t = ["q4".to_owned(), "q8".to_owned()])]
+    dtypes: Vec<String>,
+    #[arg(long, default_value = "transformers")]
+    backend: String,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
 struct DistServerArgs {
     #[arg(long, default_value = ".jbotci-build/jbotci-web")]
     out_dir: PathBuf,
@@ -213,6 +237,12 @@ struct DistServerArgs {
     base_path: String,
     #[arg(long)]
     skip_web_bundle: bool,
+    #[arg(long)]
+    skip_web_embeddings: bool,
+    #[arg(long = "embedding-dtype", default_values_t = ["q4".to_owned(), "q8".to_owned()])]
+    embedding_dtypes: Vec<String>,
+    #[arg(long, default_value = "transformers")]
+    embedding_backend: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -296,6 +326,8 @@ fn main() -> Result<()> {
         Command::VendorDictionary(args) => vendor_dictionary(args),
         Command::BuildWebRelease(args) => build_web_release(args),
         Command::ServeWebRelease(args) => serve_web_release(args),
+        Command::ExportWebEmbeddingCorpus(args) => export_web_embedding_corpus(args),
+        Command::BuildWebEmbeddings(args) => build_web_embeddings(args),
         Command::DistServer(args) => dist_server(args),
     }
 }
@@ -322,6 +354,28 @@ fn serve_web_release(args: ServeWebReleaseArgs) -> Result<()> {
         .status()
         .context("failed to run `dx serve`")?;
     check_status(status, "dx serve --web --release --debug-symbols=false")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn export_web_embedding_corpus(args: ExportWebEmbeddingCorpusArgs) -> Result<()> {
+    let output = absolute_path(&args.output)?;
+    write_web_embedding_corpus(&output)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_web_embeddings(args: BuildWebEmbeddingsArgs) -> Result<()> {
+    let web_dist = absolute_path(&args.web_dist)?;
+    let corpus = match args.corpus {
+        Some(path) => absolute_path(&path)?,
+        None => {
+            let output = absolute_path(Path::new(".jbotci-build/web-embedding-corpus.json"))?;
+            write_web_embedding_corpus(&output)?;
+            output
+        }
+    };
+    build_web_embedding_assets(&web_dist, &corpus, &args.dtypes, &args.backend)
 }
 
 #[requires(matches!(subcommand, "build" | "bundle" | "serve"))]
@@ -352,7 +406,17 @@ fn dist_server(args: DistServerArgs) -> Result<()> {
     }
     let web_dist = web_dist_dir(&out_dir)?;
     copy_required_web_assets(&web_dist)?;
-    build_embedded_server(&web_dist)
+    if !args.skip_web_embeddings {
+        let corpus = absolute_path(Path::new(".jbotci-build/web-embedding-corpus.json"))?;
+        write_web_embedding_corpus(&corpus)?;
+        build_web_embedding_assets(
+            &web_dist,
+            &corpus,
+            &args.embedding_dtypes,
+            &args.embedding_backend,
+        )?;
+    }
+    build_server_binary()
 }
 
 #[requires(true)]
@@ -424,27 +488,77 @@ fn copy_required_web_assets(web_dist: &Path) -> Result<()> {
 }
 
 #[requires(web_dist.is_dir())]
+#[requires(corpus.is_file())]
+#[requires(!dtypes.is_empty())]
+#[requires(!backend.is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn build_embedded_server(web_dist: &Path) -> Result<()> {
+fn build_web_embedding_assets(
+    web_dist: &Path,
+    corpus: &Path,
+    dtypes: &[String],
+    backend: &str,
+) -> Result<()> {
+    ensure_node_embedding_dependencies()?;
+    let output = web_dist
+        .join("assets")
+        .join("embeddings")
+        .join("web")
+        .join("v1");
+    let mut command = ProcessCommand::new("node");
+    command
+        .arg("tools/embedding-pack/build-web-embeddings.mjs")
+        .arg("--input")
+        .arg(corpus)
+        .arg("--out")
+        .arg(&output)
+        .arg("--backend")
+        .arg(backend);
+    for dtype in dtypes {
+        command.arg("--dtype").arg(dtype);
+    }
+    let status = command
+        .status()
+        .with_context(|| format!("failed to run web embedding builder for `{}`", output.display()))?;
+    check_status(status, "node tools/embedding-pack/build-web-embeddings.mjs")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn write_web_embedding_corpus(output: &Path) -> Result<()> {
+    if let Some(parent) = output.parent() {
+        fs::create_dir_all(parent).with_context(|| format!("creating `{}`", parent.display()))?;
+    }
+    fs::write(output, jbotci_embedding_inputs::embedding_input_corpus_json())
+        .with_context(|| format!("writing web embedding corpus `{}`", output.display()))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn ensure_node_embedding_dependencies() -> Result<()> {
+    let dependency = Path::new("tools/embedding-pack/node_modules/@huggingface/transformers/package.json");
+    if dependency.is_file() {
+        return Ok(());
+    }
+    let status = ProcessCommand::new("npm")
+        .arg("ci")
+        .arg("--prefix")
+        .arg("tools/embedding-pack")
+        .status()
+        .context("failed to run `npm ci --prefix tools/embedding-pack`")?;
+    check_status(status, "npm ci --prefix tools/embedding-pack")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_server_binary() -> Result<()> {
     let status = ProcessCommand::new("cargo")
         .arg("build")
         .arg("-p")
         .arg("jbotci-server")
         .arg("--release")
-        .arg("--features")
-        .arg("embed-web-assets")
-        .env("JBOTCI_WEB_DIST", web_dist)
         .status()
-        .with_context(|| {
-            format!(
-                "failed to run embedded server build with JBOTCI_WEB_DIST={}",
-                web_dist.display()
-            )
-        })?;
-    check_status(
-        status,
-        "cargo build -p jbotci-server --release --features embed-web-assets",
-    )
+        .context("failed to run server release build")?;
+    check_status(status, "cargo build -p jbotci-server --release")
 }
 
 #[requires(true)]
