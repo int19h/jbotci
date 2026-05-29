@@ -1030,7 +1030,9 @@ fn vlacku_semantic_worker_limit(state: &VlackuWebState) -> usize {
 #[requires(true)]
 #[ensures(true)]
 async fn load_cukta_semantic_result(state: CuktaWebSearchState) -> CuktaSemanticResultState {
-    match embedding_search_json("cukta-cll", &state.query, 0, &[]).await {
+    let limit = cukta_semantic_worker_limit(&state);
+    let kind_filters = cukta_semantic_worker_kind_filters(&state);
+    match embedding_search_json("cukta-cll", &state.query, limit, &kind_filters).await {
         Ok(json) => {
             let (hits, message) = parse_cukta_semantic_search_json(&json);
             CuktaSemanticResultState {
@@ -1046,6 +1048,46 @@ async fn load_cukta_semantic_result(state: CuktaWebSearchState) -> CuktaSemantic
             message: Some(error),
             loading: false,
         },
+    }
+}
+
+#[requires(true)]
+#[ensures(ret >= 1 && ret <= CUKTA_WEB_MAX_COUNT)]
+fn cukta_semantic_worker_limit(state: &CuktaWebSearchState) -> usize {
+    state
+        .count
+        .clamp(1, CUKTA_WEB_MAX_COUNT)
+        .saturating_add(1)
+        .min(CUKTA_WEB_MAX_COUNT)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn cukta_semantic_worker_kind_filters(state: &CuktaWebSearchState) -> Vec<String> {
+    let mut filters = Vec::new();
+    for target in &state.targets {
+        match target.trim().to_ascii_lowercase().as_str() {
+            "section" | "sections" => push_unique_filter(&mut filters, "section"),
+            "paragraph" | "paragraphs" => push_unique_filter(&mut filters, "paragraph"),
+            "example" | "examples" => push_unique_filter(&mut filters, "example"),
+            _ => {}
+        }
+    }
+    if filters.is_empty() {
+        filters.extend(
+            ["section", "paragraph", "example"]
+                .into_iter()
+                .map(str::to_owned),
+        );
+    }
+    filters
+}
+
+#[requires(!filter.is_empty())]
+#[ensures(filters.iter().any(|candidate| candidate == filter))]
+fn push_unique_filter(filters: &mut Vec<String>, filter: &str) {
+    if !filters.iter().any(|candidate| candidate == filter) {
+        filters.push(filter.to_owned());
     }
 }
 

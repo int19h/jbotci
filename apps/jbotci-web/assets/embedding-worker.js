@@ -36,6 +36,7 @@ let modelPromise = null;
 let modelRuntime = null;
 let dbPromise = null;
 let setupInProgress = false;
+const vectorCache = new Map();
 
 self.onmessage = async (event) => {
   const { id, type, payload } = event.data || {};
@@ -151,6 +152,7 @@ function statusDisplay(meta, pack) {
 }
 
 async function removeAll() {
+  vectorCache.clear();
   const db = await openDb();
   await transaction(db, [META_STORE, BLOB_STORE], "readwrite", (tx) => {
     tx.objectStore(META_STORE).clear();
@@ -410,6 +412,7 @@ async function buildLocalPack(corpus) {
   if (cachedPackMatchesCorpus(existing, corpus, runtime, vectorSpaceKey)) {
     return;
   }
+  vectorCache.clear();
   const reusablePack = packCompatibleWithRuntime(existing, runtime) ? existing : null;
   const corpora = {};
   corpora["vlacku-en"] = await buildLocalCorpus(
@@ -437,6 +440,7 @@ async function buildLocalPack(corpus) {
     compatibleQueryRuntimes: [runtime],
     corpora,
   });
+  vectorCache.clear();
 }
 
 async function buildLocalCorpus(corpusId, docs, inputHash, packId, reusableCorpus) {
@@ -544,6 +548,7 @@ async function loadRemotePackIfAvailable(corpus) {
   ) {
     return true;
   }
+  vectorCache.clear();
   const packBase = manifestUrl.replace(/\/manifest\.json$/, "");
   const totalVectorBytes = remotePackVectorBytes(manifest);
   let downloadedVectorBytes = 0;
@@ -774,6 +779,11 @@ function looksLikeHtmlResponse(response, text) {
 }
 
 async function readCorpusVectors(corpus) {
+  const cacheKey = corpusVectorCacheKey(corpus);
+  const cached = vectorCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
   const buffers = [];
   let totalBytes = 0;
   for (const shard of corpus.shards || []) {
@@ -787,11 +797,55 @@ async function readCorpusVectors(corpus) {
     combined.set(new Uint8Array(buffer), offset);
     offset += buffer.byteLength;
   }
-  return new Float32Array(combined.buffer);
+  const vectors = new Float32Array(combined.buffer);
+  vectorCache.set(cacheKey, vectors);
+  return vectors;
+}
+
+function corpusVectorCacheKey(corpus) {
+  const shards = (corpus.shards || [])
+    .map((shard) => `${shard.key || ""}:${shard.byteLen || 0}`)
+    .join("|");
+  return [
+    corpus.corpusId || "",
+    corpus.inputHash || "",
+    corpus.rowCount || 0,
+    corpus.dimensions || 0,
+    shards,
+  ].join("::");
 }
 
 function rankHits(vectors, query, items, dimensions, limit, kindFilters) {
   const rowCount = Math.min(items.length, Math.floor(vectors.length / dimensions));
+  const limitCount = Math.trunc(Number(limit) || 0);
+  if (limitCount <= 0) {
+    return rankAllHits(vectors, query, items, dimensions, rowCount, kindFilters);
+  }
+  const hits = [];
+  for (let row = 0; row < rowCount; row += 1) {
+    if (!itemMatchesKindFilters(items[row], kindFilters)) {
+      continue;
+    }
+    let score = 0;
+    const base = row * dimensions;
+    for (let dim = 0; dim < dimensions; dim += 1) {
+      score += vectors[base + dim] * query[dim];
+    }
+    const candidate = { id: items[row].id, score };
+    if (hits.length < limitCount) {
+      hits.push(candidate);
+      continue;
+    }
+    const worstIndex = worstHitIndex(hits);
+    if (worstIndex !== -1 && compareHits(candidate, hits[worstIndex]) < 0) {
+      hits[worstIndex] = candidate;
+    }
+  }
+  hits.sort(compareHits);
+  return hits;
+}
+
+function rankAllHits(vectors, query, items, dimensions, rowCount, kindFilters) {
   const hits = [];
   for (let row = 0; row < rowCount; row += 1) {
     if (!itemMatchesKindFilters(items[row], kindFilters)) {
@@ -804,8 +858,22 @@ function rankHits(vectors, query, items, dimensions, limit, kindFilters) {
     }
     hits.push({ id: items[row].id, score });
   }
-  hits.sort((left, right) => right.score - left.score || left.id - right.id);
-  return limit > 0 ? hits.slice(0, limit) : hits;
+  hits.sort(compareHits);
+  return hits;
+}
+
+function compareHits(left, right) {
+  return right.score - left.score || left.id - right.id;
+}
+
+function worstHitIndex(hits) {
+  let worstIndex = -1;
+  for (let index = 0; index < hits.length; index += 1) {
+    if (worstIndex === -1 || compareHits(hits[index], hits[worstIndex]) > 0) {
+      worstIndex = index;
+    }
+  }
+  return worstIndex;
 }
 
 function itemMatchesKindFilters(item, kindFilters) {

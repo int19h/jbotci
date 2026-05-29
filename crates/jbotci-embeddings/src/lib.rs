@@ -7,6 +7,7 @@ use std::fs::{self, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock};
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, requires};
@@ -48,6 +49,13 @@ const DEFAULT_GGUF_SHA256: &str =
 const DEFAULT_WEB_MODEL: &str = "onnx-community/embeddinggemma-300m-ONNX";
 const DEFAULT_WEB_DTYPE: &str = "q4";
 const LLAMA_CPP_4_RUNTIME_VERSION: &str = "0.3.0";
+
+static DICTIONARY_CORPUS_CACHE: OnceLock<
+    Mutex<HashMap<LoadedCorpusCacheKey, Arc<LoadedCorpus<DictionaryEmbeddingItem>>>>,
+> = OnceLock::new();
+static CLL_CORPUS_CACHE: OnceLock<
+    Mutex<HashMap<LoadedCorpusCacheKey, Arc<LoadedCorpus<CllEmbeddingItem>>>>,
+> = OnceLock::new();
 
 #[derive(Debug, Error)]
 #[invariant(true)]
@@ -208,6 +216,28 @@ pub struct DictionaryEmbeddingItem {
 pub struct CllEmbeddingItem {
     pub chunk_index: usize,
     pub input_hash: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[invariant(true)]
+struct LoadedCorpusCacheKey {
+    pack_dir: PathBuf,
+    model_key: String,
+    pack_id: String,
+    corpus_id: String,
+    items_sha256: String,
+    vector_shards_hash: String,
+    row_count: usize,
+    dimensions: usize,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct LoadedCorpus<T> {
+    items: Vec<T>,
+    values: Vec<f32>,
+    row_count: usize,
+    dimensions: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -447,27 +477,86 @@ pub fn top_vector_hits(
     row_count: usize,
     limit: usize,
 ) -> Vec<VectorHit> {
+    top_vector_hits_by_row(values, dimensions, query, row_count, limit, |_| true)
+}
+
+#[requires(dimensions > 0)]
+#[requires(values.len() % dimensions == 0)]
+#[ensures(ret.len() <= row_count)]
+fn top_vector_hits_by_row<F>(
+    values: &[f32],
+    dimensions: usize,
+    query: &[f32],
+    row_count: usize,
+    limit: usize,
+    mut row_allowed: F,
+) -> Vec<VectorHit>
+where
+    F: FnMut(usize) -> bool,
+{
     if query.len() != dimensions || limit == 0 {
         return Vec::new();
     }
-    let mut hits = values
-        .chunks_exact(dimensions)
-        .take(row_count)
-        .enumerate()
-        .map(|(row_index, vector)| VectorHit {
-            row_index,
-            score: dot_product(vector, query),
-        })
-        .collect::<Vec<_>>();
-    hits.sort_by(|left, right| {
-        right
-            .score
-            .partial_cmp(&left.score)
-            .unwrap_or(Ordering::Equal)
-            .then_with(|| left.row_index.cmp(&right.row_index))
-    });
+    let effective_row_count = row_count.min(values.len() / dimensions);
+    let mut hits = if limit >= effective_row_count {
+        values
+            .chunks_exact(dimensions)
+            .take(effective_row_count)
+            .enumerate()
+            .filter(|(row_index, _)| row_allowed(*row_index))
+            .map(|(row_index, vector)| VectorHit {
+                row_index,
+                score: dot_product(vector, query),
+            })
+            .collect::<Vec<_>>()
+    } else {
+        let mut hits = Vec::with_capacity(limit);
+        for (row_index, vector) in values
+            .chunks_exact(dimensions)
+            .take(effective_row_count)
+            .enumerate()
+        {
+            if !row_allowed(row_index) {
+                continue;
+            }
+            let candidate = VectorHit {
+                row_index,
+                score: dot_product(vector, query),
+            };
+            if hits.len() < limit {
+                hits.push(candidate);
+                continue;
+            }
+            if let Some(worst_index) = worst_vector_hit_index(&hits)
+                && compare_vector_hits_best_first(&candidate, &hits[worst_index]) == Ordering::Less
+            {
+                hits[worst_index] = candidate;
+            }
+        }
+        hits
+    };
+    hits.sort_by(compare_vector_hits_best_first);
     hits.truncate(limit);
     hits
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compare_vector_hits_best_first(left: &VectorHit, right: &VectorHit) -> Ordering {
+    right
+        .score
+        .partial_cmp(&left.score)
+        .unwrap_or(Ordering::Equal)
+        .then_with(|| left.row_index.cmp(&right.row_index))
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|index| index < hits.len()))]
+fn worst_vector_hit_index(hits: &[VectorHit]) -> Option<usize> {
+    hits.iter()
+        .enumerate()
+        .max_by(|(_, left), (_, right)| compare_vector_hits_best_first(left, right))
+        .map(|(index, _)| index)
 }
 
 #[requires(true)]
@@ -1185,6 +1274,146 @@ where
 
 #[requires(true)]
 #[ensures(true)]
+fn dictionary_corpus_cache()
+-> &'static Mutex<HashMap<LoadedCorpusCacheKey, Arc<LoadedCorpus<DictionaryEmbeddingItem>>>> {
+    DICTIONARY_CORPUS_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_corpus_cache()
+-> &'static Mutex<HashMap<LoadedCorpusCacheKey, Arc<LoadedCorpus<CllEmbeddingItem>>>> {
+    CLL_CORPUS_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|corpus| corpus.dimensions == manifest.dimensions) || ret.is_err())]
+fn load_cached_dictionary_corpus(
+    pack_dir: &Path,
+    manifest: &EmbeddingPackManifest,
+    corpus: &CorpusManifest,
+) -> Result<Arc<LoadedCorpus<DictionaryEmbeddingItem>>, EmbeddingError> {
+    load_cached_corpus(dictionary_corpus_cache(), pack_dir, manifest, corpus)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|corpus| corpus.dimensions == manifest.dimensions) || ret.is_err())]
+fn load_cached_cll_corpus(
+    pack_dir: &Path,
+    manifest: &EmbeddingPackManifest,
+    corpus: &CorpusManifest,
+) -> Result<Arc<LoadedCorpus<CllEmbeddingItem>>, EmbeddingError> {
+    load_cached_corpus(cll_corpus_cache(), pack_dir, manifest, corpus)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|corpus| corpus.dimensions == manifest.dimensions) || ret.is_err())]
+fn load_cached_corpus<T>(
+    cache: &Mutex<HashMap<LoadedCorpusCacheKey, Arc<LoadedCorpus<T>>>>,
+    pack_dir: &Path,
+    manifest: &EmbeddingPackManifest,
+    corpus: &CorpusManifest,
+) -> Result<Arc<LoadedCorpus<T>>, EmbeddingError>
+where
+    T: DeserializeOwned,
+{
+    let key = loaded_corpus_cache_key(pack_dir, manifest, corpus);
+    if let Some(cached) = cache
+        .lock()
+        .map_err(|_| EmbeddingError::InvalidIndex {
+            message: "embedding corpus cache lock is poisoned".to_owned(),
+        })?
+        .get(&key)
+        .cloned()
+    {
+        return Ok(cached);
+    }
+
+    let loaded = Arc::new(load_corpus_from_disk(
+        pack_dir,
+        corpus,
+        manifest.dimensions,
+    )?);
+    let mut cache = cache.lock().map_err(|_| EmbeddingError::InvalidIndex {
+        message: "embedding corpus cache lock is poisoned".to_owned(),
+    })?;
+    Ok(Arc::clone(
+        cache.entry(key).or_insert_with(|| Arc::clone(&loaded)),
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.dimensions == manifest.dimensions)]
+fn loaded_corpus_cache_key(
+    pack_dir: &Path,
+    manifest: &EmbeddingPackManifest,
+    corpus: &CorpusManifest,
+) -> LoadedCorpusCacheKey {
+    LoadedCorpusCacheKey {
+        pack_dir: pack_dir.to_owned(),
+        model_key: manifest.model_key.clone(),
+        pack_id: manifest.pack_id.clone(),
+        corpus_id: corpus.corpus_id.clone(),
+        items_sha256: corpus.items_sha256.clone(),
+        vector_shards_hash: vector_shard_manifest_fingerprint(&corpus.shards),
+        row_count: corpus.row_count,
+        dimensions: manifest.dimensions,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() == 64)]
+fn vector_shard_manifest_fingerprint(shards: &[VectorShardManifest]) -> String {
+    let mut hasher = Sha256::new();
+    for shard in shards {
+        hasher.update(shard.url.as_bytes());
+        hasher.update([0]);
+        hasher.update(shard.byte_len.to_le_bytes());
+        hasher.update([0]);
+        hasher.update(shard.sha256.as_bytes());
+        hasher.update([0]);
+    }
+    hex_digest(hasher.finalize())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|corpus| corpus.dimensions == dimensions) || ret.is_err())]
+fn load_corpus_from_disk<T>(
+    pack_dir: &Path,
+    corpus: &CorpusManifest,
+    dimensions: usize,
+) -> Result<LoadedCorpus<T>, EmbeddingError>
+where
+    T: DeserializeOwned,
+{
+    let items_path = pack_dir.join(&corpus.items_url);
+    let items: Vec<T> = read_json_file(&items_path)?;
+    if sha256_hex_file(&items_path)? != corpus.items_sha256 {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!("items file `{}` SHA-256 mismatch", items_path.display()),
+        });
+    }
+    if items.len() != corpus.row_count {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "items file `{}` has {} rows, expected {}",
+                items_path.display(),
+                items.len(),
+                corpus.row_count
+            ),
+        });
+    }
+    let values = read_vector_shards(pack_dir, corpus, dimensions)?;
+    Ok(LoadedCorpus {
+        items,
+        values,
+        row_count: corpus.row_count,
+        dimensions,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub fn semantic_vlacku_hits<B: EmbeddingBackend>(
     backend: &mut B,
     query: &str,
@@ -1194,27 +1423,20 @@ pub fn semantic_vlacku_hits<B: EmbeddingBackend>(
 ) -> Result<Vec<DictionarySemanticHit>, EmbeddingError> {
     let (pack_dir, manifest) = load_latest_pack(index_root, model_key)?;
     let corpus = manifest_corpus(&manifest, VLACKU_CORPUS_ID)?;
-    let items_path = pack_dir.join(&corpus.items_url);
-    let items: Vec<DictionaryEmbeddingItem> = read_json_file(&items_path)?;
-    if sha256_hex_file(&items_path)? != corpus.items_sha256 {
-        return Err(EmbeddingError::InvalidIndex {
-            message: format!("items file `{}` SHA-256 mismatch", items_path.display()),
-        });
-    }
-    let matrix = read_vector_shards(&pack_dir, corpus, manifest.dimensions)?;
+    let loaded = load_cached_dictionary_corpus(&pack_dir, &manifest, corpus)?;
     let mut query_embedding = backend.embed(&build_retrieval_query_input(query))?.values;
     normalize_vector(&mut query_embedding);
     let hits = top_vector_hits(
-        &matrix,
-        manifest.dimensions,
+        &loaded.values,
+        loaded.dimensions,
         &query_embedding,
-        corpus.row_count,
+        loaded.row_count,
         count.max(1),
     );
     Ok(hits
         .into_iter()
         .filter_map(|hit| {
-            let item = items.get(hit.row_index)?;
+            let item = loaded.items.get(hit.row_index)?;
             Some(DictionarySemanticHit {
                 entry_index: item.entry_index,
                 score: hit.score,
@@ -1247,26 +1469,27 @@ pub fn semantic_cukta_output<B: EmbeddingBackend>(
     }
     let (pack_dir, manifest) = load_latest_pack(index_root, model_key)?;
     let corpus = manifest_corpus(&manifest, CUKTA_CORPUS_ID)?;
-    let items_path = pack_dir.join(&corpus.items_url);
-    let items: Vec<CllEmbeddingItem> = read_json_file(&items_path)?;
-    if sha256_hex_file(&items_path)? != corpus.items_sha256 {
-        return Err(EmbeddingError::InvalidIndex {
-            message: format!("items file `{}` SHA-256 mismatch", items_path.display()),
-        });
-    }
-    let matrix = read_vector_shards(&pack_dir, corpus, manifest.dimensions)?;
+    let loaded = load_cached_cll_corpus(&pack_dir, &manifest, corpus)?;
     let mut query_embedding = backend.embed(&build_retrieval_query_input(query))?.values;
     normalize_vector(&mut query_embedding);
-    let hits = top_vector_hits(
-        &matrix,
-        manifest.dimensions,
+    let hit_limit = count.saturating_add(1).min(loaded.row_count);
+    let hits = top_vector_hits_by_row(
+        &loaded.values,
+        loaded.dimensions,
         &query_embedding,
-        corpus.row_count,
-        corpus.row_count,
+        loaded.row_count,
+        hit_limit,
+        |row_index| {
+            loaded
+                .items
+                .get(row_index)
+                .and_then(|item| chunks.get(item.chunk_index))
+                .is_some_and(|chunk| chunk_allowed(chunk, targets))
+        },
     );
     let mut matches = Vec::new();
     for hit in hits {
-        let Some(item) = items.get(hit.row_index) else {
+        let Some(item) = loaded.items.get(hit.row_index) else {
             continue;
         };
         let Some(chunk) = chunks.get(item.chunk_index) else {
@@ -1451,6 +1674,28 @@ mod tests {
             hits.iter().map(|hit| hit.row_index).collect::<Vec<_>>(),
             [0, 2, 1]
         );
+
+        let limited_hits = top_vector_hits(&values, 2, &[1.0, 0.0], 3, 2);
+        assert_eq!(
+            limited_hits
+                .iter()
+                .map(|hit| hit.row_index)
+                .collect::<Vec<_>>(),
+            [0, 2]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn filtered_vectors_rank_before_allocating_full_result_set() {
+        let values = vec![1.0, 0.0, 0.7, 0.0, 0.9, 0.0, 0.8, 0.0];
+        let hits =
+            top_vector_hits_by_row(&values, 2, &[1.0, 0.0], 4, 2, |row_index| row_index != 0);
+        assert_eq!(
+            hits.iter().map(|hit| hit.row_index).collect::<Vec<_>>(),
+            [2, 3]
+        );
     }
 
     #[test]
@@ -1598,6 +1843,13 @@ mod tests {
         let dictionary = jbotci_dictionary_data::english();
         let cll_site = jbotci_cll::embedded_cll_site().expect("embedded CLL");
         let cll_chunks = &cll_site.search_chunks[..4];
+        assert!(
+            cll_chunks
+                .iter()
+                .filter(|chunk| chunk.kind == jbotci_cll::CllSearchChunkKind::Section)
+                .count()
+                >= 2
+        );
         let spec = EmbeddingModelSpec {
             dimensions: 4,
             ..EmbeddingModelSpec::default_embedding_gemma()
@@ -1646,5 +1898,92 @@ mod tests {
         )
         .expect("semantic cukta search");
         assert_eq!(output.matches.len(), 2);
+
+        let section_output = semantic_cukta_output(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            cll_chunks,
+            "grammar",
+            1,
+            CuktaTargetFilter {
+                sections: true,
+                paragraphs: false,
+                examples: false,
+            },
+            dir.path(),
+            &spec.model_key,
+        )
+        .expect("semantic cukta section search");
+        assert_eq!(section_output.matches.len(), 1);
+        assert!(section_output.has_more);
+        assert!(
+            section_output
+                .matches
+                .iter()
+                .all(|item| item.chunk.kind == jbotci_cll::CllSearchChunkKind::Section)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_vlacku_search_reuses_cached_loaded_corpus() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dictionary = jbotci_dictionary_data::english();
+        let cll_site = jbotci_cll::embedded_cll_site().expect("embedded CLL");
+        let cll_chunks = &cll_site.search_chunks[..1];
+        let spec = EmbeddingModelSpec {
+            dimensions: 4,
+            model_revision: "cache-reuse-test-revision".to_owned(),
+            ..EmbeddingModelSpec::default_embedding_gemma()
+        };
+        build_embedding_pack(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            dictionary,
+            cll_chunks,
+            dir.path(),
+            &spec,
+            false,
+        )
+        .expect("build fixture pack");
+
+        let first_hits = semantic_vlacku_hits(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            "go somewhere",
+            2,
+            dir.path(),
+            &spec.model_key,
+        )
+        .expect("initial semantic vlacku search");
+        assert_eq!(first_hits.len(), 2);
+
+        let (pack_dir, manifest) =
+            load_latest_pack(dir.path(), &spec.model_key).expect("latest pack");
+        let corpus = manifest_corpus(&manifest, VLACKU_CORPUS_ID).expect("vlacku corpus");
+        std::fs::remove_file(pack_dir.join(&corpus.items_url)).expect("remove items");
+        for shard in &corpus.shards {
+            std::fs::remove_file(pack_dir.join(&shard.url)).expect("remove vector shard");
+        }
+
+        let second_hits = semantic_vlacku_hits(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            "go somewhere",
+            2,
+            dir.path(),
+            &spec.model_key,
+        )
+        .expect("cached semantic vlacku search");
+        assert_eq!(second_hits, first_hits);
     }
 }

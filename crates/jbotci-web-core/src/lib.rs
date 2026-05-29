@@ -4085,6 +4085,43 @@ mod tests {
             Some(Some("75%"))
         );
         assert!(mode_options.iter().all(|option| !option.disabled));
+
+        let section_only_page = build_cukta_semantic_web_page(
+            "",
+            &CuktaWebState {
+                view: CuktaWebView::Search(CuktaWebSearchState {
+                    mode: CuktaWebMode::Meaning,
+                    query: "lojban".to_owned(),
+                    count: 1,
+                    targets: vec!["section".to_owned()],
+                }),
+            },
+            &[
+                CuktaSemanticSearchHit {
+                    chunk_index: 1,
+                    score: 0.99,
+                },
+                CuktaSemanticSearchHit {
+                    chunk_index: 0,
+                    score: 0.75,
+                },
+                CuktaSemanticSearchHit {
+                    chunk_index: 3,
+                    score: 0.74,
+                },
+            ],
+            None,
+        );
+        let CuktaPageKind::Search {
+            results, has_more, ..
+        } = section_only_page.page_kind
+        else {
+            panic!("expected section-only meaning search page");
+        };
+        assert!(has_more);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].kind, "section");
+        assert_eq!(results[0].rank, 1);
     }
 
     #[test]
