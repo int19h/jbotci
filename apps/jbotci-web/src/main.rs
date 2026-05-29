@@ -4867,8 +4867,9 @@ fn render_blocks(
 ) -> Element {
     let column_count = success.blocks_layout.max_col.max(1);
     let column_template = repeated_parse_tree_template(column_count);
-    let row_count = success.blocks_layout.max_row + usize::from(show_glosses);
-    let row_template = format!("repeat({}, auto)", row_count.max(1));
+    let edge_label_rows =
+        block_rows_with_edge_labels(&success.blocks_layout.blocks, success.blocks_layout.max_row);
+    let row_template = blocks_grid_row_template(&edge_label_rows, show_glosses);
     let container_class = if show_glosses {
         "blocks-container"
     } else {
@@ -4895,7 +4896,8 @@ fn render_blocks(
                             class: "blocks-grid",
                             style: "grid-template-columns: {column_template}; grid-template-rows: {row_template};",
                             for block in success.blocks_layout.blocks.iter() {
-                                { render_block(block, reference_hover, export_anchor_id) }
+                                { render_block_edge_height_sizer(block) }
+                                { render_block(block, &edge_label_rows, reference_hover, export_anchor_id) }
                             }
                             if show_glosses {
                                 for block in success.blocks_layout.blocks.iter().filter(|block| block.is_leaf) {
@@ -4911,9 +4913,104 @@ fn render_blocks(
 }
 
 #[requires(true)]
+#[ensures(ret.len() == row_count)]
+fn block_rows_with_edge_labels(blocks: &[GentufaBlock], row_count: usize) -> Vec<bool> {
+    let mut rows = vec![false; row_count];
+    for block in blocks {
+        let edge_label_row = block_edge_label_row(block);
+        if edge_label_row < row_count && block_has_edge_label(block) {
+            rows[edge_label_row] = true;
+        }
+    }
+    rows
+}
+
+#[requires(true)]
+#[ensures(ret >= block.row)]
+fn block_edge_label_row(block: &GentufaBlock) -> usize {
+    if block.is_leaf {
+        block.row + block.row_span.saturating_sub(1)
+    } else {
+        block.row
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn block_has_edge_label(block: &GentufaBlock) -> bool {
+    block.ref_markers.iter().any(|marker| {
+        matches!(
+            marker.role,
+            ReferenceMarkerRole::Referent | ReferenceMarkerRole::Reference
+        )
+    })
+}
+
+#[requires(true)]
+#[ensures(ret == (incoming_count > 1))]
+fn block_needs_edge_height_sizer(incoming_count: usize) -> bool {
+    incoming_count > 1
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn blocks_grid_row_template(edge_label_rows: &[bool], show_glosses: bool) -> String {
+    let mut tracks = Vec::with_capacity(edge_label_rows.len() + usize::from(show_glosses));
+    for has_edge_label in edge_label_rows {
+        tracks.push(if *has_edge_label {
+            "minmax(var(--blocks-min-height), auto)"
+        } else {
+            "minmax(var(--blocks-compact-min-height), auto)"
+        });
+    }
+    if show_glosses {
+        tracks.push("auto");
+    }
+    if tracks.is_empty() {
+        "auto".to_owned()
+    } else {
+        tracks.join(" ")
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_block_edge_height_sizer(block: &GentufaBlock) -> Element {
+    let incoming_count = block
+        .ref_markers
+        .iter()
+        .filter(|marker| marker.role == ReferenceMarkerRole::Referent)
+        .count();
+    if !block_needs_edge_height_sizer(incoming_count) {
+        return rsx! {};
+    }
+
+    let row = block_edge_label_row(block) + 1;
+    let col = block.col + 1;
+    let style = format!(
+        "grid-row: {row} / span 1; grid-column: {col} / span {};",
+        block.col_span
+    );
+    rsx! {
+        span {
+            key: "edge-height-{block.block_id}",
+            class: "block-row-height-sizer",
+            style: "{style}",
+            aria_hidden: "true",
+            for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Referent) {
+                span { class: "block-row-height-line",
+                    { render_reference_label(&marker.label) }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn render_block(
     block: &GentufaBlock,
+    edge_label_rows: &[bool],
     reference_hover: Signal<ReferenceHoverState>,
     export_anchor_id: Option<&str>,
 ) -> Element {
@@ -4931,9 +5028,13 @@ fn render_block(
     } else {
         "block-ref-target"
     };
-    let needs_edge_height_sizer = incoming_count > 1;
+    let row_min_height = if edge_label_rows.get(block.row).copied().unwrap_or(false) {
+        "var(--blocks-min-height)"
+    } else {
+        "var(--blocks-compact-min-height)"
+    };
     let style = format!(
-        "grid-row: {row} / span {}; grid-column: {col} / span {}; --block-color: {}; background-color: {};",
+        "grid-row: {row} / span {}; grid-column: {col} / span {}; --block-color: {}; --block-row-min-height: {row_min_height}; background-color: {};",
         block.row_span, block.col_span, block.color, block.color
     );
     let is_export_anchor = export_anchor_id == Some(block.block_id.as_str());
@@ -4949,15 +5050,6 @@ fn render_block(
             "data-token-kind": "{block.token_kind.clone().unwrap_or_default()}",
             "data-raw-text": "{block.raw_text}",
             "data-node-type": "{block.node_types.join(\" \")}",
-            if needs_edge_height_sizer {
-                span { class: "block-edge-height-sizer", aria_hidden: "true",
-                    for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Referent) {
-                        span { class: "block-edge-height-line",
-                            { render_reference_label(&marker.label) }
-                        }
-                    }
-                }
-            }
             if block.ref_markers.iter().any(|marker| marker.role == ReferenceMarkerRole::Referent) {
                 span { class: "{incoming_class}",
                     for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Referent) {
@@ -7635,6 +7727,56 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn block_edge_label_rows_use_leaf_primary_label_row() {
+        let blocks = vec![
+            test_gentufa_block(1, 1, &[]),
+            test_gentufa_block(0, 3, &[ReferenceMarkerRole::Referent]),
+        ];
+
+        assert_eq!(
+            block_rows_with_edge_labels(&blocks, 4),
+            vec![false, false, true, false]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn block_edge_label_rows_include_incoming_and_outgoing_labels() {
+        let blocks = vec![
+            test_gentufa_block(0, 1, &[ReferenceMarkerRole::Reference]),
+            test_gentufa_block(1, 1, &[ReferenceMarkerRole::Referent]),
+            test_gentufa_block(2, 1, &[]),
+        ];
+
+        assert_eq!(
+            block_rows_with_edge_labels(&blocks, 3),
+            vec![true, true, false]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn blocks_grid_row_template_compacts_unlabeled_rows() {
+        assert_eq!(
+            blocks_grid_row_template(&[false, true, false], true),
+            "minmax(var(--blocks-compact-min-height), auto) minmax(var(--blocks-min-height), auto) minmax(var(--blocks-compact-min-height), auto) auto"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn block_edge_height_sizer_still_handles_tall_leaf_labels() {
+        let tall_leaf = test_gentufa_block(0, 3, &[ReferenceMarkerRole::Referent]);
+        assert_eq!(block_edge_label_row(&tall_leaf), 2);
+        assert!(block_needs_edge_height_sizer(2));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_semantic_worker_limit_bounds_unfiltered_results() {
         let state = VlackuWebState {
             mode: VlackuWebMode::Meaning,
@@ -7795,5 +7937,52 @@ mod tests {
                 {"kind":"rafsi","value":"vla","source":"valsi","indentLevel":1}
             ])
         );
+    }
+
+    #[requires(row_span > 0)]
+    #[ensures(ret.row == row)]
+    fn test_gentufa_block(
+        row: usize,
+        row_span: usize,
+        marker_roles: &[ReferenceMarkerRole],
+    ) -> GentufaBlock {
+        GentufaBlock {
+            block_id: format!("test-{row}"),
+            label: "test".to_owned(),
+            is_leaf: true,
+            is_elided: false,
+            token_kind: None,
+            ref_markers: marker_roles
+                .iter()
+                .enumerate()
+                .map(|(index, role)| test_reference_marker(*role, index))
+                .collect(),
+            span: None,
+            node_types: Vec::new(),
+            ancestors: Vec::new(),
+            col: 0,
+            col_span: 1,
+            row,
+            row_span,
+            color: "#ffffff".to_owned(),
+            parent_color: None,
+            raw_text: "test".to_owned(),
+            display_text: "test".to_owned(),
+            transform: None,
+            glosses: Vec::new(),
+            definition: None,
+            computed_gloss: None,
+            tooltip: None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.role == role)]
+    fn test_reference_marker(role: ReferenceMarkerRole, index: usize) -> ReferenceMarker {
+        ReferenceMarker {
+            role,
+            kind: "test".to_owned(),
+            label: ReferenceLabel::new("b", Some(index + 1), None),
+        }
     }
 }
