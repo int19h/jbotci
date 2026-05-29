@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command as ProcessCommand, ExitStatus};
+use std::process::{Command as ProcessCommand, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result, bail};
@@ -138,8 +138,8 @@ struct FixtureRunArgs {
     muplis_form: Option<MuplisForm>,
     #[arg(short = 'j', long, value_name = "N")]
     jobs: Option<usize>,
-    #[arg(long, default_value_t = 0, value_name = "N")]
-    failure_samples: usize,
+    #[arg(long, value_name = "N")]
+    failure_samples: Option<usize>,
     #[arg(long, hide = true)]
     chunk_worker: bool,
 }
@@ -2159,6 +2159,16 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
         trim_fixture_worker_heap();
     }
     summary.selected_facets = profile.facets.len();
+    print_fixture_test_summary(&summary);
+    if summary.failed > 0 && !args.chunk_worker {
+        bail!("fixture-test failed {} facet(s)", summary.failed);
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn print_fixture_test_summary(summary: &RunSummary) {
     println!(
         "fixtures={}, facets={}, passed={}, xfailed={}, failed={}, skipped={}",
         summary.selected_fixtures,
@@ -2168,10 +2178,6 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
         summary.failed,
         summary.skipped
     );
-    if summary.failed > 0 {
-        bail!("fixture-test failed {} facet(s)", summary.failed);
-    }
-    Ok(())
 }
 
 #[requires(profile.is_valid())]
@@ -2199,34 +2205,26 @@ fn fixture_test_subprocess_chunks(
         .filter(|path| path_matches_prefix_selector(&args.root, path, &profile.selector))
         .collect::<Vec<_>>();
     let mut summary = RunSummary::default();
+    let mut remaining_failure_samples = args.failure_samples;
     for chunk in selected_paths.chunks(FIXTURE_TEST_SUBPROCESS_CHUNK_SIZE) {
-        let output = fixture_test_chunk_output(&exe, args, profile, chunk, jobs)?;
-        if !output.stderr.is_empty() {
-            eprint!("{}", String::from_utf8_lossy(&output.stderr));
-        }
+        let output =
+            fixture_test_chunk_output(&exe, args, profile, chunk, jobs, remaining_failure_samples)?;
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let chunk_summary = parse_fixture_test_summary(&stdout)?;
-        let child_failed_without_fixture_failures =
-            !output.status.success() && chunk_summary.failed == 0;
-        summary.merge(chunk_summary);
-        if child_failed_without_fixture_failures {
+        if !output.status.success() {
             bail!(
                 "fixture-test worker failed with status {}; stdout: {}",
                 output.status,
                 stdout.trim()
             );
         }
+        let chunk_summary = parse_fixture_test_summary(&stdout)?;
+        if let Some(remaining) = &mut remaining_failure_samples {
+            *remaining = remaining.saturating_sub(chunk_summary.failed);
+        }
+        summary.merge(chunk_summary);
     }
     summary.selected_facets = profile.facets.len();
-    println!(
-        "fixtures={}, facets={}, passed={}, xfailed={}, failed={}, skipped={}",
-        summary.selected_fixtures,
-        summary.selected_facets,
-        summary.passed,
-        summary.xfailed,
-        summary.failed,
-        summary.skipped
-    );
+    print_fixture_test_summary(&summary);
     if summary.failed > 0 {
         bail!("fixture-test failed {} facet(s)", summary.failed);
     }
@@ -2242,6 +2240,7 @@ fn fixture_test_chunk_output(
     profile: &FixtureProfile,
     chunk: &[&PathBuf],
     jobs: usize,
+    failure_samples: Option<usize>,
 ) -> Result<std::process::Output> {
     let mut command = ProcessCommand::new(exe);
     command
@@ -2250,9 +2249,12 @@ fn fixture_test_chunk_output(
         .arg(&args.root)
         .arg("--jobs")
         .arg(jobs.to_string())
-        .arg("--failure-samples")
-        .arg(args.failure_samples.to_string())
         .arg("--chunk-worker");
+    if let Some(failure_samples) = failure_samples {
+        command
+            .arg("--failure-samples")
+            .arg(failure_samples.to_string());
+    }
     for facet in &profile.facets {
         command.arg("--facet").arg(facet.to_string());
     }
@@ -2264,7 +2266,11 @@ fn fixture_test_chunk_output(
             .arg("--path-prefix")
             .arg(relative.to_string_lossy().to_string());
     }
-    command.output().context("running fixture-test worker")
+    command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .output()
+        .context("running fixture-test worker")
 }
 
 #[requires(selector.is_valid())]
@@ -2563,7 +2569,7 @@ fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
     profile: &FixtureProfile,
     backend: &B,
     paths: &[PathBuf],
-    failure_samples: usize,
+    failure_samples: Option<usize>,
     failure_counter: &AtomicUsize,
 ) -> Result<RunSummary, fixtures::FixtureError> {
     paths
@@ -2580,7 +2586,7 @@ fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
                     let result = backend.run(&fixture, *facet);
                     if result.status == fixtures::FacetStatus::Failed {
                         let sample_index = failure_counter.fetch_add(1, Ordering::Relaxed);
-                        if sample_index < failure_samples {
+                        if should_print_fixture_failure(failure_samples, sample_index) {
                             eprintln!(
                                 "{}\t{}\t{}\t{}",
                                 fixture.test_case.id,
@@ -2600,6 +2606,12 @@ fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
             left.merge(right);
             Ok(left)
         })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn should_print_fixture_failure(failure_samples: Option<usize>, sample_index: usize) -> bool {
+    failure_samples.is_none_or(|limit| sample_index < limit)
 }
 
 #[requires(selector.is_valid())]
