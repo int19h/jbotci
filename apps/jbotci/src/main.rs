@@ -2552,7 +2552,7 @@ fn render_gentufa_blocks_output(
             &layout,
             &GentufaPngOptions {
                 svg: svg_options,
-                scale: 1.0,
+                ..GentufaPngOptions::default()
             },
             fonts,
         )?),

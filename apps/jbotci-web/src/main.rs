@@ -5251,7 +5251,7 @@ async fn download_gentufa_blocks_png_result(
         &layout,
         &GentufaPngOptions {
             svg: gentufa_svg_export_options(show_glosses, script),
-            scale: 1.0,
+            ..GentufaPngOptions::default()
         },
         fonts.as_font_data(),
     )

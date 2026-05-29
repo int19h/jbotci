@@ -23,8 +23,8 @@ use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
 
 pub use render::{
-    EmbeddedGentufaFonts, GentufaExportError, GentufaFontData, GentufaPngOptions,
-    GentufaSvgOptions, render_gentufa_blocks_png, render_gentufa_blocks_svg,
+    DEFAULT_GENTUFA_PNG_SCALE, EmbeddedGentufaFonts, GentufaExportError, GentufaFontData,
+    GentufaPngOptions, GentufaSvgOptions, render_gentufa_blocks_png, render_gentufa_blocks_svg,
 };
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]

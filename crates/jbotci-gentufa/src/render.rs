@@ -28,6 +28,7 @@ const INK: &str = "#231b15";
 const MUTED_INK: &str = "#6f6257";
 const GLOSS_INK: &str = "#6f6257";
 const GLOSS_BG: &str = "#ece3d7";
+pub const DEFAULT_GENTUFA_PNG_SCALE: f32 = 2.0;
 
 #[derive(Debug, Error)]
 #[invariant(true)]
@@ -109,11 +110,11 @@ pub struct GentufaPngOptions {
 
 impl Default for GentufaPngOptions {
     #[requires(true)]
-    #[ensures(ret.scale == 1.0)]
+    #[ensures(ret.scale == DEFAULT_GENTUFA_PNG_SCALE)]
     fn default() -> Self {
         Self {
             svg: GentufaSvgOptions::default(),
-            scale: 1.0,
+            scale: DEFAULT_GENTUFA_PNG_SCALE,
         }
     }
 }
@@ -144,9 +145,9 @@ pub fn render_gentufa_blocks_png<Tooltip>(
     let usvg_options = usvg_options(fonts);
     let tree = usvg::Tree::from_xmltree(&xml, &usvg_options)
         .map_err(|error| GentufaExportError::Svg(error.to_string()))?;
-    let size = tree.size().to_int_size();
-    let width = ((size.width() as f32) * options.scale).ceil() as u32;
-    let height = ((size.height() as f32) * options.scale).ceil() as u32;
+    let size = tree.size();
+    let width = (size.width() * options.scale).ceil() as u32;
+    let height = (size.height() * options.scale).ceil() as u32;
     let mut pixmap =
         tiny_skia::Pixmap::new(width, height).ok_or(GentufaExportError::InvalidSize)?;
     resvg::render(
@@ -1212,16 +1213,30 @@ mod tests {
             max_col: 1,
             max_row: 1,
         };
-        let png = render_gentufa_blocks_png(
-            &layout,
-            &GentufaPngOptions::default(),
-            EmbeddedGentufaFonts::get(),
-        )
-        .expect("png");
+        let fonts = EmbeddedGentufaFonts::get();
+        let svg =
+            render_gentufa_blocks_svg(&layout, &GentufaSvgOptions::default(), fonts).expect("svg");
+        let xml = roxmltree::Document::parse(&svg).expect("generated SVG XML");
+        let svg_root = xml.root_element();
+        let svg_width = svg_root
+            .attribute("width")
+            .expect("SVG width")
+            .parse::<f32>()
+            .expect("SVG width number");
+        let svg_height = svg_root
+            .attribute("height")
+            .expect("SVG height")
+            .parse::<f32>()
+            .expect("SVG height number");
+        let png =
+            render_gentufa_blocks_png(&layout, &GentufaPngOptions::default(), fonts).expect("png");
         assert!(png.starts_with(b"\x89PNG\r\n\x1a\n"));
         let width = u32::from_be_bytes(png[16..20].try_into().expect("png width bytes"));
         let height = u32::from_be_bytes(png[20..24].try_into().expect("png height bytes"));
-        assert!(width > 0);
-        assert!(height > 0);
+        assert_eq!(width, (svg_width * DEFAULT_GENTUFA_PNG_SCALE).ceil() as u32);
+        assert_eq!(
+            height,
+            (svg_height * DEFAULT_GENTUFA_PNG_SCALE).ceil() as u32
+        );
     }
 }
