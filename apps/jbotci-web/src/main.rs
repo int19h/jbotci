@@ -5049,6 +5049,7 @@ fn render_block(
             "data-color": "{block.color}",
             "data-token-kind": "{block.token_kind.clone().unwrap_or_default()}",
             "data-raw-text": "{block.raw_text}",
+            "data-label": "{block.label}",
             "data-node-type": "{block.node_types.join(\" \")}",
             if block.ref_markers.iter().any(|marker| marker.role == ReferenceMarkerRole::Referent) {
                 span { class: "{incoming_class}",

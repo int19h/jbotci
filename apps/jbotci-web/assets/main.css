@@ -420,7 +420,7 @@ body::-webkit-scrollbar-thumb:hover,
   font-variation-settings: "wdth" 87.5;
   text-decoration: none;
   text-decoration-thickness: 0.08em;
-  text-underline-offset: 0.25em;
+  text-underline-offset: 0.32em;
   white-space: nowrap;
   transition: color 120ms ease, text-decoration-color 120ms ease;
 }
@@ -540,6 +540,7 @@ body::-webkit-scrollbar-thumb:hover,
   border: 0;
   background: transparent;
   color: var(--app-link);
+  font-size: 0.88rem;
   text-decoration: underline;
   text-underline-offset: 0.18em;
 }
@@ -564,17 +565,33 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--surface-elevated);
 }
 
+.gentufa-dialect-formula-input {
+  min-height: 2rem;
+  padding: 0.38rem 0.5rem;
+}
+
+.gentufa-dialect-formula-input,
+.gentufa-dialect-formula-highlight {
+  font-size: 0.88rem;
+}
+
 .gentufa-dialect-formula-highlight {
   position: absolute;
   inset: 0;
   min-height: 0;
-  height: 2.15rem;
+  height: 2rem;
   margin: 0;
-  padding: 0.45rem 0.55rem;
+  padding: 0.38rem 0.5rem;
   white-space: pre;
   overflow: hidden;
   visibility: hidden;
   pointer-events: none;
+}
+
+.parse-page .btn-parse {
+  min-height: 2rem;
+  padding: 0.38rem 0.9rem;
+  font-size: 0.88rem;
 }
 
 .btn-parse {
@@ -659,7 +676,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .ipa-output {
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .parse-page .lean-warning-bar {
@@ -731,7 +748,7 @@ body::-webkit-scrollbar-thumb:hover,
   border-radius: 6px 6px 0 0;
   background: var(--page-bg);
   color: var(--app-muted);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 500;
   transition: color 120ms ease;
 }
@@ -761,7 +778,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .controls label {
   color: var(--app-muted);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
 }
 
 .parse-page .controls input[type="checkbox"] {
@@ -895,6 +912,22 @@ body::-webkit-scrollbar-thumb:hover,
   font-style: italic;
 }
 
+.parse-page .block-nonleaf::after {
+  content: attr(data-label);
+  grid-row: 2;
+  grid-column: 1;
+  justify-self: center;
+  align-self: flex-end;
+  display: block;
+  box-sizing: border-box;
+  max-block-size: 0;
+  padding-inline: var(--blocks-padding);
+  overflow: hidden;
+  visibility: hidden;
+  white-space: nowrap;
+  font-size: 80%;
+}
+
 .orthography-zbalermorna .parse-page .block-nonleaf {
   font-style: normal;
 }
@@ -959,13 +992,17 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .block-nonleaf .block-label {
+  grid-row: 1 / 4;
+  grid-column: 1;
   position: absolute;
-  top: 50%;
   left: 50%;
+  bottom: 0;
   z-index: 1;
-  transform: translate(-50%, -50%);
+  padding: 0 var(--blocks-padding) calc(var(--blocks-ref-pad-y) + 0.4rem);
+  transform: translateX(-50%);
   white-space: nowrap;
   font-size: 80%;
+  line-height: 1.05;
 }
 
 .parse-page .block-ref-target,
