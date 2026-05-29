@@ -100,6 +100,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding error variant carries only an already formatted backend diagnostic message",
     ),
     (
+        "xtask/src/main.rs:Command::ExportWebEmbeddingCorpus",
+        "xtask command variant delegates validation to clap and the typed argument struct",
+    ),
+    (
+        "xtask/src/main.rs:Command::BuildWebEmbeddings",
+        "xtask command variant delegates validation to clap and the typed argument struct",
+    ),
+    (
         "crates/jbotci-jvozba/src/lib.rs:RawLujvoSegment::Rafsi",
         "internal fallback lujvo parser validates segment text before converting to Phonemes",
     ),

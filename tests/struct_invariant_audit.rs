@@ -8,20 +8,12 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
-        "apps/jbotci-server/build.rs:EmbeddedFile",
-        "build-script asset manifest rows are generated from filesystem metadata",
-    ),
-    (
         "apps/jbotci-server/src/lib.rs:AppState",
         "server state is assembled by ServerConfig and contains shared immutable assets",
     ),
     (
         "apps/jbotci-server/src/lib.rs:Cli",
         "server CLI root delegates input validation to clap",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddedAsset",
-        "embedded asset records are generated from the Dioxus bundle at build time",
     ),
     (
         "apps/jbotci-server/src/lib.rs:HealthResponse",
@@ -208,6 +200,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "section parse context is private loader state derived from an already parsed section heading",
     ),
     (
+        "crates/jbotci-embedding-inputs/src/lib.rs:EmbeddingInputCorpus",
+        "browser/native embedding corpus DTO is generated from embedded dictionary and CLL data immediately before JSON serialization",
+    ),
+    (
+        "crates/jbotci-embedding-inputs/src/lib.rs:EmbeddingInputDocument",
+        "browser/native embedding document DTO is generated from v0-parity embedding input builders",
+    ),
+    (
         "crates/jbotci-embeddings/src/lib.rs:EmbeddingModelSpec",
         "embedding model specs are fixed catalog records created by model_spec",
     ),
@@ -268,6 +268,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "test fake backend is constrained by test construction and used only for fixture packs",
     ),
     (
+        "crates/jbotci-embeddings/src/lib.rs:ReusableVectorRows",
+        "native incremental rebuild rows are loaded from a previously validated pack and keyed by stored input hashes",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:ReusablePackRows",
+        "native incremental rebuild cache is loaded only from a compatible previously validated pack",
+    ),
+    (
         "crates/jbotci-embeddings/src/native.rs:NativeGemmaEmbeddingBackend",
         "native backend fields are produced by llama.cpp model/context initialization",
     ),
@@ -290,14 +298,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-web-core/src/lib.rs:CuktaSemanticSearchHit",
         "web semantic hit DTOs are parsed from browser worker vector-search output before rendering",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:EmbeddingWorkerCorpus",
-        "browser worker corpus DTO is generated from embedded dictionary and CLL data immediately before JSON serialization",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:EmbeddingWorkerDocument",
-        "browser worker document DTO is generated from v0-parity embedding input builders",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:CuktaSectionLink",
@@ -1138,6 +1138,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask/src/main.rs:ServeWebReleaseArgs",
         "xtask web release args delegate validation to clap defaults and command code",
+    ),
+    (
+        "xtask/src/main.rs:ExportWebEmbeddingCorpusArgs",
+        "xtask web embedding corpus export args delegate validation to clap defaults and command code",
+    ),
+    (
+        "xtask/src/main.rs:BuildWebEmbeddingsArgs",
+        "xtask web embedding build args delegate validation to clap defaults and command code",
     ),
     (
         "xtask/src/main.rs:RefsV0ParityArgs",
