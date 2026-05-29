@@ -281,6 +281,21 @@ Here it is immediately clear when looking at the definition of the struct that t
 All non-bityzba workspace crates run `bityzba::require_contracts().unwrap()` from `build.rs` with the `contract_scanner` feature enabled. The scanner is syntactic: it checks explicit source attributes under `src`, `tests`, `benches`, `examples`, and `build.rs`; it does not inspect macro expansions and does not count contracts hidden inside `cfg_attr`.
 
 
+# Architecture
+
+The app consists of reusable crates that are exposed in various ways:
+
+- CLI 
+- web app
+- MCP server (TODO)
+- Discord app (TODO)
+- desktop and mobile Dioxus apps (TODO)
+
+The design for all features should accommodate all the delivery vehicles above and their specific restrictions.
+
+For the web app, all processing should happen on the client in the browser and should not require the server to be present. The server is responsible for serving the static assets (including the wasm client bundle that contains the actual logic) and for providing page titles and other server-side metadata that cannot be properly exposed from the client. 
+
+
 # Build
 
 If you have made any changes, always build the `jbotci` and `jbotci-server` release binaries before you wrap up your work.

@@ -2487,7 +2487,7 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
     }
 
     let request = match normalized_state.mode {
-        VlackuWebMode::Word => VlackuRequest::Lujvo(normalized_state.query.clone()),
+        VlackuWebMode::Word => VlackuRequest::Valsi(normalized_state.query.clone()),
         VlackuWebMode::Rafsi => VlackuRequest::Rafsi(normalized_state.query.clone()),
         VlackuWebMode::Sound => VlackuRequest::Sound(normalized_state.query.clone()),
         VlackuWebMode::Meaning => unreachable!("meaning mode returned above"),
@@ -5038,6 +5038,110 @@ mod tests {
                 .first()
                 .is_some_and(|card| matches!(card.votes, VlackuVoteDisplay::Known(_)))
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_word_search_segments_multiword_query_like_v0() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "mi klama".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(
+            result
+                .cards
+                .iter()
+                .map(|card| card.word.as_str())
+                .collect::<Vec<_>>(),
+            vec!["mi", "klama"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_word_search_prefers_exact_phrase_before_segmenting() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "ca ma".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("ca ma")
+        );
+        assert!(
+            !result
+                .cards
+                .iter()
+                .any(|card| card.word == "ca" || card.word == "ma")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_word_search_filters_segmented_components_after_lookup() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "mi klama".to_owned(),
+            count: 20,
+            word_types: vec!["gismu".to_owned()],
+        });
+
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(
+            result
+                .cards
+                .iter()
+                .map(|card| card.word.as_str())
+                .collect::<Vec<_>>(),
+            vec!["klama"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_word_search_does_not_return_partial_segmented_results() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "mi brodau".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.cards.is_empty(), "{:?}", result.cards);
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|error| error.contains("Invalid Lojban word"))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_segmented_word_lookup_does_not_apply_to_rafsi_mode() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Rafsi,
+            query: "kla bau".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert!(result.cards.is_empty(), "{:?}", result.cards);
+        assert_eq!(result.message.as_deref(), Some("No matches found."));
     }
 
     #[test]

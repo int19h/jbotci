@@ -1,7 +1,10 @@
-use bityzba::{invariant, requires};
+use bityzba::{data, invariant, requires};
 use jbotci_dictionary::{Dictionary, DictionaryEntry, Keyword, WordType, normalize_lookup_query};
 use jbotci_jvozba::{LujvoDecomposition, decompose_lujvo_like};
-use jbotci_morphology::{Jvopau, WordKind, canonicalize_text, segment_words_with_modifiers};
+use jbotci_morphology::{
+    Jvopau, Verbatim, Word, WordKind, WordLike, WordLikeData, canonicalize_text,
+    segment_words_with_modifiers,
+};
 
 use crate::phonetic::{
     PhoneticError, aline_phonetic_similarity, compare_similarity_then_index, lojban_text_to_ipa,
@@ -261,9 +264,21 @@ fn cards_for_valsi(
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
     let entries = dictionary.lookup_words(query).collect::<Vec<_>>();
-    if entries.is_empty() {
-        missing_exact_output(dictionary, query, options.decompose_lujvo)
-    } else {
+    if !entries.is_empty() {
+        return found_or_missing(cards_with_optional_lujvo_sources(
+            dictionary,
+            query,
+            entries
+                .into_iter()
+                .map(|entry| {
+                    dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
+                })
+                .collect(),
+            options,
+        ));
+    }
+
+    if let Some(entries) = resolve_segmented_lookup(dictionary, query) {
         let cards = filter_and_limit(
             entries
                 .into_iter()
@@ -274,8 +289,10 @@ fn cards_for_valsi(
             options,
             false,
         );
-        found_or_missing(cards)
+        return found_or_missing(cards);
     }
+
+    missing_exact_output(dictionary, query, options)
 }
 
 #[requires(true)]
@@ -452,22 +469,190 @@ fn invalid_output(message: String) -> VlackuSearchOutput {
 fn missing_exact_output(
     dictionary: &Dictionary<'_>,
     query: &str,
-    decompose_lujvo: bool,
+    options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
     let normalized = normalize_lookup_query(query);
     match classify_exact_word(query, &normalized) {
         Some(classification) => {
-            let decomposition = decompose_lujvo
+            let decomposition = options
+                .decompose_lujvo
                 .then(|| decompose_lujvo_like(dictionary, query))
                 .flatten();
+            let cards = cards_with_optional_lujvo_sources(
+                dictionary,
+                query,
+                vec![unknown_card(classification, decomposition.as_ref())],
+                options,
+            );
             VlackuSearchOutput {
-                cards: vec![unknown_card(classification, decomposition.as_ref())],
+                cards,
                 outcome: VlackuOutcome::ValidMissing,
                 diagnostics: Vec::new(),
             }
         }
         None => invalid_output(format!("Invalid Lojban word: {query}")),
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cards_with_optional_lujvo_sources(
+    dictionary: &Dictionary<'_>,
+    query: &str,
+    mut cards: Vec<VlackuCard>,
+    options: &VlackuSearchOptions,
+) -> Vec<VlackuCard> {
+    if options.decompose_lujvo
+        && let Some(decomposition) = decompose_lujvo_like(dictionary, query)
+    {
+        cards.extend(decomposition.source_words.iter().filter_map(|source_word| {
+            dictionary.lookup_word(source_word).map(|entry| {
+                dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
+            })
+        }));
+    }
+    filter_and_limit(cards, options, false)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|entries| entries.len() > 1))]
+fn resolve_segmented_lookup<'lookup, 'a>(
+    dictionary: &'lookup Dictionary<'a>,
+    raw_query: &str,
+) -> Option<Vec<&'lookup DictionaryEntry<'a>>> {
+    let words = segment_words_with_modifiers(raw_query).ok()?;
+    if words.len() <= 1 {
+        return None;
+    }
+
+    let mut entries = Vec::with_capacity(words.len());
+    for word in &words {
+        let surface = flattened_word_like_phonemes(word);
+        entries.push(dictionary.lookup_word(&surface)?);
+    }
+    Some(entries)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn flattened_word_like_phonemes(word_like: &WordLike) -> String {
+    let mut output = String::new();
+    append_word_like_phonemes(word_like, &mut output);
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_word_like_phonemes(word_like: &WordLike, output: &mut String) {
+    match word_like.as_data() {
+        data!(WordLike::Bare(word)) => append_word_phonemes(word, output),
+        data!(WordLike::ZoQuote { zo, word }) => {
+            append_word_phonemes(zo, output);
+            append_surface_chunk(
+                output,
+                &quoted_words_phonemes(std::iter::once(word.as_ref())),
+            );
+        }
+        data!(WordLike::ZoiQuote {
+            zoi,
+            opening_delimiter,
+            quoted_text,
+            closing_delimiter,
+        }) => {
+            append_word_phonemes(zoi, output);
+            append_word_phonemes(opening_delimiter, output);
+            append_surface_chunk(output, &quoted_text_phonemes(quoted_text));
+            append_word_phonemes(closing_delimiter, output);
+        }
+        data!(WordLike::LohuQuote {
+            lohu,
+            quoted_words,
+            lehu,
+        }) => {
+            append_word_phonemes(lohu, output);
+            append_surface_chunk(output, &quoted_words_phonemes(quoted_words.iter()));
+            append_word_phonemes(lehu, output);
+        }
+        data!(WordLike::SingleWordQuote {
+            marker,
+            quoted_text,
+        }) => {
+            append_word_phonemes(marker, output);
+            append_surface_chunk(output, &quoted_text_phonemes(quoted_text));
+        }
+        data!(WordLike::Letter { base, bu }) => {
+            append_word_like_phonemes(base, output);
+            append_word_phonemes(bu, output);
+        }
+        data!(WordLike::ZeiLujvo { left, zei, right }) => {
+            append_word_like_phonemes(left, output);
+            append_word_phonemes(zei, output);
+            append_word_phonemes(right, output);
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_word_phonemes(word: &Word, output: &mut String) {
+    append_surface_chunk(output, word.phonemes().as_str());
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_surface_chunk(output: &mut String, chunk: &str) {
+    if !output.is_empty()
+        && !ends_with_visible_pause_dot(output)
+        && !starts_with_visible_pause_dot(chunk)
+    {
+        output.push('-');
+    }
+    output.push_str(chunk);
+}
+
+#[requires(true)]
+#[ensures(ret.starts_with('«') && ret.ends_with('»'))]
+fn quoted_words_phonemes<'a>(words: impl Iterator<Item = &'a Word>) -> String {
+    format!(
+        "«{}»",
+        words
+            .map(|word| word.phonemes().as_str().to_owned())
+            .collect::<Vec<_>>()
+            .join(" ")
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.starts_with('«') && ret.ends_with('»'))]
+fn quoted_text_phonemes(text: &Verbatim) -> String {
+    format!("«{}»", drop_leading_zoi_separator(&text.text))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn drop_leading_zoi_separator(text: &str) -> &str {
+    match text.chars().next() {
+        Some(first) if first.is_whitespace() => &text[first.len_utf8()..],
+        _ => text,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn starts_with_visible_pause_dot(text: &str) -> bool {
+    text.chars().next().is_some_and(is_visible_pause_dot)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn ends_with_visible_pause_dot(text: &str) -> bool {
+    text.chars().next_back().is_some_and(is_visible_pause_dot)
+}
+
+#[requires(true)]
+#[ensures(ret == (value == '.'))]
+fn is_visible_pause_dot(value: char) -> bool {
+    value == '.'
 }
 
 #[requires(true)]
