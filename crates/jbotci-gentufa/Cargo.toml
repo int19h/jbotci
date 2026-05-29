@@ -1,6 +1,6 @@
 [package]
-name = "jbotci-web-core"
-description = "Shared web/API view models and gentufa parser facade for jbotci."
+name = "jbotci-gentufa"
+description = "Shared gentufa block layout and image export support for jbotci."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,25 +12,22 @@ repository.workspace = true
 expensive_contracts = []
 
 [dependencies]
+base64.workspace = true
 bityzba.workspace = true
-jbotci-cll.workspace = true
-jbotci-diagnostics.workspace = true
-jbotci-dialect.workspace = true
-jbotci-dictionary.workspace = true
-jbotci-dictionary-data.workspace = true
-jbotci-embedding-inputs.workspace = true
-jbotci-gentufa.workspace = true
-jbotci-jvozba.workspace = true
+fontdb.workspace = true
 jbotci-morphology.workspace = true
 jbotci-output.workspace = true
-jbotci-search.workspace = true
 jbotci-semantics.workspace = true
 jbotci-source.workspace = true
 jbotci-syntax.workspace = true
 jbotci-tree.workspace = true
+resvg.workspace = true
+roxmltree.workspace = true
 serde.workspace = true
-serde_json.workspace = true
 thiserror.workspace = true
+tiny-skia.workspace = true
+usvg.workspace = true
+xmlwriter.workspace = true
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }

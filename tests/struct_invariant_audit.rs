@@ -32,6 +32,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "gentufa display toggles are two independent boolean URL controls with no invalid combination",
     ),
     (
+        "apps/jbotci-web/src/main.rs:GentufaOwnedFonts",
+        "font bytes are loaded through fetch helpers that reject empty browser asset responses",
+    ),
+    (
         "apps/jbotci-web/src/main.rs:ReferenceHoverState",
         "browser hover state is transient UI state derived from reference label DOM nodes",
     ),
@@ -592,12 +596,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "renderer owns options only",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:GentufaBlock",
-        "web block rows are renderer transport data built from parser spans",
+        "crates/jbotci-gentufa/src/lib.rs:GentufaBlock",
+        "gentufa block rows are renderer transport data built from parser spans",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:GentufaBlocksLayout",
+        "crates/jbotci-gentufa/src/lib.rs:GentufaBlocksLayout",
         "block layout is a renderer projection with ordering covered by web-core tests",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:GentufaBlockAnnotation",
+        "block annotations are projected from dictionary search results before layout decoration",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:GentufaBlockOptions",
+        "block options are independent presentation controls with typed phoneme rendering options",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:GentufaCell",
@@ -632,43 +644,39 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "dictionary tooltip cards are presentation payloads projected from validated vlacku cards",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:DictionaryAnnotation",
-        "dictionary annotations combine parser source ranges with projected tooltip cards",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:LeafCollector",
+        "crates/jbotci-gentufa/src/lib.rs:LeafCollector",
         "leaf collector is transient traversal state for web block and tree projections",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:BlockLeafPart",
+        "crates/jbotci-gentufa/src/lib.rs:BlockLeafPart",
         "block leaf parts are transient layout slices derived from validated parser spans",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:BlockTemp",
+        "crates/jbotci-gentufa/src/lib.rs:BlockTemp",
         "temporary block color state is consumed inside the layout builder before transport output",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:BlockTreeNode",
+        "crates/jbotci-gentufa/src/lib.rs:BlockTreeNode",
         "block tree nodes are transient layout state derived from syntax index metadata",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:ReferenceLabel",
-        "web reference labels are generated from the shared CLI reference display model",
+        "crates/jbotci-gentufa/src/lib.rs:ReferenceLabel",
+        "gentufa reference labels are generated from the shared CLI reference display model",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:NormalizedLatinChar",
+        "crates/jbotci-gentufa/src/lib.rs:NormalizedLatinChar",
         "normalized Latin character data is produced by normalization code paths",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:ReferenceMarker",
+        "crates/jbotci-gentufa/src/lib.rs:ReferenceMarker",
         "reference markers are renderer annotations derived from semantic reference analysis",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:RenderedLeaf",
+        "crates/jbotci-gentufa/src/lib.rs:RenderedLeaf",
         "rendered leaves are transient projections from parsed syntax leaves",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:TransformInfo",
+        "crates/jbotci-gentufa/src/lib.rs:TransformInfo",
         "transform metadata is a display annotation for deterministic orthography conversion",
     ),
     (
@@ -676,8 +684,52 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "feature flags are fixed transport data for currently enabled web functionality",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:WebSourceRange",
+        "crates/jbotci-gentufa/src/lib.rs:WebSourceRange",
         "source ranges mirror parser span metadata and may be absent at API boundaries",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:EmbeddedGentufaFonts",
+        "embedded font provider is a zero-sized access point for compile-time font bytes",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:GentufaFontData",
+        "font byte slices are supplied by embedded native assets or validated browser fetches",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:GentufaPngOptions",
+        "PNG options are normalized by callers and scale is guarded by render preconditions",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:GentufaSvgOptions",
+        "SVG options are independent presentation controls with a caller-provided title",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:PositionedBlocks",
+        "positioned block metrics are produced by the renderer layout pass before use",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:SvgAttribute",
+        "typed SVG DOM attributes are escaped during serialization before parser handoff",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:SvgDocument",
+        "typed SVG document validity is delegated to the root element and parser round-trip tests",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:SvgElement",
+        "typed SVG element validity is constrained by the closed SvgTag enum and serializer tests",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:TextMeasureKey",
+        "text measurement cache keys are direct value tuples over closed role/script selectors",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:TextMeasurer",
+        "text measurer owns a usvg font database and cache populated through measurement calls",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:TextSize",
+        "text sizes are produced by usvg bounding boxes and checked by focused renderer tests",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:VlackuWebState",

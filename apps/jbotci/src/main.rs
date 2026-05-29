@@ -22,13 +22,18 @@ use jbotci_embeddings::{
     DEFAULT_MODEL_KEY, SetupOptions, default_index_root, semantic_cukta_output,
     semantic_vlacku_hits,
 };
+use jbotci_gentufa::{
+    EmbeddedGentufaFonts, GentufaBlockAnnotation, GentufaBlockOptions, GentufaPngOptions,
+    GentufaScript, GentufaSvgOptions, WebSourceRange, blocks_layout, render_gentufa_blocks_png,
+    render_gentufa_blocks_svg, rendered_leaves,
+};
 use jbotci_jvozba::{
     JvozbaBuildResult, JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegmentKind,
     build_best_jvozba_detailed,
 };
 use jbotci_morphology::{
-    MORPHOLOGY_TRACE_FILTERS, MorphologyOptions, MorphologyWarning, Phonemes, ends_with_consonant,
-    segment_words_with_modifiers_with_options_and_source_id_attempt,
+    MORPHOLOGY_TRACE_FILTERS, MorphologyOptions, MorphologyWarning, Phonemes, WordLike,
+    ends_with_consonant, segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
     BracketRenderOptions, DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticDetailMode,
@@ -36,15 +41,16 @@ use jbotci_output::{
     StressMark, TraceRenderOptions, TreeRenderOptions, compact_morphology_json_string_with_options,
     compact_syntax_json_string_with_options, format_definition_or_notes_line_with_indexed_places,
     ipa_morphology_text, pretty_brackets_with_options, pretty_morphology_brackets_with_options,
-    pretty_morphology_tree_with_options, pretty_tree_with_options, render_diagnostics,
-    render_trace_report,
+    pretty_morphology_tree_with_options, pretty_tree_with_options,
+    reference_display_model_for_syntax_tree, render_diagnostics, render_trace_report,
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, OFFICIAL_WORD_VOTE_THRESHOLD, VlackuCard, VlackuCompositionKind,
     VlackuCompositionPiece, VlackuOutcome, VlackuRequest, VlackuSearchOptions, VlackuSearchOutput,
-    dictionary_cards_for_word_likes, dictionary_entry_card, filter_vlacku_cards, format_votes,
-    normalize_word_type_filter, run_vlacku_requests,
+    dictionary_cards_for_word_likes, dictionary_entry_card, dictionary_matches_for_word_likes,
+    filter_vlacku_cards, format_votes, normalize_word_type_filter, run_vlacku_requests,
 };
+use jbotci_semantics::references::ReferenceAnalysis;
 use jbotci_source::SourceId;
 use jbotci_syntax::{
     ParseOptions, SYNTAX_TRACE_FILTERS, parse_syntax_tree_with_source_and_options_attempt,
@@ -163,11 +169,18 @@ impl CliColorPolicy {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum GentufaFormat {
     Brackets,
+    Blocks,
     #[value(alias = "vipcihe", help = "alias: vipcihe")]
     Tree,
     Raw,
     #[value(alias = "djeisone")]
     Json,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum GentufaImageOutputType {
+    Svg,
+    Png,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -420,15 +433,18 @@ struct GentufaInput {
     show_refs: bool,
     #[arg(long = "decompose-lujvo")]
     decompose_lujvo: bool,
+    #[arg(long = "output-type", value_enum)]
+    output_type: Option<GentufaImageOutputType>,
+    #[arg(short = 'o', long = "output-file")]
+    output_file: Option<PathBuf>,
     #[arg()]
     text: Vec<String>,
 }
 
-#[invariant(stdout.is_empty() || stdout.ends_with('\n'))]
 #[invariant(stderr.is_empty() || stderr.ends_with('\n'))]
 struct GentufaRendered {
     status: CliStatus,
-    stdout: String,
+    stdout: Vec<u8>,
     stderr: String,
 }
 
@@ -2217,6 +2233,7 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     diagnostic_terminal_width: usize,
     trace: CliTraceConfig,
 ) -> Result<CliStatus> {
+    let output_file = input.output_file.clone();
     let rendered = render_gentufa(
         input,
         color_policy,
@@ -2226,7 +2243,14 @@ fn run_gentufa<WOut: Write, WErr: Write>(
         trace,
     )?;
     stderr.write_all(rendered.stderr.as_bytes())?;
-    stdout.write_all(rendered.stdout.as_bytes())?;
+    if rendered.status == CliStatus::Success
+        && let Some(path) = output_file.as_ref()
+    {
+        fs::write(path, &rendered.stdout)
+            .with_context(|| format!("failed to write gentufa output to `{}`", path.display()))?;
+    } else {
+        stdout.write_all(&rendered.stdout)?;
+    }
     Ok(rendered.status)
 }
 
@@ -2327,7 +2351,7 @@ fn render_gentufa(
             )?);
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Failure,
-                stdout: String::new(),
+                stdout: Vec::new(),
                 stderr,
             }));
         }
@@ -2359,7 +2383,7 @@ fn render_gentufa(
             )?);
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Failure,
-                stdout: String::new(),
+                stdout: Vec::new(),
                 stderr,
             }));
         }
@@ -2404,6 +2428,21 @@ fn render_gentufa(
         }
     }
     match input.format {
+        GentufaFormat::Blocks => {
+            let output_type = resolve_gentufa_blocks_output_type(&input)?;
+            let stdout = render_gentufa_blocks_output(
+                &parsed.parse_tree,
+                &text,
+                words.as_slice(),
+                phoneme_options,
+                output_type,
+            )?;
+            return Ok(new!(GentufaRendered {
+                status: CliStatus::Success,
+                stdout,
+                stderr,
+            }));
+        }
         GentufaFormat::Brackets => {
             let rendered = pretty_brackets_with_options(
                 &parsed.parse_tree,
@@ -2451,11 +2490,97 @@ fn render_gentufa(
             stdout.push('\n');
         }
     }
+    let stdout = stdout.into_bytes();
     Ok(new!(GentufaRendered {
         status: CliStatus::Success,
         stdout,
         stderr,
     }))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|output| !output.is_empty()) || ret.is_err())]
+fn render_gentufa_blocks_output(
+    syntax: &jbotci_syntax::ast::TextSyntax,
+    source: &str,
+    words: &[WordLike],
+    phoneme_options: PhonemeRenderOptions,
+    output_type: GentufaImageOutputType,
+) -> Result<Vec<u8>> {
+    let analysis =
+        ReferenceAnalysis::analyze(syntax).map_err(|error| anyhow!(error.to_string()))?;
+    let reference_model = reference_display_model_for_syntax_tree(
+        &analysis,
+        syntax,
+        source,
+        TreeRenderOptions {
+            color: false,
+            indent: 2,
+            phonemes: phoneme_options,
+            glyphs: GlyphStyle::Unicode,
+            show_spans: false,
+            show_refs: true,
+            decompose_lujvo: false,
+        },
+    );
+    let block_options = GentufaBlockOptions {
+        script: GentufaScript::Latin,
+        show_elided: false,
+        phonemes: phoneme_options,
+    };
+    let leaves = rendered_leaves(syntax, source, &block_options);
+    let annotations = gentufa_block_annotations(words);
+    let layout = blocks_layout(
+        &analysis,
+        &reference_model,
+        source,
+        &leaves,
+        &annotations,
+        &block_options,
+    );
+    let svg_options = GentufaSvgOptions {
+        show_glosses: true,
+        script: GentufaScript::Latin,
+        title: "jbotci gentufa blocks".to_owned(),
+    };
+    let fonts = EmbeddedGentufaFonts::get();
+    match output_type {
+        GentufaImageOutputType::Svg => {
+            Ok(render_gentufa_blocks_svg(&layout, &svg_options, fonts)?.into_bytes())
+        }
+        GentufaImageOutputType::Png => Ok(render_gentufa_blocks_png(
+            &layout,
+            &GentufaPngOptions {
+                svg: svg_options,
+                scale: 1.0,
+            },
+            fonts,
+        )?),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_block_annotations(words: &[WordLike]) -> Vec<GentufaBlockAnnotation<()>> {
+    dictionary_matches_for_word_likes(jbotci_dictionary_data::english(), words)
+        .into_iter()
+        .map(|parsed_match| {
+            let first = parsed_match.cards.first();
+            GentufaBlockAnnotation {
+                range: WebSourceRange {
+                    byte_start: parsed_match.byte_start,
+                    byte_end: parsed_match.byte_end,
+                    char_start: parsed_match.char_start,
+                    char_end: parsed_match.char_end,
+                },
+                glosses: first.map(|card| card.glosses.clone()).unwrap_or_default(),
+                definition: first
+                    .map(|card| card.definition.trim().to_owned())
+                    .filter(|definition| !definition.is_empty()),
+                tooltip: None,
+            }
+        })
+        .collect()
 }
 
 #[requires(true)]
@@ -2892,6 +3017,12 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<()> {
     validate_ascii_phoneme_projection(input.mark_stress, input.mark_glides, glyphs)?;
+    if input.format != GentufaFormat::Blocks {
+        validate_not_present(
+            input.output_type.is_some(),
+            "`--output-type` is only supported with `--turtai blocks`",
+        )?;
+    }
     if input.format == GentufaFormat::Raw {
         validate_raw_indent(input.indent)?;
         if glyphs == GlyphStyle::Unicode {
@@ -2925,6 +3056,29 @@ fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<
                     "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
                 )?;
             }
+            GentufaFormat::Blocks => {
+                validate_no_indent(
+                    input.indent,
+                    "`--indent` is only supported with raw, JSON, and tree output",
+                )?;
+                validate_not_present(
+                    input.show_defs,
+                    "`--show-defs` is not supported with `--turtai blocks`",
+                )?;
+                validate_not_present(
+                    input.show_spans,
+                    "`--show-spans` is only supported with `--turtai tree`",
+                )?;
+                validate_not_present(
+                    input.show_refs,
+                    "`--show-refs` is only supported with `--turtai tree`",
+                )?;
+                validate_not_present(
+                    input.decompose_lujvo,
+                    "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+                )?;
+                let _ = resolve_gentufa_blocks_output_type(input)?;
+            }
             GentufaFormat::Tree => {}
             GentufaFormat::Brackets => {
                 validate_no_indent(
@@ -2944,6 +3098,31 @@ fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<
         }
     }
     Ok(())
+}
+
+#[requires(input.format == GentufaFormat::Blocks)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn resolve_gentufa_blocks_output_type(input: &GentufaInput) -> Result<GentufaImageOutputType> {
+    if let Some(output_type) = input.output_type {
+        return Ok(output_type);
+    }
+    let Some(path) = input.output_file.as_ref() else {
+        return Ok(GentufaImageOutputType::Svg);
+    };
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| extension.trim().to_ascii_lowercase());
+    match extension.as_deref() {
+        Some("svg") => Ok(GentufaImageOutputType::Svg),
+        Some("png") => Ok(GentufaImageOutputType::Png),
+        Some(extension) if !extension.is_empty() => Err(anyhow!(
+            "cannot infer gentufa blocks output type from extension `.{extension}`; use `--output-type svg` or `--output-type png`"
+        )),
+        _ => Err(anyhow!(
+            "cannot infer gentufa blocks output type without a .svg or .png extension; use `--output-type svg` or `--output-type png`"
+        )),
+    }
 }
 
 #[requires(true)]
@@ -3831,6 +4010,7 @@ mod tests {
         assert!(help.contains("--turtai"));
         assert!(help.contains("--format"));
         assert!(help.contains("brackets"));
+        assert!(help.contains("blocks"));
         assert!(help.contains("tree"));
         assert!(help.contains("vipcihe"));
         assert!(!help.contains("compact"));
@@ -3839,6 +4019,8 @@ mod tests {
         assert!(!help.contains("--skicu"));
         assert!(!help.contains("--defs"));
         assert!(help.contains("--indent"));
+        assert!(help.contains("--output-type"));
+        assert!(help.contains("--output-file"));
         assert!(!help.contains("--wordKind"));
         assert!(!help.contains("--turtau"));
         assert!(!help.contains("--termoha"));
@@ -3892,6 +4074,227 @@ mod tests {
                 format!("{expected}\n")
             );
         });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_blocks_stdout_defaults_to_svg() {
+        run_on_normal_stack(|| {
+            let output =
+                run_success_bytes(&["jbotci", "gentufa", "--format", "blocks", "mi", "klama"]);
+            let svg = String::from_utf8(output).expect("SVG is UTF-8");
+            assert!(svg.starts_with("<svg"));
+            assert!(svg.contains("<text"));
+            assert!(svg.contains("@font-face"));
+            assert!(!svg.ends_with('\n'));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_blocks_output_file_extension_infers_svg_and_png() {
+        run_on_normal_stack(|| {
+            let svg_path = unique_cli_output_path("gentufa-blocks-inferred-svg", "svg");
+            let png_path = unique_cli_output_path("gentufa-blocks-inferred-png", "png");
+            let _ = fs::remove_file(&svg_path);
+            let _ = fs::remove_file(&png_path);
+
+            let svg_arg = svg_path.to_string_lossy().into_owned();
+            let png_arg = png_path.to_string_lossy().into_owned();
+            let mut svg_stdout = Vec::new();
+            let mut svg_stderr = Vec::new();
+            let svg_cli = Cli::try_parse_from([
+                "jbotci",
+                "gentufa",
+                "--format",
+                "blocks",
+                "--output-file",
+                svg_arg.as_str(),
+                "mi",
+                "klama",
+            ])
+            .expect("SVG output-file args parse");
+            let svg_status =
+                run_cli(svg_cli, &mut svg_stdout, &mut svg_stderr, false).expect("SVG run");
+            assert_eq!(svg_status, CliStatus::Success);
+            assert!(svg_stdout.is_empty());
+            assert!(
+                svg_stderr.is_empty(),
+                "{}",
+                String::from_utf8_lossy(&svg_stderr)
+            );
+            let svg = fs::read_to_string(&svg_path).expect("SVG output file");
+            assert!(svg.starts_with("<svg"));
+
+            let mut png_stdout = Vec::new();
+            let mut png_stderr = Vec::new();
+            let png_cli = Cli::try_parse_from([
+                "jbotci",
+                "gentufa",
+                "--format",
+                "blocks",
+                "--output-file",
+                png_arg.as_str(),
+                "mi",
+                "klama",
+            ])
+            .expect("PNG output-file args parse");
+            let png_status =
+                run_cli(png_cli, &mut png_stdout, &mut png_stderr, false).expect("PNG run");
+            assert_eq!(png_status, CliStatus::Success);
+            assert!(png_stdout.is_empty());
+            assert!(
+                png_stderr.is_empty(),
+                "{}",
+                String::from_utf8_lossy(&png_stderr)
+            );
+            let png = fs::read(&png_path).expect("PNG output file");
+            assert!(png.starts_with(b"\x89PNG\r\n\x1a\n"));
+
+            let _ = fs::remove_file(svg_path);
+            let _ = fs::remove_file(png_path);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_blocks_explicit_output_type_wins_over_extension() {
+        run_on_normal_stack(|| {
+            let path = unique_cli_output_path("gentufa-blocks-explicit-png", "svg");
+            let _ = fs::remove_file(&path);
+            let path_arg = path.to_string_lossy().into_owned();
+            let mut stdout = Vec::new();
+            let mut stderr = Vec::new();
+            let cli = Cli::try_parse_from([
+                "jbotci",
+                "gentufa",
+                "--format",
+                "blocks",
+                "--output-type",
+                "png",
+                "--output-file",
+                path_arg.as_str(),
+                "mi",
+                "klama",
+            ])
+            .expect("explicit PNG args parse");
+            let status = run_cli(cli, &mut stdout, &mut stderr, false).expect("explicit PNG run");
+            assert_eq!(status, CliStatus::Success);
+            assert!(stdout.is_empty());
+            assert!(stderr.is_empty(), "{}", String::from_utf8_lossy(&stderr));
+            let png = fs::read(&path).expect("PNG output file");
+            assert!(png.starts_with(b"\x89PNG\r\n\x1a\n"));
+            let _ = fs::remove_file(path);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_blocks_png_stdout_is_binary_without_added_newline() {
+        run_on_normal_stack(|| {
+            let output = run_success_bytes(&[
+                "jbotci",
+                "gentufa",
+                "--format",
+                "blocks",
+                "--output-type",
+                "png",
+                "mi",
+                "klama",
+            ]);
+            assert!(output.starts_with(b"\x89PNG\r\n\x1a\n"));
+            assert_ne!(output.last().copied(), Some(b'\n'));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_blocks_unknown_extension_requires_explicit_output_type() {
+        let path = unique_cli_output_path("gentufa-blocks-unknown-extension", "dat");
+        let path_arg = path.to_string_lossy().into_owned();
+        let cli = Cli::try_parse_from([
+            "jbotci",
+            "gentufa",
+            "--format",
+            "blocks",
+            "--output-file",
+            path_arg.as_str(),
+            "mi",
+            "klama",
+        ])
+        .expect("unknown extension args parse");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("unknown extension rejected");
+        assert!(
+            error
+                .to_string()
+                .contains("cannot infer gentufa blocks output type")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_blocks_rejects_text_only_options() {
+        assert_gentufa_error_contains(
+            &[
+                "jbotci",
+                "gentufa",
+                "--format",
+                "blocks",
+                "--show-defs",
+                "mi",
+                "klama",
+            ],
+            "`--show-defs`",
+        );
+        assert_gentufa_error_contains(
+            &[
+                "jbotci", "gentufa", "--format", "blocks", "--indent", "2", "mi", "klama",
+            ],
+            "`--indent`",
+        );
+        assert_gentufa_error_contains(
+            &[
+                "jbotci",
+                "gentufa",
+                "--format",
+                "blocks",
+                "--show-spans",
+                "mi",
+                "klama",
+            ],
+            "`--show-spans`",
+        );
+        assert_gentufa_error_contains(
+            &[
+                "jbotci",
+                "gentufa",
+                "--format",
+                "blocks",
+                "--show-refs",
+                "mi",
+                "klama",
+            ],
+            "`--show-refs`",
+        );
+        assert_gentufa_error_contains(
+            &[
+                "jbotci",
+                "gentufa",
+                "--format",
+                "blocks",
+                "--decompose-lujvo",
+                "mi",
+                "klama",
+            ],
+            "`--decompose-lujvo`",
+        );
     }
 
     #[test]
@@ -5749,6 +6152,42 @@ mod tests {
         assert_eq!(status, CliStatus::Success);
         assert!(error.is_empty(), "{}", String::from_utf8_lossy(&error));
         String::from_utf8(output).expect("stdout utf8")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn run_success_bytes(args: &[&str]) -> Vec<u8> {
+        let cli = Cli::try_parse_from(args).expect("CLI args parse");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("CLI run succeeds");
+
+        assert_eq!(status, CliStatus::Success);
+        assert!(error.is_empty(), "{}", String::from_utf8_lossy(&error));
+        output
+    }
+
+    #[requires(!stem.is_empty())]
+    #[requires(!extension.is_empty())]
+    #[ensures(ret.extension().is_some())]
+    fn unique_cli_output_path(stem: &str, extension: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "jbotci-{stem}-{}.{}",
+            std::process::id(),
+            extension
+        ))
+    }
+
+    #[requires(!expected.is_empty())]
+    #[ensures(true)]
+    fn assert_gentufa_error_contains(args: &[&str], expected: &str) {
+        let cli = Cli::try_parse_from(args).expect("CLI args parse");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("CLI run rejects args");
+        assert!(
+            error.to_string().contains(expected),
+            "expected `{expected}` in `{error}`"
+        );
     }
 
     #[requires(true)]

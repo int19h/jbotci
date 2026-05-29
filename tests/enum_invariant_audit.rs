@@ -1224,24 +1224,48 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "web bracket spans are presentation wrappers whose payload is validated by child fragments",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:ReferenceSlotLabel::Numbered",
-        "web reference slot labels mirror the validated CLI reference display model",
+        "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::Numbered",
+        "gentufa reference slot labels mirror the validated CLI reference display model",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:ReferenceSlotLabel::Modal",
-        "web reference slot labels mirror the validated CLI reference display model",
+        "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::Modal",
+        "gentufa reference slot labels mirror the validated CLI reference display model",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:ReferenceSlotLabel::Fai",
-        "web reference slot labels mirror the validated CLI reference display model",
+        "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::Fai",
+        "gentufa reference slot labels mirror the validated CLI reference display model",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:BlockLayoutChild::Node",
+        "crates/jbotci-gentufa/src/lib.rs:BlockLayoutChild::Node",
         "internal borrowed layout cursor delegates validity to the referenced block tree node",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:BlockLayoutChild::Leaf",
+        "crates/jbotci-gentufa/src/lib.rs:BlockLayoutChild::Leaf",
         "internal borrowed layout cursor delegates validity to the referenced leaf part",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::Xml",
+        "export error variant wraps the XML parser diagnostic without adding semantic state",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::Svg",
+        "export error variant wraps the SVG parser diagnostic without adding semantic state",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::Png",
+        "export error variant wraps the PNG encoder diagnostic without adding semantic state",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::InvalidSize",
+        "export error variant carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:SvgNode::Element",
+        "typed SVG DOM node validity is delegated to the contained element",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:SvgNode::Text",
+        "typed SVG DOM text is escaped during serialization before parser handoff",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:WebRoute::Gentufa",

@@ -4,17 +4,22 @@ use jbotci_cll::{
     CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation, cll_link_href,
     embedded_cll_site, wrap_ebnf_choice_lines,
 };
+use jbotci_gentufa::GentufaSvgOptions;
+#[cfg(target_arch = "wasm32")]
+use jbotci_gentufa::{
+    GentufaFontData, GentufaPngOptions, render_gentufa_blocks_png, render_gentufa_blocks_svg,
+};
 use jbotci_output::{GlideMark, PhonemeRenderOptions, StressMark};
 use jbotci_web_core::{
     CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption, CuktaPageData, CuktaPageKind,
     CuktaSearchResultCard, CuktaSemanticSearchHit, CuktaTargetOption, CuktaTocNode, CuktaWebMode,
     CuktaWebSearchState, CuktaWebState, CuktaWebView, DictionaryTooltipCard, GentufaBlock,
-    GentufaBracketFragment, GentufaCell, GentufaError, GentufaScript, GentufaSuccess,
-    GentufaTreeRow, GentufaWebOptions, GentufaWebRequest, GentufaWebResult, GentufaWebState,
-    GentufaWebViewMode, PageMeta, ReferenceLabel, ReferenceMarker, ReferenceMarkerRole,
-    ReferenceSlotLabel, VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece,
-    VlackuCompositionPieceKind, VlackuDictionaryInfo, VlackuInline, VlackuInlineData,
-    VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
+    GentufaBlocksLayout, GentufaBracketFragment, GentufaCell, GentufaError, GentufaScript,
+    GentufaSuccess, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest, GentufaWebResult,
+    GentufaWebState, GentufaWebViewMode, PageMeta, ReferenceLabel, ReferenceMarker,
+    ReferenceMarkerRole, ReferenceSlotLabel, VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT,
+    VlackuCompositionPiece, VlackuCompositionPieceKind, VlackuDictionaryInfo, VlackuInline,
+    VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
     VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
     VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebResult,
     VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection, WebFeatureAvailability, WebRoute,
@@ -4650,7 +4655,7 @@ fn render_success(
     view_mode_value: GentufaWebViewMode,
     display: Signal<GentufaDisplayState>,
     display_value: GentufaDisplayState,
-    _settings_value: UserSettings,
+    settings_value: UserSettings,
     reference_hover: Signal<ReferenceHoverState>,
 ) -> Element {
     let reference_hover_value = reference_hover.read().clone();
@@ -4662,7 +4667,7 @@ fn render_success(
             { render_view_tabs(view_mode, view_mode_value) }
             { render_output_controls(view_mode_value, display, display_value) }
             if view_mode_value == GentufaWebViewMode::Blocks {
-                { render_blocks(success, display_value.show_glosses, reference_hover) }
+                { render_blocks(success, display_value.show_glosses, settings_value.script, reference_hover) }
             } else {
                 { render_tree(success, display_value.show_glosses, false, reference_hover) }
             }
@@ -4863,6 +4868,7 @@ fn render_elided_checkbox(mut display: Signal<GentufaDisplayState>, checked: boo
 fn render_blocks(
     success: &GentufaSuccess,
     show_glosses: bool,
+    script: GentufaScript,
     reference_hover: Signal<ReferenceHoverState>,
 ) -> Element {
     let column_count = success.blocks_layout.max_col.max(1);
@@ -4897,7 +4903,7 @@ fn render_blocks(
                             style: "grid-template-columns: {column_template}; grid-template-rows: {row_template};",
                             for block in success.blocks_layout.blocks.iter() {
                                 { render_block_edge_height_sizer(block) }
-                                { render_block(block, &edge_label_rows, reference_hover, export_anchor_id) }
+                                { render_block(block, &edge_label_rows, reference_hover, export_anchor_id, &success.blocks_layout, show_glosses, script) }
                             }
                             if show_glosses {
                                 for block in success.blocks_layout.blocks.iter().filter(|block| block.is_leaf) {
@@ -5013,6 +5019,9 @@ fn render_block(
     edge_label_rows: &[bool],
     reference_hover: Signal<ReferenceHoverState>,
     export_anchor_id: Option<&str>,
+    export_layout: &GentufaBlocksLayout,
+    export_show_glosses: bool,
+    export_script: GentufaScript,
 ) -> Element {
     let row = block.row + 1;
     let col = block.col + 1;
@@ -5038,6 +5047,8 @@ fn render_block(
         block.row_span, block.col_span, block.color, block.color
     );
     let is_export_anchor = export_anchor_id == Some(block.block_id.as_str());
+    let export_controls =
+        is_export_anchor.then(|| (export_layout.clone(), export_show_glosses, export_script));
     rsx! {
         div {
             key: "{block.block_id}",
@@ -5084,10 +5095,36 @@ fn render_block(
                     }
                 }
             }
-            if is_export_anchor {
+            if let Some((export_layout, export_show_glosses, export_script)) = export_controls {
+                {
+                    let svg_layout = export_layout.clone();
+                    let png_layout = export_layout.clone();
+                    rsx! {
                 span { class: "blocks-svg-link",
-                    span { class: "export-link is-disabled", "SVG" }
-                    span { class: "export-link is-disabled", "PNG" }
+                    button {
+                        class: "export-link",
+                        r#type: "button",
+                        onclick: move |_| {
+                            let layout = svg_layout.clone();
+                            spawn(async move {
+                                download_gentufa_blocks_svg(layout, export_show_glosses, export_script).await;
+                            });
+                        },
+                        "SVG"
+                    }
+                    button {
+                        class: "export-link",
+                        r#type: "button",
+                        onclick: move |_| {
+                            let layout = png_layout.clone();
+                            spawn(async move {
+                                download_gentufa_blocks_png(layout, export_show_glosses, export_script).await;
+                            });
+                        },
+                        "PNG"
+                    }
+                }
+                    }
                 }
             }
         }
@@ -5122,6 +5159,200 @@ fn render_ref_marker(
             { render_reference_label(&marker.label) }
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+#[cfg(target_arch = "wasm32")]
+struct GentufaOwnedFonts {
+    noto_sans: Vec<u8>,
+    noto_sans_italic: Vec<u8>,
+    noto_sans_math: Vec<u8>,
+    crisa: Vec<u8>,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl GentufaOwnedFonts {
+    #[requires(true)]
+    #[ensures(!ret.noto_sans.is_empty())]
+    fn as_font_data(&self) -> GentufaFontData<'_> {
+        GentufaFontData {
+            noto_sans: &self.noto_sans,
+            noto_sans_italic: &self.noto_sans_italic,
+            noto_sans_math: &self.noto_sans_math,
+            crisa: Some(&self.crisa),
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn download_gentufa_blocks_svg(
+    layout: GentufaBlocksLayout,
+    show_glosses: bool,
+    script: GentufaScript,
+) {
+    let _ = download_gentufa_blocks_svg_result(layout, show_glosses, script).await;
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn download_gentufa_blocks_png(
+    layout: GentufaBlocksLayout,
+    show_glosses: bool,
+    script: GentufaScript,
+) {
+    let _ = download_gentufa_blocks_png_result(layout, show_glosses, script).await;
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn download_gentufa_blocks_svg_result(
+    layout: GentufaBlocksLayout,
+    show_glosses: bool,
+    script: GentufaScript,
+) -> Result<(), String> {
+    let fonts = load_gentufa_export_fonts().await?;
+    let svg = render_gentufa_blocks_svg(
+        &layout,
+        &gentufa_svg_export_options(show_glosses, script),
+        fonts.as_font_data(),
+    )
+    .map_err(|error| error.to_string())?;
+    download_browser_bytes(
+        "jbotci-blocks.svg",
+        "image/svg+xml;charset=utf-8",
+        svg.as_bytes(),
+    )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_some())]
+async fn download_gentufa_blocks_svg_result(
+    _layout: GentufaBlocksLayout,
+    _show_glosses: bool,
+    _script: GentufaScript,
+) -> Result<(), String> {
+    Err("gentufa SVG export is only available in the browser".to_owned())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn download_gentufa_blocks_png_result(
+    layout: GentufaBlocksLayout,
+    show_glosses: bool,
+    script: GentufaScript,
+) -> Result<(), String> {
+    let fonts = load_gentufa_export_fonts().await?;
+    let png = render_gentufa_blocks_png(
+        &layout,
+        &GentufaPngOptions {
+            svg: gentufa_svg_export_options(show_glosses, script),
+            scale: 1.0,
+        },
+        fonts.as_font_data(),
+    )
+    .map_err(|error| error.to_string())?;
+    download_browser_bytes("jbotci-blocks.png", "image/png", &png)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_some())]
+async fn download_gentufa_blocks_png_result(
+    _layout: GentufaBlocksLayout,
+    _show_glosses: bool,
+    _script: GentufaScript,
+) -> Result<(), String> {
+    Err("gentufa PNG export is only available in the browser".to_owned())
+}
+
+#[requires(true)]
+#[ensures(ret.title == "jbotci gentufa blocks")]
+fn gentufa_svg_export_options(show_glosses: bool, script: GentufaScript) -> GentufaSvgOptions {
+    GentufaSvgOptions {
+        show_glosses,
+        script,
+        title: "jbotci gentufa blocks".to_owned(),
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn load_gentufa_export_fonts() -> Result<GentufaOwnedFonts, String> {
+    Ok(GentufaOwnedFonts {
+        noto_sans: fetch_asset_bytes(&NOTO_SANS).await?,
+        noto_sans_italic: fetch_asset_bytes(&NOTO_SANS_ITALIC).await?,
+        noto_sans_math: fetch_asset_bytes(&NOTO_SANS_MATH).await?,
+        crisa: fetch_asset_bytes(&CRISA).await?,
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|bytes| !bytes.is_empty()) || ret.is_err())]
+async fn fetch_asset_bytes(asset: &Asset) -> Result<Vec<u8>, String> {
+    let Some(window) = web_sys::window() else {
+        return Err("browser window is unavailable".to_owned());
+    };
+    let response_value =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_str(&format!("{asset}")))
+            .await
+            .map_err(js_value_to_string)?;
+    let response = response_value
+        .dyn_into::<web_sys::Response>()
+        .map_err(js_value_to_string)?;
+    let buffer =
+        wasm_bindgen_futures::JsFuture::from(response.array_buffer().map_err(js_value_to_string)?)
+            .await
+            .map_err(js_value_to_string)?;
+    let array = js_sys::Uint8Array::new(&buffer);
+    let mut bytes = vec![0; array.length() as usize];
+    array.copy_to(&mut bytes);
+    Ok(bytes)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(!file_name.is_empty())]
+#[requires(!mime_type.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn download_browser_bytes(file_name: &str, mime_type: &str, bytes: &[u8]) -> Result<(), String> {
+    let Some(window) = web_sys::window() else {
+        return Err("browser window is unavailable".to_owned());
+    };
+    let Some(document) = window.document() else {
+        return Err("browser document is unavailable".to_owned());
+    };
+    let Some(body) = document.body() else {
+        return Err("document body is unavailable".to_owned());
+    };
+    let parts = js_sys::Array::new();
+    let bytes = js_sys::Uint8Array::from(bytes);
+    parts.push(&bytes);
+    let options = web_sys::BlobPropertyBag::new();
+    options.set_type(mime_type);
+    let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(parts.as_ref(), &options)
+        .map_err(js_value_to_string)?;
+    let url = web_sys::Url::create_object_url_with_blob(&blob).map_err(js_value_to_string)?;
+    let anchor = document
+        .create_element("a")
+        .map_err(js_value_to_string)?
+        .dyn_into::<web_sys::HtmlAnchorElement>()
+        .map_err(|_| "created anchor element had an unexpected DOM type".to_owned())?;
+    anchor.set_href(&url);
+    anchor.set_download(file_name);
+    let anchor_html: &web_sys::HtmlElement = anchor.unchecked_ref();
+    let _ = anchor_html.style().set_property("display", "none");
+    body.append_child(anchor.unchecked_ref())
+        .map_err(js_value_to_string)?;
+    anchor_html.click();
+    let _ = body.remove_child(anchor.unchecked_ref());
+    let _ = web_sys::Url::revoke_object_url(&url);
+    Ok(())
 }
 
 #[requires(true)]

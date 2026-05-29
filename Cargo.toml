@@ -13,6 +13,7 @@ members = [
     "crates/jbotci-dictionary-data",
     "crates/jbotci-embedding-inputs",
     "crates/jbotci-embeddings",
+    "crates/jbotci-gentufa",
     "crates/jbotci-jvozba",
     "crates/jbotci-morphology",
     "crates/jbotci-output",
@@ -39,6 +40,7 @@ default-members = [
     "crates/jbotci-dictionary-data",
     "crates/jbotci-embedding-inputs",
     "crates/jbotci-embeddings",
+    "crates/jbotci-gentufa",
     "crates/jbotci-jvozba",
     "crates/jbotci-morphology",
     "crates/jbotci-output",
@@ -81,6 +83,7 @@ jbotci-diagnostics.workspace = true
 
 [workspace.dependencies]
 anyhow = "1"
+base64 = "0.22.1"
 chumsky = { version = "0.13", features = ["memoization"] }
 clap = { version = "4", features = ["derive"] }
 concolor = { version = "0.1", features = ["auto"] }
@@ -117,7 +120,12 @@ brotli = "8.0.3"
 directories = "6.0.0"
 llama-cpp-4 = { version = "0.3.0", default-features = false }
 roxmltree = "0.21.1"
+fontdb = "0.23.0"
+resvg = "0.47.0"
 tempfile = "3.27.0"
+tiny-skia = "0.12.0"
+usvg = "0.47.0"
+xmlwriter = "0.1.0"
 
 jbotci-cll = { path = "crates/jbotci-cll" }
 jbotci-diagnostics = { path = "crates/jbotci-diagnostics" }
@@ -128,6 +136,7 @@ jbotci-dictionary = { path = "crates/jbotci-dictionary" }
 jbotci-dictionary-data = { path = "crates/jbotci-dictionary-data" }
 jbotci-embedding-inputs = { path = "crates/jbotci-embedding-inputs" }
 jbotci-embeddings = { path = "crates/jbotci-embeddings" }
+jbotci-gentufa = { path = "crates/jbotci-gentufa" }
 jbotci-jvozba = { path = "crates/jbotci-jvozba" }
 jbotci-morphology = { path = "crates/jbotci-morphology" }
 jbotci-output = { path = "crates/jbotci-output" }
