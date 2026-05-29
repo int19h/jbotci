@@ -13,8 +13,9 @@ const QUERY_PREFIX = "task: search result | query: ";
 const DB_NAME = "jbotci-embeddings-v1";
 const META_STORE = "meta";
 const BLOB_STORE = "blobs";
-const REMOTE_BASE = "/assets/embeddings/v1";
-const LOCAL_PACK_ID = "egemma-v0-parity-1-browser-local";
+const TRANSFORMERS_VERSION = "4.2.0";
+const REMOTE_BASE = "/assets/embeddings/web/v1";
+const LOCAL_VECTOR_SPACE_PREFIX = "browser-local";
 const Q4_MIN_FREE_BYTES = 300 * 1024 * 1024;
 const Q8_MIN_FREE_BYTES = 500 * 1024 * 1024;
 const MODEL_SIZE_ESTIMATES = {
@@ -72,17 +73,19 @@ async function setup(corpusJson) {
   }
   setupInProgress = true;
   try {
-    const corpus = JSON.parse(corpusJson);
+    const corpus = normalizeCorpus(JSON.parse(corpusJson));
     await requestPersistentStorage();
+    await checkQuota();
+    await updateStatus("loading-model", "Downloading or opening EmbeddingGemma.");
+    await ensureModel();
     await checkQuota();
     await updateStatus("checking", "Looking for a same-origin vector pack.");
     const remoteLoaded = await loadRemotePackIfAvailable(corpus);
-    await updateStatus("loading-model", "Downloading or opening EmbeddingGemma Q4.");
-    await ensureModel();
     if (!remoteLoaded) {
       await buildLocalPack(corpus);
     }
-    await updateStatus("ready", remoteLoaded
+    const pack = await getMeta("pack");
+    await updateStatus("ready", pack?.source === "remote"
       ? "Using cached same-origin vector pack with local query embeddings."
       : "Using a browser-built vector pack with local query embeddings.");
     return status();
@@ -114,6 +117,7 @@ async function status() {
     modelDtype: storedModelRuntime?.dtype || null,
     modelDevice: storedModelRuntime?.device || null,
     packId: pack?.packId || null,
+    vectorSpaceKey: pack?.vectorSpaceKey || null,
     source: pack?.source || null,
     progress: display.progress,
   };
@@ -168,15 +172,19 @@ async function search(corpusId, query, limit, kindFiltersJson) {
   const kindFilters = parseStringArray(kindFiltersJson)
     .map(normalizeWordTypeFilter)
     .filter((value) => value.length > 0);
-  let pack = await getMeta("pack");
-  if (!pack) {
-    await loadRemotePackIfAvailable();
-    pack = await getMeta("pack");
-  }
+  await ensureModel();
+  const runtime = activeQueryRuntime();
+  const pack = await getMeta("pack");
   if (!pack) {
     return {
       hits: [],
       message: "Open Settings and download embeddings before using meaning search.",
+    };
+  }
+  if (!packCompatibleWithRuntime(pack, runtime)) {
+    return {
+      hits: [],
+      message: "The cached embedding pack was built for a different browser embedding runtime. Open Settings and update embeddings.",
     };
   }
   const corpus = pack.corpora?.[corpusId];
@@ -192,10 +200,9 @@ async function search(corpusId, query, limit, kindFiltersJson) {
       message: "The cached embedding pack does not include word-type metadata. Remove and download embeddings again.",
     };
   }
-  await ensureModel();
   const queryEmbedding = await embedTexts([QUERY_PREFIX + trimmedQuery]);
   const vectors = await readCorpusVectors(corpus);
-  const hits = rankHits(vectors, queryEmbedding[0], corpus.items, limit, kindFilters);
+  const hits = rankHits(vectors, queryEmbedding[0], corpus.items, corpus.dimensions, limit, kindFilters);
   return { hits, message: hits.length === 0 ? "No matches found." : null };
 }
 
@@ -283,6 +290,79 @@ function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function normalizeCorpus(raw) {
+  const corpus = {
+    modelKey: raw?.modelKey || raw?.model_key || raw?.["model-key"] || "",
+    modelRevision: raw?.modelRevision || raw?.model_revision || "",
+    inputFormatVersion: raw?.inputFormatVersion || raw?.input_format_version || "",
+    inputHash: raw?.inputHash || raw?.input_hash || "",
+    dictionaryHash: raw?.dictionaryHash || raw?.dictionary_hash || "",
+    cllHash: raw?.cllHash || raw?.cll_hash || "",
+    dictionary: normalizeInputDocuments(raw?.dictionary || [], "dictionary"),
+    cll: normalizeInputDocuments(raw?.cll || [], "cll"),
+  };
+  if (corpus.modelKey !== MODEL_KEY) {
+    throw new Error(`unsupported browser corpus model key: ${corpus.modelKey || "missing"}`);
+  }
+  for (const [name, value] of [
+    ["modelRevision", corpus.modelRevision],
+    ["inputFormatVersion", corpus.inputFormatVersion],
+    ["inputHash", corpus.inputHash],
+    ["dictionaryHash", corpus.dictionaryHash],
+    ["cllHash", corpus.cllHash],
+  ]) {
+    if (typeof value !== "string" || value.length === 0) {
+      throw new Error(`embedding corpus is missing ${name}`);
+    }
+  }
+  return corpus;
+}
+
+function normalizeInputDocuments(docs, label) {
+  if (!Array.isArray(docs)) {
+    throw new Error(`embedding corpus ${label} documents must be an array`);
+  }
+  return docs.map((doc, row) => {
+    const id = Number(doc?.id);
+    const input = String(doc?.input || "");
+    const inputHash = doc?.inputHash || doc?.input_hash || "";
+    if (!Number.isInteger(id) || id < 0) {
+      throw new Error(`embedding corpus ${label} row ${row} has an invalid id`);
+    }
+    if (input.length === 0) {
+      throw new Error(`embedding corpus ${label} row ${row} is missing input text`);
+    }
+    if (typeof inputHash !== "string" || inputHash.length === 0) {
+      throw new Error(`embedding corpus ${label} row ${row} is missing inputHash`);
+    }
+    return {
+      id,
+      input,
+      inputHash,
+      kind: typeof doc?.kind === "string" ? doc.kind : null,
+    };
+  });
+}
+
+function normalizeRemoteItems(items, corpusId) {
+  return items.map((item, row) => {
+    const id = Number(item.entry_index ?? item.chunk_index ?? item.id);
+    const inputHash = item.input_hash || item.inputHash || "";
+    if (!Number.isInteger(id) || id < 0) {
+      throw new Error(`remote ${corpusId} row ${row} has an invalid id`);
+    }
+    if (typeof inputHash !== "string" || inputHash.length === 0) {
+      throw new Error(`remote ${corpusId} row ${row} is missing input_hash`);
+    }
+    return {
+      id,
+      row,
+      kind: normalizeWordTypeFilter(item.kind || "") || null,
+      inputHash,
+    };
+  });
+}
+
 async function embedTexts(texts, progressContext = null) {
   const { tokenizer, model } = await ensureModel();
   const output = [];
@@ -320,155 +400,288 @@ async function embedTexts(texts, progressContext = null) {
 }
 
 async function buildLocalPack(corpus) {
-  const modelKey = corpus.modelKey || corpus.model_key || corpus["model-key"];
-  if (modelKey !== MODEL_KEY) {
-    throw new Error(`unsupported browser corpus model key: ${modelKey || "missing"}`);
+  if (corpus.modelKey !== MODEL_KEY) {
+    throw new Error(`unsupported browser corpus model key: ${corpus.modelKey || "missing"}`);
   }
+  const runtime = activeQueryRuntime();
+  const vectorSpaceKey = `${LOCAL_VECTOR_SPACE_PREFIX}-${runtime.dtype}`;
+  const packId = `${vectorSpaceKey}-${shortHash(corpus.inputHash)}`;
+  const existing = await getMeta("pack");
+  if (cachedPackMatchesCorpus(existing, corpus, runtime, vectorSpaceKey)) {
+    return;
+  }
+  const reusablePack = packCompatibleWithRuntime(existing, runtime) ? existing : null;
   const corpora = {};
-  corpora["vlacku-en"] = await buildLocalCorpus("vlacku-en", corpus.dictionary || []);
-  corpora["cukta-cll"] = await buildLocalCorpus("cukta-cll", corpus.cll || []);
+  corpora["vlacku-en"] = await buildLocalCorpus(
+    "vlacku-en",
+    corpus.dictionary,
+    corpus.dictionaryHash,
+    packId,
+    reusablePack?.corpora?.["vlacku-en"] || null,
+  );
+  corpora["cukta-cll"] = await buildLocalCorpus(
+    "cukta-cll",
+    corpus.cll,
+    corpus.cllHash,
+    packId,
+    reusablePack?.corpora?.["cukta-cll"] || null,
+  );
   await putMeta("pack", {
     source: "browser",
-    packId: LOCAL_PACK_ID,
+    packId,
     modelKey: MODEL_KEY,
+    inputHash: corpus.inputHash,
+    inputFormatVersion: corpus.inputFormatVersion,
+    vectorSpaceKey,
+    runtime,
+    compatibleQueryRuntimes: [runtime],
     corpora,
   });
 }
 
-function corpusKindLookups(corpus) {
-  return {
-    "vlacku-en": documentKindLookup(corpus?.dictionary || []),
-    "cukta-cll": documentKindLookup(corpus?.cll || []),
-  };
-}
-
-function documentKindLookup(docs) {
-  const lookup = new Map();
-  for (const doc of docs) {
-    const id = Number(doc?.id);
-    const kind = normalizeWordTypeFilter(doc?.kind || "");
-    if (Number.isInteger(id) && kind.length > 0) {
-      lookup.set(id, kind);
-    }
-  }
-  return lookup;
-}
-
-async function buildLocalCorpus(corpusId, docs) {
+async function buildLocalCorpus(corpusId, docs, inputHash, packId, reusableCorpus) {
   await updateStatus(
     "indexing",
-    `Building ${corpusId} embeddings in this browser.`,
+    `Preparing ${corpusId} embeddings in this browser.`,
     progressValue("index", corpusId, 0, docs.length),
   );
-  const embeddings = await embedTexts(
-    docs.map((doc) => doc.input),
-    { label: corpusId },
-  );
-  const vectors = new Float32Array(embeddings.length * DIMENSIONS);
-  for (let row = 0; row < embeddings.length; row += 1) {
-    vectors.set(embeddings[row], row * DIMENSIONS);
+  const reusableRows = await reusableRowsByInputHash(reusableCorpus);
+  const vectors = new Float32Array(docs.length * DIMENSIONS);
+  const pendingDocs = [];
+  const pendingRows = [];
+  let reused = 0;
+  for (let row = 0; row < docs.length; row += 1) {
+    const doc = docs[row];
+    const reusedVector = reusableRows.get(doc.inputHash);
+    if (reusedVector) {
+      vectors.set(reusedVector, row * DIMENSIONS);
+      reused += 1;
+    } else {
+      pendingDocs.push(doc);
+      pendingRows.push(row);
+    }
   }
-  const vectorKey = `local/${MODEL_KEY}/${LOCAL_PACK_ID}/${corpusId}/vectors-0000.f32`;
+  await updateStatus(
+    "indexing",
+    `Embedding ${corpusId}: ${reused} rows reused, ${pendingDocs.length} rows to compute.`,
+    progressValue("index", corpusId, reused, docs.length),
+  );
+  if (pendingDocs.length > 0) {
+    const embeddings = await embedTexts(
+      pendingDocs.map((doc) => doc.input),
+      { label: corpusId },
+    );
+    for (let index = 0; index < embeddings.length; index += 1) {
+      vectors.set(embeddings[index], pendingRows[index] * DIMENSIONS);
+    }
+  }
+  const vectorKey = `local/${MODEL_KEY}/${packId}/${corpusId}/vectors.f32`;
   await putBinary(vectorKey, vectors.buffer);
+  await updateStatus(
+    "indexing",
+    `Embedded ${corpusId}: ${docs.length} of ${docs.length} rows.`,
+    progressValue("index", corpusId, docs.length, docs.length),
+  );
   return {
     corpusId,
+    inputHash,
     rowCount: docs.length,
     dimensions: DIMENSIONS,
     items: docs.map((doc, row) => ({
       id: doc.id,
       row,
       kind: normalizeWordTypeFilter(doc.kind || "") || null,
+      inputHash: doc.inputHash,
     })),
     shards: [{ key: vectorKey, byteLen: vectors.byteLength }],
   };
 }
 
-async function loadRemotePackIfAvailable(corpus = null) {
+async function reusableRowsByInputHash(corpus) {
+  const rows = new Map();
+  if (!corpus || corpus.dimensions !== DIMENSIONS || !Array.isArray(corpus.items)) {
+    return rows;
+  }
+  const vectors = await readCorpusVectors(corpus).catch(() => null);
+  if (!vectors || vectors.length < corpus.items.length * DIMENSIONS) {
+    return rows;
+  }
+  for (const item of corpus.items) {
+    if (typeof item.inputHash !== "string" || item.inputHash.length === 0) {
+      continue;
+    }
+    const row = Number(item.row);
+    if (!Number.isInteger(row) || row < 0) {
+      continue;
+    }
+    rows.set(item.inputHash, vectors.slice(row * DIMENSIONS, (row + 1) * DIMENSIONS));
+  }
+  return rows;
+}
+
+async function loadRemotePackIfAvailable(corpus) {
+  const runtime = activeQueryRuntime();
   const catalog = await fetchJsonIfAvailable(`${REMOTE_BASE}/catalog.json`);
   if (catalog === null) {
     return false;
   }
-  const model = (catalog.models || []).find((item) => item.model_key === MODEL_KEY);
-  if (!model?.manifest_url) {
+  const vectorSpace = selectCatalogVectorSpace(catalog, runtime);
+  if (!vectorSpace?.manifest_url) {
     return false;
   }
-  const manifestUrl = `${REMOTE_BASE}/${model.manifest_url}`;
+  const manifestUrl = `${REMOTE_BASE}/${vectorSpace.manifest_url}`;
   const manifest = await fetchJsonIfAvailable(manifestUrl);
-  if (manifest === null) {
+  if (manifest === null || !manifestCompatible(manifest, corpus, runtime)) {
     return false;
   }
-  if (!runtimeCompatible(manifest)) {
-    return false;
+  const existing = await getMeta("pack");
+  if (
+    existing?.source === "remote"
+    && existing.packId === manifest.pack_id
+    && existing.inputHash === corpus.inputHash
+    && existing.vectorSpaceKey === manifest.vector_space_key
+    && packCompatibleWithRuntime(existing, runtime)
+  ) {
+    return true;
   }
   const packBase = manifestUrl.replace(/\/manifest\.json$/, "");
   const totalVectorBytes = remotePackVectorBytes(manifest);
   let downloadedVectorBytes = 0;
   const corpora = {};
-  const kindLookups = corpusKindLookups(corpus);
   for (const corpusManifest of manifest.corpora || []) {
+    if (!corpusManifestCompatible(corpusManifest, corpus)) {
+      return false;
+    }
     await updateStatus(
       "downloading-index",
       `Downloading ${corpusManifest.corpus_id} vector pack.`,
       progressValue("index", corpusManifest.corpus_id, downloadedVectorBytes, totalVectorBytes),
     );
-    const items = await fetchJson(`${packBase}/${corpusManifest.items_url}`);
-    const shards = [];
-    for (const shard of corpusManifest.shards || []) {
-      const shardUrl = `${packBase}/${shard.url}`;
-      const bytes = await fetchArrayBuffer(shardUrl);
-      if (bytes.byteLength !== shard.byte_len && bytes.byteLength !== shard.byteLen) {
-        throw new Error(`remote vector shard ${shard.url} has the wrong size`);
-      }
-      const key = `remote/${MODEL_KEY}/${manifest.pack_id}/${corpusManifest.corpus_id}/${shard.url}`;
-      await putBinary(key, bytes);
-      downloadedVectorBytes += bytes.byteLength;
+    const itemBytes = await fetchArrayBuffer(`${packBase}/${corpusManifest.items_url}`);
+    await verifySha256(itemBytes, corpusManifest.items_sha256, corpusManifest.items_url);
+    const items = parseJsonBytes(itemBytes, corpusManifest.items_url);
+    if (!Array.isArray(items) || items.length !== corpusManifest.row_count) {
+      throw new Error(`remote items ${corpusManifest.items_url} have the wrong row count`);
+    }
+    const vectorUrl = `${packBase}/${corpusManifest.vector_url}`;
+    const bytes = await fetchArrayBufferWithProgress(vectorUrl, async (loaded) => {
       await updateStatus(
         "downloading-index",
-        `Downloaded ${corpusManifest.corpus_id} vector shard ${shard.url}.`,
-        progressValue("index", corpusManifest.corpus_id, downloadedVectorBytes, totalVectorBytes),
+        `Downloading ${corpusManifest.corpus_id} vectors.`,
+        progressValue(
+          "index",
+          corpusManifest.corpus_id,
+          downloadedVectorBytes + loaded,
+          totalVectorBytes,
+        ),
       );
-      shards.push({ key, byteLen: bytes.byteLength });
+    });
+    if (bytes.byteLength !== corpusManifest.vector_byte_len) {
+      throw new Error(`remote vector file ${corpusManifest.vector_url} has the wrong size`);
     }
-    const kindLookup = kindLookups[corpusManifest.corpus_id] || new Map();
+    await verifySha256(bytes, corpusManifest.vector_sha256, corpusManifest.vector_url);
+    const key = `remote/${MODEL_KEY}/${manifest.vector_space_key}/${manifest.pack_id}/${corpusManifest.corpus_id}/vectors.f32`;
+    await putBinary(key, bytes);
+    downloadedVectorBytes += bytes.byteLength;
     corpora[corpusManifest.corpus_id] = {
       corpusId: corpusManifest.corpus_id,
+      inputHash: corpusManifest.input_hash,
       rowCount: corpusManifest.row_count,
       dimensions: corpusManifest.dimensions,
-      items: items.map((item, row) => {
-        const id = item.entry_index ?? item.chunk_index;
-        return {
-          id,
-          row,
-          kind: normalizeWordTypeFilter(item.kind || kindLookup.get(id) || "") || null,
-        };
-      }),
-      shards,
+      items: normalizeRemoteItems(items, corpusManifest.corpus_id),
+      shards: [{ key, byteLen: bytes.byteLength }],
     };
   }
   await putMeta("pack", {
     source: "remote",
     packId: manifest.pack_id,
     modelKey: MODEL_KEY,
+    inputHash: manifest.input_hash,
+    inputFormatVersion: manifest.input_format_version,
+    vectorSpaceKey: manifest.vector_space_key,
+    runtime,
+    compatibleQueryRuntimes: manifest.compatible_query_runtimes || [],
     corpora,
   });
   return true;
 }
 
-function runtimeCompatible(manifest) {
-  if (manifest.schema_version !== 1 || manifest.model_key !== MODEL_KEY) {
+function selectCatalogVectorSpace(catalog, runtime) {
+  const model = (catalog.models || []).find((item) => item.model_key === MODEL_KEY);
+  if (!model) {
+    return null;
+  }
+  return (model.vector_spaces || []).find((space) =>
+    (space.compatible_query_runtimes || []).some((candidate) =>
+      runtimeMatches(candidate, runtime)
+    )
+  ) || null;
+}
+
+function manifestCompatible(manifest, corpus, runtime) {
+  return manifest.schema_version === 1
+    && manifest.model_key === MODEL_KEY
+    && manifest.input_hash === corpus.inputHash
+    && manifest.input_format_version === corpus.inputFormatVersion
+    && manifest.dimensions === DIMENSIONS
+    && manifest.element_type === "f32le"
+    && manifest.normalized === true
+    && manifest.distance === "dot"
+    && (manifest.compatible_query_runtimes || []).some((candidate) =>
+      runtimeMatches(candidate, runtime)
+    );
+}
+
+function corpusManifestCompatible(corpusManifest, corpus) {
+  const expectedHash = corpusManifest.corpus_id === "vlacku-en"
+    ? corpus.dictionaryHash
+    : corpusManifest.corpus_id === "cukta-cll"
+      ? corpus.cllHash
+      : null;
+  return expectedHash !== null
+    && corpusManifest.input_hash === expectedHash
+    && corpusManifest.dimensions === DIMENSIONS
+    && corpusManifest.vector_byte_len === corpusManifest.row_count * DIMENSIONS * 4;
+}
+
+function runtimeMatches(candidate, runtime) {
+  return candidate?.runtime === "transformers.js"
+    && candidate?.dtype === runtime.dtype
+    && (!candidate.version || candidate.version === TRANSFORMERS_VERSION);
+}
+
+function activeQueryRuntime() {
+  if (!modelRuntime) {
+    throw new Error("EmbeddingGemma query model is not loaded");
+  }
+  return {
+    runtime: "transformers.js",
+    version: TRANSFORMERS_VERSION,
+    dtype: modelRuntime.dtype,
+    device: modelRuntime.device,
+  };
+}
+
+function packCompatibleWithRuntime(pack, runtime) {
+  if (!pack || pack.modelKey !== MODEL_KEY) {
     return false;
   }
-  return (manifest.compatible_query_runtimes || []).some((runtime) =>
-    runtime.runtime === "transformers.js"
-  );
+  const runtimes = pack.compatibleQueryRuntimes || (pack.runtime ? [pack.runtime] : []);
+  return runtimes.some((candidate) => runtimeMatches(candidate, runtime));
+}
+
+function cachedPackMatchesCorpus(pack, corpus, runtime, vectorSpaceKey) {
+  return pack?.source === "browser"
+    && pack.inputHash === corpus.inputHash
+    && pack.inputFormatVersion === corpus.inputFormatVersion
+    && pack.vectorSpaceKey === vectorSpaceKey
+    && packCompatibleWithRuntime(pack, runtime);
 }
 
 function remotePackVectorBytes(manifest) {
   let total = 0;
   for (const corpus of manifest.corpora || []) {
-    for (const shard of corpus.shards || []) {
-      total += shard.byte_len || shard.byteLen || 0;
-    }
+    total += corpus.vector_byte_len || 0;
   }
   return total;
 }
@@ -489,28 +702,66 @@ async function fetchJsonIfAvailable(url) {
   }
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`failed to fetch ${url}: ${response.status}`);
-  }
-  const text = await response.text();
-  if (looksLikeHtmlResponse(response, text)) {
-    throw new Error(`expected JSON from ${url}, got HTML instead`);
-  }
-  try {
-    return JSON.parse(text);
-  } catch (error) {
-    throw new Error(`invalid JSON from ${url}: ${errorMessage(error)}`);
-  }
-}
-
 async function fetchArrayBuffer(url) {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`failed to fetch ${url}: ${response.status}`);
   }
   return response.arrayBuffer();
+}
+
+async function fetchArrayBufferWithProgress(url, onProgress) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`failed to fetch ${url}: ${response.status}`);
+  }
+  if (!response.body?.getReader) {
+    const buffer = await response.arrayBuffer();
+    await onProgress(buffer.byteLength);
+    return buffer;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let loaded = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    chunks.push(value);
+    loaded += value.byteLength;
+    await onProgress(loaded);
+  }
+  const bytes = new Uint8Array(loaded);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes.buffer;
+}
+
+async function verifySha256(buffer, expected, name) {
+  const actual = await sha256Hex(buffer);
+  if (actual !== expected) {
+    throw new Error(`${name} SHA-256 mismatch`);
+  }
+}
+
+async function sha256Hex(buffer) {
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function parseJsonBytes(buffer, name) {
+  const text = new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error(`invalid JSON from ${name}: ${errorMessage(error)}`);
+  }
 }
 
 function looksLikeHtmlResponse(response, text) {
@@ -539,16 +790,16 @@ async function readCorpusVectors(corpus) {
   return new Float32Array(combined.buffer);
 }
 
-function rankHits(vectors, query, items, limit, kindFilters) {
-  const rowCount = Math.min(items.length, Math.floor(vectors.length / DIMENSIONS));
+function rankHits(vectors, query, items, dimensions, limit, kindFilters) {
+  const rowCount = Math.min(items.length, Math.floor(vectors.length / dimensions));
   const hits = [];
   for (let row = 0; row < rowCount; row += 1) {
     if (!itemMatchesKindFilters(items[row], kindFilters)) {
       continue;
     }
     let score = 0;
-    const base = row * DIMENSIONS;
-    for (let dim = 0; dim < DIMENSIONS; dim += 1) {
+    const base = row * dimensions;
+    for (let dim = 0; dim < dimensions; dim += 1) {
       score += vectors[base + dim] * query[dim];
     }
     hits.push({ id: items[row].id, score });
@@ -656,7 +907,9 @@ async function checkQuota() {
   const estimate = await navigator.storage.estimate();
   const usage = estimate.usage || 0;
   const quota = estimate.quota || 0;
-  const minimum = await hasUsableWebGpu() ? Q4_MIN_FREE_BYTES : Q8_MIN_FREE_BYTES;
+  const minimum = modelRuntime?.dtype === PREFERRED_MODEL_DTYPE || (!modelRuntime && await hasUsableWebGpu())
+    ? Q4_MIN_FREE_BYTES
+    : Q8_MIN_FREE_BYTES;
   if (quota > 0 && quota - usage < minimum) {
     throw new Error("not enough browser storage quota for the EmbeddingGemma model and vector index");
   }
@@ -696,6 +949,10 @@ function progressValue(kind, label, loaded, total) {
 
 function indeterminateProgress(kind, label) {
   return { kind, label, loaded: null, total: null, percent: null };
+}
+
+function shortHash(value) {
+  return String(value || "").slice(0, 12);
 }
 
 async function openDb() {
