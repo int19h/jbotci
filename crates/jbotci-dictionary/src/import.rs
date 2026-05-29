@@ -32,7 +32,7 @@ pub struct ImportedDictionaryEntry {
     pub place_keywords: Vec<ImportedKeyword>,
     #[serde(default, deserialize_with = "deserialize_rafsi_vec")]
     pub rafsi: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_optional_non_empty_string")]
     pub selmaho: Option<String>,
     #[serde(default)]
     pub etymology: Option<String>,
@@ -94,6 +94,17 @@ where
     D: Deserializer<'de>,
 {
     Ok(Option::<String>::deserialize(deserializer)?.unwrap_or_default())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|text| !text.trim().is_empty())))]
+fn deserialize_optional_non_empty_string<'de, D>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Option::<String>::deserialize(deserializer)?.filter(|value| !value.trim().is_empty()))
 }
 
 #[requires(true)]
@@ -218,5 +229,35 @@ mod tests {
 
         let dictionary = parse_lensisku_json(json).expect("valid rafsi field");
         assert_eq!(dictionary.entries[0].rafsi, vec!["ban", "bau"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_blank_selmaho_as_absent() {
+        let json = r#"[
+            {
+                "word": "brode",
+                "word_type": "experimental gismu",
+                "selmaho": "",
+                "definition": "predicate variable 2",
+                "definition_id": 1,
+                "score": 1.0,
+                "user": {"username": "test"}
+            },
+            {
+                "word": "brodi",
+                "word_type": "experimental gismu",
+                "selmaho": "   ",
+                "definition": "predicate variable 3",
+                "definition_id": 2,
+                "score": 1.0,
+                "user": {"username": "test"}
+            }
+        ]"#;
+
+        let dictionary = parse_lensisku_json(json).expect("valid entries");
+        assert_eq!(dictionary.entries[0].selmaho, None);
+        assert_eq!(dictionary.entries[1].selmaho, None);
     }
 }

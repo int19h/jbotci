@@ -592,6 +592,15 @@ fn validate_entry(
         });
     }
     if entry
+        .selmaho
+        .is_some_and(|selmaho| selmaho.0.trim().is_empty())
+    {
+        return Err(DictionaryValidationError::InvalidEntry {
+            index,
+            reason: "selma'o is empty",
+        });
+    }
+    if entry
         .gloss_keywords
         .iter()
         .chain(entry.place_keywords.iter())
@@ -697,6 +706,32 @@ mod tests {
                 .map(|entry| entry.word)
                 .collect::<Vec<_>>(),
             vec!["INternet", "internet"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn validate_rejects_empty_selmaho() {
+        let entries = &[test_entry(
+            "brode",
+            WordType::ExperimentalGismu,
+            &[],
+            Some(RawSelmaho("")),
+        )];
+        let indexes = build_owned_indexes(entries);
+        let word_index = leak_word_index(&indexes.word_index);
+        let rafsi_index = leak_rafsi_index(&indexes.rafsi_index);
+        let selmaho_index = leak_selmaho_index(&indexes.selmaho_index);
+        let dictionary =
+            Dictionary::from_static_slices(entries, word_index, rafsi_index, selmaho_index);
+
+        assert_eq!(
+            dictionary.validate(),
+            Err(DictionaryValidationError::InvalidEntry {
+                index: 0,
+                reason: "selma'o is empty",
+            })
         );
     }
 

@@ -38,6 +38,14 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn blank_selmaho_fields_are_absent() {
+        let entry = english().lookup_word("brode").expect("entry for brode");
+        assert_eq!(entry.selmaho, None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn normalized_word_lookup_preserves_collisions() {
         let words = english()
             .lookup_words("internet")

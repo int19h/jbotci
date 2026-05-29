@@ -1353,6 +1353,20 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn dictionary_entry_cards_do_not_render_blank_selmaho() {
+        let entry = jbotci_dictionary_data::english()
+            .lookup_word("brode")
+            .expect("entry for brode");
+        let card =
+            dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
+
+        assert_eq!(card.word, "brode");
+        assert_eq!(card.selmaho, None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn parsed_word_dictionary_cards_keep_exact_lujvo_atomic() {
         let words = segment_words_with_modifiers("jbobau").expect("morphology");
         let cards = dictionary_cards_for_word_likes(jbotci_dictionary_data::english(), &words);
