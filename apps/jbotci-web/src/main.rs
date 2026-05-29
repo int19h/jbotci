@@ -81,6 +81,12 @@ const DEFAULT_GENTUFA_TEXT: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci 
 const VLACKU_SEARCH_DEBOUNCE_MS: i32 = 900;
 const VLACKU_URL_DEBOUNCE_MS: i32 = 450;
 const GENTUFA_URL_DEBOUNCE_MS: i32 = 650;
+#[cfg(target_arch = "wasm32")]
+const GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS: i32 = 30;
+#[cfg(target_arch = "wasm32")]
+const GENTUFA_BLOCK_REFERENCE_LAYOUT_FRAME_PASSES: u8 = 2;
+#[cfg(target_arch = "wasm32")]
+const BLOCK_REFERENCE_LABEL_GAP_PX: f64 = 8.0;
 
 #[cfg(target_arch = "wasm32")]
 thread_local! {
@@ -571,6 +577,17 @@ fn App() -> Element {
     use_effect(move || {
         if *route.read() == AppRoute::Cukta {
             restore_cukta_toc_scroll();
+        }
+    });
+    use_effect(move || {
+        if *route.read() == AppRoute::Gentufa {
+            let _ = (
+                parsed_text.read().len(),
+                parsed_dialect.read().len(),
+                *view_mode.read(),
+                *gentufa_display.read(),
+            );
+            schedule_gentufa_block_reference_layout();
         }
     });
     let app_class = format!(
@@ -2465,31 +2482,51 @@ fn render_cll_inline(
             let class_name = format!("spa-cll-link {}", cll_link_kind_class(*kind));
             let is_cukta_link = matches!(kind, CllLinkKind::Section | CllLinkKind::Example);
             let tooltip = cll_dictionary_tooltip_for_link(base_path, *kind, target);
-            let link_class = class_names(
-                &class_name,
-                &[("dictionary-tooltip-host", tooltip.is_some())],
-            );
-            let href_for_click = href.clone();
-            rsx! {
-                a {
-                    class: "{link_class}",
-                    href: "{href}",
-                    onclick: move |event| {
-                        if is_cukta_link {
-                            if let Some(reference) = cukta_section_reference_from_href(&href_for_click) {
-                                event.prevent_default();
-                                set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                                    view: CuktaWebView::Section { reference },
-                                });
-                                scroll_to_cukta_href(&href_for_click);
+            if let Some(card) = &tooltip {
+                let href_for_click = href.clone();
+                rsx! {
+                    span { class: "dictionary-tooltip-host",
+                        a {
+                            class: "{class_name}",
+                            href: "{href}",
+                            onclick: move |event| {
+                                if is_cukta_link {
+                                    if let Some(reference) = cukta_section_reference_from_href(&href_for_click) {
+                                        event.prevent_default();
+                                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                                            view: CuktaWebView::Section { reference },
+                                        });
+                                        scroll_to_cukta_href(&href_for_click);
+                                    }
+                                }
+                            },
+                            for child in inlines.iter() {
+                                { render_cll_inline(cukta_state, child, base_path) }
                             }
                         }
-                    },
-                    for child in inlines.iter() {
-                        { render_cll_inline(cukta_state, child, base_path) }
-                    }
-                    if let Some(card) = &tooltip {
                         { render_dictionary_tooltip(card, false, base_path) }
+                    }
+                }
+            } else {
+                let href_for_click = href.clone();
+                rsx! {
+                    a {
+                        class: "{class_name}",
+                        href: "{href}",
+                        onclick: move |event| {
+                            if is_cukta_link {
+                                if let Some(reference) = cukta_section_reference_from_href(&href_for_click) {
+                                    event.prevent_default();
+                                    set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                                        view: CuktaWebView::Section { reference },
+                                    });
+                                    scroll_to_cukta_href(&href_for_click);
+                                }
+                            }
+                        },
+                        for child in inlines.iter() {
+                            { render_cll_inline(cukta_state, child, base_path) }
+                        }
                     }
                 }
             }
@@ -2768,22 +2805,32 @@ fn render_cll_ebnf_elidable(body: &str, href: Option<&str>, base_path: &str) -> 
     let pieces = cll_ebnf_elidable_hash_pieces(body);
     if let Some(href) = href {
         let tooltip = cll_dictionary_tooltip_for_href(base_path, href);
-        let link_class = class_names(
-            "cll-ebnf-elidable",
-            &[("dictionary-tooltip-host", tooltip.is_some())],
-        );
         let href = cll_ebnf_href(base_path, href);
-        rsx! {
-            a { class: "{link_class}", href: "{href}",
-                if let Some((prefix, suffix)) = pieces {
-                    "{prefix}"
-                    span { class: "cll-ebnf-hash", "#" }
-                    "{suffix}"
-                } else {
-                    "{body}"
-                }
-                if let Some(card) = &tooltip {
+        if let Some(card) = &tooltip {
+            rsx! {
+                span { class: "dictionary-tooltip-host",
+                    a { class: "cll-ebnf-elidable", href: "{href}",
+                        if let Some((prefix, suffix)) = pieces {
+                            "{prefix}"
+                            span { class: "cll-ebnf-hash", "#" }
+                            "{suffix}"
+                        } else {
+                            "{body}"
+                        }
+                    }
                     { render_dictionary_tooltip(card, false, base_path) }
+                }
+            }
+        } else {
+            rsx! {
+                a { class: "cll-ebnf-elidable", href: "{href}",
+                    if let Some((prefix, suffix)) = pieces {
+                        "{prefix}"
+                        span { class: "cll-ebnf-hash", "#" }
+                        "{suffix}"
+                    } else {
+                        "{body}"
+                    }
                 }
             }
         }
@@ -2812,17 +2859,17 @@ fn render_cll_ebnf_link(
 ) -> Element {
     if let Some(href) = href {
         let tooltip = cll_dictionary_tooltip_for_href(base_path, href);
-        let link_class = class_names(
-            class_name,
-            &[("dictionary-tooltip-host", tooltip.is_some())],
-        );
         let href = cll_ebnf_href(base_path, href);
-        rsx! {
-            a { class: "{link_class}", href: "{href}",
-                "{body}"
-                if let Some(card) = &tooltip {
+        if let Some(card) = &tooltip {
+            rsx! {
+                span { class: "dictionary-tooltip-host",
+                    a { class: "{class_name}", href: "{href}", "{body}" }
                     { render_dictionary_tooltip(card, false, base_path) }
                 }
+            }
+        } else {
+            rsx! {
+                a { class: "{class_name}", href: "{href}", "{body}" }
             }
         }
     } else {
@@ -3773,15 +3820,27 @@ fn render_vlacku_word_action(
         .collect::<Vec<_>>()
         .join(" ");
     if pane_open && can_add_to_jvozba {
-        rsx! {
-            button {
-                class: "{class_name} dictionary-tooltip-host",
-                r#type: "button",
-                title: "Add to jvozba",
-                onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
-                "{display_word}"
-                if let Some(card) = &tooltip {
+        if let Some(card) = &tooltip {
+            rsx! {
+                span { class: "dictionary-tooltip-host",
+                    button {
+                        class: "{class_name}",
+                        r#type: "button",
+                        title: "Add to jvozba",
+                        onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
+                        "{display_word}"
+                    }
                     { render_dictionary_tooltip(card, false, base_path) }
+                }
+            }
+        } else {
+            rsx! {
+                button {
+                    class: "{class_name}",
+                    r#type: "button",
+                    title: "Add to jvozba",
+                    onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
+                    "{display_word}"
                 }
             }
         }
@@ -3790,12 +3849,16 @@ fn render_vlacku_word_action(
             span { class: "{static_class_name}", "{display_word}" }
         }
     } else {
-        rsx! {
-            a { class: "{class_name} dictionary-tooltip-host", href: "{href}",
-                "{display_word}"
-                if let Some(card) = &tooltip {
+        if let Some(card) = &tooltip {
+            rsx! {
+                span { class: "dictionary-tooltip-host",
+                    a { class: "{class_name}", href: "{href}", "{display_word}" }
                     { render_dictionary_tooltip(card, false, base_path) }
                 }
+            }
+        } else {
+            rsx! {
+                a { class: "{class_name}", href: "{href}", "{display_word}" }
             }
         }
     }
@@ -3957,15 +4020,27 @@ fn render_vlacku_inline_word_ref(
     let resolved_href = resolved_href_with_base_path(base_path, href);
     let tooltip = dictionary_tooltip_for_word(base_path, label);
     if pane_open && can_add_to_jvozba {
-        rsx! {
-            button {
-                class: "dictionary-word-link dictionary-jvozba-add-link-hint dictionary-tooltip-host",
-                r#type: "button",
-                title: "Add to jvozba",
-                onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
-                "{label}"
-                if let Some(card) = &tooltip {
+        if let Some(card) = &tooltip {
+            rsx! {
+                span { class: "dictionary-tooltip-host",
+                    button {
+                        class: "dictionary-word-link dictionary-jvozba-add-link-hint",
+                        r#type: "button",
+                        title: "Add to jvozba",
+                        onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
+                        "{label}"
+                    }
                     { render_dictionary_tooltip(card, false, base_path) }
+                }
+            }
+        } else {
+            rsx! {
+                button {
+                    class: "dictionary-word-link dictionary-jvozba-add-link-hint",
+                    r#type: "button",
+                    title: "Add to jvozba",
+                    onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
+                    "{label}"
                 }
             }
         }
@@ -3974,12 +4049,16 @@ fn render_vlacku_inline_word_ref(
             span { class: "dictionary-word-link", "{label}" }
         }
     } else {
-        rsx! {
-            a { class: "dictionary-word-link dictionary-jvozba-add-link-hint dictionary-tooltip-host", href: "{resolved_href}",
-                "{label}"
-                if let Some(card) = &tooltip {
+        if let Some(card) = &tooltip {
+            rsx! {
+                span { class: "dictionary-tooltip-host",
+                    a { class: "dictionary-word-link dictionary-jvozba-add-link-hint", href: "{resolved_href}", "{label}" }
                     { render_dictionary_tooltip(card, false, base_path) }
                 }
+            }
+        } else {
+            rsx! {
+                a { class: "dictionary-word-link dictionary-jvozba-add-link-hint", href: "{resolved_href}", "{label}" }
             }
         }
     }
@@ -4640,16 +4719,28 @@ fn render_bracket_fragment(fragment: &GentufaBracketFragment) -> Element {
                 .map(|color| format!("color: {color};"))
                 .unwrap_or_default();
             if let Some(href) = href {
-                rsx! {
-                    a {
-                        class: "bracket-fragment bracket-word dictionary-tooltip-host",
-                        style: "{style}",
-                        href: "{href}",
-                        for child in children.iter() {
-                            { render_bracket_fragment(child) }
-                        }
-                        if let Some(card) = tooltip {
+                if let Some(card) = tooltip {
+                    rsx! {
+                        span {
+                            class: "bracket-fragment bracket-word dictionary-tooltip-host",
+                            style: "{style}",
+                            a { class: "bracket-word-link", href: "{href}",
+                                for child in children.iter() {
+                                    { render_bracket_fragment(child) }
+                                }
+                            }
                             { render_dictionary_tooltip(card, false, "") }
+                        }
+                    }
+                } else {
+                    rsx! {
+                        a {
+                            class: "bracket-fragment bracket-word",
+                            style: "{style}",
+                            href: "{href}",
+                            for child in children.iter() {
+                                { render_bracket_fragment(child) }
+                            }
                         }
                     }
                 }
@@ -4854,13 +4945,7 @@ fn render_block(
     } else {
         "block-ref-target"
     };
-    let needs_incoming_overlap_sizer = incoming_count > 0 && block.row_span == 1;
-    let outgoing_count = block
-        .ref_markers
-        .iter()
-        .filter(|marker| marker.role == ReferenceMarkerRole::Reference)
-        .count();
-    let needs_edge_height_sizer = incoming_count > 1 || (incoming_count > 0 && outgoing_count > 0);
+    let needs_edge_height_sizer = incoming_count > 1;
     let style = format!(
         "grid-row: {row} / span {}; grid-column: {col} / span {}; --block-color: {}; background-color: {};",
         block.row_span, block.col_span, block.color, block.color
@@ -4886,14 +4971,6 @@ fn render_block(
                             span { class: "ref-arrow", "→" }
                         }
                     }
-                    if outgoing_count > 0 {
-                        span { class: "block-edge-height-line",
-                            for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Reference) {
-                                span { class: "ref-arrow", "→" }
-                                { render_reference_label(&marker.label) }
-                            }
-                        }
-                    }
                 }
             }
             if block.ref_markers.iter().any(|marker| marker.role == ReferenceMarkerRole::Referent) {
@@ -4906,34 +4983,18 @@ fn render_block(
                     }
                 }
             }
-            if needs_incoming_overlap_sizer {
-                span { class: "block-overlap-sizer", aria_hidden: "true",
-                    for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Referent) {
-                        span { class: "block-overlap-line",
-                            span { class: "block-overlap-ref ref-math",
-                                { render_reference_label(&marker.label) }
-                                span { class: "ref-arrow", "→" }
-                            }
-                            span { class: "block-overlap-primary", "{block.label}" }
-                            span { class: "block-overlap-ref block-overlap-ref-mirror ref-math",
-                                { render_reference_label(&marker.label) }
-                                span { class: "ref-arrow", "→" }
-                            }
-                        }
-                    }
-                }
-            }
             if let Some(card) = &block.tooltip {
-                a {
+                span {
                     class: "block-label dictionary-tooltip-host",
                     title: "{block.label}",
-                    href: "{card.href}",
-                    "{block.label}"
+                    a { class: "block-label-link", href: "{card.href}",
+                        span { class: "block-label-text", "{block.label}" }
+                    }
                     { render_dictionary_tooltip(card, false, "") }
                 }
             } else {
                 span { class: "block-label", title: "{block.label}",
-                    "{block.label}"
+                    span { class: "block-label-text", "{block.label}" }
                 }
             }
             if block.ref_markers.iter().any(|marker| marker.role == ReferenceMarkerRole::Reference) {
@@ -6081,6 +6142,33 @@ fn install_browser_state_handlers(
     );
     tooltip_focus_closure.forget();
 
+    let resize_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
+        schedule_gentufa_block_reference_layout();
+    }) as Box<dyn FnMut(_)>);
+    let _ =
+        window.add_event_listener_with_callback("resize", resize_closure.as_ref().unchecked_ref());
+    resize_closure.forget();
+
+    let window_load_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
+        schedule_gentufa_block_reference_layout();
+    }) as Box<dyn FnMut(_)>);
+    let _ = window
+        .add_event_listener_with_callback("load", window_load_closure.as_ref().unchecked_ref());
+    window_load_closure.forget();
+
+    let stylesheet_load_closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
+        if event_target_is_stylesheet_link(&event) {
+            schedule_gentufa_block_reference_layout();
+        }
+    }) as Box<dyn FnMut(_)>);
+    let _ = document.add_event_listener_with_callback_and_bool(
+        "load",
+        stylesheet_load_closure.as_ref().unchecked_ref(),
+        true,
+    );
+    stylesheet_load_closure.forget();
+    schedule_gentufa_block_reference_layout_after_fonts_ready(&document);
+
     let scroll_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         save_current_scroll_position();
     }) as Box<dyn FnMut(_)>);
@@ -6122,6 +6210,205 @@ fn install_browser_state_handlers(
         gentufa_text_explicit,
         base_path,
     );
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_gentufa_block_reference_layout() {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move || {
+        adjust_gentufa_block_reference_layout();
+        schedule_gentufa_block_reference_layout_animation_frames(
+            GENTUFA_BLOCK_REFERENCE_LAYOUT_FRAME_PASSES,
+        );
+    });
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        closure.as_ref().unchecked_ref(),
+        GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS,
+    );
+    closure.forget();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_gentufa_block_reference_layout() {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_gentufa_block_reference_layout_animation_frames(remaining: u8) {
+    if remaining == 0 {
+        return;
+    }
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move |_timestamp: f64| {
+        adjust_gentufa_block_reference_layout();
+        schedule_gentufa_block_reference_layout_animation_frames(remaining - 1);
+    });
+    let _ = window.request_animation_frame(closure.as_ref().unchecked_ref());
+    closure.forget();
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_gentufa_block_reference_layout_after_fonts_ready(document: &web_sys::Document) {
+    let Ok(fonts) = js_sys::Reflect::get(document.as_ref(), &JsValue::from_str("fonts")) else {
+        return;
+    };
+    let Ok(ready) = js_sys::Reflect::get(&fonts, &JsValue::from_str("ready")) else {
+        return;
+    };
+    let Ok(promise) = ready.dyn_into::<js_sys::Promise>() else {
+        return;
+    };
+    wasm_bindgen_futures::spawn_local(async move {
+        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+        adjust_gentufa_block_reference_layout();
+    });
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn event_target_is_stylesheet_link(event: &web_sys::Event) -> bool {
+    let Some(element) = event
+        .target()
+        .and_then(|target| target.dyn_into::<web_sys::Element>().ok())
+    else {
+        return false;
+    };
+    if !element.tag_name().eq_ignore_ascii_case("link") {
+        return false;
+    }
+    element.get_attribute("rel").is_some_and(|rel| {
+        rel.split_ascii_whitespace()
+            .any(|part| part.eq_ignore_ascii_case("stylesheet"))
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn adjust_gentufa_block_reference_layout() {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Ok(nodes) = document.query_selector_all(".parse-page .block") else {
+        return;
+    };
+    let mut blocks = Vec::new();
+    for index in 0..nodes.length() {
+        let Some(node) = nodes.item(index) else {
+            continue;
+        };
+        let Ok(block) = node.dyn_into::<web_sys::Element>() else {
+            continue;
+        };
+        reset_block_reference_fit_width(&block);
+        blocks.push(block);
+    }
+    for block in blocks {
+        adjust_block_reference_fit_width(&block);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn reset_block_reference_fit_width(block: &web_sys::Element) {
+    let Some(block) = block.dyn_ref::<web_sys::HtmlElement>() else {
+        return;
+    };
+    let _ = block.style().remove_property("--block-reference-fit-width");
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn adjust_block_reference_fit_width(block: &web_sys::Element) {
+    if !block_is_leaf(block) {
+        return;
+    }
+    let Some(block_html) = block.dyn_ref::<web_sys::HtmlElement>() else {
+        return;
+    };
+    let Some(label_text) = block_label_text_for_block(block) else {
+        return;
+    };
+    let Some(reference_target) = block_reference_target_for_block(block) else {
+        return;
+    };
+    let Ok(reference_nodes) =
+        reference_target.query_selector_all(".ref-var, .ref-var *, .ref-arrow")
+    else {
+        return;
+    };
+    let text_rect = label_text.get_bounding_client_rect();
+    let block_rect = block.get_bounding_client_rect();
+    let mut reference_right = f64::NEG_INFINITY;
+    let mut reference_bottom = f64::NEG_INFINITY;
+    for index in 0..reference_nodes.length() {
+        let Some(node) = reference_nodes.item(index) else {
+            continue;
+        };
+        let Ok(element) = node.dyn_into::<web_sys::Element>() else {
+            continue;
+        };
+        let rect = element.get_bounding_client_rect();
+        reference_right = reference_right.max(rect.right());
+        reference_bottom = reference_bottom.max(rect.bottom());
+    }
+    if !reference_right.is_finite() || !reference_bottom.is_finite() {
+        return;
+    }
+    if reference_right <= block_rect.left() || reference_bottom <= text_rect.top() {
+        return;
+    }
+    let desired_text_left = reference_right + BLOCK_REFERENCE_LABEL_GAP_PX;
+    if desired_text_left <= text_rect.left() {
+        return;
+    }
+    let reference_right_in_block = reference_right - block_rect.left();
+    let required_width =
+        (reference_right_in_block + BLOCK_REFERENCE_LABEL_GAP_PX) * 2.0 + text_rect.width();
+    let current_width = block_rect.width();
+    let fit_width = required_width.max(current_width);
+    if !fit_width.is_finite() || fit_width <= current_width {
+        return;
+    }
+    let _ = block_html
+        .style()
+        .set_property("--block-reference-fit-width", &format!("{fit_width:.2}px"));
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn block_is_leaf(block: &web_sys::Element) -> bool {
+    block
+        .get_attribute("class")
+        .is_some_and(|class| class.split_whitespace().any(|part| part == "block-leaf"))
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn block_label_text_for_block(block: &web_sys::Element) -> Option<web_sys::Element> {
+    block.query_selector(".block-label-text").ok().flatten()
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn block_reference_target_for_block(block: &web_sys::Element) -> Option<web_sys::Element> {
+    block.query_selector(".block-ref-target").ok().flatten()
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -6176,8 +6463,8 @@ fn hide_dictionary_tooltip_immediately(host: &web_sys::Element) {
     let style = tooltip.style();
     let _ = style.set_property("visibility", "hidden");
     let _ = style.set_property("pointer-events", "none");
-    let _ = style.set_property("transform", "translateY(0.16rem)");
     let _ = style.set_property("transition", "none");
+    let _ = style.remove_property("transform");
 }
 
 #[cfg(target_arch = "wasm32")]

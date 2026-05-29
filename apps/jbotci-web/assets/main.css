@@ -100,7 +100,7 @@ input:disabled {
   --blocks-label-color: var(--blocks-ink);
   --blocks-gap: 1px;
   --blocks-padding: 0.7rem;
-  --blocks-min-height: 2rem;
+  --blocks-min-height: 3.5rem;
   --blocks-font: "Noto Sans", "Noto Sans Math", sans-serif;
   --blocks-place-size: 0.7rem;
   --blocks-gloss-size: 0.7rem;
@@ -644,8 +644,16 @@ body::-webkit-scrollbar-thumb:hover,
   text-decoration: none;
 }
 
+.parse-page .bracket-word-link {
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+}
+
 .parse-page .bracket-word:hover,
-.parse-page .bracket-word:focus-visible {
+.parse-page .bracket-word:focus-visible,
+.parse-page .bracket-word-link:hover,
+.parse-page .bracket-word-link:focus-visible {
   text-decoration: none;
 }
 
@@ -863,6 +871,10 @@ body::-webkit-scrollbar-thumb:hover,
   background-color: var(--block-color, transparent);
 }
 
+.parse-page .block-leaf {
+  min-width: var(--block-reference-fit-width, 0);
+}
+
 .theme-night .parse-page .block.block-leaf,
 .theme-night .parse-page .block.block-nonleaf {
   background-color: color-mix(in srgb, var(--block-color, var(--surface-elevated)) 72%, #000) !important;
@@ -899,8 +911,19 @@ body::-webkit-scrollbar-thumb:hover,
   text-decoration: none;
 }
 
-.parse-page .block-label:hover {
-  text-decoration: underline;
+.parse-page .block-label-text {
+  display: inline-block;
+}
+
+.parse-page .block-label-link {
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+}
+
+.parse-page .block-label-link:hover,
+.parse-page .block-label-link:focus-visible {
+  text-decoration: none;
 }
 
 .parse-page .block-edge-height-sizer {
@@ -930,59 +953,18 @@ body::-webkit-scrollbar-thumb:hover,
   gap: 0.16rem;
 }
 
-.parse-page .block-overlap-sizer {
-  grid-row: 2;
-  grid-column: 1;
-  justify-self: flex-start;
-  align-self: center;
-  height: 0;
-  min-width: max-content;
-  overflow: hidden;
-  visibility: hidden;
-  pointer-events: none;
-  white-space: nowrap;
-  font-style: normal;
-}
-
-.parse-page .block-overlap-line {
-  display: inline-grid;
-  grid-template-columns: max-content max-content max-content;
-  align-items: baseline;
-  column-gap: 0.65rem;
-  min-width: max-content;
-}
-
-.parse-page .block-overlap-ref {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.16rem;
-  color: var(--blocks-ref-text);
-  font-size: var(--blocks-place-size);
-  font-weight: 600;
-}
-
-.parse-page .block-overlap-primary {
-  display: inline-block;
-  padding-inline: 0;
-}
-
-.parse-page .block-leaf .block-overlap-primary {
-  font-weight: bold;
-}
-
-.parse-page .block-overlap-ref-mirror {
-  opacity: 0;
-}
-
 .parse-page .block-leaf .block-label {
-  justify-self: flex-start;
+  justify-self: center;
   align-self: flex-end;
   font-weight: bold;
 }
 
 .parse-page .block-nonleaf .block-label {
-  justify-self: center;
-  align-self: center;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  transform: translate(-50%, -50%);
   white-space: nowrap;
   font-size: 80%;
 }
@@ -1024,13 +1006,24 @@ body::-webkit-scrollbar-thumb:hover,
 .parse-page .block-ref-source {
   right: var(--blocks-ref-pad-x);
   bottom: var(--blocks-ref-pad-y);
+  width: 0;
+  height: 0;
+  min-width: 0;
+  display: block;
 }
 
 .parse-page .block-ref-source .ref-math {
-  display: inline-grid;
-  grid-template-columns: max-content max-content;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: inline-flex;
   align-items: baseline;
-  column-gap: 0.16rem;
+  justify-content: flex-end;
+  gap: 0.16rem;
+  width: 0;
+  min-width: 0;
+  overflow: visible;
+  white-space: nowrap;
 }
 
 .parse-page .block-ref-target .place-var,
@@ -2189,7 +2182,7 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--dictionary-tooltip-bg);
   color: var(--app-text);
   box-shadow: 0 0.9rem 2rem rgb(0 0 0 / 0.28), 0 0.12rem 0.32rem rgb(0 0 0 / 0.18);
-  font-family: "Noto Sans", Verdana, sans-serif;
+  font-family: "Noto Sans", "Noto Sans Math", Verdana, sans-serif;
   font-size: 0.82rem;
   font-style: normal;
   font-weight: 400;
@@ -2198,18 +2191,14 @@ body::-webkit-scrollbar-thumb:hover,
   white-space: normal;
   word-break: normal;
   visibility: hidden;
-  pointer-events: none;
-  transform: translateY(0.16rem);
-  transition:
-    transform 120ms ease 360ms,
-    visibility 0s linear 480ms;
+  pointer-events: auto;
+  transition: visibility 0s linear 520ms;
 }
 
 .dictionary-tooltip-host:hover > .rich-dictionary-tooltip,
 .dictionary-tooltip-host:focus-within > .rich-dictionary-tooltip {
   visibility: visible;
   pointer-events: auto;
-  transform: translateY(0);
   transition-delay: 0s;
 }
 
@@ -2310,6 +2299,23 @@ body::-webkit-scrollbar-thumb:hover,
 .rich-dictionary-tooltip .tooltip-copy,
 .rich-dictionary-tooltip .tooltip-notes {
   display: block;
+}
+
+.rich-dictionary-tooltip .tooltip-copy {
+  line-height: 1.5;
+}
+
+.rich-dictionary-tooltip .tooltip-copy .spa-cll-math,
+.rich-dictionary-tooltip .tooltip-notes .spa-cll-math {
+  font-size: 1em;
+  line-height: inherit;
+}
+
+.rich-dictionary-tooltip .tooltip-copy .spa-cll-math math,
+.rich-dictionary-tooltip .tooltip-notes .spa-cll-math math {
+  font-family: math;
+  font-size: 1em;
+  line-height: normal;
 }
 
 .rich-dictionary-tooltip .tooltip-notes {
