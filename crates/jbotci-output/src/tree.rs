@@ -1482,7 +1482,8 @@ mod tests {
 
         let cei = render_refs("mi broda cei klama do", false);
         assert!(cei.contains("k→ Predicate"));
-        assert!(cei.contains("k→ Gismu \"bróda\" →b"));
+        assert!(cei.contains("Gismu \"bróda\" →b"));
+        assert!(!cei.contains("k→ Gismu \"bróda\""));
         assert!(cei.contains("Gismu \"kláma\" →k"));
     }
 

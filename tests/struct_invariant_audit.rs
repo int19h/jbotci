@@ -352,6 +352,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "dictionary cards are transport values assembled from dictionary entries or validated word classification",
     ),
     (
+        "crates/jbotci-search/src/vlacku.rs:ParsedWordDictionaryMatch",
+        "parsed-word dictionary matches are derived from morphology spans and rendered dictionary cards",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:ParsedWordLookupTarget",
+        "parsed-word lookup targets are transient values built from morphology spans before dictionary lookup",
+    ),
+    (
         "crates/jbotci-search/src/vlacku.rs:VlackuCompositionPiece",
         "composition pieces are projected from validated morphology decomposition segments",
     ),
@@ -524,6 +532,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "render options are independent flags with no cross-field invariant",
     ),
     (
+        "crates/jbotci-output/src/lib.rs:BracketSourceRange",
+        "bracket source ranges mirror parser byte spans supplied by renderer construction paths",
+    ),
+    (
         "crates/jbotci-output/src/lib.rs:JsonRenderOptions",
         "JSON indentation accepts any width chosen by callers",
     ),
@@ -614,6 +626,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-web-core/src/lib.rs:GentufaWebRequest",
         "web request is a serde transport envelope validated by the parser entry point",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:DictionaryTooltipCard",
+        "dictionary tooltip cards are presentation payloads projected from validated vlacku cards",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:DictionaryAnnotation",
+        "dictionary annotations combine parser source ranges with projected tooltip cards",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:LeafCollector",

@@ -44,6 +44,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "empty render nodes are meaningful intermediate values",
     ),
     (
+        "crates/jbotci-output/src/lib.rs:BracketSourceFragment::Text",
+        "bracket source fragments preserve renderer output, including empty intermediate text",
+    ),
+    (
+        "crates/jbotci-output/src/lib.rs:BracketSourceFragment::Span",
+        "bracket source spans preserve renderer grouping, including empty intermediate spans",
+    ),
+    (
         "crates/jbotci-output/src/lib.rs:OutputError::Json",
         "error wrapper carries serde's diagnostic without adding semantic state",
     ),
@@ -1206,6 +1214,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-web-core/src/lib.rs:GentufaWebError::Dialect",
         "error wrapper carries parser diagnostic text without additional semantic state",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaBracketFragment::Text",
+        "web bracket fragments mirror renderer output, including empty fallback text",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaBracketFragment::Span",
+        "web bracket spans are presentation wrappers whose payload is validated by child fragments",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:ReferenceSlotLabel::Numbered",

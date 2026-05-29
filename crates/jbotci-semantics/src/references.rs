@@ -3405,7 +3405,6 @@ struct DiscourseReferenceBuilder<'index, 'tree> {
     edge_ids_by_source: HashMap<RawSyntaxNodeId, Vec<ReferenceEdgeId>>,
     edge_ids_by_target_node: HashMap<RawSyntaxNodeId, Vec<ReferenceEdgeId>>,
     koha_bindings: HashMap<Cmavo, ArgumentNodeId>,
-    cei_bindings: HashMap<String, RelationUnitNodeId>,
     cei_predicate_bindings: HashMap<String, PredicateNodeId>,
     relation_variable_bindings: HashMap<Cmavo, RelationNodeId>,
     da_bindings: HashMap<Cmavo, ArgumentNodeId>,
@@ -3435,7 +3434,6 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
             edge_ids_by_source: HashMap::new(),
             edge_ids_by_target_node: HashMap::new(),
             koha_bindings: HashMap::new(),
-            cei_bindings: HashMap::new(),
             cei_predicate_bindings: HashMap::new(),
             relation_variable_bindings: HashMap::new(),
             da_bindings: HashMap::new(),
@@ -4888,34 +4886,23 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
             data!(RelationUnitSyntax::Luhei { text, .. }) => self.visit_text(text),
             data!(RelationUnitSyntax::Cei { base, assignments }) => {
                 self.visit_relation_unit(base);
-                let base_id = self
-                    .index
-                    .relation_unit_node_id(base)
-                    .expect("CEI base belongs to indexed syntax tree");
                 for assignment in assignments {
                     self.visit_relation_unit(&assignment.relation_unit);
                     if let Some(label) = relation_unit_assignment_label(&assignment.relation_unit) {
-                        self.cei_bindings.insert(label.clone(), base_id);
                         if let Some(predicate_id) = self.current_predicate {
                             self.cei_predicate_bindings.insert(label, predicate_id);
                         }
                     }
-                    let assignment_id = self
-                        .index
-                        .relation_unit_node_id(&assignment.relation_unit)
-                        .expect("CEI assignment belongs to indexed syntax tree");
-                    self.add_edge(
-                        ReferenceKind::CeiAssignment,
-                        assignment_id.0,
-                        target_resolved_node(base_id.0),
-                        "CEI assigns a pro-selbri/relation word to the preceding relation unit",
-                    );
                     if let Some(predicate_id) = self.current_predicate {
+                        let assignment_id = self
+                            .index
+                            .relation_unit_node_id(&assignment.relation_unit)
+                            .expect("CEI assignment belongs to indexed syntax tree");
                         self.add_edge(
                             ReferenceKind::CeiAssignment,
                             assignment_id.0,
                             target_resolved_node(predicate_id.0),
-                            "CEI also exposes the enclosing predicate as the pro-predicate target",
+                            "CEI assigns a pro-bridi word to the enclosing predicate",
                         );
                     }
                 }
@@ -5365,14 +5352,6 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                     );
                 }
                 let label = cmavo.canonical_text().to_owned();
-                if let Some(target) = self.cei_bindings.get(&label).copied() {
-                    self.add_edge(
-                        ReferenceKind::BrodaSeries,
-                        source,
-                        target_resolved_node(target.0),
-                        "CEI binding resolves this pro-relation word",
-                    );
-                }
                 if let Some(target) = self.cei_predicate_bindings.get(&label).copied() {
                     self.add_edge(
                         ReferenceKind::BrodaSeries,
@@ -5393,14 +5372,6 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
             .index
             .relation_unit_node_id(unit)
             .expect("broda unit belongs to indexed syntax tree");
-        if let Some(target) = self.cei_bindings.get(&label).copied() {
-            self.add_edge(
-                ReferenceKind::BrodaSeries,
-                source.0,
-                target_resolved_node(target.0),
-                "CEI binding resolves this broda-series relation unit",
-            );
-        }
         if let Some(target) = self.cei_predicate_bindings.get(&label).copied() {
             self.add_edge(
                 ReferenceKind::BrodaSeries,
@@ -5418,14 +5389,6 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
             .index
             .relation_node_id(relation)
             .expect("broda relation belongs to indexed syntax tree");
-        if let Some(target) = self.cei_bindings.get(&label).copied() {
-            self.add_edge(
-                ReferenceKind::BrodaSeries,
-                source.0,
-                target_resolved_node(target.0),
-                "CEI binding resolves this broda-series relation",
-            );
-        }
         if let Some(target) = self.cei_predicate_bindings.get(&label).copied() {
             self.add_edge(
                 ReferenceKind::BrodaSeries,
