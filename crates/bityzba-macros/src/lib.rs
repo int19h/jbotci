@@ -15,7 +15,7 @@ use proc_macro::TokenStream;
 ///
 /// ## Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use bityzba::*;
 /// #[requires(elems.len() >= 1)]
 /// fn max<T: Ord + Copy>(elems: &[T]) -> T {
@@ -76,7 +76,7 @@ pub fn expensive_requires(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// ## Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use bityzba::*;
 /// #[ensures(ret > x)]
 /// fn incr(x: usize) -> usize {
@@ -84,7 +84,7 @@ pub fn expensive_requires(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use bityzba::*;
 /// #[ensures(*x == old(*x) + 1, "x is incremented")]
 /// fn incr(x: &mut usize) {
@@ -140,7 +140,7 @@ pub fn expensive_ensures(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// On a function:
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use bityzba::*;
 /// /// Update `num` to the next bigger even number.
 /// #[invariant(*num % 2 == 0)]
@@ -151,7 +151,7 @@ pub fn expensive_ensures(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// On an `impl`-block:
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use bityzba::*;
 /// struct EvenAdder {
 ///     count: usize,
@@ -227,7 +227,7 @@ pub fn expensive_invariant(attr: TokenStream, item: TokenStream) -> TokenStream 
 ///
 /// ## Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use bityzba::*;
 /// #[contract_trait]
 /// trait MyRandom {

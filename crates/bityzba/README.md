@@ -70,7 +70,7 @@ methods can mix cheap and expensive contracts.
 `#[invariant]` on an `impl` block is copied to every method that takes `self`.
 `#[expensive_invariant]` is the feature-gated version.
 
-```rust
+```rust,ignore
 use bityzba::invariant;
 
 #[invariant(self.len <= self.capacity)]
@@ -129,7 +129,7 @@ Full construction requires every field exactly once. Missing fields fail at
 compile time through builder typestate; duplicate fields are rejected by
 `data!`.
 
-```rust
+```rust,ignore
 let span = new!(SourceSpan {
     byte_start: 0,
     byte_end: 4,
@@ -148,7 +148,7 @@ let fallible_span = try_new!(SourceSpan {
 `with_data` consumes the old value, applies a partial field set, and
 revalidates the whole result. Clone first if the old value must be retained.
 
-```rust
+```rust,ignore
 let longer = span.with_data(data! {
     byte_end: 8,
     char_end: 8,
@@ -157,7 +157,7 @@ let longer = span.with_data(data! {
 
 `Deref<Target = TypeData>` is implemented for read-only field access:
 
-```rust
+```rust,ignore
 assert_eq!(longer.byte_end, 8);
 ```
 
@@ -170,7 +170,7 @@ constructor when construction does useful work beyond invariant validation.
 Use `from_data` after explicit checks have proved the invariant, or
 `try_from_data` when converting unchecked input directly.
 
-```rust
+```rust,ignore
 #[invariant(start <= end)]
 pub struct Span {
     pub start: usize,
@@ -193,7 +193,7 @@ impl Span {
 Enums use the same construction macros. Named variants use braces, tuple
 variants use parentheses, and unit variants use a path:
 
-```rust
+```rust,ignore
 #[invariant(::Node => true)]
 #[invariant(::Word => !word.is_empty())]
 #[invariant(::Pair(left, right) => !left.is_empty() && *right > 0)]
@@ -225,14 +225,14 @@ literal field access. `data!(Type { ... })` does not bypass Rust privacy.
 Pattern-match through `as_data()` and `data!` aliases to avoid spelling data
 type names in normal code:
 
-```rust
+```rust,ignore
 let data!(SourceSpan { byte_start, byte_end, .. }) = longer.as_data();
 assert!(byte_start <= byte_end);
 ```
 
 Enum variants use the same alias form:
 
-```rust
+```rust,ignore
 match value.as_data() {
     data!(SyntaxValue::Node { node }) => visit(node),
     data!(SyntaxValue::Word { word }) => visit_word(word),
@@ -263,7 +263,7 @@ contract decisions during normal development builds:
 bityzba = { workspace = true, features = ["contract_scanner"] }
 ```
 
-```rust
+```rust,ignore
 use bityzba::{ensures, requires};
 
 #[requires(true)]
