@@ -3552,26 +3552,24 @@ fn render_dictionary_tooltip(
     rsx! {
         span { class: "rich-dictionary-tooltip", role: "tooltip",
             span { class: "tooltip-word-line",
-                if show_link {
-                    a { class: "tooltip-word", href: "{card.href}", "{card.display_word}" }
-                } else {
-                    span { class: "tooltip-word", "{card.display_word}" }
-                }
-                if let Some(ipa) = &card.ipa {
-                    span { class: "tooltip-ipa", "/{ipa}/" }
-                }
-            }
-            span { class: "tooltip-meta-row",
-                span { class: word_type_tag_class(&card.word_type_key), "{card.word_type}" }
-                if let Some(selmaho) = &card.selmaho {
-                    span { class: "dictionary-meta-segment dictionary-selmaho-tag",
-                        em { "{selmaho}" }
+                span { class: "tooltip-headword",
+                    if show_link {
+                        a { class: "tooltip-word", href: "{card.href}", "{card.display_word}" }
+                    } else {
+                        span { class: "tooltip-word", "{card.display_word}" }
+                    }
+                    if let Some(ipa) = &card.ipa {
+                        span { class: "tooltip-ipa", "/{ipa}/" }
                     }
                 }
-                if let Some(similarity) = &card.similarity {
-                    span { class: "dictionary-meta-segment dictionary-meta-tooltip", "{similarity}" }
+                span { class: "tooltip-head-tags",
+                    span { class: word_type_tag_class(&card.word_type_key), "{card.word_type}" }
+                    if let Some(selmaho) = &card.selmaho {
+                        span { class: "dictionary-meta-segment dictionary-selmaho-tag",
+                            em { "{selmaho}" }
+                        }
+                    }
                 }
-                { render_vote_display(&card.votes) }
             }
             if !card.decomposition.is_empty() {
                 span { class: "tooltip-row tooltip-decomposition",
@@ -3600,29 +3598,20 @@ fn render_dictionary_tooltip(
                         }
                     }
                 }
-            } else if !card.rafsi.is_empty() {
-                span { class: "tooltip-row",
-                    span { class: "tooltip-label", "rafsi" }
-                    span { class: "tooltip-chip-row",
-                        for rafsi in card.rafsi.iter() {
-                            span { class: "tooltip-chip", "{rafsi}" }
-                        }
-                    }
+            }
+            if !card.definition.is_empty() {
+                span { class: "tooltip-copy",
+                    { render_tooltip_inline_spans(&card.definition, base_path, show_link) }
                 }
             }
             if !card.glosses.is_empty() {
-                span { class: "tooltip-row",
+                span { class: "tooltip-row tooltip-glosses",
                     span { class: "tooltip-label", "glosses" }
                     span { class: "tooltip-chip-row",
                         for gloss in card.glosses.iter() {
                             span { class: "tooltip-chip", "{gloss}" }
                         }
                     }
-                }
-            }
-            if !card.definition.is_empty() {
-                span { class: "tooltip-copy",
-                    { render_tooltip_inline_spans(&card.definition, base_path, show_link) }
                 }
             }
             if !card.notes.is_empty() {
@@ -4968,7 +4957,6 @@ fn render_block(
                     for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Referent) {
                         span { class: "block-edge-height-line",
                             { render_reference_label(&marker.label) }
-                            span { class: "ref-arrow", "→" }
                         }
                     }
                 }
@@ -4978,7 +4966,6 @@ fn render_block(
                     for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Referent) {
                         span { class: "ref-math ref-line",
                             { render_ref_marker(marker, reference_hover, &hover_state) }
-                            span { class: "ref-arrow", "→" }
                         }
                     }
                 }
@@ -6333,9 +6320,6 @@ fn reset_block_reference_fit_width(block: &web_sys::Element) {
 #[requires(true)]
 #[ensures(true)]
 fn adjust_block_reference_fit_width(block: &web_sys::Element) {
-    if !block_is_leaf(block) {
-        return;
-    }
     let Some(block_html) = block.dyn_ref::<web_sys::HtmlElement>() else {
         return;
     };
@@ -6345,9 +6329,7 @@ fn adjust_block_reference_fit_width(block: &web_sys::Element) {
     let Some(reference_target) = block_reference_target_for_block(block) else {
         return;
     };
-    let Ok(reference_nodes) =
-        reference_target.query_selector_all(".ref-var, .ref-var *, .ref-arrow")
-    else {
+    let Ok(reference_nodes) = reference_target.query_selector_all(".ref-var, .ref-var *") else {
         return;
     };
     let text_rect = label_text.get_bounding_client_rect();
@@ -6368,33 +6350,31 @@ fn adjust_block_reference_fit_width(block: &web_sys::Element) {
     if !reference_right.is_finite() || !reference_bottom.is_finite() {
         return;
     }
-    if reference_right <= block_rect.left() || reference_bottom <= text_rect.top() {
-        return;
-    }
-    let desired_text_left = reference_right + BLOCK_REFERENCE_LABEL_GAP_PX;
-    if desired_text_left <= text_rect.left() {
-        return;
-    }
     let reference_right_in_block = reference_right - block_rect.left();
-    let required_width =
-        (reference_right_in_block + BLOCK_REFERENCE_LABEL_GAP_PX) * 2.0 + text_rect.width();
+    if reference_right_in_block <= 0.0 {
+        return;
+    }
+    let reference_fit_width = reference_right_in_block + BLOCK_REFERENCE_LABEL_GAP_PX;
+    let overlap_fit_width = if reference_bottom > text_rect.top() {
+        let desired_text_left = reference_right + BLOCK_REFERENCE_LABEL_GAP_PX;
+        if desired_text_left > text_rect.left() {
+            (reference_right_in_block + BLOCK_REFERENCE_LABEL_GAP_PX) * 2.0 + text_rect.width()
+        } else {
+            0.0
+        }
+    } else {
+        0.0
+    };
     let current_width = block_rect.width();
-    let fit_width = required_width.max(current_width);
+    let fit_width = current_width
+        .max(reference_fit_width)
+        .max(overlap_fit_width);
     if !fit_width.is_finite() || fit_width <= current_width {
         return;
     }
     let _ = block_html
         .style()
         .set_property("--block-reference-fit-width", &format!("{fit_width:.2}px"));
-}
-
-#[cfg(target_arch = "wasm32")]
-#[requires(true)]
-#[ensures(true)]
-fn block_is_leaf(block: &web_sys::Element) -> bool {
-    block
-        .get_attribute("class")
-        .is_some_and(|class| class.split_whitespace().any(|part| part == "block-leaf"))
 }
 
 #[cfg(target_arch = "wasm32")]

@@ -861,6 +861,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .block {
   position: relative;
+  min-width: var(--block-reference-fit-width, 0);
   min-height: var(--blocks-min-height);
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -869,10 +870,6 @@ body::-webkit-scrollbar-thumb:hover,
   overflow: visible;
   color: var(--blocks-ink);
   background-color: var(--block-color, transparent);
-}
-
-.parse-page .block-leaf {
-  min-width: var(--block-reference-fit-width, 0);
 }
 
 .theme-night .parse-page .block.block-leaf,
@@ -988,19 +985,14 @@ body::-webkit-scrollbar-thumb:hover,
   top: var(--blocks-ref-pad-y);
   left: var(--blocks-ref-pad-x);
   display: inline-grid;
-  grid-template-columns: max-content max-content;
+  grid-template-columns: max-content;
   align-items: start;
-  justify-items: end;
-  column-gap: 0.16rem;
+  justify-items: start;
   row-gap: 0.08rem;
 }
 
 .parse-page .block-ref-target .ref-line {
-  display: contents;
-}
-
-.parse-page .block-ref-target .ref-line .ref-arrow {
-  justify-self: start;
+  display: inline-flex;
 }
 
 .parse-page .block-ref-source {
@@ -1035,7 +1027,6 @@ body::-webkit-scrollbar-thumb:hover,
   text-decoration: none;
 }
 
-.parse-page .block-ref-target .ref-assign,
 .parse-page .block-ref-source .ref-arrow {
   color: var(--blocks-ref-symbol);
   font-weight: 600;
@@ -1104,6 +1095,18 @@ body::-webkit-scrollbar-thumb:hover,
   border-radius: 0.25rem;
   background: color-mix(in srgb, var(--app-accent) 20%, transparent);
   animation: ref-highlight-pulse 900ms ease-in-out infinite alternate;
+}
+
+.theme-night .parse-page .place-highlight::before,
+.theme-night .parse-page .ref-highlight::before {
+  background: rgb(255 255 255 / 0.32);
+}
+
+@media (prefers-color-scheme: dark) {
+  .theme-auto .parse-page .place-highlight::before,
+  .theme-auto .parse-page .ref-highlight::before {
+    background: rgb(255 255 255 / 0.32);
+  }
 }
 
 .parse-page .arrow-overlay {
@@ -2202,8 +2205,8 @@ body::-webkit-scrollbar-thumb:hover,
   transition-delay: 0s;
 }
 
-.rich-dictionary-tooltip .tooltip-word-line,
-.rich-dictionary-tooltip .tooltip-meta-row,
+.rich-dictionary-tooltip .tooltip-headword,
+.rich-dictionary-tooltip .tooltip-head-tags,
 .rich-dictionary-tooltip .tooltip-row,
 .rich-dictionary-tooltip .tooltip-chip-row,
 .rich-dictionary-tooltip .tooltip-decomposition-pieces {
@@ -2211,6 +2214,23 @@ body::-webkit-scrollbar-thumb:hover,
   align-items: baseline;
   flex-wrap: wrap;
   gap: 0.28rem;
+}
+
+.rich-dictionary-tooltip .tooltip-word-line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.58rem;
+}
+
+.rich-dictionary-tooltip .tooltip-headword {
+  min-width: 0;
+}
+
+.rich-dictionary-tooltip .tooltip-head-tags {
+  flex: none;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .rich-dictionary-tooltip .tooltip-word {
