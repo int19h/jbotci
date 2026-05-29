@@ -8,20 +8,22 @@ use jbotci_output::{GlideMark, PhonemeRenderOptions, StressMark};
 use jbotci_web_core::{
     CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption, CuktaPageData, CuktaPageKind,
     CuktaSearchResultCard, CuktaSemanticSearchHit, CuktaTargetOption, CuktaTocNode, CuktaWebMode,
-    CuktaWebSearchState, CuktaWebState, CuktaWebView, GentufaBlock, GentufaCell, GentufaError,
-    GentufaScript, GentufaSuccess, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest,
-    GentufaWebResult, GentufaWebState, GentufaWebViewMode, PageMeta, ReferenceLabel,
-    ReferenceMarker, ReferenceMarkerRole, ReferenceSlotLabel, VLACKU_WEB_DEFAULT_COUNT,
-    VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece, VlackuCompositionPieceKind, VlackuDictionaryInfo,
-    VlackuInline, VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode,
-    VlackuJvozbaOutput, VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
+    CuktaWebSearchState, CuktaWebState, CuktaWebView, DictionaryTooltipCard, GentufaBlock,
+    GentufaBracketFragment, GentufaCell, GentufaError, GentufaScript, GentufaSuccess,
+    GentufaTreeRow, GentufaWebOptions, GentufaWebRequest, GentufaWebResult, GentufaWebState,
+    GentufaWebViewMode, PageMeta, ReferenceLabel, ReferenceMarker, ReferenceMarkerRole,
+    ReferenceSlotLabel, VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece,
+    VlackuCompositionPieceKind, VlackuDictionaryInfo, VlackuInline, VlackuInlineData,
+    VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
+    VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
     VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebResult,
     VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection, WebFeatureAvailability, WebRoute,
     build_cukta_semantic_web_page, build_cukta_web_page, build_page_meta,
     build_vlacku_jvozba_output, build_vlacku_semantic_web_result, build_vlacku_web_result,
-    cukta_web_url, embedding_worker_corpus_json, gentufa_web_url, normalize_vlacku_state,
-    parse_cukta_web_route, parse_gentufa_for_web, parse_gentufa_web_route, parse_vlacku_web_route,
-    parse_web_route, toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
+    cukta_web_url, dictionary_tooltip_for_rafsi, dictionary_tooltip_for_word,
+    embedding_worker_corpus_json, gentufa_web_url, normalize_vlacku_state, parse_cukta_web_route,
+    parse_gentufa_for_web, parse_gentufa_web_route, parse_vlacku_web_route, parse_web_route,
+    toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
     vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
 };
 
@@ -78,11 +80,13 @@ const CLL_MEDIA_LOGO: Asset = asset!("/assets/cll/media/logo.png");
 const DEFAULT_GENTUFA_TEXT: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
 const VLACKU_SEARCH_DEBOUNCE_MS: i32 = 900;
 const VLACKU_URL_DEBOUNCE_MS: i32 = 450;
+const GENTUFA_URL_DEBOUNCE_MS: i32 = 650;
 
 #[cfg(target_arch = "wasm32")]
 thread_local! {
     static VLACKU_URL_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
     static VLACKU_SEARCH_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
+    static GENTUFA_URL_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
     static BROWSER_STATE_HANDLERS_INSTALLED: Cell<bool> = const { Cell::new(false) };
 }
 
@@ -520,8 +524,8 @@ fn App() -> Element {
             &cukta_state.read(),
             &vlacku_committed_state.read(),
             &gentufa_state_from_parts(
-                &input_text.read(),
-                &dialect.read(),
+                &parsed_text.read(),
+                &parsed_dialect.read(),
                 *view_mode.read(),
                 *gentufa_display.read(),
                 *gentufa_text_explicit.read(),
@@ -554,7 +558,7 @@ fn App() -> Element {
                 *gentufa_display.read(),
                 *gentufa_text_explicit.read(),
             );
-            replace_gentufa_url(&gentufa_url_base_path, &state);
+            schedule_gentufa_url_replace(&gentufa_url_base_path, &state);
         }
     });
     use_effect(move || {
@@ -2460,23 +2464,32 @@ fn render_cll_inline(
             let href = cll_inline_href(base_path, *kind, target);
             let class_name = format!("spa-cll-link {}", cll_link_kind_class(*kind));
             let is_cukta_link = matches!(kind, CllLinkKind::Section | CllLinkKind::Example);
+            let tooltip = cll_dictionary_tooltip_for_link(base_path, *kind, target);
+            let link_class = class_names(
+                &class_name,
+                &[("dictionary-tooltip-host", tooltip.is_some())],
+            );
+            let href_for_click = href.clone();
             rsx! {
                 a {
-                    class: "{class_name}",
+                    class: "{link_class}",
                     href: "{href}",
                     onclick: move |event| {
                         if is_cukta_link {
-                            if let Some(reference) = cukta_section_reference_from_href(&href) {
+                            if let Some(reference) = cukta_section_reference_from_href(&href_for_click) {
                                 event.prevent_default();
                                 set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
                                     view: CuktaWebView::Section { reference },
                                 });
-                                scroll_to_cukta_href(&href);
+                                scroll_to_cukta_href(&href_for_click);
                             }
                         }
                     },
                     for child in inlines.iter() {
                         { render_cll_inline(cukta_state, child, base_path) }
+                    }
+                    if let Some(card) = &tooltip {
+                        { render_dictionary_tooltip(card, false, base_path) }
                     }
                 }
             }
@@ -2754,15 +2767,23 @@ fn render_cll_ebnf_token(token: &CllEbnfToken, base_path: &str) -> Element {
 fn render_cll_ebnf_elidable(body: &str, href: Option<&str>, base_path: &str) -> Element {
     let pieces = cll_ebnf_elidable_hash_pieces(body);
     if let Some(href) = href {
+        let tooltip = cll_dictionary_tooltip_for_href(base_path, href);
+        let link_class = class_names(
+            "cll-ebnf-elidable",
+            &[("dictionary-tooltip-host", tooltip.is_some())],
+        );
         let href = cll_ebnf_href(base_path, href);
         rsx! {
-            a { class: "cll-ebnf-elidable", href: "{href}",
+            a { class: "{link_class}", href: "{href}",
                 if let Some((prefix, suffix)) = pieces {
                     "{prefix}"
                     span { class: "cll-ebnf-hash", "#" }
                     "{suffix}"
                 } else {
                     "{body}"
+                }
+                if let Some(card) = &tooltip {
+                    { render_dictionary_tooltip(card, false, base_path) }
                 }
             }
         }
@@ -2790,12 +2811,61 @@ fn render_cll_ebnf_link(
     base_path: &str,
 ) -> Element {
     if let Some(href) = href {
+        let tooltip = cll_dictionary_tooltip_for_href(base_path, href);
+        let link_class = class_names(
+            class_name,
+            &[("dictionary-tooltip-host", tooltip.is_some())],
+        );
         let href = cll_ebnf_href(base_path, href);
         rsx! {
-            a { class: "{class_name}", href: "{href}", "{body}" }
+            a { class: "{link_class}", href: "{href}",
+                "{body}"
+                if let Some(card) = &tooltip {
+                    { render_dictionary_tooltip(card, false, base_path) }
+                }
+            }
         }
     } else {
         rsx! { span { class: "{class_name}", "{body}" } }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_dictionary_tooltip_for_link(
+    base_path: &str,
+    kind: CllLinkKind,
+    target: &str,
+) -> Option<DictionaryTooltipCard> {
+    match kind {
+        CllLinkKind::Dictionary => dictionary_tooltip_for_word(base_path, target),
+        CllLinkKind::Rafsi => dictionary_tooltip_for_rafsi(base_path, target),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_dictionary_tooltip_for_href(base_path: &str, href: &str) -> Option<DictionaryTooltipCard> {
+    if let Some(target) = href.strip_prefix("../vlacku/") {
+        return dictionary_tooltip_for_word(base_path, target);
+    }
+    let Some(query) = href.strip_prefix("../vlacku?") else {
+        return None;
+    };
+    let mut mode_is_rafsi = false;
+    let mut rafsi = None;
+    for part in query.split('&') {
+        if part == "mode=rafsi" {
+            mode_is_rafsi = true;
+        } else if let Some(value) = part.strip_prefix("q=") {
+            rafsi = Some(value);
+        }
+    }
+    if mode_is_rafsi {
+        rafsi.and_then(|value| dictionary_tooltip_for_rafsi(base_path, value))
+    } else {
+        None
     }
 }
 
@@ -3427,6 +3497,129 @@ fn render_vlacku_card(
 
 #[requires(true)]
 #[ensures(true)]
+fn render_dictionary_tooltip(
+    card: &DictionaryTooltipCard,
+    show_link: bool,
+    base_path: &str,
+) -> Element {
+    rsx! {
+        span { class: "rich-dictionary-tooltip", role: "tooltip",
+            span { class: "tooltip-word-line",
+                if show_link {
+                    a { class: "tooltip-word", href: "{card.href}", "{card.display_word}" }
+                } else {
+                    span { class: "tooltip-word", "{card.display_word}" }
+                }
+                if let Some(ipa) = &card.ipa {
+                    span { class: "tooltip-ipa", "/{ipa}/" }
+                }
+            }
+            span { class: "tooltip-meta-row",
+                span { class: word_type_tag_class(&card.word_type_key), "{card.word_type}" }
+                if let Some(selmaho) = &card.selmaho {
+                    span { class: "dictionary-meta-segment dictionary-selmaho-tag",
+                        em { "{selmaho}" }
+                    }
+                }
+                if let Some(similarity) = &card.similarity {
+                    span { class: "dictionary-meta-segment dictionary-meta-tooltip", "{similarity}" }
+                }
+                { render_vote_display(&card.votes) }
+            }
+            if !card.decomposition.is_empty() {
+                span { class: "tooltip-row tooltip-decomposition",
+                    span { class: "tooltip-label", "decomposition" }
+                    span { class: "tooltip-decomposition-pieces",
+                        for piece in card.decomposition.iter().filter(|piece| piece.kind != VlackuCompositionPieceKind::Hyphen) {
+                            if let Some(source) = &piece.source {
+                                if show_link {
+                                    a {
+                                        class: "tooltip-rafsi-piece",
+                                        href: "{piece.source_href.clone().unwrap_or_else(|| card.href.clone())}",
+                                        span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
+                                        span { class: "tooltip-rafsi-source", "{piece.display_source.as_deref().unwrap_or(source)}" }
+                                    }
+                                } else {
+                                    span { class: "tooltip-rafsi-piece",
+                                        span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
+                                        span { class: "tooltip-rafsi-source", "{piece.display_source.as_deref().unwrap_or(source)}" }
+                                    }
+                                }
+                            } else {
+                                span { class: "tooltip-rafsi-piece",
+                                    span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if !card.rafsi.is_empty() {
+                span { class: "tooltip-row",
+                    span { class: "tooltip-label", "rafsi" }
+                    span { class: "tooltip-chip-row",
+                        for rafsi in card.rafsi.iter() {
+                            span { class: "tooltip-chip", "{rafsi}" }
+                        }
+                    }
+                }
+            }
+            if !card.glosses.is_empty() {
+                span { class: "tooltip-row",
+                    span { class: "tooltip-label", "glosses" }
+                    span { class: "tooltip-chip-row",
+                        for gloss in card.glosses.iter() {
+                            span { class: "tooltip-chip", "{gloss}" }
+                        }
+                    }
+                }
+            }
+            if !card.definition.is_empty() {
+                span { class: "tooltip-copy",
+                    { render_tooltip_inline_spans(&card.definition, base_path, show_link) }
+                }
+            }
+            if !card.notes.is_empty() {
+                span { class: "tooltip-notes",
+                    { render_tooltip_inline_spans(&card.notes, base_path, show_link) }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_tooltip_inline_spans(
+    spans: &[VlackuInline],
+    base_path: &str,
+    interactive_links: bool,
+) -> Element {
+    rsx! {
+        for span in spans.iter() {
+            {
+                match span.as_data() {
+                    data!(VlackuInline::Text(text)) => rsx! { "{text}" },
+                    data!(VlackuInline::Math(math)) => render_vlacku_math(math),
+                    data!(VlackuInline::WordRef { label, href, .. }) => {
+                        let resolved_href = resolved_href_with_base_path(base_path, href);
+                        if interactive_links {
+                            rsx! {
+                                a { class: "tooltip-inline-link", href: "{resolved_href}", "{label}" }
+                            }
+                        } else {
+                            rsx! {
+                                span { class: "tooltip-inline-link", "{label}" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn render_vlacku_headword_line(
     card: &VlackuWebCard,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
@@ -3449,6 +3642,7 @@ fn render_vlacku_headword_line(
             &card.display_word,
             &word_href,
             "dictionary-headword-link dictionary-jvozba-highlighted-word",
+            base_path,
         ) }
         if let Some(ipa) = &card.ipa {
             span { class: "dictionary-headword-ipa", "/{ipa}/" }
@@ -3565,9 +3759,11 @@ fn render_vlacku_word_action(
     display_word: &str,
     href: &str,
     class_name: &str,
+    base_path: &str,
 ) -> Element {
     let pane_open = jvozba_pane.read().open;
     let word_value = word.to_owned();
+    let tooltip = dictionary_tooltip_for_word(base_path, word);
     let static_class_name = class_name
         .split_whitespace()
         .filter(|class| {
@@ -3579,11 +3775,14 @@ fn render_vlacku_word_action(
     if pane_open && can_add_to_jvozba {
         rsx! {
             button {
-                class: "{class_name}",
+                class: "{class_name} dictionary-tooltip-host",
                 r#type: "button",
                 title: "Add to jvozba",
                 onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
                 "{display_word}"
+                if let Some(card) = &tooltip {
+                    { render_dictionary_tooltip(card, false, base_path) }
+                }
             }
         }
     } else if pane_open {
@@ -3592,7 +3791,12 @@ fn render_vlacku_word_action(
         }
     } else {
         rsx! {
-            a { class: "{class_name}", href: "{href}", "{display_word}" }
+            a { class: "{class_name} dictionary-tooltip-host", href: "{href}",
+                "{display_word}"
+                if let Some(card) = &tooltip {
+                    { render_dictionary_tooltip(card, false, base_path) }
+                }
+            }
         }
     }
 }
@@ -3644,6 +3848,7 @@ fn render_composition_piece(
                                 piece.display_source.as_deref().unwrap_or(source),
                                 &href,
                                 "dictionary-word-link rafsi-source-link dictionary-jvozba-add-link-hint",
+                                base_path,
                             ) }
                         }
                     }
@@ -3750,14 +3955,18 @@ fn render_vlacku_inline_word_ref(
     let pane_open = jvozba_pane.read().open;
     let word_value = label.to_owned();
     let resolved_href = resolved_href_with_base_path(base_path, href);
+    let tooltip = dictionary_tooltip_for_word(base_path, label);
     if pane_open && can_add_to_jvozba {
         rsx! {
             button {
-                class: "dictionary-word-link dictionary-jvozba-add-link-hint",
+                class: "dictionary-word-link dictionary-jvozba-add-link-hint dictionary-tooltip-host",
                 r#type: "button",
                 title: "Add to jvozba",
                 onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
                 "{label}"
+                if let Some(card) = &tooltip {
+                    { render_dictionary_tooltip(card, false, base_path) }
+                }
             }
         }
     } else if pane_open {
@@ -3766,7 +3975,12 @@ fn render_vlacku_inline_word_ref(
         }
     } else {
         rsx! {
-            a { class: "dictionary-word-link dictionary-jvozba-add-link-hint", href: "{resolved_href}", "{label}" }
+            a { class: "dictionary-word-link dictionary-jvozba-add-link-hint dictionary-tooltip-host", href: "{resolved_href}",
+                "{label}"
+                if let Some(card) = &tooltip {
+                    { render_dictionary_tooltip(card, false, base_path) }
+                }
+            }
         }
     }
 }
@@ -4399,7 +4613,53 @@ fn render_surface_output(success: &GentufaSuccess) -> Element {
             div { class: "brackets-output-stack",
                 pre { class: "brackets-output ipa-output", "{success.ipa_text}" }
                 pre { class: "brackets-output compact-output",
-                    span { class: "brackets-output-markup", "{success.brackets_text}" }
+                    span { class: "brackets-output-markup",
+                        for fragment in success.bracket_fragments.iter() {
+                            { render_bracket_fragment(fragment) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_bracket_fragment(fragment: &GentufaBracketFragment) -> Element {
+    match fragment {
+        GentufaBracketFragment::Text { text } => rsx! { "{text}" },
+        GentufaBracketFragment::Span {
+            color,
+            href,
+            tooltip,
+            children,
+        } => {
+            let style = color
+                .as_ref()
+                .map(|color| format!("color: {color};"))
+                .unwrap_or_default();
+            if let Some(href) = href {
+                rsx! {
+                    a {
+                        class: "bracket-fragment bracket-word dictionary-tooltip-host",
+                        style: "{style}",
+                        href: "{href}",
+                        for child in children.iter() {
+                            { render_bracket_fragment(child) }
+                        }
+                        if let Some(card) = tooltip {
+                            { render_dictionary_tooltip(card, false, "") }
+                        }
+                    }
+                }
+            } else {
+                rsx! {
+                    span { class: "bracket-fragment", style: "{style}",
+                        for child in children.iter() {
+                            { render_bracket_fragment(child) }
+                        }
+                    }
                 }
             }
         }
@@ -4583,15 +4843,7 @@ fn render_block(
     let row = block.row + 1;
     let col = block.col + 1;
     let classes = block_class(block);
-    let style = format!(
-        "grid-row: {row} / span {}; grid-column: {col} / span {}; --block-color: {}; background-color: {};",
-        block.row_span, block.col_span, block.color, block.color
-    );
     let hover_state = reference_hover.read().clone();
-    let incoming_markers = block
-        .ref_markers
-        .iter()
-        .filter(|marker| marker.role == ReferenceMarkerRole::Referent);
     let incoming_count = block
         .ref_markers
         .iter()
@@ -4603,10 +4855,16 @@ fn render_block(
         "block-ref-target"
     };
     let needs_incoming_overlap_sizer = incoming_count > 0 && block.row_span == 1;
-    let outgoing_markers = block
+    let outgoing_count = block
         .ref_markers
         .iter()
-        .filter(|marker| marker.role == ReferenceMarkerRole::Reference);
+        .filter(|marker| marker.role == ReferenceMarkerRole::Reference)
+        .count();
+    let needs_edge_height_sizer = incoming_count > 1 || (incoming_count > 0 && outgoing_count > 0);
+    let style = format!(
+        "grid-row: {row} / span {}; grid-column: {col} / span {}; --block-color: {}; background-color: {};",
+        block.row_span, block.col_span, block.color, block.color
+    );
     let is_export_anchor = export_anchor_id == Some(block.block_id.as_str());
     rsx! {
         div {
@@ -4620,9 +4878,27 @@ fn render_block(
             "data-token-kind": "{block.token_kind.clone().unwrap_or_default()}",
             "data-raw-text": "{block.raw_text}",
             "data-node-type": "{block.node_types.join(\" \")}",
+            if needs_edge_height_sizer {
+                span { class: "block-edge-height-sizer", aria_hidden: "true",
+                    for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Referent) {
+                        span { class: "block-edge-height-line",
+                            { render_reference_label(&marker.label) }
+                            span { class: "ref-arrow", "→" }
+                        }
+                    }
+                    if outgoing_count > 0 {
+                        span { class: "block-edge-height-line",
+                            for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Reference) {
+                                span { class: "ref-arrow", "→" }
+                                { render_reference_label(&marker.label) }
+                            }
+                        }
+                    }
+                }
+            }
             if block.ref_markers.iter().any(|marker| marker.role == ReferenceMarkerRole::Referent) {
                 span { class: "{incoming_class}",
-                    for marker in incoming_markers {
+                    for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Referent) {
                         span { class: "ref-math ref-line",
                             { render_ref_marker(marker, reference_hover, &hover_state) }
                             span { class: "ref-arrow", "→" }
@@ -4647,13 +4923,23 @@ fn render_block(
                     }
                 }
             }
-            span { class: "block-label", title: "{block.label}",
-                "{block.label}"
+            if let Some(card) = &block.tooltip {
+                a {
+                    class: "block-label dictionary-tooltip-host",
+                    title: "{block.label}",
+                    href: "{card.href}",
+                    "{block.label}"
+                    { render_dictionary_tooltip(card, false, "") }
+                }
+            } else {
+                span { class: "block-label", title: "{block.label}",
+                    "{block.label}"
+                }
             }
             if block.ref_markers.iter().any(|marker| marker.role == ReferenceMarkerRole::Reference) {
                 span { class: "block-ref-source",
                     span { class: "ref-math",
-                        for marker in outgoing_markers {
+                        for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Reference) {
                             span { class: "ref-arrow", "→" }
                             { render_ref_marker(marker, reference_hover, &hover_state) }
                         }
@@ -5777,6 +6063,24 @@ fn install_browser_state_handlers(
         window.add_event_listener_with_callback("popstate", pop_closure.as_ref().unchecked_ref());
     pop_closure.forget();
 
+    let tooltip_pointer_closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
+        position_dictionary_tooltip_from_event(&event);
+    }) as Box<dyn FnMut(_)>);
+    let _ = document.add_event_listener_with_callback(
+        "mouseover",
+        tooltip_pointer_closure.as_ref().unchecked_ref(),
+    );
+    tooltip_pointer_closure.forget();
+
+    let tooltip_focus_closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
+        position_dictionary_tooltip_from_event(&event);
+    }) as Box<dyn FnMut(_)>);
+    let _ = document.add_event_listener_with_callback(
+        "focusin",
+        tooltip_focus_closure.as_ref().unchecked_ref(),
+    );
+    tooltip_focus_closure.forget();
+
     let scroll_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         save_current_scroll_position();
     }) as Box<dyn FnMut(_)>);
@@ -5818,6 +6122,66 @@ fn install_browser_state_handlers(
         gentufa_text_explicit,
         base_path,
     );
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn position_dictionary_tooltip_from_event(event: &web_sys::Event) {
+    let Some(target) = event
+        .target()
+        .and_then(|target| target.dyn_into::<web_sys::Element>().ok())
+    else {
+        return;
+    };
+    let Ok(Some(host)) = target.closest(".dictionary-tooltip-host") else {
+        return;
+    };
+    position_dictionary_tooltip(&host);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn position_dictionary_tooltip(host: &web_sys::Element) {
+    let Ok(Some(tooltip)) = host.query_selector(".rich-dictionary-tooltip") else {
+        return;
+    };
+    let Some(tooltip_html) = tooltip.dyn_ref::<web_sys::HtmlElement>() else {
+        return;
+    };
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let host_rect = host.get_bounding_client_rect();
+    let tooltip_rect = tooltip.get_bounding_client_rect();
+    let viewport_width = window
+        .inner_width()
+        .ok()
+        .and_then(|width| width.as_f64())
+        .unwrap_or(1.0);
+    let viewport_height = window
+        .inner_height()
+        .ok()
+        .and_then(|height| height.as_f64())
+        .unwrap_or(1.0);
+    let margin = 8.0;
+    let gap = 8.0;
+    let tooltip_width = tooltip_rect.width().max(1.0);
+    let tooltip_height = tooltip_rect.height().max(1.0);
+    let max_left = (viewport_width - tooltip_width - margin).max(margin);
+    let centered_left = host_rect.left() + host_rect.width() / 2.0 - tooltip_width / 2.0;
+    let left = centered_left.clamp(margin, max_left);
+    let preferred_top = host_rect.top() - tooltip_height - gap;
+    let max_top = (viewport_height - tooltip_height - margin).max(margin);
+    let top = if preferred_top >= margin {
+        preferred_top.min(max_top)
+    } else {
+        (host_rect.bottom() + gap).clamp(margin, max_top)
+    };
+    let style = tooltip_html.style();
+    let _ = style.set_property("--dictionary-tooltip-left", &format!("{left:.2}px"));
+    let _ = style.set_property("--dictionary-tooltip-top", &format!("{top:.2}px"));
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -6300,14 +6664,36 @@ fn schedule_vlacku_url_push(base_path: &str, state: &VlackuWebState) {
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
-fn replace_gentufa_url(base_path: &str, state: &GentufaWebState) {
-    set_browser_url(&gentufa_web_url(base_path, state), false);
+fn schedule_gentufa_url_replace(base_path: &str, state: &GentufaWebState) {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let target = gentufa_web_url(base_path, state);
+    GENTUFA_URL_TIMER.with(|timer| {
+        if let Some(handle) = timer.replace(None) {
+            window.clear_timeout_with_handle(handle);
+        }
+    });
+    let closure = Closure::once(move || {
+        if route_from_current_path() != AppRoute::Gentufa {
+            return;
+        }
+        set_browser_url(&target, false);
+    });
+    if let Ok(handle) = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        closure.as_ref().unchecked_ref(),
+        GENTUFA_URL_DEBOUNCE_MS,
+    ) {
+        GENTUFA_URL_TIMER.with(|timer| timer.set(Some(handle)));
+        closure.forget();
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[requires(true)]
 #[ensures(true)]
-fn replace_gentufa_url(base_path: &str, state: &GentufaWebState) {
+fn schedule_gentufa_url_replace(base_path: &str, state: &GentufaWebState) {
+    let _ = GENTUFA_URL_DEBOUNCE_MS;
     let _ = (base_path, state);
 }
 
@@ -6899,6 +7285,23 @@ mod tests {
     fn vlacku_search_debounce_is_longer_than_url_debounce() {
         assert_eq!(VLACKU_SEARCH_DEBOUNCE_MS, 900);
         assert!(VLACKU_SEARCH_DEBOUNCE_MS > VLACKU_URL_DEBOUNCE_MS);
+        assert!(GENTUFA_URL_DEBOUNCE_MS > VLACKU_URL_DEBOUNCE_MS);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_dictionary_tooltip_helpers_cover_inline_and_ebnf_links() {
+        let inline_card = cll_dictionary_tooltip_for_link("", CllLinkKind::Dictionary, "klama")
+            .expect("dictionary CLL links should have tooltips");
+        assert_eq!(inline_card.display_word, "klama");
+
+        let ebnf_card = cll_dictionary_tooltip_for_href("", "../vlacku/klama")
+            .expect("EBNF vlacku links should have tooltips");
+        assert_eq!(ebnf_card.display_word, "klama");
+
+        assert!(cll_dictionary_tooltip_for_link("", CllLinkKind::Rafsi, "kla").is_some());
+        assert!(cll_dictionary_tooltip_for_href("", "../vlacku?mode=rafsi&q=kla").is_some());
     }
 
     #[test]

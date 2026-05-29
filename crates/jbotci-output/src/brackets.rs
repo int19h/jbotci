@@ -7,7 +7,9 @@ use jbotci_syntax::ast::*;
 use jbotci_syntax::{Indicator, Token, WithIndicators};
 use jbotci_tree::TreeVisitor;
 
-use crate::{BracketRenderOptions, OutputError, sexpr, surface};
+use crate::{
+    BracketRenderOptions, BracketSourceFragment, BracketSourceRange, OutputError, sexpr, surface,
+};
 
 #[derive(Debug, Clone, Copy)]
 #[invariant(true)]
@@ -26,6 +28,21 @@ pub(crate) fn pretty_brackets_with_options(
     let context = BracketContext { source, options };
     let sexpr = text(tree, &context);
     Ok(sexpr::render_bracketed_with_options(
+        &sexpr::flatten(sexpr),
+        options,
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty()))]
+pub(crate) fn pretty_bracket_source_fragments_with_options(
+    tree: &TextSyntax,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<Vec<BracketSourceFragment>, OutputError> {
+    let context = BracketContext { source, options };
+    let sexpr = text(tree, &context);
+    Ok(sexpr::render_bracketed_source_fragments_with_options(
         &sexpr::flatten(sexpr),
         options,
     ))
@@ -2208,7 +2225,7 @@ fn indicators(values: &[Indicator], source: &BracketContext<'_>) -> sexpr::SExpr
     let rendered = values
         .iter()
         .map(|value| match indicator(value, source) {
-            sexpr::SExpr::Leaf(text) => text,
+            sexpr::SExpr::Leaf { text, .. } => text,
             _ => String::new(),
         })
         .collect::<Vec<_>>();
@@ -2429,25 +2446,44 @@ fn word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
     if source.options.decompose_lujvo
         && let Some(parts) = word.lujvo_parts()
     {
-        return sexpr::leaf(
+        return sexpr::leaf_with_range(
             parts
                 .iter()
                 .map(|part| part.phonemes().render(source.options.phonemes))
                 .collect::<Vec<_>>()
                 .join(source.options.glyphs.lujvo_separator()),
+            Some(word_bracket_source_range(word)),
         );
     }
-    sexpr::leaf(surface::format_with_indicators_with_options(
-        &Token::bare(WordLike::bare(word.clone())),
-        source.source,
-        source.options.phonemes,
-    ))
+    sexpr::leaf_with_range(
+        surface::format_with_indicators_with_options(
+            &Token::bare(WordLike::bare(word.clone())),
+            source.source,
+            source.options.phonemes,
+        ),
+        Some(word_bracket_source_range(word)),
+    )
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn quoted_text_leaf(verbatim: &jbotci_morphology::Verbatim) -> sexpr::SExpr {
-    sexpr::leaf(verbatim.text.trim().to_owned())
+    sexpr::leaf_with_range(
+        verbatim.text.trim().to_owned(),
+        Some(BracketSourceRange {
+            byte_start: verbatim.span.byte_start,
+            byte_end: verbatim.span.byte_end,
+        }),
+    )
+}
+
+#[requires(word.span().byte_start <= word.span().byte_end)]
+#[ensures(ret.byte_start == word.span().byte_start)]
+fn word_bracket_source_range(word: &Word) -> BracketSourceRange {
+    BracketSourceRange {
+        byte_start: word.span().byte_start,
+        byte_end: word.span().byte_end,
+    }
 }
 
 #[requires(true)]

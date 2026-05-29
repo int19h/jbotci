@@ -30,6 +30,30 @@ pub use tree::reference_display_model_for_syntax_tree;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub struct BracketSourceRange {
+    pub byte_start: usize,
+    pub byte_end: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "kind")]
+#[invariant(true)]
+#[invariant(::Text { .. } => true)]
+#[invariant(::Span { .. } => true)]
+pub enum BracketSourceFragment {
+    Text {
+        text: String,
+        range: Option<BracketSourceRange>,
+    },
+    Span {
+        range: Option<BracketSourceRange>,
+        children: Vec<BracketSourceFragment>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum OutputBase {
     Compact,
     Ipa,
@@ -789,6 +813,16 @@ pub fn pretty_brackets_with_options(
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
     brackets::pretty_brackets_with_options(tree, source, options)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty()))]
+pub fn pretty_bracket_source_fragments_with_options(
+    tree: &TextSyntax,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<Vec<BracketSourceFragment>, OutputError> {
+    brackets::pretty_bracket_source_fragments_with_options(tree, source, options)
 }
 
 #[requires(true)]

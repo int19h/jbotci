@@ -42,8 +42,8 @@ use jbotci_output::{
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, OFFICIAL_WORD_VOTE_THRESHOLD, VlackuCard, VlackuCompositionKind,
     VlackuCompositionPiece, VlackuOutcome, VlackuRequest, VlackuSearchOptions, VlackuSearchOutput,
-    dictionary_entry_card, filter_vlacku_cards, format_votes, normalize_word_type_filter,
-    run_vlacku_requests,
+    dictionary_cards_for_word_likes, dictionary_entry_card, filter_vlacku_cards, format_votes,
+    normalize_word_type_filter, run_vlacku_requests,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -406,8 +406,8 @@ struct GentufaInput {
     no_postproc: bool,
     #[arg(long = "camxes")]
     camxes: bool,
-    #[arg(long = "skicu", visible_alias = "defs")]
-    definitions: bool,
+    #[arg(long = "show-defs")]
+    show_defs: bool,
     #[arg(long = "indent")]
     indent: Option<usize>,
     #[arg(long = "mark-stress", value_enum)]
@@ -2384,6 +2384,25 @@ fn render_gentufa(
     )?);
     let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
     let mut stdout = String::new();
+    if input.show_defs {
+        let cards =
+            dictionary_cards_for_word_likes(jbotci_dictionary_data::english(), words.as_slice());
+        if !cards.is_empty() {
+            stdout.push_str(&render_vlacku_output_with_options(
+                &VlackuSearchOutput {
+                    cards,
+                    outcome: VlackuOutcome::Found,
+                    diagnostics: Vec::new(),
+                },
+                new!(VlackuRenderOptions {
+                    color: color_policy.stdout,
+                    glyphs,
+                    output_terminal_width: None,
+                    sumti_places: CliSumtiPlaces::Index,
+                }),
+            ));
+        }
+    }
     match input.format {
         GentufaFormat::Brackets => {
             let rendered = pretty_brackets_with_options(
@@ -2873,16 +2892,6 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<()> {
     validate_ascii_phoneme_projection(input.mark_stress, input.mark_glides, glyphs)?;
-    if input.definitions {
-        return match input.format {
-            GentufaFormat::Brackets => Err(anyhow!(
-                "`--skicu`/`--defs` is accepted for brackets output, but dictionary definition rendering has not been ported yet"
-            )),
-            GentufaFormat::Raw | GentufaFormat::Tree | GentufaFormat::Json => Err(anyhow!(
-                "`--skicu`/`--defs` is only meaningful with `--turtai brackets`; dictionary definition rendering has not been ported yet"
-            )),
-        };
-    }
     if input.format == GentufaFormat::Raw {
         validate_raw_indent(input.indent)?;
         if glyphs == GlyphStyle::Unicode {
@@ -3433,14 +3442,14 @@ mod tests {
         assert_eq!(alias_input.format, GentufaFormat::Brackets);
 
         let Command::Gentufa(raw_input) =
-            Cli::try_parse_from(["jbotci", "gentufa", "--turtai", "raw", "--skicu", "coi"])
-                .expect("raw with skicu parses")
+            Cli::try_parse_from(["jbotci", "gentufa", "--turtai", "raw", "--show-defs", "coi"])
+                .expect("raw with show-defs parses")
                 .command
         else {
             panic!("expected gentufa command")
         };
         assert_eq!(raw_input.format, GentufaFormat::Raw);
-        assert!(raw_input.definitions);
+        assert!(raw_input.show_defs);
 
         let Command::Gentufa(tree_input) =
             Cli::try_parse_from(["jbotci", "gentufa", "--turtai", "tree", "coi"])
@@ -3461,13 +3470,13 @@ mod tests {
         assert_eq!(vipcihe_input.format, GentufaFormat::Tree);
 
         let Command::Gentufa(defs_input) =
-            Cli::try_parse_from(["jbotci", "gentufa", "--defs", "coi"])
-                .expect("defs alias")
+            Cli::try_parse_from(["jbotci", "gentufa", "--show-defs", "coi"])
+                .expect("show-defs flag")
                 .command
         else {
             panic!("expected gentufa command")
         };
-        assert!(defs_input.definitions);
+        assert!(defs_input.show_defs);
 
         let Command::Gentufa(dialect_input) = Cli::try_parse_from([
             "jbotci",
@@ -3826,8 +3835,9 @@ mod tests {
         assert!(help.contains("vipcihe"));
         assert!(!help.contains("compact"));
         assert!(help.contains("raw"));
-        assert!(help.contains("--skicu"));
-        assert!(help.contains("--defs"));
+        assert!(help.contains("--show-defs"));
+        assert!(!help.contains("--skicu"));
+        assert!(!help.contains("--defs"));
         assert!(help.contains("--indent"));
         assert!(!help.contains("--wordKind"));
         assert!(!help.contains("--turtau"));
@@ -4908,28 +4918,58 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gentufa_definitions_report_not_implemented() {
-        let cli = Cli::try_parse_from(["jbotci", "gentufa", "--defs", "mi", "klama"])
-            .expect("gentufa defs");
-        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
-            .expect_err("defs not implemented");
-        assert!(error.to_string().contains("definition rendering"));
+    fn gentufa_show_defs_prepends_dictionary_cards() {
+        let output = run_success_stdout(&[
+            "jbotci",
+            "gentufa",
+            "--show-defs",
+            "--color=never",
+            "mi",
+            "klama",
+        ]);
+        assert!(output.starts_with("1. mi | cmavo: KOhA3"));
+        assert!(output.contains("\n2. klama | gismu"));
+        assert!(output.contains("  definitions:"));
+        assert!(output.contains("\n\n(mi kl"));
+    }
 
-        let cli = Cli::try_parse_from([
-            "jbotci", "gentufa", "--turtai", "raw", "--skicu", "mi", "klama",
-        ])
-        .expect("gentufa raw defs");
-        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
-            .expect_err("raw defs not implemented");
-        assert!(error.to_string().contains("only meaningful"));
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_show_defs_works_for_non_bracket_formats() {
+        for format in ["raw", "tree", "json"] {
+            let output = run_success_stdout(&[
+                "jbotci",
+                "gentufa",
+                "--show-defs",
+                "--format",
+                format,
+                "--color=never",
+                "mi",
+                "klama",
+            ]);
+            assert!(output.starts_with("1. mi | cmavo: KOhA3"), "{format}");
+            assert!(output.contains("\n2. klama | gismu"), "{format}");
+            assert!(output.contains("\n\n"), "{format}");
+        }
+    }
 
-        let cli = Cli::try_parse_from([
-            "jbotci", "gentufa", "--turtai", "tree", "--skicu", "mi", "klama",
-        ])
-        .expect("gentufa tree defs");
-        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
-            .expect_err("tree defs not implemented");
-        assert!(error.to_string().contains("only meaningful"));
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_old_definition_flags_are_removed() {
+        assert_eq!(
+            Cli::try_parse_from(["jbotci", "gentufa", "--defs", "mi", "klama"])
+                .expect_err("defs flag removed")
+                .kind(),
+            ErrorKind::UnknownArgument
+        );
+        assert_eq!(
+            Cli::try_parse_from(["jbotci", "gentufa", "--skicu", "mi", "klama"])
+                .expect_err("skicu flag removed")
+                .kind(),
+            ErrorKind::UnknownArgument
+        );
     }
 
     #[test]

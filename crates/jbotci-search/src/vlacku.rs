@@ -94,6 +94,28 @@ pub struct VlackuCompositionPiece {
     pub source: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+#[invariant(true)]
+pub struct ParsedWordDictionaryMatch {
+    pub lookup_text: String,
+    pub byte_start: usize,
+    pub byte_end: usize,
+    pub char_start: usize,
+    pub char_end: usize,
+    pub cards: Vec<VlackuCard>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct ParsedWordLookupTarget {
+    lookup_text: String,
+    is_lujvo: bool,
+    byte_start: usize,
+    byte_end: usize,
+    char_start: usize,
+    char_end: usize,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Rafsi => true)]
@@ -134,6 +156,45 @@ pub fn run_vlacku_requests(
         outcome,
         diagnostics,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn dictionary_cards_for_word_likes(
+    dictionary: &Dictionary<'_>,
+    words: &[WordLike],
+) -> Vec<VlackuCard> {
+    let mut cards = Vec::new();
+    for parsed_match in dictionary_matches_for_word_likes(dictionary, words) {
+        extend_unique_cards(&mut cards, parsed_match.cards);
+    }
+    cards
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn dictionary_matches_for_word_likes(
+    dictionary: &Dictionary<'_>,
+    words: &[WordLike],
+) -> Vec<ParsedWordDictionaryMatch> {
+    let mut matches = Vec::new();
+    for word_like in words {
+        for target in dictionary_lookup_targets(word_like) {
+            let cards = dictionary_cards_for_lookup_target(dictionary, &target);
+            if cards.is_empty() {
+                continue;
+            }
+            matches.push(ParsedWordDictionaryMatch {
+                lookup_text: target.lookup_text,
+                byte_start: target.byte_start,
+                byte_end: target.byte_end,
+                char_start: target.char_start,
+                char_end: target.char_end,
+                cards,
+            });
+        }
+    }
+    matches
 }
 
 #[requires(true)]
@@ -254,6 +315,181 @@ fn run_single_request(
             invalid_output("Semantic vlacku search requires an embedding backend.".to_owned())
         }
     }
+}
+
+#[requires(!target.lookup_text.is_empty())]
+#[ensures(true)]
+fn dictionary_cards_for_lookup_target(
+    dictionary: &Dictionary<'_>,
+    target: &ParsedWordLookupTarget,
+) -> Vec<VlackuCard> {
+    let options = parsed_word_vlacku_options();
+    let exact_entries = dictionary
+        .lookup_words(&target.lookup_text)
+        .collect::<Vec<_>>();
+    let exact_definition_found = exact_entries
+        .iter()
+        .any(|entry| !entry.definition.trim().is_empty());
+    let output = if target.is_lujvo && !exact_definition_found {
+        cards_for_lujvo(dictionary, &target.lookup_text, &options)
+    } else {
+        cards_for_valsi(dictionary, &target.lookup_text, &options)
+    };
+    output.cards
+}
+
+#[requires(true)]
+#[ensures(ret.count == usize::MAX)]
+fn parsed_word_vlacku_options() -> VlackuSearchOptions {
+    VlackuSearchOptions {
+        count: usize::MAX,
+        word_types: Vec::new(),
+        min_votes: None,
+        min_similarity: None,
+        decompose_lujvo: false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn extend_unique_cards(target: &mut Vec<VlackuCard>, source: Vec<VlackuCard>) {
+    for card in source {
+        if !target.iter().any(|existing| existing == &card) {
+            target.push(card);
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_lookup_targets(word_like: &WordLike) -> Vec<ParsedWordLookupTarget> {
+    let mut targets = Vec::new();
+    push_dictionary_lookup_targets(word_like, &mut targets);
+    targets
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_dictionary_lookup_targets(word_like: &WordLike, targets: &mut Vec<ParsedWordLookupTarget>) {
+    match word_like.as_data() {
+        data!(WordLike::Bare(word)) => {
+            push_word_lookup_target(word, targets);
+        }
+        data!(WordLike::ZoQuote { zo, word }) => {
+            push_word_lookup_target(zo, targets);
+            push_word_lookup_target(word, targets);
+        }
+        data!(WordLike::ZoiQuote {
+            zoi,
+            opening_delimiter,
+            closing_delimiter,
+            ..
+        }) => {
+            push_word_lookup_target(zoi, targets);
+            push_word_lookup_target(opening_delimiter, targets);
+            push_word_lookup_target(closing_delimiter, targets);
+        }
+        data!(WordLike::LohuQuote {
+            lohu,
+            quoted_words,
+            lehu,
+        }) => {
+            push_word_lookup_target(lohu, targets);
+            for word in quoted_words {
+                push_word_lookup_target(word, targets);
+            }
+            push_word_lookup_target(lehu, targets);
+        }
+        data!(WordLike::SingleWordQuote { marker, .. }) => {
+            push_word_lookup_target(marker, targets);
+        }
+        data!(WordLike::Letter { .. }) | data!(WordLike::ZeiLujvo { .. }) => {
+            if let Some(target) = word_like_lookup_target(word_like) {
+                targets.push(target);
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_word_lookup_target(word: &Word, targets: &mut Vec<ParsedWordLookupTarget>) {
+    targets.push(ParsedWordLookupTarget {
+        lookup_text: word_lookup_text(word),
+        is_lujvo: word.kind() == WordKind::Lujvo,
+        byte_start: word.span().byte_start,
+        byte_end: word.span().byte_end,
+        char_start: word.span().char_start,
+        char_end: word.span().char_end,
+    });
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_some_and(|target| !target.lookup_text.is_empty()) || ret.is_none())]
+fn word_like_lookup_target(word_like: &WordLike) -> Option<ParsedWordLookupTarget> {
+    let lookup_text = word_like_lookup_text(word_like)?;
+    let spans = word_like.source_spans();
+    let first = spans.first()?;
+    let mut byte_start = first.byte_start;
+    let mut byte_end = first.byte_end;
+    let mut char_start = first.char_start;
+    let mut char_end = first.char_end;
+    for span in spans.iter().skip(1) {
+        byte_start = byte_start.min(span.byte_start);
+        byte_end = byte_end.max(span.byte_end);
+        char_start = char_start.min(span.char_start);
+        char_end = char_end.max(span.char_end);
+    }
+    Some(ParsedWordLookupTarget {
+        lookup_text,
+        is_lujvo: matches!(word_like.as_data(), data!(WordLike::ZeiLujvo { .. })),
+        byte_start,
+        byte_end,
+        char_start,
+        char_end,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
+fn word_like_lookup_text(word_like: &WordLike) -> Option<String> {
+    match word_like.as_data() {
+        data!(WordLike::Bare(word)) => Some(word_lookup_text(word)),
+        data!(WordLike::Letter { base, .. }) => letteral_lookup_text(base),
+        data!(WordLike::ZeiLujvo { left, right, .. }) => Some(format!(
+            "{} zei {}",
+            word_like_lookup_text(left)?,
+            word_lookup_text(right)
+        )),
+        data!(WordLike::ZoQuote { .. })
+        | data!(WordLike::ZoiQuote { .. })
+        | data!(WordLike::LohuQuote { .. })
+        | data!(WordLike::SingleWordQuote { .. }) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn word_lookup_text(word: &Word) -> String {
+    canonicalize_text(word.phonemes().as_str())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
+fn letteral_lookup_text(base: &WordLike) -> Option<String> {
+    let base_text = word_like_lookup_text(base)?;
+    let normalized = normalize_lookup_query(&base_text);
+    let mut chars = normalized.chars();
+    let first = chars.next()?;
+    if chars.next().is_none() {
+        if is_lojban_consonant(first) {
+            return Some(format!("{first}y"));
+        }
+        if is_lojban_vowel(first) {
+            return Some(format!("{first}bu"));
+        }
+    }
+    Some(format!("{normalized} bu"))
 }
 
 #[requires(true)]
@@ -1084,6 +1320,7 @@ fn is_fast_vowel_phoneme(phoneme: char) -> bool {
 mod tests {
     use super::*;
     use bityzba::requires;
+    use jbotci_morphology::segment_words_with_modifiers;
 
     #[test]
     #[requires(true)]
@@ -1096,5 +1333,98 @@ mod tests {
         assert!(matches_word_type_filter("brivla", "gismu"));
         assert!(matches_word_type_filter("brivla", "lujvo"));
         assert!(matches_word_type_filter("brivla", "fu'ivla"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parsed_word_dictionary_cards_deduplicate_in_source_order() {
+        let words = segment_words_with_modifiers("mi klama mi").expect("morphology");
+        let cards = dictionary_cards_for_word_likes(jbotci_dictionary_data::english(), &words);
+        assert_eq!(
+            cards
+                .iter()
+                .map(|card| card.word.as_str())
+                .collect::<Vec<_>>(),
+            vec!["mi", "klama"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parsed_word_dictionary_cards_keep_exact_lujvo_atomic() {
+        let words = segment_words_with_modifiers("jbobau").expect("morphology");
+        let cards = dictionary_cards_for_word_likes(jbotci_dictionary_data::english(), &words);
+        assert_eq!(
+            cards
+                .iter()
+                .map(|card| card.word.as_str())
+                .collect::<Vec<_>>(),
+            vec!["jbobau"]
+        );
+        assert!(!cards.iter().any(|card| card.word == "lojbo"));
+        assert!(!cards.iter().any(|card| card.word == "bangu"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parsed_word_dictionary_cards_expand_missing_lujvo_like_lujvo_mode() {
+        let words = segment_words_with_modifiers("brodau").expect("morphology");
+        let cards = dictionary_cards_for_word_likes(jbotci_dictionary_data::english(), &words);
+        assert_eq!(cards.first().map(|card| card.word.as_str()), Some("brodau"));
+        assert!(
+            cards
+                .first()
+                .is_some_and(|card| !card.decomposition.is_empty())
+        );
+        assert!(cards.iter().any(|card| card.word == "xebro"));
+        assert!(cards.iter().any(|card| card.word == "darlu"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parsed_word_dictionary_cards_lookup_letterals() {
+        let words = segment_words_with_modifiers("a bu c bu").expect("morphology");
+        let matches = dictionary_matches_for_word_likes(jbotci_dictionary_data::english(), &words);
+        assert_eq!(
+            matches
+                .iter()
+                .map(|parsed_match| parsed_match.lookup_text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["abu", "cy"]
+        );
+        assert_eq!(
+            matches
+                .iter()
+                .flat_map(|parsed_match| parsed_match.cards.iter())
+                .map(|card| card.word.as_str())
+                .collect::<Vec<_>>(),
+            vec!["abu", "cy"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parsed_word_dictionary_cards_lookup_zei_lujvo() {
+        let words = segment_words_with_modifiers("a bu zei sance").expect("morphology");
+        let matches = dictionary_matches_for_word_likes(jbotci_dictionary_data::english(), &words);
+        assert_eq!(
+            matches
+                .iter()
+                .map(|parsed_match| parsed_match.lookup_text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["abu zei sance"]
+        );
+        assert_eq!(
+            matches
+                .first()
+                .and_then(|parsed_match| parsed_match.cards.first())
+                .map(|card| card.word.as_str()),
+            Some("abu zei sance")
+        );
     }
 }

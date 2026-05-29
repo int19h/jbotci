@@ -28,13 +28,16 @@ use jbotci_morphology::{
     ends_with_consonant, segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
-    BracketRenderOptions, GlyphStyle, ReferenceDisplayModel, ReferenceName as OutputReferenceName,
+    BracketRenderOptions, BracketSourceFragment, BracketSourceRange, GlyphStyle,
+    ReferenceDisplayModel, ReferenceName as OutputReferenceName,
     ReferenceSlotName as OutputReferenceSlotName, TreeRenderOptions, ipa_morphology_text,
-    pretty_brackets_with_options, reference_display_model_for_syntax_tree,
+    pretty_bracket_source_fragments_with_options, pretty_brackets_with_options,
+    reference_display_model_for_syntax_tree,
 };
 use jbotci_search::vlacku::{
-    DEFAULT_VLACKU_RESULT_COUNT, OFFICIAL_WORD_VOTE_THRESHOLD, VlackuCompositionKind,
-    VlackuRequest, VlackuSearchOptions, dictionary_entry_card, filter_vlacku_cards, format_votes,
+    DEFAULT_VLACKU_RESULT_COUNT, OFFICIAL_WORD_VOTE_THRESHOLD, ParsedWordDictionaryMatch,
+    VlackuCard, VlackuCompositionKind, VlackuRequest, VlackuSearchOptions, dictionary_entry_card,
+    dictionary_matches_for_word_likes, filter_vlacku_cards, format_votes,
     grouped_word_type_filter_key, is_brivla_like, normalize_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis, SyntaxNodeMetadata};
@@ -151,6 +154,7 @@ pub struct GentufaSuccess {
     pub ipa_text: String,
     pub surface_text: String,
     pub brackets_text: String,
+    pub bracket_fragments: Vec<GentufaBracketFragment>,
     pub blocks_layout: GentufaBlocksLayout,
     pub tree_rows: Vec<GentufaTreeRow>,
     pub diagnostics: Vec<Diagnostic>,
@@ -205,6 +209,44 @@ pub struct WebSourceRange {
     pub byte_end: usize,
     pub char_start: usize,
     pub char_end: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "kind")]
+#[invariant(true)]
+#[invariant(::Text { .. } => true)]
+#[invariant(::Span { .. } => true)]
+pub enum GentufaBracketFragment {
+    Text {
+        text: String,
+    },
+    Span {
+        color: Option<String>,
+        href: Option<String>,
+        tooltip: Option<DictionaryTooltipCard>,
+        children: Vec<GentufaBracketFragment>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub struct DictionaryTooltipCard {
+    pub word: String,
+    pub display_word: String,
+    pub href: String,
+    pub word_type: String,
+    pub word_type_key: String,
+    pub selmaho: Option<String>,
+    pub ipa: Option<String>,
+    pub similarity: Option<String>,
+    pub votes: VlackuVoteDisplay,
+    pub rafsi: Vec<String>,
+    pub glosses: Vec<String>,
+    pub definition: Vec<VlackuInline>,
+    pub notes: Vec<VlackuInline>,
+    pub decomposition: Vec<VlackuCompositionPiece>,
+    pub can_add_to_jvozba: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -308,6 +350,7 @@ pub struct GentufaBlock {
     pub glosses: Vec<String>,
     pub definition: Option<String>,
     pub computed_gloss: Option<String>,
+    pub tooltip: Option<DictionaryTooltipCard>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -371,6 +414,13 @@ pub struct ReferenceMarker {
 pub enum GentufaWebError {
     #[error("invalid dialect definition: {0}")]
     Dialect(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct DictionaryAnnotation {
+    range: WebSourceRange,
+    cards: Vec<DictionaryTooltipCard>,
 }
 
 #[requires(true)]
@@ -449,6 +499,8 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         }
     };
     let leaves = rendered_leaves(&parsed.parse_tree, source, &request.options);
+    let dictionary_annotations =
+        dictionary_annotations_for_words(jbotci_dictionary_data::english(), &words, "");
     let reference_model = reference_display_model_for_syntax_tree(
         &analysis,
         &parsed.parse_tree,
@@ -460,6 +512,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         &reference_model,
         source,
         &leaves,
+        &dictionary_annotations,
         &request.options,
     );
     let tree_rows = tree_rows(
@@ -467,6 +520,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         &reference_model,
         source,
         &leaves,
+        &dictionary_annotations,
         &request.options,
     );
     let ipa_text = ipa_morphology_text(&words, source).unwrap_or_else(|error| error.to_string());
@@ -482,6 +536,25 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         },
     )
     .unwrap_or_else(|error| error.to_string());
+    let bracket_fragments = pretty_bracket_source_fragments_with_options(
+        &parsed.parse_tree,
+        source,
+        BracketRenderOptions {
+            color: false,
+            phonemes: request.options.phonemes,
+            glyphs: GlyphStyle::Unicode,
+            decompose_lujvo: false,
+            insert_hair_space: true,
+        },
+    )
+    .map(|fragments| {
+        gentufa_bracket_fragments_from_source(&fragments, &blocks_layout, &dictionary_annotations)
+    })
+    .unwrap_or_else(|_| {
+        vec![GentufaBracketFragment::Text {
+            text: brackets_text.clone(),
+        }]
+    });
 
     GentufaWebResult::Success(GentufaSuccess {
         ipa_text,
@@ -491,10 +564,15 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
             .collect::<Vec<_>>()
             .join(" "),
         brackets_text,
+        bracket_fragments,
         blocks_layout,
         tree_rows,
         diagnostics,
-        features: WebFeatureAvailability::default(),
+        features: WebFeatureAvailability {
+            glosses: true,
+            definitions: true,
+            ..WebFeatureAvailability::default()
+        },
     })
 }
 
@@ -631,6 +709,7 @@ fn blocks_layout(
     reference_model: &ReferenceDisplayModel,
     source: &str,
     leaves: &[RenderedLeaf],
+    dictionary_annotations: &[DictionaryAnnotation],
     options: &GentufaWebOptions,
 ) -> GentufaBlocksLayout {
     let child_map = syntax_child_map(analysis);
@@ -642,6 +721,7 @@ fn blocks_layout(
         root_id,
         source,
         leaves,
+        dictionary_annotations,
         options,
     ) else {
         return GentufaBlocksLayout {
@@ -656,7 +736,10 @@ fn blocks_layout(
     let max_depth = block_tree_max_depth(&root);
     let mut temp_blocks = Vec::new();
     let max_col = push_positioned_blocks(&root, 0, max_depth, None, &mut temp_blocks);
-    let blocks = assign_block_colors(temp_blocks, max_depth);
+    let blocks = annotate_blocks(
+        assign_block_colors(temp_blocks, max_depth),
+        dictionary_annotations,
+    );
     GentufaBlocksLayout {
         blocks,
         max_col,
@@ -738,6 +821,7 @@ fn build_block_tree_node(
     id: RawSyntaxNodeId,
     source: &str,
     leaves: &[RenderedLeaf],
+    dictionary_annotations: &[DictionaryAnnotation],
     options: &GentufaWebOptions,
 ) -> Option<BlockTreeNode> {
     let metadata = analysis.syntax_index.metadata(id)?;
@@ -753,6 +837,7 @@ fn build_block_tree_node(
                 *child,
                 source,
                 leaves,
+                dictionary_annotations,
                 options,
             )
         })
@@ -798,7 +883,9 @@ fn build_block_tree_node(
         depth: 0,
         raw_text: source_text_for_range(source, span),
         leaf_word,
-        computed_gloss: None,
+        computed_gloss: annotation_for_range(dictionary_annotations, span)
+            .and_then(|annotation| annotation.cards.first())
+            .and_then(|card| card.glosses.first().cloned()),
         children,
     })
 }
@@ -1195,6 +1282,7 @@ fn synthetic_leaf_block(
         glosses: Vec::new(),
         definition: None,
         computed_gloss: None,
+        tooltip: None,
     }
 }
 
@@ -1281,6 +1369,7 @@ fn block_from_tree_node(
         glosses: Vec::new(),
         definition: None,
         computed_gloss: node.computed_gloss.clone(),
+        tooltip: None,
     }
 }
 
@@ -1332,6 +1421,81 @@ fn assign_block_colors(blocks: Vec<BlockTemp>, max_depth: usize) -> Vec<GentufaB
     nonleaf_colored.reverse();
     colored.extend(nonleaf_colored);
     colored
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn annotate_blocks(
+    blocks: Vec<GentufaBlock>,
+    dictionary_annotations: &[DictionaryAnnotation],
+) -> Vec<GentufaBlock> {
+    blocks
+        .into_iter()
+        .map(|mut block| {
+            if let Some(annotation) = annotation_for_range(dictionary_annotations, block.span) {
+                if let Some(card) = annotation.cards.first() {
+                    block.glosses = card.glosses.clone();
+                    block.definition = tooltip_definition_text(card);
+                    block.tooltip = Some(card.clone());
+                }
+            }
+            block
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn annotation_for_range<'a>(
+    dictionary_annotations: &'a [DictionaryAnnotation],
+    range: Option<WebSourceRange>,
+) -> Option<&'a DictionaryAnnotation> {
+    let range = range?;
+    dictionary_annotations
+        .iter()
+        .find(|annotation| annotation.range == range)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tooltip_definition_text(card: &DictionaryTooltipCard) -> Option<String> {
+    let text = inline_plain_text(&card.definition);
+    (!text.trim().is_empty()).then_some(text)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn inline_plain_text(inlines: &[VlackuInline]) -> String {
+    let mut output = String::new();
+    for inline in inlines {
+        append_inline_plain_text(inline, &mut output);
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_inline_plain_text(inline: &VlackuInline, output: &mut String) {
+    match inline.as_data() {
+        data!(VlackuInline::Text(text)) => output.push_str(text),
+        data!(VlackuInline::WordRef { label, .. }) => output.push_str(label),
+        data!(VlackuInline::Math(math)) => {
+            for part in &math.parts {
+                match part.as_data() {
+                    data!(VlackuMathPart::Text(text)) | data!(VlackuMathPart::Operator(text)) => {
+                        output.push_str(text)
+                    }
+                    data!(VlackuMathPart::Variable { stem, subscript }) => {
+                        output.push_str(stem);
+                        if let Some(subscript) = subscript {
+                            output.push('_');
+                            output.push_str(subscript);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[requires(true)]
@@ -1417,6 +1581,7 @@ fn tree_rows(
     reference_model: &ReferenceDisplayModel,
     source: &str,
     leaves: &[RenderedLeaf],
+    dictionary_annotations: &[DictionaryAnnotation],
     options: &GentufaWebOptions,
 ) -> Vec<GentufaTreeRow> {
     let mut rows = Vec::new();
@@ -1437,6 +1602,11 @@ fn tree_rows(
             continue;
         }
         let text = display_text_for_spans(&metadata.source_spans, leaves, source, options);
+        let annotation = annotation_for_range(
+            dictionary_annotations,
+            range_from_spans(metadata.source_spans.iter()),
+        );
+        let first_card = annotation.and_then(|annotation| annotation.cards.first());
         rows.push(GentufaTreeRow {
             depth: metadata.depth,
             label,
@@ -1451,8 +1621,10 @@ fn tree_rows(
             }],
             computed_gloss: None,
             ref_markers: reference_markers_for_node(reference_model, id),
-            glosses: Vec::new(),
-            definition: None,
+            glosses: first_card
+                .map(|card| card.glosses.clone())
+                .unwrap_or_default(),
+            definition: first_card.and_then(tooltip_definition_text),
             rafsi_breakdown: Vec::new(),
         });
     }
@@ -3875,6 +4047,295 @@ fn prefixed_web_path(base_path: &str, suffix: &str) -> String {
 
 #[requires(true)]
 #[ensures(true)]
+pub fn dictionary_tooltip_for_word(base_path: &str, word: &str) -> Option<DictionaryTooltipCard> {
+    let output = run_vlacku_requests(
+        jbotci_dictionary_data::english(),
+        &[VlackuRequest::Valsi(word.to_owned())],
+        &tooltip_vlacku_options(),
+    );
+    output
+        .cards
+        .into_iter()
+        .next()
+        .map(|card| dictionary_tooltip_card_from_search_card(base_path, card))
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn dictionary_tooltip_for_rafsi(base_path: &str, rafsi: &str) -> Option<DictionaryTooltipCard> {
+    let output = run_vlacku_requests(
+        jbotci_dictionary_data::english(),
+        &[VlackuRequest::Rafsi(rafsi.to_owned())],
+        &tooltip_vlacku_options(),
+    );
+    output
+        .cards
+        .into_iter()
+        .next()
+        .map(|card| dictionary_tooltip_card_from_search_card(base_path, card))
+}
+
+#[requires(true)]
+#[ensures(ret.count == 1)]
+fn tooltip_vlacku_options() -> VlackuSearchOptions {
+    VlackuSearchOptions {
+        count: 1,
+        word_types: Vec::new(),
+        min_votes: None,
+        min_similarity: None,
+        decompose_lujvo: true,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_annotations_for_words(
+    dictionary: &Dictionary<'_>,
+    words: &[WordLike],
+    base_path: &str,
+) -> Vec<DictionaryAnnotation> {
+    dictionary_matches_for_word_likes(dictionary, words)
+        .into_iter()
+        .map(|parsed_match| dictionary_annotation_from_match(parsed_match, base_path))
+        .collect()
+}
+
+#[requires(parsed_match.byte_start <= parsed_match.byte_end)]
+#[requires(parsed_match.char_start <= parsed_match.char_end)]
+#[ensures(ret.range.byte_start == parsed_match.byte_start)]
+fn dictionary_annotation_from_match(
+    parsed_match: ParsedWordDictionaryMatch,
+    base_path: &str,
+) -> DictionaryAnnotation {
+    DictionaryAnnotation {
+        range: WebSourceRange {
+            byte_start: parsed_match.byte_start,
+            byte_end: parsed_match.byte_end,
+            char_start: parsed_match.char_start,
+            char_end: parsed_match.char_end,
+        },
+        cards: parsed_match
+            .cards
+            .into_iter()
+            .map(|card| dictionary_tooltip_card_from_search_card(base_path, card))
+            .collect(),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.word.is_empty())]
+fn dictionary_tooltip_card_from_search_card(
+    base_path: &str,
+    card: VlackuCard,
+) -> DictionaryTooltipCard {
+    let word_href = vlacku_web_url(
+        base_path,
+        &VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: card.word.clone(),
+            count: VLACKU_WEB_DEFAULT_COUNT,
+            word_types: Vec::new(),
+        },
+    );
+    DictionaryTooltipCard {
+        word: card.word.clone(),
+        display_word: card.word.clone(),
+        href: word_href,
+        word_type: card.word_type.clone(),
+        word_type_key: normalize_word_type_filter(&card.word_type),
+        selmaho: card.selmaho,
+        ipa: dictionary_word_ipa(&card.word),
+        similarity: card
+            .similarity
+            .map(|similarity| format!("{:.0}%", similarity * 100.0)),
+        votes: card
+            .votes
+            .map(|votes| VlackuVoteDisplay::Known(format_votes(votes)))
+            .unwrap_or(VlackuVoteDisplay::Unknown),
+        rafsi: card.rafsi,
+        glosses: card.glosses,
+        definition: parse_vlacku_inline_text(jbotci_dictionary_data::english(), &card.definition),
+        notes: parse_vlacku_inline_text(jbotci_dictionary_data::english(), &card.notes),
+        decomposition: card
+            .decomposition
+            .into_iter()
+            .map(|piece| {
+                let source_href = piece.source.as_ref().map(|source| {
+                    vlacku_web_url(
+                        base_path,
+                        &VlackuWebState {
+                            mode: VlackuWebMode::Word,
+                            query: source.clone(),
+                            count: VLACKU_WEB_DEFAULT_COUNT,
+                            word_types: Vec::new(),
+                        },
+                    )
+                });
+                VlackuCompositionPiece {
+                    kind: match piece.kind {
+                        VlackuCompositionKind::Rafsi => VlackuCompositionPieceKind::Rafsi,
+                        VlackuCompositionKind::Hyphen => VlackuCompositionPieceKind::Hyphen,
+                    },
+                    display_surface: piece.surface.clone(),
+                    surface: piece.surface,
+                    display_source: piece.source.clone(),
+                    source: piece.source,
+                    source_href,
+                }
+            })
+            .collect(),
+        can_add_to_jvozba: word_type_allows_jvozba(&card.word_type),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_bracket_fragments_from_source(
+    fragments: &[BracketSourceFragment],
+    blocks_layout: &GentufaBlocksLayout,
+    dictionary_annotations: &[DictionaryAnnotation],
+) -> Vec<GentufaBracketFragment> {
+    fragments
+        .iter()
+        .flat_map(|fragment| {
+            gentufa_bracket_fragment_from_source(fragment, blocks_layout, dictionary_annotations)
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_bracket_fragment_from_source(
+    fragment: &BracketSourceFragment,
+    blocks_layout: &GentufaBlocksLayout,
+    dictionary_annotations: &[DictionaryAnnotation],
+) -> Vec<GentufaBracketFragment> {
+    match fragment {
+        BracketSourceFragment::Text { text, range } => {
+            if text.is_empty() {
+                return Vec::new();
+            }
+            decorated_bracket_fragment(
+                vec![GentufaBracketFragment::Text { text: text.clone() }],
+                bracket_source_range_to_web(*range),
+                blocks_layout,
+                dictionary_annotations,
+            )
+        }
+        BracketSourceFragment::Span { range, children } => {
+            let children = gentufa_bracket_fragments_from_source(
+                children,
+                blocks_layout,
+                dictionary_annotations,
+            );
+            decorated_bracket_fragment(
+                children,
+                bracket_source_range_to_web(*range),
+                blocks_layout,
+                dictionary_annotations,
+            )
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn decorated_bracket_fragment(
+    children: Vec<GentufaBracketFragment>,
+    range: Option<WebSourceRange>,
+    blocks_layout: &GentufaBlocksLayout,
+    dictionary_annotations: &[DictionaryAnnotation],
+) -> Vec<GentufaBracketFragment> {
+    if children.is_empty() {
+        return Vec::new();
+    }
+    let color = bracket_color_for_range(blocks_layout, range);
+    let tooltip = annotation_for_byte_range(dictionary_annotations, range)
+        .and_then(|annotation| annotation.cards.first())
+        .cloned();
+    let href = tooltip.as_ref().map(|card| card.href.clone());
+    if color.is_none() && tooltip.is_none() {
+        return children;
+    }
+    vec![GentufaBracketFragment::Span {
+        color,
+        href,
+        tooltip,
+        children,
+    }]
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bracket_source_range_to_web(range: Option<BracketSourceRange>) -> Option<WebSourceRange> {
+    range.map(|range| WebSourceRange {
+        byte_start: range.byte_start,
+        byte_end: range.byte_end,
+        char_start: 0,
+        char_end: 0,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn annotation_for_byte_range<'a>(
+    dictionary_annotations: &'a [DictionaryAnnotation],
+    range: Option<WebSourceRange>,
+) -> Option<&'a DictionaryAnnotation> {
+    let range = range?;
+    dictionary_annotations
+        .iter()
+        .find(|annotation| same_byte_range(annotation.range, range))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bracket_color_for_range(
+    blocks_layout: &GentufaBlocksLayout,
+    range: Option<WebSourceRange>,
+) -> Option<String> {
+    let range = range?;
+    if let Some(block) = blocks_layout
+        .blocks
+        .iter()
+        .find(|block| block.span.is_some_and(|span| same_byte_range(span, range)))
+    {
+        return Some(block.color.clone());
+    }
+    blocks_layout
+        .blocks
+        .iter()
+        .filter(|block| {
+            block
+                .span
+                .is_some_and(|span| byte_range_contains(span, range))
+        })
+        .min_by_key(|block| block.span.map(byte_range_len).unwrap_or(usize::MAX))
+        .map(|block| block.color.clone())
+}
+
+#[requires(left.byte_start <= left.byte_end)]
+#[requires(right.byte_start <= right.byte_end)]
+#[ensures(true)]
+fn same_byte_range(left: WebSourceRange, right: WebSourceRange) -> bool {
+    left.byte_start == right.byte_start && left.byte_end == right.byte_end
+}
+
+#[requires(container.byte_start <= container.byte_end)]
+#[requires(part.byte_start <= part.byte_end)]
+#[ensures(true)]
+fn byte_range_contains(container: WebSourceRange, part: WebSourceRange) -> bool {
+    container.byte_start <= part.byte_start && part.byte_end <= container.byte_end
+}
+
+#[requires(range.byte_start <= range.byte_end)]
+#[ensures(true)]
+fn byte_range_len(range: WebSourceRange) -> usize {
+    range.byte_end.saturating_sub(range.byte_start)
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn web_card_from_search_card(
     rank: usize,
     card: jbotci_search::vlacku::VlackuCard,
@@ -4486,6 +4947,91 @@ mod tests {
             .collect()
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn bracket_fragment_text(fragments: &[GentufaBracketFragment]) -> String {
+        let mut output = String::new();
+        for fragment in fragments {
+            append_bracket_fragment_text(fragment, &mut output);
+        }
+        output
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn append_bracket_fragment_text(fragment: &GentufaBracketFragment, output: &mut String) {
+        match fragment {
+            GentufaBracketFragment::Text { text } => output.push_str(text),
+            GentufaBracketFragment::Span { children, .. } => {
+                for child in children {
+                    append_bracket_fragment_text(child, output);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bracket_fragments_contain_tooltip_for(
+        fragments: &[GentufaBracketFragment],
+        word: &str,
+    ) -> bool {
+        fragments
+            .iter()
+            .any(|fragment| bracket_fragment_contains_tooltip_for(fragment, word))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bracket_fragment_contains_tooltip_for(
+        fragment: &GentufaBracketFragment,
+        word: &str,
+    ) -> bool {
+        match fragment {
+            GentufaBracketFragment::Text { .. } => false,
+            GentufaBracketFragment::Span {
+                tooltip, children, ..
+            } => {
+                tooltip.as_ref().is_some_and(|card| card.word == word)
+                    || children
+                        .iter()
+                        .any(|child| bracket_fragment_contains_tooltip_for(child, word))
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bracket_fragments_contain_block_color(
+        fragments: &[GentufaBracketFragment],
+        color: &str,
+    ) -> bool {
+        fragments
+            .iter()
+            .any(|fragment| bracket_fragment_contains_block_color(fragment, color))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bracket_fragment_contains_block_color(
+        fragment: &GentufaBracketFragment,
+        color: &str,
+    ) -> bool {
+        match fragment {
+            GentufaBracketFragment::Text { .. } => false,
+            GentufaBracketFragment::Span {
+                color: fragment_color,
+                children,
+                ..
+            } => {
+                fragment_color.as_deref() == Some(color)
+                    || children
+                        .iter()
+                        .any(|child| bracket_fragment_contains_block_color(child, color))
+            }
+        }
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -4599,6 +5145,73 @@ mod tests {
     fn bracket_output_inserts_hair_spaces() {
         let success = parse_success("mi klama le zarci");
         assert!(success.brackets_text.contains('\u{200a}'));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_dictionary_annotations_fill_glosses_and_tooltips() {
+        let success = parse_success("mi klama");
+        let klama_block = success
+            .blocks_layout
+            .blocks
+            .iter()
+            .find(|block| block.is_leaf && block.raw_text == "klama")
+            .expect("klama leaf block");
+
+        assert!(klama_block.glosses.iter().any(|gloss| gloss == "come"));
+        assert!(
+            klama_block
+                .definition
+                .as_deref()
+                .is_some_and(|definition| definition.contains("comes/goes"))
+        );
+        assert_eq!(
+            klama_block.tooltip.as_ref().map(|card| card.word.as_str()),
+            Some("klama")
+        );
+        assert!(success.features.glosses);
+        assert!(success.features.definitions);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_bracket_fragments_are_colored_and_linked() {
+        let success = parse_success("mi klama");
+        let fragment_text = bracket_fragment_text(&success.bracket_fragments);
+        assert_eq!(fragment_text, success.brackets_text);
+        assert!(
+            bracket_fragments_contain_tooltip_for(&success.bracket_fragments, "klama"),
+            "{:?}",
+            success.bracket_fragments
+        );
+        assert!(
+            bracket_fragments_contain_block_color(
+                &success.bracket_fragments,
+                &success
+                    .blocks_layout
+                    .blocks
+                    .iter()
+                    .find(|block| block.is_leaf && block.raw_text == "klama")
+                    .expect("klama block")
+                    .color,
+            ),
+            "{:?}",
+            success.bracket_fragments
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_tooltip_for_word_contains_vlacku_card_content() {
+        let card = dictionary_tooltip_for_word("", "klama").expect("klama tooltip");
+        assert_eq!(card.word, "klama");
+        assert!(card.glosses.iter().any(|gloss| gloss == "come"));
+        assert!(!card.definition.is_empty());
+        assert!(matches!(card.votes, VlackuVoteDisplay::Known(_)));
+        assert_eq!(card.href, "/vlacku/klama");
     }
 
     #[test]

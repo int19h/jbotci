@@ -1,24 +1,33 @@
 use bityzba::{invariant, requires};
 
-use crate::BracketRenderOptions;
+use crate::{BracketRenderOptions, BracketSourceFragment, BracketSourceRange};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-#[invariant(::Leaf(..) => true)]
-#[invariant(::Node(..) => true)]
+#[invariant(::Leaf { .. } => true)]
+#[invariant(::Node { .. } => true)]
 pub(crate) enum SExpr {
-    Leaf(String),
-    Node(Vec<SExpr>),
+    Leaf {
+        text: String,
+        range: Option<BracketSourceRange>,
+    },
+    Node {
+        children: Vec<SExpr>,
+        range: Option<BracketSourceRange>,
+    },
 }
 
 #[requires(true)]
-#[ensures(matches!(&ret, SExpr::Node(children) if children.is_empty()))]
+#[ensures(matches!(&ret, SExpr::Node { children, .. } if children.is_empty()))]
 pub(crate) fn empty_node() -> SExpr {
-    SExpr::Node(Vec::new())
+    SExpr::Node {
+        children: Vec::new(),
+        range: None,
+    }
 }
 
 #[requires(true)]
-#[ensures(matches!(&ret, SExpr::Node(children) if children.iter().all(|child| !is_empty(child))))]
+#[ensures(matches!(&ret, SExpr::Node { children, .. } if children.iter().all(|child| !is_empty(child))))]
 pub(crate) fn node(children: Vec<SExpr>) -> SExpr {
     let mut node_children = Vec::new();
     for child in children {
@@ -27,16 +36,26 @@ pub(crate) fn node(children: Vec<SExpr>) -> SExpr {
             _ => {}
         }
     }
-    SExpr::Node(node_children)
+    let range = union_child_ranges(&node_children);
+    SExpr::Node {
+        children: node_children,
+        range,
+    }
 }
 
 #[requires(true)]
-#[ensures(matches!(&ret, SExpr::Leaf(_)) || is_empty(&ret))]
+#[ensures(matches!(&ret, SExpr::Leaf { .. }) || is_empty(&ret))]
 pub(crate) fn leaf(text: String) -> SExpr {
+    leaf_with_range(text, None)
+}
+
+#[requires(range.is_none_or(|range| range.byte_start <= range.byte_end))]
+#[ensures(matches!(&ret, SExpr::Leaf { .. }) || is_empty(&ret))]
+pub(crate) fn leaf_with_range(text: String, range: Option<BracketSourceRange>) -> SExpr {
     if text.is_empty() {
         empty_node()
     } else {
-        SExpr::Leaf(text)
+        SExpr::Leaf { text, range }
     }
 }
 
@@ -44,8 +63,8 @@ pub(crate) fn leaf(text: String) -> SExpr {
 #[ensures(true)]
 pub(crate) fn is_empty(expr: &SExpr) -> bool {
     match expr {
-        SExpr::Leaf(text) => text.is_empty(),
-        SExpr::Node(children) => children.is_empty(),
+        SExpr::Leaf { text, .. } => text.is_empty(),
+        SExpr::Node { children, .. } => children.is_empty(),
     }
 }
 
@@ -53,8 +72,8 @@ pub(crate) fn is_empty(expr: &SExpr) -> bool {
 #[ensures(true)]
 pub(crate) fn flatten(expr: SExpr) -> SExpr {
     match expr {
-        SExpr::Leaf(text) => SExpr::Leaf(text),
-        SExpr::Node(children) => {
+        SExpr::Leaf { text, range } => SExpr::Leaf { text, range },
+        SExpr::Node { children, range } => {
             let mut flattened = children
                 .into_iter()
                 .map(flatten)
@@ -63,7 +82,10 @@ pub(crate) fn flatten(expr: SExpr) -> SExpr {
             if flattened.len() == 1 {
                 flattened.remove(0)
             } else {
-                SExpr::Node(flattened)
+                SExpr::Node {
+                    children: flattened,
+                    range,
+                }
             }
         }
     }
@@ -83,10 +105,19 @@ pub(crate) fn render_bracketed_with_options(expr: &SExpr, options: BracketRender
 
 #[requires(true)]
 #[ensures(true)]
+pub(crate) fn render_bracketed_source_fragments_with_options(
+    expr: &SExpr,
+    options: BracketRenderOptions,
+) -> Vec<BracketSourceFragment> {
+    render_source_fragments_at_depth(0, expr, options)
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn render_bracketed_at_depth(depth: usize, expr: &SExpr, options: BracketRenderOptions) -> String {
     match expr {
-        SExpr::Leaf(text) => colorize_at_depth(depth, text.clone(), options),
-        SExpr::Node(children) => {
+        SExpr::Leaf { text, .. } => colorize_at_depth(depth, text.clone(), options),
+        SExpr::Node { children, .. } => {
             let rendered = children
                 .iter()
                 .map(|child| render_bracketed_at_depth(depth + 1, child, options))
@@ -113,6 +144,91 @@ fn render_bracketed_at_depth(depth: usize, expr: &SExpr, options: BracketRenderO
                 }
             }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_source_fragments_at_depth(
+    depth: usize,
+    expr: &SExpr,
+    options: BracketRenderOptions,
+) -> Vec<BracketSourceFragment> {
+    match expr {
+        SExpr::Leaf { text, range } => vec![BracketSourceFragment::Text {
+            text: text.clone(),
+            range: *range,
+        }],
+        SExpr::Node { children, range } => {
+            let rendered = children
+                .iter()
+                .flat_map(|child| render_source_fragments_at_depth(depth + 1, child, options))
+                .filter(|fragment| !source_fragment_is_empty(fragment))
+                .collect::<Vec<_>>();
+            match rendered.as_slice() {
+                [] => Vec::new(),
+                [single] => vec![single.clone()],
+                _ => {
+                    let (open, close) = bracket_pair(depth);
+                    let hair_space = if options.insert_hair_space {
+                        "\u{200a}"
+                    } else {
+                        ""
+                    };
+                    let mut children = Vec::new();
+                    children.push(BracketSourceFragment::Text {
+                        text: format!("{open}{hair_space}"),
+                        range: *range,
+                    });
+                    for (index, fragment) in rendered.into_iter().enumerate() {
+                        if index > 0 {
+                            children.push(BracketSourceFragment::Text {
+                                text: " ".to_owned(),
+                                range: None,
+                            });
+                        }
+                        children.push(fragment);
+                    }
+                    children.push(BracketSourceFragment::Text {
+                        text: format!("{hair_space}{close}"),
+                        range: *range,
+                    });
+                    vec![BracketSourceFragment::Span {
+                        range: *range,
+                        children,
+                    }]
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn source_fragment_is_empty(fragment: &BracketSourceFragment) -> bool {
+    match fragment {
+        BracketSourceFragment::Text { text, .. } => text.is_empty(),
+        BracketSourceFragment::Span { children, .. } => children.is_empty(),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|range| range.byte_start <= range.byte_end))]
+fn union_child_ranges(children: &[SExpr]) -> Option<BracketSourceRange> {
+    let mut ranges = children.iter().filter_map(expr_range);
+    let mut range = ranges.next()?;
+    for child_range in ranges {
+        range.byte_start = range.byte_start.min(child_range.byte_start);
+        range.byte_end = range.byte_end.max(child_range.byte_end);
+    }
+    Some(range)
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|range| range.byte_start <= range.byte_end))]
+fn expr_range(expr: &SExpr) -> Option<BracketSourceRange> {
+    match expr {
+        SExpr::Leaf { range, .. } | SExpr::Node { range, .. } => *range,
     }
 }
 
@@ -175,13 +291,11 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn flatten_collapses_deeply_nested_single_child_groups() {
-        let expr = SExpr::Node(vec![SExpr::Node(vec![SExpr::Node(vec![SExpr::Leaf(
-            String::from("foo"),
-        )])])]);
+        let expr = node(vec![node(vec![node(vec![leaf(String::from("foo"))])])]);
 
         let flattened = flatten(expr);
 
-        assert_eq!(flattened, SExpr::Leaf(String::from("foo")));
+        assert_eq!(flattened, leaf(String::from("foo")));
         assert_eq!(render_bracketed(&flattened), "foo");
     }
 
@@ -189,11 +303,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn render_collapses_single_non_empty_child_after_filtering_empty_children() {
-        let expr = SExpr::Node(vec![
-            SExpr::Node(Vec::new()),
-            SExpr::Leaf(String::from("foo")),
-            SExpr::Node(Vec::new()),
-        ]);
+        let expr = node(vec![empty_node(), leaf(String::from("foo")), empty_node()]);
 
         assert_eq!(render_bracketed(&expr), "foo");
     }
