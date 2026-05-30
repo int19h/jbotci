@@ -48,6 +48,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "reference rectangles are direct browser DOM measurements used only during hover rendering",
     ),
     (
+        "apps/jbotci-web/src/main.rs:ReferenceBottoms",
+        "reference bottoms are transient browser DOM measurements checked by reference height sizer tests",
+    ),
+    (
         "apps/jbotci-web/src/main.rs:VlackuJvozbaPaneState",
         "vlacku jvozba pane state is transient persisted UI state normalized by load/save helpers",
     ),
@@ -784,6 +788,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "text sizes are produced by usvg bounding boxes and checked by focused renderer tests",
     ),
     (
+        "crates/jbotci-gentufa/src/render.rs:ReferenceStackBottoms",
+        "reference stack bottoms are derived renderer layout measurements checked by reference sizing tests",
+    ),
+    (
         "crates/jbotci-web-core/src/lib.rs:VlackuWebState",
         "vlacku web state is a direct URL/local UI state envelope normalized by the result builder",
     ),
@@ -1262,6 +1270,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask/src/main.rs:ServeWebReleaseArgs",
         "xtask web release args delegate validation to clap defaults and command code",
+    ),
+    (
+        "xtask/src/main.rs:WebWorkerWatchFile",
+        "web worker watch file records are opaque filesystem metadata snapshots used only for equality checks",
+    ),
+    (
+        "xtask/src/main.rs:WebWorkerWatchSnapshot",
+        "web worker watch snapshots are opaque filesystem metadata maps used only for equality checks",
     ),
     (
         "xtask/src/main.rs:ExportWebEmbeddingCorpusArgs",

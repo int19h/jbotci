@@ -4327,10 +4327,12 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.note_self_argument_mention(argument_id);
             }
             data!(ArgumentSyntax::NaKu { .. })
-            | data!(ArgumentSyntax::Zohe { .. })
             | data!(ArgumentSyntax::Name { .. })
             | data!(ArgumentSyntax::Cmevla(..)) => {
                 self.note_self_argument_mention(argument_id);
+            }
+            data!(ArgumentSyntax::Zohe { .. }) => {
+                self.note_self_argument_mention_with_availability(argument_id, false);
             }
         }
         self.note_letter_antecedent(argument_id, argument);
@@ -6638,6 +6640,43 @@ mod tests {
             assert!(ri_targets.iter().all(|target| {
                 matches!(target, FixtureReferenceTarget::ResolvedNode { node } if *node == expected)
             }));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ri_skips_elided_modal_sumti_placeholder() {
+        run_reference_test(|| {
+            let syntax = parse_syntax("ti brode fi'o mleca bervi fe'u ku .i brode ri");
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let ti = FixtureSpanKey {
+                offset: 0,
+                length: 2,
+            };
+            let modal_placeholder = FixtureSpanKey {
+                offset: 31,
+                length: 2,
+            };
+
+            assert!(projection.assignments.iter().any(|assignment| {
+                matches!(assignment.slot, FixturePlaceSlot::Modal { .. })
+                    && assignment.argument == modal_placeholder
+            }));
+
+            let ri_targets = projection
+                .references
+                .iter()
+                .filter(|edge| edge.kind == ReferenceKind::Ri)
+                .map(|edge| &edge.target)
+                .collect::<Vec<_>>();
+
+            assert_eq!(ri_targets.len(), 1);
+            assert!(matches!(
+                ri_targets[0],
+                FixtureReferenceTarget::ResolvedNode { node } if *node == ti
+            ));
         });
     }
 
