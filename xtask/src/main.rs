@@ -341,7 +341,8 @@ fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
         command.arg("--base-path").arg(base_path);
     }
     let status = command.status().context("failed to run `dx build`")?;
-    check_status(status, "dx build --web --release --debug-symbols=false")
+    check_status(status, "dx build --web --release --debug-symbols=false")?;
+    copy_web_worker_assets_to_public(Path::new("target/dx/jbotci-web/release/web/public"))
 }
 
 #[requires(true)]
@@ -440,6 +441,49 @@ fn build_web_worker_assets() -> Result<()> {
     check_status(status, "wasm-bindgen --target web jbotci-web-worker")
 }
 
+#[requires(public_dir.is_dir())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_web_worker_assets_to_public(public_dir: &Path) -> Result<()> {
+    let source_dir = Path::new("apps/jbotci-web/assets/generated");
+    let target_dir = public_dir.join("assets/generated");
+    if target_dir.exists() {
+        fs::remove_dir_all(&target_dir).with_context(|| {
+            format!(
+                "removing old generated worker assets `{}`",
+                target_dir.display()
+            )
+        })?;
+    }
+    fs::create_dir_all(&target_dir).with_context(|| {
+        format!(
+            "creating generated worker asset directory `{}`",
+            target_dir.display()
+        )
+    })?;
+    for entry in fs::read_dir(source_dir)
+        .with_context(|| format!("reading worker assets from `{}`", source_dir.display()))?
+    {
+        let entry = entry
+            .with_context(|| format!("reading worker asset under `{}`", source_dir.display()))?;
+        if !entry
+            .file_type()
+            .with_context(|| format!("reading file type for `{}`", entry.path().display()))?
+            .is_file()
+        {
+            continue;
+        }
+        let target = target_dir.join(entry.file_name());
+        fs::copy(entry.path(), &target).with_context(|| {
+            format!(
+                "copying generated worker asset `{}` to `{}`",
+                entry.path().display(),
+                target.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn dist_server(args: DistServerArgs) -> Result<()> {
@@ -482,7 +526,9 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
         .arg("--base-path")
         .arg(base_path);
     let status = command.status().context("failed to run `dx bundle`")?;
-    check_status(status, "dx bundle --web --release --debug-symbols=false")
+    check_status(status, "dx bundle --web --release --debug-symbols=false")?;
+    let web_dist = web_dist_dir(out_dir)?;
+    copy_web_worker_assets_to_public(&web_dist)
 }
 
 #[requires(true)]
