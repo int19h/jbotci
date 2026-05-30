@@ -342,7 +342,7 @@ fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
     }
     let status = command.status().context("failed to run `dx build`")?;
     check_status(status, "dx build --web --release --debug-symbols=false")?;
-    copy_web_worker_assets_to_public(Path::new("target/dx/jbotci-web/release/web/public"))
+    copy_post_dioxus_web_assets_to_public(Path::new("target/dx/jbotci-web/release/web/public"))
 }
 
 #[requires(true)]
@@ -443,6 +443,13 @@ fn build_web_worker_assets() -> Result<()> {
 
 #[requires(public_dir.is_dir())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_post_dioxus_web_assets_to_public(public_dir: &Path) -> Result<()> {
+    copy_web_worker_assets_to_public(public_dir)?;
+    copy_stable_web_assets_to_public(public_dir)
+}
+
+#[requires(public_dir.is_dir())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn copy_web_worker_assets_to_public(public_dir: &Path) -> Result<()> {
     let source_dir = Path::new("apps/jbotci-web/assets/generated");
     let target_dir = public_dir.join("assets/generated");
@@ -476,6 +483,100 @@ fn copy_web_worker_assets_to_public(public_dir: &Path) -> Result<()> {
         fs::copy(entry.path(), &target).with_context(|| {
             format!(
                 "copying generated worker asset `{}` to `{}`",
+                entry.path().display(),
+                target.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
+#[requires(public_dir.is_dir())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_stable_web_assets_to_public(public_dir: &Path) -> Result<()> {
+    copy_stable_web_asset_file(
+        public_dir,
+        Path::new("manifest.webmanifest"),
+        Path::new("assets/manifest.webmanifest"),
+    )?;
+    copy_stable_web_asset_file(
+        public_dir,
+        Path::new("icons/jbotci-icon-192.png"),
+        Path::new("assets/icons/jbotci-icon-192.png"),
+    )?;
+    copy_stable_web_asset_dir(
+        public_dir,
+        Path::new("cll/media"),
+        Path::new("assets/cll/media"),
+    )
+}
+
+#[requires(public_dir.is_dir())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_stable_web_asset_file(
+    public_dir: &Path,
+    source_relative: &Path,
+    target_relative: &Path,
+) -> Result<()> {
+    let source = Path::new("apps/jbotci-web/assets").join(source_relative);
+    let target = public_dir.join(target_relative);
+    let parent = target.parent().with_context(|| {
+        format!(
+            "stable web asset target `{}` has no parent",
+            target.display()
+        )
+    })?;
+    fs::create_dir_all(parent)
+        .with_context(|| format!("creating stable web asset directory `{}`", parent.display()))?;
+    fs::copy(&source, &target).with_context(|| {
+        format!(
+            "copying stable web asset `{}` to `{}`",
+            source.display(),
+            target.display()
+        )
+    })?;
+    Ok(())
+}
+
+#[requires(public_dir.is_dir())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_stable_web_asset_dir(
+    public_dir: &Path,
+    source_relative: &Path,
+    target_relative: &Path,
+) -> Result<()> {
+    let source_dir = Path::new("apps/jbotci-web/assets").join(source_relative);
+    let target_dir = public_dir.join(target_relative);
+    if target_dir.exists() {
+        fs::remove_dir_all(&target_dir).with_context(|| {
+            format!(
+                "removing old stable web asset directory `{}`",
+                target_dir.display()
+            )
+        })?;
+    }
+    fs::create_dir_all(&target_dir).with_context(|| {
+        format!(
+            "creating stable web asset directory `{}`",
+            target_dir.display()
+        )
+    })?;
+    for entry in fs::read_dir(&source_dir)
+        .with_context(|| format!("reading stable web assets from `{}`", source_dir.display()))?
+    {
+        let entry = entry
+            .with_context(|| format!("reading stable asset under `{}`", source_dir.display()))?;
+        if !entry
+            .file_type()
+            .with_context(|| format!("reading file type for `{}`", entry.path().display()))?
+            .is_file()
+        {
+            continue;
+        }
+        let target = target_dir.join(entry.file_name());
+        fs::copy(entry.path(), &target).with_context(|| {
+            format!(
+                "copying stable web asset `{}` to `{}`",
                 entry.path().display(),
                 target.display()
             )
@@ -528,7 +629,7 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
     let status = command.status().context("failed to run `dx bundle`")?;
     check_status(status, "dx bundle --web --release --debug-symbols=false")?;
     let web_dist = web_dist_dir(out_dir)?;
-    copy_web_worker_assets_to_public(&web_dist)
+    copy_post_dioxus_web_assets_to_public(&web_dist)
 }
 
 #[requires(true)]
