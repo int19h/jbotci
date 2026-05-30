@@ -24,8 +24,8 @@ use jbotci_embeddings::{
 };
 use jbotci_gentufa::{
     EmbeddedGentufaFonts, GentufaBlockAnnotation, GentufaBlockOptions, GentufaPngOptions,
-    GentufaScript, GentufaSvgOptions, WebSourceRange, blocks_layout, render_gentufa_blocks_png,
-    render_gentufa_blocks_svg, rendered_leaves,
+    GentufaScript, GentufaSvgOptions, WebSourceRange, blocks_layout, elided_terminators,
+    render_gentufa_blocks_png, render_gentufa_blocks_svg, rendered_leaves,
 };
 use jbotci_jvozba::{
     JvozbaBuildResult, JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegmentKind,
@@ -431,6 +431,8 @@ struct GentufaInput {
     show_spans: bool,
     #[arg(long = "show-refs")]
     show_refs: bool,
+    #[arg(long = "show-elided")]
+    show_elided: bool,
     #[arg(long = "decompose-lujvo")]
     decompose_lujvo: bool,
     #[arg(long = "output-type", value_enum)]
@@ -1084,6 +1086,7 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
                         JsonRenderOptions {
                             indent: input.indent.unwrap_or(2),
                             phonemes: phoneme_options,
+                            show_elided: false,
                         },
                     )?;
                     writeln!(stdout, "{}", colorize_json(&rendered, color_policy.stdout))?;
@@ -1098,6 +1101,7 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
                             glyphs,
                             decompose_lujvo: input.decompose_lujvo,
                             insert_hair_space: false,
+                            show_elided: false,
                         },
                     )?;
                     writeln!(stdout, "{rendered}")?;
@@ -1114,6 +1118,7 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
                             show_spans: input.show_spans,
                             show_refs: false,
                             decompose_lujvo: input.decompose_lujvo,
+                            show_elided: false,
                         },
                     )?;
                     writeln!(stdout, "{rendered}")?;
@@ -2435,6 +2440,7 @@ fn render_gentufa(
                 &text,
                 words.as_slice(),
                 phoneme_options,
+                input.show_elided,
                 output_type,
             )?;
             return Ok(new!(GentufaRendered {
@@ -2453,6 +2459,7 @@ fn render_gentufa(
                     glyphs,
                     decompose_lujvo: input.decompose_lujvo,
                     insert_hair_space: false,
+                    show_elided: input.show_elided,
                 },
             )?;
             stdout.push_str(&rendered);
@@ -2473,6 +2480,7 @@ fn render_gentufa(
                     show_spans: input.show_spans,
                     show_refs: input.show_refs,
                     decompose_lujvo: input.decompose_lujvo,
+                    show_elided: input.show_elided,
                 },
             )?;
             stdout.push_str(&rendered);
@@ -2484,6 +2492,7 @@ fn render_gentufa(
                 JsonRenderOptions {
                     indent: input.indent.unwrap_or(2),
                     phonemes: phoneme_options,
+                    show_elided: input.show_elided,
                 },
             )?;
             stdout.push_str(&colorize_json(&rendered, color_policy.stdout));
@@ -2505,6 +2514,7 @@ fn render_gentufa_blocks_output(
     source: &str,
     words: &[WordLike],
     phoneme_options: PhonemeRenderOptions,
+    show_elided: bool,
     output_type: GentufaImageOutputType,
 ) -> Result<Vec<u8>> {
     let analysis =
@@ -2521,20 +2531,23 @@ fn render_gentufa_blocks_output(
             show_spans: false,
             show_refs: true,
             decompose_lujvo: false,
+            show_elided,
         },
     );
     let block_options = GentufaBlockOptions {
         script: GentufaScript::Latin,
-        show_elided: false,
+        show_elided,
         phonemes: phoneme_options,
     };
     let leaves = rendered_leaves(syntax, source, &block_options);
+    let elided = elided_terminators(&analysis, syntax, &block_options);
     let annotations = gentufa_block_annotations(words);
     let layout = blocks_layout(
         &analysis,
         &reference_model,
         source,
         &leaves,
+        &elided,
         &annotations,
         &block_options,
     );
@@ -5014,6 +5027,56 @@ mod tests {
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("trace[syntax]"), "{stderr}");
             assert!(!stderr.contains("\x1b["));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_show_elided_renders_tree_and_json_terminators() {
+        run_on_normal_stack(|| {
+            let tree_cli = Cli::try_parse_from([
+                "jbotci",
+                "gentufa",
+                "--show-elided",
+                "--turtai",
+                "tree",
+                "--show-spans",
+                "mi",
+                "klama",
+            ])
+            .expect("gentufa tree parses");
+            let mut tree_output = Vec::new();
+            let mut tree_error = Vec::new();
+            let tree_status =
+                run_cli(tree_cli, &mut tree_output, &mut tree_error, false).expect("gentufa tree");
+
+            assert_eq!(tree_status, CliStatus::Success);
+            assert!(tree_error.is_empty());
+            let tree_stdout = String::from_utf8(tree_output).expect("tree stdout utf8");
+            assert!(tree_stdout.contains("vau: Cmavo @[8‥8) \"v̶a̶u̶\""));
+
+            let json_cli = Cli::try_parse_from([
+                "jbotci",
+                "gentufa",
+                "--show-elided",
+                "--turtai",
+                "json",
+                "mi",
+                "klama",
+            ])
+            .expect("gentufa json parses");
+            let mut json_output = Vec::new();
+            let mut json_error = Vec::new();
+            let json_status =
+                run_cli(json_cli, &mut json_output, &mut json_error, false).expect("gentufa json");
+
+            assert_eq!(json_status, CliStatus::Success);
+            assert!(json_error.is_empty());
+            let json_stdout = String::from_utf8(json_output).expect("json stdout utf8");
+            assert!(json_stdout.contains("\"phonemes\": \"vau\""));
+            assert!(json_stdout.contains("\"span\": [8, 8]"));
+            assert!(json_stdout.contains("\"elided\": true"));
         });
     }
 

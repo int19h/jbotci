@@ -17,17 +17,17 @@ use jbotci_diagnostics::{Diagnostic, DiagnosticPhase};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_dictionary::{Dictionary, DictionaryEntry};
 use jbotci_embedding_inputs::embedding_input_corpus_json;
-pub use jbotci_gentufa::{
-    GentufaBlockAnnotation, GentufaBlockOptions, GentufaScript, ReferenceLabel, ReferenceMarker,
-    ReferenceMarkerRole, ReferenceSlotLabel, TransformInfo, WebSourceRange,
-};
 use jbotci_gentufa::{
-    RenderedLeaf, blocks_layout as build_blocks_layout,
+    ElidedTerminator, RenderedLeaf, blocks_layout as build_blocks_layout,
     display_text_for_spans as gentufa_display_text_for_spans,
-    range_from_spans as gentufa_range_from_spans,
+    elided_terminators as build_elided_terminators, range_from_spans as gentufa_range_from_spans,
     reference_markers_for_node as gentufa_reference_markers_for_node,
     rendered_leaves as build_rendered_leaves,
     syntax_constructor_name as gentufa_syntax_constructor_name,
+};
+pub use jbotci_gentufa::{
+    GentufaBlockAnnotation, GentufaBlockOptions, GentufaScript, ReferenceLabel, ReferenceMarker,
+    ReferenceMarkerRole, ReferenceSlotLabel, TransformInfo, WebSourceRange,
 };
 use jbotci_jvozba::{
     JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegment, JvozbaSegmentKind,
@@ -347,19 +347,22 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
     };
     let block_options = gentufa_block_options(&request.options);
     let leaves = build_rendered_leaves(&parsed.parse_tree, source, &block_options);
+    let elided_terminators =
+        build_elided_terminators(&analysis, &parsed.parse_tree, &block_options);
     let dictionary_annotations =
         dictionary_annotations_for_words(jbotci_dictionary_data::english(), &words, "");
     let reference_model = reference_display_model_for_syntax_tree(
         &analysis,
         &parsed.parse_tree,
         source,
-        tree_render_options(request.options.phonemes),
+        tree_render_options(request.options.phonemes, request.options.show_elided),
     );
     let blocks_layout = build_blocks_layout(
         &analysis,
         &reference_model,
         source,
         &leaves,
+        &elided_terminators,
         &dictionary_annotations,
         &block_options,
     );
@@ -368,6 +371,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         &reference_model,
         source,
         &leaves,
+        &elided_terminators,
         &dictionary_annotations,
         &block_options,
     );
@@ -381,6 +385,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
             glyphs: GlyphStyle::Unicode,
             decompose_lujvo: false,
             insert_hair_space: true,
+            show_elided: request.options.show_elided,
         },
     )
     .unwrap_or_else(|error| error.to_string());
@@ -393,6 +398,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
             glyphs: GlyphStyle::Unicode,
             decompose_lujvo: false,
             insert_hair_space: true,
+            show_elided: request.options.show_elided,
         },
     )
     .map(|fragments| {
@@ -436,7 +442,7 @@ fn dialect_definition(source: Option<&str>) -> Result<DialectDefinition, Gentufa
 
 #[requires(true)]
 #[ensures(ret.show_refs)]
-fn tree_render_options(phonemes: PhonemeRenderOptions) -> TreeRenderOptions {
+fn tree_render_options(phonemes: PhonemeRenderOptions, show_elided: bool) -> TreeRenderOptions {
     TreeRenderOptions {
         color: false,
         indent: 2,
@@ -445,6 +451,7 @@ fn tree_render_options(phonemes: PhonemeRenderOptions) -> TreeRenderOptions {
         show_spans: false,
         show_refs: true,
         decompose_lujvo: false,
+        show_elided,
     }
 }
 
@@ -507,6 +514,7 @@ fn tree_rows(
     reference_model: &ReferenceDisplayModel,
     source: &str,
     leaves: &[RenderedLeaf],
+    elided_terminators: &[ElidedTerminator],
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
     options: &GentufaBlockOptions,
 ) -> Vec<GentufaTreeRow> {
@@ -516,7 +524,7 @@ fn tree_rows(
         let Some(metadata) = analysis.syntax_index.metadata(id) else {
             continue;
         };
-        if metadata.source_spans.is_empty() && !options.show_elided {
+        if metadata.source_spans.is_empty() {
             continue;
         }
         let label = analysis
@@ -542,7 +550,7 @@ fn tree_rows(
                 is_word: !metadata.source_spans.is_empty(),
                 quoted: false,
                 tooltip: None,
-                is_elided: metadata.source_spans.is_empty(),
+                is_elided: false,
                 transform: None,
             }],
             computed_gloss: None,
@@ -553,6 +561,29 @@ fn tree_rows(
             definition: annotation.and_then(|annotation| annotation.definition.clone()),
             rafsi_breakdown: Vec::new(),
         });
+        for terminator in elided_terminators
+            .iter()
+            .filter(|terminator| terminator.parent_id == id)
+        {
+            rows.push(GentufaTreeRow {
+                depth: metadata.depth + 1,
+                label: "Cmavo".to_owned(),
+                color: color_for_node(metadata.depth + 1, metadata.preorder),
+                cells: vec![GentufaCell {
+                    text: terminator.text.clone(),
+                    is_word: true,
+                    quoted: false,
+                    tooltip: None,
+                    is_elided: true,
+                    transform: None,
+                }],
+                computed_gloss: None,
+                ref_markers: Vec::new(),
+                glosses: Vec::new(),
+                definition: None,
+                rafsi_breakdown: Vec::new(),
+            });
+        }
     }
     rows
 }
@@ -3803,6 +3834,56 @@ mod tests {
         assert!(!success.tree_rows.is_empty());
         assert!(success.ipa_text.contains("ˈkla.ma"));
         assert!(success.surface_text.contains("mi"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn elided_terminators_only_render_when_requested() {
+        let hidden = parse_success("mi klama");
+        assert!(
+            hidden
+                .blocks_layout
+                .blocks
+                .iter()
+                .all(|block| !block.is_elided)
+        );
+        assert!(
+            hidden
+                .tree_rows
+                .iter()
+                .flat_map(|row| row.cells.iter())
+                .all(|cell| !cell.is_elided)
+        );
+
+        let request = GentufaWebRequest {
+            text: "mi klama".to_owned(),
+            options: GentufaWebOptions {
+                show_elided: true,
+                ..GentufaWebOptions::default()
+            },
+        };
+        let GentufaWebResult::Success(shown) = parse_gentufa_for_web(&request) else {
+            panic!("expected successful parse");
+        };
+        assert!(shown.tree_rows.iter().any(|row| {
+            row.label == "Cmavo"
+                && row
+                    .cells
+                    .iter()
+                    .any(|cell| cell.is_word && cell.is_elided && cell.text == "vau")
+        }));
+        let elided_block_labels = shown
+            .blocks_layout
+            .blocks
+            .iter()
+            .filter(|block| block.is_leaf && block.is_elided)
+            .map(|block| block.label.clone())
+            .collect::<Vec<_>>();
+        assert!(
+            elided_block_labels.iter().any(|label| label == "vau"),
+            "{elided_block_labels:?}"
+        );
     }
 
     #[test]

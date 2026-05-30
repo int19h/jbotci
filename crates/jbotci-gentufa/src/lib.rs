@@ -8,7 +8,9 @@ use std::fmt;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
-use jbotci_morphology::{PhonemeRenderOptions, Word, WordKind, WordLike, WordLikeData};
+use jbotci_morphology::{
+    Cmavo, PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData,
+};
 pub use jbotci_output::{GlideMark, StressMark};
 use jbotci_output::{
     ReferenceDisplayModel, ReferenceName as OutputReferenceName,
@@ -16,9 +18,9 @@ use jbotci_output::{
 };
 use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis, SyntaxNodeMetadata};
 use jbotci_source::SourceSpan;
-use jbotci_syntax::WithIndicators;
 use jbotci_syntax::ast::{AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax};
 use jbotci_syntax::tree::TreeNode;
+use jbotci_syntax::{WithIndicators, elidable_terminator_for_absent_field};
 use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
 
@@ -207,6 +209,14 @@ pub struct RenderedLeaf {
     pub text: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+pub struct ElidedTerminator {
+    pub parent_id: RawSyntaxNodeId,
+    pub range: WebSourceRange,
+    pub text: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
@@ -241,12 +251,28 @@ pub fn rendered_leaves(
 }
 
 #[requires(true)]
+#[ensures(true)]
+pub fn elided_terminators(
+    analysis: &ReferenceAnalysis<'_>,
+    syntax: &TextSyntax,
+    options: &GentufaBlockOptions,
+) -> Vec<ElidedTerminator> {
+    if !options.show_elided {
+        return Vec::new();
+    }
+    let mut collector = ElidedTerminatorCollector::new(analysis, options);
+    syntax.visit_in_order(&mut collector);
+    collector.finish()
+}
+
+#[requires(true)]
 #[ensures(ret.max_col >= ret.blocks.iter().map(|block| block.col + block.col_span).max().unwrap_or(0))]
 pub fn blocks_layout<Tooltip: Clone>(
     analysis: &ReferenceAnalysis<'_>,
     reference_model: &ReferenceDisplayModel,
     source: &str,
     leaves: &[RenderedLeaf],
+    elided_terminators: &[ElidedTerminator],
     annotations: &[GentufaBlockAnnotation<Tooltip>],
     options: &GentufaBlockOptions,
 ) -> GentufaBlocksLayout<Tooltip> {
@@ -259,6 +285,7 @@ pub fn blocks_layout<Tooltip: Clone>(
         root_id,
         source,
         leaves,
+        elided_terminators,
         annotations,
         options,
     ) else {
@@ -430,6 +457,134 @@ impl<'source, 'options, 'tree> TreeVisitor<'tree> for LeafCollector<'source, 'op
     }
 }
 
+#[derive(Debug)]
+#[invariant(true)]
+struct ElidedTerminatorCollector<'analysis, 'options, 'tree> {
+    analysis: &'analysis ReferenceAnalysis<'tree>,
+    options: &'options GentufaBlockOptions,
+    node_stack: Vec<RawSyntaxNodeId>,
+    last_position: Option<RenderedPosition>,
+    terminators: Vec<ElidedTerminator>,
+}
+
+impl<'analysis, 'options, 'tree> ElidedTerminatorCollector<'analysis, 'options, 'tree> {
+    #[requires(true)]
+    #[ensures(ret.terminators.is_empty())]
+    fn new(
+        analysis: &'analysis ReferenceAnalysis<'tree>,
+        options: &'options GentufaBlockOptions,
+    ) -> Self {
+        Self {
+            analysis,
+            options,
+            node_stack: Vec::new(),
+            last_position: None,
+            terminators: Vec::new(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn finish(self) -> Vec<ElidedTerminator> {
+        self.terminators
+    }
+}
+
+impl<'analysis, 'options, 'tree> TreeVisitor<'tree>
+    for ElidedTerminatorCollector<'analysis, 'options, 'tree>
+{
+    type Node = SyntaxNodeRef<'tree>;
+    type Atom = SyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        if let Some(id) = self.analysis.syntax_index.id_of(node) {
+            self.node_stack.push(id);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_node(&mut self, node: Self::Node) {
+        if self.analysis.syntax_index.id_of(node).is_some() {
+            self.node_stack.pop();
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        self.last_position = syntax_atom_end_position(atom);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_absent_optional_field(&mut self, field: jbotci_tree::FieldRef) {
+        let Some(parent_id) = self.node_stack.last().copied() else {
+            return;
+        };
+        let Some(parent_node) = self.analysis.syntax_index.node(parent_id) else {
+            return;
+        };
+        let Some(cmavo) = elidable_terminator_for_absent_field(parent_node, field) else {
+            return;
+        };
+        let Some(position) = self.last_position.clone() else {
+            return;
+        };
+        self.terminators.push(ElidedTerminator {
+            parent_id,
+            range: WebSourceRange {
+                byte_start: position.byte_end,
+                byte_end: position.byte_end,
+                char_start: position.char_end,
+                char_end: position.char_end,
+            },
+            text: render_elided_cmavo(cmavo, self.options),
+        });
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct RenderedPosition {
+    byte_end: usize,
+    char_end: usize,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_atom_end_position(atom: SyntaxAtomRef<'_>) -> Option<RenderedPosition> {
+    match atom {
+        SyntaxAtomRef::Token(token) => token
+            .source_spans()
+            .into_iter()
+            .last()
+            .map(span_end_position),
+        SyntaxAtomRef::Word(word) => Some(span_end_position(word.span())),
+    }
+}
+
+#[requires(span.byte_start <= span.byte_end)]
+#[requires(span.char_start <= span.char_end)]
+#[ensures(ret.byte_end == span.byte_end)]
+fn span_end_position(span: &SourceSpan) -> RenderedPosition {
+    RenderedPosition {
+        byte_end: span.byte_end,
+        char_end: span.char_end,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn render_elided_cmavo(cmavo: Cmavo, options: &GentufaBlockOptions) -> String {
+    let text = Phonemes::from_canonical(cmavo.canonical_text().to_owned())
+        .expect("cmavo canonical text is valid phoneme text")
+        .render(options.phonemes);
+    render_latin_surface(options.script, WordKind::Cmavo, &text)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 struct BlockTreeNode {
@@ -455,6 +610,7 @@ struct BlockTreeNode {
 struct BlockLeafPart {
     id: RawSyntaxNodeId,
     range: WebSourceRange,
+    is_elided: bool,
     raw_text: String,
     display_text: String,
 }
@@ -504,6 +660,7 @@ fn build_block_tree_node<Tooltip: Clone>(
     id: RawSyntaxNodeId,
     source: &str,
     leaves: &[RenderedLeaf],
+    elided_terminators: &[ElidedTerminator],
     annotations: &[GentufaBlockAnnotation<Tooltip>],
     options: &GentufaBlockOptions,
 ) -> Option<BlockTreeNode> {
@@ -520,15 +677,13 @@ fn build_block_tree_node<Tooltip: Clone>(
                 *child,
                 source,
                 leaves,
+                elided_terminators,
                 annotations,
                 options,
             )
         })
         .collect::<Vec<_>>();
     let span = range_from_spans(metadata.source_spans.iter());
-    if span.is_none() && children.is_empty() && !options.show_elided {
-        return None;
-    }
     let label = analysis
         .syntax_index
         .node(id)
@@ -540,8 +695,12 @@ fn build_block_tree_node<Tooltip: Clone>(
         metadata,
         source,
         leaves,
+        elided_terminators,
         options,
     );
+    if span.is_none() && children.is_empty() && leaf_parts.is_empty() {
+        return None;
+    }
     let display_text = leaf_parts
         .iter()
         .map(|part| part.display_text.as_str())
@@ -555,7 +714,7 @@ fn build_block_tree_node<Tooltip: Clone>(
     Some(BlockTreeNode {
         id,
         label: label.clone(),
-        is_elided: span.is_none(),
+        is_elided: false,
         token_kind: leaf_word.as_deref().and_then(token_kind_for_text),
         ref_markers: reference_markers_for_node(reference_model, id),
         span,
@@ -580,9 +739,10 @@ fn block_leaf_parts(
     metadata: &SyntaxNodeMetadata,
     source: &str,
     leaves: &[RenderedLeaf],
+    elided_terminators: &[ElidedTerminator],
     options: &GentufaBlockOptions,
 ) -> Vec<BlockLeafPart> {
-    metadata
+    let mut parts = metadata
         .source_spans
         .iter()
         .enumerate()
@@ -601,11 +761,28 @@ fn block_leaf_parts(
             Some(BlockLeafPart {
                 id: synthetic_leaf_id(node_count, id, index),
                 range,
+                is_elided: false,
                 raw_text: source_text_for_range(source, Some(range)),
                 display_text,
             })
         })
-        .collect()
+        .collect::<Vec<_>>();
+    let elided_offset = parts.len();
+    parts.extend(
+        elided_terminators
+            .iter()
+            .filter(|terminator| terminator.parent_id == id)
+            .enumerate()
+            .map(|(index, terminator)| BlockLeafPart {
+                id: synthetic_leaf_id(node_count, id, elided_offset + index),
+                range: terminator.range,
+                is_elided: true,
+                raw_text: String::new(),
+                display_text: terminator.text.clone(),
+            }),
+    );
+    parts.sort_by_key(|part| (part.range.byte_start, usize::from(part.is_elided)));
+    parts
 }
 
 #[requires(true)]
@@ -641,6 +818,7 @@ fn collapse_single_child_chains(mut node: BlockTreeNode) -> BlockTreeNode {
 fn can_collapse_single_child(parent: &BlockTreeNode, child: &BlockTreeNode) -> bool {
     parent.leaf_word.is_none()
         && parent.token_kind.is_none()
+        && !parent.leaf_parts.iter().any(|part| part.is_elided)
         && spans_compatible(parent.span, child.span)
 }
 
@@ -724,6 +902,7 @@ fn collapse_safe_multi_child_parents(mut node: BlockTreeNode) -> BlockTreeNode {
 #[ensures(true)]
 fn should_collapse_safe_multi_child_parent(node: &BlockTreeNode) -> bool {
     node.children.len() > 1
+        && node.leaf_parts.is_empty()
         && node.node_types.first().is_some_and(|node_type| {
             matches!(
                 node_type.as_str(),
@@ -855,10 +1034,11 @@ fn layout_children(node: &BlockTreeNode) -> Vec<BlockLayoutChild<'_>> {
         node.leaf_parts
             .iter()
             .filter(|part| {
-                !node
-                    .children
-                    .iter()
-                    .any(|child| child_covers_part(child, part))
+                part.is_elided
+                    || !node
+                        .children
+                        .iter()
+                        .any(|child| child_covers_part(child, part))
             })
             .map(BlockLayoutChild::Leaf),
     );
@@ -870,10 +1050,11 @@ fn layout_children(node: &BlockTreeNode) -> Vec<BlockLayoutChild<'_>> {
 #[ensures(true)]
 fn has_uncovered_leaf_parts(node: &BlockTreeNode) -> bool {
     node.leaf_parts.iter().any(|part| {
-        !node
-            .children
-            .iter()
-            .any(|child| child_covers_part(child, part))
+        part.is_elided
+            || !node
+                .children
+                .iter()
+                .any(|child| child_covers_part(child, part))
     })
 }
 
@@ -946,7 +1127,7 @@ fn synthetic_leaf_block<Tooltip>(
         block_id: format!("n{}", part.id.0),
         label: part.display_text.clone(),
         is_leaf: true,
-        is_elided: false,
+        is_elided: part.is_elided,
         token_kind: token_kind_for_text(&part.display_text),
         ref_markers: Vec::new(),
         span: Some(part.range),

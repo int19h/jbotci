@@ -1,7 +1,7 @@
 //! Lojban syntax model and parser facade.
 
 pub mod tree;
-pub use tree::{Token, WithIndicators};
+pub use tree::{Token, WithIndicators, elidable_terminator_for_absent_field};
 
 mod grammar;
 

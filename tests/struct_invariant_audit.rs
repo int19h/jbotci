@@ -628,6 +628,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "renderer owns options only",
     ),
     (
+        "crates/jbotci-output/src/tree.rs:RenderedPosition",
+        "rendered syntax token end positions are copied directly from validated source spans",
+    ),
+    (
+        "crates/jbotci-output/src/json.rs:RenderedPosition",
+        "rendered syntax token end positions are copied directly from validated source spans",
+    ),
+    (
         "crates/jbotci-gentufa/src/lib.rs:GentufaBlock",
         "gentufa block rows are renderer transport data built from parser spans",
     ),
@@ -642,6 +650,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-gentufa/src/lib.rs:GentufaBlockOptions",
         "block options are independent presentation controls with typed phoneme rendering options",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:ElidedTerminator",
+        "elided terminators are transient renderer records built from validated absent syntax fields",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:GentufaCell",
@@ -678,6 +690,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-gentufa/src/lib.rs:LeafCollector",
         "leaf collector is transient traversal state for web block and tree projections",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:ElidedTerminatorCollector",
+        "elided terminator collector is transient traversal state consumed into validated terminator records",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:RenderedPosition",
+        "rendered syntax token end positions are copied directly from validated source spans",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:BlockLeafPart",

@@ -217,6 +217,7 @@ pub struct BracketRenderOptions {
     pub glyphs: GlyphStyle,
     pub decompose_lujvo: bool,
     pub insert_hair_space: bool,
+    pub show_elided: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -224,16 +225,19 @@ pub struct BracketRenderOptions {
 pub struct JsonRenderOptions {
     pub indent: usize,
     pub phonemes: PhonemeRenderOptions,
+    pub show_elided: bool,
 }
 
 impl Default for JsonRenderOptions {
     #[requires(true)]
     #[ensures(ret.indent == 2)]
     #[ensures(ret.phonemes == PhonemeRenderOptions::default())]
+    #[ensures(!ret.show_elided)]
     fn default() -> Self {
         Self {
             indent: 2,
             phonemes: PhonemeRenderOptions::default(),
+            show_elided: false,
         }
     }
 }
@@ -248,6 +252,7 @@ pub struct TreeRenderOptions {
     pub show_spans: bool,
     pub show_refs: bool,
     pub decompose_lujvo: bool,
+    pub show_elided: bool,
 }
 
 impl Default for TreeRenderOptions {
@@ -259,6 +264,7 @@ impl Default for TreeRenderOptions {
     #[ensures(!ret.show_spans)]
     #[ensures(!ret.show_refs)]
     #[ensures(!ret.decompose_lujvo)]
+    #[ensures(!ret.show_elided)]
     fn default() -> Self {
         Self {
             color: false,
@@ -268,6 +274,7 @@ impl Default for TreeRenderOptions {
             show_spans: false,
             show_refs: false,
             decompose_lujvo: false,
+            show_elided: false,
         }
     }
 }
@@ -336,10 +343,7 @@ pub fn ipa_morphology_text(words: &[WordLike], source: &str) -> Result<String, O
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
 pub fn compact_syntax_json_value(tree: &TextSyntax) -> Result<Value, OutputError> {
-    Ok(json::syntax_json_value(
-        tree,
-        PhonemeRenderOptions::default(),
-    ))
+    Ok(json::syntax_json_value(tree, JsonRenderOptions::default()))
 }
 
 #[requires(true)]
@@ -349,7 +353,7 @@ pub fn compact_syntax_json_string_with_options(
     options: JsonRenderOptions,
 ) -> Result<String, OutputError> {
     Ok(format_compact_json_value(
-        &json::syntax_json_value(tree, options.phonemes),
+        &json::syntax_json_value(tree, options),
         0,
         options,
     ))
@@ -839,6 +843,7 @@ pub fn pretty_morphology_brackets_with_options(
 mod tests {
     use bityzba::requires;
     use jbotci_morphology::segment_words_with_modifiers;
+    use jbotci_syntax::parse_syntax_tree;
 
     use super::*;
 
@@ -914,10 +919,152 @@ mod tests {
         }
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn default_gentufa_rendering_does_not_show_elided_terminators() {
+        let source = "mi klama";
+        let parsed = parse(source);
+        assert!(!pretty_tree(&parsed, source).expect("tree").contains("v̶a̶u̶"));
+        assert!(
+            !pretty_brackets(&parsed, source)
+                .expect("brackets")
+                .contains("v̶a̶u̶")
+        );
+        assert!(
+            !compact_syntax_json_string_with_options(&parsed, JsonRenderOptions::default())
+                .expect("json")
+                .contains("\"elided\"")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn text_renderers_show_representative_elided_terminators() {
+        let tree = render_tree_with_elided("mi klama");
+        assert!(tree.contains("vau: Cmavo @[8‥8) \"v̶a̶u̶\""), "{tree}");
+
+        let descriptor = render_tree_with_elided("le broda");
+        assert!(
+            descriptor.contains("ku: Cmavo @[8‥8) \"k̶u̶\""),
+            "{descriptor}"
+        );
+
+        let abstraction = render_tree_with_elided("lo nu mi klama");
+        assert!(
+            abstraction.contains("kei: Cmavo @[14‥14) \"k̶e̶i̶\""),
+            "{abstraction}"
+        );
+        assert!(
+            abstraction.contains("ku: Cmavo @[14‥14) \"k̶u̶\""),
+            "{abstraction}"
+        );
+
+        let free_modifier = render_brackets_with_elided("to coi");
+        assert!(free_modifier.contains("t̶o̶i̶"), "{free_modifier}");
+
+        let mekso = render_tree_with_elided("li pa");
+        assert!(mekso.contains("boi: Cmavo @[5‥5) \"b̶o̶i̶\""), "{mekso}");
+        assert!(mekso.contains("loho: Cmavo @[5‥5) \"l̶o̶'̶o̶\""), "{mekso}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn json_renderer_marks_elided_terminators_with_zero_length_spans() {
+        let parsed = parse("li pa");
+        let json = compact_syntax_json_string_with_options(
+            &parsed,
+            JsonRenderOptions {
+                show_elided: true,
+                ..JsonRenderOptions::default()
+            },
+        )
+        .expect("json");
+        let value = serde_json::from_str(&json).expect("valid json");
+        assert!(has_elided_cmavo(&value, "boi", [5, 5]), "{json}");
+        assert!(has_elided_cmavo(&value, "lo'o", [5, 5]), "{json}");
+    }
+
     #[requires(!source.is_empty())]
     #[ensures(!ret.is_empty())]
     fn render_ipa(source: &str) -> String {
         let words = segment_words_with_modifiers(source).expect("valid morphology");
         ipa_morphology_text(&words, source).expect("IPA output")
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn parse(source: &str) -> TextSyntax {
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        parse_syntax_tree(&words)
+            .expect("valid syntax")
+            .parse_tree
+            .as_ref()
+            .clone()
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn render_tree_with_elided(source: &str) -> String {
+        let parsed = parse(source);
+        pretty_tree_with_options(
+            &parsed,
+            source,
+            TreeRenderOptions {
+                show_elided: true,
+                show_spans: true,
+                ..TreeRenderOptions::default()
+            },
+        )
+        .expect("tree")
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn render_brackets_with_elided(source: &str) -> String {
+        let parsed = parse(source);
+        pretty_brackets_with_options(
+            &parsed,
+            source,
+            BracketRenderOptions {
+                show_elided: true,
+                ..BracketRenderOptions::default()
+            },
+        )
+        .expect("brackets")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn has_elided_cmavo(value: &Value, phonemes: &str, span: [usize; 2]) -> bool {
+        match value {
+            Value::Object(object) => {
+                object.get("phonemes").and_then(Value::as_str) == Some(phonemes)
+                    && object.get("elided").and_then(Value::as_bool) == Some(true)
+                    && object
+                        .get("span")
+                        .is_some_and(|value| span_matches(value, span))
+                    || object
+                        .values()
+                        .any(|value| has_elided_cmavo(value, phonemes, span))
+            }
+            Value::Array(items) => items
+                .iter()
+                .any(|value| has_elided_cmavo(value, phonemes, span)),
+            _ => false,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn span_matches(value: &Value, span: [usize; 2]) -> bool {
+        let Value::Array(items) = value else {
+            return false;
+        };
+        items.len() == 2
+            && items[0].as_u64() == Some(span[0] as u64)
+            && items[1].as_u64() == Some(span[1] as u64)
     }
 }

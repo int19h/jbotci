@@ -188,6 +188,10 @@ pub trait TreeVisitor<'tree> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn visit_absent_optional_field(&mut self, _field: FieldRef) {}
+
+    #[requires(true)]
+    #[ensures(true)]
     fn enter_sequence(&mut self) {}
 
     #[requires(true)]

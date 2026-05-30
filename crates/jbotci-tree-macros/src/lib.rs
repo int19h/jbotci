@@ -1154,9 +1154,19 @@ where
                 };
                 let primary = flags.primary;
                 let access = access(index, field);
+                let absent_visit = if field_is_option(&field.ty) {
+                    quote! {
+                        if (#access).is_none() {
+                            visitor.visit_absent_optional_field(field_ref);
+                        }
+                    }
+                } else {
+                    quote!()
+                };
                 Some(Ok(quote! {
                     let field_ref = ::jbotci_tree::FieldRef::new(#name, #index, #primary);
                     visitor.enter_field(field_ref);
+                    #absent_visit
                     TreeNode::visit_in_order(#access, visitor);
                     visitor.exit_field(field_ref);
                 }))
@@ -1164,6 +1174,18 @@ where
             Err(error) => Some(Err(error)),
         })
         .collect()
+}
+
+fn field_is_option(ty: &Type) -> bool {
+    let Type::Path(path) = ty else {
+        return false;
+    };
+    path.qself.is_none()
+        && path
+            .path
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "Option")
 }
 
 fn field_paths<F>(fields: &Fields, access: F) -> syn::Result<Vec<proc_macro2::TokenStream>>

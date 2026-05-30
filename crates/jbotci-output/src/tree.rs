@@ -2,13 +2,15 @@
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
-use jbotci_morphology::{Phonemes, TreeNode as MorphologyTreeNode, Word, WordKind, WordLike};
+use jbotci_morphology::{
+    Cmavo, Phonemes, TreeNode as MorphologyTreeNode, Word, WordKind, WordLike,
+};
 use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis, SyntaxIndex};
 use jbotci_source::SourceSpan;
-use jbotci_syntax::WithIndicators;
 use jbotci_syntax::ast::{
     AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax, TreeNode as SyntaxAstTreeNode,
 };
+use jbotci_syntax::{WithIndicators, elidable_terminator_for_absent_field};
 use jbotci_tree::{FieldRef, TreeVisitor};
 
 use crate::references::ReferenceDisplayModel;
@@ -57,6 +59,7 @@ pub(crate) enum TreeValue {
         constructor: &'static str,
         phonemes: String,
         span: Option<(usize, usize)>,
+        elided: bool,
     },
     Verbatim {
         text: String,
@@ -234,8 +237,9 @@ fn syntax_tree_value(
 #[invariant(::Node => true)]
 #[invariant(::Field => true)]
 #[invariant(::Collection => true)]
-enum SyntaxFrame {
+enum SyntaxFrame<'tree> {
     Node {
+        node_ref: SyntaxNodeRef<'tree>,
         constructor: &'static str,
         syntax_id: Option<RawSyntaxNodeId>,
         entries: Vec<TreeEntry>,
@@ -257,7 +261,8 @@ struct SyntaxTreeBuilder<'source, 'index, 'tree> {
     source: &'source str,
     options: TreeRenderOptions,
     syntax_index: Option<&'index SyntaxIndex<'tree>>,
-    stack: Vec<SyntaxFrame>,
+    stack: Vec<SyntaxFrame<'tree>>,
+    last_position: Option<RenderedPosition>,
     root: Option<TreeValue>,
 }
 
@@ -274,6 +279,7 @@ impl<'source, 'index, 'tree> SyntaxTreeBuilder<'source, 'index, 'tree> {
             options,
             syntax_index,
             stack: Vec::new(),
+            last_position: None,
             root: None,
         }
     }
@@ -379,6 +385,7 @@ impl<'source, 'index, 'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'source, '
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
         self.stack.push(SyntaxFrame::Node {
+            node_ref: node,
             constructor: syntax_constructor_name(node.constructor_name()),
             syntax_id: self.syntax_index.and_then(|index| index.id_of(node)),
             entries: Vec::new(),
@@ -389,6 +396,7 @@ impl<'source, 'index, 'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'source, '
     #[ensures(true)]
     fn exit_node(&mut self, _node: Self::Node) {
         let Some(SyntaxFrame::Node {
+            node_ref: _,
             constructor,
             syntax_id,
             entries,
@@ -461,6 +469,7 @@ impl<'source, 'index, 'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'source, '
     #[requires(true)]
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
+        self.last_position = syntax_atom_end_position(atom);
         self.push_value(match atom {
             SyntaxAtomRef::Token(word) => {
                 with_indicators_tree_value(word.as_indicators(), self.source, self.options)
@@ -468,6 +477,86 @@ impl<'source, 'index, 'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'source, '
             SyntaxAtomRef::Word(word) => word_tree_value(word, self.source, self.options),
         });
     }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_absent_optional_field(&mut self, field: FieldRef) {
+        if !self.options.show_elided {
+            return;
+        }
+        let Some(node) = current_syntax_node(&self.stack) else {
+            return;
+        };
+        let Some(cmavo) = elidable_terminator_for_absent_field(node, field) else {
+            return;
+        };
+        let Some(position) = self.last_position.clone() else {
+            return;
+        };
+        self.push_value(elided_cmavo_tree_value(cmavo, position, self.options));
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct RenderedPosition {
+    byte_end: usize,
+    char_end: usize,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn current_syntax_node<'tree>(stack: &[SyntaxFrame<'tree>]) -> Option<SyntaxNodeRef<'tree>> {
+    stack.iter().rev().find_map(|frame| match frame {
+        SyntaxFrame::Node { node_ref, .. } => Some(*node_ref),
+        SyntaxFrame::Field { .. } | SyntaxFrame::Collection { .. } => None,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_atom_end_position(atom: SyntaxAtomRef<'_>) -> Option<RenderedPosition> {
+    match atom {
+        SyntaxAtomRef::Token(token) => token
+            .source_spans()
+            .into_iter()
+            .last()
+            .map(span_end_position),
+        SyntaxAtomRef::Word(word) => Some(span_end_position(word.span())),
+    }
+}
+
+#[requires(span.byte_start <= span.byte_end)]
+#[requires(span.char_start <= span.char_end)]
+#[ensures(ret.byte_end == span.byte_end)]
+fn span_end_position(span: &SourceSpan) -> RenderedPosition {
+    RenderedPosition {
+        byte_end: span.byte_end,
+        char_end: span.char_end,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn elided_cmavo_tree_value(
+    cmavo: Cmavo,
+    position: RenderedPosition,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    TreeValue::Word {
+        constructor: "Cmavo",
+        phonemes: elided_cmavo_text(cmavo, options.phonemes),
+        span: Some((position.char_end, position.char_end)),
+        elided: true,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn elided_cmavo_text(cmavo: Cmavo, options: jbotci_morphology::PhonemeRenderOptions) -> String {
+    Phonemes::from_canonical(cmavo.canonical_text().to_owned())
+        .expect("cmavo canonical text is valid phoneme text")
+        .render(options)
 }
 
 #[requires(true)]
@@ -565,7 +654,8 @@ impl TreeRenderer<'_> {
                 constructor,
                 phonemes,
                 span,
-            } => self.render_word(constructor, phonemes, *span),
+                elided,
+            } => self.render_word(constructor, phonemes, *span, *elided),
             TreeValue::Verbatim { text, span } => self.render_verbatim(text, *span),
             TreeValue::Text(text) => self.output.push_str(&self.string_literal(text)),
             TreeValue::Span {
@@ -613,11 +703,22 @@ impl TreeRenderer<'_> {
 
     #[requires(!constructor.is_empty())]
     #[ensures(true)]
-    fn render_word(&mut self, constructor: &str, phonemes: &str, span: Option<(usize, usize)>) {
+    fn render_word(
+        &mut self,
+        constructor: &str,
+        phonemes: &str,
+        span: Option<(usize, usize)>,
+        elided: bool,
+    ) {
         self.output.push_str(&self.constructor_token(constructor));
         self.render_optional_node_span(span);
         self.output.push(' ');
-        self.output.push_str(&self.string_literal(phonemes));
+        if elided {
+            self.output
+                .push_str(&self.string_literal(&overstrike_text(phonemes)));
+        } else {
+            self.output.push_str(&self.string_literal(phonemes));
+        }
     }
 
     #[requires(true)]
@@ -913,6 +1014,17 @@ where
     Some((start, end))
 }
 
+#[requires(true)]
+#[ensures(text.is_empty() -> ret.is_empty())]
+fn overstrike_text(text: &str) -> String {
+    let mut output = String::new();
+    for ch in text.chars() {
+        output.push(ch);
+        output.push('\u{0336}');
+    }
+    output
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Node => true)]
@@ -1096,6 +1208,7 @@ fn word_node_value(
         constructor,
         phonemes,
         span: span_from_labelled_entries(entries),
+        elided: false,
     })
 }
 

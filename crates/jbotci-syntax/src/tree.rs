@@ -9,6 +9,7 @@ use std::{fmt, sync::Arc};
 #[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, new, requires};
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
+use jbotci_tree::FieldRef;
 use serde::{Deserialize, Serialize};
 use vec1::Vec1;
 
@@ -428,6 +429,40 @@ impl<T: fmt::Display> fmt::Display for WithIndicators<T> {
                 Ok(())
             }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn elidable_terminator_for_absent_field(_node: NodeRef<'_>, field: FieldRef) -> Option<Cmavo> {
+    match field.name {
+        Some("beho") => Some(Cmavo::Beho),
+        Some("boi") => Some(Cmavo::Boi),
+        Some("dohu") => Some(Cmavo::Dohu),
+        Some("fehu") => Some(Cmavo::Fehu),
+        Some("fihau") => Some(Cmavo::Fihau),
+        Some("gehu") => Some(Cmavo::Gehu),
+        Some("gihi") => Some(Cmavo::Gihi),
+        Some("gik_nuhu") | Some("nuhu") => Some(Cmavo::Nuhu),
+        Some("kehe") => Some(Cmavo::Kehe),
+        Some("kei") => Some(Cmavo::Kei),
+        Some("ku") | Some("maybe_ku") => Some(Cmavo::Ku),
+        Some("kuhau") => Some(Cmavo::Kuhau),
+        Some("kuhe") => Some(Cmavo::Kuhe),
+        Some("kuho") => Some(Cmavo::Kuho),
+        Some("kuhoi") => Some(Cmavo::Kuhoi),
+        Some("liau") => Some(Cmavo::Lihau),
+        Some("lihu") => Some(Cmavo::Lihu),
+        Some("loho") => Some(Cmavo::Loho),
+        Some("luhu") => Some(Cmavo::Luhu),
+        Some("mehu") => Some(Cmavo::Mehu),
+        Some("sehu") => Some(Cmavo::Sehu),
+        Some("tehu") => Some(Cmavo::Tehu),
+        Some("toi") => Some(Cmavo::Toi),
+        Some("tuhu") => Some(Cmavo::Tuhu),
+        Some("vau") => Some(Cmavo::Vau),
+        Some("veho") => Some(Cmavo::Veho),
+        _ => None,
     }
 }
 
@@ -2049,5 +2084,92 @@ impl Indicator {
     #[ensures(ret >= 1)]
     pub fn word_count(&self) -> usize {
         1 + usize::from(self.nai.is_some())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[allow(unused_imports)]
+    use bityzba::{ensures, invariant, requires};
+    use jbotci_tree::FieldRef;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn absent_optional_fields_map_to_cll_terminators() {
+        let node = parsed_text_node("mi klama");
+        for (field, cmavo) in [
+            ("tuhu", Cmavo::Tuhu),
+            ("vau", Cmavo::Vau),
+            ("kehe", Cmavo::Kehe),
+            ("ku", Cmavo::Ku),
+            ("luhu", Cmavo::Luhu),
+            ("loho", Cmavo::Loho),
+            ("lihu", Cmavo::Lihu),
+            ("gehu", Cmavo::Gehu),
+            ("kuho", Cmavo::Kuho),
+            ("beho", Cmavo::Beho),
+            ("nuhu", Cmavo::Nuhu),
+            ("boi", Cmavo::Boi),
+            ("veho", Cmavo::Veho),
+            ("kuhe", Cmavo::Kuhe),
+            ("tehu", Cmavo::Tehu),
+            ("mehu", Cmavo::Mehu),
+            ("kei", Cmavo::Kei),
+            ("fehu", Cmavo::Fehu),
+            ("sehu", Cmavo::Sehu),
+            ("dohu", Cmavo::Dohu),
+            ("toi", Cmavo::Toi),
+        ] {
+            assert_eq!(
+                elidable_terminator_for_absent_field(node, FieldRef::new(Some(field), 0, false),),
+                Some(cmavo),
+                "{field}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn absent_optional_fields_map_to_experimental_terminators() {
+        let node = parsed_text_node("mi klama");
+        for (field, cmavo) in [
+            ("gihi", Cmavo::Gihi),
+            ("fihau", Cmavo::Fihau),
+            ("kuhau", Cmavo::Kuhau),
+            ("kuhoi", Cmavo::Kuhoi),
+            ("liau", Cmavo::Lihau),
+        ] {
+            assert_eq!(
+                elidable_terminator_for_absent_field(node, FieldRef::new(Some(field), 0, false),),
+                Some(cmavo),
+                "{field}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn absent_optional_field_mapping_rejects_non_terminators() {
+        let node = parsed_text_node("mi klama");
+        assert_eq!(
+            elidable_terminator_for_absent_field(
+                node,
+                FieldRef::new(Some("leading_terms"), 0, false),
+            ),
+            None
+        );
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn parsed_text_node(source: &str) -> NodeRef<'static> {
+        let words = jbotci_morphology::segment_words_with_modifiers(source).expect("morphology");
+        let parsed = crate::parse_syntax_tree(&words).expect("syntax");
+        let tree = Box::leak(parsed.parse_tree.clone());
+        NodeRef::TextSyntax(tree)
     }
 }

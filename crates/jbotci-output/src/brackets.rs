@@ -2,7 +2,7 @@ use bityzba::data;
 #[allow(unused_imports)]
 use bityzba::ensures;
 use bityzba::{invariant, requires};
-use jbotci_morphology::{Word, WordLike, WordLikeData};
+use jbotci_morphology::{Cmavo, Phonemes, Word, WordLike, WordLikeData};
 use jbotci_syntax::ast::*;
 use jbotci_syntax::{Indicator, Token, WithIndicators};
 use jbotci_tree::TreeVisitor;
@@ -157,9 +157,13 @@ fn statement_syntax(value: &StatementSyntax, source: &BracketContext<'_>) -> sex
             }
             children.push(with_free_word(tuhe, source));
             children.push(text(inner, source));
-            if let Some(tuhu) = tuhu {
-                children.push(with_free_word(tuhu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                tuhu.as_ref(),
+                Cmavo::Tuhu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(StatementSyntax::Prenex {
@@ -290,9 +294,13 @@ fn predicate_tail3(value: &PredicateTail3Syntax, source: &BracketContext<'_>) ->
             children.push(list_node(
                 terms.iter().map(|item| term(item, source)).collect(),
             ));
-            if let Some(vau) = vau {
-                children.push(with_free_word(vau, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                vau.as_ref(),
+                Cmavo::Vau,
+                source,
+                with_free_word,
+            );
             children.push(list_node(
                 free_modifiers
                     .iter()
@@ -314,13 +322,21 @@ fn ke_predicate_tail(value: &KePredicateTailSyntax, source: &BracketContext<'_>)
     }
     children.push(with_free_word(&value.ke, source));
     children.push(predicate_tail(&value.predicate_tail, source));
-    if let Some(kehe) = &value.kehe {
-        children.push(with_free_word(kehe, source));
-    }
+    push_optional_elidable(
+        &mut children,
+        value.kehe.as_ref(),
+        Cmavo::Kehe,
+        source,
+        with_free_word,
+    );
     children.extend(value.tail_terms.iter().map(|item| term(item, source)));
-    if let Some(vau) = &value.vau {
-        children.push(with_free_word(vau, source));
-    }
+    push_optional_elidable(
+        &mut children,
+        value.vau.as_ref(),
+        Cmavo::Vau,
+        source,
+        with_free_word,
+    );
     children.extend(
         value
             .free_modifiers
@@ -345,9 +361,13 @@ fn predicate_tail_continuation(
     }
     children.push(predicate_tail2(&value.predicate_tail, source));
     children.extend(value.tail_terms.iter().map(|item| term(item, source)));
-    if let Some(vau) = &value.vau {
-        children.push(with_free_word(vau, source));
-    }
+    push_optional_elidable(
+        &mut children,
+        value.vau.as_ref(),
+        Cmavo::Vau,
+        source,
+        with_free_word,
+    );
     children.extend(
         value
             .free_modifiers
@@ -370,9 +390,13 @@ fn bo_predicate_tail(value: &BoPredicateTailSyntax, source: &BracketContext<'_>)
     }
     children.push(predicate_tail2(&value.predicate_tail, source));
     children.extend(value.tail_terms.iter().map(|item| term(item, source)));
-    if let Some(vau) = &value.vau {
-        children.push(with_free_word(vau, source));
-    }
+    push_optional_elidable(
+        &mut children,
+        value.vau.as_ref(),
+        Cmavo::Vau,
+        source,
+        with_free_word,
+    );
     children.extend(
         value
             .free_modifiers
@@ -402,15 +426,17 @@ fn gek_sentence(value: &GekSentenceSyntax, source: &BracketContext<'_>) -> sexpr
                 connective_syntax(gik, source),
                 subsentence(second, source),
             ];
-            if let Some(gihi) = gihi {
-                children.push(word(gihi, source));
-            }
+            push_optional_elidable(&mut children, gihi.as_ref(), Cmavo::Gihi, source, word);
             children.push(list_node(
                 tail_terms.iter().map(|item| term(item, source)).collect(),
             ));
-            if let Some(vau) = vau {
-                children.push(with_free_word(vau, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                vau.as_ref(),
+                Cmavo::Vau,
+                source,
+                with_free_word,
+            );
             children.extend(
                 free_modifiers
                     .iter()
@@ -430,9 +456,13 @@ fn gek_sentence(value: &GekSentenceSyntax, source: &BracketContext<'_>) -> sexpr
             }
             children.push(with_free_word(ke, source));
             children.push(gek_sentence(inner, source));
-            if let Some(kehe) = kehe {
-                children.push(with_free_word(kehe, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                kehe.as_ref(),
+                Cmavo::Kehe,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(GekSentenceSyntax::Na { na, inner }) => sexpr::node(vec![
@@ -502,9 +532,13 @@ fn fragment_syntax(value: &FragmentSyntax, source: &BracketContext<'_>) -> sexpr
                     .map(|item| bei_link(item, source))
                     .collect(),
             ));
-            if let Some(beho) = beho {
-                children.push(with_free_word(beho, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                beho.as_ref(),
+                Cmavo::Beho,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(FragmentSyntax::BeiLink(links)) => {
@@ -521,9 +555,13 @@ fn fragment_syntax(value: &FragmentSyntax, source: &BracketContext<'_>) -> sexpr
             let mut children = vec![list_node(
                 terms.iter().map(|item| term(item, source)).collect(),
             )];
-            if let Some(vau) = vau {
-                children.push(with_free_word(vau, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                vau.as_ref(),
+                Cmavo::Vau,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(FragmentSyntax::Relation(relation)) => relation_syntax(relation, source),
@@ -559,9 +597,13 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
                 with_free_word(fa, source),
                 argument_syntax(argument, source),
             ];
-            if let Some(ku) = ku {
-                children.push(with_free_word(ku, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                ku.as_ref(),
+                Cmavo::Ku,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(TermSyntax::NaKu { na, na_ku }) => {
@@ -577,9 +619,13 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
                 with_free_word(nuhi, source),
                 list_node(termset.iter().map(|item| term(item, source)).collect()),
             ];
-            if let Some(nuhu) = nuhu {
-                children.push(with_free_word(nuhu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                nuhu.as_ref(),
+                Cmavo::Nuhu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(TermSyntax::GekNuhiTermset {
@@ -600,19 +646,25 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             children.push(list_node(
                 terms.iter().map(|item| term(item, source)).collect(),
             ));
-            if let Some(nuhu) = nuhu {
-                children.push(with_free_word(nuhu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                nuhu.as_ref(),
+                Cmavo::Nuhu,
+                source,
+                with_free_word,
+            );
             children.push(connective_syntax(gik, source));
             children.push(list_node(
                 gik_terms.iter().map(|item| term(item, source)).collect(),
             ));
-            if let Some(gihi) = gihi {
-                children.push(word(gihi, source));
-            }
-            if let Some(nuhu) = gik_nuhu {
-                children.push(with_free_word(nuhu, source));
-            }
+            push_optional_elidable(&mut children, gihi.as_ref(), Cmavo::Gihi, source, word);
+            push_optional_elidable(
+                &mut children,
+                gik_nuhu.as_ref(),
+                Cmavo::Nuhu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(TermSyntax::Cehe {
@@ -723,9 +775,13 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
                     .map(|item| relative_clause(item, source))
                     .collect(),
             ));
-            if let Some(fehu) = fehu {
-                children.push(with_free_word(fehu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                fehu.as_ref(),
+                Cmavo::Fehu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(TermSyntax::PoihaBrigahi {
@@ -760,9 +816,13 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             fihau,
         }) => {
             let mut children = vec![with_free_word(fihoi, source), subsentence(inner, source)];
-            if let Some(fihau) = fihau {
-                children.push(with_free_word(fihau, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                fihau.as_ref(),
+                Cmavo::Fihau,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(TermSyntax::SoiAdverbial {
@@ -771,9 +831,13 @@ fn term(value: &TermSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
             sehu,
         }) => {
             let mut children = vec![with_free_word(soi, source), subsentence(inner, source)];
-            if let Some(sehu) = sehu {
-                children.push(with_free_word(sehu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                sehu.as_ref(),
+                Cmavo::Sehu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
     }
@@ -793,16 +857,24 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
                 with_free_word(li, source),
                 math_expression(expression, source),
             ];
-            if let Some(loho) = loho {
-                children.push(with_free_word(loho, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                loho.as_ref(),
+                Cmavo::Loho,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(ArgumentSyntax::Letter { letter, boi }) => {
             let mut children = vec![with_free_words(letter, source)];
-            if let Some(boi) = boi {
-                children.push(with_free_word(boi, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                boi.as_ref(),
+                Cmavo::Boi,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(ArgumentSyntax::Quantified {
@@ -875,9 +947,13 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
             kuhau,
         }) => {
             let mut children = vec![with_free_word(lohoi, source), subsentence(inner, source)];
-            if let Some(kuhau) = kuhau {
-                children.push(with_free_word(kuhau, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                kuhau.as_ref(),
+                Cmavo::Kuhau,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(ArgumentSyntax::NaKu { na, ku }) => {
@@ -901,9 +977,13 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
                 with_free_word(bo, source),
                 argument_syntax(inner_argument, source),
             ];
-            if let Some(luhu) = luhu {
-                children.push(with_free_word(luhu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                luhu.as_ref(),
+                Cmavo::Luhu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(ArgumentSyntax::Nahe {
@@ -915,9 +995,13 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
                 with_free_word(nahe, source),
                 argument_syntax(inner_argument, source),
             ];
-            if let Some(luhu) = luhu {
-                children.push(with_free_word(luhu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                luhu.as_ref(),
+                Cmavo::Luhu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(ArgumentSyntax::TermWrapped {
@@ -932,9 +1016,13 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
                 children.push(with_free_word(wrapper_bo, source));
             }
             children.push(term(inner_term, source));
-            if let Some(luhu) = luhu {
-                children.push(with_free_word(luhu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                luhu.as_ref(),
+                Cmavo::Luhu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(ArgumentSyntax::Koha(koha)) => with_free_word(koha, source),
@@ -947,9 +1035,13 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
             if let Some(tag) = tag {
                 children.push(argument_tag(tag, source));
             }
-            if let Some(ku) = maybe_ku {
-                children.push(with_free_word(ku, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                maybe_ku.as_ref(),
+                Cmavo::Ku,
+                source,
+                with_free_word,
+            );
             children.extend(
                 free_modifiers
                     .iter()
@@ -970,9 +1062,13 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
                     .map(|item| relative_clause(item, source)),
             );
             children.push(argument_syntax(inner_argument, source));
-            if let Some(luhu) = luhu {
-                children.push(with_free_word(luhu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                luhu.as_ref(),
+                Cmavo::Luhu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(ArgumentSyntax::Ke {
@@ -984,9 +1080,13 @@ fn argument_syntax(value: &ArgumentSyntax, source: &BracketContext<'_>) -> sexpr
                 with_free_word(ke, source),
                 argument_syntax(inner_argument, source),
             ];
-            if let Some(kehe) = kehe {
-                children.push(with_free_word(kehe, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                kehe.as_ref(),
+                Cmavo::Kehe,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(ArgumentSyntax::Bo {
@@ -1093,9 +1193,13 @@ fn descriptor_syntax(value: &DescriptorSyntax, source: &BracketContext<'_>) -> s
                 .collect(),
         ));
     }
-    if let Some(ku) = &value.ku {
-        children.push(with_free_word(ku, source));
-    }
+    push_optional_elidable(
+        &mut children,
+        value.ku.as_ref(),
+        Cmavo::Ku,
+        source,
+        with_free_word,
+    );
     sexpr::node(children)
 }
 
@@ -1128,9 +1232,13 @@ fn connected_descriptor(
                 .collect(),
         ));
     }
-    if let Some(ku) = &value.ku {
-        children.push(with_free_word(ku, source));
-    }
+    push_optional_elidable(
+        &mut children,
+        value.ku.as_ref(),
+        Cmavo::Ku,
+        source,
+        with_free_word,
+    );
     sexpr::node(children)
 }
 
@@ -1169,9 +1277,13 @@ fn relative_clause(value: &RelativeClauseSyntax, source: &BracketContext<'_>) ->
                 with_free_word(&goi.goi, source),
                 argument_syntax(&goi.argument, source),
             ];
-            if let Some(gehu) = &goi.gehu {
-                children.push(with_free_word(gehu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                goi.gehu.as_ref(),
+                Cmavo::Gehu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(RelativeClauseSyntax::Noi {
@@ -1185,9 +1297,13 @@ fn relative_clause(value: &RelativeClauseSyntax, source: &BracketContext<'_>) ->
             kuho,
         }) => {
             let mut children = vec![with_free_word(noi, source), subsentence(inner, source)];
-            if let Some(kuho) = kuho {
-                children.push(with_free_word(kuho, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                kuho.as_ref(),
+                Cmavo::Kuho,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(RelativeClauseSyntax::Zihe { zihe, inner }) => sexpr::node(vec![
@@ -1213,9 +1329,13 @@ fn quote_syntax(value: &QuoteSyntax, source: &BracketContext<'_>) -> sexpr::SExp
                     .map(|item| free_modifier(item, source)),
             );
             children.push(self::text(text, source));
-            if let Some(lihu) = lihu {
-                children.push(with_free_word(lihu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                lihu.as_ref(),
+                Cmavo::Lihu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(QuoteSyntax::Zo(zo))
@@ -1231,9 +1351,13 @@ fn quantifier_syntax(value: &QuantifierSyntax, source: &BracketContext<'_>) -> s
     match value.as_data() {
         data!(QuantifierSyntax::Number { number, boi }) => {
             let mut children = vec![with_free_words(number, source)];
-            if let Some(boi) = boi {
-                children.push(with_free_word(boi, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                boi.as_ref(),
+                Cmavo::Boi,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(QuantifierSyntax::Vei {
@@ -1245,9 +1369,13 @@ fn quantifier_syntax(value: &QuantifierSyntax, source: &BracketContext<'_>) -> s
                 with_free_word(vei, source),
                 self::math_expression(math_expression, source),
             ];
-            if let Some(veho) = veho {
-                children.push(with_free_word(veho, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                veho.as_ref(),
+                Cmavo::Veho,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
     }
@@ -1260,9 +1388,13 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
         data!(MathExpressionSyntax::Number(number)) => quantifier_syntax(number, source),
         data!(MathExpressionSyntax::Letter { letter, boi }) => {
             let mut children = vec![with_free_words(letter, source)];
-            if let Some(boi) = boi {
-                children.push(with_free_word(boi, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                boi.as_ref(),
+                Cmavo::Boi,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(MathExpressionSyntax::Binary {
@@ -1292,9 +1424,13 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
                 with_free_word_no_leading_pause(vei, source),
                 self::math_expression(inner_expression, source),
             ];
-            if let Some(veho) = veho {
-                children.push(with_free_word_no_leading_pause(veho, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                veho.as_ref(),
+                Cmavo::Veho,
+                source,
+                with_free_word_no_leading_pause,
+            );
             sexpr::node(children)
         }
         data!(MathExpressionSyntax::Gek {
@@ -1325,9 +1461,13 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
                     .map(|item| self::math_expression(item, source))
                     .collect(),
             ));
-            if let Some(kuhe) = kuhe {
-                children.push(with_free_word(kuhe, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                kuhe.as_ref(),
+                Cmavo::Kuhe,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(MathExpressionSyntax::ReversePolish {
@@ -1353,9 +1493,13 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
                 with_free_word(nihe, source),
                 relation_syntax(relation, source),
             ];
-            if let Some(tehu) = tehu {
-                children.push(with_free_word(tehu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                tehu.as_ref(),
+                Cmavo::Tehu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(MathExpressionSyntax::Mohe {
@@ -1367,9 +1511,13 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
                 with_free_word(mohe, source),
                 argument_syntax(argument, source),
             ];
-            if let Some(tehu) = tehu {
-                children.push(with_free_word(tehu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                tehu.as_ref(),
+                Cmavo::Tehu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(MathExpressionSyntax::Johi {
@@ -1384,9 +1532,13 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
                     .map(|item| self::math_expression(item, source))
                     .collect(),
             ));
-            if let Some(tehu) = tehu {
-                children.push(with_free_word(tehu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                tehu.as_ref(),
+                Cmavo::Tehu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(MathExpressionSyntax::Lahe {
@@ -1398,9 +1550,13 @@ fn math_expression(value: &MathExpressionSyntax, source: &BracketContext<'_>) ->
                 with_free_words(markers, source),
                 self::math_expression(inner_expression, source),
             ];
-            if let Some(luhu) = luhu {
-                children.push(with_free_word(luhu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                luhu.as_ref(),
+                Cmavo::Luhu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(MathExpressionSyntax::Bihe {
@@ -1456,9 +1612,13 @@ fn math_operator(value: &MathOperatorSyntax, source: &BracketContext<'_>) -> sex
                 with_free_word(maho, source),
                 self::math_expression(math_expression, source),
             ];
-            if let Some(tehu) = tehu {
-                children.push(with_free_word(tehu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                tehu.as_ref(),
+                Cmavo::Tehu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(MathOperatorSyntax::Se { se, inner_operator })
@@ -1478,9 +1638,13 @@ fn math_operator(value: &MathOperatorSyntax, source: &BracketContext<'_>) -> sex
                 with_free_word(nahu, source),
                 relation_syntax(relation, source),
             ];
-            if let Some(tehu) = tehu {
-                children.push(with_free_word(tehu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                tehu.as_ref(),
+                Cmavo::Tehu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(MathOperatorSyntax::Ke {
@@ -1492,9 +1656,13 @@ fn math_operator(value: &MathOperatorSyntax, source: &BracketContext<'_>) -> sex
                 with_free_word(ke, source),
                 math_operator(inner_operator, source),
             ];
-            if let Some(kehe) = kehe {
-                children.push(with_free_word(kehe, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                kehe.as_ref(),
+                Cmavo::Kehe,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(MathOperatorSyntax::Bo {
@@ -1578,9 +1746,13 @@ fn relation_syntax(value: &RelationSyntax, source: &BracketContext<'_>) -> sexpr
             }
             children.push(with_free_word(ke, source));
             children.push(relation_syntax(relation, source));
-            if let Some(kehe) = kehe {
-                children.push(with_free_word(kehe, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                kehe.as_ref(),
+                Cmavo::Kehe,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(RelationSyntax::TenseModal {
@@ -1639,9 +1811,13 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
             }
             children.push(with_free_word(ke, source));
             children.push(relation_syntax(relation, source));
-            if let Some(kehe) = kehe {
-                children.push(with_free_word(kehe, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                kehe.as_ref(),
+                Cmavo::Kehe,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(RelationUnitSyntax::Nahe { nahe, inner_unit }) => sexpr::node(vec![
@@ -1735,9 +1911,13 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
                 with_free_word(me, source),
                 argument_syntax(argument, source),
             ];
-            if let Some(mehu) = mehu {
-                children.push(with_free_word(mehu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                mehu.as_ref(),
+                Cmavo::Mehu,
+                source,
+                with_free_word,
+            );
             if let Some(moi) = moi_marker {
                 children.push(with_free_word(moi, source));
             }
@@ -1748,9 +1928,13 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
         data!(RelationUnitSyntax::Muhoi(muhoi)) => with_free_word(muhoi, source),
         data!(RelationUnitSyntax::Luhei { luhei, text, liau }) => {
             let mut children = vec![with_free_word(luhei, source), self::text(text, source)];
-            if let Some(liau) = liau {
-                children.push(with_free_word(liau, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                liau.as_ref(),
+                Cmavo::Lihau,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(RelationUnitSyntax::Moi { number, moi }) => {
@@ -1789,9 +1973,13 @@ fn relation_unit(value: &RelationUnitSyntax, source: &BracketContext<'_>) -> sex
                     with_free_word(&item.nohoi, source),
                     relation_syntax(&item.relation, source),
                 ];
-                if let Some(kuhoi) = &item.kuhoi {
-                    items.push(with_free_word(kuhoi, source));
-                }
+                push_optional_elidable(
+                    &mut items,
+                    item.kuhoi.as_ref(),
+                    Cmavo::Kuhoi,
+                    source,
+                    with_free_word,
+                );
                 sexpr::node(items)
             }));
             sexpr::node(children)
@@ -1820,9 +2008,13 @@ fn be_link_node(
         link_children.push(argument_syntax(argument, source));
     }
     link_children.extend(bei_links.iter().map(|item| bei_link(item, source)));
-    if let Some(beho) = beho {
-        link_children.push(with_free_word(beho, source));
-    }
+    push_optional_elidable(
+        &mut link_children,
+        beho,
+        Cmavo::Beho,
+        source,
+        with_free_word,
+    );
     if preposed {
         link_children.push(base);
         sexpr::node(link_children)
@@ -1864,9 +2056,13 @@ fn abstraction_syntax(value: &AbstractionSyntax, source: &BracketContext<'_>) ->
         sexpr::node(items)
     }));
     children.push(subsentence(&value.subsentence, source));
-    if let Some(kei) = &value.kei {
-        children.push(with_free_word(kei, source));
-    }
+    push_optional_elidable(
+        &mut children,
+        value.kei.as_ref(),
+        Cmavo::Kei,
+        source,
+        with_free_word,
+    );
     sexpr::node(children)
 }
 
@@ -1883,9 +2079,13 @@ fn tense_modal_syntax(value: &TenseModalSyntax, source: &BracketContext<'_>) -> 
                 with_free_word(fiho, source),
                 relation_syntax(relation, source),
             ];
-            if let Some(fehu) = fehu {
-                children.push(with_free_word(fehu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                fehu.as_ref(),
+                Cmavo::Fehu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(TenseModalSyntax::Simple {
@@ -1987,9 +2187,13 @@ fn fiho_modal(value: &FihoModalSyntax, source: &BracketContext<'_>) -> sexpr::SE
     }
     children.push(with_free_word(&value.fiho, source));
     children.push(relation_syntax(&value.relation, source));
-    if let Some(fehu) = &value.fehu {
-        children.push(with_free_word(fehu, source));
-    }
+    push_optional_elidable(
+        &mut children,
+        value.fehu.as_ref(),
+        Cmavo::Fehu,
+        source,
+        with_free_word,
+    );
     sexpr::node(children)
 }
 
@@ -2123,16 +2327,24 @@ fn free_modifier(value: &FreeModifierSyntax, source: &BracketContext<'_>) -> sex
                 children.push(with_free_word(cu, source));
             }
             children.push(relation_syntax(relation, source));
-            if let Some(sehu) = sehu {
-                children.push(with_free_word(sehu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                sehu.as_ref(),
+                Cmavo::Sehu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(FreeModifierSyntax::To { to, text, toi }) => {
             let mut children = vec![with_free_word(to, source), self::text(text, source)];
-            if let Some(toi) = toi {
-                children.push(with_free_word(toi, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                toi.as_ref(),
+                Cmavo::Toi,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(FreeModifierSyntax::Xi { xi, expression }) => sexpr::node(vec![
@@ -2157,9 +2369,13 @@ fn free_modifier(value: &FreeModifierSyntax, source: &BracketContext<'_>) -> sex
             if let Some(argument) = trailing_argument {
                 children.push(argument_syntax(argument, source));
             }
-            if let Some(sehu) = sehu {
-                children.push(with_free_word(sehu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                sehu.as_ref(),
+                Cmavo::Sehu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(FreeModifierSyntax::Vocative {
@@ -2171,9 +2387,13 @@ fn free_modifier(value: &FreeModifierSyntax, source: &BracketContext<'_>) -> sex
             if let Some(argument) = argument {
                 children.push(argument_syntax(argument, source));
             }
-            if let Some(dohu) = dohu {
-                children.push(with_free_word(dohu, source));
-            }
+            push_optional_elidable(
+                &mut children,
+                dohu.as_ref(),
+                Cmavo::Dohu,
+                source,
+                with_free_word,
+            );
             sexpr::node(children)
         }
         data!(FreeModifierSyntax::Replacement {
@@ -2463,6 +2683,73 @@ fn word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
         ),
         Some(word_bracket_source_range(word)),
     )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_optional_elidable<T>(
+    children: &mut Vec<sexpr::SExpr>,
+    value: Option<&T>,
+    cmavo: Cmavo,
+    source: &BracketContext<'_>,
+    render: impl FnOnce(&T, &BracketContext<'_>) -> sexpr::SExpr,
+) {
+    if let Some(value) = value {
+        children.push(render(value, source));
+    } else if source.options.show_elided {
+        let terminator = elided_terminator_leaf(cmavo, children, source);
+        children.push(terminator);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn elided_terminator_leaf(
+    cmavo: Cmavo,
+    previous_siblings: &[sexpr::SExpr],
+    source: &BracketContext<'_>,
+) -> sexpr::SExpr {
+    sexpr::leaf_with_range(
+        overstrike_text(elided_cmavo_text(cmavo, source.options.phonemes)),
+        last_child_end_range(previous_siblings),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn last_child_end_range(children: &[sexpr::SExpr]) -> Option<BracketSourceRange> {
+    children.iter().rev().find_map(expr_end_range)
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|range| range.byte_start == range.byte_end))]
+fn expr_end_range(expr: &sexpr::SExpr) -> Option<BracketSourceRange> {
+    let range = match expr {
+        sexpr::SExpr::Leaf { range, .. } | sexpr::SExpr::Node { range, .. } => *range,
+    }?;
+    Some(BracketSourceRange {
+        byte_start: range.byte_end,
+        byte_end: range.byte_end,
+    })
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn elided_cmavo_text(cmavo: Cmavo, options: jbotci_morphology::PhonemeRenderOptions) -> String {
+    Phonemes::from_canonical(cmavo.canonical_text().to_owned())
+        .expect("cmavo canonical text is valid phoneme text")
+        .render(options)
+}
+
+#[requires(true)]
+#[ensures(ret.chars().count() == text.chars().count() * 2)]
+fn overstrike_text(text: String) -> String {
+    let mut rendered = String::with_capacity(text.len() * 2);
+    for ch in text.chars() {
+        rendered.push(ch);
+        rendered.push('\u{0336}');
+    }
+    rendered
 }
 
 #[requires(true)]
