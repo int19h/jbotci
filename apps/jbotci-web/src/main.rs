@@ -5,11 +5,6 @@ use jbotci_cll::{
     CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation, cll_link_href,
     embedded_cll_site, wrap_ebnf_choice_lines,
 };
-use jbotci_gentufa::GentufaSvgOptions;
-#[cfg(target_arch = "wasm32")]
-use jbotci_gentufa::{
-    GentufaFontData, GentufaPngOptions, render_gentufa_blocks_png, render_gentufa_blocks_svg,
-};
 use jbotci_output::{GlideMark, PhonemeRenderOptions, StressMark};
 use jbotci_web_core::{
     CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption, CuktaPageData, CuktaPageKind,
@@ -23,12 +18,11 @@ use jbotci_web_core::{
     VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
     VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
     VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebResult,
-    VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection, WebFeatureAvailability, WebRoute,
-    build_cukta_semantic_web_page, build_cukta_web_page, build_page_meta,
-    build_vlacku_jvozba_output, build_vlacku_semantic_web_result, build_vlacku_web_result,
-    cukta_web_url, dictionary_tooltip_for_rafsi, dictionary_tooltip_for_word,
-    embedding_worker_corpus_json, gentufa_web_url, normalize_vlacku_state, parse_cukta_web_route,
-    parse_gentufa_for_web, parse_gentufa_web_route, parse_vlacku_web_route, parse_web_route,
+    VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest,
+    WebComputeResponse, WebFeatureAvailability, WebRoute, build_page_meta,
+    build_vlacku_jvozba_output, cukta_web_url, dictionary_tooltip_for_rafsi,
+    dictionary_tooltip_for_word, gentufa_web_url, normalize_vlacku_state, parse_cukta_web_route,
+    parse_gentufa_web_route, parse_vlacku_web_route, parse_web_route,
     toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
     vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
 };
@@ -48,6 +42,8 @@ use std::cell::Cell;
 use std::future::Future;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
+const COMPUTE_JS: Asset = asset!("/assets/compute.js");
+const COMPUTE_WORKER_JS: Asset = asset!("/assets/compute-worker.js");
 const EMBEDDINGS_JS: Asset = asset!("/assets/embeddings.js");
 const EMBEDDING_WORKER_JS: Asset = asset!("/assets/embedding-worker.js");
 const MANIFEST: Asset = asset!("/assets/manifest.webmanifest");
@@ -88,6 +84,11 @@ const DEFAULT_GENTUFA_TEXT: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci 
 const VLACKU_SEARCH_DEBOUNCE_MS: i32 = 900;
 const VLACKU_URL_DEBOUNCE_MS: i32 = 450;
 const GENTUFA_URL_DEBOUNCE_MS: i32 = 650;
+const COMPUTE_CHANNEL_GENTUFA: &str = "gentufa-page";
+const COMPUTE_CHANNEL_CUKTA: &str = "cukta-page";
+const COMPUTE_CHANNEL_VLACKU: &str = "vlacku-page";
+const COMPUTE_CHANNEL_EMBEDDINGS: &str = "embedding-corpus";
+const COMPUTE_CHANNEL_EXPORT: &str = "gentufa-export";
 #[cfg(target_arch = "wasm32")]
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS: i32 = 30;
 #[cfg(target_arch = "wasm32")]
@@ -250,7 +251,6 @@ impl AsyncActivityState {
 
 #[derive(Debug)]
 #[invariant(true)]
-#[allow(dead_code)]
 struct AsyncActivityGuard {
     activity: Signal<AsyncActivityState>,
     task_id: AsyncTaskId,
@@ -293,7 +293,6 @@ impl Drop for AsyncActivityGuard {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
-#[allow(dead_code)]
 struct LatestAsyncTask {
     task: Task,
     task_id: AsyncTaskId,
@@ -373,6 +372,37 @@ struct CuktaSemanticResultState {
     loading: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct GentufaAsyncPageState {
+    state: Option<GentufaWebState>,
+    request: Option<GentufaWebRequest>,
+    result: GentufaWebResult,
+    meta: Option<PageMeta>,
+    loading: bool,
+    error: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct CuktaAsyncPageState {
+    state: Option<CuktaWebState>,
+    page: CuktaPageData,
+    meta: Option<PageMeta>,
+    loading: bool,
+    error: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[invariant(true)]
+struct VlackuAsyncResultState {
+    state: Option<VlackuWebState>,
+    result: VlackuWebResult,
+    meta: Option<PageMeta>,
+    loading: bool,
+    error: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 struct GentufaDisplayState {
@@ -427,6 +457,50 @@ impl Default for UserSettings {
             script: GentufaScript::Latin,
             stress: StressMark::Acute,
             glides: GlideMark::Breve,
+        }
+    }
+}
+
+impl Default for GentufaAsyncPageState {
+    #[requires(true)]
+    #[ensures(matches!(ret.result, GentufaWebResult::Blank))]
+    fn default() -> Self {
+        Self {
+            state: None,
+            request: None,
+            result: GentufaWebResult::Blank,
+            meta: None,
+            loading: false,
+            error: None,
+        }
+    }
+}
+
+impl Default for CuktaAsyncPageState {
+    #[requires(true)]
+    #[ensures(ret.state.is_none())]
+    fn default() -> Self {
+        Self {
+            state: None,
+            page: cukta_loading_page_data("Loading CLL page."),
+            meta: None,
+            loading: false,
+            error: None,
+        }
+    }
+}
+
+impl Default for VlackuAsyncResultState {
+    #[requires(true)]
+    #[ensures(ret.state.is_none())]
+    fn default() -> Self {
+        let state = VlackuWebState::default();
+        Self {
+            state: None,
+            result: vlacku_loading_result(&state, "Loading dictionary results."),
+            meta: None,
+            loading: false,
+            error: None,
         }
     }
 }
@@ -597,16 +671,14 @@ fn App() -> Element {
     let vlacku_draft_state = use_signal(|| initial_vlacku.clone());
     let vlacku_committed_state = use_signal(|| initial_vlacku);
     let vlacku_semantic_result = use_signal(VlackuSemanticResultState::default);
-    let vlacku_result = use_memo(move || {
-        let state = vlacku_committed_state.read().clone();
-        build_vlacku_web_result(&state)
-    });
-    let cukta_page_base_path = base_path.clone();
+    let vlacku_result = use_signal(VlackuAsyncResultState::default);
+    let vlacku_result_task = use_signal(|| None::<LatestAsyncTask>);
+    let vlacku_semantic_task = use_signal(|| None::<LatestAsyncTask>);
     let cukta_semantic_result = use_signal(CuktaSemanticResultState::default);
-    let cukta_page = use_memo(move || {
-        let state = cukta_state.read().clone();
-        build_cukta_web_page(&cukta_page_base_path, &state)
-    });
+    let cukta_page = use_signal(CuktaAsyncPageState::default);
+    let cukta_page_task = use_signal(|| None::<LatestAsyncTask>);
+    let cukta_semantic_task = use_signal(|| None::<LatestAsyncTask>);
+    let pending_cukta_scroll = use_signal(|| None::<String>);
     let jvozba_pane = use_signal(load_vlacku_jvozba_pane_state);
     let jvozba_drag = use_signal(|| None::<VlackuJvozbaDragState>);
     let initial_input_text = initial_gentufa_text.clone();
@@ -618,22 +690,16 @@ fn App() -> Element {
     let dialect = use_signal(move || initial_dialect.clone());
     let mut parsed_dialect = use_signal(move || initial_parsed_dialect.clone());
     let reference_hover = use_signal(ReferenceHoverState::default);
+    let gentufa_page = use_signal(GentufaAsyncPageState::default);
+    let gentufa_page_task = use_signal(|| None::<LatestAsyncTask>);
+    let export_task = use_signal(|| None::<LatestAsyncTask>);
 
     let settings_value = *settings.read();
     let activity_value = activity.read().clone();
     let route_value = *route.read();
     let view_mode_value = *view_mode.read();
     let gentufa_display_value = *gentufa_display.read();
-    let request = GentufaWebRequest {
-        text: parsed_text.read().clone(),
-        options: web_options(
-            settings_value,
-            gentufa_display_value,
-            view_mode_value,
-            parsed_dialect.read().clone(),
-        ),
-    };
-    let result = parse_gentufa_for_web(&request);
+    let result = gentufa_page.read().result.clone();
     let nav_gentufa_state = gentufa_state_from_parts(
         &input_text.read(),
         &dialect.read(),
@@ -656,22 +722,106 @@ fn App() -> Element {
         view_mode,
         gentufa_display,
         gentufa_text_explicit,
+        pending_cukta_scroll,
         &base_path,
     );
     use_effect(move || {
         configure_embedding_worker_url(&format!("{EMBEDDING_WORKER_JS}"));
+        configure_compute_worker_url(&format!("{COMPUTE_WORKER_JS}"));
     });
+    let settings_meta_base_path = base_path.clone();
     use_effect(move || {
         if *route.read() == AppRoute::Settings {
-            spawn(async move {
+            let meta = build_page_meta(&settings_meta_base_path, &WebRoute::Settings);
+            sync_document_head(&meta);
+            spawn_tracked(activity, AsyncTaskKind::Settings, async move {
                 refresh_embedding_settings(embedding_settings).await;
             });
         }
     });
+    let gentufa_base_path = base_path.clone();
+    use_effect(move || {
+        if *route.read() != AppRoute::Gentufa {
+            cancel_compute_channel(COMPUTE_CHANNEL_GENTUFA);
+            cancel_latest_task(gentufa_page_task);
+            return;
+        }
+        let settings_value = *settings.read();
+        let display_value = *gentufa_display.read();
+        let view_mode_value = *view_mode.read();
+        let text = parsed_text.read().clone();
+        let dialect_text = parsed_dialect.read().clone();
+        let text_explicit = *gentufa_text_explicit.read();
+        let state = gentufa_state_from_parts(
+            &text,
+            &dialect_text,
+            view_mode_value,
+            display_value,
+            text_explicit,
+        );
+        let request = GentufaWebRequest {
+            text,
+            options: web_options(settings_value, display_value, view_mode_value, dialect_text),
+        };
+        let mut page_signal = gentufa_page;
+        page_signal.with_mut(|page| {
+            page.state = Some(state.clone());
+            page.request = Some(request.clone());
+            page.loading = true;
+            page.error = None;
+        });
+        let base_path = gentufa_base_path.clone();
+        let mut result_signal = gentufa_page;
+        cancel_compute_channel(COMPUTE_CHANNEL_GENTUFA);
+        spawn_latest_tracked(
+            gentufa_page_task,
+            activity,
+            AsyncTaskKind::Gentufa,
+            async move {
+                let response = compute_request(
+                    COMPUTE_CHANNEL_GENTUFA,
+                    WebComputeRequest::GentufaPage {
+                        base_path,
+                        state: state.clone(),
+                        request: request.clone(),
+                    },
+                )
+                .await;
+                match response {
+                    Ok(WebComputeResponse::GentufaPage { result, meta }) => {
+                        result_signal.set(GentufaAsyncPageState {
+                            state: Some(state),
+                            request: Some(request),
+                            result,
+                            meta: Some(meta.clone()),
+                            loading: false,
+                            error: None,
+                        });
+                        sync_document_head(&meta);
+                        schedule_gentufa_block_reference_layout();
+                    }
+                    Ok(_) => {
+                        result_signal.set(gentufa_async_error_state(
+                            state,
+                            request,
+                            "compute worker returned the wrong gentufa response",
+                        ));
+                    }
+                    Err(error) => {
+                        result_signal.set(gentufa_async_error_state(state, request, &error));
+                    }
+                }
+            },
+        );
+    });
     use_effect(move || {
         let state = vlacku_committed_state.read().clone();
         let mut result_signal = vlacku_semantic_result;
-        if state.mode != VlackuWebMode::Meaning || state.query.trim().is_empty() {
+        if *route.read() != AppRoute::Vlacku
+            || state.mode != VlackuWebMode::Meaning
+            || state.query.trim().is_empty()
+        {
+            cancel_latest_task(vlacku_semantic_task);
             result_signal.set(VlackuSemanticResultState::default());
             return;
         }
@@ -681,10 +831,63 @@ fn App() -> Element {
             message: None,
             loading: true,
         });
-        spawn(async move {
-            let result = load_vlacku_semantic_result(state).await;
-            result_signal.set(result);
+        spawn_latest_tracked(
+            vlacku_semantic_task,
+            activity,
+            AsyncTaskKind::Vlacku,
+            async move {
+                let result = load_vlacku_semantic_result(state).await;
+                result_signal.set(result);
+            },
+        );
+    });
+    let vlacku_page_base_path = base_path.clone();
+    use_effect(move || {
+        if *route.read() != AppRoute::Vlacku {
+            cancel_compute_channel(COMPUTE_CHANNEL_VLACKU);
+            cancel_latest_task(vlacku_result_task);
+            return;
+        }
+        let state = vlacku_committed_state.read().clone();
+        let semantic = vlacku_semantic_result.read().clone();
+        let request = vlacku_compute_request(&vlacku_page_base_path, &state, &semantic);
+        let mut page_signal = vlacku_result;
+        page_signal.with_mut(|page| {
+            page.state = Some(state.clone());
+            page.loading = true;
+            page.error = None;
         });
+        let mut result_signal = vlacku_result;
+        cancel_compute_channel(COMPUTE_CHANNEL_VLACKU);
+        spawn_latest_tracked(
+            vlacku_result_task,
+            activity,
+            AsyncTaskKind::Vlacku,
+            async move {
+                let response = compute_request(COMPUTE_CHANNEL_VLACKU, request).await;
+                match response {
+                    Ok(WebComputeResponse::VlackuPage { result, meta }) => {
+                        result_signal.set(VlackuAsyncResultState {
+                            state: Some(state),
+                            result,
+                            meta: Some(meta.clone()),
+                            loading: false,
+                            error: None,
+                        });
+                        sync_document_head(&meta);
+                    }
+                    Ok(_) => {
+                        result_signal.set(vlacku_async_error_state(
+                            &state,
+                            "compute worker returned the wrong vlacku response",
+                        ));
+                    }
+                    Err(error) => {
+                        result_signal.set(vlacku_async_error_state(&state, &error));
+                    }
+                }
+            },
+        );
     });
     use_effect(move || {
         let state = cukta_state.read().clone();
@@ -696,11 +899,16 @@ fn App() -> Element {
                 search_state
             }
             _ => {
+                cancel_latest_task(cukta_semantic_task);
                 let mut result_signal = cukta_semantic_result;
                 result_signal.set(CuktaSemanticResultState::default());
                 return;
             }
         };
+        if *route.read() != AppRoute::Cukta {
+            cancel_latest_task(cukta_semantic_task);
+            return;
+        }
         let mut result_signal = cukta_semantic_result;
         result_signal.set(CuktaSemanticResultState {
             state: Some(search_state.clone()),
@@ -708,28 +916,67 @@ fn App() -> Element {
             message: None,
             loading: true,
         });
-        spawn(async move {
-            let result = load_cukta_semantic_result(search_state).await;
-            result_signal.set(result);
-        });
-    });
-    let meta_base_path = base_path.clone();
-    use_effect(move || {
-        let route = *route.read();
-        let web_route = web_route_from_app_state(
-            route,
-            &cukta_state.read(),
-            &vlacku_committed_state.read(),
-            &gentufa_state_from_parts(
-                &parsed_text.read(),
-                &parsed_dialect.read(),
-                *view_mode.read(),
-                *gentufa_display.read(),
-                *gentufa_text_explicit.read(),
-            ),
+        spawn_latest_tracked(
+            cukta_semantic_task,
+            activity,
+            AsyncTaskKind::Cukta,
+            async move {
+                let result = load_cukta_semantic_result(search_state).await;
+                result_signal.set(result);
+            },
         );
-        let meta = build_page_meta(&meta_base_path, &web_route);
-        sync_document_head(&meta);
+    });
+    let cukta_page_base_path = base_path.clone();
+    use_effect(move || {
+        if *route.read() != AppRoute::Cukta {
+            cancel_compute_channel(COMPUTE_CHANNEL_CUKTA);
+            cancel_latest_task(cukta_page_task);
+            return;
+        }
+        let state = cukta_state.read().clone();
+        let semantic = cukta_semantic_result.read().clone();
+        let request = cukta_compute_request(&cukta_page_base_path, &state, &semantic);
+        let mut page_signal = cukta_page;
+        page_signal.with_mut(|page| {
+            page.state = Some(state.clone());
+            page.loading = true;
+            page.error = None;
+        });
+        let mut result_signal = cukta_page;
+        let mut pending_scroll = pending_cukta_scroll;
+        cancel_compute_channel(COMPUTE_CHANNEL_CUKTA);
+        spawn_latest_tracked(
+            cukta_page_task,
+            activity,
+            AsyncTaskKind::Cukta,
+            async move {
+                let response = compute_request(COMPUTE_CHANNEL_CUKTA, request).await;
+                match response {
+                    Ok(WebComputeResponse::CuktaPage { page, meta }) => {
+                        result_signal.set(CuktaAsyncPageState {
+                            state: Some(state),
+                            page,
+                            meta: Some(meta.clone()),
+                            loading: false,
+                            error: None,
+                        });
+                        sync_document_head(&meta);
+                        if let Some(target) = pending_scroll.write().take() {
+                            scroll_to_cukta_href(&target);
+                        }
+                    }
+                    Ok(_) => {
+                        result_signal.set(cukta_async_error_state(
+                            state,
+                            "compute worker returned the wrong cukta response",
+                        ));
+                    }
+                    Err(error) => {
+                        result_signal.set(cukta_async_error_state(state, &error));
+                    }
+                }
+            },
+        );
     });
     let vlacku_url_base_path = base_path.clone();
     use_effect(move || {
@@ -790,6 +1037,8 @@ fn App() -> Element {
     rsx! {
         style { "{font_face_css()}" }
         document::Stylesheet { href: MAIN_CSS }
+        document::Link { rel: "modulepreload", href: COMPUTE_JS }
+        document::Link { rel: "modulepreload", href: COMPUTE_WORKER_JS }
         document::Link { rel: "modulepreload", href: EMBEDDINGS_JS }
         document::Link { rel: "modulepreload", href: EMBEDDING_WORKER_JS }
         document::Link { rel: "manifest", href: MANIFEST }
@@ -849,17 +1098,16 @@ fn App() -> Element {
                                             }
                                         }
                                         div { class: "gentufa-result-stack",
-                                            { render_result(&result, view_mode, view_mode_value, gentufa_display, gentufa_display_value, settings_value, reference_hover) }
+                                            { render_result(&result, view_mode, view_mode_value, gentufa_display, gentufa_display_value, settings_value, reference_hover, activity, export_task) }
                                         }
                                     }
                                 }
                             },
-                            AppRoute::Settings => render_settings(settings, settings_value, embedding_settings),
+                            AppRoute::Settings => render_settings(settings, settings_value, embedding_settings, activity),
                             AppRoute::Cukta => {
                                 render_cukta_page(
                                     cukta_state,
                                     cukta_page,
-                                    cukta_semantic_result,
                                     cukta_toc_filter,
                                     cukta_toc_pinned,
                                     cukta_toc_expansion,
@@ -873,7 +1121,6 @@ fn App() -> Element {
                                     vlacku_draft_state,
                                     vlacku_committed_state,
                                     vlacku_result,
-                                    vlacku_semantic_result,
                                     jvozba_pane,
                                     jvozba_drag,
                                     &base_path,
@@ -1099,6 +1346,19 @@ extern "C" {
 }
 
 #[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(module = "/assets/compute.js")]
+extern "C" {
+    #[wasm_bindgen(js_name = jbotciComputeConfigureWorker)]
+    fn js_compute_configure_worker(worker_url: &str);
+
+    #[wasm_bindgen(js_name = jbotciComputeCancel)]
+    fn js_compute_cancel(channel: &str);
+
+    #[wasm_bindgen(js_name = jbotciComputeRequest)]
+    fn js_compute_request(channel: &str, request_json: &str) -> js_sys::Promise;
+}
+
+#[cfg(target_arch = "wasm32")]
 #[requires(!worker_url.is_empty())]
 #[ensures(true)]
 fn configure_embedding_worker_url(worker_url: &str) {
@@ -1109,6 +1369,20 @@ fn configure_embedding_worker_url(worker_url: &str) {
 #[requires(!worker_url.is_empty())]
 #[ensures(true)]
 fn configure_embedding_worker_url(worker_url: &str) {
+    let _ = worker_url;
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(!worker_url.is_empty())]
+#[ensures(true)]
+fn configure_compute_worker_url(worker_url: &str) {
+    js_compute_configure_worker(worker_url);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(!worker_url.is_empty())]
+#[ensures(true)]
+fn configure_compute_worker_url(worker_url: &str) {
     let _ = worker_url;
 }
 
@@ -1135,7 +1409,21 @@ async fn refresh_embedding_settings(mut settings: Signal<EmbeddingSettingsState>
 #[requires(true)]
 #[ensures(true)]
 async fn setup_browser_embeddings(mut settings: Signal<EmbeddingSettingsState>) {
-    let corpus_json = embedding_worker_corpus_json();
+    let corpus_json = match embedding_corpus_json_from_compute_worker().await {
+        Ok(json) => json,
+        Err(error) => {
+            settings.set(EmbeddingSettingsState {
+                status: "error".to_owned(),
+                detail: error,
+                model_size: "unknown".to_owned(),
+                index_size: "unknown".to_owned(),
+                progress_label: None,
+                progress_percent: None,
+                busy: false,
+            });
+            return;
+        }
+    };
     match embedding_setup_json(&corpus_json).await {
         Ok(json) => settings.set(embedding_settings_from_json(
             &json,
@@ -1151,6 +1439,20 @@ async fn setup_browser_embeddings(mut settings: Signal<EmbeddingSettingsState>) 
             busy: false,
         }),
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn embedding_corpus_json_from_compute_worker() -> Result<String, String> {
+    let response = compute_request(
+        COMPUTE_CHANNEL_EMBEDDINGS,
+        WebComputeRequest::EmbeddingCorpusJson,
+    )
+    .await?;
+    let WebComputeResponse::EmbeddingCorpusJson { json } = response else {
+        return Err("compute worker returned the wrong embedding corpus response".to_owned());
+    };
+    Ok(json)
 }
 
 #[requires(true)]
@@ -1295,6 +1597,157 @@ fn push_unique_filter(filters: &mut Vec<String>, filter: &str) {
     }
 }
 
+#[requires(!message.is_empty())]
+#[ensures(matches!(ret.page_kind, CuktaPageKind::Error { .. }))]
+fn cukta_loading_page_data(message: &str) -> CuktaPageData {
+    CuktaPageData {
+        toc: Vec::new(),
+        current_section_id: None,
+        page_kind: CuktaPageKind::Error {
+            message: message.to_owned(),
+        },
+    }
+}
+
+#[requires(!message.is_empty())]
+#[ensures(ret.message.as_ref().is_some_and(|value| value == message))]
+fn vlacku_loading_result(state: &VlackuWebState, message: &str) -> VlackuWebResult {
+    VlackuWebResult {
+        state: state.clone(),
+        cards: Vec::new(),
+        word_type_options: vlacku_word_type_options(&state.word_types),
+        dictionary_info: None,
+        has_more: false,
+        message: Some(message.to_owned()),
+        errors: Vec::new(),
+    }
+}
+
+#[requires(!message.is_empty())]
+#[ensures(ret.error.as_ref().is_some_and(|error| error == message))]
+fn gentufa_async_error_state(
+    state: GentufaWebState,
+    request: GentufaWebRequest,
+    message: &str,
+) -> GentufaAsyncPageState {
+    GentufaAsyncPageState {
+        state: Some(state),
+        request: Some(request),
+        result: GentufaWebResult::Error(GentufaError {
+            phase: None,
+            message: message.to_owned(),
+            diagnostics: Vec::new(),
+        }),
+        meta: None,
+        loading: false,
+        error: Some(message.to_owned()),
+    }
+}
+
+#[requires(!message.is_empty())]
+#[ensures(ret.error.as_ref().is_some_and(|error| error == message))]
+fn cukta_async_error_state(state: CuktaWebState, message: &str) -> CuktaAsyncPageState {
+    CuktaAsyncPageState {
+        state: Some(state),
+        page: cukta_loading_page_data(message),
+        meta: None,
+        loading: false,
+        error: Some(message.to_owned()),
+    }
+}
+
+#[requires(!message.is_empty())]
+#[ensures(ret.error.as_ref().is_some_and(|error| error == message))]
+fn vlacku_async_error_state(state: &VlackuWebState, message: &str) -> VlackuAsyncResultState {
+    VlackuAsyncResultState {
+        state: Some(state.clone()),
+        result: vlacku_loading_result(state, message),
+        meta: None,
+        loading: false,
+        error: Some(message.to_owned()),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_compute_request(
+    base_path: &str,
+    state: &VlackuWebState,
+    semantic: &VlackuSemanticResultState,
+) -> WebComputeRequest {
+    if state.mode != VlackuWebMode::Meaning {
+        return WebComputeRequest::VlackuPage {
+            base_path: base_path.to_owned(),
+            state: state.clone(),
+        };
+    }
+    let message = if state.query.trim().is_empty() {
+        None
+    } else if semantic.state.as_ref() == Some(state) {
+        if semantic.loading {
+            Some("Loading semantic search index.".to_owned())
+        } else {
+            semantic.message.clone()
+        }
+    } else {
+        Some("Loading semantic search index.".to_owned())
+    };
+    let hits = if semantic.state.as_ref() == Some(state) && !semantic.loading {
+        semantic.hits.clone()
+    } else {
+        Vec::new()
+    };
+    WebComputeRequest::VlackuSemanticPage {
+        base_path: base_path.to_owned(),
+        state: state.clone(),
+        hits,
+        message,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_compute_request(
+    base_path: &str,
+    state: &CuktaWebState,
+    semantic: &CuktaSemanticResultState,
+) -> WebComputeRequest {
+    let CuktaWebView::Search(search_state) = &state.view else {
+        return WebComputeRequest::CuktaPage {
+            base_path: base_path.to_owned(),
+            state: state.clone(),
+        };
+    };
+    if search_state.mode != CuktaWebMode::Meaning {
+        return WebComputeRequest::CuktaPage {
+            base_path: base_path.to_owned(),
+            state: state.clone(),
+        };
+    }
+    let message = if search_state.query.trim().is_empty() {
+        None
+    } else if semantic.state.as_ref() == Some(search_state) {
+        if semantic.loading {
+            Some("Loading semantic search index.".to_owned())
+        } else {
+            semantic.message.clone()
+        }
+    } else {
+        Some("Loading semantic search index.".to_owned())
+    };
+    let hits = if semantic.state.as_ref() == Some(search_state) && !semantic.loading {
+        semantic.hits.clone()
+    } else {
+        Vec::new()
+    };
+    WebComputeRequest::CuktaSemanticPage {
+        base_path: base_path.to_owned(),
+        state: state.clone(),
+        hits,
+        message,
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
@@ -1369,6 +1822,48 @@ async fn embedding_search_json(
         "Open Settings and download embeddings in the browser before using meaning search."
             .to_owned(),
     )
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(!channel.is_empty())]
+#[requires(!request_json.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn compute_request_json(channel: &str, request_json: &str) -> Result<String, String> {
+    promise_to_string(js_compute_request(channel, request_json)).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(!channel.is_empty())]
+#[requires(!request_json.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn compute_request_json(channel: &str, request_json: &str) -> Result<String, String> {
+    let _ = channel;
+    jbotci_web_core::run_web_compute_request_json(request_json).map_err(|error| error.to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(!channel.is_empty())]
+#[ensures(true)]
+fn cancel_compute_channel(channel: &str) {
+    js_compute_cancel(channel);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(!channel.is_empty())]
+#[ensures(true)]
+fn cancel_compute_channel(channel: &str) {
+    let _ = channel;
+}
+
+#[requires(!channel.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn compute_request(
+    channel: &str,
+    request: WebComputeRequest,
+) -> Result<WebComputeResponse, String> {
+    let request_json = serde_json::to_string(&request).map_err(|error| error.to_string())?;
+    let response_json = compute_request_json(channel, &request_json).await?;
+    serde_json::from_str(&response_json).map_err(|error| error.to_string())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1542,43 +2037,9 @@ fn human_bytes(bytes: u64) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn current_cukta_page(
-    base_path: &str,
-    state: &CuktaWebState,
-    semantic_result: &CuktaSemanticResultState,
-    fallback: &CuktaPageData,
-) -> CuktaPageData {
-    let CuktaWebView::Search(search_state) = &state.view else {
-        return fallback.clone();
-    };
-    if search_state.mode != CuktaWebMode::Meaning {
-        return fallback.clone();
-    }
-    if search_state.query.trim().is_empty() {
-        return build_cukta_semantic_web_page(base_path, state, &[], None);
-    }
-    if semantic_result.state.as_ref() == Some(search_state) {
-        let message = if semantic_result.loading {
-            Some("Loading semantic search index.".to_owned())
-        } else {
-            semantic_result.message.clone()
-        };
-        return build_cukta_semantic_web_page(base_path, state, &semantic_result.hits, message);
-    }
-    build_cukta_semantic_web_page(
-        base_path,
-        state,
-        &[],
-        Some("Preparing semantic search.".to_owned()),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn render_cukta_page(
     cukta_state: Signal<CuktaWebState>,
-    cukta_page: Memo<CuktaPageData>,
-    cukta_semantic_result: Signal<CuktaSemanticResultState>,
+    cukta_page: Signal<CuktaAsyncPageState>,
     mut toc_filter: Signal<String>,
     mut toc_pinned: Signal<bool>,
     toc_expansion: Signal<CuktaTocExpansionState>,
@@ -1586,14 +2047,7 @@ fn render_cukta_page(
     mut toc_resize: Signal<Option<CuktaTocResizeState>>,
     base_path: &str,
 ) -> Element {
-    let current_state = cukta_state.read().clone();
-    let semantic_result = cukta_semantic_result.read().clone();
-    let page = current_cukta_page(
-        base_path,
-        &current_state,
-        &semantic_result,
-        &cukta_page.read(),
-    );
+    let page = cukta_page.read().page.clone();
     let toc_is_pinned = *toc_pinned.read();
     let is_resizing = toc_resize.read().is_some();
     let shell_class = class_names(
@@ -3442,46 +3896,21 @@ fn set_cukta_state(cukta_state: &mut Signal<CuktaWebState>, state: CuktaWebState
 
 #[requires(true)]
 #[ensures(true)]
-fn current_vlacku_result(
-    committed_state: &VlackuWebState,
-    semantic_result: &VlackuSemanticResultState,
-    fallback: &VlackuWebResult,
-) -> VlackuWebResult {
-    if committed_state.mode != VlackuWebMode::Meaning {
-        return fallback.clone();
-    }
-    if committed_state.query.trim().is_empty() {
-        return build_vlacku_semantic_web_result(committed_state, &[], None);
-    }
-    if semantic_result.state.as_ref() == Some(committed_state) {
-        let message = if semantic_result.loading {
-            Some("Loading semantic search index.".to_owned())
-        } else {
-            semantic_result.message.clone()
-        };
-        return build_vlacku_semantic_web_result(committed_state, &semantic_result.hits, message);
-    }
-    build_vlacku_semantic_web_result(
-        committed_state,
-        &[],
-        Some("Preparing semantic search.".to_owned()),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn render_vlacku_page(
     vlacku_draft_state: Signal<VlackuWebState>,
     vlacku_committed_state: Signal<VlackuWebState>,
-    vlacku_result: Memo<VlackuWebResult>,
-    vlacku_semantic_result: Signal<VlackuSemanticResultState>,
+    vlacku_result: Signal<VlackuAsyncResultState>,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
     base_path: &str,
 ) -> Element {
     let committed_state = vlacku_committed_state.read().clone();
-    let semantic_result = vlacku_semantic_result.read().clone();
-    let result = current_vlacku_result(&committed_state, &semantic_result, &vlacku_result.read());
+    let result_state = vlacku_result.read().clone();
+    let result = if result_state.state.as_ref() == Some(&committed_state) {
+        result_state.result
+    } else {
+        vlacku_loading_result(&committed_state, "Loading dictionary results.")
+    };
     let draft_state = vlacku_draft_state.read().clone();
     let word_type_options = vlacku_word_type_options(&draft_state.word_types);
     let shell_class = if jvozba_pane.read().open {
@@ -4855,6 +5284,8 @@ fn render_result(
     display_value: GentufaDisplayState,
     settings_value: UserSettings,
     reference_hover: Signal<ReferenceHoverState>,
+    activity: Signal<AsyncActivityState>,
+    export_task: Signal<Option<LatestAsyncTask>>,
 ) -> Element {
     match result {
         GentufaWebResult::Blank => rsx! {},
@@ -4867,6 +5298,8 @@ fn render_result(
             display_value,
             settings_value,
             reference_hover,
+            activity,
+            export_task,
         ),
     }
 }
@@ -4903,6 +5336,8 @@ fn render_success(
     display_value: GentufaDisplayState,
     settings_value: UserSettings,
     reference_hover: Signal<ReferenceHoverState>,
+    activity: Signal<AsyncActivityState>,
+    export_task: Signal<Option<LatestAsyncTask>>,
 ) -> Element {
     let reference_hover_value = reference_hover.read().clone();
     rsx! {
@@ -4913,7 +5348,7 @@ fn render_success(
             { render_view_tabs(view_mode, view_mode_value) }
             { render_output_controls(view_mode_value, display, display_value) }
             if view_mode_value == GentufaWebViewMode::Blocks {
-                { render_blocks(success, display_value.show_glosses, settings_value.script, reference_hover) }
+                { render_blocks(success, display_value.show_glosses, settings_value.script, reference_hover, activity, export_task) }
             } else {
                 { render_tree(success, display_value.show_glosses, false, reference_hover) }
             }
@@ -5116,6 +5551,8 @@ fn render_blocks(
     show_glosses: bool,
     script: GentufaScript,
     reference_hover: Signal<ReferenceHoverState>,
+    activity: Signal<AsyncActivityState>,
+    export_task: Signal<Option<LatestAsyncTask>>,
 ) -> Element {
     let column_count = success.blocks_layout.max_col.max(1);
     let column_template = repeated_parse_tree_template(column_count);
@@ -5149,7 +5586,7 @@ fn render_blocks(
                             style: "grid-template-columns: {column_template}; grid-template-rows: {row_template};",
                             for block in success.blocks_layout.blocks.iter() {
                                 { render_block_edge_height_sizer(block) }
-                                { render_block(block, &edge_label_rows, reference_hover, export_anchor_id, &success.blocks_layout, show_glosses, script) }
+                                { render_block(block, &edge_label_rows, reference_hover, export_anchor_id, &success.blocks_layout, show_glosses, script, activity, export_task) }
                             }
                             if show_glosses {
                                 for block in success.blocks_layout.blocks.iter().filter(|block| block.is_leaf) {
@@ -5268,6 +5705,8 @@ fn render_block(
     export_layout: &GentufaBlocksLayout,
     export_show_glosses: bool,
     export_script: GentufaScript,
+    activity: Signal<AsyncActivityState>,
+    export_task: Signal<Option<LatestAsyncTask>>,
 ) -> Element {
     let row = block.row + 1;
     let col = block.col + 1;
@@ -5345,6 +5784,10 @@ fn render_block(
                 {
                     let svg_layout = export_layout.clone();
                     let png_layout = export_layout.clone();
+                    let svg_activity = activity;
+                    let png_activity = activity;
+                    let svg_export_task = export_task;
+                    let png_export_task = export_task;
                     rsx! {
                 span { class: "blocks-svg-link",
                     button {
@@ -5352,7 +5795,8 @@ fn render_block(
                         r#type: "button",
                         onclick: move |_| {
                             let layout = svg_layout.clone();
-                            spawn(async move {
+                            cancel_compute_channel(COMPUTE_CHANNEL_EXPORT);
+                            spawn_latest_tracked(svg_export_task, svg_activity, AsyncTaskKind::Export, async move {
                                 download_gentufa_blocks_svg(layout, export_show_glosses, export_script).await;
                             });
                         },
@@ -5363,7 +5807,8 @@ fn render_block(
                         r#type: "button",
                         onclick: move |_| {
                             let layout = png_layout.clone();
-                            spawn(async move {
+                            cancel_compute_channel(COMPUTE_CHANNEL_EXPORT);
+                            spawn_latest_tracked(png_export_task, png_activity, AsyncTaskKind::Export, async move {
                                 download_gentufa_blocks_png(layout, export_show_glosses, export_script).await;
                             });
                         },
@@ -5407,30 +5852,6 @@ fn render_ref_marker(
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-#[cfg(target_arch = "wasm32")]
-struct GentufaOwnedFonts {
-    noto_sans: Vec<u8>,
-    noto_sans_italic: Vec<u8>,
-    noto_sans_math: Vec<u8>,
-    crisa: Vec<u8>,
-}
-
-#[cfg(target_arch = "wasm32")]
-impl GentufaOwnedFonts {
-    #[requires(true)]
-    #[ensures(!ret.noto_sans.is_empty())]
-    fn as_font_data(&self) -> GentufaFontData<'_> {
-        GentufaFontData {
-            noto_sans: &self.noto_sans,
-            noto_sans_italic: &self.noto_sans_italic,
-            noto_sans_math: &self.noto_sans_math,
-            crisa: Some(&self.crisa),
-        }
-    }
-}
-
 #[requires(true)]
 #[ensures(true)]
 async fn download_gentufa_blocks_svg(
@@ -5459,13 +5880,18 @@ async fn download_gentufa_blocks_svg_result(
     show_glosses: bool,
     script: GentufaScript,
 ) -> Result<(), String> {
-    let fonts = load_gentufa_export_fonts().await?;
-    let svg = render_gentufa_blocks_svg(
-        &layout,
-        &gentufa_svg_export_options(show_glosses, script),
-        fonts.as_font_data(),
+    let response = compute_request(
+        COMPUTE_CHANNEL_EXPORT,
+        WebComputeRequest::GentufaBlocksSvg {
+            layout,
+            show_glosses,
+            script,
+        },
     )
-    .map_err(|error| error.to_string())?;
+    .await?;
+    let WebComputeResponse::GentufaBlocksSvg { svg } = response else {
+        return Err("compute worker returned the wrong SVG export response".to_owned());
+    };
     download_browser_bytes(
         "jbotci-blocks.svg",
         "image/svg+xml;charset=utf-8",
@@ -5492,17 +5918,19 @@ async fn download_gentufa_blocks_png_result(
     show_glosses: bool,
     script: GentufaScript,
 ) -> Result<(), String> {
-    let fonts = load_gentufa_export_fonts().await?;
-    let png = render_gentufa_blocks_png(
-        &layout,
-        &GentufaPngOptions {
-            svg: gentufa_svg_export_options(show_glosses, script),
-            ..GentufaPngOptions::default()
+    let response = compute_request(
+        COMPUTE_CHANNEL_EXPORT,
+        WebComputeRequest::GentufaBlocksPng {
+            layout,
+            show_glosses,
+            script,
         },
-        fonts.as_font_data(),
     )
-    .map_err(|error| error.to_string())?;
-    download_browser_bytes("jbotci-blocks.png", "image/png", &png)
+    .await?;
+    let WebComputeResponse::GentufaBlocksPng { bytes } = response else {
+        return Err("compute worker returned the wrong PNG export response".to_owned());
+    };
+    download_browser_bytes("jbotci-blocks.png", "image/png", &bytes)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -5514,52 +5942,6 @@ async fn download_gentufa_blocks_png_result(
     _script: GentufaScript,
 ) -> Result<(), String> {
     Err("gentufa PNG export is only available in the browser".to_owned())
-}
-
-#[requires(true)]
-#[ensures(ret.title == "jbotci gentufa blocks")]
-fn gentufa_svg_export_options(show_glosses: bool, script: GentufaScript) -> GentufaSvgOptions {
-    GentufaSvgOptions {
-        show_glosses,
-        script,
-        title: "jbotci gentufa blocks".to_owned(),
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
-async fn load_gentufa_export_fonts() -> Result<GentufaOwnedFonts, String> {
-    Ok(GentufaOwnedFonts {
-        noto_sans: fetch_asset_bytes(&NOTO_SANS).await?,
-        noto_sans_italic: fetch_asset_bytes(&NOTO_SANS_ITALIC).await?,
-        noto_sans_math: fetch_asset_bytes(&NOTO_SANS_MATH).await?,
-        crisa: fetch_asset_bytes(&CRISA).await?,
-    })
-}
-
-#[cfg(target_arch = "wasm32")]
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|bytes| !bytes.is_empty()) || ret.is_err())]
-async fn fetch_asset_bytes(asset: &Asset) -> Result<Vec<u8>, String> {
-    let Some(window) = web_sys::window() else {
-        return Err("browser window is unavailable".to_owned());
-    };
-    let response_value =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_str(&format!("{asset}")))
-            .await
-            .map_err(js_value_to_string)?;
-    let response = response_value
-        .dyn_into::<web_sys::Response>()
-        .map_err(js_value_to_string)?;
-    let buffer =
-        wasm_bindgen_futures::JsFuture::from(response.array_buffer().map_err(js_value_to_string)?)
-            .await
-            .map_err(js_value_to_string)?;
-    let array = js_sys::Uint8Array::new(&buffer);
-    let mut bytes = vec![0; array.length() as usize];
-    array.copy_to(&mut bytes);
-    Ok(bytes)
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -6113,13 +6495,14 @@ fn render_settings(
     settings: Signal<UserSettings>,
     current: UserSettings,
     embedding_settings: Signal<EmbeddingSettingsState>,
+    activity: Signal<AsyncActivityState>,
 ) -> Element {
     let embedding_state = embedding_settings.read().clone();
     rsx! {
         section { class: "spa-page settings-page",
             div { class: "page-container settings-container",
                 h1 { "Settings" }
-                { render_embedding_settings(embedding_settings, &embedding_state) }
+                { render_embedding_settings(embedding_settings, &embedding_state, activity) }
                 section { class: "settings-section",
                     h2 { "Theme" }
                     { render_theme_switch(settings, current.theme) }
@@ -6138,6 +6521,7 @@ fn render_settings(
 fn render_embedding_settings(
     mut embedding_settings: Signal<EmbeddingSettingsState>,
     state: &EmbeddingSettingsState,
+    activity: Signal<AsyncActivityState>,
 ) -> Element {
     let busy = state.busy;
     rsx! {
@@ -6165,10 +6549,10 @@ fn render_embedding_settings(
                         next.progress_label = Some("Embedding setup".to_owned());
                         next.progress_percent = None;
                         embedding_settings.set(next);
-                        spawn(async move {
+                        spawn_tracked(activity, AsyncTaskKind::Settings, async move {
                             poll_embedding_settings_while_busy(embedding_settings).await;
                         });
-                        spawn(async move {
+                        spawn_tracked(activity, AsyncTaskKind::Settings, async move {
                             setup_browser_embeddings(embedding_settings).await;
                         });
                     },
@@ -6185,10 +6569,10 @@ fn render_embedding_settings(
                         next.progress_label = Some("Embedding setup".to_owned());
                         next.progress_percent = None;
                         embedding_settings.set(next);
-                        spawn(async move {
+                        spawn_tracked(activity, AsyncTaskKind::Settings, async move {
                             poll_embedding_settings_while_busy(embedding_settings).await;
                         });
-                        spawn(async move {
+                        spawn_tracked(activity, AsyncTaskKind::Settings, async move {
                             setup_browser_embeddings(embedding_settings).await;
                         });
                     },
@@ -6205,7 +6589,7 @@ fn render_embedding_settings(
                         next.progress_label = None;
                         next.progress_percent = None;
                         embedding_settings.set(next);
-                        spawn(async move {
+                        spawn_tracked(activity, AsyncTaskKind::Settings, async move {
                             remove_browser_embeddings(embedding_settings).await;
                         });
                     },
@@ -6546,22 +6930,6 @@ fn gentufa_state_from_parts(
 
 #[requires(true)]
 #[ensures(true)]
-fn web_route_from_app_state(
-    route: AppRoute,
-    cukta: &CuktaWebState,
-    vlacku: &VlackuWebState,
-    gentufa: &GentufaWebState,
-) -> WebRoute {
-    match route {
-        AppRoute::Gentufa => WebRoute::Gentufa(gentufa.clone()),
-        AppRoute::Settings => WebRoute::Settings,
-        AppRoute::Cukta => WebRoute::Cukta(cukta.clone()),
-        AppRoute::Vlacku => WebRoute::Vlacku(vlacku.clone()),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn app_route_for_web_route(route: &WebRoute) -> AppRoute {
     match route {
         WebRoute::Gentufa(_) => AppRoute::Gentufa,
@@ -6587,6 +6955,7 @@ fn install_browser_state_handlers(
     view_mode: Signal<GentufaWebViewMode>,
     gentufa_display: Signal<GentufaDisplayState>,
     gentufa_text_explicit: Signal<bool>,
+    pending_cukta_scroll: Signal<Option<String>>,
     base_path: &str,
 ) {
     let should_install = BROWSER_STATE_HANDLERS_INSTALLED.with(|installed| {
@@ -6618,6 +6987,7 @@ fn install_browser_state_handlers(
     let click_view = view_mode;
     let click_display = gentufa_display;
     let click_text_explicit = gentufa_text_explicit;
+    let click_pending_cukta_scroll = pending_cukta_scroll;
     let click_closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
         let Some(href) = internal_href_from_click_event(&event, &base_path_for_click) else {
             return;
@@ -6639,6 +7009,7 @@ fn install_browser_state_handlers(
             click_view,
             click_display,
             click_text_explicit,
+            click_pending_cukta_scroll,
         );
     }) as Box<dyn FnMut(_)>);
     let _ = document.add_event_listener_with_callback_and_bool(
@@ -6677,11 +7048,11 @@ fn install_browser_state_handlers(
                 hash.trim_start_matches('#')
             );
             if app_route_for_web_route(&web_route) == AppRoute::Cukta {
-                scroll_to_cukta_href(&target);
+                let mut pending_scroll = pending_cukta_scroll;
+                pending_scroll.set(Some(target));
             }
         }
-        let meta = build_page_meta(&base_path_for_pop, &web_route);
-        sync_document_head(&meta);
+        let _ = base_path_for_pop;
     }) as Box<dyn FnMut(_)>);
     let _ =
         window.add_event_listener_with_callback("popstate", pop_closure.as_ref().unchecked_ref());
@@ -6757,6 +7128,7 @@ fn install_browser_state_handlers(
     view_mode: Signal<GentufaWebViewMode>,
     gentufa_display: Signal<GentufaDisplayState>,
     gentufa_text_explicit: Signal<bool>,
+    pending_cukta_scroll: Signal<Option<String>>,
     base_path: &str,
 ) {
     let _ = (
@@ -6771,6 +7143,7 @@ fn install_browser_state_handlers(
         view_mode,
         gentufa_display,
         gentufa_text_explicit,
+        pending_cukta_scroll,
         base_path,
     );
 }
@@ -7225,6 +7598,7 @@ fn navigate_to_internal_href(
     view_mode: Signal<GentufaWebViewMode>,
     gentufa_display: Signal<GentufaDisplayState>,
     gentufa_text_explicit: Signal<bool>,
+    pending_cukta_scroll: Signal<Option<String>>,
 ) {
     let (path, query, hash) = split_href(href);
     let Some(logical_path) = strip_base_path_for_client(path, base_path) else {
@@ -7254,12 +7628,11 @@ fn navigate_to_internal_href(
         gentufa_text_explicit,
     );
     if app_route_for_web_route(&web_route) == AppRoute::Cukta && hash.is_some() {
-        scroll_to_cukta_href(&target);
+        let mut pending_scroll = pending_cukta_scroll;
+        pending_scroll.set(Some(target));
     } else {
         restore_scroll_for_url(&target);
     }
-    let meta = build_page_meta(base_path, &web_route);
-    sync_document_head(&meta);
 }
 
 #[allow(clippy::too_many_arguments)]
