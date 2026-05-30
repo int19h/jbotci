@@ -174,19 +174,11 @@ async function search(corpusId, query, limit, kindFiltersJson) {
   const kindFilters = parseStringArray(kindFiltersJson)
     .map(normalizeWordTypeFilter)
     .filter((value) => value.length > 0);
-  await ensureModel();
-  const runtime = activeQueryRuntime();
   const pack = await getMeta("pack");
   if (!pack) {
     return {
       hits: [],
       message: "Open Settings and download embeddings before using meaning search.",
-    };
-  }
-  if (!packCompatibleWithRuntime(pack, runtime)) {
-    return {
-      hits: [],
-      message: "The cached embedding pack was built for a different browser embedding runtime. Open Settings and update embeddings.",
     };
   }
   const corpus = pack.corpora?.[corpusId];
@@ -200,6 +192,21 @@ async function search(corpusId, query, limit, kindFiltersJson) {
     return {
       hits: [],
       message: "The cached embedding pack does not include word-type metadata. Remove and download embeddings again.",
+    };
+  }
+  const storedRuntime = modelRuntime || await getMeta("modelRuntime");
+  if (storedRuntime && !packCompatibleWithRuntime(pack, queryRuntimeFromModelRuntime(storedRuntime))) {
+    return {
+      hits: [],
+      message: "The cached embedding pack was built for a different browser embedding runtime. Open Settings and update embeddings.",
+    };
+  }
+  await ensureModel();
+  const runtime = activeQueryRuntime();
+  if (!packCompatibleWithRuntime(pack, runtime)) {
+    return {
+      hits: [],
+      message: "The cached embedding pack was built for a different browser embedding runtime. Open Settings and update embeddings.",
     };
   }
   const queryEmbedding = await embedTexts([QUERY_PREFIX + trimmedQuery]);
@@ -659,11 +666,15 @@ function activeQueryRuntime() {
   if (!modelRuntime) {
     throw new Error("EmbeddingGemma query model is not loaded");
   }
+  return queryRuntimeFromModelRuntime(modelRuntime);
+}
+
+function queryRuntimeFromModelRuntime(runtime) {
   return {
     runtime: "transformers.js",
     version: TRANSFORMERS_VERSION,
-    dtype: modelRuntime.dtype,
-    device: modelRuntime.device,
+    dtype: runtime.dtype,
+    device: runtime.device,
   };
 }
 

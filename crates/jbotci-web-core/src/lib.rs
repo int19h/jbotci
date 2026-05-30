@@ -619,8 +619,11 @@ pub fn run_web_compute_request(
             state,
             hits,
             message,
+            loading,
         } => {
-            let page = build_cukta_semantic_web_page(&base_path, &state, &hits, message);
+            let page = build_cukta_semantic_web_page_with_loading(
+                &base_path, &state, &hits, message, loading,
+            );
             let meta = build_page_meta(&base_path, &WebRoute::Cukta(state));
             Ok(WebComputeResponse::CuktaPage { page, meta })
         }
@@ -634,8 +637,10 @@ pub fn run_web_compute_request(
             state,
             hits,
             message,
+            loading,
         } => {
-            let result = build_vlacku_semantic_web_result(&state, &hits, message);
+            let result =
+                build_vlacku_semantic_web_result_with_loading(&state, &hits, message, loading);
             let meta = build_page_meta(&base_path, &WebRoute::Vlacku(state));
             Ok(WebComputeResponse::VlackuPage { result, meta })
         }
@@ -1007,6 +1012,7 @@ pub enum WebComputeRequest {
         state: CuktaWebState,
         hits: Vec<CuktaSemanticSearchHit>,
         message: Option<String>,
+        loading: bool,
     },
     VlackuPage {
         base_path: String,
@@ -1017,6 +1023,7 @@ pub enum WebComputeRequest {
         state: VlackuWebState,
         hits: Vec<VlackuSemanticSearchHit>,
         message: Option<String>,
+        loading: bool,
     },
     EmbeddingCorpusJson,
     GentufaBlocksSvg {
@@ -1384,6 +1391,17 @@ pub fn build_vlacku_semantic_web_result(
     hits: &[VlackuSemanticSearchHit],
     message: Option<String>,
 ) -> VlackuWebResult {
+    build_vlacku_semantic_web_result_with_loading(state, hits, message, false)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn build_vlacku_semantic_web_result_with_loading(
+    state: &VlackuWebState,
+    hits: &[VlackuSemanticSearchHit],
+    message: Option<String>,
+    loading: bool,
+) -> VlackuWebResult {
     let normalized_state = normalize_vlacku_state(state);
     let word_type_options = dictionary_word_type_options(&normalized_state.word_types);
     if normalized_state.query.trim().is_empty() {
@@ -1405,6 +1423,17 @@ pub fn build_vlacku_semantic_web_result(
             dictionary_info: None,
             has_more: false,
             message: Some(message),
+            errors: Vec::new(),
+        };
+    }
+    if loading {
+        return VlackuWebResult {
+            state: normalized_state,
+            cards: Vec::new(),
+            word_type_options,
+            dictionary_info: None,
+            has_more: false,
+            message,
             errors: Vec::new(),
         };
     }
@@ -1599,6 +1628,18 @@ pub fn build_cukta_semantic_web_page(
     hits: &[CuktaSemanticSearchHit],
     message: Option<String>,
 ) -> CuktaPageData {
+    build_cukta_semantic_web_page_with_loading(base_path, state, hits, message, false)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn build_cukta_semantic_web_page_with_loading(
+    base_path: &str,
+    state: &CuktaWebState,
+    hits: &[CuktaSemanticSearchHit],
+    message: Option<String>,
+    loading: bool,
+) -> CuktaPageData {
     let normalized_state = normalize_cukta_state(state);
     let search_state = match normalized_state.view.clone() {
         CuktaWebView::Search(search_state) => search_state,
@@ -1644,7 +1685,7 @@ pub fn build_cukta_semantic_web_page(
     let has_more = results.len() > search_state.count;
     results.truncate(search_state.count);
     let message = message.or_else(|| {
-        (results.is_empty() && !search_state.query.trim().is_empty())
+        (!loading && results.is_empty() && !search_state.query.trim().is_empty())
             .then(|| "No matches found.".to_owned())
     });
     CuktaPageData {
@@ -4380,6 +4421,28 @@ mod tests {
         );
         assert!(mode_options.iter().all(|option| !option.disabled));
 
+        let loading_meaning_page =
+            build_cukta_semantic_web_page_with_loading("", &meaning_state, &[], None, true);
+        let CuktaPageKind::Search {
+            results, message, ..
+        } = loading_meaning_page.page_kind
+        else {
+            panic!("expected loading meaning search page");
+        };
+        assert!(results.is_empty());
+        assert!(message.is_none(), "{message:?}");
+
+        let empty_meaning_page =
+            build_cukta_semantic_web_page_with_loading("", &meaning_state, &[], None, false);
+        let CuktaPageKind::Search {
+            results, message, ..
+        } = empty_meaning_page.page_kind
+        else {
+            panic!("expected empty meaning search page");
+        };
+        assert!(results.is_empty());
+        assert_eq!(message.as_deref(), Some("No matches found."));
+
         let section_only_page = build_cukta_semantic_web_page(
             "",
             &CuktaWebState {
@@ -4629,6 +4692,35 @@ mod tests {
             Some("Open Settings".to_owned()),
         );
         assert_eq!(missing.message.as_deref(), Some("Open Settings"));
+
+        let loading = build_vlacku_semantic_web_result_with_loading(
+            &VlackuWebState {
+                mode: VlackuWebMode::Meaning,
+                query: "nonsense".to_owned(),
+                count: 20,
+                word_types: Vec::new(),
+            },
+            &[],
+            None,
+            true,
+        );
+        assert!(loading.cards.is_empty());
+        assert!(loading.errors.is_empty(), "{:?}", loading.errors);
+        assert!(loading.message.is_none(), "{:?}", loading.message);
+
+        let empty = build_vlacku_semantic_web_result_with_loading(
+            &VlackuWebState {
+                mode: VlackuWebMode::Meaning,
+                query: "nonsense".to_owned(),
+                count: 20,
+                word_types: Vec::new(),
+            },
+            &[],
+            None,
+            false,
+        );
+        assert!(empty.cards.is_empty());
+        assert_eq!(empty.message.as_deref(), Some("No matches found."));
     }
 
     #[test]

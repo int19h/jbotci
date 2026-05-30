@@ -89,6 +89,8 @@ const COMPUTE_CHANNEL_CUKTA: &str = "cukta-page";
 const COMPUTE_CHANNEL_VLACKU: &str = "vlacku-page";
 const COMPUTE_CHANNEL_EMBEDDINGS: &str = "embedding-corpus";
 const COMPUTE_CHANNEL_EXPORT: &str = "gentufa-export";
+const ASYNC_ACTIVITY_INDICATOR_DELAY_MS: i32 = 100;
+const SEMANTIC_LOADING_MESSAGE_DELAY_MS: i32 = 100;
 #[cfg(target_arch = "wasm32")]
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS: i32 = 30;
 #[cfg(target_arch = "wasm32")]
@@ -644,6 +646,8 @@ fn App() -> Element {
     let settings = use_signal(load_settings);
     let embedding_settings = use_signal(EmbeddingSettingsState::default);
     let activity = use_signal(AsyncActivityState::default);
+    let activity_indicator_visible = use_signal(|| false);
+    let activity_indicator_delay_task = use_signal(|| None::<Task>);
     let initial_gentufa = initial_gentufa_state();
     let initial_gentufa_has_text = initial_gentufa_text_explicit();
     let initial_gentufa_text = if initial_gentufa.text.is_empty() {
@@ -696,6 +700,7 @@ fn App() -> Element {
 
     let settings_value = *settings.read();
     let activity_value = activity.read().clone();
+    let activity_indicator_visible_value = *activity_indicator_visible.read();
     let route_value = *route.read();
     let view_mode_value = *view_mode.read();
     let gentufa_display_value = *gentufa_display.read();
@@ -728,6 +733,32 @@ fn App() -> Element {
     use_effect(move || {
         configure_embedding_worker_url(&format!("{EMBEDDING_WORKER_JS}"));
         configure_compute_worker_url(&format!("{COMPUTE_WORKER_JS}"));
+    });
+    use_effect(move || {
+        let active = activity.read().is_active();
+        let mut visible = activity_indicator_visible;
+        let mut delay_task = activity_indicator_delay_task;
+        if !active {
+            if let Some(task) = delay_task.write().take() {
+                task.cancel();
+            }
+            visible.set(false);
+            return;
+        }
+        if *visible.read() || delay_task.read().is_some() {
+            return;
+        }
+        let activity_for_delay = activity;
+        let mut visible_for_delay = visible;
+        let mut delay_task_for_delay = delay_task;
+        let task = spawn(async move {
+            sleep_ms(ASYNC_ACTIVITY_INDICATOR_DELAY_MS).await;
+            if activity_for_delay.read().is_active() {
+                visible_for_delay.set(true);
+            }
+            delay_task_for_delay.set(None);
+        });
+        delay_task.set(Some(task));
     });
     let settings_meta_base_path = base_path.clone();
     use_effect(move || {
@@ -836,6 +867,7 @@ fn App() -> Element {
             activity,
             AsyncTaskKind::Vlacku,
             async move {
+                spawn_vlacku_semantic_loading_message(result_signal, state.clone());
                 let result = load_vlacku_semantic_result(state).await;
                 result_signal.set(result);
             },
@@ -890,6 +922,7 @@ fn App() -> Element {
         );
     });
     use_effect(move || {
+        let mut result_signal = cukta_semantic_result;
         let state = cukta_state.read().clone();
         let search_state = match state.view {
             CuktaWebView::Search(search_state)
@@ -900,16 +933,15 @@ fn App() -> Element {
             }
             _ => {
                 cancel_latest_task(cukta_semantic_task);
-                let mut result_signal = cukta_semantic_result;
                 result_signal.set(CuktaSemanticResultState::default());
                 return;
             }
         };
         if *route.read() != AppRoute::Cukta {
             cancel_latest_task(cukta_semantic_task);
+            result_signal.set(CuktaSemanticResultState::default());
             return;
         }
-        let mut result_signal = cukta_semantic_result;
         result_signal.set(CuktaSemanticResultState {
             state: Some(search_state.clone()),
             hits: Vec::new(),
@@ -921,6 +953,7 @@ fn App() -> Element {
             activity,
             AsyncTaskKind::Cukta,
             async move {
+                spawn_cukta_semantic_loading_message(result_signal, search_state.clone());
                 let result = load_cukta_semantic_result(search_state).await;
                 result_signal.set(result);
             },
@@ -1055,6 +1088,7 @@ fn App() -> Element {
                 &topbar_gentufa_href,
                 &nav_href(&base_path, AppRoute::Settings),
                 &activity_value,
+                activity_indicator_visible_value,
             ) }
             main { class: "spa-main",
                 div { class: "spa-stack",
@@ -1145,12 +1179,13 @@ fn render_topbar(
     gentufa_href: &str,
     settings_href: &str,
     activity: &AsyncActivityState,
+    activity_visible: bool,
 ) -> Element {
-    let cukta_loading = activity.has_kind(AsyncTaskKind::Cukta);
-    let vlacku_loading = activity.has_kind(AsyncTaskKind::Vlacku);
-    let gentufa_loading = activity.has_kind(AsyncTaskKind::Gentufa);
-    let settings_loading = activity.has_kind(AsyncTaskKind::Settings);
-    let activity_class = topbar_activity_class(activity.is_active());
+    let cukta_loading = activity_visible && activity.has_kind(AsyncTaskKind::Cukta);
+    let vlacku_loading = activity_visible && activity.has_kind(AsyncTaskKind::Vlacku);
+    let gentufa_loading = activity_visible && activity.has_kind(AsyncTaskKind::Gentufa);
+    let settings_loading = activity_visible && activity.has_kind(AsyncTaskKind::Settings);
+    let activity_class = topbar_activity_class(activity_visible);
     rsx! {
         header { class: "app-topbar spa-topbar",
             div { class: "app-topbar-inner spa-topbar-inner",
@@ -1196,7 +1231,7 @@ fn render_topbar(
                 }
                 div { class: "{activity_class}", role: "status", aria_live: "polite",
                     span { class: "sr-only",
-                        if activity.is_active() {
+                        if activity_visible {
                             "Working"
                         }
                     }
@@ -1524,6 +1559,24 @@ async fn load_vlacku_semantic_result(state: VlackuWebState) -> VlackuSemanticRes
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn spawn_vlacku_semantic_loading_message(
+    mut result_signal: Signal<VlackuSemanticResultState>,
+    state: VlackuWebState,
+) {
+    spawn(async move {
+        sleep_ms(SEMANTIC_LOADING_MESSAGE_DELAY_MS).await;
+        if embedding_status_is_loading_model().await {
+            result_signal.with_mut(|current| {
+                if current.loading && current.state.as_ref() == Some(&state) {
+                    current.message = Some("Loading semantic search model.".to_owned());
+                }
+            });
+        }
+    });
+}
+
+#[requires(true)]
 #[ensures(ret >= 1 && ret <= VLACKU_WEB_MAX_COUNT)]
 fn vlacku_semantic_worker_limit(state: &VlackuWebState) -> usize {
     let normalized_state = normalize_vlacku_state(state);
@@ -1555,6 +1608,24 @@ async fn load_cukta_semantic_result(state: CuktaWebSearchState) -> CuktaSemantic
             loading: false,
         },
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn spawn_cukta_semantic_loading_message(
+    mut result_signal: Signal<CuktaSemanticResultState>,
+    state: CuktaWebSearchState,
+) {
+    spawn(async move {
+        sleep_ms(SEMANTIC_LOADING_MESSAGE_DELAY_MS).await;
+        if embedding_status_is_loading_model().await {
+            result_signal.with_mut(|current| {
+                if current.loading && current.state.as_ref() == Some(&state) {
+                    current.message = Some("Loading semantic search model.".to_owned());
+                }
+            });
+        }
+    });
 }
 
 #[requires(true)]
@@ -1681,18 +1752,14 @@ fn vlacku_compute_request(
             state: state.clone(),
         };
     }
-    let message = if state.query.trim().is_empty() {
-        None
-    } else if semantic.state.as_ref() == Some(state) {
-        if semantic.loading {
-            Some("Loading semantic search index.".to_owned())
-        } else {
-            semantic.message.clone()
-        }
+    let loading = !state.query.trim().is_empty()
+        && (semantic.state.as_ref() != Some(state) || semantic.loading);
+    let message = if semantic.state.as_ref() == Some(state) {
+        semantic.message.clone()
     } else {
-        Some("Loading semantic search index.".to_owned())
+        None
     };
-    let hits = if semantic.state.as_ref() == Some(state) && !semantic.loading {
+    let hits = if !loading && semantic.state.as_ref() == Some(state) {
         semantic.hits.clone()
     } else {
         Vec::new()
@@ -1702,6 +1769,7 @@ fn vlacku_compute_request(
         state: state.clone(),
         hits,
         message,
+        loading,
     }
 }
 
@@ -1724,18 +1792,14 @@ fn cukta_compute_request(
             state: state.clone(),
         };
     }
-    let message = if search_state.query.trim().is_empty() {
-        None
-    } else if semantic.state.as_ref() == Some(search_state) {
-        if semantic.loading {
-            Some("Loading semantic search index.".to_owned())
-        } else {
-            semantic.message.clone()
-        }
+    let loading = !search_state.query.trim().is_empty()
+        && (semantic.state.as_ref() != Some(search_state) || semantic.loading);
+    let message = if semantic.state.as_ref() == Some(search_state) {
+        semantic.message.clone()
     } else {
-        Some("Loading semantic search index.".to_owned())
+        None
     };
-    let hits = if semantic.state.as_ref() == Some(search_state) && !semantic.loading {
+    let hits = if !loading && semantic.state.as_ref() == Some(search_state) {
         semantic.hits.clone()
     } else {
         Vec::new()
@@ -1745,6 +1809,7 @@ fn cukta_compute_request(
         state: state.clone(),
         hits,
         message,
+        loading,
     }
 }
 
@@ -1760,6 +1825,16 @@ async fn embedding_status_json() -> Result<String, String> {
 #[ensures(ret.as_ref().err().is_some())]
 async fn embedding_status_json() -> Result<String, String> {
     Err("Browser embeddings are available only in the wasm web app.".to_owned())
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn embedding_status_is_loading_model() -> bool {
+    let Ok(json) = embedding_status_json().await else {
+        return false;
+    };
+    let value = serde_json::from_str::<serde_json::Value>(&json).unwrap_or(serde_json::Value::Null);
+    json_string(&value, "status").as_deref() == Some("loading-model")
 }
 
 #[cfg(target_arch = "wasm32")]

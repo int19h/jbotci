@@ -1,7 +1,7 @@
 import init, { jbotciComputeHandle } from "./generated/jbotci_web_worker.js";
 
 const wasmUrl = new URL("./generated/jbotci_web_worker_bg.wasm", import.meta.url);
-let initPromise = init(wasmUrl);
+let initPromise = init({ module_or_path: wasmUrl });
 
 self.onmessage = async (event) => {
   const { id, requestJson } = event.data || {};
