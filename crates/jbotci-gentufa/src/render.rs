@@ -20,7 +20,7 @@ const NONLEAF_LABEL_BOTTOM_PADDING: f32 = 7.1;
 const REF_PAD_X: f32 = 4.0;
 const REF_PAD_Y: f32 = 1.0;
 const REF_LINE_GAP: f32 = 1.3;
-const ROW_TALL_HEIGHT: f32 = 56.0;
+const BLOCK_REFERENCE_LABEL_GAP: f32 = 8.0;
 const ROW_COMPACT_HEIGHT: f32 = 32.0;
 const GLOSS_ROW_HEIGHT: f32 = 55.2;
 const MIN_COLUMN_WIDTH: f32 = 44.0;
@@ -164,6 +164,15 @@ pub fn render_gentufa_blocks_png<Tooltip>(
 struct TextSize {
     width: f32,
     height: f32,
+    baseline_top: f32,
+    baseline_bottom: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[invariant(true)]
+struct ReferenceStackBottoms {
+    stack: f32,
+    overlapping_label: Option<f32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -294,12 +303,16 @@ fn measure_text_with_usvg(
         return Ok(TextSize {
             width: 0.0,
             height: role.font_size(),
+            baseline_top: -role.font_size(),
+            baseline_bottom: 0.0,
         });
     };
     let bbox = node.bounding_box();
     Ok(TextSize {
         width: bbox.width(),
         height: bbox.height(),
+        baseline_top: bbox.top() - 200.0,
+        baseline_bottom: bbox.bottom() - 200.0,
     })
 }
 
@@ -323,25 +336,21 @@ impl PositionedBlocks {
     ) -> Result<Self, GentufaExportError> {
         let column_count = layout.max_col.max(1);
         let row_count = layout.max_row.max(1);
-        let edge_rows = block_rows_with_edge_labels(&layout.blocks, row_count);
-        let mut row_heights = edge_rows
-            .iter()
-            .map(|has_edge_label| {
-                if *has_edge_label {
-                    ROW_TALL_HEIGHT
-                } else {
-                    ROW_COMPACT_HEIGHT
-                }
-            })
-            .collect::<Vec<_>>();
-        grow_rows_for_references(&mut row_heights, &layout.blocks, options, measurer)?;
+        let mut column_widths = vec![MIN_COLUMN_WIDTH; column_count];
+        grow_columns_for_blocks(&mut column_widths, &layout.blocks, options, measurer)?;
+        let mut row_heights = vec![ROW_COMPACT_HEIGHT; row_count];
+        grow_rows_for_references(
+            &mut row_heights,
+            &column_widths,
+            &layout.blocks,
+            options,
+            measurer,
+        )?;
         let gloss_row_height = if options.show_glosses {
             Some(gloss_row_height(&layout.blocks, options, measurer)?)
         } else {
             None
         };
-        let mut column_widths = vec![MIN_COLUMN_WIDTH; column_count];
-        grow_columns_for_blocks(&mut column_widths, &layout.blocks, options, measurer)?;
         let width = OUTER_PADDING * 2.0
             + column_widths.iter().sum::<f32>()
             + BLOCK_GAP * column_count.saturating_sub(1) as f32;
@@ -398,74 +407,175 @@ impl PositionedBlocks {
     }
 }
 
-#[requires(row_count > 0)]
-#[ensures(ret.len() == row_count)]
-fn block_rows_with_edge_labels<Tooltip>(
-    blocks: &[GentufaBlock<Tooltip>],
-    row_count: usize,
-) -> Vec<bool> {
-    let mut rows = vec![false; row_count];
-    for block in blocks {
-        let edge_label_row = block_edge_label_row(block);
-        if edge_label_row < row_count && block_has_edge_label(block) {
-            rows[edge_label_row] = true;
-        }
-    }
-    rows
-}
-
 #[requires(true)]
 #[ensures(ret >= block.row)]
-fn block_edge_label_row<Tooltip>(block: &GentufaBlock<Tooltip>) -> usize {
-    if block.is_leaf {
-        block.row + block.row_span.saturating_sub(1)
-    } else {
-        block.row
-    }
+fn block_bottom_row<Tooltip>(block: &GentufaBlock<Tooltip>) -> usize {
+    block.row + block.row_span.saturating_sub(1)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn block_has_edge_label<Tooltip>(block: &GentufaBlock<Tooltip>) -> bool {
-    block.ref_markers.iter().any(|marker| {
-        matches!(
-            marker.role,
-            ReferenceMarkerRole::Referent | ReferenceMarkerRole::Reference
-        )
-    })
+fn block_has_incoming_references<Tooltip>(block: &GentufaBlock<Tooltip>) -> bool {
+    block
+        .ref_markers
+        .iter()
+        .any(|marker| marker.role == ReferenceMarkerRole::Referent)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn grow_rows_for_references<Tooltip>(
     row_heights: &mut [f32],
+    column_widths: &[f32],
     blocks: &[GentufaBlock<Tooltip>],
     options: &GentufaSvgOptions,
     measurer: &mut TextMeasurer,
 ) -> Result<(), GentufaExportError> {
     for block in blocks {
-        let row = block_edge_label_row(block);
-        if row >= row_heights.len() {
+        let bottom_row = block_bottom_row(block);
+        if bottom_row >= row_heights.len() {
             continue;
         }
-        let referents = block
-            .ref_markers
-            .iter()
-            .filter(|marker| marker.role == ReferenceMarkerRole::Referent)
-            .collect::<Vec<_>>();
-        if referents.is_empty() {
-            continue;
+        let deficit =
+            block_reference_height_growth(block, row_heights, column_widths, options, measurer)?;
+        if deficit > 0.0 {
+            row_heights[bottom_row] += deficit;
         }
-        let line_height = measurer
-            .measure("x", TextRole::Reference, options.script)?
-            .height
-            .max(TextRole::Reference.font_size());
-        let needed = REF_PAD_Y * 2.0
-            + referents.len() as f32 * line_height
-            + referents.len().saturating_sub(1) as f32 * REF_LINE_GAP;
-        row_heights[row] = row_heights[row].max(needed);
     }
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|growth| *growth >= 0.0) || ret.is_err())]
+fn block_reference_height_growth<Tooltip>(
+    block: &GentufaBlock<Tooltip>,
+    row_heights: &[f32],
+    column_widths: &[f32],
+    options: &GentufaSvgOptions,
+    measurer: &mut TextMeasurer,
+) -> Result<f32, GentufaExportError> {
+    if !block_has_incoming_references(block) || block.label.is_empty() {
+        return Ok(0.0);
+    }
+    let span_height = block_span_height(row_heights, block.row, block.row_span);
+    if span_height <= 0.0 {
+        return Ok(0.0);
+    }
+    let span_width = block_span_width(column_widths, block.col, block.col_span);
+    if span_width <= 0.0 {
+        return Ok(0.0);
+    }
+    let label_role = if block.is_leaf {
+        TextRole::LeafLabel
+    } else {
+        TextRole::NonleafLabel
+    };
+    let label_bottom_padding = if block.is_leaf {
+        BLOCK_LABEL_BOTTOM_PADDING
+    } else {
+        NONLEAF_LABEL_BOTTOM_PADDING
+    };
+    let label_size = measurer.measure(&block.label, label_role, options.script)?;
+    let label_top = span_height - label_bottom_padding + label_size.baseline_top;
+    let label_left = (span_width - label_size.width) / 2.0;
+    let label_right = label_left + label_size.width;
+    let Some(reference_bottoms) =
+        reference_stack_bottoms(block, label_left, label_right, options, measurer)?
+    else {
+        return Ok(0.0);
+    };
+    let containment_deficit = reference_containment_deficit(reference_bottoms.stack, span_height);
+    let label_deficit = reference_bottoms
+        .overlapping_label
+        .map(|reference_bottom| (reference_bottom + BLOCK_REFERENCE_LABEL_GAP - label_top).max(0.0))
+        .unwrap_or(0.0);
+    Ok(containment_deficit.max(label_deficit))
+}
+
+#[requires(col_span > 0)]
+#[ensures(ret >= 0.0)]
+fn block_span_width(column_widths: &[f32], col: usize, col_span: usize) -> f32 {
+    if col >= column_widths.len() {
+        return 0.0;
+    }
+    let end = (col + col_span).min(column_widths.len());
+    column_widths[col..end].iter().sum::<f32>() + BLOCK_GAP * end.saturating_sub(col + 1) as f32
+}
+
+#[requires(row_span > 0)]
+#[ensures(ret >= 0.0)]
+fn block_span_height(row_heights: &[f32], row: usize, row_span: usize) -> f32 {
+    if row >= row_heights.len() {
+        return 0.0;
+    }
+    let end = (row + row_span).min(row_heights.len());
+    row_heights[row..end].iter().sum::<f32>() + BLOCK_GAP * end.saturating_sub(row + 1) as f32
+}
+
+#[requires(true)]
+#[ensures(ret >= 0.0)]
+fn reference_containment_deficit(reference_bottom: f32, span_height: f32) -> f32 {
+    (reference_bottom + REF_PAD_Y - span_height).max(0.0)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|bottoms| bottoms.is_none_or(|value| value.stack >= 0.0)) || ret.is_err())]
+fn reference_stack_bottoms<Tooltip>(
+    block: &GentufaBlock<Tooltip>,
+    label_left: f32,
+    label_right: f32,
+    options: &GentufaSvgOptions,
+    measurer: &mut TextMeasurer,
+) -> Result<Option<ReferenceStackBottoms>, GentufaExportError> {
+    let mut line_sizes = Vec::new();
+    let line_advance = TextRole::Reference.font_size() + REF_LINE_GAP;
+    for marker in block
+        .ref_markers
+        .iter()
+        .filter(|marker| marker.role == ReferenceMarkerRole::Referent)
+    {
+        let measured = measurer.measure(
+            &reference_label_text(&marker.label),
+            TextRole::Reference,
+            options.script,
+        )?;
+        line_sizes.push(measured);
+    }
+    let mut stack = None;
+    let mut overlapping_label = None;
+    for (line, size) in line_sizes.iter().enumerate() {
+        let line_bottom = reference_line_bottom(line, line_advance, size.baseline_bottom);
+        stack = Some(stack.unwrap_or(f32::NEG_INFINITY).max(line_bottom));
+        if horizontal_ranges_overlap(REF_PAD_X, REF_PAD_X + size.width, label_left, label_right) {
+            overlapping_label = Some(
+                overlapping_label
+                    .unwrap_or(f32::NEG_INFINITY)
+                    .max(line_bottom),
+            );
+        }
+    }
+    Ok(stack.map(|stack| ReferenceStackBottoms {
+        stack,
+        overlapping_label,
+    }))
+}
+
+#[requires(line_advance >= 0.0)]
+#[ensures(ret >= 0.0)]
+fn reference_line_bottom(line: usize, line_advance: f32, baseline_bottom: f32) -> f32 {
+    REF_PAD_Y + TextRole::Reference.font_size() + line as f32 * line_advance + baseline_bottom
+}
+
+#[requires(left_start <= left_end)]
+#[requires(right_start <= right_end)]
+#[ensures(true)]
+fn horizontal_ranges_overlap(
+    left_start: f32,
+    left_end: f32,
+    right_start: f32,
+    right_end: f32,
+) -> bool {
+    left_start < right_end && right_start < left_end
 }
 
 #[requires(true)]
@@ -1183,6 +1293,118 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn single_incoming_reference_grows_single_row_leaf() {
+        let options = GentufaSvgOptions::default();
+        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let mut row_heights = vec![ROW_COMPACT_HEIGHT];
+        let column_widths = vec![MIN_COLUMN_WIDTH];
+        let blocks = vec![test_gentufa_block(0, 1, 1)];
+
+        grow_rows_for_references(
+            &mut row_heights,
+            &column_widths,
+            &blocks,
+            &options,
+            &mut measurer,
+        )
+        .expect("row growth");
+
+        assert!(row_heights[0] > ROW_COMPACT_HEIGHT);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn single_incoming_reference_does_not_grow_spanning_leaf() {
+        let options = GentufaSvgOptions::default();
+        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let mut row_heights = vec![ROW_COMPACT_HEIGHT; 3];
+        let column_widths = vec![MIN_COLUMN_WIDTH];
+        let blocks = vec![test_gentufa_block(0, 3, 1)];
+
+        grow_rows_for_references(
+            &mut row_heights,
+            &column_widths,
+            &blocks,
+            &options,
+            &mut measurer,
+        )
+        .expect("row growth");
+
+        assert_eq!(row_heights, vec![ROW_COMPACT_HEIGHT; 3]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn horizontally_separate_incoming_references_do_not_grow_nonleaf_row() {
+        let options = GentufaSvgOptions::default();
+        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let mut row_heights = vec![ROW_COMPACT_HEIGHT];
+        let column_widths = vec![MIN_COLUMN_WIDTH; 3];
+        let blocks = vec![test_wide_nonleaf_block(0, 1, 3, 2)];
+
+        grow_rows_for_references(
+            &mut row_heights,
+            &column_widths,
+            &blocks,
+            &options,
+            &mut measurer,
+        )
+        .expect("row growth");
+
+        assert_eq!(row_heights, vec![ROW_COMPACT_HEIGHT]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn horizontally_separate_incoming_references_grow_to_stay_inside_nonleaf_block() {
+        let options = GentufaSvgOptions::default();
+        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let mut row_heights = vec![ROW_COMPACT_HEIGHT];
+        let column_widths = vec![MIN_COLUMN_WIDTH; 3];
+        let blocks = vec![test_wide_nonleaf_block(0, 1, 3, 3)];
+
+        grow_rows_for_references(
+            &mut row_heights,
+            &column_widths,
+            &blocks,
+            &options,
+            &mut measurer,
+        )
+        .expect("row growth");
+
+        assert!(row_heights[0] > ROW_COMPACT_HEIGHT);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn many_incoming_references_grow_only_spanning_leaf_bottom_row() {
+        let options = GentufaSvgOptions::default();
+        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let mut row_heights = vec![ROW_COMPACT_HEIGHT; 3];
+        let column_widths = vec![MIN_COLUMN_WIDTH];
+        let blocks = vec![test_gentufa_block(0, 3, 12)];
+
+        grow_rows_for_references(
+            &mut row_heights,
+            &column_widths,
+            &blocks,
+            &options,
+            &mut measurer,
+        )
+        .expect("row growth");
+
+        assert_eq!(row_heights[0], ROW_COMPACT_HEIGHT);
+        assert_eq!(row_heights[1], ROW_COMPACT_HEIGHT);
+        assert!(row_heights[2] > ROW_COMPACT_HEIGHT);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn png_render_has_magic_header() {
         let layout = GentufaBlocksLayout {
             blocks: vec![GentufaBlock {
@@ -1237,5 +1459,79 @@ mod tests {
             height,
             (svg_height * DEFAULT_GENTUFA_PNG_SCALE).ceil() as u32
         );
+    }
+
+    #[requires(row_span > 0)]
+    #[ensures(ret.row == row)]
+    fn test_gentufa_block(row: usize, row_span: usize, incoming_count: usize) -> GentufaBlock<()> {
+        GentufaBlock {
+            block_id: format!("test-{row}"),
+            label: "ny".to_owned(),
+            is_leaf: true,
+            is_elided: false,
+            token_kind: Some("cmavo".to_owned()),
+            ref_markers: (0..incoming_count).map(test_reference_marker).collect(),
+            span: None,
+            node_types: Vec::new(),
+            ancestors: Vec::new(),
+            col: 0,
+            col_span: 1,
+            row,
+            row_span,
+            color: "#ffffff".to_owned(),
+            parent_color: None,
+            raw_text: "ny".to_owned(),
+            display_text: "ny".to_owned(),
+            transform: None,
+            glosses: Vec::new(),
+            definition: None,
+            computed_gloss: None,
+            tooltip: None,
+        }
+    }
+
+    #[requires(row_span > 0)]
+    #[requires(col_span > 0)]
+    #[ensures(ret.row == row)]
+    fn test_wide_nonleaf_block(
+        row: usize,
+        row_span: usize,
+        col_span: usize,
+        incoming_count: usize,
+    ) -> GentufaBlock<()> {
+        GentufaBlock {
+            block_id: format!("wide-{row}"),
+            label: "Cei".to_owned(),
+            is_leaf: false,
+            is_elided: false,
+            token_kind: None,
+            ref_markers: (0..incoming_count).map(test_reference_marker).collect(),
+            span: None,
+            node_types: Vec::new(),
+            ancestors: Vec::new(),
+            col: 0,
+            col_span,
+            row,
+            row_span,
+            color: "#ffffff".to_owned(),
+            parent_color: None,
+            raw_text: "cei".to_owned(),
+            display_text: String::new(),
+            transform: None,
+            glosses: Vec::new(),
+            definition: None,
+            computed_gloss: None,
+            tooltip: None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.role == ReferenceMarkerRole::Referent)]
+    fn test_reference_marker(index: usize) -> ReferenceMarker {
+        ReferenceMarker {
+            role: ReferenceMarkerRole::Referent,
+            kind: "test".to_owned(),
+            label: ReferenceLabel::new("b", Some(index + 1), None),
+        }
     }
 }

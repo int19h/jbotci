@@ -97,8 +97,8 @@ const SEMANTIC_LOADING_MESSAGE_DELAY_MS: i32 = 100;
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS: i32 = 30;
 #[cfg(target_arch = "wasm32")]
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_FRAME_PASSES: u8 = 2;
-#[cfg(target_arch = "wasm32")]
 const BLOCK_REFERENCE_LABEL_GAP_PX: f64 = 8.0;
+const BLOCK_REFERENCE_CONTAINMENT_GAP_PX: f64 = 1.0;
 
 #[cfg(target_arch = "wasm32")]
 thread_local! {
@@ -6131,9 +6131,7 @@ fn render_blocks(
 ) -> Element {
     let column_count = success.blocks_layout.max_col.max(1);
     let column_template = repeated_parse_tree_template(column_count);
-    let edge_label_rows =
-        block_rows_with_edge_labels(&success.blocks_layout.blocks, success.blocks_layout.max_row);
-    let row_template = blocks_grid_row_template(&edge_label_rows, show_glosses);
+    let row_template = blocks_grid_row_template(success.blocks_layout.max_row, show_glosses);
     let container_class = if show_glosses {
         "blocks-container"
     } else {
@@ -6159,9 +6157,12 @@ fn render_blocks(
                         div {
                             class: "blocks-grid",
                             style: "grid-template-columns: {column_template}; grid-template-rows: {row_template};",
+                            for row in 0..success.blocks_layout.max_row {
+                                { render_block_row_height_probe(row, column_count) }
+                            }
                             for block in success.blocks_layout.blocks.iter() {
-                                { render_block_edge_height_sizer(block) }
-                                { render_block(block, &edge_label_rows, reference_hover, export_anchor_id, &success.blocks_layout, show_glosses, script, activity, export_task) }
+                                { render_block_reference_height_sizer(block) }
+                                { render_block(block, reference_hover, export_anchor_id, &success.blocks_layout, show_glosses, script, activity, export_task) }
                             }
                             if show_glosses {
                                 for block in success.blocks_layout.blocks.iter().filter(|block| block.is_leaf) {
@@ -6177,55 +6178,62 @@ fn render_blocks(
 }
 
 #[requires(true)]
-#[ensures(ret.len() == row_count)]
-fn block_rows_with_edge_labels(blocks: &[GentufaBlock], row_count: usize) -> Vec<bool> {
-    let mut rows = vec![false; row_count];
-    for block in blocks {
-        let edge_label_row = block_edge_label_row(block);
-        if edge_label_row < row_count && block_has_edge_label(block) {
-            rows[edge_label_row] = true;
-        }
-    }
-    rows
-}
-
-#[requires(true)]
 #[ensures(ret >= block.row)]
-fn block_edge_label_row(block: &GentufaBlock) -> usize {
-    if block.is_leaf {
-        block.row + block.row_span.saturating_sub(1)
-    } else {
-        block.row
-    }
+fn block_bottom_row(block: &GentufaBlock) -> usize {
+    block.row + block.row_span.saturating_sub(1)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn block_has_edge_label(block: &GentufaBlock) -> bool {
-    block.ref_markers.iter().any(|marker| {
-        matches!(
-            marker.role,
-            ReferenceMarkerRole::Referent | ReferenceMarkerRole::Reference
-        )
-    })
+fn block_has_incoming_reference(block: &GentufaBlock) -> bool {
+    block
+        .ref_markers
+        .iter()
+        .any(|marker| matches!(marker.role, ReferenceMarkerRole::Referent))
 }
 
 #[requires(true)]
-#[ensures(ret == (incoming_count > 1))]
-fn block_needs_edge_height_sizer(incoming_count: usize) -> bool {
-    incoming_count > 1
+#[ensures(ret == block_has_incoming_reference(block))]
+fn block_needs_reference_height_sizer(block: &GentufaBlock) -> bool {
+    block_has_incoming_reference(block)
+}
+
+#[requires(true)]
+#[ensures(ret >= 0.0)]
+fn reference_clearance_deficit(reference_bottom: f64, label_top: f64, existing_growth: f64) -> f64 {
+    let clearance = label_top + existing_growth - reference_bottom;
+    (BLOCK_REFERENCE_LABEL_GAP_PX - clearance).max(0.0)
+}
+
+#[requires(true)]
+#[ensures(ret >= 0.0)]
+fn reference_containment_deficit(
+    reference_bottom: f64,
+    block_height: f64,
+    existing_growth: f64,
+) -> f64 {
+    (reference_bottom + BLOCK_REFERENCE_CONTAINMENT_GAP_PX - block_height - existing_growth)
+        .max(0.0)
+}
+
+#[requires(left_start <= left_end)]
+#[requires(right_start <= right_end)]
+#[ensures(true)]
+fn horizontal_ranges_overlap(
+    left_start: f64,
+    left_end: f64,
+    right_start: f64,
+    right_end: f64,
+) -> bool {
+    left_start < right_end && right_start < left_end
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn blocks_grid_row_template(edge_label_rows: &[bool], show_glosses: bool) -> String {
-    let mut tracks = Vec::with_capacity(edge_label_rows.len() + usize::from(show_glosses));
-    for has_edge_label in edge_label_rows {
-        tracks.push(if *has_edge_label {
-            "minmax(var(--blocks-min-height), auto)"
-        } else {
-            "minmax(var(--blocks-compact-min-height), auto)"
-        });
+fn blocks_grid_row_template(row_count: usize, show_glosses: bool) -> String {
+    let mut tracks = Vec::with_capacity(row_count + usize::from(show_glosses));
+    for _ in 0..row_count {
+        tracks.push("minmax(var(--blocks-compact-min-height), auto)");
     }
     if show_glosses {
         tracks.push("auto");
@@ -6239,17 +6247,29 @@ fn blocks_grid_row_template(edge_label_rows: &[bool], show_glosses: bool) -> Str
 
 #[requires(true)]
 #[ensures(true)]
-fn render_block_edge_height_sizer(block: &GentufaBlock) -> Element {
-    let incoming_count = block
-        .ref_markers
-        .iter()
-        .filter(|marker| marker.role == ReferenceMarkerRole::Referent)
-        .count();
-    if !block_needs_edge_height_sizer(incoming_count) {
+fn render_block_row_height_probe(row: usize, column_count: usize) -> Element {
+    let grid_row = row + 1;
+    let style = format!("grid-row: {grid_row} / span 1; grid-column: 1 / span {column_count};");
+    rsx! {
+        span {
+            key: "row-probe-{row}",
+            class: "block-row-height-probe",
+            style: "{style}",
+            "data-block-row": "{row}",
+            aria_hidden: "true",
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_block_reference_height_sizer(block: &GentufaBlock) -> Element {
+    if !block_needs_reference_height_sizer(block) {
         return rsx! {};
     }
 
-    let row = block_edge_label_row(block) + 1;
+    let bottom_row = block_bottom_row(block);
+    let row = bottom_row + 1;
     let col = block.col + 1;
     let style = format!(
         "grid-row: {row} / span 1; grid-column: {col} / span {};",
@@ -6260,12 +6280,8 @@ fn render_block_edge_height_sizer(block: &GentufaBlock) -> Element {
             key: "edge-height-{block.block_id}",
             class: "block-row-height-sizer",
             style: "{style}",
+            "data-block-row": "{bottom_row}",
             aria_hidden: "true",
-            for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Referent) {
-                span { class: "block-row-height-line",
-                    { render_reference_label(&marker.label) }
-                }
-            }
         }
     }
 }
@@ -6274,7 +6290,6 @@ fn render_block_edge_height_sizer(block: &GentufaBlock) -> Element {
 #[ensures(true)]
 fn render_block(
     block: &GentufaBlock,
-    edge_label_rows: &[bool],
     reference_hover: Signal<ReferenceHoverState>,
     export_anchor_id: Option<&str>,
     export_layout: &GentufaBlocksLayout,
@@ -6297,13 +6312,8 @@ fn render_block(
     } else {
         "block-ref-target"
     };
-    let row_min_height = if edge_label_rows.get(block.row).copied().unwrap_or(false) {
-        "var(--blocks-min-height)"
-    } else {
-        "var(--blocks-compact-min-height)"
-    };
     let style = format!(
-        "grid-row: {row} / span {}; grid-column: {col} / span {}; --block-color: {}; --block-row-min-height: {row_min_height}; background-color: {};",
+        "grid-row: {row} / span {}; grid-column: {col} / span {}; --block-color: {}; background-color: {};",
         block.row_span, block.col_span, block.color, block.color
     );
     let is_export_anchor = export_anchor_id == Some(block.block_id.as_str());
@@ -6315,6 +6325,8 @@ fn render_block(
             class: "{classes}",
             style: "{style}",
             "data-block-id": "{block.block_id}",
+            "data-row": "{block.row}",
+            "data-rowspan": "{block.row_span}",
             "data-col": "{block.col}",
             "data-colspan": "{block.col_span}",
             "data-color": "{block.color}",
@@ -7863,9 +7875,32 @@ fn adjust_gentufa_block_reference_layout() {
         reset_block_reference_fit_width(&block);
         blocks.push(block);
     }
-    for block in blocks {
-        adjust_block_reference_fit_width(&block);
+    reset_block_reference_height_sizers(&document);
+    for block in &blocks {
+        adjust_block_reference_fit_width(block);
     }
+    let row_heights = measured_block_row_heights(&document);
+    if row_heights.is_empty() {
+        return;
+    }
+    let mut row_growths = vec![0.0; row_heights.len()];
+    let mut indexed_blocks = blocks
+        .into_iter()
+        .filter_map(|block| {
+            let (row, row_span, bottom_row) = block_row_range_for_element(&block)?;
+            Some((bottom_row, row, row_span, block))
+        })
+        .collect::<Vec<_>>();
+    indexed_blocks.sort_by_key(|(bottom_row, row, _, _)| (*bottom_row, *row));
+    for (_, row, row_span, block) in indexed_blocks {
+        if let Some((bottom_row, deficit)) =
+            block_reference_height_growth(&block, row, row_span, &row_growths)
+            && bottom_row < row_growths.len()
+        {
+            row_growths[bottom_row] += deficit;
+        }
+    }
+    apply_block_reference_height_sizers(&document, &row_heights, &row_growths);
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -7876,6 +7911,230 @@ fn reset_block_reference_fit_width(block: &web_sys::Element) {
         return;
     };
     let _ = block.style().remove_property("--block-reference-fit-width");
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn reset_block_reference_height_sizers(document: &web_sys::Document) {
+    let Ok(nodes) = document.query_selector_all(".parse-page .block-row-height-sizer") else {
+        return;
+    };
+    for index in 0..nodes.length() {
+        let Some(node) = nodes.item(index) else {
+            continue;
+        };
+        let Ok(element) = node.dyn_into::<web_sys::Element>() else {
+            continue;
+        };
+        let Some(html) = element.dyn_ref::<web_sys::HtmlElement>() else {
+            continue;
+        };
+        let style = html.style();
+        let _ = style.remove_property("height");
+        let _ = style.remove_property("min-height");
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn measured_block_row_heights(document: &web_sys::Document) -> Vec<f64> {
+    let Ok(nodes) = document.query_selector_all(".parse-page .block-row-height-probe") else {
+        return Vec::new();
+    };
+    let mut row_heights = Vec::new();
+    for index in 0..nodes.length() {
+        let Some(node) = nodes.item(index) else {
+            continue;
+        };
+        let Ok(element) = node.dyn_into::<web_sys::Element>() else {
+            continue;
+        };
+        let Some(row) = element_usize_attr(&element, "data-block-row") else {
+            continue;
+        };
+        if row >= row_heights.len() {
+            row_heights.resize(row + 1, 0.0);
+        }
+        row_heights[row] = element.get_bounding_client_rect().height();
+    }
+    row_heights
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn block_row_range_for_element(block: &web_sys::Element) -> Option<(usize, usize, usize)> {
+    let row = element_usize_attr(block, "data-row")?;
+    let row_span = element_usize_attr(block, "data-rowspan")?.max(1);
+    Some((row, row_span, row + row_span.saturating_sub(1)))
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn element_usize_attr(element: &web_sys::Element, name: &str) -> Option<usize> {
+    element.get_attribute(name)?.parse::<usize>().ok()
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn block_reference_height_growth(
+    block: &web_sys::Element,
+    row: usize,
+    row_span: usize,
+    row_growths: &[f64],
+) -> Option<(usize, f64)> {
+    let bottom_row = row + row_span.saturating_sub(1);
+    if bottom_row >= row_growths.len() {
+        return None;
+    }
+    let label_text = block_label_text_for_block(block)?;
+    let block_rect = block.get_bounding_client_rect();
+    let label_rect = label_text.get_bounding_client_rect();
+    let reference_bottoms = reference_bottoms_for_block(block, &label_rect, block_rect.top())?;
+    let existing_growth = row_growths[row..=bottom_row].iter().sum::<f64>();
+    let containment_deficit = reference_containment_deficit(
+        reference_bottoms.stack_bottom,
+        block_rect.height(),
+        existing_growth,
+    );
+    let label_deficit = reference_bottoms
+        .overlapping_label_bottom
+        .map(|reference_bottom| {
+            reference_clearance_deficit(
+                reference_bottom,
+                label_rect.top() - block_rect.top(),
+                existing_growth,
+            )
+        })
+        .unwrap_or(0.0);
+    let deficit = containment_deficit.max(label_deficit);
+    if deficit > 0.0 {
+        Some((bottom_row, deficit))
+    } else {
+        None
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, Clone, Copy)]
+#[invariant(true)]
+struct ReferenceBottoms {
+    stack_bottom: f64,
+    overlapping_label_bottom: Option<f64>,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn reference_bottoms_for_block(
+    block: &web_sys::Element,
+    label_rect: &web_sys::DomRect,
+    block_top: f64,
+) -> Option<ReferenceBottoms> {
+    let reference_target = block_reference_target_for_block(block)?;
+    let Ok(line_nodes) = reference_target.query_selector_all(".ref-line") else {
+        return reference_bottoms_for_element(&reference_target, label_rect, block_top);
+    };
+    if line_nodes.length() == 0 {
+        return reference_bottoms_for_element(&reference_target, label_rect, block_top);
+    }
+    let mut stack_bottom = None;
+    let mut overlapping_label_bottom = None;
+    for index in 0..line_nodes.length() {
+        let Some(node) = line_nodes.item(index) else {
+            continue;
+        };
+        let Ok(element) = node.dyn_into::<web_sys::Element>() else {
+            continue;
+        };
+        let rect = element.get_bounding_client_rect();
+        let line_bottom = rect.bottom() - block_top;
+        stack_bottom = Some(stack_bottom.unwrap_or(f64::NEG_INFINITY).max(line_bottom));
+        if horizontal_ranges_overlap(
+            rect.left(),
+            rect.right(),
+            label_rect.left(),
+            label_rect.right(),
+        ) {
+            overlapping_label_bottom = Some(
+                overlapping_label_bottom
+                    .unwrap_or(f64::NEG_INFINITY)
+                    .max(line_bottom),
+            );
+        }
+    }
+    stack_bottom.map(|stack_bottom| ReferenceBottoms {
+        stack_bottom,
+        overlapping_label_bottom,
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn reference_bottoms_for_element(
+    element: &web_sys::Element,
+    label_rect: &web_sys::DomRect,
+    block_top: f64,
+) -> Option<ReferenceBottoms> {
+    let rect = element.get_bounding_client_rect();
+    let stack_bottom = rect.bottom() - block_top;
+    let overlapping_label_bottom = horizontal_ranges_overlap(
+        rect.left(),
+        rect.right(),
+        label_rect.left(),
+        label_rect.right(),
+    )
+    .then_some(stack_bottom);
+    Some(ReferenceBottoms {
+        stack_bottom,
+        overlapping_label_bottom,
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn apply_block_reference_height_sizers(
+    document: &web_sys::Document,
+    row_heights: &[f64],
+    row_growths: &[f64],
+) {
+    let Ok(nodes) = document.query_selector_all(".parse-page .block-row-height-sizer") else {
+        return;
+    };
+    for index in 0..nodes.length() {
+        let Some(node) = nodes.item(index) else {
+            continue;
+        };
+        let Ok(element) = node.dyn_into::<web_sys::Element>() else {
+            continue;
+        };
+        let Some(row) = element_usize_attr(&element, "data-block-row") else {
+            continue;
+        };
+        let Some(growth) = row_growths.get(row).copied() else {
+            continue;
+        };
+        if growth <= 0.0 {
+            continue;
+        }
+        let Some(base_height) = row_heights.get(row).copied() else {
+            continue;
+        };
+        let Some(html) = element.dyn_ref::<web_sys::HtmlElement>() else {
+            continue;
+        };
+        let target_height = base_height + growth;
+        let value = format!("{target_height:.2}px");
+        let style = html.style();
+        let _ = style.set_property("height", &value);
+        let _ = style.set_property("min-height", &value);
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -9236,51 +9495,66 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn block_edge_label_rows_use_leaf_primary_label_row() {
-        let blocks = vec![
-            test_gentufa_block(1, 1, &[]),
-            test_gentufa_block(0, 3, &[ReferenceMarkerRole::Referent]),
-        ];
-
-        assert_eq!(
-            block_rows_with_edge_labels(&blocks, 4),
-            vec![false, false, true, false]
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn block_edge_label_rows_include_incoming_and_outgoing_labels() {
-        let blocks = vec![
-            test_gentufa_block(0, 1, &[ReferenceMarkerRole::Reference]),
-            test_gentufa_block(1, 1, &[ReferenceMarkerRole::Referent]),
-            test_gentufa_block(2, 1, &[]),
-        ];
-
-        assert_eq!(
-            block_rows_with_edge_labels(&blocks, 3),
-            vec![true, true, false]
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn blocks_grid_row_template_compacts_unlabeled_rows() {
-        assert_eq!(
-            blocks_grid_row_template(&[false, true, false], true),
-            "minmax(var(--blocks-compact-min-height), auto) minmax(var(--blocks-min-height), auto) minmax(var(--blocks-compact-min-height), auto) auto"
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn block_edge_height_sizer_still_handles_tall_leaf_labels() {
+    fn block_bottom_row_uses_leaf_span_bottom() {
         let tall_leaf = test_gentufa_block(0, 3, &[ReferenceMarkerRole::Referent]);
-        assert_eq!(block_edge_label_row(&tall_leaf), 2);
-        assert!(block_needs_edge_height_sizer(2));
+
+        assert_eq!(block_bottom_row(&tall_leaf), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_height_sizer_requires_incoming_reference() {
+        let outgoing = test_gentufa_block(0, 1, &[ReferenceMarkerRole::Reference]);
+        let incoming = test_gentufa_block(0, 1, &[ReferenceMarkerRole::Referent]);
+        let plain = test_gentufa_block(0, 1, &[]);
+
+        assert!(!block_needs_reference_height_sizer(&outgoing));
+        assert!(block_needs_reference_height_sizer(&incoming));
+        assert!(!block_needs_reference_height_sizer(&plain));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn blocks_grid_row_template_uses_compact_rows() {
+        assert_eq!(
+            blocks_grid_row_template(3, true),
+            "minmax(var(--blocks-compact-min-height), auto) minmax(var(--blocks-compact-min-height), auto) minmax(var(--blocks-compact-min-height), auto) auto"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_clearance_deficit_only_reports_needed_growth() {
+        assert_eq!(reference_clearance_deficit(20.0, 40.0, 0.0), 0.0);
+        assert_eq!(
+            reference_clearance_deficit(20.0, 24.0, 0.0),
+            BLOCK_REFERENCE_LABEL_GAP_PX - 4.0
+        );
+        assert_eq!(reference_clearance_deficit(20.0, 24.0, 4.0), 0.0);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_containment_deficit_only_reports_block_overflow() {
+        assert_eq!(reference_containment_deficit(20.0, 32.0, 0.0), 0.0);
+        assert_eq!(
+            reference_containment_deficit(36.0, 32.0, 0.0),
+            4.0 + BLOCK_REFERENCE_CONTAINMENT_GAP_PX
+        );
+        assert_eq!(reference_containment_deficit(36.0, 32.0, 5.0), 0.0);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn horizontal_ranges_overlap_requires_shared_interior() {
+        assert!(horizontal_ranges_overlap(0.0, 10.0, 5.0, 15.0));
+        assert!(!horizontal_ranges_overlap(0.0, 10.0, 10.0, 15.0));
+        assert!(!horizontal_ranges_overlap(0.0, 10.0, 11.0, 15.0));
     }
 
     #[test]

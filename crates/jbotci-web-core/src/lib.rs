@@ -4017,6 +4017,29 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn reported_fiho_compound_leaves_do_not_span_phantom_bottom_row() {
+        let success = parse_success("klama cei brode i mi brode do ta'i ny fi'o mleca bervi fe'u");
+        let mleca = success
+            .blocks_layout
+            .blocks
+            .iter()
+            .find(|block| block.is_leaf && block.raw_text == "mleca")
+            .expect("mleca leaf block");
+        let bervi = success
+            .blocks_layout
+            .blocks
+            .iter()
+            .find(|block| block.is_leaf && block.raw_text == "bervi")
+            .expect("bervi leaf block");
+
+        assert_eq!(success.blocks_layout.max_row, 7);
+        assert_eq!(mleca.row_span, 1);
+        assert_eq!(bervi.row_span, 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn tree_rows_keep_depth_order_color_and_math_label_data() {
         let success = parse_success("mi klama le zarci");
         assert_eq!(success.tree_rows.first().map(|row| row.depth), Some(0));

@@ -941,8 +941,12 @@ fn assign_tree_depths_and_ancestors_inner(
 #[requires(true)]
 #[ensures(ret >= node.depth)]
 fn block_tree_max_depth(node: &BlockTreeNode) -> usize {
-    if node.children.is_empty() && node.leaf_parts.len() > 1 {
-        return node.depth + 1;
+    if node.children.is_empty() {
+        return if node.leaf_parts.len() > 1 {
+            node.depth + 1
+        } else {
+            node.depth
+        };
     }
     let child_max = node
         .children
@@ -1842,5 +1846,71 @@ fn math_alphanumeric_ascii_char(ch: char) -> Option<char> {
         Some(UPPER[(ch as u8 - b'A') as usize])
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[allow(unused_imports)]
+    use bityzba::{ensures, requires};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn childless_single_leaf_part_does_not_add_synthetic_depth() {
+        let node = test_block_tree_node(6, 1);
+
+        assert_eq!(block_tree_max_depth(&node), 6);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn childless_split_leaf_parts_add_synthetic_child_depth() {
+        let node = test_block_tree_node(6, 2);
+
+        assert_eq!(block_tree_max_depth(&node), 7);
+    }
+
+    #[requires(true)]
+    #[ensures(ret.depth == depth)]
+    fn test_block_tree_node(depth: usize, leaf_part_count: usize) -> BlockTreeNode {
+        BlockTreeNode {
+            id: RawSyntaxNodeId(depth),
+            label: format!("node-{depth}"),
+            is_elided: false,
+            token_kind: None,
+            ref_markers: Vec::new(),
+            span: None,
+            source_spans: Vec::new(),
+            leaf_parts: test_leaf_parts(leaf_part_count),
+            node_types: vec![format!("Node{depth}")],
+            ancestors: Vec::new(),
+            depth,
+            raw_text: String::new(),
+            leaf_word: None,
+            computed_gloss: None,
+            children: Vec::new(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.len() == count)]
+    fn test_leaf_parts(count: usize) -> Vec<BlockLeafPart> {
+        (0..count)
+            .map(|index| BlockLeafPart {
+                id: RawSyntaxNodeId(index),
+                range: WebSourceRange {
+                    byte_start: index,
+                    byte_end: index + 1,
+                    char_start: index,
+                    char_end: index + 1,
+                },
+                is_elided: false,
+                raw_text: format!("w{index}"),
+                display_text: format!("w{index}"),
+            })
+            .collect()
     }
 }
