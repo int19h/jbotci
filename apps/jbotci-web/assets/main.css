@@ -329,7 +329,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .app-topbar-theme {
   flex: 0 0 auto;
-  margin-left: 0.9rem;
+  margin-left: 0.45rem;
 }
 
 .app-topbar-theme + .app-topbar-theme {
@@ -363,6 +363,14 @@ body::-webkit-scrollbar-thumb:hover,
   text-decoration: none;
 }
 
+.app-topbar-settings-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transform: translateY(-0.04em);
+}
+
 .app-topbar-settings-toggle:hover,
 .app-topbar-settings-toggle.is-open,
 .app-topbar-settings-toggle[aria-expanded="true"] {
@@ -375,8 +383,9 @@ body::-webkit-scrollbar-thumb:hover,
   top: calc(100% + 0.42rem);
   left: 0;
   display: flex;
-  align-items: center;
-  gap: 0.45rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.42rem;
   padding: 0.48rem;
   border: 1px solid var(--topbar-border);
   border-radius: 8px;
@@ -385,25 +394,27 @@ body::-webkit-scrollbar-thumb:hover,
   z-index: 1200;
 }
 
-.app-topbar-settings-all {
-  display: inline-flex;
+.app-topbar-settings-menu-row {
+  display: flex;
   align-items: center;
-  min-height: 1.55rem;
-  padding: 0 0.2rem;
-  color: var(--topbar-muted);
+}
+
+.app-topbar-settings-all {
+  display: inline;
+  padding: 0;
+  color: var(--topbar-text);
   font-family: "Noto Sans", sans-serif;
-  font-size: 0.86rem;
-  font-weight: 500;
-  font-stretch: 87.5%;
-  font-variation-settings: "wdth" 87.5;
-  text-decoration: none;
+  font-size: 0.7rem;
+  font-weight: 400;
+  font-stretch: normal;
+  font-variation-settings: normal;
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
   white-space: nowrap;
 }
 
 .app-topbar-settings-all:hover {
-  color: var(--topbar-text);
-  text-decoration: underline;
-  text-underline-offset: 0.32em;
+  color: var(--topbar-active);
 }
 
 .theme-switch {

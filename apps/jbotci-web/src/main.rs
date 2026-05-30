@@ -1226,6 +1226,7 @@ fn render_topbar(
                         title: "Settings",
                         img { class: "app-topbar-brand-logo", src: LOGO, alt: "jbotci" }
                     }
+                    { render_topbar_settings_button(settings, current, settings_href, settings_layout, settings_open) }
                     if show_theme_inline {
                         span { class: "app-topbar-theme app-topbar-theme-mode",
                             { render_theme_switch(settings, current.theme) }
@@ -1236,7 +1237,6 @@ fn render_topbar(
                             { render_script_switch(settings, current.script) }
                         }
                     }
-                    { render_topbar_settings_button(settings, current, settings_href, settings_layout, settings_open) }
                     nav { class: "spa-nav", aria_label: "Primary navigation",
                         a {
                             class: topbar_link_class(route == AppRoute::Cukta, cukta_loading),
@@ -1346,7 +1346,7 @@ fn render_topbar_settings_button(
                     aria_controls: "app-topbar-settings-menu",
                     title: "Settings",
                     onclick: move |_| settings_open.set(!menu_open),
-                    span { aria_hidden: "true", "⚙" }
+                    span { class: "app-topbar-settings-icon", aria_hidden: "true", "⚙" }
                 }
                 if menu_open {
                     { render_topbar_settings_menu(settings, current, settings_href, settings_layout) }
@@ -1357,7 +1357,7 @@ fn render_topbar_settings_button(
                     href: "{settings_href}",
                     aria_label: "Settings",
                     title: "Settings",
-                    span { aria_hidden: "true", "⚙" }
+                    span { class: "app-topbar-settings-icon", aria_hidden: "true", "⚙" }
                 }
             }
         }
@@ -1379,15 +1379,21 @@ fn render_topbar_settings_menu(
             role: "dialog",
             aria_label: "Settings",
             if !settings_layout.shows_theme_inline() {
-                { render_theme_switch(settings, current.theme) }
+                div { class: "app-topbar-settings-menu-row",
+                    { render_theme_switch(settings, current.theme) }
+                }
             }
             if !settings_layout.shows_script_inline() {
-                { render_script_switch(settings, current.script) }
+                div { class: "app-topbar-settings-menu-row",
+                    { render_script_switch(settings, current.script) }
+                }
             }
-            a {
-                class: "app-topbar-settings-all",
-                href: "{settings_href}",
-                "All settings"
+            div { class: "app-topbar-settings-menu-row",
+                a {
+                    class: "app-topbar-settings-all",
+                    href: "{settings_href}",
+                    "All settings"
+                }
             }
         }
     }
@@ -1413,21 +1419,21 @@ fn render_topbar_fit_probes(
             aria_hidden: "true",
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-both",
                 { render_topbar_probe_brand() }
+                { render_topbar_probe_settings_button() }
                 span { class: "app-topbar-theme app-topbar-theme-mode",
                     { render_theme_switch(settings, current.theme) }
                 }
                 span { class: "app-topbar-theme app-topbar-orthography",
                     { render_script_switch(settings, current.script) }
                 }
-                { render_topbar_probe_settings_button() }
                 { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_href, vlacku_href, gentufa_href) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-theme",
                 { render_topbar_probe_brand() }
+                { render_topbar_probe_settings_button() }
                 span { class: "app-topbar-theme app-topbar-theme-mode",
                     { render_theme_switch(settings, current.theme) }
                 }
-                { render_topbar_probe_settings_button() }
                 { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_href, vlacku_href, gentufa_href) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-none",
@@ -1454,7 +1460,9 @@ fn render_topbar_probe_brand() -> Element {
 fn render_topbar_probe_settings_button() -> Element {
     rsx! {
         span { class: "app-topbar-settings",
-            span { class: "app-topbar-settings-toggle", aria_hidden: "true", "⚙" }
+            span { class: "app-topbar-settings-toggle", aria_hidden: "true",
+                span { class: "app-topbar-settings-icon", "⚙" }
+            }
         }
     }
 }
