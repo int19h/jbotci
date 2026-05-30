@@ -25,7 +25,6 @@ const ROW_COMPACT_HEIGHT: f32 = 32.0;
 const GLOSS_ROW_HEIGHT: f32 = 55.2;
 const MIN_COLUMN_WIDTH: f32 = 44.0;
 const INK: &str = "#231b15";
-const MUTED_INK: &str = "#6f6257";
 const GLOSS_INK: &str = "#6f6257";
 const GLOSS_BG: &str = "#ece3d7";
 pub const DEFAULT_GENTUFA_PNG_SCALE: f32 = 2.0;
@@ -763,10 +762,10 @@ fn add_block_label<Tooltip>(
     text.attr("x", &format_float(x + width / 2.0));
     text.attr("y", &format_float(baseline_y));
     text.attr("text-anchor", "middle");
-    text.attr("fill", if block.is_elided { MUTED_INK } else { INK });
+    text.attr("fill", INK);
     if block.is_elided {
         text.attr("text-decoration", "line-through");
-        text.attr("opacity", "0.7");
+        text.attr("text-decoration-thickness", "0.12em");
     }
     group.child(text);
 }

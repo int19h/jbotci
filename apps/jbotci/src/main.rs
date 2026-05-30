@@ -23,9 +23,9 @@ use jbotci_embeddings::{
     semantic_vlacku_hits,
 };
 use jbotci_gentufa::{
-    EmbeddedGentufaFonts, GentufaBlockAnnotation, GentufaBlockOptions, GentufaPngOptions,
-    GentufaScript, GentufaSvgOptions, WebSourceRange, blocks_layout, elided_terminators,
-    render_gentufa_blocks_png, render_gentufa_blocks_svg, rendered_leaves,
+    ElidedTerminator, EmbeddedGentufaFonts, GentufaBlockAnnotation, GentufaBlockOptions,
+    GentufaPngOptions, GentufaScript, GentufaSvgOptions, WebSourceRange, blocks_layout,
+    elided_terminators, render_gentufa_blocks_png, render_gentufa_blocks_svg, rendered_leaves,
 };
 use jbotci_jvozba::{
     JvozbaBuildResult, JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegmentKind,
@@ -2541,7 +2541,8 @@ fn render_gentufa_blocks_output(
     };
     let leaves = rendered_leaves(syntax, source, &block_options);
     let elided = elided_terminators(&analysis, syntax, &block_options);
-    let annotations = gentufa_block_annotations(words);
+    let mut annotations = gentufa_block_annotations(words);
+    annotations.extend(gentufa_elided_block_annotations(&elided));
     let layout = blocks_layout(
         &analysis,
         &reference_model,
@@ -2574,6 +2575,38 @@ fn render_gentufa_blocks_output(
 
 #[requires(true)]
 #[ensures(true)]
+fn gentufa_elided_block_annotations(
+    terminators: &[ElidedTerminator],
+) -> Vec<GentufaBlockAnnotation<()>> {
+    terminators
+        .iter()
+        .filter_map(|terminator| {
+            let output = run_vlacku_requests(
+                jbotci_dictionary_data::english(),
+                &[VlackuRequest::Valsi(terminator.dictionary_text.clone())],
+                &VlackuSearchOptions {
+                    count: 1,
+                    word_types: Vec::new(),
+                    min_votes: None,
+                    min_similarity: None,
+                    decompose_lujvo: false,
+                },
+            );
+            let card = output.cards.into_iter().next()?;
+            Some(GentufaBlockAnnotation {
+                range: terminator.range,
+                text: Some(terminator.text.clone()),
+                glosses: card.glosses,
+                definition: Some(card.definition.trim().to_owned())
+                    .filter(|definition| !definition.is_empty()),
+                tooltip: None,
+            })
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn gentufa_block_annotations(words: &[WordLike]) -> Vec<GentufaBlockAnnotation<()>> {
     dictionary_matches_for_word_likes(jbotci_dictionary_data::english(), words)
         .into_iter()
@@ -2586,6 +2619,7 @@ fn gentufa_block_annotations(words: &[WordLike]) -> Vec<GentufaBlockAnnotation<(
                     char_start: parsed_match.char_start,
                     char_end: parsed_match.char_end,
                 },
+                text: Some(parsed_match.lookup_text),
                 glosses: first.map(|card| card.glosses.clone()).unwrap_or_default(),
                 definition: first
                     .map(|card| card.definition.trim().to_owned())
@@ -5054,7 +5088,7 @@ mod tests {
             assert_eq!(tree_status, CliStatus::Success);
             assert!(tree_error.is_empty());
             let tree_stdout = String::from_utf8(tree_output).expect("tree stdout utf8");
-            assert!(tree_stdout.contains("vau: Cmavo @[8‥8) \"v̶a̶u̶\""));
+            assert!(tree_stdout.contains("vau: Cmavo @[8‥8) \"vau\""));
 
             let json_cli = Cli::try_parse_from([
                 "jbotci",

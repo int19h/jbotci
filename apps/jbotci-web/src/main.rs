@@ -5948,7 +5948,13 @@ fn render_surface_output(success: &GentufaSuccess) -> Element {
 #[ensures(true)]
 fn render_bracket_fragment(fragment: &GentufaBracketFragment) -> Element {
     match fragment {
-        GentufaBracketFragment::Text { text } => rsx! { "{text}" },
+        GentufaBracketFragment::Text { text, elided } => {
+            if *elided {
+                rsx! { s { "{text}" } }
+            } else {
+                rsx! { "{text}" }
+            }
+        }
         GentufaBracketFragment::Span {
             color,
             href,
@@ -6330,13 +6336,17 @@ fn render_block(
                     class: "block-label dictionary-tooltip-host",
                     title: "{block.label}",
                     a { class: "block-label-link", href: "{card.href}",
-                        span { class: "block-label-text", "{block.label}" }
+                        span { class: "block-label-text",
+                            { render_elidable_text(&block.label, block.is_elided) }
+                        }
                     }
                     { render_dictionary_tooltip(card, false, "") }
                 }
             } else {
                 span { class: "block-label", title: "{block.label}",
-                    span { class: "block-label-text", "{block.label}" }
+                    span { class: "block-label-text",
+                        { render_elidable_text(&block.label, block.is_elided) }
+                    }
                 }
             }
             if block.ref_markers.iter().any(|marker| marker.role == ReferenceMarkerRole::Reference) {
@@ -6695,8 +6705,20 @@ fn render_tree_cell(cell: &GentufaCell) -> Element {
     };
     rsx! {
         span { class: "{class}",
-            span { class: "token-raw lojban-text", "{cell.text}" }
+            span { class: "token-raw lojban-text",
+                { render_elidable_text(&cell.text, cell.is_elided) }
+            }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_elidable_text(text: &str, elided: bool) -> Element {
+    if elided {
+        rsx! { s { "{text}" } }
+    } else {
+        rsx! { "{text}" }
     }
 }
 

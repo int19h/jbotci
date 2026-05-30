@@ -10,6 +10,7 @@ pub(crate) enum SExpr {
     Leaf {
         text: String,
         range: Option<BracketSourceRange>,
+        elided: bool,
     },
     Node {
         children: Vec<SExpr>,
@@ -52,10 +53,30 @@ pub(crate) fn leaf(text: String) -> SExpr {
 #[requires(range.is_none_or(|range| range.byte_start <= range.byte_end))]
 #[ensures(matches!(&ret, SExpr::Leaf { .. }) || is_empty(&ret))]
 pub(crate) fn leaf_with_range(text: String, range: Option<BracketSourceRange>) -> SExpr {
+    leaf_with_range_and_elided(text, range, false)
+}
+
+#[requires(range.is_none_or(|range| range.byte_start <= range.byte_end))]
+#[ensures(matches!(&ret, SExpr::Leaf { .. }) || is_empty(&ret))]
+pub(crate) fn elided_leaf_with_range(text: String, range: Option<BracketSourceRange>) -> SExpr {
+    leaf_with_range_and_elided(text, range, true)
+}
+
+#[requires(range.is_none_or(|range| range.byte_start <= range.byte_end))]
+#[ensures(matches!(&ret, SExpr::Leaf { .. }) || is_empty(&ret))]
+fn leaf_with_range_and_elided(
+    text: String,
+    range: Option<BracketSourceRange>,
+    elided: bool,
+) -> SExpr {
     if text.is_empty() {
         empty_node()
     } else {
-        SExpr::Leaf { text, range }
+        SExpr::Leaf {
+            text,
+            range,
+            elided,
+        }
     }
 }
 
@@ -72,7 +93,15 @@ pub(crate) fn is_empty(expr: &SExpr) -> bool {
 #[ensures(true)]
 pub(crate) fn flatten(expr: SExpr) -> SExpr {
     match expr {
-        SExpr::Leaf { text, range } => SExpr::Leaf { text, range },
+        SExpr::Leaf {
+            text,
+            range,
+            elided,
+        } => SExpr::Leaf {
+            text,
+            range,
+            elided,
+        },
         SExpr::Node { children, range } => {
             let mut flattened = children
                 .into_iter()
@@ -116,7 +145,7 @@ pub(crate) fn render_bracketed_source_fragments_with_options(
 #[ensures(true)]
 fn render_bracketed_at_depth(depth: usize, expr: &SExpr, options: BracketRenderOptions) -> String {
     match expr {
-        SExpr::Leaf { text, .. } => colorize_at_depth(depth, text.clone(), options),
+        SExpr::Leaf { text, elided, .. } => style_at_depth(depth, text.clone(), options, *elided),
         SExpr::Node { children, .. } => {
             let rendered = children
                 .iter()
@@ -133,13 +162,14 @@ fn render_bracketed_at_depth(depth: usize, expr: &SExpr, options: BracketRenderO
                     } else {
                         ""
                     };
-                    colorize_at_depth(
+                    style_at_depth(
                         depth,
                         format!(
                             "{open}{hair_space}{}{hair_space}{close}",
                             rendered.join(" ")
                         ),
                         options,
+                        false,
                     )
                 }
             }
@@ -155,9 +185,14 @@ fn render_source_fragments_at_depth(
     options: BracketRenderOptions,
 ) -> Vec<BracketSourceFragment> {
     match expr {
-        SExpr::Leaf { text, range } => vec![BracketSourceFragment::Text {
+        SExpr::Leaf {
+            text,
+            range,
+            elided,
+        } => vec![BracketSourceFragment::Text {
             text: text.clone(),
             range: *range,
+            elided: *elided,
         }],
         SExpr::Node { children, range } => {
             let rendered = children
@@ -179,12 +214,14 @@ fn render_source_fragments_at_depth(
                     children.push(BracketSourceFragment::Text {
                         text: format!("{open}{hair_space}"),
                         range: *range,
+                        elided: false,
                     });
                     for (index, fragment) in rendered.into_iter().enumerate() {
                         if index > 0 {
                             children.push(BracketSourceFragment::Text {
                                 text: " ".to_owned(),
                                 range: None,
+                                elided: false,
                             });
                         }
                         children.push(fragment);
@@ -192,6 +229,7 @@ fn render_source_fragments_at_depth(
                     children.push(BracketSourceFragment::Text {
                         text: format!("{hair_space}{close}"),
                         range: *range,
+                        elided: false,
                     });
                     vec![BracketSourceFragment::Span {
                         range: *range,
@@ -245,14 +283,28 @@ fn bracket_pair(depth: usize) -> (&'static str, &'static str) {
 #[requires(true)]
 #[ensures(!options.color -> ret == old(text.clone()))]
 #[ensures(options.color && !old(text.is_empty()) -> ret.starts_with(ansi_color_for_depth(depth)))]
-fn colorize_at_depth(depth: usize, text: String, options: BracketRenderOptions) -> String {
+fn style_at_depth(
+    depth: usize,
+    text: String,
+    options: BracketRenderOptions,
+    elided: bool,
+) -> String {
     if options.color && !text.is_empty() {
-        format!(
-            "{}{}{}",
-            ansi_color_for_depth(depth),
-            text,
-            ansi_parent_color_for_depth(depth)
-        )
+        if elided {
+            format!(
+                "{}\x1b[9m{}\x1b[29m{}",
+                ansi_color_for_depth(depth),
+                text,
+                ansi_parent_color_for_depth(depth)
+            )
+        } else {
+            format!(
+                "{}{}{}",
+                ansi_color_for_depth(depth),
+                text,
+                ansi_parent_color_for_depth(depth)
+            )
+        }
     } else {
         text
     }
@@ -332,16 +384,20 @@ mod tests {
         };
 
         assert_eq!(
-            colorize_at_depth(0, String::from("foo"), options),
+            style_at_depth(0, String::from("foo"), options, false),
             "\x1b[35mfoo\x1b[0m"
         );
         assert_eq!(
-            colorize_at_depth(2, String::from("foo"), options),
+            style_at_depth(2, String::from("foo"), options, false),
             "\x1b[32mfoo\x1b[94m"
         );
         assert_eq!(
-            colorize_at_depth(6, String::from("foo"), options),
+            style_at_depth(6, String::from("foo"), options, false),
             "\x1b[35mfoo\x1b[96m"
+        );
+        assert_eq!(
+            style_at_depth(1, String::from("foo"), options, true),
+            "\x1b[94m\x1b[9mfoo\x1b[29m\x1b[35m"
         );
     }
 }

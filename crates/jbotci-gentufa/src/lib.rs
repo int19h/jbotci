@@ -197,6 +197,7 @@ pub struct ReferenceMarker {
 #[invariant(true)]
 pub struct GentufaBlockAnnotation<Tooltip = ()> {
     pub range: WebSourceRange,
+    pub text: Option<String>,
     pub glosses: Vec<String>,
     pub definition: Option<String>,
     pub tooltip: Option<Tooltip>,
@@ -214,6 +215,7 @@ pub struct RenderedLeaf {
 pub struct ElidedTerminator {
     pub parent_id: RawSyntaxNodeId,
     pub range: WebSourceRange,
+    pub dictionary_text: String,
     pub text: String,
 }
 
@@ -541,6 +543,7 @@ impl<'analysis, 'options, 'tree> TreeVisitor<'tree>
                 char_start: position.char_end,
                 char_end: position.char_end,
             },
+            dictionary_text: cmavo.canonical_text().to_owned(),
             text: render_elided_cmavo(cmavo, self.options),
         });
     }
@@ -725,7 +728,7 @@ fn build_block_tree_node<Tooltip: Clone>(
         depth: 0,
         raw_text: source_text_for_range(source, span),
         leaf_word,
-        computed_gloss: annotation_for_range(annotations, span)
+        computed_gloss: annotation_for_range_and_text(annotations, span, None)
             .and_then(|annotation| annotation.glosses.first().cloned()),
         children,
     })
@@ -1298,7 +1301,12 @@ fn annotate_blocks<Tooltip: Clone>(
     blocks
         .into_iter()
         .map(|mut block| {
-            if let Some(annotation) = annotation_for_range(annotations, block.span) {
+            let annotation = if block.is_elided {
+                annotation_for_range_and_text(annotations, block.span, Some(&block.display_text))
+            } else {
+                annotation_for_range_and_text(annotations, block.span, None)
+            };
+            if let Some(annotation) = annotation {
                 block.glosses = annotation.glosses.clone();
                 block.definition = annotation.definition.clone();
                 block.tooltip = annotation.tooltip.clone();
@@ -1310,11 +1318,20 @@ fn annotate_blocks<Tooltip: Clone>(
 
 #[requires(true)]
 #[ensures(true)]
-fn annotation_for_range<Tooltip>(
-    annotations: &[GentufaBlockAnnotation<Tooltip>],
+fn annotation_for_range_and_text<'a, Tooltip>(
+    annotations: &'a [GentufaBlockAnnotation<Tooltip>],
     range: Option<WebSourceRange>,
-) -> Option<&GentufaBlockAnnotation<Tooltip>> {
+    text: Option<&str>,
+) -> Option<&'a GentufaBlockAnnotation<Tooltip>> {
     let range = range?;
+    if let Some(text) = text {
+        let exact = annotations.iter().find(|annotation| {
+            annotation.range == range && annotation.text.as_deref() == Some(text)
+        });
+        if exact.is_some() || range.byte_start == range.byte_end {
+            return exact;
+        }
+    }
     annotations
         .iter()
         .find(|annotation| annotation.range == range)

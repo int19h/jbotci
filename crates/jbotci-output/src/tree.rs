@@ -714,8 +714,7 @@ impl TreeRenderer<'_> {
         self.render_optional_node_span(span);
         self.output.push(' ');
         if elided {
-            self.output
-                .push_str(&self.string_literal(&overstrike_text(phonemes)));
+            self.output.push_str(&self.elided_string_literal(phonemes));
         } else {
             self.output.push_str(&self.string_literal(phonemes));
         }
@@ -836,6 +835,13 @@ impl TreeRenderer<'_> {
         self.color_token(&literal, ColorRole::String)
     }
 
+    #[requires(true)]
+    #[ensures(!self.color -> ret.starts_with('"'))]
+    fn elided_string_literal(&self, text: &str) -> String {
+        let literal = serde_json::to_string(text).expect("serializing string literal cannot fail");
+        self.elided_color_token(&literal, ColorRole::String)
+    }
+
     #[requires(char_start <= char_end)]
     #[ensures(!ret.is_empty())]
     fn span_literal(&self, char_start: usize, char_end: usize) -> String {
@@ -934,6 +940,15 @@ impl TreeRenderer<'_> {
         }
         format!("{}{}{}", role.open(), text, "\x1b[39m")
     }
+
+    #[requires(true)]
+    #[ensures(!self.color -> ret == text)]
+    fn elided_color_token(&self, text: &str, role: ColorRole) -> String {
+        if !self.color {
+            return text.to_owned();
+        }
+        format!("{}\x1b[9m{}\x1b[29m{}", role.open(), text, "\x1b[39m")
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1012,17 +1027,6 @@ where
         end = end.max(item_end);
     }
     Some((start, end))
-}
-
-#[requires(true)]
-#[ensures(text.is_empty() -> ret.is_empty())]
-fn overstrike_text(text: &str) -> String {
-    let mut output = String::new();
-    for ch in text.chars() {
-        output.push(ch);
-        output.push('\u{0336}');
-    }
-    output
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

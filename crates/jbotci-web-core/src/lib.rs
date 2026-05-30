@@ -205,6 +205,7 @@ impl Default for WebFeatureAvailability {
 pub enum GentufaBracketFragment {
     Text {
         text: String,
+        elided: bool,
     },
     Span {
         color: Option<String>,
@@ -349,8 +350,12 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
     let leaves = build_rendered_leaves(&parsed.parse_tree, source, &block_options);
     let elided_terminators =
         build_elided_terminators(&analysis, &parsed.parse_tree, &block_options);
-    let dictionary_annotations =
+    let mut dictionary_annotations =
         dictionary_annotations_for_words(jbotci_dictionary_data::english(), &words, "");
+    dictionary_annotations.extend(dictionary_annotations_for_elided_terminators(
+        &elided_terminators,
+        "",
+    ));
     let reference_model = reference_display_model_for_syntax_tree(
         &analysis,
         &parsed.parse_tree,
@@ -407,6 +412,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
     .unwrap_or_else(|_| {
         vec![GentufaBracketFragment::Text {
             text: brackets_text.clone(),
+            elided: false,
         }]
     });
 
@@ -537,9 +543,7 @@ fn tree_rows(
         }
         let text = gentufa_display_text_for_spans(&metadata.source_spans, leaves, source, options);
         let annotation = gentufa_range_from_spans(metadata.source_spans.iter()).and_then(|range| {
-            dictionary_annotations
-                .iter()
-                .find(|annotation| annotation.range == range)
+            annotation_for_range_and_text(dictionary_annotations, Some(range), None)
         });
         rows.push(GentufaTreeRow {
             depth: metadata.depth,
@@ -565,6 +569,11 @@ fn tree_rows(
             .iter()
             .filter(|terminator| terminator.parent_id == id)
         {
+            let annotation = annotation_for_range_and_text(
+                dictionary_annotations,
+                Some(terminator.range),
+                Some(&terminator.text),
+            );
             rows.push(GentufaTreeRow {
                 depth: metadata.depth + 1,
                 label: "Cmavo".to_owned(),
@@ -579,8 +588,10 @@ fn tree_rows(
                 }],
                 computed_gloss: None,
                 ref_markers: Vec::new(),
-                glosses: Vec::new(),
-                definition: None,
+                glosses: annotation
+                    .map(|annotation| annotation.glosses.clone())
+                    .unwrap_or_default(),
+                definition: annotation.and_then(|annotation| annotation.definition.clone()),
                 rafsi_breakdown: Vec::new(),
             });
         }
@@ -2870,6 +2881,27 @@ fn dictionary_annotations_for_words(
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_annotations_for_elided_terminators(
+    terminators: &[ElidedTerminator],
+    base_path: &str,
+) -> Vec<GentufaBlockAnnotation<DictionaryTooltipCard>> {
+    terminators
+        .iter()
+        .filter_map(|terminator| {
+            let card = dictionary_tooltip_for_word(base_path, &terminator.dictionary_text)?;
+            Some(GentufaBlockAnnotation {
+                range: terminator.range,
+                text: Some(terminator.text.clone()),
+                glosses: card.glosses.clone(),
+                definition: tooltip_definition_text(&card),
+                tooltip: Some(card),
+            })
+        })
+        .collect()
+}
+
 #[requires(parsed_match.byte_start <= parsed_match.byte_end)]
 #[requires(parsed_match.char_start <= parsed_match.char_end)]
 #[ensures(ret.range.byte_start == parsed_match.byte_start)]
@@ -2889,6 +2921,7 @@ fn dictionary_annotation_from_match(
             char_start: parsed_match.char_start,
             char_end: parsed_match.char_end,
         },
+        text: Some(parsed_match.lookup_text),
         glosses: first_card
             .as_ref()
             .map(|card| card.glosses.clone())
@@ -2987,13 +3020,21 @@ fn gentufa_bracket_fragment_from_source(
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> Vec<GentufaBracketFragment> {
     match fragment {
-        BracketSourceFragment::Text { text, range } => {
+        BracketSourceFragment::Text {
+            text,
+            range,
+            elided,
+        } => {
             if text.is_empty() {
                 return Vec::new();
             }
             decorated_bracket_fragment(
-                vec![GentufaBracketFragment::Text { text: text.clone() }],
+                vec![GentufaBracketFragment::Text {
+                    text: text.clone(),
+                    elided: *elided,
+                }],
                 bracket_source_range_to_web(*range),
+                Some(text),
                 blocks_layout,
                 dictionary_annotations,
             )
@@ -3007,6 +3048,7 @@ fn gentufa_bracket_fragment_from_source(
             decorated_bracket_fragment(
                 children,
                 bracket_source_range_to_web(*range),
+                None,
                 blocks_layout,
                 dictionary_annotations,
             )
@@ -3019,14 +3061,15 @@ fn gentufa_bracket_fragment_from_source(
 fn decorated_bracket_fragment(
     children: Vec<GentufaBracketFragment>,
     range: Option<WebSourceRange>,
+    text: Option<&str>,
     blocks_layout: &GentufaBlocksLayout,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> Vec<GentufaBracketFragment> {
     if children.is_empty() {
         return Vec::new();
     }
-    let color = bracket_color_for_range(blocks_layout, range);
-    let tooltip = annotation_for_byte_range(dictionary_annotations, range)
+    let color = bracket_color_for_range_and_text(blocks_layout, range, text);
+    let tooltip = annotation_for_range_and_text(dictionary_annotations, range, text)
         .and_then(|annotation| annotation.tooltip.clone());
     let href = tooltip.as_ref().map(|card| card.href.clone());
     if color.is_none() && tooltip.is_none() {
@@ -3053,11 +3096,20 @@ fn bracket_source_range_to_web(range: Option<BracketSourceRange>) -> Option<WebS
 
 #[requires(true)]
 #[ensures(true)]
-fn annotation_for_byte_range<'a>(
+fn annotation_for_range_and_text<'a>(
     dictionary_annotations: &'a [GentufaBlockAnnotation<DictionaryTooltipCard>],
     range: Option<WebSourceRange>,
+    text: Option<&str>,
 ) -> Option<&'a GentufaBlockAnnotation<DictionaryTooltipCard>> {
     let range = range?;
+    if let Some(text) = text {
+        let exact = dictionary_annotations.iter().find(|annotation| {
+            same_byte_range(annotation.range, range) && annotation.text.as_deref() == Some(text)
+        });
+        if exact.is_some() || range.byte_start == range.byte_end {
+            return exact;
+        }
+    }
     dictionary_annotations
         .iter()
         .find(|annotation| same_byte_range(annotation.range, range))
@@ -3065,11 +3117,24 @@ fn annotation_for_byte_range<'a>(
 
 #[requires(true)]
 #[ensures(true)]
-fn bracket_color_for_range(
+fn bracket_color_for_range_and_text(
     blocks_layout: &GentufaBlocksLayout,
     range: Option<WebSourceRange>,
+    text: Option<&str>,
 ) -> Option<String> {
     let range = range?;
+    if let Some(text) = text {
+        let exact = blocks_layout.blocks.iter().find(|block| {
+            block.span.is_some_and(|span| same_byte_range(span, range))
+                && block.display_text == text
+        });
+        if let Some(block) = exact {
+            return Some(block.color.clone());
+        }
+        if range.byte_start == range.byte_end {
+            return None;
+        }
+    }
     if let Some(block) = blocks_layout
         .blocks
         .iter()
@@ -3736,7 +3801,7 @@ mod tests {
     #[ensures(true)]
     fn append_bracket_fragment_text(fragment: &GentufaBracketFragment, output: &mut String) {
         match fragment {
-            GentufaBracketFragment::Text { text } => output.push_str(text),
+            GentufaBracketFragment::Text { text, .. } => output.push_str(text),
             GentufaBracketFragment::Span { children, .. } => {
                 for child in children {
                     append_bracket_fragment_text(child, output);
@@ -3872,7 +3937,14 @@ mod tests {
                     .cells
                     .iter()
                     .any(|cell| cell.is_word && cell.is_elided && cell.text == "vau")
+                && !row.glosses.is_empty()
+                && row.definition.is_some()
         }));
+        assert!(
+            bracket_fragments_contain_tooltip_for(&shown.bracket_fragments, "vau"),
+            "{:?}",
+            shown.bracket_fragments
+        );
         let elided_block_labels = shown
             .blocks_layout
             .blocks
@@ -3883,6 +3955,18 @@ mod tests {
         assert!(
             elided_block_labels.iter().any(|label| label == "vau"),
             "{elided_block_labels:?}"
+        );
+        let vau_block = shown
+            .blocks_layout
+            .blocks
+            .iter()
+            .find(|block| block.is_leaf && block.is_elided && block.label == "vau")
+            .expect("vau elided block");
+        assert!(!vau_block.glosses.is_empty());
+        assert!(vau_block.definition.is_some());
+        assert_eq!(
+            vau_block.tooltip.as_ref().map(|card| card.href.as_str()),
+            Some("/vlacku/vau")
         );
     }
 

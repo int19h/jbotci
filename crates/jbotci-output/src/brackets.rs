@@ -2709,8 +2709,8 @@ fn elided_terminator_leaf(
     previous_siblings: &[sexpr::SExpr],
     source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
-    sexpr::leaf_with_range(
-        overstrike_text(elided_cmavo_text(cmavo, source.options.phonemes)),
+    sexpr::elided_leaf_with_range(
+        elided_cmavo_text(cmavo, source.options.phonemes),
         last_child_end_range(previous_siblings),
     )
 }
@@ -2739,17 +2739,6 @@ fn elided_cmavo_text(cmavo: Cmavo, options: jbotci_morphology::PhonemeRenderOpti
     Phonemes::from_canonical(cmavo.canonical_text().to_owned())
         .expect("cmavo canonical text is valid phoneme text")
         .render(options)
-}
-
-#[requires(true)]
-#[ensures(ret.chars().count() == text.chars().count() * 2)]
-fn overstrike_text(text: String) -> String {
-    let mut rendered = String::with_capacity(text.len() * 2);
-    for ch in text.chars() {
-        rendered.push(ch);
-        rendered.push('\u{0336}');
-    }
-    rendered
 }
 
 #[requires(true)]

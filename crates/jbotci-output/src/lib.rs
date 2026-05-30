@@ -45,6 +45,7 @@ pub enum BracketSourceFragment {
     Text {
         text: String,
         range: Option<BracketSourceRange>,
+        elided: bool,
     },
     Span {
         range: Option<BracketSourceRange>,
@@ -925,11 +926,11 @@ mod tests {
     fn default_gentufa_rendering_does_not_show_elided_terminators() {
         let source = "mi klama";
         let parsed = parse(source);
-        assert!(!pretty_tree(&parsed, source).expect("tree").contains("v̶a̶u̶"));
+        assert!(!pretty_tree(&parsed, source).expect("tree").contains("vau"));
         assert!(
             !pretty_brackets(&parsed, source)
                 .expect("brackets")
-                .contains("v̶a̶u̶")
+                .contains("vau")
         );
         assert!(
             !compact_syntax_json_string_with_options(&parsed, JsonRenderOptions::default())
@@ -943,30 +944,42 @@ mod tests {
     #[ensures(true)]
     fn text_renderers_show_representative_elided_terminators() {
         let tree = render_tree_with_elided("mi klama");
-        assert!(tree.contains("vau: Cmavo @[8‥8) \"v̶a̶u̶\""), "{tree}");
+        assert!(tree.contains("vau: Cmavo @[8‥8) \"vau\""), "{tree}");
 
         let descriptor = render_tree_with_elided("le broda");
         assert!(
-            descriptor.contains("ku: Cmavo @[8‥8) \"k̶u̶\""),
+            descriptor.contains("ku: Cmavo @[8‥8) \"ku\""),
             "{descriptor}"
         );
 
         let abstraction = render_tree_with_elided("lo nu mi klama");
         assert!(
-            abstraction.contains("kei: Cmavo @[14‥14) \"k̶e̶i̶\""),
+            abstraction.contains("kei: Cmavo @[14‥14) \"kei\""),
             "{abstraction}"
         );
         assert!(
-            abstraction.contains("ku: Cmavo @[14‥14) \"k̶u̶\""),
+            abstraction.contains("ku: Cmavo @[14‥14) \"ku\""),
             "{abstraction}"
         );
 
         let free_modifier = render_brackets_with_elided("to coi");
-        assert!(free_modifier.contains("t̶o̶i̶"), "{free_modifier}");
+        assert!(free_modifier.contains("toi"), "{free_modifier}");
 
         let mekso = render_tree_with_elided("li pa");
-        assert!(mekso.contains("boi: Cmavo @[5‥5) \"b̶o̶i̶\""), "{mekso}");
-        assert!(mekso.contains("loho: Cmavo @[5‥5) \"l̶o̶'̶o̶\""), "{mekso}");
+        assert!(mekso.contains("boi: Cmavo @[5‥5) \"boi\""), "{mekso}");
+        assert!(mekso.contains("loho: Cmavo @[5‥5) \"lo'o\""), "{mekso}");
+
+        let colorized_tree = render_tree_with_elided_and_color("mi klama");
+        assert!(
+            colorized_tree.contains("\x1b[9m\"vau\"\x1b[29m"),
+            "{colorized_tree:?}"
+        );
+
+        let colorized_brackets = render_brackets_with_elided_and_color("to coi");
+        assert!(
+            colorized_brackets.contains("\x1b[9mtoi\x1b[29m"),
+            "{colorized_brackets:?}"
+        );
     }
 
     #[test]
@@ -1008,11 +1021,24 @@ mod tests {
     #[requires(!source.is_empty())]
     #[ensures(!ret.is_empty())]
     fn render_tree_with_elided(source: &str) -> String {
+        render_tree_with_elided_options(source, false)
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn render_tree_with_elided_and_color(source: &str) -> String {
+        render_tree_with_elided_options(source, true)
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn render_tree_with_elided_options(source: &str, color: bool) -> String {
         let parsed = parse(source);
         pretty_tree_with_options(
             &parsed,
             source,
             TreeRenderOptions {
+                color,
                 show_elided: true,
                 show_spans: true,
                 ..TreeRenderOptions::default()
@@ -1024,11 +1050,24 @@ mod tests {
     #[requires(!source.is_empty())]
     #[ensures(!ret.is_empty())]
     fn render_brackets_with_elided(source: &str) -> String {
+        render_brackets_with_elided_options(source, false)
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn render_brackets_with_elided_and_color(source: &str) -> String {
+        render_brackets_with_elided_options(source, true)
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn render_brackets_with_elided_options(source: &str, color: bool) -> String {
         let parsed = parse(source);
         pretty_brackets_with_options(
             &parsed,
             source,
             BracketRenderOptions {
+                color,
                 show_elided: true,
                 ..BracketRenderOptions::default()
             },
