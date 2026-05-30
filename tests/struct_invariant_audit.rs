@@ -32,10 +32,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "gentufa display toggles are two independent boolean URL controls with no invalid combination",
     ),
     (
-        "apps/jbotci-web/src/main.rs:GentufaOwnedFonts",
-        "font bytes are loaded through fetch helpers that reject empty browser asset responses",
-    ),
-    (
         "apps/jbotci-web/src/main.rs:ReferenceHoverState",
         "browser hover state is transient UI state derived from reference label DOM nodes",
     ),
@@ -62,6 +58,34 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-web/src/main.rs:EmbeddingSettingsState",
         "embedding settings state is transient browser worker status parsed from JSON responses",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:AsyncActivityTask",
+        "activity tasks are internal guard tokens created only by AsyncActivityState::begin",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:AsyncActivityState",
+        "activity state is mutated through begin and finish helpers that preserve task-token ownership",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:AsyncActivityGuard",
+        "activity guard is an RAII token whose cleanup invariant is enforced by finish and Drop",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:LatestAsyncTask",
+        "latest-task state couples Dioxus task handles with activity ids returned by the activity state",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:GentufaAsyncPageState",
+        "async page state is transient UI cache data keyed and replaced by latest-wins worker tasks",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:CuktaAsyncPageState",
+        "async page state is transient UI cache data keyed and replaced by latest-wins worker tasks",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:VlackuAsyncResultState",
+        "async result state is transient UI cache data keyed and replaced by latest-wins worker tasks",
     ),
     (
         "apps/jbotci-web/src/main.rs:VlackuSemanticResultState",
@@ -246,6 +270,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-embeddings/src/lib.rs:CllEmbeddingItem",
         "CLL embedding item rows are generated from embedded CLL search chunk order",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:LoadedCorpusCacheKey",
+        "loaded corpus cache keys are assembled from validated manifest and shard metadata before lookup",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:LoadedCorpus",
+        "loaded corpus dimensions and vector lengths are validated by load_corpus before caching",
     ),
     (
         "crates/jbotci-embeddings/src/lib.rs:VectorHit",

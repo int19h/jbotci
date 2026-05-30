@@ -1268,6 +1268,90 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "typed SVG DOM text is escaped during serialization before parser handoff",
     ),
     (
+        "apps/jbotci-web/src/main.rs:AsyncTaskKind::Gentufa",
+        "activity task kind is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:AsyncTaskKind::Cukta",
+        "activity task kind is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:AsyncTaskKind::Vlacku",
+        "activity task kind is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:AsyncTaskKind::Settings",
+        "activity task kind is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:AsyncTaskKind::Export",
+        "activity task kind is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::EmbeddingCorpusJson",
+        "embedding corpus worker request has no input payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::GentufaPage",
+        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::CuktaPage",
+        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::CuktaSemanticPage",
+        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::VlackuPage",
+        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::VlackuSemanticPage",
+        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::GentufaBlocksSvg",
+        "export request is a serde protocol DTO and delegates block-layout validity to GentufaBlocksLayout",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::GentufaBlocksPng",
+        "export request is a serde protocol DTO and delegates block-layout validity to GentufaBlocksLayout",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::GentufaPage",
+        "compute response is a serde protocol DTO whose payloads are typed page data and metadata",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::CuktaPage",
+        "compute response is a serde protocol DTO whose payloads are typed page data and metadata",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::VlackuPage",
+        "compute response is a serde protocol DTO whose payloads are typed result data and metadata",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::EmbeddingCorpusJson",
+        "embedding corpus response intentionally carries opaque JSON for the browser embedding worker",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::GentufaBlocksSvg",
+        "export response carries renderer output and the runner converts renderer errors before constructing it",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::GentufaBlocksPng",
+        "export response carries renderer output and the runner converts renderer errors before constructing it",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeError::Json",
+        "compute error variant carries serde's formatted diagnostic text",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:WebComputeError::Export",
+        "compute error variant carries renderer diagnostic text",
+    ),
+    (
         "crates/jbotci-web-core/src/lib.rs:WebRoute::Gentufa",
         "route variant delegates URL state constraints to GentufaWebState and canonical route builders",
     ),
