@@ -4423,14 +4423,12 @@ fn render_vlacku_headword_line(
         },
     );
     rsx! {
-        { render_vlacku_word_action(
+        { render_vlacku_headword_action(
             jvozba_pane,
             card.can_add_to_jvozba,
             &card.word,
             &card.display_word,
             &word_href,
-            "dictionary-headword-link dictionary-jvozba-highlighted-word",
-            base_path,
         ) }
         if let Some(ipa) = &card.ipa {
             span { class: "dictionary-headword-ipa", "/{ipa}/" }
@@ -4444,6 +4442,42 @@ fn render_vlacku_headword_line(
                 for rafsi in card.rafsi.iter() {
                     { render_rafsi_pill(jvozba_pane, &card.word, rafsi) }
                 }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_headword_action(
+    mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    can_add_to_jvozba: bool,
+    word: &str,
+    display_word: &str,
+    href: &str,
+) -> Element {
+    let pane_open = jvozba_pane.read().open;
+    let word_value = word.to_owned();
+    if pane_open && can_add_to_jvozba {
+        rsx! {
+            button {
+                class: "dictionary-headword-link dictionary-jvozba-highlighted-word",
+                r#type: "button",
+                title: "Add to jvozba",
+                onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
+                "{display_word}"
+            }
+        }
+    } else if pane_open {
+        rsx! {
+            span { class: "dictionary-headword-link", "{display_word}" }
+        }
+    } else {
+        rsx! {
+            a {
+                class: "dictionary-headword-link dictionary-jvozba-highlighted-word",
+                href: "{href}",
+                "{display_word}"
             }
         }
     }

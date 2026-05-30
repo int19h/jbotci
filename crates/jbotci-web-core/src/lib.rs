@@ -4726,6 +4726,108 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlacku_semantic_nonsense_result_set_renders() {
+        let dictionary = jbotci_dictionary_data::english();
+        let hit_words = [
+            ("nonselsmu", 0.67),
+            ("smucau", 0.58),
+            ("nonselra'u", 0.54),
+            ("nonselkosmu", 0.54),
+            ("ko'o'o'o'o", 0.54),
+            ("snafu", 0.53),
+            ("postmo", 0.52),
+            ("roflma'o", 0.52),
+            ("narplixau", 0.51),
+            ("nunbebna", 0.49),
+            ("kosmycau", 0.49),
+            ("selterselxeliumadbro", 0.48),
+            ("terckasu", 0.48),
+            ("bebna", 0.47),
+            ("zo si si zei fa'o", 0.47),
+            ("selbebna", 0.47),
+            ("gleua", 0.46),
+            ("nalzungi", 0.46),
+            ("nalra'a", 0.46),
+            ("tolmencre", 0.46),
+        ];
+        let hits = hit_words
+            .iter()
+            .map(|(word, score)| VlackuSemanticSearchHit {
+                entry_index: dictionary
+                    .entries()
+                    .iter()
+                    .position(|entry| entry.word == *word)
+                    .unwrap_or_else(|| panic!("missing dictionary entry {word}")),
+                score: *score,
+            })
+            .collect::<Vec<_>>();
+
+        let result = build_vlacku_semantic_web_result(
+            &VlackuWebState {
+                mode: VlackuWebMode::Meaning,
+                query: "nonsense".to_owned(),
+                count: 20,
+                word_types: Vec::new(),
+            },
+            &hits,
+            None,
+        );
+        let result_json = serde_json::to_string(&result).expect("semantic result serializes");
+
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("nonselsmu")
+        );
+        assert!(result.cards.iter().any(|card| card.word == "ko'o'o'o'o"));
+        assert!(
+            result
+                .cards
+                .iter()
+                .any(|card| card.word == "zo si si zei fa'o")
+        );
+        assert!(result.message.is_none(), "{:?}", result.message);
+        assert!(result_json.contains("nonselsmu"));
+        serde_json::from_str::<VlackuWebResult>(&result_json)
+            .expect("semantic result deserializes");
+        dictionary_tooltip_for_word("", "zo si si zei fa'o")
+            .expect("multi-word dictionary entry tooltip renders");
+        for word in ["si", "fa'o"] {
+            let tooltip = dictionary_tooltip_for_word("", word).expect("cmavo tooltip renders");
+            assert!(tooltip.ipa.is_none(), "{word} should not render blank IPA");
+        }
+
+        let response_json = run_web_compute_request_json(
+            &serde_json::to_string(&WebComputeRequest::VlackuSemanticPage {
+                base_path: "/jbotci".to_owned(),
+                state: VlackuWebState {
+                    mode: VlackuWebMode::Meaning,
+                    query: "nonsense".to_owned(),
+                    count: 20,
+                    word_types: Vec::new(),
+                },
+                hits,
+                message: None,
+                loading: false,
+            })
+            .expect("compute request serializes"),
+        )
+        .expect("compute request succeeds");
+        let response = serde_json::from_str::<WebComputeResponse>(&response_json)
+            .expect("response deserializes");
+        let WebComputeResponse::VlackuPage { result, .. } = response else {
+            panic!("expected vlacku page response");
+        };
+        assert!(
+            result
+                .cards
+                .iter()
+                .any(|card| card.word == "zo si si zei fa'o")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_exact_missing_card_keeps_lujvo_decomposition() {
         let result = build_vlacku_web_result(&VlackuWebState {
             mode: VlackuWebMode::Word,

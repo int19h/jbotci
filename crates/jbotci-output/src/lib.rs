@@ -900,6 +900,20 @@ mod tests {
         }
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ipa_output_reports_empty_pronounceable_text() {
+        for source in ["si", "fa'o"] {
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            let error = ipa_morphology_text(&words, source).expect_err("empty IPA rejected");
+            assert!(
+                error.to_string().contains("no pronounceable words"),
+                "{error}"
+            );
+        }
+    }
+
     #[requires(!source.is_empty())]
     #[ensures(!ret.is_empty())]
     fn render_ipa(source: &str) -> String {

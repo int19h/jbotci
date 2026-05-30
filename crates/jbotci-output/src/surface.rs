@@ -57,6 +57,11 @@ pub(crate) fn format_words_ipa(words: &[WordLike], source: &str) -> Result<Strin
         .iter()
         .flat_map(flatten_word_like_ipa)
         .collect::<Vec<_>>();
+    if chunks.is_empty() {
+        return Err(OutputError::Ipa(format!(
+            "no pronounceable words in `{source}`"
+        )));
+    }
     render_ipa_surface_chunks(&chunks, source)
 }
 
