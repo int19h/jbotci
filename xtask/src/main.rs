@@ -2,8 +2,10 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command as ProcessCommand, ExitStatus, Stdio};
+use std::process::{Child, Command as ProcessCommand, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::thread;
+use std::time::{Duration, SystemTime};
 
 use anyhow::{Context, Result, bail};
 use bityzba::{contract_trait, ensures, invariant, requires};
@@ -32,6 +34,10 @@ use jbotci_syntax::{
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use walkdir::WalkDir;
+
+const DIOXUS_WEB_RELEASE_PUBLIC_DIR: &str = "target/dx/jbotci-web/release/web/public";
+const WEB_WORKER_WATCH_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
 #[path = "../../tests/support/fixtures/mod.rs"]
 mod fixtures;
@@ -208,6 +214,19 @@ struct ServeWebReleaseArgs {
     open: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct WebWorkerWatchFile {
+    modified: Option<SystemTime>,
+    len: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct WebWorkerWatchSnapshot {
+    files: BTreeMap<PathBuf, WebWorkerWatchFile>,
+}
+
 #[derive(Debug, Args)]
 #[invariant(true)]
 struct ExportWebEmbeddingCorpusArgs {
@@ -342,20 +361,28 @@ fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
     }
     let status = command.status().context("failed to run `dx build`")?;
     check_status(status, "dx build --web --release --debug-symbols=false")?;
-    copy_post_dioxus_web_assets_to_public(Path::new("target/dx/jbotci-web/release/web/public"))
+    copy_post_dioxus_web_assets_to_public(Path::new(DIOXUS_WEB_RELEASE_PUBLIC_DIR))
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn serve_web_release(args: ServeWebReleaseArgs) -> Result<()> {
-    build_web_worker_assets()?;
-    let status = dx_web_release_command("serve")
+    build_web_worker_assets_for_serve()?;
+    let mut child = dx_web_release_command("serve")
         .arg("--port")
         .arg(args.port.to_string())
         .arg("--open")
         .arg(args.open.to_string())
-        .status()
+        .spawn()
         .context("failed to run `dx serve`")?;
+    let status = match watch_web_worker_assets_until_exit(&mut child) {
+        Ok(status) => status,
+        Err(error) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(error);
+        }
+    };
     check_status(status, "dx serve --web --release --debug-symbols=false")
 }
 
@@ -400,12 +427,21 @@ fn dx_web_release_command(subcommand: &str) -> ProcessCommand {
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn build_web_worker_assets() -> Result<()> {
     let output_dir = Path::new("apps/jbotci-web/assets/generated");
-    if output_dir.exists() {
-        fs::remove_dir_all(output_dir)
-            .with_context(|| format!("removing old worker assets `{}`", output_dir.display()))?;
+    let temp_output_dir = Path::new(".jbotci-build/web-worker-generated");
+    if temp_output_dir.exists() {
+        fs::remove_dir_all(temp_output_dir).with_context(|| {
+            format!(
+                "removing temporary worker asset directory `{}`",
+                temp_output_dir.display()
+            )
+        })?;
     }
-    fs::create_dir_all(output_dir)
-        .with_context(|| format!("creating worker asset directory `{}`", output_dir.display()))?;
+    fs::create_dir_all(temp_output_dir).with_context(|| {
+        format!(
+            "creating temporary worker asset directory `{}`",
+            temp_output_dir.display()
+        )
+    })?;
 
     let status = ProcessCommand::new("cargo")
         .arg("build")
@@ -432,13 +468,134 @@ fn build_web_worker_assets() -> Result<()> {
         .arg("--target")
         .arg("web")
         .arg("--out-dir")
-        .arg(output_dir)
+        .arg(temp_output_dir)
         .arg("--out-name")
         .arg("jbotci_web_worker")
         .arg(worker_wasm)
         .status()
         .context("failed to run `wasm-bindgen`; install the `wasm-bindgen-cli` binary")?;
-    check_status(status, "wasm-bindgen --target web jbotci-web-worker")
+    check_status(status, "wasm-bindgen --target web jbotci-web-worker")?;
+
+    if output_dir.exists() {
+        fs::remove_dir_all(output_dir)
+            .with_context(|| format!("removing old worker assets `{}`", output_dir.display()))?;
+    }
+    let parent = output_dir.parent().with_context(|| {
+        format!(
+            "worker asset output directory `{}` has no parent",
+            output_dir.display()
+        )
+    })?;
+    fs::create_dir_all(parent)
+        .with_context(|| format!("creating worker asset directory `{}`", parent.display()))?;
+    fs::rename(temp_output_dir, output_dir).with_context(|| {
+        format!(
+            "moving generated worker assets from `{}` to `{}`",
+            temp_output_dir.display(),
+            output_dir.display()
+        )
+    })?;
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_web_worker_assets_for_serve() -> Result<()> {
+    build_web_worker_assets()?;
+    copy_web_worker_assets_to_existing_release_public()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_web_worker_assets_to_existing_release_public() -> Result<()> {
+    let public_dir = Path::new(DIOXUS_WEB_RELEASE_PUBLIC_DIR);
+    if public_dir.is_dir() {
+        copy_web_worker_assets_to_public(public_dir)?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn watch_web_worker_assets_until_exit(child: &mut Child) -> Result<ExitStatus> {
+    let mut snapshot = web_worker_watch_snapshot()?;
+    loop {
+        if let Some(status) = child
+            .try_wait()
+            .context("checking whether `dx serve` exited")?
+        {
+            return Ok(status);
+        }
+        thread::sleep(WEB_WORKER_WATCH_POLL_INTERVAL);
+        let next_snapshot = web_worker_watch_snapshot()?;
+        if next_snapshot == snapshot {
+            continue;
+        }
+        println!("web worker source changed; rebuilding generated worker assets");
+        match build_web_worker_assets_for_serve() {
+            Ok(()) => {
+                snapshot = web_worker_watch_snapshot()?;
+                println!("web worker assets rebuilt");
+            }
+            Err(error) => {
+                eprintln!("web worker asset rebuild failed: {error:#}");
+                snapshot = next_snapshot;
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn web_worker_watch_snapshot() -> Result<WebWorkerWatchSnapshot> {
+    let mut files = BTreeMap::new();
+    for root in web_worker_watch_roots() {
+        if root.is_file() {
+            record_web_worker_watch_file(&root, &mut files)?;
+        } else if root.is_dir() {
+            for entry in WalkDir::new(&root).into_iter() {
+                let entry = entry
+                    .with_context(|| format!("walking worker watch root `{}`", root.display()))?;
+                if entry.file_type().is_file() {
+                    record_web_worker_watch_file(entry.path(), &mut files)?;
+                }
+            }
+        }
+    }
+    Ok(WebWorkerWatchSnapshot { files })
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn web_worker_watch_roots() -> Vec<PathBuf> {
+    vec![
+        PathBuf::from("Cargo.lock"),
+        PathBuf::from("Cargo.toml"),
+        PathBuf::from("apps/jbotci-web-worker"),
+        PathBuf::from("crates"),
+    ]
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn record_web_worker_watch_file(
+    path: &Path,
+    files: &mut BTreeMap<PathBuf, WebWorkerWatchFile>,
+) -> Result<()> {
+    let metadata = fs::metadata(path).with_context(|| {
+        format!(
+            "reading metadata for worker watch file `{}`",
+            path.display()
+        )
+    })?;
+    files.insert(
+        path.to_path_buf(),
+        WebWorkerWatchFile {
+            modified: metadata.modified().ok(),
+            len: metadata.len(),
+        },
+    );
+    Ok(())
 }
 
 #[requires(public_dir.is_dir())]
