@@ -3973,6 +3973,49 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn single_synthetic_elided_leaf_keeps_elided_block_metadata() {
+        let request = GentufaWebRequest {
+            text: "klama cei brode i mi brode do ta'i ny fi'o mleca bervi fe'u i brode".to_owned(),
+            options: GentufaWebOptions {
+                show_elided: true,
+                show_glosses: false,
+                ..GentufaWebOptions::default()
+            },
+        };
+        let GentufaWebResult::Success(success) = parse_gentufa_for_web(&request) else {
+            panic!("expected successful parse");
+        };
+        let ku_blocks = success
+            .blocks_layout
+            .blocks
+            .iter()
+            .filter(|block| block.is_leaf && block.label == "ku")
+            .collect::<Vec<_>>();
+        assert!(!ku_blocks.is_empty(), "{:?}", success.blocks_layout.blocks);
+        assert!(
+            ku_blocks.iter().all(|block| block.is_elided),
+            "{ku_blocks:?}"
+        );
+        assert!(
+            ku_blocks.iter().all(|block| block
+                .span
+                .is_some_and(|range| range.byte_start == range.byte_end)),
+            "{ku_blocks:?}"
+        );
+        assert!(
+            ku_blocks.iter().any(|block| block
+                .tooltip
+                .as_ref()
+                .is_some_and(|card| card.word == "ku")
+                && !block.glosses.is_empty()
+                && block.definition.is_some()),
+            "{ku_blocks:?}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn simple_parse_builds_v0_style_block_spans() {
         let request = GentufaWebRequest {
             text: "mi klama le zarci".to_owned(),

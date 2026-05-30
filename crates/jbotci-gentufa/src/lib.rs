@@ -1173,6 +1173,23 @@ fn push_leaf_or_structural_block<Tooltip>(
     parent_id: Option<RawSyntaxNodeId>,
     blocks: &mut Vec<BlockTemp<Tooltip>>,
 ) {
+    if let [part] = node.leaf_parts.as_slice()
+        && part.is_elided
+    {
+        blocks.push(BlockTemp {
+            id: part.id,
+            parent_id,
+            child_ids: Vec::new(),
+            block: synthetic_leaf_block(
+                node,
+                part,
+                col,
+                node.depth,
+                max_depth.saturating_sub(node.depth) + 1,
+            ),
+        });
+        return;
+    }
     let is_leaf = node.leaf_word.is_some() && node.token_kind.is_some();
     let row_span = if is_leaf {
         max_depth.saturating_sub(node.depth) + 1
