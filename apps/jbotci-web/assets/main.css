@@ -52,6 +52,8 @@ input:disabled {
   --app-link: #934316;
   --app-link-hover: #6f2f0e;
   --app-accent: #934316;
+  --dark-surface-link: #de9b54;
+  --dark-surface-link-hover: #ffbd77;
   --app-focus: rgba(147, 67, 22, 0.32);
   --app-border: rgba(57, 42, 22, 0.18);
   --app-border-strong: rgba(57, 42, 22, 0.28);
@@ -83,7 +85,7 @@ input:disabled {
   --topbar-muted: #9aa3ad;
   --topbar-active: #ffffff;
   --topbar-status: #cab9a4;
-  --topbar-commit: #9f8c77;
+  --topbar-commit: var(--dark-surface-link);
   --theme-switch-bg: rgba(255, 255, 255, 0.08);
   --theme-switch-border: rgba(255, 255, 255, 0.18);
   --theme-btn-fg: #f4ede2;
@@ -165,6 +167,8 @@ body::-webkit-scrollbar-thumb:hover,
   --app-link: #de9b54;
   --app-link-hover: #ffbd77;
   --app-accent: #de9b54;
+  --dark-surface-link: var(--app-link);
+  --dark-surface-link-hover: var(--app-link-hover);
   --app-focus: rgba(222, 155, 84, 0.34);
   --app-border: rgba(230, 207, 175, 0.16);
   --app-border-strong: rgba(230, 207, 175, 0.28);
@@ -210,6 +214,8 @@ body::-webkit-scrollbar-thumb:hover,
     --app-link: #de9b54;
     --app-link-hover: #ffbd77;
     --app-accent: #de9b54;
+    --dark-surface-link: var(--app-link);
+    --dark-surface-link-hover: var(--app-link-hover);
     --app-focus: rgba(222, 155, 84, 0.34);
     --app-border: rgba(230, 207, 175, 0.16);
     --app-border-strong: rgba(230, 207, 175, 0.28);
@@ -343,7 +349,7 @@ body::-webkit-scrollbar-thumb:hover,
   margin-left: 0.45rem;
 }
 
-.app-topbar-settings-toggle {
+.app-page .app-topbar .app-topbar-settings-toggle {
   width: 1.55rem;
   min-width: 1.55rem;
   height: 1.55rem;
@@ -354,7 +360,7 @@ body::-webkit-scrollbar-thumb:hover,
   border: 1px solid var(--theme-switch-border);
   border-radius: 999px;
   background: var(--theme-switch-bg);
-  color: var(--theme-btn-fg);
+  color: var(--dark-surface-link);
   cursor: pointer;
   font-family: "Noto Sans", sans-serif;
   font-size: 0.9rem;
@@ -370,10 +376,10 @@ body::-webkit-scrollbar-thumb:hover,
   transform: translateY(-0.04em);
 }
 
-.app-topbar-settings-toggle:hover,
-.app-topbar-settings-toggle.is-open,
-.app-topbar-settings-toggle[aria-expanded="true"] {
-  color: var(--theme-btn-hover);
+.app-page .app-topbar .app-topbar-settings-toggle:hover,
+.app-page .app-topbar .app-topbar-settings-toggle.is-open,
+.app-page .app-topbar .app-topbar-settings-toggle[aria-expanded="true"] {
+  color: var(--dark-surface-link-hover);
   background: var(--theme-btn-active-bg);
 }
 
@@ -398,10 +404,10 @@ body::-webkit-scrollbar-thumb:hover,
   align-items: center;
 }
 
-.app-topbar-settings-all {
+.app-page .app-topbar .app-topbar-settings-all {
   display: inline;
   padding: 0;
-  color: var(--topbar-text);
+  color: var(--dark-surface-link);
   font-family: "Noto Sans", sans-serif;
   font-size: 0.7rem;
   font-weight: 400;
@@ -412,8 +418,8 @@ body::-webkit-scrollbar-thumb:hover,
   white-space: nowrap;
 }
 
-.app-topbar-settings-all:hover {
-  color: var(--topbar-active);
+.app-page .app-topbar .app-topbar-settings-all:hover {
+  color: var(--dark-surface-link-hover);
 }
 
 .theme-switch {
@@ -630,7 +636,7 @@ body::-webkit-scrollbar-thumb:hover,
   font-size: 0.7rem;
 }
 
-.app-topbar-commit {
+.app-page .app-topbar .app-topbar-commit {
   color: var(--topbar-commit);
   font-family: "Noto Sans", sans-serif;
   font-size: 0.7rem;
@@ -641,8 +647,8 @@ body::-webkit-scrollbar-thumb:hover,
   text-decoration: none;
 }
 
-.app-topbar-commit:hover {
-  color: var(--topbar-text);
+.app-page .app-topbar .app-topbar-commit:hover {
+  color: var(--dark-surface-link-hover);
   text-decoration: underline;
   text-underline-offset: 0.28em;
 }
@@ -868,6 +874,7 @@ body::-webkit-scrollbar-thumb:hover,
 .parse-page .bracket-word:focus-visible,
 .parse-page .bracket-word-link:hover,
 .parse-page .bracket-word-link:focus-visible {
+  color: inherit;
   text-decoration: none;
 }
 
