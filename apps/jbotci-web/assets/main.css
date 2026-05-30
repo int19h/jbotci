@@ -305,11 +305,12 @@ body::-webkit-scrollbar-thumb:hover,
 .app-topbar-left {
   grid-column: 1;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.16rem;
   padding-left: 0.2rem;
   min-width: 0;
+  overflow: visible;
 }
 
 .app-page .app-topbar .app-topbar-brand {
@@ -327,11 +328,82 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .app-topbar-theme {
+  flex: 0 0 auto;
   margin-left: 0.9rem;
 }
 
 .app-topbar-theme + .app-topbar-theme {
   margin-left: 0.3rem;
+}
+
+.app-topbar-settings {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: 0.45rem;
+}
+
+.app-topbar-settings-toggle {
+  width: 1.55rem;
+  min-width: 1.55rem;
+  height: 1.55rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--theme-switch-border);
+  border-radius: 999px;
+  background: var(--theme-switch-bg);
+  color: var(--theme-btn-fg);
+  cursor: pointer;
+  font-family: "Noto Sans", sans-serif;
+  font-size: 0.9rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.app-topbar-settings-toggle:hover,
+.app-topbar-settings-toggle.is-open,
+.app-topbar-settings-toggle[aria-expanded="true"] {
+  color: var(--theme-btn-hover);
+  background: var(--theme-btn-active-bg);
+}
+
+.app-topbar-settings-menu {
+  position: absolute;
+  top: calc(100% + 0.42rem);
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.48rem;
+  border: 1px solid var(--topbar-border);
+  border-radius: 8px;
+  background: var(--topbar-bg);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.35);
+  z-index: 1200;
+}
+
+.app-topbar-settings-all {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.55rem;
+  padding: 0 0.2rem;
+  color: var(--topbar-muted);
+  font-family: "Noto Sans", sans-serif;
+  font-size: 0.86rem;
+  font-weight: 500;
+  font-stretch: 87.5%;
+  font-variation-settings: "wdth" 87.5;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.app-topbar-settings-all:hover {
+  color: var(--topbar-text);
+  text-decoration: underline;
+  text-underline-offset: 0.32em;
 }
 
 .theme-switch {
@@ -398,6 +470,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .app-page .app-topbar .spa-nav {
+  flex: 0 0 auto;
   margin-left: 0.75rem;
   display: flex;
   align-items: center;
@@ -538,8 +611,60 @@ body::-webkit-scrollbar-thumb:hover,
 
 .app-topbar-right {
   grid-column: 3;
-  padding-right: 0.55rem;
+  justify-self: end;
+  align-self: center;
+  padding-right: 0.2rem;
   color: var(--topbar-commit);
+  text-align: right;
+  white-space: nowrap;
+  font-size: 0.7rem;
+}
+
+.app-topbar-commit {
+  color: var(--topbar-commit);
+  font-family: "Noto Sans", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  font-stretch: 87.5%;
+  font-variation-settings: "wdth" 87.5;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.app-topbar-commit:hover {
+  color: var(--topbar-text);
+  text-decoration: underline;
+  text-underline-offset: 0.28em;
+}
+
+.app-topbar-fit-probes {
+  position: fixed;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  contain: layout style;
+  z-index: -1;
+}
+
+.app-topbar-fit-probe {
+  width: max-content;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.16rem;
+  padding-left: 0.2rem;
+  white-space: nowrap;
+}
+
+.app-topbar-fit-probe .app-topbar-brand {
+  display: inline-flex;
+  align-items: center;
+}
+
+.app-topbar-fit-probe .spa-nav {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
 }
 
 .spa-page .page-container {

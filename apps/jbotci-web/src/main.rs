@@ -49,6 +49,8 @@ const EMBEDDING_WORKER_JS: Asset = asset!("/assets/embedding-worker.js");
 const MANIFEST: Asset = asset!("/assets/manifest.webmanifest");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
 const FAVICON: Asset = asset!("/assets/icons/jbotci-icon-192.png");
+const BUILD_GIT_COMMIT: Option<&str> = option_env!("JBOTCI_GIT_COMMIT");
+const BUILD_GIT_COMMIT_SHORT: Option<&str> = option_env!("JBOTCI_GIT_COMMIT_SHORT");
 const NOTO_SANS: Asset = asset!("/assets/fonts/noto-sans-variable.ttf");
 const NOTO_SANS_ITALIC: Asset = asset!("/assets/fonts/noto-sans-italic-variable.ttf");
 const NOTO_SANS_MATH: Asset = asset!("/assets/fonts/noto-sans-math-regular.otf");
@@ -112,6 +114,14 @@ enum ThemeMode {
     Auto,
     Day,
     Night,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum TopbarSettingsLayout {
+    BothInline,
+    ThemeInline,
+    NoneInline,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -648,6 +658,8 @@ fn App() -> Element {
     let activity = use_signal(AsyncActivityState::default);
     let activity_indicator_visible = use_signal(|| false);
     let activity_indicator_delay_task = use_signal(|| None::<Task>);
+    let topbar_settings_layout = use_signal(|| TopbarSettingsLayout::BothInline);
+    let topbar_settings_open = use_signal(|| false);
     let initial_gentufa = initial_gentufa_state();
     let initial_gentufa_has_text = initial_gentufa_text_explicit();
     let initial_gentufa_text = if initial_gentufa.text.is_empty() {
@@ -728,6 +740,8 @@ fn App() -> Element {
         gentufa_display,
         gentufa_text_explicit,
         pending_cukta_scroll,
+        topbar_settings_layout,
+        topbar_settings_open,
         &base_path,
     );
     use_effect(move || {
@@ -1051,6 +1065,15 @@ fn App() -> Element {
         }
     });
     use_effect(move || {
+        let _ = (
+            *route.read(),
+            settings.read().theme,
+            settings.read().script,
+            activity.read().is_active(),
+        );
+        schedule_topbar_settings_layout_measure(topbar_settings_layout, topbar_settings_open);
+    });
+    use_effect(move || {
         if *route.read() == AppRoute::Gentufa {
             let _ = (
                 parsed_text.read().len(),
@@ -1087,6 +1110,8 @@ fn App() -> Element {
                 &topbar_vlacku_href,
                 &topbar_gentufa_href,
                 &nav_href(&base_path, AppRoute::Settings),
+                *topbar_settings_layout.read(),
+                topbar_settings_open,
                 &activity_value,
                 activity_indicator_visible_value,
             ) }
@@ -1178,16 +1203,20 @@ fn render_topbar(
     vlacku_href: &str,
     gentufa_href: &str,
     settings_href: &str,
+    settings_layout: TopbarSettingsLayout,
+    settings_open: Signal<bool>,
     activity: &AsyncActivityState,
     activity_visible: bool,
 ) -> Element {
     let cukta_loading = activity_visible && activity.has_kind(AsyncTaskKind::Cukta);
     let vlacku_loading = activity_visible && activity.has_kind(AsyncTaskKind::Vlacku);
     let gentufa_loading = activity_visible && activity.has_kind(AsyncTaskKind::Gentufa);
-    let settings_loading = activity_visible && activity.has_kind(AsyncTaskKind::Settings);
     let activity_class = topbar_activity_class(activity_visible);
+    let header_class = topbar_header_class(settings_layout, *settings_open.read());
+    let show_theme_inline = settings_layout.shows_theme_inline();
+    let show_script_inline = settings_layout.shows_script_inline();
     rsx! {
-        header { class: "app-topbar spa-topbar",
+        header { class: "{header_class}",
             div { class: "app-topbar-inner spa-topbar-inner",
                 div { class: "app-topbar-left",
                     a {
@@ -1197,12 +1226,17 @@ fn render_topbar(
                         title: "Settings",
                         img { class: "app-topbar-brand-logo", src: LOGO, alt: "jbotci" }
                     }
-                    span { class: "app-topbar-theme app-topbar-theme-mode",
-                        { render_theme_switch(settings, current.theme) }
+                    if show_theme_inline {
+                        span { class: "app-topbar-theme app-topbar-theme-mode",
+                            { render_theme_switch(settings, current.theme) }
+                        }
                     }
-                    span { class: "app-topbar-theme app-topbar-orthography",
-                        { render_script_switch(settings, current.script) }
+                    if show_script_inline {
+                        span { class: "app-topbar-theme app-topbar-orthography",
+                            { render_script_switch(settings, current.script) }
+                        }
                     }
+                    { render_topbar_settings_button(settings, current, settings_href, settings_layout, settings_open) }
                     nav { class: "spa-nav", aria_label: "Primary navigation",
                         a {
                             class: topbar_link_class(route == AppRoute::Cukta, cukta_loading),
@@ -1229,6 +1263,7 @@ fn render_topbar(
                         }
                     }
                 }
+                { render_topbar_fit_probes(settings, current, route, cukta_loading, vlacku_loading, gentufa_loading, cukta_href, vlacku_href, gentufa_href) }
                 div { class: "{activity_class}", role: "status", aria_live: "polite",
                     span { class: "sr-only",
                         if activity_visible {
@@ -1242,16 +1277,433 @@ fn render_topbar(
                     }
                 }
                 div { class: "app-topbar-right",
-                    a {
-                        class: topbar_link_class(route == AppRoute::Settings, settings_loading),
-                        href: "{settings_href}",
-                        title: "Settings",
-                        span { class: "app-topbar-link-label", "settings" }
-                    }
+                    { render_topbar_commit_link() }
                 }
             }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_topbar_nav(
+    route: AppRoute,
+    cukta_loading: bool,
+    vlacku_loading: bool,
+    gentufa_loading: bool,
+    cukta_href: &str,
+    vlacku_href: &str,
+    gentufa_href: &str,
+) -> Element {
+    rsx! {
+        nav { class: "spa-nav", aria_label: "Primary navigation",
+            a {
+                class: topbar_link_class(route == AppRoute::Cukta, cukta_loading),
+                href: "{cukta_href}",
+                aria_current: if route == AppRoute::Cukta { "page" } else { "false" },
+                span { class: "app-topbar-link-label", "cukta" }
+            }
+            a {
+                class: topbar_link_class(route == AppRoute::Vlacku, vlacku_loading),
+                href: "{vlacku_href}",
+                aria_current: if route == AppRoute::Vlacku { "page" } else { "false" },
+                span { class: "app-topbar-link-label", "vlacku" }
+            }
+            a {
+                class: topbar_link_class(route == AppRoute::Gentufa, gentufa_loading),
+                href: "{gentufa_href}",
+                aria_current: if route == AppRoute::Gentufa { "page" } else { "false" },
+                span { class: "app-topbar-link-label", "gentufa" }
+                span { class: "app-topbar-link-dots", aria_hidden: "true",
+                    span { class: "app-topbar-link-dot" }
+                    span { class: "app-topbar-link-dot" }
+                    span { class: "app-topbar-link-dot" }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_topbar_settings_button(
+    settings: Signal<UserSettings>,
+    current: UserSettings,
+    settings_href: &str,
+    settings_layout: TopbarSettingsLayout,
+    mut settings_open: Signal<bool>,
+) -> Element {
+    let menu_open = *settings_open.read() && settings_layout.uses_popout();
+    let button_class = topbar_settings_button_class(menu_open);
+    rsx! {
+        div { class: "app-topbar-settings",
+            if settings_layout.uses_popout() {
+                button {
+                    class: "{button_class}",
+                    r#type: "button",
+                    aria_label: "Settings",
+                    aria_expanded: if menu_open { "true" } else { "false" },
+                    aria_controls: "app-topbar-settings-menu",
+                    title: "Settings",
+                    onclick: move |_| settings_open.set(!menu_open),
+                    span { aria_hidden: "true", "⚙" }
+                }
+                if menu_open {
+                    { render_topbar_settings_menu(settings, current, settings_href, settings_layout) }
+                }
+            } else {
+                a {
+                    class: "{button_class}",
+                    href: "{settings_href}",
+                    aria_label: "Settings",
+                    title: "Settings",
+                    span { aria_hidden: "true", "⚙" }
+                }
+            }
+        }
+    }
+}
+
+#[requires(settings_layout.uses_popout())]
+#[ensures(true)]
+fn render_topbar_settings_menu(
+    settings: Signal<UserSettings>,
+    current: UserSettings,
+    settings_href: &str,
+    settings_layout: TopbarSettingsLayout,
+) -> Element {
+    rsx! {
+        div {
+            id: "app-topbar-settings-menu",
+            class: "app-topbar-settings-menu",
+            role: "dialog",
+            aria_label: "Settings",
+            if !settings_layout.shows_theme_inline() {
+                { render_theme_switch(settings, current.theme) }
+            }
+            if !settings_layout.shows_script_inline() {
+                { render_script_switch(settings, current.script) }
+            }
+            a {
+                class: "app-topbar-settings-all",
+                href: "{settings_href}",
+                "All settings"
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(true)]
+#[ensures(true)]
+fn render_topbar_fit_probes(
+    settings: Signal<UserSettings>,
+    current: UserSettings,
+    route: AppRoute,
+    cukta_loading: bool,
+    vlacku_loading: bool,
+    gentufa_loading: bool,
+    cukta_href: &str,
+    vlacku_href: &str,
+    gentufa_href: &str,
+) -> Element {
+    rsx! {
+        div {
+            class: "app-topbar-fit-probes",
+            aria_hidden: "true",
+            div { class: "app-topbar-fit-probe app-topbar-fit-probe-both",
+                { render_topbar_probe_brand() }
+                span { class: "app-topbar-theme app-topbar-theme-mode",
+                    { render_theme_switch(settings, current.theme) }
+                }
+                span { class: "app-topbar-theme app-topbar-orthography",
+                    { render_script_switch(settings, current.script) }
+                }
+                { render_topbar_probe_settings_button() }
+                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_href, vlacku_href, gentufa_href) }
+            }
+            div { class: "app-topbar-fit-probe app-topbar-fit-probe-theme",
+                { render_topbar_probe_brand() }
+                span { class: "app-topbar-theme app-topbar-theme-mode",
+                    { render_theme_switch(settings, current.theme) }
+                }
+                { render_topbar_probe_settings_button() }
+                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_href, vlacku_href, gentufa_href) }
+            }
+            div { class: "app-topbar-fit-probe app-topbar-fit-probe-none",
+                { render_topbar_probe_brand() }
+                { render_topbar_probe_settings_button() }
+                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_href, vlacku_href, gentufa_href) }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_topbar_probe_brand() -> Element {
+    rsx! {
+        span { class: "app-topbar-brand app-topbar-brand-probe",
+            img { class: "app-topbar-brand-logo", src: LOGO, alt: "" }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_topbar_probe_settings_button() -> Element {
+    rsx! {
+        span { class: "app-topbar-settings",
+            span { class: "app-topbar-settings-toggle", aria_hidden: "true", "⚙" }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_topbar_commit_link() -> Element {
+    let Some(full_commit) = BUILD_GIT_COMMIT else {
+        return rsx! {};
+    };
+    let Some(short_commit) = BUILD_GIT_COMMIT_SHORT else {
+        return rsx! {};
+    };
+    let href = format!("https://codeberg.org/int_19h/jbotci/commit/{full_commit}");
+    rsx! {
+        a {
+            class: "app-topbar-commit",
+            href: "{href}",
+            title: "Git commit from which this version of jbotci was built.",
+            aria_label: "Build commit {short_commit}",
+            "{short_commit}"
+        }
+    }
+}
+
+impl TopbarSettingsLayout {
+    #[requires(true)]
+    #[ensures(true)]
+    fn shows_theme_inline(self) -> bool {
+        matches!(self, Self::BothInline | Self::ThemeInline)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn shows_script_inline(self) -> bool {
+        matches!(self, Self::BothInline)
+    }
+
+    #[requires(true)]
+    #[ensures(ret == !self.shows_script_inline())]
+    fn uses_popout(self) -> bool {
+        !self.shows_script_inline()
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn topbar_header_class(settings_layout: TopbarSettingsLayout, settings_open: bool) -> String {
+    format!(
+        "app-topbar spa-topbar {}{}",
+        match settings_layout {
+            TopbarSettingsLayout::BothInline => "topbar-settings-both-inline",
+            TopbarSettingsLayout::ThemeInline => "topbar-settings-theme-inline",
+            TopbarSettingsLayout::NoneInline => "topbar-settings-none-inline",
+        },
+        if settings_open && settings_layout.uses_popout() {
+            " topbar-settings-open"
+        } else {
+            ""
+        }
+    )
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn topbar_settings_button_class(open: bool) -> &'static str {
+    if open {
+        "app-topbar-settings-toggle is-open"
+    } else {
+        "app-topbar-settings-toggle"
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn update_topbar_settings_layout(
+    mut settings_layout: Signal<TopbarSettingsLayout>,
+    mut settings_open: Signal<bool>,
+    next_layout: TopbarSettingsLayout,
+) {
+    if *settings_layout.read() != next_layout {
+        settings_layout.set(next_layout);
+    }
+    if next_layout == TopbarSettingsLayout::BothInline && *settings_open.read() {
+        settings_open.set(false);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_topbar_settings_layout_measure(
+    settings_layout: Signal<TopbarSettingsLayout>,
+    settings_open: Signal<bool>,
+) {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move || {
+        update_topbar_settings_layout(
+            settings_layout,
+            settings_open,
+            measure_topbar_settings_layout(),
+        );
+    });
+    let _ = window
+        .set_timeout_with_callback_and_timeout_and_arguments_0(closure.as_ref().unchecked_ref(), 0);
+    closure.forget();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_topbar_settings_layout_measure(
+    settings_layout: Signal<TopbarSettingsLayout>,
+    settings_open: Signal<bool>,
+) {
+    update_topbar_settings_layout(
+        settings_layout,
+        settings_open,
+        TopbarSettingsLayout::BothInline,
+    );
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_topbar_settings_layout_after_fonts_ready(
+    document: &web_sys::Document,
+    settings_layout: Signal<TopbarSettingsLayout>,
+    settings_open: Signal<bool>,
+) {
+    let Ok(fonts) = js_sys::Reflect::get(document.as_ref(), &JsValue::from_str("fonts")) else {
+        return;
+    };
+    let Ok(ready) = js_sys::Reflect::get(&fonts, &JsValue::from_str("ready")) else {
+        return;
+    };
+    let Ok(promise) = ready.dyn_into::<js_sys::Promise>() else {
+        return;
+    };
+    wasm_bindgen_futures::spawn_local(async move {
+        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+        schedule_topbar_settings_layout_measure(settings_layout, settings_open);
+    });
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn measure_topbar_settings_layout() -> TopbarSettingsLayout {
+    if topbar_probe_fits(".app-topbar-fit-probe-both") {
+        TopbarSettingsLayout::BothInline
+    } else if topbar_probe_fits(".app-topbar-fit-probe-theme") {
+        TopbarSettingsLayout::ThemeInline
+    } else {
+        TopbarSettingsLayout::NoneInline
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(!selector.is_empty())]
+#[ensures(true)]
+fn topbar_probe_fits(selector: &str) -> bool {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return true;
+    };
+    let Some(inner) = document.query_selector(".app-topbar-inner").ok().flatten() else {
+        return true;
+    };
+    let Some(probe) = document.query_selector(selector).ok().flatten() else {
+        return true;
+    };
+    let available_width = inner.get_bounding_client_rect().width();
+    let center_width = topbar_center_content_width(&inner);
+    let right_width = topbar_visible_width(&inner, ".app-topbar-right");
+    let visible_columns = 1.0
+        + if center_width > 0.0 { 1.0 } else { 0.0 }
+        + if right_width > 0.0 { 1.0 } else { 0.0 };
+    let required_width = element_layout_width(&probe)
+        + center_width
+        + right_width
+        + (visible_columns - 1.0) * topbar_column_gap(&inner);
+    required_width <= available_width + 1.0
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret >= 0.0)]
+fn topbar_center_content_width(parent: &web_sys::Element) -> f64 {
+    let Some(center) = parent.query_selector(".app-topbar-center").ok().flatten() else {
+        return 0.0;
+    };
+    let Some(window) = web_sys::window() else {
+        return 0.0;
+    };
+    let Some(style) = window.get_computed_style(&center).ok().flatten() else {
+        return 0.0;
+    };
+    if style.get_property_value("display").ok().as_deref() == Some("none")
+        || style.get_property_value("visibility").ok().as_deref() == Some("hidden")
+    {
+        return 0.0;
+    }
+    center
+        .query_selector(".app-topbar-activity-dots")
+        .ok()
+        .flatten()
+        .map_or(0.0, |dots| element_layout_width(&dots))
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret >= 0.0)]
+fn topbar_visible_width(parent: &web_sys::Element, selector: &str) -> f64 {
+    let Some(element) = parent.query_selector(selector).ok().flatten() else {
+        return 0.0;
+    };
+    let Some(window) = web_sys::window() else {
+        return 0.0;
+    };
+    let Some(style) = window.get_computed_style(&element).ok().flatten() else {
+        return 0.0;
+    };
+    if style.get_property_value("display").ok().as_deref() == Some("none")
+        || style.get_property_value("visibility").ok().as_deref() == Some("hidden")
+    {
+        return 0.0;
+    }
+    element_layout_width(&element)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret >= 0.0)]
+fn element_layout_width(element: &web_sys::Element) -> f64 {
+    f64::from(element.scroll_width()).max(element.get_bounding_client_rect().width())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret >= 0.0)]
+fn topbar_column_gap(element: &web_sys::Element) -> f64 {
+    web_sys::window()
+        .and_then(|window| window.get_computed_style(element).ok().flatten())
+        .and_then(|style| style.get_property_value("column-gap").ok())
+        .and_then(|value| value.trim_end_matches("px").parse::<f64>().ok())
+        .filter(|value| value.is_finite() && *value >= 0.0)
+        .unwrap_or(0.0)
 }
 
 #[requires(true)]
@@ -7065,6 +7517,8 @@ fn install_browser_state_handlers(
     gentufa_display: Signal<GentufaDisplayState>,
     gentufa_text_explicit: Signal<bool>,
     pending_cukta_scroll: Signal<Option<String>>,
+    topbar_settings_layout: Signal<TopbarSettingsLayout>,
+    topbar_settings_open: Signal<bool>,
     base_path: &str,
 ) {
     let should_install = BROWSER_STATE_HANDLERS_INSTALLED.with(|installed| {
@@ -7097,12 +7551,14 @@ fn install_browser_state_handlers(
     let click_display = gentufa_display;
     let click_text_explicit = gentufa_text_explicit;
     let click_pending_cukta_scroll = pending_cukta_scroll;
+    let mut click_topbar_open = topbar_settings_open;
     let click_closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
         let Some(href) = internal_href_from_click_event(&event, &base_path_for_click) else {
             return;
         };
         event.prevent_default();
         event.stop_propagation();
+        click_topbar_open.set(false);
         navigate_to_internal_href(
             &href,
             &base_path_for_click,
@@ -7185,23 +7641,32 @@ fn install_browser_state_handlers(
     );
     tooltip_focus_closure.forget();
 
+    let resize_layout = topbar_settings_layout;
+    let resize_open = topbar_settings_open;
     let resize_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
+        schedule_topbar_settings_layout_measure(resize_layout, resize_open);
     }) as Box<dyn FnMut(_)>);
     let _ =
         window.add_event_listener_with_callback("resize", resize_closure.as_ref().unchecked_ref());
     resize_closure.forget();
 
+    let load_layout = topbar_settings_layout;
+    let load_open = topbar_settings_open;
     let window_load_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
+        schedule_topbar_settings_layout_measure(load_layout, load_open);
     }) as Box<dyn FnMut(_)>);
     let _ = window
         .add_event_listener_with_callback("load", window_load_closure.as_ref().unchecked_ref());
     window_load_closure.forget();
 
+    let stylesheet_layout = topbar_settings_layout;
+    let stylesheet_open = topbar_settings_open;
     let stylesheet_load_closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
         if event_target_is_stylesheet_link(&event) {
             schedule_gentufa_block_reference_layout();
+            schedule_topbar_settings_layout_measure(stylesheet_layout, stylesheet_open);
         }
     }) as Box<dyn FnMut(_)>);
     let _ = document.add_event_listener_with_callback_and_bool(
@@ -7211,6 +7676,11 @@ fn install_browser_state_handlers(
     );
     stylesheet_load_closure.forget();
     schedule_gentufa_block_reference_layout_after_fonts_ready(&document);
+    schedule_topbar_settings_layout_after_fonts_ready(
+        &document,
+        topbar_settings_layout,
+        topbar_settings_open,
+    );
 
     let scroll_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         save_current_scroll_position();
@@ -7238,6 +7708,8 @@ fn install_browser_state_handlers(
     gentufa_display: Signal<GentufaDisplayState>,
     gentufa_text_explicit: Signal<bool>,
     pending_cukta_scroll: Signal<Option<String>>,
+    topbar_settings_layout: Signal<TopbarSettingsLayout>,
+    topbar_settings_open: Signal<bool>,
     base_path: &str,
 ) {
     let _ = (
@@ -7253,6 +7725,8 @@ fn install_browser_state_handlers(
         gentufa_display,
         gentufa_text_explicit,
         pending_cukta_scroll,
+        topbar_settings_layout,
+        topbar_settings_open,
         base_path,
     );
 }
