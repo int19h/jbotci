@@ -19,8 +19,8 @@ use axum::{Json, Router};
 use bityzba::{ensures, invariant, requires};
 use clap::Parser;
 use jbotci_web_core::{
-    GentufaWebRequest, GentufaWebResult, PageMeta, WebFeatureAvailability, build_page_meta,
-    parse_gentufa_for_web, parse_web_route,
+    GentufaError, GentufaWebRequest, GentufaWebResult, PageMeta, WebFeatureAvailability, WebRoute,
+    build_page_meta, parse_gentufa_for_web, parse_web_route,
 };
 use serde::Serialize;
 
@@ -149,7 +149,25 @@ async fn features() -> Json<WebFeatureAvailability> {
 #[requires(true)]
 #[ensures(true)]
 async fn gentufa(Json(request): Json<GentufaWebRequest>) -> Json<GentufaWebResult> {
-    Json(parse_gentufa_for_web(&request))
+    Json(parse_gentufa_for_web_blocking(request).await)
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn parse_gentufa_for_web_blocking(request: GentufaWebRequest) -> GentufaWebResult {
+    tokio::task::spawn_blocking(move || parse_gentufa_for_web(&request))
+        .await
+        .unwrap_or_else(gentufa_task_error)
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, GentufaWebResult::Error(_)))]
+fn gentufa_task_error(error: tokio::task::JoinError) -> GentufaWebResult {
+    GentufaWebResult::Error(GentufaError {
+        phase: None,
+        message: format!("gentufa parse task failed: {error}"),
+        diagnostics: Vec::new(),
+    })
 }
 
 #[requires(true)]
@@ -213,7 +231,7 @@ async fn spa_index_response(
         }
     });
     let route = parse_web_route(&logical_path, uri.query().unwrap_or_default());
-    let meta = build_page_meta(&state.base_path, &route);
+    let meta = build_page_meta_blocking(state.base_path.clone(), route).await?;
     let rendered = apply_spa_head_metadata(&html, request_origin(headers).as_deref(), &meta);
     Some(asset_response(
         StatusCode::OK,
@@ -223,12 +241,20 @@ async fn spa_index_response(
     ))
 }
 
+#[requires(base_path.starts_with('/'))]
+#[ensures(true)]
+async fn build_page_meta_blocking(base_path: String, route: WebRoute) -> Option<PageMeta> {
+    tokio::task::spawn_blocking(move || build_page_meta(&base_path, &route))
+        .await
+        .ok()
+}
+
 #[requires(true)]
 #[ensures(true)]
 async fn load_index_html_bytes(state: &AppState) -> Option<Vec<u8>> {
     if let Some(static_dir) = &state.static_dir {
         let index_path = static_dir.join("index.html");
-        if let Ok(bytes) = std::fs::read(index_path) {
+        if let Ok(bytes) = tokio::fs::read(index_path).await {
             return Some(bytes);
         }
     }
@@ -327,8 +353,8 @@ async fn static_dir_response(
     let relative = safe_relative_path(asset_path)?;
     let normal_path = static_dir.join(&relative);
     let (path, logical_path, encoding) = if accepts_brotli {
-        let br_path = PathBuf::from(format!("{}.br", normal_path.display()));
-        if br_path.is_file() {
+        let br_path = brotli_sidecar_path(&normal_path);
+        if is_regular_file(&br_path).await {
             (br_path, asset_path.to_owned(), Some("br"))
         } else {
             (normal_path, asset_path.to_owned(), None)
@@ -336,13 +362,29 @@ async fn static_dir_response(
     } else {
         (normal_path, asset_path.to_owned(), None)
     };
-    let bytes = std::fs::read(path).ok()?;
+    let bytes = tokio::fs::read(path).await.ok()?;
     Some(asset_response(
         StatusCode::OK,
         &logical_path,
         encoding,
         Body::from(bytes),
     ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn brotli_sidecar_path(path: &Path) -> PathBuf {
+    let mut sidecar = path.as_os_str().to_os_string();
+    sidecar.push(".br");
+    PathBuf::from(sidecar)
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn is_regular_file(path: &Path) -> bool {
+    tokio::fs::metadata(path)
+        .await
+        .is_ok_and(|metadata| metadata.is_file())
 }
 
 #[requires(path.starts_with('/'))]
@@ -911,6 +953,101 @@ mod tests {
             Some("application/octet-stream")
         );
         assert_eq!(response_bytes(shard).await, vec![0, 0, 0, 0]);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn static_assets_prefer_brotli_when_accepted() {
+        let static_dir = test_static_dir();
+        std::fs::create_dir_all(static_dir.join("assets")).expect("create assets dir");
+        std::fs::write(static_dir.join("assets/app.js"), "plain").expect("write asset");
+        std::fs::write(static_dir.join("assets/app.js.br"), "brotli").expect("write br asset");
+        let app = router(ServerConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 0,
+            base_path: "/jbotci".to_owned(),
+            static_dir: Some(static_dir),
+        });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/app.js")
+                    .header(ACCEPT_ENCODING, "gzip, br")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_ENCODING)
+                .and_then(|value| value.to_str().ok()),
+            Some("br")
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("text/javascript; charset=utf-8")
+        );
+        assert_eq!(response_text(response).await, "brotli");
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn static_assets_skip_brotli_without_accept_encoding() {
+        let static_dir = test_static_dir();
+        std::fs::create_dir_all(static_dir.join("assets")).expect("create assets dir");
+        std::fs::write(static_dir.join("assets/app.js"), "plain").expect("write asset");
+        std::fs::write(static_dir.join("assets/app.js.br"), "brotli").expect("write br asset");
+        let app = router(ServerConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 0,
+            base_path: "/jbotci".to_owned(),
+            static_dir: Some(static_dir),
+        });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/app.js")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(response.headers().get(CONTENT_ENCODING).is_none());
+        assert_eq!(response_text(response).await, "plain");
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn missing_static_asset_returns_404() {
+        let app = router(ServerConfig {
+            host: "127.0.0.1".to_owned(),
+            port: 0,
+            base_path: "/jbotci".to_owned(),
+            static_dir: Some(test_static_dir()),
+        });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/assets/missing.js")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
