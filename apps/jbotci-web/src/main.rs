@@ -1,3 +1,4 @@
+use dioxus::core::Task;
 use dioxus::prelude::*;
 use jbotci_cll::{
     CllBlock, CllEbnfEntry, CllEbnfToken, CllInline, CllInterlinearRow, CllLanguageSpanKind,
@@ -44,6 +45,7 @@ use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 use std::cell::Cell;
+use std::future::Future;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const EMBEDDINGS_JS: Asset = asset!("/assets/embeddings.js");
@@ -169,6 +171,188 @@ struct EmbeddingSettingsState {
     progress_label: Option<String>,
     progress_percent: Option<u8>,
     busy: bool,
+}
+
+type AsyncTaskId = u64;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(::Gentufa => true)]
+#[invariant(::Cukta => true)]
+#[invariant(::Vlacku => true)]
+#[invariant(::Settings => true)]
+#[invariant(::Export => true)]
+enum AsyncTaskKind {
+    Gentufa,
+    Cukta,
+    Vlacku,
+    Settings,
+    Export,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct AsyncActivityTask {
+    id: AsyncTaskId,
+    kind: AsyncTaskKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct AsyncActivityState {
+    next_task_id: AsyncTaskId,
+    active_tasks: Vec<AsyncActivityTask>,
+}
+
+impl Default for AsyncActivityState {
+    #[requires(true)]
+    #[ensures(ret.next_task_id == 1)]
+    #[ensures(ret.active_tasks.is_empty())]
+    fn default() -> Self {
+        Self {
+            next_task_id: 1,
+            active_tasks: Vec::new(),
+        }
+    }
+}
+
+impl AsyncActivityState {
+    #[requires(self.next_task_id > 0)]
+    #[ensures(ret > 0)]
+    fn begin(&mut self, kind: AsyncTaskKind) -> AsyncTaskId {
+        let id = self.next_task_id;
+        self.next_task_id = self.next_task_id.saturating_add(1).max(1);
+        self.active_tasks.push(AsyncActivityTask { id, kind });
+        id
+    }
+
+    #[requires(task_id > 0)]
+    #[ensures(true)]
+    fn finish(&mut self, task_id: AsyncTaskId) -> bool {
+        let Some(index) = self.active_tasks.iter().position(|task| task.id == task_id) else {
+            return false;
+        };
+        self.active_tasks.remove(index);
+        true
+    }
+
+    #[requires(true)]
+    #[ensures(ret == !self.active_tasks.is_empty())]
+    fn is_active(&self) -> bool {
+        !self.active_tasks.is_empty()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn has_kind(&self, kind: AsyncTaskKind) -> bool {
+        self.active_tasks.iter().any(|task| task.kind == kind)
+    }
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+#[allow(dead_code)]
+struct AsyncActivityGuard {
+    activity: Signal<AsyncActivityState>,
+    task_id: AsyncTaskId,
+    finished: bool,
+}
+
+impl AsyncActivityGuard {
+    #[requires(true)]
+    #[ensures(ret.task_id > 0)]
+    fn new(mut activity: Signal<AsyncActivityState>, kind: AsyncTaskKind) -> Self {
+        let task_id = activity.with_mut(|state| state.begin(kind));
+        Self {
+            activity,
+            task_id,
+            finished: false,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn finish(&mut self) {
+        if self.finished {
+            return;
+        }
+        let task_id = self.task_id;
+        self.activity.with_mut(|state| {
+            state.finish(task_id);
+        });
+        self.finished = true;
+    }
+}
+
+impl Drop for AsyncActivityGuard {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        self.finish();
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+#[allow(dead_code)]
+struct LatestAsyncTask {
+    task: Task,
+    task_id: AsyncTaskId,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn spawn_tracked(
+    activity: Signal<AsyncActivityState>,
+    kind: AsyncTaskKind,
+    future: impl Future<Output = ()> + 'static,
+) -> Task {
+    let guard = AsyncActivityGuard::new(activity, kind);
+    spawn(async move {
+        let _guard = guard;
+        future.await;
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cancel_latest_task(mut slot: Signal<Option<LatestAsyncTask>>) {
+    if let Some(latest) = slot.write().take() {
+        latest.task.cancel();
+    }
+}
+
+#[requires(task_id > 0)]
+#[ensures(true)]
+fn clear_latest_task_if_current(mut slot: Signal<Option<LatestAsyncTask>>, task_id: AsyncTaskId) {
+    slot.with_mut(|current| {
+        if current
+            .as_ref()
+            .is_some_and(|latest| latest.task_id == task_id)
+        {
+            *current = None;
+        }
+    });
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn spawn_latest_tracked(
+    mut slot: Signal<Option<LatestAsyncTask>>,
+    activity: Signal<AsyncActivityState>,
+    kind: AsyncTaskKind,
+    future: impl Future<Output = ()> + 'static,
+) -> Task {
+    cancel_latest_task(slot);
+    let guard = AsyncActivityGuard::new(activity, kind);
+    let task_id = guard.task_id;
+    let slot_for_task = slot;
+    let task = spawn(async move {
+        let _guard = guard;
+        future.await;
+        clear_latest_task_if_current(slot_for_task, task_id);
+    });
+    slot.set(Some(LatestAsyncTask { task, task_id }));
+    task
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -385,6 +569,7 @@ fn App() -> Element {
     let base_path = base_path_from_current_path();
     let settings = use_signal(load_settings);
     let embedding_settings = use_signal(EmbeddingSettingsState::default);
+    let activity = use_signal(AsyncActivityState::default);
     let initial_gentufa = initial_gentufa_state();
     let initial_gentufa_has_text = initial_gentufa_text_explicit();
     let initial_gentufa_text = if initial_gentufa.text.is_empty() {
@@ -435,6 +620,7 @@ fn App() -> Element {
     let reference_hover = use_signal(ReferenceHoverState::default);
 
     let settings_value = *settings.read();
+    let activity_value = activity.read().clone();
     let route_value = *route.read();
     let view_mode_value = *view_mode.read();
     let gentufa_display_value = *gentufa_display.read();
@@ -619,6 +805,7 @@ fn App() -> Element {
                 &topbar_vlacku_href,
                 &topbar_gentufa_href,
                 &nav_href(&base_path, AppRoute::Settings),
+                &activity_value,
             ) }
             main { class: "spa-main",
                 div { class: "spa-stack",
@@ -710,7 +897,13 @@ fn render_topbar(
     vlacku_href: &str,
     gentufa_href: &str,
     settings_href: &str,
+    activity: &AsyncActivityState,
 ) -> Element {
+    let cukta_loading = activity.has_kind(AsyncTaskKind::Cukta);
+    let vlacku_loading = activity.has_kind(AsyncTaskKind::Vlacku);
+    let gentufa_loading = activity.has_kind(AsyncTaskKind::Gentufa);
+    let settings_loading = activity.has_kind(AsyncTaskKind::Settings);
+    let activity_class = topbar_activity_class(activity.is_active());
     rsx! {
         header { class: "app-topbar spa-topbar",
             div { class: "app-topbar-inner spa-topbar-inner",
@@ -730,19 +923,19 @@ fn render_topbar(
                     }
                     nav { class: "spa-nav", aria_label: "Primary navigation",
                         a {
-                            class: topbar_link_class(route == AppRoute::Cukta),
+                            class: topbar_link_class(route == AppRoute::Cukta, cukta_loading),
                             href: "{cukta_href}",
                             aria_current: if route == AppRoute::Cukta { "page" } else { "false" },
                             span { class: "app-topbar-link-label", "cukta" }
                         }
                         a {
-                            class: topbar_link_class(route == AppRoute::Vlacku),
+                            class: topbar_link_class(route == AppRoute::Vlacku, vlacku_loading),
                             href: "{vlacku_href}",
                             aria_current: if route == AppRoute::Vlacku { "page" } else { "false" },
                             span { class: "app-topbar-link-label", "vlacku" }
                         }
                         a {
-                            class: topbar_link_class(route == AppRoute::Gentufa),
+                            class: topbar_link_class(route == AppRoute::Gentufa, gentufa_loading),
                             href: "{gentufa_href}",
                             aria_current: if route == AppRoute::Gentufa { "page" } else { "false" },
                             span { class: "app-topbar-link-label", "gentufa" }
@@ -754,10 +947,21 @@ fn render_topbar(
                         }
                     }
                 }
-                div { class: "app-topbar-center app-topbar-activity", role: "status", aria_live: "polite" }
+                div { class: "{activity_class}", role: "status", aria_live: "polite",
+                    span { class: "sr-only",
+                        if activity.is_active() {
+                            "Working"
+                        }
+                    }
+                    span { class: "app-topbar-activity-dots", aria_hidden: "true",
+                        span { class: "app-topbar-activity-dot" }
+                        span { class: "app-topbar-activity-dot" }
+                        span { class: "app-topbar-activity-dot" }
+                    }
+                }
                 div { class: "app-topbar-right",
                     a {
-                        class: topbar_link_class(route == AppRoute::Settings),
+                        class: topbar_link_class(route == AppRoute::Settings, settings_loading),
                         href: "{settings_href}",
                         title: "Settings",
                         span { class: "app-topbar-link-label", "settings" }
@@ -6155,12 +6359,21 @@ fn diagnostic_class(diagnostic: &jbotci_diagnostics::Diagnostic) -> &'static str
 
 #[requires(true)]
 #[ensures(active -> ret.contains("active"))]
-fn topbar_link_class(active: bool) -> &'static str {
-    if active {
-        "app-topbar-link active"
-    } else {
-        "app-topbar-link"
-    }
+#[ensures(loading -> ret.contains("is-loading"))]
+fn topbar_link_class(active: bool, loading: bool) -> String {
+    class_names(
+        "app-topbar-link",
+        &[("active", active), ("is-loading", loading)],
+    )
+}
+
+#[requires(true)]
+#[ensures(active -> ret.contains("is-active"))]
+fn topbar_activity_class(active: bool) -> String {
+    class_names(
+        "app-topbar-center app-topbar-activity",
+        &[("is-active", active)],
+    )
 }
 
 #[requires(true)]
@@ -7972,6 +8185,42 @@ fn _feature_availability_for_linking() -> WebFeatureAvailability {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn async_activity_tracks_overlapping_tasks_by_id() {
+        let mut activity = AsyncActivityState::default();
+
+        let gentufa_id = activity.begin(AsyncTaskKind::Gentufa);
+        let cukta_id = activity.begin(AsyncTaskKind::Cukta);
+
+        assert_ne!(gentufa_id, cukta_id);
+        assert!(activity.is_active());
+        assert!(activity.has_kind(AsyncTaskKind::Gentufa));
+        assert!(activity.has_kind(AsyncTaskKind::Cukta));
+
+        assert!(activity.finish(gentufa_id));
+        assert!(activity.is_active());
+        assert!(!activity.has_kind(AsyncTaskKind::Gentufa));
+        assert!(activity.has_kind(AsyncTaskKind::Cukta));
+
+        assert!(activity.finish(cukta_id));
+        assert!(!activity.is_active());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn async_activity_finish_is_idempotent_for_cleanup_paths() {
+        let mut activity = AsyncActivityState::default();
+        let task_id = activity.begin(AsyncTaskKind::Export);
+
+        assert!(activity.finish(task_id));
+        assert!(!activity.finish(task_id));
+        assert!(!activity.finish(task_id + 1));
+        assert!(!activity.is_active());
+    }
 
     #[test]
     #[requires(true)]

@@ -457,12 +457,25 @@ body::-webkit-scrollbar-thumb:hover,
   color: var(--topbar-commit);
 }
 
+.app-page .app-topbar .app-topbar-link.is-loading .app-topbar-link-dots {
+  opacity: 1;
+}
+
 .app-topbar-link-dot {
   width: 0.18rem;
   height: 0.18rem;
   border-radius: 50%;
   background: currentColor;
   opacity: 0.34;
+  animation: app-topbar-loading-dot 900ms infinite ease-in-out;
+}
+
+.app-topbar-link-dot:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.app-topbar-link-dot:nth-child(3) {
+  animation-delay: 240ms;
 }
 
 .app-topbar-center {
@@ -473,6 +486,54 @@ body::-webkit-scrollbar-thumb:hover,
   white-space: nowrap;
   font-size: 0.7rem;
   min-height: 1rem;
+}
+
+.app-topbar-activity {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-topbar-activity-dots {
+  display: inline-flex;
+  gap: 0.17rem;
+  opacity: 0;
+  color: var(--topbar-status);
+}
+
+.app-topbar-activity.is-active .app-topbar-activity-dots {
+  opacity: 1;
+}
+
+.app-topbar-activity-dot {
+  width: 0.22rem;
+  height: 0.22rem;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  animation: app-topbar-loading-dot 900ms infinite ease-in-out;
+}
+
+.app-topbar-activity-dot:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.app-topbar-activity-dot:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+@keyframes app-topbar-loading-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateY(-0.08rem);
+  }
 }
 
 .app-topbar-right {
