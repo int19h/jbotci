@@ -585,6 +585,95 @@ pub fn embedding_worker_corpus_json() -> String {
     embedding_input_corpus_json()
 }
 
+#[requires(!request_json.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|json| !json.is_empty()) || ret.is_err())]
+pub fn run_web_compute_request_json(request_json: &str) -> Result<String, WebComputeError> {
+    let request = serde_json::from_str::<WebComputeRequest>(request_json)
+        .map_err(|error| WebComputeError::Json(error.to_string()))?;
+    let response = run_web_compute_request(request)?;
+    serde_json::to_string(&response).map_err(|error| WebComputeError::Json(error.to_string()))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub fn run_web_compute_request(
+    request: WebComputeRequest,
+) -> Result<WebComputeResponse, WebComputeError> {
+    match request {
+        WebComputeRequest::GentufaPage {
+            base_path,
+            state,
+            request,
+        } => {
+            let result = parse_gentufa_for_web(&request);
+            let meta = build_gentufa_page_meta_from_result(&base_path, &state, &result);
+            Ok(WebComputeResponse::GentufaPage { result, meta })
+        }
+        WebComputeRequest::CuktaPage { base_path, state } => {
+            let page = build_cukta_web_page(&base_path, &state);
+            let meta = build_page_meta(&base_path, &WebRoute::Cukta(state));
+            Ok(WebComputeResponse::CuktaPage { page, meta })
+        }
+        WebComputeRequest::CuktaSemanticPage {
+            base_path,
+            state,
+            hits,
+            message,
+        } => {
+            let page = build_cukta_semantic_web_page(&base_path, &state, &hits, message);
+            let meta = build_page_meta(&base_path, &WebRoute::Cukta(state));
+            Ok(WebComputeResponse::CuktaPage { page, meta })
+        }
+        WebComputeRequest::VlackuPage { base_path, state } => {
+            let result = build_vlacku_web_result(&state);
+            let meta = build_page_meta(&base_path, &WebRoute::Vlacku(state));
+            Ok(WebComputeResponse::VlackuPage { result, meta })
+        }
+        WebComputeRequest::VlackuSemanticPage {
+            base_path,
+            state,
+            hits,
+            message,
+        } => {
+            let result = build_vlacku_semantic_web_result(&state, &hits, message);
+            let meta = build_page_meta(&base_path, &WebRoute::Vlacku(state));
+            Ok(WebComputeResponse::VlackuPage { result, meta })
+        }
+        WebComputeRequest::EmbeddingCorpusJson => Ok(WebComputeResponse::EmbeddingCorpusJson {
+            json: embedding_worker_corpus_json(),
+        }),
+        WebComputeRequest::GentufaBlocksSvg {
+            layout,
+            show_glosses,
+            script,
+        } => {
+            let svg = jbotci_gentufa::render_gentufa_blocks_svg(
+                &layout,
+                &gentufa_svg_export_options(show_glosses, script),
+                jbotci_gentufa::EmbeddedGentufaFonts::get(),
+            )
+            .map_err(|error| WebComputeError::Export(error.to_string()))?;
+            Ok(WebComputeResponse::GentufaBlocksSvg { svg })
+        }
+        WebComputeRequest::GentufaBlocksPng {
+            layout,
+            show_glosses,
+            script,
+        } => {
+            let bytes = jbotci_gentufa::render_gentufa_blocks_png(
+                &layout,
+                &jbotci_gentufa::GentufaPngOptions {
+                    svg: gentufa_svg_export_options(show_glosses, script),
+                    ..jbotci_gentufa::GentufaPngOptions::default()
+                },
+                jbotci_gentufa::EmbeddedGentufaFonts::get(),
+            )
+            .map_err(|error| WebComputeError::Export(error.to_string()))?;
+            Ok(WebComputeResponse::GentufaBlocksPng { bytes })
+        }
+    }
+}
+
 #[invariant(true)]
 #[invariant(::Meaning => true)]
 #[invariant(::Word => true)]
@@ -890,6 +979,100 @@ pub struct VlackuWebResult {
 pub struct VlackuSemanticSearchHit {
     pub entry_index: usize,
     pub score: f32,
+}
+
+#[invariant(true)]
+#[invariant(::GentufaPage { .. } => true)]
+#[invariant(::CuktaPage { .. } => true)]
+#[invariant(::CuktaSemanticPage { .. } => true)]
+#[invariant(::VlackuPage { .. } => true)]
+#[invariant(::VlackuSemanticPage { .. } => true)]
+#[invariant(::EmbeddingCorpusJson => true)]
+#[invariant(::GentufaBlocksSvg { .. } => true)]
+#[invariant(::GentufaBlocksPng { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+pub enum WebComputeRequest {
+    GentufaPage {
+        base_path: String,
+        state: GentufaWebState,
+        request: GentufaWebRequest,
+    },
+    CuktaPage {
+        base_path: String,
+        state: CuktaWebState,
+    },
+    CuktaSemanticPage {
+        base_path: String,
+        state: CuktaWebState,
+        hits: Vec<CuktaSemanticSearchHit>,
+        message: Option<String>,
+    },
+    VlackuPage {
+        base_path: String,
+        state: VlackuWebState,
+    },
+    VlackuSemanticPage {
+        base_path: String,
+        state: VlackuWebState,
+        hits: Vec<VlackuSemanticSearchHit>,
+        message: Option<String>,
+    },
+    EmbeddingCorpusJson,
+    GentufaBlocksSvg {
+        layout: GentufaBlocksLayout,
+        show_glosses: bool,
+        script: GentufaScript,
+    },
+    GentufaBlocksPng {
+        layout: GentufaBlocksLayout,
+        show_glosses: bool,
+        script: GentufaScript,
+    },
+}
+
+#[invariant(true)]
+#[invariant(::GentufaPage { .. } => true)]
+#[invariant(::CuktaPage { .. } => true)]
+#[invariant(::VlackuPage { .. } => true)]
+#[invariant(::EmbeddingCorpusJson { .. } => true)]
+#[invariant(::GentufaBlocksSvg { .. } => true)]
+#[invariant(::GentufaBlocksPng { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+pub enum WebComputeResponse {
+    GentufaPage {
+        result: GentufaWebResult,
+        meta: PageMeta,
+    },
+    CuktaPage {
+        page: CuktaPageData,
+        meta: PageMeta,
+    },
+    VlackuPage {
+        result: VlackuWebResult,
+        meta: PageMeta,
+    },
+    EmbeddingCorpusJson {
+        json: String,
+    },
+    GentufaBlocksSvg {
+        svg: String,
+    },
+    GentufaBlocksPng {
+        bytes: Vec<u8>,
+    },
+}
+
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[invariant(true)]
+#[invariant(::Json(_) => true)]
+#[invariant(::Export(_) => true)]
+pub enum WebComputeError {
+    #[error("web compute JSON error: {0}")]
+    Json(String),
+    #[error("gentufa export failed: {0}")]
+    Export(String),
 }
 
 #[invariant(true)]
@@ -1567,14 +1750,22 @@ fn social_image(href: String, width: usize, height: usize) -> SocialImage {
 }
 
 #[requires(true)]
+#[ensures(ret.title == "jbotci gentufa blocks")]
+fn gentufa_svg_export_options(
+    show_glosses: bool,
+    script: GentufaScript,
+) -> jbotci_gentufa::GentufaSvgOptions {
+    jbotci_gentufa::GentufaSvgOptions {
+        show_glosses,
+        script,
+        title: "jbotci gentufa blocks".to_owned(),
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn build_gentufa_page_meta(base_path: &str, state: &GentufaWebState) -> PageMeta {
     let state = normalize_gentufa_state(state);
-    let title = if state.text.trim().is_empty() {
-        "jbotci gentufa".to_owned()
-    } else {
-        format!("{} - jbotci gentufa", state.text.trim())
-    };
     let request = GentufaWebRequest {
         text: state.text.clone(),
         options: GentufaWebOptions {
@@ -1587,7 +1778,24 @@ fn build_gentufa_page_meta(base_path: &str, state: &GentufaWebState) -> PageMeta
             phonemes: PhonemeRenderOptions::default(),
         },
     };
-    let description = match parse_gentufa_for_web(&request) {
+    let result = parse_gentufa_for_web(&request);
+    build_gentufa_page_meta_from_result(base_path, &state, &result)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_gentufa_page_meta_from_result(
+    base_path: &str,
+    state: &GentufaWebState,
+    result: &GentufaWebResult,
+) -> PageMeta {
+    let state = normalize_gentufa_state(state);
+    let title = if state.text.trim().is_empty() {
+        "jbotci gentufa".to_owned()
+    } else {
+        format!("{} - jbotci gentufa", state.text.trim())
+    };
+    let description = match result {
         GentufaWebResult::Blank => {
             "Parse Lojban text into blocks, table rows, or Lean semantics.".to_owned()
         }
@@ -3975,6 +4183,92 @@ mod tests {
         assert_eq!(gentufa.title, "mi klama - jbotci gentufa");
         assert!(gentufa.description.starts_with("Parse succeeded:"));
         assert!(gentufa.image.is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_compute_gentufa_matches_direct_builder() {
+        let state = GentufaWebState {
+            text: "mi klama".to_owned(),
+            dialect: None,
+            view_mode: GentufaWebViewMode::Blocks,
+            show_elided: false,
+            show_glosses: true,
+        };
+        let request = GentufaWebRequest {
+            text: state.text.clone(),
+            options: GentufaWebOptions::default(),
+        };
+
+        let response = run_web_compute_request(WebComputeRequest::GentufaPage {
+            base_path: "/jbotci".to_owned(),
+            state: state.clone(),
+            request: request.clone(),
+        })
+        .expect("gentufa compute succeeds");
+
+        let WebComputeResponse::GentufaPage { result, meta } = response else {
+            panic!("expected gentufa page response");
+        };
+        let direct = parse_gentufa_for_web(&request);
+        assert_eq!(result, direct);
+        assert_eq!(
+            meta,
+            build_gentufa_page_meta_from_result("/jbotci", &state, &direct)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_compute_cukta_and_vlacku_match_direct_builders() {
+        let cukta_state = CuktaWebState::default();
+        let cukta_response = run_web_compute_request(WebComputeRequest::CuktaPage {
+            base_path: String::new(),
+            state: cukta_state.clone(),
+        })
+        .expect("cukta compute succeeds");
+        let WebComputeResponse::CuktaPage { page, meta } = cukta_response else {
+            panic!("expected cukta page response");
+        };
+        assert_eq!(page, build_cukta_web_page("", &cukta_state));
+        assert_eq!(
+            meta,
+            build_page_meta("", &WebRoute::Cukta(cukta_state.clone()))
+        );
+
+        let vlacku_state = VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "klama".to_owned(),
+            count: 10,
+            word_types: Vec::new(),
+        };
+        let vlacku_response = run_web_compute_request(WebComputeRequest::VlackuPage {
+            base_path: String::new(),
+            state: vlacku_state.clone(),
+        })
+        .expect("vlacku compute succeeds");
+        let WebComputeResponse::VlackuPage { result, meta } = vlacku_response else {
+            panic!("expected vlacku page response");
+        };
+        assert_eq!(result, build_vlacku_web_result(&vlacku_state));
+        assert_eq!(meta, build_page_meta("", &WebRoute::Vlacku(vlacku_state)));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_compute_json_round_trips_embedding_corpus_response() {
+        let request =
+            serde_json::to_string(&WebComputeRequest::EmbeddingCorpusJson).expect("valid request");
+        let response_json = run_web_compute_request_json(&request).expect("compute succeeds");
+        let response =
+            serde_json::from_str::<WebComputeResponse>(&response_json).expect("valid response");
+        let WebComputeResponse::EmbeddingCorpusJson { json } = response else {
+            panic!("expected embedding corpus response");
+        };
+        assert!(json.contains(WEB_EMBEDDING_MODEL_KEY));
     }
 
     #[test]

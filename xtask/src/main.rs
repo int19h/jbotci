@@ -335,6 +335,7 @@ fn main() -> Result<()> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
+    build_web_worker_assets()?;
     let mut command = dx_web_release_command("build");
     if let Some(base_path) = args.base_path {
         command.arg("--base-path").arg(base_path);
@@ -346,6 +347,7 @@ fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn serve_web_release(args: ServeWebReleaseArgs) -> Result<()> {
+    build_web_worker_assets()?;
     let status = dx_web_release_command("serve")
         .arg("--port")
         .arg(args.port.to_string())
@@ -395,6 +397,51 @@ fn dx_web_release_command(subcommand: &str) -> ProcessCommand {
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_web_worker_assets() -> Result<()> {
+    let output_dir = Path::new("apps/jbotci-web/assets/generated");
+    if output_dir.exists() {
+        fs::remove_dir_all(output_dir)
+            .with_context(|| format!("removing old worker assets `{}`", output_dir.display()))?;
+    }
+    fs::create_dir_all(output_dir)
+        .with_context(|| format!("creating worker asset directory `{}`", output_dir.display()))?;
+
+    let status = ProcessCommand::new("cargo")
+        .arg("build")
+        .arg("-p")
+        .arg("jbotci-web-worker")
+        .arg("--release")
+        .arg("--target")
+        .arg("wasm32-unknown-unknown")
+        .status()
+        .context("failed to run web worker cargo build")?;
+    check_status(
+        status,
+        "cargo build -p jbotci-web-worker --release --target wasm32-unknown-unknown",
+    )?;
+
+    let worker_wasm = Path::new("target/wasm32-unknown-unknown/release/jbotci_web_worker.wasm");
+    if !worker_wasm.is_file() {
+        bail!(
+            "web worker build did not produce `{}`",
+            worker_wasm.display()
+        );
+    }
+    let status = ProcessCommand::new("wasm-bindgen")
+        .arg("--target")
+        .arg("web")
+        .arg("--out-dir")
+        .arg(output_dir)
+        .arg("--out-name")
+        .arg("jbotci_web_worker")
+        .arg(worker_wasm)
+        .status()
+        .context("failed to run `wasm-bindgen`; install the `wasm-bindgen-cli` binary")?;
+    check_status(status, "wasm-bindgen --target web jbotci-web-worker")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn dist_server(args: DistServerArgs) -> Result<()> {
     let out_dir = absolute_path(&args.out_dir)?;
     if !args.skip_web_bundle {
@@ -421,6 +468,7 @@ fn dist_server(args: DistServerArgs) -> Result<()> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
+    build_web_worker_assets()?;
     let base_path = normalized_dist_base_path(base_path);
     let dioxus_public = Path::new("target/dx/jbotci-web/release/web/public");
     if dioxus_public.exists() {
