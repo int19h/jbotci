@@ -36,6 +36,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
 
+const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-web/release/web";
 const DIOXUS_WEB_RELEASE_PUBLIC_DIR: &str = "target/dx/jbotci-web/release/web/public";
 const WEB_WORKER_WATCH_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
@@ -212,6 +213,8 @@ struct ServeWebReleaseArgs {
     port: u16,
     #[arg(long, default_value_t = false, num_args = 0..=1, default_missing_value = "true")]
     open: bool,
+    #[arg(long, default_value = "/")]
+    base_path: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -224,6 +227,12 @@ struct WebWorkerWatchFile {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 struct WebWorkerWatchSnapshot {
+    files: BTreeMap<PathBuf, WebWorkerWatchFile>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct DioxusReleaseWatchSnapshot {
     files: BTreeMap<PathBuf, WebWorkerWatchFile>,
 }
 
@@ -354,6 +363,7 @@ fn main() -> Result<()> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
+    clean_dioxus_web_release_output()?;
     build_web_worker_assets()?;
     let mut command = dx_web_release_command("build");
     if let Some(base_path) = args.base_path {
@@ -367,8 +377,11 @@ fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn serve_web_release(args: ServeWebReleaseArgs) -> Result<()> {
+    clean_dioxus_web_release_output()?;
     build_web_worker_assets_for_serve()?;
     let mut child = dx_web_release_command("serve")
+        .arg("--base-path")
+        .arg(args.base_path)
         .arg("--port")
         .arg(args.port.to_string())
         .arg("--open")
@@ -517,8 +530,24 @@ fn copy_web_worker_assets_to_existing_release_public() -> Result<()> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn clean_dioxus_web_release_output() -> Result<()> {
+    let release_dir = Path::new(DIOXUS_WEB_RELEASE_DIR);
+    if release_dir.exists() {
+        fs::remove_dir_all(release_dir).with_context(|| {
+            format!(
+                "removing old Dioxus release web output `{}`",
+                release_dir.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn watch_web_worker_assets_until_exit(child: &mut Child) -> Result<ExitStatus> {
     let mut snapshot = web_worker_watch_snapshot()?;
+    let mut dioxus_snapshot = dioxus_release_watch_snapshot()?;
     loop {
         if let Some(status) = child
             .try_wait()
@@ -527,6 +556,11 @@ fn watch_web_worker_assets_until_exit(child: &mut Child) -> Result<ExitStatus> {
             return Ok(status);
         }
         thread::sleep(WEB_WORKER_WATCH_POLL_INTERVAL);
+        let next_dioxus_snapshot = dioxus_release_watch_snapshot()?;
+        if next_dioxus_snapshot != dioxus_snapshot {
+            copy_post_dioxus_web_assets_to_existing_release_public()?;
+            dioxus_snapshot = dioxus_release_watch_snapshot()?;
+        }
         let next_snapshot = web_worker_watch_snapshot()?;
         if next_snapshot == snapshot {
             continue;
@@ -543,6 +577,27 @@ fn watch_web_worker_assets_until_exit(child: &mut Child) -> Result<ExitStatus> {
             }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn dioxus_release_watch_snapshot() -> Result<DioxusReleaseWatchSnapshot> {
+    let mut files = BTreeMap::new();
+    for path in dioxus_release_watch_files() {
+        if path.is_file() {
+            record_web_worker_watch_file(&path, &mut files)?;
+        }
+    }
+    Ok(DioxusReleaseWatchSnapshot { files })
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn dioxus_release_watch_files() -> Vec<PathBuf> {
+    vec![
+        PathBuf::from(DIOXUS_WEB_RELEASE_PUBLIC_DIR).join("index.html"),
+        PathBuf::from(DIOXUS_WEB_RELEASE_DIR).join(".manifest.json"),
+    ]
 }
 
 #[requires(true)]
@@ -603,6 +658,16 @@ fn record_web_worker_watch_file(
 fn copy_post_dioxus_web_assets_to_public(public_dir: &Path) -> Result<()> {
     copy_web_worker_assets_to_public(public_dir)?;
     copy_stable_web_assets_to_public(public_dir)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_post_dioxus_web_assets_to_existing_release_public() -> Result<()> {
+    let public_dir = Path::new(DIOXUS_WEB_RELEASE_PUBLIC_DIR);
+    if public_dir.is_dir() {
+        copy_post_dioxus_web_assets_to_public(public_dir)?;
+    }
+    Ok(())
 }
 
 #[requires(public_dir.is_dir())]
