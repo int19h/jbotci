@@ -122,7 +122,9 @@ enum ThemeMode {
 #[invariant(true)]
 enum TopbarSettingsLayout {
     BothInline,
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
     ThemeInline,
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
     NoneInline,
 }
 
