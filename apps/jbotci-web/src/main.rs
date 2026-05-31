@@ -13,16 +13,16 @@ use jbotci_web_core::{
     GentufaBlocksLayout, GentufaBracketFragment, GentufaCell, GentufaError, GentufaScript,
     GentufaSuccess, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest, GentufaWebResult,
     GentufaWebState, GentufaWebViewMode, PageMeta, ReferenceLabel, ReferenceMarker,
-    ReferenceMarkerRole, ReferenceSlotLabel, VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT,
-    VlackuCompositionPiece, VlackuCompositionPieceKind, VlackuDictionaryInfo, VlackuInline,
-    VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
+    ReferenceMarkerRole, VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece,
+    VlackuCompositionPieceKind, VlackuDictionaryInfo, VlackuInline, VlackuInlineData,
+    VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
     VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
     VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebResult,
     VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest,
     WebComputeResponse, WebFeatureAvailability, WebRoute, build_page_meta,
     build_vlacku_jvozba_output, cukta_web_url, dictionary_tooltip_for_rafsi,
     dictionary_tooltip_for_word, gentufa_web_url, normalize_vlacku_state, parse_cukta_web_route,
-    parse_gentufa_web_route, parse_vlacku_web_route, parse_web_route,
+    parse_gentufa_web_route, parse_vlacku_web_route, parse_web_route, reference_slot_display_text,
     toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
     vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
 };
@@ -6771,7 +6771,7 @@ fn render_tree_glosses(row: &GentufaTreeRow) -> Element {
 #[requires(true)]
 #[ensures(true)]
 fn render_reference_label(label: &ReferenceLabel) -> Element {
-    let slot_text = label.slot.as_ref().map(ReferenceSlotLabel::text);
+    let slot_text = label.slot.as_ref().map(reference_slot_display_text);
     let stem = math_alphanumeric_stem(&label.stem);
     rsx! {
         span { class: "spa-cll-math",

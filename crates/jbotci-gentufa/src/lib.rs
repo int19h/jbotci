@@ -132,6 +132,12 @@ impl ReferenceSlotLabel {
     }
 }
 
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn reference_slot_display_text(slot: &ReferenceSlotLabel) -> String {
+    math_sans_alphanumeric_text(&slot.text())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
@@ -378,6 +384,14 @@ pub fn math_alphanumeric_stem(stem: &str) -> String {
         push_math_alphanumeric_char(&mut output, ch);
     }
     output
+}
+
+#[requires(true)]
+#[ensures(ret.chars().count() >= text.chars().count())]
+pub fn math_sans_alphanumeric_text(text: &str) -> String {
+    text.chars()
+        .map(|ch| math_sans_alphanumeric_ascii_char(ch).unwrap_or(ch))
+        .collect()
 }
 
 #[requires(true)]
@@ -1883,6 +1897,29 @@ fn math_alphanumeric_ascii_char(ch: char) -> Option<char> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn math_sans_alphanumeric_ascii_char(ch: char) -> Option<char> {
+    const LOWER: [char; 26] = [
+        '𝖺', '𝖻', '𝖼', '𝖽', '𝖾', '𝖿', '𝗀', '𝗁', '𝗂', '𝗃', '𝗄', '𝗅', '𝗆', '𝗇', '𝗈', '𝗉', '𝗊', '𝗋',
+        '𝗌', '𝗍', '𝗎', '𝗏', '𝗐', '𝗑', '𝗒', '𝗓',
+    ];
+    const UPPER: [char; 26] = [
+        '𝖠', '𝖡', '𝖢', '𝖣', '𝖤', '𝖥', '𝖦', '𝖧', '𝖨', '𝖩', '𝖪', '𝖫', '𝖬', '𝖭', '𝖮', '𝖯', '𝖰', '𝖱',
+        '𝖲', '𝖳', '𝖴', '𝖵', '𝖶', '𝖷', '𝖸', '𝖹',
+    ];
+    const DIGITS: [char; 10] = ['𝟢', '𝟣', '𝟤', '𝟥', '𝟦', '𝟧', '𝟨', '𝟩', '𝟪', '𝟫'];
+    if ch.is_ascii_lowercase() {
+        Some(LOWER[(ch as u8 - b'a') as usize])
+    } else if ch.is_ascii_uppercase() {
+        Some(UPPER[(ch as u8 - b'A') as usize])
+    } else if ch.is_ascii_digit() {
+        Some(DIGITS[(ch as u8 - b'0') as usize])
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1900,6 +1937,24 @@ mod tests {
         ]);
 
         assert_eq!(slot.text(), "mleca bervi ta'i");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_slot_display_text_styles_all_slot_text() {
+        assert_eq!(
+            reference_slot_display_text(&ReferenceSlotLabel::Numbered(12)),
+            "𝟣𝟤"
+        );
+        assert_eq!(reference_slot_display_text(&ReferenceSlotLabel::Fai), "𝖿𝖺𝗂");
+        assert_eq!(
+            reference_slot_display_text(&ReferenceSlotLabel::Modal(vec![
+                "mléca".to_owned(),
+                "be\u{301}rvi".to_owned(),
+            ])),
+            "𝗆𝗅𝖾𝖼𝖺 𝖻𝖾𝗋𝗏𝗂"
+        );
     }
 
     #[test]

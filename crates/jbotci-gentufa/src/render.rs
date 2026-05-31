@@ -6,9 +6,11 @@ use bityzba::{ensures, invariant, requires};
 use thiserror::Error;
 use xmlwriter::{Indent, Options as XmlOptions, XmlWriter};
 
+#[cfg(test)]
+use crate::ReferenceSlotLabel;
 use crate::{
     GentufaBlock, GentufaBlocksLayout, GentufaScript, ReferenceLabel, ReferenceMarker,
-    ReferenceMarkerRole, ReferenceSlotLabel, math_alphanumeric_stem,
+    ReferenceMarkerRole, math_alphanumeric_stem, reference_slot_display_text,
 };
 
 const SVG_NS: &str = "http://www.w3.org/2000/svg";
@@ -135,7 +137,7 @@ pub fn render_gentufa_blocks_svg<Tooltip>(
 ) -> Result<String, GentufaExportError> {
     let mut measurer = TextMeasurer::new(fonts);
     let positioned = PositionedBlocks::new(layout, options, &mut measurer)?;
-    let document = svg_document(layout, options, fonts, &positioned);
+    let document = svg_document(layout, options, fonts, &positioned, &mut measurer)?;
     Ok(document.to_xml())
 }
 
@@ -347,6 +349,7 @@ impl PositionedBlocks {
         let mut column_widths = vec![MIN_COLUMN_WIDTH; column_count];
         grow_columns_for_blocks(&mut column_widths, &layout.blocks, options, measurer)?;
         let mut row_heights = vec![ROW_COMPACT_HEIGHT; row_count];
+        grow_rows_for_leaf_labels(&mut row_heights, &layout.blocks, options, measurer)?;
         grow_rows_for_references(
             &mut row_heights,
             &column_widths,
@@ -416,6 +419,29 @@ impl PositionedBlocks {
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn grow_rows_for_leaf_labels<Tooltip>(
+    row_heights: &mut [f32],
+    blocks: &[GentufaBlock<Tooltip>],
+    options: &GentufaSvgOptions,
+    measurer: &mut TextMeasurer,
+) -> Result<(), GentufaExportError> {
+    let mut sorted = blocks.iter().collect::<Vec<_>>();
+    sorted.sort_by_key(|block| (block_bottom_row(block), block.row));
+    for block in sorted {
+        let bottom_row = block_bottom_row(block);
+        if bottom_row >= row_heights.len() {
+            continue;
+        }
+        let deficit = block_leaf_label_height_growth(block, row_heights, options, measurer)?;
+        if deficit > 0.0 {
+            row_heights[bottom_row] += deficit;
+        }
+    }
+    Ok(())
+}
+
+#[requires(true)]
 #[ensures(ret >= block.row)]
 fn block_bottom_row<Tooltip>(block: &GentufaBlock<Tooltip>) -> usize {
     block.row + block.row_span.saturating_sub(1)
@@ -439,7 +465,9 @@ fn grow_rows_for_references<Tooltip>(
     options: &GentufaSvgOptions,
     measurer: &mut TextMeasurer,
 ) -> Result<(), GentufaExportError> {
-    for block in blocks {
+    let mut sorted = blocks.iter().collect::<Vec<_>>();
+    sorted.sort_by_key(|block| (block_bottom_row(block), block.row));
+    for block in sorted {
         let bottom_row = block_bottom_row(block);
         if bottom_row >= row_heights.len() {
             continue;
@@ -451,6 +479,26 @@ fn grow_rows_for_references<Tooltip>(
         }
     }
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|growth| *growth >= 0.0) || ret.is_err())]
+fn block_leaf_label_height_growth<Tooltip>(
+    block: &GentufaBlock<Tooltip>,
+    row_heights: &[f32],
+    options: &GentufaSvgOptions,
+    measurer: &mut TextMeasurer,
+) -> Result<f32, GentufaExportError> {
+    if !block.is_leaf || block.label.is_empty() {
+        return Ok(0.0);
+    }
+    let span_height = block_span_height(row_heights, block.row, block.row_span);
+    if span_height <= 0.0 {
+        return Ok(0.0);
+    }
+    let label_size = measurer.measure(&block.label, TextRole::LeafLabel, options.script)?;
+    let label_top = leaf_label_baseline_y(span_height) + label_size.baseline_top;
+    Ok((BLOCK_PADDING - label_top).max(0.0))
 }
 
 #[requires(true)]
@@ -478,13 +526,8 @@ fn block_reference_height_growth<Tooltip>(
     } else {
         TextRole::NonleafLabel
     };
-    let label_bottom_padding = if block.is_leaf {
-        BLOCK_LABEL_BOTTOM_PADDING
-    } else {
-        NONLEAF_LABEL_BOTTOM_PADDING
-    };
     let label_size = measurer.measure(&block.label, label_role, options.script)?;
-    let label_top = span_height - label_bottom_padding + label_size.baseline_top;
+    let label_top = block_label_baseline_y(block.is_leaf, span_height) + label_size.baseline_top;
     let label_left = (span_width - label_size.width) / 2.0;
     let label_right = label_left + label_size.width;
     let Some(reference_bottoms) =
@@ -498,6 +541,22 @@ fn block_reference_height_growth<Tooltip>(
         .map(|reference_bottom| (reference_bottom + BLOCK_REFERENCE_LABEL_GAP - label_top).max(0.0))
         .unwrap_or(0.0);
     Ok(containment_deficit.max(label_deficit))
+}
+
+#[requires(span_height >= 0.0)]
+#[ensures(ret <= span_height)]
+fn leaf_label_baseline_y(span_height: f32) -> f32 {
+    span_height - BLOCK_LABEL_BOTTOM_PADDING
+}
+
+#[requires(span_height >= 0.0)]
+#[ensures(ret <= span_height)]
+fn block_label_baseline_y(is_leaf: bool, span_height: f32) -> f32 {
+    if is_leaf {
+        leaf_label_baseline_y(span_height)
+    } else {
+        span_height - NONLEAF_LABEL_BOTTOM_PADDING
+    }
 }
 
 #[requires(col_span > 0)]
@@ -743,7 +802,7 @@ fn reference_label_text(label: &ReferenceLabel) -> String {
     }
     if let Some(slot) = &label.slot {
         output.push('⟨');
-        output.push_str(&slot_text(slot));
+        output.push_str(&reference_slot_display_text(slot));
         output.push('⟩');
     }
     output
@@ -774,19 +833,14 @@ fn subscript_digit(character: char) -> char {
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn slot_text(slot: &ReferenceSlotLabel) -> String {
-    slot.text()
-}
-
-#[requires(true)]
 #[ensures(true)]
 fn svg_document<Tooltip>(
     layout: &GentufaBlocksLayout<Tooltip>,
     options: &GentufaSvgOptions,
     fonts: GentufaFontData<'_>,
     positioned: &PositionedBlocks,
-) -> SvgDocument {
+    measurer: &mut TextMeasurer,
+) -> Result<SvgDocument, GentufaExportError> {
     let mut root = SvgElement::new(SvgTag::Svg);
     root.attr("xmlns", SVG_NS);
     root.attr("width", &format_float(positioned.width));
@@ -814,7 +868,7 @@ fn svg_document<Tooltip>(
     background.attr("fill", "#ffffff");
     root.child(background);
     for block in &layout.blocks {
-        root.child(block_element(block, options, positioned));
+        root.child(block_element(block, options, positioned, measurer)?);
     }
     if options.show_glosses {
         for block in layout.blocks.iter().filter(|block| block.is_leaf) {
@@ -823,7 +877,7 @@ fn svg_document<Tooltip>(
             }
         }
     }
-    SvgDocument { root }
+    Ok(SvgDocument { root })
 }
 
 #[requires(true)]
@@ -832,7 +886,8 @@ fn block_element<Tooltip>(
     block: &GentufaBlock<Tooltip>,
     options: &GentufaSvgOptions,
     positioned: &PositionedBlocks,
-) -> SvgElement {
+    measurer: &mut TextMeasurer,
+) -> Result<SvgElement, GentufaExportError> {
     let x = positioned.col_x(block.col);
     let y = positioned.row_y(block.row);
     let width = positioned.span_width(block.col, block.col_span);
@@ -848,8 +903,8 @@ fn block_element<Tooltip>(
     group.child(rect);
     add_referent_text(block, options, &mut group, x, y);
     add_block_label(block, options, &mut group, x, y, width, height);
-    add_reference_text(block, options, &mut group, x, y, width, height);
-    group
+    add_reference_text(block, options, &mut group, x, y, width, height, measurer)?;
+    Ok(group)
 }
 
 #[requires(true)]
@@ -872,7 +927,7 @@ fn add_block_label<Tooltip>(
         TextRole::NonleafLabel
     };
     let baseline_y = if block.is_leaf {
-        y + height - BLOCK_LABEL_BOTTOM_PADDING
+        y + leaf_label_baseline_y(height)
     } else {
         y + height - NONLEAF_LABEL_BOTTOM_PADDING
     };
@@ -933,17 +988,38 @@ fn add_reference_text<Tooltip>(
     y: f32,
     width: f32,
     height: f32,
-) {
+    measurer: &mut TextMeasurer,
+) -> Result<(), GentufaExportError> {
     let text_value = reference_source_text(block.ref_markers.iter());
     if text_value.is_empty() {
-        return;
+        return Ok(());
     }
+    let text_size = measurer.measure(&text_value, TextRole::Reference, options.script)?;
     let mut text = text_element(TextRole::Reference, options.script, &text_value);
     text.attr("x", &format_float(x + width - REF_PAD_X));
-    text.attr("y", &format_float(y + height - REF_PAD_Y));
+    text.attr(
+        "y",
+        &format_float(bottom_aligned_text_baseline_y(
+            y + height,
+            REF_PAD_Y,
+            &text_size,
+        )),
+    );
     text.attr("text-anchor", "end");
     text.attr("fill", INK);
     group.child(text);
+    Ok(())
+}
+
+#[requires(block_bottom.is_finite())]
+#[requires(bottom_padding.is_finite() && bottom_padding >= 0.0)]
+#[ensures(ret <= block_bottom)]
+fn bottom_aligned_text_baseline_y(
+    block_bottom: f32,
+    bottom_padding: f32,
+    text_size: &TextSize,
+) -> f32 {
+    block_bottom - bottom_padding - text_size.baseline_bottom
 }
 
 #[requires(true)]
@@ -1307,7 +1383,7 @@ mod tests {
         assert!(size.width > 0.0);
         assert!(size.height > 0.0);
         let math_size = measurer
-            .measure("𝑘₁⟨1⟩", TextRole::Reference, GentufaScript::Latin)
+            .measure("𝑘₁⟨𝟣⟩", TextRole::Reference, GentufaScript::Latin)
             .expect("math reference measurement");
         assert!(math_size.width > 0.0);
         assert!(math_size.height > 0.0);
@@ -1316,7 +1392,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn svg_reference_labels_use_font_cascade_and_plain_slot_text() {
+    fn svg_reference_labels_use_font_cascade_and_styled_slot_text() {
         let mut block = test_gentufa_block(0, 1, 0);
         block.ref_markers.push(ReferenceMarker {
             role: ReferenceMarkerRole::Referent,
@@ -1346,12 +1422,75 @@ mod tests {
         assert!(svg.contains("font-family=\"STIX Two Text, STIX Two Math, serif\""));
         assert!(svg.contains("font-family: \"STIX Two Math\""));
         assert!(svg.contains("font-family: \"STIX Two Text\""));
-        assert!(svg.contains("𝑏₂⟨mleca bervi⟩"));
+        assert!(svg.contains("𝑏₂⟨𝗆𝗅𝖾𝖼𝖺 𝖻𝖾𝗋𝗏𝗂⟩"));
+        assert!(!svg.contains("mleca bervi"));
         assert!(!svg.contains("mléca"));
         assert!(!svg.contains('\u{0301}'));
         let xml = roxmltree::Document::parse(&svg).expect("generated XML parses");
         let _tree = usvg::Tree::from_xmltree(&xml, &usvg_options(EmbeddedGentufaFonts::get()))
             .expect("generated SVG parses");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn svg_reference_labels_style_numbered_slot_text_only() {
+        let mut block = test_gentufa_block(0, 1, 0);
+        block.ref_markers.push(ReferenceMarker {
+            role: ReferenceMarkerRole::Referent,
+            kind: "argument".to_owned(),
+            label: ReferenceLabel::new("b", Some(2), Some(ReferenceSlotLabel::Numbered(1))),
+        });
+        let layout = GentufaBlocksLayout {
+            blocks: vec![block],
+            max_col: 1,
+            max_row: 1,
+        };
+
+        let svg = render_gentufa_blocks_svg(
+            &layout,
+            &GentufaSvgOptions::default(),
+            EmbeddedGentufaFonts::get(),
+        )
+        .expect("svg");
+
+        assert!(svg.contains("𝑏₂⟨𝟣⟩"));
+        assert!(!svg.contains("𝑏₂⟨1⟩"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn leaf_label_height_reserves_top_padding_without_references() {
+        let options = GentufaSvgOptions::default();
+        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let mut row_heights = vec![ROW_COMPACT_HEIGHT];
+        let blocks = vec![test_gentufa_block(0, 1, 0)];
+
+        grow_rows_for_leaf_labels(&mut row_heights, &blocks, &options, &mut measurer)
+            .expect("row growth");
+
+        assert!(row_heights[0] > ROW_COMPACT_HEIGHT);
+        let label_size = measurer
+            .measure(&blocks[0].label, TextRole::LeafLabel, options.script)
+            .expect("label measurement");
+        let label_top = leaf_label_baseline_y(row_heights[0]) + label_size.baseline_top;
+        assert!(label_top >= BLOCK_PADDING - 0.01);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn outgoing_reference_baseline_keeps_ink_inside_bottom_padding() {
+        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let text_size = measurer
+            .measure("→ 𝑏₃", TextRole::Reference, GentufaScript::Latin)
+            .expect("reference measurement");
+
+        let baseline = bottom_aligned_text_baseline_y(ROW_COMPACT_HEIGHT, REF_PAD_Y, &text_size);
+
+        assert!(baseline < ROW_COMPACT_HEIGHT - REF_PAD_Y);
+        assert!(baseline + text_size.baseline_bottom <= ROW_COMPACT_HEIGHT - REF_PAD_Y + 0.01);
     }
 
     #[test]

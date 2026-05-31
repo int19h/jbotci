@@ -28,6 +28,7 @@ use jbotci_gentufa::{
 pub use jbotci_gentufa::{
     GentufaBlockAnnotation, GentufaBlockOptions, GentufaScript, ReferenceLabel, ReferenceMarker,
     ReferenceMarkerRole, ReferenceSlotLabel, TransformInfo, WebSourceRange,
+    reference_slot_display_text,
 };
 use jbotci_jvozba::{
     JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegment, JvozbaSegmentKind,
