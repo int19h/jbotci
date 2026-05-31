@@ -38,8 +38,11 @@ use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
 
 const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-web/release/web";
-const DIOXUS_WEB_RELEASE_PUBLIC_DIR: &str = "target/dx/jbotci-web/release/web/public";
+const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
+const WEB_WORKER_BINDGEN_TEMP_DIR: &str = "target/jbotci-web-worker-bindgen";
+const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
 const WEB_WORKER_WATCH_POLL_INTERVAL: Duration = Duration::from_secs(1);
+static WEB_ASSET_COPY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[path = "../../tests/support/fixtures/mod.rs"]
 mod fixtures;
@@ -233,7 +236,7 @@ struct WebWorkerWatchSnapshot {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-struct DioxusReleaseWatchSnapshot {
+struct StableWebAssetWatchSnapshot {
     files: BTreeMap<PathBuf, WebWorkerWatchFile>,
 }
 
@@ -365,21 +368,20 @@ fn main() -> Result<()> {
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
     clean_dioxus_web_release_output()?;
-    build_web_worker_assets()?;
+    prepare_dioxus_web_public_input()?;
     let mut command = dx_web_release_command("build");
     if let Some(base_path) = args.base_path {
         command.arg("--base-path").arg(base_path);
     }
     let status = command.status().context("failed to run `dx build`")?;
-    check_status(status, "dx build --web --release --debug-symbols=false")?;
-    copy_post_dioxus_web_assets_to_public(Path::new(DIOXUS_WEB_RELEASE_PUBLIC_DIR))
+    check_status(status, "dx build --web --release --debug-symbols=false")
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn serve_web_release(args: ServeWebReleaseArgs) -> Result<()> {
     clean_dioxus_web_release_output()?;
-    build_web_worker_assets_for_serve()?;
+    prepare_dioxus_web_public_input()?;
     let mut child = dx_web_release_command("serve")
         .arg("--base-path")
         .arg(args.base_path)
@@ -440,8 +442,8 @@ fn dx_web_release_command(subcommand: &str) -> ProcessCommand {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn build_web_worker_assets() -> Result<()> {
-    let output_dir = Path::new("apps/jbotci-web/assets/generated");
-    let temp_output_dir = Path::new(".jbotci-build/web-worker-generated");
+    let output_dir = dioxus_web_public_input_dir().join("assets/generated");
+    let temp_output_dir = Path::new(WEB_WORKER_BINDGEN_TEMP_DIR);
     if temp_output_dir.exists() {
         fs::remove_dir_all(temp_output_dir).with_context(|| {
             format!(
@@ -490,42 +492,13 @@ fn build_web_worker_assets() -> Result<()> {
         .context("failed to run `wasm-bindgen`; install the `wasm-bindgen-cli` binary")?;
     check_status(status, "wasm-bindgen --target web jbotci-web-worker")?;
 
-    if output_dir.exists() {
-        fs::remove_dir_all(output_dir)
-            .with_context(|| format!("removing old worker assets `{}`", output_dir.display()))?;
-    }
-    let parent = output_dir.parent().with_context(|| {
+    copy_flat_web_asset_dir(temp_output_dir, &output_dir, "generated worker asset")?;
+    fs::remove_dir_all(temp_output_dir).with_context(|| {
         format!(
-            "worker asset output directory `{}` has no parent",
-            output_dir.display()
+            "removing temporary worker asset directory `{}`",
+            temp_output_dir.display()
         )
     })?;
-    fs::create_dir_all(parent)
-        .with_context(|| format!("creating worker asset directory `{}`", parent.display()))?;
-    fs::rename(temp_output_dir, output_dir).with_context(|| {
-        format!(
-            "moving generated worker assets from `{}` to `{}`",
-            temp_output_dir.display(),
-            output_dir.display()
-        )
-    })?;
-    Ok(())
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn build_web_worker_assets_for_serve() -> Result<()> {
-    build_web_worker_assets()?;
-    copy_web_worker_assets_to_existing_release_public()
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn copy_web_worker_assets_to_existing_release_public() -> Result<()> {
-    let public_dir = Path::new(DIOXUS_WEB_RELEASE_PUBLIC_DIR);
-    if public_dir.is_dir() {
-        copy_web_worker_assets_to_public(public_dir)?;
-    }
     Ok(())
 }
 
@@ -548,8 +521,7 @@ fn clean_dioxus_web_release_output() -> Result<()> {
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn watch_web_worker_assets_until_exit(child: &mut Child) -> Result<ExitStatus> {
     let mut snapshot = web_worker_watch_snapshot()?;
-    let mut dioxus_snapshot = dioxus_release_watch_snapshot()?;
-    let mut post_dioxus_copy_pending = false;
+    let mut stable_asset_snapshot = stable_web_asset_watch_snapshot()?;
     loop {
         if let Some(status) = child
             .try_wait()
@@ -558,20 +530,17 @@ fn watch_web_worker_assets_until_exit(child: &mut Child) -> Result<ExitStatus> {
             return Ok(status);
         }
         thread::sleep(WEB_WORKER_WATCH_POLL_INTERVAL);
-        let next_dioxus_snapshot = dioxus_release_watch_snapshot()?;
-        if next_dioxus_snapshot != dioxus_snapshot {
-            dioxus_snapshot = next_dioxus_snapshot;
-            post_dioxus_copy_pending = true;
-        }
-        if post_dioxus_copy_pending {
-            match copy_post_dioxus_web_assets_to_existing_release_public() {
-                Ok(true) => {
-                    post_dioxus_copy_pending = false;
-                    dioxus_snapshot = dioxus_release_watch_snapshot()?;
+        let next_stable_asset_snapshot = stable_web_asset_watch_snapshot()?;
+        if next_stable_asset_snapshot != stable_asset_snapshot {
+            println!("stable web asset changed; updating Dioxus public input");
+            match copy_stable_web_assets_to_public(&dioxus_web_public_input_dir()) {
+                Ok(()) => {
+                    stable_asset_snapshot = stable_web_asset_watch_snapshot()?;
+                    println!("stable web assets updated");
                 }
-                Ok(false) => {}
                 Err(error) => {
-                    eprintln!("post-Dioxus web asset copy failed; will retry: {error:#}");
+                    eprintln!("stable web asset update failed: {error:#}");
+                    stable_asset_snapshot = next_stable_asset_snapshot;
                 }
             }
         }
@@ -580,7 +549,7 @@ fn watch_web_worker_assets_until_exit(child: &mut Child) -> Result<ExitStatus> {
             continue;
         }
         println!("web worker source changed; rebuilding generated worker assets");
-        match build_web_worker_assets_for_serve() {
+        match build_web_worker_assets() {
             Ok(()) => {
                 snapshot = web_worker_watch_snapshot()?;
                 println!("web worker assets rebuilt");
@@ -595,22 +564,32 @@ fn watch_web_worker_assets_until_exit(child: &mut Child) -> Result<ExitStatus> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn dioxus_release_watch_snapshot() -> Result<DioxusReleaseWatchSnapshot> {
+fn stable_web_asset_watch_snapshot() -> Result<StableWebAssetWatchSnapshot> {
     let mut files = BTreeMap::new();
-    for path in dioxus_release_watch_files() {
-        if path.is_file() {
-            record_web_worker_watch_file(&path, &mut files)?;
+    for root in stable_web_asset_watch_roots() {
+        if root.is_file() {
+            record_web_worker_watch_file(&root, &mut files)?;
+        } else if root.is_dir() {
+            for entry in WalkDir::new(&root).into_iter() {
+                let entry = entry.with_context(|| {
+                    format!("walking stable web asset watch root `{}`", root.display())
+                })?;
+                if entry.file_type().is_file() {
+                    record_web_worker_watch_file(entry.path(), &mut files)?;
+                }
+            }
         }
     }
-    Ok(DioxusReleaseWatchSnapshot { files })
+    Ok(StableWebAssetWatchSnapshot { files })
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn dioxus_release_watch_files() -> Vec<PathBuf> {
+fn stable_web_asset_watch_roots() -> Vec<PathBuf> {
     vec![
-        PathBuf::from(DIOXUS_WEB_RELEASE_PUBLIC_DIR).join("index.html"),
-        PathBuf::from(DIOXUS_WEB_RELEASE_DIR).join(".manifest.json"),
+        PathBuf::from("apps/jbotci-web/assets/manifest.webmanifest"),
+        PathBuf::from("apps/jbotci-web/assets/icons/jbotci-icon-192.png"),
+        PathBuf::from("apps/jbotci-web/assets/cll/media"),
     ]
 }
 
@@ -675,42 +654,15 @@ fn record_web_worker_watch_file(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn copy_post_dioxus_web_assets_to_public(public_dir: &Path) -> Result<()> {
-    ensure_dioxus_web_public_dir(public_dir)?;
-    copy_web_worker_assets_to_public(public_dir)?;
-    copy_stable_web_assets_to_public(public_dir)
+fn prepare_dioxus_web_public_input() -> Result<()> {
+    build_web_worker_assets()?;
+    copy_stable_web_assets_to_public(&dioxus_web_public_input_dir())
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn copy_post_dioxus_web_assets_to_existing_release_public() -> Result<bool> {
-    let public_dir = Path::new(DIOXUS_WEB_RELEASE_PUBLIC_DIR);
-    if public_dir.is_dir() {
-        copy_post_dioxus_web_assets_to_public(public_dir)?;
-        return Ok(true);
-    }
-    Ok(false)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn copy_web_worker_assets_to_public(public_dir: &Path) -> Result<()> {
-    ensure_dioxus_web_public_dir(public_dir)?;
-    let source_dir = Path::new("apps/jbotci-web/assets/generated");
-    let target_dir = public_dir.join("assets/generated");
-    copy_flat_web_asset_dir(source_dir, &target_dir, "generated worker asset")
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn ensure_dioxus_web_public_dir(public_dir: &Path) -> Result<()> {
-    if public_dir.is_dir() {
-        return Ok(());
-    }
-    bail!(
-        "Dioxus web public directory `{}` does not exist",
-        public_dir.display()
-    )
+#[ensures(!ret.as_os_str().is_empty())]
+fn dioxus_web_public_input_dir() -> PathBuf {
+    PathBuf::from(DIOXUS_WEB_PUBLIC_INPUT_DIR)
 }
 
 #[requires(true)]
@@ -742,22 +694,7 @@ fn copy_stable_web_asset_file(
 ) -> Result<()> {
     let source = Path::new("apps/jbotci-web/assets").join(source_relative);
     let target = public_dir.join(target_relative);
-    let parent = target.parent().with_context(|| {
-        format!(
-            "stable web asset target `{}` has no parent",
-            target.display()
-        )
-    })?;
-    fs::create_dir_all(parent)
-        .with_context(|| format!("creating stable web asset directory `{}`", parent.display()))?;
-    fs::copy(&source, &target).with_context(|| {
-        format!(
-            "copying stable web asset `{}` to `{}`",
-            source.display(),
-            target.display()
-        )
-    })?;
-    Ok(())
+    copy_web_asset_file_atomically(&source, &target, "stable web asset")
 }
 
 #[requires(true)]
@@ -798,15 +735,87 @@ fn copy_flat_web_asset_dir(source_dir: &Path, target_dir: &Path, description: &s
         let file_name = entry.file_name();
         source_file_names.insert(file_name.clone());
         let target = target_dir.join(file_name);
-        fs::copy(entry.path(), &target).with_context(|| {
-            format!(
-                "copying {description} `{}` to `{}`",
-                entry.path().display(),
-                target.display()
-            )
-        })?;
+        copy_web_asset_file_atomically(&entry.path(), &target, description)?;
     }
     remove_obsolete_flat_web_asset_files(&target_dir, &source_file_names, description)
+}
+
+#[requires(source.is_file())]
+#[requires(!description.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_web_asset_file_atomically(source: &Path, target: &Path, description: &str) -> Result<()> {
+    let parent = target
+        .parent()
+        .with_context(|| format!("{description} target `{}` has no parent", target.display()))?;
+    fs::create_dir_all(parent)
+        .with_context(|| format!("creating {description} directory `{}`", parent.display()))?;
+    let temp_dir = web_asset_sync_temp_dir(target);
+    fs::create_dir_all(&temp_dir).with_context(|| {
+        format!(
+            "creating temporary {description} directory `{}`",
+            temp_dir.display()
+        )
+    })?;
+    let file_name = target.file_name().with_context(|| {
+        format!(
+            "{description} target `{}` has no file name",
+            target.display()
+        )
+    })?;
+    let temp_path = temp_dir.join(format!(
+        "{}-{}-{}.tmp",
+        std::process::id(),
+        WEB_ASSET_COPY_COUNTER.fetch_add(1, Ordering::Relaxed),
+        file_name.to_string_lossy()
+    ));
+    fs::copy(source, &temp_path).with_context(|| {
+        format!(
+            "copying {description} `{}` to temporary file `{}`",
+            source.display(),
+            temp_path.display()
+        )
+    })?;
+    match fs::rename(&temp_path, target) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == ErrorKind::AlreadyExists => {
+            fs::remove_file(target).with_context(|| {
+                format!(
+                    "removing old {description} `{}` before replace",
+                    target.display()
+                )
+            })?;
+            fs::rename(&temp_path, target).with_context(|| {
+                format!(
+                    "moving temporary {description} `{}` to `{}`",
+                    temp_path.display(),
+                    target.display()
+                )
+            })
+        }
+        Err(error) => {
+            let _ = fs::remove_file(&temp_path);
+            Err(error).with_context(|| {
+                format!(
+                    "moving temporary {description} `{}` to `{}`",
+                    temp_path.display(),
+                    target.display()
+                )
+            })
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.as_os_str().is_empty())]
+fn web_asset_sync_temp_dir(target: &Path) -> PathBuf {
+    let public_input_dir = dioxus_web_public_input_dir();
+    if target.starts_with(&public_input_dir) {
+        return PathBuf::from(WEB_ASSET_SYNC_TEMP_DIR);
+    }
+    target
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(".jbotci-asset-sync")
 }
 
 #[requires(!description.is_empty())]
@@ -889,7 +898,7 @@ fn dist_server(args: DistServerArgs) -> Result<()> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
-    build_web_worker_assets()?;
+    prepare_dioxus_web_public_input()?;
     let base_path = normalized_dist_base_path(base_path);
     let dioxus_public = Path::new("target/dx/jbotci-web/release/web/public");
     if dioxus_public.exists() {
@@ -904,8 +913,8 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
         .arg(base_path);
     let status = command.status().context("failed to run `dx bundle`")?;
     check_status(status, "dx bundle --web --release --debug-symbols=false")?;
-    let web_dist = web_dist_dir(out_dir)?;
-    copy_post_dioxus_web_assets_to_public(&web_dist)
+    let _ = web_dist_dir(out_dir)?;
+    Ok(())
 }
 
 #[requires(true)]
