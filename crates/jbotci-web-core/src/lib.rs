@@ -554,6 +554,7 @@ fn tree_rows(
             .get(&id.0)
             .cloned()
             .unwrap_or_else(|| color_for_node(metadata.depth, metadata.preorder));
+        let source_range = gentufa_range_from_spans(metadata.source_spans.iter());
         if metadata.source_spans.is_empty() || !tree_row_should_render(&label) {
             push_elided_terminator_rows(
                 &mut rows,
@@ -568,10 +569,16 @@ fn tree_rows(
             continue;
         }
         let text = gentufa_display_text_for_spans(&metadata.source_spans, leaves, source, options);
-        let annotation = gentufa_range_from_spans(metadata.source_spans.iter()).and_then(|range| {
+        let annotation = source_range.and_then(|range| {
             annotation_for_range_and_text(dictionary_annotations, Some(range), None)
         });
         rows.push(GentufaTreeRowDraft {
+            sort_key: GentufaTreeRowSortKey::new(
+                source_range,
+                ancestor_ids.len(),
+                metadata.preorder,
+                false,
+            ),
             ancestor_ids: ancestor_ids.clone(),
             row: GentufaTreeRow {
                 node_id: id.0,
@@ -639,6 +646,12 @@ fn push_elided_terminator_rows(
         let terminator_color = block_color_for_elided_terminator(blocks_layout, terminator)
             .unwrap_or_else(|| parent_color.to_owned());
         rows.push(GentufaTreeRowDraft {
+            sort_key: GentufaTreeRowSortKey::new(
+                Some(terminator.range),
+                ancestor_ids.len(),
+                parent_id.0,
+                true,
+            ),
             ancestor_ids: ancestor_ids.to_vec(),
             row: GentufaTreeRow {
                 node_id: elided_terminator_node_id(node_count, parent_id, terminator_index),
@@ -671,13 +684,42 @@ fn push_elided_terminator_rows(
 #[derive(Debug, Clone)]
 #[invariant(true)]
 struct GentufaTreeRowDraft {
+    sort_key: GentufaTreeRowSortKey,
     row: GentufaTreeRow,
     ancestor_ids: Vec<usize>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[invariant(true)]
+struct GentufaTreeRowSortKey {
+    byte_start: usize,
+    depth: usize,
+    synthetic_rank: usize,
+    byte_end: usize,
+    preorder: usize,
+}
+
+impl GentufaTreeRowSortKey {
+    #[requires(true)]
+    #[ensures(ret.depth == depth)]
+    fn new(range: Option<WebSourceRange>, depth: usize, preorder: usize, synthetic: bool) -> Self {
+        let (byte_start, byte_end) = range
+            .map(|range| (range.byte_start, range.byte_end))
+            .unwrap_or((usize::MAX, usize::MAX));
+        Self {
+            byte_start,
+            depth,
+            synthetic_rank: usize::from(synthetic),
+            byte_end,
+            preorder,
+        }
+    }
 }
 
 #[requires(true)]
 #[ensures(ret.len() == old(rows.len()))]
 fn annotate_tree_rows(mut rows: Vec<GentufaTreeRowDraft>) -> Vec<GentufaTreeRow> {
+    rows.sort_by_key(|row| row.sort_key);
     let colors_by_id = rows
         .iter()
         .map(|row| (row.row.node_id, row.row.color.clone()))
@@ -4176,9 +4218,15 @@ mod tests {
     #[requires(!text.trim().is_empty())]
     #[ensures(true)]
     fn parse_success(text: &str) -> GentufaSuccess {
+        parse_success_with_options(text, GentufaWebOptions::default())
+    }
+
+    #[requires(!text.trim().is_empty())]
+    #[ensures(true)]
+    fn parse_success_with_options(text: &str, options: GentufaWebOptions) -> GentufaSuccess {
         let request = GentufaWebRequest {
             text: text.to_owned(),
-            options: GentufaWebOptions::default(),
+            options,
         };
         let result = parse_gentufa_for_web(&request);
         let GentufaWebResult::Success(success) = result else {
@@ -4412,6 +4460,56 @@ mod tests {
             vau_block.tooltip.as_ref().map(|card| card.href.as_str()),
             Some("/vlacku/vau")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tree_rows_place_elided_terminators_after_preceding_source_text() {
+        let success = parse_success_with_options(
+            "cadga fa lonu mi klama kei",
+            GentufaWebOptions {
+                show_elided: true,
+                ..GentufaWebOptions::default()
+            },
+        );
+        let rows_for_failure = || {
+            success
+                .tree_rows
+                .iter()
+                .map(|row| {
+                    (
+                        row.label.as_str(),
+                        row.cells
+                            .iter()
+                            .map(|cell| (cell.text.as_str(), cell.is_elided))
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        let cadga_row = success
+            .tree_rows
+            .iter()
+            .position(|row| {
+                row.label == "Base"
+                    && row
+                        .cells
+                        .iter()
+                        .any(|cell| !cell.is_elided && cell.text == "cádga")
+            })
+            .unwrap_or_else(|| panic!("{:?}", rows_for_failure()));
+        let first_elided_vau_row = success
+            .tree_rows
+            .iter()
+            .position(|row| {
+                row.cells
+                    .iter()
+                    .any(|cell| cell.is_elided && cell.text == "vau")
+            })
+            .expect("elided vau row");
+
+        assert!(first_elided_vau_row > cadga_row, "{:?}", rows_for_failure());
     }
 
     #[test]
