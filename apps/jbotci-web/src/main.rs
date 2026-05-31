@@ -1247,7 +1247,7 @@ fn App() -> Element {
                 &activity_value,
                 activity_indicator_visible_value,
             ) }
-            main { class: "spa-main",
+            main { class: "spa-main", "data-app-scroll": "main",
                 div { class: "spa-stack",
                     {
                         match route_value {
@@ -3026,7 +3026,7 @@ fn render_cukta_page(
                     },
                     span { class: "cll-splitter-grip", aria_hidden: "true" }
                 }
-                main { class: "cll-main",
+                main { class: "cll-main", "data-cukta-scroll": "main",
                     {
                         match &page.page_kind {
                             CuktaPageKind::Section {
@@ -4669,7 +4669,7 @@ fn scroll_to_cukta_href(href: &str) {
     let closure = Closure::once(move || {
         if let Some(document) = web_sys::window().and_then(|window| window.document()) {
             if let Some(element) = document.get_element_by_id(&anchor) {
-                element.scroll_into_view();
+                scroll_to_cukta_anchor_element(&element);
             }
         }
     });
@@ -8846,12 +8846,22 @@ fn install_browser_state_handlers(
     );
     schedule_vlacku_jvozba_pane_metrics_after_fonts_ready(&document);
 
-    let scroll_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
+    let document_scroll_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         save_current_scroll_position();
     }) as Box<dyn FnMut(_)>);
-    let _ =
-        window.add_event_listener_with_callback("scroll", scroll_closure.as_ref().unchecked_ref());
-    scroll_closure.forget();
+    let _ = document.add_event_listener_with_callback_and_bool(
+        "scroll",
+        document_scroll_closure.as_ref().unchecked_ref(),
+        true,
+    );
+    document_scroll_closure.forget();
+
+    let window_scroll_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
+        save_current_scroll_position();
+    }) as Box<dyn FnMut(_)>);
+    let _ = window
+        .add_event_listener_with_callback("scroll", window_scroll_closure.as_ref().unchecked_ref());
+    window_scroll_closure.forget();
     restore_scroll_for_current_url();
 }
 
@@ -10132,6 +10142,84 @@ fn scroll_storage_key(path_query_or_url: &str) -> String {
 }
 
 #[cfg(target_arch = "wasm32")]
+#[requires(!selector.is_empty())]
+#[ensures(true)]
+fn scroll_container_by_selector(selector: &str) -> Option<web_sys::HtmlElement> {
+    web_sys::window()
+        .and_then(|window| window.document())
+        .and_then(|document| document.query_selector(selector).ok().flatten())
+        .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_scroll_container() -> Option<web_sys::HtmlElement> {
+    scroll_container_by_selector("[data-cukta-scroll='main']")
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn active_scroll_container() -> Option<web_sys::HtmlElement> {
+    cukta_scroll_container().or_else(|| scroll_container_by_selector("[data-app-scroll='main']"))
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret >= 0.0)]
+fn element_scroll_margin_top(element: &web_sys::Element) -> f64 {
+    web_sys::window()
+        .and_then(|window| window.get_computed_style(element).ok().flatten())
+        .and_then(|style| style.get_property_value("scroll-margin-top").ok())
+        .and_then(|value| value.trim().strip_suffix("px")?.parse::<f64>().ok())
+        .unwrap_or(0.0)
+        .max(0.0)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn scroll_container_to_y(y: i32) {
+    if let Some(element) = active_scroll_container() {
+        element.set_scroll_top(y.max(0));
+    } else if let Some(window) = web_sys::window() {
+        window.scroll_to_with_x_and_y(0.0, f64::from(y.max(0)));
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_scroll_container_to_y(y: i32) {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move || scroll_container_to_y(y));
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        closure.as_ref().unchecked_ref(),
+        30,
+    );
+    closure.forget();
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn scroll_to_cukta_anchor_element(element: &web_sys::Element) {
+    let Some(container) = cukta_scroll_container().or_else(active_scroll_container) else {
+        element.scroll_into_view();
+        return;
+    };
+    let container_rect = container.get_bounding_client_rect();
+    let element_rect = element.get_bounding_client_rect();
+    let next_scroll_top = f64::from(container.scroll_top()) + element_rect.top()
+        - container_rect.top()
+        - element_scroll_margin_top(element);
+    container.set_scroll_top(next_scroll_top.round().max(0.0) as i32);
+}
+
+#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 fn save_current_scroll_position() {
@@ -10144,8 +10232,10 @@ fn save_current_scroll_position() {
         location.pathname().unwrap_or_default(),
         location.search().unwrap_or_default()
     ));
-    let y = window.scroll_y().unwrap_or(0.0);
-    session_storage_set(&key, &format!("{y:.0}"));
+    let y = active_scroll_container()
+        .map(|element| element.scroll_top())
+        .unwrap_or_else(|| window.scroll_y().unwrap_or(0.0).round() as i32);
+    session_storage_set(&key, &y.to_string());
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -10177,19 +10267,7 @@ fn restore_scroll_for_current_url() {}
 #[requires(true)]
 #[ensures(true)]
 fn scroll_to_top() {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    let closure = Closure::once(move || {
-        if let Some(window) = web_sys::window() {
-            window.scroll_to_with_x_and_y(0.0, 0.0);
-        }
-    });
-    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        closure.as_ref().unchecked_ref(),
-        30,
-    );
-    closure.forget();
+    schedule_scroll_container_to_y(0);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -10203,25 +10281,13 @@ fn scroll_to_top() {}
 fn restore_scroll_for_url(url: &str) {
     let key = scroll_storage_key(url);
     let Some(raw) = session_storage_get(&key) else {
-        web_sys::window().map(|window| window.scroll_to_with_x_and_y(0.0, 0.0));
+        scroll_container_to_y(0);
         return;
     };
-    let Ok(y) = raw.parse::<f64>() else {
+    let Ok(y) = raw.parse::<i32>() else {
         return;
     };
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    let closure = Closure::once(move || {
-        if let Some(window) = web_sys::window() {
-            window.scroll_to_with_x_and_y(0.0, y);
-        }
-    });
-    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        closure.as_ref().unchecked_ref(),
-        30,
-    );
-    closure.forget();
+    schedule_scroll_container_to_y(y);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
