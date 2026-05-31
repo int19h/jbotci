@@ -1625,6 +1625,7 @@ mod tests {
         let layout = GentufaBlocksLayout {
             blocks: vec![GentufaBlock {
                 block_id: "n1".to_owned(),
+                node_ids: vec![1],
                 label: "mi".to_owned(),
                 is_leaf: true,
                 is_elided: false,
@@ -1682,6 +1683,7 @@ mod tests {
     fn test_gentufa_block(row: usize, row_span: usize, incoming_count: usize) -> GentufaBlock<()> {
         GentufaBlock {
             block_id: format!("test-{row}"),
+            node_ids: Vec::new(),
             label: "ny".to_owned(),
             is_leaf: true,
             is_elided: false,
@@ -1717,6 +1719,7 @@ mod tests {
     ) -> GentufaBlock<()> {
         GentufaBlock {
             block_id: format!("wide-{row}"),
+            node_ids: Vec::new(),
             label: "Cei".to_owned(),
             is_leaf: false,
             is_elided: false,

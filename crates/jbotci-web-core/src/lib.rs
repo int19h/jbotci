@@ -1,6 +1,6 @@
 //! Shared web/API view models and gentufa parser facade.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::OnceLock;
 
 #[allow(unused_imports)]
@@ -242,15 +242,28 @@ pub struct DictionaryTooltipCard {
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
 pub struct GentufaTreeRow {
+    pub node_id: usize,
+    pub parent_id: Option<usize>,
     pub depth: usize,
     pub label: String,
     pub color: String,
+    pub guides: Vec<GentufaTreeGuide>,
+    pub has_children: bool,
     pub cells: Vec<GentufaCell>,
     pub computed_gloss: Option<String>,
     pub ref_markers: Vec<ReferenceMarker>,
     pub glosses: Vec<String>,
     pub definition: Option<String>,
     pub rafsi_breakdown: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub struct GentufaTreeGuide {
+    pub color: String,
+    pub line_top: bool,
+    pub line_bottom: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -381,6 +394,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         &elided_terminators,
         &dictionary_annotations,
         &block_options,
+        &blocks_layout,
     );
     let ipa_text = ipa_morphology_text(&words, source).unwrap_or_else(|error| error.to_string());
     let brackets_text = pretty_brackets_with_options(
@@ -525,61 +539,115 @@ fn tree_rows(
     elided_terminators: &[ElidedTerminator],
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
     options: &GentufaBlockOptions,
+    blocks_layout: &GentufaBlocksLayout,
 ) -> Vec<GentufaTreeRow> {
+    let block_colors = block_color_map(blocks_layout);
     let mut rows = Vec::new();
     for raw_id in 0..analysis.syntax_index.node_count() {
         let id = RawSyntaxNodeId(raw_id);
         let Some(metadata) = analysis.syntax_index.metadata(id) else {
             continue;
         };
-        if metadata.source_spans.is_empty() {
-            continue;
-        }
-        let label = analysis
-            .syntax_index
-            .node(id)
-            .map(|node| gentufa_syntax_constructor_name(node.constructor_name()).to_owned())
-            .unwrap_or_else(|| "Node".to_owned());
-        if !tree_row_should_render(&label) {
+        let label = syntax_label_for_node(analysis, id);
+        let ancestor_ids = rendered_ancestor_ids(analysis, id);
+        let color = block_colors
+            .get(&id.0)
+            .cloned()
+            .unwrap_or_else(|| color_for_node(metadata.depth, metadata.preorder));
+        if metadata.source_spans.is_empty() || !tree_row_should_render(&label) {
+            push_elided_terminator_rows(
+                &mut rows,
+                analysis.syntax_index.node_count(),
+                id,
+                &ancestor_ids,
+                &color,
+                elided_terminators,
+                dictionary_annotations,
+                blocks_layout,
+            );
             continue;
         }
         let text = gentufa_display_text_for_spans(&metadata.source_spans, leaves, source, options);
         let annotation = gentufa_range_from_spans(metadata.source_spans.iter()).and_then(|range| {
             annotation_for_range_and_text(dictionary_annotations, Some(range), None)
         });
-        rows.push(GentufaTreeRow {
-            depth: metadata.depth,
-            label,
-            color: color_for_node(metadata.depth, metadata.preorder),
-            cells: vec![GentufaCell {
-                text,
-                is_word: !metadata.source_spans.is_empty(),
-                quoted: false,
-                tooltip: None,
-                is_elided: false,
-                transform: None,
-            }],
-            computed_gloss: None,
-            ref_markers: gentufa_reference_markers_for_node(reference_model, id),
-            glosses: annotation
-                .map(|annotation| annotation.glosses.clone())
-                .unwrap_or_default(),
-            definition: annotation.and_then(|annotation| annotation.definition.clone()),
-            rafsi_breakdown: Vec::new(),
+        rows.push(GentufaTreeRowDraft {
+            ancestor_ids: ancestor_ids.clone(),
+            row: GentufaTreeRow {
+                node_id: id.0,
+                parent_id: None,
+                depth: ancestor_ids.len(),
+                label,
+                color: color.clone(),
+                guides: Vec::new(),
+                has_children: false,
+                cells: vec![GentufaCell {
+                    text,
+                    is_word: !metadata.source_spans.is_empty(),
+                    quoted: false,
+                    tooltip: None,
+                    is_elided: false,
+                    transform: None,
+                }],
+                computed_gloss: None,
+                ref_markers: gentufa_reference_markers_for_node(reference_model, id),
+                glosses: annotation
+                    .map(|annotation| annotation.glosses.clone())
+                    .unwrap_or_default(),
+                definition: annotation.and_then(|annotation| annotation.definition.clone()),
+                rafsi_breakdown: Vec::new(),
+            },
         });
-        for terminator in elided_terminators
-            .iter()
-            .filter(|terminator| terminator.parent_id == id)
-        {
-            let annotation = annotation_for_range_and_text(
-                dictionary_annotations,
-                Some(terminator.range),
-                Some(&terminator.text),
-            );
-            rows.push(GentufaTreeRow {
-                depth: metadata.depth + 1,
+        let mut terminator_ancestor_ids = ancestor_ids.clone();
+        terminator_ancestor_ids.push(id.0);
+        push_elided_terminator_rows(
+            &mut rows,
+            analysis.syntax_index.node_count(),
+            id,
+            &terminator_ancestor_ids,
+            &color,
+            elided_terminators,
+            dictionary_annotations,
+            blocks_layout,
+        );
+    }
+    annotate_tree_rows(rows)
+}
+
+#[requires(true)]
+#[ensures(rows.len() >= old(rows.len()))]
+fn push_elided_terminator_rows(
+    rows: &mut Vec<GentufaTreeRowDraft>,
+    node_count: usize,
+    parent_id: RawSyntaxNodeId,
+    ancestor_ids: &[usize],
+    parent_color: &str,
+    elided_terminators: &[ElidedTerminator],
+    dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+    blocks_layout: &GentufaBlocksLayout,
+) {
+    for (terminator_index, terminator) in elided_terminators
+        .iter()
+        .filter(|terminator| terminator.parent_id == parent_id)
+        .enumerate()
+    {
+        let annotation = annotation_for_range_and_text(
+            dictionary_annotations,
+            Some(terminator.range),
+            Some(&terminator.text),
+        );
+        let terminator_color = block_color_for_elided_terminator(blocks_layout, terminator)
+            .unwrap_or_else(|| parent_color.to_owned());
+        rows.push(GentufaTreeRowDraft {
+            ancestor_ids: ancestor_ids.to_vec(),
+            row: GentufaTreeRow {
+                node_id: elided_terminator_node_id(node_count, parent_id, terminator_index),
+                parent_id: None,
+                depth: ancestor_ids.len(),
                 label: "Cmavo".to_owned(),
-                color: color_for_node(metadata.depth + 1, metadata.preorder),
+                color: terminator_color,
+                guides: Vec::new(),
+                has_children: false,
                 cells: vec![GentufaCell {
                     text: terminator.text.clone(),
                     is_word: true,
@@ -595,16 +663,149 @@ fn tree_rows(
                     .unwrap_or_default(),
                 definition: annotation.and_then(|annotation| annotation.definition.clone()),
                 rafsi_breakdown: Vec::new(),
-            });
+            },
+        });
+    }
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct GentufaTreeRowDraft {
+    row: GentufaTreeRow,
+    ancestor_ids: Vec<usize>,
+}
+
+#[requires(true)]
+#[ensures(ret.len() == old(rows.len()))]
+fn annotate_tree_rows(mut rows: Vec<GentufaTreeRowDraft>) -> Vec<GentufaTreeRow> {
+    let colors_by_id = rows
+        .iter()
+        .map(|row| (row.row.node_id, row.row.color.clone()))
+        .collect::<HashMap<_, _>>();
+    let head_row_by_id = rows
+        .iter()
+        .enumerate()
+        .map(|(row_index, row)| (row.row.node_id, row_index))
+        .collect::<HashMap<_, _>>();
+    let mut last_descendant_row_by_id = HashMap::new();
+    let mut parent_ids = BTreeSet::new();
+    for (row_index, row) in rows.iter().enumerate() {
+        if let Some(parent_id) = row.ancestor_ids.last() {
+            parent_ids.insert(*parent_id);
+        }
+        for ancestor_id in &row.ancestor_ids {
+            last_descendant_row_by_id.insert(*ancestor_id, row_index);
         }
     }
-    rows
+    for (row_index, row) in rows.iter_mut().enumerate() {
+        row.row.depth = row.ancestor_ids.len();
+        row.row.parent_id = row.ancestor_ids.last().copied();
+        row.row.guides = row
+            .ancestor_ids
+            .iter()
+            .filter_map(|ancestor_id| {
+                let color = colors_by_id.get(ancestor_id)?;
+                let head_row = head_row_by_id.get(ancestor_id).copied();
+                let last_descendant_row = last_descendant_row_by_id.get(ancestor_id).copied();
+                Some(GentufaTreeGuide {
+                    color: color.clone(),
+                    line_top: head_row.is_some_and(|head| row_index > head)
+                        && last_descendant_row
+                            .is_some_and(|last_descendant| row_index <= last_descendant),
+                    line_bottom: last_descendant_row
+                        .is_some_and(|last_descendant| row_index < last_descendant),
+                })
+            })
+            .collect();
+        row.row.has_children = parent_ids.contains(&row.row.node_id);
+    }
+    rows.into_iter().map(|row| row.row).collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn rendered_ancestor_ids(analysis: &ReferenceAnalysis<'_>, id: RawSyntaxNodeId) -> Vec<usize> {
+    let mut ancestors = Vec::new();
+    let mut current = analysis
+        .syntax_index
+        .metadata(id)
+        .and_then(|metadata| metadata.parent);
+    while let Some(parent) = current {
+        if tree_row_should_render(&syntax_label_for_node(analysis, parent)) {
+            ancestors.push(parent.0);
+        }
+        current = analysis
+            .syntax_index
+            .metadata(parent)
+            .and_then(|metadata| metadata.parent);
+    }
+    ancestors.reverse();
+    ancestors
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn syntax_label_for_node(analysis: &ReferenceAnalysis<'_>, id: RawSyntaxNodeId) -> String {
+    analysis
+        .syntax_index
+        .node(id)
+        .map(|node| gentufa_syntax_constructor_name(node.constructor_name()).to_owned())
+        .unwrap_or_else(|| "Node".to_owned())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn block_color_map(blocks_layout: &GentufaBlocksLayout) -> HashMap<usize, String> {
+    let mut colors = HashMap::new();
+    for block in blocks_layout.blocks.iter().filter(|block| !block.is_leaf) {
+        for node_id in &block.node_ids {
+            colors
+                .entry(*node_id)
+                .or_insert_with(|| block.color.clone());
+        }
+    }
+    for block in blocks_layout.blocks.iter().filter(|block| block.is_leaf) {
+        for node_id in &block.node_ids {
+            colors
+                .entry(*node_id)
+                .or_insert_with(|| block.color.clone());
+        }
+    }
+    colors
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn block_color_for_elided_terminator(
+    blocks_layout: &GentufaBlocksLayout,
+    terminator: &ElidedTerminator,
+) -> Option<String> {
+    blocks_layout
+        .blocks
+        .iter()
+        .find(|block| {
+            block.is_elided
+                && block.span == Some(terminator.range)
+                && block.display_text == terminator.text
+        })
+        .map(|block| block.color.clone())
+}
+
+#[requires(true)]
+#[ensures(ret >= node_count)]
+fn elided_terminator_node_id(node_count: usize, parent: RawSyntaxNodeId, index: usize) -> usize {
+    node_count
+        .saturating_add(parent.0.saturating_add(1).saturating_mul(1_000_000))
+        .saturating_add(index)
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn tree_row_should_render(label: &str) -> bool {
-    !matches!(label, "PredicateTail" | "PredicateTail1" | "PredicateTail2")
+    !matches!(
+        label,
+        "PredicateTail" | "PredicateTail1" | "PredicateTail2" | "Relation"
+    )
 }
 
 #[requires(true)]
@@ -4339,7 +4540,29 @@ mod tests {
             success
                 .tree_rows
                 .iter()
-                .all(|row| !row.label.starts_with("PredicateTail"))
+                .all(|row| !row.label.starts_with("PredicateTail") && row.label != "Relation")
+        );
+        assert!(
+            success.tree_rows.iter().all(|row| {
+                success.blocks_layout.blocks.iter().any(|block| {
+                    block.node_ids.iter().any(|node_id| *node_id == row.node_id)
+                        && block.color == row.color
+                })
+            }),
+            "{:?}",
+            success.tree_rows
+        );
+        assert!(success.tree_rows.iter().any(|row| {
+            row.guides
+                .iter()
+                .any(|guide| guide.line_top || guide.line_bottom)
+        }));
+        assert!(
+            success
+                .tree_rows
+                .iter()
+                .flat_map(|row| row.guides.iter())
+                .all(|guide| guide.color.starts_with('#'))
         );
         assert!(success.blocks_layout.blocks.iter().any(|block| {
             block.ref_markers.iter().any(|marker| {

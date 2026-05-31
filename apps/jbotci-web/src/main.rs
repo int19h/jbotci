@@ -11,15 +11,15 @@ use jbotci_web_core::{
     CuktaSearchResultCard, CuktaSemanticSearchHit, CuktaTargetOption, CuktaTocNode, CuktaWebMode,
     CuktaWebSearchState, CuktaWebState, CuktaWebView, DictionaryTooltipCard, GentufaBlock,
     GentufaBlocksLayout, GentufaBracketFragment, GentufaCell, GentufaError, GentufaScript,
-    GentufaSuccess, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest, GentufaWebResult,
-    GentufaWebState, GentufaWebViewMode, PageMeta, ReferenceLabel, ReferenceMarker,
-    ReferenceMarkerRole, VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece,
-    VlackuCompositionPieceKind, VlackuDictionaryCountNode, VlackuDictionaryInfo, VlackuInline,
-    VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
-    VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
-    VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebResult,
-    VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest,
-    WebComputeResponse, WebFeatureAvailability, WebRoute, build_page_meta,
+    GentufaSuccess, GentufaTreeGuide, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest,
+    GentufaWebResult, GentufaWebState, GentufaWebViewMode, PageMeta, ReferenceLabel,
+    ReferenceMarker, ReferenceMarkerRole, VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT,
+    VlackuCompositionPiece, VlackuCompositionPieceKind, VlackuDictionaryCountNode,
+    VlackuDictionaryInfo, VlackuInline, VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind,
+    VlackuJvozbaMode, VlackuJvozbaOutput, VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart,
+    VlackuMathPartData, VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebCard, VlackuWebMode,
+    VlackuWebResult, VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection,
+    WebComputeRequest, WebComputeResponse, WebFeatureAvailability, WebRoute, build_page_meta,
     build_vlacku_jvozba_output, cukta_web_url, dictionary_tooltip_for_rafsi,
     dictionary_tooltip_for_word, gentufa_web_url, normalize_vlacku_state, parse_cukta_web_route,
     parse_gentufa_web_route, parse_vlacku_web_route, parse_web_route, reference_slot_display_text,
@@ -39,6 +39,8 @@ use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 use std::cell::Cell;
+#[cfg(target_arch = "wasm32")]
+use std::collections::HashMap;
 use std::future::Future;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
@@ -105,6 +107,10 @@ const VLACKU_JVOZBA_LAYOUT_FRAME_PASSES: u8 = 2;
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS: i32 = 30;
 #[cfg(target_arch = "wasm32")]
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_FRAME_PASSES: u8 = 2;
+#[cfg(target_arch = "wasm32")]
+const GENTUFA_TREE_LAYOUT_DELAY_MS: i32 = 30;
+#[cfg(target_arch = "wasm32")]
+const GENTUFA_TREE_LAYOUT_FRAME_PASSES: u8 = 2;
 const BLOCK_REFERENCE_LABEL_GAP_PX: f64 = 8.0;
 const BLOCK_REFERENCE_CONTAINMENT_GAP_PX: f64 = 1.0;
 
@@ -881,6 +887,7 @@ fn App() -> Element {
                         });
                         sync_document_head(&meta);
                         schedule_gentufa_block_reference_layout();
+                        schedule_gentufa_tree_layout();
                     }
                     Ok(_) => {
                         result_signal.set(gentufa_async_error_state(
@@ -1126,6 +1133,7 @@ fn App() -> Element {
                 *gentufa_display.read(),
             );
             schedule_gentufa_block_reference_layout();
+            schedule_gentufa_tree_layout();
         }
     });
     use_effect(move || {
@@ -6074,7 +6082,7 @@ fn render_success(
                     { render_blocks(success, display_value.show_glosses, settings_value.script, reference_hover, activity, export_task) }
                 },
                 GentufaWebViewMode::Tree => rsx! {
-                    { render_tree(success, display_value.show_glosses, false, reference_hover) }
+                    { render_tree(success, reference_hover) }
                 },
                 GentufaWebViewMode::Ipa => rsx! {
                     { render_ipa_output(success) }
@@ -6752,27 +6760,23 @@ fn render_gloss_block(block: &GentufaBlock, gloss_row: usize) -> Element {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_tree(
-    success: &GentufaSuccess,
-    show_glosses: bool,
-    show_definitions: bool,
-    reference_hover: Signal<ReferenceHoverState>,
-) -> Element {
+fn render_tree(success: &GentufaSuccess, reference_hover: Signal<ReferenceHoverState>) -> Element {
     rsx! {
         div { class: "table-view",
             div { class: "table-wrap",
+                svg { class: "tree-lines", "aria-hidden": "true" }
                 table { class: "parse-table spa-gentufa-table",
                     thead {
                         tr {
+                            th { class: "col-edge col-edge-in", div { class: "cell-pad", "" } }
                             th { class: "col-node", div { class: "cell-pad", "Node" } }
-                            th { class: "col-valsis", div { class: "cell-pad", "Word" } }
-                            th { class: "col-gloss", div { class: "cell-pad", "Glosses" } }
-                            th { class: "col-definition", div { class: "cell-pad", "Definitions" } }
+                            th { class: "col-edge col-edge-out", div { class: "cell-pad", "" } }
+                            th { class: "col-text", div { class: "cell-pad", "Text" } }
                         }
                     }
                     tbody {
                         for row in success.tree_rows.iter() {
-                            { render_tree_row(row, show_glosses, show_definitions, reference_hover) }
+                            { render_tree_row(row, reference_hover) }
                         }
                     }
                 }
@@ -6783,73 +6787,107 @@ fn render_tree(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_tree_row(
-    row: &GentufaTreeRow,
-    show_glosses: bool,
-    show_definitions: bool,
-    reference_hover: Signal<ReferenceHoverState>,
-) -> Element {
-    let row_class = if tree_row_is_elided(row) {
-        "elided-row"
-    } else {
-        ""
-    };
-    let style = format!("--row-color: {}; --indent-count: {};", row.color, row.depth);
+fn render_tree_row(row: &GentufaTreeRow, reference_hover: Signal<ReferenceHoverState>) -> Element {
+    let row_class = class_names("tree-row", &[("elided-row", tree_row_is_elided(row))]);
+    let parent_id = row
+        .parent_id
+        .map(|parent_id| parent_id.to_string())
+        .unwrap_or_default();
+    let indent_count = row.guides.len() + 1;
+    let style = format!(
+        "--row-color: {}; --block-color: {}; --indent-count: {};",
+        row.color, row.color, indent_count
+    );
     let hover_state = reference_hover.read().clone();
     let incoming_markers = row
         .ref_markers
         .iter()
-        .filter(|marker| marker.role == ReferenceMarkerRole::Referent);
+        .filter(|marker| marker.role == ReferenceMarkerRole::Referent)
+        .collect::<Vec<_>>();
     let outgoing_markers = row
         .ref_markers
         .iter()
-        .filter(|marker| marker.role == ReferenceMarkerRole::Reference);
+        .filter(|marker| marker.role == ReferenceMarkerRole::Reference)
+        .collect::<Vec<_>>();
+    let current_guide_class = class_names(
+        "indent-block tree-current-guide",
+        &[
+            ("has-parent", !row.guides.is_empty()),
+            ("line-bottom", row.has_children),
+        ],
+    );
     rsx! {
-        tr { class: "{row_class}", style: "{style}",
+        tr {
+            class: "{row_class}",
+            style: "{style}",
+            "data-node-id": "{row.node_id}",
+            "data-parent-id": "{parent_id}",
+            "data-color": "{row.color}",
+            { render_tree_edge_cell("in", incoming_markers, false, reference_hover, &hover_state) }
             td { class: "col-node",
-                div { class: "node-cell",
-                    span { class: "indent-stack",
-                        for _ in 0..row.depth {
-                            span { class: "indent-block line-top line-bottom" }
-                        }
+                span { class: "indent-stack",
+                    for guide in row.guides.iter() {
+                        { render_tree_guide(guide) }
                     }
+                    span { class: "{current_guide_class}", style: "--block-color: {row.color};" }
+                }
+                div { class: "node-cell",
                     span { class: "node-content",
-                        span { class: "node-toggle-spacer", aria_hidden: "true" }
-                        span { class: "node-label",
-                            for marker in incoming_markers {
-                                { render_ref_marker(marker, reference_hover, &hover_state) }
-                                span { class: "ref-arrow", "→" }
-                            }
+                        span { class: "node-label", style: "--block-color: {row.color};",
                             "{row.label}"
-                            for marker in outgoing_markers {
-                                span { class: "ref-arrow", "→" }
-                                { render_ref_marker(marker, reference_hover, &hover_state) }
-                            }
                         }
                     }
                 }
             }
-            td { class: "col-valsis",
+            { render_tree_edge_cell("out", outgoing_markers, true, reference_hover, &hover_state) }
+            td { class: "col-text",
                 div { class: "cell-pad",
                     for cell in row.cells.iter() {
                         { render_tree_cell(cell) }
                     }
                 }
             }
-            td { class: "col-gloss",
-                div { class: "cell-pad",
-                    if show_glosses {
-                        { render_tree_glosses(row) }
-                    }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_tree_guide(guide: &GentufaTreeGuide) -> Element {
+    let class = class_names(
+        "indent-block tree-guide",
+        &[
+            ("line-top", guide.line_top),
+            ("line-bottom", guide.line_bottom),
+        ],
+    );
+    rsx! {
+        span { class: "{class}", style: "--block-color: {guide.color};" }
+    }
+}
+
+#[requires(!side.is_empty())]
+#[ensures(true)]
+fn render_tree_edge_cell(
+    side: &str,
+    markers: Vec<&ReferenceMarker>,
+    arrow_before: bool,
+    reference_hover: Signal<ReferenceHoverState>,
+    hover_state: &ReferenceHoverState,
+) -> Element {
+    let class = format!("col-edge col-edge-{side}");
+    let has_markers = !markers.is_empty();
+    rsx! {
+        td { class: "{class}",
+            div { class: "cell-pad edge-cell",
+                if has_markers && arrow_before {
+                    span { class: "ref-arrow edge-arrow", "→" }
                 }
-            }
-            td { class: "col-definition",
-                div { class: "cell-pad",
-                    if show_definitions {
-                        if let Some(definition) = &row.definition {
-                            span { class: "def-line", "{definition}" }
-                        }
-                    }
+                for marker in markers {
+                    { render_ref_marker(marker, reference_hover, hover_state) }
+                }
+                if has_markers && !arrow_before {
+                    span { class: "ref-arrow edge-arrow", "→" }
                 }
             }
         }
@@ -6880,19 +6918,6 @@ fn render_elidable_text(text: &str, elided: bool) -> Element {
         rsx! { s { "{text}" } }
     } else {
         rsx! { "{text}" }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_tree_glosses(row: &GentufaTreeRow) -> Element {
-    rsx! {
-        if let Some(gloss) = &row.computed_gloss {
-            span { class: "gloss-item", "{gloss}" }
-        }
-        for gloss in row.glosses.iter() {
-            span { class: "gloss-item", "{gloss}" }
-        }
     }
 }
 
@@ -7838,6 +7863,7 @@ fn install_browser_state_handlers(
     let resize_jvozba_available = jvozba_available;
     let resize_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
+        schedule_gentufa_tree_layout();
         schedule_topbar_settings_layout_measure(resize_layout, resize_open);
         update_vlacku_jvozba_availability(resize_jvozba_available);
         schedule_vlacku_jvozba_pane_metrics_sync();
@@ -7851,6 +7877,7 @@ fn install_browser_state_handlers(
     let load_jvozba_available = jvozba_available;
     let window_load_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
+        schedule_gentufa_tree_layout();
         schedule_topbar_settings_layout_measure(load_layout, load_open);
         update_vlacku_jvozba_availability(load_jvozba_available);
         schedule_vlacku_jvozba_pane_metrics_sync();
@@ -7864,6 +7891,7 @@ fn install_browser_state_handlers(
     let stylesheet_load_closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
         if event_target_is_stylesheet_link(&event) {
             schedule_gentufa_block_reference_layout();
+            schedule_gentufa_tree_layout();
             schedule_topbar_settings_layout_measure(stylesheet_layout, stylesheet_open);
             schedule_vlacku_jvozba_pane_metrics_sync();
         }
@@ -7875,6 +7903,7 @@ fn install_browser_state_handlers(
     );
     stylesheet_load_closure.forget();
     schedule_gentufa_block_reference_layout_after_fonts_ready(&document);
+    schedule_gentufa_tree_layout_after_fonts_ready(&document);
     schedule_topbar_settings_layout_after_fonts_ready(
         &document,
         topbar_settings_layout,
@@ -8003,6 +8032,29 @@ fn schedule_gentufa_block_reference_layout() {}
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
+fn schedule_gentufa_tree_layout() {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move || {
+        layout_gentufa_tree_lines();
+        schedule_gentufa_tree_layout_animation_frames(GENTUFA_TREE_LAYOUT_FRAME_PASSES);
+    });
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        closure.as_ref().unchecked_ref(),
+        GENTUFA_TREE_LAYOUT_DELAY_MS,
+    );
+    closure.forget();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_gentufa_tree_layout() {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
 fn schedule_gentufa_block_reference_layout_animation_frames(remaining: u8) {
     if remaining == 0 {
         return;
@@ -8013,6 +8065,24 @@ fn schedule_gentufa_block_reference_layout_animation_frames(remaining: u8) {
     let closure = Closure::once(move |_timestamp: f64| {
         adjust_gentufa_block_reference_layout();
         schedule_gentufa_block_reference_layout_animation_frames(remaining - 1);
+    });
+    let _ = window.request_animation_frame(closure.as_ref().unchecked_ref());
+    closure.forget();
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_gentufa_tree_layout_animation_frames(remaining: u8) {
+    if remaining == 0 {
+        return;
+    }
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move |_timestamp: f64| {
+        layout_gentufa_tree_lines();
+        schedule_gentufa_tree_layout_animation_frames(remaining - 1);
     });
     let _ = window.request_animation_frame(closure.as_ref().unchecked_ref());
     closure.forget();
@@ -8035,6 +8105,156 @@ fn schedule_gentufa_block_reference_layout_after_fonts_ready(document: &web_sys:
         let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
         adjust_gentufa_block_reference_layout();
     });
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_gentufa_tree_layout_after_fonts_ready(document: &web_sys::Document) {
+    let Ok(fonts) = js_sys::Reflect::get(document.as_ref(), &JsValue::from_str("fonts")) else {
+        return;
+    };
+    let Ok(ready) = js_sys::Reflect::get(&fonts, &JsValue::from_str("ready")) else {
+        return;
+    };
+    let Ok(promise) = ready.dyn_into::<js_sys::Promise>() else {
+        return;
+    };
+    wasm_bindgen_futures::spawn_local(async move {
+        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+        layout_gentufa_tree_lines();
+    });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_gentufa_tree_layout_after_fonts_ready(document: &()) {
+    let _ = document;
+}
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, Clone, Copy)]
+#[invariant(true)]
+struct GentufaTreeLineAnchor {
+    parent_id: Option<usize>,
+    label_left: f64,
+    label_right: f64,
+    label_center_y: f64,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn layout_gentufa_tree_lines() {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Ok(Some(wrap)) = document.query_selector(".parse-page .table-wrap") else {
+        return;
+    };
+    let Ok(Some(svg)) = wrap.query_selector(".tree-lines") else {
+        return;
+    };
+    let Ok(Some(table)) = wrap.query_selector(".parse-table") else {
+        clear_svg_children(&svg);
+        return;
+    };
+    let Some(wrap_html) = wrap.dyn_ref::<web_sys::HtmlElement>() else {
+        return;
+    };
+    let Some(table_html) = table.dyn_ref::<web_sys::HtmlElement>() else {
+        return;
+    };
+    clear_svg_children(&svg);
+    let width = f64::from(table_html.scroll_width()).max(table.get_bounding_client_rect().width());
+    let height =
+        f64::from(table_html.scroll_height()).max(table.get_bounding_client_rect().height());
+    if width <= 0.0 || height <= 0.0 {
+        return;
+    }
+    let _ = svg.set_attribute("width", &format!("{width:.3}"));
+    let _ = svg.set_attribute("height", &format!("{height:.3}"));
+    let _ = svg.set_attribute("viewBox", &format!("0 0 {width:.3} {height:.3}"));
+    let Ok(row_nodes) = table.query_selector_all("tbody tr.tree-row") else {
+        return;
+    };
+    let mut anchors = HashMap::new();
+    for index in 0..row_nodes.length() {
+        let Some(node) = row_nodes.item(index) else {
+            continue;
+        };
+        let Ok(row) = node.dyn_into::<web_sys::Element>() else {
+            continue;
+        };
+        let Some(node_id) = element_usize_attr(&row, "data-node-id") else {
+            continue;
+        };
+        let Some(anchor) = tree_line_anchor_for_row(&row, &wrap, wrap_html) else {
+            continue;
+        };
+        anchors.insert(node_id, anchor);
+    }
+    for child in anchors.values() {
+        let Some(parent_id) = child.parent_id else {
+            continue;
+        };
+        let Some(parent) = anchors.get(&parent_id) else {
+            continue;
+        };
+        append_gentufa_tree_line_path(&document, &svg, parent, child);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn clear_svg_children(svg: &web_sys::Element) {
+    while let Some(child) = svg.first_child() {
+        let _ = svg.remove_child(&child);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn tree_line_anchor_for_row(
+    row: &web_sys::Element,
+    wrap: &web_sys::Element,
+    wrap_html: &web_sys::HtmlElement,
+) -> Option<GentufaTreeLineAnchor> {
+    let label = row.query_selector(".node-label").ok().flatten()?;
+    let label_rect = label.get_bounding_client_rect();
+    let wrap_rect = wrap.get_bounding_client_rect();
+    let scroll_left = f64::from(wrap_html.scroll_left());
+    let scroll_top = f64::from(wrap_html.scroll_top());
+    Some(GentufaTreeLineAnchor {
+        parent_id: element_usize_attr(row, "data-parent-id"),
+        label_left: label_rect.left() - wrap_rect.left() + scroll_left,
+        label_right: label_rect.right() - wrap_rect.left() + scroll_left,
+        label_center_y: label_rect.top() - wrap_rect.top() + scroll_top + label_rect.height() / 2.0,
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn append_gentufa_tree_line_path(
+    document: &web_sys::Document,
+    svg: &web_sys::Element,
+    parent: &GentufaTreeLineAnchor,
+    child: &GentufaTreeLineAnchor,
+) {
+    let Ok(path) = document.create_element_ns(Some("http://www.w3.org/2000/svg"), "path") else {
+        return;
+    };
+    let d = format!(
+        "M {:.3} {:.3} V {:.3} H {:.3}",
+        parent.label_right, parent.label_center_y, child.label_center_y, child.label_left
+    );
+    let _ = path.set_attribute("class", "tree-line");
+    let _ = path.set_attribute("d", &d);
+    let _ = svg.append_child(&path);
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -10023,6 +10243,7 @@ mod tests {
     ) -> GentufaBlock {
         GentufaBlock {
             block_id: format!("test-{row}"),
+            node_ids: Vec::new(),
             label: "test".to_owned(),
             is_leaf: true,
             is_elided: false,

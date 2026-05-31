@@ -1442,19 +1442,42 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .table-view {
   min-width: 0;
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
 }
 
 .parse-page .table-wrap {
   width: 100%;
-  display: flex;
-  justify-content: center;
+  display: block;
   position: relative;
   overflow-x: auto;
+  overflow-y: visible;
+}
+
+.parse-page .tree-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  display: block;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.parse-page .tree-line {
+  fill: none;
+  stroke: color-mix(in srgb, var(--app-text) 30%, transparent);
+  stroke-width: 1.1;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  vector-effect: non-scaling-stroke;
 }
 
 .parse-page .parse-table {
-  width: 100%;
+  width: max-content;
+  min-width: 100vw;
   margin: 0 auto;
+  position: relative;
   border-collapse: separate;
   border-spacing: 0;
   background: var(--surface-elevated);
@@ -1496,16 +1519,16 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .parse-table tbody tr {
-  background: color-mix(in srgb, var(--row-color, var(--surface-elevated)) var(--table-row-color-strength), var(--table-color-mix-base));
+  background: var(--row-color, var(--surface-elevated));
 }
 
 .theme-night .parse-page .parse-table tbody tr {
-  background: color-mix(in srgb, var(--row-color, var(--surface-elevated)) 34%, #15110e);
+  background: color-mix(in srgb, var(--row-color, var(--surface-elevated)) 72%, #000);
 }
 
 @media (prefers-color-scheme: dark) {
   .theme-auto .parse-page .parse-table tbody tr {
-    background: color-mix(in srgb, var(--row-color, var(--surface-elevated)) 34%, #15110e);
+    background: color-mix(in srgb, var(--row-color, var(--surface-elevated)) 72%, #000);
   }
 }
 
@@ -1519,20 +1542,34 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .parse-table .col-node,
-.parse-page .parse-table .col-valsis {
+.parse-page .parse-table .col-text,
+.parse-page .parse-table .col-edge {
   width: fit-content;
   white-space: nowrap;
 }
 
 .parse-page .parse-table td.col-node,
-.parse-page .parse-table td.col-valsis {
+.parse-page .parse-table td.col-text,
+.parse-page .parse-table td.col-edge {
   vertical-align: middle;
 }
 
 .parse-page .parse-table td.col-node {
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
   font-size: 90%;
+}
+
+.parse-page .parse-table .col-edge {
+  color: var(--table-muted);
+}
+
+.parse-page .parse-table .col-edge-in {
+  text-align: right;
+}
+
+.parse-page .parse-table .col-edge-out {
+  text-align: left;
 }
 
 .parse-page .parse-table td.col-gloss,
@@ -1561,12 +1598,14 @@ body::-webkit-scrollbar-thumb:hover,
   bottom: 0;
   left: 0;
   width: calc(var(--indent-count, 0) * var(--indent-size));
-  z-index: 3;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .parse-page .parse-table .indent-block {
   width: var(--indent-size);
-  background: color-mix(in srgb, var(--row-color) var(--table-block-color-strength), var(--table-color-mix-base));
+  min-width: var(--indent-size);
+  background: var(--block-color, var(--row-color));
   position: relative;
   align-self: stretch;
   display: flex;
@@ -1576,21 +1615,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .parse-table .indent-block::before,
 .parse-page .parse-table .indent-block::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  width: 1px;
-  background: color-mix(in srgb, var(--app-text) 24%, transparent);
-}
-
-.parse-page .parse-table .indent-block::before {
-  top: 0;
-  bottom: 50%;
-}
-
-.parse-page .parse-table .indent-block::after {
-  top: 50%;
-  bottom: 0;
+  content: none;
 }
 
 .parse-page .parse-table .node-content {
@@ -1599,7 +1624,7 @@ body::-webkit-scrollbar-thumb:hover,
   padding: 0.06rem 0.6rem;
   padding-left: calc(var(--indent-count, 0) * var(--indent-size) + 0.1rem);
   position: relative;
-  z-index: 1;
+  z-index: 4;
 }
 
 .parse-page .parse-table .node-toggle-spacer {
@@ -1625,24 +1650,40 @@ body::-webkit-scrollbar-thumb:hover,
   align-self: center;
   padding: 0 0.4rem 0 0.05rem;
   border-radius: 0.2rem;
-  background: color-mix(in srgb, var(--row-color) var(--table-block-color-strength), var(--table-color-mix-base));
+  background: var(--block-color, var(--row-color));
   color: var(--table-cell-text);
   position: relative;
-  z-index: 2;
+  z-index: 5;
 }
 
 .theme-night .parse-page .parse-table .indent-block,
 .theme-night .parse-page .parse-table .node-toggle-spacer,
 .theme-night .parse-page .parse-table .node-label {
-  background: color-mix(in srgb, var(--row-color, var(--surface-elevated)) 44%, #000);
+  background: color-mix(in srgb, var(--block-color, var(--row-color, var(--surface-elevated))) 72%, #000);
 }
 
 @media (prefers-color-scheme: dark) {
   .theme-auto .parse-page .parse-table .indent-block,
   .theme-auto .parse-page .parse-table .node-toggle-spacer,
   .theme-auto .parse-page .parse-table .node-label {
-    background: color-mix(in srgb, var(--row-color, var(--surface-elevated)) 44%, #000);
+    background: color-mix(in srgb, var(--block-color, var(--row-color, var(--surface-elevated))) 72%, #000);
   }
+}
+
+.parse-page .parse-table .edge-cell {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.18rem;
+  white-space: nowrap;
+}
+
+.parse-page .parse-table .col-edge-out .edge-cell {
+  justify-content: flex-start;
+}
+
+.parse-page .parse-table .edge-arrow {
+  color: var(--table-muted);
 }
 
 .parse-page .parse-table .token,

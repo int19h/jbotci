@@ -152,6 +152,7 @@ pub struct GentufaBlocksLayout<Tooltip = ()> {
 #[invariant(true)]
 pub struct GentufaBlock<Tooltip = ()> {
     pub block_id: String,
+    pub node_ids: Vec<usize>,
     pub label: String,
     pub is_leaf: bool,
     pub is_elided: bool,
@@ -623,6 +624,7 @@ fn render_elided_cmavo(cmavo: Cmavo, options: &GentufaBlockOptions) -> String {
 #[invariant(true)]
 struct BlockTreeNode {
     id: RawSyntaxNodeId,
+    node_ids: Vec<RawSyntaxNodeId>,
     label: String,
     is_elided: bool,
     token_kind: Option<String>,
@@ -747,6 +749,7 @@ fn build_block_tree_node<Tooltip: Clone>(
     };
     Some(BlockTreeNode {
         id,
+        node_ids: vec![id],
         label: label.clone(),
         is_elided: false,
         token_kind: leaf_word.as_deref().and_then(token_kind_for_text),
@@ -869,10 +872,13 @@ fn spans_compatible(parent: Option<WebSourceRange>, child: Option<WebSourceRange
 #[requires(true)]
 #[ensures(true)]
 fn merge_parent_into_child(parent: BlockTreeNode, mut child: BlockTreeNode) -> BlockTreeNode {
+    let mut node_ids = parent.node_ids;
+    extend_unique_node_ids(&mut node_ids, child.node_ids);
     let mut node_types = parent.node_types;
     extend_unique_strings(&mut node_types, child.node_types);
     let mut ref_markers = parent.ref_markers;
     extend_unique_ref_markers(&mut ref_markers, child.ref_markers);
+    child.node_ids = node_ids;
     child.node_types = node_types;
     child.ref_markers = ref_markers;
     child.span = child.span.or(parent.span);
@@ -894,6 +900,16 @@ fn merge_parent_into_child(parent: BlockTreeNode, mut child: BlockTreeNode) -> B
     child.computed_gloss = child.computed_gloss.or(parent.computed_gloss);
     child.is_elided = child.is_elided || parent.is_elided;
     child
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn extend_unique_node_ids(target: &mut Vec<RawSyntaxNodeId>, source: Vec<RawSyntaxNodeId>) {
+    for item in source {
+        if !target.iter().any(|existing| existing == &item) {
+            target.push(item);
+        }
+    }
 }
 
 #[requires(true)]
@@ -1163,6 +1179,7 @@ fn synthetic_leaf_block<Tooltip>(
 ) -> GentufaBlock<Tooltip> {
     GentufaBlock {
         block_id: format!("n{}", part.id.0),
+        node_ids: node.node_ids.iter().map(|id| id.0).collect(),
         label: part.display_text.clone(),
         is_leaf: true,
         is_elided: part.is_elided,
@@ -1263,6 +1280,7 @@ fn block_from_tree_node<Tooltip>(
 ) -> GentufaBlock<Tooltip> {
     GentufaBlock {
         block_id: format!("n{}", node.id.0),
+        node_ids: node.node_ids.iter().map(|id| id.0).collect(),
         label: if is_leaf && !display_text.is_empty() {
             display_text.clone()
         } else {
