@@ -4531,6 +4531,12 @@ fn render_vlacku_page(
                 if let Some(info) = &result.dictionary_info {
                     { render_dictionary_info(info) }
                 }
+                if let Some(message) = &result.message {
+                    p { class: "dictionary-empty", "{message}" }
+                }
+                for error in result.errors.iter() {
+                    div { class: "spa-error dictionary-error", "{error}" }
+                }
                 div { class: "dictionary-layout",
                     div { class: "dictionary-main-column",
                         { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, jvozba_available_value, base_path) }
@@ -4730,12 +4736,6 @@ fn render_vlacku_body(
 ) -> Element {
     rsx! {
         div { class: "dictionary-results",
-            for error in result.errors.iter() {
-                div { class: "spa-error dictionary-error", "{error}" }
-            }
-            if let Some(message) = &result.message {
-                p { class: "dictionary-empty", "{message}" }
-            }
             if !result.cards.is_empty() {
                 div { class: "dictionary-results-grid",
                     for card in result.cards.iter() {
