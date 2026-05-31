@@ -218,7 +218,7 @@ impl TextRole {
     fn font_family(self, script: GentufaScript) -> &'static str {
         match (self, script) {
             (Self::LeafLabel | Self::NonleafLabel, GentufaScript::Zbalermorna) => "Crisa",
-            (Self::Reference, _) => "Noto Sans Math",
+            (Self::Reference, _) => "Noto Sans, Noto Sans Math, sans-serif",
             _ => "Noto Sans",
         }
     }
@@ -1010,10 +1010,7 @@ fn svg_css(script: GentufaScript, fonts: GentufaFontData<'_>) -> String {
   src: url("https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-math@latest/latin-400-normal.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
-}}{}
-text {{
-  font-family: "Noto Sans", "Noto Sans Math", sans-serif;
-}}"#,
+}}{}"#,
         crisa
     )
 }
@@ -1288,6 +1285,45 @@ mod tests {
             .expect("math reference measurement");
         assert!(math_size.width > 0.0);
         assert!(math_size.height > 0.0);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn svg_reference_labels_use_font_cascade_and_plain_slot_text() {
+        let mut block = test_gentufa_block(0, 1, 0);
+        block.ref_markers.push(ReferenceMarker {
+            role: ReferenceMarkerRole::Referent,
+            kind: "argument".to_owned(),
+            label: ReferenceLabel::new(
+                "b",
+                Some(2),
+                Some(ReferenceSlotLabel::Modal(vec![
+                    "mléca".to_owned(),
+                    "be\u{301}rvi".to_owned(),
+                ])),
+            ),
+        });
+        let layout = GentufaBlocksLayout {
+            blocks: vec![block],
+            max_col: 1,
+            max_row: 1,
+        };
+
+        let svg = render_gentufa_blocks_svg(
+            &layout,
+            &GentufaSvgOptions::default(),
+            EmbeddedGentufaFonts::get(),
+        )
+        .expect("svg");
+
+        assert!(svg.contains("font-family=\"Noto Sans, Noto Sans Math, sans-serif\""));
+        assert!(svg.contains("𝑏₂⟨mleca bervi⟩"));
+        assert!(!svg.contains("mléca"));
+        assert!(!svg.contains('\u{0301}'));
+        let xml = roxmltree::Document::parse(&svg).expect("generated XML parses");
+        let _tree = usvg::Tree::from_xmltree(&xml, &usvg_options(EmbeddedGentufaFonts::get()))
+            .expect("generated SVG parses");
     }
 
     #[test]

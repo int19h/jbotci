@@ -1280,6 +1280,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "web worker watch snapshots are opaque filesystem metadata maps used only for equality checks",
     ),
     (
+        "xtask/src/main.rs:DioxusReleaseWatchSnapshot",
+        "dioxus release watch snapshots are opaque filesystem metadata maps used only for equality checks",
+    ),
+    (
         "xtask/src/main.rs:ExportWebEmbeddingCorpusArgs",
         "xtask web embedding corpus export args delegate validation to clap defaults and command code",
     ),

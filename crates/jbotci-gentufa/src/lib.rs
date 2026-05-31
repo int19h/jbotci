@@ -122,7 +122,11 @@ impl ReferenceSlotLabel {
         match self {
             Self::Numbered(place) => place.to_string(),
             Self::Modal(words) if words.is_empty() => "modal".to_owned(),
-            Self::Modal(words) => words.join(" "),
+            Self::Modal(words) => words
+                .iter()
+                .map(|word| reference_label_plain_text(word))
+                .collect::<Vec<_>>()
+                .join(" "),
             Self::Fai => "fai".to_owned(),
         }
     }
@@ -372,6 +376,19 @@ pub fn math_alphanumeric_stem(stem: &str) -> String {
     let mut output = String::new();
     for ch in stem.chars() {
         push_math_alphanumeric_char(&mut output, ch);
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(!ret.chars().any(is_reference_stem_combining_mark))]
+pub fn reference_label_plain_text(text: &str) -> String {
+    let mut output = String::with_capacity(text.len());
+    for ch in text.chars() {
+        if is_reference_stem_combining_mark(ch) {
+            continue;
+        }
+        output.push(normalized_reference_stem_char(ch).unwrap_or(ch));
     }
     output
 }
@@ -1871,6 +1888,19 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_slot_text_removes_lojban_diacritics() {
+        let slot = ReferenceSlotLabel::Modal(vec![
+            "mléca".to_owned(),
+            "be\u{301}rvi".to_owned(),
+            "ta'i".to_owned(),
+        ]);
+
+        assert_eq!(slot.text(), "mleca bervi ta'i");
+    }
 
     #[test]
     #[requires(true)]
