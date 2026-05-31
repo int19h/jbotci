@@ -35,7 +35,7 @@ use jbotci_jvozba::{
     build_best_jvozba_detailed,
 };
 use jbotci_morphology::{
-    MorphologyOptions, PhonemeRenderOptions, WordLike, ends_with_consonant,
+    MorphologyOptions, PhonemeRenderOptions, WordLike,
     segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
@@ -2700,7 +2700,7 @@ pub fn build_vlacku_jvozba_output(
     match result {
         Ok(result) => VlackuJvozbaOutput::Success {
             word: result.word.clone(),
-            segments: render_jvozba_segments(mode, &result.segments),
+            segments: render_jvozba_segments(&result.segments),
         },
         Err(error) => VlackuJvozbaOutput::Error {
             message: error.to_string(),
@@ -2710,14 +2710,10 @@ pub fn build_vlacku_jvozba_output(
 
 #[requires(true)]
 #[ensures(true)]
-pub fn render_jvozba_segments(
-    mode: VlackuJvozbaMode,
-    segments: &[JvozbaSegment],
-) -> Vec<VlackuJvozbaSegment> {
+pub fn render_jvozba_segments(segments: &[JvozbaSegment]) -> Vec<VlackuJvozbaSegment> {
     let mut rendered = Vec::new();
     let mut rafsi_index = 0usize;
-    let last_segment_index = segments.len().saturating_sub(1);
-    for (segment_index, segment) in segments.iter().enumerate() {
+    for segment in segments {
         match segment.kind {
             JvozbaSegmentKind::Hyphen => rendered.push(VlackuJvozbaSegment {
                 kind: VlackuJvozbaSegmentKind::Hyphen,
@@ -2730,35 +2726,11 @@ pub fn render_jvozba_segments(
                 } else {
                     VlackuJvozbaSegmentTone::RafsiB
                 };
-                if mode == VlackuJvozbaMode::Cmevla
-                    && segment_index == last_segment_index
-                    && ends_with_consonant(&segment.text)
-                {
-                    let split_index = segment
-                        .text
-                        .char_indices()
-                        .last()
-                        .map(|(index, _)| index)
-                        .unwrap_or(segment.text.len());
-                    if split_index > 0 {
-                        rendered.push(VlackuJvozbaSegment {
-                            kind: VlackuJvozbaSegmentKind::Rafsi,
-                            text: segment.text[..split_index].to_owned(),
-                            tone,
-                        });
-                    }
-                    rendered.push(VlackuJvozbaSegment {
-                        kind: VlackuJvozbaSegmentKind::Hyphen,
-                        text: segment.text[split_index..].to_owned(),
-                        tone: VlackuJvozbaSegmentTone::Hyphen,
-                    });
-                } else {
-                    rendered.push(VlackuJvozbaSegment {
-                        kind: VlackuJvozbaSegmentKind::Rafsi,
-                        text: segment.text.clone(),
-                        tone,
-                    });
-                }
+                rendered.push(VlackuJvozbaSegment {
+                    kind: VlackuJvozbaSegmentKind::Rafsi,
+                    text: segment.text.clone(),
+                    tone,
+                });
                 rafsi_index += 1;
             }
         }
@@ -5584,7 +5556,7 @@ mod tests {
             }),
         ];
 
-        let rendered = render_jvozba_segments(VlackuJvozbaMode::Cmevla, &segments);
+        let rendered = render_jvozba_segments(&segments);
         assert_eq!(
             rendered,
             vec![
@@ -5595,8 +5567,36 @@ mod tests {
                 },
                 VlackuJvozbaSegment {
                     kind: VlackuJvozbaSegmentKind::Rafsi,
-                    text: "vla".to_owned(),
+                    text: "vlas".to_owned(),
                     tone: VlackuJvozbaSegmentTone::RafsiB,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_jvozba_segments_render_added_cmevla_suffix_as_hyphen() {
+        let segments = vec![
+            new!(JvozbaSegment {
+                kind: JvozbaSegmentKind::Rafsi,
+                text: "zba".to_owned(),
+            }),
+            new!(JvozbaSegment {
+                kind: JvozbaSegmentKind::Hyphen,
+                text: "s".to_owned(),
+            }),
+        ];
+
+        let rendered = render_jvozba_segments(&segments);
+        assert_eq!(
+            rendered,
+            vec![
+                VlackuJvozbaSegment {
+                    kind: VlackuJvozbaSegmentKind::Rafsi,
+                    text: "zba".to_owned(),
+                    tone: VlackuJvozbaSegmentTone::RafsiA,
                 },
                 VlackuJvozbaSegment {
                     kind: VlackuJvozbaSegmentKind::Hyphen,

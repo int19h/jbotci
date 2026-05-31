@@ -820,8 +820,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "dictionary info is derived summary data from the embedded dictionary",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuDictionaryWordTypeCount",
-        "dictionary word type counts are derived summary data from embedded dictionary metadata",
+        "crates/jbotci-web-core/src/lib.rs:VlackuDictionaryCountNode",
+        "dictionary count tree nodes are derived summary data from embedded dictionary metadata",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaItem",
@@ -1226,6 +1226,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask/src/main.rs:CachedExport",
         "xtask cache entry mirrors fixture export metadata",
+    ),
+    (
+        "crates/jbotci-dictionary-data/build.rs:DictionaryMetadata",
+        "vendored Lensisku metadata is validated against dictionary contents and hashes in the build script",
+    ),
+    (
+        "crates/jbotci-dictionary-data/src/lib.rs:DictionarySnapshotMetadata",
+        "embedded snapshot metadata is generated from validated build metadata and checked by dictionary-data tests",
     ),
     (
         "xtask/src/main.rs:Cli",

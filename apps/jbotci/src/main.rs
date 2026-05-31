@@ -33,7 +33,7 @@ use jbotci_jvozba::{
 };
 use jbotci_morphology::{
     MORPHOLOGY_TRACE_FILTERS, MorphologyOptions, MorphologyWarning, Phonemes, WordLike,
-    ends_with_consonant, segment_words_with_modifiers_with_options_and_source_id_attempt,
+    segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
     BracketRenderOptions, DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticDetailMode,
@@ -1557,42 +1557,22 @@ fn run_jvozba<WOut: Write>(
     let result =
         build_best_jvozba_detailed(mode, jbotci_dictionary_data::english(), &input.sources)
             .map_err(|message| anyhow!(message))?;
-    writeln!(stdout, "{}", render_jvozba_result(&result, mode, color))?;
+    writeln!(stdout, "{}", render_jvozba_result(&result, color))?;
     Ok(CliStatus::Success)
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn render_jvozba_result(result: &JvozbaBuildResult, mode: JvozbaMode, color: bool) -> String {
+fn render_jvozba_result(result: &JvozbaBuildResult, color: bool) -> String {
     if !color || result.segments.is_empty() {
         return result.word.clone();
     }
     let mut rafsi_index = 0;
     let mut output = String::new();
-    let last_segment_index = result.segments.len().saturating_sub(1);
-    for (segment_index, segment) in result.segments.iter().enumerate() {
+    for segment in &result.segments {
         match segment.kind {
             JvozbaSegmentKind::Rafsi => {
-                let segment_text = if mode == JvozbaMode::Cmevla
-                    && segment_index == last_segment_index
-                    && ends_with_consonant(&segment.text)
-                {
-                    let split_index = segment
-                        .text
-                        .char_indices()
-                        .last()
-                        .map(|(index, _)| index)
-                        .unwrap_or(segment.text.len());
-                    let rafsi_part = &segment.text[..split_index];
-                    let terminal_consonant = &segment.text[split_index..];
-                    let mut rendered = if rafsi_index % 2 == 0 {
-                        green(rafsi_part, true)
-                    } else {
-                        magenta(rafsi_part, true)
-                    };
-                    rendered.push_str(&dark(terminal_consonant, true));
-                    rendered
-                } else if rafsi_index % 2 == 0 {
+                let segment_text = if rafsi_index % 2 == 0 {
                     green(&segment.text, true)
                 } else {
                     magenta(&segment.text, true)
@@ -5775,16 +5755,42 @@ mod tests {
     #[ensures(true)]
     fn jvozba_colorizes_cmevla_suffix_like_hyphen() {
         let run = run_cli_capture(
-            &["jbotci", "jvozba", "--color", "--cmevla", "birti", "zbasu"],
+            &[
+                "jbotci", "jvozba", "--color", "--cmevla", "birti", "--rafsi", "zba",
+            ],
             false,
         );
 
         assert_eq!(run.status, CliStatus::Success);
         assert!(run.stderr.is_empty(), "{}", run.stderr);
-        assert!(run.stdout.contains("\x1b[32mbit\x1b[39m"));
-        assert!(run.stdout.contains("\x1b[90my\x1b[39m"));
-        assert!(run.stdout.contains("\x1b[35mzba\x1b[39m"));
-        assert!(run.stdout.contains("\x1b[90ms\x1b[39m"));
+        assert!(
+            run.stdout.contains("\x1b[32mbit\x1b[39m"),
+            "{:?}",
+            run.stdout
+        );
+        assert!(run.stdout.contains("\x1b[90my\x1b[39m"), "{:?}", run.stdout);
+        assert!(
+            run.stdout.contains("\x1b[35mzba\x1b[39m"),
+            "{:?}",
+            run.stdout
+        );
+        assert!(run.stdout.contains("\x1b[90ms\x1b[39m"), "{:?}", run.stdout);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn jvozba_colorizes_cmevla_final_consonant_rafsi_as_rafsi() {
+        let run = run_cli_capture(
+            &["jbotci", "jvozba", "--color", "--cmevla", "cmene", "valsi"],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(run.stdout.contains("\x1b[32mcme\x1b[39m"));
+        assert!(run.stdout.contains("\x1b[35mval\x1b[39m"));
+        assert!(!run.stdout.contains("\x1b[35mva\x1b[39m\x1b[90ml\x1b[39m"));
     }
 
     #[test]
