@@ -443,6 +443,21 @@ struct CuktaAsyncPageState {
     error: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct CuktaPendingScroll {
+    mode: CuktaPendingScrollMode,
+    target: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum CuktaPendingScrollMode {
+    Anchor,
+    Stored,
+    Top,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[invariant(true)]
 struct VlackuAsyncResultState {
@@ -766,7 +781,7 @@ fn App() -> Element {
     let cukta_page = use_signal(CuktaAsyncPageState::default);
     let cukta_page_task = use_signal(|| None::<LatestAsyncTask>);
     let cukta_semantic_task = use_signal(|| None::<LatestAsyncTask>);
-    let pending_cukta_scroll = use_signal(|| None::<String>);
+    let pending_cukta_scroll = use_signal(current_cukta_pending_scroll);
     let jvozba_pane = use_signal(load_vlacku_jvozba_pane_state);
     let jvozba_available = use_signal(vlacku_jvozba_available);
     let jvozba_drag = use_signal(|| None::<VlackuJvozbaDragState>);
@@ -1111,8 +1126,8 @@ fn App() -> Element {
                             error: None,
                         });
                         sync_document_head(&meta);
-                        if let Some(target) = pending_scroll.write().take() {
-                            scroll_to_cukta_href(&target);
+                        if let Some(scroll) = pending_scroll.write().take() {
+                            apply_cukta_pending_scroll(scroll);
                         }
                     }
                     Ok(_) => {
@@ -3933,9 +3948,17 @@ fn render_cll_block(
                 dangerous_inner_html: "{markup}"
             }
         },
-        CllBlock::Heading { level, title } => {
+        CllBlock::Heading {
+            id, level, inlines, ..
+        } => {
             let class_name = format!("cll-heading cll-heading-{level}");
-            rsx! { h2 { class: "{class_name}", "{title}" } }
+            rsx! {
+                h2 { id: id.clone().unwrap_or_default(), class: "{class_name}",
+                    for inline in inlines.iter() {
+                        { render_cll_inline(cukta_state, inline, base_path) }
+                    }
+                }
+            }
         }
         CllBlock::BlockQuote { id, blocks } => rsx! {
             blockquote { id: id.clone().unwrap_or_default(), class: "cll-blockquote",
@@ -3955,6 +3978,7 @@ fn render_cll_block(
             id,
             aligned,
             itemized,
+            parse_href,
             rows,
             natlang,
             comments,
@@ -3963,6 +3987,7 @@ fn render_cll_block(
             id.as_deref(),
             *aligned,
             *itemized,
+            parse_href.as_deref(),
             rows,
             natlang,
             comments,
@@ -4140,6 +4165,7 @@ fn render_cll_interlinear(
     id: Option<&str>,
     aligned: bool,
     itemized: bool,
+    parse_href: Option<&str>,
     rows: &[CllInterlinearRow],
     natlang: &[Vec<CllInline>],
     comments: &[Vec<CllInline>],
@@ -4155,6 +4181,13 @@ fn render_cll_interlinear(
     );
     rsx! {
         div { id: id.unwrap_or_default(), class: "{class_name}",
+            if let Some(parse_href) = parse_href {
+                a {
+                    class: "cll-parse-example spa-cll-link spa-cll-link-parse",
+                    href: cll_parse_href(base_path, parse_href),
+                    "Parse"
+                }
+            }
             if !rows.is_empty() {
                 if aligned {
                     table { class: "{table_class}",
@@ -4548,8 +4581,11 @@ fn cll_parse_href(base_path: &str, href: &str) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn cll_ebnf_href(base_path: &str, href: &str) -> String {
+    let prefix = base_path.trim_end_matches('/');
     if let Some(target) = href.strip_prefix("../vlacku/") {
-        format!("{}/vlacku/{target}", base_path.trim_end_matches('/'))
+        format!("{prefix}/vlacku/{target}")
+    } else if let Some(section) = href.strip_prefix("section/") {
+        format!("{prefix}/cukta/section/{section}")
     } else {
         href.to_owned()
     }
@@ -8634,7 +8670,7 @@ fn install_browser_state_handlers(
     view_mode: Signal<GentufaWebViewMode>,
     gentufa_display: Signal<GentufaDisplayState>,
     gentufa_text_explicit: Signal<bool>,
-    pending_cukta_scroll: Signal<Option<String>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     jvozba_available: Signal<bool>,
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
@@ -8675,6 +8711,7 @@ fn install_browser_state_handlers(
         let Some(href) = internal_href_from_click_event(&event, &base_path_for_click) else {
             return;
         };
+        let restore_cukta_scroll = event_target_is_topbar_cukta_link(&event);
         event.prevent_default();
         event.stop_propagation();
         click_topbar_open.set(false);
@@ -8694,6 +8731,7 @@ fn install_browser_state_handlers(
             click_display,
             click_text_explicit,
             click_pending_cukta_scroll,
+            restore_cukta_scroll,
         );
     }) as Box<dyn FnMut(_)>);
     let _ = document.add_event_listener_with_callback_and_bool(
@@ -8723,18 +8761,13 @@ fn install_browser_state_handlers(
             gentufa_display,
             gentufa_text_explicit,
         );
-        restore_scroll_for_current_url();
-        if let Some(hash) = current_hash() {
-            let target = format!(
-                "{}{}#{}",
-                current_path(),
-                current_query(),
-                hash.trim_start_matches('#')
-            );
-            if app_route_for_web_route(&web_route) == AppRoute::Cukta {
-                let mut pending_scroll = pending_cukta_scroll;
-                pending_scroll.set(Some(target));
-            }
+        if app_route_for_web_route(&web_route) == AppRoute::Cukta {
+            let scroll = cukta_stored_pending_scroll(current_path_query());
+            let mut pending_scroll = pending_cukta_scroll;
+            pending_scroll.set(Some(scroll.clone()));
+            apply_cukta_pending_scroll(scroll);
+        } else {
+            restore_scroll_for_current_url();
         }
         let _ = base_path_for_pop;
     }) as Box<dyn FnMut(_)>);
@@ -8838,7 +8871,7 @@ fn install_browser_state_handlers(
     view_mode: Signal<GentufaWebViewMode>,
     gentufa_display: Signal<GentufaDisplayState>,
     gentufa_text_explicit: Signal<bool>,
-    pending_cukta_scroll: Signal<Option<String>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     jvozba_available: Signal<bool>,
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
@@ -9716,6 +9749,23 @@ fn internal_href_from_click_event(event: &web_sys::MouseEvent, base_path: &str) 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
+fn event_target_is_topbar_cukta_link(event: &web_sys::MouseEvent) -> bool {
+    let Some(target) = event
+        .target()
+        .and_then(|target| target.dyn_into::<web_sys::Element>().ok())
+    else {
+        return false;
+    };
+    target
+        .closest(".app-topbar .spa-nav a[href*='/cukta']")
+        .ok()
+        .flatten()
+        .is_some()
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
 fn normalize_internal_href(href: &str, base_path: &str) -> Option<String> {
     let trimmed = href.trim();
     if trimmed.is_empty()
@@ -9822,7 +9872,8 @@ fn navigate_to_internal_href(
     view_mode: Signal<GentufaWebViewMode>,
     gentufa_display: Signal<GentufaDisplayState>,
     gentufa_text_explicit: Signal<bool>,
-    pending_cukta_scroll: Signal<Option<String>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    restore_cukta_scroll: bool,
 ) {
     let (path, query, hash) = split_href(href);
     let Some(logical_path) = strip_base_path_for_client(path, base_path) else {
@@ -9851,9 +9902,15 @@ fn navigate_to_internal_href(
         gentufa_display,
         gentufa_text_explicit,
     );
-    if app_route_for_web_route(&web_route) == AppRoute::Cukta && hash.is_some() {
+    if let Some(scroll) = cukta_pending_scroll_for_navigation(
+        app_route_for_web_route(&web_route),
+        &target,
+        hash.is_some(),
+        restore_cukta_scroll,
+    ) {
         let mut pending_scroll = pending_cukta_scroll;
-        pending_scroll.set(Some(target));
+        pending_scroll.set(Some(scroll.clone()));
+        apply_cukta_pending_scroll(scroll);
     } else {
         restore_scroll_for_url(&target);
     }
@@ -9966,6 +10023,103 @@ fn current_hash() -> Option<String> {
         .filter(|hash| !hash.is_empty())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(ret.is_none())]
+fn current_hash() -> Option<String> {
+    None
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|target| target.contains('#')))]
+fn cukta_hash_scroll_target(
+    path: &str,
+    query: &str,
+    hash: Option<&str>,
+    route: AppRoute,
+) -> Option<String> {
+    let hash = hash?.trim_start_matches('#');
+    if route != AppRoute::Cukta || hash.is_empty() {
+        return None;
+    }
+    Some(format!("{path}{query}#{hash}"))
+}
+
+#[requires(true)]
+#[ensures(!ret.contains('#'))]
+fn current_path_query() -> String {
+    format!("{}{}", current_path(), current_query())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn current_cukta_pending_scroll() -> Option<CuktaPendingScroll> {
+    cukta_hash_scroll_target(
+        &current_path(),
+        &current_query(),
+        current_hash().as_deref(),
+        route_from_current_path(),
+    )
+    .map(cukta_anchor_pending_scroll)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_anchor_pending_scroll(target: String) -> CuktaPendingScroll {
+    CuktaPendingScroll {
+        mode: CuktaPendingScrollMode::Anchor,
+        target,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_stored_pending_scroll(target: String) -> CuktaPendingScroll {
+    CuktaPendingScroll {
+        mode: CuktaPendingScrollMode::Stored,
+        target,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_top_pending_scroll() -> CuktaPendingScroll {
+    CuktaPendingScroll {
+        mode: CuktaPendingScrollMode::Top,
+        target: String::new(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_pending_scroll_for_navigation(
+    route: AppRoute,
+    target: &str,
+    has_hash: bool,
+    restore_stored: bool,
+) -> Option<CuktaPendingScroll> {
+    if route != AppRoute::Cukta {
+        return None;
+    }
+    if has_hash {
+        Some(cukta_anchor_pending_scroll(target.to_owned()))
+    } else if restore_stored {
+        Some(cukta_stored_pending_scroll(target.to_owned()))
+    } else {
+        Some(cukta_top_pending_scroll())
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn apply_cukta_pending_scroll(scroll: CuktaPendingScroll) {
+    match scroll.mode {
+        CuktaPendingScrollMode::Anchor => scroll_to_cukta_href(&scroll.target),
+        CuktaPendingScrollMode::Stored => restore_scroll_for_url(&scroll.target),
+        CuktaPendingScrollMode::Top => scroll_to_top(),
+    }
+}
+
 #[requires(true)]
 #[ensures(ret.starts_with("jbotci.scroll."))]
 fn scroll_storage_key(path_query_or_url: &str) -> String {
@@ -10018,6 +10172,30 @@ fn restore_scroll_for_current_url() {
 #[requires(true)]
 #[ensures(true)]
 fn restore_scroll_for_current_url() {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn scroll_to_top() {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move || {
+        if let Some(window) = web_sys::window() {
+            window.scroll_to_with_x_and_y(0.0, 0.0);
+        }
+    });
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        closure.as_ref().unchecked_ref(),
+        30,
+    );
+    closure.forget();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn scroll_to_top() {}
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
@@ -11072,6 +11250,98 @@ mod tests {
 
         assert!(cll_dictionary_tooltip_for_link("", CllLinkKind::Rafsi, "kla").is_some());
         assert!(cll_dictionary_tooltip_for_href("", "../vlacku?mode=rafsi&q=kla").is_some());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_ebnf_section_links_use_v1_routes() {
+        let href = cll_ebnf_href("/jbotci", "section/section-index#BAI");
+
+        assert_eq!(href, "/jbotci/cukta/section/section-index#BAI");
+        assert_eq!(
+            cukta_section_reference_from_href(&href),
+            Some("section-index".to_owned())
+        );
+        assert_eq!(cukta_anchor_from_href(&href), Some("BAI".to_owned()));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_hash_scroll_target_requires_cukta_route_and_anchor() {
+        assert_eq!(
+            cukta_hash_scroll_target(
+                "/cukta/section/section-index",
+                "",
+                Some("#KEhE"),
+                AppRoute::Cukta,
+            ),
+            Some("/cukta/section/section-index#KEhE".to_owned())
+        );
+        assert_eq!(
+            cukta_hash_scroll_target(
+                "/jbotci/cukta/section/section-index",
+                "?q=unused",
+                Some("KEhE"),
+                AppRoute::Cukta,
+            ),
+            Some("/jbotci/cukta/section/section-index?q=unused#KEhE".to_owned())
+        );
+        assert_eq!(
+            cukta_hash_scroll_target("/gentufa", "", Some("#KEhE"), AppRoute::Gentufa),
+            None
+        );
+        assert_eq!(
+            cukta_hash_scroll_target(
+                "/cukta/section/section-index",
+                "",
+                Some("#"),
+                AppRoute::Cukta,
+            ),
+            None
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_navigation_scroll_distinguishes_history_topbar_and_fresh_links() {
+        assert_eq!(
+            cukta_pending_scroll_for_navigation(
+                AppRoute::Cukta,
+                "/cukta/section/section-index#NAI",
+                true,
+                false,
+            ),
+            Some(cukta_anchor_pending_scroll(
+                "/cukta/section/section-index#NAI".to_owned()
+            ))
+        );
+        assert_eq!(
+            cukta_pending_scroll_for_navigation(
+                AppRoute::Cukta,
+                "/cukta/section/section-index",
+                false,
+                true,
+            ),
+            Some(cukta_stored_pending_scroll(
+                "/cukta/section/section-index".to_owned()
+            ))
+        );
+        assert_eq!(
+            cukta_pending_scroll_for_navigation(
+                AppRoute::Cukta,
+                "/cukta/section/section-index",
+                false,
+                false,
+            ),
+            Some(cukta_top_pending_scroll())
+        );
+        assert_eq!(
+            cukta_pending_scroll_for_navigation(AppRoute::Gentufa, "/gentufa", false, true),
+            None
+        );
     }
 
     #[test]

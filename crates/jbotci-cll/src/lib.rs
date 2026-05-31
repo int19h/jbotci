@@ -265,8 +265,10 @@ pub enum CllBlock {
         text: String,
     },
     Heading {
+        id: Option<String>,
         level: u8,
         title: String,
+        inlines: Vec<CllInline>,
     },
     BlockQuote {
         id: Option<String>,
@@ -280,6 +282,7 @@ pub enum CllBlock {
         id: Option<String>,
         aligned: bool,
         itemized: bool,
+        parse_href: Option<String>,
         rows: Vec<CllInterlinearRow>,
         natlang: Vec<Vec<CllInline>>,
         comments: Vec<Vec<CllInline>>,
@@ -960,10 +963,18 @@ fn parse_block(
             .collect();
     }
     if node.has_tag_name("bridgehead") {
-        let inlines = parse_inlines(node);
+        let mut inlines = parse_inlines(node);
         let title = inline_plain_text(&inlines);
+        let id = first_anchor_id(node)
+            .or_else(|| block_anchor_id_for("heading", anchor_mode, context, node));
+        inlines.retain(|inline| !matches!(inline, CllInline::Anchor { .. }));
         return (!title.is_empty())
-            .then_some(CllBlock::Heading { level: 3, title })
+            .then_some(CllBlock::Heading {
+                id,
+                level: 3,
+                title,
+                inlines,
+            })
             .into_iter()
             .collect();
     }
@@ -1289,8 +1300,7 @@ fn parse_example_block(
         label: display_label.clone(),
         anchor_id: anchor_id.clone(),
         title: explicit_title,
-        parse_href: collect_jbo_snippet(node)
-            .map(|snippet| format!("../gentufa?text={}", percent_encode_plain(&snippet))),
+        parse_href: collect_jbo_snippet(node).and_then(|snippet| jbo_parse_href(&snippet)),
         blocks,
         lojban,
         gloss_en,
@@ -1440,7 +1450,7 @@ fn chrestomathy_parse_href(
         return None;
     }
     let text = visible_text(cell);
-    (!text.is_empty()).then(|| format!("../gentufa?text={}", percent_encode_plain(&text)))
+    jbo_parse_href(&text)
 }
 
 #[requires(true)]
@@ -2291,6 +2301,7 @@ fn parse_interlinear_gloss_block(
             id: block_anchor_id_for("interlinear", anchor_mode, context, node),
             aligned: maybe_aligned.is_some(),
             itemized: false,
+            parse_href: top_level_jbo_parse_href(anchor_mode, node),
             rows,
             natlang,
             comments,
@@ -2413,6 +2424,7 @@ fn parse_interlinear_gloss_itemized_block(
             id: block_anchor_id_for("interlinear", anchor_mode, context, node),
             aligned: true,
             itemized: true,
+            parse_href: top_level_jbo_parse_href(anchor_mode, node),
             rows,
             natlang,
             comments,
@@ -2926,12 +2938,29 @@ fn next_ebnf_depth(depth: usize, token: &CllEbnfToken) -> usize {
     }
 }
 
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|href| href.starts_with("../gentufa?text=")))]
+fn jbo_parse_href(snippet: &str) -> Option<String> {
+    (!snippet.is_empty()).then(|| format!("../gentufa?text={}", percent_encode_plain(snippet)))
+}
+
+#[requires(node.is_element())]
+#[ensures(ret.as_ref().is_none_or(|href| href.starts_with("../gentufa?text=")))]
+fn top_level_jbo_parse_href(anchor_mode: AnchorMode, node: Node<'_, '_>) -> Option<String> {
+    (anchor_mode == AnchorMode::TopLevel)
+        .then(|| collect_jbo_snippet(node).and_then(|snippet| jbo_parse_href(&snippet)))
+        .flatten()
+}
+
 #[requires(node.is_element())]
 #[ensures(true)]
 fn collect_jbo_snippet(node: Node<'_, '_>) -> Option<String> {
     let lines = node
         .descendants()
-        .filter(|descendant| descendant.is_element() && descendant.has_tag_name("jbo"))
+        .filter(|descendant| {
+            descendant.is_element()
+                && (descendant.has_tag_name("jbo") || descendant.has_tag_name("jbophrase"))
+        })
         .map(|line| normalized_plain_text(&visible_text_raw(line)))
         .filter(|line| !line.is_empty())
         .collect::<Vec<_>>();
@@ -3237,10 +3266,11 @@ fn resolve_block_links(blocks: &mut [CllBlock], resolutions: &BTreeMap<String, L
                     .map(|part| resolve_lujvo_part_links(part, resolutions))
                     .collect();
             }
-            CllBlock::Code { .. }
-            | CllBlock::Heading { .. }
-            | CllBlock::Ebnf { .. }
-            | CllBlock::DisplayMath { .. } => {}
+            CllBlock::Heading { inlines, title, .. } => {
+                resolve_inline_links(inlines, resolutions);
+                *title = normalized_plain_text(&inline_plain_text(inlines));
+            }
+            CllBlock::Code { .. } | CllBlock::Ebnf { .. } | CllBlock::DisplayMath { .. } => {}
         }
     }
 }
@@ -4024,10 +4054,10 @@ fn block_tagged_words(block: &CllBlock) -> BTreeSet<String> {
             .collect(),
         CllBlock::Rule { body, .. } => blocks_tagged_words(body),
         CllBlock::BlockQuote { blocks, .. } => blocks_tagged_words(blocks),
+        CllBlock::Heading { inlines, .. } => inlines_tagged_words(inlines),
         CllBlock::SimpleListTable { .. }
         | CllBlock::Media { .. }
         | CllBlock::Code { .. }
-        | CllBlock::Heading { .. }
         | CllBlock::Definition { .. }
         | CllBlock::InterlinearGloss { .. }
         | CllBlock::CmavoList { .. }
@@ -4189,10 +4219,10 @@ fn render_block_markdown(site: &CllSite, block: &CllBlock, output: &mut String, 
             output.push_str(latex);
             output.push_str("\n$$\n\n");
         }
-        CllBlock::Heading { level, title } => {
+        CllBlock::Heading { level, inlines, .. } => {
             output.push_str(&"#".repeat(usize::from(*level)));
             output.push(' ');
-            output.push_str(title);
+            output.push_str(&render_inlines_markdown(site, inlines));
             output.push_str("\n\n");
         }
         CllBlock::BlockQuote { blocks, .. } => {
@@ -4213,11 +4243,20 @@ fn render_block_markdown(site: &CllSite, block: &CllBlock, output: &mut String, 
         }
         CllBlock::InterlinearGloss {
             aligned,
+            parse_href,
             rows,
             natlang,
             comments,
             ..
-        } => render_interlinear_markdown(site, *aligned, rows, natlang, comments, output),
+        } => render_interlinear_markdown(
+            site,
+            *aligned,
+            parse_href.as_deref(),
+            rows,
+            natlang,
+            comments,
+            output,
+        ),
         CllBlock::CmavoList {
             titles,
             headers,
@@ -4373,9 +4412,15 @@ fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             render_optional_id(id.as_deref()),
             markup
         ),
-        CllBlock::Heading { level, title } => {
+        CllBlock::Heading {
+            id, level, inlines, ..
+        } => {
             let level = (*level).clamp(2, 6);
-            format!("<h{level}>{}</h{level}>", escape_html(title))
+            format!(
+                "<h{level}{}>{}</h{level}>",
+                render_optional_id(id.as_deref()),
+                render_inlines_html(site, inlines)
+            )
         }
         CllBlock::BlockQuote { id, blocks } => {
             let mut output = format!(
@@ -4397,6 +4442,7 @@ fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             id,
             aligned,
             itemized,
+            parse_href,
             rows,
             natlang,
             comments,
@@ -4405,6 +4451,7 @@ fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             id.as_deref(),
             *aligned,
             *itemized,
+            parse_href.as_deref(),
             rows,
             natlang,
             comments,
@@ -4710,11 +4757,17 @@ fn markdown_link_label_text(text: &str) -> String {
 fn render_interlinear_markdown(
     site: &CllSite,
     aligned: bool,
+    parse_href: Option<&str>,
     rows: &[CllInterlinearRow],
     natlang: &[Vec<CllInline>],
     comments: &[Vec<CllInline>],
     output: &mut String,
 ) {
+    if let Some(parse_href) = parse_href {
+        output.push_str("[Parse](");
+        output.push_str(parse_href);
+        output.push_str(")\n\n");
+    }
     if !aligned {
         for row in rows {
             let body = row
@@ -4972,6 +5025,7 @@ fn render_interlinear_html(
     id: Option<&str>,
     aligned: bool,
     itemized: bool,
+    parse_href: Option<&str>,
     rows: &[CllInterlinearRow],
     natlang: &[Vec<CllInline>],
     comments: &[Vec<CllInline>],
@@ -4985,6 +5039,11 @@ fn render_interlinear_html(
             ""
         }
     );
+    if let Some(parse_href) = parse_href {
+        output.push_str("<a class=\"cll-parse-example spa-cll-link spa-cll-link-parse\" href=\"");
+        output.push_str(&escape_html(parse_href));
+        output.push_str("\">Parse</a>");
+    }
     if !rows.is_empty() {
         if aligned {
             output.push_str("<table class=\"cll-interlinear-table");
@@ -5743,6 +5802,75 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn bridgehead_anchors_render_as_heading_ids() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section = cll_lookup_section(site, "section-index").expect("section should exist");
+
+        assert!(section.blocks.iter().any(|block| {
+            matches!(
+                block,
+                CllBlock::Heading {
+                    id: Some(id),
+                    title,
+                    ..
+                } if id == "NAI" && title.contains("selma'o NAI")
+            )
+        }));
+        let rendered = render_section(site, section, CllRenderFormat::Html);
+        assert!(rendered.contains("id=\"NAI\""));
+        assert!(rendered.contains("selma'o NAI"));
+        assert!(section.blocks.iter().any(|block| {
+            matches!(
+                block,
+                CllBlock::Heading { title, .. }
+                    if title.contains("selma'o UI")
+                        && !title.contains("section-attitudinals-introduction")
+            )
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn standalone_interlinear_glosses_have_parse_links() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section = cll_lookup_section(site, "section-index").expect("section should exist");
+        let parse_hrefs = collect_interlinear_parse_hrefs(&section.blocks);
+
+        assert!(!parse_hrefs.is_empty());
+        assert!(
+            parse_hrefs
+                .iter()
+                .all(|href| href.starts_with("../gentufa?text=") && !href.contains("dialect="))
+        );
+        assert!(
+            render_section(site, section, CllRenderFormat::Html)
+                .contains("class=\"cll-parse-example spa-cll-link spa-cll-link-parse\"")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn jbophrase_examples_have_parse_links() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let example = cll_lookup_example(site, "c19e11d6").expect("example should exist");
+
+        let parse_href = example
+            .parse_href
+            .as_deref()
+            .expect("example should have parse link");
+        assert!(parse_href.contains("ba%27e%20mi%20viska%20la%20.djordj."));
+        assert!(!parse_href.contains("dialect="));
+        assert!(
+            render_example(site, example, CllRenderFormat::Html)
+                .contains("class=\"cll-parse-example spa-cll-link spa-cll-link-parse\"")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn multiline_interlinear_examples_keep_line_rendering() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let section = cll_lookup_section(site, "section-quantifier-grouping")
@@ -5866,6 +5994,50 @@ mod tests {
                 CllBlock::VariableList { entries, .. } => {
                     for entry in entries {
                         hrefs.extend(collect_table_parse_hrefs(&entry.blocks));
+                    }
+                }
+                _ => {}
+            }
+        }
+        hrefs
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_interlinear_parse_hrefs(blocks: &[CllBlock]) -> Vec<String> {
+        let mut hrefs = Vec::new();
+        for block in blocks {
+            match block {
+                CllBlock::InterlinearGloss { parse_href, .. } => {
+                    if let Some(parse_href) = parse_href {
+                        hrefs.push(parse_href.clone());
+                    }
+                }
+                CllBlock::List { items, .. } => {
+                    for item in items {
+                        hrefs.extend(collect_interlinear_parse_hrefs(item));
+                    }
+                }
+                CllBlock::Example(example) => {
+                    hrefs.extend(collect_interlinear_parse_hrefs(&example.blocks));
+                }
+                CllBlock::BlockQuote { blocks, .. } | CllBlock::Rule { body: blocks, .. } => {
+                    hrefs.extend(collect_interlinear_parse_hrefs(blocks));
+                }
+                CllBlock::Table {
+                    header_rows,
+                    body_rows,
+                    ..
+                } => {
+                    for row in header_rows.iter().chain(body_rows.iter()) {
+                        for cell in row {
+                            hrefs.extend(collect_interlinear_parse_hrefs(&cell.blocks));
+                        }
+                    }
+                }
+                CllBlock::VariableList { entries, .. } => {
+                    for entry in entries {
+                        hrefs.extend(collect_interlinear_parse_hrefs(&entry.blocks));
                     }
                 }
                 _ => {}

@@ -4755,6 +4755,14 @@ body::-webkit-scrollbar-thumb:hover,
   font-style: italic;
 }
 
+.cll-page .cll-heading,
+.cll-page .cll-para,
+.cll-page .cll-definition,
+.cll-page .cll-ebnf-entry,
+.cll-page .cll-example {
+  scroll-margin-top: 3.6rem;
+}
+
 .cll-page [lang="zlm"] {
   font-family: "Crisa", "Noto Sans", Verdana, sans-serif;
   font-style: normal;
@@ -4768,7 +4776,6 @@ body::-webkit-scrollbar-thumb:hover,
   padding: 0.65rem;
   margin: 0.75rem 0;
   background: var(--app-surface-1);
-  scroll-margin-top: 3.6rem;
 }
 
 .cll-page .cll-example-head {
@@ -4895,7 +4902,13 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .cll-page .cll-interlinear {
+  display: flow-root;
   margin: 0.42rem 0;
+}
+
+.cll-page .cll-interlinear > .cll-parse-example {
+  float: right;
+  margin: 0 0 0.3rem 0.5rem;
 }
 
 .cll-page .cll-example .cll-interlinear {
