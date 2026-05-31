@@ -6822,7 +6822,6 @@ fn render_tree_row(row: &GentufaTreeRow, reference_hover: Signal<ReferenceHoverS
             "data-parent-id": "{parent_id}",
             "data-depth": "{row.depth}",
             "data-color": "{row.color}",
-            { render_tree_edge_cell("in", incoming_markers, false, reference_hover, &hover_state) }
             td { class: "col-node",
                 span { class: "indent-stack",
                     for guide in row.guides.iter() {
@@ -6838,12 +6837,13 @@ fn render_tree_row(row: &GentufaTreeRow, reference_hover: Signal<ReferenceHoverS
                     }
                 }
             }
-            { render_tree_edge_cell("out", outgoing_markers, true, reference_hover, &hover_state) }
+            { render_tree_edge_cell(incoming_markers, reference_hover, &hover_state) }
             td { class: "col-text",
-                div { class: "cell-pad",
+                div { class: "cell-pad tree-text-cell",
                     for cell in row.cells.iter() {
                         { render_tree_cell(cell) }
                     }
+                    { render_tree_outgoing_edges(outgoing_markers, reference_hover, &hover_state) }
                 }
             }
         }
@@ -6865,28 +6865,42 @@ fn render_tree_guide(guide: &GentufaTreeGuide) -> Element {
     }
 }
 
-#[requires(!side.is_empty())]
+#[requires(true)]
 #[ensures(true)]
 fn render_tree_edge_cell(
-    side: &str,
     markers: Vec<&ReferenceMarker>,
-    arrow_before: bool,
     reference_hover: Signal<ReferenceHoverState>,
     hover_state: &ReferenceHoverState,
 ) -> Element {
-    let class = format!("col-edge col-edge-{side}");
     let has_markers = !markers.is_empty();
     rsx! {
-        td { class: "{class}",
+        td { class: "col-edge col-edge-in",
             div { class: "cell-pad edge-cell",
-                if has_markers && arrow_before {
-                    span { class: "ref-arrow edge-arrow", "→" }
-                }
                 for marker in markers {
                     { render_ref_marker(marker, reference_hover, hover_state) }
                 }
-                if has_markers && !arrow_before {
+                if has_markers {
                     span { class: "ref-arrow edge-arrow", "→" }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_tree_outgoing_edges(
+    markers: Vec<&ReferenceMarker>,
+    reference_hover: Signal<ReferenceHoverState>,
+    hover_state: &ReferenceHoverState,
+) -> Element {
+    let has_markers = !markers.is_empty();
+    rsx! {
+        if has_markers {
+            span { class: "tree-outgoing-edge edge-cell",
+                span { class: "ref-arrow edge-arrow", "→" }
+                for marker in markers {
+                    { render_ref_marker(marker, reference_hover, hover_state) }
                 }
             }
         }
