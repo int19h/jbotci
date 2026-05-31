@@ -6763,15 +6763,16 @@ fn render_block(
                 }
             }
             if let Some(card) = &block.tooltip {
-                span {
-                    class: "block-label dictionary-tooltip-host",
-                    title: "{block.label}",
-                    a { class: "block-label-link", href: "{card.href}",
-                        span { class: "block-label-text",
-                            { render_elidable_text(&block.label, block.is_elided) }
+                span { class: "block-label",
+                    span { class: "block-label-tooltip dictionary-tooltip-host",
+                        title: "{block.label}",
+                        a { class: "block-label-link", href: "{card.href}",
+                            span { class: "block-label-text",
+                                { render_elidable_text(&block.label, block.is_elided) }
+                            }
                         }
+                        { render_dictionary_tooltip(card, false, "") }
                     }
-                    { render_dictionary_tooltip(card, false, "") }
                 }
             } else {
                 span { class: "block-label", title: "{block.label}",
