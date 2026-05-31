@@ -1,5 +1,6 @@
 :root {
-  font-family: "Noto Sans", "Noto Sans Math", Verdana, sans-serif;
+  --math-font: "STIX Two Text", "STIX Two Math", math, serif;
+  font-family: "Noto Sans", "STIX Two Math", Verdana, sans-serif;
   color-scheme: light;
   background: #f5efe6;
 }
@@ -103,7 +104,7 @@ input:disabled {
   --blocks-gap: 1px;
   --blocks-padding: 0.7rem;
   --blocks-compact-min-height: 2rem;
-  --blocks-font: "Noto Sans", "Noto Sans Math", sans-serif;
+  --blocks-font: "Noto Sans", "STIX Two Math", sans-serif;
   --blocks-place-size: 0.7rem;
   --blocks-gloss-size: 0.7rem;
   --blocks-gloss-color: var(--app-muted);
@@ -362,7 +363,7 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--theme-switch-bg);
   color: var(--dark-surface-link);
   cursor: pointer;
-  font-family: "Noto Sans", sans-serif;
+  font-family: "Noto Sans", "STIX Two Math", sans-serif;
   font-size: 0.9rem;
   line-height: 1;
   text-decoration: none;
@@ -408,7 +409,7 @@ body::-webkit-scrollbar-thumb:hover,
   display: inline;
   padding: 0;
   color: var(--dark-surface-link);
-  font-family: "Noto Sans", sans-serif;
+  font-family: "Noto Sans", "STIX Two Math", sans-serif;
   font-size: 0.7rem;
   font-weight: 400;
   font-stretch: normal;
@@ -464,7 +465,7 @@ body::-webkit-scrollbar-thumb:hover,
 .orthography-btn {
   width: 1.55rem;
   min-width: 1.55rem;
-  font-family: "Noto Sans", "Noto Sans Math", sans-serif;
+  font-family: "Noto Sans", "STIX Two Math", sans-serif;
   font-size: 0.82rem;
   font-weight: 400;
 }
@@ -502,7 +503,7 @@ body::-webkit-scrollbar-thumb:hover,
   margin-left: 1em;
   padding: 0.38rem 0;
   color: var(--topbar-muted);
-  font-family: "Noto Sans", sans-serif;
+  font-family: "Noto Sans", "STIX Two Math", sans-serif;
   font-size: 0.95rem;
   font-weight: 500;
   font-stretch: 87.5%;
@@ -638,7 +639,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .app-page .app-topbar .app-topbar-commit {
   color: var(--topbar-commit);
-  font-family: "Noto Sans", sans-serif;
+  font-family: "Noto Sans", "STIX Two Math", sans-serif;
   font-size: 0.7rem;
   font-weight: 500;
   font-stretch: 87.5%;
@@ -1287,6 +1288,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .spa-cll-math math {
+  font-family: var(--math-font);
   max-width: 100%;
   vertical-align: baseline !important;
 }
@@ -2417,7 +2419,7 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--dictionary-tooltip-bg);
   color: var(--app-text);
   box-shadow: 0 0.9rem 2rem rgb(0 0 0 / 0.28), 0 0.12rem 0.32rem rgb(0 0 0 / 0.18);
-  font-family: "Noto Sans", "Noto Sans Math", Verdana, sans-serif;
+  font-family: "Noto Sans", "STIX Two Math", Verdana, sans-serif;
   font-size: 0.82rem;
   font-style: normal;
   font-weight: 400;
@@ -2565,7 +2567,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .rich-dictionary-tooltip .tooltip-copy .spa-cll-math math,
 .rich-dictionary-tooltip .tooltip-notes .spa-cll-math math {
-  font-family: math;
+  font-family: var(--math-font);
   font-size: 1em;
   line-height: normal;
 }
@@ -4394,7 +4396,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .cll-page .cll-ebnf-assign {
   color: var(--ebnf-operator);
-  font-family: "Noto Sans Math", "Crisa", "Noto Sans", Verdana, sans-serif;
+  font-family: "STIX Two Math", "Crisa", "Noto Sans", Verdana, sans-serif;
   font-weight: 400;
 }
 
@@ -4453,7 +4455,12 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .cll-page .cll-inline-math math {
+  font-family: var(--math-font);
   vertical-align: middle;
+}
+
+.cll-page .cll-math-block math {
+  font-family: var(--math-font);
 }
 
 .cll-page .cll-section-pager {

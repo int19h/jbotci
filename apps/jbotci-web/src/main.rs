@@ -53,7 +53,9 @@ const BUILD_GIT_COMMIT: Option<&str> = option_env!("JBOTCI_GIT_COMMIT");
 const BUILD_GIT_COMMIT_SHORT: Option<&str> = option_env!("JBOTCI_GIT_COMMIT_SHORT");
 const NOTO_SANS: Asset = asset!("/assets/fonts/noto-sans-variable.ttf");
 const NOTO_SANS_ITALIC: Asset = asset!("/assets/fonts/noto-sans-italic-variable.ttf");
-const NOTO_SANS_MATH: Asset = asset!("/assets/fonts/noto-sans-math-regular.otf");
+const STIX_TWO_MATH: Asset = asset!("/assets/fonts/stix-two-math-regular.ttf");
+const STIX_TWO_TEXT: Asset = asset!("/assets/fonts/stix-two-text-regular.ttf");
+const STIX_TWO_TEXT_BOLD: Asset = asset!("/assets/fonts/stix-two-text-bold.ttf");
 const CRISA: Asset = asset!("/assets/fonts/crisa-regular.otf");
 const CLL_MEDIA_CHAPTER_2_DIAGRAM: Asset = asset!("/assets/cll/media/chapter-2-diagram.svg.png");
 const CLL_MEDIA_CHAPTER_ABOUT: Asset = asset!("/assets/cll/media/chapter-about.svg.png");
@@ -602,7 +604,8 @@ fn main() {
 }
 
 #[requires(true)]
-#[ensures(ret.contains("Noto Sans Math"))]
+#[ensures(ret.contains("STIX Two Math"))]
+#[ensures(ret.contains("STIX Two Text"))]
 fn font_face_css() -> String {
     format!(
         r#"
@@ -625,9 +628,25 @@ fn font_face_css() -> String {
 }}
 
 @font-face {{
-  font-family: "Noto Sans Math";
-  src: url("{noto_sans_math}") format("opentype");
+  font-family: "STIX Two Math";
+  src: url("{stix_two_math}") format("truetype");
   font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}}
+
+@font-face {{
+  font-family: "STIX Two Text";
+  src: url("{stix_two_text}") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}}
+
+@font-face {{
+  font-family: "STIX Two Text";
+  src: url("{stix_two_text_bold}") format("truetype");
+  font-weight: 700;
   font-style: normal;
   font-display: swap;
 }}
@@ -642,7 +661,9 @@ fn font_face_css() -> String {
 "#,
         noto_sans = NOTO_SANS,
         noto_sans_italic = NOTO_SANS_ITALIC,
-        noto_sans_math = NOTO_SANS_MATH,
+        stix_two_math = STIX_TWO_MATH,
+        stix_two_text = STIX_TWO_TEXT,
+        stix_two_text_bold = STIX_TWO_TEXT_BOLD,
         crisa = CRISA,
     )
 }

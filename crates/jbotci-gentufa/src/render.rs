@@ -51,7 +51,9 @@ pub enum GentufaExportError {
 pub struct GentufaFontData<'a> {
     pub noto_sans: &'a [u8],
     pub noto_sans_italic: &'a [u8],
-    pub noto_sans_math: &'a [u8],
+    pub stix_two_math: &'a [u8],
+    pub stix_two_text: &'a [u8],
+    pub stix_two_text_bold: &'a [u8],
     pub crisa: Option<&'a [u8]>,
 }
 
@@ -70,8 +72,14 @@ impl EmbeddedGentufaFonts {
             noto_sans_italic: include_bytes!(
                 "../../../apps/jbotci-web/assets/fonts/noto-sans-italic-variable.ttf"
             ),
-            noto_sans_math: include_bytes!(
-                "../../../apps/jbotci-web/assets/fonts/noto-sans-math-regular.otf"
+            stix_two_math: include_bytes!(
+                "../../../apps/jbotci-web/assets/fonts/stix-two-math-regular.ttf"
+            ),
+            stix_two_text: include_bytes!(
+                "../../../apps/jbotci-web/assets/fonts/stix-two-text-regular.ttf"
+            ),
+            stix_two_text_bold: include_bytes!(
+                "../../../apps/jbotci-web/assets/fonts/stix-two-text-bold.ttf"
             ),
             crisa: Some(include_bytes!(
                 "../../../apps/jbotci-web/assets/fonts/crisa-regular.otf"
@@ -218,8 +226,8 @@ impl TextRole {
     fn font_family(self, script: GentufaScript) -> &'static str {
         match (self, script) {
             (Self::LeafLabel | Self::NonleafLabel, GentufaScript::Zbalermorna) => "Crisa",
-            (Self::Reference, _) => "Noto Sans, Noto Sans Math, sans-serif",
-            _ => "Noto Sans",
+            (Self::Reference, _) => "STIX Two Text, STIX Two Math, serif",
+            _ => "Noto Sans, STIX Two Math, sans-serif",
         }
     }
 }
@@ -1006,9 +1014,21 @@ fn svg_css(script: GentufaScript, fonts: GentufaFontData<'_>) -> String {
   font-style: italic;
 }}
 @font-face {{
-  font-family: "Noto Sans Math";
-  src: url("https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-math@latest/latin-400-normal.woff2") format("woff2");
+  font-family: "STIX Two Math";
+  src: url("https://fonts.gstatic.com/s/stixtwomath/v12/pONg1hwwL_6M9EkZySr_yteUi1o.ttf") format("truetype");
   font-weight: 400;
+  font-style: normal;
+}}
+@font-face {{
+  font-family: "STIX Two Text";
+  src: url("https://fonts.gstatic.com/s/stixtwotext/v18/YA9Gr02F12Xkf5whdwKf11l0jbKkeidMTtZ5Yihg2SOY.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}}
+@font-face {{
+  font-family: "STIX Two Text";
+  src: url("https://fonts.gstatic.com/s/stixtwotext/v18/YA9Gr02F12Xkf5whdwKf11l0jbKkeidMTtZ5YiiH3iOY.ttf") format("truetype");
+  font-weight: 700;
   font-style: normal;
 }}{}"#,
         crisa
@@ -1053,7 +1073,13 @@ fn usvg_options(fonts: GentufaFontData<'_>) -> usvg::Options<'static> {
         .load_font_data(fonts.noto_sans_italic.to_vec());
     options
         .fontdb_mut()
-        .load_font_data(fonts.noto_sans_math.to_vec());
+        .load_font_data(fonts.stix_two_math.to_vec());
+    options
+        .fontdb_mut()
+        .load_font_data(fonts.stix_two_text.to_vec());
+    options
+        .fontdb_mut()
+        .load_font_data(fonts.stix_two_text_bold.to_vec());
     if let Some(crisa) = fonts.crisa {
         options.fontdb_mut().load_font_data(crisa.to_vec());
     }
@@ -1317,7 +1343,9 @@ mod tests {
         )
         .expect("svg");
 
-        assert!(svg.contains("font-family=\"Noto Sans, Noto Sans Math, sans-serif\""));
+        assert!(svg.contains("font-family=\"STIX Two Text, STIX Two Math, serif\""));
+        assert!(svg.contains("font-family: \"STIX Two Math\""));
+        assert!(svg.contains("font-family: \"STIX Two Text\""));
         assert!(svg.contains("𝑏₂⟨mleca bervi⟩"));
         assert!(!svg.contains("mléca"));
         assert!(!svg.contains('\u{0301}'));
@@ -1334,7 +1362,20 @@ mod tests {
         let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
         let mut row_heights = vec![ROW_COMPACT_HEIGHT];
         let column_widths = vec![MIN_COLUMN_WIDTH];
-        let blocks = vec![test_gentufa_block(0, 1, 1)];
+        let mut block = test_gentufa_block(0, 1, 0);
+        block.ref_markers.push(ReferenceMarker {
+            role: ReferenceMarkerRole::Referent,
+            kind: "test".to_owned(),
+            label: ReferenceLabel::new(
+                "b",
+                Some(1),
+                Some(ReferenceSlotLabel::Modal(vec![
+                    "mleca".to_owned(),
+                    "bervi".to_owned(),
+                ])),
+            ),
+        });
+        let blocks = vec![block];
 
         grow_rows_for_references(
             &mut row_heights,
