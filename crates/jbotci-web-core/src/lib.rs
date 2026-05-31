@@ -1,6 +1,6 @@
 //! Shared web/API view models and gentufa parser facade.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
 #[allow(unused_imports)]
@@ -15,7 +15,7 @@ use jbotci_cll::{
 };
 use jbotci_diagnostics::{Diagnostic, DiagnosticPhase};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
-use jbotci_dictionary::{Dictionary, DictionaryEntry};
+use jbotci_dictionary::{Dictionary, DictionaryEntry, WordType};
 use jbotci_embedding_inputs::embedding_input_corpus_json;
 use jbotci_gentufa::{
     ElidedTerminator, RenderedLeaf, blocks_layout as build_blocks_layout,
@@ -1260,17 +1260,19 @@ static VLACKU_WORD_TYPE_OPTION_TEMPLATES: OnceLock<Vec<VlackuWordTypeOptionTempl
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct VlackuDictionaryInfo {
-    pub entry_count: usize,
-    pub rafsi_count: usize,
-    pub word_type_counts: Vec<VlackuDictionaryWordTypeCount>,
+    pub lensisku_created_at: String,
+    pub lensisku_created_date: String,
+    pub count_tree: Vec<VlackuDictionaryCountNode>,
+    pub total_count: usize,
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct VlackuDictionaryWordTypeCount {
+pub struct VlackuDictionaryCountNode {
     pub label: String,
     pub count: usize,
+    pub children: Vec<VlackuDictionaryCountNode>,
 }
 
 #[invariant(true)]
@@ -3422,25 +3424,272 @@ fn is_visible_word_type_filter(value: &str) -> bool {
 #[ensures(true)]
 fn build_vlacku_dictionary_info() -> VlackuDictionaryInfo {
     let dictionary = jbotci_dictionary_data::english();
-    let mut rafsi = BTreeMap::new();
-    for entry in dictionary.entries() {
-        for rafsi_value in entry.rafsi {
-            rafsi.insert(rafsi_value.0, ());
+    let metadata = jbotci_dictionary_data::english_metadata();
+    let entries = dictionary.entries();
+    VlackuDictionaryInfo {
+        lensisku_created_at: metadata.lensisku_created_at.to_owned(),
+        lensisku_created_date: lensisku_created_date(metadata.lensisku_created_at),
+        count_tree: dictionary_report_count_tree(entries),
+        total_count: entries.len(),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn lensisku_created_date(created_at: &str) -> String {
+    created_at
+        .split_once('T')
+        .map_or(created_at, |(date, _time)| date)
+        .to_owned()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_report_count_tree(entries: &[DictionaryEntry<'_>]) -> Vec<VlackuDictionaryCountNode> {
+    vec![
+        cmavo_report_node(entries),
+        brivla_report_node(entries),
+        cmevla_report_node(entries),
+        dictionary_type_node("letterals", entries, &[WordType::BuLetteral], Vec::new()),
+        dictionary_type_node(
+            "cmavo compounds",
+            entries,
+            &[WordType::CmavoCompound],
+            Vec::new(),
+        ),
+        dictionary_type_node("phrases", entries, &[WordType::Phrase], Vec::new()),
+    ]
+    .into_iter()
+    .filter(|node| node.count > 0)
+    .collect()
+}
+
+#[requires(true)]
+#[ensures(ret.label == "cmavo")]
+fn cmavo_report_node(entries: &[DictionaryEntry<'_>]) -> VlackuDictionaryCountNode {
+    let mut regular = dictionary_type_node("regular", entries, &[WordType::Cmavo], Vec::new());
+    push_rafsi_node_for_types(&mut regular.children, entries, &[WordType::Cmavo]);
+
+    let mut experimental = dictionary_type_node(
+        "experimental",
+        entries,
+        &[WordType::ExperimentalCmavo],
+        Vec::new(),
+    );
+    push_rafsi_node_for_types(
+        &mut experimental.children,
+        entries,
+        &[WordType::ExperimentalCmavo],
+    );
+
+    let mut obsolete =
+        dictionary_type_node("obsolete", entries, &[WordType::ObsoleteCmavo], Vec::new());
+    push_rafsi_node_for_types(&mut obsolete.children, entries, &[WordType::ObsoleteCmavo]);
+
+    let children = vec![regular, experimental, obsolete]
+        .into_iter()
+        .filter(|node| node.count > 0)
+        .collect();
+    dictionary_type_node(
+        "cmavo",
+        entries,
+        &[
+            WordType::Cmavo,
+            WordType::ExperimentalCmavo,
+            WordType::ObsoleteCmavo,
+        ],
+        children,
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.label == "brivla")]
+fn brivla_report_node(entries: &[DictionaryEntry<'_>]) -> VlackuDictionaryCountNode {
+    let children = vec![
+        gismu_report_node(entries),
+        lujvo_report_node(entries),
+        fuivla_report_node(entries),
+    ]
+    .into_iter()
+    .filter(|node| node.count > 0)
+    .collect();
+    dictionary_type_node(
+        "brivla",
+        entries,
+        &[
+            WordType::Gismu,
+            WordType::ExperimentalGismu,
+            WordType::Lujvo,
+            WordType::ZeiLujvo,
+            WordType::ObsoleteZeiLujvo,
+            WordType::Fuivla,
+            WordType::ObsoleteFuivla,
+        ],
+        children,
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.label == "gismu")]
+fn gismu_report_node(entries: &[DictionaryEntry<'_>]) -> VlackuDictionaryCountNode {
+    let mut children = Vec::new();
+    let mut experimental = dictionary_type_node(
+        "experimental",
+        entries,
+        &[WordType::ExperimentalGismu],
+        Vec::new(),
+    );
+    push_rafsi_node_for_types(
+        &mut experimental.children,
+        entries,
+        &[WordType::ExperimentalGismu],
+    );
+    if experimental.count > 0 {
+        children.push(experimental);
+    }
+    push_rafsi_node_for_types(
+        &mut children,
+        entries,
+        &[WordType::Gismu, WordType::ExperimentalGismu],
+    );
+    dictionary_type_node(
+        "gismu",
+        entries,
+        &[WordType::Gismu, WordType::ExperimentalGismu],
+        children,
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.label == "lujvo")]
+fn lujvo_report_node(entries: &[DictionaryEntry<'_>]) -> VlackuDictionaryCountNode {
+    let children = vec![
+        dictionary_type_node("zei-lujvo", entries, &[WordType::ZeiLujvo], Vec::new()),
+        dictionary_type_node(
+            "obsolete zei-lujvo",
+            entries,
+            &[WordType::ObsoleteZeiLujvo],
+            Vec::new(),
+        ),
+    ]
+    .into_iter()
+    .filter(|node| node.count > 0)
+    .collect();
+    dictionary_type_node(
+        "lujvo",
+        entries,
+        &[
+            WordType::Lujvo,
+            WordType::ZeiLujvo,
+            WordType::ObsoleteZeiLujvo,
+        ],
+        children,
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.label == "fu'ivla")]
+fn fuivla_report_node(entries: &[DictionaryEntry<'_>]) -> VlackuDictionaryCountNode {
+    let children = vec![dictionary_type_node(
+        "obsolete",
+        entries,
+        &[WordType::ObsoleteFuivla],
+        Vec::new(),
+    )]
+    .into_iter()
+    .filter(|node| node.count > 0)
+    .collect();
+    dictionary_type_node(
+        "fu'ivla",
+        entries,
+        &[WordType::Fuivla, WordType::ObsoleteFuivla],
+        children,
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.label == "cmevla")]
+fn cmevla_report_node(entries: &[DictionaryEntry<'_>]) -> VlackuDictionaryCountNode {
+    let children = vec![dictionary_type_node(
+        "obsolete",
+        entries,
+        &[WordType::ObsoleteCmevla],
+        Vec::new(),
+    )]
+    .into_iter()
+    .filter(|node| node.count > 0)
+    .collect();
+    dictionary_type_node(
+        "cmevla",
+        entries,
+        &[WordType::Cmevla, WordType::ObsoleteCmevla],
+        children,
+    )
+}
+
+#[requires(!label.is_empty())]
+#[ensures(ret.label == label)]
+fn dictionary_type_node(
+    label: &str,
+    entries: &[DictionaryEntry<'_>],
+    word_types: &[WordType],
+    children: Vec<VlackuDictionaryCountNode>,
+) -> VlackuDictionaryCountNode {
+    VlackuDictionaryCountNode {
+        label: label.to_owned(),
+        count: count_entries_by_word_type(entries, word_types),
+        children,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret <= entries.len())]
+fn count_entries_by_word_type(entries: &[DictionaryEntry<'_>], word_types: &[WordType]) -> usize {
+    entries
+        .iter()
+        .filter(|entry| {
+            word_types
+                .iter()
+                .any(|word_type| entry.word_type == *word_type)
+        })
+        .count()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_rafsi_node_for_types(
+    children: &mut Vec<VlackuDictionaryCountNode>,
+    entries: &[DictionaryEntry<'_>],
+    word_types: &[WordType],
+) {
+    let count = unique_rafsi_count_for_word_types(entries, word_types);
+    if count > 0 {
+        children.push(VlackuDictionaryCountNode {
+            label: "rafsi".to_owned(),
+            count,
+            children: Vec::new(),
+        });
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn unique_rafsi_count_for_word_types(
+    entries: &[DictionaryEntry<'_>],
+    word_types: &[WordType],
+) -> usize {
+    let mut rafsi = BTreeSet::new();
+    for entry in entries {
+        if word_types
+            .iter()
+            .any(|word_type| entry.word_type == *word_type)
+        {
+            for value in entry.rafsi {
+                rafsi.insert(value.0);
+            }
         }
     }
-    let word_type_counts = dictionary_word_type_options(&[])
-        .into_iter()
-        .filter(|option| option.value != "brivla")
-        .map(|option| VlackuDictionaryWordTypeCount {
-            label: option.label,
-            count: option.count,
-        })
-        .collect();
-    VlackuDictionaryInfo {
-        entry_count: dictionary.entries().len(),
-        rafsi_count: rafsi.len(),
-        word_type_counts,
-    }
+    rafsi.len()
 }
 
 #[requires(true)]
@@ -3786,6 +4035,24 @@ mod tests {
             .flat_map(|row| row.ref_markers.iter())
             .map(|marker| marker.label.stem.clone())
             .collect()
+    }
+
+    #[requires(!label.is_empty())]
+    #[ensures(ret.label == label)]
+    fn dictionary_count_node<'a>(
+        nodes: &'a [VlackuDictionaryCountNode],
+        label: &str,
+    ) -> &'a VlackuDictionaryCountNode {
+        nodes
+            .iter()
+            .find(|node| node.label == label)
+            .unwrap_or_else(|| panic!("missing dictionary report node {label:?}"))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.len() == nodes.len())]
+    fn dictionary_count_node_labels(nodes: &[VlackuDictionaryCountNode]) -> Vec<&str> {
+        nodes.iter().map(|node| node.label.as_str()).collect()
     }
 
     #[requires(true)]
@@ -4883,7 +5150,14 @@ mod tests {
     #[ensures(true)]
     fn vlacku_blank_query_returns_dictionary_info_and_semantic_results_render() {
         let blank = build_vlacku_web_result(&VlackuWebState::default());
-        assert!(blank.dictionary_info.is_some());
+        let info = blank
+            .dictionary_info
+            .as_ref()
+            .expect("blank vlacku result should include dictionary metadata");
+        assert_eq!(info.lensisku_created_date, "2026-05-23");
+        assert_eq!(info.lensisku_created_at, "2026-05-23T00:00:42.298977Z");
+        assert_eq!(info.total_count, 17_415);
+        assert!(!info.count_tree.is_empty());
 
         let dictionary = jbotci_dictionary_data::english();
         let klama_index = dictionary
@@ -4953,6 +5227,103 @@ mod tests {
         );
         assert!(empty.cards.is_empty());
         assert_eq!(empty.message.as_deref(), Some("No matches found."));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_dictionary_info_reports_ordered_lensisku_count_tree() {
+        let info = build_vlacku_dictionary_info();
+
+        assert_eq!(
+            dictionary_count_node_labels(&info.count_tree),
+            vec![
+                "cmavo",
+                "brivla",
+                "cmevla",
+                "letterals",
+                "cmavo compounds",
+                "phrases",
+            ]
+        );
+
+        let cmavo = dictionary_count_node(&info.count_tree, "cmavo");
+        assert_eq!(cmavo.count, 1_624);
+        assert_eq!(
+            dictionary_count_node_labels(&cmavo.children),
+            vec!["regular", "experimental", "obsolete"]
+        );
+        let regular_cmavo = dictionary_count_node(&cmavo.children, "regular");
+        assert_eq!(regular_cmavo.count, 598);
+        assert_eq!(
+            dictionary_count_node(&regular_cmavo.children, "rafsi").count,
+            114
+        );
+        assert_eq!(
+            dictionary_count_node(&cmavo.children, "experimental").count,
+            1_024
+        );
+        assert_eq!(dictionary_count_node(&cmavo.children, "obsolete").count, 2);
+        assert_eq!(
+            dictionary_count_node(&info.count_tree, "cmavo compounds").count,
+            663
+        );
+
+        let brivla = dictionary_count_node(&info.count_tree, "brivla");
+        assert_eq!(brivla.count, 14_561);
+        assert_eq!(
+            dictionary_count_node_labels(&brivla.children),
+            vec!["gismu", "lujvo", "fu'ivla"]
+        );
+        let gismu = dictionary_count_node(&brivla.children, "gismu");
+        assert_eq!(gismu.count, 1_732);
+        assert_eq!(
+            dictionary_count_node(&gismu.children, "experimental").count,
+            394
+        );
+        assert_eq!(dictionary_count_node(&gismu.children, "rafsi").count, 1_436);
+        assert_eq!(
+            dictionary_count_node(
+                &dictionary_count_node(&gismu.children, "experimental").children,
+                "rafsi",
+            )
+            .count,
+            4
+        );
+
+        let lujvo = dictionary_count_node(&brivla.children, "lujvo");
+        assert_eq!(lujvo.count, 8_406);
+        assert_eq!(
+            dictionary_count_node_labels(&lujvo.children),
+            vec!["zei-lujvo", "obsolete zei-lujvo"]
+        );
+        assert_eq!(
+            dictionary_count_node(&lujvo.children, "zei-lujvo").count,
+            151
+        );
+        assert_eq!(
+            dictionary_count_node(&lujvo.children, "obsolete zei-lujvo").count,
+            3
+        );
+
+        let fuivla = dictionary_count_node(&brivla.children, "fu'ivla");
+        assert_eq!(fuivla.count, 4_423);
+        assert_eq!(
+            dictionary_count_node(&fuivla.children, "obsolete").count,
+            301
+        );
+
+        let cmevla = dictionary_count_node(&info.count_tree, "cmevla");
+        assert_eq!(cmevla.count, 522);
+        assert_eq!(
+            dictionary_count_node(&cmevla.children, "obsolete").count,
+            28
+        );
+        assert_eq!(
+            dictionary_count_node(&info.count_tree, "letterals").count,
+            39
+        );
+        assert_eq!(dictionary_count_node(&info.count_tree, "phrases").count, 6);
     }
 
     #[test]

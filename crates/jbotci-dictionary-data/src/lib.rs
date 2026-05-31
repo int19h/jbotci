@@ -1,7 +1,22 @@
 //! Embedded Lensisku dictionary snapshots.
 
-use bityzba::requires;
+use bityzba::{invariant, requires};
 use jbotci_dictionary::Dictionary;
+
+/// Metadata for a vendored Lensisku dictionary snapshot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+pub struct DictionarySnapshotMetadata {
+    pub language_tag: &'static str,
+    pub language_realname: &'static str,
+    pub format: &'static str,
+    pub filename: &'static str,
+    pub metadata_url: &'static str,
+    pub download_url: &'static str,
+    pub lensisku_created_at: &'static str,
+    pub sha256: &'static str,
+    pub entry_count: usize,
+}
 
 include!(concat!(env!("OUT_DIR"), "/dictionary_en.rs"));
 
@@ -10,6 +25,13 @@ include!(concat!(env!("OUT_DIR"), "/dictionary_en.rs"));
 #[ensures(true)]
 pub fn english() -> &'static Dictionary<'static> {
     &ENGLISH
+}
+
+/// Return metadata for the embedded English Lensisku dictionary snapshot.
+#[requires(true)]
+#[ensures(ret.entry_count == ENGLISH.entries().len())]
+pub fn english_metadata() -> &'static DictionarySnapshotMetadata {
+    &ENGLISH_METADATA
 }
 
 #[cfg(test)]
@@ -24,6 +46,17 @@ mod tests {
     #[ensures(true)]
     fn embedded_dictionary_validates() {
         ENGLISH.validate().expect("embedded dictionary is valid");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn embedded_metadata_matches_dictionary() {
+        assert_eq!(english_metadata().entry_count, english().entries().len());
+        assert_eq!(
+            english_metadata().lensisku_created_at,
+            "2026-05-23T00:00:42.298977Z"
+        );
     }
 
     #[test]

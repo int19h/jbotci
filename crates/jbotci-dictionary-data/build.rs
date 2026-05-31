@@ -3,9 +3,9 @@ extern crate bityzba;
 use std::env;
 use std::error::Error;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use bityzba::requires;
+use bityzba::{invariant, requires};
 use jbotci_dictionary::import::{
     ImportedDictionary, ImportedDictionaryEntry, ImportedDictionaryUser, ImportedKeyword,
     parse_lensisku_json,
@@ -18,8 +18,25 @@ use jbotci_dictionary::{
 };
 use proc_macro2::{Literal, TokenStream};
 use quote::quote;
+use serde::Deserialize;
+use sha2::{Digest, Sha256};
 
 const VENDORED_DICTIONARY: &str = "../../vendor/lensisku/dictionary-en.json";
+const VENDORED_METADATA: &str = "../../vendor/lensisku/dictionary-en.metadata.toml";
+
+#[derive(Debug, Clone, Deserialize)]
+#[invariant(true)]
+struct DictionaryMetadata {
+    language_tag: String,
+    language_realname: String,
+    format: String,
+    filename: String,
+    metadata_url: String,
+    download_url: String,
+    lensisku_created_at: String,
+    sha256: String,
+    entry_count: usize,
+}
 
 #[requires(true)]
 #[ensures(true)]
@@ -35,10 +52,14 @@ fn main() {
 fn run() -> Result<(), Box<dyn Error>> {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
     let dictionary_path = manifest_dir.join(VENDORED_DICTIONARY);
+    let metadata_path = manifest_dir.join(VENDORED_METADATA);
     println!("cargo:rerun-if-changed={}", dictionary_path.display());
+    println!("cargo:rerun-if-changed={}", metadata_path.display());
 
     let input = fs::read_to_string(&dictionary_path)?;
+    let metadata = load_dictionary_metadata(&metadata_path)?;
     let imported = parse_lensisku_json(&input)?;
+    validate_dictionary_metadata(&metadata, &imported, input.as_bytes())?;
     let leaked_entries = leak_entries(&imported);
     let indexes = build_owned_indexes(leaked_entries);
     let word_index = leak_word_index(&indexes.word_index);
@@ -48,7 +69,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         Dictionary::from_static_slices(leaked_entries, word_index, rafsi_index, selmaho_index);
     dictionary.validate()?;
 
-    let generated = render_dictionary(&imported, &indexes)?;
+    let generated = render_dictionary(&imported, &indexes, &metadata)?;
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
     fs::write(out_dir.join("dictionary_en.rs"), generated)?;
     Ok(())
@@ -166,15 +187,52 @@ fn leak_str(value: &str) -> &'static str {
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|metadata| !metadata.lensisku_created_at.is_empty()))]
+fn load_dictionary_metadata(path: &Path) -> Result<DictionaryMetadata, Box<dyn Error>> {
+    let input = fs::read_to_string(path)?;
+    Ok(toml::from_str(&input)?)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn validate_dictionary_metadata(
+    metadata: &DictionaryMetadata,
+    dictionary: &ImportedDictionary,
+    dictionary_bytes: &[u8],
+) -> Result<(), Box<dyn Error>> {
+    if metadata.entry_count != dictionary.entries.len() {
+        return Err(format!(
+            "metadata entry_count {} does not match {} dictionary entries",
+            metadata.entry_count,
+            dictionary.entries.len()
+        )
+        .into());
+    }
+
+    let sha256 = sha256_hex(dictionary_bytes);
+    if metadata.sha256 != sha256 {
+        return Err(format!(
+            "metadata sha256 {} does not match dictionary sha256 {sha256}",
+            metadata.sha256
+        )
+        .into());
+    }
+
+    Ok(())
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn render_dictionary(
     dictionary: &ImportedDictionary,
     indexes: &OwnedDictionaryIndexes,
+    metadata: &DictionaryMetadata,
 ) -> Result<String, Box<dyn Error>> {
     let entries = dictionary.entries.iter().map(render_entry);
     let word_index = indexes.word_index.iter().map(render_word_index_entry);
     let rafsi_index = indexes.rafsi_index.iter().map(render_rafsi_index_entry);
     let selmaho_index = indexes.selmaho_index.iter().map(render_selmaho_index_entry);
+    let rendered_metadata = render_metadata(metadata);
 
     let tokens = quote! {
         pub static ENTRIES: &[jbotci_dictionary::DictionaryEntry<'static>] = &[
@@ -200,10 +258,40 @@ fn render_dictionary(
                 RAFSI_INDEX,
                 SELMAHO_INDEX,
             );
+
+        pub static ENGLISH_METADATA: crate::DictionarySnapshotMetadata = #rendered_metadata;
     };
 
     let syntax = syn::parse2(tokens)?;
     Ok(prettyplease::unparse(&syntax))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_metadata(metadata: &DictionaryMetadata) -> TokenStream {
+    let language_tag = string_literal(&metadata.language_tag);
+    let language_realname = string_literal(&metadata.language_realname);
+    let format = string_literal(&metadata.format);
+    let filename = string_literal(&metadata.filename);
+    let metadata_url = string_literal(&metadata.metadata_url);
+    let download_url = string_literal(&metadata.download_url);
+    let lensisku_created_at = string_literal(&metadata.lensisku_created_at);
+    let sha256 = string_literal(&metadata.sha256);
+    let entry_count = usize_literal(metadata.entry_count);
+
+    quote! {
+        crate::DictionarySnapshotMetadata {
+            language_tag: #language_tag,
+            language_realname: #language_realname,
+            format: #format,
+            filename: #filename,
+            metadata_url: #metadata_url,
+            download_url: #download_url,
+            lensisku_created_at: #lensisku_created_at,
+            sha256: #sha256,
+            entry_count: #entry_count,
+        }
+    }
 }
 
 #[requires(true)]
@@ -391,6 +479,13 @@ fn render_optional_str(value: Option<&str>) -> TokenStream {
 #[ensures(true)]
 fn string_literal(value: &str) -> Literal {
     Literal::string(value)
+}
+
+#[requires(true)]
+#[ensures(ret.len() == 64)]
+fn sha256_hex(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    digest.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 #[requires(true)]

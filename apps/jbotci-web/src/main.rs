@@ -14,8 +14,8 @@ use jbotci_web_core::{
     GentufaSuccess, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest, GentufaWebResult,
     GentufaWebState, GentufaWebViewMode, PageMeta, ReferenceLabel, ReferenceMarker,
     ReferenceMarkerRole, VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece,
-    VlackuCompositionPieceKind, VlackuDictionaryInfo, VlackuInline, VlackuInlineData,
-    VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
+    VlackuCompositionPieceKind, VlackuDictionaryCountNode, VlackuDictionaryInfo, VlackuInline,
+    VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
     VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
     VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebResult,
     VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest,
@@ -95,6 +95,8 @@ const COMPUTE_CHANNEL_EMBEDDINGS: &str = "embedding-corpus";
 const COMPUTE_CHANNEL_EXPORT: &str = "gentufa-export";
 const ASYNC_ACTIVITY_INDICATOR_DELAY_MS: i32 = 100;
 const SEMANTIC_LOADING_MESSAGE_DELAY_MS: i32 = 100;
+#[cfg(target_arch = "wasm32")]
+const VLACKU_JVOZBA_MIN_WIDTH_PX: f64 = 981.0;
 #[cfg(target_arch = "wasm32")]
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS: i32 = 30;
 #[cfg(target_arch = "wasm32")]
@@ -719,6 +721,7 @@ fn App() -> Element {
     let cukta_semantic_task = use_signal(|| None::<LatestAsyncTask>);
     let pending_cukta_scroll = use_signal(|| None::<String>);
     let jvozba_pane = use_signal(load_vlacku_jvozba_pane_state);
+    let jvozba_available = use_signal(vlacku_jvozba_available);
     let jvozba_drag = use_signal(|| None::<VlackuJvozbaDragState>);
     let initial_input_text = initial_gentufa_text.clone();
     let initial_parsed_text = initial_gentufa_text;
@@ -763,6 +766,7 @@ fn App() -> Element {
         gentufa_display,
         gentufa_text_explicit,
         pending_cukta_scroll,
+        jvozba_available,
         topbar_settings_layout,
         topbar_settings_open,
         &base_path,
@@ -1204,6 +1208,7 @@ fn App() -> Element {
                                     vlacku_committed_state,
                                     vlacku_result,
                                     jvozba_pane,
+                                    jvozba_available,
                                     jvozba_drag,
                                     &base_path,
                                 )
@@ -1556,6 +1561,32 @@ fn topbar_settings_button_class(open: bool) -> &'static str {
         "app-topbar-settings-toggle is-open"
     } else {
         "app-topbar-settings-toggle"
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_jvozba_available() -> bool {
+    web_sys::window()
+        .and_then(|window| window.inner_width().ok())
+        .and_then(|width| width.as_f64())
+        .map_or(true, |width| width >= VLACKU_JVOZBA_MIN_WIDTH_PX)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(ret)]
+fn vlacku_jvozba_available() -> bool {
+    true
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn update_vlacku_jvozba_availability(mut available: Signal<bool>) {
+    let next = vlacku_jvozba_available();
+    if *available.read() != next {
+        available.set(next);
     }
 }
 
@@ -4459,6 +4490,7 @@ fn render_vlacku_page(
     vlacku_committed_state: Signal<VlackuWebState>,
     vlacku_result: Signal<VlackuAsyncResultState>,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_available: Signal<bool>,
     jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
     base_path: &str,
 ) -> Element {
@@ -4471,7 +4503,8 @@ fn render_vlacku_page(
     };
     let draft_state = vlacku_draft_state.read().clone();
     let word_type_options = vlacku_word_type_options(&draft_state.word_types);
-    let shell_class = if jvozba_pane.read().open {
+    let jvozba_available_value = *jvozba_available.read();
+    let shell_class = if jvozba_available_value && jvozba_pane.read().open {
         "dictionary-shell dictionary-jvozba-hints-active"
     } else {
         "dictionary-shell"
@@ -4483,9 +4516,11 @@ fn render_vlacku_page(
                 div { class: "dictionary-layout",
                     div { class: "dictionary-main-column",
                         { render_vlacku_controls(vlacku_draft_state, vlacku_committed_state, &draft_state, &word_type_options) }
-                        { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, base_path) }
+                        { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, jvozba_available_value, base_path) }
                     }
-                    { render_vlacku_jvozba_pane(jvozba_pane, jvozba_drag) }
+                    if jvozba_available_value {
+                        { render_vlacku_jvozba_pane(jvozba_pane, jvozba_drag) }
+                    }
                 }
             }
         }
@@ -4673,6 +4708,7 @@ fn render_vlacku_body(
     mut vlacku_draft_state: Signal<VlackuWebState>,
     mut vlacku_committed_state: Signal<VlackuWebState>,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_available: bool,
     base_path: &str,
 ) -> Element {
     rsx! {
@@ -4689,7 +4725,7 @@ fn render_vlacku_body(
             if !result.cards.is_empty() {
                 div { class: "dictionary-results-grid",
                     for card in result.cards.iter() {
-                        { render_vlacku_card(card, jvozba_pane, base_path) }
+                        { render_vlacku_card(card, jvozba_pane, jvozba_available, base_path) }
                     }
                 }
             }
@@ -4719,20 +4755,49 @@ fn render_vlacku_body(
 #[ensures(true)]
 fn render_dictionary_info(info: &VlackuDictionaryInfo) -> Element {
     rsx! {
-        div { class: "dictionary-info",
-            div { class: "dictionary-info-grid",
-                div { class: "dictionary-info-metric",
-                    span { class: "dictionary-info-metric-value", "{info.entry_count}" }
-                    span { class: "dictionary-info-metric-label", "entries" }
+        section { class: "dictionary-info-report",
+            p { class: "dictionary-info-lede",
+                "Serving dictionary entries from "
+                a {
+                    href: "https://lensisku.lojban.org",
+                    title: "Open Lensisku",
+                    "Lensisku"
                 }
-                div { class: "dictionary-info-metric",
-                    span { class: "dictionary-info-metric-value", "{info.rafsi_count}" }
-                    span { class: "dictionary-info-metric-label", "rafsi" }
+                " as of "
+                time {
+                    datetime: "{info.lensisku_created_at}",
+                    "{info.lensisku_created_date}"
                 }
-                for word_type in info.word_type_counts.iter() {
-                    div { class: "dictionary-info-metric",
-                        span { class: "dictionary-info-metric-value", "{word_type.count}" }
-                        span { class: "dictionary-info-metric-label", "{word_type.label}" }
+                "."
+            }
+            ul { class: "dictionary-info-list",
+                for node in info.count_tree.iter() {
+                    { render_dictionary_count_node(node) }
+                }
+            }
+            div { class: "dictionary-info-total",
+                span { class: "dictionary-info-count-label", "total" }
+                span { class: "dictionary-info-count-leader", aria_hidden: "true" }
+                span { class: "dictionary-info-count-value", "{info.total_count}" }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_dictionary_count_node(node: &VlackuDictionaryCountNode) -> Element {
+    rsx! {
+        li { class: "dictionary-info-count-item",
+            div { class: "dictionary-info-count-row",
+                span { class: "dictionary-info-count-label", "{node.label}" }
+                span { class: "dictionary-info-count-leader", aria_hidden: "true" }
+                span { class: "dictionary-info-count-value", "{node.count}" }
+            }
+            if !node.children.is_empty() {
+                ul { class: "dictionary-info-list dictionary-info-sublist",
+                    for child in node.children.iter() {
+                        { render_dictionary_count_node(child) }
                     }
                 }
             }
@@ -4745,6 +4810,7 @@ fn render_dictionary_info(info: &VlackuDictionaryInfo) -> Element {
 fn render_vlacku_card(
     card: &VlackuWebCard,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_available: bool,
     base_path: &str,
 ) -> Element {
     rsx! {
@@ -4752,7 +4818,7 @@ fn render_vlacku_card(
             header { class: "result-header",
                 h2 { class: "word",
                     span { class: "dictionary-word-line",
-                        { render_vlacku_headword_line(card, jvozba_pane, base_path) }
+                        { render_vlacku_headword_line(card, jvozba_pane, jvozba_available, base_path) }
                     }
                 }
                 div { class: "tag-row",
@@ -4761,7 +4827,7 @@ fn render_vlacku_card(
             }
             if !card.definition.is_empty() {
                 p { class: "dictionary-definition-copy",
-                    { render_inline_spans(&card.definition, jvozba_pane, base_path) }
+                    { render_inline_spans(&card.definition, jvozba_pane, jvozba_available, base_path) }
                 }
             }
             if !card.glosses.is_empty() {
@@ -4773,7 +4839,7 @@ fn render_vlacku_card(
             }
             if !card.notes.is_empty() {
                 p { class: "dictionary-note-copy", title: "Dictionary note",
-                    { render_inline_spans(&card.notes, jvozba_pane, base_path) }
+                    { render_inline_spans(&card.notes, jvozba_pane, jvozba_available, base_path) }
                 }
             }
         }
@@ -4894,6 +4960,7 @@ fn render_tooltip_inline_spans(
 fn render_vlacku_headword_line(
     card: &VlackuWebCard,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_available: bool,
     base_path: &str,
 ) -> Element {
     let word_href = vlacku_web_url(
@@ -4908,6 +4975,7 @@ fn render_vlacku_headword_line(
     rsx! {
         { render_vlacku_headword_action(
             jvozba_pane,
+            jvozba_available,
             card.can_add_to_jvozba,
             &card.word,
             &card.display_word,
@@ -4918,12 +4986,12 @@ fn render_vlacku_headword_line(
         }
         if !card.decomposition.is_empty() {
             { render_vlacku_inline_separator("=") }
-            { render_vlacku_decomposition_inline(card, jvozba_pane, base_path) }
+            { render_vlacku_decomposition_inline(card, jvozba_pane, jvozba_available, base_path) }
         } else if !card.rafsi.is_empty() {
             { render_vlacku_inline_separator("≘") }
             span { class: "dictionary-inline-pill-row",
                 for rafsi in card.rafsi.iter() {
-                    { render_rafsi_pill(jvozba_pane, &card.word, rafsi) }
+                    { render_rafsi_pill(jvozba_pane, jvozba_available, &card.word, rafsi) }
                 }
             }
         }
@@ -4934,12 +5002,13 @@ fn render_vlacku_headword_line(
 #[ensures(true)]
 fn render_vlacku_headword_action(
     mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_available: bool,
     can_add_to_jvozba: bool,
     word: &str,
     display_word: &str,
     href: &str,
 ) -> Element {
-    let pane_open = jvozba_pane.read().open;
+    let pane_open = jvozba_available && jvozba_pane.read().open;
     let word_value = word.to_owned();
     if pane_open && can_add_to_jvozba {
         rsx! {
@@ -4971,6 +5040,7 @@ fn render_vlacku_headword_action(
 fn render_vlacku_decomposition_inline(
     card: &VlackuWebCard,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_available: bool,
     base_path: &str,
 ) -> Element {
     let visible_pieces = card
@@ -4983,7 +5053,7 @@ fn render_vlacku_decomposition_inline(
             if index > 0 {
                 { render_vlacku_inline_separator("+") }
             }
-            { render_composition_piece(piece, jvozba_pane, base_path) }
+            { render_composition_piece(piece, jvozba_pane, jvozba_available, base_path) }
         }
     }
 }
@@ -5059,6 +5129,7 @@ fn vlacku_word_type_tag_class(word_type_key: &str) -> &'static str {
 #[ensures(true)]
 fn render_vlacku_word_action(
     mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_available: bool,
     can_add_to_jvozba: bool,
     word: &str,
     display_word: &str,
@@ -5066,7 +5137,7 @@ fn render_vlacku_word_action(
     class_name: &str,
     base_path: &str,
 ) -> Element {
-    let pane_open = jvozba_pane.read().open;
+    let pane_open = jvozba_available && jvozba_pane.read().open;
     let word_value = word.to_owned();
     let tooltip = dictionary_tooltip_for_word(base_path, word);
     let static_class_name = class_name
@@ -5141,6 +5212,7 @@ fn render_vote_display(votes: &VlackuVoteDisplay) -> Element {
 fn render_composition_piece(
     piece: &VlackuCompositionPiece,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_available: bool,
     base_path: &str,
 ) -> Element {
     match piece.kind {
@@ -5160,10 +5232,11 @@ fn render_composition_piece(
                 );
                 rsx! {
                     span { class: "rafsi-split-pill",
-                        { render_vlacku_rafsi_add_piece(jvozba_pane, &piece.surface, source, &piece.display_surface) }
+                        { render_vlacku_rafsi_add_piece(jvozba_pane, jvozba_available, &piece.surface, source, &piece.display_surface) }
                         span { class: "rafsi-split-right",
                             { render_vlacku_word_action(
                                 jvozba_pane,
+                                jvozba_available,
                                 true,
                                 source,
                                 piece.display_source.as_deref().unwrap_or(source),
@@ -5187,11 +5260,12 @@ fn render_composition_piece(
 #[ensures(true)]
 fn render_vlacku_rafsi_add_piece(
     mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_available: bool,
     rafsi: &str,
     source_word: &str,
     display_rafsi: &str,
 ) -> Element {
-    let pane_open = jvozba_pane.read().open;
+    let pane_open = jvozba_available && jvozba_pane.read().open;
     let rafsi_value = rafsi.to_owned();
     let source_value = source_word.to_owned();
     if pane_open {
@@ -5217,10 +5291,11 @@ fn render_vlacku_rafsi_add_piece(
 #[ensures(true)]
 fn render_rafsi_pill(
     mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_available: bool,
     source_word: &str,
     rafsi: &str,
 ) -> Element {
-    let pane_open = jvozba_pane.read().open;
+    let pane_open = jvozba_available && jvozba_pane.read().open;
     let rafsi_value = rafsi.to_owned();
     let source_value = source_word.to_owned();
     if pane_open {
@@ -5247,6 +5322,7 @@ fn render_rafsi_pill(
 fn render_inline_spans(
     spans: &[VlackuInline],
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_available: bool,
     base_path: &str,
 ) -> Element {
     rsx! {
@@ -5256,7 +5332,7 @@ fn render_inline_spans(
                     data!(VlackuInline::Text(text)) => rsx! { "{text}" },
                     data!(VlackuInline::Math(math)) => render_vlacku_math(math),
                     data!(VlackuInline::WordRef { label, href, can_add_to_jvozba }) => {
-                        render_vlacku_inline_word_ref(jvozba_pane, *can_add_to_jvozba, label, href, base_path)
+                        render_vlacku_inline_word_ref(jvozba_pane, jvozba_available, *can_add_to_jvozba, label, href, base_path)
                     }
                 }
             }
@@ -5268,12 +5344,13 @@ fn render_inline_spans(
 #[ensures(true)]
 fn render_vlacku_inline_word_ref(
     mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_available: bool,
     can_add_to_jvozba: bool,
     label: &str,
     href: &str,
     base_path: &str,
 ) -> Element {
-    let pane_open = jvozba_pane.read().open;
+    let pane_open = jvozba_available && jvozba_pane.read().open;
     let word_value = label.to_owned();
     let resolved_href = resolved_href_with_base_path(base_path, href);
     let tooltip = dictionary_tooltip_for_word(base_path, label);
@@ -7582,6 +7659,7 @@ fn install_browser_state_handlers(
     gentufa_display: Signal<GentufaDisplayState>,
     gentufa_text_explicit: Signal<bool>,
     pending_cukta_scroll: Signal<Option<String>>,
+    jvozba_available: Signal<bool>,
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
     base_path: &str,
@@ -7708,9 +7786,11 @@ fn install_browser_state_handlers(
 
     let resize_layout = topbar_settings_layout;
     let resize_open = topbar_settings_open;
+    let resize_jvozba_available = jvozba_available;
     let resize_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
         schedule_topbar_settings_layout_measure(resize_layout, resize_open);
+        update_vlacku_jvozba_availability(resize_jvozba_available);
     }) as Box<dyn FnMut(_)>);
     let _ =
         window.add_event_listener_with_callback("resize", resize_closure.as_ref().unchecked_ref());
@@ -7718,9 +7798,11 @@ fn install_browser_state_handlers(
 
     let load_layout = topbar_settings_layout;
     let load_open = topbar_settings_open;
+    let load_jvozba_available = jvozba_available;
     let window_load_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
         schedule_topbar_settings_layout_measure(load_layout, load_open);
+        update_vlacku_jvozba_availability(load_jvozba_available);
     }) as Box<dyn FnMut(_)>);
     let _ = window
         .add_event_listener_with_callback("load", window_load_closure.as_ref().unchecked_ref());
@@ -7773,6 +7855,7 @@ fn install_browser_state_handlers(
     gentufa_display: Signal<GentufaDisplayState>,
     gentufa_text_explicit: Signal<bool>,
     pending_cukta_scroll: Signal<Option<String>>,
+    jvozba_available: Signal<bool>,
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
     base_path: &str,
@@ -7790,6 +7873,7 @@ fn install_browser_state_handlers(
         gentufa_display,
         gentufa_text_explicit,
         pending_cukta_scroll,
+        jvozba_available,
         topbar_settings_layout,
         topbar_settings_open,
         base_path,
@@ -9497,6 +9581,14 @@ mod tests {
         assert_eq!(VLACKU_SEARCH_DEBOUNCE_MS, 900);
         assert!(VLACKU_SEARCH_DEBOUNCE_MS > VLACKU_URL_DEBOUNCE_MS);
         assert!(GENTUFA_URL_DEBOUNCE_MS > VLACKU_URL_DEBOUNCE_MS);
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_jvozba_is_available_without_browser_width() {
+        assert!(vlacku_jvozba_available());
     }
 
     #[test]
