@@ -5,7 +5,18 @@ use jbotci_cll::{
     CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation, cll_link_href,
     embedded_cll_site, wrap_ebnf_choice_lines,
 };
-use jbotci_output::{GlideMark, PhonemeRenderOptions, StressMark};
+use jbotci_dialect::{
+    CustomDialect, DialectSettings, add_dialect_formula_reference, builtin_dialect_names,
+    custom_dialect_definition_to_johau_uri_with_custom_dialects, custom_dialect_is_valid,
+    dialect_definition_to_text, dialect_formula_top_level_references,
+    dialect_name_shows_in_gentufa_picker, find_builtin_dialect, import_johau_dialect_settings,
+    parse_dialect_selection_formula, remove_dialect_formula_reference,
+    replace_dialect_formula_reference,
+};
+use jbotci_output::{
+    GlideMark, PhonemeRenderOptions, StressMark,
+    qr_code::{encode_qr_alphanumeric_h, qr_code_svg},
+};
 use jbotci_web_core::{
     CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption, CuktaPageData, CuktaPageKind,
     CuktaSearchResultCard, CuktaSemanticSearchHit, CuktaTargetOption, CuktaTocNode, CuktaWebMode,
@@ -39,6 +50,7 @@ use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 use std::cell::Cell;
+use std::collections::BTreeSet;
 #[cfg(target_arch = "wasm32")]
 use std::collections::HashSet;
 use std::future::Future;
@@ -111,8 +123,11 @@ const GENTUFA_BLOCK_REFERENCE_LAYOUT_FRAME_PASSES: u8 = 2;
 const GENTUFA_TREE_LAYOUT_DELAY_MS: i32 = 30;
 #[cfg(target_arch = "wasm32")]
 const GENTUFA_TREE_LAYOUT_FRAME_PASSES: u8 = 2;
+#[allow(dead_code)]
 const BLOCK_REFERENCE_LABEL_GAP_PX: f64 = 8.0;
+#[allow(dead_code)]
 const BLOCK_REFERENCE_CONTAINMENT_GAP_PX: f64 = 1.0;
+const DIALECT_SETTINGS_STORAGE_KEY: &str = "jbotci.dialect-settings.v1";
 
 #[cfg(target_arch = "wasm32")]
 thread_local! {
@@ -200,6 +215,13 @@ struct EmbeddingSettingsState {
     progress_label: Option<String>,
     progress_percent: Option<u8>,
     busy: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct DialectHighlightToken {
+    class_name: String,
+    text: String,
 }
 
 type AsyncTaskId = u64;
@@ -689,6 +711,15 @@ fn App() -> Element {
     let route = use_signal(route_from_current_path);
     let base_path = base_path_from_current_path();
     let settings = use_signal(load_settings);
+    let initial_dialect_settings = load_dialect_settings();
+    let initial_settings_dialect_selection =
+        initial_dialect_settings_selection(&initial_dialect_settings);
+    let mut dialect_settings = use_signal(move || initial_dialect_settings.clone());
+    let mut settings_dialect_selection =
+        use_signal(move || initial_settings_dialect_selection.clone());
+    let settings_dialect_qr_uri = use_signal(|| None::<String>);
+    let gentufa_dialect_picker_open = use_signal(|| false);
+    let mut settings_johau_import_seen = use_signal(|| None::<String>);
     let embedding_settings = use_signal(EmbeddingSettingsState::default);
     let activity = use_signal(AsyncActivityState::default);
     let activity_indicator_visible = use_signal(|| false);
@@ -753,6 +784,7 @@ fn App() -> Element {
     let export_task = use_signal(|| None::<LatestAsyncTask>);
 
     let settings_value = *settings.read();
+    let dialect_settings_value = dialect_settings.read().clone();
     let activity_value = activity.read().clone();
     let activity_indicator_visible_value = *activity_indicator_visible.read();
     let route_value = *route.read();
@@ -827,6 +859,26 @@ fn App() -> Element {
             });
         }
     });
+    use_effect(move || {
+        if *route.read() != AppRoute::Settings {
+            return;
+        }
+        let Some(raw_johau) = query_param(&current_query(), "johau") else {
+            return;
+        };
+        if settings_johau_import_seen.read().as_deref() == Some(raw_johau.as_str()) {
+            return;
+        }
+        settings_johau_import_seen.set(Some(raw_johau.clone()));
+        let current_settings = dialect_settings.read().clone();
+        if let Ok((selected_name, next_settings)) =
+            import_johau_dialect_settings(&raw_johau, &current_settings)
+        {
+            save_dialect_settings(&next_settings);
+            dialect_settings.set(next_settings);
+            settings_dialect_selection.set(selected_name);
+        }
+    });
     let gentufa_base_path = base_path.clone();
     use_effect(move || {
         if *route.read() != AppRoute::Gentufa {
@@ -835,6 +887,7 @@ fn App() -> Element {
             return;
         }
         let settings_value = *settings.read();
+        let dialect_settings_value = dialect_settings.read().clone();
         let display_value = *gentufa_display.read();
         let view_mode_value = *view_mode.read();
         let text = parsed_text.read().clone();
@@ -849,7 +902,13 @@ fn App() -> Element {
         );
         let request = GentufaWebRequest {
             text,
-            options: web_options(settings_value, display_value, view_mode_value, dialect_text),
+            options: web_options(
+                settings_value,
+                display_value,
+                view_mode_value,
+                dialect_text,
+                &dialect_settings_value,
+            ),
         };
         let mut page_signal = gentufa_page;
         page_signal.with_mut(|page| {
@@ -1199,7 +1258,7 @@ fn App() -> Element {
                                                     },
                                                 }
                                                 div { class: "form-actions",
-                                                    { render_dialect_control(dialect) }
+                                                    { render_dialect_control(dialect, dialect_settings_value.clone(), gentufa_dialect_picker_open) }
                                                     button {
                                                         class: "btn-parse",
                                                         r#type: "button",
@@ -1226,7 +1285,16 @@ fn App() -> Element {
                                     }
                                 }
                             },
-                            AppRoute::Settings => render_settings(settings, settings_value, embedding_settings, activity),
+                            AppRoute::Settings => render_settings(
+                                settings,
+                                settings_value,
+                                dialect_settings,
+                                dialect_settings_value.clone(),
+                                settings_dialect_selection,
+                                settings_dialect_qr_uri,
+                                embedding_settings,
+                                activity,
+                            ),
                             AppRoute::Cukta => {
                                 render_cukta_page(
                                     cukta_state,
@@ -1896,13 +1964,27 @@ fn render_script_switch(mut settings: Signal<UserSettings>, current: GentufaScri
 
 #[requires(true)]
 #[ensures(true)]
-fn render_dialect_control(mut dialect: Signal<String>) -> Element {
+fn render_dialect_control(
+    mut dialect: Signal<String>,
+    dialect_settings: DialectSettings,
+    mut picker_open: Signal<bool>,
+) -> Element {
+    let formula_text = dialect.read().clone();
+    let picker_is_open = *picker_open.read();
+    let picker_names = gentufa_picker_dialect_names(&dialect_settings);
+    let selected_references = dialect_formula_top_level_references(&formula_text)
+        .into_iter()
+        .collect::<BTreeSet<_>>();
     rsx! {
         div { class: "gentufa-dialect-control",
             button {
                 class: "gentufa-dialect-label",
                 r#type: "button",
-                aria_expanded: "false",
+                aria_expanded: if picker_is_open { "true" } else { "false" },
+                onclick: move |_| {
+                    let next = !*picker_open.read();
+                    picker_open.set(next);
+                },
                 "Dialect:"
             }
             div { class: "gentufa-dialect-input-shell",
@@ -1910,19 +1992,149 @@ fn render_dialect_control(mut dialect: Signal<String>) -> Element {
                     pre {
                         class: "settings-dialect-definition-highlight gentufa-dialect-formula-highlight",
                         aria_hidden: "true",
-                        "{dialect.read()}"
+                        { render_dialect_highlight(&formula_text) }
                     }
                     input {
                         class: "settings-text-input settings-dialect-definition gentufa-dialect-formula-input",
-                        value: "{dialect.read()}",
+                        value: "{formula_text}",
                         placeholder: "baseline (CLL + xorlo + LTR-magic)",
                         spellcheck: "false",
                         aria_label: "Dialect formula",
                         oninput: move |event| dialect.set(event.value()),
                     }
                 }
+                if picker_is_open {
+                    div { class: "gentufa-dialect-picker",
+                        for name in picker_names.iter() {
+                            {
+                                let item_name = name.clone();
+                                let checked = selected_references.contains(name);
+                                rsx! {
+                                    label { class: "gentufa-dialect-picker-row",
+                                        input {
+                                            r#type: "checkbox",
+                                            checked,
+                                            onchange: move |_| {
+                                                let current = dialect.read().clone();
+                                                let next = if checked {
+                                                    remove_dialect_formula_reference(&item_name, &current)
+                                                } else {
+                                                    add_dialect_formula_reference(&item_name, &current)
+                                                };
+                                                dialect.set(next);
+                                            },
+                                        }
+                                        span { "{name}" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_picker_dialect_names(settings: &DialectSettings) -> Vec<String> {
+    let mut seen = BTreeSet::new();
+    let mut names = Vec::new();
+    for name in builtin_dialect_names() {
+        if builtin_dialect_shows_in_gentufa(settings, name) && seen.insert(name.to_owned()) {
+            names.push(name.to_owned());
+        }
+    }
+    for custom in &settings.custom_dialects {
+        let name = custom.name.trim();
+        if custom.show_in_gentufa
+            && dialect_name_shows_in_gentufa_picker(name)
+            && seen.insert(name.to_owned())
+        {
+            names.push(name.to_owned());
+        }
+    }
+    names
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_dialect_highlight(text: &str) -> Element {
+    let tokens = dialect_highlight_tokens(text);
+    rsx! {
+        for token in tokens.iter() {
+            span { class: "{token.class_name}", "{token.text}" }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dialect_highlight_tokens(text: &str) -> Vec<DialectHighlightToken> {
+    let mut tokens = Vec::new();
+    let chars = text.chars().collect::<Vec<_>>();
+    let mut index = 0;
+    while index < chars.len() {
+        let character = chars[index];
+        if character.is_whitespace() {
+            let start = index;
+            while chars.get(index).is_some_and(|value| value.is_whitespace()) {
+                index += 1;
+            }
+            tokens.push(dialect_highlight_token(
+                "dialect-token-space",
+                chars[start..index].iter().collect(),
+            ));
+        } else if matches!(character, '(' | ')') {
+            tokens.push(dialect_highlight_token(
+                "dialect-token-paren",
+                character.to_string(),
+            ));
+            index += 1;
+        } else {
+            let start = index;
+            while chars
+                .get(index)
+                .is_some_and(|value| !value.is_whitespace() && !matches!(*value, '(' | ')'))
+            {
+                index += 1;
+            }
+            let token_text = chars[start..index].iter().collect::<String>();
+            let class_name = dialect_highlight_class(&token_text);
+            tokens.push(dialect_highlight_token(class_name, token_text));
+        }
+    }
+    if tokens.is_empty() {
+        tokens.push(dialect_highlight_token(
+            "dialect-token-empty",
+            String::new(),
+        ));
+    }
+    tokens
+}
+
+#[requires(!class_name.is_empty())]
+#[ensures(ret.class_name == class_name)]
+fn dialect_highlight_token(class_name: &str, text: String) -> DialectHighlightToken {
+    DialectHighlightToken {
+        class_name: class_name.to_owned(),
+        text,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn dialect_highlight_class(token: &str) -> &'static str {
+    if token.starts_with('+') || token.starts_with('-') {
+        "dialect-token-feature"
+    } else if token == "↦" || token == "->" || token == "↔" || token == "<->" || token == "🣐"
+    {
+        "dialect-token-operator"
+    } else if find_builtin_dialect(token).is_some() {
+        "dialect-token-reference"
+    } else {
+        "dialect-token-word"
     }
 }
 
@@ -3593,6 +3805,13 @@ fn render_cll_block(
                                     th {
                                         colspan: "{cell.col_span.unwrap_or(1)}",
                                         rowspan: "{cell.row_span.unwrap_or(1)}",
+                                        if let Some(parse_href) = &cell.parse_href {
+                                            a {
+                                                class: "cll-parse-example cll-parse-snippet spa-cll-link spa-cll-link-parse",
+                                                href: cll_parse_href(base_path, parse_href),
+                                                "Parse"
+                                            }
+                                        }
                                         for child in cell.blocks.iter() {
                                             { render_cll_block(cukta_state, child, base_path) }
                                         }
@@ -3609,6 +3828,13 @@ fn render_cll_block(
                                 td {
                                     colspan: "{cell.col_span.unwrap_or(1)}",
                                     rowspan: "{cell.row_span.unwrap_or(1)}",
+                                    if let Some(parse_href) = &cell.parse_href {
+                                        a {
+                                            class: "cll-parse-example cll-parse-snippet spa-cll-link spa-cll-link-parse",
+                                            href: cll_parse_href(base_path, parse_href),
+                                            "Parse"
+                                        }
+                                    }
                                     for child in cell.blocks.iter() {
                                         { render_cll_block(cukta_state, child, base_path) }
                                     }
@@ -4348,7 +4574,7 @@ fn cll_inline_href(base_path: &str, kind: CllLinkKind, target: &str) -> String {
             base_path,
             &GentufaWebState {
                 text: target.to_owned(),
-                dialect: Some("allow-cgv".to_owned()),
+                dialect: None,
                 view_mode: GentufaWebViewMode::Blocks,
                 show_elided: false,
                 show_glosses: false,
@@ -7283,7 +7509,11 @@ fn rect_anchor_toward(from: ReferenceRect, to: ReferenceRect) -> (f64, f64) {
 #[ensures(true)]
 fn render_settings(
     settings: Signal<UserSettings>,
-    current: UserSettings,
+    current_settings: UserSettings,
+    dialect_settings: Signal<DialectSettings>,
+    current_dialect_settings: DialectSettings,
+    selected_dialect: Signal<String>,
+    qr_uri: Signal<Option<String>>,
     embedding_settings: Signal<EmbeddingSettingsState>,
     activity: Signal<AsyncActivityState>,
 ) -> Element {
@@ -7293,17 +7523,543 @@ fn render_settings(
             div { class: "page-container settings-container",
                 h1 { "Settings" }
                 { render_embedding_settings(embedding_settings, &embedding_state, activity) }
-                section { class: "settings-section",
-                    h2 { "Theme" }
-                    { render_theme_switch(settings, current.theme) }
+                { render_output_settings(settings, current_settings) }
+                { render_dialect_settings_section(dialect_settings, current_dialect_settings, selected_dialect, qr_uri) }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_output_settings(settings: Signal<UserSettings>, current: UserSettings) -> Element {
+    rsx! {
+        section { class: "settings-section settings-output",
+            div { class: "settings-section-head",
+                h2 { "Output" }
+            }
+            div { class: "settings-output-grid",
+                div { class: "settings-output-selector",
+                    p { class: "settings-output-label", "Stress" }
+                    div {
+                        class: "settings-output-toggle-group",
+                        role: "group",
+                        aria_label: "Stress mark rendering",
+                        { render_stress_mark_button(settings, current.stress, StressMark::None, "none") }
+                        { render_stress_mark_button(settings, current.stress, StressMark::Acute, "acute") }
+                        { render_stress_mark_button(settings, current.stress, StressMark::Caps, "caps") }
+                    }
                 }
-                section { class: "settings-section",
-                    h2 { "Script" }
-                    { render_script_switch(settings, current.script) }
+                div { class: "settings-output-selector",
+                    p { class: "settings-output-label", "Glides" }
+                    div {
+                        class: "settings-output-toggle-group",
+                        role: "group",
+                        aria_label: "Glide mark rendering",
+                        { render_glide_mark_button(settings, current.glides, GlideMark::None, "none") }
+                        { render_glide_mark_button(settings, current.glides, GlideMark::Breve, "breve") }
+                    }
                 }
             }
         }
     }
+}
+
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn render_stress_mark_button(
+    mut settings: Signal<UserSettings>,
+    current: StressMark,
+    mark: StressMark,
+    label: &'static str,
+) -> Element {
+    rsx! {
+        button {
+            class: settings_output_toggle_class(current == mark),
+            r#type: "button",
+            aria_pressed: pressed_attr(current == mark),
+            onclick: move |_| set_stress_mark(&mut settings, mark),
+            "{label}"
+        }
+    }
+}
+
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn render_glide_mark_button(
+    mut settings: Signal<UserSettings>,
+    current: GlideMark,
+    mark: GlideMark,
+    label: &'static str,
+) -> Element {
+    rsx! {
+        button {
+            class: settings_output_toggle_class(current == mark),
+            r#type: "button",
+            aria_pressed: pressed_attr(current == mark),
+            onclick: move |_| set_glide_mark(&mut settings, mark),
+            "{label}"
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn settings_output_toggle_class(active: bool) -> &'static str {
+    if active {
+        "settings-output-toggle active"
+    } else {
+        "settings-output-toggle"
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_dialect_settings_section(
+    dialect_settings: Signal<DialectSettings>,
+    current: DialectSettings,
+    mut selected_dialect: Signal<String>,
+    qr_uri: Signal<Option<String>>,
+) -> Element {
+    let selected_name = selected_dialect_name(&current, &selected_dialect.read());
+    let builtin_names = builtin_dialect_names()
+        .into_iter()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let custom_dialects = current.custom_dialects.clone();
+    let selected_custom = custom_dialects
+        .iter()
+        .find(|custom| custom.name.trim() == selected_name)
+        .cloned();
+    let selected_is_builtin = find_builtin_dialect(&selected_name).is_some();
+    let selected_definition = selected_dialect_definition_text(&current, &selected_name);
+    let selected_johau_uri = johau_uri_for_selected_dialect(&current, &selected_name);
+    let selected_validation = selected_custom
+        .as_ref()
+        .and_then(|custom| custom_dialect_is_valid(&current.custom_dialects, custom).err())
+        .map(|error| error.message().to_owned());
+    rsx! {
+        section { class: "settings-section settings-dialects",
+            div { class: "settings-section-head",
+                h2 { "Lojban dialects" }
+                button {
+                    class: "settings-action-button settings-dialect-add",
+                    r#type: "button",
+                    onclick: move |_| add_custom_dialect(dialect_settings, selected_dialect),
+                    "Add"
+                }
+            }
+            div { class: "settings-dialect-grid",
+                nav { class: "settings-dialect-list", aria_label: "Dialects",
+                    div { class: "settings-dialect-list-group",
+                        p { class: "settings-dialect-list-heading", "Builtins" }
+                        for name in builtin_names.iter() {
+                            {
+                                let item_name = name.clone();
+                                let selected = item_name == selected_name;
+                                let class_name = class_names("settings-dialect-list-item", &[("is-active", selected)]);
+                                rsx! {
+                                    button {
+                                        class: "{class_name}",
+                                        r#type: "button",
+                                        aria_pressed: pressed_attr(selected),
+                                        onclick: move |_| selected_dialect.set(item_name.clone()),
+                                        "{name}"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    div { class: "settings-dialect-list-group",
+                        p { class: "settings-dialect-list-heading", "Custom" }
+                        if custom_dialects.is_empty() {
+                            p { class: "settings-dialect-empty", "None" }
+                        }
+                        for custom in custom_dialects.iter() {
+                            {
+                                let item_name = custom.name.trim().to_owned();
+                                let label = if item_name.is_empty() { "(unnamed)".to_owned() } else { item_name.clone() };
+                                let selected = item_name == selected_name;
+                                let class_name = class_names("settings-dialect-list-item", &[("is-active", selected), ("is-invalid", custom_dialect_is_valid(&current.custom_dialects, custom).is_err())]);
+                                rsx! {
+                                    button {
+                                        class: "{class_name}",
+                                        r#type: "button",
+                                        aria_pressed: pressed_attr(selected),
+                                        onclick: move |_| selected_dialect.set(item_name.clone()),
+                                        "{label}"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                div { class: "settings-dialect-editor",
+                    if selected_is_builtin {
+                        { render_builtin_dialect_editor(dialect_settings, &current, &selected_name, selected_definition.as_deref(), selected_johau_uri.as_deref(), qr_uri) }
+                    } else if let Some(custom) = selected_custom {
+                        { render_custom_dialect_editor(dialect_settings, &current, selected_dialect, &custom, selected_validation.as_deref(), selected_johau_uri.as_deref(), qr_uri) }
+                    } else {
+                        p { class: "settings-help-text", "Select a dialect to edit it." }
+                    }
+                }
+            }
+            { render_dialect_qr_popout(qr_uri) }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_builtin_dialect_editor(
+    dialect_settings: Signal<DialectSettings>,
+    current: &DialectSettings,
+    name: &str,
+    definition: Option<&str>,
+    johau_uri: Option<&str>,
+    qr_uri: Signal<Option<String>>,
+) -> Element {
+    let show_in_gentufa = builtin_dialect_shows_in_gentufa(current, name);
+    let definition = definition.unwrap_or_default();
+    let johau_uri = johau_uri.map(str::to_owned);
+    let name_for_toggle = name.to_owned();
+    rsx! {
+        div { class: "settings-dialect-editor-stack",
+            div { class: "settings-dialect-editor-head",
+                h3 { "{name}" }
+                label { class: "settings-checkbox-row",
+                    input {
+                        r#type: "checkbox",
+                        checked: show_in_gentufa,
+                        onchange: move |_| toggle_builtin_dialect_gentufa_visibility(dialect_settings, &name_for_toggle, show_in_gentufa),
+                    }
+                    span { "Show in gentufa" }
+                }
+            }
+            div { class: "settings-dialect-definition-wrap is-readonly",
+                pre { class: "settings-dialect-definition-highlight", aria_hidden: "true",
+                    { render_dialect_highlight(definition) }
+                }
+                textarea {
+                    class: "settings-text-input settings-dialect-definition",
+                    value: "{definition}",
+                    readonly: true,
+                    spellcheck: "false",
+                    aria_label: "Builtin dialect definition",
+                }
+            }
+            { render_dialect_qr_actions(johau_uri, qr_uri) }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_custom_dialect_editor(
+    dialect_settings: Signal<DialectSettings>,
+    current: &DialectSettings,
+    selected_dialect: Signal<String>,
+    custom: &CustomDialect,
+    validation: Option<&str>,
+    johau_uri: Option<&str>,
+    qr_uri: Signal<Option<String>>,
+) -> Element {
+    let previous_name = custom.name.trim().to_owned();
+    let name_for_rename = previous_name.clone();
+    let name_for_delete = previous_name.clone();
+    let name_for_show = previous_name.clone();
+    let name_for_definition = previous_name.clone();
+    let custom_name = custom.name.clone();
+    let custom_definition = custom.definition.clone();
+    let show_in_gentufa = custom.show_in_gentufa;
+    let johau_uri = johau_uri.map(str::to_owned);
+    let custom_count = current.custom_dialects.len();
+    rsx! {
+        div { class: "settings-dialect-editor-stack",
+            div { class: "settings-dialect-editor-head",
+                input {
+                    class: "settings-text-input settings-dialect-name",
+                    value: "{custom_name}",
+                    spellcheck: "false",
+                    aria_label: "Dialect name",
+                    oninput: move |event| rename_custom_dialect(dialect_settings, selected_dialect, &name_for_rename, &event.value()),
+                }
+                button {
+                    class: "settings-action-button danger",
+                    r#type: "button",
+                    disabled: custom_count == 0,
+                    onclick: move |_| delete_custom_dialect(dialect_settings, selected_dialect, &name_for_delete),
+                    "Delete"
+                }
+            }
+            label { class: "settings-checkbox-row",
+                input {
+                    r#type: "checkbox",
+                    checked: show_in_gentufa,
+                    onchange: move |_| toggle_custom_dialect_gentufa_visibility(dialect_settings, &name_for_show),
+                }
+                span { "Show in gentufa" }
+            }
+            div { class: "settings-dialect-definition-wrap",
+                pre { class: "settings-dialect-definition-highlight", aria_hidden: "true",
+                    { render_dialect_highlight(&custom_definition) }
+                }
+                textarea {
+                    class: "settings-text-input settings-dialect-definition",
+                    value: "{custom_definition}",
+                    spellcheck: "false",
+                    aria_label: "Dialect definition",
+                    oninput: move |event| update_custom_dialect_definition(dialect_settings, &name_for_definition, &event.value()),
+                }
+            }
+            if let Some(message) = validation {
+                p { class: "settings-dialect-validation is-error", "{message}" }
+            } else {
+                p { class: "settings-dialect-validation is-ok", "Valid" }
+            }
+            { render_dialect_qr_actions(johau_uri, qr_uri) }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_dialect_qr_actions(
+    johau_uri: Option<String>,
+    mut qr_uri: Signal<Option<String>>,
+) -> Element {
+    if let Some(uri) = johau_uri {
+        let link_uri = uri.clone();
+        rsx! {
+            div { class: "settings-dialect-qr-actions",
+                button {
+                    class: "settings-action-button",
+                    r#type: "button",
+                    onclick: move |_| qr_uri.set(Some(uri.clone())),
+                    "QR"
+                }
+                a { class: "settings-action-link", href: "{link_uri}", "{link_uri}" }
+            }
+        }
+    } else {
+        rsx! {
+            p { class: "settings-help-text", "QR export is available for valid non-baseline dialect definitions." }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_dialect_qr_popout(mut qr_uri: Signal<Option<String>>) -> Element {
+    let current_uri = qr_uri.read().clone();
+    let Some(uri) = current_uri else {
+        return rsx! {};
+    };
+    let qr_svg = encode_qr_alphanumeric_h(&uri)
+        .map(|qr| qr_code_svg(&qr))
+        .unwrap_or_default();
+    rsx! {
+        div { class: "settings-dialect-qr-popout", role: "dialog", aria_label: "Dialect QR code",
+            div { class: "settings-dialect-qr-card",
+                div { class: "settings-dialect-qr-head",
+                    a { href: "{uri}", "{uri}" }
+                    button {
+                        class: "settings-icon-button",
+                        r#type: "button",
+                        aria_label: "Close",
+                        onclick: move |_| qr_uri.set(None),
+                        "×"
+                    }
+                }
+                div { class: "settings-dialect-qr-svg", dangerous_inner_html: "{qr_svg}" }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn initial_dialect_settings_selection(settings: &DialectSettings) -> String {
+    settings
+        .custom_dialects
+        .first()
+        .map(|custom| custom.name.trim().to_owned())
+        .filter(|name| !name.is_empty())
+        .or_else(|| {
+            builtin_dialect_names()
+                .first()
+                .map(|name| (*name).to_owned())
+        })
+        .unwrap_or_default()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn selected_dialect_name(settings: &DialectSettings, requested: &str) -> String {
+    let requested = requested.trim();
+    if !requested.is_empty()
+        && (find_builtin_dialect(requested).is_some()
+            || settings
+                .custom_dialects
+                .iter()
+                .any(|custom| custom.name.trim() == requested))
+    {
+        return requested.to_owned();
+    }
+    initial_dialect_settings_selection(settings)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn selected_dialect_definition_text(settings: &DialectSettings, name: &str) -> Option<String> {
+    if let Some(builtin) = find_builtin_dialect(name) {
+        return Some(builtin.definition.to_owned());
+    }
+    settings
+        .custom_dialects
+        .iter()
+        .find(|custom| custom.name.trim() == name)
+        .map(|custom| custom.definition.clone())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn johau_uri_for_selected_dialect(settings: &DialectSettings, name: &str) -> Option<String> {
+    let definition = selected_dialect_definition_text(settings, name)?;
+    custom_dialect_definition_to_johau_uri_with_custom_dialects(
+        &settings.custom_dialects,
+        &definition,
+    )
+    .ok()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn builtin_dialect_shows_in_gentufa(settings: &DialectSettings, name: &str) -> bool {
+    dialect_name_shows_in_gentufa_picker(name)
+        && !settings.hidden_builtin_gentufa_dialects.contains(name)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_dialect_settings(mut dialect_settings: Signal<DialectSettings>, next: DialectSettings) {
+    save_dialect_settings(&next);
+    dialect_settings.set(next);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn add_custom_dialect(
+    dialect_settings: Signal<DialectSettings>,
+    mut selected_dialect: Signal<String>,
+) {
+    let mut next = dialect_settings.read().clone();
+    let name = next_custom_dialect_name(&next.custom_dialects);
+    next.custom_dialects.push(CustomDialect {
+        name: name.clone(),
+        definition: String::from("()"),
+        show_in_gentufa: dialect_name_shows_in_gentufa_picker(&name),
+    });
+    set_dialect_settings(dialect_settings, next);
+    selected_dialect.set(name);
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn next_custom_dialect_name(customs: &[CustomDialect]) -> String {
+    let existing = customs
+        .iter()
+        .map(|custom| custom.name.trim().to_owned())
+        .collect::<BTreeSet<_>>();
+    for index in 1.. {
+        let candidate = format!("custom-{index}");
+        if !existing.contains(&candidate) {
+            return candidate;
+        }
+    }
+    unreachable!("unbounded custom dialect names must contain a free candidate")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn delete_custom_dialect(
+    dialect_settings: Signal<DialectSettings>,
+    mut selected_dialect: Signal<String>,
+    name: &str,
+) {
+    let mut next = dialect_settings.read().clone();
+    next.custom_dialects
+        .retain(|custom| custom.name.trim() != name.trim());
+    let selected = initial_dialect_settings_selection(&next);
+    set_dialect_settings(dialect_settings, next);
+    selected_dialect.set(selected);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn rename_custom_dialect(
+    dialect_settings: Signal<DialectSettings>,
+    mut selected_dialect: Signal<String>,
+    previous_name: &str,
+    next_name: &str,
+) {
+    let clean_previous = previous_name.trim().to_owned();
+    let clean_next = next_name.trim().to_owned();
+    let mut next = dialect_settings.read().clone();
+    for custom in &mut next.custom_dialects {
+        if custom.name.trim() == clean_previous {
+            custom.name = next_name.to_owned();
+        } else {
+            custom.definition =
+                replace_dialect_formula_reference(&clean_previous, &clean_next, &custom.definition);
+        }
+    }
+    set_dialect_settings(dialect_settings, next);
+    selected_dialect.set(clean_next);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn update_custom_dialect_definition(
+    dialect_settings: Signal<DialectSettings>,
+    name: &str,
+    definition: &str,
+) {
+    let mut next = dialect_settings.read().clone();
+    for custom in &mut next.custom_dialects {
+        if custom.name.trim() == name.trim() {
+            custom.definition = definition.to_owned();
+        }
+    }
+    set_dialect_settings(dialect_settings, next);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn toggle_custom_dialect_gentufa_visibility(dialect_settings: Signal<DialectSettings>, name: &str) {
+    let mut next = dialect_settings.read().clone();
+    for custom in &mut next.custom_dialects {
+        if custom.name.trim() == name.trim() {
+            custom.show_in_gentufa = !custom.show_in_gentufa;
+        }
+    }
+    set_dialect_settings(dialect_settings, next);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn toggle_builtin_dialect_gentufa_visibility(
+    dialect_settings: Signal<DialectSettings>,
+    name: &str,
+    currently_visible: bool,
+) {
+    let mut next = dialect_settings.read().clone();
+    if currently_visible {
+        next.hidden_builtin_gentufa_dialects.insert(name.to_owned());
+    } else {
+        next.hidden_builtin_gentufa_dialects.remove(name);
+    }
+    set_dialect_settings(dialect_settings, next);
 }
 
 #[requires(true)]
@@ -7468,7 +8224,9 @@ fn web_options(
     display: GentufaDisplayState,
     view_mode: GentufaWebViewMode,
     dialect: String,
+    dialect_settings: &DialectSettings,
 ) -> GentufaWebOptions {
+    let dialect = resolved_dialect_formula_for_request(dialect_settings, &dialect);
     GentufaWebOptions {
         dialect: if dialect.trim().is_empty() {
             None
@@ -7489,6 +8247,17 @@ fn web_options(
 
 #[requires(true)]
 #[ensures(true)]
+fn resolved_dialect_formula_for_request(settings: &DialectSettings, dialect: &str) -> String {
+    if dialect.trim().is_empty() {
+        return String::new();
+    }
+    parse_dialect_selection_formula(settings, dialect)
+        .map(|definition| dialect_definition_to_text(&definition))
+        .unwrap_or_else(|_| dialect.to_owned())
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn set_theme(settings: &mut Signal<UserSettings>, theme: ThemeMode) {
     let mut next = *settings.read();
     next.theme = theme;
@@ -7501,6 +8270,24 @@ fn set_theme(settings: &mut Signal<UserSettings>, theme: ThemeMode) {
 fn set_script(settings: &mut Signal<UserSettings>, script: GentufaScript) {
     let mut next = *settings.read();
     next.script = script;
+    settings.set(next);
+    save_settings(&next);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_stress_mark(settings: &mut Signal<UserSettings>, stress: StressMark) {
+    let mut next = *settings.read();
+    next.stress = stress;
+    settings.set(next);
+    save_settings(&next);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_glide_mark(settings: &mut Signal<UserSettings>, glides: GlideMark) {
+    let mut next = *settings.read();
+    next.glides = glides;
     settings.set(next);
     save_settings(&next);
 }
@@ -9713,6 +10500,46 @@ fn current_query() -> String {
 
 #[requires(true)]
 #[ensures(true)]
+fn query_param(query: &str, name: &str) -> Option<String> {
+    let trimmed = query.strip_prefix('?').unwrap_or(query);
+    trimmed
+        .split('&')
+        .filter(|part| !part.is_empty())
+        .find_map(|part| {
+            let (key, value) = part.split_once('=').unwrap_or((part, ""));
+            (percent_decode_query_component(key) == name)
+                .then(|| percent_decode_query_component(value))
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn percent_decode_query_component(input: &str) -> String {
+    let mut output = Vec::with_capacity(input.len());
+    let bytes = input.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'+' {
+            output.push(b' ');
+            index += 1;
+        } else if bytes[index] == b'%' && index + 2 < bytes.len() {
+            if let Ok(value) = u8::from_str_radix(&input[index + 1..index + 3], 16) {
+                output.push(value);
+                index += 3;
+            } else {
+                output.push(bytes[index]);
+                index += 1;
+            }
+        } else {
+            output.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8_lossy(&output).into_owned()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn load_settings() -> UserSettings {
     let mut settings = UserSettings::default();
     if let Some(theme) = storage_get("jbotci.theme").and_then(|value| parse_theme(&value)) {
@@ -9721,7 +10548,43 @@ fn load_settings() -> UserSettings {
     if let Some(script) = storage_get("jbotci.script").and_then(|value| parse_script(&value)) {
         settings.script = script;
     }
+    if let Some(stress) =
+        storage_get("jbotci.output.stress").and_then(|value| parse_stress_mark(&value))
+    {
+        settings.stress = stress;
+    }
+    if let Some(glides) =
+        storage_get("jbotci.output.glides").and_then(|value| parse_glide_mark(&value))
+    {
+        settings.glides = glides;
+    }
     settings
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn load_dialect_settings() -> DialectSettings {
+    storage_get(DIALECT_SETTINGS_STORAGE_KEY)
+        .and_then(|raw| serde_json::from_str::<DialectSettings>(&raw).ok())
+        .map(normalize_loaded_dialect_settings)
+        .unwrap_or_default()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_loaded_dialect_settings(mut settings: DialectSettings) -> DialectSettings {
+    settings
+        .custom_dialects
+        .retain(|custom| !custom.name.trim().is_empty());
+    settings
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn save_dialect_settings(settings: &DialectSettings) {
+    if let Ok(raw) = serde_json::to_string(settings) {
+        storage_set(DIALECT_SETTINGS_STORAGE_KEY, &raw);
+    }
 }
 
 #[requires(true)]
@@ -9737,9 +10600,57 @@ fn parse_theme(value: &str) -> Option<ThemeMode> {
 
 #[requires(true)]
 #[ensures(true)]
+fn parse_stress_mark(value: &str) -> Option<StressMark> {
+    match value {
+        "none" => Some(StressMark::None),
+        "acute" => Some(StressMark::Acute),
+        "caps" => Some(StressMark::Caps),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_glide_mark(value: &str) -> Option<GlideMark> {
+    match value {
+        "none" => Some(GlideMark::None),
+        "breve" => Some(GlideMark::Breve),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn stress_mark_storage_value(mark: StressMark) -> &'static str {
+    match mark {
+        StressMark::None => "none",
+        StressMark::Acute => "acute",
+        StressMark::Caps => "caps",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn glide_mark_storage_value(mark: GlideMark) -> &'static str {
+    match mark {
+        GlideMark::None => "none",
+        GlideMark::Breve => "breve",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn save_settings(settings: &UserSettings) {
     storage_set("jbotci.theme", theme_class(settings.theme));
     storage_set("jbotci.script", script_class(settings.script));
+    storage_set(
+        "jbotci.output.stress",
+        stress_mark_storage_value(settings.stress),
+    );
+    storage_set(
+        "jbotci.output.glides",
+        glide_mark_storage_value(settings.glides),
+    );
 }
 
 #[requires(true)]
@@ -10019,6 +10930,22 @@ mod tests {
         assert_eq!(VLACKU_SEARCH_DEBOUNCE_MS, 900);
         assert!(VLACKU_SEARCH_DEBOUNCE_MS > VLACKU_URL_DEBOUNCE_MS);
         assert!(GENTUFA_URL_DEBOUNCE_MS > VLACKU_URL_DEBOUNCE_MS);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn output_settings_parse_cli_mark_names() {
+        assert_eq!(parse_stress_mark("none"), Some(StressMark::None));
+        assert_eq!(parse_stress_mark("acute"), Some(StressMark::Acute));
+        assert_eq!(parse_stress_mark("caps"), Some(StressMark::Caps));
+        assert_eq!(parse_stress_mark("uppercase"), None);
+        assert_eq!(stress_mark_storage_value(StressMark::Caps), "caps");
+
+        assert_eq!(parse_glide_mark("none"), Some(GlideMark::None));
+        assert_eq!(parse_glide_mark("breve"), Some(GlideMark::Breve));
+        assert_eq!(parse_glide_mark("acute"), None);
+        assert_eq!(glide_mark_storage_value(GlideMark::Breve), "breve");
     }
 
     #[test]

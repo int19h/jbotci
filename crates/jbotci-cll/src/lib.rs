@@ -127,11 +127,13 @@ pub enum CllSimpleListOrientation {
 
 #[invariant(col_span.is_none_or(|span| span > 0))]
 #[invariant(row_span.is_none_or(|span| span > 0))]
+#[invariant(parse_href.as_ref().is_none_or(|href| !href.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllTableCell {
     pub blocks: Vec<CllBlock>,
     pub col_span: Option<usize>,
     pub row_span: Option<usize>,
+    pub parse_href: Option<String>,
 }
 
 #[invariant(!term.is_empty() || !blocks.is_empty())]
@@ -883,6 +885,10 @@ fn parse_blocks_from_nodes(
     let mut blocks = Vec::new();
     let mut inline_nodes = Vec::new();
     for node in nodes {
+        if node.is_element() && is_display_none_element(*node) {
+            flush_inline_nodes_as_paragraph(&mut blocks, &mut inline_nodes, None, None);
+            continue;
+        }
         if node.is_element() && is_block_element(*node) {
             flush_inline_nodes_as_paragraph(&mut blocks, &mut inline_nodes, None, None);
             blocks.extend(parse_block(
@@ -1283,12 +1289,8 @@ fn parse_example_block(
         label: display_label.clone(),
         anchor_id: anchor_id.clone(),
         title: explicit_title,
-        parse_href: collect_jbo_snippet(node).map(|snippet| {
-            format!(
-                "../gentufa?text={}&dialect=allow-cgv",
-                percent_encode_plain(&snippet)
-            )
-        }),
+        parse_href: collect_jbo_snippet(node)
+            .map(|snippet| format!("../gentufa?text={}", percent_encode_plain(&snippet))),
         blocks,
         lojban,
         gloss_en,
@@ -1396,7 +1398,8 @@ fn parse_table_row(
                     || cell.has_tag_name("td")
                     || cell.has_tag_name("th"))
         })
-        .map(|cell| {
+        .enumerate()
+        .map(|(cell_index, cell)| {
             let mut blocks = parse_blocks_from_nodes(
                 &cell.children().collect::<Vec<_>>(),
                 context,
@@ -1420,9 +1423,24 @@ fn parse_table_row(
                 blocks,
                 col_span: attr_usize(cell, "colspan"),
                 row_span: attr_usize(cell, "rowspan"),
+                parse_href: chrestomathy_parse_href(context, cell_index, cell),
             })
         })
         .collect()
+}
+
+#[requires(cell.is_element())]
+#[ensures(ret.as_ref().is_none_or(|href| href.starts_with("../gentufa?text=")))]
+fn chrestomathy_parse_href(
+    context: &SectionParseContext,
+    cell_index: usize,
+    cell: Node<'_, '_>,
+) -> Option<String> {
+    if context.chapter_id != "volume-chrestomathy" || cell_index != 0 || !cell.has_tag_name("td") {
+        return None;
+    }
+    let text = visible_text(cell);
+    (!text.is_empty()).then(|| format!("../gentufa?text={}", percent_encode_plain(&text)))
 }
 
 #[requires(true)]
@@ -4600,11 +4618,8 @@ fn render_table_markdown(
         .chain(body_rows.iter())
         .collect::<Vec<_>>();
     render_markdown_table_rows(
-        rows.iter().map(|row| {
-            row.iter()
-                .map(|cell| markdown_table_cell_text(&blocks_plain_text(&cell.blocks)))
-                .collect::<Vec<_>>()
-        }),
+        rows.iter()
+            .map(|row| row.iter().map(table_cell_markdown_text).collect::<Vec<_>>()),
         output,
     );
 }
@@ -4669,6 +4684,19 @@ where
 #[ensures(true)]
 fn markdown_table_cell_text(text: &str) -> String {
     text.replace('|', "\\|").replace('\n', "<br>")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn table_cell_markdown_text(cell: &CllTableCell) -> String {
+    let mut text = markdown_table_cell_text(&blocks_plain_text(&cell.blocks));
+    if let Some(parse_href) = &cell.parse_href {
+        if !text.is_empty() {
+            text.push(' ');
+        }
+        text.push_str(&format!("[Parse]({parse_href})"));
+    }
+    text
 }
 
 #[requires(true)]
@@ -4888,6 +4916,13 @@ fn render_table_rows_html(
                 output.push_str(&format!(" rowspan=\"{row_span}\""));
             }
             output.push('>');
+            if let Some(parse_href) = &cell.parse_href {
+                output.push_str(
+                    "<a class=\"cll-parse-example cll-parse-snippet spa-cll-link spa-cll-link-parse\" href=\"",
+                );
+                output.push_str(&escape_html(parse_href));
+                output.push_str("\">Parse</a>");
+            }
             for block in &cell.blocks {
                 output.push_str(&render_block_html(site, block));
             }
@@ -5272,7 +5307,7 @@ pub fn cll_link_href(site: &CllSite, kind: CllLinkKind, target: &str) -> String 
         }
         CllLinkKind::Dictionary => format!("../vlacku/{target}"),
         CllLinkKind::Rafsi => format!("../vlacku?mode=rafsi&q={target}"),
-        CllLinkKind::Parse => format!("../gentufa?text={target}&dialect=allow-cgv"),
+        CllLinkKind::Parse => format!("../gentufa?text={target}"),
         CllLinkKind::Asset => target.to_owned(),
         CllLinkKind::External => target.to_owned(),
     }
@@ -5362,7 +5397,10 @@ fn visible_text_raw(node: Node<'_, '_>) -> String {
         if child.is_text() {
             output.push_str(child.text().unwrap_or_default());
         } else if child.is_element() {
-            if child.has_tag_name("indexterm") || child.has_tag_name("anchor") {
+            if child.has_tag_name("indexterm")
+                || child.has_tag_name("anchor")
+                || is_display_none_element(child)
+            {
                 continue;
             }
             output.push(' ');
@@ -5378,6 +5416,12 @@ fn visible_text_raw(node: Node<'_, '_>) -> String {
 fn raw_text(node: Node<'_, '_>) -> String {
     let mut output = String::new();
     for child in node.descendants() {
+        if child
+            .ancestors()
+            .any(|ancestor| ancestor.is_element() && is_display_none_element(ancestor))
+        {
+            continue;
+        }
         if child.is_text() {
             output.push_str(child.text().unwrap_or_default());
         }
@@ -5728,6 +5772,39 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn north_wind_section_omits_hidden_vocabulary_dump() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section = cll_lookup_section(site, "section-north-wind").expect("section should exist");
+        assert!(!section.plain_text.contains(".alf."));
+        assert!(!blocks_plain_text(&section.blocks).contains(".alf."));
+        assert!(!render_section(site, section, CllRenderFormat::Html).contains(".alf."));
+        assert!(!render_section(site, section, CllRenderFormat::Markdown).contains(".alf."));
+        assert!(
+            site.search_chunks
+                .iter()
+                .filter(|chunk| chunk.section_id == "section-north-wind")
+                .all(|chunk| !chunk.text.contains(".alf."))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chrestomathy_table_source_cells_have_baseline_parse_links() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section = cll_lookup_section(site, "section-north-wind").expect("section should exist");
+        let parse_hrefs = collect_table_parse_hrefs(&section.blocks);
+        assert!(!parse_hrefs.is_empty());
+        assert!(
+            parse_hrefs
+                .iter()
+                .all(|href| href.starts_with("../gentufa?text=") && !href.contains("dialect="))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn exact_word_search_uses_normalized_terms_and_targets() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let matches = cukta_word_search_matches(
@@ -5753,6 +5830,48 @@ mod tests {
                 .as_deref(),
             Some("lojban'")
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_table_parse_hrefs(blocks: &[CllBlock]) -> Vec<String> {
+        let mut hrefs = Vec::new();
+        for block in blocks {
+            match block {
+                CllBlock::Table {
+                    header_rows,
+                    body_rows,
+                    ..
+                } => {
+                    for row in header_rows.iter().chain(body_rows.iter()) {
+                        for cell in row {
+                            if let Some(parse_href) = &cell.parse_href {
+                                hrefs.push(parse_href.clone());
+                            }
+                            hrefs.extend(collect_table_parse_hrefs(&cell.blocks));
+                        }
+                    }
+                }
+                CllBlock::List { items, .. } => {
+                    for item in items {
+                        hrefs.extend(collect_table_parse_hrefs(item));
+                    }
+                }
+                CllBlock::Example(example) => {
+                    hrefs.extend(collect_table_parse_hrefs(&example.blocks));
+                }
+                CllBlock::BlockQuote { blocks, .. } | CllBlock::Rule { body: blocks, .. } => {
+                    hrefs.extend(collect_table_parse_hrefs(blocks));
+                }
+                CllBlock::VariableList { entries, .. } => {
+                    for entry in entries {
+                        hrefs.extend(collect_table_parse_hrefs(&entry.blocks));
+                    }
+                }
+                _ => {}
+            }
+        }
+        hrefs
     }
 
     #[test]

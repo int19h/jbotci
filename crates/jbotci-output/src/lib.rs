@@ -4,6 +4,7 @@ mod brackets;
 mod diagnostics;
 mod json;
 mod places;
+pub mod qr_code;
 mod references;
 mod sexpr;
 mod surface;

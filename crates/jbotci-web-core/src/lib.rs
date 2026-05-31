@@ -4983,17 +4983,17 @@ mod tests {
 
         let state = parse_gentufa_web_route(
             "/gentufa",
-            "?text=mi+klama&dialect=allow-cgv&view=tree&glosses=true&elided=true",
+            "?text=mi+klama&dialect=%28cbm%29&view=tree&glosses=true&elided=true",
         );
 
         assert_eq!(state.text, "mi klama");
-        assert_eq!(state.dialect.as_deref(), Some("allow-cgv"));
+        assert_eq!(state.dialect.as_deref(), Some("(cbm)"));
         assert_eq!(state.view_mode, GentufaWebViewMode::Tree);
         assert!(state.show_glosses);
         assert!(state.show_elided);
         assert_eq!(
             gentufa_web_url("/jbotci", &state),
-            "/jbotci/gentufa?text=mi+klama&dialect=allow-cgv&view=tree&glosses=true&elided=true"
+            "/jbotci/gentufa?text=mi+klama&dialect=%28cbm%29&view=tree&glosses=true&elided=true"
         );
 
         let ipa_state = parse_gentufa_web_route("/gentufa", "?view=ipa");
