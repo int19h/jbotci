@@ -1,6 +1,7 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command as ProcessCommand, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -548,6 +549,7 @@ fn clean_dioxus_web_release_output() -> Result<()> {
 fn watch_web_worker_assets_until_exit(child: &mut Child) -> Result<ExitStatus> {
     let mut snapshot = web_worker_watch_snapshot()?;
     let mut dioxus_snapshot = dioxus_release_watch_snapshot()?;
+    let mut post_dioxus_copy_pending = false;
     loop {
         if let Some(status) = child
             .try_wait()
@@ -558,8 +560,20 @@ fn watch_web_worker_assets_until_exit(child: &mut Child) -> Result<ExitStatus> {
         thread::sleep(WEB_WORKER_WATCH_POLL_INTERVAL);
         let next_dioxus_snapshot = dioxus_release_watch_snapshot()?;
         if next_dioxus_snapshot != dioxus_snapshot {
-            copy_post_dioxus_web_assets_to_existing_release_public()?;
-            dioxus_snapshot = dioxus_release_watch_snapshot()?;
+            dioxus_snapshot = next_dioxus_snapshot;
+            post_dioxus_copy_pending = true;
+        }
+        if post_dioxus_copy_pending {
+            match copy_post_dioxus_web_assets_to_existing_release_public() {
+                Ok(true) => {
+                    post_dioxus_copy_pending = false;
+                    dioxus_snapshot = dioxus_release_watch_snapshot()?;
+                }
+                Ok(false) => {}
+                Err(error) => {
+                    eprintln!("post-Dioxus web asset copy failed; will retry: {error:#}");
+                }
+            }
         }
         let next_snapshot = web_worker_watch_snapshot()?;
         if next_snapshot == snapshot {
@@ -637,12 +651,18 @@ fn record_web_worker_watch_file(
     path: &Path,
     files: &mut BTreeMap<PathBuf, WebWorkerWatchFile>,
 ) -> Result<()> {
-    let metadata = fs::metadata(path).with_context(|| {
-        format!(
-            "reading metadata for worker watch file `{}`",
-            path.display()
-        )
-    })?;
+    let metadata = match fs::metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(error) => {
+            return Err(error).with_context(|| {
+                format!(
+                    "reading metadata for worker watch file `{}`",
+                    path.display()
+                )
+            });
+        }
+    };
     files.insert(
         path.to_path_buf(),
         WebWorkerWatchFile {
@@ -653,67 +673,47 @@ fn record_web_worker_watch_file(
     Ok(())
 }
 
-#[requires(public_dir.is_dir())]
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn copy_post_dioxus_web_assets_to_public(public_dir: &Path) -> Result<()> {
+    ensure_dioxus_web_public_dir(public_dir)?;
     copy_web_worker_assets_to_public(public_dir)?;
     copy_stable_web_assets_to_public(public_dir)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn copy_post_dioxus_web_assets_to_existing_release_public() -> Result<()> {
+fn copy_post_dioxus_web_assets_to_existing_release_public() -> Result<bool> {
     let public_dir = Path::new(DIOXUS_WEB_RELEASE_PUBLIC_DIR);
     if public_dir.is_dir() {
         copy_post_dioxus_web_assets_to_public(public_dir)?;
+        return Ok(true);
     }
-    Ok(())
+    Ok(false)
 }
 
-#[requires(public_dir.is_dir())]
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn copy_web_worker_assets_to_public(public_dir: &Path) -> Result<()> {
+    ensure_dioxus_web_public_dir(public_dir)?;
     let source_dir = Path::new("apps/jbotci-web/assets/generated");
     let target_dir = public_dir.join("assets/generated");
-    if target_dir.exists() {
-        fs::remove_dir_all(&target_dir).with_context(|| {
-            format!(
-                "removing old generated worker assets `{}`",
-                target_dir.display()
-            )
-        })?;
-    }
-    fs::create_dir_all(&target_dir).with_context(|| {
-        format!(
-            "creating generated worker asset directory `{}`",
-            target_dir.display()
-        )
-    })?;
-    for entry in fs::read_dir(source_dir)
-        .with_context(|| format!("reading worker assets from `{}`", source_dir.display()))?
-    {
-        let entry = entry
-            .with_context(|| format!("reading worker asset under `{}`", source_dir.display()))?;
-        if !entry
-            .file_type()
-            .with_context(|| format!("reading file type for `{}`", entry.path().display()))?
-            .is_file()
-        {
-            continue;
-        }
-        let target = target_dir.join(entry.file_name());
-        fs::copy(entry.path(), &target).with_context(|| {
-            format!(
-                "copying generated worker asset `{}` to `{}`",
-                entry.path().display(),
-                target.display()
-            )
-        })?;
-    }
-    Ok(())
+    copy_flat_web_asset_dir(source_dir, &target_dir, "generated worker asset")
 }
 
-#[requires(public_dir.is_dir())]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn ensure_dioxus_web_public_dir(public_dir: &Path) -> Result<()> {
+    if public_dir.is_dir() {
+        return Ok(());
+    }
+    bail!(
+        "Dioxus web public directory `{}` does not exist",
+        public_dir.display()
+    )
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn copy_stable_web_assets_to_public(public_dir: &Path) -> Result<()> {
     copy_stable_web_asset_file(
@@ -733,7 +733,7 @@ fn copy_stable_web_assets_to_public(public_dir: &Path) -> Result<()> {
     )
 }
 
-#[requires(public_dir.is_dir())]
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn copy_stable_web_asset_file(
     public_dir: &Path,
@@ -760,7 +760,7 @@ fn copy_stable_web_asset_file(
     Ok(())
 }
 
-#[requires(public_dir.is_dir())]
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn copy_stable_web_asset_dir(
     public_dir: &Path,
@@ -769,25 +769,25 @@ fn copy_stable_web_asset_dir(
 ) -> Result<()> {
     let source_dir = Path::new("apps/jbotci-web/assets").join(source_relative);
     let target_dir = public_dir.join(target_relative);
-    if target_dir.exists() {
-        fs::remove_dir_all(&target_dir).with_context(|| {
-            format!(
-                "removing old stable web asset directory `{}`",
-                target_dir.display()
-            )
-        })?;
-    }
+    copy_flat_web_asset_dir(&source_dir, &target_dir, "stable web asset")
+}
+
+#[requires(source_dir.is_dir())]
+#[requires(!description.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_flat_web_asset_dir(source_dir: &Path, target_dir: &Path, description: &str) -> Result<()> {
     fs::create_dir_all(&target_dir).with_context(|| {
         format!(
-            "creating stable web asset directory `{}`",
+            "creating {description} directory `{}`",
             target_dir.display()
         )
     })?;
+    let mut source_file_names = BTreeSet::new();
     for entry in fs::read_dir(&source_dir)
-        .with_context(|| format!("reading stable web assets from `{}`", source_dir.display()))?
+        .with_context(|| format!("reading {description}s from `{}`", source_dir.display()))?
     {
         let entry = entry
-            .with_context(|| format!("reading stable asset under `{}`", source_dir.display()))?;
+            .with_context(|| format!("reading {description} under `{}`", source_dir.display()))?;
         if !entry
             .file_type()
             .with_context(|| format!("reading file type for `{}`", entry.path().display()))?
@@ -795,14 +795,68 @@ fn copy_stable_web_asset_dir(
         {
             continue;
         }
-        let target = target_dir.join(entry.file_name());
+        let file_name = entry.file_name();
+        source_file_names.insert(file_name.clone());
+        let target = target_dir.join(file_name);
         fs::copy(entry.path(), &target).with_context(|| {
             format!(
-                "copying stable web asset `{}` to `{}`",
+                "copying {description} `{}` to `{}`",
                 entry.path().display(),
                 target.display()
             )
         })?;
+    }
+    remove_obsolete_flat_web_asset_files(&target_dir, &source_file_names, description)
+}
+
+#[requires(!description.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn remove_obsolete_flat_web_asset_files(
+    target_dir: &Path,
+    source_file_names: &BTreeSet<std::ffi::OsString>,
+    description: &str,
+) -> Result<()> {
+    let entries = match fs::read_dir(target_dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(error) => {
+            return Err(error).with_context(|| {
+                format!(
+                    "reading {description} target directory `{}`",
+                    target_dir.display()
+                )
+            });
+        }
+    };
+    for entry in entries {
+        let entry = entry
+            .with_context(|| format!("reading {description} under `{}`", target_dir.display()))?;
+        if source_file_names.contains(&entry.file_name()) {
+            continue;
+        }
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(error) if error.kind() == ErrorKind::NotFound => continue,
+            Err(error) => {
+                return Err(error).with_context(|| {
+                    format!("reading file type for `{}`", entry.path().display())
+                });
+            }
+        };
+        if file_type.is_file() || file_type.is_symlink() {
+            match fs::remove_file(entry.path()) {
+                Ok(()) => {}
+                Err(error) if error.kind() == ErrorKind::NotFound => {}
+                Err(error) => {
+                    return Err(error).with_context(|| {
+                        format!(
+                            "removing obsolete {description} `{}`",
+                            entry.path().display()
+                        )
+                    });
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -4024,5 +4078,37 @@ mod tests {
     #[ensures(true)]
     fn empty_cargo_command_contract_is_reported() {
         let _ = cargo(&[]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn flat_web_asset_copy_prunes_obsolete_files_without_replacing_target_directory() {
+        let root = std::env::temp_dir().join(format!(
+            "jbotci-xtask-flat-assets-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let source = root.join("source");
+        let target = root.join("target");
+        fs::create_dir_all(&source).unwrap();
+        fs::create_dir_all(&target).unwrap();
+        fs::write(source.join("current.txt"), "current").unwrap();
+        fs::write(target.join("current.txt"), "old").unwrap();
+        fs::write(target.join("obsolete.txt"), "obsolete").unwrap();
+        fs::create_dir(target.join("nested")).unwrap();
+
+        copy_flat_web_asset_dir(&source, &target, "test asset").unwrap();
+
+        assert_eq!(
+            fs::read_to_string(target.join("current.txt")).unwrap(),
+            "current"
+        );
+        assert!(!target.join("obsolete.txt").exists());
+        assert!(target.join("nested").is_dir());
+        fs::remove_dir_all(root).unwrap();
     }
 }

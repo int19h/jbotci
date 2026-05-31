@@ -1725,6 +1725,9 @@ body::-webkit-scrollbar-thumb:hover,
   --app-surface-0: var(--surface-elevated);
   --app-surface-3: #e3d2b8;
   --app-shadow: 0 1px 2px rgb(57 42 22 / 0.08);
+  --jvozba-pane-tab-width: 1.95rem;
+  --jvozba-pane-body-width: min(18rem, 25.2vw);
+  --jvozba-pane-gap: 0.95rem;
   --jvozba-add-hint-color: color-mix(in srgb, var(--app-link) 76%, transparent);
   --jvozba-hint-dot-size: 1px;
   --jvozba-hint-dot-falloff: 1.8px;
@@ -1746,30 +1749,41 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .dictionary-page .dictionary-shell {
+  --jvozba-results-reserve: 0rem;
   max-width: none;
   margin: 0;
   padding: 0 1rem 1rem;
   overflow-x: clip;
 }
 
+.dictionary-page .dictionary-shell.dictionary-jvozba-available {
+  --jvozba-results-reserve: calc(var(--jvozba-pane-tab-width) + var(--jvozba-pane-gap));
+}
+
+.dictionary-page .dictionary-shell.dictionary-jvozba-hints-active {
+  --jvozba-results-reserve: calc(
+    var(--jvozba-pane-tab-width) + var(--jvozba-pane-body-width) + var(--jvozba-pane-gap)
+  );
+}
+
 .dictionary-page .dictionary-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 0.95rem;
-  row-gap: 0;
-  align-items: start;
+  padding-right: var(--jvozba-results-reserve);
 }
 
 .dictionary-page .dictionary-main-column {
   min-width: 0;
   width: 100%;
-  max-width: 1600px;
-  justify-self: center;
+  max-width: 84rem;
+  margin: 0 auto;
 }
 
 .dictionary-page .dictionary-form {
   display: grid;
   gap: 0.8rem;
+  width: 100%;
+  max-width: 50rem;
+  margin-right: auto;
+  margin-left: auto;
   margin-bottom: 1rem;
 }
 
@@ -2601,7 +2615,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .dictionary-page .dictionary-info-report {
-  margin-top: 0.25rem;
+  margin: 0.25rem auto 0;
   max-width: 42rem;
 }
 
@@ -2609,13 +2623,14 @@ body::-webkit-scrollbar-thumb:hover,
   margin: 0 0 0.85rem;
   color: var(--app-text);
   font-size: 1rem;
+  text-align: center;
 }
 
 .dictionary-page .dictionary-info-list {
   display: grid;
   gap: 0.14rem;
   max-width: 38rem;
-  margin: 0;
+  margin: 0 auto;
   padding-left: 1.25rem;
 }
 
@@ -2639,7 +2654,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .dictionary-page .dictionary-info-total {
   max-width: 38rem;
-  margin-top: 0.55rem;
+  margin: 0.55rem auto 0;
   padding-left: 1.25rem;
   font-weight: 700;
 }
@@ -2685,21 +2700,20 @@ body::-webkit-scrollbar-thumb:hover,
 .dictionary-page .dictionary-jvozba-pane {
   --jvozba-pane-top: 3.7rem;
   --jvozba-pane-bottom: 0.8rem;
-  --jvozba-pane-height: calc(100vh - var(--jvozba-pane-top) - var(--jvozba-pane-bottom));
-  position: sticky;
+  --jvozba-pane-height: calc((100vh - var(--jvozba-pane-top) - var(--jvozba-pane-bottom)) / 2);
+  position: fixed;
   top: var(--jvozba-pane-top);
-  align-self: start;
-  justify-self: end;
+  right: 0;
+  z-index: 20;
   display: grid;
-  grid-template-columns: 1.95rem minmax(0, 0);
+  grid-template-columns: var(--jvozba-pane-tab-width) minmax(0, 0);
   block-size: var(--jvozba-pane-height);
   max-block-size: var(--jvozba-pane-height);
   transition: grid-template-columns 160ms ease;
-  margin-right: -1rem;
 }
 
 .dictionary-page .dictionary-jvozba-pane[data-jvozba-open="1"] {
-  grid-template-columns: 1.95rem min(18rem, 25.2vw);
+  grid-template-columns: var(--jvozba-pane-tab-width) var(--jvozba-pane-body-width);
 }
 
 .dictionary-page .dictionary-jvozba-tab {
@@ -2951,8 +2965,13 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 @media (max-width: 980px) {
+  .dictionary-page .dictionary-shell {
+    --jvozba-results-reserve: 0rem;
+  }
+
   .dictionary-page .dictionary-layout {
     grid-template-columns: 1fr;
+    padding-right: 0;
   }
 
   .dictionary-page .dictionary-jvozba-pane {
@@ -3488,6 +3507,7 @@ body::-webkit-scrollbar-thumb:hover,
 
   .dictionary-page .dictionary-layout {
     grid-template-columns: 1fr;
+    padding-right: 0;
   }
 
   .dictionary-page .dictionary-jvozba-pane {

@@ -98,6 +98,10 @@ const SEMANTIC_LOADING_MESSAGE_DELAY_MS: i32 = 100;
 #[cfg(target_arch = "wasm32")]
 const VLACKU_JVOZBA_MIN_WIDTH_PX: f64 = 981.0;
 #[cfg(target_arch = "wasm32")]
+const VLACKU_JVOZBA_HEIGHT_SCALE: f64 = 0.5;
+#[cfg(target_arch = "wasm32")]
+const VLACKU_JVOZBA_LAYOUT_FRAME_PASSES: u8 = 2;
+#[cfg(target_arch = "wasm32")]
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS: i32 = 30;
 #[cfg(target_arch = "wasm32")]
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_FRAME_PASSES: u8 = 2;
@@ -1082,8 +1086,11 @@ fn App() -> Element {
     use_effect(move || {
         if *route.read() == AppRoute::Vlacku {
             let state = vlacku_draft_state.read().clone();
+            let pane_open = jvozba_pane.read().open;
+            let pane_available = *jvozba_available.read();
             set_brivla_toggle_indeterminate(vlacku_brivla_filter_indeterminate(&state.word_types));
-            sync_vlacku_jvozba_pane_metrics();
+            let _ = (pane_open, pane_available);
+            schedule_vlacku_jvozba_pane_metrics_sync();
         }
     });
     use_effect(move || {
@@ -1097,8 +1104,12 @@ fn App() -> Element {
             settings.read().theme,
             settings.read().script,
             activity.read().is_active(),
+            *topbar_settings_layout.read(),
         );
         schedule_topbar_settings_layout_measure(topbar_settings_layout, topbar_settings_open);
+        if *route.read() == AppRoute::Vlacku {
+            schedule_vlacku_jvozba_pane_metrics_sync();
+        }
     });
     use_effect(move || {
         if *route.read() == AppRoute::Gentufa {
@@ -4504,18 +4515,24 @@ fn render_vlacku_page(
     let draft_state = vlacku_draft_state.read().clone();
     let word_type_options = vlacku_word_type_options(&draft_state.word_types);
     let jvozba_available_value = *jvozba_available.read();
-    let shell_class = if jvozba_available_value && jvozba_pane.read().open {
-        "dictionary-shell dictionary-jvozba-hints-active"
-    } else {
-        "dictionary-shell"
-    };
+    let jvozba_open = jvozba_available_value && jvozba_pane.read().open;
+    let shell_class = class_names(
+        "dictionary-shell",
+        &[
+            ("dictionary-jvozba-available", jvozba_available_value),
+            ("dictionary-jvozba-hints-active", jvozba_open),
+        ],
+    );
     rsx! {
         section { class: "spa-page dictionary-page vlacku-page",
             h1 { class: "sr-only", "jbotci vlacku" }
             div { class: "{shell_class}",
+                { render_vlacku_controls(vlacku_draft_state, vlacku_committed_state, &draft_state, &word_type_options) }
+                if let Some(info) = &result.dictionary_info {
+                    { render_dictionary_info(info) }
+                }
                 div { class: "dictionary-layout",
                     div { class: "dictionary-main-column",
-                        { render_vlacku_controls(vlacku_draft_state, vlacku_committed_state, &draft_state, &word_type_options) }
                         { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, jvozba_available_value, base_path) }
                     }
                     if jvozba_available_value {
@@ -4718,9 +4735,6 @@ fn render_vlacku_body(
             }
             if let Some(message) = &result.message {
                 p { class: "dictionary-empty", "{message}" }
-            }
-            if let Some(info) = &result.dictionary_info {
-                { render_dictionary_info(info) }
             }
             if !result.cards.is_empty() {
                 div { class: "dictionary-results-grid",
@@ -5027,7 +5041,7 @@ fn render_vlacku_headword_action(
     } else {
         rsx! {
             a {
-                class: "dictionary-headword-link dictionary-jvozba-highlighted-word",
+                class: "dictionary-headword-link",
                 href: "{href}",
                 "{display_word}"
             }
@@ -5181,13 +5195,13 @@ fn render_vlacku_word_action(
         if let Some(card) = &tooltip {
             rsx! {
                 span { class: "dictionary-tooltip-host",
-                    a { class: "{class_name}", href: "{href}", "{display_word}" }
+                    a { class: "{static_class_name}", href: "{href}", "{display_word}" }
                     { render_dictionary_tooltip(card, false, base_path) }
                 }
             }
         } else {
             rsx! {
-                a { class: "{class_name}", href: "{href}", "{display_word}" }
+                a { class: "{static_class_name}", href: "{href}", "{display_word}" }
             }
         }
     }
@@ -5387,13 +5401,13 @@ fn render_vlacku_inline_word_ref(
         if let Some(card) = &tooltip {
             rsx! {
                 span { class: "dictionary-tooltip-host",
-                    a { class: "dictionary-word-link dictionary-jvozba-add-link-hint", href: "{resolved_href}", "{label}" }
+                    a { class: "dictionary-word-link", href: "{resolved_href}", "{label}" }
                     { render_dictionary_tooltip(card, false, base_path) }
                 }
             }
         } else {
             rsx! {
-                a { class: "dictionary-word-link dictionary-jvozba-add-link-hint", href: "{resolved_href}", "{label}" }
+                a { class: "dictionary-word-link", href: "{resolved_href}", "{label}" }
             }
         }
     }
@@ -7791,6 +7805,7 @@ fn install_browser_state_handlers(
         schedule_gentufa_block_reference_layout();
         schedule_topbar_settings_layout_measure(resize_layout, resize_open);
         update_vlacku_jvozba_availability(resize_jvozba_available);
+        schedule_vlacku_jvozba_pane_metrics_sync();
     }) as Box<dyn FnMut(_)>);
     let _ =
         window.add_event_listener_with_callback("resize", resize_closure.as_ref().unchecked_ref());
@@ -7803,6 +7818,7 @@ fn install_browser_state_handlers(
         schedule_gentufa_block_reference_layout();
         schedule_topbar_settings_layout_measure(load_layout, load_open);
         update_vlacku_jvozba_availability(load_jvozba_available);
+        schedule_vlacku_jvozba_pane_metrics_sync();
     }) as Box<dyn FnMut(_)>);
     let _ = window
         .add_event_listener_with_callback("load", window_load_closure.as_ref().unchecked_ref());
@@ -7814,6 +7830,7 @@ fn install_browser_state_handlers(
         if event_target_is_stylesheet_link(&event) {
             schedule_gentufa_block_reference_layout();
             schedule_topbar_settings_layout_measure(stylesheet_layout, stylesheet_open);
+            schedule_vlacku_jvozba_pane_metrics_sync();
         }
     }) as Box<dyn FnMut(_)>);
     let _ = document.add_event_listener_with_callback_and_bool(
@@ -7828,6 +7845,7 @@ fn install_browser_state_handlers(
         topbar_settings_layout,
         topbar_settings_open,
     );
+    schedule_vlacku_jvozba_pane_metrics_after_fonts_ready(&document);
 
     let scroll_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         save_current_scroll_position();
@@ -9180,6 +9198,75 @@ fn set_brivla_toggle_indeterminate(_indeterminate: bool) {}
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
+fn schedule_vlacku_jvozba_pane_metrics_sync() {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move || {
+        sync_vlacku_jvozba_pane_metrics();
+        schedule_vlacku_jvozba_pane_metrics_animation_frames(VLACKU_JVOZBA_LAYOUT_FRAME_PASSES);
+    });
+    if window
+        .set_timeout_with_callback_and_timeout_and_arguments_0(closure.as_ref().unchecked_ref(), 0)
+        .is_ok()
+    {
+        closure.forget();
+    } else {
+        sync_vlacku_jvozba_pane_metrics();
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_vlacku_jvozba_pane_metrics_sync() {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_vlacku_jvozba_pane_metrics_animation_frames(remaining: u8) {
+    if remaining == 0 {
+        return;
+    }
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move |_timestamp: f64| {
+        sync_vlacku_jvozba_pane_metrics();
+        schedule_vlacku_jvozba_pane_metrics_animation_frames(remaining - 1);
+    });
+    if window
+        .request_animation_frame(closure.as_ref().unchecked_ref())
+        .is_ok()
+    {
+        closure.forget();
+    } else {
+        sync_vlacku_jvozba_pane_metrics();
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_vlacku_jvozba_pane_metrics_after_fonts_ready(document: &web_sys::Document) {
+    let Ok(fonts) = js_sys::Reflect::get(document.as_ref(), &JsValue::from_str("fonts")) else {
+        return;
+    };
+    let Ok(ready) = js_sys::Reflect::get(&fonts, &JsValue::from_str("ready")) else {
+        return;
+    };
+    let Ok(promise) = ready.dyn_into::<js_sys::Promise>() else {
+        return;
+    };
+    wasm_bindgen_futures::spawn_local(async move {
+        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+        schedule_vlacku_jvozba_pane_metrics_sync();
+    });
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
 fn sync_vlacku_jvozba_pane_metrics() {
     let Some(window) = web_sys::window() else {
         return;
@@ -9199,14 +9286,19 @@ fn sync_vlacku_jvozba_pane_metrics() {
         .flatten()
         .map(|element| element.get_bounding_client_rect().bottom())
         .unwrap_or(0.0);
+    let form_bottom = document
+        .query_selector(".vlacku-page .dictionary-form .dictionary-query-row")
+        .ok()
+        .flatten()
+        .map(|element| element.get_bounding_client_rect().bottom());
     let viewport_height = window
         .inner_height()
         .ok()
         .and_then(|value| value.as_f64())
         .unwrap_or(720.0);
-    let top = topbar_bottom + 12.0;
+    let top = form_bottom.unwrap_or(topbar_bottom).max(topbar_bottom) + 12.0;
     let bottom = 12.0;
-    let height = (viewport_height - top - bottom).max(280.0);
+    let height = (viewport_height - top - bottom).max(280.0) * VLACKU_JVOZBA_HEIGHT_SCALE;
     let style = pane.style();
     let _ = style.set_property("--jvozba-pane-top", &format!("{top}px"));
     let _ = style.set_property("--jvozba-pane-bottom", &format!("{bottom}px"));
