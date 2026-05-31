@@ -66,6 +66,7 @@ pub enum GentufaWebViewMode {
     #[default]
     Blocks,
     Tree,
+    Ipa,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -91,7 +92,7 @@ impl Default for GentufaWebOptions {
             view_mode: GentufaWebViewMode::Blocks,
             script: GentufaScript::Latin,
             show_elided: false,
-            show_glosses: true,
+            show_glosses: false,
             show_definitions: false,
             phonemes: PhonemeRenderOptions::default(),
         }
@@ -119,7 +120,7 @@ impl Default for GentufaWebState {
             dialect: None,
             view_mode: GentufaWebViewMode::Blocks,
             show_elided: false,
-            show_glosses: true,
+            show_glosses: false,
         }
     }
 }
@@ -2149,7 +2150,7 @@ pub fn parse_gentufa_web_route(path: &str, query: &str) -> GentufaWebState {
                     state.view_mode = view_mode;
                 }
             }
-            "glosses" => state.show_glosses = parse_query_bool(&value, true),
+            "glosses" => state.show_glosses = parse_query_bool(&value, false),
             "elided" => state.show_elided = parse_query_bool(&value, false),
             _ => {}
         }
@@ -2174,8 +2175,8 @@ pub fn gentufa_web_url(base_path: &str, state: &GentufaWebState) -> String {
             gentufa_view_mode_query_value(state.view_mode).to_owned(),
         ));
     }
-    if !state.show_glosses {
-        pairs.push(("glosses".to_owned(), "false".to_owned()));
+    if state.show_glosses {
+        pairs.push(("glosses".to_owned(), "true".to_owned()));
     }
     if state.show_elided {
         pairs.push(("elided".to_owned(), "true".to_owned()));
@@ -2765,8 +2766,9 @@ fn parse_vlacku_mode(value: &str) -> Option<VlackuWebMode> {
 #[ensures(true)]
 fn parse_gentufa_view_mode(value: &str) -> Option<GentufaWebViewMode> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "tree" | "table" => Some(GentufaWebViewMode::Tree),
         "blocks" => Some(GentufaWebViewMode::Blocks),
+        "tree" | "table" => Some(GentufaWebViewMode::Tree),
+        "ipa" => Some(GentufaWebViewMode::Ipa),
         _ => None,
     }
 }
@@ -2777,6 +2779,7 @@ fn gentufa_view_mode_query_value(mode: GentufaWebViewMode) -> &'static str {
     match mode {
         GentufaWebViewMode::Blocks => "blocks",
         GentufaWebViewMode::Tree => "tree",
+        GentufaWebViewMode::Ipa => "ipa",
     }
 }
 
@@ -4654,20 +4657,27 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_route_round_trips_primary_url_state() {
+        assert!(!GentufaWebState::default().show_glosses);
+        assert!(!GentufaWebOptions::default().show_glosses);
+
         let state = parse_gentufa_web_route(
             "/gentufa",
-            "?text=mi+klama&dialect=allow-cgv&view=tree&glosses=false&elided=true",
+            "?text=mi+klama&dialect=allow-cgv&view=tree&glosses=true&elided=true",
         );
 
         assert_eq!(state.text, "mi klama");
         assert_eq!(state.dialect.as_deref(), Some("allow-cgv"));
         assert_eq!(state.view_mode, GentufaWebViewMode::Tree);
-        assert!(!state.show_glosses);
+        assert!(state.show_glosses);
         assert!(state.show_elided);
         assert_eq!(
             gentufa_web_url("/jbotci", &state),
-            "/jbotci/gentufa?text=mi+klama&dialect=allow-cgv&view=tree&glosses=false&elided=true"
+            "/jbotci/gentufa?text=mi+klama&dialect=allow-cgv&view=tree&glosses=true&elided=true"
         );
+
+        let ipa_state = parse_gentufa_web_route("/gentufa", "?view=ipa");
+        assert_eq!(ipa_state.view_mode, GentufaWebViewMode::Ipa);
+        assert_eq!(gentufa_web_url("", &ipa_state), "/gentufa?view=ipa");
     }
 
     #[test]
@@ -4689,7 +4699,7 @@ mod tests {
                 dialect: None,
                 view_mode: GentufaWebViewMode::Blocks,
                 show_elided: false,
-                show_glosses: true,
+                show_glosses: false,
             }),
         );
         assert_eq!(gentufa.title, "mi klama - jbotci gentufa");
@@ -4706,7 +4716,7 @@ mod tests {
             dialect: None,
             view_mode: GentufaWebViewMode::Blocks,
             show_elided: false,
-            show_glosses: true,
+            show_glosses: false,
         };
         let request = GentufaWebRequest {
             text: state.text.clone(),

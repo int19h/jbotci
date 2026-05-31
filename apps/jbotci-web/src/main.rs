@@ -572,11 +572,11 @@ impl Default for CuktaSemanticResultState {
 impl Default for GentufaDisplayState {
     #[requires(true)]
     #[ensures(!ret.show_elided)]
-    #[ensures(ret.show_glosses)]
+    #[ensures(!ret.show_glosses)]
     fn default() -> Self {
         Self {
             show_elided: false,
-            show_glosses: true,
+            show_glosses: false,
         }
     }
 }
@@ -691,11 +691,17 @@ fn App() -> Element {
     let topbar_settings_open = use_signal(|| false);
     let initial_gentufa = initial_gentufa_state();
     let initial_gentufa_has_text = initial_gentufa_text_explicit();
-    let initial_gentufa_text = if initial_gentufa.text.is_empty() {
-        DEFAULT_GENTUFA_TEXT.to_owned()
-    } else {
+    let initial_gentufa_input_text = if initial_gentufa_has_text {
         initial_gentufa.text.clone()
+    } else {
+        String::new()
     };
+    let initial_gentufa_parsed_text =
+        if initial_gentufa.text.is_empty() && !initial_gentufa_has_text {
+            DEFAULT_GENTUFA_TEXT.to_owned()
+        } else {
+            initial_gentufa.text.clone()
+        };
     let initial_gentufa_dialect = initial_gentufa.dialect.clone().unwrap_or_default();
     let initial_gentufa_view_mode = initial_gentufa.view_mode;
     let initial_gentufa_display = GentufaDisplayState {
@@ -727,8 +733,8 @@ fn App() -> Element {
     let jvozba_pane = use_signal(load_vlacku_jvozba_pane_state);
     let jvozba_available = use_signal(vlacku_jvozba_available);
     let jvozba_drag = use_signal(|| None::<VlackuJvozbaDragState>);
-    let initial_input_text = initial_gentufa_text.clone();
-    let initial_parsed_text = initial_gentufa_text;
+    let initial_input_text = initial_gentufa_input_text;
+    let initial_parsed_text = initial_gentufa_parsed_text;
     let initial_dialect = initial_gentufa_dialect.clone();
     let initial_parsed_dialect = initial_gentufa_dialect;
     let mut input_text = use_signal(move || initial_input_text.clone());
@@ -1122,6 +1128,12 @@ fn App() -> Element {
             schedule_gentufa_block_reference_layout();
         }
     });
+    use_effect(move || {
+        if *route.read() == AppRoute::Gentufa {
+            let _ = input_text.read().len();
+            schedule_gentufa_textarea_resize();
+        }
+    });
     let app_class = format!(
         "spa-shell app-page theme-{} orthography-{}",
         theme_class(settings_value.theme),
@@ -1175,6 +1187,7 @@ fn App() -> Element {
                                                     oninput: move |event| {
                                                         input_text.set(event.value());
                                                         gentufa_text_explicit.set(true);
+                                                        schedule_gentufa_textarea_resize();
                                                     },
                                                 }
                                                 div { class: "form-actions",
@@ -1183,8 +1196,13 @@ fn App() -> Element {
                                                         class: "btn-parse",
                                                         r#type: "button",
                                                         onclick: move |_| {
-                                                            let next_text = input_text.read().clone();
+                                                            let mut next_text = input_text.read().clone();
                                                             let next_dialect = dialect.read().clone();
+                                                            if next_text.trim().is_empty() {
+                                                                next_text = DEFAULT_GENTUFA_TEXT.to_owned();
+                                                                input_text.set(next_text.clone());
+                                                                schedule_gentufa_textarea_resize();
+                                                            }
                                                             gentufa_text_explicit.set(true);
                                                             parsed_text.set(next_text);
                                                             parsed_dialect.set(next_dialect);
@@ -1516,14 +1534,33 @@ fn render_topbar_commit_link() -> Element {
         return rsx! {};
     };
     let href = format!("https://codeberg.org/int_19h/jbotci/commit/{full_commit}");
+    let display_commit = math_monospace_git_commit(short_commit);
     rsx! {
         a {
             class: "app-topbar-commit",
             href: "{href}",
             title: "Git commit from which this version of jbotci was built.",
             aria_label: "Build commit {short_commit}",
-            "{short_commit}"
+            "{display_commit}"
         }
+    }
+}
+
+#[requires(commit.chars().all(|character| character.is_ascii_hexdigit()))]
+#[ensures(ret.chars().count() == commit.chars().count())]
+fn math_monospace_git_commit(commit: &str) -> String {
+    commit.chars().map(math_monospace_hex_char).collect()
+}
+
+#[requires(character.is_ascii_hexdigit())]
+#[ensures(true)]
+fn math_monospace_hex_char(character: char) -> char {
+    const DIGITS: [char; 10] = ['𝟶', '𝟷', '𝟸', '𝟹', '𝟺', '𝟻', '𝟼', '𝟽', '𝟾', '𝟿'];
+    const HEX_LETTERS: [char; 6] = ['𝚊', '𝚋', '𝚌', '𝚍', '𝚎', '𝚏'];
+    if character.is_ascii_digit() {
+        DIGITS[(character as u8 - b'0') as usize]
+    } else {
+        HEX_LETTERS[(character.to_ascii_lowercase() as u8 - b'a') as usize]
     }
 }
 
@@ -4306,7 +4343,7 @@ fn cll_inline_href(base_path: &str, kind: CllLinkKind, target: &str) -> String {
                 dialect: Some("allow-cgv".to_owned()),
                 view_mode: GentufaWebViewMode::Blocks,
                 show_elided: false,
-                show_glosses: true,
+                show_glosses: false,
             },
         ),
         CllLinkKind::Asset => cll_asset_href(base_path, target),
@@ -6028,12 +6065,20 @@ fn render_success(
             { render_reference_overlay(&reference_hover_value) }
             { render_surface_output(success) }
             { render_diagnostics(success) }
-            { render_view_tabs(view_mode, view_mode_value) }
-            { render_output_controls(view_mode_value, display, display_value) }
-            if view_mode_value == GentufaWebViewMode::Blocks {
-                { render_blocks(success, display_value.show_glosses, settings_value.script, reference_hover, activity, export_task) }
-            } else {
-                { render_tree(success, display_value.show_glosses, false, reference_hover) }
+            div { class: "view-toolbar",
+                { render_view_tabs(view_mode, view_mode_value) }
+                { render_output_controls(display, display_value) }
+            }
+            match view_mode_value {
+                GentufaWebViewMode::Blocks => rsx! {
+                    { render_blocks(success, display_value.show_glosses, settings_value.script, reference_hover, activity, export_task) }
+                },
+                GentufaWebViewMode::Tree => rsx! {
+                    { render_tree(success, display_value.show_glosses, false, reference_hover) }
+                },
+                GentufaWebViewMode::Ipa => rsx! {
+                    { render_ipa_output(success) }
+                },
             }
         }
     }
@@ -6045,7 +6090,6 @@ fn render_surface_output(success: &GentufaSuccess) -> Element {
     rsx! {
         div { class: "brackets-section",
             div { class: "brackets-output-stack",
-                pre { class: "brackets-output ipa-output", "{success.ipa_text}" }
                 pre { class: "brackets-output compact-output",
                     span { class: "brackets-output-markup",
                         for fragment in success.bracket_fragments.iter() {
@@ -6159,6 +6203,13 @@ fn render_view_tabs(
                 onclick: move |_| view_mode.set(GentufaWebViewMode::Tree),
                 "Tree"
             }
+            button {
+                class: view_tab_class(current == GentufaWebViewMode::Ipa),
+                r#type: "button",
+                aria_current: if current == GentufaWebViewMode::Ipa { "page" } else { "false" },
+                onclick: move |_| view_mode.set(GentufaWebViewMode::Ipa),
+                "IPA"
+            }
         }
     }
 }
@@ -6166,39 +6217,13 @@ fn render_view_tabs(
 #[requires(true)]
 #[ensures(true)]
 fn render_output_controls(
-    view_mode: GentufaWebViewMode,
     display: Signal<GentufaDisplayState>,
     current: GentufaDisplayState,
 ) -> Element {
-    match view_mode {
-        GentufaWebViewMode::Blocks => rsx! {
-            div { class: "controls blocks-controls",
-                { render_gloss_checkbox(display, current.show_glosses) }
-                { render_elided_checkbox(display, current.show_elided) }
-            }
-        },
-        GentufaWebViewMode::Tree => rsx! {
-            div { class: "controls table-controls",
-                { render_gloss_checkbox(display, current.show_glosses) }
-                { render_static_checkbox("Show definitions", false, true) }
-                { render_static_checkbox("Decompose known lujvo", false, true) }
-                { render_elided_checkbox(display, current.show_elided) }
-            }
-        },
-    }
-}
-
-#[requires(!label.is_empty())]
-#[ensures(true)]
-fn render_static_checkbox(label: &'static str, checked: bool, disabled: bool) -> Element {
     rsx! {
-        label {
-            input {
-                r#type: "checkbox",
-                checked,
-                disabled,
-            }
-            " {label}"
+        div { class: "controls output-controls",
+            { render_gloss_checkbox(display, current.show_glosses) }
+            { render_elided_checkbox(display, current.show_elided) }
         }
     }
 }
@@ -6213,7 +6238,7 @@ fn render_gloss_checkbox(mut display: Signal<GentufaDisplayState>, checked: bool
                 checked,
                 onchange: move |_| toggle_glosses(&mut display),
             }
-            " Show glosses"
+            " gloss"
         }
     }
 }
@@ -6228,7 +6253,17 @@ fn render_elided_checkbox(mut display: Signal<GentufaDisplayState>, checked: boo
                 checked,
                 onchange: move |_| toggle_elided(&mut display),
             }
-            " Show elided terminators"
+            " elided"
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_ipa_output(success: &GentufaSuccess) -> Element {
+    rsx! {
+        section { class: "ipa-view",
+            pre { class: "ipa-tab-output", "{success.ipa_text}" }
         }
     }
 }
@@ -7901,6 +7936,48 @@ fn install_browser_state_handlers(
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
+fn schedule_gentufa_textarea_resize() {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move || resize_gentufa_textarea());
+    let _ = window
+        .set_timeout_with_callback_and_timeout_and_arguments_0(closure.as_ref().unchecked_ref(), 0);
+    closure.forget();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_gentufa_textarea_resize() {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn resize_gentufa_textarea() {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Some(element) = document.get_element_by_id("gentufa-text") else {
+        return;
+    };
+    let Some(textarea) = element.dyn_ref::<web_sys::HtmlTextAreaElement>() else {
+        return;
+    };
+    let textarea_html: &web_sys::HtmlElement = textarea.unchecked_ref();
+    let style = textarea_html.style();
+    if textarea.value().is_empty() {
+        let _ = style.remove_property("height");
+        return;
+    }
+    let _ = style.set_property("height", "auto");
+    let height = textarea_html.scroll_height().saturating_add(2);
+    let _ = style.set_property("height", &format!("{height}px"));
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
 fn schedule_gentufa_block_reference_layout() {
     let Some(window) = web_sys::window() else {
         return;
@@ -8653,14 +8730,15 @@ fn apply_web_route_to_client_state(
     route.set(app_route_for_web_route(web_route));
     match web_route {
         WebRoute::Gentufa(state) => {
-            let text = if state.text.is_empty() && !gentufa_text_is_explicit {
+            let input = state.text.clone();
+            let parsed = if state.text.is_empty() && !gentufa_text_is_explicit {
                 DEFAULT_GENTUFA_TEXT.to_owned()
             } else {
                 state.text.clone()
             };
             let dialect_text = state.dialect.clone().unwrap_or_default();
-            input_text.set(text.clone());
-            parsed_text.set(text);
+            input_text.set(input);
+            parsed_text.set(parsed);
             dialect.set(dialect_text.clone());
             parsed_dialect.set(dialect_text);
             view_mode.set(state.view_mode);
@@ -9629,6 +9707,13 @@ fn _feature_availability_for_linking() -> WebFeatureAvailability {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn git_commit_display_uses_math_monospace_hex() {
+        assert_eq!(math_monospace_git_commit("f4a90c1"), "𝚏𝟺𝚊𝟿𝟶𝚌𝟷");
+    }
 
     #[test]
     #[requires(true)]

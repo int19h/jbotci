@@ -639,7 +639,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .app-page .app-topbar .app-topbar-commit {
   color: var(--topbar-commit);
-  font-family: "Noto Sans", "STIX Two Math", sans-serif;
+  font-family: "STIX Two Math", "Noto Sans", monospace;
   font-size: 0.7rem;
   font-weight: 500;
   font-stretch: 87.5%;
@@ -693,14 +693,15 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .spa-page.parse-page .page-container {
+  padding-top: 0.65rem;
   padding-bottom: 0;
 }
 
 .parse-page .input-form {
-  background: var(--surface);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.65rem 0.75rem 0.75rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
   margin-bottom: 0.85rem;
 }
 
@@ -711,8 +712,10 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page #gentufa-text {
   width: 100%;
-  min-height: 5.75rem;
-  resize: vertical;
+  min-height: calc(1.42em + 1.3rem + 2px);
+  height: calc(1.42em + 1.3rem + 2px);
+  resize: none;
+  box-sizing: border-box;
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -720,6 +723,7 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--surface-elevated);
   font-size: 0.95rem;
   line-height: 1.42;
+  overflow-y: hidden;
 }
 
 .parse-page .form-actions {
@@ -879,10 +883,6 @@ body::-webkit-scrollbar-thumb:hover,
   text-decoration: none;
 }
 
-.parse-page .ipa-output {
-  font-weight: 400;
-}
-
 .parse-page .lean-warning-bar {
   margin-bottom: 0.85rem;
   padding: 0.8rem 0.95rem;
@@ -921,34 +921,51 @@ body::-webkit-scrollbar-thumb:hover,
   color: var(--danger-text);
 }
 
-.parse-page .view-tabs {
+.parse-page .view-toolbar {
   position: relative;
   display: flex;
-  justify-content: center;
-  gap: 0;
-  width: 100vw;
-  margin: 0.75rem calc(50% - 50vw) 0.35rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  width: 100%;
+  margin: 0.75rem 0 0.45rem;
   border-bottom: 0;
 }
 
-.parse-page .view-tabs::after {
+.parse-page .view-toolbar::after {
   content: "";
   position: absolute;
-  right: 0;
+  right: calc(50% - 50vw);
   bottom: 0;
-  left: 0;
-  z-index: 2;
+  left: calc(50% - 50vw);
+  z-index: 0;
   height: 1px;
   background: var(--border-color);
   pointer-events: none;
 }
 
+.parse-page .view-tabs {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-start;
+  gap: 0;
+  width: auto;
+  margin: 0;
+  border-bottom: 0;
+}
+
+.parse-page .view-tabs::after {
+  content: none;
+}
+
 .parse-page .view-tab {
   position: relative;
   z-index: 1;
-  padding: 0.38rem 1.25rem;
+  padding: 0.1rem 0.82rem;
   border: 1px solid var(--border-color);
-  border-bottom: 0;
+  border-bottom-color: var(--border-color);
   border-radius: 6px 6px 0 0;
   background: var(--page-bg);
   color: var(--app-muted);
@@ -967,17 +984,20 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .view-tab.active {
   z-index: 3;
+  border-bottom-color: var(--page-bg);
   color: var(--app-link);
   background: var(--page-bg);
 }
 
 .parse-page .controls {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 0.45rem 1.35rem;
-  margin-bottom: 0.45rem;
+  margin: 0 0 0.32rem auto;
 }
 
 .parse-page .controls label {
@@ -998,6 +1018,29 @@ body::-webkit-scrollbar-thumb:hover,
   margin-bottom: 0.45rem;
   padding: 0;
   border-top: 0;
+}
+
+.parse-page .ipa-view {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 0.85rem;
+}
+
+.parse-page .ipa-tab-output {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--app-text);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  text-align: center;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .parse-page .blocks-view {
@@ -3620,7 +3663,7 @@ body::-webkit-scrollbar-thumb:hover,
   }
 
   .parse-page .view-tab {
-    padding-inline: 1rem;
+    padding-inline: 0.72rem;
   }
 
   .parse-page .controls {
