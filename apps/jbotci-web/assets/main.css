@@ -1142,15 +1142,25 @@ body::-webkit-scrollbar-thumb:hover,
   background-color: var(--block-color, transparent);
 }
 
-.theme-night .parse-page .block.block-leaf,
 .theme-night .parse-page .block.block-nonleaf {
   background-color: color-mix(in srgb, var(--block-color, var(--surface-elevated)) 72%, #000) !important;
+  background-color: hsl(from var(--block-color, var(--surface-elevated)) h min(100, calc(s * 1.35)) 30%) !important;
+}
+
+.theme-night .parse-page .block.block-leaf {
+  background-color: color-mix(in srgb, var(--block-color, var(--surface-elevated)) 78%, #000) !important;
+  background-color: hsl(from var(--block-color, var(--surface-elevated)) h min(100, calc(s * 1.35)) 28%) !important;
 }
 
 @media (prefers-color-scheme: dark) {
-  .theme-auto .parse-page .block.block-leaf,
   .theme-auto .parse-page .block.block-nonleaf {
     background-color: color-mix(in srgb, var(--block-color, var(--surface-elevated)) 72%, #000) !important;
+    background-color: hsl(from var(--block-color, var(--surface-elevated)) h min(100, calc(s * 1.35)) 30%) !important;
+  }
+
+  .theme-auto .parse-page .block.block-leaf {
+    background-color: color-mix(in srgb, var(--block-color, var(--surface-elevated)) 78%, #000) !important;
+    background-color: hsl(from var(--block-color, var(--surface-elevated)) h min(100, calc(s * 1.35)) 28%) !important;
   }
 }
 
@@ -1466,23 +1476,24 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .tree-line {
   fill: none;
-  stroke: color-mix(in srgb, var(--app-text) 30%, transparent);
-  stroke-width: 1.1;
-  stroke-linecap: square;
-  stroke-linejoin: miter;
+  stroke: rgb(255 255 255 / 0.5);
+  stroke-width: 1.2;
+  stroke-dasharray: 1.5 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
 
 .parse-page .parse-table {
   width: max-content;
-  min-width: 100vw;
+  min-width: 0;
   margin: 0 auto;
   position: relative;
   border-collapse: separate;
   border-spacing: 0;
-  background: var(--surface-elevated);
+  background: transparent;
   table-layout: auto;
-  border: 2px solid var(--table-border);
+  border: 0;
   line-height: 1.22;
 }
 
@@ -1500,41 +1511,23 @@ body::-webkit-scrollbar-thumb:hover,
   border-bottom: 1px solid var(--app-border-strong);
 }
 
-.parse-page .parse-table th::after,
-.parse-page .parse-table td::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 1px;
-  height: 100%;
-  background: var(--app-border-strong);
-  pointer-events: none;
-  z-index: 4;
-}
-
-.parse-page .parse-table th:last-child::after,
-.parse-page .parse-table td:last-child::after {
-  display: none;
-}
-
 .parse-page .parse-table tbody tr {
-  background: var(--row-color, var(--surface-elevated));
+  background: transparent;
 }
 
 .theme-night .parse-page .parse-table tbody tr {
-  background: color-mix(in srgb, var(--row-color, var(--surface-elevated)) 72%, #000);
+  background: transparent;
 }
 
 @media (prefers-color-scheme: dark) {
   .theme-auto .parse-page .parse-table tbody tr {
-    background: color-mix(in srgb, var(--row-color, var(--surface-elevated)) 72%, #000);
+    background: transparent;
   }
 }
 
 .parse-page .parse-table tbody td {
-  background: inherit;
-  color: var(--table-cell-text);
+  background: transparent;
+  color: #fff;
 }
 
 .parse-page .parse-table .cell-pad {
@@ -1555,13 +1548,21 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .parse-table td.col-node {
+  --tree-node-bg: color-mix(in srgb, var(--row-color, var(--surface-elevated)) 72%, #000);
+  --tree-node-bg: hsl(from var(--row-color, var(--surface-elevated)) h min(100, calc(s * 1.35)) 30%);
+  background: var(--tree-node-bg);
   padding: 0;
   overflow: visible;
   font-size: 90%;
 }
 
+.parse-page .parse-table .tree-leaf td.col-node {
+  --tree-node-bg: color-mix(in srgb, var(--row-color, var(--surface-elevated)) 78%, #000);
+  --tree-node-bg: hsl(from var(--row-color, var(--surface-elevated)) h min(100, calc(s * 1.35)) 28%);
+}
+
 .parse-page .parse-table .col-edge {
-  color: var(--table-muted);
+  color: #fff;
 }
 
 .parse-page .parse-table .col-edge-in {
@@ -1605,7 +1606,8 @@ body::-webkit-scrollbar-thumb:hover,
 .parse-page .parse-table .indent-block {
   width: var(--indent-size);
   min-width: var(--indent-size);
-  background: var(--block-color, var(--row-color));
+  background: color-mix(in srgb, var(--block-color, var(--row-color, var(--surface-elevated))) 72%, #000);
+  background: hsl(from var(--block-color, var(--row-color, var(--surface-elevated))) h min(100, calc(s * 1.35)) 30%);
   position: relative;
   align-self: stretch;
   display: flex;
@@ -1639,7 +1641,7 @@ body::-webkit-scrollbar-thumb:hover,
   padding: 0;
   border: 1px solid var(--border-color);
   border-radius: 0;
-  background: color-mix(in srgb, var(--row-color) var(--table-block-color-strength), var(--table-color-mix-base));
+  background: transparent;
   line-height: var(--square-size);
   position: relative;
   z-index: 4;
@@ -1650,24 +1652,23 @@ body::-webkit-scrollbar-thumb:hover,
   align-self: center;
   padding: 0 0.4rem 0 0.05rem;
   border-radius: 0.2rem;
-  background: var(--block-color, var(--row-color));
-  color: var(--table-cell-text);
+  background: transparent;
+  color: #fff;
   position: relative;
   z-index: 5;
 }
 
-.theme-night .parse-page .parse-table .indent-block,
-.theme-night .parse-page .parse-table .node-toggle-spacer,
-.theme-night .parse-page .parse-table .node-label {
-  background: color-mix(in srgb, var(--block-color, var(--row-color, var(--surface-elevated))) 72%, #000);
+.parse-page .parse-table .tree-leaf .tree-current-guide {
+  background: color-mix(in srgb, var(--block-color, var(--row-color, var(--surface-elevated))) 78%, #000);
+  background: hsl(from var(--block-color, var(--row-color, var(--surface-elevated))) h min(100, calc(s * 1.35)) 28%);
 }
 
-@media (prefers-color-scheme: dark) {
-  .theme-auto .parse-page .parse-table .indent-block,
-  .theme-auto .parse-page .parse-table .node-toggle-spacer,
-  .theme-auto .parse-page .parse-table .node-label {
-    background: color-mix(in srgb, var(--block-color, var(--row-color, var(--surface-elevated))) 72%, #000);
-  }
+.parse-page .parse-table .ref-source,
+.parse-page .parse-table .ref-target,
+.parse-page .parse-table .place-var,
+.parse-page .parse-table .ref-var,
+.parse-page .parse-table .edge-arrow {
+  color: #fff;
 }
 
 .parse-page .parse-table .edge-cell {
@@ -1693,8 +1694,8 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .parse-table .token-raw {
-  color: var(--app-muted);
-  font-style: italic;
+  color: #fff;
+  font-style: normal;
 }
 
 .orthography-zbalermorna .parse-page .parse-table .token-raw {

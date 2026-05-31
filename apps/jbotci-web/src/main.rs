@@ -40,7 +40,7 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use std::cell::Cell;
 #[cfg(target_arch = "wasm32")]
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::future::Future;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
@@ -6766,14 +6766,6 @@ fn render_tree(success: &GentufaSuccess, reference_hover: Signal<ReferenceHoverS
             div { class: "table-wrap",
                 svg { class: "tree-lines", "aria-hidden": "true" }
                 table { class: "parse-table spa-gentufa-table",
-                    thead {
-                        tr {
-                            th { class: "col-edge col-edge-in", div { class: "cell-pad", "" } }
-                            th { class: "col-node", div { class: "cell-pad", "Node" } }
-                            th { class: "col-edge col-edge-out", div { class: "cell-pad", "" } }
-                            th { class: "col-text", div { class: "cell-pad", "Text" } }
-                        }
-                    }
                     tbody {
                         for row in success.tree_rows.iter() {
                             { render_tree_row(row, reference_hover) }
@@ -6788,7 +6780,13 @@ fn render_tree(success: &GentufaSuccess, reference_hover: Signal<ReferenceHoverS
 #[requires(true)]
 #[ensures(true)]
 fn render_tree_row(row: &GentufaTreeRow, reference_hover: Signal<ReferenceHoverState>) -> Element {
-    let row_class = class_names("tree-row", &[("elided-row", tree_row_is_elided(row))]);
+    let row_class = class_names(
+        "tree-row",
+        &[
+            ("elided-row", tree_row_is_elided(row)),
+            ("tree-leaf", !row.has_children),
+        ],
+    );
     let parent_id = row
         .parent_id
         .map(|parent_id| parent_id.to_string())
@@ -6822,6 +6820,7 @@ fn render_tree_row(row: &GentufaTreeRow, reference_hover: Signal<ReferenceHoverS
             style: "{style}",
             "data-node-id": "{row.node_id}",
             "data-parent-id": "{parent_id}",
+            "data-depth": "{row.depth}",
             "data-color": "{row.color}",
             { render_tree_edge_cell("in", incoming_markers, false, reference_hover, &hover_state) }
             td { class: "col-node",
@@ -8138,9 +8137,11 @@ fn schedule_gentufa_tree_layout_after_fonts_ready(document: &()) {
 #[invariant(true)]
 struct GentufaTreeLineAnchor {
     parent_id: Option<usize>,
+    depth: usize,
     label_left: f64,
-    label_right: f64,
     label_center_y: f64,
+    row_top: f64,
+    row_bottom: f64,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -8167,9 +8168,16 @@ fn layout_gentufa_tree_lines() {
         return;
     };
     clear_svg_children(&svg);
-    let width = f64::from(table_html.scroll_width()).max(table.get_bounding_client_rect().width());
-    let height =
-        f64::from(table_html.scroll_height()).max(table.get_bounding_client_rect().height());
+    let wrap_rect = wrap.get_bounding_client_rect();
+    let table_rect = table.get_bounding_client_rect();
+    let scroll_left = f64::from(wrap_html.scroll_left());
+    let scroll_top = f64::from(wrap_html.scroll_top());
+    let width = f64::from(wrap_html.scroll_width())
+        .max(f64::from(table_html.scroll_width()))
+        .max(table_rect.right() - wrap_rect.left() + scroll_left);
+    let height = f64::from(wrap_html.scroll_height())
+        .max(f64::from(table_html.scroll_height()))
+        .max(table_rect.bottom() - wrap_rect.top() + scroll_top);
     if width <= 0.0 || height <= 0.0 {
         return;
     }
@@ -8179,7 +8187,8 @@ fn layout_gentufa_tree_lines() {
     let Ok(row_nodes) = table.query_selector_all("tbody tr.tree-row") else {
         return;
     };
-    let mut anchors = HashMap::new();
+    let mut ordered_anchors = Vec::new();
+    let mut parents_with_children = HashSet::new();
     for index in 0..row_nodes.length() {
         let Some(node) = row_nodes.item(index) else {
             continue;
@@ -8193,16 +8202,33 @@ fn layout_gentufa_tree_lines() {
         let Some(anchor) = tree_line_anchor_for_row(&row, &wrap, wrap_html) else {
             continue;
         };
-        anchors.insert(node_id, anchor);
+        if let Some(parent_id) = anchor.parent_id {
+            parents_with_children.insert(parent_id);
+        }
+        ordered_anchors.push((node_id, anchor));
     }
-    for child in anchors.values() {
-        let Some(parent_id) = child.parent_id else {
+    let table_bottom = table_rect.bottom() - wrap_rect.top() + scroll_top;
+    for (index, (node_id, anchor)) in ordered_anchors.iter().enumerate() {
+        if !parents_with_children.contains(node_id) {
             continue;
-        };
-        let Some(parent) = anchors.get(&parent_id) else {
+        }
+        let end_y = ordered_anchors
+            .iter()
+            .skip(index + 1)
+            .find_map(|(_, candidate)| {
+                (candidate.depth <= anchor.depth).then_some(candidate.row_top)
+            })
+            .unwrap_or(table_bottom.max(anchor.row_bottom));
+        if end_y <= anchor.label_center_y {
             continue;
-        };
-        append_gentufa_tree_line_path(&document, &svg, parent, child);
+        }
+        append_gentufa_tree_line_path(
+            &document,
+            &svg,
+            anchor.label_left,
+            anchor.label_center_y,
+            end_y,
+        );
     }
 }
 
@@ -8225,33 +8251,34 @@ fn tree_line_anchor_for_row(
 ) -> Option<GentufaTreeLineAnchor> {
     let label = row.query_selector(".node-label").ok().flatten()?;
     let label_rect = label.get_bounding_client_rect();
+    let row_rect = row.get_bounding_client_rect();
     let wrap_rect = wrap.get_bounding_client_rect();
     let scroll_left = f64::from(wrap_html.scroll_left());
     let scroll_top = f64::from(wrap_html.scroll_top());
     Some(GentufaTreeLineAnchor {
         parent_id: element_usize_attr(row, "data-parent-id"),
+        depth: element_usize_attr(row, "data-depth")?,
         label_left: label_rect.left() - wrap_rect.left() + scroll_left,
-        label_right: label_rect.right() - wrap_rect.left() + scroll_left,
         label_center_y: label_rect.top() - wrap_rect.top() + scroll_top + label_rect.height() / 2.0,
+        row_top: row_rect.top() - wrap_rect.top() + scroll_top,
+        row_bottom: row_rect.bottom() - wrap_rect.top() + scroll_top,
     })
 }
 
 #[cfg(target_arch = "wasm32")]
-#[requires(true)]
+#[requires(end_y >= start_y)]
 #[ensures(true)]
 fn append_gentufa_tree_line_path(
     document: &web_sys::Document,
     svg: &web_sys::Element,
-    parent: &GentufaTreeLineAnchor,
-    child: &GentufaTreeLineAnchor,
+    x: f64,
+    start_y: f64,
+    end_y: f64,
 ) {
     let Ok(path) = document.create_element_ns(Some("http://www.w3.org/2000/svg"), "path") else {
         return;
     };
-    let d = format!(
-        "M {:.3} {:.3} V {:.3} H {:.3}",
-        parent.label_right, parent.label_center_y, child.label_center_y, child.label_left
-    );
+    let d = format!("M {x:.3} {start_y:.3} V {end_y:.3}");
     let _ = path.set_attribute("class", "tree-line");
     let _ = path.set_attribute("d", &d);
     let _ = svg.append_child(&path);
