@@ -1562,11 +1562,11 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .parse-table .col-edge {
-  color: #fff;
+  color: var(--ref-target);
 }
 
 .parse-page .parse-table .col-edge-in {
-  text-align: left;
+  text-align: right;
 }
 
 .parse-page .parse-table td.col-gloss,
@@ -1659,14 +1659,6 @@ body::-webkit-scrollbar-thumb:hover,
   background: hsl(from var(--block-color, var(--row-color, var(--surface-elevated))) h min(100, calc(s * 1.35)) 28%);
 }
 
-.parse-page .parse-table .ref-source,
-.parse-page .parse-table .ref-target,
-.parse-page .parse-table .place-var,
-.parse-page .parse-table .ref-var,
-.parse-page .parse-table .edge-arrow {
-  color: #fff;
-}
-
 .parse-page .parse-table .edge-cell {
   display: inline-flex;
   align-items: baseline;
@@ -1675,8 +1667,21 @@ body::-webkit-scrollbar-thumb:hover,
   white-space: nowrap;
 }
 
-.parse-page .parse-table .edge-arrow {
-  color: #fff;
+.parse-page .parse-table .col-edge-in .edge-cell {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.parse-page .parse-table .col-edge-in .ref-var,
+.parse-page .parse-table .col-edge-in .place-var,
+.parse-page .parse-table .col-edge-in .edge-arrow {
+  color: var(--ref-target);
+}
+
+.parse-page .parse-table .tree-outgoing-edge .ref-var,
+.parse-page .parse-table .tree-outgoing-edge .place-var,
+.parse-page .parse-table .tree-outgoing-edge .edge-arrow {
+  color: var(--ref-source);
 }
 
 .parse-page .parse-table .tree-text-cell {
