@@ -7642,12 +7642,6 @@ fn render_dialect_settings_section(
         section { class: "settings-section settings-dialects",
             div { class: "settings-section-head",
                 h2 { "Lojban dialects" }
-                button {
-                    class: "settings-action-button settings-dialect-add",
-                    r#type: "button",
-                    onclick: move |_| add_custom_dialect(dialect_settings, selected_dialect),
-                    "Add"
-                }
             }
             div { class: "settings-dialect-grid",
                 nav { class: "settings-dialect-list", aria_label: "Dialects",
@@ -7657,7 +7651,7 @@ fn render_dialect_settings_section(
                             {
                                 let item_name = name.clone();
                                 let selected = item_name == selected_name;
-                                let class_name = class_names("settings-dialect-list-item", &[("is-active", selected)]);
+                                let class_name = class_names("settings-dialect-list-item", &[("is-selected", selected)]);
                                 rsx! {
                                     button {
                                         class: "{class_name}",
@@ -7672,15 +7666,12 @@ fn render_dialect_settings_section(
                     }
                     div { class: "settings-dialect-list-group",
                         p { class: "settings-dialect-list-heading", "Custom" }
-                        if custom_dialects.is_empty() {
-                            p { class: "settings-dialect-empty", "None" }
-                        }
                         for custom in custom_dialects.iter() {
                             {
                                 let item_name = custom.name.trim().to_owned();
                                 let label = if item_name.is_empty() { "(unnamed)".to_owned() } else { item_name.clone() };
                                 let selected = item_name == selected_name;
-                                let class_name = class_names("settings-dialect-list-item", &[("is-active", selected), ("is-invalid", custom_dialect_is_valid(&current.custom_dialects, custom).is_err())]);
+                                let class_name = class_names("settings-dialect-list-item", &[("is-selected", selected), ("is-invalid", custom_dialect_is_valid(&current.custom_dialects, custom).is_err())]);
                                 rsx! {
                                     button {
                                         class: "{class_name}",
@@ -7692,13 +7683,21 @@ fn render_dialect_settings_section(
                                 }
                             }
                         }
+                        button {
+                            class: "settings-dialect-add",
+                            r#type: "button",
+                            aria_label: "Add custom dialect",
+                            title: "Add custom dialect",
+                            onclick: move |_| add_custom_dialect(dialect_settings, selected_dialect),
+                            span { class: "settings-dialect-add-icon", "⨁" }
+                        }
                     }
                 }
                 div { class: "settings-dialect-editor",
                     if selected_is_builtin {
                         { render_builtin_dialect_editor(dialect_settings, &current, &selected_name, selected_definition.as_deref(), selected_johau_uri.as_deref(), qr_uri) }
                     } else if let Some(custom) = selected_custom {
-                        { render_custom_dialect_editor(dialect_settings, &current, selected_dialect, &custom, selected_validation.as_deref(), selected_johau_uri.as_deref(), qr_uri) }
+                        { render_custom_dialect_editor(dialect_settings, selected_dialect, &custom, selected_validation.as_deref(), selected_johau_uri.as_deref(), qr_uri) }
                     } else {
                         p { class: "settings-help-text", "Select a dialect to edit it." }
                     }
@@ -7723,32 +7722,57 @@ fn render_builtin_dialect_editor(
     let definition = definition.unwrap_or_default();
     let johau_uri = johau_uri.map(str::to_owned);
     let name_for_toggle = name.to_owned();
+    let gentufa_toggle_disabled = !dialect_name_shows_in_gentufa_picker(name);
+    let gentufa_toggle_class =
+        settings_dialect_gentufa_toggle_class(show_in_gentufa, gentufa_toggle_disabled);
     rsx! {
-        div { class: "settings-dialect-editor-stack",
-            div { class: "settings-dialect-editor-head",
-                h3 { "{name}" }
-                label { class: "settings-checkbox-row",
-                    input {
-                        r#type: "checkbox",
-                        checked: show_in_gentufa,
-                        onchange: move |_| toggle_builtin_dialect_gentufa_visibility(dialect_settings, &name_for_toggle, show_in_gentufa),
+        div { class: "settings-dialect-form settings-dialect-readonly",
+            div { class: "settings-dialect-name-row",
+                div { class: "settings-dialect-name-stack",
+                    label { class: "settings-field settings-dialect-name-field",
+                        span { class: "settings-field-label", "Name" }
+                        input {
+                            class: "settings-text-input settings-dialect-name",
+                            value: "{name}",
+                            readonly: true,
+                            spellcheck: "false",
+                            title: "Builtin dialect names cannot be edited.",
+                            aria_label: "Dialect name",
+                        }
                     }
-                    span { "Show in gentufa" }
+                    label {
+                        class: "{gentufa_toggle_class}",
+                        title: settings_dialect_gentufa_toggle_title(name),
+                        input {
+                            r#type: "checkbox",
+                            checked: show_in_gentufa && !gentufa_toggle_disabled,
+                            disabled: gentufa_toggle_disabled,
+                            onchange: move |_| toggle_builtin_dialect_gentufa_visibility(dialect_settings, &name_for_toggle, show_in_gentufa),
+                        }
+                        span { "Show in gentufa" }
+                    }
+                }
+                div { class: "settings-dialect-name-actions",
+                    { render_dialect_qr_button(johau_uri, qr_uri) }
                 }
             }
-            div { class: "settings-dialect-definition-wrap is-readonly",
-                pre { class: "settings-dialect-definition-highlight", aria_hidden: "true",
-                    { render_dialect_highlight(definition) }
-                }
-                textarea {
-                    class: "settings-text-input settings-dialect-definition",
-                    value: "{definition}",
-                    readonly: true,
-                    spellcheck: "false",
-                    aria_label: "Builtin dialect definition",
+            label { class: "settings-field settings-dialect-definition-field",
+                span { class: "settings-field-label", "Definition" }
+                div { class: "settings-dialect-definition-wrap is-readonly",
+                    pre { class: "settings-dialect-definition-highlight", aria_hidden: "true",
+                        { render_dialect_highlight(definition) }
+                    }
+                    textarea {
+                        class: "settings-text-input settings-dialect-definition",
+                        value: "{definition}",
+                        readonly: true,
+                        spellcheck: "false",
+                        title: "Builtin dialect definitions cannot be edited.",
+                        aria_label: "Builtin dialect definition",
+                    }
                 }
             }
-            { render_dialect_qr_actions(johau_uri, qr_uri) }
+            p { class: "settings-dialect-validation is-ok", "Definition is valid." }
         }
     }
 }
@@ -7757,7 +7781,6 @@ fn render_builtin_dialect_editor(
 #[ensures(true)]
 fn render_custom_dialect_editor(
     dialect_settings: Signal<DialectSettings>,
-    current: &DialectSettings,
     selected_dialect: Signal<String>,
     custom: &CustomDialect,
     validation: Option<&str>,
@@ -7773,77 +7796,152 @@ fn render_custom_dialect_editor(
     let custom_definition = custom.definition.clone();
     let show_in_gentufa = custom.show_in_gentufa;
     let johau_uri = johau_uri.map(str::to_owned);
-    let custom_count = current.custom_dialects.len();
+    let gentufa_toggle_disabled = !dialect_name_shows_in_gentufa_picker(&custom_name);
+    let gentufa_toggle_class =
+        settings_dialect_gentufa_toggle_class(show_in_gentufa, gentufa_toggle_disabled);
     rsx! {
-        div { class: "settings-dialect-editor-stack",
-            div { class: "settings-dialect-editor-head",
-                input {
-                    class: "settings-text-input settings-dialect-name",
-                    value: "{custom_name}",
-                    spellcheck: "false",
-                    aria_label: "Dialect name",
-                    oninput: move |event| rename_custom_dialect(dialect_settings, selected_dialect, &name_for_rename, &event.value()),
+        div { class: "settings-dialect-form",
+            div { class: "settings-dialect-name-row",
+                div { class: "settings-dialect-name-stack",
+                    label { class: "settings-field settings-dialect-name-field",
+                        span { class: "settings-field-label", "Name" }
+                        input {
+                            class: "settings-text-input settings-dialect-name",
+                            value: "{custom_name}",
+                            spellcheck: "false",
+                            aria_label: "Dialect name",
+                            oninput: move |event| rename_custom_dialect(dialect_settings, selected_dialect, &name_for_rename, &event.value()),
+                        }
+                    }
+                    label {
+                        class: "{gentufa_toggle_class}",
+                        title: settings_dialect_gentufa_toggle_title(&custom_name),
+                        input {
+                            r#type: "checkbox",
+                            checked: show_in_gentufa && !gentufa_toggle_disabled,
+                            disabled: gentufa_toggle_disabled,
+                            onchange: move |_| toggle_custom_dialect_gentufa_visibility(dialect_settings, &name_for_show),
+                        }
+                        span { "Show in gentufa" }
+                    }
                 }
-                button {
-                    class: "settings-action-button danger",
-                    r#type: "button",
-                    disabled: custom_count == 0,
-                    onclick: move |_| delete_custom_dialect(dialect_settings, selected_dialect, &name_for_delete),
-                    "Delete"
+                div { class: "settings-dialect-name-actions",
+                    button {
+                        class: "settings-dialect-icon-button settings-dialect-delete",
+                        r#type: "button",
+                        aria_label: "Delete custom dialect",
+                        title: "Delete custom dialect",
+                        onclick: move |_| delete_custom_dialect(dialect_settings, selected_dialect, &name_for_delete),
+                        { render_delete_icon() }
+                    }
+                    { render_dialect_qr_button(johau_uri, qr_uri) }
                 }
             }
-            label { class: "settings-checkbox-row",
-                input {
-                    r#type: "checkbox",
-                    checked: show_in_gentufa,
-                    onchange: move |_| toggle_custom_dialect_gentufa_visibility(dialect_settings, &name_for_show),
-                }
-                span { "Show in gentufa" }
-            }
-            div { class: "settings-dialect-definition-wrap",
-                pre { class: "settings-dialect-definition-highlight", aria_hidden: "true",
-                    { render_dialect_highlight(&custom_definition) }
-                }
-                textarea {
-                    class: "settings-text-input settings-dialect-definition",
-                    value: "{custom_definition}",
-                    spellcheck: "false",
-                    aria_label: "Dialect definition",
-                    oninput: move |event| update_custom_dialect_definition(dialect_settings, &name_for_definition, &event.value()),
+            label { class: "settings-field settings-dialect-definition-field",
+                span { class: "settings-field-label", "Definition" }
+                div { class: "settings-dialect-definition-wrap",
+                    pre { class: "settings-dialect-definition-highlight", aria_hidden: "true",
+                        { render_dialect_highlight(&custom_definition) }
+                    }
+                    textarea {
+                        class: "settings-text-input settings-dialect-definition",
+                        value: "{custom_definition}",
+                        spellcheck: "false",
+                        aria_label: "Dialect definition",
+                        oninput: move |event| update_custom_dialect_definition(dialect_settings, &name_for_definition, &event.value()),
+                    }
                 }
             }
             if let Some(message) = validation {
                 p { class: "settings-dialect-validation is-error", "{message}" }
             } else {
-                p { class: "settings-dialect-validation is-ok", "Valid" }
+                p { class: "settings-dialect-validation is-ok", "Definition is valid." }
             }
-            { render_dialect_qr_actions(johau_uri, qr_uri) }
         }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_dialect_qr_actions(
+fn render_dialect_qr_button(
     johau_uri: Option<String>,
     mut qr_uri: Signal<Option<String>>,
 ) -> Element {
     if let Some(uri) = johau_uri {
-        let link_uri = uri.clone();
         rsx! {
-            div { class: "settings-dialect-qr-actions",
-                button {
-                    class: "settings-action-button",
-                    r#type: "button",
-                    onclick: move |_| qr_uri.set(Some(uri.clone())),
-                    "QR"
-                }
-                a { class: "settings-action-link", href: "{link_uri}", "{link_uri}" }
+            button {
+                class: "settings-dialect-icon-button settings-dialect-qr-button",
+                r#type: "button",
+                aria_label: "Show dialect QR code",
+                title: "Show dialect QR code",
+                onclick: move |_| qr_uri.set(Some(uri.clone())),
+                { render_dialect_qr_icon() }
             }
         }
     } else {
         rsx! {
-            p { class: "settings-help-text", "QR export is available for valid non-baseline dialect definitions." }
+            button {
+                class: "settings-dialect-icon-button settings-dialect-qr-button",
+                r#type: "button",
+                aria_label: "Dialect QR code unavailable",
+                title: "QR export is available for valid non-baseline dialect definitions.",
+                disabled: true,
+                { render_dialect_qr_icon() }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn settings_dialect_gentufa_toggle_class(checked: bool, disabled: bool) -> String {
+    class_names(
+        "settings-toggle settings-dialect-gentufa-toggle",
+        &[
+            ("is-selected", checked && !disabled),
+            ("is-disabled", disabled),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn settings_dialect_gentufa_toggle_title(dialect_name: &str) -> &'static str {
+    if dialect_name_shows_in_gentufa_picker(dialect_name) {
+        "Show this dialect as a checkbox in the Gentufa dialect picker."
+    } else {
+        "Slash-named dialects can be typed in formulas, but they do not appear as Gentufa checkbox options."
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_delete_icon() -> Element {
+    rsx! {
+        svg {
+            class: "settings-dialect-button-icon",
+            "viewBox": "0 0 24 24",
+            "aria-hidden": "true",
+            path {
+                d: "M9 3h6l1 2h4v2H4V5h4zM6 9h12l-1 12H7zM10 11v8h2v-8zM14 11v8h2v-8z",
+                fill: "currentColor",
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_dialect_qr_icon() -> Element {
+    rsx! {
+        svg {
+            class: "settings-dialect-button-icon settings-dialect-qr-icon",
+            "viewBox": "0 0 24 24",
+            "aria-hidden": "true",
+            path {
+                d: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z",
+                fill: "currentColor",
+            }
         }
     }
 }
@@ -7862,7 +7960,6 @@ fn render_dialect_qr_popout(mut qr_uri: Signal<Option<String>>) -> Element {
         div { class: "settings-dialect-qr-popout", role: "dialog", aria_label: "Dialect QR code",
             div { class: "settings-dialect-qr-card",
                 div { class: "settings-dialect-qr-head",
-                    a { href: "{uri}", "{uri}" }
                     button {
                         class: "settings-icon-button",
                         r#type: "button",
@@ -7871,7 +7968,12 @@ fn render_dialect_qr_popout(mut qr_uri: Signal<Option<String>>) -> Element {
                         "×"
                     }
                 }
-                div { class: "settings-dialect-qr-svg", dangerous_inner_html: "{qr_svg}" }
+                a {
+                    class: "settings-dialect-qr-link",
+                    href: "{uri}",
+                    title: "{uri}",
+                    div { class: "settings-dialect-qr-svg", dangerous_inner_html: "{qr_svg}" }
+                }
             }
         }
     }
