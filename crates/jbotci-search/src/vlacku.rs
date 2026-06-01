@@ -2,7 +2,7 @@ use bityzba::{data, invariant, requires};
 use jbotci_dictionary::{Dictionary, DictionaryEntry, Keyword, WordType, normalize_lookup_query};
 use jbotci_jvozba::{LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
-    Jvopau, Verbatim, Word, WordKind, WordLike, WordLikeData, canonicalize_text,
+    LujvoPart, Verbatim, Word, WordKind, WordLike, WordLikeData, canonicalize_text,
     segment_words_with_modifiers,
 };
 
@@ -372,14 +372,14 @@ fn dictionary_lookup_targets(word_like: &WordLike) -> Vec<ParsedWordLookupTarget
 #[ensures(true)]
 fn push_dictionary_lookup_targets(word_like: &WordLike, targets: &mut Vec<ParsedWordLookupTarget>) {
     match word_like.as_data() {
-        data!(WordLike::Bare(word)) => {
+        data!(WordLike::PlainWord(word)) => {
             push_word_lookup_target(word, targets);
         }
-        data!(WordLike::ZoQuote { zo, word }) => {
+        data!(WordLike::QuotedWord { zo, word }) => {
             push_word_lookup_target(zo, targets);
             push_word_lookup_target(word, targets);
         }
-        data!(WordLike::ZoiQuote {
+        data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,
             closing_delimiter,
@@ -389,7 +389,7 @@ fn push_dictionary_lookup_targets(word_like: &WordLike, targets: &mut Vec<Parsed
             push_word_lookup_target(opening_delimiter, targets);
             push_word_lookup_target(closing_delimiter, targets);
         }
-        data!(WordLike::LohuQuote {
+        data!(WordLike::QuotedWords {
             lohu,
             quoted_words,
             lehu,
@@ -400,10 +400,10 @@ fn push_dictionary_lookup_targets(word_like: &WordLike, targets: &mut Vec<Parsed
             }
             push_word_lookup_target(lehu, targets);
         }
-        data!(WordLike::SingleWordQuote { marker, .. }) => {
+        data!(WordLike::DelimitedWordQuote { marker, .. }) => {
             push_word_lookup_target(marker, targets);
         }
-        data!(WordLike::Letter { .. }) | data!(WordLike::ZeiLujvo { .. }) => {
+        data!(WordLike::LerfuWord { .. }) | data!(WordLike::ZeiCompound { .. }) => {
             if let Some(target) = word_like_lookup_target(word_like) {
                 targets.push(target);
             }
@@ -442,7 +442,7 @@ fn word_like_lookup_target(word_like: &WordLike) -> Option<ParsedWordLookupTarge
     }
     Some(ParsedWordLookupTarget {
         lookup_text,
-        is_lujvo: matches!(word_like.as_data(), data!(WordLike::ZeiLujvo { .. })),
+        is_lujvo: matches!(word_like.as_data(), data!(WordLike::ZeiCompound { .. })),
         byte_start,
         byte_end,
         char_start,
@@ -454,17 +454,17 @@ fn word_like_lookup_target(word_like: &WordLike) -> Option<ParsedWordLookupTarge
 #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
 fn word_like_lookup_text(word_like: &WordLike) -> Option<String> {
     match word_like.as_data() {
-        data!(WordLike::Bare(word)) => Some(word_lookup_text(word)),
-        data!(WordLike::Letter { base, .. }) => letteral_lookup_text(base),
-        data!(WordLike::ZeiLujvo { left, right, .. }) => Some(format!(
+        data!(WordLike::PlainWord(word)) => Some(word_lookup_text(word)),
+        data!(WordLike::LerfuWord { base, .. }) => letteral_lookup_text(base),
+        data!(WordLike::ZeiCompound { left, right, .. }) => Some(format!(
             "{} zei {}",
             word_like_lookup_text(left)?,
             word_lookup_text(right)
         )),
-        data!(WordLike::ZoQuote { .. })
-        | data!(WordLike::ZoiQuote { .. })
-        | data!(WordLike::LohuQuote { .. })
-        | data!(WordLike::SingleWordQuote { .. }) => None,
+        data!(WordLike::QuotedWord { .. })
+        | data!(WordLike::DelimitedNonLojbanQuote { .. })
+        | data!(WordLike::QuotedWords { .. })
+        | data!(WordLike::DelimitedWordQuote { .. }) => None,
     }
 }
 
@@ -781,15 +781,15 @@ fn flattened_word_like_phonemes(word_like: &WordLike) -> String {
 #[ensures(true)]
 fn append_word_like_phonemes(word_like: &WordLike, output: &mut String) {
     match word_like.as_data() {
-        data!(WordLike::Bare(word)) => append_word_phonemes(word, output),
-        data!(WordLike::ZoQuote { zo, word }) => {
+        data!(WordLike::PlainWord(word)) => append_word_phonemes(word, output),
+        data!(WordLike::QuotedWord { zo, word }) => {
             append_word_phonemes(zo, output);
             append_surface_chunk(
                 output,
                 &quoted_words_phonemes(std::iter::once(word.as_ref())),
             );
         }
-        data!(WordLike::ZoiQuote {
+        data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,
             quoted_text,
@@ -800,7 +800,7 @@ fn append_word_like_phonemes(word_like: &WordLike, output: &mut String) {
             append_surface_chunk(output, &quoted_text_phonemes(quoted_text));
             append_word_phonemes(closing_delimiter, output);
         }
-        data!(WordLike::LohuQuote {
+        data!(WordLike::QuotedWords {
             lohu,
             quoted_words,
             lehu,
@@ -809,18 +809,18 @@ fn append_word_like_phonemes(word_like: &WordLike, output: &mut String) {
             append_surface_chunk(output, &quoted_words_phonemes(quoted_words.iter()));
             append_word_phonemes(lehu, output);
         }
-        data!(WordLike::SingleWordQuote {
+        data!(WordLike::DelimitedWordQuote {
             marker,
             quoted_text,
         }) => {
             append_word_phonemes(marker, output);
             append_surface_chunk(output, &quoted_text_phonemes(quoted_text));
         }
-        data!(WordLike::Letter { base, bu }) => {
+        data!(WordLike::LerfuWord { base, bu }) => {
             append_word_like_phonemes(base, output);
             append_word_phonemes(bu, output);
         }
-        data!(WordLike::ZeiLujvo { left, zei, right }) => {
+        data!(WordLike::ZeiCompound { left, zei, right }) => {
             append_word_like_phonemes(left, output);
             append_word_phonemes(zei, output);
             append_word_phonemes(right, output);
@@ -989,12 +989,12 @@ fn composition_from_decomposition(
         .segments
         .iter()
         .map(|segment| match &segment.segment {
-            Jvopau::Rafsi(phonemes) => VlackuCompositionPiece {
+            LujvoPart::Rafsi(phonemes) => VlackuCompositionPiece {
                 kind: VlackuCompositionKind::Rafsi,
                 surface: phonemes.as_str().to_owned(),
                 source: segment.source.map(str::to_owned),
             },
-            Jvopau::Hyphen(phonemes) => VlackuCompositionPiece {
+            LujvoPart::Hyphen(phonemes) => VlackuCompositionPiece {
                 kind: VlackuCompositionKind::Hyphen,
                 surface: phonemes.as_str().to_owned(),
                 source: None,

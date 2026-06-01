@@ -4,15 +4,15 @@ tags = ["v0-adhoc", "morphology"]
 
 [expectations.morphology]
 status = "success"
-raw = '[ZoQuote { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }, word: Cmavo { phonemes: Phonemes { text: "si" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } } }]'
+raw = '[QuotedWord { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }, word: Cmavo { phonemes: Phonemes { text: "si" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } } }]'
 
 [expectations.output.vlasei]
 brackets = "(zo si)"
 tree = """
 [
-  ZoQuote @[0‥5) {
+  QuotedWord @[0‥5) {
     zo: Cmavo @[0‥2) "zo",
     Cmavo @[3‥5) "si",
   },
 ]"""
-json = '[{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"si","span":[3,5]}}}}]'
+json = '[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"si","span":[3,5]}}}}]'

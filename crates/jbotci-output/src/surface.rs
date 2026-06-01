@@ -70,14 +70,14 @@ pub(crate) fn format_words_ipa(words: &[WordLike], source: &str) -> Result<Strin
 pub(crate) fn is_compound_with_indicators(word: &Token) -> bool {
     match word.as_indicators() {
         WithIndicators::Emphasized { .. } | WithIndicators::WithIndicator { .. } => true,
-        WithIndicators::Bare(word_like) => match word_like.as_data() {
-            data!(WordLike::Bare(..)) => false,
-            data!(WordLike::ZoQuote { .. })
-            | data!(WordLike::ZoiQuote { .. })
-            | data!(WordLike::LohuQuote { .. })
-            | data!(WordLike::SingleWordQuote { .. })
-            | data!(WordLike::Letter { .. })
-            | data!(WordLike::ZeiLujvo { .. }) => true,
+        WithIndicators::Plain(word_like) => match word_like.as_data() {
+            data!(WordLike::PlainWord(..)) => false,
+            data!(WordLike::QuotedWord { .. })
+            | data!(WordLike::DelimitedNonLojbanQuote { .. })
+            | data!(WordLike::QuotedWords { .. })
+            | data!(WordLike::DelimitedWordQuote { .. })
+            | data!(WordLike::LerfuWord { .. })
+            | data!(WordLike::ZeiCompound { .. }) => true,
         },
     }
 }
@@ -90,7 +90,7 @@ fn flatten_with_indicators_surface(
     options: PhonemeRenderOptions,
 ) -> Vec<SurfaceChunk> {
     match word {
-        WithIndicators::Bare(word_like) => flatten_word_like_surface(word_like, source, options),
+        WithIndicators::Plain(word_like) => flatten_word_like_surface(word_like, source, options),
         WithIndicators::Emphasized { bahe, word_like } => {
             let mut chunks = vec![SurfaceChunk::Word(render_word(bahe, options))];
             chunks.extend(flatten_word_like_surface(word_like, source, options));
@@ -119,12 +119,12 @@ fn flatten_word_like_surface(
     options: PhonemeRenderOptions,
 ) -> Vec<SurfaceChunk> {
     match word_like.as_data() {
-        data!(WordLike::Bare(word)) => vec![SurfaceChunk::Word(render_word(word, options))],
-        data!(WordLike::ZoQuote { zo, word }) => vec![
+        data!(WordLike::PlainWord(word)) => vec![SurfaceChunk::Word(render_word(word, options))],
+        data!(WordLike::QuotedWord { zo, word }) => vec![
             SurfaceChunk::Word(render_word(zo, options)),
             SurfaceChunk::QuotedWords(vec![render_word(word, options)]),
         ],
-        data!(WordLike::ZoiQuote {
+        data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,
             quoted_text,
@@ -135,7 +135,7 @@ fn flatten_word_like_surface(
             SurfaceChunk::QuotedText(drop_leading_zoi_separator(quoted_text.text.clone())),
             SurfaceChunk::Word(render_word_without_pause(closing_delimiter, options)),
         ],
-        data!(WordLike::LohuQuote {
+        data!(WordLike::QuotedWords {
             lohu,
             quoted_words,
             lehu,
@@ -149,19 +149,19 @@ fn flatten_word_like_surface(
             ),
             SurfaceChunk::Word(render_word(lehu, options)),
         ],
-        data!(WordLike::SingleWordQuote {
+        data!(WordLike::DelimitedWordQuote {
             marker,
             quoted_text,
         }) => vec![
             SurfaceChunk::Word(render_word(marker, options)),
             SurfaceChunk::QuotedText(quoted_text.text.clone()),
         ],
-        data!(WordLike::Letter { base, bu }) => {
+        data!(WordLike::LerfuWord { base, bu }) => {
             let mut chunks = flatten_word_like_surface(base, source, options);
             chunks.push(SurfaceChunk::Word(render_word(bu, options)));
             chunks
         }
-        data!(WordLike::ZeiLujvo { left, zei, right }) => {
+        data!(WordLike::ZeiCompound { left, zei, right }) => {
             let mut chunks = flatten_word_like_surface(left, source, options);
             chunks.push(SurfaceChunk::Word(render_word(zei, options)));
             chunks.push(SurfaceChunk::Word(render_word(right, options)));
@@ -174,11 +174,11 @@ fn flatten_word_like_surface(
 #[ensures(true)]
 fn flatten_word_like_ipa(word_like: &WordLike) -> Vec<IpaSurfaceChunk<'_>> {
     match word_like.as_data() {
-        data!(WordLike::Bare(word)) => vec![IpaSurfaceChunk::Word(word)],
-        data!(WordLike::ZoQuote { zo, word }) => {
+        data!(WordLike::PlainWord(word)) => vec![IpaSurfaceChunk::Word(word)],
+        data!(WordLike::QuotedWord { zo, word }) => {
             vec![IpaSurfaceChunk::Word(zo), IpaSurfaceChunk::Word(word)]
         }
-        data!(WordLike::ZoiQuote {
+        data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,
             quoted_text,
@@ -189,7 +189,7 @@ fn flatten_word_like_ipa(word_like: &WordLike) -> Vec<IpaSurfaceChunk<'_>> {
             IpaSurfaceChunk::Text(drop_leading_zoi_separator_ref(&quoted_text.text)),
             IpaSurfaceChunk::Word(closing_delimiter),
         ],
-        data!(WordLike::LohuQuote {
+        data!(WordLike::QuotedWords {
             lohu,
             quoted_words,
             lehu,
@@ -199,19 +199,19 @@ fn flatten_word_like_ipa(word_like: &WordLike) -> Vec<IpaSurfaceChunk<'_>> {
             chunks.push(IpaSurfaceChunk::Word(lehu));
             chunks
         }
-        data!(WordLike::SingleWordQuote {
+        data!(WordLike::DelimitedWordQuote {
             marker,
             quoted_text,
         }) => vec![
             IpaSurfaceChunk::Word(marker),
             IpaSurfaceChunk::Text(&quoted_text.text),
         ],
-        data!(WordLike::Letter { base, bu }) => {
+        data!(WordLike::LerfuWord { base, bu }) => {
             let mut chunks = flatten_word_like_ipa(base);
             chunks.push(IpaSurfaceChunk::Word(bu));
             chunks
         }
-        data!(WordLike::ZeiLujvo { left, zei, right }) => {
+        data!(WordLike::ZeiCompound { left, zei, right }) => {
             let mut chunks = flatten_word_like_ipa(left);
             chunks.push(IpaSurfaceChunk::Word(zei));
             chunks.push(IpaSurfaceChunk::Word(right));

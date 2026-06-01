@@ -8,15 +8,15 @@ entry-id = "15316"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "ĭi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "ritcard" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 14, char_start: 7, char_end: 14, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "stolman" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 22, char_start: 15, char_end: 22, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "ĭi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "ritcard" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 14, char_start: 7, char_end: 14, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "stolman" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 22, char_start: 15, char_end: 22, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ĭi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None } })), nai: None }], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Name { la: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } })), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "ritcard" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 14, char_start: 7, char_end: 14, start: None, end: None } })), Bare(Bare(Cmevla { phonemes: Phonemes { text: "stolman" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 22, char_start: 15, char_end: 22, start: None, end: None } }))], free_modifiers: [] } })], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ĭi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None } })), nai: None }], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(NameDescription { la: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } })), free_modifiers: [] }, names: WithFreeModifiers { value: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "ritcard" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 14, char_start: 7, char_end: 14, start: None, end: None } })), Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "stolman" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 22, char_start: 15, char_end: 22, start: None, end: None } }))], free_modifiers: [] } })], vau: None })) }] }] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(.ĭi la .ritcard. .stolman.)"
@@ -27,7 +27,7 @@ tree = """
   Cmevla @[7‥14) "ritcard",
   Cmevla @[15‥22) "stolman",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"ĭi","span":[1,3]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[4,6]}}},{"Bare":{"Cmevla":{"phonemes":"ritcard","span":[7,14]}}},{"Bare":{"Cmevla":{"phonemes":"stolman","span":[15,22]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"ĭi","span":[1,3]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[4,6]}}},{"PlainWord":{"Cmevla":{"phonemes":"ritcard","span":[7,14]}}},{"PlainWord":{"Cmevla":{"phonemes":"stolman","span":[15,22]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -37,9 +37,9 @@ Text @[1‥22) {
       indicator: Cmavo @[1‥3) "ĭi",
     },
   ],
-  Term @[4‥22) {
+  Terms @[4‥22) {
     terms: [
-      Name @[4‥22) {
+      NameDescription @[4‥22) {
         la: Cmavo @[4‥6) "la",
         names: [
           Cmevla @[7‥14) "ritcard",
@@ -49,4 +49,4 @@ Text @[1‥22) {
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[4,6]}}}},"names":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"ritcard","span":[7,14]}}}},{"Bare":{"Bare":{"Cmevla":{"phonemes":"stolman","span":[15,22]}}}}]}}}]}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ĭi","span":[1,3]}}}}}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[4,6]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ritcard","span":[7,14]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"stolman","span":[15,22]}}}}]}}}]}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ĭi","span":[1,3]}}}}}]}'

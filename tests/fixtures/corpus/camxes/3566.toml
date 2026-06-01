@@ -8,15 +8,15 @@ entry-id = "3566"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "zo'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "cídja" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "zo'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "cídja" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: Bare(Bare(Cmavo { phonemes: Phonemes { text: "zo'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), nai: None }], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { outer_quantifier: None, descriptor: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }), tail_elements: [], relation: Some(Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "cídja" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } })))), relative_clauses: [], ku: None }))], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "zo'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), nai: None }], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(Description(DescriptionSyntax { outer_quantifier: None, description: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }), tail_elements: [], selbri: Some(SelbriWord(Plain(PlainWord(Gismu { phonemes: Phonemes { text: "cídja" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } })))), relative_clauses: [], ku: None }))], vau: None })) }] }] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":8,"length":5},"kind":"base-relation","relation":{"offset":8,"length":5},"relation-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":8,"length":5},"kind":"base-selbri","selbri":{"offset":8,"length":5},"tanru-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(zo'o le cídja)"
@@ -26,7 +26,7 @@ tree = """
   Cmavo @[5‥7) "le",
   Gismu @[8‥13) "cídja",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"zo'o","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[5,7]}}},{"Bare":{"Gismu":{"phonemes":"cídja","span":[8,13]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"zo'o","span":[0,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}},{"PlainWord":{"Gismu":{"phonemes":"cídja","span":[8,13]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -36,13 +36,13 @@ Text @[0‥13) {
       indicator: Cmavo @[0‥4) "zo'o",
     },
   ],
-  Term @[5‥13) {
+  Terms @[5‥13) {
     terms: [
-      Descriptor @[5‥13) {
-        descriptor: Cmavo @[5‥7) "le",
-        relation: Gismu @[8‥13) "cídja",
+      Description @[5‥13) {
+        description: Cmavo @[5‥7) "le",
+        selbri: Gismu @[8‥13) "cídja",
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"cídja","span":[8,13]}}}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"Cmavo":{"phonemes":"zo'o","span":[0,4]}}}}}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cídja","span":[8,13]}}}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zo'o","span":[0,4]}}}}}]}"""

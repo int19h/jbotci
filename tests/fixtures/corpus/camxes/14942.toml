@@ -8,15 +8,15 @@ entry-id = "14942"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "perl" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ĭu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "saĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "perl" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ĭu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "saĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Name { la: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, names: WithFreeModifiers { value: [WithIndicator { base: WithIndicator { base: Bare(Bare(Cmevla { phonemes: Phonemes { text: "perl" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ĭu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } }, nai: None }, indicator: Cmavo { phonemes: Phonemes { text: "saĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None } }, nai: None }], free_modifiers: [] } })], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(NameDescription { la: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, names: WithFreeModifiers { value: [WithIndicator { base: WithIndicator { base: Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "perl" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ĭu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } }, nai: None }, indicator: Cmavo { phonemes: Phonemes { text: "saĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 15, char_start: 12, char_end: 15, start: None, end: None } }, nai: None }], free_modifiers: [] } })], vau: None })) }] }] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(la .perl. .ĭu saĭ)"
@@ -27,13 +27,13 @@ tree = """
   Cmavo @[10‥12) "ĭu",
   Cmavo @[12‥15) "saĭ",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"Bare":{"Cmevla":{"phonemes":"perl","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"ĭu","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"saĭ","span":[12,15]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"Cmevla":{"phonemes":"perl","span":[3,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"ĭu","span":[10,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"saĭ","span":[12,15]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥15) {
+Terms @[0‥15) {
   terms: [
-    Name @[0‥15) {
+    NameDescription @[0‥15) {
       la: Cmavo @[0‥2) "la",
       names: [
         WithIndicator @[3‥15) {
@@ -47,4 +47,4 @@ Term @[0‥15) {
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Name":{"la":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmevla":{"phonemes":"perl","span":[3,7]}}}},"indicator":{"Cmavo":{"phonemes":"ĭu","span":[10,12]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[12,15]}}}}]}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"perl","span":[3,7]}}}},"indicator":{"Cmavo":{"phonemes":"ĭu","span":[10,12]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[12,15]}}}}]}}}]}}}}]}]}'

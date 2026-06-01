@@ -1270,9 +1270,9 @@ struct V0RefsCase {
 #[invariant(true)]
 struct V0SyntaxRefs {
     #[serde(default, rename = "argument-assignments")]
-    argument_assignments: Vec<V0ArgumentAssignmentFact>,
+    sumti_assignments: Vec<V0SumtiAssignmentFact>,
     #[serde(default, rename = "relation-places")]
-    relation_places: Vec<V0RelationPlaceFact>,
+    selbri_places: Vec<V0SelbriPlaceFact>,
     #[serde(default, rename = "pro-argument-targets")]
     pro_argument_targets: Vec<V0LabelledSpan>,
     #[serde(default, rename = "pro-argument-sources")]
@@ -1293,8 +1293,8 @@ impl V0SyntaxRefs {
     #[requires(true)]
     #[ensures(true)]
     fn has_facts(&self) -> bool {
-        !self.argument_assignments.is_empty()
-            || !self.relation_places.is_empty()
+        !self.sumti_assignments.is_empty()
+            || !self.selbri_places.is_empty()
             || !self.pro_argument_targets.is_empty()
             || !self.pro_argument_sources.is_empty()
             || !self.pro_predicate_targets.is_empty()
@@ -1308,7 +1308,7 @@ impl V0SyntaxRefs {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[invariant(true)]
-struct V0ArgumentAssignmentFact {
+struct V0SumtiAssignmentFact {
     argument: FixtureSpanKey,
     relation: Option<FixtureSpanKey>,
     #[serde(rename = "place-index")]
@@ -1320,7 +1320,7 @@ struct V0ArgumentAssignmentFact {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[invariant(true)]
-struct V0RelationPlaceFact {
+struct V0SelbriPlaceFact {
     relation: FixtureSpanKey,
     place: u8,
     argument: FixtureSpanKey,
@@ -1365,7 +1365,7 @@ fn compare_v0_reference_facts(
     projection: &ReferenceFixtureProjection,
     failures: &mut ParityFailures,
 ) {
-    for assignment in &refs.argument_assignments {
+    for assignment in &refs.sumti_assignments {
         if !projection_contains_v0_assignment(projection, assignment) {
             failures.push(format!(
                 "{}: missing argument assignment argument={:?} relation={:?} place={:?}",
@@ -1373,7 +1373,7 @@ fn compare_v0_reference_facts(
             ));
         }
     }
-    for relation_place in &refs.relation_places {
+    for relation_place in &refs.selbri_places {
         if !projection_contains_v0_relation_place(projection, relation_place) {
             failures.push(format!(
                 "{}: missing relation place relation={:?} place={} argument={:?}",
@@ -1419,10 +1419,10 @@ fn combined_argument_targets(refs: &V0SyntaxRefs) -> Vec<V0LabelledSpan> {
 #[ensures(true)]
 fn projection_contains_v0_assignment(
     projection: &ReferenceFixtureProjection,
-    expected: &V0ArgumentAssignmentFact,
+    expected: &V0SumtiAssignmentFact,
 ) -> bool {
     projection.assignments.iter().any(|actual| {
-        (actual.argument == expected.argument
+        (actual.sumti == expected.argument
             || assignment_argument_references(projection, actual, &expected.argument))
             && expected
                 .relation
@@ -1438,11 +1438,11 @@ fn projection_contains_v0_assignment(
 #[ensures(true)]
 fn assignment_argument_references(
     projection: &ReferenceFixtureProjection,
-    assignment: &jbotci_semantics::references::FixtureArgumentAssignment,
+    assignment: &jbotci_semantics::references::FixtureSumtiAssignment,
     expected_argument: &FixtureSpanKey,
 ) -> bool {
     projection.references.iter().any(|edge| {
-        edge.source == assignment.argument
+        edge.source == assignment.sumti
             && reference_target_contains(&edge.target, expected_argument)
     })
 }
@@ -1451,10 +1451,10 @@ fn assignment_argument_references(
 #[ensures(true)]
 fn projection_contains_v0_relation_place(
     projection: &ReferenceFixtureProjection,
-    expected: &V0RelationPlaceFact,
+    expected: &V0SelbriPlaceFact,
 ) -> bool {
     projection.assignments.iter().any(|actual| {
-        actual.argument == expected.argument
+        actual.sumti == expected.argument
             && assignment_matches_relation(actual, &expected.relation)
             && assignment_reaches_numbered_place(projection, actual, expected.place)
     })
@@ -1463,18 +1463,18 @@ fn projection_contains_v0_relation_place(
 #[requires(true)]
 #[ensures(true)]
 fn assignment_matches_relation(
-    assignment: &jbotci_semantics::references::FixtureArgumentAssignment,
+    assignment: &jbotci_semantics::references::FixtureSumtiAssignment,
     relation: &FixtureSpanKey,
 ) -> bool {
-    assignment.relation.as_ref() == Some(relation)
-        || assignment.relation_unit.as_ref() == Some(relation)
+    assignment.selbri.as_ref() == Some(relation)
+        || assignment.tanru_unit.as_ref() == Some(relation)
         || assignment.frame_node == *relation
         || assignment
-            .relation
+            .selbri
             .as_ref()
             .is_some_and(|actual| span_is_suffix_of(actual, relation))
         || assignment
-            .relation_unit
+            .tanru_unit
             .as_ref()
             .is_some_and(|actual| span_is_suffix_of(actual, relation))
         || span_is_suffix_of(&assignment.frame_node, relation)
@@ -1492,7 +1492,7 @@ fn span_is_suffix_of(actual: &FixtureSpanKey, expected: &FixtureSpanKey) -> bool
 #[ensures(true)]
 fn assignment_reaches_numbered_place(
     projection: &ReferenceFixtureProjection,
-    assignment: &jbotci_semantics::references::FixtureArgumentAssignment,
+    assignment: &jbotci_semantics::references::FixtureSumtiAssignment,
     place: u8,
 ) -> bool {
     let mut visited = Vec::new();
@@ -1554,11 +1554,11 @@ fn slot_reaches_numbered_place(
             }
             FixturePlaceSlot::Numbered { .. } | FixturePlaceSlot::Modal { .. } => false,
         },
-        jbotci_semantics::references::FixturePlaceFramePropagation::Connected { branches } => {
-            branches.iter().any(|branch| {
-                slot_reaches_numbered_place(projection, *branch, slot, place, visited)
-            })
-        }
+        jbotci_semantics::references::FixturePlaceFramePropagation::ConnectiveBranches {
+            branches,
+        } => branches.iter().any(|branch| {
+            slot_reaches_numbered_place(projection, *branch, slot, place, visited)
+        }),
         jbotci_semantics::references::FixturePlaceFramePropagation::Compound {
             head,
             modifiers,
@@ -2196,11 +2196,17 @@ fn refresh_fixture_expectations(
     let dialect = fixture.test_case.dialect_definition()?;
     let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
-    let words = segment_words_with_modifiers_with_options_and_source_id(
+    let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
         &fixture.test_case.lojban,
         &morphology_options,
         Some(SourceId("<fixture>".to_owned())),
+    )
+    .into_data();
+    let morphology_warning_diagnostics = morphology_warning_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &attempt.warnings,
     );
+    let words = attempt.result;
     if let Some(morphology) = &mut fixture.test_case.expectations.morphology {
         if morphology.status == ExpectationStatus::Failure
             && let Err(error) = &words
@@ -2209,10 +2215,12 @@ fn refresh_fixture_expectations(
                 Some(SourceId("<fixture>".to_owned())),
                 &fixture.test_case.lojban,
             );
-            morphology.diagnostics = diagnostic_expectation_items(
+            let mut diagnostics = morphology_warning_diagnostics.clone();
+            diagnostics.extend(diagnostic_expectation_items(
                 &fixture.test_case.lojban,
                 std::slice::from_ref(&diagnostic),
-            );
+            ));
+            morphology.diagnostics = diagnostics;
         } else if morphology.status == ExpectationStatus::Success {
             let morphology_words = words.clone()?;
             morphology.raw = Some(text_expectation(format_debug_value(&morphology_words)));
@@ -2303,10 +2311,12 @@ fn refresh_fixture_expectations(
                         Some(SourceId("<fixture>".to_owned())),
                         &fixture.test_case.lojban,
                     );
-                    syntax.diagnostics = diagnostic_expectation_items(
+                    let mut diagnostics = morphology_warning_diagnostics.clone();
+                    diagnostics.extend(diagnostic_expectation_items(
                         &fixture.test_case.lojban,
                         std::slice::from_ref(&diagnostic),
-                    );
+                    ));
+                    syntax.diagnostics = diagnostics;
                 }
                 if existing_semantics_refs_success {
                     bail!("semantics refs blocked by morphology error: {error}");
@@ -2323,6 +2333,14 @@ fn refresh_fixture_expectations(
                 if refresh_syntax {
                     if let Some(syntax) = &mut fixture.test_case.expectations.syntax {
                         syntax.raw = Some(text_expectation(format_debug_value(&parsed.parse_tree)));
+                        if !syntax.diagnostics.is_empty() {
+                            let mut diagnostics = morphology_warning_diagnostics.clone();
+                            diagnostics.extend(syntax_warning_diagnostic_expectation_items(
+                                &fixture.test_case.lojban,
+                                &parsed.warnings,
+                            ));
+                            syntax.diagnostics = diagnostics;
+                        }
                     }
                     let gentufa = ensure_gentufa_output(&mut fixture.test_case.expectations);
                     gentufa.json = Some(text_expectation(compact_syntax_json_string_with_options(
@@ -2385,10 +2403,11 @@ fn refresh_fixture_expectations(
                         Some(SourceId("<fixture>".to_owned())),
                         &fixture.test_case.lojban,
                     );
-                    let diagnostics = diagnostic_expectation_items(
+                    let mut diagnostics = morphology_warning_diagnostics.clone();
+                    diagnostics.extend(diagnostic_expectation_items(
                         &fixture.test_case.lojban,
                         std::slice::from_ref(&diagnostic),
-                    );
+                    ));
                     syntax.diagnostics = diagnostics;
                 }
                 if existing_semantics_refs_success {

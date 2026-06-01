@@ -8,36 +8,36 @@ entry-id = "506"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "ce'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), Letter { base: Bare(Cmevla { phonemes: Phonemes { text: "xancisk" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 13, char_start: 6, char_end: 13, start: None, end: None } }), bu: Cmavo { phonemes: Phonemes { text: "bu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None } } }]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "ce'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), LerfuWord { base: PlainWord(Cmevla { phonemes: Phonemes { text: "xancisk" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 13, char_start: 6, char_end: 13, start: None, end: None } }), bu: Cmavo { phonemes: Phonemes { text: "bu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None } } }]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "ce'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), Bare(Letter { base: Bare(Cmevla { phonemes: Phonemes { text: "xancisk" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 13, char_start: 6, char_end: 13, start: None, end: None } }), bu: Cmavo { phonemes: Phonemes { text: "bu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None } } })], free_modifiers: [] }, boi: None })], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(LerfuStringSumti { letter: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ce'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), Plain(LerfuWord { base: PlainWord(Cmevla { phonemes: Phonemes { text: "xancisk" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 13, char_start: 6, char_end: 13, start: None, end: None } }), bu: Cmavo { phonemes: Phonemes { text: "bu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None } } })], free_modifiers: [] }, boi: None })], vau: None })) }] }] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(ce'a [.xancisk. bu])"
 tree = """
 [
   Cmavo @[0‥4) "ce'a",
-  Letter @[6‥17) {
+  LerfuWord @[6‥17) {
     Cmevla @[6‥13) "xancisk",
     bu: Cmavo @[15‥17) "bu",
   },
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"ce'a","span":[0,4]}}},{"Letter":{"base":{"Bare":{"Cmevla":{"phonemes":"xancisk","span":[6,13]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[15,17]}}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"ce'a","span":[0,4]}}},{"LerfuWord":{"base":{"PlainWord":{"Cmevla":{"phonemes":"xancisk","span":[6,13]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[15,17]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥17) {
+Terms @[0‥17) {
   terms: [
-    Letter @[0‥17) {
+    LerfuStringSumti @[0‥17) {
       letter: [
         Cmavo @[0‥4) "ce'a",
-        Letter @[6‥17) {
+        LerfuWord @[6‥17) {
           Cmevla @[6‥13) "xancisk",
           bu: Cmavo @[15‥17) "bu",
         },
@@ -45,4 +45,4 @@ Term @[0‥17) {
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ce'a","span":[0,4]}}}},{"Bare":{"Letter":{"base":{"Bare":{"Cmevla":{"phonemes":"xancisk","span":[6,13]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[15,17]}}}}}]}}}]}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce'a","span":[0,4]}}}},{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmevla":{"phonemes":"xancisk","span":[6,13]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[15,17]}}}}}]}}}]}}}}]}]}"""

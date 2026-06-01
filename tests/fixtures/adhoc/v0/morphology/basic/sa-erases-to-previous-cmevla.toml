@@ -4,7 +4,7 @@ tags = ["v0-adhoc", "morphology"]
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmevla { phonemes: Phonemes { text: "djan" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "djordj" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 21, char_start: 15, char_end: 21, start: None, end: None } })]'
+raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "djan" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "djordj" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 21, char_start: 15, char_end: 21, start: None, end: None } })]'
 
 [expectations.output.vlasei]
 brackets = "(.djan. .djordj.)"
@@ -13,4 +13,4 @@ tree = """
   Cmevla @[0‥4) "djan",
   Cmevla @[15‥21) "djordj",
 ]"""
-json = '[{"Bare":{"Cmevla":{"phonemes":"djan","span":[0,4]}}},{"Bare":{"Cmevla":{"phonemes":"djordj","span":[15,21]}}}]'
+json = '[{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[0,4]}}},{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[15,21]}}}]'

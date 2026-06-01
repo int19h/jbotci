@@ -8,12 +8,12 @@ entry-id = "18195"
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Cmevla(WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "talĭesin" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 13, char_start: 5, char_end: 13, start: None, end: None } }))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))], free_modifiers: [] }, sumti: Some(NameWords(WithFreeModifiers { value: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "talĭesin" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 13, char_start: 5, char_end: 13, start: None, end: None } }))], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }"""
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [7, 10], source-text = "lie", message = "experimental morphology: consonant-glide-vowel sequence" }]
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.gentufa]
 tree = """
@@ -23,8 +23,8 @@ Text @[0‥13) {
       vocative_markers: [
         Cmavo @[0‥4) "co'o",
       ],
-      argument: Cmevla @[5‥13) "talĭesin",
+      sumti: Cmevla @[5‥13) "talĭesin",
     },
   ],
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"co'o","span":[0,4]}}}}],"argument":{"Cmevla":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"talĭesin","span":[5,13]}}}}]}}}]}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[0,4]}}}}],"sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"talĭesin","span":[5,13]}}}}]}}}]}"""

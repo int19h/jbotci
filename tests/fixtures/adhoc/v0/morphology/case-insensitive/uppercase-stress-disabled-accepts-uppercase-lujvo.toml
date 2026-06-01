@@ -5,7 +5,7 @@ tags = ["v0-adhoc", "morphology"]
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Lujvo { parts: [Rafsi(Phonemes { text: "nal" }), Rafsi(Phonemes { text: "sél" }), Rafsi(Phonemes { text: "tro" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 9, char_start: 0, char_end: 9, start: None, end: None } })]'
+raw = '[PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "nal" }), Rafsi(Phonemes { text: "sél" }), Rafsi(Phonemes { text: "tro" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 9, char_start: 0, char_end: 9, start: None, end: None } })]'
 
 [expectations.output.vlasei]
 brackets = "nalséltro"
@@ -13,4 +13,4 @@ tree = """
 [
   Lujvo @[0‥9) "nalséltro",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"sél"},{"Rafsi":"tro"}],"span":[0,9]}}}]'
+json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"sél"},{"Rafsi":"tro"}],"span":[0,9]}}}]'

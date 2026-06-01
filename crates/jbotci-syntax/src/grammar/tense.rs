@@ -3,7 +3,7 @@ use bityzba::{data, invariant, new, requires};
 use jbotci_morphology::{Cmavo, Selmaho};
 
 use super::ast::{
-    CompositeTenseModalPartSyntax, CompositeTenseModalPartSyntaxData, FihoModalSyntax,
+    AdHocModalSyntax, CompositeTenseModalPartSyntax, CompositeTenseModalPartSyntaxData,
     FreeModifierSyntax, IntervalTenseSyntax, SimpleTenseModalSyntax, SpaceTenseSyntax,
     TenseModalSyntax, TenseModalSyntaxData, TimeTenseSyntax, WithFreeModifiers,
 };
@@ -17,7 +17,7 @@ fn composite_leaf_count(tense_modal: &TenseModalSyntax) -> usize {
             .filter(|part| {
                 matches!(
                     part.as_data(),
-                    data!(CompositeTenseModalPartSyntax::Word(_))
+                    data!(CompositeTenseModalPartSyntax::Cmavo(_))
                 )
             })
             .count(),
@@ -30,7 +30,7 @@ fn composite_leaf_count(tense_modal: &TenseModalSyntax) -> usize {
 fn parts_from_leaves(leaves: Vec<Token>) -> Vec<CompositeTenseModalPartSyntax> {
     leaves
         .into_iter()
-        .map(|leaf| new!(CompositeTenseModalPartSyntax::Word(leaf)))
+        .map(|leaf| new!(CompositeTenseModalPartSyntax::Cmavo(leaf)))
         .collect()
 }
 
@@ -51,23 +51,21 @@ pub(super) fn tense_modal_from_leaves(
 pub(super) fn tense_modal_as_composite(tense_modal: TenseModalSyntax) -> TenseModalSyntax {
     match tense_modal.into_data() {
         data!(TenseModalSyntax::Composite { parts }) => new!(TenseModalSyntax::Composite { parts }),
-        data!(TenseModalSyntax::Fiho {
-            fiho,
-            relation,
-            fehu,
-        }) => new!(TenseModalSyntax::Composite {
-            parts: WithFreeModifiers::new(
-                vec![new!(CompositeTenseModalPartSyntax::Fiho(Box::new(new!(
-                    FihoModalSyntax {
-                        nahe: None,
-                        fiho,
-                        relation,
-                        fehu,
-                    }
-                ))))],
-                Vec::new(),
-            ),
-        }),
+        data!(TenseModalSyntax::AdHocModal { fiho, selbri, fehu }) => {
+            new!(TenseModalSyntax::Composite {
+                parts: WithFreeModifiers::new(
+                    vec![new!(CompositeTenseModalPartSyntax::AdHocModal(Box::new(
+                        new!(AdHocModalSyntax {
+                            nahe: None,
+                            fiho,
+                            selbri,
+                            fehu,
+                        })
+                    )))],
+                    Vec::new(),
+                ),
+            })
+        }
         other => {
             let other = TenseModalSyntax::from_data(other);
             let (leaves, free_modifiers) = other.leaf_words_and_free_modifiers();
@@ -159,14 +157,16 @@ impl TenseModalSyntax {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn composite_fiho(&self) -> Vec<FihoModalSyntax> {
+    pub fn composite_fiho(&self) -> Vec<AdHocModalSyntax> {
         match self.as_data() {
             data!(TenseModalSyntax::Composite { parts }) => parts
                 .value
                 .iter()
                 .filter_map(|part| match part.as_data() {
-                    data!(CompositeTenseModalPartSyntax::Fiho(fiho)) => Some((**fiho).clone()),
-                    data!(CompositeTenseModalPartSyntax::Word(_)) => None,
+                    data!(CompositeTenseModalPartSyntax::AdHocModal(fiho)) => {
+                        Some((**fiho).clone())
+                    }
+                    data!(CompositeTenseModalPartSyntax::Cmavo(_)) => None,
                 })
                 .collect(),
             _ => Vec::new(),
@@ -210,7 +210,7 @@ fn classify_composite(tense_modal: &TenseModalSyntax) -> Option<CompositeTenseMo
     };
     let mut classification = CompositeTenseModalClassification::default();
     for part in &parts.value {
-        let data!(CompositeTenseModalPartSyntax::Word(leaf)) = part.as_data() else {
+        let data!(CompositeTenseModalPartSyntax::Cmavo(leaf)) = part.as_data() else {
             continue;
         };
         classify_composite_leaf(leaf, &mut classification);

@@ -418,8 +418,8 @@ fn elided_cmavo_token_value(
     options: JsonRenderOptions,
 ) -> Value {
     constructor_value(
-        "Bare",
-        constructor_value("Bare", elided_cmavo_value(cmavo, position, options)),
+        "Plain",
+        constructor_value("PlainWord", elided_cmavo_value(cmavo, position, options)),
     )
 }
 
@@ -539,19 +539,16 @@ fn variant_payload(constructor: &'static str, entries: Vec<JsonEntry>) -> Value 
 #[ensures(true)]
 fn compact_single_payload(constructor: &str, entries: &[JsonEntry]) -> Option<Value> {
     let field = match constructor {
-        "Bare" => "word",
-        "GekSentence" => "gek_sentence",
-        "Argument" => "argument",
-        "BeiLink" => "bei_only_links",
-        "RelativeClause" => "relative_clauses",
-        "MathExpression" => "math_expression",
-        "Relation" => "relation",
-        "Descriptor" => "descriptor",
-        "ConnectedDescriptor" => "connected_descriptor",
-        "Base" => "word",
+        "PlainWord" => "word",
+        "ForethoughtBridiTailConnection" => "forethought_bridi_tail_connection",
+        "Sumti" => "sumti",
+        "LinkedSumtiContinuation" => "bei_only_links",
+        "RelativeClauses" => "relative_clauses",
+        "Mekso" => "mekso",
+        "Selbri" => "selbri",
+        "Description" => "description",
+        "DescriptionConnection" => "description_connection",
         "Abstraction" => "abstraction",
-        "Compound" => "units",
-        "Wrapped" => "relation",
         _ => return None,
     };
     if entries.len() == 1 && entries[0].label == Some(field) {
@@ -606,8 +603,8 @@ fn constructor_value(constructor: &str, payload: Value) -> Value {
 #[ensures(true)]
 fn with_indicators_value(word: &WithIndicators<WordLike>, phonemes: PhonemeRenderOptions) -> Value {
     match word {
-        WithIndicators::Bare(word_like) => {
-            constructor_value("Bare", morphology_word_like_value(word_like, phonemes))
+        WithIndicators::Plain(word_like) => {
+            constructor_value("Plain", morphology_word_like_value(word_like, phonemes))
         }
         WithIndicators::Emphasized { bahe, word_like } => constructor_value(
             "Emphasized",

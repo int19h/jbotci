@@ -8,31 +8,31 @@ entry-id = "177"
 
 [expectations.morphology]
 status = "success"
-raw = '[ZoiQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 27, char_start: 24, char_end: 27, start: None, end: None } }, opening_delimiter: Cmevla { phonemes: Phonemes { text: "bar" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 31, char_start: 28, char_end: 31, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 35, char_start: 31, char_end: 35, start: None, end: None }, text: " baz" }, closing_delimiter: Cmevla { phonemes: Phonemes { text: "bar" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 39, char_start: 36, char_end: 39, start: None, end: None } } }]'
+raw = '[DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 27, char_start: 24, char_end: 27, start: None, end: None } }, opening_delimiter: Cmevla { phonemes: Phonemes { text: "bar" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 31, char_start: 28, char_end: 31, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 35, char_start: 31, char_end: 35, start: None, end: None }, text: " baz" }, closing_delimiter: Cmevla { phonemes: Phonemes { text: "bar" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 39, char_start: 36, char_end: 39, start: None, end: None } } }]'
 
 [expectations.syntax]
 status = "failure"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zoi(WithFreeModifiers { value: Bare(ZoiQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 27, char_start: 24, char_end: 27, start: None, end: None } }, opening_delimiter: Cmevla { phonemes: Phonemes { text: "bar" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 31, char_start: 28, char_end: 31, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 35, char_start: 31, char_end: 35, start: None, end: None }, text: " baz" }, closing_delimiter: Cmevla { phonemes: Phonemes { text: "bar" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 39, char_start: 36, char_end: 39, start: None, end: None } } }), free_modifiers: [] })))], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(QuotedSumti(DelimitedNonLojbanQuote(WithFreeModifiers { value: Plain(DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 27, char_start: 24, char_end: 27, start: None, end: None } }, opening_delimiter: Cmevla { phonemes: Phonemes { text: "bar" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 28, byte_end: 31, char_start: 28, char_end: 31, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 31, byte_end: 35, char_start: 31, char_end: 35, start: None, end: None }, text: " baz" }, closing_delimiter: Cmevla { phonemes: Phonemes { text: "bar" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 36, byte_end: 39, char_start: 36, char_end: 39, start: None, end: None } } }), free_modifiers: [] })))], vau: None })) }] }] }'
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
 brackets = "(zoĭ .bar. baz .bar.)"
 tree = """
 [
-  ZoiQuote @[24‥39) {
+  DelimitedNonLojbanQuote @[24‥39) {
     zoi: Cmavo @[24‥27) "zoĭ",
     opening_delimiter: Cmevla @[28‥31) "bar",
     quoted_text: Verbatim @[31‥35) "baz",
     closing_delimiter: Cmevla @[36‥39) "bar",
   },
 ]"""
-json = '[{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[24,27]}},"opening_delimiter":{"Cmevla":{"phonemes":"bar","span":[28,31]}},"quoted_text":{"span":[31,35],"text":" baz"},"closing_delimiter":{"Cmevla":{"phonemes":"bar","span":[36,39]}}}}]'
+json = '[{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[24,27]}},"opening_delimiter":{"Cmevla":{"phonemes":"bar","span":[28,31]}},"quoted_text":{"span":[31,35],"text":" baz"},"closing_delimiter":{"Cmevla":{"phonemes":"bar","span":[36,39]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term @[24‥39) {
+Terms @[24‥39) {
   terms: [
-    ZoiQuote @[24‥39) {
+    DelimitedNonLojbanQuote @[24‥39) {
       zoi: Cmavo @[24‥27) "zoĭ",
       opening_delimiter: Cmevla @[28‥31) "bar",
       quoted_text: Verbatim @[31‥35) "baz",
@@ -40,4 +40,4 @@ Term @[24‥39) {
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[24,27]}},"opening_delimiter":{"Cmevla":{"phonemes":"bar","span":[28,31]}},"quoted_text":{"span":[31,35],"text":" baz"},"closing_delimiter":{"Cmevla":{"phonemes":"bar","span":[36,39]}}}}}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[24,27]}},"opening_delimiter":{"Cmevla":{"phonemes":"bar","span":[28,31]}},"quoted_text":{"span":[31,35],"text":" baz"},"closing_delimiter":{"Cmevla":{"phonemes":"bar","span":[36,39]}}}}}}}}]}}}}]}]}'

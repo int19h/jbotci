@@ -14,15 +14,15 @@ source-path = "vendor/cll/chapters/08.xml"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "fi'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "frank" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 18, char_start: 17, char_end: 18, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "djordj" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 29, char_start: 23, char_end: 29, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "fi'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "frank" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 18, char_start: 17, char_end: 18, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "djordj" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 29, char_start: 23, char_end: 29, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "fi'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Connected { leading_argument: Name { la: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "frank" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }))], free_modifiers: [] } }, connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 18, char_start: 17, char_end: 18, start: None, end: None } }))], free_modifiers: [] }, nai: None }, trailing_argument: Name { la: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } })), free_modifiers: [] }, names: WithFreeModifiers { value: [Bare(Bare(Cmevla { phonemes: Phonemes { text: "djordj" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 29, char_start: 23, char_end: 29, start: None, end: None } }))], free_modifiers: [] } } }), dohu: None }], leading_connective: None, paragraphs: [] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "fi'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))], free_modifiers: [] }, sumti: Some(SumtiConnection { leading_sumti: NameDescription { la: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }, names: WithFreeModifiers { value: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "frank" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }))], free_modifiers: [] } }, connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 18, char_start: 17, char_end: 18, start: None, end: None } }))], free_modifiers: [] }, nai: None }, trailing_sumti: NameDescription { la: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } })), free_modifiers: [] }, names: WithFreeModifiers { value: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "djordj" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 29, char_start: 23, char_end: 29, start: None, end: None } }))], free_modifiers: [] } } }), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(fi'i la .frank. .e la .djordj.)"
@@ -35,7 +35,7 @@ tree = """
   Cmavo @[19‥21) "la",
   Cmevla @[23‥29) "djordj",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"fi'i","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[5,7]}}},{"Bare":{"Cmevla":{"phonemes":"frank","span":[9,14]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[17,18]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[19,21]}}},{"Bare":{"Cmevla":{"phonemes":"djordj","span":[23,29]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"fi'i","span":[0,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[5,7]}}},{"PlainWord":{"Cmevla":{"phonemes":"frank","span":[9,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"e","span":[17,18]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[19,21]}}},{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[23,29]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "(fi'i [{la .frank.} .e {la .djordj.}])"
@@ -46,15 +46,15 @@ Text @[0‥29) {
       vocative_markers: [
         Cmavo @[0‥4) "fi'i",
       ],
-      argument: Connected @[5‥29) {
-        leading_argument: Name @[5‥14) {
+      sumti: SumtiConnection @[5‥29) {
+        leading_sumti: NameDescription @[5‥14) {
           la: Cmavo @[5‥7) "la",
           names: [
             Cmevla @[9‥14) "frank",
           ],
         },
         connective: Cmavo @[17‥18) "e",
-        trailing_argument: Name @[19‥29) {
+        trailing_sumti: NameDescription @[19‥29) {
           la: Cmavo @[19‥21) "la",
           names: [
             Cmevla @[23‥29) "djordj",
@@ -64,4 +64,4 @@ Text @[0‥29) {
     },
   ],
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"fi'i","span":[0,4]}}}}],"argument":{"Connected":{"leading_argument":{"Name":{"la":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[5,7]}}}},"names":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"frank","span":[9,14]}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"e","span":[17,18]}}}}]}},"trailing_argument":{"Name":{"la":{"Bare":{"Bare":{"Cmavo":{"phonemes":"la","span":[19,21]}}}},"names":[{"Bare":{"Bare":{"Cmevla":{"phonemes":"djordj","span":[23,29]}}}}]}}}}}}]}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi'i","span":[0,4]}}}}],"sumti":{"SumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[5,7]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"frank","span":[9,14]}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[17,18]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[19,21]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[23,29]}}}}]}}}}}}]}"""

@@ -4,7 +4,7 @@ tags = ["v0-adhoc", "morphology"]
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "sĭatl" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "sĭatl" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } })]'
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [3, 6], source-text = "sia", message = "experimental morphology: consonant-glide-vowel sequence" }]
 
 [expectations.output.vlasei]
@@ -14,4 +14,4 @@ tree = """
   Cmavo @[0‥2) "la",
   Cmevla @[3‥8) "sĭatl",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"Bare":{"Cmevla":{"phonemes":"sĭatl","span":[3,8]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"Cmevla":{"phonemes":"sĭatl","span":[3,8]}}}]'

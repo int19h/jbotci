@@ -8,11 +8,11 @@ entry-id = "18798"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "li" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ze" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "xa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 6, char_start: 5, char_end: 6, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "xu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "li" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ze" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "xa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 6, char_start: 5, char_end: 6, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "xu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(MathExpression { li: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "li" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, expression: Number(Number { number: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "ze" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } })), WithIndicator { base: Bare(Bare(Cmavo { phonemes: Phonemes { text: "xa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 6, char_start: 5, char_end: 6, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "xu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }, nai: None }], free_modifiers: [] }, boi: None }), loho: None })], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(NumberSumti { li: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "li" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, expression: NumberMekso(NumberQuantifier { number: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ze" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } })), WithIndicator { base: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "xa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 6, char_start: 5, char_end: 6, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "xu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }, nai: None }], free_modifiers: [] }, boi: None }), loho: None })], vau: None })) }] }] }'
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
@@ -24,15 +24,15 @@ tree = """
   Cmavo @[5‥6) "xa",
   Cmavo @[7‥9) "xu",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ze","span":[3,4]}}},{"Bare":{"Cmavo":{"phonemes":"xa","span":[5,6]}}},{"Bare":{"Cmavo":{"phonemes":"xu","span":[7,9]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[3,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[5,6]}}},{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[7,9]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥9) {
+Terms @[0‥9) {
   terms: [
-    MathExpression @[0‥9) {
+    NumberSumti @[0‥9) {
       li: Cmavo @[0‥2) "li",
-      Number @[3‥9) {
+      NumberQuantifier @[3‥9) {
         Cmavo @[3‥4) "ze",
         WithIndicator @[5‥9) {
           Cmavo @[5‥6) "xa",
@@ -42,4 +42,4 @@ Term @[0‥9) {
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"MathExpression":{"li":{"Bare":{"Bare":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ze","span":[3,4]}}}},{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"xa","span":[5,6]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[7,9]}}}}]}}}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[3,4]}}}},{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[5,6]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[7,9]}}}}]}}}}}}]}}}}]}]}'

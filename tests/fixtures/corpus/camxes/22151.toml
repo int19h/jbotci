@@ -8,32 +8,32 @@ entry-id = "22151"
 
 [expectations.morphology]
 status = "success"
-raw = """[ZoQuote { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }, word: Fuhivla { phonemes: Phonemes { text: "nanbrpítsa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 16, char_start: 6, char_end: 16, start: None, end: None } } }, Bare(Cmavo { phonemes: Phonemes { text: "la'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 21, char_start: 17, char_end: 21, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "dráni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None } })]"""
+raw = """[QuotedWord { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }, word: Fuhivla { phonemes: Phonemes { text: "nanbrpítsa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 16, char_start: 6, char_end: 16, start: None, end: None } } }, PlainWord(Cmavo { phonemes: Phonemes { text: "la'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 21, char_start: 17, char_end: 21, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "dráni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "failure"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Argument(Quote(Zo(WithFreeModifiers { value: WithIndicator { base: Bare(ZoQuote { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }, word: Fuhivla { phonemes: Phonemes { text: "nanbrpítsa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 16, char_start: 6, char_end: 16, start: None, end: None } } }), indicator: Cmavo { phonemes: Phonemes { text: "la'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 21, char_start: 17, char_end: 21, start: None, end: None } }, nai: None }, free_modifiers: [] })))], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "dráni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Bridi(BridiSyntax { leading_terms: [Sumti(QuotedSumti(WordQuote(WithFreeModifiers { value: WithIndicator { base: Plain(QuotedWord { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }, word: Fuhivla { phonemes: Phonemes { text: "nanbrpítsa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 16, char_start: 6, char_end: 16, start: None, end: None } } }), indicator: Cmavo { phonemes: Phonemes { text: "la'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 21, char_start: 17, char_end: 21, start: None, end: None } }, nai: None }, free_modifiers: [] })))], cu: None, bridi_tail: BridiTailSyntax { first: AfterthoughtBridiTailSyntax { first: BoGroupedBridiTailSyntax { first: SelbriBridiTail { selbri: SelbriWord(Plain(PlainWord(Gismu { phonemes: Phonemes { text: "dráni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
 brackets = "([zo nanbrpítsa] la'a dráni)"
 tree = """
 [
-  ZoQuote @[3‥16) {
+  QuotedWord @[3‥16) {
     zo: Cmavo @[3‥5) "zo",
     Fuhivla @[6‥16) "nanbrpítsa",
   },
   Cmavo @[17‥21) "la'a",
   Gismu @[22‥27) "dráni",
 ]"""
-json = """[{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[3,5]}},"word":{"Fuhivla":{"phonemes":"nanbrpítsa","span":[6,16]}}}},{"Bare":{"Cmavo":{"phonemes":"la'a","span":[17,21]}}},{"Bare":{"Gismu":{"phonemes":"dráni","span":[22,27]}}}]"""
+json = """[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[3,5]}},"word":{"Fuhivla":{"phonemes":"nanbrpítsa","span":[6,16]}}}},{"PlainWord":{"Cmavo":{"phonemes":"la'a","span":[17,21]}}},{"PlainWord":{"Gismu":{"phonemes":"dráni","span":[22,27]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Predicate @[3‥27) {
+Bridi @[3‥27) {
   leading_terms: [
     WithIndicator @[3‥21) {
-      ZoQuote @[3‥16) {
+      QuotedWord @[3‥16) {
         zo: Cmavo @[3‥5) "zo",
         Fuhivla @[6‥16) "nanbrpítsa",
       },
@@ -42,4 +42,4 @@ Predicate @[3‥27) {
   ],
   Gismu @[22‥27) "dráni",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Argument":{"Quote":{"Zo":{"WithIndicator":{"base":{"Bare":{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[3,5]}},"word":{"Fuhivla":{"phonemes":"nanbrpítsa","span":[6,16]}}}}},"indicator":{"Cmavo":{"phonemes":"la'a","span":[17,21]}}}}}}}],"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"dráni","span":[22,27]}}}}}}}}}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"WithIndicator":{"base":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[3,5]}},"word":{"Fuhivla":{"phonemes":"nanbrpítsa","span":[6,16]}}}}},"indicator":{"Cmavo":{"phonemes":"la'a","span":[17,21]}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dráni","span":[22,27]}}}}}}}}}}}}}]}]}"""

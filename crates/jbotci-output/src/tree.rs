@@ -158,7 +158,7 @@ fn with_indicators_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     match word {
-        WithIndicators::Bare(word_like) => morphology_tree_value(word_like, source, options),
+        WithIndicators::Plain(word_like) => morphology_tree_value(word_like, source, options),
         WithIndicators::Emphasized { bahe, word_like } => TreeValue::Node(TreeNode {
             constructor: "Emphasized",
             entries: vec![
@@ -1383,7 +1383,7 @@ mod tests {
         let output = render("mi klama", false);
         assert_eq!(
             output,
-            "Predicate {\n  leading_terms: [\n    Cmavo \"mi\",\n  ],\n  Gismu \"kláma\",\n}"
+            "Bridi {\n  leading_terms: [\n    Cmavo \"mi\",\n  ],\n  Gismu \"kláma\",\n}"
         );
     }
 
@@ -1392,7 +1392,7 @@ mod tests {
     #[ensures(true)]
     fn colorizes_tree_tokens() {
         let output = render("mi klama", true);
-        assert!(output.contains("\x1b[94mPredicate\x1b[39m"));
+        assert!(output.contains("\x1b[94mBridi\x1b[39m"));
         assert!(output.contains("\x1b[32mleading_terms\x1b[39m"));
         assert!(output.contains("\x1b[33m\"mi\"\x1b[39m"));
         assert!(output.contains("\x1b[94mCmavo\x1b[39m"));
@@ -1451,7 +1451,7 @@ mod tests {
     fn keeps_free_modifiers_label_when_present() {
         let output = render("mi klama to coi toi", false);
         assert!(output.contains("free_modifiers: ["));
-        assert!(output.contains("To {"));
+        assert!(output.contains("ParentheticalText {"));
     }
 
     #[test]
@@ -1459,24 +1459,24 @@ mod tests {
     #[ensures(true)]
     fn renders_compound_word_like_values_as_structured_nodes() {
         let zo = render("zo broda cu melbi", false);
-        assert!(zo.contains("ZoQuote {"));
+        assert!(zo.contains("QuotedWord {"));
         assert!(zo.contains("Cmavo \"zo\""));
         assert!(zo.contains("Gismu \"bróda\""));
 
         let zoi = render("zoi gy hello gy cu melbi", false);
-        assert!(zoi.contains("ZoiQuote {"));
+        assert!(zoi.contains("DelimitedNonLojbanQuote {"));
         assert!(zoi.contains("quoted_text: Verbatim \"hello\""));
 
         let lohu = render("lo'u mi klama le'u cu melbi", false);
-        assert!(lohu.contains("LohuQuote {"));
+        assert!(lohu.contains("QuotedWords {"));
         assert!(lohu.contains("Gismu \"kláma\""));
 
         let bu = render("abu cu lerfu", false);
-        assert!(bu.contains("Letter {"));
+        assert!(bu.contains("LerfuWord {"));
         assert!(bu.contains("bu: Cmavo \"bu\""));
 
         let zei = render("mi broda zei brode", false);
-        assert!(zei.contains("ZeiLujvo {"));
+        assert!(zei.contains("ZeiCompound {"));
         assert!(zei.contains("Gismu \"bróde\""));
     }
 
@@ -1497,10 +1497,7 @@ mod tests {
                 },
             )
             .expect("tree render");
-            assert_eq!(
-                output,
-                r#"Predicate{leading_terms:[Cmavo "mi"],Gismu "kláma"}"#
-            );
+            assert_eq!(output, r#"Bridi{leading_terms:[Cmavo "mi"],Gismu "kláma"}"#);
         });
     }
 
@@ -1511,7 +1508,7 @@ mod tests {
         let output = render_refs("mi klama le zarci i do klama ri", true);
         assert_eq!(
             output,
-            "Paragraph @[0‥31) {\n  Predicate @[0‥17) {\n    leading_terms: [\n      k₁⟨1⟩→ Cmavo @[0‥2) \"mi\",\n    ],\n    Relation @[3‥17) {\n      Gismu @[3‥8) \"kláma\" →k₁,\n      terms: [\n        k₁⟨2⟩→ ri₁→ Descriptor @[9‥17) {\n          descriptor: Cmavo @[9‥11) \"le\",\n          relation: Gismu @[12‥17) \"zárci\",\n        },\n      ],\n    },\n  },\n  ParagraphStatement @[18‥31) {\n    i: Cmavo @[18‥19) \"i\",\n    Predicate @[20‥31) {\n      leading_terms: [\n        k₂⟨1⟩→ Cmavo @[20‥22) \"do\",\n      ],\n      Relation @[23‥31) {\n        Gismu @[23‥28) \"kláma\" →k₂,\n        terms: [\n          k₂⟨2⟩→ Cmavo @[29‥31) \"ri\" →ri₁,\n        ],\n      },\n    },\n  },\n}"
+            "Paragraph @[0‥31) {\n  Bridi @[0‥17) {\n    leading_terms: [\n      k₁⟨1⟩→ Cmavo @[0‥2) \"mi\",\n    ],\n    SelbriBridiTail @[3‥17) {\n      Gismu @[3‥8) \"kláma\" →k₁,\n      terms: [\n        k₁⟨2⟩→ ri₁→ Description @[9‥17) {\n          description: Cmavo @[9‥11) \"le\",\n          selbri: Gismu @[12‥17) \"zárci\",\n        },\n      ],\n    },\n  },\n  ParagraphStatement @[18‥31) {\n    i: Cmavo @[18‥19) \"i\",\n    Bridi @[20‥31) {\n      leading_terms: [\n        k₂⟨1⟩→ Cmavo @[20‥22) \"do\",\n      ],\n      SelbriBridiTail @[23‥31) {\n        Gismu @[23‥28) \"kláma\" →k₂,\n        terms: [\n          k₂⟨2⟩→ Cmavo @[29‥31) \"ri\" →ri₁,\n        ],\n      },\n    },\n  },\n}"
         );
     }
 
@@ -1535,7 +1532,7 @@ mod tests {
 
         assert!(output.contains("k1<1>-> Cmavo @[0..2) \"mi\""));
         assert!(output.contains("Gismu @[3..8) \"klama\" ->k1"));
-        assert!(output.contains("k1<2>-> ri1-> Descriptor"));
+        assert!(output.contains("k1<2>-> ri1-> Description"));
         assert!(output.contains("Cmavo @[29..31) \"ri\" ->ri1"));
         assert!(!output.contains('→'));
         assert!(!output.contains('⟨'));
@@ -1589,16 +1586,16 @@ mod tests {
     #[ensures(true)]
     fn renders_resolved_discourse_reference_kinds() {
         let gohi = render_refs("mi klama .i go'i", false);
-        assert!(gohi.contains("go'i₁→ Predicate"));
+        assert!(gohi.contains("go'i₁→ Bridi"));
         assert!(gohi.contains("Cmavo \"go'i\" →go'i₁"));
 
         let goi = render_refs("le nanmu goi ko'a cu klama .i ko'a cadzu", false);
         assert!(goi.contains("Cmavo \"ko'a\" →ko'a₁"));
         assert!(goi.contains("Cmavo \"ko'a\" →ko'a₂"));
-        assert!(goi.contains("ko'a₁→ ko'a₂→ Descriptor"));
+        assert!(goi.contains("ko'a₁→ ko'a₂→ Description"));
 
         let cei = render_refs("mi broda cei klama do", false);
-        assert!(cei.contains("k→ Predicate"));
+        assert!(cei.contains("k→ Bridi"));
         assert!(cei.contains("Gismu \"bróda\" →b"));
         assert!(!cei.contains("k→ Gismu \"bróda\""));
         assert!(cei.contains("Gismu \"kláma\" →k"));

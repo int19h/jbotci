@@ -8,7 +8,7 @@ entry-id = "15590"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "ra" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "du" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None } }), ZoiQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "gy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 23, char_start: 17, char_end: 23, start: None, end: None }, text: "badass" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "gy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None } } }]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "ra" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "du" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None } }), DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "gy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 23, char_start: 17, char_end: 23, start: None, end: None }, text: "badass" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "gy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 26, char_start: 24, char_end: 26, start: None, end: None } } }]'
 
 [expectations.syntax]
 status = "failure"
@@ -21,11 +21,11 @@ tree = """
   Cmavo @[0‥2) "ra",
   Cmavo @[3‥5) "du",
   Cmavo @[5‥8) "naĭ",
-  ZoiQuote @[9‥26) {
+  DelimitedNonLojbanQuote @[9‥26) {
     zoi: Cmavo @[9‥12) "zoĭ",
     opening_delimiter: Cmavo @[13‥15) "gy",
     quoted_text: Verbatim @[17‥23) "badass",
     closing_delimiter: Cmavo @[24‥26) "gy",
   },
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"ra","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"du","span":[3,5]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[5,8]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[13,15]}},"quoted_text":{"span":[17,23],"text":"badass"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[24,26]}}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"ra","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"du","span":[3,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[5,8]}}},{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[13,15]}},"quoted_text":{"span":[17,23],"text":"badass"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[24,26]}}}}]'

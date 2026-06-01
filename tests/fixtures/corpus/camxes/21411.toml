@@ -8,7 +8,7 @@ entry-id = "21411"
 
 [expectations.morphology]
 status = "success"
-raw = """[ZoQuote { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } }, word: Cmavo { phonemes: Phonemes { text: "a'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None } } }, Bare(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 16, char_start: 13, char_end: 16, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "u'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 21, char_start: 18, char_end: 21, start: None, end: None } })]"""
+raw = """[QuotedWord { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } }, word: Cmavo { phonemes: Phonemes { text: "a'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None } } }, PlainWord(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 16, char_start: 13, char_end: 16, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "u'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 21, char_start: 18, char_end: 21, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "failure"
@@ -18,11 +18,11 @@ diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [13, 21]
 brackets = "([zo .a'e] naĭ .u'i)"
 tree = """
 [
-  ZoQuote @[6‥13) {
+  QuotedWord @[6‥13) {
     zo: Cmavo @[6‥8) "zo",
     Cmavo @[10‥13) "a'e",
   },
   Cmavo @[13‥16) "naĭ",
   Cmavo @[18‥21) "u'i",
 ]"""
-json = """[{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[6,8]}},"word":{"Cmavo":{"phonemes":"a'e","span":[10,13]}}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[13,16]}}},{"Bare":{"Cmavo":{"phonemes":"u'i","span":[18,21]}}}]"""
+json = """[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[6,8]}},"word":{"Cmavo":{"phonemes":"a'e","span":[10,13]}}}},{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[13,16]}}},{"PlainWord":{"Cmavo":{"phonemes":"u'i","span":[18,21]}}}]"""

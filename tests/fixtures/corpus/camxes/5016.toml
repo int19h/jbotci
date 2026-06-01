@@ -8,15 +8,15 @@ entry-id = "5016"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "seĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "fénki" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "seĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "fénki" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "seĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), free_modifiers: [] }, terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } })), free_modifiers: [] }))], cu: None, relation: Na { na: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })), free_modifiers: [] }, inner_relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "fénki" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None } }))) }, sehu: None }], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [MetalinguisticBridi { sei: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "seĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), free_modifiers: [] }, terms: [Sumti(ProSumti(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } })), free_modifiers: [] }))], cu: None, selbri: Negated { na: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })), free_modifiers: [] }, inner_selbri: SelbriWord(Plain(PlainWord(Gismu { phonemes: Phonemes { text: "fénki" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None } }))) }, sehu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":10,"length":5},"kind":"base-relation","relation":{"offset":10,"length":5},"relation-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":7,"length":8},"kind":"forwarding","relation":{"offset":7,"length":8},"relation-unit":null,"propagation":{"kind":"forward","inner":0}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":10,"length":5},"kind":"base-selbri","selbri":{"offset":10,"length":5},"tanru-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":7,"length":8},"kind":"forwarding","selbri":{"offset":7,"length":8},"tanru-unit":null,"propagation":{"kind":"forward","inner":0}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(seĭ do na fénki)"
@@ -27,22 +27,22 @@ tree = """
   Cmavo @[7‥9) "na",
   Gismu @[10‥15) "fénki",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[7,9]}}},{"Bare":{"Gismu":{"phonemes":"fénki","span":[10,15]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"PlainWord":{"Cmavo":{"phonemes":"do","span":[4,6]}}},{"PlainWord":{"Cmavo":{"phonemes":"na","span":[7,9]}}},{"PlainWord":{"Gismu":{"phonemes":"fénki","span":[10,15]}}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text @[0‥15) {
   leading_free_modifiers: [
-    Sei @[0‥15) {
+    MetalinguisticBridi @[0‥15) {
       sei: Cmavo @[0‥3) "seĭ",
       terms: [
         Cmavo @[4‥6) "do",
       ],
-      relation: Na @[7‥15) {
+      selbri: Negated @[7‥15) {
         na: Cmavo @[7‥9) "na",
         Gismu @[10‥15) "fénki",
       },
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"Sei":{"sei":{"Bare":{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[4,6]}}}}}}],"relation":{"Na":{"na":{"Bare":{"Bare":{"Cmavo":{"phonemes":"na","span":[7,9]}}}},"inner_relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"fénki","span":[10,15]}}}}}}}}}]}'
+json = '{"leading_free_modifiers":[{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[4,6]}}}}}}],"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[7,9]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fénki","span":[10,15]}}}}}}}}}]}'

@@ -11,15 +11,15 @@ url = "https://lensisku.lojban.org/en/collections/18"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ro" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ga'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "cu'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 19, char_start: 15, char_end: 19, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ro" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ga'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "cu'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 19, char_start: 15, char_end: 19, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Quantified { quantifier: Number { number: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "ro" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }))], free_modifiers: [] }, boi: None }, inner_argument: Koha(WithFreeModifiers { value: WithIndicator { base: WithIndicator { base: Bare(Bare(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ga'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None } }, nai: None }, indicator: Cmavo { phonemes: Phonemes { text: "cu'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 19, char_start: 15, char_end: 19, start: None, end: None } }, nai: None }, free_modifiers: [] }) }), dohu: None }], leading_connective: None, paragraphs: [] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, sumti: Some(QuantifiedSumti { quantifier: NumberQuantifier { number: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ro" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }))], free_modifiers: [] }, boi: None }, inner_sumti: ProSumti(WithFreeModifiers { value: WithIndicator { base: WithIndicator { base: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ga'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None } }, nai: None }, indicator: Cmavo { phonemes: Phonemes { text: "cu'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 19, char_start: 15, char_end: 19, start: None, end: None } }, nai: None }, free_modifiers: [] }) }), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(coĭ ro do ga'i cu'i)"
@@ -31,7 +31,7 @@ tree = """
   Cmavo @[10‥14) "ga'i",
   Cmavo @[15‥19) "cu'i",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"ro","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"ga'i","span":[10,14]}}},{"Bare":{"Cmavo":{"phonemes":"cu'i","span":[15,19]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[4,6]}}},{"PlainWord":{"Cmavo":{"phonemes":"do","span":[7,9]}}},{"PlainWord":{"Cmavo":{"phonemes":"ga'i","span":[10,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu'i","span":[15,19]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "(coĭ [ro {(do ga'i) cu'i}])"
@@ -42,7 +42,7 @@ Text @[0‥19) {
       vocative_markers: [
         Cmavo @[0‥3) "coĭ",
       ],
-      argument: Quantified @[4‥19) {
+      sumti: QuantifiedSumti @[4‥19) {
         quantifier: Cmavo @[4‥6) "ro",
         WithIndicator @[7‥19) {
           WithIndicator @[7‥14) {
@@ -55,4 +55,4 @@ Text @[0‥19) {
     },
   ],
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"argument":{"Quantified":{"quantifier":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"ro","span":[4,6]}}}}]}},"inner_argument":{"Koha":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[7,9]}}}},"indicator":{"Cmavo":{"phonemes":"ga'i","span":[10,14]}}}},"indicator":{"Cmavo":{"phonemes":"cu'i","span":[15,19]}}}}}}}}}]}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[4,6]}}}}]}},"inner_sumti":{"ProSumti":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[7,9]}}}},"indicator":{"Cmavo":{"phonemes":"ga'i","span":[10,14]}}}},"indicator":{"Cmavo":{"phonemes":"cu'i","span":[15,19]}}}}}}}}}]}"""

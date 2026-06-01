@@ -8,15 +8,15 @@ entry-id = "10362"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "leĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "vi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "prénu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "leĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "vi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "prénu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { outer_quantifier: None, descriptor: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "leĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), free_modifiers: [] }), tail_elements: [], relation: Some(TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "vi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } })))], free_modifiers: [] } }, inner_relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "prénu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None } }))) }), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(Description(DescriptionSyntax { outer_quantifier: None, description: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "leĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), free_modifiers: [] }), tail_elements: [], selbri: Some(TaggedSelbri { tense_modal: Composite { parts: WithFreeModifiers { value: [Cmavo(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "vi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } })))], free_modifiers: [] } }, inner_selbri: SelbriWord(Plain(PlainWord(Gismu { phonemes: Phonemes { text: "prénu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 12, char_start: 7, char_end: 12, start: None, end: None } }))) }), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":7,"length":5},"kind":"base-relation","relation":{"offset":7,"length":5},"relation-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":4,"length":8},"kind":"forwarding","relation":{"offset":4,"length":8},"relation-unit":null,"propagation":{"kind":"forward","inner":0}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":7,"length":5},"kind":"base-selbri","selbri":{"offset":7,"length":5},"tanru-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":4,"length":8},"kind":"forwarding","selbri":{"offset":4,"length":8},"tanru-unit":null,"propagation":{"kind":"forward","inner":0}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(leĭ vi prénu)"
@@ -26,19 +26,19 @@ tree = """
   Cmavo @[4‥6) "vi",
   Gismu @[7‥12) "prénu",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"leĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"vi","span":[4,6]}}},{"Bare":{"Gismu":{"phonemes":"prénu","span":[7,12]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[0,3]}}},{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[4,6]}}},{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[7,12]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥12) {
+Terms @[0‥12) {
   terms: [
-    Descriptor @[0‥12) {
-      descriptor: Cmavo @[0‥3) "leĭ",
-      relation: TenseModal @[4‥12) {
+    Description @[0‥12) {
+      description: Cmavo @[0‥3) "leĭ",
+      selbri: TaggedSelbri @[4‥12) {
         tense_modal: Cmavo @[4‥6) "vi",
         Gismu @[7‥12) "prénu",
       },
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"leĭ","span":[0,3]}}}},"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"vi","span":[4,6]}}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"prénu","span":[7,12]}}}}}}}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[0,3]}}}},"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[4,6]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[7,12]}}}}}}}}}}]}}}}]}]}'

@@ -8,16 +8,16 @@ entry-id = "17259"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "mu'eĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "mu'eĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mu'eĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } })), nai: None }], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "mu'eĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } })), nai: None }], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
 diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-cmavo", byte-span = [0, 5], source-text = "mu'ei", message = "experimental syntax: Zantufa experimental cmavo classification", word-index = 0 }]
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "mu'eĭ"
@@ -25,7 +25,7 @@ tree = """
 [
   Cmavo @[0‥5) "mu'eĭ",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"mu'eĭ","span":[0,5]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"mu'eĭ","span":[0,5]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -36,4 +36,4 @@ Text @[0‥5) {
     },
   ],
 }"""
-json = """{"leading_indicators":[{"indicator":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mu'eĭ","span":[0,5]}}}}}]}"""
+json = """{"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu'eĭ","span":[0,5]}}}}}]}"""

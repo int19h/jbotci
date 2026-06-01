@@ -8,15 +8,15 @@ entry-id = "18760"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Lujvo { parts: [Rafsi(Phonemes { text: "spa" }), Rafsi(Phonemes { text: "rébla" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 11, char_start: 3, char_end: 11, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "spa" }), Rafsi(Phonemes { text: "rébla" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 11, char_start: 3, char_end: 11, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { outer_quantifier: None, descriptor: None, tail_elements: [Quantifier(Number { number: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }))], free_modifiers: [] }, boi: None })], relation: Some(Base(Bare(Bare(Lujvo { parts: [Rafsi(Phonemes { text: "spa" }), Rafsi(Phonemes { text: "rébla" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 11, char_start: 3, char_end: 11, start: None, end: None } })))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(Description(DescriptionSyntax { outer_quantifier: None, description: None, tail_elements: [DescriptionTailQuantifier(NumberQuantifier { number: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }))], free_modifiers: [] }, boi: None })], selbri: Some(SelbriWord(Plain(PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "spa" }), Rafsi(Phonemes { text: "rébla" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 11, char_start: 3, char_end: 11, start: None, end: None } })))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":3,"length":8},"kind":"base-relation","relation":{"offset":3,"length":8},"relation-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":3,"length":8},"kind":"base-selbri","selbri":{"offset":3,"length":8},"tanru-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(re sparébla)"
@@ -25,18 +25,18 @@ tree = """
   Cmavo @[0‥2) "re",
   Lujvo @[3‥11) "sparébla",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"re","span":[0,2]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"spa"},{"Rafsi":"rébla"}],"span":[3,11]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"re","span":[0,2]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"spa"},{"Rafsi":"rébla"}],"span":[3,11]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥11) {
+Terms @[0‥11) {
   terms: [
-    Descriptor @[0‥11) {
+    Description @[0‥11) {
       tail_elements: [
         Cmavo @[0‥2) "re",
       ],
-      relation: Lujvo @[3‥11) "sparébla",
+      selbri: Lujvo @[3‥11) "sparébla",
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"tail_elements":[{"Quantifier":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"re","span":[0,2]}}}}]}}}],"relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"spa"},{"Rafsi":"rébla"}],"span":[3,11]}}}}}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[0,2]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"spa"},{"Rafsi":"rébla"}],"span":[3,11]}}}}}}}}]}}}}]}]}'

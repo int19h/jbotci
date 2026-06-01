@@ -8,15 +8,15 @@ entry-id = "18172"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "ri'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }), Bare(Lujvo { parts: [Rafsi(Phonemes { text: "skam" }), Hyphen(Phonemes { text: "y" }), Rafsi(Phonemes { text: "císte" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 21, char_start: 11, char_end: 21, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "kágni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "ri'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }), PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "skam" }), Hyphen(Phonemes { text: "y" }), Rafsi(Phonemes { text: "císte" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 21, char_start: 11, char_end: 21, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "kágni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ri'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }, nai: None, ki: None }), argument: Descriptor(DescriptorSyntax { outer_quantifier: None, descriptor: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }), tail_elements: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } })), free_modifiers: [] }))], relation: Some(Compound([Word(WithFreeModifiers { value: Bare(Bare(Lujvo { parts: [Rafsi(Phonemes { text: "skam" }), Hyphen(Phonemes { text: "y" }), Rafsi(Phonemes { text: "císte" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 21, char_start: 11, char_end: 21, start: None, end: None } })), free_modifiers: [] }), Word(WithFreeModifiers { value: Bare(Bare(Gismu { phonemes: Phonemes { text: "kágni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None } })), free_modifiers: [] })])), relative_clauses: [], ku: None }) }], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [TaggedSumti { tense_modal: Some(Modal { nahe: None, se: None, bai: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ri'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }, nai: None, ki: None }), sumti: Description(DescriptionSyntax { outer_quantifier: None, description: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }), tail_elements: [DescriptionTailSumti(ProSumti(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } })), free_modifiers: [] }))], selbri: Some(Tanru([TanruUnitWord(WithFreeModifiers { value: Plain(PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "skam" }), Hyphen(Phonemes { text: "y" }), Rafsi(Phonemes { text: "císte" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 21, char_start: 11, char_end: 21, start: None, end: None } })), free_modifiers: [] }), TanruUnitWord(WithFreeModifiers { value: Plain(PlainWord(Gismu { phonemes: Phonemes { text: "kágni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None } })), free_modifiers: [] })])), relative_clauses: [], ku: None }) }], vau: None })) }] }] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":11,"length":10},"kind":"relation-unit","relation":null,"relation-unit":{"offset":11,"length":10},"propagation":{"kind":"none"}},{"index":1,"node":{"offset":22,"length":5},"kind":"relation-unit","relation":null,"relation-unit":{"offset":22,"length":5},"propagation":{"kind":"none"}},{"index":2,"node":{"offset":11,"length":16},"kind":"compound","relation":{"offset":11,"length":16},"relation-unit":null,"propagation":{"kind":"compound","head":1,"modifiers":[0]}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":11,"length":10},"kind":"tanru-unit","selbri":null,"tanru-unit":{"offset":11,"length":10},"propagation":{"kind":"none"}},{"index":1,"node":{"offset":22,"length":5},"kind":"tanru-unit","selbri":null,"tanru-unit":{"offset":22,"length":5},"propagation":{"kind":"none"}},{"index":2,"node":{"offset":11,"length":16},"kind":"compound","selbri":{"offset":11,"length":16},"tanru-unit":null,"propagation":{"kind":"compound","head":1,"modifiers":[0]}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(ri'a le mi skamycíste kágni)"
@@ -28,22 +28,22 @@ tree = """
   Lujvo @[11‥21) "skamycíste",
   Gismu @[22‥27) "kágni",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"ri'a","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[8,10]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"skam"},{"Hyphen":"y"},{"Rafsi":"císte"}],"span":[11,21]}}},{"Bare":{"Gismu":{"phonemes":"kágni","span":[22,27]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"ri'a","span":[0,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[8,10]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"skam"},{"Hyphen":"y"},{"Rafsi":"císte"}],"span":[11,21]}}},{"PlainWord":{"Gismu":{"phonemes":"kágni","span":[22,27]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥27) {
+Terms @[0‥27) {
   terms: [
-    Tagged @[0‥27) {
-      tense_modal: Simple @[0‥4) {
+    TaggedSumti @[0‥27) {
+      tense_modal: Modal @[0‥4) {
         bai: Cmavo @[0‥4) "ri'a",
       },
-      Descriptor @[5‥27) {
-        descriptor: Cmavo @[5‥7) "le",
+      Description @[5‥27) {
+        description: Cmavo @[5‥7) "le",
         tail_elements: [
           Cmavo @[8‥10) "mi",
         ],
-        relation: Compound @[11‥27) {
+        selbri: Tanru @[11‥27) {
           Lujvo @[11‥21) "skamycíste",
           Gismu @[22‥27) "kágni",
         },
@@ -51,4 +51,4 @@ Term @[0‥27) {
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ri'a","span":[0,4]}}}}}},"argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"tail_elements":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[8,10]}}}}}}],"relation":{"Compound":[{"Word":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"skam"},{"Hyphen":"y"},{"Rafsi":"císte"}],"span":[11,21]}}}}},{"Word":{"Bare":{"Bare":{"Gismu":{"phonemes":"kágni","span":[22,27]}}}}}]}}}}}]}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri'a","span":[0,4]}}}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[8,10]}}}}}}],"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"skam"},{"Hyphen":"y"},{"Rafsi":"císte"}],"span":[11,21]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kágni","span":[22,27]}}}}}]}}}}}]}}}}]}]}"""

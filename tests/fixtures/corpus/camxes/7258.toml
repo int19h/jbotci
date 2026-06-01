@@ -8,15 +8,15 @@ entry-id = "7258"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "seĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "kréfu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "seĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "kréfu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }))], free_modifiers: [Sei { sei: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "seĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None } })), free_modifiers: [] }, terms: [], cu: None, relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "kréfu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None } }))), sehu: None }] }, argument: None, dohu: None }], leading_connective: None, paragraphs: [] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }))], free_modifiers: [MetalinguisticBridi { sei: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "seĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None } })), free_modifiers: [] }, terms: [], cu: None, selbri: SelbriWord(Plain(PlainWord(Gismu { phonemes: Phonemes { text: "kréfu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None } }))), sehu: None }] }, sumti: None, dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(coĭ co'o seĭ kréfu)"
@@ -27,7 +27,7 @@ tree = """
   Cmavo @[8‥11) "seĭ",
   Gismu @[12‥17) "kréfu",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"co'o","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[8,11]}}},{"Bare":{"Gismu":{"phonemes":"kréfu","span":[12,17]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[3,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[8,11]}}},{"PlainWord":{"Gismu":{"phonemes":"kréfu","span":[12,17]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -39,12 +39,12 @@ Text @[0‥17) {
         Cmavo @[3‥7) "co'o",
       ],
       free_modifiers: [
-        Sei @[8‥17) {
+        MetalinguisticBridi @[8‥17) {
           sei: Cmavo @[8‥11) "seĭ",
-          relation: Gismu @[12‥17) "kréfu",
+          selbri: Gismu @[12‥17) "kréfu",
         },
       ],
     },
   ],
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[[{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"co'o","span":[3,7]}}}}],{"Sei":{"sei":{"Bare":{"Bare":{"Cmavo":{"phonemes":"seĭ","span":[8,11]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"kréfu","span":[12,17]}}}}}}}]}}]}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[3,7]}}}}],{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[8,11]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kréfu","span":[12,17]}}}}}}}]}}]}"""

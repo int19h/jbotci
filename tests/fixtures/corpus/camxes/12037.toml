@@ -8,7 +8,7 @@ entry-id = "12037"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "mu'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "xékri" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "grána" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 19, char_start: 14, char_end: 19, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "se" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 22, char_start: 20, char_end: 22, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "mu'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "xékri" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "grána" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 19, char_start: 14, char_end: 19, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "se" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 22, char_start: 20, char_end: 22, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "failure"
@@ -24,4 +24,4 @@ tree = """
   Gismu @[14‥19) "grána",
   Cmavo @[20‥22) "se",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"mu'a","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[5,7]}}},{"Bare":{"Gismu":{"phonemes":"xékri","span":[8,13]}}},{"Bare":{"Gismu":{"phonemes":"grána","span":[14,19]}}},{"Bare":{"Cmavo":{"phonemes":"se","span":[20,22]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"mu'a","span":[0,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}},{"PlainWord":{"Gismu":{"phonemes":"xékri","span":[8,13]}}},{"PlainWord":{"Gismu":{"phonemes":"grána","span":[14,19]}}},{"PlainWord":{"Cmavo":{"phonemes":"se","span":[20,22]}}}]"""

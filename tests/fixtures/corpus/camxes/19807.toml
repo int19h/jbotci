@@ -8,15 +8,15 @@ entry-id = "19807"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "paĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "pi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "paĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "paĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "pi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "paĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(MathExpression(Number(Number { number: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "paĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "pi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "paĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None } }))], free_modifiers: [] }, boi: None })))) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Mekso(NumberMekso(NumberQuantifier { number: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "paĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "pi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } })), Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "paĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 10, char_start: 7, char_end: 10, start: None, end: None } }))], free_modifiers: [] }, boi: None })))) }] }] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(paĭ pi paĭ)"
@@ -26,13 +26,13 @@ tree = """
   Cmavo @[4‥6) "pi",
   Cmavo @[7‥10) "paĭ",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"paĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"pi","span":[4,6]}}},{"Bare":{"Cmavo":{"phonemes":"paĭ","span":[7,10]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"paĭ","span":[0,3]}}},{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[4,6]}}},{"PlainWord":{"Cmavo":{"phonemes":"paĭ","span":[7,10]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Number @[0‥10) {
+NumberQuantifier @[0‥10) {
   Cmavo @[0‥3) "paĭ",
   Cmavo @[4‥6) "pi",
   Cmavo @[7‥10) "paĭ",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"MathExpression":{"Number":{"Number":{"number":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"paĭ","span":[0,3]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"pi","span":[4,6]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"paĭ","span":[7,10]}}}}]}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Mekso":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"paĭ","span":[0,3]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[4,6]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"paĭ","span":[7,10]}}}}]}}}}}}]}]}'

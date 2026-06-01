@@ -8,15 +8,15 @@ entry-id = "17148"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "je" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "e'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "peĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "je" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "e'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "peĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } }))), connective: Some(Relation { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [WithIndicator { base: WithIndicator { base: Bare(Bare(Cmavo { phonemes: Phonemes { text: "je" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "e'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None } }, nai: None }, indicator: Cmavo { phonemes: Phonemes { text: "peĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } }, nai: None }], free_modifiers: [] }, nai: None }), free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None } })), free_modifiers: [] }))], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } }))), connective: Some(Selbri { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [WithIndicator { base: WithIndicator { base: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "je" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "e'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 8, char_start: 5, char_end: 8, start: None, end: None } }, nai: None }, indicator: Cmavo { phonemes: Phonemes { text: "peĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } }, nai: None }], free_modifiers: [] }, nai: None }), free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(ProSumti(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None } })), free_modifiers: [] }))], vau: None })) }] }] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(.i je .e'o peĭ do)"
@@ -28,7 +28,7 @@ tree = """
   Cmavo @[9‥12) "peĭ",
   Cmavo @[13‥15) "do",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"je","span":[2,4]}}},{"Bare":{"Cmavo":{"phonemes":"e'o","span":[5,8]}}},{"Bare":{"Cmavo":{"phonemes":"peĭ","span":[9,12]}}},{"Bare":{"Cmavo":{"phonemes":"do","span":[13,15]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"je","span":[2,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"e'o","span":[5,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"peĭ","span":[9,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"do","span":[13,15]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -41,10 +41,10 @@ ParagraphStatement @[1‥15) {
     },
     indicator: Cmavo @[9‥12) "peĭ",
   },
-  Term @[13‥15) {
+  Terms @[13‥15) {
     terms: [
       Cmavo @[13‥15) "do",
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"connective":{"Relation":{"cmavo":[{"WithIndicator":{"base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"je","span":[2,4]}}}},"indicator":{"Cmavo":{"phonemes":"e'o","span":[5,8]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[9,12]}}}}]}},"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"do","span":[13,15]}}}}}}]}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"connective":{"Selbri":{"cmavo":[{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[2,4]}}}},"indicator":{"Cmavo":{"phonemes":"e'o","span":[5,8]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[9,12]}}}}]}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[13,15]}}}}}}]}}}}]}]}"""

@@ -8,15 +8,15 @@ entry-id = "13448"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "ti'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "ti'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ti'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }, nai: None, ki: None }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [TaggedSumti { tense_modal: Some(Modal { nahe: None, se: None, bai: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ti'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }, nai: None, ki: None }), sumti: ElidedSumti { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "ti'u"
@@ -24,18 +24,18 @@ tree = """
 [
   Cmavo @[0‥4) "ti'u",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"ti'u","span":[0,4]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"ti'u","span":[0,4]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥4) {
+Terms @[0‥4) {
   terms: [
-    Tagged @[0‥4) {
-      tense_modal: Simple @[0‥4) {
+    TaggedSumti @[0‥4) {
+      tense_modal: Modal @[0‥4) {
         bai: Cmavo @[0‥4) "ti'u",
       },
-      Zohe {},
+      ElidedSumti {},
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ti'u","span":[0,4]}}}}}},"argument":{"Zohe":{}}}}]}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ti'u","span":[0,4]}}}}}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}"""

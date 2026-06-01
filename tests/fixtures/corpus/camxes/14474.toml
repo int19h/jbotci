@@ -8,15 +8,15 @@ entry-id = "14474"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "fi'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), Bare(Lujvo { parts: [Rafsi(Phonemes { text: "sam" }), Rafsi(Phonemes { text: "júdri" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 13, char_start: 5, char_end: 13, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "fi'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "sam" }), Rafsi(Phonemes { text: "júdri" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 13, char_start: 5, char_end: 13, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Fiho { fiho: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "fi'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }, relation: Base(Bare(Bare(Lujvo { parts: [Rafsi(Phonemes { text: "sam" }), Rafsi(Phonemes { text: "júdri" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 13, char_start: 5, char_end: 13, start: None, end: None } }))), fehu: None }), argument: Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None } })), free_modifiers: [] }) }], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [TaggedSumti { tense_modal: Some(AdHocModal { fiho: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "fi'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }, selbri: SelbriWord(Plain(PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "sam" }), Rafsi(Phonemes { text: "júdri" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 13, char_start: 5, char_end: 13, start: None, end: None } }))), fehu: None }), sumti: ProSumti(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 16, char_start: 14, char_end: 16, start: None, end: None } })), free_modifiers: [] }) }], vau: None })) }] }] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":5,"length":8},"kind":"base-relation","relation":{"offset":5,"length":8},"relation-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":5,"length":8},"kind":"base-selbri","selbri":{"offset":5,"length":8},"tanru-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(fi'o samjúdri ma)"
@@ -26,14 +26,14 @@ tree = """
   Lujvo @[5‥13) "samjúdri",
   Cmavo @[14‥16) "ma",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"fi'o","span":[0,4]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"júdri"}],"span":[5,13]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[14,16]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"fi'o","span":[0,4]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"júdri"}],"span":[5,13]}}},{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[14,16]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥16) {
+Terms @[0‥16) {
   terms: [
-    Tagged @[0‥16) {
-      tense_modal: Fiho @[0‥13) {
+    TaggedSumti @[0‥16) {
+      tense_modal: AdHocModal @[0‥13) {
         fiho: Cmavo @[0‥4) "fi'o",
         Lujvo @[5‥13) "samjúdri",
       },
@@ -41,4 +41,4 @@ Term @[0‥16) {
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Fiho":{"fiho":{"Bare":{"Bare":{"Cmavo":{"phonemes":"fi'o","span":[0,4]}}}},"relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"júdri"}],"span":[5,13]}}}}}}},"argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ma","span":[14,16]}}}}}}}]}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"AdHocModal":{"fiho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi'o","span":[0,4]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"júdri"}],"span":[5,13]}}}}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[14,16]}}}}}}}]}}}}]}]}"""

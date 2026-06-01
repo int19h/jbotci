@@ -4,7 +4,7 @@ tags = ["v0-adhoc", "morphology"]
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Lujvo { parts: [Rafsi(Phonemes { text: "cma" }), Rafsi(Phonemes { text: "lí'i" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 9, char_start: 0, char_end: 7, start: None, end: None } })]"""
+raw = """[PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "cma" }), Rafsi(Phonemes { text: "lí'i" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 9, char_start: 0, char_end: 7, start: None, end: None } })]"""
 
 [expectations.output.vlasei]
 brackets = "cmalí'i"
@@ -12,4 +12,4 @@ tree = """
 [
   Lujvo @[0‥7) "cmalí'i",
 ]"""
-json = """[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"cma"},{"Rafsi":"lí'i"}],"span":[0,7]}}}]"""
+json = """[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cma"},{"Rafsi":"lí'i"}],"span":[0,7]}}}]"""

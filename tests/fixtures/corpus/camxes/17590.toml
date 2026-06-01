@@ -8,15 +8,15 @@ entry-id = "17590"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Lujvo { parts: [Rafsi(Phonemes { text: "xad" }), Hyphen(Phonemes { text: "y" }), Rafsi(Phonemes { text: "tró" }), Rafsi(Phonemes { text: "cre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 10, char_start: 0, char_end: 10, start: None, end: None } })]'
+raw = '[PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "xad" }), Hyphen(Phonemes { text: "y" }), Rafsi(Phonemes { text: "tró" }), Rafsi(Phonemes { text: "cre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 10, char_start: 0, char_end: 10, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Lujvo { parts: [Rafsi(Phonemes { text: "xad" }), Hyphen(Phonemes { text: "y" }), Rafsi(Phonemes { text: "tró" }), Rafsi(Phonemes { text: "cre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 10, char_start: 0, char_end: 10, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Bridi(BridiSyntax { leading_terms: [], cu: None, bridi_tail: BridiTailSyntax { first: AfterthoughtBridiTailSyntax { first: BoGroupedBridiTailSyntax { first: SelbriBridiTail { selbri: SelbriWord(Plain(PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "xad" }), Hyphen(Phonemes { text: "y" }), Rafsi(Phonemes { text: "tró" }), Rafsi(Phonemes { text: "cre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 10, char_start: 0, char_end: 10, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":0,"length":10},"kind":"base-relation","relation":{"offset":0,"length":10},"relation-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":0,"length":10},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":0,"length":10},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[1]}},{"index":3,"node":{"offset":0,"length":10},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[2]}},{"index":4,"node":{"offset":0,"length":10},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[3]}},{"index":5,"node":{"offset":0,"length":10},"kind":"predicate","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[4]}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":0,"length":10},"kind":"base-selbri","selbri":{"offset":0,"length":10},"tanru-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":0,"length":10},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":0,"length":10},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[1]}},{"index":3,"node":{"offset":0,"length":10},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[2]}},{"index":4,"node":{"offset":0,"length":10},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[3]}},{"index":5,"node":{"offset":0,"length":10},"kind":"bridi","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[4]}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "xadytrócre"
@@ -24,8 +24,8 @@ tree = """
 [
   Lujvo @[0‥10) "xadytrócre",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"xad"},{"Hyphen":"y"},{"Rafsi":"tró"},{"Rafsi":"cre"}],"span":[0,10]}}}]'
+json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"xad"},{"Hyphen":"y"},{"Rafsi":"tró"},{"Rafsi":"cre"}],"span":[0,10]}}}]'
 
 [expectations.output.gentufa]
 tree = 'Lujvo @[0‥10) "xadytrócre"'
-json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"xad"},{"Hyphen":"y"},{"Rafsi":"tró"},{"Rafsi":"cre"}],"span":[0,10]}}}}}}}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"xad"},{"Hyphen":"y"},{"Rafsi":"tró"},{"Rafsi":"cre"}],"span":[0,10]}}}}}}}}}}}}}]}]}'

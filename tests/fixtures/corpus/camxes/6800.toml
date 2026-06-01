@@ -8,15 +8,15 @@ entry-id = "6800"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "ne" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ta" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "ne" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ta" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(RelativeClause([Goi(GoiRelativeClauseSyntax { goi: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ne" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, argument: Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ta" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } })), free_modifiers: [] }), gehu: None })]))) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(RelativeClauses([SumtiAssociationPhrase(SumtiAssociationPhraseSyntax { association_marker: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ne" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, sumti: ProSumti(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ta" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } })), free_modifiers: [] }), gehu: None })]))) }] }] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(ne ta)"
@@ -25,12 +25,12 @@ tree = """
   Cmavo @[0‥2) "ne",
   Cmavo @[2‥4) "ta",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"ne","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ta","span":[2,4]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"ne","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"ta","span":[2,4]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-GoiRelativeClause @[0‥4) {
-  goi: Cmavo @[0‥2) "ne",
+SumtiAssociationPhrase @[0‥4) {
+  association_marker: Cmavo @[0‥2) "ne",
   Cmavo @[2‥4) "ta",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClause":[{"Goi":{"goi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ne","span":[0,2]}}}},"argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ta","span":[2,4]}}}}}}}]}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ne","span":[0,2]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta","span":[2,4]}}}}}}}]}}}]}]}'

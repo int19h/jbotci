@@ -8,27 +8,27 @@ entry-id = "13141"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), ZoQuote { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }, word: Lujvo { parts: [Rafsi(Phonemes { text: "fra" }), Rafsi(Phonemes { text: "ctúre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 15, char_start: 7, char_end: 15, start: None, end: None } } }]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), QuotedWord { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }, word: Lujvo { parts: [Rafsi(Phonemes { text: "fra" }), Rafsi(Phonemes { text: "ctúre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 15, char_start: 7, char_end: 15, start: None, end: None } } }]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, argument: Some(Quote(Zo(WithFreeModifiers { value: Bare(ZoQuote { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }, word: Lujvo { parts: [Rafsi(Phonemes { text: "fra" }), Rafsi(Phonemes { text: "ctúre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 15, char_start: 7, char_end: 15, start: None, end: None } } }), free_modifiers: [] }))), dohu: None }], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, sumti: Some(QuotedSumti(WordQuote(WithFreeModifiers { value: Plain(QuotedWord { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }, word: Lujvo { parts: [Rafsi(Phonemes { text: "fra" }), Rafsi(Phonemes { text: "ctúre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 15, char_start: 7, char_end: 15, start: None, end: None } } }), free_modifiers: [] }))), dohu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(coĭ [zo fractúre])"
 tree = """
 [
   Cmavo @[0‥3) "coĭ",
-  ZoQuote @[4‥15) {
+  QuotedWord @[4‥15) {
     zo: Cmavo @[4‥6) "zo",
     Lujvo @[7‥15) "fractúre",
   },
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[4,6]}},"word":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"ctúre"}],"span":[7,15]}}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[4,6]}},"word":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"ctúre"}],"span":[7,15]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -38,11 +38,11 @@ Text @[0‥15) {
       vocative_markers: [
         Cmavo @[0‥3) "coĭ",
       ],
-      argument: ZoQuote @[4‥15) {
+      sumti: QuotedWord @[4‥15) {
         zo: Cmavo @[4‥6) "zo",
         Lujvo @[7‥15) "fractúre",
       },
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"argument":{"Quote":{"Zo":{"Bare":{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[4,6]}},"word":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"ctúre"}],"span":[7,15]}}}}}}}}}]}'
+json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[4,6]}},"word":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"ctúre"}],"span":[7,15]}}}}}}}}}]}'

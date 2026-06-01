@@ -8,7 +8,7 @@ entry-id = "13890"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "se" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "parser" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 10, char_start: 4, char_end: 10, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 1, char_start: 0, char_end: 1, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "se" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 3, char_start: 1, char_end: 3, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "parser" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 10, char_start: 4, char_end: 10, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -23,4 +23,4 @@ tree = """
   Cmevla @[4‥10) "parser",
   Cmavo @[19‥21) "re",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"u","span":[0,1]}}},{"Bare":{"Cmavo":{"phonemes":"se","span":[1,3]}}},{"Bare":{"Cmevla":{"phonemes":"parser","span":[4,10]}}},{"Bare":{"Cmavo":{"phonemes":"re","span":[19,21]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"u","span":[0,1]}}},{"PlainWord":{"Cmavo":{"phonemes":"se","span":[1,3]}}},{"PlainWord":{"Cmevla":{"phonemes":"parser","span":[4,10]}}},{"PlainWord":{"Cmavo":{"phonemes":"re","span":[19,21]}}}]'

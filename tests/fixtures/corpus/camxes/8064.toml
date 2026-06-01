@@ -8,7 +8,7 @@ entry-id = "8064"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "by" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ny" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "member" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 13, char_start: 7, char_end: 13, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "by" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ny" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "member" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 13, char_start: 7, char_end: 13, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -23,4 +23,4 @@ tree = """
   Cmavo @[4‥6) "ny",
   Cmevla @[7‥13) "member",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"by","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"a","span":[3,4]}}},{"Bare":{"Cmavo":{"phonemes":"ny","span":[4,6]}}},{"Bare":{"Cmevla":{"phonemes":"member","span":[7,13]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"by","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"a","span":[3,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[4,6]}}},{"PlainWord":{"Cmevla":{"phonemes":"member","span":[7,13]}}}]'

@@ -8,7 +8,7 @@ entry-id = "219"
 
 [expectations.morphology]
 status = "success"
-raw = '[ZoiQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 18, char_start: 6, char_end: 18, start: None, end: None }, text: " da da da da" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } } }, Bare(Cmavo { phonemes: Phonemes { text: "co" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None } })]'
+raw = '[DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 18, char_start: 6, char_end: 18, start: None, end: None }, text: " da da da da" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } } }, PlainWord(Cmavo { phonemes: Phonemes { text: "co" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,7 +18,7 @@ diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [22, 24]
 brackets = "([zoĭ zo da da da da zo] co)"
 tree = """
 [
-  ZoiQuote @[0‥21) {
+  DelimitedNonLojbanQuote @[0‥21) {
     zoi: Cmavo @[0‥3) "zoĭ",
     opening_delimiter: Cmavo @[4‥6) "zo",
     quoted_text: Verbatim @[6‥18) "da da da da",
@@ -26,4 +26,4 @@ tree = """
   },
   Cmavo @[22‥24) "co",
 ]"""
-json = '[{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"zo","span":[4,6]}},"quoted_text":{"span":[6,18],"text":" da da da da"},"closing_delimiter":{"Cmavo":{"phonemes":"zo","span":[19,21]}}}},{"Bare":{"Cmavo":{"phonemes":"co","span":[22,24]}}}]'
+json = '[{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"zo","span":[4,6]}},"quoted_text":{"span":[6,18],"text":" da da da da"},"closing_delimiter":{"Cmavo":{"phonemes":"zo","span":[19,21]}}}},{"PlainWord":{"Cmavo":{"phonemes":"co","span":[22,24]}}}]'

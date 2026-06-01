@@ -36,8 +36,11 @@ fn loads_smoke_fixture() {
         .expect("vlasei JSON")
         .text;
     let value: serde_json::Value = serde_json::from_str(&vlasei_json).expect("vlasei JSON");
-    assert_eq!(value[0]["Bare"]["Cmavo"]["phonemes"], "coĭ");
-    assert_eq!(value[0]["Bare"]["Cmavo"]["span"], serde_json::json!([0, 3]));
+    assert_eq!(value[0]["PlainWord"]["Cmavo"]["phonemes"], "coĭ");
+    assert_eq!(
+        value[0]["PlainWord"]["Cmavo"]["span"],
+        serde_json::json!([0, 3])
+    );
 }
 
 #[test]
@@ -344,7 +347,7 @@ fn writer_keeps_tree_and_output_values() {
             output: Some(OutputExpectations {
                 vlasei: Some(CommandOutputExpectation {
                     json: Some(TextExpectation {
-                        text: "[{\"Bare\":{\"Cmavo\":{\"phonemes\":\"coĭ\",\"span\":[0,3]}}}]"
+                        text: "[{\"PlainWord\":{\"Cmavo\":{\"phonemes\":\"coĭ\",\"span\":[0,3]}}}]"
                             .into(),
                     }),
                     ..CommandOutputExpectation::default()
@@ -364,7 +367,7 @@ fn writer_keeps_tree_and_output_values() {
             morphology: Some(MorphologyExpectation {
                 status: ExpectationStatus::Success,
                 raw: Some(TextExpectation {
-                    text: "[WordLike(Bare(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: \"coĭ\" }), span: SourceSpan(SourceSpanData { source_id: None, byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))]".into(),
+                    text: "[WordLike(PlainWord(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: \"coĭ\" }), span: SourceSpan(SourceSpanData { source_id: None, byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))]".into(),
                 }),
                 diagnostics: vec![],
             }),

@@ -8,7 +8,7 @@ entry-id = "17522"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmevla { phonemes: Phonemes { text: "palm" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "de" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "vi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ce" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } })]'
+raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "palm" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "de" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "vi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ce" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -23,4 +23,4 @@ tree = """
   Cmavo @[7‥9) "vi",
   Cmavo @[9‥11) "ce",
 ]"""
-json = '[{"Bare":{"Cmevla":{"phonemes":"palm","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"de","span":[5,7]}}},{"Bare":{"Cmavo":{"phonemes":"vi","span":[7,9]}}},{"Bare":{"Cmavo":{"phonemes":"ce","span":[9,11]}}}]'
+json = '[{"PlainWord":{"Cmevla":{"phonemes":"palm","span":[0,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"de","span":[5,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[7,9]}}},{"PlainWord":{"Cmavo":{"phonemes":"ce","span":[9,11]}}}]'

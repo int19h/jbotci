@@ -8,7 +8,7 @@ entry-id = "3869"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "lo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Fuhivla { phonemes: Phonemes { text: "natrmérko" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 12, char_start: 3, char_end: 12, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "goĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 16, char_start: 13, char_end: 16, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "m" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 18, char_start: 17, char_end: 18, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "lo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Fuhivla { phonemes: Phonemes { text: "natrmérko" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 12, char_start: 3, char_end: 12, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "goĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 16, char_start: 13, char_end: 16, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "m" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 18, char_start: 17, char_end: 18, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -23,4 +23,4 @@ tree = """
   Cmavo @[13‥16) "goĭ",
   Cmevla @[17‥18) "m",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"lo","span":[0,2]}}},{"Bare":{"Fuhivla":{"phonemes":"natrmérko","span":[3,12]}}},{"Bare":{"Cmavo":{"phonemes":"goĭ","span":[13,16]}}},{"Bare":{"Cmevla":{"phonemes":"m","span":[17,18]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}},{"PlainWord":{"Fuhivla":{"phonemes":"natrmérko","span":[3,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[13,16]}}},{"PlainWord":{"Cmevla":{"phonemes":"m","span":[17,18]}}}]'

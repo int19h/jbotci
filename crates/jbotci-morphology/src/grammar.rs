@@ -540,12 +540,12 @@ impl<'a> Segmenter<'a> {
                     MorphologyErrorKind::ExpectedWord,
                     after_marker,
                     after_marker,
-                    word_like_context(&zo_word_with_modifiers, MorphologyContextKind::ZoQuote),
+                    word_like_context(&zo_word_with_modifiers, MorphologyContextKind::QuotedWord),
                 ));
             }
         };
         let marker_context =
-            word_like_context(&zo_word_with_modifiers, MorphologyContextKind::ZoQuote);
+            word_like_context(&zo_word_with_modifiers, MorphologyContextKind::QuotedWord);
         let zo = into_bare_word(zo_word_with_modifiers).ok_or_else(|| {
             self.invalid_span(
                 MorphologyErrorKind::InvalidQuoteMarker,
@@ -554,7 +554,7 @@ impl<'a> Segmenter<'a> {
                 marker_context,
             )
         })?;
-        let quoted_context = word_like_context(&quoted, MorphologyContextKind::ZoQuote);
+        let quoted_context = word_like_context(&quoted, MorphologyContextKind::QuotedWord);
         let word = into_bare_word(quoted).ok_or_else(|| {
             self.invalid_span(
                 MorphologyErrorKind::ExpectedWord,
@@ -581,7 +581,10 @@ impl<'a> Segmenter<'a> {
                     MorphologyErrorKind::InvalidZoiDelimiter,
                     after_marker,
                     after_marker,
-                    word_like_context(&zoi_word_with_modifiers, MorphologyContextKind::ZoiQuote),
+                    word_like_context(
+                        &zoi_word_with_modifiers,
+                        MorphologyContextKind::DelimitedNonLojbanQuote,
+                    ),
                 ));
             }
         };
@@ -590,12 +593,15 @@ impl<'a> Segmenter<'a> {
                 MorphologyErrorKind::InvalidQuoteMarker,
                 after_marker,
                 after_marker,
-                word_like_context(&zoi_word_with_modifiers, MorphologyContextKind::ZoiQuote),
+                word_like_context(
+                    &zoi_word_with_modifiers,
+                    MorphologyContextKind::DelimitedNonLojbanQuote,
+                ),
             ));
         }
         let delimiter_context = word_like_context(
             &opening_word_with_modifiers,
-            MorphologyContextKind::ZoiQuote,
+            MorphologyContextKind::DelimitedNonLojbanQuote,
         );
         let opening_delimiter = into_bare_word(opening_word_with_modifiers).ok_or_else(|| {
             self.invalid_span(
@@ -610,7 +616,11 @@ impl<'a> Segmenter<'a> {
                 MorphologyErrorKind::InvalidZoiDelimiter,
                 opening_delimiter.span().char_start,
                 opening_delimiter.span().char_end,
-                self.context(MorphologyContextKind::ZoiQuote, after_marker, self.index),
+                self.context(
+                    MorphologyContextKind::DelimitedNonLojbanQuote,
+                    after_marker,
+                    self.index,
+                ),
             ));
         }
         if self.index == self.chars.len() {
@@ -625,7 +635,11 @@ impl<'a> Segmenter<'a> {
             return Err(MorphologyError::UnterminatedZoiQuote {
                 char_offset: quoted_start,
                 delimiter: opening_delimiter.phonemes().into_string(),
-                context: self.context(MorphologyContextKind::ZoiQuote, after_marker, self.index),
+                context: self.context(
+                    MorphologyContextKind::DelimitedNonLojbanQuote,
+                    after_marker,
+                    self.index,
+                ),
             });
         };
         self.index = close_start;
@@ -657,14 +671,14 @@ impl<'a> Segmenter<'a> {
                 start,
                 word_like_context(
                     &marker_word_with_modifiers,
-                    MorphologyContextKind::SingleWordQuote,
+                    MorphologyContextKind::DelimitedWordQuote,
                 ),
             ));
         }
         self.index = end;
         let marker_context = word_like_context(
             &marker_word_with_modifiers,
-            MorphologyContextKind::SingleWordQuote,
+            MorphologyContextKind::DelimitedWordQuote,
         );
         let marker = into_bare_word(marker_word_with_modifiers).ok_or_else(|| {
             self.invalid_span(
@@ -686,8 +700,10 @@ impl<'a> Segmenter<'a> {
         &mut self,
         lohu_word_with_modifiers: WordLike,
     ) -> Result<Vec<WordLike>, MorphologyError> {
-        let lohu_context =
-            word_like_context(&lohu_word_with_modifiers, MorphologyContextKind::LohuQuote);
+        let lohu_context = word_like_context(
+            &lohu_word_with_modifiers,
+            MorphologyContextKind::QuotedWords,
+        );
         let lohu = into_bare_word(lohu_word_with_modifiers).ok_or_else(|| {
             self.invalid_span(
                 MorphologyErrorKind::InvalidQuoteMarker,
@@ -710,7 +726,7 @@ impl<'a> Segmenter<'a> {
             }
             let word = self.next_plain_word()?;
             if is_simple_cmavo_text(&word, "le'u") {
-                let lehu_context = word_like_context(&word, MorphologyContextKind::LohuQuote);
+                let lehu_context = word_like_context(&word, MorphologyContextKind::QuotedWords);
                 let lehu = into_bare_word(word).ok_or_else(|| {
                     self.invalid_span(
                         MorphologyErrorKind::InvalidQuoteMarker,
@@ -1471,8 +1487,8 @@ fn context_kind_for_violation(kind: MorphologyErrorKind) -> MorphologyContextKin
         MorphologyErrorKind::Slinkuhi | MorphologyErrorKind::InvalidLujvo => {
             MorphologyContextKind::Lujvo
         }
-        MorphologyErrorKind::InvalidZoiDelimiter => MorphologyContextKind::ZoiQuote,
-        MorphologyErrorKind::InvalidQuoteMarker => MorphologyContextKind::ZoQuote,
+        MorphologyErrorKind::InvalidZoiDelimiter => MorphologyContextKind::DelimitedNonLojbanQuote,
+        MorphologyErrorKind::InvalidQuoteMarker => MorphologyContextKind::QuotedWord,
         _ => MorphologyContextKind::Fuhivla,
     }
 }
@@ -1539,7 +1555,7 @@ fn bare_word_ref(word: &WordLike) -> Option<&Word> {
 #[ensures(true)]
 fn into_bare_word(word: WordLike) -> Option<Word> {
     match word.into_data() {
-        data!(WordLike::Bare(word)) => Some(word),
+        data!(WordLike::PlainWord(word)) => Some(word),
         _ => None,
     }
 }
@@ -2031,7 +2047,7 @@ mod tests {
             .expect("valid morphology");
 
         assert_eq!(words.len(), 1);
-        let data!(WordLike::ZoQuote { zo, word }) = words[0].as_data() else {
+        let data!(WordLike::QuotedWord { zo, word }) = words[0].as_data() else {
             panic!("expected ZO quote");
         };
         assert_eq!(zo.phonemes().as_str(), "zo");
@@ -2047,7 +2063,7 @@ mod tests {
                 .expect("valid morphology");
 
         assert_eq!(words.len(), 1);
-        let data!(WordLike::ZoiQuote {
+        let data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,
             quoted_text,
@@ -2090,7 +2106,7 @@ mod tests {
             MorphologyErrorKind::ExpectedWord,
             2,
             2,
-            Some(MorphologyContextKind::ZoQuote),
+            Some(MorphologyContextKind::QuotedWord),
         );
     }
 
@@ -2139,7 +2155,7 @@ mod tests {
             MorphologyErrorKind::InvalidZoiDelimiter,
             4,
             5,
-            Some(MorphologyContextKind::ZoiQuote),
+            Some(MorphologyContextKind::DelimitedNonLojbanQuote),
         );
     }
 
@@ -2150,10 +2166,10 @@ mod tests {
         let words = segment_words_with_modifiers(".yyyyy. bu", &MorphologyOptions::default(), None)
             .expect("valid morphology");
 
-        let data!(WordLike::Letter { base, bu }) = words[0].as_data() else {
+        let data!(WordLike::LerfuWord { base, bu }) = words[0].as_data() else {
             panic!("expected BU letter");
         };
-        let data!(WordLike::Bare(base)) = base.as_data() else {
+        let data!(WordLike::PlainWord(base)) = base.as_data() else {
             panic!("expected bare Y base");
         };
         assert_eq!(base.phonemes().as_str(), "yyyyy");
@@ -2181,7 +2197,7 @@ mod tests {
     #[ensures(true)]
     fn bare_word(word: &WordLike) -> Option<&Word> {
         match word.as_data() {
-            data!(WordLike::Bare(word)) => Some(word),
+            data!(WordLike::PlainWord(word)) => Some(word),
             _ => None,
         }
     }

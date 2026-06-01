@@ -8,7 +8,7 @@ entry-id = "12004"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "ja" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "va" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "is" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), Bare(Lujvo { parts: [Rafsi(Phonemes { text: "mabl" }), Hyphen(Phonemes { text: "y" }), Rafsi(Phonemes { text: "mútce" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 18, char_start: 8, char_end: 18, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "ja" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "va" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "is" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "mabl" }), Hyphen(Phonemes { text: "y" }), Rafsi(Phonemes { text: "mútce" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 18, char_start: 8, char_end: 18, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -23,4 +23,4 @@ tree = """
   Cmevla @[5‥7) "is",
   Lujvo @[8‥18) "mablymútce",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"ja","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"va","span":[2,4]}}},{"Bare":{"Cmevla":{"phonemes":"is","span":[5,7]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"mabl"},{"Hyphen":"y"},{"Rafsi":"mútce"}],"span":[8,18]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"ja","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"va","span":[2,4]}}},{"PlainWord":{"Cmevla":{"phonemes":"is","span":[5,7]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mabl"},{"Hyphen":"y"},{"Rafsi":"mútce"}],"span":[8,18]}}}]'

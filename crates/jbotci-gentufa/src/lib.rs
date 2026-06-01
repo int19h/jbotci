@@ -448,7 +448,7 @@ impl<'source, 'options> LeafCollector<'source, 'options> {
     #[ensures(true)]
     fn push_with_indicators(&mut self, value: &WithIndicators<WordLike>) {
         match value {
-            WithIndicators::Bare(word_like) => self.push_word_like(word_like),
+            WithIndicators::Plain(word_like) => self.push_word_like(word_like),
             WithIndicators::Emphasized { bahe, word_like } => {
                 self.push_word(bahe);
                 self.push_word_like(word_like);
@@ -956,7 +956,7 @@ fn should_collapse_safe_multi_child_parent(node: &BlockTreeNode) -> bool {
         && node.node_types.first().is_some_and(|node_type| {
             matches!(
                 node_type.as_str(),
-                "PredicateTail" | "PredicateTail1" | "PredicateTail2" | "Relation"
+                "BridiTail" | "AfterthoughtBridiTail" | "BoGroupedBridiTail" | "Selbri"
             )
         })
         && node.ref_markers.is_empty()
@@ -1514,7 +1514,7 @@ pub fn reference_markers_for_node(
 #[ensures(!ret.is_empty())]
 fn reference_kind_for_label(label: &ReferenceLabel) -> String {
     if label.slot.is_some() {
-        "argument".to_owned()
+        "sumti".to_owned()
     } else {
         "reference".to_owned()
     }
@@ -1569,15 +1569,15 @@ fn source_text_for_range(source: &str, range: Option<WebSourceRange>) -> String 
 #[ensures(true)]
 fn render_word_like(word_like: &WordLike, source: &str, options: &GentufaBlockOptions) -> String {
     match word_like.as_data() {
-        WordLikeData::Bare(word) => render_word(word, options),
-        WordLikeData::ZoQuote { zo, word } => {
+        WordLikeData::PlainWord(word) => render_word(word, options),
+        WordLikeData::QuotedWord { zo, word } => {
             format!(
                 "{} {}",
                 render_word(zo, options),
                 render_word(word, options)
             )
         }
-        WordLikeData::ZoiQuote {
+        WordLikeData::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,
             quoted_text,
@@ -1591,7 +1591,7 @@ fn render_word_like(word_like: &WordLike, source: &str, options: &GentufaBlockOp
                 .unwrap_or(&quoted_text.text),
             render_word(closing_delimiter, options)
         ),
-        WordLikeData::LohuQuote {
+        WordLikeData::QuotedWords {
             lohu,
             quoted_words,
             lehu,
@@ -1602,7 +1602,7 @@ fn render_word_like(word_like: &WordLike, source: &str, options: &GentufaBlockOp
             parts.push(render_word(lehu, options));
             parts.join(" ")
         }
-        WordLikeData::SingleWordQuote {
+        WordLikeData::DelimitedWordQuote {
             marker,
             quoted_text,
         } => format!(
@@ -1612,14 +1612,14 @@ fn render_word_like(word_like: &WordLike, source: &str, options: &GentufaBlockOp
                 .get(quoted_text.span.byte_start..quoted_text.span.byte_end)
                 .unwrap_or(&quoted_text.text)
         ),
-        WordLikeData::Letter { base, bu } => {
+        WordLikeData::LerfuWord { base, bu } => {
             format!(
                 "{} {}",
                 render_word_like(base, source, options),
                 render_word(bu, options)
             )
         }
-        WordLikeData::ZeiLujvo { left, zei, right } => format!(
+        WordLikeData::ZeiCompound { left, zei, right } => format!(
             "{} {} {}",
             render_word_like(left, source, options),
             render_word(zei, options),
@@ -1998,6 +1998,7 @@ mod tests {
     fn test_block_tree_node(depth: usize, leaf_part_count: usize) -> BlockTreeNode {
         BlockTreeNode {
             id: RawSyntaxNodeId(depth),
+            node_ids: vec![RawSyntaxNodeId(depth)],
             label: format!("node-{depth}"),
             is_elided: false,
             token_kind: None,

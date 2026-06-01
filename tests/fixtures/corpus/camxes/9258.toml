@@ -8,7 +8,7 @@ entry-id = "9258"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Lujvo { parts: [Rafsi(Phonemes { text: "jbe" }), Rafsi(Phonemes { text: "det" }), Rafsi(Phonemes { text: "nún" }), Rafsi(Phonemes { text: "sla" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 12, char_start: 0, char_end: 12, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "or" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None } }), Bare(Lujvo { parts: [Rafsi(Phonemes { text: "jbé" }), Rafsi(Phonemes { text: "sla" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 22, char_start: 16, char_end: 22, start: None, end: None } })]'
+raw = '[PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "jbe" }), Rafsi(Phonemes { text: "det" }), Rafsi(Phonemes { text: "nún" }), Rafsi(Phonemes { text: "sla" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 12, char_start: 0, char_end: 12, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "or" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 15, char_start: 13, char_end: 15, start: None, end: None } }), PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "jbé" }), Rafsi(Phonemes { text: "sla" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 22, char_start: 16, char_end: 22, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -22,4 +22,4 @@ tree = """
   Cmevla @[13‥15) "or",
   Lujvo @[16‥22) "jbésla",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"jbe"},{"Rafsi":"det"},{"Rafsi":"nún"},{"Rafsi":"sla"}],"span":[0,12]}}},{"Bare":{"Cmevla":{"phonemes":"or","span":[13,15]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"jbé"},{"Rafsi":"sla"}],"span":[16,22]}}}]'
+json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jbe"},{"Rafsi":"det"},{"Rafsi":"nún"},{"Rafsi":"sla"}],"span":[0,12]}}},{"PlainWord":{"Cmevla":{"phonemes":"or","span":[13,15]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jbé"},{"Rafsi":"sla"}],"span":[16,22]}}}]'

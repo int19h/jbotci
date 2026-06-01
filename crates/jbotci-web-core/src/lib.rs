@@ -846,7 +846,7 @@ fn elided_terminator_node_id(node_count: usize, parent: RawSyntaxNodeId, index: 
 fn tree_row_should_render(label: &str) -> bool {
     !matches!(
         label,
-        "PredicateTail" | "PredicateTail1" | "PredicateTail2" | "Relation"
+        "BridiTail" | "AfterthoughtBridiTail" | "BoGroupedBridiTail" | "Selbri"
     )
 }
 
@@ -4492,7 +4492,7 @@ mod tests {
             .tree_rows
             .iter()
             .position(|row| {
-                row.label == "Base"
+                row.label == "SelbriWord"
                     && row
                         .cells
                         .iter()
@@ -4634,12 +4634,10 @@ mod tests {
                 .iter()
                 .all(|row| row.color.starts_with('#'))
         );
-        assert!(
-            success
-                .tree_rows
-                .iter()
-                .all(|row| !row.label.starts_with("PredicateTail") && row.label != "Relation")
-        );
+        assert!(success.tree_rows.iter().all(|row| !matches!(
+            row.label.as_str(),
+            "BridiTail" | "AfterthoughtBridiTail" | "BoGroupedBridiTail" | "Selbri"
+        )));
         assert!(
             success.tree_rows.iter().all(|row| {
                 success.blocks_layout.blocks.iter().any(|block| {

@@ -8,7 +8,7 @@ entry-id = "17527"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "ni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ce" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "ni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ce" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -21,4 +21,4 @@ tree = """
   Cmavo @[0‥2) "ni",
   Cmavo @[2‥4) "ce",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"ni","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ce","span":[2,4]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"ni","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"ce","span":[2,4]}}}]'

@@ -8,7 +8,7 @@ entry-id = "163"
 
 [expectations.morphology]
 status = "success"
-raw = '[ZoQuote { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }, word: Cmavo { phonemes: Phonemes { text: "si" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } } }, Bare(Cmavo { phonemes: Phonemes { text: "co" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } }), Bare(Lujvo { parts: [Rafsi(Phonemes { text: "nal" }), Rafsi(Phonemes { text: "sel" }), Rafsi(Phonemes { text: "morj" }), Hyphen(Phonemes { text: "y" }), Rafsi(Phonemes { text: "válsi" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 31, char_start: 15, char_end: 31, start: None, end: None } })]'
+raw = '[QuotedWord { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }, word: Cmavo { phonemes: Phonemes { text: "si" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } } }, PlainWord(Cmavo { phonemes: Phonemes { text: "co" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } }), PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "nal" }), Rafsi(Phonemes { text: "sel" }), Rafsi(Phonemes { text: "morj" }), Hyphen(Phonemes { text: "y" }), Rafsi(Phonemes { text: "válsi" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 31, char_start: 15, char_end: 31, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -18,11 +18,11 @@ diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [12, 14]
 brackets = "([zo si] co nalselmorjyválsi)"
 tree = """
 [
-  ZoQuote @[0‥11) {
+  QuotedWord @[0‥11) {
     zo: Cmavo @[0‥2) "zo",
     Cmavo @[9‥11) "si",
   },
   Cmavo @[12‥14) "co",
   Lujvo @[15‥31) "nalselmorjyválsi",
 ]"""
-json = '[{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"si","span":[9,11]}}}},{"Bare":{"Cmavo":{"phonemes":"co","span":[12,14]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"sel"},{"Rafsi":"morj"},{"Hyphen":"y"},{"Rafsi":"válsi"}],"span":[15,31]}}}]'
+json = '[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"si","span":[9,11]}}}},{"PlainWord":{"Cmavo":{"phonemes":"co","span":[12,14]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"sel"},{"Rafsi":"morj"},{"Hyphen":"y"},{"Rafsi":"válsi"}],"span":[15,31]}}}]'

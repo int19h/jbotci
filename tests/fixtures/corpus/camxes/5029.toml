@@ -8,7 +8,7 @@ entry-id = "5029"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "be" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "fúnge" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 7, char_start: 2, char_end: 7, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "suspect" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 17, char_start: 10, char_end: 17, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "be" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "fúnge" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 7, char_start: 2, char_end: 7, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 9, char_start: 8, char_end: 9, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "suspect" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 17, char_start: 10, char_end: 17, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -23,4 +23,4 @@ tree = """
   Cmavo @[8‥9) "i",
   Cmevla @[10‥17) "suspect",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"be","span":[0,2]}}},{"Bare":{"Gismu":{"phonemes":"fúnge","span":[2,7]}}},{"Bare":{"Cmavo":{"phonemes":"i","span":[8,9]}}},{"Bare":{"Cmevla":{"phonemes":"suspect","span":[10,17]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"be","span":[0,2]}}},{"PlainWord":{"Gismu":{"phonemes":"fúnge","span":[2,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"i","span":[8,9]}}},{"PlainWord":{"Cmevla":{"phonemes":"suspect","span":[10,17]}}}]'

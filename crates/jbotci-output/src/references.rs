@@ -9,7 +9,7 @@ use jbotci_semantics::references::{
     SelbriPlaceFrame, SyntaxIndex,
 };
 use jbotci_syntax::ast::{
-    AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, RelationSyntax, TenseModalSyntax,
+    AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, SelbriSyntax, TenseModalSyntax,
     TenseModalSyntaxData, Token, TreeNode as SyntaxTreeNode,
 };
 use jbotci_tree::TreeVisitor;
@@ -163,7 +163,7 @@ impl ReferenceDisplayModel {
                     options,
                 ));
                 self.incoming_by_node
-                    .entry(assignment.argument.0)
+                    .entry(assignment.sumti.0)
                     .or_default()
                     .insert(place_name);
             }
@@ -371,14 +371,14 @@ fn resolved_reference_target_node(
 #[ensures(true)]
 fn is_displayed_place_frame(analysis: &ReferenceAnalysis<'_>, frame: &SelbriPlaceFrame) -> bool {
     match frame.kind {
-        PlaceFrameKind::BaseRelation => analysis
+        PlaceFrameKind::BaseSelbri => analysis
             .syntax_index
             .node(frame.node)
-            .is_some_and(|node| matches!(node, SyntaxNodeRef::RelationSyntaxBase(_))),
-        PlaceFrameKind::RelationUnit => analysis
+            .is_some_and(|node| matches!(node, SyntaxNodeRef::SelbriSyntaxSelbriWord(_))),
+        PlaceFrameKind::TanruUnit => analysis
             .syntax_index
             .node(frame.node)
-            .is_some_and(|node| matches!(node, SyntaxNodeRef::RelationUnitSyntaxWord(_))),
+            .is_some_and(|node| matches!(node, SyntaxNodeRef::TanruUnitSyntaxTanruUnitWord(_))),
         _ => false,
     }
 }
@@ -410,7 +410,7 @@ fn modal_slot_words(
     options: TreeRenderOptions,
 ) -> Vec<String> {
     match index.node(tag) {
-        Some(SyntaxNodeRef::TenseModalSyntaxFiho(tense)) => {
+        Some(SyntaxNodeRef::TenseModalSyntaxAdHocModal(tense)) => {
             fiho_tense_modal_words(tense, source, options)
         }
         Some(SyntaxNodeRef::TenseModalSyntaxComposite(tense)) => {
@@ -429,10 +429,14 @@ fn fiho_tense_modal_words(
     options: TreeRenderOptions,
 ) -> Vec<String> {
     match tense.as_data() {
-        data!(TenseModalSyntax::Fiho { relation, .. }) => {
-            words_for_relation(relation, source, options)
+        data!(TenseModalSyntax::AdHocModal { selbri, .. }) => {
+            words_for_relation(selbri, source, options)
         }
-        _ => words_for_node(SyntaxNodeRef::TenseModalSyntaxFiho(tense), source, options),
+        _ => words_for_node(
+            SyntaxNodeRef::TenseModalSyntaxAdHocModal(tense),
+            source,
+            options,
+        ),
     }
 }
 
@@ -453,18 +457,16 @@ fn composite_tense_modal_words(
     let mut words = Vec::new();
     for part in &parts.value {
         match part.as_data() {
-            data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Word(
+            data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
                 word
             )) => {
                 words.push(token_word_text(word, source, options));
             }
-            data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Fiho(
-                fiho
-            )) => {
+            data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::AdHocModal(fiho)) => {
                 if let Some(nahe) = &fiho.nahe {
                     words.push(token_word_text(nahe, source, options));
                 }
-                words.extend(words_for_relation(&fiho.relation, source, options));
+                words.extend(words_for_relation(&fiho.selbri, source, options));
             }
         }
     }
@@ -474,12 +476,12 @@ fn composite_tense_modal_words(
 #[requires(true)]
 #[ensures(true)]
 fn words_for_relation(
-    relation: &RelationSyntax,
+    selbri: &SelbriSyntax,
     source: &str,
     options: TreeRenderOptions,
 ) -> Vec<String> {
     let mut collector = SyntaxWordCollector::new(source, options);
-    relation.visit_in_order(&mut collector);
+    selbri.visit_in_order(&mut collector);
     collector.words
 }
 
@@ -493,19 +495,21 @@ fn words_for_node(
     let mut collector = SyntaxWordCollector::new(source, options);
     match node {
         SyntaxNodeRef::TenseModalSyntaxComposite(tense)
-        | SyntaxNodeRef::TenseModalSyntaxPu(tense)
-        | SyntaxNodeRef::TenseModalSyntaxPuDistance(tense)
+        | SyntaxNodeRef::TenseModalSyntaxTimeDirection(tense)
+        | SyntaxNodeRef::TenseModalSyntaxTimeDirectionDistance(tense)
         | SyntaxNodeRef::TenseModalSyntaxTimeInterval(tense)
-        | SyntaxNodeRef::TenseModalSyntaxPuCaha(tense)
+        | SyntaxNodeRef::TenseModalSyntaxTimeDirectionActuality(tense)
         | SyntaxNodeRef::TenseModalSyntaxSpaceDistance(tense)
         | SyntaxNodeRef::TenseModalSyntaxSpaceDirection(tense)
         | SyntaxNodeRef::TenseModalSyntaxSpaceMovement(tense)
-        | SyntaxNodeRef::TenseModalSyntaxSimple(tense)
-        | SyntaxNodeRef::TenseModalSyntaxKi(tense)
-        | SyntaxNodeRef::TenseModalSyntaxFiho(tense)
-        | SyntaxNodeRef::TenseModalSyntaxCaha(tense)
-        | SyntaxNodeRef::TenseModalSyntaxZaho(tense)
-        | SyntaxNodeRef::TenseModalSyntaxInterval(tense) => tense.visit_in_order(&mut collector),
+        | SyntaxNodeRef::TenseModalSyntaxModal(tense)
+        | SyntaxNodeRef::TenseModalSyntaxSticky(tense)
+        | SyntaxNodeRef::TenseModalSyntaxAdHocModal(tense)
+        | SyntaxNodeRef::TenseModalSyntaxActuality(tense)
+        | SyntaxNodeRef::TenseModalSyntaxEventContour(tense)
+        | SyntaxNodeRef::TenseModalSyntaxIntervalProperty(tense) => {
+            tense.visit_in_order(&mut collector)
+        }
         _ => {}
     }
     collector.words

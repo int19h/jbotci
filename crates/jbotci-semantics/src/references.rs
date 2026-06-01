@@ -8,19 +8,19 @@ use bityzba::{data, ensures, invariant, requires};
 use jbotci_morphology::{Cmavo, Selmaho, WordLike};
 use jbotci_source::{SourceId, SourceSpan};
 use jbotci_syntax::ast::{
-    AbstractionSyntax, ArgumentSyntax, ArgumentSyntaxData, ArgumentTagSyntax,
-    ArgumentTagSyntaxData, ArgumentTailElementSyntax, ArgumentTailElementSyntaxData,
-    AtomRef as SyntaxAtomRef, BeiLinkSyntax, CompositeTenseModalPartSyntaxData, ConnectiveSyntax,
-    ConnectiveSyntaxData, DescriptorSyntax, FragmentSyntax, FragmentSyntaxData, FreeModifierSyntax,
-    FreeModifierSyntaxData, GoiRelativeClauseSyntax, MathExpressionSyntax,
-    MathExpressionSyntaxData, MathOperatorSyntax, MathOperatorSyntaxData, NodeRef as SyntaxNodeRef,
-    ParagraphSyntax, PredicateSyntax, PredicateTail1Syntax, PredicateTail2Syntax,
-    PredicateTail3Syntax, PredicateTail3SyntaxData, PredicateTailSyntax, QuantifierSyntax,
-    QuantifierSyntaxData, QuoteSyntax, QuoteSyntaxData, RelationSyntax, RelationSyntaxData,
-    RelationUnitSyntax, RelationUnitSyntaxData, RelativeClauseSyntax, RelativeClauseSyntaxData,
-    StatementSyntax, StatementSyntaxData, SubsentenceSyntax, SubsentenceSyntaxData,
-    TenseModalSyntax, TenseModalSyntaxData, TermSyntax, TermSyntaxData, TextSyntax, Token,
-    TreeNode, WithFreeModifiers,
+    AbstractionSyntax, AdditionalLinkedSumtiSyntax, AfterthoughtBridiTailSyntax,
+    AtomRef as SyntaxAtomRef, BoGroupedBridiTailSyntax, BridiSyntax, BridiTailSyntax,
+    CompositeTenseModalPartSyntaxData, ConnectiveSyntax, ConnectiveSyntaxData, DescriptionSyntax,
+    DescriptionTailElementSyntax, DescriptionTailElementSyntaxData, FragmentSyntax,
+    FragmentSyntaxData, FreeModifierSyntax, FreeModifierSyntaxData, MeksoOperatorSyntax,
+    MeksoOperatorSyntaxData, MeksoSyntax, MeksoSyntaxData, NodeRef as SyntaxNodeRef,
+    ParagraphSyntax, QuantifierSyntax, QuantifierSyntaxData, QuoteSyntax, QuoteSyntaxData,
+    RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax, SelbriSyntaxData,
+    SimpleBridiTailSyntax, SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData,
+    SubbridiSyntax, SubbridiSyntaxData, SumtiAssociationPhraseSyntax, SumtiSyntax, SumtiSyntaxData,
+    SumtiTagSyntax, SumtiTagSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData, TenseModalSyntax,
+    TenseModalSyntaxData, TermSyntax, TermSyntaxData, TextSyntax, Token, TreeNode,
+    WithFreeModifiers,
 };
 use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
@@ -44,19 +44,19 @@ pub struct StatementNodeId(pub RawSyntaxNodeId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
-pub struct PredicateNodeId(pub RawSyntaxNodeId);
+pub struct BridiNodeId(pub RawSyntaxNodeId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
-pub struct PredicateTailNodeId(pub RawSyntaxNodeId);
+pub struct BridiTailNodeId(pub RawSyntaxNodeId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
-pub struct RelationNodeId(pub RawSyntaxNodeId);
+pub struct SelbriNodeId(pub RawSyntaxNodeId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
-pub struct RelationUnitNodeId(pub RawSyntaxNodeId);
+pub struct TanruUnitNodeId(pub RawSyntaxNodeId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
@@ -64,7 +64,7 @@ pub struct TermNodeId(pub RawSyntaxNodeId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
-pub struct ArgumentNodeId(pub RawSyntaxNodeId);
+pub struct SumtiNodeId(pub RawSyntaxNodeId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
@@ -76,11 +76,11 @@ pub struct AbstractionNodeId(pub RawSyntaxNodeId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
-pub struct MathExpressionNodeId(pub RawSyntaxNodeId);
+pub struct MeksoNodeId(pub RawSyntaxNodeId);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
-pub struct MathOperatorNodeId(pub RawSyntaxNodeId);
+pub struct MeksoOperatorNodeId(pub RawSyntaxNodeId);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
@@ -100,7 +100,7 @@ pub struct SelbriPlaceFrameId(pub usize);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[invariant(true)]
-pub struct ArgumentPlaceAssignmentId(pub usize);
+pub struct SumtiPlaceAssignmentId(pub usize);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[invariant(true)]
@@ -184,8 +184,8 @@ fn propagation_jai(inner: SelbriPlaceFrameId) -> PlaceFramePropagation {
 
 #[requires(true)]
 #[ensures(true)]
-fn propagation_connected(branches: Vec<SelbriPlaceFrameId>) -> PlaceFramePropagation {
-    PlaceFramePropagation::Connected { branches }
+fn propagation_connective_branches(branches: Vec<SelbriPlaceFrameId>) -> PlaceFramePropagation {
+    PlaceFramePropagation::ConnectiveBranches { branches }
 }
 
 #[requires(true)]
@@ -234,19 +234,19 @@ fn target_vague(kind: VagueReferenceKind) -> ReferenceTarget {
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
 pub enum PlaceFrameKind {
-    Predicate,
-    PredicateTail,
-    BaseRelation,
-    RelationUnit,
+    Bridi,
+    BridiTail,
+    BaseSelbri,
+    TanruUnit,
     Converted,
     JaiConverted,
     LinkedUnit,
-    Connected,
+    ConnectiveBranching,
     Compound,
     CoInverted,
     Forwarding,
     Abstraction,
-    ProRelation,
+    ProBridi,
     Unknown,
 }
 
@@ -256,7 +256,7 @@ pub enum PlaceFrameKind {
 #[invariant(::Forward => true)]
 #[invariant(::Conversion => true)]
 #[invariant(::Jai => true)]
-#[invariant(::Connected => true)]
+#[invariant(::ConnectiveBranches => true)]
 #[invariant(::Compound => true)]
 #[invariant(::Co => true)]
 pub enum PlaceFramePropagation {
@@ -271,7 +271,7 @@ pub enum PlaceFramePropagation {
     Jai {
         inner: SelbriPlaceFrameId,
     },
-    Connected {
+    ConnectiveBranches {
         branches: Vec<SelbriPlaceFrameId>,
     },
     Compound {
@@ -290,8 +290,8 @@ pub struct SelbriPlaceFrame {
     pub id: SelbriPlaceFrameId,
     pub node: RawSyntaxNodeId,
     pub kind: PlaceFrameKind,
-    pub relation: Option<RelationNodeId>,
-    pub relation_unit: Option<RelationUnitNodeId>,
+    pub selbri: Option<SelbriNodeId>,
+    pub tanru_unit: Option<TanruUnitNodeId>,
     pub propagation: PlaceFramePropagation,
 }
 
@@ -302,7 +302,7 @@ pub enum AssignmentSource {
     SequentialTerm,
     FaTerm,
     ModalTerm,
-    LinkArgument,
+    LinkedSumti,
     TermsetBranch,
     Propagated,
     CompoundSharedX1,
@@ -310,11 +310,11 @@ pub enum AssignmentSource {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
-pub struct ArgumentPlaceAssignment {
-    pub id: ArgumentPlaceAssignmentId,
+pub struct SumtiPlaceAssignment {
+    pub id: SumtiPlaceAssignmentId,
     pub frame: SelbriPlaceFrameId,
     pub slot: PlaceSlot,
-    pub argument: ArgumentNodeId,
+    pub sumti: SumtiNodeId,
     pub term: Option<TermNodeId>,
     pub source: AssignmentSource,
 }
@@ -323,8 +323,8 @@ pub struct ArgumentPlaceAssignment {
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
 pub enum ReferenceKind {
-    GoiAssignment,
-    CeiAssignment,
+    SumtiAssociation,
+    ProBridiAssignment,
     Koha,
     Ri,
     Cehu,
@@ -343,8 +343,8 @@ pub enum ReferenceKind {
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
 pub enum VagueReferenceKind {
-    DistantArgument,
-    RecentArgument,
+    DistantSumti,
+    RecentSumti,
     Bridi,
 }
 
@@ -435,12 +435,12 @@ pub fn analyze_references<'tree>(
 pub struct PlaceAnalysis {
     frames: Vec<SelbriPlaceFrame>,
     frame_ids_by_node: HashMap<RawSyntaxNodeId, Vec<SelbriPlaceFrameId>>,
-    assignments: Vec<ArgumentPlaceAssignment>,
-    assignment_ids_by_argument: HashMap<ArgumentNodeId, Vec<ArgumentPlaceAssignmentId>>,
-    assignment_ids_by_term: HashMap<TermNodeId, Vec<ArgumentPlaceAssignmentId>>,
-    assignment_ids_by_frame: HashMap<SelbriPlaceFrameId, Vec<ArgumentPlaceAssignmentId>>,
+    assignments: Vec<SumtiPlaceAssignment>,
+    assignment_ids_by_sumti: HashMap<SumtiNodeId, Vec<SumtiPlaceAssignmentId>>,
+    assignment_ids_by_term: HashMap<TermNodeId, Vec<SumtiPlaceAssignmentId>>,
+    assignment_ids_by_frame: HashMap<SelbriPlaceFrameId, Vec<SumtiPlaceAssignmentId>>,
     assignment_ids_by_frame_slot:
-        HashMap<(SelbriPlaceFrameId, PlaceSlot), Vec<ArgumentPlaceAssignmentId>>,
+        HashMap<(SelbriPlaceFrameId, PlaceSlot), Vec<SumtiPlaceAssignmentId>>,
 }
 
 impl PlaceAnalysis {
@@ -475,31 +475,28 @@ impl PlaceAnalysis {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn assignments(&self) -> &[ArgumentPlaceAssignment] {
+    pub fn assignments(&self) -> &[SumtiPlaceAssignment] {
         &self.assignments
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn assignment(&self, id: ArgumentPlaceAssignmentId) -> Option<&ArgumentPlaceAssignment> {
+    pub fn assignment(&self, id: SumtiPlaceAssignmentId) -> Option<&SumtiPlaceAssignment> {
         self.assignments.get(id.0)
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn assignments_for_argument(
-        &self,
-        argument: ArgumentNodeId,
-    ) -> &[ArgumentPlaceAssignmentId] {
-        self.assignment_ids_by_argument
-            .get(&argument)
+    pub fn assignments_for_sumti(&self, sumti: SumtiNodeId) -> &[SumtiPlaceAssignmentId] {
+        self.assignment_ids_by_sumti
+            .get(&sumti)
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn assignments_for_term(&self, term: TermNodeId) -> &[ArgumentPlaceAssignmentId] {
+    pub fn assignments_for_term(&self, term: TermNodeId) -> &[SumtiPlaceAssignmentId] {
         self.assignment_ids_by_term
             .get(&term)
             .map(Vec::as_slice)
@@ -508,7 +505,7 @@ impl PlaceAnalysis {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn assignments_for_frame(&self, frame: SelbriPlaceFrameId) -> &[ArgumentPlaceAssignmentId] {
+    pub fn assignments_for_frame(&self, frame: SelbriPlaceFrameId) -> &[SumtiPlaceAssignmentId] {
         self.assignment_ids_by_frame
             .get(&frame)
             .map(Vec::as_slice)
@@ -521,7 +518,7 @@ impl PlaceAnalysis {
         &self,
         frame: SelbriPlaceFrameId,
         slot: PlaceSlot,
-    ) -> &[ArgumentPlaceAssignmentId] {
+    ) -> &[SumtiPlaceAssignmentId] {
         self.assignment_ids_by_frame_slot
             .get(&(frame, slot))
             .map(Vec::as_slice)
@@ -534,11 +531,11 @@ impl PlaceAnalysis {
         &self,
         frame: SelbriPlaceFrameId,
         slot: PlaceSlot,
-    ) -> Option<ArgumentNodeId> {
+    ) -> Option<SumtiNodeId> {
         self.assignments_for_frame_slot(frame, slot)
             .first()
             .and_then(|id| self.assignment(*id))
-            .map(|assignment| assignment.argument)
+            .map(|assignment| assignment.sumti)
     }
 }
 
@@ -563,25 +560,25 @@ pub struct SyntaxSpanKey {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct V0CompatibilityProjection {
-    pub argument_assignments: Vec<V0ArgumentAssignment>,
-    pub relation_places: Vec<V0RelationPlace>,
+    pub sumti_assignments: Vec<V0SumtiAssignment>,
+    pub selbri_places: Vec<V0SelbriPlace>,
     pub reference_edges: Vec<V0ReferenceEdge>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
-pub struct V0ArgumentAssignment {
-    pub argument: SyntaxSpanKey,
-    pub relation: SyntaxSpanKey,
+pub struct V0SumtiAssignment {
+    pub sumti: SyntaxSpanKey,
+    pub selbri: SyntaxSpanKey,
     pub slot: PlaceSlot,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
-pub struct V0RelationPlace {
-    pub relation: SyntaxSpanKey,
+pub struct V0SelbriPlace {
+    pub selbri: SyntaxSpanKey,
     pub place: NonZeroU8,
-    pub argument: SyntaxSpanKey,
+    pub sumti: SyntaxSpanKey,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -605,8 +602,8 @@ pub struct FixtureSpanKey {
 #[invariant(true)]
 pub struct ReferenceFixtureProjection {
     pub frames: Vec<FixturePlaceFrame>,
-    pub assignments: Vec<FixtureArgumentAssignment>,
-    pub relation_places: Vec<FixtureRelationPlace>,
+    pub assignments: Vec<FixtureSumtiAssignment>,
+    pub selbri_places: Vec<FixtureSelbriPlace>,
     pub references: Vec<FixtureReferenceEdge>,
 }
 
@@ -617,8 +614,8 @@ pub struct FixturePlaceFrame {
     pub index: usize,
     pub node: FixtureSpanKey,
     pub kind: PlaceFrameKind,
-    pub relation: Option<FixtureSpanKey>,
-    pub relation_unit: Option<FixtureSpanKey>,
+    pub selbri: Option<FixtureSpanKey>,
+    pub tanru_unit: Option<FixtureSpanKey>,
     pub propagation: FixturePlaceFramePropagation,
 }
 
@@ -628,7 +625,7 @@ pub struct FixturePlaceFrame {
 #[invariant(::Forward => true)]
 #[invariant(::Conversion => true)]
 #[invariant(::Jai => true)]
-#[invariant(::Connected => true)]
+#[invariant(::ConnectiveBranches => true)]
 #[invariant(::Compound => true)]
 #[invariant(::Co => true)]
 pub enum FixturePlaceFramePropagation {
@@ -636,7 +633,7 @@ pub enum FixturePlaceFramePropagation {
     Forward { inner: usize },
     Conversion { inner: usize, converted_place: u8 },
     Jai { inner: usize },
-    Connected { branches: Vec<usize> },
+    ConnectiveBranches { branches: Vec<usize> },
     Compound { head: usize, modifiers: Vec<usize> },
     Co { leading: usize, trailing: usize },
 }
@@ -655,13 +652,13 @@ pub enum FixturePlaceSlot {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
-pub struct FixtureArgumentAssignment {
+pub struct FixtureSumtiAssignment {
     pub frame: usize,
     pub frame_node: FixtureSpanKey,
-    pub relation: Option<FixtureSpanKey>,
-    pub relation_unit: Option<FixtureSpanKey>,
+    pub selbri: Option<FixtureSpanKey>,
+    pub tanru_unit: Option<FixtureSpanKey>,
     pub slot: FixturePlaceSlot,
-    pub argument: FixtureSpanKey,
+    pub sumti: FixtureSpanKey,
     pub term: Option<FixtureSpanKey>,
     pub source: AssignmentSource,
 }
@@ -669,11 +666,11 @@ pub struct FixtureArgumentAssignment {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
-pub struct FixtureRelationPlace {
+pub struct FixtureSelbriPlace {
     pub frame: usize,
-    pub relation: FixtureSpanKey,
+    pub selbri: FixtureSpanKey,
     pub place: u8,
-    pub argument: FixtureSpanKey,
+    pub sumti: FixtureSpanKey,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -732,14 +729,14 @@ impl ReferenceFixtureProjection {
             .collect::<Vec<_>>();
         assignments.sort();
 
-        let mut relation_places = analysis
+        let mut selbri_places = analysis
             .place_analysis
             .assignments()
             .iter()
             .filter_map(|assignment| fixture_relation_place(analysis, assignment))
             .collect::<Vec<_>>();
-        relation_places.sort();
-        relation_places.dedup();
+        selbri_places.sort();
+        selbri_places.dedup();
 
         let mut references = analysis
             .discourse_references
@@ -752,7 +749,7 @@ impl ReferenceFixtureProjection {
         Self {
             frames,
             assignments,
-            relation_places,
+            selbri_places,
             references,
         }
     }
@@ -768,12 +765,12 @@ fn fixture_frame(
         index: frame.id.0,
         node: fixture_span_key_for_node(&analysis.syntax_index, frame.node)?,
         kind: frame.kind,
-        relation: frame
-            .relation
-            .and_then(|relation| fixture_span_key_for_node(&analysis.syntax_index, relation.0)),
-        relation_unit: frame.relation_unit.and_then(|relation_unit| {
-            fixture_span_key_for_node(&analysis.syntax_index, relation_unit.0)
-        }),
+        selbri: frame
+            .selbri
+            .and_then(|selbri| fixture_span_key_for_node(&analysis.syntax_index, selbri.0)),
+        tanru_unit: frame
+            .tanru_unit
+            .and_then(|tanru_unit| fixture_span_key_for_node(&analysis.syntax_index, tanru_unit.0)),
         propagation: fixture_frame_propagation(&frame.propagation),
     })
 }
@@ -796,7 +793,7 @@ fn fixture_frame_propagation(propagation: &PlaceFramePropagation) -> FixturePlac
         PlaceFramePropagation::Jai { inner } => {
             FixturePlaceFramePropagation::Jai { inner: inner.0 }
         }
-        PlaceFramePropagation::Connected { branches } => FixturePlaceFramePropagation::Connected {
+        PlaceFramePropagation::ConnectiveBranches { branches } => FixturePlaceFramePropagation::ConnectiveBranches {
             branches: branches.iter().map(|branch| branch.0).collect(),
         },
         PlaceFramePropagation::Compound { head, modifiers } => {
@@ -816,20 +813,20 @@ fn fixture_frame_propagation(propagation: &PlaceFramePropagation) -> FixturePlac
 #[ensures(true)]
 fn fixture_assignment(
     analysis: &ReferenceAnalysis<'_>,
-    assignment: &ArgumentPlaceAssignment,
-) -> Option<FixtureArgumentAssignment> {
+    assignment: &SumtiPlaceAssignment,
+) -> Option<FixtureSumtiAssignment> {
     let frame = analysis.place_analysis.frame(assignment.frame)?;
-    Some(FixtureArgumentAssignment {
+    Some(FixtureSumtiAssignment {
         frame: assignment.frame.0,
         frame_node: fixture_span_key_for_node(&analysis.syntax_index, frame.node)?,
-        relation: frame
-            .relation
-            .and_then(|relation| fixture_span_key_for_node(&analysis.syntax_index, relation.0)),
-        relation_unit: frame.relation_unit.and_then(|relation_unit| {
-            fixture_span_key_for_node(&analysis.syntax_index, relation_unit.0)
-        }),
+        selbri: frame
+            .selbri
+            .and_then(|selbri| fixture_span_key_for_node(&analysis.syntax_index, selbri.0)),
+        tanru_unit: frame
+            .tanru_unit
+            .and_then(|tanru_unit| fixture_span_key_for_node(&analysis.syntax_index, tanru_unit.0)),
         slot: fixture_place_slot(&analysis.syntax_index, assignment.slot),
-        argument: fixture_span_key_for_node(&analysis.syntax_index, assignment.argument.0)?,
+        sumti: fixture_span_key_for_node(&analysis.syntax_index, assignment.sumti.0)?,
         term: assignment
             .term
             .and_then(|term| fixture_span_key_for_node(&analysis.syntax_index, term.0)),
@@ -841,21 +838,18 @@ fn fixture_assignment(
 #[ensures(true)]
 fn fixture_relation_place(
     analysis: &ReferenceAnalysis<'_>,
-    assignment: &ArgumentPlaceAssignment,
-) -> Option<FixtureRelationPlace> {
+    assignment: &SumtiPlaceAssignment,
+) -> Option<FixtureSelbriPlace> {
     let PlaceSlot::Numbered(place) = assignment.slot else {
         return None;
     };
     let frame = analysis.place_analysis.frame(assignment.frame)?;
-    let relation = frame
-        .relation
-        .map(|relation| relation.0)
-        .unwrap_or(frame.node);
-    Some(FixtureRelationPlace {
+    let selbri = frame.selbri.map(|selbri| selbri.0).unwrap_or(frame.node);
+    Some(FixtureSelbriPlace {
         frame: assignment.frame.0,
-        relation: fixture_span_key_for_node(&analysis.syntax_index, relation)?,
+        selbri: fixture_span_key_for_node(&analysis.syntax_index, selbri)?,
         place: place.get(),
-        argument: fixture_span_key_for_node(&analysis.syntax_index, assignment.argument.0)?,
+        sumti: fixture_span_key_for_node(&analysis.syntax_index, assignment.sumti.0)?,
     })
 }
 
@@ -922,35 +916,34 @@ impl V0CompatibilityProjection {
     #[requires(true)]
     #[ensures(true)]
     fn from_analysis(analysis: &ReferenceAnalysis<'_>) -> Self {
-        let mut argument_assignments = Vec::new();
-        let mut relation_places = Vec::new();
+        let mut sumti_assignments = Vec::new();
+        let mut selbri_places = Vec::new();
         for assignment in analysis.place_analysis.assignments() {
             let Some(frame) = analysis.place_analysis.frame(assignment.frame) else {
                 continue;
             };
             let Some(relation_key) = frame
-                .relation
-                .map(|relation| relation.0)
+                .selbri
+                .map(|selbri| selbri.0)
                 .or(Some(frame.node))
                 .and_then(|node| span_key_for_node(&analysis.syntax_index, node))
             else {
                 continue;
             };
-            let Some(argument_key) =
-                span_key_for_node(&analysis.syntax_index, assignment.argument.0)
+            let Some(argument_key) = span_key_for_node(&analysis.syntax_index, assignment.sumti.0)
             else {
                 continue;
             };
-            argument_assignments.push(V0ArgumentAssignment {
-                argument: argument_key.clone(),
-                relation: relation_key.clone(),
+            sumti_assignments.push(V0SumtiAssignment {
+                sumti: argument_key.clone(),
+                selbri: relation_key.clone(),
                 slot: assignment.slot,
             });
             if let PlaceSlot::Numbered(place) = assignment.slot {
-                relation_places.push(V0RelationPlace {
-                    relation: relation_key,
+                selbri_places.push(V0SelbriPlace {
+                    selbri: relation_key,
                     place,
-                    argument: argument_key,
+                    sumti: argument_key,
                 });
             }
         }
@@ -976,8 +969,8 @@ impl V0CompatibilityProjection {
             .collect();
 
         V0CompatibilityProjection {
-            argument_assignments,
-            relation_places,
+            sumti_assignments,
+            selbri_places,
             reference_edges,
         }
     }
@@ -1061,12 +1054,12 @@ struct PlaceAnalysisBuilder<'index, 'tree> {
     index: &'index SyntaxIndex<'tree>,
     frames: Vec<SelbriPlaceFrame>,
     frame_ids_by_node: HashMap<RawSyntaxNodeId, Vec<SelbriPlaceFrameId>>,
-    assignments: Vec<ArgumentPlaceAssignment>,
-    assignment_ids_by_argument: HashMap<ArgumentNodeId, Vec<ArgumentPlaceAssignmentId>>,
-    assignment_ids_by_term: HashMap<TermNodeId, Vec<ArgumentPlaceAssignmentId>>,
-    assignment_ids_by_frame: HashMap<SelbriPlaceFrameId, Vec<ArgumentPlaceAssignmentId>>,
+    assignments: Vec<SumtiPlaceAssignment>,
+    assignment_ids_by_sumti: HashMap<SumtiNodeId, Vec<SumtiPlaceAssignmentId>>,
+    assignment_ids_by_term: HashMap<TermNodeId, Vec<SumtiPlaceAssignmentId>>,
+    assignment_ids_by_frame: HashMap<SelbriPlaceFrameId, Vec<SumtiPlaceAssignmentId>>,
     assignment_ids_by_frame_slot:
-        HashMap<(SelbriPlaceFrameId, PlaceSlot), Vec<ArgumentPlaceAssignmentId>>,
+        HashMap<(SelbriPlaceFrameId, PlaceSlot), Vec<SumtiPlaceAssignmentId>>,
 }
 
 impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
@@ -1078,7 +1071,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             frames: Vec::new(),
             frame_ids_by_node: HashMap::new(),
             assignments: Vec::new(),
-            assignment_ids_by_argument: HashMap::new(),
+            assignment_ids_by_sumti: HashMap::new(),
             assignment_ids_by_term: HashMap::new(),
             assignment_ids_by_frame: HashMap::new(),
             assignment_ids_by_frame_slot: HashMap::new(),
@@ -1092,7 +1085,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             frames: self.frames,
             frame_ids_by_node: self.frame_ids_by_node,
             assignments: self.assignments,
-            assignment_ids_by_argument: self.assignment_ids_by_argument,
+            assignment_ids_by_sumti: self.assignment_ids_by_sumti,
             assignment_ids_by_term: self.assignment_ids_by_term,
             assignment_ids_by_frame: self.assignment_ids_by_frame,
             assignment_ids_by_frame_slot: self.assignment_ids_by_frame_slot,
@@ -1124,7 +1117,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(true)]
     fn analyze_statement(&mut self, statement: &'tree StatementSyntax) {
         match statement.as_data() {
-            data!(StatementSyntax::Tuhe { text, .. }) => self.analyze_text(text),
+            data!(StatementSyntax::TextGroup { text, .. }) => self.analyze_text(text),
             data!(StatementSyntax::Prenex {
                 prenex_terms,
                 inner_statement,
@@ -1133,15 +1126,15 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_terms_nested(prenex_terms);
                 self.analyze_statement(inner_statement);
             }
-            data!(StatementSyntax::Predicate(predicate)) => {
-                self.analyze_predicate(predicate);
+            data!(StatementSyntax::Bridi(bridi)) => {
+                self.analyze_predicate(bridi);
             }
-            data!(StatementSyntax::Connected {
+            data!(StatementSyntax::StatementConnection {
                 leading_statement,
                 trailing_statement,
                 ..
             })
-            | data!(StatementSyntax::PreIConnected {
+            | data!(StatementSyntax::PreposedIStatementConnection {
                 leading_statement,
                 trailing_statement,
                 ..
@@ -1157,12 +1150,12 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_statement(inner_statement);
                 self.analyze_terms_nested(reset_terms);
             }
-            data!(StatementSyntax::ExperimentalPredicateContinuation {
+            data!(StatementSyntax::ExperimentalBridiContinuation {
                 leading_statement,
                 continuation,
             }) => {
                 self.analyze_statement(leading_statement);
-                self.analyze_subsentence(&continuation.trailing_subsentence);
+                self.analyze_subbridi(&continuation.trailing_subbridi);
             }
             data!(StatementSyntax::Fragment(fragment)) => {
                 self.analyze_fragment(fragment);
@@ -1172,58 +1165,58 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_subsentence(&mut self, subsentence: &'tree SubsentenceSyntax) {
-        match subsentence.as_data() {
-            data!(SubsentenceSyntax::Plain(predicate)) => {
-                self.analyze_predicate(predicate);
+    fn analyze_subbridi(&mut self, subbridi: &'tree SubbridiSyntax) {
+        match subbridi.as_data() {
+            data!(SubbridiSyntax::Bridi(bridi)) => {
+                self.analyze_predicate(bridi);
             }
-            data!(SubsentenceSyntax::Prenex {
+            data!(SubbridiSyntax::Prenex {
                 prenex_terms,
-                inner_subsentence,
+                inner_subbridi,
                 ..
             }) => {
                 self.analyze_terms_nested(prenex_terms);
-                self.analyze_subsentence(inner_subsentence);
+                self.analyze_subbridi(inner_subbridi);
             }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_predicate(&mut self, predicate: &'tree PredicateSyntax) -> SelbriPlaceFrameId {
-        self.analyze_predicate_with_initial_place(predicate, 1)
+    fn analyze_predicate(&mut self, bridi: &'tree BridiSyntax) -> SelbriPlaceFrameId {
+        self.analyze_predicate_with_initial_place(bridi, 1)
     }
 
     #[requires(initial_place > 0)]
     #[ensures(true)]
     fn analyze_predicate_with_initial_place(
         &mut self,
-        predicate: &'tree PredicateSyntax,
+        bridi: &'tree BridiSyntax,
         initial_place: u8,
     ) -> SelbriPlaceFrameId {
         let branch_initial_place =
-            next_place_after_common_terms(initial_place, &predicate.leading_terms);
-        let tail = self.analyze_predicate_tail(&predicate.predicate_tail, branch_initial_place);
-        let predicate_raw = self.raw_for(SyntaxNodeRef::PredicateSyntax(predicate));
+            next_place_after_common_terms(initial_place, &bridi.leading_terms);
+        let tail = self.analyze_bridi_tail(&bridi.bridi_tail, branch_initial_place);
+        let predicate_raw = self.raw_for(SyntaxNodeRef::BridiSyntax(bridi));
         let predicate_frame = self.add_frame(
             predicate_raw,
-            PlaceFrameKind::Predicate,
+            PlaceFrameKind::Bridi,
             None,
             None,
-            propagation_connected(tail.frames),
+            propagation_connective_branches(tail.frames),
         );
         let mut cursors =
             vec![self.cursor_with_existing_assignments(predicate_frame, initial_place)];
         self.assign_terms(
             &mut cursors,
-            &predicate.leading_terms,
+            &bridi.leading_terms,
             AssignmentSource::SequentialTerm,
         );
         for cursor in &mut cursors {
             cursor.ensure_next_place_at_least(2);
         }
         self.assign_term_refs(&mut cursors, &tail.terms, AssignmentSource::SequentialTerm);
-        self.analyze_free_modifiers_nested(&predicate.free_modifiers);
+        self.analyze_free_modifiers_nested(&bridi.free_modifiers);
         predicate_frame
     }
 
@@ -1315,7 +1308,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 }
                 PlaceSlot::Numbered(_) | PlaceSlot::Modal(_) => false,
             },
-            PlaceFramePropagation::Connected { branches } => branches.iter().any(|branch| {
+            PlaceFramePropagation::ConnectiveBranches { branches } => branches.iter().any(|branch| {
                 self.frame_slot_has_existing_assignment_recursive(*branch, slot, visited)
             }),
             PlaceFramePropagation::Compound { head, modifiers } => {
@@ -1354,14 +1347,14 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn assignment_blocks_cursor(&self, assignment: ArgumentPlaceAssignmentId) -> bool {
+    fn assignment_blocks_cursor(&self, assignment: SumtiPlaceAssignmentId) -> bool {
         let Some(assignment) = self.assignments.get(assignment.0) else {
             return false;
         };
-        let Some(argument) = self.index.argument(assignment.argument) else {
+        let Some(sumti) = self.index.sumti(assignment.sumti) else {
             return false;
         };
-        argument_koha_cmavo(argument) != Some(Cmavo::Cehu)
+        argument_koha_cmavo(sumti) != Some(Cmavo::Cehu)
     }
 
     #[requires(true)]
@@ -1369,7 +1362,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(analysis.terms.is_empty())]
     fn consume_branch_tail_cursors(
         &mut self,
-        analysis: &mut PredicateTailAnalysis<'tree>,
+        analysis: &mut BridiTailAnalysis<'tree>,
     ) -> Vec<PlaceCursor> {
         if let Some(cursors) = analysis.branch_cursors.take() {
             return cursors;
@@ -1386,12 +1379,12 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_predicate_tail(
+    fn analyze_bridi_tail(
         &mut self,
-        tail: &'tree PredicateTailSyntax,
+        tail: &'tree BridiTailSyntax,
         gek_branch_initial_place: u8,
-    ) -> PredicateTailAnalysis<'tree> {
-        let first = self.analyze_predicate_tail1(&tail.first, gek_branch_initial_place);
+    ) -> BridiTailAnalysis<'tree> {
+        let first = self.analyze_bridi_tail1(&tail.first, gek_branch_initial_place);
         let mut branches = first.frames;
         let mut terms = first.terms;
         let mut branch_cursors = first.branch_cursors;
@@ -1407,8 +1400,8 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             if let Some(tense_modal) = ke_continuation.tense_modal.as_deref() {
                 self.analyze_tense_modal_nested(tense_modal);
             }
-            let mut continuation = self
-                .analyze_predicate_tail(&ke_continuation.predicate_tail, gek_branch_initial_place);
+            let mut continuation =
+                self.analyze_bridi_tail(&ke_continuation.bridi_tail, gek_branch_initial_place);
             let continuation_cursors = self.consume_branch_tail_cursors(&mut continuation);
             branches.extend(continuation.frames);
             first_branch_cursors.extend(continuation_cursors);
@@ -1420,15 +1413,15 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             branch_cursors = Some(first_branch_cursors);
             self.analyze_free_modifiers_nested(&ke_continuation.free_modifiers);
         }
-        let raw = self.raw_for(SyntaxNodeRef::PredicateTailSyntax(tail));
+        let raw = self.raw_for(SyntaxNodeRef::BridiTailSyntax(tail));
         let frame = self.add_frame(
             raw,
-            PlaceFrameKind::PredicateTail,
+            PlaceFrameKind::BridiTail,
             None,
             None,
-            propagation_connected(branches),
+            propagation_connective_branches(branches),
         );
-        PredicateTailAnalysis {
+        BridiTailAnalysis {
             frames: vec![frame],
             terms,
             branch_cursors,
@@ -1437,12 +1430,12 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_predicate_tail1(
+    fn analyze_bridi_tail1(
         &mut self,
-        tail: &'tree PredicateTail1Syntax,
+        tail: &'tree AfterthoughtBridiTailSyntax,
         gek_branch_initial_place: u8,
-    ) -> PredicateTailAnalysis<'tree> {
-        let mut analysis = self.analyze_predicate_tail2(&tail.first, gek_branch_initial_place);
+    ) -> BridiTailAnalysis<'tree> {
+        let mut analysis = self.analyze_bridi_tail2(&tail.first, gek_branch_initial_place);
         let mut branch_cursors = if tail.continuations.is_empty() {
             analysis.branch_cursors.take()
         } else {
@@ -1452,8 +1445,8 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             if let Some(tense_modal) = continuation.tense_modal.as_deref() {
                 self.analyze_tense_modal_nested(tense_modal);
             }
-            let mut next = self
-                .analyze_predicate_tail2(&continuation.predicate_tail, gek_branch_initial_place);
+            let mut next =
+                self.analyze_bridi_tail2(&continuation.bridi_tail, gek_branch_initial_place);
             if let Some(cursors) = branch_cursors.as_mut() {
                 let next_cursors = self.consume_branch_tail_cursors(&mut next);
                 cursors.extend(next_cursors);
@@ -1466,15 +1459,15 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             analysis.frames.extend(next.frames);
             self.analyze_free_modifiers_nested(&continuation.free_modifiers);
         }
-        let raw = self.raw_for(predicate_tail1_node_ref(tail));
+        let raw = self.raw_for(bridi_tail1_node_ref(tail));
         let frame = self.add_frame(
             raw,
-            PlaceFrameKind::PredicateTail,
+            PlaceFrameKind::BridiTail,
             None,
             None,
-            propagation_connected(analysis.frames),
+            propagation_connective_branches(analysis.frames),
         );
-        PredicateTailAnalysis {
+        BridiTailAnalysis {
             frames: vec![frame],
             terms: analysis.terms,
             branch_cursors,
@@ -1483,12 +1476,12 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_predicate_tail2(
+    fn analyze_bridi_tail2(
         &mut self,
-        tail: &'tree PredicateTail2Syntax,
+        tail: &'tree BoGroupedBridiTailSyntax,
         gek_branch_initial_place: u8,
-    ) -> PredicateTailAnalysis<'tree> {
-        let mut analysis = self.analyze_predicate_tail3(&tail.first, gek_branch_initial_place);
+    ) -> BridiTailAnalysis<'tree> {
+        let mut analysis = self.analyze_bridi_tail3(&tail.first, gek_branch_initial_place);
         let mut branch_cursors = analysis.branch_cursors.take();
         if let Some(continuation) = tail.bo_continuation.as_deref() {
             let mut active_cursors = if let Some(cursors) = branch_cursors.take() {
@@ -1499,8 +1492,8 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             if let Some(tense_modal) = continuation.tense_modal.as_deref() {
                 self.analyze_tense_modal_nested(tense_modal);
             }
-            let mut next = self
-                .analyze_predicate_tail2(&continuation.predicate_tail, gek_branch_initial_place);
+            let mut next =
+                self.analyze_bridi_tail2(&continuation.bridi_tail, gek_branch_initial_place);
             let next_cursors = self.consume_branch_tail_cursors(&mut next);
             analysis.frames.extend(next.frames);
             active_cursors.extend(next_cursors);
@@ -1512,15 +1505,15 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             branch_cursors = Some(active_cursors);
             self.analyze_free_modifiers_nested(&continuation.free_modifiers);
         }
-        let raw = self.raw_for(predicate_tail2_node_ref(tail));
+        let raw = self.raw_for(bridi_tail2_node_ref(tail));
         let frame = self.add_frame(
             raw,
-            PlaceFrameKind::PredicateTail,
+            PlaceFrameKind::BridiTail,
             None,
             None,
-            propagation_connected(analysis.frames),
+            propagation_connective_branches(analysis.frames),
         );
-        PredicateTailAnalysis {
+        BridiTailAnalysis {
             frames: vec![frame],
             terms: analysis.terms,
             branch_cursors,
@@ -1529,37 +1522,37 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_predicate_tail3(
+    fn analyze_bridi_tail3(
         &mut self,
-        tail: &'tree PredicateTail3Syntax,
+        tail: &'tree SimpleBridiTailSyntax,
         gek_branch_initial_place: u8,
-    ) -> PredicateTailAnalysis<'tree> {
+    ) -> BridiTailAnalysis<'tree> {
         match tail.as_data() {
-            data!(PredicateTail3Syntax::Relation {
-                relation,
+            data!(SimpleBridiTailSyntax::SelbriBridiTail {
+                selbri,
                 terms,
                 free_modifiers,
                 ..
             }) => {
-                let relation_frame = self.analyze_relation(relation);
+                let relation_frame = self.analyze_relation(selbri);
                 self.analyze_free_modifiers_nested(free_modifiers);
-                let raw = self.raw_for(predicate_tail3_node_ref(tail));
+                let raw = self.raw_for(bridi_tail3_node_ref(tail));
                 let frame = self.add_frame(
                     raw,
-                    PlaceFrameKind::PredicateTail,
+                    PlaceFrameKind::BridiTail,
                     None,
                     None,
                     propagation_forward(relation_frame),
                 );
-                PredicateTailAnalysis {
+                BridiTailAnalysis {
                     frames: vec![frame],
                     terms: terms.iter().collect(),
                     branch_cursors: None,
                 }
             }
-            data!(PredicateTail3Syntax::GekSentence(gek)) => {
+            data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(gek)) => {
                 let frames = self.analyze_gek_sentence(gek, gek_branch_initial_place);
-                PredicateTailAnalysis {
+                BridiTailAnalysis {
                     frames,
                     terms: Vec::new(),
                     branch_cursors: None,
@@ -1572,21 +1565,23 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(true)]
     fn analyze_gek_sentence(
         &mut self,
-        gek: &'tree jbotci_syntax::ast::GekSentenceSyntax,
+        gek: &'tree jbotci_syntax::ast::ForethoughtBridiConnectionSyntax,
         branch_initial_place: u8,
     ) -> Vec<SelbriPlaceFrameId> {
         match gek.as_data() {
-            data!(jbotci_syntax::ast::GekSentenceSyntax::Pair {
-                first,
-                second,
-                tail_terms,
-                free_modifiers,
-                ..
-            }) => {
+            data!(
+                jbotci_syntax::ast::ForethoughtBridiConnectionSyntax::BridiConnection {
+                    first,
+                    second,
+                    tail_terms,
+                    free_modifiers,
+                    ..
+                }
+            ) => {
                 let first_frame =
-                    self.analyze_subsentence_frame_with_initial_place(first, branch_initial_place);
+                    self.analyze_subbridi_frame_with_initial_place(first, branch_initial_place);
                 let second_frame =
-                    self.analyze_subsentence_frame_with_initial_place(second, branch_initial_place);
+                    self.analyze_subbridi_frame_with_initial_place(second, branch_initial_place);
                 let mut cursors = vec![
                     self.cursor_with_existing_assignments(first_frame, branch_initial_place),
                     self.cursor_with_existing_assignments(second_frame, branch_initial_place),
@@ -1595,59 +1590,64 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_free_modifiers_nested(free_modifiers);
                 vec![first_frame, second_frame]
             }
-            data!(jbotci_syntax::ast::GekSentenceSyntax::Ke {
-                tense_modal,
-                inner,
-                ..
-            }) => {
+            data!(
+                jbotci_syntax::ast::ForethoughtBridiConnectionSyntax::GroupedBridiConnection {
+                    tense_modal,
+                    inner,
+                    ..
+                }
+            ) => {
                 if let Some(tense_modal) = tense_modal.as_deref() {
                     self.analyze_tense_modal_nested(tense_modal);
                 }
                 self.analyze_gek_sentence(inner, branch_initial_place)
             }
-            data!(jbotci_syntax::ast::GekSentenceSyntax::Na { inner, .. }) => {
-                self.analyze_gek_sentence(inner, branch_initial_place)
-            }
+            data!(
+                jbotci_syntax::ast::ForethoughtBridiConnectionSyntax::NegatedBridiConnection {
+                    inner,
+                    ..
+                }
+            ) => self.analyze_gek_sentence(inner, branch_initial_place),
         }
     }
 
     #[requires(initial_place > 0)]
     #[ensures(true)]
-    fn analyze_subsentence_frame_with_initial_place(
+    fn analyze_subbridi_frame_with_initial_place(
         &mut self,
-        subsentence: &'tree SubsentenceSyntax,
+        subbridi: &'tree SubbridiSyntax,
         initial_place: u8,
     ) -> SelbriPlaceFrameId {
-        match subsentence.as_data() {
-            data!(SubsentenceSyntax::Plain(predicate)) => {
-                self.analyze_predicate_with_initial_place(predicate, initial_place)
+        match subbridi.as_data() {
+            data!(SubbridiSyntax::Bridi(bridi)) => {
+                self.analyze_predicate_with_initial_place(bridi, initial_place)
             }
-            data!(SubsentenceSyntax::Prenex {
+            data!(SubbridiSyntax::Prenex {
                 prenex_terms,
-                inner_subsentence,
+                inner_subbridi,
                 ..
             }) => {
                 self.analyze_terms_nested(prenex_terms);
-                self.analyze_subsentence_frame_with_initial_place(inner_subsentence, initial_place)
+                self.analyze_subbridi_frame_with_initial_place(inner_subbridi, initial_place)
             }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_relation(&mut self, relation: &'tree RelationSyntax) -> SelbriPlaceFrameId {
-        let relation_id = self.index.relation_node_id(relation);
-        let relation_raw = self.raw_for(relation_node_ref(relation));
-        match relation.as_data() {
-            data!(RelationSyntax::Base(..)) => self.add_frame(
+    fn analyze_relation(&mut self, selbri: &'tree SelbriSyntax) -> SelbriPlaceFrameId {
+        let relation_id = self.index.selbri_node_id(selbri);
+        let relation_raw = self.raw_for(relation_node_ref(selbri));
+        match selbri.as_data() {
+            data!(SelbriSyntax::SelbriWord(..)) => self.add_frame(
                 relation_raw,
-                PlaceFrameKind::BaseRelation,
+                PlaceFrameKind::BaseSelbri,
                 relation_id,
                 None,
                 propagation_none(),
             ),
-            data!(RelationSyntax::Se { se, inner_relation }) => {
-                let inner = self.analyze_relation(inner_relation);
+            data!(SelbriSyntax::ConvertedSelbri { se, inner_selbri }) => {
+                let inner = self.analyze_relation(inner_selbri);
                 let converted_place = se_conversion_place(se)
                     .and_then(NonZeroU8::new)
                     .unwrap_or(NonZeroU8::new(2).expect("literal is non-zero"));
@@ -1659,8 +1659,8 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_conversion(inner, converted_place),
                 )
             }
-            data!(RelationSyntax::Na { inner_relation, .. }) => {
-                let inner = self.analyze_relation(inner_relation);
+            data!(SelbriSyntax::Negated { inner_selbri, .. }) => {
+                let inner = self.analyze_relation(inner_selbri);
                 self.add_frame(
                     relation_raw,
                     PlaceFrameKind::Forwarding,
@@ -1669,15 +1669,15 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_forward(inner),
                 )
             }
-            data!(RelationSyntax::Ke {
+            data!(SelbriSyntax::GroupedSelbri {
                 ke_tense_modal,
-                relation: inner_relation,
+                selbri: inner_selbri,
                 ..
             }) => {
                 if let Some(tense_modal) = ke_tense_modal.as_deref() {
                     self.analyze_tense_modal_nested(tense_modal);
                 }
-                let inner = self.analyze_relation(inner_relation);
+                let inner = self.analyze_relation(inner_selbri);
                 self.add_frame(
                     relation_raw,
                     PlaceFrameKind::Forwarding,
@@ -1686,12 +1686,12 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_forward(inner),
                 )
             }
-            data!(RelationSyntax::TenseModal {
+            data!(SelbriSyntax::TaggedSelbri {
                 tense_modal,
-                inner_relation,
+                inner_selbri,
             }) => {
                 self.analyze_tense_modal_nested(tense_modal);
-                let inner = self.analyze_relation(inner_relation);
+                let inner = self.analyze_relation(inner_selbri);
                 self.add_frame(
                     relation_raw,
                     PlaceFrameKind::Forwarding,
@@ -1700,47 +1700,47 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_forward(inner),
                 )
             }
-            data!(RelationSyntax::Connected {
-                leading_relation,
-                trailing_relation,
+            data!(SelbriSyntax::SelbriConnection {
+                leading_selbri,
+                trailing_selbri,
                 ..
             }) => {
-                let leading = self.analyze_relation(leading_relation);
-                let trailing = self.analyze_relation(trailing_relation);
+                let leading = self.analyze_relation(leading_selbri);
+                let trailing = self.analyze_relation(trailing_selbri);
                 self.add_frame(
                     relation_raw,
-                    PlaceFrameKind::Connected,
+                    PlaceFrameKind::ConnectiveBranching,
                     relation_id,
                     None,
-                    propagation_connected(vec![leading, trailing]),
+                    propagation_connective_branches(vec![leading, trailing]),
                 )
             }
-            data!(RelationSyntax::Bo {
-                leading_relation,
+            data!(SelbriSyntax::BoundSelbriConnection {
+                leading_selbri,
                 bo_tense_modal,
-                trailing_relation,
+                trailing_selbri,
                 ..
             }) => {
-                let leading = self.analyze_relation(leading_relation);
+                let leading = self.analyze_relation(leading_selbri);
                 if let Some(tense_modal) = bo_tense_modal.as_deref() {
                     self.analyze_tense_modal_nested(tense_modal);
                 }
-                let trailing = self.analyze_relation(trailing_relation);
+                let trailing = self.analyze_relation(trailing_selbri);
                 self.add_frame(
                     relation_raw,
-                    PlaceFrameKind::Connected,
+                    PlaceFrameKind::ConnectiveBranching,
                     relation_id,
                     None,
-                    propagation_connected(vec![leading, trailing]),
+                    propagation_connective_branches(vec![leading, trailing]),
                 )
             }
-            data!(RelationSyntax::Co {
-                leading_relation,
-                trailing_relation,
+            data!(SelbriSyntax::InvertedTanru {
+                leading_selbri,
+                trailing_selbri,
                 ..
             }) => {
-                let leading = self.analyze_relation(leading_relation);
-                let trailing = self.analyze_relation(trailing_relation);
+                let leading = self.analyze_relation(leading_selbri);
+                let trailing = self.analyze_relation(trailing_selbri);
                 self.add_frame(
                     relation_raw,
                     PlaceFrameKind::CoInverted,
@@ -1749,28 +1749,28 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_co(leading, trailing),
                 )
             }
-            data!(RelationSyntax::Guha {
-                leading_predicate,
-                trailing_predicate,
+            data!(SelbriSyntax::ForethoughtSelbriConnection {
+                leading_bridi,
+                trailing_bridi,
                 ..
             }) => {
-                let leading = self.analyze_predicate(leading_predicate);
-                let trailing = self.analyze_predicate(trailing_predicate);
+                let leading = self.analyze_predicate(leading_bridi);
+                let trailing = self.analyze_predicate(trailing_bridi);
                 self.add_frame(
                     relation_raw,
-                    PlaceFrameKind::Connected,
+                    PlaceFrameKind::ConnectiveBranching,
                     relation_id,
                     None,
-                    propagation_connected(vec![leading, trailing]),
+                    propagation_connective_branches(vec![leading, trailing]),
                 )
             }
-            data!(RelationSyntax::Abstraction(abstraction)) => {
+            data!(SelbriSyntax::Abstraction(abstraction)) => {
                 let propagation = if abstraction_is_property(abstraction) {
-                    let inner = self
-                        .analyze_subsentence_frame_with_initial_place(&abstraction.subsentence, 1);
+                    let inner =
+                        self.analyze_subbridi_frame_with_initial_place(&abstraction.subbridi, 1);
                     propagation_forward(inner)
                 } else {
-                    self.analyze_subsentence(&abstraction.subsentence);
+                    self.analyze_subbridi(&abstraction.subbridi);
                     propagation_none()
                 };
                 self.add_frame(
@@ -1781,14 +1781,14 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation,
                 )
             }
-            data!(RelationSyntax::Compound(units)) => {
+            data!(SelbriSyntax::Tanru(units)) => {
                 let mut unit_frames = Vec::new();
                 for unit in units.iter() {
                     unit_frames.push(self.analyze_relation_unit(unit));
                 }
                 let head = *unit_frames
                     .last()
-                    .expect("RelationUnitVec invariant ensures at least one unit");
+                    .expect("TanruUnitVec invariant ensures at least one unit");
                 let modifiers = unit_frames[..unit_frames.len().saturating_sub(1)].to_vec();
                 self.add_frame(
                     relation_raw,
@@ -1803,63 +1803,63 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_relation_unit(&mut self, unit: &'tree RelationUnitSyntax) -> SelbriPlaceFrameId {
-        let unit_id = self.index.relation_unit_node_id(unit);
+    fn analyze_relation_unit(&mut self, unit: &'tree TanruUnitSyntax) -> SelbriPlaceFrameId {
+        let unit_id = self.index.tanru_unit_node_id(unit);
         let unit_raw = self.raw_for(relation_unit_node_ref(unit));
         match unit.as_data() {
-            data!(RelationUnitSyntax::Word(..))
-            | data!(RelationUnitSyntax::Goha { .. })
-            | data!(RelationUnitSyntax::Mehoi(..))
-            | data!(RelationUnitSyntax::Gohoi(..))
-            | data!(RelationUnitSyntax::Muhoi(..))
-            | data!(RelationUnitSyntax::Moi { .. }) => self.add_frame(
+            data!(TanruUnitSyntax::TanruUnitWord(..))
+            | data!(TanruUnitSyntax::ProBridi { .. })
+            | data!(TanruUnitSyntax::QuotedWordSelbri(..))
+            | data!(TanruUnitSyntax::QuotedBridiSelbri(..))
+            | data!(TanruUnitSyntax::QuotedTextSelbri(..))
+            | data!(TanruUnitSyntax::OrdinalSelbri { .. }) => self.add_frame(
                 unit_raw,
-                PlaceFrameKind::RelationUnit,
+                PlaceFrameKind::TanruUnit,
                 None,
                 unit_id,
                 propagation_none(),
             ),
-            data!(RelationUnitSyntax::Nuha { math_operator, .. }) => {
-                self.analyze_math_operator_nested(math_operator);
+            data!(TanruUnitSyntax::OperatorSelbri { mekso_operator, .. }) => {
+                self.analyze_math_operator_nested(mekso_operator);
                 self.add_frame(
                     unit_raw,
-                    PlaceFrameKind::RelationUnit,
+                    PlaceFrameKind::TanruUnit,
                     None,
                     unit_id,
                     propagation_none(),
                 )
             }
-            data!(RelationUnitSyntax::Xohi { tag, .. }) => {
+            data!(TanruUnitSyntax::TagSelbri { tag, .. }) => {
                 self.analyze_tense_modal_nested(tag);
                 self.add_frame(
                     unit_raw,
-                    PlaceFrameKind::RelationUnit,
+                    PlaceFrameKind::TanruUnit,
                     None,
                     unit_id,
                     propagation_none(),
                 )
             }
-            data!(RelationUnitSyntax::Me { argument, .. }) => {
-                self.analyze_argument_nested(argument);
+            data!(TanruUnitSyntax::SumtiSelbri { sumti, .. }) => {
+                self.analyze_argument_nested(sumti);
                 self.add_frame(
                     unit_raw,
-                    PlaceFrameKind::RelationUnit,
+                    PlaceFrameKind::TanruUnit,
                     None,
                     unit_id,
                     propagation_none(),
                 )
             }
-            data!(RelationUnitSyntax::Luhei { text, .. }) => {
+            data!(TanruUnitSyntax::TextSelbri { text, .. }) => {
                 self.analyze_text(text);
                 self.add_frame(
                     unit_raw,
-                    PlaceFrameKind::RelationUnit,
+                    PlaceFrameKind::TanruUnit,
                     None,
                     unit_id,
                     propagation_none(),
                 )
             }
-            data!(RelationUnitSyntax::Se { se, inner_unit }) => {
+            data!(TanruUnitSyntax::ConvertedTanruUnit { se, inner_unit }) => {
                 let inner = self.analyze_relation_unit(inner_unit);
                 let converted_place = se_conversion_place(se)
                     .and_then(NonZeroU8::new)
@@ -1872,15 +1872,15 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_conversion(inner, converted_place),
                 )
             }
-            data!(RelationUnitSyntax::Ke {
+            data!(TanruUnitSyntax::GroupedTanruUnit {
                 ke_tense_modal,
-                relation,
+                selbri,
                 ..
             }) => {
                 if let Some(tense_modal) = ke_tense_modal.as_deref() {
                     self.analyze_tense_modal_nested(tense_modal);
                 }
-                let inner = self.analyze_relation(relation);
+                let inner = self.analyze_relation(selbri);
                 self.add_frame(
                     unit_raw,
                     PlaceFrameKind::Forwarding,
@@ -1889,8 +1889,8 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_forward(inner),
                 )
             }
-            data!(RelationUnitSyntax::Wrapped(relation)) => {
-                let inner = self.analyze_relation(relation);
+            data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+                let inner = self.analyze_relation(selbri);
                 self.add_frame(
                     unit_raw,
                     PlaceFrameKind::Forwarding,
@@ -1899,7 +1899,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_forward(inner),
                 )
             }
-            data!(RelationUnitSyntax::Nahe { inner_unit, .. }) => {
+            data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. }) => {
                 let inner = self.analyze_relation_unit(inner_unit);
                 self.add_frame(
                     unit_raw,
@@ -1909,13 +1909,13 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_forward(inner),
                 )
             }
-            data!(RelationUnitSyntax::SelbriRelativeClause {
+            data!(TanruUnitSyntax::RelativeClauses {
                 base: inner_unit,
                 selbri_relative_clauses,
             }) => {
                 let inner = self.analyze_relation_unit(inner_unit);
                 for relative_clause in selbri_relative_clauses {
-                    self.analyze_relation(&relative_clause.relation);
+                    self.analyze_relation(&relative_clause.selbri);
                 }
                 self.add_frame(
                     unit_raw,
@@ -1925,13 +1925,13 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_forward(inner),
                 )
             }
-            data!(RelationUnitSyntax::Cei {
+            data!(TanruUnitSyntax::AssignedProBridi {
                 base: inner_unit,
                 assignments,
             }) => {
                 let inner = self.analyze_relation_unit(inner_unit);
                 for assignment in assignments {
-                    self.analyze_relation_unit(&assignment.relation_unit);
+                    self.analyze_relation_unit(&assignment.tanru_unit);
                 }
                 self.add_frame(
                     unit_raw,
@@ -1941,7 +1941,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_forward(inner),
                 )
             }
-            data!(RelationUnitSyntax::Jai {
+            data!(TanruUnitSyntax::ModalConversion {
                 tense_modal,
                 inner_unit,
                 ..
@@ -1958,7 +1958,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_jai(inner),
                 )
             }
-            data!(RelationUnitSyntax::Bo {
+            data!(TanruUnitSyntax::BoundTanruUnitConnection {
                 leading_unit,
                 bo_tense_modal,
                 trailing_unit,
@@ -1977,7 +1977,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_compound(trailing, vec![leading]),
                 )
             }
-            data!(RelationUnitSyntax::Connected {
+            data!(TanruUnitSyntax::TanruUnitConnection {
                 leading_unit,
                 trailing_unit,
                 ..
@@ -1986,33 +1986,28 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 let trailing = self.analyze_relation_unit(trailing_unit);
                 self.add_frame(
                     unit_raw,
-                    PlaceFrameKind::Connected,
+                    PlaceFrameKind::ConnectiveBranching,
                     None,
                     unit_id,
-                    propagation_connected(vec![leading, trailing]),
+                    propagation_connective_branches(vec![leading, trailing]),
                 )
             }
-            data!(RelationUnitSyntax::Be {
+            data!(TanruUnitSyntax::LinkedSumtiTanruUnit {
                 base,
                 fa,
-                first_argument,
+                first_sumti,
                 bei_links,
                 ..
             })
-            | data!(RelationUnitSyntax::PreposedBe {
+            | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
                 base,
                 fa,
-                first_argument,
+                first_sumti,
                 bei_links,
                 ..
             }) => {
                 let inner = self.analyze_relation_unit(base);
-                self.assign_link_arguments(
-                    inner,
-                    fa.as_ref(),
-                    first_argument.as_deref(),
-                    bei_links,
-                );
+                self.assign_link_arguments(inner, fa.as_ref(), first_sumti.as_deref(), bei_links);
                 self.add_frame(
                     unit_raw,
                     PlaceFrameKind::LinkedUnit,
@@ -2021,13 +2016,13 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     propagation_forward(inner),
                 )
             }
-            data!(RelationUnitSyntax::Abstraction(abstraction)) => {
+            data!(TanruUnitSyntax::Abstraction(abstraction)) => {
                 let propagation = if abstraction_is_property(abstraction) {
-                    let inner = self
-                        .analyze_subsentence_frame_with_initial_place(&abstraction.subsentence, 1);
+                    let inner =
+                        self.analyze_subbridi_frame_with_initial_place(&abstraction.subbridi, 1);
                     propagation_forward(inner)
                 } else {
-                    self.analyze_subsentence(&abstraction.subsentence);
+                    self.analyze_subbridi(&abstraction.subbridi);
                     propagation_none()
                 };
                 self.add_frame(
@@ -2053,11 +2048,11 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(true)]
     fn analyze_term_nested(&mut self, term: &'tree TermSyntax) {
         match term.as_data() {
-            data!(TermSyntax::Argument(argument)) | data!(TermSyntax::Fa { argument, .. }) => {
-                self.analyze_argument_nested(argument);
+            data!(TermSyntax::Sumti(sumti)) | data!(TermSyntax::PlaceTaggedSumti { sumti, .. }) => {
+                self.analyze_argument_nested(sumti);
             }
-            data!(TermSyntax::NuhiTermset { termset, .. }) => self.analyze_terms_nested(termset),
-            data!(TermSyntax::GekNuhiTermset {
+            data!(TermSyntax::Termset { termset, .. }) => self.analyze_terms_nested(termset),
+            data!(TermSyntax::ForethoughtTermsetConnection {
                 terms,
                 gik_terms,
                 ..
@@ -2065,17 +2060,17 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_terms_nested(terms);
                 self.analyze_terms_nested(gik_terms);
             }
-            data!(TermSyntax::Cehe {
+            data!(TermSyntax::TermsetGroup {
                 leading_terms,
                 trailing_terms,
                 ..
             })
-            | data!(TermSyntax::Pehe {
+            | data!(TermSyntax::TermsetConnection {
                 leading_terms,
                 trailing_terms,
                 ..
             })
-            | data!(TermSyntax::Connected {
+            | data!(TermSyntax::TermConnection {
                 leading_terms,
                 trailing_terms,
                 ..
@@ -2083,7 +2078,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_terms_nested(leading_terms);
                 self.analyze_terms_nested(trailing_terms);
             }
-            data!(TermSyntax::BoConnected {
+            data!(TermSyntax::BoundTermConnection {
                 leading_terms,
                 trailing_term,
                 ..
@@ -2091,155 +2086,149 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_terms_nested(leading_terms);
                 self.analyze_term_nested(trailing_term);
             }
-            data!(TermSyntax::FihoiAdverbial { subsentence, .. })
-            | data!(TermSyntax::SoiAdverbial { subsentence, .. }) => {
-                self.analyze_subsentence(subsentence);
+            data!(TermSyntax::AdHocBridiAdverbialTerm { subbridi, .. })
+            | data!(TermSyntax::ReciprocalBridiAdverbialTerm { subbridi, .. }) => {
+                self.analyze_subbridi(subbridi);
             }
-            data!(TermSyntax::NoihaAdverbial {
+            data!(TermSyntax::RelativeAdverbialTerm {
                 tail_elements,
-                relation,
+                selbri,
                 relative_clauses,
                 ..
             })
-            | data!(TermSyntax::PoihaBrigahi {
+            | data!(TermSyntax::BridiVariableAdverbialTerm {
                 tail_elements,
-                relation,
+                selbri,
                 relative_clauses,
                 ..
             }) => {
                 self.analyze_argument_tail_elements_nested(tail_elements);
-                if let Some(relation) = relation.as_deref() {
-                    self.analyze_relation(relation);
+                if let Some(selbri) = selbri.as_deref() {
+                    self.analyze_relation(selbri);
                 }
                 for relative_clause in relative_clauses {
                     self.analyze_relative_clause_nested(relative_clause);
                 }
             }
-            data!(TermSyntax::JaiTagged { tag, argument, .. }) => {
+            data!(TermSyntax::JaiTaggedSumti { tag, sumti, .. }) => {
                 if let Some(tense_modal) = tag.as_deref() {
                     self.analyze_tense_modal_nested(tense_modal);
                 }
-                self.analyze_argument_nested(argument);
+                self.analyze_argument_nested(sumti);
             }
-            data!(TermSyntax::Tagged {
-                tense_modal,
-                argument,
-            }) => {
+            data!(TermSyntax::TaggedSumti { tense_modal, sumti }) => {
                 if let Some(tense_modal) = tense_modal.as_deref() {
                     self.analyze_tense_modal_nested(tense_modal);
                 }
-                self.analyze_argument_nested(argument);
+                self.analyze_argument_nested(sumti);
             }
-            data!(TermSyntax::NaKu { .. }) | data!(TermSyntax::BareNa(..)) => {}
+            data!(TermSyntax::BridiNegation { .. }) | data!(TermSyntax::BareNegation(..)) => {}
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_argument_nested(&mut self, argument: &'tree ArgumentSyntax) {
-        match argument.as_data() {
-            data!(ArgumentSyntax::Quantified {
+    fn analyze_argument_nested(&mut self, sumti: &'tree SumtiSyntax) {
+        match sumti.as_data() {
+            data!(SumtiSyntax::QuantifiedSumti {
                 quantifier,
-                inner_argument,
+                inner_sumti,
             }) => {
                 self.analyze_quantifier_nested(quantifier);
-                self.analyze_argument_nested(inner_argument);
+                self.analyze_argument_nested(inner_sumti);
             }
-            data!(ArgumentSyntax::Tagged {
-                tag,
-                inner_argument,
-            }) => {
+            data!(SumtiSyntax::TaggedSumti { tag, inner_sumti }) => {
                 self.analyze_argument_tag_nested(tag);
-                self.analyze_argument_nested(inner_argument);
+                self.analyze_argument_nested(inner_sumti);
             }
-            data!(ArgumentSyntax::NaheBo { inner_argument, .. })
-            | data!(ArgumentSyntax::Nahe { inner_argument, .. })
-            | data!(ArgumentSyntax::Lahe { inner_argument, .. })
-            | data!(ArgumentSyntax::Ke { inner_argument, .. }) => {
-                self.analyze_argument_nested(inner_argument)
+            data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. })
+            | data!(SumtiSyntax::ScalarNegatedSumti { inner_sumti, .. })
+            | data!(SumtiSyntax::ReferentSumti { inner_sumti, .. })
+            | data!(SumtiSyntax::GroupedSumti { inner_sumti, .. }) => {
+                self.analyze_argument_nested(inner_sumti)
             }
-            data!(ArgumentSyntax::RelativeClause {
-                base_argument,
+            data!(SumtiSyntax::SumtiWithRelativeClauses {
+                base_sumti,
                 relative_clauses,
                 ..
             }) => {
-                self.analyze_argument_nested(base_argument);
+                self.analyze_argument_nested(base_sumti);
                 for relative_clause in relative_clauses {
                     self.analyze_relative_clause_nested(relative_clause);
                 }
             }
-            data!(ArgumentSyntax::Vuho {
-                base_argument,
+            data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
+                base_sumti,
                 relative_clauses,
-                connected_argument,
+                sumti_connection,
                 ..
             }) => {
-                self.analyze_argument_nested(base_argument);
+                self.analyze_argument_nested(base_sumti);
                 for relative_clause in relative_clauses {
                     self.analyze_relative_clause_nested(relative_clause);
                 }
-                if let Some(connected) = connected_argument.as_deref() {
-                    self.analyze_argument_nested(&connected.argument);
+                if let Some(connected) = sumti_connection.as_deref() {
+                    self.analyze_argument_nested(&connected.sumti);
                 }
             }
-            data!(ArgumentSyntax::BridiDescription { subsentence, .. }) => {
-                self.analyze_subsentence(subsentence);
+            data!(SumtiSyntax::BridiDescription { subbridi, .. }) => {
+                self.analyze_subbridi(subbridi);
             }
-            data!(ArgumentSyntax::TermWrapped { inner_term, .. }) => {
+            data!(SumtiSyntax::QualifiedTerm { inner_term, .. }) => {
                 self.analyze_term_nested(inner_term);
             }
-            data!(ArgumentSyntax::Connected {
-                leading_argument,
-                trailing_argument,
+            data!(SumtiSyntax::SumtiConnection {
+                leading_sumti,
+                trailing_sumti,
                 ..
             })
-            | data!(ArgumentSyntax::Bo {
-                leading_argument,
-                trailing_argument,
+            | data!(SumtiSyntax::BoundSumtiConnection {
+                leading_sumti,
+                trailing_sumti,
                 ..
             })
-            | data!(ArgumentSyntax::Gek {
-                leading_argument,
-                trailing_argument,
+            | data!(SumtiSyntax::ForethoughtSumtiConnection {
+                leading_sumti,
+                trailing_sumti,
                 ..
             }) => {
-                self.analyze_argument_nested(leading_argument);
-                self.analyze_argument_nested(trailing_argument);
+                self.analyze_argument_nested(leading_sumti);
+                self.analyze_argument_nested(trailing_sumti);
             }
-            data!(ArgumentSyntax::Descriptor(descriptor)) => {
-                if let Some(outer_quantifier) = descriptor.outer_quantifier.as_deref() {
+            data!(SumtiSyntax::Description(description)) => {
+                if let Some(outer_quantifier) = description.outer_quantifier.as_deref() {
                     self.analyze_quantifier_nested(outer_quantifier);
                 }
-                self.analyze_argument_tail_elements_nested(&descriptor.tail_elements);
-                if let Some(relation) = descriptor.relation.as_deref() {
-                    self.analyze_relation(relation);
+                self.analyze_argument_tail_elements_nested(&description.tail_elements);
+                if let Some(selbri) = description.selbri.as_deref() {
+                    self.analyze_relation(selbri);
                 }
-                for relative_clause in &descriptor.relative_clauses {
+                for relative_clause in &description.relative_clauses {
                     self.analyze_relative_clause_nested(relative_clause);
                 }
             }
-            data!(ArgumentSyntax::ConnectedDescriptor(descriptor)) => {
-                self.analyze_argument_tail_elements_nested(&descriptor.tail_elements);
-                if let Some(relation) = descriptor.relation.as_deref() {
-                    self.analyze_relation(relation);
+            data!(SumtiSyntax::DescriptionConnection(description)) => {
+                self.analyze_argument_tail_elements_nested(&description.tail_elements);
+                if let Some(selbri) = description.selbri.as_deref() {
+                    self.analyze_relation(selbri);
                 }
-                for relative_clause in &descriptor.relative_clauses {
+                for relative_clause in &description.relative_clauses {
                     self.analyze_relative_clause_nested(relative_clause);
                 }
             }
-            data!(ArgumentSyntax::RelationVocative {
+            data!(SumtiSyntax::SelbriVocative {
                 leading_relative_clauses,
-                relation,
+                selbri,
                 trailing_relative_clauses,
             }) => {
                 for relative_clause in leading_relative_clauses {
                     self.analyze_relative_clause_nested(relative_clause);
                 }
-                let frame = self.analyze_relation(relation);
+                let frame = self.analyze_relation(selbri);
                 let argument_id = self
                     .index
-                    .argument_node_id(argument)
-                    .expect("argument belongs to indexed syntax tree");
+                    .sumti_node_id(sumti)
+                    .expect("sumti belongs to indexed syntax tree");
                 self.add_assignment(
                     frame,
                     numbered_slot(NonZeroU8::new(1).expect("literal is non-zero")),
@@ -2251,18 +2240,18 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     self.analyze_relative_clause_nested(relative_clause);
                 }
             }
-            data!(ArgumentSyntax::Quote(quote)) => self.analyze_quote_nested(quote),
-            data!(ArgumentSyntax::MathExpression { expression, .. }) => {
+            data!(SumtiSyntax::QuotedSumti(quote)) => self.analyze_quote_nested(quote),
+            data!(SumtiSyntax::NumberSumti { expression, .. }) => {
                 self.analyze_math_expression_nested(expression);
             }
-            data!(ArgumentSyntax::Koha(koha)) => {
+            data!(SumtiSyntax::ProSumti(koha)) => {
                 self.analyze_free_modifiers_nested(&koha.free_modifiers);
             }
-            data!(ArgumentSyntax::Letter { .. })
-            | data!(ArgumentSyntax::NaKu { .. })
-            | data!(ArgumentSyntax::Zohe { .. })
-            | data!(ArgumentSyntax::Name { .. })
-            | data!(ArgumentSyntax::Cmevla(..)) => {}
+            data!(SumtiSyntax::LerfuStringSumti { .. })
+            | data!(SumtiSyntax::NegatedSumti { .. })
+            | data!(SumtiSyntax::ElidedSumti { .. })
+            | data!(SumtiSyntax::NameDescription { .. })
+            | data!(SumtiSyntax::NameWords(..)) => {}
         }
     }
 
@@ -2270,11 +2259,11 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(true)]
     fn analyze_quote_nested(&mut self, quote: &'tree QuoteSyntax) {
         match quote.as_data() {
-            data!(QuoteSyntax::Lu { text, .. }) => self.analyze_text(text),
-            data!(QuoteSyntax::Zo(..))
-            | data!(QuoteSyntax::ZohOi(..))
-            | data!(QuoteSyntax::Zoi(..))
-            | data!(QuoteSyntax::Lohu(..)) => {}
+            data!(QuoteSyntax::TextQuote { text, .. }) => self.analyze_text(text),
+            data!(QuoteSyntax::WordQuote(..))
+            | data!(QuoteSyntax::DelimitedWordQuote(..))
+            | data!(QuoteSyntax::DelimitedNonLojbanQuote(..))
+            | data!(QuoteSyntax::WordsQuote(..)) => {}
         }
     }
 
@@ -2283,42 +2272,44 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_fragment(&mut self, fragment: &'tree FragmentSyntax) {
         match fragment.as_data() {
             data!(FragmentSyntax::Prenex { terms, .. })
-            | data!(FragmentSyntax::Term { terms, .. }) => self.analyze_terms_nested(terms),
-            data!(FragmentSyntax::BeLink {
-                first_argument,
+            | data!(FragmentSyntax::Terms { terms, .. }) => self.analyze_terms_nested(terms),
+            data!(FragmentSyntax::LinkedSumti {
+                first_sumti,
                 bei_links,
                 ..
             }) => {
-                if let Some(argument) = first_argument.as_deref() {
-                    self.analyze_argument_nested(argument);
+                if let Some(sumti) = first_sumti.as_deref() {
+                    self.analyze_argument_nested(sumti);
                 }
                 self.analyze_bei_links_nested(bei_links);
             }
-            data!(FragmentSyntax::BeiLink(bei_links)) => self.analyze_bei_links_nested(bei_links),
-            data!(FragmentSyntax::RelativeClause(relative_clauses)) => {
+            data!(FragmentSyntax::LinkedSumtiContinuation(bei_links)) => {
+                self.analyze_bei_links_nested(bei_links)
+            }
+            data!(FragmentSyntax::RelativeClauses(relative_clauses)) => {
                 for relative_clause in relative_clauses {
                     self.analyze_relative_clause_nested(relative_clause);
                 }
             }
-            data!(FragmentSyntax::MathExpression(expression)) => {
+            data!(FragmentSyntax::Mekso(expression)) => {
                 self.analyze_math_expression_nested(expression);
             }
-            data!(FragmentSyntax::Relation(relation)) => {
-                self.analyze_relation(relation);
+            data!(FragmentSyntax::Selbri(selbri)) => {
+                self.analyze_relation(selbri);
             }
             data!(FragmentSyntax::Ek(..))
-            | data!(FragmentSyntax::Gihek(..))
+            | data!(FragmentSyntax::BridiTailConnective(..))
             | data!(FragmentSyntax::Other(..))
-            | data!(FragmentSyntax::Ijek { .. }) => {}
+            | data!(FragmentSyntax::BridiConnective { .. }) => {}
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_bei_links_nested(&mut self, bei_links: &'tree [BeiLinkSyntax]) {
+    fn analyze_bei_links_nested(&mut self, bei_links: &'tree [AdditionalLinkedSumtiSyntax]) {
         for link in bei_links {
-            if let Some(argument) = link.argument.as_deref() {
-                self.analyze_argument_nested(argument);
+            if let Some(sumti) = link.sumti.as_deref() {
+                self.analyze_argument_nested(sumti);
             }
         }
     }
@@ -2327,7 +2318,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(true)]
     fn analyze_argument_tail_elements_nested(
         &mut self,
-        tail_elements: &'tree [ArgumentTailElementSyntax],
+        tail_elements: &'tree [DescriptionTailElementSyntax],
     ) {
         for tail_element in tail_elements {
             self.analyze_argument_tail_element_nested(tail_element);
@@ -2338,18 +2329,22 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(true)]
     fn analyze_argument_tail_element_nested(
         &mut self,
-        tail_element: &'tree ArgumentTailElementSyntax,
+        tail_element: &'tree DescriptionTailElementSyntax,
     ) {
         match tail_element.as_data() {
-            data!(ArgumentTailElementSyntax::Argument(argument)) => {
-                self.analyze_argument_nested(argument);
+            data!(DescriptionTailElementSyntax::DescriptionTailSumti(sumti)) => {
+                self.analyze_argument_nested(sumti);
             }
-            data!(ArgumentTailElementSyntax::RelativeClauses(relative_clauses)) => {
+            data!(
+                DescriptionTailElementSyntax::DescriptionTailRelativeClauses(relative_clauses)
+            ) => {
                 for relative_clause in relative_clauses {
                     self.analyze_relative_clause_nested(relative_clause);
                 }
             }
-            data!(ArgumentTailElementSyntax::Quantifier(quantifier)) => {
+            data!(DescriptionTailElementSyntax::DescriptionTailQuantifier(
+                quantifier
+            )) => {
                 self.analyze_quantifier_nested(quantifier);
             }
         }
@@ -2359,15 +2354,15 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(true)]
     fn analyze_relative_clause_nested(&mut self, relative_clause: &'tree RelativeClauseSyntax) {
         match relative_clause.as_data() {
-            data!(RelativeClauseSyntax::Goi(goi)) => {
-                self.analyze_argument_nested(&goi.argument);
+            data!(RelativeClauseSyntax::SumtiAssociationPhrase(goi)) => {
+                self.analyze_argument_nested(&goi.sumti);
             }
-            data!(RelativeClauseSyntax::Noi { subsentence, .. })
-            | data!(RelativeClauseSyntax::Poi { subsentence, .. }) => {
-                self.analyze_subsentence(subsentence);
+            data!(RelativeClauseSyntax::IncidentalRelativeBridi { subbridi, .. })
+            | data!(RelativeClauseSyntax::RestrictiveRelativeBridi { subbridi, .. }) => {
+                self.analyze_subbridi(subbridi);
             }
-            data!(RelativeClauseSyntax::Zihe { inner, .. })
-            | data!(RelativeClauseSyntax::Connected { inner, .. }) => {
+            data!(RelativeClauseSyntax::JoinedRelativeClauses { inner, .. })
+            | data!(RelativeClauseSyntax::RelativeClauseConnection { inner, .. }) => {
                 self.analyze_relative_clause_nested(inner);
             }
         }
@@ -2375,12 +2370,12 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_argument_tag_nested(&mut self, tag: &'tree ArgumentTagSyntax) {
+    fn analyze_argument_tag_nested(&mut self, tag: &'tree SumtiTagSyntax) {
         match tag.as_data() {
-            data!(ArgumentTagSyntax::TenseModal(tense_modal)) => {
+            data!(SumtiTagSyntax::TenseModal(tense_modal)) => {
                 self.analyze_tense_modal_nested(tense_modal);
             }
-            data!(ArgumentTagSyntax::Fa(..)) => {}
+            data!(SumtiTagSyntax::PlaceTag(..)) => {}
         }
     }
 
@@ -2388,35 +2383,34 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(true)]
     fn analyze_quantifier_nested(&mut self, quantifier: &'tree QuantifierSyntax) {
         match quantifier.as_data() {
-            data!(QuantifierSyntax::Vei {
-                math_expression,
-                ..
-            }) => self.analyze_math_expression_nested(math_expression),
-            data!(QuantifierSyntax::Number { .. }) => {}
+            data!(QuantifierSyntax::MeksoQuantifier { mekso, .. }) => {
+                self.analyze_math_expression_nested(mekso)
+            }
+            data!(QuantifierSyntax::NumberQuantifier { .. }) => {}
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_math_expression_nested(&mut self, expression: &'tree MathExpressionSyntax) {
+    fn analyze_math_expression_nested(&mut self, expression: &'tree MeksoSyntax) {
         match expression.as_data() {
-            data!(MathExpressionSyntax::Number(quantifier)) => {
+            data!(MeksoSyntax::NumberMekso(quantifier)) => {
                 self.analyze_quantifier_nested(quantifier);
             }
-            data!(MathExpressionSyntax::Vei {
+            data!(MeksoSyntax::ParenthesizedMekso {
                 inner_expression,
                 ..
             })
-            | data!(MathExpressionSyntax::Lahe {
+            | data!(MeksoSyntax::QualifiedOperand {
                 inner_expression,
                 ..
             }) => self.analyze_math_expression_nested(inner_expression),
-            data!(MathExpressionSyntax::Gek {
+            data!(MeksoSyntax::ForethoughtMeksoConnection {
                 left_expression,
                 right_expression,
                 ..
             })
-            | data!(MathExpressionSyntax::Connected {
+            | data!(MeksoSyntax::MeksoConnection {
                 left_expression,
                 right_expression,
                 ..
@@ -2424,7 +2418,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_math_expression_nested(left_expression);
                 self.analyze_math_expression_nested(right_expression);
             }
-            data!(MathExpressionSyntax::Forethought {
+            data!(MeksoSyntax::ForethoughtCall {
                 operator,
                 operands,
                 ..
@@ -2434,7 +2428,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     self.analyze_math_expression_nested(operand);
                 }
             }
-            data!(MathExpressionSyntax::ReversePolish {
+            data!(MeksoSyntax::ReversePolish {
                 operands,
                 operators,
                 ..
@@ -2446,23 +2440,23 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     self.analyze_math_operator_nested(operator);
                 }
             }
-            data!(MathExpressionSyntax::Nihe { relation, .. }) => {
-                self.analyze_relation(relation);
+            data!(MeksoSyntax::SelbriOperand { selbri, .. }) => {
+                self.analyze_relation(selbri);
             }
-            data!(MathExpressionSyntax::Mohe { argument, .. }) => {
-                self.analyze_argument_nested(argument);
+            data!(MeksoSyntax::SumtiOperand { sumti, .. }) => {
+                self.analyze_argument_nested(sumti);
             }
-            data!(MathExpressionSyntax::Johi { expressions, .. }) => {
+            data!(MeksoSyntax::MeksoArray { expressions, .. }) => {
                 for expression in expressions.iter() {
                     self.analyze_math_expression_nested(expression);
                 }
             }
-            data!(MathExpressionSyntax::Binary {
+            data!(MeksoSyntax::Infix {
                 left_expression,
                 operator,
                 right_expression,
             })
-            | data!(MathExpressionSyntax::Bihe {
+            | data!(MeksoSyntax::PrecedenceInfix {
                 left_expression,
                 operator,
                 right_expression,
@@ -2472,32 +2466,31 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_math_operator_nested(operator);
                 self.analyze_math_expression_nested(right_expression);
             }
-            data!(MathExpressionSyntax::Letter { .. }) => {}
+            data!(MeksoSyntax::LerfuStringMekso { .. }) => {}
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_math_operator_nested(&mut self, operator: &'tree MathOperatorSyntax) {
+    fn analyze_math_operator_nested(&mut self, operator: &'tree MeksoOperatorSyntax) {
         match operator.as_data() {
-            data!(MathOperatorSyntax::Maho {
-                math_expression,
-                ..
-            }) => self.analyze_math_expression_nested(math_expression),
-            data!(MathOperatorSyntax::Se { inner_operator, .. })
-            | data!(MathOperatorSyntax::Nahe { inner_operator, .. })
-            | data!(MathOperatorSyntax::Ke { inner_operator, .. }) => {
+            data!(MeksoOperatorSyntax::OperandAsOperator { mekso, .. }) => {
+                self.analyze_math_expression_nested(mekso)
+            }
+            data!(MeksoOperatorSyntax::Converted { inner_operator, .. })
+            | data!(MeksoOperatorSyntax::ScalarNegated { inner_operator, .. })
+            | data!(MeksoOperatorSyntax::GroupedOperator { inner_operator, .. }) => {
                 self.analyze_math_operator_nested(inner_operator);
             }
-            data!(MathOperatorSyntax::Nahu { relation, .. }) => {
-                self.analyze_relation(relation);
+            data!(MeksoOperatorSyntax::SelbriAsOperator { selbri, .. }) => {
+                self.analyze_relation(selbri);
             }
-            data!(MathOperatorSyntax::Bo {
+            data!(MeksoOperatorSyntax::BoundOperatorConnection {
                 left_operator,
                 right_operator,
                 ..
             })
-            | data!(MathOperatorSyntax::Connected {
+            | data!(MeksoOperatorSyntax::OperatorConnection {
                 left_operator,
                 right_operator,
                 ..
@@ -2505,7 +2498,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_math_operator_nested(left_operator);
                 self.analyze_math_operator_nested(right_operator);
             }
-            data!(MathOperatorSyntax::Vuhu(..)) => {}
+            data!(MeksoOperatorSyntax::Primitive(..)) => {}
         }
     }
 
@@ -2515,26 +2508,26 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         match tense_modal.as_data() {
             data!(TenseModalSyntax::Composite { parts }) => {
                 for part in &parts.value {
-                    if let data!(CompositeTenseModalPartSyntax::Fiho(fiho)) = part.as_data() {
-                        self.analyze_relation(&fiho.relation);
+                    if let data!(CompositeTenseModalPartSyntax::AdHocModal(fiho)) = part.as_data() {
+                        self.analyze_relation(&fiho.selbri);
                     }
                 }
             }
-            data!(TenseModalSyntax::Fiho { relation, .. }) => {
-                self.analyze_relation(relation);
+            data!(TenseModalSyntax::AdHocModal { selbri, .. }) => {
+                self.analyze_relation(selbri);
             }
-            data!(TenseModalSyntax::Pu(..))
-            | data!(TenseModalSyntax::PuDistance { .. })
+            data!(TenseModalSyntax::TimeDirection(..))
+            | data!(TenseModalSyntax::TimeDirectionDistance { .. })
             | data!(TenseModalSyntax::TimeInterval(..))
-            | data!(TenseModalSyntax::PuCaha { .. })
+            | data!(TenseModalSyntax::TimeDirectionActuality { .. })
             | data!(TenseModalSyntax::SpaceDistance(..))
             | data!(TenseModalSyntax::SpaceDirection(..))
             | data!(TenseModalSyntax::SpaceMovement { .. })
-            | data!(TenseModalSyntax::Simple { .. })
-            | data!(TenseModalSyntax::Ki(..))
-            | data!(TenseModalSyntax::Caha(..))
-            | data!(TenseModalSyntax::Zaho(..))
-            | data!(TenseModalSyntax::Interval { .. }) => {}
+            | data!(TenseModalSyntax::Modal { .. })
+            | data!(TenseModalSyntax::Sticky(..))
+            | data!(TenseModalSyntax::Actuality(..))
+            | data!(TenseModalSyntax::EventContour(..))
+            | data!(TenseModalSyntax::IntervalProperty { .. }) => {}
         }
     }
 
@@ -2550,35 +2543,31 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(true)]
     fn analyze_free_modifier_nested(&mut self, free_modifier: &'tree FreeModifierSyntax) {
         match free_modifier.as_data() {
-            data!(FreeModifierSyntax::Sei {
-                terms,
-                relation,
-                ..
-            }) => {
+            data!(FreeModifierSyntax::MetalinguisticBridi { terms, selbri, .. }) => {
                 self.analyze_terms_nested(terms);
-                self.analyze_relation(relation);
+                self.analyze_relation(selbri);
             }
-            data!(FreeModifierSyntax::To { text, .. }) => self.analyze_text(text),
-            data!(FreeModifierSyntax::Xi { expression, .. }) => {
+            data!(FreeModifierSyntax::ParentheticalText { text, .. }) => self.analyze_text(text),
+            data!(FreeModifierSyntax::Subscript { expression, .. }) => {
                 self.analyze_math_expression_nested(expression);
             }
-            data!(FreeModifierSyntax::Soi {
-                leading_argument,
-                trailing_argument,
+            data!(FreeModifierSyntax::ReciprocalSumti {
+                leading_sumti,
+                trailing_sumti,
                 ..
             }) => {
-                self.analyze_argument_nested(leading_argument);
-                if let Some(argument) = trailing_argument.as_deref() {
-                    self.analyze_argument_nested(argument);
+                self.analyze_argument_nested(leading_sumti);
+                if let Some(sumti) = trailing_sumti.as_deref() {
+                    self.analyze_argument_nested(sumti);
                 }
             }
-            data!(FreeModifierSyntax::Vocative { argument, .. }) => {
-                if let Some(argument) = argument.as_deref() {
-                    self.analyze_argument_nested(argument);
+            data!(FreeModifierSyntax::Vocative { sumti, .. }) => {
+                if let Some(sumti) = sumti.as_deref() {
+                    self.analyze_argument_nested(sumti);
                 }
             }
-            data!(FreeModifierSyntax::Mai { .. })
-            | data!(FreeModifierSyntax::Replacement { .. }) => {}
+            data!(FreeModifierSyntax::UtteranceOrdinal { .. })
+            | data!(FreeModifierSyntax::TextReplacement { .. }) => {}
         }
     }
 
@@ -2644,23 +2633,20 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         source: AssignmentSource,
     ) {
         match term.as_data() {
-            data!(TermSyntax::Argument(argument)) => {
-                self.assign_argument_term_to_cursors(cursors, term, argument, source);
+            data!(TermSyntax::Sumti(sumti)) => {
+                self.assign_argument_term_to_cursors(cursors, term, sumti, source);
             }
-            data!(TermSyntax::Fa { fa, argument, .. }) => {
+            data!(TermSyntax::PlaceTaggedSumti { fa, sumti, .. }) => {
                 let slot = fa_place_slot(fa);
                 self.assign_argument_to_cursors(
                     cursors,
                     term,
-                    argument,
+                    sumti,
                     slot,
                     AssignmentSource::FaTerm,
                 );
             }
-            data!(TermSyntax::Tagged {
-                tense_modal,
-                argument,
-            }) => {
+            data!(TermSyntax::TaggedSumti { tense_modal, sumti }) => {
                 if let Some(tense_modal) = tense_modal.as_deref() {
                     self.analyze_tense_modal_nested(tense_modal);
                 }
@@ -2671,34 +2657,34 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.assign_argument_to_cursors(
                     cursors,
                     term,
-                    argument,
+                    sumti,
                     slot,
                     AssignmentSource::ModalTerm,
                 );
             }
-            data!(TermSyntax::JaiTagged { tag, argument, .. }) => {
+            data!(TermSyntax::JaiTaggedSumti { tag, sumti, .. }) => {
                 if let Some(tense_modal) = tag.as_deref() {
                     self.analyze_tense_modal_nested(tense_modal);
                 }
                 self.assign_argument_to_cursors(
                     cursors,
                     term,
-                    argument,
+                    sumti,
                     Some(fai_slot()),
                     AssignmentSource::FaTerm,
                 );
             }
-            data!(TermSyntax::NuhiTermset { termset, .. }) => {
+            data!(TermSyntax::Termset { termset, .. }) => {
                 self.assign_terms(cursors, termset, AssignmentSource::TermsetBranch);
             }
-            data!(TermSyntax::GekNuhiTermset {
+            data!(TermSyntax::ForethoughtTermsetConnection {
                 terms,
                 gik_terms,
                 ..
             }) => {
                 self.assign_alternative_term_branches(cursors, terms, gik_terms);
             }
-            data!(TermSyntax::Cehe {
+            data!(TermSyntax::TermsetGroup {
                 leading_terms,
                 trailing_terms,
                 ..
@@ -2706,14 +2692,14 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.assign_terms(cursors, leading_terms, AssignmentSource::TermsetBranch);
                 self.assign_terms(cursors, trailing_terms, AssignmentSource::TermsetBranch);
             }
-            data!(TermSyntax::Pehe {
+            data!(TermSyntax::TermsetConnection {
                 leading_terms,
                 trailing_terms,
                 ..
             }) => {
                 self.assign_alternative_term_branches(cursors, leading_terms, trailing_terms);
             }
-            data!(TermSyntax::Connected {
+            data!(TermSyntax::TermConnection {
                 leading_terms,
                 trailing_terms,
                 ..
@@ -2721,7 +2707,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.assign_terms(cursors, leading_terms, AssignmentSource::TermsetBranch);
                 self.assign_terms(cursors, trailing_terms, AssignmentSource::TermsetBranch);
             }
-            data!(TermSyntax::BoConnected {
+            data!(TermSyntax::BoundTermConnection {
                 leading_terms,
                 trailing_term,
                 ..
@@ -2739,29 +2725,29 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         &mut self,
         cursors: &mut Vec<PlaceCursor>,
         term: &'tree TermSyntax,
-        argument: &'tree ArgumentSyntax,
+        sumti: &'tree SumtiSyntax,
         source: AssignmentSource,
     ) {
-        match argument.as_data() {
-            data!(ArgumentSyntax::Connected {
-                leading_argument,
+        match sumti.as_data() {
+            data!(SumtiSyntax::SumtiConnection {
+                leading_sumti,
                 connective,
-                trailing_argument,
+                trailing_sumti,
             }) if connective_contains_cmavo(connective, Cmavo::Cehe) => {
                 self.assign_argument_term_to_cursors(
                     cursors,
                     term,
-                    leading_argument,
+                    leading_sumti,
                     AssignmentSource::TermsetBranch,
                 );
                 self.assign_argument_term_to_cursors(
                     cursors,
                     term,
-                    trailing_argument,
+                    trailing_sumti,
                     AssignmentSource::TermsetBranch,
                 );
             }
-            _ => self.assign_argument_to_cursors(cursors, term, argument, None, source),
+            _ => self.assign_argument_to_cursors(cursors, term, sumti, None, source),
         }
     }
 
@@ -2771,15 +2757,15 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         &mut self,
         cursors: &mut Vec<PlaceCursor>,
         term: &'tree TermSyntax,
-        argument: &'tree ArgumentSyntax,
+        sumti: &'tree SumtiSyntax,
         explicit_slot: Option<PlaceSlot>,
         source: AssignmentSource,
     ) {
-        self.analyze_argument_nested(argument);
+        self.analyze_argument_nested(sumti);
         let argument_id = self
             .index
-            .argument_node_id(argument)
-            .expect("argument belongs to indexed syntax tree");
+            .sumti_node_id(sumti)
+            .expect("sumti belongs to indexed syntax tree");
         let term_id = self
             .index
             .term_node_id(term)
@@ -2797,18 +2783,18 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         &mut self,
         frame: SelbriPlaceFrameId,
         fa: Option<&'tree WithFreeModifiers<Token>>,
-        first_argument: Option<&'tree ArgumentSyntax>,
-        bei_links: &'tree [BeiLinkSyntax],
+        first_sumti: Option<&'tree SumtiSyntax>,
+        bei_links: &'tree [AdditionalLinkedSumtiSyntax],
     ) {
         let mut cursor = PlaceCursor::new_at(frame, 2);
-        if let Some(argument) = first_argument {
+        if let Some(sumti) = first_sumti {
             let slot = fa.and_then(fa_place_slot);
-            self.assign_link_argument(&mut cursor, argument, slot);
+            self.assign_link_argument(&mut cursor, sumti, slot);
         }
         for link in bei_links {
-            if let Some(argument) = link.argument.as_deref() {
+            if let Some(sumti) = link.sumti.as_deref() {
                 let slot = link.fa.as_ref().and_then(fa_place_slot);
-                self.assign_link_argument(&mut cursor, argument, slot);
+                self.assign_link_argument(&mut cursor, sumti, slot);
             }
         }
     }
@@ -2818,23 +2804,23 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
     fn assign_link_argument(
         &mut self,
         cursor: &mut PlaceCursor,
-        argument: &'tree ArgumentSyntax,
+        sumti: &'tree SumtiSyntax,
         explicit_slot: Option<PlaceSlot>,
     ) {
-        self.analyze_argument_nested(argument);
+        self.analyze_argument_nested(sumti);
         let argument_id = self
             .index
-            .argument_node_id(argument)
-            .expect("argument belongs to indexed syntax tree");
+            .sumti_node_id(sumti)
+            .expect("sumti belongs to indexed syntax tree");
         let slot = explicit_slot
-            .or_else(|| modal_slot_for_tagged_argument(argument, self.index))
+            .or_else(|| modal_slot_for_tagged_argument(sumti, self.index))
             .unwrap_or_else(|| cursor.next_numbered_slot());
         self.add_assignment(
             cursor.frame,
             slot,
             argument_id,
             None,
-            AssignmentSource::LinkArgument,
+            AssignmentSource::LinkedSumti,
         );
         cursor.record_slot(slot);
     }
@@ -2845,8 +2831,8 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         &mut self,
         node: RawSyntaxNodeId,
         kind: PlaceFrameKind,
-        relation: Option<RelationNodeId>,
-        relation_unit: Option<RelationUnitNodeId>,
+        selbri: Option<SelbriNodeId>,
+        tanru_unit: Option<TanruUnitNodeId>,
         propagation: PlaceFramePropagation,
     ) -> SelbriPlaceFrameId {
         let id = SelbriPlaceFrameId(self.frames.len());
@@ -2854,8 +2840,8 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             id,
             node,
             kind,
-            relation,
-            relation_unit,
+            selbri,
+            tanru_unit,
             propagation,
         });
         self.frame_ids_by_node.entry(node).or_default().push(id);
@@ -2868,12 +2854,12 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         &mut self,
         frame: SelbriPlaceFrameId,
         slot: PlaceSlot,
-        argument: ArgumentNodeId,
+        sumti: SumtiNodeId,
         term: Option<TermNodeId>,
         source: AssignmentSource,
     ) {
         let mut visited = HashSet::new();
-        self.add_assignment_recursive(frame, slot, argument, term, source, &mut visited);
+        self.add_assignment_recursive(frame, slot, sumti, term, source, &mut visited);
     }
 
     #[requires(true)]
@@ -2882,7 +2868,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         &mut self,
         frame: SelbriPlaceFrameId,
         slot: PlaceSlot,
-        argument: ArgumentNodeId,
+        sumti: SumtiNodeId,
         term: Option<TermNodeId>,
         source: AssignmentSource,
         visited: &mut HashSet<(SelbriPlaceFrameId, PlaceSlot)>,
@@ -2890,17 +2876,17 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         if !visited.insert((frame, slot)) {
             return;
         }
-        let id = ArgumentPlaceAssignmentId(self.assignments.len());
-        self.assignments.push(ArgumentPlaceAssignment {
+        let id = SumtiPlaceAssignmentId(self.assignments.len());
+        self.assignments.push(SumtiPlaceAssignment {
             id,
             frame,
             slot,
-            argument,
+            sumti,
             term,
             source,
         });
-        self.assignment_ids_by_argument
-            .entry(argument)
+        self.assignment_ids_by_sumti
+            .entry(sumti)
             .or_default()
             .push(id);
         if let Some(term) = term {
@@ -2917,7 +2903,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             .entry((frame, slot))
             .or_default()
             .push(id);
-        self.propagate_assignment(frame, slot, argument, term, source, visited);
+        self.propagate_assignment(frame, slot, sumti, term, source, visited);
     }
 
     #[requires(true)]
@@ -2926,7 +2912,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         &mut self,
         frame: SelbriPlaceFrameId,
         slot: PlaceSlot,
-        argument: ArgumentNodeId,
+        sumti: SumtiNodeId,
         term: Option<TermNodeId>,
         source: AssignmentSource,
         visited: &mut HashSet<(SelbriPlaceFrameId, PlaceSlot)>,
@@ -2940,7 +2926,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.add_assignment_recursive(
                     inner,
                     slot,
-                    argument,
+                    sumti,
                     term,
                     AssignmentSource::Propagated,
                     visited,
@@ -2954,7 +2940,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.add_assignment_recursive(
                     inner,
                     mapped,
-                    argument,
+                    sumti,
                     term,
                     AssignmentSource::Propagated,
                     visited,
@@ -2964,7 +2950,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 PlaceSlot::Fai => self.add_assignment_recursive(
                     inner,
                     numbered_slot(NonZeroU8::new(1).expect("literal is non-zero")),
-                    argument,
+                    sumti,
                     term,
                     AssignmentSource::Propagated,
                     visited,
@@ -2972,19 +2958,19 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 PlaceSlot::Numbered(place) if place.get() > 1 => self.add_assignment_recursive(
                     inner,
                     numbered_slot(place),
-                    argument,
+                    sumti,
                     term,
                     AssignmentSource::Propagated,
                     visited,
                 ),
                 PlaceSlot::Numbered(_) | PlaceSlot::Modal(_) => {}
             },
-            PlaceFramePropagation::Connected { branches } => {
+            PlaceFramePropagation::ConnectiveBranches { branches } => {
                 for branch in branches {
                     self.add_assignment_recursive(
                         branch,
                         slot,
-                        argument,
+                        sumti,
                         term,
                         AssignmentSource::Propagated,
                         visited,
@@ -2995,7 +2981,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.add_assignment_recursive(
                     head,
                     slot,
-                    argument,
+                    sumti,
                     term,
                     AssignmentSource::Propagated,
                     visited,
@@ -3005,7 +2991,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                         self.add_assignment_recursive(
                             modifier,
                             slot,
-                            argument,
+                            sumti,
                             term,
                             AssignmentSource::CompoundSharedX1,
                             visited,
@@ -3017,7 +3003,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.add_assignment_recursive(
                     trailing,
                     slot,
-                    argument,
+                    sumti,
                     term,
                     AssignmentSource::Propagated,
                     visited,
@@ -3026,7 +3012,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     self.add_assignment_recursive(
                         leading,
                         slot,
-                        argument,
+                        sumti,
                         term,
                         AssignmentSource::CompoundSharedX1,
                         visited,
@@ -3048,7 +3034,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
 
 #[derive(Debug, Clone)]
 #[invariant(true)]
-struct PredicateTailAnalysis<'tree> {
+struct BridiTailAnalysis<'tree> {
     frames: Vec<SelbriPlaceFrameId>,
     terms: Vec<&'tree TermSyntax>,
     branch_cursors: Option<Vec<PlaceCursor>>,
@@ -3215,35 +3201,29 @@ impl<'tree> SyntaxIndex<'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn predicate_node_id(&self, node: &'tree PredicateSyntax) -> Option<PredicateNodeId> {
-        self.id_of(SyntaxNodeRef::PredicateSyntax(node))
-            .map(PredicateNodeId)
+    pub fn bridi_node_id(&self, node: &'tree BridiSyntax) -> Option<BridiNodeId> {
+        self.id_of(SyntaxNodeRef::BridiSyntax(node))
+            .map(BridiNodeId)
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn predicate_tail_node_id(
-        &self,
-        node: &'tree PredicateTailSyntax,
-    ) -> Option<PredicateTailNodeId> {
-        self.id_of(SyntaxNodeRef::PredicateTailSyntax(node))
-            .map(PredicateTailNodeId)
+    pub fn bridi_tail_node_id(&self, node: &'tree BridiTailSyntax) -> Option<BridiTailNodeId> {
+        self.id_of(SyntaxNodeRef::BridiTailSyntax(node))
+            .map(BridiTailNodeId)
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn relation_node_id(&self, node: &'tree RelationSyntax) -> Option<RelationNodeId> {
-        self.id_of(relation_node_ref(node)).map(RelationNodeId)
+    pub fn selbri_node_id(&self, node: &'tree SelbriSyntax) -> Option<SelbriNodeId> {
+        self.id_of(relation_node_ref(node)).map(SelbriNodeId)
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn relation_unit_node_id(
-        &self,
-        node: &'tree RelationUnitSyntax,
-    ) -> Option<RelationUnitNodeId> {
+    pub fn tanru_unit_node_id(&self, node: &'tree TanruUnitSyntax) -> Option<TanruUnitNodeId> {
         self.id_of(relation_unit_node_ref(node))
-            .map(RelationUnitNodeId)
+            .map(TanruUnitNodeId)
     }
 
     #[requires(true)]
@@ -3254,8 +3234,8 @@ impl<'tree> SyntaxIndex<'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn argument_node_id(&self, node: &'tree ArgumentSyntax) -> Option<ArgumentNodeId> {
-        self.id_of(argument_node_ref(node)).map(ArgumentNodeId)
+    pub fn sumti_node_id(&self, node: &'tree SumtiSyntax) -> Option<SumtiNodeId> {
+        self.id_of(argument_node_ref(node)).map(SumtiNodeId)
     }
 
     #[requires(true)]
@@ -3267,13 +3247,13 @@ impl<'tree> SyntaxIndex<'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn relation(&self, id: RelationNodeId) -> Option<&'tree RelationSyntax> {
+    pub fn selbri(&self, id: SelbriNodeId) -> Option<&'tree SelbriSyntax> {
         node_ref_as_relation(self.node(id.0)?)
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn relation_unit(&self, id: RelationUnitNodeId) -> Option<&'tree RelationUnitSyntax> {
+    pub fn tanru_unit(&self, id: TanruUnitNodeId) -> Option<&'tree TanruUnitSyntax> {
         node_ref_as_relation_unit(self.node(id.0)?)
     }
 
@@ -3285,15 +3265,15 @@ impl<'tree> SyntaxIndex<'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn argument(&self, id: ArgumentNodeId) -> Option<&'tree ArgumentSyntax> {
+    pub fn sumti(&self, id: SumtiNodeId) -> Option<&'tree SumtiSyntax> {
         node_ref_as_argument(self.node(id.0)?)
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn predicate(&self, id: PredicateNodeId) -> Option<&'tree PredicateSyntax> {
+    pub fn bridi(&self, id: BridiNodeId) -> Option<&'tree BridiSyntax> {
         match self.node(id.0)? {
-            SyntaxNodeRef::PredicateSyntax(node) => Some(node),
+            SyntaxNodeRef::BridiSyntax(node) => Some(node),
             _ => None,
         }
     }
@@ -3381,9 +3361,9 @@ impl<'tree> TreeVisitor<'tree> for SyntaxIndexBuilder<'tree> {
 
 #[derive(Debug)]
 #[invariant(true)]
-struct ArgumentMention {
-    source: ArgumentNodeId,
-    target: ArgumentNodeId,
+struct SumtiMention {
+    source: SumtiNodeId,
+    target: SumtiNodeId,
     position: usize,
     available_to_ri: bool,
 }
@@ -3404,23 +3384,23 @@ struct DiscourseReferenceBuilder<'index, 'tree> {
     edges: Vec<ReferenceEdge>,
     edge_ids_by_source: HashMap<RawSyntaxNodeId, Vec<ReferenceEdgeId>>,
     edge_ids_by_target_node: HashMap<RawSyntaxNodeId, Vec<ReferenceEdgeId>>,
-    koha_bindings: HashMap<Cmavo, ArgumentNodeId>,
-    cei_predicate_bindings: HashMap<String, PredicateNodeId>,
-    relation_variable_bindings: HashMap<Cmavo, RelationNodeId>,
-    da_bindings: HashMap<Cmavo, ArgumentNodeId>,
-    argument_mentions: Vec<ArgumentMention>,
-    letter_mentions: HashMap<String, Vec<ArgumentMention>>,
+    koha_bindings: HashMap<Cmavo, SumtiNodeId>,
+    cei_bridi_bindings: HashMap<String, BridiNodeId>,
+    selbri_variable_bindings: HashMap<Cmavo, SelbriNodeId>,
+    da_bindings: HashMap<Cmavo, SumtiNodeId>,
+    sumti_mentions: Vec<SumtiMention>,
+    letter_sumti_mentions: HashMap<String, Vec<SumtiMention>>,
     predicate_mentions: Vec<NodeMention>,
-    last_predicate: Option<PredicateNodeId>,
-    current_predicate: Option<PredicateNodeId>,
+    last_bridi: Option<BridiNodeId>,
+    current_bridi: Option<BridiNodeId>,
     predicate_stack: Vec<RawSyntaxNodeId>,
     discourse_predicate_stack: Vec<RawSyntaxNodeId>,
     abstraction_stack: Vec<RawSyntaxNodeId>,
     utterance_history: Vec<RawSyntaxNodeId>,
     current_utterance: Option<RawSyntaxNodeId>,
     pending_next_utterance_sources: Vec<RawSyntaxNodeId>,
-    current_predicate_frames: Vec<SelbriPlaceFrameId>,
-    relative_heads: Vec<ArgumentNodeId>,
+    current_bridi_frames: Vec<SelbriPlaceFrameId>,
+    relative_heads: Vec<SumtiNodeId>,
 }
 
 impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
@@ -3434,21 +3414,21 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
             edge_ids_by_source: HashMap::new(),
             edge_ids_by_target_node: HashMap::new(),
             koha_bindings: HashMap::new(),
-            cei_predicate_bindings: HashMap::new(),
-            relation_variable_bindings: HashMap::new(),
+            cei_bridi_bindings: HashMap::new(),
+            selbri_variable_bindings: HashMap::new(),
             da_bindings: HashMap::new(),
-            argument_mentions: Vec::new(),
-            letter_mentions: HashMap::new(),
+            sumti_mentions: Vec::new(),
+            letter_sumti_mentions: HashMap::new(),
             predicate_mentions: Vec::new(),
-            last_predicate: None,
-            current_predicate: None,
+            last_bridi: None,
+            current_bridi: None,
             predicate_stack: Vec::new(),
             discourse_predicate_stack: Vec::new(),
             abstraction_stack: Vec::new(),
             utterance_history: Vec::new(),
             current_utterance: None,
             pending_next_utterance_sources: Vec::new(),
-            current_predicate_frames: Vec::new(),
+            current_bridi_frames: Vec::new(),
             relative_heads: Vec::new(),
         }
     }
@@ -3509,30 +3489,30 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
         }
         let previous_utterance = self.current_utterance.replace(statement_id.0);
         match statement.as_data() {
-            data!(StatementSyntax::Tuhe { text, .. }) => self.visit_text(text),
+            data!(StatementSyntax::TextGroup { text, .. }) => self.visit_text(text),
             data!(StatementSyntax::Prenex {
                 prenex_terms,
                 inner_statement,
                 ..
             }) => {
                 self.visit_terms(prenex_terms);
-                let previous_relation_variable_bindings = self.relation_variable_bindings.clone();
+                let previous_selbri_variable_bindings = self.selbri_variable_bindings.clone();
                 self.bind_prenex_relation_variables(prenex_terms);
-                let previous_cei_predicate_bindings = self.cei_predicate_bindings.clone();
+                let previous_cei_bridi_bindings = self.cei_bridi_bindings.clone();
                 self.bind_prenex_cei_predicate_targets_for_statement(prenex_terms, inner_statement);
                 self.visit_statement(inner_statement);
-                self.cei_predicate_bindings = previous_cei_predicate_bindings;
-                self.relation_variable_bindings = previous_relation_variable_bindings;
+                self.cei_bridi_bindings = previous_cei_bridi_bindings;
+                self.selbri_variable_bindings = previous_selbri_variable_bindings;
             }
-            data!(StatementSyntax::Predicate(predicate)) => {
-                self.visit_predicate(predicate);
+            data!(StatementSyntax::Bridi(bridi)) => {
+                self.visit_predicate(bridi);
             }
-            data!(StatementSyntax::Connected {
+            data!(StatementSyntax::StatementConnection {
                 leading_statement,
                 trailing_statement,
                 ..
             })
-            | data!(StatementSyntax::PreIConnected {
+            | data!(StatementSyntax::PreposedIStatementConnection {
                 leading_statement,
                 trailing_statement,
                 ..
@@ -3548,7 +3528,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_statement(inner_statement);
                 self.visit_terms(reset_terms);
             }
-            data!(StatementSyntax::ExperimentalPredicateContinuation {
+            data!(StatementSyntax::ExperimentalBridiContinuation {
                 leading_statement,
                 continuation,
             }) => {
@@ -3556,7 +3536,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 if let Some(tense_modal) = continuation.tense_modal.as_deref() {
                     self.visit_tense_modal(tense_modal);
                 }
-                self.visit_subsentence(&continuation.trailing_subsentence);
+                self.visit_subbridi(&continuation.trailing_subbridi);
             }
             data!(StatementSyntax::Fragment(fragment)) => self.visit_fragment(fragment),
         }
@@ -3566,55 +3546,52 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_subsentence(&mut self, subsentence: &'tree SubsentenceSyntax) {
-        match subsentence.as_data() {
-            data!(SubsentenceSyntax::Plain(predicate)) => self.visit_predicate(predicate),
-            data!(SubsentenceSyntax::Prenex {
+    fn visit_subbridi(&mut self, subbridi: &'tree SubbridiSyntax) {
+        match subbridi.as_data() {
+            data!(SubbridiSyntax::Bridi(bridi)) => self.visit_predicate(bridi),
+            data!(SubbridiSyntax::Prenex {
                 prenex_terms,
-                inner_subsentence,
+                inner_subbridi,
                 ..
             }) => {
                 self.visit_terms(prenex_terms);
-                let previous_relation_variable_bindings = self.relation_variable_bindings.clone();
+                let previous_selbri_variable_bindings = self.selbri_variable_bindings.clone();
                 self.bind_prenex_relation_variables(prenex_terms);
-                let previous_cei_predicate_bindings = self.cei_predicate_bindings.clone();
-                self.bind_prenex_cei_predicate_targets_for_subsentence(
-                    prenex_terms,
-                    inner_subsentence,
-                );
-                self.visit_subsentence(inner_subsentence);
-                self.cei_predicate_bindings = previous_cei_predicate_bindings;
-                self.relation_variable_bindings = previous_relation_variable_bindings;
+                let previous_cei_bridi_bindings = self.cei_bridi_bindings.clone();
+                self.bind_prenex_cei_predicate_targets_for_subbridi(prenex_terms, inner_subbridi);
+                self.visit_subbridi(inner_subbridi);
+                self.cei_bridi_bindings = previous_cei_bridi_bindings;
+                self.selbri_variable_bindings = previous_selbri_variable_bindings;
             }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_predicate(&mut self, predicate: &'tree PredicateSyntax) {
+    fn visit_predicate(&mut self, bridi: &'tree BridiSyntax) {
         let predicate_id = self
             .index
-            .predicate_node_id(predicate)
-            .expect("predicate belongs to indexed syntax tree");
+            .bridi_node_id(bridi)
+            .expect("bridi belongs to indexed syntax tree");
         let frames = self.places.frames_for_node(predicate_id.0).to_vec();
-        let previous_frames = std::mem::replace(&mut self.current_predicate_frames, frames);
-        let previous_predicate = self.current_predicate.replace(predicate_id);
+        let previous_frames = std::mem::replace(&mut self.current_bridi_frames, frames);
+        let previous_predicate = self.current_bridi.replace(predicate_id);
         let was_top_predicate = self.predicate_stack.is_empty();
         let is_in_abstraction = !self.abstraction_stack.is_empty();
         self.predicate_stack.push(predicate_id.0);
         if !is_in_abstraction {
             self.discourse_predicate_stack.push(predicate_id.0);
         }
-        self.visit_terms(&predicate.leading_terms);
-        self.visit_predicate_tail(&predicate.predicate_tail);
-        self.visit_free_modifiers(&predicate.free_modifiers);
+        self.visit_terms(&bridi.leading_terms);
+        self.visit_bridi_tail(&bridi.bridi_tail);
+        self.visit_free_modifiers(&bridi.free_modifiers);
         if !is_in_abstraction {
             self.discourse_predicate_stack.pop();
         }
         self.predicate_stack.pop();
-        self.current_predicate_frames = previous_frames;
-        self.current_predicate = previous_predicate;
-        self.last_predicate = Some(predicate_id);
+        self.current_bridi_frames = previous_frames;
+        self.current_bridi = previous_predicate;
+        self.last_bridi = Some(predicate_id);
         if was_top_predicate {
             self.note_predicate_mention(predicate_id.0);
         }
@@ -3622,13 +3599,13 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_predicate_tail(&mut self, tail: &'tree PredicateTailSyntax) {
-        self.visit_predicate_tail1(&tail.first);
+    fn visit_bridi_tail(&mut self, tail: &'tree BridiTailSyntax) {
+        self.visit_bridi_tail1(&tail.first);
         if let Some(continuation) = tail.ke_continuation.as_deref() {
             if let Some(tense_modal) = continuation.tense_modal.as_deref() {
                 self.visit_tense_modal(tense_modal);
             }
-            self.visit_predicate_tail(&continuation.predicate_tail);
+            self.visit_bridi_tail(&continuation.bridi_tail);
             self.visit_terms(&continuation.tail_terms);
             self.visit_free_modifiers(&continuation.free_modifiers);
         }
@@ -3636,13 +3613,13 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_predicate_tail1(&mut self, tail: &'tree PredicateTail1Syntax) {
-        self.visit_predicate_tail2(&tail.first);
+    fn visit_bridi_tail1(&mut self, tail: &'tree AfterthoughtBridiTailSyntax) {
+        self.visit_bridi_tail2(&tail.first);
         for continuation in &tail.continuations {
             if let Some(tense_modal) = continuation.tense_modal.as_deref() {
                 self.visit_tense_modal(tense_modal);
             }
-            self.visit_predicate_tail2(&continuation.predicate_tail);
+            self.visit_bridi_tail2(&continuation.bridi_tail);
             self.visit_terms(&continuation.tail_terms);
             self.visit_free_modifiers(&continuation.free_modifiers);
         }
@@ -3650,13 +3627,13 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_predicate_tail2(&mut self, tail: &'tree PredicateTail2Syntax) {
-        self.visit_predicate_tail3(&tail.first);
+    fn visit_bridi_tail2(&mut self, tail: &'tree BoGroupedBridiTailSyntax) {
+        self.visit_bridi_tail3(&tail.first);
         if let Some(continuation) = tail.bo_continuation.as_deref() {
             if let Some(tense_modal) = continuation.tense_modal.as_deref() {
                 self.visit_tense_modal(tense_modal);
             }
-            self.visit_predicate_tail2(&continuation.predicate_tail);
+            self.visit_bridi_tail2(&continuation.bridi_tail);
             self.visit_terms(&continuation.tail_terms);
             self.visit_free_modifiers(&continuation.free_modifiers);
         }
@@ -3664,49 +3641,63 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_predicate_tail3(&mut self, tail: &'tree PredicateTail3Syntax) {
+    fn visit_bridi_tail3(&mut self, tail: &'tree SimpleBridiTailSyntax) {
         match tail.as_data() {
-            data!(PredicateTail3Syntax::Relation {
-                relation,
+            data!(SimpleBridiTailSyntax::SelbriBridiTail {
+                selbri,
                 terms,
                 free_modifiers,
                 ..
             }) => {
-                self.visit_relation(relation);
+                self.visit_relation(selbri);
                 self.visit_terms(terms);
                 self.visit_free_modifiers(free_modifiers);
             }
-            data!(PredicateTail3Syntax::GekSentence(gek)) => self.visit_gek_sentence(gek),
+            data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(gek)) => {
+                self.visit_gek_sentence(gek)
+            }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_gek_sentence(&mut self, gek: &'tree jbotci_syntax::ast::GekSentenceSyntax) {
+    fn visit_gek_sentence(
+        &mut self,
+        gek: &'tree jbotci_syntax::ast::ForethoughtBridiConnectionSyntax,
+    ) {
         match gek.as_data() {
-            data!(jbotci_syntax::ast::GekSentenceSyntax::Pair {
-                first,
-                second,
-                tail_terms,
-                free_modifiers,
-                ..
-            }) => {
-                self.visit_subsentence(first);
-                self.visit_subsentence(second);
+            data!(
+                jbotci_syntax::ast::ForethoughtBridiConnectionSyntax::BridiConnection {
+                    first,
+                    second,
+                    tail_terms,
+                    free_modifiers,
+                    ..
+                }
+            ) => {
+                self.visit_subbridi(first);
+                self.visit_subbridi(second);
                 self.visit_terms(tail_terms);
                 self.visit_free_modifiers(free_modifiers);
             }
-            data!(jbotci_syntax::ast::GekSentenceSyntax::Ke {
-                tense_modal,
-                inner,
-                ..
-            }) => {
+            data!(
+                jbotci_syntax::ast::ForethoughtBridiConnectionSyntax::GroupedBridiConnection {
+                    tense_modal,
+                    inner,
+                    ..
+                }
+            ) => {
                 if let Some(tense_modal) = tense_modal.as_deref() {
                     self.visit_tense_modal(tense_modal);
                 }
                 self.visit_gek_sentence(inner);
             }
-            data!(jbotci_syntax::ast::GekSentenceSyntax::Na { inner, .. }) => {
+            data!(
+                jbotci_syntax::ast::ForethoughtBridiConnectionSyntax::NegatedBridiConnection {
+                    inner,
+                    ..
+                }
+            ) => {
                 self.visit_gek_sentence(inner);
             }
         }
@@ -3735,20 +3726,20 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
         terms: &'tree [TermSyntax],
         statement: &'tree StatementSyntax,
     ) {
-        if let Some(predicate) = self.statement_main_predicate_id(statement) {
-            self.bind_prenex_cei_predicate_targets(terms, predicate);
+        if let Some(bridi) = self.statement_main_predicate_id(statement) {
+            self.bind_prenex_cei_predicate_targets(terms, bridi);
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn bind_prenex_cei_predicate_targets_for_subsentence(
+    fn bind_prenex_cei_predicate_targets_for_subbridi(
         &mut self,
         terms: &'tree [TermSyntax],
-        subsentence: &'tree SubsentenceSyntax,
+        subbridi: &'tree SubbridiSyntax,
     ) {
-        if let Some(predicate) = self.subsentence_main_predicate_id(subsentence) {
-            self.bind_prenex_cei_predicate_targets(terms, predicate);
+        if let Some(bridi) = self.subbridi_main_predicate_id(subbridi) {
+            self.bind_prenex_cei_predicate_targets(terms, bridi);
         }
     }
 
@@ -3757,15 +3748,15 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     fn bind_prenex_cei_predicate_targets(
         &mut self,
         terms: &'tree [TermSyntax],
-        predicate: PredicateNodeId,
+        bridi: BridiNodeId,
     ) {
         for (label, source) in self.prenex_cei_assignment_sources(terms) {
-            self.cei_predicate_bindings.insert(label, predicate);
+            self.cei_bridi_bindings.insert(label, bridi);
             self.add_edge(
-                ReferenceKind::CeiAssignment,
+                ReferenceKind::ProBridiAssignment,
                 source,
-                target_resolved_node(predicate.0),
-                "prenex CEI assignment binds the following predicate",
+                target_resolved_node(bridi.0),
+                "prenex CEI assignment binds the following bridi",
             );
         }
     }
@@ -3775,9 +3766,9 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     fn statement_main_predicate_id(
         &self,
         statement: &'tree StatementSyntax,
-    ) -> Option<PredicateNodeId> {
+    ) -> Option<BridiNodeId> {
         match statement.as_data() {
-            data!(StatementSyntax::Predicate(predicate)) => self.index.predicate_node_id(predicate),
+            data!(StatementSyntax::Bridi(bridi)) => self.index.bridi_node_id(bridi),
             data!(StatementSyntax::Prenex {
                 inner_statement,
                 ..
@@ -3788,16 +3779,12 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn subsentence_main_predicate_id(
-        &self,
-        subsentence: &'tree SubsentenceSyntax,
-    ) -> Option<PredicateNodeId> {
-        match subsentence.as_data() {
-            data!(SubsentenceSyntax::Plain(predicate)) => self.index.predicate_node_id(predicate),
-            data!(SubsentenceSyntax::Prenex {
-                inner_subsentence,
-                ..
-            }) => self.subsentence_main_predicate_id(inner_subsentence),
+    fn subbridi_main_predicate_id(&self, subbridi: &'tree SubbridiSyntax) -> Option<BridiNodeId> {
+        match subbridi.as_data() {
+            data!(SubbridiSyntax::Bridi(bridi)) => self.index.bridi_node_id(bridi),
+            data!(SubbridiSyntax::Prenex { inner_subbridi, .. }) => {
+                self.subbridi_main_predicate_id(inner_subbridi)
+            }
         }
     }
 
@@ -3822,16 +3809,16 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
         sources: &mut Vec<(String, RawSyntaxNodeId)>,
     ) {
         match term.as_data() {
-            data!(TermSyntax::Argument(argument))
-            | data!(TermSyntax::Fa { argument, .. })
-            | data!(TermSyntax::Tagged { argument, .. })
-            | data!(TermSyntax::JaiTagged { argument, .. }) => {
-                self.collect_prenex_cei_assignment_sources_in_argument(argument, sources);
+            data!(TermSyntax::Sumti(sumti))
+            | data!(TermSyntax::PlaceTaggedSumti { sumti, .. })
+            | data!(TermSyntax::TaggedSumti { sumti, .. })
+            | data!(TermSyntax::JaiTaggedSumti { sumti, .. }) => {
+                self.collect_prenex_cei_assignment_sources_in_argument(sumti, sources);
             }
-            data!(TermSyntax::NuhiTermset { termset, .. }) => {
+            data!(TermSyntax::Termset { termset, .. }) => {
                 self.collect_prenex_cei_assignment_sources(termset, sources);
             }
-            data!(TermSyntax::GekNuhiTermset {
+            data!(TermSyntax::ForethoughtTermsetConnection {
                 terms,
                 gik_terms,
                 ..
@@ -3839,17 +3826,17 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.collect_prenex_cei_assignment_sources(terms, sources);
                 self.collect_prenex_cei_assignment_sources(gik_terms, sources);
             }
-            data!(TermSyntax::Cehe {
+            data!(TermSyntax::TermsetGroup {
                 leading_terms,
                 trailing_terms,
                 ..
             })
-            | data!(TermSyntax::Pehe {
+            | data!(TermSyntax::TermsetConnection {
                 leading_terms,
                 trailing_terms,
                 ..
             })
-            | data!(TermSyntax::Connected {
+            | data!(TermSyntax::TermConnection {
                 leading_terms,
                 trailing_terms,
                 ..
@@ -3857,7 +3844,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.collect_prenex_cei_assignment_sources(leading_terms, sources);
                 self.collect_prenex_cei_assignment_sources(trailing_terms, sources);
             }
-            data!(TermSyntax::BoConnected {
+            data!(TermSyntax::BoundTermConnection {
                 leading_terms,
                 trailing_term,
                 ..
@@ -3885,18 +3872,18 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn collect_prenex_cei_assignment_sources_in_argument(
         &self,
-        argument: &'tree ArgumentSyntax,
+        sumti: &'tree SumtiSyntax,
         sources: &mut Vec<(String, RawSyntaxNodeId)>,
     ) {
-        match argument.as_data() {
-            data!(ArgumentSyntax::Descriptor(descriptor)) => {
-                if let Some(relation) = descriptor.relation.as_deref() {
-                    self.collect_prenex_cei_assignment_sources_in_relation(relation, sources);
+        match sumti.as_data() {
+            data!(SumtiSyntax::Description(description)) => {
+                if let Some(selbri) = description.selbri.as_deref() {
+                    self.collect_prenex_cei_assignment_sources_in_relation(selbri, sources);
                 }
             }
-            data!(ArgumentSyntax::ConnectedDescriptor(descriptor)) => {
-                if let Some(relation) = descriptor.relation.as_deref() {
-                    self.collect_prenex_cei_assignment_sources_in_relation(relation, sources);
+            data!(SumtiSyntax::DescriptionConnection(description)) => {
+                if let Some(selbri) = description.selbri.as_deref() {
+                    self.collect_prenex_cei_assignment_sources_in_relation(selbri, sources);
                 }
             }
             _ => {}
@@ -3907,16 +3894,16 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn collect_prenex_cei_assignment_sources_in_relation(
         &self,
-        relation: &'tree RelationSyntax,
+        selbri: &'tree SelbriSyntax,
         sources: &mut Vec<(String, RawSyntaxNodeId)>,
     ) {
-        match relation.as_data() {
-            data!(RelationSyntax::Compound(units)) => {
+        match selbri.as_data() {
+            data!(SelbriSyntax::Tanru(units)) => {
                 for unit in units.iter() {
                     self.collect_prenex_cei_assignment_sources_in_relation_unit(unit, sources);
                 }
             }
-            data!(RelationSyntax::Base(..)) => {}
+            data!(SelbriSyntax::SelbriWord(..)) => {}
             _ => {}
         }
     }
@@ -3925,15 +3912,15 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn collect_prenex_cei_assignment_sources_in_relation_unit(
         &self,
-        unit: &'tree RelationUnitSyntax,
+        unit: &'tree TanruUnitSyntax,
         sources: &mut Vec<(String, RawSyntaxNodeId)>,
     ) {
-        if let data!(RelationUnitSyntax::Cei { assignments, .. }) = unit.as_data() {
+        if let data!(TanruUnitSyntax::AssignedProBridi { assignments, .. }) = unit.as_data() {
             for assignment in assignments {
-                if let Some(label) = relation_unit_assignment_label(&assignment.relation_unit) {
+                if let Some(label) = relation_unit_assignment_label(&assignment.tanru_unit) {
                     let source = self
                         .index
-                        .relation_unit_node_id(&assignment.relation_unit)
+                        .tanru_unit_node_id(&assignment.tanru_unit)
                         .expect("prenex CEI assignment belongs to indexed syntax tree");
                     sources.push((label, source.0));
                 }
@@ -3945,16 +3932,16 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn bind_prenex_relation_variables_in_term(&mut self, term: &'tree TermSyntax) {
         match term.as_data() {
-            data!(TermSyntax::Argument(argument))
-            | data!(TermSyntax::Fa { argument, .. })
-            | data!(TermSyntax::Tagged { argument, .. })
-            | data!(TermSyntax::JaiTagged { argument, .. }) => {
-                self.bind_prenex_relation_variables_in_argument(argument);
+            data!(TermSyntax::Sumti(sumti))
+            | data!(TermSyntax::PlaceTaggedSumti { sumti, .. })
+            | data!(TermSyntax::TaggedSumti { sumti, .. })
+            | data!(TermSyntax::JaiTaggedSumti { sumti, .. }) => {
+                self.bind_prenex_relation_variables_in_argument(sumti);
             }
-            data!(TermSyntax::NuhiTermset { termset, .. }) => {
+            data!(TermSyntax::Termset { termset, .. }) => {
                 self.bind_prenex_relation_variables(termset);
             }
-            data!(TermSyntax::GekNuhiTermset {
+            data!(TermSyntax::ForethoughtTermsetConnection {
                 terms,
                 gik_terms,
                 ..
@@ -3962,17 +3949,17 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.bind_prenex_relation_variables(terms);
                 self.bind_prenex_relation_variables(gik_terms);
             }
-            data!(TermSyntax::Cehe {
+            data!(TermSyntax::TermsetGroup {
                 leading_terms,
                 trailing_terms,
                 ..
             })
-            | data!(TermSyntax::Pehe {
+            | data!(TermSyntax::TermsetConnection {
                 leading_terms,
                 trailing_terms,
                 ..
             })
-            | data!(TermSyntax::Connected {
+            | data!(TermSyntax::TermConnection {
                 leading_terms,
                 trailing_terms,
                 ..
@@ -3980,7 +3967,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.bind_prenex_relation_variables(leading_terms);
                 self.bind_prenex_relation_variables(trailing_terms);
             }
-            data!(TermSyntax::BoConnected {
+            data!(TermSyntax::BoundTermConnection {
                 leading_terms,
                 trailing_term,
                 ..
@@ -3994,52 +3981,52 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn bind_prenex_relation_variables_in_argument(&mut self, argument: &'tree ArgumentSyntax) {
-        match argument.as_data() {
-            data!(ArgumentSyntax::Descriptor(descriptor)) => {
-                self.bind_prenex_relation_variables_in_descriptor(descriptor);
+    fn bind_prenex_relation_variables_in_argument(&mut self, sumti: &'tree SumtiSyntax) {
+        match sumti.as_data() {
+            data!(SumtiSyntax::Description(description)) => {
+                self.bind_prenex_relation_variables_in_descriptor(description);
             }
-            data!(ArgumentSyntax::ConnectedDescriptor(descriptor)) => {
-                if let Some(relation) = descriptor.relation.as_deref() {
-                    self.bind_prenex_relation_variable_relation(relation);
+            data!(SumtiSyntax::DescriptionConnection(description)) => {
+                if let Some(selbri) = description.selbri.as_deref() {
+                    self.bind_prenex_relation_variable_relation(selbri);
                 }
             }
-            data!(ArgumentSyntax::Quantified { inner_argument, .. })
-            | data!(ArgumentSyntax::RelativeClause {
-                base_argument: inner_argument,
+            data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. })
+            | data!(SumtiSyntax::SumtiWithRelativeClauses {
+                base_sumti: inner_sumti,
                 ..
             })
-            | data!(ArgumentSyntax::Vuho {
-                base_argument: inner_argument,
+            | data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
+                base_sumti: inner_sumti,
                 ..
             })
-            | data!(ArgumentSyntax::Tagged { inner_argument, .. })
-            | data!(ArgumentSyntax::NaheBo { inner_argument, .. })
-            | data!(ArgumentSyntax::Nahe { inner_argument, .. })
-            | data!(ArgumentSyntax::Lahe { inner_argument, .. })
-            | data!(ArgumentSyntax::Ke { inner_argument, .. }) => {
-                self.bind_prenex_relation_variables_in_argument(inner_argument);
+            | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. })
+            | data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. })
+            | data!(SumtiSyntax::ScalarNegatedSumti { inner_sumti, .. })
+            | data!(SumtiSyntax::ReferentSumti { inner_sumti, .. })
+            | data!(SumtiSyntax::GroupedSumti { inner_sumti, .. }) => {
+                self.bind_prenex_relation_variables_in_argument(inner_sumti);
             }
-            data!(ArgumentSyntax::TermWrapped { inner_term, .. }) => {
+            data!(SumtiSyntax::QualifiedTerm { inner_term, .. }) => {
                 self.bind_prenex_relation_variables_in_term(inner_term);
             }
-            data!(ArgumentSyntax::Connected {
-                leading_argument,
-                trailing_argument,
+            data!(SumtiSyntax::SumtiConnection {
+                leading_sumti,
+                trailing_sumti,
                 ..
             })
-            | data!(ArgumentSyntax::Bo {
-                leading_argument,
-                trailing_argument,
+            | data!(SumtiSyntax::BoundSumtiConnection {
+                leading_sumti,
+                trailing_sumti,
                 ..
             })
-            | data!(ArgumentSyntax::Gek {
-                leading_argument,
-                trailing_argument,
+            | data!(SumtiSyntax::ForethoughtSumtiConnection {
+                leading_sumti,
+                trailing_sumti,
                 ..
             }) => {
-                self.bind_prenex_relation_variables_in_argument(leading_argument);
-                self.bind_prenex_relation_variables_in_argument(trailing_argument);
+                self.bind_prenex_relation_variables_in_argument(leading_sumti);
+                self.bind_prenex_relation_variables_in_argument(trailing_sumti);
             }
             _ => {}
         }
@@ -4049,24 +4036,24 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn bind_prenex_relation_variables_in_descriptor(
         &mut self,
-        descriptor: &'tree DescriptorSyntax,
+        description: &'tree DescriptionSyntax,
     ) {
-        if let Some(relation) = descriptor.relation.as_deref() {
-            self.bind_prenex_relation_variable_relation(relation);
+        if let Some(selbri) = description.selbri.as_deref() {
+            self.bind_prenex_relation_variable_relation(selbri);
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn bind_prenex_relation_variable_relation(&mut self, relation: &'tree RelationSyntax) {
-        if let data!(RelationSyntax::Base(word)) = relation.as_data()
+    fn bind_prenex_relation_variable_relation(&mut self, selbri: &'tree SelbriSyntax) {
+        if let data!(SelbriSyntax::SelbriWord(word)) = selbri.as_data()
             && let Some(cmavo @ (Cmavo::Buha | Cmavo::Buhe | Cmavo::Buhi)) = word.cmavo()
         {
             let target = self
                 .index
-                .relation_node_id(relation)
-                .expect("prenex relation variable belongs to indexed syntax tree");
-            self.relation_variable_bindings.insert(cmavo, target);
+                .selbri_node_id(selbri)
+                .expect("prenex selbri variable belongs to indexed syntax tree");
+            self.selbri_variable_bindings.insert(cmavo, target);
         }
     }
 
@@ -4074,26 +4061,23 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_term(&mut self, term: &'tree TermSyntax) {
         match term.as_data() {
-            data!(TermSyntax::Argument(argument)) | data!(TermSyntax::Fa { argument, .. }) => {
-                self.visit_argument(argument)
+            data!(TermSyntax::Sumti(sumti)) | data!(TermSyntax::PlaceTaggedSumti { sumti, .. }) => {
+                self.visit_argument(sumti)
             }
-            data!(TermSyntax::Tagged {
-                tense_modal,
-                argument,
-            }) => {
+            data!(TermSyntax::TaggedSumti { tense_modal, sumti }) => {
                 if let Some(tense_modal) = tense_modal.as_deref() {
                     self.visit_tense_modal(tense_modal);
                 }
-                self.visit_argument(argument);
+                self.visit_argument(sumti);
             }
-            data!(TermSyntax::JaiTagged { tag, argument, .. }) => {
+            data!(TermSyntax::JaiTaggedSumti { tag, sumti, .. }) => {
                 if let Some(tense_modal) = tag.as_deref() {
                     self.visit_tense_modal(tense_modal);
                 }
-                self.visit_argument(argument);
+                self.visit_argument(sumti);
             }
-            data!(TermSyntax::NuhiTermset { termset, .. }) => self.visit_terms(termset),
-            data!(TermSyntax::GekNuhiTermset {
+            data!(TermSyntax::Termset { termset, .. }) => self.visit_terms(termset),
+            data!(TermSyntax::ForethoughtTermsetConnection {
                 terms,
                 gik_terms,
                 ..
@@ -4101,17 +4085,17 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_terms(terms);
                 self.visit_terms(gik_terms);
             }
-            data!(TermSyntax::Cehe {
+            data!(TermSyntax::TermsetGroup {
                 leading_terms,
                 trailing_terms,
                 ..
             })
-            | data!(TermSyntax::Pehe {
+            | data!(TermSyntax::TermsetConnection {
                 leading_terms,
                 trailing_terms,
                 ..
             })
-            | data!(TermSyntax::Connected {
+            | data!(TermSyntax::TermConnection {
                 leading_terms,
                 trailing_terms,
                 ..
@@ -4119,7 +4103,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_terms(leading_terms);
                 self.visit_terms(trailing_terms);
             }
-            data!(TermSyntax::BoConnected {
+            data!(TermSyntax::BoundTermConnection {
                 leading_terms,
                 trailing_term,
                 ..
@@ -4127,43 +4111,43 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_terms(leading_terms);
                 self.visit_term(trailing_term);
             }
-            data!(TermSyntax::FihoiAdverbial { subsentence, .. })
-            | data!(TermSyntax::SoiAdverbial { subsentence, .. }) => {
-                self.visit_subsentence(subsentence);
+            data!(TermSyntax::AdHocBridiAdverbialTerm { subbridi, .. })
+            | data!(TermSyntax::ReciprocalBridiAdverbialTerm { subbridi, .. }) => {
+                self.visit_subbridi(subbridi);
             }
-            data!(TermSyntax::NoihaAdverbial {
+            data!(TermSyntax::RelativeAdverbialTerm {
                 tail_elements,
-                relation,
+                selbri,
                 relative_clauses,
                 ..
             })
-            | data!(TermSyntax::PoihaBrigahi {
+            | data!(TermSyntax::BridiVariableAdverbialTerm {
                 tail_elements,
-                relation,
+                selbri,
                 relative_clauses,
                 ..
             }) => {
                 self.visit_argument_tail_elements(tail_elements, None);
-                if let Some(relation) = relation.as_deref() {
-                    self.visit_relation(relation);
+                if let Some(selbri) = selbri.as_deref() {
+                    self.visit_relation(selbri);
                 }
                 for relative_clause in relative_clauses {
                     self.visit_relative_clause_without_head(relative_clause);
                 }
             }
-            data!(TermSyntax::NaKu { .. }) | data!(TermSyntax::BareNa(..)) => {}
+            data!(TermSyntax::BridiNegation { .. }) | data!(TermSyntax::BareNegation(..)) => {}
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_argument(&mut self, argument: &'tree ArgumentSyntax) {
+    fn visit_argument(&mut self, sumti: &'tree SumtiSyntax) {
         let argument_id = self
             .index
-            .argument_node_id(argument)
-            .expect("argument belongs to indexed syntax tree");
-        match argument.as_data() {
-            data!(ArgumentSyntax::Koha(koha)) => {
+            .sumti_node_id(sumti)
+            .expect("sumti belongs to indexed syntax tree");
+        match sumti.as_data() {
+            data!(SumtiSyntax::ProSumti(koha)) => {
                 let cmavo = koha.cmavo();
                 let resolved_target = self.resolve_koha(
                     argument_id,
@@ -4172,181 +4156,178 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 );
                 self.visit_free_modifiers(&koha.free_modifiers);
                 if let Some(target) = resolved_target {
-                    self.note_argument_mention_with_availability(argument_id, target, true);
+                    self.note_sumti_mention_with_availability(argument_id, target, true);
                 } else if cmavo.is_some_and(koha_records_self_mention) {
-                    self.note_self_argument_mention_with_availability(
+                    self.note_self_sumti_mention_with_availability(
                         argument_id,
                         cmavo.is_some_and(koha_mention_available_to_ri),
                     );
                 }
             }
-            data!(ArgumentSyntax::Letter { letter, .. }) => {
+            data!(SumtiSyntax::LerfuStringSumti { letter, .. }) => {
                 if let Some(base_letter) = letter_pro_sumti_base(letter) {
                     if let Some(target) = self.resolve_letter_target(&base_letter) {
                         self.add_edge(
                             ReferenceKind::Letter,
                             argument_id.0,
                             target_resolved_node(target.0),
-                            "letteral pro-sumti resolves to the latest argument with the same initial letter",
+                            "letteral pro-sumti resolves to the latest sumti with the same initial letter",
                         );
-                        self.note_argument_mention_with_availability(argument_id, target, false);
+                        self.note_sumti_mention_with_availability(argument_id, target, false);
                     } else {
-                        self.note_self_argument_mention_with_availability(argument_id, false);
+                        self.note_self_sumti_mention_with_availability(argument_id, false);
                     }
                 } else {
-                    self.note_self_argument_mention_with_availability(argument_id, false);
+                    self.note_self_sumti_mention_with_availability(argument_id, false);
                 }
             }
-            data!(ArgumentSyntax::RelativeClause {
-                base_argument,
+            data!(SumtiSyntax::SumtiWithRelativeClauses {
+                base_sumti,
                 relative_clauses,
                 ..
             }) => {
-                self.visit_argument(base_argument);
+                self.visit_argument(base_sumti);
                 let base_id = self
                     .index
-                    .argument_node_id(base_argument)
-                    .expect("base argument belongs to indexed syntax tree");
-                self.record_wrapped_koha_reference(argument_id, base_argument);
+                    .sumti_node_id(base_sumti)
+                    .expect("base sumti belongs to indexed syntax tree");
+                self.record_wrapped_koha_reference(argument_id, base_sumti);
                 for relative_clause in relative_clauses {
                     self.visit_relative_clause(argument_id, base_id, relative_clause);
                 }
-                self.note_self_argument_mention(argument_id);
+                self.note_self_sumti_mention(argument_id);
             }
-            data!(ArgumentSyntax::Vuho {
-                base_argument,
+            data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
+                base_sumti,
                 relative_clauses,
-                connected_argument,
+                sumti_connection,
                 ..
             }) => {
-                self.visit_argument(base_argument);
+                self.visit_argument(base_sumti);
                 for relative_clause in relative_clauses {
                     self.visit_relative_clause(argument_id, argument_id, relative_clause);
                 }
-                if let Some(connected) = connected_argument.as_deref() {
-                    self.visit_argument(&connected.argument);
+                if let Some(connected) = sumti_connection.as_deref() {
+                    self.visit_argument(&connected.sumti);
                 }
-                self.note_self_argument_mention(argument_id);
+                self.note_self_sumti_mention(argument_id);
             }
-            data!(ArgumentSyntax::Quantified {
+            data!(SumtiSyntax::QuantifiedSumti {
                 quantifier,
-                inner_argument,
+                inner_sumti,
             }) => {
                 self.visit_quantifier(quantifier);
-                self.visit_argument(inner_argument);
-                self.note_self_argument_mention(argument_id);
+                self.visit_argument(inner_sumti);
+                self.note_self_sumti_mention(argument_id);
             }
-            data!(ArgumentSyntax::Tagged {
-                tag,
-                inner_argument,
-            }) => {
+            data!(SumtiSyntax::TaggedSumti { tag, inner_sumti }) => {
                 self.visit_argument_tag(tag);
-                self.visit_argument(inner_argument);
-                self.note_self_argument_mention(argument_id);
+                self.visit_argument(inner_sumti);
+                self.note_self_sumti_mention(argument_id);
             }
-            data!(ArgumentSyntax::NaheBo { inner_argument, .. })
-            | data!(ArgumentSyntax::Nahe { inner_argument, .. })
-            | data!(ArgumentSyntax::Lahe { inner_argument, .. })
-            | data!(ArgumentSyntax::Ke { inner_argument, .. }) => {
-                self.visit_argument(inner_argument);
-                self.note_self_argument_mention_with_availability(
+            data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. })
+            | data!(SumtiSyntax::ScalarNegatedSumti { inner_sumti, .. })
+            | data!(SumtiSyntax::ReferentSumti { inner_sumti, .. })
+            | data!(SumtiSyntax::GroupedSumti { inner_sumti, .. }) => {
+                self.visit_argument(inner_sumti);
+                self.note_self_sumti_mention_with_availability(
                     argument_id,
-                    !argument_wraps_ri(argument),
+                    !argument_wraps_ri(sumti),
                 );
             }
-            data!(ArgumentSyntax::BridiDescription { subsentence, .. }) => {
-                self.visit_subsentence(subsentence);
-                self.note_self_argument_mention(argument_id);
+            data!(SumtiSyntax::BridiDescription { subbridi, .. }) => {
+                self.visit_subbridi(subbridi);
+                self.note_self_sumti_mention(argument_id);
             }
-            data!(ArgumentSyntax::TermWrapped { inner_term, .. }) => {
+            data!(SumtiSyntax::QualifiedTerm { inner_term, .. }) => {
                 self.visit_term(inner_term);
-                self.note_self_argument_mention(argument_id);
+                self.note_self_sumti_mention(argument_id);
             }
-            data!(ArgumentSyntax::Connected {
-                leading_argument,
-                trailing_argument,
+            data!(SumtiSyntax::SumtiConnection {
+                leading_sumti,
+                trailing_sumti,
                 ..
             })
-            | data!(ArgumentSyntax::Bo {
-                leading_argument,
-                trailing_argument,
+            | data!(SumtiSyntax::BoundSumtiConnection {
+                leading_sumti,
+                trailing_sumti,
                 ..
             })
-            | data!(ArgumentSyntax::Gek {
-                leading_argument,
-                trailing_argument,
+            | data!(SumtiSyntax::ForethoughtSumtiConnection {
+                leading_sumti,
+                trailing_sumti,
                 ..
             }) => {
-                self.visit_argument(leading_argument);
-                self.visit_argument(trailing_argument);
-                self.note_self_argument_mention(argument_id);
+                self.visit_argument(leading_sumti);
+                self.visit_argument(trailing_sumti);
+                self.note_self_sumti_mention(argument_id);
             }
-            data!(ArgumentSyntax::Descriptor(descriptor)) => {
-                if let Some(outer_quantifier) = descriptor.outer_quantifier.as_deref() {
+            data!(SumtiSyntax::Description(description)) => {
+                if let Some(outer_quantifier) = description.outer_quantifier.as_deref() {
                     self.visit_quantifier(outer_quantifier);
                 }
-                self.visit_argument_tail_elements(&descriptor.tail_elements, None);
-                if let Some(relation) = descriptor.relation.as_deref() {
-                    self.visit_relation(relation);
+                self.visit_argument_tail_elements(&description.tail_elements, None);
+                if let Some(selbri) = description.selbri.as_deref() {
+                    self.visit_relation(selbri);
                 }
-                for relative_clause in &descriptor.relative_clauses {
+                for relative_clause in &description.relative_clauses {
                     self.visit_relative_clause(argument_id, argument_id, relative_clause);
                 }
-                self.note_self_argument_mention(argument_id);
+                self.note_self_sumti_mention(argument_id);
             }
-            data!(ArgumentSyntax::ConnectedDescriptor(descriptor)) => {
-                self.visit_argument_tail_elements(&descriptor.tail_elements, None);
-                if let Some(relation) = descriptor.relation.as_deref() {
-                    self.visit_relation(relation);
+            data!(SumtiSyntax::DescriptionConnection(description)) => {
+                self.visit_argument_tail_elements(&description.tail_elements, None);
+                if let Some(selbri) = description.selbri.as_deref() {
+                    self.visit_relation(selbri);
                 }
-                for relative_clause in &descriptor.relative_clauses {
+                for relative_clause in &description.relative_clauses {
                     self.visit_relative_clause(argument_id, argument_id, relative_clause);
                 }
-                self.note_self_argument_mention(argument_id);
+                self.note_self_sumti_mention(argument_id);
             }
-            data!(ArgumentSyntax::RelationVocative {
+            data!(SumtiSyntax::SelbriVocative {
                 leading_relative_clauses,
-                relation,
+                selbri,
                 trailing_relative_clauses,
             }) => {
                 for relative_clause in leading_relative_clauses {
                     self.visit_relative_clause(argument_id, argument_id, relative_clause);
                 }
-                self.visit_relation(relation);
+                self.visit_relation(selbri);
                 for relative_clause in trailing_relative_clauses {
                     self.visit_relative_clause(argument_id, argument_id, relative_clause);
                 }
-                self.note_self_argument_mention(argument_id);
+                self.note_self_sumti_mention(argument_id);
             }
-            data!(ArgumentSyntax::MathExpression { expression, .. }) => {
+            data!(SumtiSyntax::NumberSumti { expression, .. }) => {
                 self.visit_math_expression(expression);
-                self.note_self_argument_mention(argument_id);
+                self.note_self_sumti_mention(argument_id);
             }
-            data!(ArgumentSyntax::Quote(quote)) => {
+            data!(SumtiSyntax::QuotedSumti(quote)) => {
                 self.visit_quote(quote);
-                self.note_self_argument_mention(argument_id);
+                self.note_self_sumti_mention(argument_id);
             }
-            data!(ArgumentSyntax::NaKu { .. })
-            | data!(ArgumentSyntax::Name { .. })
-            | data!(ArgumentSyntax::Cmevla(..)) => {
-                self.note_self_argument_mention(argument_id);
+            data!(SumtiSyntax::NegatedSumti { .. })
+            | data!(SumtiSyntax::NameDescription { .. })
+            | data!(SumtiSyntax::NameWords(..)) => {
+                self.note_self_sumti_mention(argument_id);
             }
-            data!(ArgumentSyntax::Zohe { .. }) => {
-                self.note_self_argument_mention_with_availability(argument_id, false);
+            data!(SumtiSyntax::ElidedSumti { .. }) => {
+                self.note_self_sumti_mention_with_availability(argument_id, false);
             }
         }
-        self.note_letter_antecedent(argument_id, argument);
+        self.note_letter_sumti_antecedent(argument_id, sumti);
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn visit_quote(&mut self, quote: &'tree QuoteSyntax) {
         match quote.as_data() {
-            data!(QuoteSyntax::Lu { text, .. }) => self.visit_text(text),
-            data!(QuoteSyntax::Zo(..))
-            | data!(QuoteSyntax::ZohOi(..))
-            | data!(QuoteSyntax::Zoi(..))
-            | data!(QuoteSyntax::Lohu(..)) => {}
+            data!(QuoteSyntax::TextQuote { text, .. }) => self.visit_text(text),
+            data!(QuoteSyntax::WordQuote(..))
+            | data!(QuoteSyntax::DelimitedWordQuote(..))
+            | data!(QuoteSyntax::DelimitedNonLojbanQuote(..))
+            | data!(QuoteSyntax::WordsQuote(..)) => {}
         }
     }
 
@@ -4355,42 +4336,44 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     fn visit_fragment(&mut self, fragment: &'tree FragmentSyntax) {
         match fragment.as_data() {
             data!(FragmentSyntax::Prenex { terms, .. })
-            | data!(FragmentSyntax::Term { terms, .. }) => self.visit_terms(terms),
-            data!(FragmentSyntax::BeLink {
-                first_argument,
+            | data!(FragmentSyntax::Terms { terms, .. }) => self.visit_terms(terms),
+            data!(FragmentSyntax::LinkedSumti {
+                first_sumti,
                 bei_links,
                 ..
             }) => {
-                if let Some(argument) = first_argument.as_deref() {
-                    self.visit_argument(argument);
+                if let Some(sumti) = first_sumti.as_deref() {
+                    self.visit_argument(sumti);
                 }
                 self.visit_bei_links(bei_links);
             }
-            data!(FragmentSyntax::BeiLink(bei_links)) => self.visit_bei_links(bei_links),
-            data!(FragmentSyntax::RelativeClause(relative_clauses)) => {
+            data!(FragmentSyntax::LinkedSumtiContinuation(bei_links)) => {
+                self.visit_bei_links(bei_links)
+            }
+            data!(FragmentSyntax::RelativeClauses(relative_clauses)) => {
                 for relative_clause in relative_clauses {
                     self.visit_relative_clause_without_head(relative_clause);
                 }
             }
-            data!(FragmentSyntax::MathExpression(expression)) => {
+            data!(FragmentSyntax::Mekso(expression)) => {
                 self.visit_math_expression(expression);
             }
-            data!(FragmentSyntax::Relation(relation)) => {
-                self.visit_relation(relation);
+            data!(FragmentSyntax::Selbri(selbri)) => {
+                self.visit_relation(selbri);
             }
             data!(FragmentSyntax::Ek(..))
-            | data!(FragmentSyntax::Gihek(..))
+            | data!(FragmentSyntax::BridiTailConnective(..))
             | data!(FragmentSyntax::Other(..))
-            | data!(FragmentSyntax::Ijek { .. }) => {}
+            | data!(FragmentSyntax::BridiConnective { .. }) => {}
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_bei_links(&mut self, bei_links: &'tree [BeiLinkSyntax]) {
+    fn visit_bei_links(&mut self, bei_links: &'tree [AdditionalLinkedSumtiSyntax]) {
         for link in bei_links {
-            if let Some(argument) = link.argument.as_deref() {
-                self.visit_argument(argument);
+            if let Some(sumti) = link.sumti.as_deref() {
+                self.visit_argument(sumti);
             }
         }
     }
@@ -4399,17 +4382,19 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_argument_tail_elements(
         &mut self,
-        tail_elements: &'tree [ArgumentTailElementSyntax],
-        fallback_relative_head: Option<ArgumentNodeId>,
+        tail_elements: &'tree [DescriptionTailElementSyntax],
+        fallback_relative_head: Option<SumtiNodeId>,
     ) {
         let mut current_relative_head = fallback_relative_head;
         for tail_element in tail_elements {
             match tail_element.as_data() {
-                data!(ArgumentTailElementSyntax::Argument(argument)) => {
-                    self.visit_argument(argument);
-                    current_relative_head = self.index.argument_node_id(argument);
+                data!(DescriptionTailElementSyntax::DescriptionTailSumti(sumti)) => {
+                    self.visit_argument(sumti);
+                    current_relative_head = self.index.sumti_node_id(sumti);
                 }
-                data!(ArgumentTailElementSyntax::RelativeClauses(relative_clauses)) => {
+                data!(
+                    DescriptionTailElementSyntax::DescriptionTailRelativeClauses(relative_clauses)
+                ) => {
                     for relative_clause in relative_clauses {
                         if let Some(base_id) = current_relative_head {
                             self.visit_relative_clause(base_id, base_id, relative_clause);
@@ -4418,7 +4403,9 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                         }
                     }
                 }
-                data!(ArgumentTailElementSyntax::Quantifier(quantifier)) => {
+                data!(DescriptionTailElementSyntax::DescriptionTailQuantifier(
+                    quantifier
+                )) => {
                     self.visit_quantifier(quantifier);
                 }
             }
@@ -4429,13 +4416,15 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_relative_clause_without_head(&mut self, relative_clause: &'tree RelativeClauseSyntax) {
         match relative_clause.as_data() {
-            data!(RelativeClauseSyntax::Goi(goi)) => self.visit_argument(&goi.argument),
-            data!(RelativeClauseSyntax::Noi { subsentence, .. })
-            | data!(RelativeClauseSyntax::Poi { subsentence, .. }) => {
-                self.visit_subsentence(subsentence);
+            data!(RelativeClauseSyntax::SumtiAssociationPhrase(goi)) => {
+                self.visit_argument(&goi.sumti)
             }
-            data!(RelativeClauseSyntax::Zihe { inner, .. })
-            | data!(RelativeClauseSyntax::Connected { inner, .. }) => {
+            data!(RelativeClauseSyntax::IncidentalRelativeBridi { subbridi, .. })
+            | data!(RelativeClauseSyntax::RestrictiveRelativeBridi { subbridi, .. }) => {
+                self.visit_subbridi(subbridi);
+            }
+            data!(RelativeClauseSyntax::JoinedRelativeClauses { inner, .. })
+            | data!(RelativeClauseSyntax::RelativeClauseConnection { inner, .. }) => {
                 self.visit_relative_clause_without_head(inner);
             }
         }
@@ -4443,12 +4432,12 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_argument_tag(&mut self, tag: &'tree ArgumentTagSyntax) {
+    fn visit_argument_tag(&mut self, tag: &'tree SumtiTagSyntax) {
         match tag.as_data() {
-            data!(ArgumentTagSyntax::TenseModal(tense_modal)) => {
+            data!(SumtiTagSyntax::TenseModal(tense_modal)) => {
                 self.visit_tense_modal(tense_modal);
             }
-            data!(ArgumentTagSyntax::Fa(..)) => {}
+            data!(SumtiTagSyntax::PlaceTag(..)) => {}
         }
     }
 
@@ -4456,33 +4445,32 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_quantifier(&mut self, quantifier: &'tree QuantifierSyntax) {
         match quantifier.as_data() {
-            data!(QuantifierSyntax::Vei {
-                math_expression,
-                ..
-            }) => self.visit_math_expression(math_expression),
-            data!(QuantifierSyntax::Number { .. }) => {}
+            data!(QuantifierSyntax::MeksoQuantifier { mekso, .. }) => {
+                self.visit_math_expression(mekso)
+            }
+            data!(QuantifierSyntax::NumberQuantifier { .. }) => {}
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_math_expression(&mut self, expression: &'tree MathExpressionSyntax) {
+    fn visit_math_expression(&mut self, expression: &'tree MeksoSyntax) {
         match expression.as_data() {
-            data!(MathExpressionSyntax::Number(quantifier)) => self.visit_quantifier(quantifier),
-            data!(MathExpressionSyntax::Vei {
+            data!(MeksoSyntax::NumberMekso(quantifier)) => self.visit_quantifier(quantifier),
+            data!(MeksoSyntax::ParenthesizedMekso {
                 inner_expression,
                 ..
             })
-            | data!(MathExpressionSyntax::Lahe {
+            | data!(MeksoSyntax::QualifiedOperand {
                 inner_expression,
                 ..
             }) => self.visit_math_expression(inner_expression),
-            data!(MathExpressionSyntax::Gek {
+            data!(MeksoSyntax::ForethoughtMeksoConnection {
                 left_expression,
                 right_expression,
                 ..
             })
-            | data!(MathExpressionSyntax::Connected {
+            | data!(MeksoSyntax::MeksoConnection {
                 left_expression,
                 right_expression,
                 ..
@@ -4490,7 +4478,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_math_expression(left_expression);
                 self.visit_math_expression(right_expression);
             }
-            data!(MathExpressionSyntax::Forethought {
+            data!(MeksoSyntax::ForethoughtCall {
                 operator,
                 operands,
                 ..
@@ -4500,7 +4488,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                     self.visit_math_expression(operand);
                 }
             }
-            data!(MathExpressionSyntax::ReversePolish {
+            data!(MeksoSyntax::ReversePolish {
                 operands,
                 operators,
                 ..
@@ -4512,23 +4500,23 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                     self.visit_math_operator(operator);
                 }
             }
-            data!(MathExpressionSyntax::Nihe { relation, .. }) => {
-                self.visit_relation(relation);
+            data!(MeksoSyntax::SelbriOperand { selbri, .. }) => {
+                self.visit_relation(selbri);
             }
-            data!(MathExpressionSyntax::Mohe { argument, .. }) => {
-                self.visit_argument(argument);
+            data!(MeksoSyntax::SumtiOperand { sumti, .. }) => {
+                self.visit_argument(sumti);
             }
-            data!(MathExpressionSyntax::Johi { expressions, .. }) => {
+            data!(MeksoSyntax::MeksoArray { expressions, .. }) => {
                 for expression in expressions.iter() {
                     self.visit_math_expression(expression);
                 }
             }
-            data!(MathExpressionSyntax::Binary {
+            data!(MeksoSyntax::Infix {
                 left_expression,
                 operator,
                 right_expression,
             })
-            | data!(MathExpressionSyntax::Bihe {
+            | data!(MeksoSyntax::PrecedenceInfix {
                 left_expression,
                 operator,
                 right_expression,
@@ -4538,32 +4526,31 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_math_operator(operator);
                 self.visit_math_expression(right_expression);
             }
-            data!(MathExpressionSyntax::Letter { .. }) => {}
+            data!(MeksoSyntax::LerfuStringMekso { .. }) => {}
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_math_operator(&mut self, operator: &'tree MathOperatorSyntax) {
+    fn visit_math_operator(&mut self, operator: &'tree MeksoOperatorSyntax) {
         match operator.as_data() {
-            data!(MathOperatorSyntax::Maho {
-                math_expression,
-                ..
-            }) => self.visit_math_expression(math_expression),
-            data!(MathOperatorSyntax::Se { inner_operator, .. })
-            | data!(MathOperatorSyntax::Nahe { inner_operator, .. })
-            | data!(MathOperatorSyntax::Ke { inner_operator, .. }) => {
+            data!(MeksoOperatorSyntax::OperandAsOperator { mekso, .. }) => {
+                self.visit_math_expression(mekso)
+            }
+            data!(MeksoOperatorSyntax::Converted { inner_operator, .. })
+            | data!(MeksoOperatorSyntax::ScalarNegated { inner_operator, .. })
+            | data!(MeksoOperatorSyntax::GroupedOperator { inner_operator, .. }) => {
                 self.visit_math_operator(inner_operator);
             }
-            data!(MathOperatorSyntax::Nahu { relation, .. }) => {
-                self.visit_relation(relation);
+            data!(MeksoOperatorSyntax::SelbriAsOperator { selbri, .. }) => {
+                self.visit_relation(selbri);
             }
-            data!(MathOperatorSyntax::Bo {
+            data!(MeksoOperatorSyntax::BoundOperatorConnection {
                 left_operator,
                 right_operator,
                 ..
             })
-            | data!(MathOperatorSyntax::Connected {
+            | data!(MeksoOperatorSyntax::OperatorConnection {
                 left_operator,
                 right_operator,
                 ..
@@ -4571,7 +4558,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_math_operator(left_operator);
                 self.visit_math_operator(right_operator);
             }
-            data!(MathOperatorSyntax::Vuhu(..)) => {}
+            data!(MeksoOperatorSyntax::Primitive(..)) => {}
         }
     }
 
@@ -4581,26 +4568,26 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
         match tense_modal.as_data() {
             data!(TenseModalSyntax::Composite { parts }) => {
                 for part in &parts.value {
-                    if let data!(CompositeTenseModalPartSyntax::Fiho(fiho)) = part.as_data() {
-                        self.visit_relation(&fiho.relation);
+                    if let data!(CompositeTenseModalPartSyntax::AdHocModal(fiho)) = part.as_data() {
+                        self.visit_relation(&fiho.selbri);
                     }
                 }
             }
-            data!(TenseModalSyntax::Fiho { relation, .. }) => {
-                self.visit_relation(relation);
+            data!(TenseModalSyntax::AdHocModal { selbri, .. }) => {
+                self.visit_relation(selbri);
             }
-            data!(TenseModalSyntax::Pu(..))
-            | data!(TenseModalSyntax::PuDistance { .. })
+            data!(TenseModalSyntax::TimeDirection(..))
+            | data!(TenseModalSyntax::TimeDirectionDistance { .. })
             | data!(TenseModalSyntax::TimeInterval(..))
-            | data!(TenseModalSyntax::PuCaha { .. })
+            | data!(TenseModalSyntax::TimeDirectionActuality { .. })
             | data!(TenseModalSyntax::SpaceDistance(..))
             | data!(TenseModalSyntax::SpaceDirection(..))
             | data!(TenseModalSyntax::SpaceMovement { .. })
-            | data!(TenseModalSyntax::Simple { .. })
-            | data!(TenseModalSyntax::Ki(..))
-            | data!(TenseModalSyntax::Caha(..))
-            | data!(TenseModalSyntax::Zaho(..))
-            | data!(TenseModalSyntax::Interval { .. }) => {}
+            | data!(TenseModalSyntax::Modal { .. })
+            | data!(TenseModalSyntax::Sticky(..))
+            | data!(TenseModalSyntax::Actuality(..))
+            | data!(TenseModalSyntax::EventContour(..))
+            | data!(TenseModalSyntax::IntervalProperty { .. }) => {}
         }
     }
 
@@ -4616,35 +4603,31 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_free_modifier(&mut self, free_modifier: &'tree FreeModifierSyntax) {
         match free_modifier.as_data() {
-            data!(FreeModifierSyntax::Sei {
-                terms,
-                relation,
-                ..
-            }) => {
+            data!(FreeModifierSyntax::MetalinguisticBridi { terms, selbri, .. }) => {
                 self.visit_terms(terms);
-                self.visit_relation(relation);
+                self.visit_relation(selbri);
             }
-            data!(FreeModifierSyntax::To { text, .. }) => self.visit_text(text),
-            data!(FreeModifierSyntax::Xi { expression, .. }) => {
+            data!(FreeModifierSyntax::ParentheticalText { text, .. }) => self.visit_text(text),
+            data!(FreeModifierSyntax::Subscript { expression, .. }) => {
                 self.visit_math_expression(expression);
             }
-            data!(FreeModifierSyntax::Soi {
-                leading_argument,
-                trailing_argument,
+            data!(FreeModifierSyntax::ReciprocalSumti {
+                leading_sumti,
+                trailing_sumti,
                 ..
             }) => {
-                self.visit_argument(leading_argument);
-                if let Some(argument) = trailing_argument.as_deref() {
-                    self.visit_argument(argument);
+                self.visit_argument(leading_sumti);
+                if let Some(sumti) = trailing_sumti.as_deref() {
+                    self.visit_argument(sumti);
                 }
             }
-            data!(FreeModifierSyntax::Vocative { argument, .. }) => {
-                if let Some(argument) = argument.as_deref() {
-                    self.visit_argument(argument);
+            data!(FreeModifierSyntax::Vocative { sumti, .. }) => {
+                if let Some(sumti) = sumti.as_deref() {
+                    self.visit_argument(sumti);
                 }
             }
-            data!(FreeModifierSyntax::Mai { .. })
-            | data!(FreeModifierSyntax::Replacement { .. }) => {}
+            data!(FreeModifierSyntax::UtteranceOrdinal { .. })
+            | data!(FreeModifierSyntax::TextReplacement { .. }) => {}
         }
     }
 
@@ -4652,22 +4635,30 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_relative_clause(
         &mut self,
-        assignment_head_id: ArgumentNodeId,
-        reference_head_id: ArgumentNodeId,
+        assignment_head_id: SumtiNodeId,
+        reference_head_id: SumtiNodeId,
         relative_clause: &'tree jbotci_syntax::ast::RelativeClauseSyntax,
     ) {
         match relative_clause.as_data() {
-            data!(jbotci_syntax::ast::RelativeClauseSyntax::Goi(goi)) => {
-                self.visit_goi_clause(assignment_head_id, goi);
+            data!(jbotci_syntax::ast::RelativeClauseSyntax::SumtiAssociationPhrase(goi)) => {
+                self.visit_sumti_association_phrase(assignment_head_id, goi);
             }
-            data!(jbotci_syntax::ast::RelativeClauseSyntax::Noi { subsentence, .. })
-            | data!(jbotci_syntax::ast::RelativeClauseSyntax::Poi { subsentence, .. }) => {
+            data!(
+                jbotci_syntax::ast::RelativeClauseSyntax::IncidentalRelativeBridi { subbridi, .. }
+            )
+            | data!(
+                jbotci_syntax::ast::RelativeClauseSyntax::RestrictiveRelativeBridi { subbridi, .. }
+            ) => {
                 self.relative_heads.push(reference_head_id);
-                self.visit_subsentence(subsentence);
+                self.visit_subbridi(subbridi);
                 self.relative_heads.pop();
             }
-            data!(jbotci_syntax::ast::RelativeClauseSyntax::Zihe { inner, .. })
-            | data!(jbotci_syntax::ast::RelativeClauseSyntax::Connected { inner, .. }) => {
+            data!(
+                jbotci_syntax::ast::RelativeClauseSyntax::JoinedRelativeClauses { inner, .. }
+            )
+            | data!(
+                jbotci_syntax::ast::RelativeClauseSyntax::RelativeClauseConnection { inner, .. }
+            ) => {
                 self.visit_relative_clause(assignment_head_id, reference_head_id, inner);
             }
         }
@@ -4675,32 +4666,34 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_goi_clause(&mut self, base_id: ArgumentNodeId, goi: &'tree GoiRelativeClauseSyntax) {
-        self.visit_argument(&goi.argument);
+    fn visit_sumti_association_phrase(
+        &mut self,
+        base_id: SumtiNodeId,
+        goi: &'tree SumtiAssociationPhraseSyntax,
+    ) {
+        self.visit_argument(&goi.sumti);
         let goi_argument_id = self
             .index
-            .argument_node_id(&goi.argument)
-            .expect("goi argument belongs to indexed syntax tree");
+            .sumti_node_id(&goi.sumti)
+            .expect("goi sumti belongs to indexed syntax tree");
         let source = goi_argument_id.0;
         self.add_edge(
-            ReferenceKind::GoiAssignment,
+            ReferenceKind::SumtiAssociation,
             source,
             target_resolved_node(base_id.0),
-            "GOI relative clause equates its argument with the relative-clause head",
+            "GOI relative clause equates its sumti with the relative-clause head",
         );
-        if let Some(cmavo) = koha_assignable_cmavo(&goi.argument) {
+        if let Some(cmavo) = koha_assignable_cmavo(&goi.sumti) {
             self.koha_bindings.insert(cmavo, base_id);
-        } else if let Some(cmavo) = argument_koha_cmavo(
-            self.index
-                .argument(base_id)
-                .expect("base argument id resolves"),
-        ) {
+        } else if let Some(cmavo) =
+            argument_koha_cmavo(self.index.sumti(base_id).expect("base sumti id resolves"))
+        {
             self.koha_bindings.insert(cmavo, goi_argument_id);
             self.add_edge(
-                ReferenceKind::GoiAssignment,
+                ReferenceKind::SumtiAssociation,
                 base_id.0,
                 target_resolved_node(goi_argument_id.0),
-                "GOI assigns the relative-clause head pro-sumti to its argument",
+                "GOI assigns the relative-clause head pro-sumti to its sumti",
             );
         }
     }
@@ -4713,79 +4706,79 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
             .abstraction_node_id(abstraction)
             .expect("abstraction belongs to indexed syntax tree");
         self.abstraction_stack.push(abstraction_id.0);
-        self.visit_subsentence(&abstraction.subsentence);
+        self.visit_subbridi(&abstraction.subbridi);
         self.abstraction_stack.pop();
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_relation(&mut self, relation: &'tree RelationSyntax) {
-        match relation.as_data() {
-            data!(RelationSyntax::Connected {
-                leading_relation,
-                trailing_relation,
+    fn visit_relation(&mut self, selbri: &'tree SelbriSyntax) {
+        match selbri.as_data() {
+            data!(SelbriSyntax::SelbriConnection {
+                leading_selbri,
+                trailing_selbri,
                 ..
             })
-            | data!(RelationSyntax::Co {
-                leading_relation,
-                trailing_relation,
+            | data!(SelbriSyntax::InvertedTanru {
+                leading_selbri,
+                trailing_selbri,
                 ..
             }) => {
-                self.visit_relation(leading_relation);
-                self.visit_relation(trailing_relation);
+                self.visit_relation(leading_selbri);
+                self.visit_relation(trailing_selbri);
             }
-            data!(RelationSyntax::Bo {
-                leading_relation,
+            data!(SelbriSyntax::BoundSelbriConnection {
+                leading_selbri,
                 bo_tense_modal,
-                trailing_relation,
+                trailing_selbri,
                 ..
             }) => {
-                self.visit_relation(leading_relation);
+                self.visit_relation(leading_selbri);
                 if let Some(tense_modal) = bo_tense_modal.as_deref() {
                     self.visit_tense_modal(tense_modal);
                 }
-                self.visit_relation(trailing_relation);
+                self.visit_relation(trailing_selbri);
             }
-            data!(RelationSyntax::Na { inner_relation, .. })
-            | data!(RelationSyntax::Se { inner_relation, .. }) => {
-                self.visit_relation(inner_relation);
+            data!(SelbriSyntax::Negated { inner_selbri, .. })
+            | data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. }) => {
+                self.visit_relation(inner_selbri);
             }
-            data!(RelationSyntax::Ke {
+            data!(SelbriSyntax::GroupedSelbri {
                 ke_tense_modal,
-                relation: inner_relation,
+                selbri: inner_selbri,
                 ..
             }) => {
                 if let Some(tense_modal) = ke_tense_modal.as_deref() {
                     self.visit_tense_modal(tense_modal);
                 }
-                self.visit_relation(inner_relation);
+                self.visit_relation(inner_selbri);
             }
-            data!(RelationSyntax::TenseModal {
+            data!(SelbriSyntax::TaggedSelbri {
                 tense_modal,
-                inner_relation,
+                inner_selbri,
             }) => {
                 self.visit_tense_modal(tense_modal);
-                self.visit_relation(inner_relation);
+                self.visit_relation(inner_selbri);
             }
-            data!(RelationSyntax::Base(word)) => {
+            data!(SelbriSyntax::SelbriWord(word)) => {
                 if let Some(label) = broda_label(word.core_word()) {
-                    self.resolve_broda_relation(relation, label);
+                    self.resolve_broda_relation(selbri, label);
                 } else {
-                    self.resolve_goha_relation(relation, word.cmavo());
+                    self.resolve_goha_relation(selbri, word.cmavo());
                 }
             }
-            data!(RelationSyntax::Guha {
-                leading_predicate,
-                trailing_predicate,
+            data!(SelbriSyntax::ForethoughtSelbriConnection {
+                leading_bridi,
+                trailing_bridi,
                 ..
             }) => {
-                self.visit_predicate(leading_predicate);
-                self.visit_predicate(trailing_predicate);
+                self.visit_predicate(leading_bridi);
+                self.visit_predicate(trailing_bridi);
             }
-            data!(RelationSyntax::Abstraction(abstraction)) => {
+            data!(SelbriSyntax::Abstraction(abstraction)) => {
                 self.visit_abstraction(abstraction);
             }
-            data!(RelationSyntax::Compound(units)) => {
+            data!(SelbriSyntax::Tanru(units)) => {
                 for unit in units.iter() {
                     self.visit_relation_unit(unit);
                 }
@@ -4795,32 +4788,32 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_relation_unit(&mut self, unit: &'tree RelationUnitSyntax) {
+    fn visit_relation_unit(&mut self, unit: &'tree TanruUnitSyntax) {
         match unit.as_data() {
-            data!(RelationUnitSyntax::Goha { goha, .. }) => {
+            data!(TanruUnitSyntax::ProBridi { goha, .. }) => {
                 self.resolve_goha_unit(unit, goha.cmavo());
             }
-            data!(RelationUnitSyntax::Word(word)) => {
+            data!(TanruUnitSyntax::TanruUnitWord(word)) => {
                 if let Some(label) = broda_label(word.core_word()) {
                     self.resolve_broda_unit(unit, label);
                 }
             }
-            data!(RelationUnitSyntax::Se { inner_unit, .. })
-            | data!(RelationUnitSyntax::Nahe { inner_unit, .. }) => {
+            data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+            | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. }) => {
                 self.visit_relation_unit(inner_unit);
             }
-            data!(RelationUnitSyntax::Ke {
+            data!(TanruUnitSyntax::GroupedTanruUnit {
                 ke_tense_modal,
-                relation,
+                selbri,
                 ..
             }) => {
                 if let Some(tense_modal) = ke_tense_modal.as_deref() {
                     self.visit_tense_modal(tense_modal);
                 }
-                self.visit_relation(relation);
+                self.visit_relation(selbri);
             }
-            data!(RelationUnitSyntax::Wrapped(relation)) => self.visit_relation(relation),
-            data!(RelationUnitSyntax::Bo {
+            data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => self.visit_relation(selbri),
+            data!(TanruUnitSyntax::BoundTanruUnitConnection {
                 leading_unit,
                 bo_tense_modal,
                 trailing_unit,
@@ -4832,7 +4825,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 }
                 self.visit_relation_unit(trailing_unit);
             }
-            data!(RelationUnitSyntax::Connected {
+            data!(TanruUnitSyntax::TanruUnitConnection {
                 leading_unit,
                 trailing_unit,
                 ..
@@ -4840,16 +4833,16 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_relation_unit(leading_unit);
                 self.visit_relation_unit(trailing_unit);
             }
-            data!(RelationUnitSyntax::SelbriRelativeClause {
+            data!(TanruUnitSyntax::RelativeClauses {
                 base,
                 selbri_relative_clauses,
             }) => {
                 self.visit_relation_unit(base);
                 for relative_clause in selbri_relative_clauses {
-                    self.visit_relation(&relative_clause.relation);
+                    self.visit_relation(&relative_clause.selbri);
                 }
             }
-            data!(RelationUnitSyntax::Jai {
+            data!(TanruUnitSyntax::ModalConversion {
                 tense_modal,
                 inner_unit,
                 ..
@@ -4859,64 +4852,64 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 }
                 self.visit_relation_unit(inner_unit)
             }
-            data!(RelationUnitSyntax::Be {
+            data!(TanruUnitSyntax::LinkedSumtiTanruUnit {
                 base,
-                first_argument,
+                first_sumti,
                 bei_links,
                 ..
             })
-            | data!(RelationUnitSyntax::PreposedBe {
+            | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
                 base,
-                first_argument,
+                first_sumti,
                 bei_links,
                 ..
             }) => {
                 self.visit_relation_unit(base);
-                if let Some(argument) = first_argument.as_deref() {
-                    self.visit_argument(argument);
+                if let Some(sumti) = first_sumti.as_deref() {
+                    self.visit_argument(sumti);
                 }
                 for link in bei_links {
-                    if let Some(argument) = link.argument.as_deref() {
-                        self.visit_argument(argument);
+                    if let Some(sumti) = link.sumti.as_deref() {
+                        self.visit_argument(sumti);
                     }
                 }
             }
-            data!(RelationUnitSyntax::Abstraction(abstraction)) => {
+            data!(TanruUnitSyntax::Abstraction(abstraction)) => {
                 self.visit_abstraction(abstraction);
             }
-            data!(RelationUnitSyntax::Me { argument, .. }) => self.visit_argument(argument),
-            data!(RelationUnitSyntax::Luhei { text, .. }) => self.visit_text(text),
-            data!(RelationUnitSyntax::Cei { base, assignments }) => {
+            data!(TanruUnitSyntax::SumtiSelbri { sumti, .. }) => self.visit_argument(sumti),
+            data!(TanruUnitSyntax::TextSelbri { text, .. }) => self.visit_text(text),
+            data!(TanruUnitSyntax::AssignedProBridi { base, assignments }) => {
                 self.visit_relation_unit(base);
                 for assignment in assignments {
-                    self.visit_relation_unit(&assignment.relation_unit);
-                    if let Some(label) = relation_unit_assignment_label(&assignment.relation_unit) {
-                        if let Some(predicate_id) = self.current_predicate {
-                            self.cei_predicate_bindings.insert(label, predicate_id);
+                    self.visit_relation_unit(&assignment.tanru_unit);
+                    if let Some(label) = relation_unit_assignment_label(&assignment.tanru_unit) {
+                        if let Some(predicate_id) = self.current_bridi {
+                            self.cei_bridi_bindings.insert(label, predicate_id);
                         }
                     }
-                    if let Some(predicate_id) = self.current_predicate {
+                    if let Some(predicate_id) = self.current_bridi {
                         let assignment_id = self
                             .index
-                            .relation_unit_node_id(&assignment.relation_unit)
+                            .tanru_unit_node_id(&assignment.tanru_unit)
                             .expect("CEI assignment belongs to indexed syntax tree");
                         self.add_edge(
-                            ReferenceKind::CeiAssignment,
+                            ReferenceKind::ProBridiAssignment,
                             assignment_id.0,
                             target_resolved_node(predicate_id.0),
-                            "CEI assigns a pro-bridi word to the enclosing predicate",
+                            "CEI assigns a pro-bridi word to the enclosing bridi",
                         );
                     }
                 }
             }
-            data!(RelationUnitSyntax::Mehoi(..))
-            | data!(RelationUnitSyntax::Gohoi(..))
-            | data!(RelationUnitSyntax::Muhoi(..))
-            | data!(RelationUnitSyntax::Moi { .. }) => {}
-            data!(RelationUnitSyntax::Nuha { math_operator, .. }) => {
-                self.visit_math_operator(math_operator);
+            data!(TanruUnitSyntax::QuotedWordSelbri(..))
+            | data!(TanruUnitSyntax::QuotedBridiSelbri(..))
+            | data!(TanruUnitSyntax::QuotedTextSelbri(..))
+            | data!(TanruUnitSyntax::OrdinalSelbri { .. }) => {}
+            data!(TanruUnitSyntax::OperatorSelbri { mekso_operator, .. }) => {
+                self.visit_math_operator(mekso_operator);
             }
-            data!(RelationUnitSyntax::Xohi { tag, .. }) => {
+            data!(TanruUnitSyntax::TagSelbri { tag, .. }) => {
                 self.visit_tense_modal(tag);
             }
         }
@@ -4924,18 +4917,18 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn note_self_argument_mention(&mut self, source: ArgumentNodeId) {
-        self.note_self_argument_mention_with_availability(source, true);
+    fn note_self_sumti_mention(&mut self, source: SumtiNodeId) {
+        self.note_self_sumti_mention_with_availability(source, true);
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn note_self_argument_mention_with_availability(
+    fn note_self_sumti_mention_with_availability(
         &mut self,
-        source: ArgumentNodeId,
+        source: SumtiNodeId,
         available_to_ri: bool,
     ) {
-        self.note_argument_mention_with_availability(source, source, available_to_ri);
+        self.note_sumti_mention_with_availability(source, source, available_to_ri);
     }
 
     #[requires(true)]
@@ -4960,21 +4953,21 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     }
 
     #[requires(true)]
-    #[ensures(self.argument_mentions.len() == old(self.argument_mentions.len()) + 1)]
-    fn note_argument_mention(&mut self, source: ArgumentNodeId, target: ArgumentNodeId) {
-        self.note_argument_mention_with_availability(source, target, true);
+    #[ensures(self.sumti_mentions.len() == old(self.sumti_mentions.len()) + 1)]
+    fn note_sumti_mention(&mut self, source: SumtiNodeId, target: SumtiNodeId) {
+        self.note_sumti_mention_with_availability(source, target, true);
     }
 
     #[requires(true)]
-    #[ensures(self.argument_mentions.len() == old(self.argument_mentions.len()) + 1)]
-    fn note_argument_mention_with_availability(
+    #[ensures(self.sumti_mentions.len() == old(self.sumti_mentions.len()) + 1)]
+    fn note_sumti_mention_with_availability(
         &mut self,
-        source: ArgumentNodeId,
-        target: ArgumentNodeId,
+        source: SumtiNodeId,
+        target: SumtiNodeId,
         available_to_ri: bool,
     ) {
-        let position = self.argument_mention_position(source);
-        self.argument_mentions.push(ArgumentMention {
+        let position = self.sumti_mention_position(source);
+        self.sumti_mentions.push(SumtiMention {
             source,
             target,
             position,
@@ -4984,15 +4977,15 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn note_letter_antecedent(&mut self, source: ArgumentNodeId, argument: &'tree ArgumentSyntax) {
-        let Some(base_letter) = argument_letter_base(argument) else {
+    fn note_letter_sumti_antecedent(&mut self, source: SumtiNodeId, sumti: &'tree SumtiSyntax) {
+        let Some(base_letter) = argument_letter_base(sumti) else {
             return;
         };
-        let position = self.argument_mention_position(source);
-        self.letter_mentions
+        let position = self.sumti_mention_position(source);
+        self.letter_sumti_mentions
             .entry(base_letter)
             .or_default()
-            .push(ArgumentMention {
+            .push(SumtiMention {
                 source,
                 target: source,
                 position,
@@ -5002,8 +4995,8 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(!base_letter.is_empty())]
     #[ensures(true)]
-    fn resolve_letter_target(&self, base_letter: &str) -> Option<ArgumentNodeId> {
-        self.letter_mentions
+    fn resolve_letter_target(&self, base_letter: &str) -> Option<SumtiNodeId> {
+        self.letter_sumti_mentions
             .get(base_letter)
             .and_then(|mentions| mentions.last())
             .map(|mention| mention.target)
@@ -5013,10 +5006,10 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn record_wrapped_koha_reference(
         &mut self,
-        source: ArgumentNodeId,
-        base_argument: &'tree ArgumentSyntax,
+        source: SumtiNodeId,
+        base_sumti: &'tree SumtiSyntax,
     ) {
-        let Some((cmavo, subscript)) = argument_koha_cmavo_with_subscript(base_argument) else {
+        let Some((cmavo, subscript)) = argument_koha_cmavo_with_subscript(base_sumti) else {
             return;
         };
         match cmavo {
@@ -5028,7 +5021,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                         ReferenceKind::Ri,
                         source.0,
                         target_resolved_node(target.0),
-                        "wrapped ri exposes the complete argument as a reference source",
+                        "wrapped ri exposes the complete sumti as a reference source",
                     );
                 }
             }
@@ -5042,7 +5035,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                         ReferenceKind::Keha,
                         source.0,
                         target_resolved_node(target.0),
-                        "wrapped ke'a exposes the complete argument as a reference source",
+                        "wrapped ke'a exposes the complete sumti as a reference source",
                     );
                 }
             }
@@ -5064,7 +5057,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn argument_mention_position(&self, source: ArgumentNodeId) -> usize {
+    fn sumti_mention_position(&self, source: SumtiNodeId) -> usize {
         self.index
             .metadata(source.0)
             .and_then(|metadata| metadata.source_spans.first().map(|span| span.byte_start))
@@ -5080,15 +5073,15 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn latest_argument_mention_target_before(
         &self,
-        source: ArgumentNodeId,
+        source: SumtiNodeId,
         recency_index: usize,
-    ) -> Option<ArgumentNodeId> {
+    ) -> Option<SumtiNodeId> {
         if recency_index == 0 {
             return None;
         }
-        let source_position = self.argument_mention_position(source);
+        let source_position = self.sumti_mention_position(source);
         let mut candidates: Vec<_> = self
-            .argument_mentions
+            .sumti_mentions
             .iter()
             .filter(|mention| mention.available_to_ri && mention.position < source_position)
             .collect();
@@ -5104,10 +5097,10 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn resolve_koha(
         &mut self,
-        source: ArgumentNodeId,
+        source: SumtiNodeId,
         cmavo: Option<Cmavo>,
         subscript: Option<usize>,
-    ) -> Option<ArgumentNodeId> {
+    ) -> Option<SumtiNodeId> {
         let Some(cmavo) = cmavo else {
             return None;
         };
@@ -5116,7 +5109,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 let target_argument =
                     self.latest_argument_mention_target_before(source, subscript.unwrap_or(1));
                 let target = target_argument
-                    .map(|argument| target_resolved_node(argument.0))
+                    .map(|sumti| target_resolved_node(sumti.0))
                     .unwrap_or_else(|| target_unresolved("ri has no prior sumti"));
                 self.add_edge(
                     ReferenceKind::Ri,
@@ -5145,7 +5138,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.add_edge(
                     ReferenceKind::Ra,
                     source.0,
-                    target_vague(VagueReferenceKind::DistantArgument),
+                    target_vague(VagueReferenceKind::DistantSumti),
                     "ra is intentionally vague and is not resolved heuristically",
                 );
                 None
@@ -5154,7 +5147,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.add_edge(
                     ReferenceKind::Ru,
                     source.0,
-                    target_vague(VagueReferenceKind::DistantArgument),
+                    target_vague(VagueReferenceKind::DistantSumti),
                     "ru is intentionally vague and is not resolved heuristically",
                 );
                 None
@@ -5164,7 +5157,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                     .unwrap_or(1)
                     .checked_sub(1)
                     .and_then(|index| self.relative_heads.iter().rev().nth(index).copied())
-                    .map(|argument| target_resolved_node(argument.0))
+                    .map(|sumti| target_resolved_node(sumti.0))
                     .unwrap_or_else(|| target_unresolved("ke'a is outside a relative clause"));
                 self.add_edge(
                     ReferenceKind::Keha,
@@ -5200,17 +5193,15 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 let slot = voha_slot(cmavo);
                 let target = slot
                     .and_then(|slot| {
-                        self.current_predicate_frames
+                        self.current_bridi_frames
                             .first()
                             .copied()
                             .map(|frame| (frame, slot))
                     })
                     .and_then(|(frame, slot)| self.places.first_argument_for_place(frame, slot))
-                    .map(|argument| target_resolved_node(argument.0))
+                    .map(|sumti| target_resolved_node(sumti.0))
                     .unwrap_or_else(|| {
-                        target_unresolved(
-                            "vo'a-series place is not filled in the current predicate",
-                        )
+                        target_unresolved("vo'a-series place is not filled in the current bridi")
                     });
                 self.add_edge(
                     ReferenceKind::VohaSeries,
@@ -5252,27 +5243,27 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn resolve_goha_unit(&mut self, unit: &'tree RelationUnitSyntax, cmavo: Option<Cmavo>) {
+    fn resolve_goha_unit(&mut self, unit: &'tree TanruUnitSyntax, cmavo: Option<Cmavo>) {
         let Some(cmavo) = cmavo else {
             return;
         };
         let source = self
             .index
-            .relation_unit_node_id(unit)
+            .tanru_unit_node_id(unit)
             .expect("GOhA unit belongs to indexed syntax tree");
         self.resolve_goha_source(source.0, cmavo);
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn resolve_goha_relation(&mut self, relation: &'tree RelationSyntax, cmavo: Option<Cmavo>) {
+    fn resolve_goha_relation(&mut self, selbri: &'tree SelbriSyntax, cmavo: Option<Cmavo>) {
         let Some(cmavo) = cmavo else {
             return;
         };
         let source = self
             .index
-            .relation_node_id(relation)
-            .expect("GOhA relation belongs to indexed syntax tree");
+            .selbri_node_id(selbri)
+            .expect("GOhA selbri belongs to indexed syntax tree");
         self.resolve_goha_source(source.0, cmavo);
     }
 
@@ -5345,21 +5336,21 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 );
             }
             Cmavo::Buha | Cmavo::Buhe | Cmavo::Buhi => {
-                if let Some(target) = self.relation_variable_bindings.get(&cmavo).copied() {
+                if let Some(target) = self.selbri_variable_bindings.get(&cmavo).copied() {
                     self.add_edge(
                         ReferenceKind::BrodaSeries,
                         source,
                         target_resolved_node(target.0),
-                        "prenex binding resolves this pro-relation word",
+                        "prenex binding resolves this pro-selbri word",
                     );
                 }
                 let label = cmavo.canonical_text().to_owned();
-                if let Some(target) = self.cei_predicate_bindings.get(&label).copied() {
+                if let Some(target) = self.cei_bridi_bindings.get(&label).copied() {
                     self.add_edge(
                         ReferenceKind::BrodaSeries,
                         source,
                         target_resolved_node(target.0),
-                        "CEI binding resolves this pro-predicate word",
+                        "CEI binding resolves this pro-bridi word",
                     );
                 }
             }
@@ -5369,34 +5360,34 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(!label.is_empty())]
     #[ensures(true)]
-    fn resolve_broda_unit(&mut self, unit: &'tree RelationUnitSyntax, label: String) {
+    fn resolve_broda_unit(&mut self, unit: &'tree TanruUnitSyntax, label: String) {
         let source = self
             .index
-            .relation_unit_node_id(unit)
+            .tanru_unit_node_id(unit)
             .expect("broda unit belongs to indexed syntax tree");
-        if let Some(target) = self.cei_predicate_bindings.get(&label).copied() {
+        if let Some(target) = self.cei_bridi_bindings.get(&label).copied() {
             self.add_edge(
                 ReferenceKind::BrodaSeries,
                 source.0,
                 target_resolved_node(target.0),
-                "CEI binding resolves this broda-series predicate",
+                "CEI binding resolves this broda-series bridi",
             );
         }
     }
 
     #[requires(!label.is_empty())]
     #[ensures(true)]
-    fn resolve_broda_relation(&mut self, relation: &'tree RelationSyntax, label: String) {
+    fn resolve_broda_relation(&mut self, selbri: &'tree SelbriSyntax, label: String) {
         let source = self
             .index
-            .relation_node_id(relation)
-            .expect("broda relation belongs to indexed syntax tree");
-        if let Some(target) = self.cei_predicate_bindings.get(&label).copied() {
+            .selbri_node_id(selbri)
+            .expect("broda selbri belongs to indexed syntax tree");
+        if let Some(target) = self.cei_bridi_bindings.get(&label).copied() {
             self.add_edge(
                 ReferenceKind::BrodaSeries,
                 source.0,
                 target_resolved_node(target.0),
-                "CEI binding resolves this broda-series predicate",
+                "CEI binding resolves this broda-series bridi",
             );
         }
     }
@@ -5432,18 +5423,20 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
 #[ensures(true)]
 fn statement_node_ref<'tree>(statement: &'tree StatementSyntax) -> SyntaxNodeRef<'tree> {
     match statement.as_data() {
-        data!(StatementSyntax::Tuhe { .. }) => SyntaxNodeRef::StatementSyntaxTuhe(statement),
-        data!(StatementSyntax::Prenex { .. }) => SyntaxNodeRef::StatementSyntaxPrenex(statement),
-        data!(StatementSyntax::Predicate(..)) => SyntaxNodeRef::StatementSyntaxPredicate(statement),
-        data!(StatementSyntax::Connected { .. }) => {
-            SyntaxNodeRef::StatementSyntaxConnected(statement)
+        data!(StatementSyntax::TextGroup { .. }) => {
+            SyntaxNodeRef::StatementSyntaxTextGroup(statement)
         }
-        data!(StatementSyntax::PreIConnected { .. }) => {
-            SyntaxNodeRef::StatementSyntaxPreIConnected(statement)
+        data!(StatementSyntax::Prenex { .. }) => SyntaxNodeRef::StatementSyntaxPrenex(statement),
+        data!(StatementSyntax::Bridi(..)) => SyntaxNodeRef::StatementSyntaxBridi(statement),
+        data!(StatementSyntax::StatementConnection { .. }) => {
+            SyntaxNodeRef::StatementSyntaxStatementConnection(statement)
+        }
+        data!(StatementSyntax::PreposedIStatementConnection { .. }) => {
+            SyntaxNodeRef::StatementSyntaxPreposedIStatementConnection(statement)
         }
         data!(StatementSyntax::Iau { .. }) => SyntaxNodeRef::StatementSyntaxIau(statement),
-        data!(StatementSyntax::ExperimentalPredicateContinuation { .. }) => {
-            SyntaxNodeRef::StatementSyntaxExperimentalPredicateContinuation(statement)
+        data!(StatementSyntax::ExperimentalBridiContinuation { .. }) => {
+            SyntaxNodeRef::StatementSyntaxExperimentalBridiContinuation(statement)
         }
         data!(StatementSyntax::Fragment(..)) => SyntaxNodeRef::StatementSyntaxFragment(statement),
     }
@@ -5451,85 +5444,121 @@ fn statement_node_ref<'tree>(statement: &'tree StatementSyntax) -> SyntaxNodeRef
 
 #[requires(true)]
 #[ensures(true)]
-fn predicate_tail1_node_ref<'tree>(tail: &'tree PredicateTail1Syntax) -> SyntaxNodeRef<'tree> {
-    SyntaxNodeRef::PredicateTail1Syntax(tail)
+fn bridi_tail1_node_ref<'tree>(tail: &'tree AfterthoughtBridiTailSyntax) -> SyntaxNodeRef<'tree> {
+    SyntaxNodeRef::AfterthoughtBridiTailSyntax(tail)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn predicate_tail2_node_ref<'tree>(tail: &'tree PredicateTail2Syntax) -> SyntaxNodeRef<'tree> {
-    SyntaxNodeRef::PredicateTail2Syntax(tail)
+fn bridi_tail2_node_ref<'tree>(tail: &'tree BoGroupedBridiTailSyntax) -> SyntaxNodeRef<'tree> {
+    SyntaxNodeRef::BoGroupedBridiTailSyntax(tail)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn predicate_tail3_node_ref<'tree>(tail: &'tree PredicateTail3Syntax) -> SyntaxNodeRef<'tree> {
+fn bridi_tail3_node_ref<'tree>(tail: &'tree SimpleBridiTailSyntax) -> SyntaxNodeRef<'tree> {
     match tail.as_data() {
-        data!(PredicateTail3Syntax::Relation { .. }) => {
-            SyntaxNodeRef::PredicateTail3SyntaxRelation(tail)
+        data!(SimpleBridiTailSyntax::SelbriBridiTail { .. }) => {
+            SyntaxNodeRef::SimpleBridiTailSyntaxSelbriBridiTail(tail)
         }
-        data!(PredicateTail3Syntax::GekSentence(..)) => {
-            SyntaxNodeRef::PredicateTail3SyntaxGekSentence(tail)
+        data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(..)) => {
+            SyntaxNodeRef::SimpleBridiTailSyntaxForethoughtBridiTailConnection(tail)
         }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn relation_node_ref<'tree>(relation: &'tree RelationSyntax) -> SyntaxNodeRef<'tree> {
-    match relation.as_data() {
-        data!(RelationSyntax::Connected { .. }) => SyntaxNodeRef::RelationSyntaxConnected(relation),
-        data!(RelationSyntax::Co { .. }) => SyntaxNodeRef::RelationSyntaxCo(relation),
-        data!(RelationSyntax::Bo { .. }) => SyntaxNodeRef::RelationSyntaxBo(relation),
-        data!(RelationSyntax::Na { .. }) => SyntaxNodeRef::RelationSyntaxNa(relation),
-        data!(RelationSyntax::Base(..)) => SyntaxNodeRef::RelationSyntaxBase(relation),
-        data!(RelationSyntax::Se { .. }) => SyntaxNodeRef::RelationSyntaxSe(relation),
-        data!(RelationSyntax::Ke { .. }) => SyntaxNodeRef::RelationSyntaxKe(relation),
-        data!(RelationSyntax::TenseModal { .. }) => {
-            SyntaxNodeRef::RelationSyntaxTenseModal(relation)
+fn relation_node_ref<'tree>(selbri: &'tree SelbriSyntax) -> SyntaxNodeRef<'tree> {
+    match selbri.as_data() {
+        data!(SelbriSyntax::SelbriConnection { .. }) => {
+            SyntaxNodeRef::SelbriSyntaxSelbriConnection(selbri)
         }
-        data!(RelationSyntax::Guha { .. }) => SyntaxNodeRef::RelationSyntaxGuha(relation),
-        data!(RelationSyntax::Abstraction(..)) => {
-            SyntaxNodeRef::RelationSyntaxAbstraction(relation)
+        data!(SelbriSyntax::InvertedTanru { .. }) => {
+            SyntaxNodeRef::SelbriSyntaxInvertedTanru(selbri)
         }
-        data!(RelationSyntax::Compound(..)) => SyntaxNodeRef::RelationSyntaxCompound(relation),
+        data!(SelbriSyntax::BoundSelbriConnection { .. }) => {
+            SyntaxNodeRef::SelbriSyntaxBoundSelbriConnection(selbri)
+        }
+        data!(SelbriSyntax::Negated { .. }) => SyntaxNodeRef::SelbriSyntaxNegated(selbri),
+        data!(SelbriSyntax::SelbriWord(..)) => SyntaxNodeRef::SelbriSyntaxSelbriWord(selbri),
+        data!(SelbriSyntax::ConvertedSelbri { .. }) => {
+            SyntaxNodeRef::SelbriSyntaxConvertedSelbri(selbri)
+        }
+        data!(SelbriSyntax::GroupedSelbri { .. }) => {
+            SyntaxNodeRef::SelbriSyntaxGroupedSelbri(selbri)
+        }
+        data!(SelbriSyntax::TaggedSelbri { .. }) => SyntaxNodeRef::SelbriSyntaxTaggedSelbri(selbri),
+        data!(SelbriSyntax::ForethoughtSelbriConnection { .. }) => {
+            SyntaxNodeRef::SelbriSyntaxForethoughtSelbriConnection(selbri)
+        }
+        data!(SelbriSyntax::Abstraction(..)) => SyntaxNodeRef::SelbriSyntaxAbstraction(selbri),
+        data!(SelbriSyntax::Tanru(..)) => SyntaxNodeRef::SelbriSyntaxTanru(selbri),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn relation_unit_node_ref<'tree>(unit: &'tree RelationUnitSyntax) -> SyntaxNodeRef<'tree> {
+fn relation_unit_node_ref<'tree>(unit: &'tree TanruUnitSyntax) -> SyntaxNodeRef<'tree> {
     match unit.as_data() {
-        data!(RelationUnitSyntax::Word(..)) => SyntaxNodeRef::RelationUnitSyntaxWord(unit),
-        data!(RelationUnitSyntax::Goha { .. }) => SyntaxNodeRef::RelationUnitSyntaxGoha(unit),
-        data!(RelationUnitSyntax::Se { .. }) => SyntaxNodeRef::RelationUnitSyntaxSe(unit),
-        data!(RelationUnitSyntax::Ke { .. }) => SyntaxNodeRef::RelationUnitSyntaxKe(unit),
-        data!(RelationUnitSyntax::Nahe { .. }) => SyntaxNodeRef::RelationUnitSyntaxNahe(unit),
-        data!(RelationUnitSyntax::Bo { .. }) => SyntaxNodeRef::RelationUnitSyntaxBo(unit),
-        data!(RelationUnitSyntax::Connected { .. }) => {
-            SyntaxNodeRef::RelationUnitSyntaxConnected(unit)
+        data!(TanruUnitSyntax::TanruUnitWord(..)) => {
+            SyntaxNodeRef::TanruUnitSyntaxTanruUnitWord(unit)
         }
-        data!(RelationUnitSyntax::SelbriRelativeClause { .. }) => {
-            SyntaxNodeRef::RelationUnitSyntaxSelbriRelativeClause(unit)
+        data!(TanruUnitSyntax::ProBridi { .. }) => SyntaxNodeRef::TanruUnitSyntaxProBridi(unit),
+        data!(TanruUnitSyntax::ConvertedTanruUnit { .. }) => {
+            SyntaxNodeRef::TanruUnitSyntaxConvertedTanruUnit(unit)
         }
-        data!(RelationUnitSyntax::Wrapped(..)) => SyntaxNodeRef::RelationUnitSyntaxWrapped(unit),
-        data!(RelationUnitSyntax::Jai { .. }) => SyntaxNodeRef::RelationUnitSyntaxJai(unit),
-        data!(RelationUnitSyntax::Be { .. }) => SyntaxNodeRef::RelationUnitSyntaxBe(unit),
-        data!(RelationUnitSyntax::PreposedBe { .. }) => {
-            SyntaxNodeRef::RelationUnitSyntaxPreposedBe(unit)
+        data!(TanruUnitSyntax::GroupedTanruUnit { .. }) => {
+            SyntaxNodeRef::TanruUnitSyntaxGroupedTanruUnit(unit)
         }
-        data!(RelationUnitSyntax::Abstraction(..)) => {
-            SyntaxNodeRef::RelationUnitSyntaxAbstraction(unit)
+        data!(TanruUnitSyntax::ScalarNegatedTanruUnit { .. }) => {
+            SyntaxNodeRef::TanruUnitSyntaxScalarNegatedTanruUnit(unit)
         }
-        data!(RelationUnitSyntax::Me { .. }) => SyntaxNodeRef::RelationUnitSyntaxMe(unit),
-        data!(RelationUnitSyntax::Mehoi(..)) => SyntaxNodeRef::RelationUnitSyntaxMehoi(unit),
-        data!(RelationUnitSyntax::Gohoi(..)) => SyntaxNodeRef::RelationUnitSyntaxGohoi(unit),
-        data!(RelationUnitSyntax::Muhoi(..)) => SyntaxNodeRef::RelationUnitSyntaxMuhoi(unit),
-        data!(RelationUnitSyntax::Luhei { .. }) => SyntaxNodeRef::RelationUnitSyntaxLuhei(unit),
-        data!(RelationUnitSyntax::Moi { .. }) => SyntaxNodeRef::RelationUnitSyntaxMoi(unit),
-        data!(RelationUnitSyntax::Nuha { .. }) => SyntaxNodeRef::RelationUnitSyntaxNuha(unit),
-        data!(RelationUnitSyntax::Xohi { .. }) => SyntaxNodeRef::RelationUnitSyntaxXohi(unit),
-        data!(RelationUnitSyntax::Cei { .. }) => SyntaxNodeRef::RelationUnitSyntaxCei(unit),
+        data!(TanruUnitSyntax::BoundTanruUnitConnection { .. }) => {
+            SyntaxNodeRef::TanruUnitSyntaxBoundTanruUnitConnection(unit)
+        }
+        data!(TanruUnitSyntax::TanruUnitConnection { .. }) => {
+            SyntaxNodeRef::TanruUnitSyntaxTanruUnitConnection(unit)
+        }
+        data!(TanruUnitSyntax::RelativeClauses { .. }) => {
+            SyntaxNodeRef::TanruUnitSyntaxRelativeClauses(unit)
+        }
+        data!(TanruUnitSyntax::SelbriGroupTanruUnit(..)) => {
+            SyntaxNodeRef::TanruUnitSyntaxSelbriGroupTanruUnit(unit)
+        }
+        data!(TanruUnitSyntax::ModalConversion { .. }) => {
+            SyntaxNodeRef::TanruUnitSyntaxModalConversion(unit)
+        }
+        data!(TanruUnitSyntax::LinkedSumtiTanruUnit { .. }) => {
+            SyntaxNodeRef::TanruUnitSyntaxLinkedSumtiTanruUnit(unit)
+        }
+        data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit { .. }) => {
+            SyntaxNodeRef::TanruUnitSyntaxPreposedLinkedSumtiTanruUnit(unit)
+        }
+        data!(TanruUnitSyntax::Abstraction(..)) => SyntaxNodeRef::TanruUnitSyntaxAbstraction(unit),
+        data!(TanruUnitSyntax::SumtiSelbri { .. }) => {
+            SyntaxNodeRef::TanruUnitSyntaxSumtiSelbri(unit)
+        }
+        data!(TanruUnitSyntax::QuotedWordSelbri(..)) => {
+            SyntaxNodeRef::TanruUnitSyntaxQuotedWordSelbri(unit)
+        }
+        data!(TanruUnitSyntax::QuotedBridiSelbri(..)) => {
+            SyntaxNodeRef::TanruUnitSyntaxQuotedBridiSelbri(unit)
+        }
+        data!(TanruUnitSyntax::QuotedTextSelbri(..)) => {
+            SyntaxNodeRef::TanruUnitSyntaxQuotedTextSelbri(unit)
+        }
+        data!(TanruUnitSyntax::TextSelbri { .. }) => SyntaxNodeRef::TanruUnitSyntaxTextSelbri(unit),
+        data!(TanruUnitSyntax::OrdinalSelbri { .. }) => {
+            SyntaxNodeRef::TanruUnitSyntaxOrdinalSelbri(unit)
+        }
+        data!(TanruUnitSyntax::OperatorSelbri { .. }) => {
+            SyntaxNodeRef::TanruUnitSyntaxOperatorSelbri(unit)
+        }
+        data!(TanruUnitSyntax::TagSelbri { .. }) => SyntaxNodeRef::TanruUnitSyntaxTagSelbri(unit),
+        data!(TanruUnitSyntax::AssignedProBridi { .. }) => {
+            SyntaxNodeRef::TanruUnitSyntaxAssignedProBridi(unit)
+        }
     }
 }
 
@@ -5537,117 +5566,141 @@ fn relation_unit_node_ref<'tree>(unit: &'tree RelationUnitSyntax) -> SyntaxNodeR
 #[ensures(true)]
 fn term_node_ref<'tree>(term: &'tree TermSyntax) -> SyntaxNodeRef<'tree> {
     match term.as_data() {
-        data!(TermSyntax::NuhiTermset { .. }) => SyntaxNodeRef::TermSyntaxNuhiTermset(term),
-        data!(TermSyntax::GekNuhiTermset { .. }) => SyntaxNodeRef::TermSyntaxGekNuhiTermset(term),
-        data!(TermSyntax::Cehe { .. }) => SyntaxNodeRef::TermSyntaxCehe(term),
-        data!(TermSyntax::Pehe { .. }) => SyntaxNodeRef::TermSyntaxPehe(term),
-        data!(TermSyntax::Argument(..)) => SyntaxNodeRef::TermSyntaxArgument(term),
-        data!(TermSyntax::Fa { .. }) => SyntaxNodeRef::TermSyntaxFa(term),
-        data!(TermSyntax::NaKu { .. }) => SyntaxNodeRef::TermSyntaxNaKu(term),
-        data!(TermSyntax::BareNa(..)) => SyntaxNodeRef::TermSyntaxBareNa(term),
-        data!(TermSyntax::NoihaAdverbial { .. }) => SyntaxNodeRef::TermSyntaxNoihaAdverbial(term),
-        data!(TermSyntax::PoihaBrigahi { .. }) => SyntaxNodeRef::TermSyntaxPoihaBrigahi(term),
-        data!(TermSyntax::FihoiAdverbial { .. }) => SyntaxNodeRef::TermSyntaxFihoiAdverbial(term),
-        data!(TermSyntax::SoiAdverbial { .. }) => SyntaxNodeRef::TermSyntaxSoiAdverbial(term),
-        data!(TermSyntax::JaiTagged { .. }) => SyntaxNodeRef::TermSyntaxJaiTagged(term),
-        data!(TermSyntax::Tagged { .. }) => SyntaxNodeRef::TermSyntaxTagged(term),
-        data!(TermSyntax::Connected { .. }) => SyntaxNodeRef::TermSyntaxConnected(term),
-        data!(TermSyntax::BoConnected { .. }) => SyntaxNodeRef::TermSyntaxBoConnected(term),
+        data!(TermSyntax::Termset { .. }) => SyntaxNodeRef::TermSyntaxTermset(term),
+        data!(TermSyntax::ForethoughtTermsetConnection { .. }) => {
+            SyntaxNodeRef::TermSyntaxForethoughtTermsetConnection(term)
+        }
+        data!(TermSyntax::TermsetGroup { .. }) => SyntaxNodeRef::TermSyntaxTermsetGroup(term),
+        data!(TermSyntax::TermsetConnection { .. }) => {
+            SyntaxNodeRef::TermSyntaxTermsetConnection(term)
+        }
+        data!(TermSyntax::Sumti(..)) => SyntaxNodeRef::TermSyntaxSumti(term),
+        data!(TermSyntax::PlaceTaggedSumti { .. }) => {
+            SyntaxNodeRef::TermSyntaxPlaceTaggedSumti(term)
+        }
+        data!(TermSyntax::BridiNegation { .. }) => SyntaxNodeRef::TermSyntaxBridiNegation(term),
+        data!(TermSyntax::BareNegation(..)) => SyntaxNodeRef::TermSyntaxBareNegation(term),
+        data!(TermSyntax::RelativeAdverbialTerm { .. }) => {
+            SyntaxNodeRef::TermSyntaxRelativeAdverbialTerm(term)
+        }
+        data!(TermSyntax::BridiVariableAdverbialTerm { .. }) => {
+            SyntaxNodeRef::TermSyntaxBridiVariableAdverbialTerm(term)
+        }
+        data!(TermSyntax::AdHocBridiAdverbialTerm { .. }) => {
+            SyntaxNodeRef::TermSyntaxAdHocBridiAdverbialTerm(term)
+        }
+        data!(TermSyntax::ReciprocalBridiAdverbialTerm { .. }) => {
+            SyntaxNodeRef::TermSyntaxReciprocalBridiAdverbialTerm(term)
+        }
+        data!(TermSyntax::JaiTaggedSumti { .. }) => SyntaxNodeRef::TermSyntaxJaiTaggedSumti(term),
+        data!(TermSyntax::TaggedSumti { .. }) => SyntaxNodeRef::TermSyntaxTaggedSumti(term),
+        data!(TermSyntax::TermConnection { .. }) => SyntaxNodeRef::TermSyntaxTermConnection(term),
+        data!(TermSyntax::BoundTermConnection { .. }) => SyntaxNodeRef::TermSyntaxBoundTermConnection(term),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn argument_node_ref<'tree>(argument: &'tree ArgumentSyntax) -> SyntaxNodeRef<'tree> {
-    match argument.as_data() {
-        data!(ArgumentSyntax::Quote(..)) => SyntaxNodeRef::ArgumentSyntaxQuote(argument),
-        data!(ArgumentSyntax::MathExpression { .. }) => {
-            SyntaxNodeRef::ArgumentSyntaxMathExpression(argument)
+fn argument_node_ref<'tree>(sumti: &'tree SumtiSyntax) -> SyntaxNodeRef<'tree> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::QuotedSumti(..)) => SyntaxNodeRef::SumtiSyntaxQuotedSumti(sumti),
+        data!(SumtiSyntax::NumberSumti { .. }) => SyntaxNodeRef::SumtiSyntaxNumberSumti(sumti),
+        data!(SumtiSyntax::LerfuStringSumti { .. }) => {
+            SyntaxNodeRef::SumtiSyntaxLerfuStringSumti(sumti)
         }
-        data!(ArgumentSyntax::Letter { .. }) => SyntaxNodeRef::ArgumentSyntaxLetter(argument),
-        data!(ArgumentSyntax::Quantified { .. }) => {
-            SyntaxNodeRef::ArgumentSyntaxQuantified(argument)
+        data!(SumtiSyntax::QuantifiedSumti { .. }) => {
+            SyntaxNodeRef::SumtiSyntaxQuantifiedSumti(sumti)
         }
-        data!(ArgumentSyntax::RelativeClause { .. }) => {
-            SyntaxNodeRef::ArgumentSyntaxRelativeClause(argument)
+        data!(SumtiSyntax::SumtiWithRelativeClauses { .. }) => {
+            SyntaxNodeRef::SumtiSyntaxSumtiWithRelativeClauses(sumti)
         }
-        data!(ArgumentSyntax::Vuho { .. }) => SyntaxNodeRef::ArgumentSyntaxVuho(argument),
-        data!(ArgumentSyntax::BridiDescription { .. }) => {
-            SyntaxNodeRef::ArgumentSyntaxBridiDescription(argument)
+        data!(SumtiSyntax::SumtiWithComplexRelativeClauses { .. }) => {
+            SyntaxNodeRef::SumtiSyntaxSumtiWithComplexRelativeClauses(sumti)
         }
-        data!(ArgumentSyntax::NaKu { .. }) => SyntaxNodeRef::ArgumentSyntaxNaKu(argument),
-        data!(ArgumentSyntax::Tagged { .. }) => SyntaxNodeRef::ArgumentSyntaxTagged(argument),
-        data!(ArgumentSyntax::NaheBo { .. }) => SyntaxNodeRef::ArgumentSyntaxNaheBo(argument),
-        data!(ArgumentSyntax::Nahe { .. }) => SyntaxNodeRef::ArgumentSyntaxNahe(argument),
-        data!(ArgumentSyntax::TermWrapped { .. }) => {
-            SyntaxNodeRef::ArgumentSyntaxTermWrapped(argument)
+        data!(SumtiSyntax::BridiDescription { .. }) => {
+            SyntaxNodeRef::SumtiSyntaxBridiDescription(sumti)
         }
-        data!(ArgumentSyntax::Koha(..)) => SyntaxNodeRef::ArgumentSyntaxKoha(argument),
-        data!(ArgumentSyntax::Zohe { .. }) => SyntaxNodeRef::ArgumentSyntaxZohe(argument),
-        data!(ArgumentSyntax::Lahe { .. }) => SyntaxNodeRef::ArgumentSyntaxLahe(argument),
-        data!(ArgumentSyntax::Connected { .. }) => SyntaxNodeRef::ArgumentSyntaxConnected(argument),
-        data!(ArgumentSyntax::Ke { .. }) => SyntaxNodeRef::ArgumentSyntaxKe(argument),
-        data!(ArgumentSyntax::Bo { .. }) => SyntaxNodeRef::ArgumentSyntaxBo(argument),
-        data!(ArgumentSyntax::Gek { .. }) => SyntaxNodeRef::ArgumentSyntaxGek(argument),
-        data!(ArgumentSyntax::Descriptor(..)) => SyntaxNodeRef::ArgumentSyntaxDescriptor(argument),
-        data!(ArgumentSyntax::ConnectedDescriptor(..)) => {
-            SyntaxNodeRef::ArgumentSyntaxConnectedDescriptor(argument)
+        data!(SumtiSyntax::NegatedSumti { .. }) => SyntaxNodeRef::SumtiSyntaxNegatedSumti(sumti),
+        data!(SumtiSyntax::TaggedSumti { .. }) => SyntaxNodeRef::SumtiSyntaxTaggedSumti(sumti),
+        data!(SumtiSyntax::ScalarNegatedSumtiWithBo { .. }) => {
+            SyntaxNodeRef::SumtiSyntaxScalarNegatedSumtiWithBo(sumti)
         }
-        data!(ArgumentSyntax::Name { .. }) => SyntaxNodeRef::ArgumentSyntaxName(argument),
-        data!(ArgumentSyntax::Cmevla(..)) => SyntaxNodeRef::ArgumentSyntaxCmevla(argument),
-        data!(ArgumentSyntax::RelationVocative { .. }) => {
-            SyntaxNodeRef::ArgumentSyntaxRelationVocative(argument)
+        data!(SumtiSyntax::ScalarNegatedSumti { .. }) => {
+            SyntaxNodeRef::SumtiSyntaxScalarNegatedSumti(sumti)
+        }
+        data!(SumtiSyntax::QualifiedTerm { .. }) => SyntaxNodeRef::SumtiSyntaxQualifiedTerm(sumti),
+        data!(SumtiSyntax::ProSumti(..)) => SyntaxNodeRef::SumtiSyntaxProSumti(sumti),
+        data!(SumtiSyntax::ElidedSumti { .. }) => SyntaxNodeRef::SumtiSyntaxElidedSumti(sumti),
+        data!(SumtiSyntax::ReferentSumti { .. }) => SyntaxNodeRef::SumtiSyntaxReferentSumti(sumti),
+        data!(SumtiSyntax::SumtiConnection { .. }) => {
+            SyntaxNodeRef::SumtiSyntaxSumtiConnection(sumti)
+        }
+        data!(SumtiSyntax::GroupedSumti { .. }) => SyntaxNodeRef::SumtiSyntaxGroupedSumti(sumti),
+        data!(SumtiSyntax::BoundSumtiConnection { .. }) => {
+            SyntaxNodeRef::SumtiSyntaxBoundSumtiConnection(sumti)
+        }
+        data!(SumtiSyntax::ForethoughtSumtiConnection { .. }) => {
+            SyntaxNodeRef::SumtiSyntaxForethoughtSumtiConnection(sumti)
+        }
+        data!(SumtiSyntax::Description(..)) => SyntaxNodeRef::SumtiSyntaxDescription(sumti),
+        data!(SumtiSyntax::DescriptionConnection(..)) => {
+            SyntaxNodeRef::SumtiSyntaxDescriptionConnection(sumti)
+        }
+        data!(SumtiSyntax::NameDescription { .. }) => {
+            SyntaxNodeRef::SumtiSyntaxNameDescription(sumti)
+        }
+        data!(SumtiSyntax::NameWords(..)) => SyntaxNodeRef::SumtiSyntaxNameWords(sumti),
+        data!(SumtiSyntax::SelbriVocative { .. }) => {
+            SyntaxNodeRef::SumtiSyntaxSelbriVocative(sumti)
         }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn node_ref_as_relation<'tree>(node: SyntaxNodeRef<'tree>) -> Option<&'tree RelationSyntax> {
+fn node_ref_as_relation<'tree>(node: SyntaxNodeRef<'tree>) -> Option<&'tree SelbriSyntax> {
     match node {
-        SyntaxNodeRef::RelationSyntaxConnected(relation)
-        | SyntaxNodeRef::RelationSyntaxCo(relation)
-        | SyntaxNodeRef::RelationSyntaxBo(relation)
-        | SyntaxNodeRef::RelationSyntaxNa(relation)
-        | SyntaxNodeRef::RelationSyntaxBase(relation)
-        | SyntaxNodeRef::RelationSyntaxSe(relation)
-        | SyntaxNodeRef::RelationSyntaxKe(relation)
-        | SyntaxNodeRef::RelationSyntaxTenseModal(relation)
-        | SyntaxNodeRef::RelationSyntaxGuha(relation)
-        | SyntaxNodeRef::RelationSyntaxAbstraction(relation)
-        | SyntaxNodeRef::RelationSyntaxCompound(relation) => Some(relation),
+        SyntaxNodeRef::SelbriSyntaxSelbriConnection(selbri)
+        | SyntaxNodeRef::SelbriSyntaxInvertedTanru(selbri)
+        | SyntaxNodeRef::SelbriSyntaxBoundSelbriConnection(selbri)
+        | SyntaxNodeRef::SelbriSyntaxNegated(selbri)
+        | SyntaxNodeRef::SelbriSyntaxSelbriWord(selbri)
+        | SyntaxNodeRef::SelbriSyntaxConvertedSelbri(selbri)
+        | SyntaxNodeRef::SelbriSyntaxGroupedSelbri(selbri)
+        | SyntaxNodeRef::SelbriSyntaxTaggedSelbri(selbri)
+        | SyntaxNodeRef::SelbriSyntaxForethoughtSelbriConnection(selbri)
+        | SyntaxNodeRef::SelbriSyntaxAbstraction(selbri)
+        | SyntaxNodeRef::SelbriSyntaxTanru(selbri) => Some(selbri),
         _ => None,
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn node_ref_as_relation_unit<'tree>(
-    node: SyntaxNodeRef<'tree>,
-) -> Option<&'tree RelationUnitSyntax> {
+fn node_ref_as_relation_unit<'tree>(node: SyntaxNodeRef<'tree>) -> Option<&'tree TanruUnitSyntax> {
     match node {
-        SyntaxNodeRef::RelationUnitSyntaxWord(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxGoha(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxSe(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxKe(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxNahe(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxBo(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxConnected(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxSelbriRelativeClause(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxWrapped(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxJai(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxBe(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxPreposedBe(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxAbstraction(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxMe(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxMehoi(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxGohoi(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxMuhoi(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxLuhei(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxMoi(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxNuha(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxXohi(unit)
-        | SyntaxNodeRef::RelationUnitSyntaxCei(unit) => Some(unit),
+        SyntaxNodeRef::TanruUnitSyntaxTanruUnitWord(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxProBridi(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxConvertedTanruUnit(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxGroupedTanruUnit(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxScalarNegatedTanruUnit(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxBoundTanruUnitConnection(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxTanruUnitConnection(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxRelativeClauses(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxSelbriGroupTanruUnit(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxModalConversion(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxLinkedSumtiTanruUnit(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxPreposedLinkedSumtiTanruUnit(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxAbstraction(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxSumtiSelbri(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxQuotedWordSelbri(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxQuotedBridiSelbri(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxQuotedTextSelbri(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxTextSelbri(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxOrdinalSelbri(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxOperatorSelbri(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxTagSelbri(unit)
+        | SyntaxNodeRef::TanruUnitSyntaxAssignedProBridi(unit) => Some(unit),
         _ => None,
     }
 }
@@ -5656,54 +5709,54 @@ fn node_ref_as_relation_unit<'tree>(
 #[ensures(true)]
 fn node_ref_as_term<'tree>(node: SyntaxNodeRef<'tree>) -> Option<&'tree TermSyntax> {
     match node {
-        SyntaxNodeRef::TermSyntaxNuhiTermset(term)
-        | SyntaxNodeRef::TermSyntaxGekNuhiTermset(term)
-        | SyntaxNodeRef::TermSyntaxCehe(term)
-        | SyntaxNodeRef::TermSyntaxPehe(term)
-        | SyntaxNodeRef::TermSyntaxArgument(term)
-        | SyntaxNodeRef::TermSyntaxFa(term)
-        | SyntaxNodeRef::TermSyntaxNaKu(term)
-        | SyntaxNodeRef::TermSyntaxBareNa(term)
-        | SyntaxNodeRef::TermSyntaxNoihaAdverbial(term)
-        | SyntaxNodeRef::TermSyntaxPoihaBrigahi(term)
-        | SyntaxNodeRef::TermSyntaxFihoiAdverbial(term)
-        | SyntaxNodeRef::TermSyntaxSoiAdverbial(term)
-        | SyntaxNodeRef::TermSyntaxJaiTagged(term)
-        | SyntaxNodeRef::TermSyntaxTagged(term)
-        | SyntaxNodeRef::TermSyntaxConnected(term)
-        | SyntaxNodeRef::TermSyntaxBoConnected(term) => Some(term),
+        SyntaxNodeRef::TermSyntaxTermset(term)
+        | SyntaxNodeRef::TermSyntaxForethoughtTermsetConnection(term)
+        | SyntaxNodeRef::TermSyntaxTermsetGroup(term)
+        | SyntaxNodeRef::TermSyntaxTermsetConnection(term)
+        | SyntaxNodeRef::TermSyntaxSumti(term)
+        | SyntaxNodeRef::TermSyntaxPlaceTaggedSumti(term)
+        | SyntaxNodeRef::TermSyntaxBridiNegation(term)
+        | SyntaxNodeRef::TermSyntaxBareNegation(term)
+        | SyntaxNodeRef::TermSyntaxRelativeAdverbialTerm(term)
+        | SyntaxNodeRef::TermSyntaxBridiVariableAdverbialTerm(term)
+        | SyntaxNodeRef::TermSyntaxAdHocBridiAdverbialTerm(term)
+        | SyntaxNodeRef::TermSyntaxReciprocalBridiAdverbialTerm(term)
+        | SyntaxNodeRef::TermSyntaxJaiTaggedSumti(term)
+        | SyntaxNodeRef::TermSyntaxTaggedSumti(term)
+        | SyntaxNodeRef::TermSyntaxTermConnection(term)
+        | SyntaxNodeRef::TermSyntaxBoundTermConnection(term) => Some(term),
         _ => None,
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn node_ref_as_argument<'tree>(node: SyntaxNodeRef<'tree>) -> Option<&'tree ArgumentSyntax> {
+fn node_ref_as_argument<'tree>(node: SyntaxNodeRef<'tree>) -> Option<&'tree SumtiSyntax> {
     match node {
-        SyntaxNodeRef::ArgumentSyntaxQuote(argument)
-        | SyntaxNodeRef::ArgumentSyntaxMathExpression(argument)
-        | SyntaxNodeRef::ArgumentSyntaxLetter(argument)
-        | SyntaxNodeRef::ArgumentSyntaxQuantified(argument)
-        | SyntaxNodeRef::ArgumentSyntaxRelativeClause(argument)
-        | SyntaxNodeRef::ArgumentSyntaxVuho(argument)
-        | SyntaxNodeRef::ArgumentSyntaxBridiDescription(argument)
-        | SyntaxNodeRef::ArgumentSyntaxNaKu(argument)
-        | SyntaxNodeRef::ArgumentSyntaxTagged(argument)
-        | SyntaxNodeRef::ArgumentSyntaxNaheBo(argument)
-        | SyntaxNodeRef::ArgumentSyntaxNahe(argument)
-        | SyntaxNodeRef::ArgumentSyntaxTermWrapped(argument)
-        | SyntaxNodeRef::ArgumentSyntaxKoha(argument)
-        | SyntaxNodeRef::ArgumentSyntaxZohe(argument)
-        | SyntaxNodeRef::ArgumentSyntaxLahe(argument)
-        | SyntaxNodeRef::ArgumentSyntaxConnected(argument)
-        | SyntaxNodeRef::ArgumentSyntaxKe(argument)
-        | SyntaxNodeRef::ArgumentSyntaxBo(argument)
-        | SyntaxNodeRef::ArgumentSyntaxGek(argument)
-        | SyntaxNodeRef::ArgumentSyntaxDescriptor(argument)
-        | SyntaxNodeRef::ArgumentSyntaxConnectedDescriptor(argument)
-        | SyntaxNodeRef::ArgumentSyntaxName(argument)
-        | SyntaxNodeRef::ArgumentSyntaxCmevla(argument)
-        | SyntaxNodeRef::ArgumentSyntaxRelationVocative(argument) => Some(argument),
+        SyntaxNodeRef::SumtiSyntaxQuotedSumti(sumti)
+        | SyntaxNodeRef::SumtiSyntaxNumberSumti(sumti)
+        | SyntaxNodeRef::SumtiSyntaxLerfuStringSumti(sumti)
+        | SyntaxNodeRef::SumtiSyntaxQuantifiedSumti(sumti)
+        | SyntaxNodeRef::SumtiSyntaxSumtiWithRelativeClauses(sumti)
+        | SyntaxNodeRef::SumtiSyntaxSumtiWithComplexRelativeClauses(sumti)
+        | SyntaxNodeRef::SumtiSyntaxBridiDescription(sumti)
+        | SyntaxNodeRef::SumtiSyntaxNegatedSumti(sumti)
+        | SyntaxNodeRef::SumtiSyntaxTaggedSumti(sumti)
+        | SyntaxNodeRef::SumtiSyntaxScalarNegatedSumtiWithBo(sumti)
+        | SyntaxNodeRef::SumtiSyntaxScalarNegatedSumti(sumti)
+        | SyntaxNodeRef::SumtiSyntaxQualifiedTerm(sumti)
+        | SyntaxNodeRef::SumtiSyntaxProSumti(sumti)
+        | SyntaxNodeRef::SumtiSyntaxElidedSumti(sumti)
+        | SyntaxNodeRef::SumtiSyntaxReferentSumti(sumti)
+        | SyntaxNodeRef::SumtiSyntaxSumtiConnection(sumti)
+        | SyntaxNodeRef::SumtiSyntaxGroupedSumti(sumti)
+        | SyntaxNodeRef::SumtiSyntaxBoundSumtiConnection(sumti)
+        | SyntaxNodeRef::SumtiSyntaxForethoughtSumtiConnection(sumti)
+        | SyntaxNodeRef::SumtiSyntaxDescription(sumti)
+        | SyntaxNodeRef::SumtiSyntaxDescriptionConnection(sumti)
+        | SyntaxNodeRef::SumtiSyntaxNameDescription(sumti)
+        | SyntaxNodeRef::SumtiSyntaxNameWords(sumti)
+        | SyntaxNodeRef::SumtiSyntaxSelbriVocative(sumti) => Some(sumti),
         _ => None,
     }
 }
@@ -5717,17 +5770,17 @@ fn tense_modal_node_ref<'tree>(
         data!(jbotci_syntax::ast::TenseModalSyntax::Composite { .. }) => {
             SyntaxNodeRef::TenseModalSyntaxComposite(tense_modal)
         }
-        data!(jbotci_syntax::ast::TenseModalSyntax::Pu(..)) => {
-            SyntaxNodeRef::TenseModalSyntaxPu(tense_modal)
+        data!(jbotci_syntax::ast::TenseModalSyntax::TimeDirection(..)) => {
+            SyntaxNodeRef::TenseModalSyntaxTimeDirection(tense_modal)
         }
-        data!(jbotci_syntax::ast::TenseModalSyntax::PuDistance { .. }) => {
-            SyntaxNodeRef::TenseModalSyntaxPuDistance(tense_modal)
+        data!(jbotci_syntax::ast::TenseModalSyntax::TimeDirectionDistance { .. }) => {
+            SyntaxNodeRef::TenseModalSyntaxTimeDirectionDistance(tense_modal)
         }
         data!(jbotci_syntax::ast::TenseModalSyntax::TimeInterval(..)) => {
             SyntaxNodeRef::TenseModalSyntaxTimeInterval(tense_modal)
         }
-        data!(jbotci_syntax::ast::TenseModalSyntax::PuCaha { .. }) => {
-            SyntaxNodeRef::TenseModalSyntaxPuCaha(tense_modal)
+        data!(jbotci_syntax::ast::TenseModalSyntax::TimeDirectionActuality { .. }) => {
+            SyntaxNodeRef::TenseModalSyntaxTimeDirectionActuality(tense_modal)
         }
         data!(jbotci_syntax::ast::TenseModalSyntax::SpaceDistance(..)) => {
             SyntaxNodeRef::TenseModalSyntaxSpaceDistance(tense_modal)
@@ -5738,23 +5791,23 @@ fn tense_modal_node_ref<'tree>(
         data!(jbotci_syntax::ast::TenseModalSyntax::SpaceMovement { .. }) => {
             SyntaxNodeRef::TenseModalSyntaxSpaceMovement(tense_modal)
         }
-        data!(jbotci_syntax::ast::TenseModalSyntax::Simple { .. }) => {
-            SyntaxNodeRef::TenseModalSyntaxSimple(tense_modal)
+        data!(jbotci_syntax::ast::TenseModalSyntax::Modal { .. }) => {
+            SyntaxNodeRef::TenseModalSyntaxModal(tense_modal)
         }
-        data!(jbotci_syntax::ast::TenseModalSyntax::Ki(..)) => {
-            SyntaxNodeRef::TenseModalSyntaxKi(tense_modal)
+        data!(jbotci_syntax::ast::TenseModalSyntax::Sticky(..)) => {
+            SyntaxNodeRef::TenseModalSyntaxSticky(tense_modal)
         }
-        data!(jbotci_syntax::ast::TenseModalSyntax::Fiho { .. }) => {
-            SyntaxNodeRef::TenseModalSyntaxFiho(tense_modal)
+        data!(jbotci_syntax::ast::TenseModalSyntax::AdHocModal { .. }) => {
+            SyntaxNodeRef::TenseModalSyntaxAdHocModal(tense_modal)
         }
-        data!(jbotci_syntax::ast::TenseModalSyntax::Caha(..)) => {
-            SyntaxNodeRef::TenseModalSyntaxCaha(tense_modal)
+        data!(jbotci_syntax::ast::TenseModalSyntax::Actuality(..)) => {
+            SyntaxNodeRef::TenseModalSyntaxActuality(tense_modal)
         }
-        data!(jbotci_syntax::ast::TenseModalSyntax::Zaho(..)) => {
-            SyntaxNodeRef::TenseModalSyntaxZaho(tense_modal)
+        data!(jbotci_syntax::ast::TenseModalSyntax::EventContour(..)) => {
+            SyntaxNodeRef::TenseModalSyntaxEventContour(tense_modal)
         }
-        data!(jbotci_syntax::ast::TenseModalSyntax::Interval { .. }) => {
-            SyntaxNodeRef::TenseModalSyntaxInterval(tense_modal)
+        data!(jbotci_syntax::ast::TenseModalSyntax::IntervalProperty { .. }) => {
+            SyntaxNodeRef::TenseModalSyntaxIntervalProperty(tense_modal)
         }
     }
 }
@@ -5788,15 +5841,15 @@ fn fa_place_slot(fa: &WithFreeModifiers<Token>) -> Option<PlaceSlot> {
 #[requires(true)]
 #[ensures(true)]
 fn modal_slot_for_tagged_argument<'tree>(
-    argument: &'tree ArgumentSyntax,
+    sumti: &'tree SumtiSyntax,
     index: &SyntaxIndex<'tree>,
 ) -> Option<PlaceSlot> {
-    match argument.as_data() {
-        data!(ArgumentSyntax::Tagged { tag, .. }) => match tag.as_data() {
-            data!(jbotci_syntax::ast::ArgumentTagSyntax::TenseModal(tense)) => {
+    match sumti.as_data() {
+        data!(SumtiSyntax::TaggedSumti { tag, .. }) => match tag.as_data() {
+            data!(jbotci_syntax::ast::SumtiTagSyntax::TenseModal(tense)) => {
                 Some(modal_slot(index.id_of(tense_modal_node_ref(tense))))
             }
-            data!(jbotci_syntax::ast::ArgumentTagSyntax::Fa(fa)) => fa_place_slot(fa),
+            data!(jbotci_syntax::ast::SumtiTagSyntax::PlaceTag(fa)) => fa_place_slot(fa),
         },
         _ => None,
     }
@@ -5822,43 +5875,43 @@ fn next_place_after_common_terms(start: u8, terms: &[TermSyntax]) -> u8 {
 #[ensures(true)]
 fn advance_cursor_for_term_shape(cursor: &mut PlaceCursor, term: &TermSyntax) {
     match term.as_data() {
-        data!(TermSyntax::Argument(argument)) => {
-            advance_cursor_for_argument_term_shape(cursor, argument);
+        data!(TermSyntax::Sumti(sumti)) => {
+            advance_cursor_for_argument_term_shape(cursor, sumti);
         }
-        data!(TermSyntax::Fa { fa, .. }) => {
+        data!(TermSyntax::PlaceTaggedSumti { fa, .. }) => {
             let slot = fa_place_slot(fa).unwrap_or_else(|| cursor.next_numbered_slot());
             cursor.record_slot(slot);
         }
-        data!(TermSyntax::Tagged {
+        data!(TermSyntax::TaggedSumti {
             tense_modal: None,
             ..
         }) => {
             let slot = cursor.next_numbered_slot();
             cursor.record_slot(slot);
         }
-        data!(TermSyntax::Tagged {
+        data!(TermSyntax::TaggedSumti {
             tense_modal: Some(_),
             ..
         }) => {}
-        data!(TermSyntax::JaiTagged { .. }) => {
+        data!(TermSyntax::JaiTaggedSumti { .. }) => {
             cursor.record_slot(fai_slot());
         }
-        data!(TermSyntax::NuhiTermset { termset, .. }) => {
+        data!(TermSyntax::Termset { termset, .. }) => {
             advance_cursor_for_terms_shape(cursor, termset);
         }
-        data!(TermSyntax::GekNuhiTermset {
+        data!(TermSyntax::ForethoughtTermsetConnection {
             terms,
             gik_terms,
             ..
         }) => {
             advance_cursor_for_alternative_term_shapes(cursor, terms, gik_terms);
         }
-        data!(TermSyntax::Cehe {
+        data!(TermSyntax::TermsetGroup {
             leading_terms,
             trailing_terms,
             ..
         })
-        | data!(TermSyntax::Connected {
+        | data!(TermSyntax::TermConnection {
             leading_terms,
             trailing_terms,
             ..
@@ -5866,14 +5919,14 @@ fn advance_cursor_for_term_shape(cursor: &mut PlaceCursor, term: &TermSyntax) {
             advance_cursor_for_terms_shape(cursor, leading_terms);
             advance_cursor_for_terms_shape(cursor, trailing_terms);
         }
-        data!(TermSyntax::Pehe {
+        data!(TermSyntax::TermsetConnection {
             leading_terms,
             trailing_terms,
             ..
         }) => {
             advance_cursor_for_alternative_term_shapes(cursor, leading_terms, trailing_terms);
         }
-        data!(TermSyntax::BoConnected {
+        data!(TermSyntax::BoundTermConnection {
             leading_terms,
             trailing_term,
             ..
@@ -5911,22 +5964,22 @@ fn advance_cursor_for_alternative_term_shapes(
 
 #[requires(true)]
 #[ensures(true)]
-fn advance_cursor_for_argument_term_shape(cursor: &mut PlaceCursor, argument: &ArgumentSyntax) {
-    match argument.as_data() {
-        data!(ArgumentSyntax::Connected {
-            leading_argument,
+fn advance_cursor_for_argument_term_shape(cursor: &mut PlaceCursor, sumti: &SumtiSyntax) {
+    match sumti.as_data() {
+        data!(SumtiSyntax::SumtiConnection {
+            leading_sumti,
             connective,
-            trailing_argument,
+            trailing_sumti,
         }) if connective_contains_cmavo(connective, Cmavo::Cehe) => {
-            advance_cursor_for_argument_term_shape(cursor, leading_argument);
-            advance_cursor_for_argument_term_shape(cursor, trailing_argument);
+            advance_cursor_for_argument_term_shape(cursor, leading_sumti);
+            advance_cursor_for_argument_term_shape(cursor, trailing_sumti);
         }
-        data!(ArgumentSyntax::Tagged { tag, .. }) => {
+        data!(SumtiSyntax::TaggedSumti { tag, .. }) => {
             let slot = match tag.as_data() {
-                data!(ArgumentTagSyntax::Fa(fa)) => {
+                data!(SumtiTagSyntax::PlaceTag(fa)) => {
                     fa_place_slot(fa).unwrap_or_else(|| cursor.next_numbered_slot())
                 }
-                data!(ArgumentTagSyntax::TenseModal(..)) => modal_slot(None),
+                data!(SumtiTagSyntax::TenseModal(..)) => modal_slot(None),
             };
             cursor.record_slot(slot);
         }
@@ -5942,8 +5995,8 @@ fn advance_cursor_for_argument_term_shape(cursor: &mut PlaceCursor, argument: &A
 fn connective_contains_cmavo(connective: &ConnectiveSyntax, expected: Cmavo) -> bool {
     match connective.as_data() {
         data!(ConnectiveSyntax::Afterthought { cmavo, .. })
-        | data!(ConnectiveSyntax::Relation { cmavo, .. })
-        | data!(ConnectiveSyntax::PredicateTail { cmavo, .. })
+        | data!(ConnectiveSyntax::Selbri { cmavo, .. })
+        | data!(ConnectiveSyntax::BridiTail { cmavo, .. })
         | data!(ConnectiveSyntax::Forethought { cmavo, .. })
         | data!(ConnectiveSyntax::NonLogical { cmavo, .. })
         | data!(ConnectiveSyntax::Interval { cmavo, .. }) => {
@@ -5991,16 +6044,15 @@ fn koha_mention_available_to_ri(cmavo: Cmavo) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn argument_wraps_ri(argument: &ArgumentSyntax) -> bool {
-    argument_koha_cmavo_with_subscript(argument)
-        .is_some_and(|(cmavo, _subscript)| cmavo == Cmavo::Ri)
+fn argument_wraps_ri(sumti: &SumtiSyntax) -> bool {
+    argument_koha_cmavo_with_subscript(sumti).is_some_and(|(cmavo, _subscript)| cmavo == Cmavo::Ri)
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn koha_subscript_index(free_modifiers: &[FreeModifierSyntax]) -> Option<usize> {
     free_modifiers.iter().find_map(|free_modifier| {
-        if let data!(FreeModifierSyntax::Xi { expression, .. }) = free_modifier.as_data() {
+        if let data!(FreeModifierSyntax::Subscript { expression, .. }) = free_modifier.as_data() {
             math_expression_to_usize(expression)
         } else {
             None
@@ -6010,10 +6062,10 @@ fn koha_subscript_index(free_modifiers: &[FreeModifierSyntax]) -> Option<usize> 
 
 #[requires(true)]
 #[ensures(true)]
-fn math_expression_to_usize(expression: &MathExpressionSyntax) -> Option<usize> {
+fn math_expression_to_usize(expression: &MeksoSyntax) -> Option<usize> {
     match expression.as_data() {
-        data!(MathExpressionSyntax::Number(quantifier)) => quantifier_to_usize(quantifier),
-        data!(MathExpressionSyntax::Vei {
+        data!(MeksoSyntax::NumberMekso(quantifier)) => quantifier_to_usize(quantifier),
+        data!(MeksoSyntax::ParenthesizedMekso {
             inner_expression,
             ..
         }) => math_expression_to_usize(inner_expression),
@@ -6025,11 +6077,10 @@ fn math_expression_to_usize(expression: &MathExpressionSyntax) -> Option<usize> 
 #[ensures(true)]
 fn quantifier_to_usize(quantifier: &QuantifierSyntax) -> Option<usize> {
     match quantifier.as_data() {
-        data!(QuantifierSyntax::Number { number, .. }) => word_run_to_usize(&number.value),
-        data!(QuantifierSyntax::Vei {
-            math_expression,
-            ..
-        }) => math_expression_to_usize(math_expression),
+        data!(QuantifierSyntax::NumberQuantifier { number, .. }) => {
+            word_run_to_usize(&number.value)
+        }
+        data!(QuantifierSyntax::MeksoQuantifier { mekso, .. }) => math_expression_to_usize(mekso),
     }
 }
 
@@ -6079,70 +6130,75 @@ fn letter_pro_sumti_base(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
-fn argument_letter_base(argument: &ArgumentSyntax) -> Option<String> {
-    match argument.as_data() {
-        data!(ArgumentSyntax::Descriptor(descriptor)) => descriptor
-            .relation
+fn argument_letter_base(sumti: &SumtiSyntax) -> Option<String> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::Description(description)) => description
+            .selbri
             .as_deref()
             .and_then(relation_base_letter)
             .or_else(|| {
-                descriptor
+                description
                     .tail_elements
                     .iter()
                     .find_map(argument_tail_element_base_letter)
             }),
-        data!(ArgumentSyntax::ConnectedDescriptor(descriptor)) => descriptor
-            .relation
+        data!(SumtiSyntax::DescriptionConnection(description)) => description
+            .selbri
             .as_deref()
             .and_then(relation_base_letter)
             .or_else(|| {
-                descriptor
+                description
                     .tail_elements
                     .iter()
                     .find_map(argument_tail_element_base_letter)
             }),
-        data!(ArgumentSyntax::Name { names, .. }) | data!(ArgumentSyntax::Cmevla(names)) => {
+        data!(SumtiSyntax::NameDescription { names, .. })
+        | data!(SumtiSyntax::NameWords(names)) => {
             names.value.as_slice().first().and_then(token_base_letter)
         }
-        data!(ArgumentSyntax::RelativeClause { base_argument, .. })
-        | data!(ArgumentSyntax::Vuho { base_argument, .. })
-        | data!(ArgumentSyntax::Lahe {
-            inner_argument: base_argument,
+        data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::ReferentSumti {
+            inner_sumti: base_sumti,
             ..
         })
-        | data!(ArgumentSyntax::NaheBo {
-            inner_argument: base_argument,
+        | data!(SumtiSyntax::ScalarNegatedSumtiWithBo {
+            inner_sumti: base_sumti,
             ..
         })
-        | data!(ArgumentSyntax::Nahe {
-            inner_argument: base_argument,
+        | data!(SumtiSyntax::ScalarNegatedSumti {
+            inner_sumti: base_sumti,
             ..
         })
-        | data!(ArgumentSyntax::Ke {
-            inner_argument: base_argument,
+        | data!(SumtiSyntax::GroupedSumti {
+            inner_sumti: base_sumti,
             ..
         })
-        | data!(ArgumentSyntax::Tagged {
-            inner_argument: base_argument,
+        | data!(SumtiSyntax::TaggedSumti {
+            inner_sumti: base_sumti,
             ..
         })
-        | data!(ArgumentSyntax::Quantified {
-            inner_argument: base_argument,
+        | data!(SumtiSyntax::QuantifiedSumti {
+            inner_sumti: base_sumti,
             ..
-        }) => argument_letter_base(base_argument),
+        }) => argument_letter_base(base_sumti),
         _ => None,
     }
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
-fn argument_tail_element_base_letter(element: &ArgumentTailElementSyntax) -> Option<String> {
+fn argument_tail_element_base_letter(element: &DescriptionTailElementSyntax) -> Option<String> {
     match element.as_data() {
-        data!(ArgumentTailElementSyntax::Argument(argument)) => argument_letter_base(argument),
-        data!(ArgumentTailElementSyntax::RelativeClauses(relative_clauses)) => relative_clauses
-            .iter()
-            .find_map(relative_clause_base_letter),
-        data!(ArgumentTailElementSyntax::Quantifier(_)) => None,
+        data!(DescriptionTailElementSyntax::DescriptionTailSumti(sumti)) => {
+            argument_letter_base(sumti)
+        }
+        data!(DescriptionTailElementSyntax::DescriptionTailRelativeClauses(relative_clauses)) => {
+            relative_clauses
+                .iter()
+                .find_map(relative_clause_base_letter)
+        }
+        data!(DescriptionTailElementSyntax::DescriptionTailQuantifier(_)) => None,
     }
 }
 
@@ -6150,13 +6206,15 @@ fn argument_tail_element_base_letter(element: &ArgumentTailElementSyntax) -> Opt
 #[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
 fn relative_clause_base_letter(relative_clause: &RelativeClauseSyntax) -> Option<String> {
     match relative_clause.as_data() {
-        data!(RelativeClauseSyntax::Goi(goi)) => argument_letter_base(&goi.argument),
-        data!(RelativeClauseSyntax::Noi { subsentence, .. })
-        | data!(RelativeClauseSyntax::Poi { subsentence, .. }) => {
-            subsentence_base_letter(subsentence)
+        data!(RelativeClauseSyntax::SumtiAssociationPhrase(goi)) => {
+            argument_letter_base(&goi.sumti)
         }
-        data!(RelativeClauseSyntax::Zihe { inner, .. })
-        | data!(RelativeClauseSyntax::Connected { inner, .. }) => {
+        data!(RelativeClauseSyntax::IncidentalRelativeBridi { subbridi, .. })
+        | data!(RelativeClauseSyntax::RestrictiveRelativeBridi { subbridi, .. }) => {
+            subbridi_base_letter(subbridi)
+        }
+        data!(RelativeClauseSyntax::JoinedRelativeClauses { inner, .. })
+        | data!(RelativeClauseSyntax::RelativeClauseConnection { inner, .. }) => {
             relative_clause_base_letter(inner)
         }
     }
@@ -6164,108 +6222,103 @@ fn relative_clause_base_letter(relative_clause: &RelativeClauseSyntax) -> Option
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
-fn subsentence_base_letter(subsentence: &SubsentenceSyntax) -> Option<String> {
-    match subsentence.as_data() {
-        data!(SubsentenceSyntax::Plain(predicate)) => {
-            predicate_tail_base_letter(&predicate.predicate_tail)
+fn subbridi_base_letter(subbridi: &SubbridiSyntax) -> Option<String> {
+    match subbridi.as_data() {
+        data!(SubbridiSyntax::Bridi(bridi)) => bridi_tail_base_letter(&bridi.bridi_tail),
+        data!(SubbridiSyntax::Prenex { inner_subbridi, .. }) => {
+            subbridi_base_letter(inner_subbridi)
         }
-        data!(SubsentenceSyntax::Prenex {
-            inner_subsentence,
-            ..
-        }) => subsentence_base_letter(inner_subsentence),
     }
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
-fn predicate_tail_base_letter(predicate_tail: &PredicateTailSyntax) -> Option<String> {
-    predicate_tail1_base_letter(&predicate_tail.first)
+fn bridi_tail_base_letter(bridi_tail: &BridiTailSyntax) -> Option<String> {
+    bridi_tail1_base_letter(&bridi_tail.first)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
-fn predicate_tail1_base_letter(predicate_tail: &PredicateTail1Syntax) -> Option<String> {
-    predicate_tail2_base_letter(&predicate_tail.first)
+fn bridi_tail1_base_letter(bridi_tail: &AfterthoughtBridiTailSyntax) -> Option<String> {
+    bridi_tail2_base_letter(&bridi_tail.first)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
-fn predicate_tail2_base_letter(predicate_tail: &PredicateTail2Syntax) -> Option<String> {
-    predicate_tail3_base_letter(&predicate_tail.first)
+fn bridi_tail2_base_letter(bridi_tail: &BoGroupedBridiTailSyntax) -> Option<String> {
+    bridi_tail3_base_letter(&bridi_tail.first)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
-fn predicate_tail3_base_letter(predicate_tail: &PredicateTail3Syntax) -> Option<String> {
-    match predicate_tail.as_data() {
-        data!(PredicateTail3Syntax::Relation { relation, .. }) => relation_base_letter(relation),
-        data!(PredicateTail3Syntax::GekSentence(_)) => None,
+fn bridi_tail3_base_letter(bridi_tail: &SimpleBridiTailSyntax) -> Option<String> {
+    match bridi_tail.as_data() {
+        data!(SimpleBridiTailSyntax::SelbriBridiTail { selbri, .. }) => {
+            relation_base_letter(selbri)
+        }
+        data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(_)) => None,
     }
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
-fn relation_base_letter(relation: &RelationSyntax) -> Option<String> {
-    match relation.as_data() {
-        data!(RelationSyntax::Base(word)) => token_base_letter(word),
-        data!(RelationSyntax::Se { inner_relation, .. })
-        | data!(RelationSyntax::Na { inner_relation, .. })
-        | data!(RelationSyntax::TenseModal { inner_relation, .. }) => {
-            relation_base_letter(inner_relation)
+fn relation_base_letter(selbri: &SelbriSyntax) -> Option<String> {
+    match selbri.as_data() {
+        data!(SelbriSyntax::SelbriWord(word)) => token_base_letter(word),
+        data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. })
+        | data!(SelbriSyntax::Negated { inner_selbri, .. })
+        | data!(SelbriSyntax::TaggedSelbri { inner_selbri, .. }) => {
+            relation_base_letter(inner_selbri)
         }
-        data!(RelationSyntax::Ke { relation, .. }) => relation_base_letter(relation),
-        data!(RelationSyntax::Connected {
-            leading_relation,
+        data!(SelbriSyntax::GroupedSelbri { selbri, .. }) => relation_base_letter(selbri),
+        data!(SelbriSyntax::SelbriConnection { leading_selbri, .. })
+        | data!(SelbriSyntax::InvertedTanru { leading_selbri, .. }) => {
+            relation_base_letter(leading_selbri)
+        }
+        data!(SelbriSyntax::BoundSelbriConnection {
+            trailing_selbri,
             ..
-        })
-        | data!(RelationSyntax::Co {
-            leading_relation,
-            ..
-        }) => relation_base_letter(leading_relation),
-        data!(RelationSyntax::Bo {
-            trailing_relation,
-            ..
-        }) => relation_base_letter(trailing_relation),
-        data!(RelationSyntax::Compound(units)) => {
+        }) => relation_base_letter(trailing_selbri),
+        data!(SelbriSyntax::Tanru(units)) => {
             units.as_slice().first().and_then(relation_unit_base_letter)
         }
-        data!(RelationSyntax::Abstraction(abstraction)) => word_base_letter(&abstraction.nu),
-        data!(RelationSyntax::Guha { .. }) => None,
+        data!(SelbriSyntax::Abstraction(abstraction)) => word_base_letter(&abstraction.nu),
+        data!(SelbriSyntax::ForethoughtSelbriConnection { .. }) => None,
     }
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
-fn relation_unit_base_letter(unit: &RelationUnitSyntax) -> Option<String> {
+fn relation_unit_base_letter(unit: &TanruUnitSyntax) -> Option<String> {
     match unit.as_data() {
-        data!(RelationUnitSyntax::Word(word))
-        | data!(RelationUnitSyntax::Goha { goha: word, .. }) => word_base_letter(word),
-        data!(RelationUnitSyntax::Se { inner_unit, .. })
-        | data!(RelationUnitSyntax::Nahe { inner_unit, .. })
-        | data!(RelationUnitSyntax::Jai { inner_unit, .. }) => {
+        data!(TanruUnitSyntax::TanruUnitWord(word))
+        | data!(TanruUnitSyntax::ProBridi { goha: word, .. }) => word_base_letter(word),
+        data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ModalConversion { inner_unit, .. }) => {
             relation_unit_base_letter(inner_unit)
         }
-        data!(RelationUnitSyntax::Ke { relation, .. })
-        | data!(RelationUnitSyntax::Wrapped(relation)) => relation_base_letter(relation),
-        data!(RelationUnitSyntax::Bo { trailing_unit, .. }) => {
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => relation_base_letter(selbri),
+        data!(TanruUnitSyntax::BoundTanruUnitConnection { trailing_unit, .. }) => {
             relation_unit_base_letter(trailing_unit)
         }
-        data!(RelationUnitSyntax::Connected { leading_unit, .. }) => {
+        data!(TanruUnitSyntax::TanruUnitConnection { leading_unit, .. }) => {
             relation_unit_base_letter(leading_unit)
         }
-        data!(RelationUnitSyntax::SelbriRelativeClause { base, .. })
-        | data!(RelationUnitSyntax::Be { base, .. })
-        | data!(RelationUnitSyntax::PreposedBe { base, .. })
-        | data!(RelationUnitSyntax::Cei { base, .. }) => relation_unit_base_letter(base),
-        data!(RelationUnitSyntax::Abstraction(abstraction)) => word_base_letter(&abstraction.nu),
-        data!(RelationUnitSyntax::Me { argument, .. }) => argument_letter_base(argument),
-        data!(RelationUnitSyntax::Luhei { .. })
-        | data!(RelationUnitSyntax::Mehoi(..))
-        | data!(RelationUnitSyntax::Gohoi(..))
-        | data!(RelationUnitSyntax::Muhoi(..))
-        | data!(RelationUnitSyntax::Moi { .. })
-        | data!(RelationUnitSyntax::Nuha { .. })
-        | data!(RelationUnitSyntax::Xohi { .. }) => None,
+        data!(TanruUnitSyntax::RelativeClauses { base, .. })
+        | data!(TanruUnitSyntax::LinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::AssignedProBridi { base, .. }) => relation_unit_base_letter(base),
+        data!(TanruUnitSyntax::Abstraction(abstraction)) => word_base_letter(&abstraction.nu),
+        data!(TanruUnitSyntax::SumtiSelbri { sumti, .. }) => argument_letter_base(sumti),
+        data!(TanruUnitSyntax::TextSelbri { .. })
+        | data!(TanruUnitSyntax::QuotedWordSelbri(..))
+        | data!(TanruUnitSyntax::QuotedBridiSelbri(..))
+        | data!(TanruUnitSyntax::QuotedTextSelbri(..))
+        | data!(TanruUnitSyntax::OrdinalSelbri { .. })
+        | data!(TanruUnitSyntax::OperatorSelbri { .. })
+        | data!(TanruUnitSyntax::TagSelbri { .. }) => None,
     }
 }
 
@@ -6286,39 +6339,41 @@ fn token_base_letter(word: &Token) -> Option<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn argument_koha_cmavo(argument: &ArgumentSyntax) -> Option<Cmavo> {
-    match argument.as_data() {
-        data!(ArgumentSyntax::Koha(koha)) => koha.cmavo(),
-        data!(ArgumentSyntax::Tagged { inner_argument, .. })
-        | data!(ArgumentSyntax::Quantified { inner_argument, .. })
-        | data!(ArgumentSyntax::NaheBo { inner_argument, .. })
-        | data!(ArgumentSyntax::Nahe { inner_argument, .. })
-        | data!(ArgumentSyntax::Lahe { inner_argument, .. })
-        | data!(ArgumentSyntax::Ke { inner_argument, .. }) => argument_koha_cmavo(inner_argument),
-        data!(ArgumentSyntax::RelativeClause { base_argument, .. })
-        | data!(ArgumentSyntax::Vuho { base_argument, .. }) => argument_koha_cmavo(base_argument),
+fn argument_koha_cmavo(sumti: &SumtiSyntax) -> Option<Cmavo> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::ProSumti(koha)) => koha.cmavo(),
+        data!(SumtiSyntax::TaggedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::ReferentSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::GroupedSumti { inner_sumti, .. }) => argument_koha_cmavo(inner_sumti),
+        data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. }) => {
+            argument_koha_cmavo(base_sumti)
+        }
         _ => None,
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn argument_koha_cmavo_with_subscript(argument: &ArgumentSyntax) -> Option<(Cmavo, Option<usize>)> {
-    match argument.as_data() {
-        data!(ArgumentSyntax::Koha(koha)) => {
+fn argument_koha_cmavo_with_subscript(sumti: &SumtiSyntax) -> Option<(Cmavo, Option<usize>)> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::ProSumti(koha)) => {
             Some((koha.cmavo()?, koha_subscript_index(&koha.free_modifiers)))
         }
-        data!(ArgumentSyntax::Tagged { inner_argument, .. })
-        | data!(ArgumentSyntax::Quantified { inner_argument, .. })
-        | data!(ArgumentSyntax::NaheBo { inner_argument, .. })
-        | data!(ArgumentSyntax::Nahe { inner_argument, .. })
-        | data!(ArgumentSyntax::Lahe { inner_argument, .. })
-        | data!(ArgumentSyntax::Ke { inner_argument, .. }) => {
-            argument_koha_cmavo_with_subscript(inner_argument)
+        data!(SumtiSyntax::TaggedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::ReferentSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::GroupedSumti { inner_sumti, .. }) => {
+            argument_koha_cmavo_with_subscript(inner_sumti)
         }
-        data!(ArgumentSyntax::RelativeClause { base_argument, .. })
-        | data!(ArgumentSyntax::Vuho { base_argument, .. }) => {
-            argument_koha_cmavo_with_subscript(base_argument)
+        data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. }) => {
+            argument_koha_cmavo_with_subscript(base_sumti)
         }
         _ => None,
     }
@@ -6326,8 +6381,8 @@ fn argument_koha_cmavo_with_subscript(argument: &ArgumentSyntax) -> Option<(Cmav
 
 #[requires(true)]
 #[ensures(true)]
-fn koha_assignable_cmavo(argument: &ArgumentSyntax) -> Option<Cmavo> {
-    let cmavo = argument_koha_cmavo(argument)?;
+fn koha_assignable_cmavo(sumti: &SumtiSyntax) -> Option<Cmavo> {
+    let cmavo = argument_koha_cmavo(sumti)?;
     is_assignable_koha(cmavo).then_some(cmavo)
 }
 
@@ -6376,16 +6431,16 @@ fn broda_label(word_like: &WordLike) -> Option<String> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|label| !label.is_empty()))]
-fn relation_unit_assignment_label(unit: &RelationUnitSyntax) -> Option<String> {
+fn relation_unit_assignment_label(unit: &TanruUnitSyntax) -> Option<String> {
     match unit.as_data() {
-        data!(RelationUnitSyntax::Word(word)) => broda_label(word.core_word()),
-        data!(RelationUnitSyntax::Goha { goha, .. }) => {
+        data!(TanruUnitSyntax::TanruUnitWord(word)) => broda_label(word.core_word()),
+        data!(TanruUnitSyntax::ProBridi { goha, .. }) => {
             let cmavo = goha.cmavo()?;
             matches!(cmavo, Cmavo::Buha | Cmavo::Buhe | Cmavo::Buhi)
                 .then(|| cmavo.canonical_text().to_owned())
         }
-        data!(RelationUnitSyntax::Se { inner_unit, .. })
-        | data!(RelationUnitSyntax::Nahe { inner_unit, .. }) => {
+        data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. }) => {
             relation_unit_assignment_label(inner_unit)
         }
         _ => None,
@@ -6416,22 +6471,22 @@ mod tests {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
-    fn argument_label(index: &SyntaxIndex<'_>, argument: ArgumentNodeId) -> Option<String> {
-        match index.argument(argument)?.as_data() {
-            data!(ArgumentSyntax::Koha(koha)) => {
+    fn sumti_label(index: &SyntaxIndex<'_>, sumti: SumtiNodeId) -> Option<String> {
+        match index.sumti(sumti)?.as_data() {
+            data!(SumtiSyntax::ProSumti(koha)) => {
                 Some(koha.core_word().bare_word()?.canonical_phonemes())
             }
-            data!(ArgumentSyntax::Descriptor(descriptor)) => {
-                descriptor.relation.as_deref().and_then(relation_label)
+            data!(SumtiSyntax::Description(description)) => {
+                description.selbri.as_deref().and_then(relation_label)
             }
-            data!(ArgumentSyntax::Name { names, .. }) => names
+            data!(SumtiSyntax::NameDescription { names, .. }) => names
                 .value
                 .first()
                 .core_word()
                 .bare_word()
                 .map(|word| word.canonical_phonemes()),
             _ => index
-                .metadata(argument.0)
+                .metadata(sumti.0)
                 .and_then(|metadata| metadata.source_spans.first())
                 .map(|span| format!("{}..{}", span.byte_start, span.byte_end)),
         }
@@ -6439,33 +6494,35 @@ mod tests {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
-    fn relation_label(relation: &RelationSyntax) -> Option<String> {
-        match relation.as_data() {
-            data!(RelationSyntax::Base(word)) => {
+    fn relation_label(selbri: &SelbriSyntax) -> Option<String> {
+        match selbri.as_data() {
+            data!(SelbriSyntax::SelbriWord(word)) => {
                 Some(word.core_word().bare_word()?.canonical_phonemes())
             }
-            data!(RelationSyntax::Se { inner_relation, .. })
-            | data!(RelationSyntax::Na { inner_relation, .. })
-            | data!(RelationSyntax::TenseModal { inner_relation, .. }) => {
-                relation_label(inner_relation)
+            data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. })
+            | data!(SelbriSyntax::Negated { inner_selbri, .. })
+            | data!(SelbriSyntax::TaggedSelbri { inner_selbri, .. }) => {
+                relation_label(inner_selbri)
             }
-            data!(RelationSyntax::Ke { relation, .. }) => relation_label(relation),
-            data!(RelationSyntax::Compound(units)) => relation_unit_label(units.last()),
+            data!(SelbriSyntax::GroupedSelbri { selbri, .. }) => relation_label(selbri),
+            data!(SelbriSyntax::Tanru(units)) => relation_unit_label(units.last()),
             _ => None,
         }
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
-    fn relation_unit_label(unit: &RelationUnitSyntax) -> Option<String> {
+    fn relation_unit_label(unit: &TanruUnitSyntax) -> Option<String> {
         match unit.as_data() {
-            data!(RelationUnitSyntax::Word(word)) => {
+            data!(TanruUnitSyntax::TanruUnitWord(word)) => {
                 Some(word.core_word().bare_word()?.canonical_phonemes())
             }
-            data!(RelationUnitSyntax::Se { inner_unit, .. })
-            | data!(RelationUnitSyntax::Nahe { inner_unit, .. }) => relation_unit_label(inner_unit),
-            data!(RelationUnitSyntax::Ke { relation, .. })
-            | data!(RelationUnitSyntax::Wrapped(relation)) => relation_label(relation),
+            data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+            | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. }) => {
+                relation_unit_label(inner_unit)
+            }
+            data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+            | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => relation_label(selbri),
             _ => None,
         }
     }
@@ -6478,15 +6535,15 @@ mod tests {
         slot: u8,
     ) -> Option<String> {
         let slot = PlaceSlot::numbered(slot)?;
-        let argument = analysis
+        let sumti = analysis
             .place_analysis
             .first_argument_for_place(frame, slot)?;
-        argument_label(&analysis.syntax_index, argument)
+        sumti_label(&analysis.syntax_index, sumti)
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn frame_for_relation_label(
+    fn frame_for_selbri_label(
         analysis: &ReferenceAnalysis<'_>,
         label: &str,
         kind: PlaceFrameKind,
@@ -6497,10 +6554,10 @@ mod tests {
             .iter()
             .find(|frame| {
                 frame.kind == kind
-                    && frame.relation.is_some_and(|relation| {
+                    && frame.selbri.is_some_and(|selbri| {
                         analysis
                             .syntax_index
-                            .relation(relation)
+                            .selbri(selbri)
                             .and_then(relation_label)
                             .is_some_and(|actual| actual == label)
                     })
@@ -6538,7 +6595,7 @@ mod tests {
         run_reference_test(|| {
             let syntax = parse_syntax("mi klama do");
             let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
-            let klama = frame_for_relation_label(&analysis, "klama", PlaceFrameKind::BaseRelation)
+            let klama = frame_for_selbri_label(&analysis, "klama", PlaceFrameKind::BaseSelbri)
                 .expect("klama frame exists");
 
             assert_eq!(
@@ -6550,8 +6607,8 @@ mod tests {
                 Some("do")
             );
             let projection = analysis.v0_compatibility_projection();
-            assert!(!projection.argument_assignments.is_empty());
-            assert!(!projection.relation_places.is_empty());
+            assert!(!projection.sumti_assignments.is_empty());
+            assert!(!projection.selbri_places.is_empty());
         });
     }
 
@@ -6562,9 +6619,9 @@ mod tests {
         run_reference_test(|| {
             let syntax = parse_syntax("mi se klama do");
             let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
-            let base = frame_for_relation_label(&analysis, "klama", PlaceFrameKind::BaseRelation)
+            let base = frame_for_selbri_label(&analysis, "klama", PlaceFrameKind::BaseSelbri)
                 .expect("base klama frame exists");
-            let converted = frame_for_relation_label(&analysis, "klama", PlaceFrameKind::Converted)
+            let converted = frame_for_selbri_label(&analysis, "klama", PlaceFrameKind::Converted)
                 .expect("converted se klama frame exists");
 
             assert_eq!(
@@ -6662,7 +6719,7 @@ mod tests {
 
             assert!(projection.assignments.iter().any(|assignment| {
                 matches!(assignment.slot, FixturePlaceSlot::Modal { .. })
-                    && assignment.argument == modal_placeholder
+                    && assignment.sumti == modal_placeholder
             }));
 
             let ri_targets = projection
@@ -6706,7 +6763,7 @@ mod tests {
             );
             assert!(
                 projection
-                    .relation_places
+                    .selbri_places
                     .windows(2)
                     .all(|items| items[0] <= items[1])
             );

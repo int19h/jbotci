@@ -8,15 +8,15 @@ entry-id = "6957"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "da" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "poĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "mo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "da" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "poĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "mo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(RelativeClause { base_argument: Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "da" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }), vuho: None, relative_clauses: [Poi { poi: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "poĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } })), free_modifiers: [] }, subsentence: Plain(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Cmavo { phonemes: Phonemes { text: "mo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kuho: None }] })], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(SumtiWithRelativeClauses { base_sumti: ProSumti(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "da" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }), vuho: None, relative_clauses: [RestrictiveRelativeBridi { poi: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "poĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } })), free_modifiers: [] }, subbridi: Bridi(BridiSyntax { leading_terms: [], cu: None, bridi_tail: BridiTailSyntax { first: AfterthoughtBridiTailSyntax { first: BoGroupedBridiTailSyntax { first: SelbriBridiTail { selbri: SelbriWord(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "mo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kuho: None }] })], vau: None })) }] }] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":7,"length":2},"kind":"base-relation","relation":{"offset":7,"length":2},"relation-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":7,"length":2},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":7,"length":2},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[1]}},{"index":3,"node":{"offset":7,"length":2},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[2]}},{"index":4,"node":{"offset":7,"length":2},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[3]}},{"index":5,"node":{"offset":7,"length":2},"kind":"predicate","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[4]}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":7,"length":2},"kind":"base-selbri","selbri":{"offset":7,"length":2},"tanru-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":7,"length":2},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":7,"length":2},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[1]}},{"index":3,"node":{"offset":7,"length":2},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[2]}},{"index":4,"node":{"offset":7,"length":2},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[3]}},{"index":5,"node":{"offset":7,"length":2},"kind":"bridi","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[4]}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(da poĭ mo)"
@@ -26,16 +26,16 @@ tree = """
   Cmavo @[3‥6) "poĭ",
   Cmavo @[7‥9) "mo",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"da","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"poĭ","span":[3,6]}}},{"Bare":{"Cmavo":{"phonemes":"mo","span":[7,9]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"da","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[3,6]}}},{"PlainWord":{"Cmavo":{"phonemes":"mo","span":[7,9]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥9) {
+Terms @[0‥9) {
   terms: [
-    RelativeClause @[0‥9) {
-      base_argument: Cmavo @[0‥2) "da",
+    SumtiWithRelativeClauses @[0‥9) {
+      base_sumti: Cmavo @[0‥2) "da",
       relative_clauses: [
-        Poi @[3‥9) {
+        RestrictiveRelativeBridi @[3‥9) {
           poi: Cmavo @[3‥6) "poĭ",
           Cmavo @[7‥9) "mo",
         },
@@ -43,4 +43,4 @@ Term @[0‥9) {
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"RelativeClause":{"base_argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"da","span":[0,2]}}}}},"relative_clauses":[{"Poi":{"poi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"poĭ","span":[3,6]}}}},"subsentence":{"Plain":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mo","span":[7,9]}}}}}}}}}}}}}]}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[0,2]}}}}},"relative_clauses":[{"RestrictiveRelativeBridi":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[3,6]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo","span":[7,9]}}}}}}}}}}}}}}]}}}]}}}}]}]}'

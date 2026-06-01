@@ -30,10 +30,10 @@ pub use ast::{Indicator, IndicatorData, TextSyntax};
 pub const SYNTAX_TRACE_FILTERS: &[&str] = &[
     "text",
     "statement",
-    "subsentence",
-    "relation",
+    "subbridi",
+    "selbri",
     "term",
-    "argument",
+    "sumti",
     "free modifier",
     "token",
     "rewind",
@@ -174,8 +174,8 @@ impl SyntaxExpectedToken {
 pub enum SyntaxWordCategory {
     Brivla,
     Cmevla,
-    RelationWord,
-    KohaArgument,
+    SelbriWord,
+    ProSumti,
     LetterWord,
     ReplacementWord,
     Quote,
@@ -188,8 +188,8 @@ impl SyntaxWordCategory {
         match self {
             Self::Brivla => "BRIVLA",
             Self::Cmevla => "CMEVLA",
-            Self::RelationWord => "RELATION WORD",
-            Self::KohaArgument => "KOhA ARGUMENT",
+            Self::SelbriWord => "SELBRI WORD",
+            Self::ProSumti => "PRO-SUMTI",
             Self::LetterWord => "LETTER WORD",
             Self::ReplacementWord => "REPLACEMENT WORD",
             Self::Quote => "QUOTE",
@@ -224,10 +224,10 @@ impl SyntaxConstructContext {
 pub(crate) fn syntax_construct_depth(construct: &str) -> usize {
     match construct {
         "free modifier" => 6,
-        "argument" => 5,
+        "sumti" => 5,
         "term" => 4,
-        "relation" => 3,
-        "subsentence" => 2,
+        "selbri" => 3,
+        "subbridi" => 2,
         "statement" => 1,
         "text" | "parse_text" | "end of input" | "syntax construct" => 0,
         _ => panic!("missing syntax diagnostic construct metadata for {construct:?}"),
@@ -240,10 +240,10 @@ pub(crate) fn syntax_construct_is_known(construct: &str) -> bool {
     matches!(
         construct,
         "free modifier"
-            | "argument"
+            | "sumti"
             | "term"
-            | "relation"
-            | "subsentence"
+            | "selbri"
+            | "subbridi"
             | "statement"
             | "text"
             | "parse_text"
@@ -257,7 +257,7 @@ pub(crate) fn syntax_construct_is_known(construct: &str) -> bool {
 pub(crate) fn syntax_construct_is_root(construct: &str) -> bool {
     match construct {
         "text" | "parse_text" => true,
-        "free modifier" | "argument" | "term" | "relation" | "subsentence" | "statement"
+        "free modifier" | "sumti" | "term" | "selbri" | "subbridi" | "statement"
         | "end of input" | "syntax construct" => false,
         _ => panic!("missing syntax diagnostic construct metadata for {construct:?}"),
     }
@@ -814,7 +814,7 @@ pub struct SyntaxParse {
 pub enum ExperimentalConstruct {
     ExperimentalCmavo,
     ExperimentalZohOiQuote,
-    ExperimentalMehOiRelationUnit,
+    ExperimentalMehOiSelbriUnit,
     ExperimentalLohOiBridiDescription,
     ExperimentalLohAiReplacementFree,
     ExperimentalJacuPredicateTailConnective,
@@ -835,7 +835,7 @@ pub enum ExperimentalConstruct {
     ExperimentalJiAsJaConnective,
     ExperimentalGadganzuGadri,
     ExperimentalIauReset,
-    ExperimentalGohoiRelationUnit,
+    ExperimentalGohoiSelbriUnit,
     ExperimentalKeTermset,
     ExperimentalLaheNaheTermWrapper,
     ExperimentalForethoughtRelativeClauseConnective,
@@ -844,7 +844,7 @@ pub enum ExperimentalConstruct {
     ExperimentalNahuPredicateConnective,
     ExperimentalFaAsTag,
     ExperimentalFlattenedTag,
-    ExperimentalCbmCmevlaRelationWord,
+    ExperimentalCbmCmevlaSelbriWord,
     ExperimentalCbmLaNameAsDescriptor,
     ExperimentalDictionaryDoiVocative,
     ExperimentalDictionaryCoiVocative,
@@ -861,15 +861,15 @@ pub enum ExperimentalConstruct {
     ExperimentalBroadKePredicateContinuation,
     ExperimentalTermHierarchyBoConnection,
     ExperimentalBareNaTerm,
-    ExperimentalXohiTagRelation,
+    ExperimentalXohiTagSelbri,
     ExperimentalZantufaCmavo,
     ExperimentalZantufaForethoughtGihi,
     ExperimentalZantufaGek,
     ExperimentalZantufaPoihaBrigahi,
     ExperimentalZantufaJaiTagTerm,
     ExperimentalZantufaRecursiveTag,
-    ExperimentalZantufaMuhoiRelationUnit,
-    ExperimentalZantufaLuheiRelationUnit,
+    ExperimentalZantufaMuhoiSelbriUnit,
+    ExperimentalZantufaLuheiSelbriUnit,
     CllProhibitedFreeModifierPlacement,
 }
 
@@ -880,9 +880,7 @@ impl ExperimentalConstruct {
         match self {
             Self::ExperimentalCmavo => "syntax.warning.experimental-cmavo",
             Self::ExperimentalZohOiQuote => "syntax.warning.experimental-zoh-oi-quote",
-            Self::ExperimentalMehOiRelationUnit => {
-                "syntax.warning.experimental-meh-oi-relation-unit"
-            }
+            Self::ExperimentalMehOiSelbriUnit => "syntax.warning.experimental-meh-oi-selbri-unit",
             Self::ExperimentalLohOiBridiDescription => {
                 "syntax.warning.experimental-loh-oi-bridi-description"
             }
@@ -890,7 +888,7 @@ impl ExperimentalConstruct {
                 "syntax.warning.experimental-loh-ai-replacement-free"
             }
             Self::ExperimentalJacuPredicateTailConnective => {
-                "syntax.warning.experimental-jacu-predicate-tail-connective"
+                "syntax.warning.experimental-jacu-bridi-tail-connective"
             }
             Self::ExperimentalJeIStatementConnective => {
                 "syntax.warning.experimental-je-i-statement-connective"
@@ -899,9 +897,9 @@ impl ExperimentalConstruct {
                 "syntax.warning.experimental-multiple-na-fragment"
             }
             Self::ExperimentalEmptyPrenex => "syntax.warning.experimental-empty-prenex",
-            Self::ExperimentalBareCuPredicate => "syntax.warning.experimental-bare-cu-predicate",
+            Self::ExperimentalBareCuPredicate => "syntax.warning.experimental-bare-cu-bridi",
             Self::ExperimentalNaheArgumentWithoutBo => {
-                "syntax.warning.experimental-nahe-argument-without-bo"
+                "syntax.warning.experimental-nahe-sumti-without-bo"
             }
             Self::ExperimentalVuhoScopedAttachment => {
                 "syntax.warning.experimental-vuho-scoped-attachment"
@@ -913,7 +911,7 @@ impl ExperimentalConstruct {
                 "syntax.warning.experimental-simpler-sumti-connective"
             }
             Self::ExperimentalExplicitCuPredicateTailStarter => {
-                "syntax.warning.experimental-explicit-cu-predicate-tail-starter"
+                "syntax.warning.experimental-explicit-cu-bridi-tail-starter"
             }
             Self::ExperimentalRelativeClauseConnective => {
                 "syntax.warning.experimental-relative-clause-connective"
@@ -928,14 +926,12 @@ impl ExperimentalConstruct {
                 "syntax.warning.experimental-simpler-mex-operand-connective"
             }
             Self::ExperimentalSimplerDescriptorHeadConnective => {
-                "syntax.warning.experimental-simpler-descriptor-head-connective"
+                "syntax.warning.experimental-simpler-description-head-connective"
             }
             Self::ExperimentalJiAsJaConnective => "syntax.warning.experimental-ji-as-ja-connective",
             Self::ExperimentalGadganzuGadri => "syntax.warning.experimental-gadganzu-gadri",
             Self::ExperimentalIauReset => "syntax.warning.experimental-iau-reset",
-            Self::ExperimentalGohoiRelationUnit => {
-                "syntax.warning.experimental-gohoi-relation-unit"
-            }
+            Self::ExperimentalGohoiSelbriUnit => "syntax.warning.experimental-gohoi-selbri-unit",
             Self::ExperimentalKeTermset => "syntax.warning.experimental-ke-termset",
             Self::ExperimentalLaheNaheTermWrapper => {
                 "syntax.warning.experimental-lahe-nahe-term-wrapper"
@@ -946,15 +942,15 @@ impl ExperimentalConstruct {
             Self::ExperimentalBroadAConnective => "syntax.warning.experimental-broad-a-connective",
             Self::ExperimentalVuhuConnective => "syntax.warning.experimental-vuhu-connective",
             Self::ExperimentalNahuPredicateConnective => {
-                "syntax.warning.experimental-nahu-predicate-connective"
+                "syntax.warning.experimental-nahu-bridi-connective"
             }
             Self::ExperimentalFaAsTag => "syntax.warning.experimental-fa-as-tag",
             Self::ExperimentalFlattenedTag => "syntax.warning.experimental-flattened-tag",
-            Self::ExperimentalCbmCmevlaRelationWord => {
-                "syntax.warning.experimental-cbm-cmevla-relation-word"
+            Self::ExperimentalCbmCmevlaSelbriWord => {
+                "syntax.warning.experimental-cbm-cmevla-selbri-word"
             }
             Self::ExperimentalCbmLaNameAsDescriptor => {
-                "syntax.warning.experimental-cbm-la-name-as-descriptor"
+                "syntax.warning.experimental-cbm-la-name-as-description"
             }
             Self::ExperimentalDictionaryDoiVocative => {
                 "syntax.warning.experimental-dictionary-doi-vocative"
@@ -983,13 +979,13 @@ impl ExperimentalConstruct {
                 "syntax.warning.experimental-broad-bo-statement-connective"
             }
             Self::ExperimentalBroadKePredicateContinuation => {
-                "syntax.warning.experimental-broad-ke-predicate-continuation"
+                "syntax.warning.experimental-broad-ke-bridi-continuation"
             }
             Self::ExperimentalTermHierarchyBoConnection => {
                 "syntax.warning.experimental-term-hierarchy-bo-connection"
             }
             Self::ExperimentalBareNaTerm => "syntax.warning.experimental-bare-na-term",
-            Self::ExperimentalXohiTagRelation => "syntax.warning.experimental-xohi-tag-relation",
+            Self::ExperimentalXohiTagSelbri => "syntax.warning.experimental-xohi-tag-selbri",
             Self::ExperimentalZantufaCmavo => "syntax.warning.experimental-zantufa-cmavo",
             Self::ExperimentalZantufaForethoughtGihi => {
                 "syntax.warning.experimental-zantufa-forethought-gihi"
@@ -1004,11 +1000,11 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaRecursiveTag => {
                 "syntax.warning.experimental-zantufa-recursive-tag"
             }
-            Self::ExperimentalZantufaMuhoiRelationUnit => {
-                "syntax.warning.experimental-zantufa-muhoi-relation-unit"
+            Self::ExperimentalZantufaMuhoiSelbriUnit => {
+                "syntax.warning.experimental-zantufa-muhoi-selbri-unit"
             }
-            Self::ExperimentalZantufaLuheiRelationUnit => {
-                "syntax.warning.experimental-zantufa-luhei-relation-unit"
+            Self::ExperimentalZantufaLuheiSelbriUnit => {
+                "syntax.warning.experimental-zantufa-luhei-selbri-unit"
             }
             Self::CllProhibitedFreeModifierPlacement => {
                 "syntax.warning.cll-prohibited-free-modifier-placement"
@@ -1022,7 +1018,7 @@ impl ExperimentalConstruct {
         match self {
             Self::ExperimentalCmavo => "experimental cmavo",
             Self::ExperimentalZohOiQuote => "ZOhOI single-word foreign quote",
-            Self::ExperimentalMehOiRelationUnit => "MEhOI stage-0 fu'ivla relation unit",
+            Self::ExperimentalMehOiSelbriUnit => "MEhOI stage-0 fu'ivla selbri unit",
             Self::ExperimentalLohOiBridiDescription => "LOhOI/KUhAU bridi description sumti",
             Self::ExperimentalLohAiReplacementFree => "LOhAI/LEhAI replacement free modifier",
             Self::ExperimentalJacuPredicateTailConnective => {
@@ -1038,7 +1034,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalVuhoScopedAttachment => "VUhO scoped attachment enhancement",
             Self::ExperimentalNohoiSelbriRelativeClause => "NOhOI/KUhOI selbri relative clause",
             Self::ExperimentalSimplerSumtiConnective => {
-                "JA connective used in an argument connective slot"
+                "JA connective used in an sumti connective slot"
             }
             Self::ExperimentalExplicitCuPredicateTailStarter => {
                 "explicit CU before the right side of a bridi-tail connective"
@@ -1054,12 +1050,12 @@ impl ExperimentalConstruct {
                 "JA connective used between MEX operands"
             }
             Self::ExperimentalSimplerDescriptorHeadConnective => {
-                "JA connective used between descriptor heads"
+                "JA connective used between description heads"
             }
             Self::ExperimentalJiAsJaConnective => "JI used as an experimental JA-family connective",
             Self::ExperimentalGadganzuGadri => "gadganzu article",
             Self::ExperimentalIauReset => "IhAU bridi-level reset",
-            Self::ExperimentalGohoiRelationUnit => "GOhOI pro-bridi word quote",
+            Self::ExperimentalGohoiSelbriUnit => "GOhOI pro-bridi word quote",
             Self::ExperimentalKeTermset => "KE/KEhE termset grouping",
             Self::ExperimentalLaheNaheTermWrapper => "LAhE/NAhE term wrapper",
             Self::ExperimentalForethoughtRelativeClauseConnective => {
@@ -1069,11 +1065,11 @@ impl ExperimentalConstruct {
                 "A-family connective used in a broader connective-family slot"
             }
             Self::ExperimentalVuhuConnective => "VUhU used as a non-MEX connective",
-            Self::ExperimentalNahuPredicateConnective => "NAhU/ji'oi predicate-to-connective form",
+            Self::ExperimentalNahuPredicateConnective => "NAhU/ji'oi bridi-to-connective form",
             Self::ExperimentalFaAsTag => "FA place tag used as a tag/stag atom",
             Self::ExperimentalFlattenedTag => "experimental flattened tag form",
-            Self::ExperimentalCbmCmevlaRelationWord => "CBM cmevla used as a relation word",
-            Self::ExperimentalCbmLaNameAsDescriptor => "CBM LA name form parsed as a descriptor",
+            Self::ExperimentalCbmCmevlaSelbriWord => "CBM cmevla used as a selbri word",
+            Self::ExperimentalCbmLaNameAsDescriptor => "CBM LA name form parsed as a description",
             Self::ExperimentalDictionaryDoiVocative => {
                 "dictionary-first DOI experimental vocative/attribution cmavo"
             }
@@ -1089,21 +1085,21 @@ impl ExperimentalConstruct {
                 "dictionary-first UI3a experimental indicator"
             }
             Self::ExperimentalNoihaAdverbial => "NOIhA adverbial relative-clause term",
-            Self::ExperimentalFihoiAdverbial => "FIhOI bridi/subsentence adverbial term",
-            Self::ExperimentalSoiAdverbial => "SOI/XOI bridi/subsentence adverbial term",
-            Self::ExperimentalPreposedLinkargs => "BE linkargs before a relation unit",
+            Self::ExperimentalFihoiAdverbial => "FIhOI bridi/subbridi adverbial term",
+            Self::ExperimentalSoiAdverbial => "SOI/XOI bridi/subbridi adverbial term",
+            Self::ExperimentalPreposedLinkargs => "BE linkargs before a selbri unit",
             Self::ExperimentalEmptyLinkargs => "empty BE/BEI linkarg slot",
             Self::ExperimentalBroadBoStatementConnective => {
-                "broad connective with BO in a statement/subsentence continuation"
+                "broad connective with BO in a statement/subbridi continuation"
             }
             Self::ExperimentalBroadKePredicateContinuation => {
-                "broad connective with KE/KEhE in a predicate/subsentence continuation"
+                "broad connective with KE/KEhE in a bridi/subbridi continuation"
             }
             Self::ExperimentalTermHierarchyBoConnection => {
                 "experimental term-hierarchy BO connection"
             }
             Self::ExperimentalBareNaTerm => "bare NA term/adverbial without KU",
-            Self::ExperimentalXohiTagRelation => "XOhI tag-to-relation conversion",
+            Self::ExperimentalXohiTagSelbri => "XOhI tag-to-selbri conversion",
             Self::ExperimentalZantufaCmavo => "Zantufa experimental cmavo classification",
             Self::ExperimentalZantufaForethoughtGihi => "Zantufa GIhI forethought-chain terminator",
             Self::ExperimentalZantufaGek => "Zantufa forethought connective form",
@@ -1112,10 +1108,10 @@ impl ExperimentalConstruct {
             }
             Self::ExperimentalZantufaJaiTagTerm => "Zantufa JAI tag term",
             Self::ExperimentalZantufaRecursiveTag => "Zantufa recursive SE/NAhE tag prefix",
-            Self::ExperimentalZantufaMuhoiRelationUnit => {
-                "Zantufa MUhOI delimited foreign relation unit"
+            Self::ExperimentalZantufaMuhoiSelbriUnit => {
+                "Zantufa MUhOI delimited foreign selbri unit"
             }
-            Self::ExperimentalZantufaLuheiRelationUnit => "Zantufa LUhEI/LIhAU text relation unit",
+            Self::ExperimentalZantufaLuheiSelbriUnit => "Zantufa LUhEI/LIhAU text selbri unit",
             Self::CllProhibitedFreeModifierPlacement => {
                 "free modifier placement prohibited by CLL grammar"
             }
@@ -1453,13 +1449,13 @@ mod tests {
             SyntaxExpectation::new(
                 vec![new!(SyntaxExpectedToken::Selmaho(Selmaho::Ga))],
                 new!(SyntaxExpectationReason::ContinueCurrent {
-                    construct: "relation".to_owned(),
+                    construct: "selbri".to_owned(),
                 }),
             ),
             SyntaxExpectation::new(
                 vec![new!(SyntaxExpectedToken::Cmavo(Cmavo::Lo))],
                 new!(SyntaxExpectationReason::StartNested {
-                    construct: "argument".to_owned(),
+                    construct: "sumti".to_owned(),
                 }),
             ),
             SyntaxExpectation::new(
@@ -1467,7 +1463,7 @@ mod tests {
                     SyntaxWordCategory::Brivla,
                 ))],
                 new!(SyntaxExpectationReason::ContinueCurrent {
-                    construct: "argument".to_owned(),
+                    construct: "sumti".to_owned(),
                 }),
             ),
         ];
@@ -1475,12 +1471,12 @@ mod tests {
         let text = segment_text(&syntax_detailed_segments(&expectations));
 
         let continue_argument = text
-            .find("- BRIVLA [continues argument]")
-            .expect("argument continuation");
-        let start_argument = text.find("- argument (lo)").expect("argument start");
+            .find("- BRIVLA [continues sumti]")
+            .expect("sumti continuation");
+        let start_argument = text.find("- sumti (lo)").expect("sumti start");
         let continue_relation = text
-            .find("- GA [continues relation]")
-            .expect("relation continuation");
+            .find("- GA [continues selbri]")
+            .expect("selbri continuation");
         let end_statement = text
             .find("- end of input [ends statement]")
             .expect("end-of-input expectation");
@@ -1504,13 +1500,13 @@ mod tests {
                 )),
             ],
             new!(SyntaxExpectationReason::StartNested {
-                construct: "argument".to_owned(),
+                construct: "sumti".to_owned(),
             }),
         )];
 
         let text = segment_text(&syntax_detailed_segments(&expectations));
 
-        assert!(text.contains("- argument (BRIVLA, GAhO, be or lo)"));
+        assert!(text.contains("- sumti (BRIVLA, GAhO, be or lo)"));
     }
 
     #[test]
@@ -1531,21 +1527,21 @@ mod tests {
             SyntaxExpectation::new(
                 tokens.clone(),
                 new!(SyntaxExpectationReason::ContinueCurrent {
-                    construct: "relation".to_owned(),
+                    construct: "selbri".to_owned(),
                 }),
             ),
             SyntaxExpectation::new(
                 tokens,
                 new!(SyntaxExpectationReason::ContinueCurrent {
-                    construct: "argument".to_owned(),
+                    construct: "sumti".to_owned(),
                 }),
             ),
         ];
 
         let text = segment_text(&syntax_detailed_segments(&expectations));
 
-        assert!(text.contains("- BIhI or SE [continues argument]"));
-        assert!(!text.contains("[continues relation]"));
+        assert!(text.contains("- BIhI or SE [continues sumti]"));
+        assert!(!text.contains("[continues selbri]"));
         assert!(!text.contains("[continues statement]"));
     }
 
@@ -1562,7 +1558,7 @@ mod tests {
                 new!(SyntaxExpectedToken::Selmaho(Selmaho::Gaho)),
             ],
             new!(SyntaxExpectationReason::StartNested {
-                construct: "argument".to_owned(),
+                construct: "sumti".to_owned(),
             }),
         )];
 
@@ -1578,7 +1574,7 @@ mod tests {
     fn grammar_debug_ebnf_contains_terminal_labels() {
         let output = syntax_grammar_ebnf(&ParseOptions::default());
 
-        assert!(output.contains("argument"));
+        assert!(output.contains("sumti"));
         assert!(output.contains("BRIVLA"));
         assert!(output.contains("QUOTE"));
     }

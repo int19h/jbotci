@@ -80,8 +80,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "latest-task state couples Dioxus task handles with activity ids returned by the activity state",
     ),
     (
+        "apps/jbotci-web/src/main.rs:CuktaPendingScroll",
+        "pending scroll state is transient browser navigation state normalized by the cukta scroll handlers",
+    ),
+    (
         "apps/jbotci-web/src/main.rs:GentufaAsyncPageState",
         "async page state is transient UI cache data keyed and replaced by latest-wins worker tasks",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:DialectHighlightToken",
+        "dialect highlight tokens are transient lexer spans consumed only by the browser highlighter",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:GentufaTreeLineAnchor",
+        "tree line anchors are derived from rendered row positions and are validated by layout tests",
     ),
     (
         "apps/jbotci-web/src/main.rs:CuktaAsyncPageState",
@@ -158,6 +170,70 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/bityzba/tests/contract_scanner/complete/src/lib.rs:Marker",
         "contract scanner fixture intentionally contains accepted no-op markers",
+    ),
+    (
+        "crates/jbotci-dialect/src/lib.rs:CustomDialect",
+        "custom dialect definitions are parsed and normalized through dialect resolution helpers",
+    ),
+    (
+        "crates/jbotci-dialect/src/lib.rs:DialectSettings",
+        "dialect settings are persisted transport state normalized by import/export helpers",
+    ),
+    (
+        "crates/jbotci-dialect/src/lib.rs:JohauShorthandSwap",
+        "JOHAU shorthand swap records are static internal mappings with closed code and atom fields",
+    ),
+    (
+        "crates/jbotci-output/src/qr_code.rs:QrBlock",
+        "QR block geometry is produced by the QR renderer and covered by placement tests",
+    ),
+    (
+        "crates/jbotci-output/src/qr_code.rs:QrBuild",
+        "QR build state is internal renderer assembly data validated by encoded-output tests",
+    ),
+    (
+        "crates/jbotci-output/src/qr_code.rs:QrCode",
+        "QR code data is constructed by the QR encoder before renderer placement",
+    ),
+    (
+        "crates/jbotci-output/src/qr_code.rs:QrCoord",
+        "QR coordinates are internal renderer grid positions bounded by placement code",
+    ),
+    (
+        "crates/jbotci-output/src/qr_code.rs:QrLogoLayer",
+        "QR logo layers are derived renderer masks covered by logo placement tests",
+    ),
+    (
+        "crates/jbotci-output/src/qr_code.rs:QrLogoPlacement",
+        "QR logo placement is selected by renderer search and validated by placement tests",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser.rs:BoSumtiTailSyntax",
+        "private parser continuation state is consumed immediately into validated sumti connection nodes",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser.rs:BoTanruUnitTailSyntax",
+        "private parser continuation state is consumed immediately into validated tanru unit connection nodes",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser.rs:GekNuhiTermsetHeadSyntax",
+        "private parser head state is consumed immediately into validated termset connection nodes",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser.rs:KeSumtiTailSyntax",
+        "private parser continuation state is consumed immediately into validated grouped sumti nodes",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaTreeGuide",
+        "gentufa tree guide geometry is derived from rendered syntax rows and covered by web-core tests",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaTreeRowDraft",
+        "tree row drafts are intermediate layout data produced before final rendered row validation",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaTreeRowSortKey",
+        "tree row sort keys are derived ordering data with scalar fields checked by row-order tests",
     ),
     (
         "crates/bityzba/tests/type_invariant.rs:PlainMarker",
@@ -840,23 +916,23 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:ArgumentNodeId",
+        "crates/jbotci-semantics/src/references.rs:SumtiNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:ArgumentMention",
+        "crates/jbotci-semantics/src/references.rs:SumtiMention",
         "argument mention validity is maintained by discourse traversal and resolved through SyntaxIndex ids",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:ArgumentPlaceAssignment",
+        "crates/jbotci-semantics/src/references.rs:SumtiPlaceAssignment",
         "assignment referential validity is cross-checked through PlaceAnalysis frame and argument indexes",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:ArgumentPlaceAssignmentId",
+        "crates/jbotci-semantics/src/references.rs:SumtiPlaceAssignmentId",
         "assignment ids are opaque PlaceAnalysis keys whose bounds are checked by assignment lookup",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:FixtureArgumentAssignment",
+        "crates/jbotci-semantics/src/references.rs:FixtureSumtiAssignment",
         "fixture assignment records are stable projections of typed reference analysis facts",
     ),
     (
@@ -868,7 +944,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture reference records are stable projections of typed discourse reference facts",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:FixtureRelationPlace",
+        "crates/jbotci-semantics/src/references.rs:FixtureSelbriPlace",
         "fixture relation-place records are stable projections of typed place assignments",
     ),
     (
@@ -892,11 +968,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "indexed syntax node entries are produced from generated AST traversal and keyed by SyntaxIndex",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:MathExpressionNodeId",
+        "crates/jbotci-semantics/src/references.rs:MeksoNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:MathOperatorNodeId",
+        "crates/jbotci-semantics/src/references.rs:MeksoOperatorNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
@@ -920,15 +996,15 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "place cursor is private traversal state initialized by constructors that choose the first numbered slot",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:PredicateNodeId",
+        "crates/jbotci-semantics/src/references.rs:BridiNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:PredicateTailAnalysis",
+        "crates/jbotci-semantics/src/references.rs:BridiTailAnalysis",
         "predicate-tail analysis is private traversal state produced alongside frame propagation",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:PredicateTailNodeId",
+        "crates/jbotci-semantics/src/references.rs:BridiTailNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
@@ -952,11 +1028,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture projection is a sorted serialization aggregate derived from ReferenceAnalysis",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:RelationNodeId",
+        "crates/jbotci-semantics/src/references.rs:SelbriNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:RelationUnitNodeId",
+        "crates/jbotci-semantics/src/references.rs:TanruUnitNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
@@ -996,7 +1072,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:V0ArgumentAssignment",
+        "crates/jbotci-semantics/src/references.rs:V0SumtiAssignment",
         "v0 compatibility assignment is a lossy projection whose source facts remain in PlaceAnalysis",
     ),
     (
@@ -1008,7 +1084,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "v0 compatibility reference edge is a lossy projection whose source facts remain in DiscourseReferences",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:V0RelationPlace",
+        "crates/jbotci-semantics/src/references.rs:V0SelbriPlace",
         "v0 compatibility relation-place entry is derived from typed place assignments",
     ),
     (
@@ -1088,23 +1164,23 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "parse attempt combines parser result with optional trace report without extra cross-field constraints",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:ArgumentConnectionSyntax",
+        "crates/jbotci-syntax/src/tree.rs:SumtiConnectionSyntax",
         "argument connection delegates marker validity to ConnectiveSyntax",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:PredicateStatementContinuationSyntax",
+        "crates/jbotci-syntax/src/tree.rs:BridiStatementContinuationSyntax",
         "continuation marker enum owns the BO/KE marker checks",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:PredicateTail1Syntax",
+        "crates/jbotci-syntax/src/tree.rs:AfterthoughtBridiTailSyntax",
         "predicate-tail aggregate delegates marker validity to continuation nodes",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:PredicateTail2Syntax",
+        "crates/jbotci-syntax/src/tree.rs:BoGroupedBridiTailSyntax",
         "predicate-tail aggregate delegates marker validity to BO continuation nodes",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:PredicateTailSyntax",
+        "crates/jbotci-syntax/src/tree.rs:BridiTailSyntax",
         "predicate-tail aggregate delegates marker validity to child nodes",
     ),
     (
@@ -1288,8 +1364,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "web worker watch snapshots are opaque filesystem metadata maps used only for equality checks",
     ),
     (
-        "xtask/src/main.rs:DioxusReleaseWatchSnapshot",
-        "dioxus release watch snapshots are opaque filesystem metadata maps used only for equality checks",
+        "xtask/src/main.rs:StableWebAssetWatchSnapshot",
+        "stable web asset watch snapshots are opaque filesystem metadata maps used only for equality checks",
     ),
     (
         "xtask/src/main.rs:ExportWebEmbeddingCorpusArgs",
@@ -1332,7 +1408,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask command args delegate validation to clap and command code",
     ),
     (
-        "xtask/src/main.rs:V0ArgumentAssignmentFact",
+        "xtask/src/main.rs:V0SumtiAssignmentFact",
         "v0 parity input mirrors generated v0 JSON and is checked during comparison",
     ),
     (
@@ -1348,7 +1424,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "v0 parity input mirrors generated v0 JSON and is checked during comparison",
     ),
     (
-        "xtask/src/main.rs:V0RelationPlaceFact",
+        "xtask/src/main.rs:V0SelbriPlaceFact",
         "v0 parity input mirrors generated v0 JSON and is checked during comparison",
     ),
     (

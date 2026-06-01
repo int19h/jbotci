@@ -8,7 +8,7 @@ entry-id = "8769"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmevla { phonemes: Phonemes { text: "regnant" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "po" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "li" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } })]'
+raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "regnant" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "po" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "li" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -23,4 +23,4 @@ tree = """
   Cmavo @[10‥12) "pu",
   Cmavo @[12‥14) "li",
 ]"""
-json = '[{"Bare":{"Cmevla":{"phonemes":"regnant","span":[0,7]}}},{"Bare":{"Cmavo":{"phonemes":"po","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"pu","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"li","span":[12,14]}}}]'
+json = '[{"PlainWord":{"Cmevla":{"phonemes":"regnant","span":[0,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"po","span":[8,10]}}},{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[10,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"li","span":[12,14]}}}]'

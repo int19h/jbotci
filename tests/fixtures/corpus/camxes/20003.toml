@@ -8,7 +8,7 @@ entry-id = "20003"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Gismu { phonemes: Phonemes { text: "pílno" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } }), ZoQuote { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } }, word: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } } }, Bare(Cmavo { phonemes: Phonemes { text: "poĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 16, char_start: 13, char_end: 16, start: None, end: None } }), ZoQuote { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None } }, word: Cmevla { phonemes: Phonemes { text: "sel" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 23, char_start: 20, char_end: 23, start: None, end: None } } }, Bare(Cmavo { phonemes: Phonemes { text: "ki'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 28, char_start: 24, char_end: 28, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 29, byte_end: 31, char_start: 29, char_end: 31, start: None, end: None } })]"""
+raw = """[PlainWord(Gismu { phonemes: Phonemes { text: "pílno" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } }), QuotedWord { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } }, word: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } } }, PlainWord(Cmavo { phonemes: Phonemes { text: "poĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 16, char_start: 13, char_end: 16, start: None, end: None } }), QuotedWord { zo: Cmavo { phonemes: Phonemes { text: "zo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None } }, word: Cmevla { phonemes: Phonemes { text: "sel" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 23, char_start: 20, char_end: 23, start: None, end: None } } }, PlainWord(Cmavo { phonemes: Phonemes { text: "ki'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 24, byte_end: 28, char_start: 24, char_end: 28, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 29, byte_end: 31, char_start: 29, char_end: 31, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "failure"
@@ -19,16 +19,16 @@ brackets = "(pílno [zo zoĭ] poĭ [zo .sel.] ki'u ma)"
 tree = """
 [
   Gismu @[0‥5) "pílno",
-  ZoQuote @[6‥12) {
+  QuotedWord @[6‥12) {
     zo: Cmavo @[6‥8) "zo",
     Cmavo @[9‥12) "zoĭ",
   },
   Cmavo @[13‥16) "poĭ",
-  ZoQuote @[17‥23) {
+  QuotedWord @[17‥23) {
     zo: Cmavo @[17‥19) "zo",
     Cmevla @[20‥23) "sel",
   },
   Cmavo @[24‥28) "ki'u",
   Cmavo @[29‥31) "ma",
 ]"""
-json = """[{"Bare":{"Gismu":{"phonemes":"pílno","span":[0,5]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[6,8]}},"word":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}}}},{"Bare":{"Cmavo":{"phonemes":"poĭ","span":[13,16]}}},{"ZoQuote":{"zo":{"Cmavo":{"phonemes":"zo","span":[17,19]}},"word":{"Cmevla":{"phonemes":"sel","span":[20,23]}}}},{"Bare":{"Cmavo":{"phonemes":"ki'u","span":[24,28]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[29,31]}}}]"""
+json = """[{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[0,5]}}},{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[6,8]}},"word":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}}}},{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[13,16]}}},{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[17,19]}},"word":{"Cmevla":{"phonemes":"sel","span":[20,23]}}}},{"PlainWord":{"Cmavo":{"phonemes":"ki'u","span":[24,28]}}},{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[29,31]}}}]"""

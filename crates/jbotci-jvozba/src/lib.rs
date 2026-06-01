@@ -4,7 +4,7 @@
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, RafsiSource, WordType};
 use jbotci_morphology::{
-    Jvopau, LujvoBuildMode, Phonemes, WordLike, bond_rafsis, can_appear_as_final_lujvo_rafsi,
+    LujvoBuildMode, LujvoPart, Phonemes, WordLike, bond_rafsis, can_appear_as_final_lujvo_rafsi,
     canonicalize_text, choose_best_lujvo_candidate, ends_with_consonant, ensure_cmevla_word,
     is_bonding_hyphen, segment_words_with_modifiers, syllables_pattern,
 };
@@ -17,7 +17,7 @@ use thiserror::Error;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LujvoPlan {
     pub sources: Vec<LujvoSource>,
-    pub parts: Vec<Jvopau>,
+    pub parts: Vec<LujvoPart>,
     pub output: String,
 }
 
@@ -203,13 +203,13 @@ pub fn decompose_lujvo_like<'a>(
     let source_words = segments
         .iter()
         .filter_map(|segment| match &segment.segment {
-            Jvopau::Rafsi(_) => segment.source,
-            Jvopau::Hyphen(_) => None,
+            LujvoPart::Rafsi(_) => segment.source,
+            LujvoPart::Hyphen(_) => None,
         })
         .collect::<Vec<_>>();
     let rafsi_count = segments
         .iter()
-        .filter(|segment| matches!(segment.segment, Jvopau::Rafsi(_)))
+        .filter(|segment| matches!(segment.segment, LujvoPart::Rafsi(_)))
         .count();
 
     if rafsi_count >= 2 && source_words.len() == rafsi_count {
@@ -232,7 +232,7 @@ pub struct LujvoDecomposition<'a> {
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LujvoSegmentInfo<'a> {
-    pub segment: Jvopau,
+    pub segment: LujvoPart,
     pub source: Option<&'a str>,
 }
 
@@ -442,14 +442,14 @@ fn jvozba_segments_from_parts(parts: &[String]) -> Vec<JvozbaSegment> {
 
 #[requires(true)]
 #[ensures(true)]
-fn jvopau_segments(segments: &[JvozbaSegment]) -> Vec<Jvopau> {
+fn jvopau_segments(segments: &[JvozbaSegment]) -> Vec<LujvoPart> {
     segments
         .iter()
         .filter_map(|segment| {
             let phonemes = Phonemes::from_canonical(segment.text.clone()).ok()?;
             Some(match segment.kind {
-                JvozbaSegmentKind::Rafsi => Jvopau::rafsi(phonemes),
-                JvozbaSegmentKind::Hyphen => Jvopau::hyphen(phonemes),
+                JvozbaSegmentKind::Rafsi => LujvoPart::rafsi(phonemes),
+                JvozbaSegmentKind::Hyphen => LujvoPart::hyphen(phonemes),
             })
         })
         .collect()
@@ -513,7 +513,7 @@ fn normalize_apostrophe(value: char) -> char {
 
 #[requires(true)]
 #[ensures(true)]
-fn morphology_lujvo_parts(normalized: &str) -> Option<Vec<Jvopau>> {
+fn morphology_lujvo_parts(normalized: &str) -> Option<Vec<LujvoPart>> {
     let words = segment_words_with_modifiers(normalized).ok()?;
     let [word_like] = words.as_slice() else {
         return None;
@@ -525,20 +525,23 @@ fn morphology_lujvo_parts(normalized: &str) -> Option<Vec<Jvopau>> {
 
 #[requires(true)]
 #[ensures(true)]
-fn segment_with_source<'a>(dictionary: &Dictionary<'a>, segment: Jvopau) -> LujvoSegmentInfo<'a> {
+fn segment_with_source<'a>(
+    dictionary: &Dictionary<'a>,
+    segment: LujvoPart,
+) -> LujvoSegmentInfo<'a> {
     let source = match &segment {
-        Jvopau::Rafsi(phonemes) => dictionary
+        LujvoPart::Rafsi(phonemes) => dictionary
             .lookup_rafsi(phonemes.as_str())
             .next()
             .map(|matched| matched.entry.word),
-        Jvopau::Hyphen(_) => None,
+        LujvoPart::Hyphen(_) => None,
     };
     LujvoSegmentInfo { segment, source }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn fallback_lujvo_parts(normalized: &str) -> Option<Vec<Jvopau>> {
+fn fallback_lujvo_parts(normalized: &str) -> Option<Vec<LujvoPart>> {
     let parts = sloppy_decompose(normalized)?;
     let rafsi_parts = parts
         .iter()
@@ -553,8 +556,8 @@ fn fallback_lujvo_parts(normalized: &str) -> Option<Vec<Jvopau>> {
             parts
                 .into_iter()
                 .filter_map(|part| match part {
-                    RawLujvoSegment::Rafsi(text) => Some(Jvopau::rafsi(phonemes(text)?)),
-                    RawLujvoSegment::Hyphen(text) => Some(Jvopau::hyphen(phonemes(text)?)),
+                    RawLujvoSegment::Rafsi(text) => Some(LujvoPart::rafsi(phonemes(text)?)),
+                    RawLujvoSegment::Hyphen(text) => Some(LujvoPart::hyphen(phonemes(text)?)),
                 })
                 .collect(),
         )

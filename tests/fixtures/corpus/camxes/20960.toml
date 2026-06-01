@@ -8,15 +8,15 @@ entry-id = "20960"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "tu'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None } }), Bare(Lujvo { parts: [Rafsi(Phonemes { text: "bav" }), Rafsi(Phonemes { text: "lám" }), Rafsi(Phonemes { text: "deĭ" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 30, char_start: 21, char_end: 30, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "tu'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None } }), PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "bav" }), Rafsi(Phonemes { text: "lám" }), Rafsi(Phonemes { text: "deĭ" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 30, char_start: 21, char_end: 30, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Lahe { lahe: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "tu'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } })), free_modifiers: [] }, relative_clauses: [], inner_argument: Descriptor(DescriptorSyntax { outer_quantifier: None, descriptor: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None } })), free_modifiers: [] }), tail_elements: [], relation: Some(Base(Bare(Bare(Lujvo { parts: [Rafsi(Phonemes { text: "bav" }), Rafsi(Phonemes { text: "lám" }), Rafsi(Phonemes { text: "deĭ" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 30, char_start: 21, char_end: 30, start: None, end: None } })))), relative_clauses: [], ku: None }), luhu: None })], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(ReferentSumti { lahe: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "tu'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } })), free_modifiers: [] }, relative_clauses: [], inner_sumti: Description(DescriptionSyntax { outer_quantifier: None, description: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 18, byte_end: 20, char_start: 18, char_end: 20, start: None, end: None } })), free_modifiers: [] }), tail_elements: [], selbri: Some(SelbriWord(Plain(PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "bav" }), Rafsi(Phonemes { text: "lám" }), Rafsi(Phonemes { text: "deĭ" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 30, char_start: 21, char_end: 30, start: None, end: None } })))), relative_clauses: [], ku: None }), luhu: None })], vau: None })) }] }] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":21,"length":9},"kind":"base-relation","relation":{"offset":21,"length":9},"relation-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":21,"length":9},"kind":"base-selbri","selbri":{"offset":21,"length":9},"tanru-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(tu'a le bavlámdeĭ)"
@@ -26,19 +26,19 @@ tree = """
   Cmavo @[18‥20) "le",
   Lujvo @[21‥30) "bavlámdeĭ",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"tu'a","span":[13,17]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[18,20]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"bav"},{"Rafsi":"lám"},{"Rafsi":"deĭ"}],"span":[21,30]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[13,17]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[18,20]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"bav"},{"Rafsi":"lám"},{"Rafsi":"deĭ"}],"span":[21,30]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term @[13‥30) {
+Terms @[13‥30) {
   terms: [
-    Lahe @[13‥30) {
+    ReferentSumti @[13‥30) {
       lahe: Cmavo @[13‥17) "tu'a",
-      Descriptor @[18‥30) {
-        descriptor: Cmavo @[18‥20) "le",
-        relation: Lujvo @[21‥30) "bavlámdeĭ",
+      Description @[18‥30) {
+        description: Cmavo @[18‥20) "le",
+        selbri: Lujvo @[21‥30) "bavlámdeĭ",
       },
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Lahe":{"lahe":{"Bare":{"Bare":{"Cmavo":{"phonemes":"tu'a","span":[13,17]}}}},"inner_argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"le","span":[18,20]}}}},"relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"bav"},{"Rafsi":"lám"},{"Rafsi":"deĭ"}],"span":[21,30]}}}}}}}}}}]}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ReferentSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[13,17]}}}},"inner_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[18,20]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"bav"},{"Rafsi":"lám"},{"Rafsi":"deĭ"}],"span":[21,30]}}}}}}}}}}]}}}}]}]}"""

@@ -424,7 +424,7 @@ mod tests {
             "experimental syntax".to_owned(),
             vec![DiagnosticLabel::new(
                 span,
-                "FIhOI bridi/subsentence adverbial term".to_owned(),
+                "FIhOI bridi/subbridi adverbial term".to_owned(),
                 true,
             )],
             vec!["syntax accepted with warning".to_owned()],
@@ -454,7 +454,7 @@ mod tests {
         assert!(rendered.contains("syntax.warning.experimental-fihoi-adverbial"));
         assert!(rendered.contains("<input>"));
         assert!(rendered.contains("fi'oi"));
-        assert!(rendered.contains("FIhOI bridi/subsentence adverbial term"));
+        assert!(rendered.contains("FIhOI bridi/subbridi adverbial term"));
         assert!(rendered.contains("syntax accepted with warning"));
         assert!(!rendered.contains("\x1b["));
     }
@@ -544,7 +544,7 @@ mod tests {
                 DiagnosticNoteMode::Detailed,
                 vec![DiagnosticTextSegment::new(
                     DiagnosticTextRole::Plain,
-                    "needs one of:\n- relation".to_owned(),
+                    "needs one of:\n- selbri".to_owned(),
                 )],
             ),
         ]);
@@ -619,12 +619,12 @@ mod tests {
     #[ensures(true)]
     fn styled_segment_visible_text_matches_color_policy() {
         assert_eq!(
-            visible_segment_text(DiagnosticTextRole::WordCategory, "KOhA ARGUMENT", false),
-            "KOhA ARGUMENT"
+            visible_segment_text(DiagnosticTextRole::WordCategory, "KOhA SUMTI", false),
+            "KOhA SUMTI"
         );
         assert_eq!(
-            visible_segment_text(DiagnosticTextRole::WordCategory, "KOhA ARGUMENT", true),
-            "koha argument"
+            visible_segment_text(DiagnosticTextRole::WordCategory, "KOhA SUMTI", true),
+            "koha sumti"
         );
         assert_eq!(
             visible_segment_text(DiagnosticTextRole::SpecificWord, "lo", false),

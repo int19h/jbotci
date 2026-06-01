@@ -8,7 +8,7 @@ entry-id = "9395"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Lujvo { parts: [Rafsi(Phonemes { text: "fra" }), Rafsi(Phonemes { text: "ctúre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "cúmki" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None } })]'
+raw = '[PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "fra" }), Rafsi(Phonemes { text: "ctúre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "cúmki" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -22,4 +22,4 @@ tree = """
   Cmavo @[10‥12) "mi",
   Gismu @[13‥18) "cúmki",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"ctúre"}],"span":[0,8]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[10,12]}}},{"Bare":{"Gismu":{"phonemes":"cúmki","span":[13,18]}}}]'
+json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"ctúre"}],"span":[0,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[10,12]}}},{"PlainWord":{"Gismu":{"phonemes":"cúmki","span":[13,18]}}}]'

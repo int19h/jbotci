@@ -4,7 +4,7 @@ tags = ["v0-adhoc", "morphology"]
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmevla { phonemes: Phonemes { text: "finýks" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 6, start: None, end: None } })]'
+raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "finýks" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 6, start: None, end: None } })]'
 
 [expectations.output.vlasei]
 brackets = ".finýks."
@@ -12,4 +12,4 @@ tree = """
 [
   Cmevla @[0‥6) "finýks",
 ]"""
-json = '[{"Bare":{"Cmevla":{"phonemes":"finýks","span":[0,6]}}}]'
+json = '[{"PlainWord":{"Cmevla":{"phonemes":"finýks","span":[0,6]}}}]'

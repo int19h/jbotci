@@ -8,7 +8,7 @@ entry-id = "9249"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Gismu { phonemes: Phonemes { text: "tréfe" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "socks" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None } })]'
+raw = '[PlainWord(Gismu { phonemes: Phonemes { text: "tréfe" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "socks" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -21,4 +21,4 @@ tree = """
   Gismu @[0‥5) "tréfe",
   Cmevla @[6‥11) "socks",
 ]"""
-json = '[{"Bare":{"Gismu":{"phonemes":"tréfe","span":[0,5]}}},{"Bare":{"Cmevla":{"phonemes":"socks","span":[6,11]}}}]'
+json = '[{"PlainWord":{"Gismu":{"phonemes":"tréfe","span":[0,5]}}},{"PlainWord":{"Cmevla":{"phonemes":"socks","span":[6,11]}}}]'
