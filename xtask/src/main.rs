@@ -215,6 +215,8 @@ struct BuildWebReleaseArgs {
 struct ServeWebReleaseArgs {
     #[arg(long, default_value_t = 8081)]
     port: u16,
+    #[arg(long)]
+    addr: Option<String>,
     #[arg(long, default_value_t = false, num_args = 0..=1, default_missing_value = "true")]
     open: bool,
     #[arg(long, default_value = "/")]
@@ -382,15 +384,18 @@ fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
 fn serve_web_release(args: ServeWebReleaseArgs) -> Result<()> {
     clean_dioxus_web_release_output()?;
     prepare_dioxus_web_public_input()?;
-    let mut child = dx_web_release_command("serve")
+    let mut command = dx_web_release_command("serve");
+    command
         .arg("--base-path")
         .arg(args.base_path)
         .arg("--port")
         .arg(args.port.to_string())
         .arg("--open")
-        .arg(args.open.to_string())
-        .spawn()
-        .context("failed to run `dx serve`")?;
+        .arg(args.open.to_string());
+    if let Some(addr) = args.addr {
+        command.arg("--addr").arg(addr);
+    }
+    let mut child = command.spawn().context("failed to run `dx serve`")?;
     let status = match watch_web_worker_assets_until_exit(&mut child) {
         Ok(status) => status,
         Err(error) => {
