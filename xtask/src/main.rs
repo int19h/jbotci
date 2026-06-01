@@ -373,6 +373,7 @@ fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
     prepare_dioxus_web_public_input()?;
     let mut command = dx_web_release_command("build");
     if let Some(base_path) = args.base_path {
+        set_dioxus_base_path_env(&mut command, &base_path);
         command.arg("--base-path").arg(base_path);
     }
     let status = command.status().context("failed to run `dx build`")?;
@@ -385,6 +386,7 @@ fn serve_web_release(args: ServeWebReleaseArgs) -> Result<()> {
     clean_dioxus_web_release_output()?;
     prepare_dioxus_web_public_input()?;
     let mut command = dx_web_release_command("serve");
+    set_dioxus_base_path_env(&mut command, &args.base_path);
     command
         .arg("--base-path")
         .arg(args.base_path)
@@ -442,6 +444,28 @@ fn dx_web_release_command(subcommand: &str) -> ProcessCommand {
         // Dioxus 0.7.x can emit DWARF that makes wasm-opt abort during release web builds.
         .arg("--debug-symbols=false");
     command
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_dioxus_base_path_env(command: &mut ProcessCommand, base_path: &str) {
+    if let Some(asset_root) = dioxus_asset_root(base_path) {
+        command.env("DIOXUS_ASSET_ROOT", asset_root);
+    } else {
+        command.env_remove("DIOXUS_ASSET_ROOT");
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|root| root.starts_with('/') && root.len() > 1))]
+#[ensures(ret.as_ref().is_none_or(|root| !root.ends_with('/')))]
+fn dioxus_asset_root(base_path: &str) -> Option<String> {
+    let trimmed = base_path.trim().trim_matches('/');
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(format!("/{trimmed}"))
+    }
 }
 
 #[requires(true)]
@@ -911,6 +935,7 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
             .with_context(|| format!("removing old Dioxus output `{}`", dioxus_public.display()))?;
     }
     let mut command = dx_web_release_command("bundle");
+    set_dioxus_base_path_env(&mut command, &base_path);
     command
         .arg("--out-dir")
         .arg(out_dir)
@@ -4092,6 +4117,17 @@ mod tests {
     #[ensures(true)]
     fn empty_cargo_command_contract_is_reported() {
         let _ = cargo(&[]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dioxus_asset_root_is_only_set_for_non_root_base_paths() {
+        assert_eq!(dioxus_asset_root("/"), None);
+        assert_eq!(dioxus_asset_root(""), None);
+        assert_eq!(dioxus_asset_root(" / "), None);
+        assert_eq!(dioxus_asset_root("/jbotci"), Some("/jbotci".to_owned()));
+        assert_eq!(dioxus_asset_root("jbotci/"), Some("/jbotci".to_owned()));
     }
 
     #[test]

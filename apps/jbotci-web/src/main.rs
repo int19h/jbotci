@@ -31,9 +31,8 @@ use jbotci_web_core::{
     VlackuMathPartData, VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebCard, VlackuWebMode,
     VlackuWebResult, VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection,
     WebComputeRequest, WebComputeResponse, WebFeatureAvailability, WebRoute, build_page_meta,
-    build_vlacku_jvozba_output, cukta_web_url, dictionary_tooltip_for_rafsi,
-    dictionary_tooltip_for_word, gentufa_web_url, normalize_vlacku_state, parse_cukta_web_route,
-    parse_gentufa_web_route, parse_vlacku_web_route, parse_web_route, reference_slot_display_text,
+    build_vlacku_jvozba_output, dictionary_tooltip_for_rafsi, dictionary_tooltip_for_word,
+    gentufa_web_url, normalize_vlacku_state, parse_web_route, reference_slot_display_text,
     toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
     vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
 };
@@ -53,7 +52,11 @@ use std::cell::Cell;
 use std::collections::BTreeSet;
 #[cfg(target_arch = "wasm32")]
 use std::collections::HashSet;
+use std::error::Error;
+use std::fmt;
 use std::future::Future;
+use std::rc::Rc;
+use std::str::FromStr;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const COMPUTE_JS: Asset = asset!("/assets/compute.js");
@@ -195,6 +198,120 @@ enum AppRoute {
     Cukta,
     Vlacku,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct JbotciRoute {
+    web_route: WebRoute,
+    gentufa_text_explicit: bool,
+    settings_query: String,
+    hash: Option<String>,
+}
+
+impl JbotciRoute {
+    #[requires(true)]
+    #[ensures(matches!(ret.web_route, WebRoute::Gentufa(_)))]
+    fn default_gentufa() -> Self {
+        Self {
+            web_route: WebRoute::Gentufa(GentufaWebState::default()),
+            gentufa_text_explicit: false,
+            settings_query: String::new(),
+            hash: None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_web_route(web_route: WebRoute, gentufa_text_explicit: bool) -> Self {
+        Self {
+            web_route,
+            gentufa_text_explicit,
+            settings_query: String::new(),
+            hash: None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == app_route_for_web_route(&self.web_route))]
+    fn app_route(&self) -> AppRoute {
+        app_route_for_web_route(&self.web_route)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.web_route == self.web_route)]
+    fn without_hash(&self) -> Self {
+        Self {
+            web_route: self.web_route.clone(),
+            gentufa_text_explicit: self.gentufa_text_explicit,
+            settings_query: self.settings_query.clone(),
+            hash: None,
+        }
+    }
+}
+
+impl Default for JbotciRoute {
+    #[requires(true)]
+    #[ensures(matches!(ret.web_route, WebRoute::Gentufa(_)))]
+    fn default() -> Self {
+        Self::default_gentufa()
+    }
+}
+
+impl fmt::Display for JbotciRoute {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut route = match &self.web_route {
+            WebRoute::Settings if !self.settings_query.is_empty() => {
+                format!("/settings?{}", self.settings_query)
+            }
+            _ => web_route_url("", &self.web_route),
+        };
+        if let Some(hash) = self.hash.as_ref().filter(|hash| !hash.is_empty()) {
+            route.push('#');
+            route.push_str(hash.trim_start_matches('#'));
+        }
+        f.write_str(&route)
+    }
+}
+
+impl FromStr for JbotciRoute {
+    type Err = JbotciRouteParseError;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        jbotci_route_from_dioxus_route(raw).ok_or(JbotciRouteParseError)
+    }
+}
+
+impl Routable for JbotciRoute {
+    const SITE_MAP: &'static [dioxus::router::SiteMapSegment] = &[];
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn render(&self, level: usize) -> Element {
+        if level == 0 {
+            rsx! { AppShell {} }
+        } else {
+            rsx! {}
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct JbotciRouteParseError;
+
+impl fmt::Display for JbotciRouteParseError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("invalid jbotci route")
+    }
+}
+
+impl Error for JbotciRouteParseError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
@@ -654,6 +771,15 @@ fn main() {
     dioxus::launch(App);
 }
 
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+fn App() -> Element {
+    rsx! {
+        Router::<JbotciRoute> {}
+    }
+}
+
 #[requires(true)]
 #[ensures(ret.contains("STIX Two Math"))]
 #[ensures(ret.contains("STIX Two Text"))]
@@ -722,9 +848,11 @@ fn font_face_css() -> String {
 #[allow(non_snake_case)]
 #[requires(true)]
 #[ensures(true)]
-fn App() -> Element {
-    let route = use_signal(route_from_current_path);
-    let base_path = base_path_from_current_path();
+fn AppShell() -> Element {
+    let current_route_location = use_route::<JbotciRoute>();
+    let route = use_signal(|| current_route_location.app_route());
+    let base_path = router_base_path();
+    let app_history = history();
     let settings = use_signal(load_settings);
     let initial_dialect_settings = load_dialect_settings();
     let initial_settings_dialect_selection =
@@ -741,8 +869,8 @@ fn App() -> Element {
     let activity_indicator_delay_task = use_signal(|| None::<Task>);
     let topbar_settings_layout = use_signal(|| TopbarSettingsLayout::BothInline);
     let topbar_settings_open = use_signal(|| false);
-    let initial_gentufa = initial_gentufa_state();
-    let initial_gentufa_has_text = initial_gentufa_text_explicit();
+    let initial_gentufa = initial_gentufa_state(&current_route_location);
+    let initial_gentufa_has_text = initial_gentufa_text_explicit(&current_route_location);
     let initial_gentufa_input_text = if initial_gentufa_has_text {
         initial_gentufa.text.clone()
     } else {
@@ -763,14 +891,14 @@ fn App() -> Element {
     let view_mode = use_signal(move || initial_gentufa_view_mode);
     let gentufa_display = use_signal(move || initial_gentufa_display);
     let mut gentufa_text_explicit = use_signal(move || initial_gentufa_has_text);
-    let initial_cukta = initial_cukta_state();
+    let initial_cukta = initial_cukta_state(&current_route_location);
     let cukta_state = use_signal(|| initial_cukta);
     let cukta_toc_filter = use_signal(String::new);
     let cukta_toc_pinned = use_signal(load_cukta_toc_pinned);
     let cukta_toc_expansion = use_signal(load_cukta_toc_expansion);
     let cukta_toc_width = use_signal(load_cukta_toc_width);
     let cukta_toc_resize = use_signal(|| None::<CuktaTocResizeState>);
-    let initial_vlacku = initial_vlacku_state();
+    let initial_vlacku = initial_vlacku_state(&current_route_location);
     let vlacku_draft_state = use_signal(|| initial_vlacku.clone());
     let vlacku_committed_state = use_signal(|| initial_vlacku);
     let vlacku_semantic_result = use_signal(VlackuSemanticResultState::default);
@@ -781,7 +909,10 @@ fn App() -> Element {
     let cukta_page = use_signal(CuktaAsyncPageState::default);
     let cukta_page_task = use_signal(|| None::<LatestAsyncTask>);
     let cukta_semantic_task = use_signal(|| None::<LatestAsyncTask>);
-    let pending_cukta_scroll = use_signal(current_cukta_pending_scroll);
+    let initial_pending_cukta_scroll = current_cukta_pending_scroll(&current_route_location);
+    let pending_cukta_scroll = use_signal(move || initial_pending_cukta_scroll.clone());
+    let initial_last_route_for_scroll = current_route_location.clone();
+    let mut last_route_for_scroll = use_signal(move || initial_last_route_for_scroll.clone());
     let jvozba_pane = use_signal(load_vlacku_jvozba_pane_state);
     let jvozba_available = use_signal(vlacku_jvozba_available);
     let jvozba_drag = use_signal(|| None::<VlackuJvozbaDragState>);
@@ -813,27 +944,61 @@ fn App() -> Element {
         gentufa_display_value,
         *gentufa_text_explicit.read(),
     );
-    let topbar_cukta_href = cukta_web_url(&base_path, &cukta_state.read());
-    let topbar_vlacku_href = vlacku_web_url(&base_path, &vlacku_committed_state.read());
-    let topbar_gentufa_href = gentufa_web_url(&base_path, &nav_gentufa_state);
-    install_browser_state_handlers(
-        route,
-        cukta_state,
-        vlacku_draft_state,
-        vlacku_committed_state,
-        input_text,
-        parsed_text,
-        dialect,
-        parsed_dialect,
-        view_mode,
-        gentufa_display,
-        gentufa_text_explicit,
-        pending_cukta_scroll,
+    let topbar_cukta_route =
+        JbotciRoute::from_web_route(WebRoute::Cukta(cukta_state.read().clone()), false);
+    let topbar_vlacku_route = JbotciRoute::from_web_route(
+        WebRoute::Vlacku(vlacku_committed_state.read().clone()),
+        false,
+    );
+    let topbar_gentufa_route = JbotciRoute::from_web_route(
+        WebRoute::Gentufa(nav_gentufa_state),
+        *gentufa_text_explicit.read(),
+    );
+    let topbar_settings_route = JbotciRoute::from_web_route(WebRoute::Settings, false);
+    install_browser_dom_handlers(
         jvozba_available,
         topbar_settings_layout,
         topbar_settings_open,
-        &base_path,
     );
+    let scroll_base_path = base_path.clone();
+    let scroll_route_location = current_route_location.clone();
+    use_effect(use_reactive(
+        (&scroll_route_location,),
+        move |(location,)| {
+            let previous = last_route_for_scroll.read().clone();
+            if previous == location {
+                return;
+            }
+            let scroll_already_pending = pending_cukta_scroll.read().is_some();
+            if !scroll_already_pending {
+                if let Some(scroll) =
+                    cukta_pending_scroll_for_route_change(&scroll_base_path, &location)
+                {
+                    let mut pending = pending_cukta_scroll;
+                    pending.set(Some(scroll));
+                }
+            }
+            last_route_for_scroll.set(location);
+        },
+    ));
+    let sync_route_location = current_route_location.clone();
+    use_effect(use_reactive((&sync_route_location,), move |(location,)| {
+        apply_web_route_to_client_state(
+            &location.web_route,
+            location.gentufa_text_explicit,
+            route,
+            cukta_state,
+            vlacku_draft_state,
+            vlacku_committed_state,
+            input_text,
+            parsed_text,
+            dialect,
+            parsed_dialect,
+            view_mode,
+            gentufa_display,
+            gentufa_text_explicit,
+        );
+    }));
     use_effect(move || {
         configure_embedding_worker_url(&format!("{EMBEDDING_WORKER_JS}"));
         configure_compute_worker_url(&format!("{COMPUTE_WORKER_JS}"));
@@ -874,26 +1039,30 @@ fn App() -> Element {
             });
         }
     });
-    use_effect(move || {
-        if *route.read() != AppRoute::Settings {
-            return;
-        }
-        let Some(raw_johau) = query_param(&current_query(), "johau") else {
-            return;
-        };
-        if settings_johau_import_seen.read().as_deref() == Some(raw_johau.as_str()) {
-            return;
-        }
-        settings_johau_import_seen.set(Some(raw_johau.clone()));
-        let current_settings = dialect_settings.read().clone();
-        if let Ok((selected_name, next_settings)) =
-            import_johau_dialect_settings(&raw_johau, &current_settings)
-        {
-            save_dialect_settings(&next_settings);
-            dialect_settings.set(next_settings);
-            settings_dialect_selection.set(selected_name);
-        }
-    });
+    let settings_route_location = current_route_location.clone();
+    use_effect(use_reactive(
+        (&settings_route_location,),
+        move |(location,)| {
+            if location.app_route() != AppRoute::Settings {
+                return;
+            }
+            let Some(raw_johau) = query_param(&location.settings_query, "johau") else {
+                return;
+            };
+            if settings_johau_import_seen.read().as_deref() == Some(raw_johau.as_str()) {
+                return;
+            }
+            settings_johau_import_seen.set(Some(raw_johau.clone()));
+            let current_settings = dialect_settings.read().clone();
+            if let Ok((selected_name, next_settings)) =
+                import_johau_dialect_settings(&raw_johau, &current_settings)
+            {
+                save_dialect_settings(&next_settings);
+                dialect_settings.set(next_settings);
+                settings_dialect_selection.set(selected_name);
+            }
+        },
+    ));
     let gentufa_base_path = base_path.clone();
     use_effect(move || {
         if *route.read() != AppRoute::Gentufa {
@@ -1108,7 +1277,6 @@ fn App() -> Element {
             page.error = None;
         });
         let mut result_signal = cukta_page;
-        let mut pending_scroll = pending_cukta_scroll;
         cancel_compute_channel(COMPUTE_CHANNEL_CUKTA);
         spawn_latest_tracked(
             cukta_page_task,
@@ -1126,9 +1294,6 @@ fn App() -> Element {
                             error: None,
                         });
                         sync_document_head(&meta);
-                        if let Some(scroll) = pending_scroll.write().take() {
-                            apply_cukta_pending_scroll(scroll);
-                        }
                     }
                     Ok(_) => {
                         result_signal.set(cukta_async_error_state(
@@ -1143,21 +1308,45 @@ fn App() -> Element {
             },
         );
     });
-    let vlacku_url_base_path = base_path.clone();
+    let cukta_scroll_route = route;
+    let cukta_scroll_state = cukta_state;
+    let cukta_scroll_page = cukta_page;
+    let mut cukta_scroll_pending = pending_cukta_scroll;
+    use_effect(move || {
+        if cukta_scroll_pending.read().is_none() {
+            return;
+        }
+        if *cukta_scroll_route.read() != AppRoute::Cukta {
+            return;
+        }
+        let page_ready = {
+            let state = cukta_scroll_state.read();
+            let page = cukta_scroll_page.read();
+            cukta_page_ready_for_scroll(&page, &state)
+        };
+        if !page_ready {
+            return;
+        }
+        if let Some(scroll) = cukta_scroll_pending.write().take() {
+            apply_cukta_pending_scroll(scroll);
+        }
+    });
+    let vlacku_url_history = app_history.clone();
     use_effect(move || {
         if *route.read() == AppRoute::Vlacku {
             let state = vlacku_committed_state.read().clone();
-            schedule_vlacku_url_push(&vlacku_url_base_path, &state);
+            schedule_vlacku_url_push(vlacku_url_history.clone(), &state);
         }
     });
-    let cukta_url_base_path = base_path.clone();
-    use_effect(move || {
+    let cukta_route_location = current_route_location.clone();
+    let cukta_url_history = app_history.clone();
+    use_effect(use_reactive((&cukta_route_location,), move |(location,)| {
         if *route.read() == AppRoute::Cukta {
             let state = cukta_state.read().clone();
-            push_cukta_url(&cukta_url_base_path, &state);
+            push_cukta_url(cukta_url_history.clone(), &location, &state);
         }
-    });
-    let gentufa_url_base_path = base_path.clone();
+    }));
+    let gentufa_url_history = app_history.clone();
     use_effect(move || {
         if *route.read() == AppRoute::Gentufa {
             let state = gentufa_state_from_parts(
@@ -1167,7 +1356,7 @@ fn App() -> Element {
                 *gentufa_display.read(),
                 *gentufa_text_explicit.read(),
             );
-            schedule_gentufa_url_replace(&gentufa_url_base_path, &state);
+            schedule_gentufa_url_replace(gentufa_url_history.clone(), &state);
         }
     });
     use_effect(move || {
@@ -1238,10 +1427,12 @@ fn App() -> Element {
                 route_value,
                 settings,
                 settings_value,
-                &topbar_cukta_href,
-                &topbar_vlacku_href,
-                &topbar_gentufa_href,
-                &nav_href(&base_path, AppRoute::Settings),
+                topbar_cukta_route,
+                topbar_vlacku_route,
+                topbar_gentufa_route,
+                topbar_settings_route,
+                &base_path,
+                pending_cukta_scroll,
                 *topbar_settings_layout.read(),
                 topbar_settings_open,
                 &activity_value,
@@ -1319,6 +1510,7 @@ fn App() -> Element {
                                     cukta_toc_expansion,
                                     cukta_toc_width,
                                     cukta_toc_resize,
+                                    pending_cukta_scroll,
                                     &base_path,
                                 )
                             }
@@ -1330,6 +1522,7 @@ fn App() -> Element {
                                     jvozba_pane,
                                     jvozba_available,
                                     jvozba_drag,
+                                    pending_cukta_scroll,
                                     &base_path,
                                 )
                             },
@@ -1347,10 +1540,12 @@ fn render_topbar(
     route: AppRoute,
     settings: Signal<UserSettings>,
     current: UserSettings,
-    cukta_href: &str,
-    vlacku_href: &str,
-    gentufa_href: &str,
-    settings_href: &str,
+    cukta_route: JbotciRoute,
+    vlacku_route: JbotciRoute,
+    gentufa_route: JbotciRoute,
+    settings_route: JbotciRoute,
+    base_path: &str,
+    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     settings_layout: TopbarSettingsLayout,
     settings_open: Signal<bool>,
     activity: &AsyncActivityState,
@@ -1363,18 +1558,19 @@ fn render_topbar(
     let header_class = topbar_header_class(settings_layout, *settings_open.read());
     let show_theme_inline = settings_layout.shows_theme_inline();
     let show_script_inline = settings_layout.shows_script_inline();
+    let topbar_cukta_scroll_target = route_href_with_base_path(base_path, &cukta_route);
     rsx! {
         header { class: "{header_class}",
             div { class: "app-topbar-inner spa-topbar-inner",
                 div { class: "app-topbar-left",
-                    a {
+                    Link {
                         class: "app-topbar-brand",
-                        href: "{settings_href}",
+                        to: settings_route.clone(),
                         aria_label: "Settings",
                         title: "Settings",
                         img { class: "app-topbar-brand-logo", src: LOGO, alt: "jbotci" }
                     }
-                    { render_topbar_settings_button(settings, current, settings_href, settings_layout, settings_open) }
+                    { render_topbar_settings_button(settings, current, settings_route.clone(), settings_layout, settings_open) }
                     if show_theme_inline {
                         span { class: "app-topbar-theme app-topbar-theme-mode",
                             { render_theme_switch(settings, current.theme) }
@@ -1386,21 +1582,24 @@ fn render_topbar(
                         }
                     }
                     nav { class: "spa-nav", aria_label: "Primary navigation",
-                        a {
+                        Link {
                             class: topbar_link_class(route == AppRoute::Cukta, cukta_loading),
-                            href: "{cukta_href}",
+                            to: cukta_route.clone(),
                             aria_current: if route == AppRoute::Cukta { "page" } else { "false" },
+                            onclick: move |_| {
+                                pending_cukta_scroll.set(Some(cukta_stored_pending_scroll(topbar_cukta_scroll_target.clone())));
+                            },
                             span { class: "app-topbar-link-label", "cukta" }
                         }
-                        a {
+                        Link {
                             class: topbar_link_class(route == AppRoute::Vlacku, vlacku_loading),
-                            href: "{vlacku_href}",
+                            to: vlacku_route.clone(),
                             aria_current: if route == AppRoute::Vlacku { "page" } else { "false" },
                             span { class: "app-topbar-link-label", "vlacku" }
                         }
-                        a {
+                        Link {
                             class: topbar_link_class(route == AppRoute::Gentufa, gentufa_loading),
-                            href: "{gentufa_href}",
+                            to: gentufa_route.clone(),
                             aria_current: if route == AppRoute::Gentufa { "page" } else { "false" },
                             span { class: "app-topbar-link-label", "gentufa" }
                             span { class: "app-topbar-link-dots", aria_hidden: "true",
@@ -1411,7 +1610,19 @@ fn render_topbar(
                         }
                     }
                 }
-                { render_topbar_fit_probes(settings, current, route, cukta_loading, vlacku_loading, gentufa_loading, cukta_href, vlacku_href, gentufa_href) }
+                { render_topbar_fit_probes(
+                    settings,
+                    current,
+                    route,
+                    cukta_loading,
+                    vlacku_loading,
+                    gentufa_loading,
+                    cukta_route,
+                    vlacku_route,
+                    gentufa_route,
+                    base_path,
+                    pending_cukta_scroll,
+                ) }
                 div { class: "{activity_class}", role: "status", aria_live: "polite",
                     span { class: "sr-only",
                         if activity_visible {
@@ -1439,27 +1650,33 @@ fn render_topbar_nav(
     cukta_loading: bool,
     vlacku_loading: bool,
     gentufa_loading: bool,
-    cukta_href: &str,
-    vlacku_href: &str,
-    gentufa_href: &str,
+    cukta_route: JbotciRoute,
+    vlacku_route: JbotciRoute,
+    gentufa_route: JbotciRoute,
+    base_path: &str,
+    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
 ) -> Element {
+    let topbar_cukta_scroll_target = route_href_with_base_path(base_path, &cukta_route);
     rsx! {
         nav { class: "spa-nav", aria_label: "Primary navigation",
-            a {
+            Link {
                 class: topbar_link_class(route == AppRoute::Cukta, cukta_loading),
-                href: "{cukta_href}",
+                to: cukta_route,
                 aria_current: if route == AppRoute::Cukta { "page" } else { "false" },
+                onclick: move |_| {
+                    pending_cukta_scroll.set(Some(cukta_stored_pending_scroll(topbar_cukta_scroll_target.clone())));
+                },
                 span { class: "app-topbar-link-label", "cukta" }
             }
-            a {
+            Link {
                 class: topbar_link_class(route == AppRoute::Vlacku, vlacku_loading),
-                href: "{vlacku_href}",
+                to: vlacku_route,
                 aria_current: if route == AppRoute::Vlacku { "page" } else { "false" },
                 span { class: "app-topbar-link-label", "vlacku" }
             }
-            a {
+            Link {
                 class: topbar_link_class(route == AppRoute::Gentufa, gentufa_loading),
-                href: "{gentufa_href}",
+                to: gentufa_route,
                 aria_current: if route == AppRoute::Gentufa { "page" } else { "false" },
                 span { class: "app-topbar-link-label", "gentufa" }
                 span { class: "app-topbar-link-dots", aria_hidden: "true",
@@ -1477,7 +1694,7 @@ fn render_topbar_nav(
 fn render_topbar_settings_button(
     settings: Signal<UserSettings>,
     current: UserSettings,
-    settings_href: &str,
+    settings_route: JbotciRoute,
     settings_layout: TopbarSettingsLayout,
     mut settings_open: Signal<bool>,
 ) -> Element {
@@ -1497,12 +1714,12 @@ fn render_topbar_settings_button(
                     span { class: "app-topbar-settings-icon", aria_hidden: "true", "⚙" }
                 }
                 if menu_open {
-                    { render_topbar_settings_menu(settings, current, settings_href, settings_layout) }
+                    { render_topbar_settings_menu(settings, current, settings_route, settings_layout) }
                 }
             } else {
-                a {
+                Link {
                     class: "{button_class}",
-                    href: "{settings_href}",
+                    to: settings_route,
                     aria_label: "Settings",
                     title: "Settings",
                     span { class: "app-topbar-settings-icon", aria_hidden: "true", "⚙" }
@@ -1517,7 +1734,7 @@ fn render_topbar_settings_button(
 fn render_topbar_settings_menu(
     settings: Signal<UserSettings>,
     current: UserSettings,
-    settings_href: &str,
+    settings_route: JbotciRoute,
     settings_layout: TopbarSettingsLayout,
 ) -> Element {
     rsx! {
@@ -1537,9 +1754,9 @@ fn render_topbar_settings_menu(
                 }
             }
             div { class: "app-topbar-settings-menu-row",
-                a {
+                Link {
                     class: "app-topbar-settings-all",
-                    href: "{settings_href}",
+                    to: settings_route,
                     "All settings"
                 }
             }
@@ -1557,9 +1774,11 @@ fn render_topbar_fit_probes(
     cukta_loading: bool,
     vlacku_loading: bool,
     gentufa_loading: bool,
-    cukta_href: &str,
-    vlacku_href: &str,
-    gentufa_href: &str,
+    cukta_route: JbotciRoute,
+    vlacku_route: JbotciRoute,
+    gentufa_route: JbotciRoute,
+    base_path: &str,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
 ) -> Element {
     rsx! {
         div {
@@ -1574,7 +1793,7 @@ fn render_topbar_fit_probes(
                 span { class: "app-topbar-theme app-topbar-orthography",
                     { render_script_switch(settings, current.script) }
                 }
-                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_href, vlacku_href, gentufa_href) }
+                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-theme",
                 { render_topbar_probe_brand() }
@@ -1582,12 +1801,12 @@ fn render_topbar_fit_probes(
                 span { class: "app-topbar-theme app-topbar-theme-mode",
                     { render_theme_switch(settings, current.theme) }
                 }
-                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_href, vlacku_href, gentufa_href) }
+                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-none",
                 { render_topbar_probe_brand() }
                 { render_topbar_probe_settings_button() }
-                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_href, vlacku_href, gentufa_href) }
+                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route, vlacku_route, gentufa_route, base_path, pending_cukta_scroll) }
             }
         }
     }
@@ -2917,6 +3136,7 @@ fn render_cukta_page(
     toc_expansion: Signal<CuktaTocExpansionState>,
     toc_width: Signal<f64>,
     mut toc_resize: Signal<Option<CuktaTocResizeState>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     let page = cukta_page.read().page.clone();
@@ -2976,21 +3196,29 @@ fn render_cukta_page(
                                 }
                             }
                             div { class: "cll-toc-search-meta",
-                                a {
+                                Link {
                                     class: "cll-toc-header-link cll-toc-index-link",
-                                    href: cukta_web_url(base_path, &CuktaWebState { view: CuktaWebView::Index }),
+                                    to: JbotciRoute::from_web_route(
+                                        WebRoute::Cukta(CuktaWebState { view: CuktaWebView::Index }),
+                                        false,
+                                    ),
                                     onclick: move |event| {
-                                        event.prevent_default();
-                                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState { view: CuktaWebView::Index });
+                                        let _ = event;
+                                        let mut pending = pending_cukta_scroll;
+                                        pending.set(Some(cukta_top_pending_scroll()));
                                     },
                                     "index"
                                 }
-                                a {
+                                Link {
                                     class: "cll-toc-header-link cll-toc-advanced-link",
-                                    href: cukta_web_url(base_path, &CuktaWebState { view: CuktaWebView::Search(CuktaWebSearchState::default()) }),
+                                    to: JbotciRoute::from_web_route(
+                                        WebRoute::Cukta(CuktaWebState { view: CuktaWebView::Search(CuktaWebSearchState::default()) }),
+                                        false,
+                                    ),
                                     onclick: move |event| {
-                                        event.prevent_default();
-                                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState { view: CuktaWebView::Search(CuktaWebSearchState::default()) });
+                                        let _ = event;
+                                        let mut pending = pending_cukta_scroll;
+                                        pending.set(Some(cukta_top_pending_scroll()));
                                     },
                                     "advanced search"
                                 }
@@ -3003,7 +3231,7 @@ fn render_cukta_page(
                             onscroll: move |_| save_cukta_toc_scroll(),
                             ol { class: "cll-toc-tree",
                                 for node in page.toc.iter() {
-                                    { render_cukta_toc_node(cukta_state, toc_expansion, node, &toc_filter.read()) }
+                                    { render_cukta_toc_node(toc_expansion, node, &toc_filter.read(), pending_cukta_scroll, base_path) }
                                 }
                             }
                         }
@@ -3037,7 +3265,7 @@ fn render_cukta_page(
                                 chapter_prelude_blocks,
                                 blocks,
                             } => render_cukta_section(
-                                cukta_state,
+                                pending_cukta_scroll,
                                 section_heading,
                                 chapter_title.as_deref(),
                                 previous_section.as_ref(),
@@ -3046,7 +3274,9 @@ fn render_cukta_page(
                                 blocks,
                                 base_path,
                             ),
-                            CuktaPageKind::Index { entries } => render_cukta_index(cukta_state, entries),
+                            CuktaPageKind::Index { entries } => {
+                                render_cukta_index(entries, pending_cukta_scroll, base_path)
+                            }
                             CuktaPageKind::Search {
                                 state,
                                 mode_options,
@@ -3057,12 +3287,14 @@ fn render_cukta_page(
                                 load_more_href: _,
                             } => render_cukta_search(
                                 cukta_state,
+                                pending_cukta_scroll,
                                 state,
                                 mode_options,
                                 target_options,
                                 results,
                                 message.as_deref(),
                                 *has_more,
+                                base_path,
                             ),
                             CuktaPageKind::Error { message } => rsx! {
                                 div { class: "spa-error", "{message}" }
@@ -3179,10 +3411,11 @@ fn set_cukta_toc_pinned(pinned: &mut Signal<bool>, value: bool) {
 #[requires(true)]
 #[ensures(true)]
 fn render_cukta_toc_node(
-    cukta_state: Signal<CuktaWebState>,
     toc_expansion: Signal<CuktaTocExpansionState>,
     node: &CuktaTocNode,
     filter: &str,
+    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
 ) -> Element {
     let filter = filter.trim().to_ascii_lowercase();
     let visible = filter.is_empty()
@@ -3202,10 +3435,6 @@ fn render_cukta_toc_node(
         return rsx! {};
     }
     let expanded = toc_node_expanded(node, &filter, &toc_expansion.read());
-    let target_reference = node
-        .section_id
-        .clone()
-        .or_else(|| cukta_section_reference_from_href(&node.href));
     let number_has_trailing_dot = node.section_id.is_none();
     let class = class_names(
         "cll-toc-node",
@@ -3220,6 +3449,10 @@ fn render_cukta_toc_node(
             ("is-expanded", expanded),
         ],
     );
+    let route = jbotci_route_from_href(base_path, &node.href);
+    let pending_scroll = route
+        .as_ref()
+        .map(|route| cukta_pending_scroll_for_route_link(base_path, route));
     rsx! {
         li { key: "{node.node_id}", class: "{class}",
             div { class: "cll-toc-row",
@@ -3248,30 +3481,35 @@ fn render_cukta_toc_node(
                 } else {
                     span { class: "cll-toc-spacer", aria_hidden: "true" }
                 }
-                a {
-                    class: "cll-toc-link",
-                    href: "{node.href}",
-                    onclick: {
-                        let target_reference = target_reference.clone();
-                        move |event| {
-                            if let Some(reference) = target_reference.clone() {
-                                event.prevent_default();
-                                set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                                    view: CuktaWebView::Section { reference },
-                                });
+                if let Some(route) = route {
+                    Link {
+                        class: "cll-toc-link",
+                        to: route,
+                        onclick: move |_| {
+                            if let Some(scroll) = pending_scroll.clone() {
+                                pending_cukta_scroll.set(Some(scroll));
                             }
+                        },
+                        if let Some(number) = &node.number_label {
+                            { render_cukta_toc_number(number, number_has_trailing_dot) }
                         }
-                    },
-                    if let Some(number) = &node.number_label {
-                        { render_cukta_toc_number(number, number_has_trailing_dot) }
+                        { render_cukta_toc_title(&node.label) }
                     }
-                    { render_cukta_toc_title(&node.label) }
+                } else {
+                    a {
+                        class: "cll-toc-link",
+                        href: "{node.href}",
+                        if let Some(number) = &node.number_label {
+                            { render_cukta_toc_number(number, number_has_trailing_dot) }
+                        }
+                        { render_cukta_toc_title(&node.label) }
+                    }
                 }
             }
             if !node.children.is_empty() && expanded {
                 ol { class: "cll-toc-children",
                     for child in node.children.iter() {
-                        { render_cukta_toc_node(cukta_state, toc_expansion, child, &filter) }
+                        { render_cukta_toc_node(toc_expansion, child, &filter, pending_cukta_scroll, base_path) }
                     }
                 }
             }
@@ -3400,7 +3638,7 @@ fn cukta_toc_expansion_with_node_state(
 #[requires(true)]
 #[ensures(true)]
 fn render_cukta_section(
-    cukta_state: Signal<CuktaWebState>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     heading: &str,
     chapter_title: Option<&str>,
     previous: Option<&jbotci_web_core::CuktaSectionLink>,
@@ -3416,20 +3654,20 @@ fn render_cukta_section(
             if !prelude_blocks.is_empty() {
                 div { class: "cll-chapter-prelude",
                     for block in prelude_blocks.iter() {
-                        { render_cll_block(cukta_state, block, base_path) }
+                        { render_cll_block(block, pending_cukta_scroll, base_path) }
                     }
                 }
             }
             for block in blocks.iter() {
-                { render_cll_block(cukta_state, block, base_path) }
+                { render_cll_block(block, pending_cukta_scroll, base_path) }
             }
             if previous.is_some() || next.is_some() {
                 nav { class: "cll-section-pager",
                     if let Some(previous) = previous {
-                        { render_cukta_section_pager_link(cukta_state, previous, "prev") }
+                        { render_cukta_section_pager_link(previous, "prev", pending_cukta_scroll, base_path) }
                     }
                     if let Some(next) = next {
-                        { render_cukta_section_pager_link(cukta_state, next, "next") }
+                        { render_cukta_section_pager_link(next, "next", pending_cukta_scroll, base_path) }
                     }
                 }
             }
@@ -3440,27 +3678,29 @@ fn render_cukta_section(
 #[requires(direction == "prev" || direction == "next")]
 #[ensures(true)]
 fn render_cukta_section_pager_link(
-    cukta_state: Signal<CuktaWebState>,
     section: &jbotci_web_core::CuktaSectionLink,
     direction: &str,
+    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
 ) -> Element {
     let class_name = format!("cll-section-pager-link cll-section-pager-link-{direction}");
-    rsx! {
-        a {
-            class: "{class_name}",
-            href: "{section.href}",
-            onclick: {
-                let href = section.href.clone();
-                move |event| {
-                    event.prevent_default();
-                    if let Some(reference) = cukta_section_reference_from_href(&href) {
-                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                            view: CuktaWebView::Section { reference },
-                        });
-                    }
-                }
-            },
-            span { class: "cll-section-pager-link-label", "{section.label}" }
+    if let Some(route) = jbotci_route_from_href(base_path, &section.href) {
+        let pending_scroll = cukta_pending_scroll_for_route_link(base_path, &route);
+        rsx! {
+            Link {
+                class: "{class_name}",
+                to: route,
+                onclick: move |_| pending_cukta_scroll.set(Some(pending_scroll.clone())),
+                span { class: "cll-section-pager-link-label", "{section.label}" }
+            }
+        }
+    } else {
+        rsx! {
+            a {
+                class: "{class_name}",
+                href: "{section.href}",
+                span { class: "cll-section-pager-link-label", "{section.label}" }
+            }
         }
     }
 }
@@ -3468,8 +3708,9 @@ fn render_cukta_section_pager_link(
 #[requires(true)]
 #[ensures(true)]
 fn render_cukta_index(
-    cukta_state: Signal<CuktaWebState>,
     entries: &[jbotci_web_core::CuktaIndexEntry],
+    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
 ) -> Element {
     rsx! {
         section { class: "cll-index-view",
@@ -3480,20 +3721,24 @@ fn render_cukta_index(
                         span { class: "cll-index-key", "{entry.key}" }
                         span { class: "cll-index-refs",
                             for reference in entry.references.iter() {
-                                a {
-                                    href: "{reference.href}",
-                                    onclick: {
-                                        let href = reference.href.clone();
-                                        move |event| {
-                                            event.prevent_default();
-                                            if let Some(section_id) = href.rsplit('/').next() {
-                                                set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                                                    view: CuktaWebView::Section { reference: section_id.to_owned() },
-                                                });
+                                {
+                                    if let Some(route) = jbotci_route_from_href(base_path, &reference.href) {
+                                        let pending_scroll = cukta_pending_scroll_for_route_link(base_path, &route);
+                                        rsx! {
+                                            Link {
+                                                to: route,
+                                                onclick: move |_| pending_cukta_scroll.set(Some(pending_scroll.clone())),
+                                                "{reference.label}"
                                             }
                                         }
-                                    },
-                                    "{reference.label}"
+                                    } else {
+                                        rsx! {
+                                            a {
+                                                href: "{reference.href}",
+                                                "{reference.label}"
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -3508,12 +3753,14 @@ fn render_cukta_index(
 #[ensures(true)]
 fn render_cukta_search(
     cukta_state: Signal<CuktaWebState>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     state: &CuktaWebSearchState,
     mode_options: &[CuktaModeOption],
     target_options: &[CuktaTargetOption],
     results: &[CuktaSearchResultCard],
     message: Option<&str>,
     has_more: bool,
+    base_path: &str,
 ) -> Element {
     let state_for_load_more = state.clone();
     rsx! {
@@ -3524,7 +3771,7 @@ fn render_cukta_search(
             }
             div { class: "cll-search-results",
                 for card in results.iter() {
-                    { render_cukta_search_card(cukta_state, card) }
+                    { render_cukta_search_card(card, pending_cukta_scroll, base_path) }
                 }
             }
             if has_more {
@@ -3678,29 +3925,35 @@ fn render_cukta_target_check(
 #[requires(true)]
 #[ensures(true)]
 fn render_cukta_search_card(
-    cukta_state: Signal<CuktaWebState>,
     card: &CuktaSearchResultCard,
+    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
 ) -> Element {
+    let route = jbotci_route_from_href(base_path, &card.href);
+    let pending_scroll = route
+        .as_ref()
+        .map(|route| cukta_pending_scroll_for_route_link(base_path, route));
     rsx! {
         article { class: "cll-search-result-card result-card",
             header { class: "cll-search-result-head result-header",
                 div {
                     p { class: "cll-search-result-meta", "{card.kind} · {card.section_label}" }
                     h2 { class: "cll-search-result-title",
-                        a {
-                            href: "{card.href}",
-                            onclick: {
-                                let href = card.href.clone();
-                                move |event| {
-                                    if let Some(reference) = cukta_section_reference_from_href(&href) {
-                                        event.prevent_default();
-                                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                                            view: CuktaWebView::Section { reference },
-                                        });
+                        if let Some(route) = route {
+                            Link {
+                                to: route,
+                                onclick: move |_| {
+                                    if let Some(scroll) = pending_scroll.clone() {
+                                        pending_cukta_scroll.set(Some(scroll));
                                     }
-                                }
-                            },
-                            "{card.rank}. {card.label}"
+                                },
+                                "{card.rank}. {card.label}"
+                            }
+                        } else {
+                            a {
+                                href: "{card.href}",
+                                "{card.rank}. {card.label}"
+                            }
                         }
                     }
                 }
@@ -3716,8 +3969,8 @@ fn render_cukta_search_card(
 #[requires(true)]
 #[ensures(true)]
 fn render_cll_block(
-    cukta_state: Signal<CuktaWebState>,
     block: &CllBlock,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     match block {
@@ -3737,7 +3990,7 @@ fn render_cll_block(
                         "{text}"
                     } else {
                         for inline in inlines.iter() {
-                            { render_cll_inline(cukta_state, inline, base_path) }
+                            { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                         }
                     }
                 }
@@ -3750,7 +4003,7 @@ fn render_cll_block(
                         for item in items.iter() {
                             li {
                                 for child in item.iter() {
-                                    { render_cll_block(cukta_state, child, base_path) }
+                                    { render_cll_block(child, pending_cukta_scroll, base_path) }
                                 }
                             }
                         }
@@ -3762,7 +4015,7 @@ fn render_cll_block(
                         for item in items.iter() {
                             li {
                                 for child in item.iter() {
-                                    { render_cll_block(cukta_state, child, base_path) }
+                                    { render_cll_block(child, pending_cukta_scroll, base_path) }
                                 }
                             }
                         }
@@ -3775,11 +4028,11 @@ fn render_cll_block(
                 figcaption { class: "cll-example-head",
                     span { class: "cll-example-title", "{example.label}" }
                     if let Some(parse_href) = &example.parse_href {
-                        a {
-                            class: "cll-parse-example spa-cll-link spa-cll-link-parse",
-                            href: cll_parse_href(base_path, parse_href),
-                            "Parse"
-                        }
+                        { render_cll_parse_link(
+                            "cll-parse-example spa-cll-link spa-cll-link-parse",
+                            parse_href,
+                            base_path,
+                        ) }
                     }
                 }
                 if example.blocks.is_empty() {
@@ -3790,7 +4043,7 @@ fn render_cll_block(
                     }
                 } else {
                     for child in example.blocks.iter() {
-                        { render_cll_block(cukta_state, child, base_path) }
+                        { render_cll_block(child, pending_cukta_scroll, base_path) }
                     }
                 }
             }
@@ -3808,7 +4061,7 @@ fn render_cll_block(
                 if let Some(caption) = caption {
                     caption {
                         for inline in caption.iter() {
-                            { render_cll_inline(cukta_state, inline, base_path) }
+                            { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                         }
                     }
                 }
@@ -3821,14 +4074,14 @@ fn render_cll_block(
                                         colspan: "{cell.col_span.unwrap_or(1)}",
                                         rowspan: "{cell.row_span.unwrap_or(1)}",
                                         if let Some(parse_href) = &cell.parse_href {
-                                            a {
-                                                class: "cll-parse-example cll-parse-snippet spa-cll-link spa-cll-link-parse",
-                                                href: cll_parse_href(base_path, parse_href),
-                                                "Parse"
-                                            }
+                                            { render_cll_parse_link(
+                                                "cll-parse-example cll-parse-snippet spa-cll-link spa-cll-link-parse",
+                                                parse_href,
+                                                base_path,
+                                            ) }
                                         }
                                         for child in cell.blocks.iter() {
-                                            { render_cll_block(cukta_state, child, base_path) }
+                                            { render_cll_block(child, pending_cukta_scroll, base_path) }
                                         }
                                     }
                                 }
@@ -3844,14 +4097,14 @@ fn render_cll_block(
                                     colspan: "{cell.col_span.unwrap_or(1)}",
                                     rowspan: "{cell.row_span.unwrap_or(1)}",
                                     if let Some(parse_href) = &cell.parse_href {
-                                        a {
-                                            class: "cll-parse-example cll-parse-snippet spa-cll-link spa-cll-link-parse",
-                                            href: cll_parse_href(base_path, parse_href),
-                                            "Parse"
-                                        }
+                                        { render_cll_parse_link(
+                                            "cll-parse-example cll-parse-snippet spa-cll-link spa-cll-link-parse",
+                                            parse_href,
+                                            base_path,
+                                        ) }
                                     }
                                     for child in cell.blocks.iter() {
-                                        { render_cll_block(cukta_state, child, base_path) }
+                                        { render_cll_block(child, pending_cukta_scroll, base_path) }
                                     }
                                 }
                             }
@@ -3881,7 +4134,7 @@ fn render_cll_block(
                                     td {
                                         if let Some(inlines) = cell {
                                             for inline in inlines.iter() {
-                                                { render_cll_inline(cukta_state, inline, base_path) }
+                                                { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                                             }
                                         }
                                     }
@@ -3897,12 +4150,12 @@ fn render_cll_block(
                 for entry in entries.iter() {
                     dt {
                         for inline in entry.term.iter() {
-                            { render_cll_inline(cukta_state, inline, base_path) }
+                            { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                         }
                     }
                     dd {
                         for child in entry.blocks.iter() {
-                            { render_cll_block(cukta_state, child, base_path) }
+                            { render_cll_block(child, pending_cukta_scroll, base_path) }
                         }
                     }
                 }
@@ -3921,7 +4174,7 @@ fn render_cll_block(
                     if let Some(title) = title {
                         figcaption {
                             for inline in title.iter() {
-                                { render_cll_inline(cukta_state, inline, base_path) }
+                                { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                             }
                         }
                     }
@@ -3933,7 +4186,7 @@ fn render_cll_block(
                 dt { "{term}" }
                 dd {
                     for child in body.iter() {
-                        { render_cll_block(cukta_state, child, base_path) }
+                        { render_cll_block(child, pending_cukta_scroll, base_path) }
                     }
                 }
             }
@@ -3955,7 +4208,7 @@ fn render_cll_block(
             rsx! {
                 h2 { id: id.clone().unwrap_or_default(), class: "{class_name}",
                     for inline in inlines.iter() {
-                        { render_cll_inline(cukta_state, inline, base_path) }
+                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                     }
                 }
             }
@@ -3963,14 +4216,14 @@ fn render_cll_block(
         CllBlock::BlockQuote { id, blocks } => rsx! {
             blockquote { id: id.clone().unwrap_or_default(), class: "cll-blockquote",
                 for child in blocks.iter() {
-                    { render_cll_block(cukta_state, child, base_path) }
+                    { render_cll_block(child, pending_cukta_scroll, base_path) }
                 }
             }
         },
         CllBlock::Definition { id, body } => rsx! {
             p { id: id.clone().unwrap_or_default(), class: "cll-definition",
                 for inline in body.iter() {
-                    { render_cll_inline(cukta_state, inline, base_path) }
+                    { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                 }
             }
         },
@@ -3983,7 +4236,6 @@ fn render_cll_block(
             natlang,
             comments,
         } => render_cll_interlinear(
-            cukta_state,
             id.as_deref(),
             *aligned,
             *itemized,
@@ -3991,6 +4243,7 @@ fn render_cll_block(
             rows,
             natlang,
             comments,
+            pending_cukta_scroll,
             base_path,
         ),
         CllBlock::CmavoList {
@@ -3998,29 +4251,38 @@ fn render_cll_block(
             titles,
             headers,
             rows,
-        } => render_cll_cmavo_list(cukta_state, id.as_deref(), titles, headers, rows, base_path),
+        } => render_cll_cmavo_list(
+            id.as_deref(),
+            titles,
+            headers,
+            rows,
+            pending_cukta_scroll,
+            base_path,
+        ),
         CllBlock::Lojbanization { id, lines } => {
-            render_cll_lojbanization(cukta_state, id.as_deref(), lines, base_path)
+            render_cll_lojbanization(id.as_deref(), lines, pending_cukta_scroll, base_path)
         }
         CllBlock::LujvoMaking { id, parts } => {
-            render_cll_lujvo_making(cukta_state, id.as_deref(), parts, base_path)
+            render_cll_lujvo_making(id.as_deref(), parts, pending_cukta_scroll, base_path)
         }
         CllBlock::GrammarTemplate { id, body } => rsx! {
             p { id: id.clone().unwrap_or_default(), class: "cll-grammar-template",
                 for inline in body.iter() {
-                    { render_cll_inline(cukta_state, inline, base_path) }
+                    { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                 }
             }
         },
-        CllBlock::Ebnf { id, entries } => render_cll_ebnf(id.as_deref(), entries, base_path),
+        CllBlock::Ebnf { id, entries } => {
+            render_cll_ebnf(id.as_deref(), entries, pending_cukta_scroll, base_path)
+        }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn render_cll_inline(
-    cukta_state: Signal<CuktaWebState>,
     inline: &CllInline,
+    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     match inline {
@@ -4028,14 +4290,14 @@ fn render_cll_inline(
         CllInline::Emphasis { language, inlines } => rsx! {
             em { lang: language.clone().unwrap_or_default(),
                 for child in inlines.iter() {
-                    { render_cll_inline(cukta_state, child, base_path) }
+                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
                 }
             }
         },
         CllInline::Quote { language, inlines } => rsx! {
             q { lang: language.clone().unwrap_or_default(),
                 for child in inlines.iter() {
-                    { render_cll_inline(cukta_state, child, base_path) }
+                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
                 }
             }
         },
@@ -4048,7 +4310,7 @@ fn render_cll_inline(
             rsx! {
                 span { class: "{class_name}", lang: language.clone().unwrap_or_default(),
                     for child in inlines.iter() {
-                        { render_cll_inline(cukta_state, child, base_path) }
+                        { render_cll_inline(child, pending_cukta_scroll, base_path) }
                     }
                 }
             }
@@ -4056,21 +4318,21 @@ fn render_cll_inline(
         CllInline::CiteTitle { inlines } => rsx! {
             cite {
                 for child in inlines.iter() {
-                    { render_cll_inline(cukta_state, child, base_path) }
+                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
                 }
             }
         },
         CllInline::Subscript { inlines } => rsx! {
             sub {
                 for child in inlines.iter() {
-                    { render_cll_inline(cukta_state, child, base_path) }
+                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
                 }
             }
         },
         CllInline::Superscript { inlines } => rsx! {
             sup {
                 for child in inlines.iter() {
-                    { render_cll_inline(cukta_state, child, base_path) }
+                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
                 }
             }
         },
@@ -4081,52 +4343,64 @@ fn render_cll_inline(
         } => {
             let href = cll_inline_href(base_path, *kind, target);
             let class_name = format!("spa-cll-link {}", cll_link_kind_class(*kind));
-            let is_cukta_link = matches!(kind, CllLinkKind::Section | CllLinkKind::Example);
             let tooltip = cll_dictionary_tooltip_for_link(base_path, *kind, target);
+            let route = jbotci_route_from_href(base_path, &href).map(|route| {
+                let pending_scroll =
+                    cukta_pending_scroll_for_explicit_route_link(base_path, &route);
+                (route, pending_scroll)
+            });
             if let Some(card) = &tooltip {
-                let href_for_click = href.clone();
                 rsx! {
                     span { class: "dictionary-tooltip-host",
-                        a {
-                            class: "{class_name}",
-                            href: "{href}",
-                            onclick: move |event| {
-                                if is_cukta_link {
-                                    if let Some(reference) = cukta_section_reference_from_href(&href_for_click) {
-                                        event.prevent_default();
-                                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                                            view: CuktaWebView::Section { reference },
-                                        });
-                                        scroll_to_cukta_href(&href_for_click);
+                        if let Some((route, pending_scroll)) = route {
+                            Link {
+                                class: "{class_name}",
+                                to: route,
+                                onclick: move |_| {
+                                    if let Some(scroll) = pending_scroll.clone() {
+                                        pending_cukta_scroll.set(Some(scroll));
                                     }
+                                },
+                                for child in inlines.iter() {
+                                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
                                 }
-                            },
-                            for child in inlines.iter() {
-                                { render_cll_inline(cukta_state, child, base_path) }
+                            }
+                        } else {
+                            a {
+                                class: "{class_name}",
+                                href: "{href}",
+                                for child in inlines.iter() {
+                                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
+                                }
                             }
                         }
                         { render_dictionary_tooltip(card, false, base_path) }
                     }
                 }
             } else {
-                let href_for_click = href.clone();
-                rsx! {
-                    a {
-                        class: "{class_name}",
-                        href: "{href}",
-                        onclick: move |event| {
-                            if is_cukta_link {
-                                if let Some(reference) = cukta_section_reference_from_href(&href_for_click) {
-                                    event.prevent_default();
-                                    set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                                        view: CuktaWebView::Section { reference },
-                                    });
-                                    scroll_to_cukta_href(&href_for_click);
+                if let Some((route, pending_scroll)) = route {
+                    rsx! {
+                        Link {
+                            class: "{class_name}",
+                            to: route,
+                            onclick: move |_| {
+                                if let Some(scroll) = pending_scroll.clone() {
+                                    pending_cukta_scroll.set(Some(scroll));
                                 }
+                            },
+                            for child in inlines.iter() {
+                                { render_cll_inline(child, pending_cukta_scroll, base_path) }
                             }
-                        },
-                        for child in inlines.iter() {
-                            { render_cll_inline(cukta_state, child, base_path) }
+                        }
+                    }
+                } else {
+                    rsx! {
+                        a {
+                            class: "{class_name}",
+                            href: "{href}",
+                            for child in inlines.iter() {
+                                { render_cll_inline(child, pending_cukta_scroll, base_path) }
+                            }
                         }
                     }
                 }
@@ -4145,7 +4419,7 @@ fn render_cll_inline(
                         "{shown}"
                     } else {
                         for child in inlines.iter() {
-                            { render_cll_inline(cukta_state, child, base_path) }
+                            { render_cll_inline(child, pending_cukta_scroll, base_path) }
                         }
                     }
                 }
@@ -4161,7 +4435,6 @@ fn render_cll_inline(
 #[requires(true)]
 #[ensures(true)]
 fn render_cll_interlinear(
-    cukta_state: Signal<CuktaWebState>,
     id: Option<&str>,
     aligned: bool,
     itemized: bool,
@@ -4169,6 +4442,7 @@ fn render_cll_interlinear(
     rows: &[CllInterlinearRow],
     natlang: &[Vec<CllInline>],
     comments: &[Vec<CllInline>],
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     let class_name = class_names(
@@ -4182,11 +4456,11 @@ fn render_cll_interlinear(
     rsx! {
         div { id: id.unwrap_or_default(), class: "{class_name}",
             if let Some(parse_href) = parse_href {
-                a {
-                    class: "cll-parse-example spa-cll-link spa-cll-link-parse",
-                    href: cll_parse_href(base_path, parse_href),
-                    "Parse"
-                }
+                { render_cll_parse_link(
+                    "cll-parse-example spa-cll-link spa-cll-link-parse",
+                    parse_href,
+                    base_path,
+                ) }
             }
             if !rows.is_empty() {
                 if aligned {
@@ -4197,7 +4471,7 @@ fn render_cll_interlinear(
                                     for cell in row.cells.iter() {
                                         td { class: "cll-ig-cell",
                                             for inline in cell.iter() {
-                                                { render_cll_inline(cukta_state, inline, base_path) }
+                                                { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                                             }
                                         }
                                     }
@@ -4212,7 +4486,7 @@ fn render_cll_interlinear(
                                 p { class: "cll-ig-line cll-ig-inline cll-ig-{row.kind}",
                                     for cell in row.cells.iter() {
                                         for inline in cell.iter() {
-                                            { render_cll_inline(cukta_state, inline, base_path) }
+                                            { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                                         }
                                     }
                                 }
@@ -4224,14 +4498,14 @@ fn render_cll_interlinear(
             for comment in comments.iter() {
                 p { class: "cll-ig-comment cll-interlinear-comment",
                     for inline in comment.iter() {
-                        { render_cll_inline(cukta_state, inline, base_path) }
+                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                     }
                 }
             }
             for line in natlang.iter() {
                 p { class: "cll-ig-natlang-text cll-natlang",
                     for inline in line.iter() {
-                        { render_cll_inline(cukta_state, inline, base_path) }
+                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                     }
                 }
             }
@@ -4242,11 +4516,11 @@ fn render_cll_interlinear(
 #[requires(true)]
 #[ensures(true)]
 fn render_cll_cmavo_list(
-    cukta_state: Signal<CuktaWebState>,
     id: Option<&str>,
     titles: &[Vec<CllInline>],
     headers: &[Vec<CllInline>],
     rows: &[Vec<Vec<CllInline>>],
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     rsx! {
@@ -4254,7 +4528,7 @@ fn render_cll_cmavo_list(
             for title in titles.iter() {
                 p { class: "cll-cmavo-list-title",
                     for inline in title.iter() {
-                        { render_cll_inline(cukta_state, inline, base_path) }
+                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                     }
                 }
             }
@@ -4265,7 +4539,7 @@ fn render_cll_cmavo_list(
                             for header in headers.iter() {
                                 th {
                                     for inline in header.iter() {
-                                        { render_cll_inline(cukta_state, inline, base_path) }
+                                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                                     }
                                 }
                             }
@@ -4276,7 +4550,7 @@ fn render_cll_cmavo_list(
                             for cell in row.iter() {
                                 td {
                                     for inline in cell.iter() {
-                                        { render_cll_inline(cukta_state, inline, base_path) }
+                                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                                     }
                                 }
                             }
@@ -4291,9 +4565,9 @@ fn render_cll_cmavo_list(
 #[requires(true)]
 #[ensures(true)]
 fn render_cll_lojbanization(
-    cukta_state: Signal<CuktaWebState>,
     id: Option<&str>,
     lines: &[CllLojbanizationLine],
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     rsx! {
@@ -4304,13 +4578,13 @@ fn render_cll_lojbanization(
                         th { "{line.kind}" }
                         td {
                             for inline in line.body.iter() {
-                                { render_cll_inline(cukta_state, inline, base_path) }
+                                { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                             }
                         }
                         td {
                             if let Some(comment) = &line.comment {
                                 for inline in comment.iter() {
-                                    { render_cll_inline(cukta_state, inline, base_path) }
+                                    { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                                 }
                             }
                         }
@@ -4324,9 +4598,9 @@ fn render_cll_lojbanization(
 #[requires(true)]
 #[ensures(true)]
 fn render_cll_lujvo_making(
-    cukta_state: Signal<CuktaWebState>,
     id: Option<&str>,
     parts: &[CllLujvoPart],
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     rsx! {
@@ -4335,7 +4609,7 @@ fn render_cll_lujvo_making(
                 li { class: "cll-lujvo-part cll-lujvo-part-{part.kind}",
                     span { class: "cll-lujvo-part-kind", "{part.kind}" }
                     for inline in part.body.iter() {
-                        { render_cll_inline(cukta_state, inline, base_path) }
+                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
                     }
                 }
             }
@@ -4345,18 +4619,23 @@ fn render_cll_lujvo_making(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_cll_ebnf(id: Option<&str>, entries: &[CllEbnfEntry], base_path: &str) -> Element {
+fn render_cll_ebnf(
+    id: Option<&str>,
+    entries: &[CllEbnfEntry],
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+) -> Element {
     rsx! {
         div { id: id.unwrap_or_default(), class: "cll-ebnf",
             for entry in entries.iter() {
                 section { id: "{entry.anchor_id}", class: "cll-ebnf-entry",
                     div { class: "cll-ebnf-head",
-                        { render_cll_ebnf_link("cll-ebnf-rule", &entry.rule_name, entry.rule_href.as_deref(), base_path) }
+                        { render_cll_ebnf_link("cll-ebnf-rule", &entry.rule_name, entry.rule_href.as_deref(), pending_cukta_scroll, base_path) }
                         " "
                         span { class: "cll-ebnf-assign", "⩴" }
                     }
                     pre { class: "cll-ebnf-rhs",
-                        { render_cll_ebnf_rhs(&entry.rhs, base_path) }
+                        { render_cll_ebnf_rhs(&entry.rhs, pending_cukta_scroll, base_path) }
                     }
                 }
             }
@@ -4366,13 +4645,17 @@ fn render_cll_ebnf(id: Option<&str>, entries: &[CllEbnfEntry], base_path: &str) 
 
 #[requires(true)]
 #[ensures(true)]
-fn render_cll_ebnf_rhs(tokens: &[CllEbnfToken], base_path: &str) -> Element {
+fn render_cll_ebnf_rhs(
+    tokens: &[CllEbnfToken],
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+) -> Element {
     let lines = wrap_ebnf_choice_lines(tokens);
     if lines.len() == 1 {
         let line = lines.into_iter().next().unwrap_or_default();
         return rsx! {
             for token in line.iter() {
-                { render_cll_ebnf_token(token, base_path) }
+                { render_cll_ebnf_token(token, pending_cukta_scroll, base_path) }
             }
         };
     }
@@ -4380,7 +4663,7 @@ fn render_cll_ebnf_rhs(tokens: &[CllEbnfToken], base_path: &str) -> Element {
         for line in lines.iter() {
             span { class: "cll-ebnf-choice-line",
                 for token in line.iter() {
-                    { render_cll_ebnf_token(token, base_path) }
+                    { render_cll_ebnf_token(token, pending_cukta_scroll, base_path) }
                 }
             }
         }
@@ -4389,36 +4672,98 @@ fn render_cll_ebnf_rhs(tokens: &[CllEbnfToken], base_path: &str) -> Element {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_cll_ebnf_token(token: &CllEbnfToken, base_path: &str) -> Element {
+fn render_cll_ebnf_token(
+    token: &CllEbnfToken,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+) -> Element {
     match token {
         CllEbnfToken::Text { body } => rsx! { "{body}" },
         CllEbnfToken::Operator { body } => {
             rsx! { span { class: "cll-ebnf-op", "{body}" } }
         }
         CllEbnfToken::Hash { body } => rsx! { span { class: "cll-ebnf-hash", "{body}" } },
-        CllEbnfToken::Terminal { body, href } => {
-            render_cll_ebnf_link("cll-ebnf-terminal", body, href.as_deref(), base_path)
-        }
+        CllEbnfToken::Terminal { body, href } => render_cll_ebnf_link(
+            "cll-ebnf-terminal",
+            body,
+            href.as_deref(),
+            pending_cukta_scroll,
+            base_path,
+        ),
         CllEbnfToken::ElidableTerminator { body, href } => {
-            render_cll_ebnf_elidable(body, href.as_deref(), base_path)
+            render_cll_ebnf_elidable(body, href.as_deref(), pending_cukta_scroll, base_path)
         }
-        CllEbnfToken::Nonterminal { body, href } => {
-            render_cll_ebnf_link("cll-ebnf-nonterminal", body, href.as_deref(), base_path)
-        }
+        CllEbnfToken::Nonterminal { body, href } => render_cll_ebnf_link(
+            "cll-ebnf-nonterminal",
+            body,
+            href.as_deref(),
+            pending_cukta_scroll,
+            base_path,
+        ),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_cll_ebnf_elidable(body: &str, href: Option<&str>, base_path: &str) -> Element {
+fn render_cll_ebnf_elidable(
+    body: &str,
+    href: Option<&str>,
+    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+) -> Element {
     let pieces = cll_ebnf_elidable_hash_pieces(body);
     if let Some(href) = href {
         let tooltip = cll_dictionary_tooltip_for_href(base_path, href);
         let href = cll_ebnf_href(base_path, href);
+        let route = jbotci_route_from_href(base_path, &href).map(|route| {
+            let pending_scroll = cukta_pending_scroll_for_explicit_route_link(base_path, &route);
+            (route, pending_scroll)
+        });
         if let Some(card) = &tooltip {
             rsx! {
                 span { class: "dictionary-tooltip-host",
-                    a { class: "cll-ebnf-elidable", href: "{href}",
+                    if let Some((route, pending_scroll)) = route {
+                        Link {
+                            class: "cll-ebnf-elidable",
+                            to: route,
+                            onclick: move |_| {
+                                if let Some(scroll) = pending_scroll.clone() {
+                                    pending_cukta_scroll.set(Some(scroll));
+                                }
+                            },
+                            if let Some((prefix, suffix)) = pieces {
+                                "{prefix}"
+                                span { class: "cll-ebnf-hash", "#" }
+                                "{suffix}"
+                            } else {
+                                "{body}"
+                            }
+                        }
+                    } else {
+                        a { class: "cll-ebnf-elidable", href: "{href}",
+                            if let Some((prefix, suffix)) = pieces {
+                                "{prefix}"
+                                span { class: "cll-ebnf-hash", "#" }
+                                "{suffix}"
+                            } else {
+                                "{body}"
+                            }
+                        }
+                    }
+                    { render_dictionary_tooltip(card, false, base_path) }
+                }
+            }
+        } else {
+            if let Some((route, pending_scroll)) = route {
+                rsx! {
+                    Link {
+                        class: "cll-ebnf-elidable",
+                        to: route,
+                        onclick: move |_| {
+                            if let Some(scroll) = pending_scroll.clone() {
+                                pending_cukta_scroll.set(Some(scroll));
+                            }
+                        },
                         if let Some((prefix, suffix)) = pieces {
                             "{prefix}"
                             span { class: "cll-ebnf-hash", "#" }
@@ -4427,18 +4772,17 @@ fn render_cll_ebnf_elidable(body: &str, href: Option<&str>, base_path: &str) -> 
                             "{body}"
                         }
                     }
-                    { render_dictionary_tooltip(card, false, base_path) }
                 }
-            }
-        } else {
-            rsx! {
-                a { class: "cll-ebnf-elidable", href: "{href}",
-                    if let Some((prefix, suffix)) = pieces {
-                        "{prefix}"
-                        span { class: "cll-ebnf-hash", "#" }
-                        "{suffix}"
-                    } else {
-                        "{body}"
+            } else {
+                rsx! {
+                    a { class: "cll-ebnf-elidable", href: "{href}",
+                        if let Some((prefix, suffix)) = pieces {
+                            "{prefix}"
+                            span { class: "cll-ebnf-hash", "#" }
+                            "{suffix}"
+                        } else {
+                            "{body}"
+                        }
                     }
                 }
             }
@@ -4464,25 +4808,81 @@ fn render_cll_ebnf_link(
     class_name: &str,
     body: &str,
     href: Option<&str>,
+    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     if let Some(href) = href {
         let tooltip = cll_dictionary_tooltip_for_href(base_path, href);
         let href = cll_ebnf_href(base_path, href);
+        let route = jbotci_route_from_href(base_path, &href).map(|route| {
+            let pending_scroll = cukta_pending_scroll_for_explicit_route_link(base_path, &route);
+            (route, pending_scroll)
+        });
         if let Some(card) = &tooltip {
             rsx! {
                 span { class: "dictionary-tooltip-host",
-                    a { class: "{class_name}", href: "{href}", "{body}" }
+                    if let Some((route, pending_scroll)) = route {
+                        Link {
+                            class: "{class_name}",
+                            to: route,
+                            onclick: move |_| {
+                                if let Some(scroll) = pending_scroll.clone() {
+                                    pending_cukta_scroll.set(Some(scroll));
+                                }
+                            },
+                            "{body}"
+                        }
+                    } else {
+                        a { class: "{class_name}", href: "{href}", "{body}" }
+                    }
                     { render_dictionary_tooltip(card, false, base_path) }
                 }
             }
         } else {
-            rsx! {
-                a { class: "{class_name}", href: "{href}", "{body}" }
+            if let Some((route, pending_scroll)) = route {
+                rsx! {
+                    Link {
+                        class: "{class_name}",
+                        to: route,
+                        onclick: move |_| {
+                            if let Some(scroll) = pending_scroll.clone() {
+                                pending_cukta_scroll.set(Some(scroll));
+                            }
+                        },
+                        "{body}"
+                    }
+                }
+            } else {
+                rsx! {
+                    a { class: "{class_name}", href: "{href}", "{body}" }
+                }
             }
         }
     } else {
         rsx! { span { class: "{class_name}", "{body}" } }
+    }
+}
+
+#[requires(!class_name.is_empty())]
+#[ensures(true)]
+fn render_cll_parse_link(class_name: &str, href: &str, base_path: &str) -> Element {
+    let href = cll_parse_href(base_path, href);
+    if let Some(route) = jbotci_route_from_href(base_path, &href) {
+        rsx! {
+            Link {
+                class: "{class_name}",
+                to: route,
+                "Parse"
+            }
+        }
+    } else {
+        rsx! {
+            a {
+                class: "{class_name}",
+                href: "{href}",
+                "Parse"
+            }
+        }
     }
 }
 
@@ -4810,6 +5210,7 @@ fn render_vlacku_page(
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_available: Signal<bool>,
     jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     let committed_state = vlacku_committed_state.read().clone();
@@ -4846,7 +5247,7 @@ fn render_vlacku_page(
                 }
                 div { class: "dictionary-layout",
                     div { class: "dictionary-main-column",
-                        { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, jvozba_available_value, base_path) }
+                        { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, jvozba_available_value, pending_cukta_scroll, base_path) }
                     }
                     if jvozba_available_value {
                         { render_vlacku_jvozba_pane(jvozba_pane, jvozba_drag) }
@@ -5039,6 +5440,7 @@ fn render_vlacku_body(
     mut vlacku_committed_state: Signal<VlackuWebState>,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_available: bool,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     rsx! {
@@ -5046,7 +5448,7 @@ fn render_vlacku_body(
             if !result.cards.is_empty() {
                 div { class: "dictionary-results-grid",
                     for card in result.cards.iter() {
-                        { render_vlacku_card(card, jvozba_pane, jvozba_available, base_path) }
+                        { render_vlacku_card(card, jvozba_pane, jvozba_available, pending_cukta_scroll, base_path) }
                     }
                 }
             }
@@ -5105,6 +5507,28 @@ fn render_dictionary_info(info: &VlackuDictionaryInfo) -> Element {
     }
 }
 
+#[requires(!class_name.is_empty())]
+#[ensures(true)]
+fn render_text_route_link(class_name: &str, href: &str, base_path: &str, label: &str) -> Element {
+    if let Some(route) = jbotci_route_from_href(base_path, href) {
+        rsx! {
+            Link {
+                class: "{class_name}",
+                to: route,
+                "{label}"
+            }
+        }
+    } else {
+        rsx! {
+            a {
+                class: "{class_name}",
+                href: "{href}",
+                "{label}"
+            }
+        }
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn render_dictionary_count_node(node: &VlackuDictionaryCountNode) -> Element {
@@ -5132,6 +5556,7 @@ fn render_vlacku_card(
     card: &VlackuWebCard,
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_available: bool,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     rsx! {
@@ -5143,7 +5568,7 @@ fn render_vlacku_card(
                     }
                 }
                 div { class: "tag-row",
-                    { render_vlacku_metadata_pill(card, base_path) }
+                    { render_vlacku_metadata_pill(card, pending_cukta_scroll, base_path) }
                 }
             }
             if !card.definition.is_empty() {
@@ -5179,7 +5604,7 @@ fn render_dictionary_tooltip(
             span { class: "tooltip-word-line",
                 span { class: "tooltip-headword",
                     if show_link {
-                        a { class: "tooltip-word", href: "{card.href}", "{card.display_word}" }
+                        { render_text_route_link("tooltip-word", &card.href, base_path, &card.display_word) }
                     } else {
                         span { class: "tooltip-word", "{card.display_word}" }
                     }
@@ -5203,11 +5628,27 @@ fn render_dictionary_tooltip(
                         for piece in card.decomposition.iter().filter(|piece| piece.kind != VlackuCompositionPieceKind::Hyphen) {
                             if let Some(source) = &piece.source {
                                 if show_link {
-                                    a {
-                                        class: "tooltip-rafsi-piece",
-                                        href: "{piece.source_href.clone().unwrap_or_else(|| card.href.clone())}",
-                                        span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
-                                        span { class: "tooltip-rafsi-source", "{piece.display_source.as_deref().unwrap_or(source)}" }
+                                    {
+                                        let href = piece.source_href.as_deref().unwrap_or(&card.href);
+                                        if let Some(route) = jbotci_route_from_href(base_path, href) {
+                                            rsx! {
+                                                Link {
+                                                    class: "tooltip-rafsi-piece",
+                                                    to: route,
+                                                    span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
+                                                    span { class: "tooltip-rafsi-source", "{piece.display_source.as_deref().unwrap_or(source)}" }
+                                                }
+                                            }
+                                        } else {
+                                            rsx! {
+                                                a {
+                                                    class: "tooltip-rafsi-piece",
+                                                    href: "{href}",
+                                                    span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
+                                                    span { class: "tooltip-rafsi-source", "{piece.display_source.as_deref().unwrap_or(source)}" }
+                                                }
+                                            }
+                                        }
                                     }
                                 } else {
                                     span { class: "tooltip-rafsi-piece",
@@ -5262,7 +5703,7 @@ fn render_tooltip_inline_spans(
                         let resolved_href = resolved_href_with_base_path(base_path, href);
                         if interactive_links {
                             rsx! {
-                                a { class: "tooltip-inline-link", href: "{resolved_href}", "{label}" }
+                                { render_text_route_link("tooltip-inline-link", &resolved_href, base_path, label) }
                             }
                         } else {
                             rsx! {
@@ -5301,6 +5742,7 @@ fn render_vlacku_headword_line(
             &card.word,
             &card.display_word,
             &word_href,
+            base_path,
         ) }
         if let Some(ipa) = &card.ipa {
             span { class: "dictionary-headword-ipa", "/{ipa}/" }
@@ -5328,6 +5770,7 @@ fn render_vlacku_headword_action(
     word: &str,
     display_word: &str,
     href: &str,
+    base_path: &str,
 ) -> Element {
     let pane_open = jvozba_available && jvozba_pane.read().open;
     let word_value = word.to_owned();
@@ -5346,13 +5789,7 @@ fn render_vlacku_headword_action(
             span { class: "dictionary-headword-link", "{display_word}" }
         }
     } else {
-        rsx! {
-            a {
-                class: "dictionary-headword-link",
-                href: "{href}",
-                "{display_word}"
-            }
-        }
+        render_text_route_link("dictionary-headword-link", href, base_path, display_word)
     }
 }
 
@@ -5387,12 +5824,16 @@ fn render_vlacku_inline_separator(text: &str) -> Element {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_vlacku_metadata_pill(card: &VlackuWebCard, base_path: &str) -> Element {
+fn render_vlacku_metadata_pill(
+    card: &VlackuWebCard,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+) -> Element {
     rsx! {
         div { class: "dictionary-meta-pill",
             span { class: word_type_tag_class(&card.word_type_key), "{card.word_type}" }
             if let Some(selmaho) = &card.selmaho {
-                { render_vlacku_selmaho_segment(card, selmaho, base_path) }
+                { render_vlacku_selmaho_segment(card, selmaho, pending_cukta_scroll, base_path) }
             }
             if let Some(similarity) = card.similarity {
                 span { class: "dictionary-meta-segment dictionary-meta-tooltip", title: "Phonetic similarity to the current query.",
@@ -5406,12 +5847,34 @@ fn render_vlacku_metadata_pill(card: &VlackuWebCard, base_path: &str) -> Element
 
 #[requires(true)]
 #[ensures(true)]
-fn render_vlacku_selmaho_segment(card: &VlackuWebCard, selmaho: &str, base_path: &str) -> Element {
+fn render_vlacku_selmaho_segment(
+    card: &VlackuWebCard,
+    selmaho: &str,
+    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+) -> Element {
     if card.word_type_key == "gismu" {
         let href = format!("{}/cukta", base_path.trim_end_matches('/'));
-        rsx! {
-            a { class: "dictionary-meta-segment dictionary-selmaho-tag", href: "{href}", title: "CLL gismu section",
-                em { "{selmaho}" }
+        if let Some(route) = jbotci_route_from_href(base_path, &href) {
+            let pending_scroll = cukta_pending_scroll_for_explicit_route_link(base_path, &route);
+            rsx! {
+                Link {
+                    class: "dictionary-meta-segment dictionary-selmaho-tag",
+                    to: route,
+                    title: "CLL gismu section",
+                    onclick: move |_| {
+                        if let Some(scroll) = pending_scroll.clone() {
+                            pending_cukta_scroll.set(Some(scroll));
+                        }
+                    },
+                    em { "{selmaho}" }
+                }
+            }
+        } else {
+            rsx! {
+                a { class: "dictionary-meta-segment dictionary-selmaho-tag", href: "{href}", title: "CLL gismu section",
+                    em { "{selmaho}" }
+                }
             }
         }
     } else {
@@ -5502,14 +5965,12 @@ fn render_vlacku_word_action(
         if let Some(card) = &tooltip {
             rsx! {
                 span { class: "dictionary-tooltip-host",
-                    a { class: "{static_class_name}", href: "{href}", "{display_word}" }
+                    { render_text_route_link(&static_class_name, href, base_path, display_word) }
                     { render_dictionary_tooltip(card, false, base_path) }
                 }
             }
         } else {
-            rsx! {
-                a { class: "{static_class_name}", href: "{href}", "{display_word}" }
-            }
+            render_text_route_link(&static_class_name, href, base_path, display_word)
         }
     }
 }
@@ -5708,14 +6169,12 @@ fn render_vlacku_inline_word_ref(
         if let Some(card) = &tooltip {
             rsx! {
                 span { class: "dictionary-tooltip-host",
-                    a { class: "dictionary-word-link", href: "{resolved_href}", "{label}" }
+                    { render_text_route_link("dictionary-word-link", &resolved_href, base_path, label) }
                     { render_dictionary_tooltip(card, false, base_path) }
                 }
             }
         } else {
-            rsx! {
-                a { class: "dictionary-word-link", href: "{resolved_href}", "{label}" }
-            }
+            render_text_route_link("dictionary-word-link", &resolved_href, base_path, label)
         }
     }
 }
@@ -6394,27 +6853,50 @@ fn render_bracket_fragment(fragment: &GentufaBracketFragment) -> Element {
                 .map(|color| format!("color: {color};"))
                 .unwrap_or_default();
             if let Some(href) = href {
+                let base_path = router_base_path();
+                let route = jbotci_route_from_href(&base_path, href);
                 if let Some(card) = tooltip {
                     rsx! {
                         span {
                             class: "bracket-fragment bracket-word dictionary-tooltip-host",
                             style: "{style}",
-                            a { class: "bracket-word-link", href: "{href}",
+                            if let Some(route) = route {
+                                Link { class: "bracket-word-link", to: route,
+                                    for child in children.iter() {
+                                        { render_bracket_fragment(child) }
+                                    }
+                                }
+                            } else {
+                                a { class: "bracket-word-link", href: "{href}",
+                                    for child in children.iter() {
+                                        { render_bracket_fragment(child) }
+                                    }
+                                }
+                            }
+                            { render_dictionary_tooltip(card, false, &base_path) }
+                        }
+                    }
+                } else {
+                    if let Some(route) = route {
+                        rsx! {
+                            Link {
+                                class: "bracket-fragment bracket-word",
+                                style: "{style}",
+                                to: route,
                                 for child in children.iter() {
                                     { render_bracket_fragment(child) }
                                 }
                             }
-                            { render_dictionary_tooltip(card, false, "") }
                         }
-                    }
-                } else {
-                    rsx! {
-                        a {
-                            class: "bracket-fragment bracket-word",
-                            style: "{style}",
-                            href: "{href}",
-                            for child in children.iter() {
-                                { render_bracket_fragment(child) }
+                    } else {
+                        rsx! {
+                            a {
+                                class: "bracket-fragment bracket-word",
+                                style: "{style}",
+                                href: "{href}",
+                                for child in children.iter() {
+                                    { render_bracket_fragment(child) }
+                                }
                             }
                         }
                     }
@@ -6763,15 +7245,28 @@ fn render_block(
                 }
             }
             if let Some(card) = &block.tooltip {
-                span { class: "block-label",
-                    span { class: "block-label-tooltip dictionary-tooltip-host",
-                        title: "{block.label}",
-                        a { class: "block-label-link", href: "{card.href}",
-                            span { class: "block-label-text",
-                                { render_elidable_text(&block.label, block.is_elided) }
+                {
+                    let base_path = router_base_path();
+                    rsx! {
+                        span { class: "block-label",
+                            span { class: "block-label-tooltip dictionary-tooltip-host",
+                                title: "{block.label}",
+                                if let Some(route) = jbotci_route_from_href(&base_path, &card.href) {
+                                    Link { class: "block-label-link", to: route,
+                                        span { class: "block-label-text",
+                                            { render_elidable_text(&block.label, block.is_elided) }
+                                        }
+                                    }
+                                } else {
+                                    a { class: "block-label-link", href: "{card.href}",
+                                        span { class: "block-label-text",
+                                            { render_elidable_text(&block.label, block.is_elided) }
+                                        }
+                                    }
+                                }
+                                { render_dictionary_tooltip(card, false, &base_path) }
                             }
                         }
-                        { render_dictionary_tooltip(card, false, "") }
                     }
                 }
             } else {
@@ -8513,22 +9008,6 @@ fn pressed_attr(active: bool) -> &'static str {
     if active { "true" } else { "false" }
 }
 
-#[requires(base_path.starts_with('/'))]
-#[ensures(ret.starts_with('/'))]
-fn nav_href(base_path: &str, route: AppRoute) -> String {
-    let path = match route {
-        AppRoute::Gentufa => "/gentufa",
-        AppRoute::Settings => "/settings",
-        AppRoute::Cukta => "/cukta",
-        AppRoute::Vlacku => "/vlacku",
-    };
-    if base_path == "/" {
-        path.to_owned()
-    } else {
-        format!("{base_path}{path}")
-    }
-}
-
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn theme_class(theme: ThemeMode) -> &'static str {
@@ -8551,71 +9030,56 @@ fn script_class(script: GentufaScript) -> &'static str {
 
 #[requires(true)]
 #[ensures(true)]
-fn initial_vlacku_state() -> VlackuWebState {
-    parse_vlacku_web_route(&logical_current_path(), &current_query())
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn initial_cukta_state() -> CuktaWebState {
-    parse_cukta_web_route(&logical_current_path(), &current_query())
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn initial_gentufa_state() -> GentufaWebState {
-    parse_gentufa_web_route(&logical_current_path(), &current_query())
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn initial_gentufa_text_explicit() -> bool {
-    current_query_has_key("text")
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn route_from_current_path() -> AppRoute {
-    route_from_path(&current_path())
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn base_path_from_current_path() -> String {
-    let path = current_path();
-    if path == "/jbotci" || path.starts_with("/jbotci/") {
-        "/jbotci".to_owned()
+fn initial_vlacku_state(route: &JbotciRoute) -> VlackuWebState {
+    if let WebRoute::Vlacku(state) = &route.web_route {
+        state.clone()
     } else {
-        "/".to_owned()
+        VlackuWebState::default()
     }
 }
 
-#[requires(path.starts_with('/'))]
+#[requires(true)]
 #[ensures(true)]
-fn route_from_path(path: &str) -> AppRoute {
-    let logical = path.strip_prefix("/jbotci").unwrap_or(path);
-    let logical = if logical == "/" {
-        logical
+fn initial_cukta_state(route: &JbotciRoute) -> CuktaWebState {
+    if let WebRoute::Cukta(state) = &route.web_route {
+        state.clone()
     } else {
-        logical.trim_end_matches('/')
-    };
-    match logical {
-        "" | "/" | "/gentufa" => AppRoute::Gentufa,
-        "/settings" => AppRoute::Settings,
-        "/cukta" => AppRoute::Cukta,
-        "/cukta/index" | "/cukta/search" => AppRoute::Cukta,
-        "/vlacku" => AppRoute::Vlacku,
-        _ if logical.starts_with("/cukta/section/") => AppRoute::Cukta,
-        _ if logical.starts_with("/vlacku/") => AppRoute::Vlacku,
-        _ => AppRoute::Gentufa,
+        CuktaWebState::default()
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn initial_gentufa_state(route: &JbotciRoute) -> GentufaWebState {
+    if let WebRoute::Gentufa(state) = &route.web_route {
+        state.clone()
+    } else {
+        GentufaWebState::default()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn initial_gentufa_text_explicit(route: &JbotciRoute) -> bool {
+    route.gentufa_text_explicit
+}
+
+#[requires(true)]
+#[ensures(ret.is_empty() || ret.starts_with('/'))]
+fn router_base_path() -> String {
+    dioxus::router::router().prefix().unwrap_or_default()
 }
 
 #[requires(true)]
 #[ensures(ret.starts_with('/'))]
-fn logical_current_path() -> String {
-    let path = current_path();
-    path.strip_prefix("/jbotci").unwrap_or(&path).to_owned()
+fn route_href_with_base_path(base_path: &str, route: &JbotciRoute) -> String {
+    let route_href = route.to_string();
+    let prefix = base_path.trim_end_matches('/');
+    if prefix.is_empty() || prefix == "/" {
+        route_href
+    } else {
+        format!("{prefix}{route_href}")
+    }
 }
 
 #[requires(true)]
@@ -8655,27 +9119,13 @@ fn app_route_for_web_route(route: &WebRoute) -> AppRoute {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
-fn install_browser_state_handlers(
-    route: Signal<AppRoute>,
-    cukta_state: Signal<CuktaWebState>,
-    vlacku_draft_state: Signal<VlackuWebState>,
-    vlacku_committed_state: Signal<VlackuWebState>,
-    input_text: Signal<String>,
-    parsed_text: Signal<String>,
-    dialect: Signal<String>,
-    parsed_dialect: Signal<String>,
-    view_mode: Signal<GentufaWebViewMode>,
-    gentufa_display: Signal<GentufaDisplayState>,
-    gentufa_text_explicit: Signal<bool>,
-    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+fn install_browser_dom_handlers(
     jvozba_available: Signal<bool>,
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
-    base_path: &str,
 ) {
     let should_install = BROWSER_STATE_HANDLERS_INSTALLED.with(|installed| {
         if installed.get() {
@@ -8694,88 +9144,6 @@ fn install_browser_state_handlers(
     let Some(document) = window.document() else {
         return;
     };
-    let base_path_for_click = base_path.to_owned();
-    let click_route = route;
-    let click_cukta = cukta_state;
-    let click_vlacku_draft = vlacku_draft_state;
-    let click_vlacku_committed = vlacku_committed_state;
-    let click_input = input_text;
-    let click_parsed = parsed_text;
-    let click_dialect = dialect;
-    let click_parsed_dialect = parsed_dialect;
-    let click_view = view_mode;
-    let click_display = gentufa_display;
-    let click_text_explicit = gentufa_text_explicit;
-    let click_pending_cukta_scroll = pending_cukta_scroll;
-    let mut click_topbar_open = topbar_settings_open;
-    let click_closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-        let Some(href) = internal_href_from_click_event(&event, &base_path_for_click) else {
-            return;
-        };
-        let restore_cukta_scroll = event_target_is_topbar_cukta_link(&event);
-        event.prevent_default();
-        event.stop_propagation();
-        click_topbar_open.set(false);
-        navigate_to_internal_href(
-            &href,
-            &base_path_for_click,
-            true,
-            click_route,
-            click_cukta,
-            click_vlacku_draft,
-            click_vlacku_committed,
-            click_input,
-            click_parsed,
-            click_dialect,
-            click_parsed_dialect,
-            click_view,
-            click_display,
-            click_text_explicit,
-            click_pending_cukta_scroll,
-            restore_cukta_scroll,
-        );
-    }) as Box<dyn FnMut(_)>);
-    let _ = document.add_event_listener_with_callback_and_bool(
-        "click",
-        click_closure.as_ref().unchecked_ref(),
-        true,
-    );
-    click_closure.forget();
-
-    let base_path_for_pop = base_path.to_owned();
-    let pop_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
-        let logical_path = logical_current_path();
-        let query = current_query();
-        let web_route = parse_web_route(&logical_path, &query);
-        apply_web_route_to_client_state(
-            &web_route,
-            current_query_has_key("text"),
-            route,
-            cukta_state,
-            vlacku_draft_state,
-            vlacku_committed_state,
-            input_text,
-            parsed_text,
-            dialect,
-            parsed_dialect,
-            view_mode,
-            gentufa_display,
-            gentufa_text_explicit,
-        );
-        if app_route_for_web_route(&web_route) == AppRoute::Cukta {
-            let scroll = cukta_stored_pending_scroll(current_path_query());
-            let mut pending_scroll = pending_cukta_scroll;
-            pending_scroll.set(Some(scroll.clone()));
-            apply_cukta_pending_scroll(scroll);
-        } else {
-            restore_scroll_for_current_url();
-        }
-        let _ = base_path_for_pop;
-    }) as Box<dyn FnMut(_)>);
-    let _ =
-        window.add_event_listener_with_callback("popstate", pop_closure.as_ref().unchecked_ref());
-    pop_closure.forget();
-
     let tooltip_pointer_closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
         position_dictionary_tooltip_from_event(&event);
     }) as Box<dyn FnMut(_)>);
@@ -8866,45 +9234,18 @@ fn install_browser_state_handlers(
     restore_scroll_for_current_url();
 }
 
-#[allow(clippy::too_many_arguments)]
 #[cfg(not(target_arch = "wasm32"))]
 #[requires(true)]
 #[ensures(true)]
-fn install_browser_state_handlers(
-    route: Signal<AppRoute>,
-    cukta_state: Signal<CuktaWebState>,
-    vlacku_draft_state: Signal<VlackuWebState>,
-    vlacku_committed_state: Signal<VlackuWebState>,
-    input_text: Signal<String>,
-    parsed_text: Signal<String>,
-    dialect: Signal<String>,
-    parsed_dialect: Signal<String>,
-    view_mode: Signal<GentufaWebViewMode>,
-    gentufa_display: Signal<GentufaDisplayState>,
-    gentufa_text_explicit: Signal<bool>,
-    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+fn install_browser_dom_handlers(
     jvozba_available: Signal<bool>,
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
-    base_path: &str,
 ) {
     let _ = (
-        route,
-        cukta_state,
-        vlacku_draft_state,
-        vlacku_committed_state,
-        input_text,
-        parsed_text,
-        dialect,
-        parsed_dialect,
-        view_mode,
-        gentufa_display,
-        gentufa_text_explicit,
-        pending_cukta_scroll,
         jvozba_available,
         topbar_settings_layout,
         topbar_settings_open,
-        base_path,
     );
 }
 
@@ -9732,81 +10073,6 @@ fn position_dictionary_tooltip(host: &web_sys::Element) {
     let _ = style.set_property("--dictionary-tooltip-top", &format!("{top:.2}px"));
 }
 
-#[cfg(target_arch = "wasm32")]
-#[requires(true)]
-#[ensures(true)]
-fn internal_href_from_click_event(event: &web_sys::MouseEvent, base_path: &str) -> Option<String> {
-    if event.default_prevented()
-        || event.button() != 0
-        || event.alt_key()
-        || event.ctrl_key()
-        || event.meta_key()
-        || event.shift_key()
-    {
-        return None;
-    }
-    let target = event.target()?.dyn_into::<web_sys::Element>().ok()?;
-    let anchor = target.closest("a[href]").ok().flatten()?;
-    if anchor
-        .get_attribute("target")
-        .is_some_and(|target| !target.is_empty() && target != "_self")
-        || anchor.has_attribute("download")
-    {
-        return None;
-    }
-    normalize_internal_href(&anchor.get_attribute("href")?, base_path)
-}
-
-#[cfg(target_arch = "wasm32")]
-#[requires(true)]
-#[ensures(true)]
-fn event_target_is_topbar_cukta_link(event: &web_sys::MouseEvent) -> bool {
-    let Some(target) = event
-        .target()
-        .and_then(|target| target.dyn_into::<web_sys::Element>().ok())
-    else {
-        return false;
-    };
-    target
-        .closest(".app-topbar .spa-nav a[href*='/cukta']")
-        .ok()
-        .flatten()
-        .is_some()
-}
-
-#[cfg(target_arch = "wasm32")]
-#[requires(true)]
-#[ensures(true)]
-fn normalize_internal_href(href: &str, base_path: &str) -> Option<String> {
-    let trimmed = href.trim();
-    if trimmed.is_empty()
-        || trimmed.starts_with('#')
-        || trimmed.starts_with("mailto:")
-        || trimmed.starts_with("javascript:")
-        || trimmed.starts_with("//")
-    {
-        return None;
-    }
-    let path_query_hash = if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
-        let origin = web_sys::window()?.location().origin().ok()?;
-        trimmed.strip_prefix(&origin)?.to_owned()
-    } else if trimmed.starts_with('/') {
-        trimmed.to_owned()
-    } else {
-        return None;
-    };
-    let (path, _, _) = split_href(&path_query_hash);
-    if has_app_asset_extension(path) {
-        return None;
-    }
-    let logical = strip_base_path_for_client(path, base_path)?;
-    if is_app_route_path_for_client(&logical) {
-        Some(path_query_hash)
-    } else {
-        None
-    }
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn has_app_asset_extension(path: &str) -> bool {
@@ -9865,65 +10131,76 @@ fn split_href(href: &str) -> (&str, &str, Option<&str>) {
     (path, query, hash)
 }
 
-#[allow(clippy::too_many_arguments)]
 #[requires(true)]
 #[ensures(true)]
-fn navigate_to_internal_href(
-    href: &str,
-    base_path: &str,
-    push_history: bool,
-    route: Signal<AppRoute>,
-    cukta_state: Signal<CuktaWebState>,
-    vlacku_draft_state: Signal<VlackuWebState>,
-    vlacku_committed_state: Signal<VlackuWebState>,
-    input_text: Signal<String>,
-    parsed_text: Signal<String>,
-    dialect: Signal<String>,
-    parsed_dialect: Signal<String>,
-    view_mode: Signal<GentufaWebViewMode>,
-    gentufa_display: Signal<GentufaDisplayState>,
-    gentufa_text_explicit: Signal<bool>,
-    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
-    restore_cukta_scroll: bool,
-) {
-    let (path, query, hash) = split_href(href);
-    let Some(logical_path) = strip_base_path_for_client(path, base_path) else {
-        return;
-    };
-    let web_route = parse_web_route(&logical_path, query);
-    let mut target = web_route_url(base_path, &web_route);
-    if let Some(hash) = hash.filter(|hash| !hash.is_empty()) {
-        target.push('#');
-        target.push_str(hash);
+fn logical_app_path_for_client(path: &str, base_path: &str) -> Option<String> {
+    if let Some(logical_path) = strip_base_path_for_client(path, base_path)
+        && is_app_route_path_for_client(&logical_path)
+    {
+        return Some(logical_path);
     }
-    save_current_scroll_position();
-    set_browser_url(&target, push_history);
-    apply_web_route_to_client_state(
-        &web_route,
-        query_has_key(query, "text"),
-        route,
-        cukta_state,
-        vlacku_draft_state,
-        vlacku_committed_state,
-        input_text,
-        parsed_text,
-        dialect,
-        parsed_dialect,
-        view_mode,
-        gentufa_display,
-        gentufa_text_explicit,
-    );
-    if let Some(scroll) = cukta_pending_scroll_for_navigation(
-        app_route_for_web_route(&web_route),
-        &target,
-        hash.is_some(),
-        restore_cukta_scroll,
-    ) {
-        let mut pending_scroll = pending_cukta_scroll;
-        pending_scroll.set(Some(scroll.clone()));
-        apply_cukta_pending_scroll(scroll);
+    let normalized = if path.starts_with('/') {
+        path.to_owned()
     } else {
-        restore_scroll_for_url(&target);
+        format!("/{path}")
+    };
+    if is_app_route_path_for_client(&normalized) {
+        Some(normalized)
+    } else {
+        None
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn jbotci_route_from_href(base_path: &str, href: &str) -> Option<JbotciRoute> {
+    let trimmed = href.trim();
+    if trimmed.is_empty()
+        || trimmed.starts_with('#')
+        || trimmed.starts_with("mailto:")
+        || trimmed.starts_with("javascript:")
+        || trimmed.starts_with("//")
+        || trimmed.starts_with("http://")
+        || trimmed.starts_with("https://")
+    {
+        return None;
+    }
+    if !trimmed.starts_with('/') {
+        return None;
+    }
+    let (path, query, hash) = split_href(trimmed);
+    if has_app_asset_extension(path) {
+        return None;
+    }
+    let logical_path = logical_app_path_for_client(path, base_path)?;
+    let web_route = parse_web_route(&logical_path, query);
+    let app_route = app_route_for_web_route(&web_route);
+    Some(JbotciRoute {
+        gentufa_text_explicit: app_route == AppRoute::Gentufa && query_has_key(query, "text"),
+        settings_query: if app_route == AppRoute::Settings {
+            query.trim_start_matches('?').to_owned()
+        } else {
+            String::new()
+        },
+        hash: hash
+            .map(|hash| hash.trim_start_matches('#').to_owned())
+            .filter(|hash| !hash.is_empty()),
+        web_route,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn jbotci_route_from_dioxus_route(raw: &str) -> Option<JbotciRoute> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return jbotci_route_from_href("", "/");
+    }
+    if trimmed.starts_with('/') {
+        jbotci_route_from_href("", trimmed)
+    } else {
+        let href = format!("/{trimmed}");
+        jbotci_route_from_href("", &href)
     }
 }
 
@@ -9994,40 +10271,6 @@ fn query_has_key(query: &str, key: &str) -> bool {
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
-fn set_browser_url(url: &str, push_history: bool) {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    let location = window.location();
-    let current = format!(
-        "{}{}{}",
-        location.pathname().unwrap_or_default(),
-        location.search().unwrap_or_default(),
-        location.hash().unwrap_or_default()
-    );
-    if current == url {
-        return;
-    }
-    if let Ok(history) = window.history() {
-        let method_result = if push_history {
-            history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(url))
-        } else {
-            history.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(url))
-        };
-        let _ = method_result;
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(true)]
-fn set_browser_url(url: &str, push_history: bool) {
-    let _ = (url, push_history);
-}
-
-#[cfg(target_arch = "wasm32")]
-#[requires(true)]
-#[ensures(true)]
 fn current_hash() -> Option<String> {
     web_sys::window()
         .and_then(|window| window.location().hash().ok())
@@ -10057,19 +10300,13 @@ fn cukta_hash_scroll_target(
 }
 
 #[requires(true)]
-#[ensures(!ret.contains('#'))]
-fn current_path_query() -> String {
-    format!("{}{}", current_path(), current_query())
-}
-
-#[requires(true)]
 #[ensures(true)]
-fn current_cukta_pending_scroll() -> Option<CuktaPendingScroll> {
+fn current_cukta_pending_scroll(route: &JbotciRoute) -> Option<CuktaPendingScroll> {
     cukta_hash_scroll_target(
         &current_path(),
         &current_query(),
         current_hash().as_deref(),
-        route_from_current_path(),
+        route.app_route(),
     )
     .map(cukta_anchor_pending_scroll)
 }
@@ -10119,6 +10356,55 @@ fn cukta_pending_scroll_for_navigation(
     } else {
         Some(cukta_top_pending_scroll())
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_pending_scroll_for_route_change(
+    base_path: &str,
+    route: &JbotciRoute,
+) -> Option<CuktaPendingScroll> {
+    if route.app_route() != AppRoute::Cukta {
+        return None;
+    }
+    let target = route_href_with_base_path(base_path, route);
+    Some(cukta_stored_pending_scroll(target))
+}
+
+#[requires(route.app_route() == AppRoute::Cukta)]
+#[ensures(matches!(ret.mode, CuktaPendingScrollMode::Anchor) == route.hash.is_some())]
+fn cukta_pending_scroll_for_route_link(base_path: &str, route: &JbotciRoute) -> CuktaPendingScroll {
+    if route.hash.is_some() {
+        cukta_anchor_pending_scroll(route_href_with_base_path(base_path, route))
+    } else {
+        cukta_top_pending_scroll()
+    }
+}
+
+#[requires(true)]
+#[ensures(route.app_route() == AppRoute::Cukta -> ret.is_some())]
+#[ensures(route.app_route() != AppRoute::Cukta -> ret.is_none())]
+fn cukta_pending_scroll_for_explicit_route_link(
+    base_path: &str,
+    route: &JbotciRoute,
+) -> Option<CuktaPendingScroll> {
+    if route.app_route() == AppRoute::Cukta {
+        Some(cukta_pending_scroll_for_route_link(base_path, route))
+    } else {
+        None
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret || page.state.as_ref().is_some_and(|page_state| page_state == state))]
+#[ensures(!ret || !page.loading)]
+#[ensures(!ret || page.error.is_none())]
+fn cukta_page_ready_for_scroll(page: &CuktaAsyncPageState, state: &CuktaWebState) -> bool {
+    page.state
+        .as_ref()
+        .is_some_and(|page_state| page_state == state)
+        && !page.loading
+        && page.error.is_none()
 }
 
 #[requires(true)]
@@ -10364,39 +10650,35 @@ fn clear_vlacku_search_timer() {
 #[ensures(true)]
 fn clear_vlacku_search_timer() {}
 
+#[requires(true)]
+#[ensures(true)]
+fn schedule_vlacku_url_push(history: Rc<dyn History>, state: &VlackuWebState) {
+    let target = JbotciRoute::from_web_route(WebRoute::Vlacku(state.clone()), false);
+    schedule_route_push(
+        history,
+        route_path_for_route(&target),
+        VLACKU_URL_DEBOUNCE_MS,
+    );
+}
+
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
-fn schedule_vlacku_url_push(base_path: &str, state: &VlackuWebState) {
+fn schedule_route_push(history: Rc<dyn History>, target: String, delay_ms: i32) {
     let Some(window) = web_sys::window() else {
         return;
     };
-    let target = vlacku_web_url(base_path, state);
     VLACKU_URL_TIMER.with(|timer| {
         if let Some(handle) = timer.replace(None) {
             window.clear_timeout_with_handle(handle);
         }
     });
     let closure = Closure::once(move || {
-        if let Some(window) = web_sys::window() {
-            let location = window.location();
-            let current_url = format!(
-                "{}{}",
-                location.pathname().unwrap_or_default(),
-                location.search().unwrap_or_default()
-            );
-            if current_url == target {
-                return;
-            }
-            if let Ok(history) = window.history() {
-                let _ =
-                    history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&target));
-            }
-        }
+        history.push(target);
     });
     if let Ok(handle) = window.set_timeout_with_callback_and_timeout_and_arguments_0(
         closure.as_ref().unchecked_ref(),
-        VLACKU_URL_DEBOUNCE_MS,
+        delay_ms,
     ) {
         VLACKU_URL_TIMER.with(|timer| timer.set(Some(handle)));
         closure.forget();
@@ -10406,33 +10688,41 @@ fn schedule_vlacku_url_push(base_path: &str, state: &VlackuWebState) {
 #[cfg(not(target_arch = "wasm32"))]
 #[requires(true)]
 #[ensures(true)]
-fn schedule_vlacku_url_push(base_path: &str, state: &VlackuWebState) {
-    let _ = VLACKU_URL_DEBOUNCE_MS;
-    let _ = (base_path, state);
+fn schedule_route_push(history: Rc<dyn History>, target: String, delay_ms: i32) {
+    let _ = delay_ms;
+    history.push(target);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn schedule_gentufa_url_replace(history: Rc<dyn History>, state: &GentufaWebState) {
+    let target =
+        JbotciRoute::from_web_route(WebRoute::Gentufa(state.clone()), !state.text.is_empty());
+    schedule_route_replace(
+        history,
+        route_path_for_route(&target),
+        GENTUFA_URL_DEBOUNCE_MS,
+    );
 }
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
-fn schedule_gentufa_url_replace(base_path: &str, state: &GentufaWebState) {
+fn schedule_route_replace(history: Rc<dyn History>, target: String, delay_ms: i32) {
     let Some(window) = web_sys::window() else {
         return;
     };
-    let target = gentufa_web_url(base_path, state);
     GENTUFA_URL_TIMER.with(|timer| {
         if let Some(handle) = timer.replace(None) {
             window.clear_timeout_with_handle(handle);
         }
     });
     let closure = Closure::once(move || {
-        if route_from_current_path() != AppRoute::Gentufa {
-            return;
-        }
-        set_browser_url(&target, false);
+        history.replace(target);
     });
     if let Ok(handle) = window.set_timeout_with_callback_and_timeout_and_arguments_0(
         closure.as_ref().unchecked_ref(),
-        GENTUFA_URL_DEBOUNCE_MS,
+        delay_ms,
     ) {
         GENTUFA_URL_TIMER.with(|timer| timer.set(Some(handle)));
         closure.forget();
@@ -10442,37 +10732,25 @@ fn schedule_gentufa_url_replace(base_path: &str, state: &GentufaWebState) {
 #[cfg(not(target_arch = "wasm32"))]
 #[requires(true)]
 #[ensures(true)]
-fn schedule_gentufa_url_replace(base_path: &str, state: &GentufaWebState) {
-    let _ = GENTUFA_URL_DEBOUNCE_MS;
-    let _ = (base_path, state);
+fn schedule_route_replace(history: Rc<dyn History>, target: String, delay_ms: i32) {
+    let _ = delay_ms;
+    history.replace(target);
 }
 
-#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret.starts_with('/'))]
+fn route_path_for_route(route: &JbotciRoute) -> String {
+    route.to_string()
+}
+
 #[requires(true)]
 #[ensures(true)]
-fn push_cukta_url(base_path: &str, state: &CuktaWebState) {
-    let target = cukta_web_url(base_path, state);
-    if let Some(window) = web_sys::window() {
-        let location = window.location();
-        let current_url = format!(
-            "{}{}",
-            location.pathname().unwrap_or_default(),
-            location.search().unwrap_or_default()
-        );
-        if current_url == target {
-            return;
-        }
-        if let Ok(history) = window.history() {
-            let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&target));
-        }
+fn push_cukta_url(history: Rc<dyn History>, current: &JbotciRoute, state: &CuktaWebState) {
+    let target = JbotciRoute::from_web_route(WebRoute::Cukta(state.clone()), false);
+    if current.without_hash() == target {
+        return;
     }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(true)]
-fn push_cukta_url(base_path: &str, state: &CuktaWebState) {
-    let _ = (base_path, state);
+    history.push(route_path_for_route(&target));
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -10798,35 +11076,6 @@ fn measure_vlacku_jvozba_item_height(index: usize) -> Option<usize> {
 #[ensures(true)]
 fn measure_vlacku_jvozba_item_height(_index: usize) -> Option<usize> {
     None
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn current_query_value(key: &str) -> Option<String> {
-    current_query()
-        .trim_start_matches('?')
-        .split('&')
-        .filter_map(|pair| pair.split_once('='))
-        .find_map(|(candidate_key, value)| {
-            if candidate_key == key {
-                Some(value.to_owned())
-            } else {
-                None
-            }
-        })
-}
-
-#[requires(!key.is_empty())]
-#[ensures(true)]
-fn current_query_has_key(key: &str) -> bool {
-    current_query()
-        .trim_start_matches('?')
-        .split('&')
-        .filter(|pair| !pair.is_empty())
-        .any(|pair| {
-            pair.split_once('=')
-                .map_or(pair == key, |(candidate, _)| candidate == key)
-        })
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -11414,6 +11663,115 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn cukta_route_links_preserve_anchor_scroll_intent() {
+        let anchor_route = parse_test_route("", "/cukta/section/section-index#KE");
+        assert_eq!(
+            cukta_pending_scroll_for_route_link("", &anchor_route),
+            cukta_anchor_pending_scroll("/cukta/section/section-index#KE".to_owned())
+        );
+
+        let section_route = parse_test_route("", "/cukta/section/section-index");
+        assert_eq!(
+            cukta_pending_scroll_for_route_link("", &section_route),
+            cukta_top_pending_scroll()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn explicit_route_links_only_set_cukta_scroll_intent_for_cukta_routes() {
+        let anchor_route = parse_test_route("", "/cukta/section/section-index#KE");
+        assert_eq!(
+            cukta_pending_scroll_for_explicit_route_link("", &anchor_route),
+            Some(cukta_anchor_pending_scroll(
+                "/cukta/section/section-index#KE".to_owned()
+            ))
+        );
+
+        let section_route = parse_test_route("", "/cukta/section/section-index");
+        assert_eq!(
+            cukta_pending_scroll_for_explicit_route_link("", &section_route),
+            Some(cukta_top_pending_scroll())
+        );
+
+        let prefixed_section_route =
+            parse_test_route("/jbotci", "/jbotci/cukta/section/section-index#KE");
+        assert_eq!(
+            cukta_pending_scroll_for_explicit_route_link("/jbotci", &prefixed_section_route),
+            Some(cukta_anchor_pending_scroll(
+                "/jbotci/cukta/section/section-index#KE".to_owned()
+            ))
+        );
+
+        let gentufa_route = parse_test_route("", "/gentufa");
+        assert_eq!(
+            cukta_pending_scroll_for_explicit_route_link("", &gentufa_route),
+            None
+        );
+
+        let vlacku_route = parse_test_route("", "/vlacku/klama");
+        assert_eq!(
+            cukta_pending_scroll_for_explicit_route_link("", &vlacku_route),
+            None
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_history_route_changes_restore_stored_scroll_even_with_hash() {
+        let anchor_route = parse_test_route("", "/cukta/section/section-index#KE");
+        assert_eq!(
+            cukta_pending_scroll_for_route_change("", &anchor_route),
+            Some(cukta_stored_pending_scroll(
+                "/cukta/section/section-index#KE".to_owned()
+            ))
+        );
+
+        let prefixed_anchor_route =
+            parse_test_route("/jbotci", "/jbotci/cukta/section/section-index#KE");
+        assert_eq!(
+            cukta_pending_scroll_for_route_change("/jbotci", &prefixed_anchor_route),
+            Some(cukta_stored_pending_scroll(
+                "/jbotci/cukta/section/section-index#KE".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_scroll_waits_for_matching_rendered_page() {
+        let state = CuktaWebState {
+            view: CuktaWebView::Index,
+        };
+        let ready_page = CuktaAsyncPageState {
+            state: Some(state.clone()),
+            page: cukta_loading_page_data("Loaded CLL page."),
+            meta: None,
+            loading: false,
+            error: None,
+        };
+        assert!(cukta_page_ready_for_scroll(&ready_page, &state));
+
+        let mut loading_page = ready_page.clone();
+        loading_page.loading = true;
+        assert!(!cukta_page_ready_for_scroll(&loading_page, &state));
+
+        let mut error_page = ready_page.clone();
+        error_page.error = Some("failed".to_owned());
+        assert!(!cukta_page_ready_for_scroll(&error_page, &state));
+
+        let other_state = CuktaWebState {
+            view: CuktaWebView::Search(CuktaWebSearchState::default()),
+        };
+        assert!(!cukta_page_ready_for_scroll(&ready_page, &other_state));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn block_bottom_row_uses_leaf_span_bottom() {
         let tall_leaf = test_gentufa_block(0, 3, &[ReferenceMarkerRole::Referent]);
 
@@ -11519,9 +11877,100 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn top_level_routes_accept_trailing_slashes() {
-        assert_eq!(route_from_path("/jbotci/cukta/"), AppRoute::Cukta);
-        assert_eq!(route_from_path("/jbotci/vlacku/"), AppRoute::Vlacku);
-        assert_eq!(route_from_path("/jbotci/settings/"), AppRoute::Settings);
+        assert_eq!(
+            parse_test_route("/jbotci", "/jbotci/cukta/").app_route(),
+            AppRoute::Cukta
+        );
+        assert_eq!(
+            parse_test_route("/jbotci", "/jbotci/vlacku/").app_route(),
+            AppRoute::Vlacku
+        );
+        assert_eq!(
+            parse_test_route("/jbotci", "/jbotci/settings/").app_route(),
+            AppRoute::Settings
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn typed_routes_preserve_canonical_url_contract() {
+        assert_eq!(parse_test_route("", "/").to_string(), "/gentufa");
+
+        let gentufa =
+            parse_test_route("/jbotci", "/jbotci/gentufa?text=coi&view=tree&glosses=true");
+        assert_eq!(
+            gentufa.to_string(),
+            "/gentufa?text=coi&view=tree&glosses=true"
+        );
+        assert!(gentufa.gentufa_text_explicit);
+
+        let settings = parse_test_route("", "/settings?johau=lojban");
+        assert_eq!(settings.to_string(), "/settings?johau=lojban");
+        assert_eq!(settings.settings_query, "johau=lojban");
+
+        let cukta_search = parse_test_route("", "/cukta/search?q=klama&target=example&count=40");
+        assert_eq!(
+            cukta_search.to_string(),
+            "/cukta/search?q=klama&count=40&target=example"
+        );
+
+        let cukta_section =
+            parse_test_route("", "/cukta/section/chapter-abstractions#section-example");
+        assert_eq!(
+            cukta_section.to_string(),
+            "/cukta/section/chapter-abstractions#section-example"
+        );
+
+        assert_eq!(parse_test_route("", "/vlacku").to_string(), "/vlacku");
+        assert_eq!(
+            parse_test_route("", "/vlacku/klama").to_string(),
+            "/vlacku/klama"
+        );
+        assert_eq!(
+            parse_test_route("/jbotci", "/vlacku/klama").to_string(),
+            "/vlacku/klama"
+        );
+        assert_eq!(
+            parse_test_route("/jbotci", "/jbotci/vlacku/klama").to_string(),
+            "/vlacku/klama"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn typed_routes_accept_dioxus_route_strings() {
+        assert_eq!(JbotciRoute::from_str("").unwrap().to_string(), "/gentufa");
+        assert_eq!(
+            JbotciRoute::from_str("gentufa?text=coi")
+                .unwrap()
+                .to_string(),
+            "/gentufa?text=coi"
+        );
+        assert_eq!(
+            JbotciRoute::from_str("settings?johau=lojban")
+                .unwrap()
+                .to_string(),
+            "/settings?johau=lojban"
+        );
+        assert_eq!(
+            JbotciRoute::from_str("cukta/section/chapter-abstractions#section-example")
+                .unwrap()
+                .to_string(),
+            "/cukta/section/chapter-abstractions#section-example"
+        );
+        assert_eq!(
+            JbotciRoute::from_str("vlacku/klama").unwrap().to_string(),
+            "/vlacku/klama"
+        );
+        assert!(JbotciRoute::from_str("assets/generated/jbotci_web_worker.js").is_err());
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn parse_test_route(base_path: &str, href: &str) -> JbotciRoute {
+        jbotci_route_from_href(base_path, href).expect("test route should parse")
     }
 
     #[test]
