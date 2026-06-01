@@ -1171,7 +1171,7 @@ mod tests {
             assert!(
                 try_new!(PredicateSyntax {
                     leading_terms: Vec::new(),
-                    cu: Some(Box::new(free_word("ku"))),
+                    cu: Some(std::sync::Arc::new(free_word("ku"))),
                     predicate_tail: Box::new(predicate_tail.clone()),
                     free_modifiers: Vec::new(),
                 })
@@ -1183,7 +1183,7 @@ mod tests {
                     tense_modal: None,
                     ke: free_word("ke"),
                     predicate_tail: Box::new(predicate_tail.clone()),
-                    kehe: Some(Box::new(free_word("ku"))),
+                    kehe: Some(std::sync::Arc::new(free_word("ku"))),
                     tail_terms: Vec::new(),
                     vau: None,
                     free_modifiers: Vec::new(),

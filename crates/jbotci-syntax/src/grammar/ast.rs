@@ -2,6 +2,8 @@
 
 pub use crate::tree::*;
 
+use std::sync::Arc;
+
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use serde::Serialize;
@@ -479,7 +481,7 @@ impl PredicateSyntax {
             words.extend(term.words());
         }
         if let Some(cu) = cu {
-            words.extend(cu.words());
+            words.extend(unwrap_or_clone_arc(cu).words());
         }
         words.extend(predicate_tail.words());
         for free_modifier in free_modifiers {
@@ -522,13 +524,13 @@ impl KePredicateTailSyntax {
         words.extend(ke.words());
         words.extend(predicate_tail.words());
         if let Some(kehe) = kehe {
-            words.extend(kehe.words());
+            words.extend(unwrap_or_clone_arc(kehe).words());
         }
         for term in tail_terms {
             words.extend(term.words());
         }
         if let Some(vau) = vau {
-            words.extend(vau.words());
+            words.extend(unwrap_or_clone_arc(vau).words());
         }
         for free_modifier in free_modifiers {
             words.extend(free_modifier.words());
@@ -567,14 +569,14 @@ impl PredicateTailContinuationSyntax {
             words.extend(tense_modal.words());
         }
         if let Some(cu) = cu {
-            words.extend(cu.words());
+            words.extend(unwrap_or_clone_arc(cu).words());
         }
         words.extend(predicate_tail.words());
         for term in tail_terms {
             words.extend(term.words());
         }
         if let Some(vau) = vau {
-            words.extend(vau.words());
+            words.extend(unwrap_or_clone_arc(vau).words());
         }
         for free_modifier in free_modifiers {
             words.extend(free_modifier.words());
@@ -615,14 +617,14 @@ impl BoPredicateTailSyntax {
         }
         words.extend(bo.words());
         if let Some(cu) = cu {
-            words.extend(cu.words());
+            words.extend(unwrap_or_clone_arc(cu).words());
         }
         words.extend(predicate_tail.words());
         for term in tail_terms {
             words.extend(term.words());
         }
         if let Some(vau) = vau {
-            words.extend(vau.words());
+            words.extend(unwrap_or_clone_arc(vau).words());
         }
         for free_modifier in free_modifiers {
             words.extend(free_modifier.words());
@@ -647,7 +649,7 @@ impl PredicateTail3Syntax {
                     words.extend(term.words());
                 }
                 if let Some(vau) = vau {
-                    words.extend(vau.words());
+                    words.extend(unwrap_or_clone_arc(vau).words());
                 }
                 for free_modifier in free_modifiers {
                     words.extend(free_modifier.words());
@@ -685,7 +687,7 @@ impl GekSentenceSyntax {
                     words.extend(term.words());
                 }
                 if let Some(vau) = vau {
-                    words.extend(vau.words());
+                    words.extend(unwrap_or_clone_arc(vau).words());
                 }
                 for free_modifier in free_modifiers {
                     words.extend(free_modifier.words());
@@ -705,7 +707,7 @@ impl GekSentenceSyntax {
                 words.extend(ke.words());
                 words.extend(inner.words());
                 if let Some(kehe) = kehe {
-                    words.extend(kehe.words());
+                    words.extend(unwrap_or_clone_arc(kehe).words());
                 }
                 words
             }
@@ -1538,6 +1540,12 @@ pub struct ConnectiveSyntaxParts {
     pub nai: Option<WithFreeModifiers<Token>>,
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn unwrap_or_clone_arc<T: Clone>(value: Arc<T>) -> T {
+    Arc::try_unwrap(value).unwrap_or_else(|value| value.as_ref().clone())
+}
+
 impl ConnectiveSyntax {
     #[requires(true)]
     #[ensures(true)]
@@ -1554,43 +1562,43 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo: Box::new(cmavo),
-                nai: nai.map(Box::new),
+                cmavo: Arc::new(cmavo),
+                nai: nai.map(Arc::new),
             }),
             ConnectiveKind::Relation => new!(ConnectiveSyntax::Relation {
                 se,
                 nahe,
                 na,
-                cmavo: Box::new(cmavo),
-                nai: nai.map(Box::new),
+                cmavo: Arc::new(cmavo),
+                nai: nai.map(Arc::new),
             }),
             ConnectiveKind::PredicateTail => new!(ConnectiveSyntax::PredicateTail {
                 se,
                 nahe,
                 na,
-                cmavo: Box::new(cmavo),
-                nai: nai.map(Box::new),
+                cmavo: Arc::new(cmavo),
+                nai: nai.map(Arc::new),
             }),
             ConnectiveKind::Forethought => new!(ConnectiveSyntax::Forethought {
                 se,
                 nahe,
                 na,
-                cmavo: Box::new(cmavo),
-                nai: nai.map(Box::new),
+                cmavo: Arc::new(cmavo),
+                nai: nai.map(Arc::new),
             }),
             ConnectiveKind::NonLogical => new!(ConnectiveSyntax::NonLogical {
                 se,
                 nahe,
                 na,
-                cmavo: Box::new(cmavo),
-                nai: nai.map(Box::new),
+                cmavo: Arc::new(cmavo),
+                nai: nai.map(Arc::new),
             }),
             ConnectiveKind::Interval => new!(ConnectiveSyntax::Interval {
                 se,
                 nahe,
                 na,
-                cmavo: Box::new(cmavo),
-                nai: nai.map(Box::new),
+                cmavo: Arc::new(cmavo),
+                nai: nai.map(Arc::new),
             }),
         }
     }
@@ -1636,8 +1644,8 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo: *cmavo,
-                nai: nai.map(|nai| *nai),
+                cmavo: unwrap_or_clone_arc(cmavo),
+                nai: nai.map(unwrap_or_clone_arc),
             },
             data!(ConnectiveSyntax::Relation {
                 se,
@@ -1650,8 +1658,8 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo: *cmavo,
-                nai: nai.map(|nai| *nai),
+                cmavo: unwrap_or_clone_arc(cmavo),
+                nai: nai.map(unwrap_or_clone_arc),
             },
             data!(ConnectiveSyntax::PredicateTail {
                 se,
@@ -1664,8 +1672,8 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo: *cmavo,
-                nai: nai.map(|nai| *nai),
+                cmavo: unwrap_or_clone_arc(cmavo),
+                nai: nai.map(unwrap_or_clone_arc),
             },
             data!(ConnectiveSyntax::Forethought {
                 se,
@@ -1678,8 +1686,8 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo: *cmavo,
-                nai: nai.map(|nai| *nai),
+                cmavo: unwrap_or_clone_arc(cmavo),
+                nai: nai.map(unwrap_or_clone_arc),
             },
             data!(ConnectiveSyntax::NonLogical {
                 se,
@@ -1692,8 +1700,8 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo: *cmavo,
-                nai: nai.map(|nai| *nai),
+                cmavo: unwrap_or_clone_arc(cmavo),
+                nai: nai.map(unwrap_or_clone_arc),
             },
             data!(ConnectiveSyntax::Interval {
                 se,
@@ -1706,8 +1714,8 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo: *cmavo,
-                nai: nai.map(|nai| *nai),
+                cmavo: unwrap_or_clone_arc(cmavo),
+                nai: nai.map(unwrap_or_clone_arc),
             },
         }
     }

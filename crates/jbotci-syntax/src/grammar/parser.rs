@@ -6,7 +6,7 @@ use chumsky::input::MapExtra;
 use chumsky::primitive::custom;
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
-use std::cell::Cell;
+use std::{cell::Cell, sync::Arc};
 
 type OptionalWordWithFreeModifiers = Option<WithFreeModifiers<Token>>;
 type OptionalWordFreeModifierSplit = (OptionalWordWithFreeModifiers, Vec<FreeModifierSyntax>);
@@ -937,7 +937,7 @@ fn statement_parser<'tokens>(
                             second: Box::new(second),
                             gihi,
                             tail_terms,
-                            vau: vau.map(Box::new),
+                            vau: vau.map(Arc::new),
                             free_modifiers,
                         })
                     },
@@ -959,7 +959,7 @@ fn statement_parser<'tokens>(
                         ke: WithFreeModifiers::new(ke, ke_free_modifiers),
                         inner: Box::new(inner),
                         kehe: kehe.map(|(kehe, free_modifiers)| {
-                            Box::new(WithFreeModifiers::new(kehe, free_modifiers))
+                            Arc::new(WithFreeModifiers::new(kehe, free_modifiers))
                         }),
                     })
                 });
@@ -1011,7 +1011,7 @@ fn statement_parser<'tokens>(
                         new!(PredicateTail3Syntax::Relation {
                             relation: Box::new(relation),
                             terms,
-                            vau: vau.map(Box::new),
+                            vau: vau.map(Arc::new),
                             free_modifiers,
                         })
                     },
@@ -1038,10 +1038,10 @@ fn statement_parser<'tokens>(
                                 connective,
                                 tense_modal,
                                 bo: WithFreeModifiers::new(bo, bo_free_modifiers),
-                                cu: cu.map(Box::new),
+                                cu: cu.map(Arc::new),
                                 predicate_tail: Box::new(predicate_tail),
                                 tail_terms,
-                                vau: vau.map(Box::new),
+                                vau: vau.map(Arc::new),
                                 free_modifiers: tail_free_modifiers,
                             })
                         },
@@ -1075,10 +1075,10 @@ fn statement_parser<'tokens>(
                         new!(PredicateTailContinuationSyntax {
                             connective,
                             tense_modal: None,
-                            cu: cu.map(Box::new),
+                            cu: cu.map(Arc::new),
                             predicate_tail: Box::new(predicate_tail),
                             tail_terms,
-                            vau: vau.map(Box::new),
+                            vau: vau.map(Arc::new),
                             free_modifiers: tail_free_modifiers,
                         })
                     },
@@ -1121,10 +1121,10 @@ fn statement_parser<'tokens>(
                             ke: WithFreeModifiers::new(ke, ke_free_modifiers),
                             predicate_tail: Box::new(predicate_tail),
                             kehe: kehe.map(|(kehe, free_modifiers)| {
-                                Box::new(WithFreeModifiers::new(kehe, free_modifiers))
+                                Arc::new(WithFreeModifiers::new(kehe, free_modifiers))
                             }),
                             tail_terms,
-                            vau: vau.map(Box::new),
+                            vau: vau.map(Arc::new),
                             free_modifiers,
                         })
                     },
@@ -1164,7 +1164,7 @@ fn statement_parser<'tokens>(
                 new!(PredicateSyntax {
                     leading_terms,
                     cu: cu.map(|(cu, free_modifiers)| {
-                        Box::new(WithFreeModifiers::new(cu, free_modifiers))
+                        Arc::new(WithFreeModifiers::new(cu, free_modifiers))
                     }),
                     predicate_tail: Box::new(predicate_tail),
                     free_modifiers,
@@ -1191,7 +1191,7 @@ fn statement_parser<'tokens>(
                 |(((cu, cu_free_modifiers), predicate_tail), free_modifiers)| {
                     new!(PredicateSyntax {
                         leading_terms: Vec::new(),
-                        cu: Some(Box::new(WithFreeModifiers::new(cu, cu_free_modifiers))),
+                        cu: Some(Arc::new(WithFreeModifiers::new(cu, cu_free_modifiers))),
                         predicate_tail: Box::new(predicate_tail),
                         free_modifiers,
                     })
@@ -1214,7 +1214,7 @@ fn statement_parser<'tokens>(
                 new!(PredicateSyntax {
                     leading_terms,
                     cu: cu.map(|(cu, free_modifiers)| {
-                        Box::new(WithFreeModifiers::new(cu, free_modifiers))
+                        Arc::new(WithFreeModifiers::new(cu, free_modifiers))
                     }),
                     predicate_tail: Box::new(predicate_tail),
                     free_modifiers,
