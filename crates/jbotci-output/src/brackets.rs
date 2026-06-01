@@ -296,7 +296,7 @@ fn predicate_tail3(value: &PredicateTail3Syntax, source: &BracketContext<'_>) ->
             ));
             push_optional_elidable(
                 &mut children,
-                vau.as_ref(),
+                vau.as_deref(),
                 Cmavo::Vau,
                 source,
                 with_free_word,
@@ -324,7 +324,7 @@ fn ke_predicate_tail(value: &KePredicateTailSyntax, source: &BracketContext<'_>)
     children.push(predicate_tail(&value.predicate_tail, source));
     push_optional_elidable(
         &mut children,
-        value.kehe.as_ref(),
+        value.kehe.as_deref(),
         Cmavo::Kehe,
         source,
         with_free_word,
@@ -332,7 +332,7 @@ fn ke_predicate_tail(value: &KePredicateTailSyntax, source: &BracketContext<'_>)
     children.extend(value.tail_terms.iter().map(|item| term(item, source)));
     push_optional_elidable(
         &mut children,
-        value.vau.as_ref(),
+        value.vau.as_deref(),
         Cmavo::Vau,
         source,
         with_free_word,
@@ -363,7 +363,7 @@ fn predicate_tail_continuation(
     children.extend(value.tail_terms.iter().map(|item| term(item, source)));
     push_optional_elidable(
         &mut children,
-        value.vau.as_ref(),
+        value.vau.as_deref(),
         Cmavo::Vau,
         source,
         with_free_word,
@@ -392,7 +392,7 @@ fn bo_predicate_tail(value: &BoPredicateTailSyntax, source: &BracketContext<'_>)
     children.extend(value.tail_terms.iter().map(|item| term(item, source)));
     push_optional_elidable(
         &mut children,
-        value.vau.as_ref(),
+        value.vau.as_deref(),
         Cmavo::Vau,
         source,
         with_free_word,
@@ -432,7 +432,7 @@ fn gek_sentence(value: &GekSentenceSyntax, source: &BracketContext<'_>) -> sexpr
             ));
             push_optional_elidable(
                 &mut children,
-                vau.as_ref(),
+                vau.as_deref(),
                 Cmavo::Vau,
                 source,
                 with_free_word,
@@ -458,7 +458,7 @@ fn gek_sentence(value: &GekSentenceSyntax, source: &BracketContext<'_>) -> sexpr
             children.push(gek_sentence(inner, source));
             push_optional_elidable(
                 &mut children,
-                kehe.as_ref(),
+                kehe.as_deref(),
                 Cmavo::Kehe,
                 source,
                 with_free_word,
@@ -2304,7 +2304,13 @@ fn connective_parts(value: &ConnectiveSyntax) -> ConnectivePartsRef<'_> {
             na,
             cmavo,
             nai,
-        }) => (se.as_ref(), nahe.as_ref(), na.as_ref(), cmavo, nai.as_ref()),
+        }) => (
+            se.as_ref(),
+            nahe.as_ref(),
+            na.as_ref(),
+            cmavo.as_ref(),
+            nai.as_deref(),
+        ),
     }
 }
 

@@ -10,6 +10,52 @@ use std::cell::Cell;
 
 type OptionalWordWithFreeModifiers = Option<WithFreeModifiers<Token>>;
 type OptionalWordFreeModifierSplit = (OptionalWordWithFreeModifiers, Vec<FreeModifierSyntax>);
+type BoxedArgumentSyntax = Box<ArgumentSyntax>;
+type BoxedTermSyntax = Box<TermSyntax>;
+type BoxedQuantifierSyntax = Box<QuantifierSyntax>;
+type BoxedTenseModalSyntax = Box<TenseModalSyntax>;
+type BoxedRelationSyntax = Box<RelationSyntax>;
+type BoxedRelationUnitSyntax = Box<RelationUnitSyntax>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct BoArgumentTailSyntax {
+    connective: ConnectiveSyntax,
+    tense_modal: Option<BoxedTenseModalSyntax>,
+    bo: Token,
+    free_modifiers: Vec<FreeModifierSyntax>,
+    trailing_argument: BoxedArgumentSyntax,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct KeArgumentTailSyntax {
+    connective: ConnectiveSyntax,
+    tense_modal: Option<BoxedTenseModalSyntax>,
+    ke: Token,
+    free_modifiers: Vec<FreeModifierSyntax>,
+    inner_argument: BoxedArgumentSyntax,
+    kehe: Option<WithFreeModifiers<Token>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct BoRelationUnitTailSyntax {
+    connective: Option<Box<ConnectiveSyntax>>,
+    tense_modal: Option<BoxedTenseModalSyntax>,
+    bo: Token,
+    free_modifiers: Vec<FreeModifierSyntax>,
+    trailing_unit: BoxedRelationUnitSyntax,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct GekNuhiTermsetHeadSyntax {
+    m_nuhi: Option<(Token, Vec<FreeModifierSyntax>)>,
+    gek: ConnectiveSyntax,
+    terms: Vec<BoxedTermSyntax>,
+    nuhu: Option<(Token, Vec<FreeModifierSyntax>)>,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -25,10 +71,15 @@ struct LeadingIStatementSyntax {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum TermContinuationSyntax {
     Pehe {
-        tails: Vec<(Token, Vec<FreeModifierSyntax>, ConnectiveSyntax, TermSyntax)>,
+        tails: Vec<(
+            Token,
+            Vec<FreeModifierSyntax>,
+            ConnectiveSyntax,
+            BoxedTermSyntax,
+        )>,
     },
     Connected {
-        tails: Vec<(ConnectiveSyntax, TermSyntax)>,
+        tails: Vec<(ConnectiveSyntax, BoxedTermSyntax)>,
     },
     None,
 }
@@ -231,6 +282,30 @@ fn attach_tense_modal_free_modifiers(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().free_modifier_count() >= old(free_modifiers.len()))]
+fn attach_boxed_tense_modal_free_modifiers(
+    tense_modal: BoxedTenseModalSyntax,
+    free_modifiers: Vec<FreeModifierSyntax>,
+) -> BoxedTenseModalSyntax {
+    Box::new(attach_tense_modal_free_modifiers(
+        *tense_modal,
+        free_modifiers,
+    ))
+}
+
+#[requires(true)]
+#[ensures(matches!(
+    ret.as_ref().as_data(),
+    data!(TenseModalSyntax::Composite { .. })
+))]
+fn boxed_tense_modal_from_leaves(
+    leaves: Vec<Token>,
+    free_modifiers: Vec<FreeModifierSyntax>,
+) -> BoxedTenseModalSyntax {
+    Box::new(tense_modal_from_leaves(leaves, free_modifiers))
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn split_optional_word_free_modifiers(
     word: Option<Token>,
@@ -346,10 +421,10 @@ fn statement_parser<'tokens>(
             source,
         ),
     ));
-    let tense_modal_with_free_modifiers = tense_modal()
+    let tense_modal_with_free_modifiers = tense_modal_boxed()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(tense_modal, free_modifiers)| {
-            attach_tense_modal_free_modifiers(tense_modal, free_modifiers)
+            attach_boxed_tense_modal_free_modifiers(tense_modal, free_modifiers)
         })
         .boxed();
     relation.define(syntax_context(
@@ -391,7 +466,7 @@ fn statement_parser<'tokens>(
             },
         )
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(tense_modal().or_not())
+        .then(tense_modal_boxed().or_not())
         .then(
             argument.clone().or(cmavo(Cmavo::Ku)
                 .or_not()
@@ -403,7 +478,7 @@ fn statement_parser<'tokens>(
         .map(|(((jai, free_modifiers), tag), argument)| {
             new!(TermSyntax::JaiTagged {
                 jai: WithFreeModifiers::new(jai, free_modifiers),
-                tag: tag.map(Box::new),
+                tag,
                 argument: Box::new(argument),
             })
         })
@@ -417,9 +492,9 @@ fn statement_parser<'tokens>(
                 na_ku: WithFreeModifiers::new(na_ku, free_modifiers),
             })
         });
-    let tagged_term_before_tag_start = leading_term_tag_tense_modal()
+    let tagged_term_before_tag_start = leading_term_tag_tense_modal_boxed()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(tense_modal().rewind())
+        .then(tense_modal_boxed().rewind().ignored())
         .rewind()
         .ignored();
     let bare_na_term_blocker = choice((
@@ -449,19 +524,20 @@ fn statement_parser<'tokens>(
     let tagged_term_start = modal_forethought_connective()
         .rewind()
         .not()
-        .ignore_then(leading_term_tag_tense_modal())
+        .ignore_then(leading_term_tag_tense_modal_boxed())
         .then(free_modifier.clone().repeated().collect::<Vec<_>>());
-    let tagged_term_before_tag = tagged_term_start.clone().then(tense_modal().rewind()).map(
-        |((tense_modal, free_modifiers), _)| {
+    let tagged_term_before_tag = tagged_term_start
+        .clone()
+        .then(tense_modal_boxed().rewind().ignored())
+        .map(|((tense_modal, free_modifiers), _)| {
             new!(TermSyntax::Tagged {
-                tense_modal: Some(Box::new(attach_tense_modal_free_modifiers(
+                tense_modal: Some(attach_boxed_tense_modal_free_modifiers(
                     tense_modal,
                     free_modifiers,
-                ))),
+                )),
                 argument: Box::new(implicit_zohe_argument()),
             })
-        },
-    );
+        });
     let tagged_term_before_non_relation = tagged_term_start
         .then(relation.clone().rewind().not())
         .then(
@@ -474,10 +550,10 @@ fn statement_parser<'tokens>(
         )
         .map(|(((tense_modal, free_modifiers), _), argument)| {
             new!(TermSyntax::Tagged {
-                tense_modal: Some(Box::new(attach_tense_modal_free_modifiers(
+                tense_modal: Some(attach_boxed_tense_modal_free_modifiers(
                     tense_modal,
                     free_modifiers,
-                ))),
+                )),
                 argument: Box::new(argument),
             })
         });
@@ -530,7 +606,7 @@ fn statement_parser<'tokens>(
                         new!(TermSyntax::PoihaBrigahi {
                             poiha: WithFreeModifiers::new(noiha, leading_free_modifiers),
                             tail_elements,
-                            relation: relation.map(Box::new),
+                            relation,
                             relative_clauses,
                             brigahi_ku: WithFreeModifiers::new(
                                 *brigahi_ku,
@@ -541,14 +617,14 @@ fn statement_parser<'tokens>(
                     Some((Ok(fehu), trailing_free_modifiers)) => new!(TermSyntax::NoihaAdverbial {
                         noiha: WithFreeModifiers::new(noiha, leading_free_modifiers),
                         tail_elements,
-                        relation: relation.map(Box::new),
+                        relation,
                         relative_clauses,
                         fehu: Some(WithFreeModifiers::new(fehu, trailing_free_modifiers)),
                     }),
                     None => new!(TermSyntax::NoihaAdverbial {
                         noiha: WithFreeModifiers::new(noiha, leading_free_modifiers),
                         tail_elements,
-                        relation: relation.map(Box::new),
+                        relation,
                         relative_clauses,
                         fehu: None,
                     }),
@@ -624,49 +700,76 @@ fn statement_parser<'tokens>(
     };
     let term_body = {
         let term = term.clone();
-        let gek_nuhi_termset = cmavo(Cmavo::Nuhi)
+        let boxed_term = term.clone().map(Box::new).boxed();
+        let gek_nuhi_termset_head = cmavo(Cmavo::Nuhi)
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
             .or_not()
             .then(modal_forethought_connective_with_free_modifiers(
                 free_modifier.clone(),
             ))
-            .then(term.clone().repeated().at_least(1).collect::<Vec<_>>())
+            .then(
+                boxed_term
+                    .clone()
+                    .repeated()
+                    .at_least(1)
+                    .collect::<Vec<_>>(),
+            )
             .then(
                 cmavo(Cmavo::Nuhu)
                     .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                     .or_not(),
             )
+            .map(|(((m_nuhi, gek), terms), nuhu)| {
+                Box::new(GekNuhiTermsetHeadSyntax {
+                    m_nuhi,
+                    gek,
+                    terms,
+                    nuhu,
+                })
+            })
+            .boxed();
+        let gek_nuhi_termset = gek_nuhi_termset_head
             .then(gik_connective_with_free_modifiers(free_modifier.clone()))
-            .then(term.clone().repeated().at_least(1).collect::<Vec<_>>())
+            .then(
+                boxed_term
+                    .clone()
+                    .repeated()
+                    .at_least(1)
+                    .collect::<Vec<_>>(),
+            )
             .then(optional_gihi_terminator())
             .then(
                 cmavo(Cmavo::Nuhu)
                     .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                     .or_not(),
             )
-            .map(
-                |(((((((m_nuhi, gek), terms), nuhu), gik), gik_terms), gihi), gik_nuhu)| {
-                    new!(TermSyntax::GekNuhiTermset {
-                        m_nuhi: m_nuhi.map(|(nuhi, free_modifiers)| {
-                            WithFreeModifiers::new(nuhi, free_modifiers)
-                        }),
-                        gek,
-                        terms,
-                        nuhu: nuhu.map(|(nuhu, free_modifiers)| {
-                            WithFreeModifiers::new(nuhu, free_modifiers)
-                        }),
-                        gik,
-                        gik_terms,
-                        gihi,
-                        gik_nuhu: gik_nuhu.map(|(nuhu, free_modifiers)| {
-                            WithFreeModifiers::new(nuhu, free_modifiers)
-                        }),
-                    })
-                },
-            );
+            .map(|((((head, gik), gik_terms), gihi), gik_nuhu)| {
+                let GekNuhiTermsetHeadSyntax {
+                    m_nuhi,
+                    gek,
+                    terms,
+                    nuhu,
+                } = *head;
+                new!(TermSyntax::GekNuhiTermset {
+                    m_nuhi: m_nuhi.map(|(nuhi, free_modifiers)| {
+                        WithFreeModifiers::new(nuhi, free_modifiers)
+                    }),
+                    gek,
+                    terms: unbox_terms(terms),
+                    nuhu: nuhu.map(|(nuhu, free_modifiers)| {
+                        WithFreeModifiers::new(nuhu, free_modifiers)
+                    }),
+                    gik,
+                    gik_terms: unbox_terms(gik_terms),
+                    gihi,
+                    gik_nuhu: gik_nuhu.map(|(nuhu, free_modifiers)| {
+                        WithFreeModifiers::new(nuhu, free_modifiers)
+                    }),
+                })
+            });
         let nuhi_termset = cmavo(Cmavo::Nuhi)
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(term.clone().repeated().at_least(1).collect::<Vec<_>>())
+            .then(boxed_term.repeated().at_least(1).collect::<Vec<_>>())
             .then(
                 cmavo(Cmavo::Nuhu)
                     .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -675,13 +778,17 @@ fn statement_parser<'tokens>(
             .map(|(((nuhi, nuhi_free_modifiers), termset), nuhu)| {
                 new!(TermSyntax::NuhiTermset {
                     nuhi: WithFreeModifiers::new(nuhi, nuhi_free_modifiers),
-                    termset,
+                    termset: unbox_terms(termset),
                     nuhu: nuhu
                         .map(|(nuhu, free_modifiers)| WithFreeModifiers::new(nuhu, free_modifiers)),
                 })
             });
-        let simple_term =
-            choice((base_simple_term.clone(), gek_nuhi_termset, nuhi_termset)).boxed();
+        let simple_term = choice((
+            base_simple_term.clone().map(Box::new),
+            gek_nuhi_termset.map(Box::new),
+            nuhi_termset.map(Box::new),
+        ))
+        .boxed();
         let cehe_term = simple_term
             .clone()
             .then(
@@ -699,11 +806,11 @@ fn statement_parser<'tokens>(
             .map(|(leading_term, cehe_tail)| match cehe_tail {
                 None => leading_term,
                 Some(((cehe, free_modifiers), trailing_terms)) => {
-                    new!(TermSyntax::Cehe {
-                        leading_terms: vec![leading_term],
+                    Box::new(new!(TermSyntax::Cehe {
+                        leading_terms: vec![*leading_term],
                         cehe: WithFreeModifiers::new(cehe, free_modifiers),
-                        trailing_terms,
-                    })
+                        trailing_terms: unbox_terms(trailing_terms),
+                    }))
                 }
             })
             .boxed();
@@ -735,13 +842,13 @@ fn statement_parser<'tokens>(
                 tails.into_iter().fold(
                     first,
                     |leading_term, (bo_connective, tense_modal, bo, free_modifiers, trailing_term)| {
-                        new!(TermSyntax::BoConnected {
-                            leading_terms: vec![leading_term],
+                        Box::new(new!(TermSyntax::BoConnected {
+                            leading_terms: vec![*leading_term],
                             bo_connective: bo_connective.map(Box::new),
-                            tense_modal: tense_modal.map(Box::new),
+                            tense_modal,
                             bo: WithFreeModifiers::new(bo, free_modifiers),
-                            trailing_term: Box::new(trailing_term),
-                        })
+                            trailing_term,
+                        }))
                     },
                 )
             })
@@ -776,22 +883,22 @@ fn statement_parser<'tokens>(
                     data!(TermContinuationSyntax::Pehe { tails }) => tails.into_iter().fold(
                         leading_term,
                         |leading_term, (pehe, free_modifiers, connective, trailing_term)| {
-                            new!(TermSyntax::Pehe {
-                                leading_terms: vec![leading_term],
+                            Box::new(new!(TermSyntax::Pehe {
+                                leading_terms: vec![*leading_term],
                                 pehe: WithFreeModifiers::new(pehe, free_modifiers),
                                 connective,
-                                trailing_terms: vec![trailing_term],
-                            })
+                                trailing_terms: vec![*trailing_term],
+                            }))
                         },
                     ),
                     data!(TermContinuationSyntax::Connected { tails }) => tails.into_iter().fold(
                         leading_term,
                         |leading_term, (connective, trailing_term)| {
-                            new!(TermSyntax::Connected {
-                                leading_terms: vec![leading_term],
+                            Box::new(new!(TermSyntax::Connected {
+                                leading_terms: vec![*leading_term],
                                 connective,
-                                trailing_terms: vec![trailing_term],
-                            })
+                                trailing_terms: vec![*trailing_term],
+                            }))
                         },
                     ),
                     data!(TermContinuationSyntax::None) => leading_term,
@@ -799,7 +906,7 @@ fn statement_parser<'tokens>(
             )
             .boxed()
     };
-    term.define(syntax_context("term", term_body));
+    term.define(syntax_context("term", term_body.map(|term| *term).boxed()));
     let tail_term = cmavo(Cmavo::I)
         .rewind()
         .not()
@@ -830,7 +937,7 @@ fn statement_parser<'tokens>(
                             second: Box::new(second),
                             gihi,
                             tail_terms,
-                            vau,
+                            vau: vau.map(Box::new),
                             free_modifiers,
                         })
                     },
@@ -848,11 +955,11 @@ fn statement_parser<'tokens>(
                 )
                 .map(|((((tense_modal, ke), ke_free_modifiers), inner), kehe)| {
                     new!(GekSentenceSyntax::Ke {
-                        tense_modal: tense_modal.map(Box::new),
+                        tense_modal,
                         ke: WithFreeModifiers::new(ke, ke_free_modifiers),
                         inner: Box::new(inner),
                         kehe: kehe.map(|(kehe, free_modifiers)| {
-                            WithFreeModifiers::new(kehe, free_modifiers)
+                            Box::new(WithFreeModifiers::new(kehe, free_modifiers))
                         }),
                     })
                 });
@@ -872,7 +979,7 @@ fn statement_parser<'tokens>(
             .then(cmavo(Cmavo::Ke).rewind())
             .map(|(tense_modal, _)| {
                 new!(TermSyntax::Tagged {
-                    tense_modal: Some(Box::new(tense_modal)),
+                    tense_modal: Some(tense_modal),
                     argument: Box::new(implicit_zohe_argument()),
                 })
             });
@@ -904,7 +1011,7 @@ fn statement_parser<'tokens>(
                         new!(PredicateTail3Syntax::Relation {
                             relation: Box::new(relation),
                             terms,
-                            vau,
+                            vau: vau.map(Box::new),
                             free_modifiers,
                         })
                     },
@@ -929,12 +1036,12 @@ fn statement_parser<'tokens>(
                         )| {
                             new!(BoPredicateTailSyntax {
                                 connective,
-                                tense_modal: tense_modal.map(Box::new),
+                                tense_modal,
                                 bo: WithFreeModifiers::new(bo, bo_free_modifiers),
-                                cu,
+                                cu: cu.map(Box::new),
                                 predicate_tail: Box::new(predicate_tail),
                                 tail_terms,
-                                vau,
+                                vau: vau.map(Box::new),
                                 free_modifiers: tail_free_modifiers,
                             })
                         },
@@ -968,10 +1075,10 @@ fn statement_parser<'tokens>(
                         new!(PredicateTailContinuationSyntax {
                             connective,
                             tense_modal: None,
-                            cu,
+                            cu: cu.map(Box::new),
                             predicate_tail: Box::new(predicate_tail),
                             tail_terms,
-                            vau,
+                            vau: vau.map(Box::new),
                             free_modifiers: tail_free_modifiers,
                         })
                     },
@@ -1010,14 +1117,14 @@ fn statement_parser<'tokens>(
                     )| {
                         new!(KePredicateTailSyntax {
                             connective,
-                            tense_modal: tense_modal.map(Box::new),
+                            tense_modal,
                             ke: WithFreeModifiers::new(ke, ke_free_modifiers),
                             predicate_tail: Box::new(predicate_tail),
                             kehe: kehe.map(|(kehe, free_modifiers)| {
-                                WithFreeModifiers::new(kehe, free_modifiers)
+                                Box::new(WithFreeModifiers::new(kehe, free_modifiers))
                             }),
                             tail_terms,
-                            vau,
+                            vau: vau.map(Box::new),
                             free_modifiers,
                         })
                     },
@@ -1056,7 +1163,9 @@ fn statement_parser<'tokens>(
             .map(|(((leading_terms, cu), predicate_tail), free_modifiers)| {
                 new!(PredicateSyntax {
                     leading_terms,
-                    cu: cu.map(|(cu, free_modifiers)| WithFreeModifiers::new(cu, free_modifiers)),
+                    cu: cu.map(|(cu, free_modifiers)| {
+                        Box::new(WithFreeModifiers::new(cu, free_modifiers))
+                    }),
                     predicate_tail: Box::new(predicate_tail),
                     free_modifiers,
                 })
@@ -1082,7 +1191,7 @@ fn statement_parser<'tokens>(
                 |(((cu, cu_free_modifiers), predicate_tail), free_modifiers)| {
                     new!(PredicateSyntax {
                         leading_terms: Vec::new(),
-                        cu: Some(WithFreeModifiers::new(cu, cu_free_modifiers)),
+                        cu: Some(Box::new(WithFreeModifiers::new(cu, cu_free_modifiers))),
                         predicate_tail: Box::new(predicate_tail),
                         free_modifiers,
                     })
@@ -1104,7 +1213,9 @@ fn statement_parser<'tokens>(
             .map(|(((leading_terms, cu), predicate_tail), free_modifiers)| {
                 new!(PredicateSyntax {
                     leading_terms,
-                    cu: cu.map(|(cu, free_modifiers)| WithFreeModifiers::new(cu, free_modifiers)),
+                    cu: cu.map(|(cu, free_modifiers)| {
+                        Box::new(WithFreeModifiers::new(cu, free_modifiers))
+                    }),
                     predicate_tail: Box::new(predicate_tail),
                     free_modifiers,
                 })
@@ -1150,7 +1261,7 @@ fn statement_parser<'tokens>(
             |((((connective, tense_modal), bo), free_modifiers), trailing_subsentence)| {
                 PredicateStatementContinuationSyntax {
                     connective,
-                    tense_modal: tense_modal.map(Box::new),
+                    tense_modal,
                     marker: new!(PredicateStatementContinuationMarkerSyntax::Bo(
                         WithFreeModifiers::new(bo, free_modifiers,)
                     )),
@@ -1175,7 +1286,7 @@ fn statement_parser<'tokens>(
             )| {
                 PredicateStatementContinuationSyntax {
                     connective,
-                    tense_modal: tense_modal.map(Box::new),
+                    tense_modal,
                     marker: new!(PredicateStatementContinuationMarkerSyntax::Ke {
                         ke: WithFreeModifiers::new(ke, ke_free_modifiers),
                         kehe: kehe.map(|(kehe, free_modifiers)| {
@@ -1295,11 +1406,13 @@ fn statement_parser<'tokens>(
         });
 
     let math_expression_fragment =
-        quantifier_with_free_modifiers(quantifier(), free_modifier.clone()).map(|quantifier| {
-            statement_from_fragment(new!(FragmentSyntax::MathExpression(Box::new(new!(
-                MathExpressionSyntax::Number(Box::new(quantifier))
-            )))))
-        });
+        quantifier_with_free_modifiers_boxed(quantifier_boxed(), free_modifier.clone()).map(
+            |quantifier| {
+                statement_from_fragment(new!(FragmentSyntax::MathExpression(Box::new(new!(
+                    MathExpressionSyntax::Number(quantifier)
+                )))))
+            },
+        );
 
     let relation_fragment = relation.clone().map(|relation| {
         statement_from_fragment(new!(FragmentSyntax::Relation(Box::new(relation))))
@@ -1348,7 +1461,7 @@ fn statement_parser<'tokens>(
         .map(
             |((((tense_modal, tuhe), tuhe_free_modifiers), text), tuhu)| {
                 new!(StatementSyntax::Tuhe {
-                    tense_modal: tense_modal.map(Box::new),
+                    tense_modal,
                     tuhe: WithFreeModifiers::new(tuhe, tuhe_free_modifiers),
                     text: Box::new(text),
                     tuhu: tuhu
@@ -2385,8 +2498,9 @@ where
         + Clone
         + 'tokens,
 {
-    let number = quantifier_with_free_modifiers(number_quantifier(), free_modifier.clone())
-        .map(|value| new!(MathExpressionSyntax::Number(Box::new(value))));
+    let number =
+        quantifier_with_free_modifiers_boxed(number_quantifier_boxed(), free_modifier.clone())
+            .map(|value| new!(MathExpressionSyntax::Number(value)));
     let letter = letter_string()
         .then_ignore(selmaho(Selmaho::Moi).rewind().not())
         .then(cmavo(Cmavo::Boi).or_not())
@@ -2695,8 +2809,7 @@ where
         + Clone
         + 'tokens,
 {
-    let number =
-        number_quantifier().map(|value| new!(MathExpressionSyntax::Number(Box::new(value))));
+    let number = number_quantifier_boxed().map(|value| new!(MathExpressionSyntax::Number(value)));
     let letter = letter_string()
         .then_ignore(selmaho(Selmaho::Moi).rewind().not())
         .then(cmavo(Cmavo::Boi).or_not())
@@ -2880,7 +2993,7 @@ fn argument_tail_with<'tokens, B, A, R, S, F>(
     'tokens,
     (
         Vec<ArgumentTailElementSyntax>,
-        Option<RelationSyntax>,
+        Option<Box<RelationSyntax>>,
         Vec<RelativeClauseSyntax>,
     ),
 >
@@ -2912,8 +3025,8 @@ where
                 ArgumentSyntax::from_data(argument),
             )))],
         });
-    let contextual_quantifier = quantifier_with_free_modifiers(
-        quantifier_with_context(argument.clone(), relation.clone(), free_modifier.clone()),
+    let contextual_quantifier = quantifier_with_free_modifiers_boxed(
+        quantifier_with_context_boxed(argument.clone(), relation.clone(), free_modifier.clone()),
         free_modifier.clone(),
     );
     let descriptor_relative_clauses =
@@ -2937,19 +3050,21 @@ where
     let relation_tail = relation
         .clone()
         .then(descriptor_relative_clauses.clone())
-        .map(|(relation, relative_clauses)| (Vec::new(), Some(relation), relative_clauses));
+        .map(|(relation, relative_clauses)| {
+            (Vec::new(), Some(Box::new(relation)), relative_clauses)
+        });
     let quantifier_relation_tail = contextual_quantifier
         .clone()
         .then(selmaho(Selmaho::Roi).rewind().not())
         .map(|(quantifier, _)| quantifier)
-        .map(|quantifier| new!(ArgumentTailElementSyntax::Quantifier(quantifier)))
+        .map(|quantifier| new!(ArgumentTailElementSyntax::Quantifier(*quantifier)))
         .then(relation.clone())
         .then(descriptor_relative_clauses.clone())
         .map(|((quantifier, relation), relative_clauses)| {
-            (vec![quantifier], Some(relation), relative_clauses)
+            (vec![quantifier], Some(Box::new(relation)), relative_clauses)
         });
     let quantifier_argument_tail = contextual_quantifier
-        .map(|quantifier| new!(ArgumentTailElementSyntax::Quantifier(quantifier)))
+        .map(|quantifier| new!(ArgumentTailElementSyntax::Quantifier(*quantifier)))
         .then(argument)
         .map(|(quantifier, argument)| {
             (
@@ -3101,8 +3216,8 @@ where
             })
         });
 
-    let contextual_quantifier = quantifier_with_free_modifiers(
-        quantifier_with_context(argument.clone(), relation.clone(), free_modifier.clone()),
+    let contextual_quantifier = quantifier_with_free_modifiers_boxed(
+        quantifier_with_context_boxed(argument.clone(), relation.clone(), free_modifier.clone()),
         free_modifier.clone(),
     );
     let mut argument6 = Recursive::declare();
@@ -3148,7 +3263,7 @@ where
                         connective,
                         trailing_descriptor_head: Box::new(trailing_descriptor_head),
                         tail_elements,
-                        relation: relation.map(Box::new),
+                        relation,
                         relative_clauses,
                         ku: ku
                             .map(|(ku, free_modifiers)| WithFreeModifiers::new(ku, free_modifiers)),
@@ -3177,7 +3292,7 @@ where
                             descriptor_free_modifiers,
                         )),
                         tail_elements,
-                        relation: relation.map(Box::new),
+                        relation,
                         relative_clauses,
                         ku: ku
                             .map(|(ku, free_modifiers)| WithFreeModifiers::new(ku, free_modifiers)),
@@ -3203,13 +3318,13 @@ where
                 let (tail_elements, relation, relative_clauses) = descriptor_tail;
                 new!(ArgumentSyntax::Descriptor(Box::new(new!(
                     DescriptorSyntax {
-                        outer_quantifier: Some(Box::new(outer_quantifier)),
+                        outer_quantifier: Some(outer_quantifier),
                         descriptor: Some(WithFreeModifiers::new(
                             descriptor,
                             descriptor_free_modifiers,
                         )),
                         tail_elements,
-                        relation: relation.map(Box::new),
+                        relation,
                         relative_clauses,
                         ku: ku
                             .map(|(ku, free_modifiers)| WithFreeModifiers::new(ku, free_modifiers)),
@@ -3222,7 +3337,7 @@ where
         .clone()
         .then(selmaho(Selmaho::Roi).rewind().not())
         .map(|(quantifier, _)| quantifier)
-        .map(|quantifier| new!(ArgumentTailElementSyntax::Quantifier(quantifier)))
+        .map(|quantifier| new!(ArgumentTailElementSyntax::Quantifier(*quantifier)))
         .then(relation.clone())
         .then(
             relative_clauses(argument.clone(), subsentence.clone(), free_modifier.clone())
@@ -3375,25 +3490,26 @@ where
             .map(Option::unwrap_or_default);
     let unquantified_base_argument = unquantified_base_argument_core
         .clone()
+        .map(Box::new)
         .then(base_relative_clauses.clone())
         .map(|(base_argument, relative_clauses)| {
             if relative_clauses.is_empty() {
-                base_argument
+                *base_argument
             } else {
                 new!(ArgumentSyntax::RelativeClause {
-                    base_argument: Box::new(base_argument),
+                    base_argument,
                     vuho: None,
                     relative_clauses,
                 })
             }
         });
     let quantified_argument = contextual_quantifier
-        .then(unquantified_base_argument_core)
+        .then(unquantified_base_argument_core.map(Box::new))
         .then(base_relative_clauses)
         .map(|((quantifier, inner_argument), relative_clauses)| {
             let quantified = new!(ArgumentSyntax::Quantified {
-                quantifier,
-                inner_argument: Box::new(inner_argument),
+                quantifier: *quantifier,
+                inner_argument,
             });
             if relative_clauses.is_empty() {
                 quantified
@@ -3405,61 +3521,85 @@ where
                 })
             }
         });
-    let base_argument = choice((unquantified_base_argument, quantified_argument));
+    let base_argument = choice((unquantified_base_argument, quantified_argument)).boxed();
 
-    let argument4 = recursive(|argument4| {
-        let gek_argument = modal_forethought_connective_with_free_modifiers(free_modifier.clone())
-            .then(argument.clone())
-            .then(gik_connective_with_free_modifiers(free_modifier.clone()))
-            .then(argument4)
-            .then(optional_gihi_terminator())
-            .map(
-                |((((gek, leading_argument), gik), trailing_argument), gihi)| {
-                    new!(ArgumentSyntax::Gek {
-                        gek,
-                        leading_argument: Box::new(leading_argument),
-                        gik,
-                        trailing_argument: Box::new(trailing_argument),
-                        gihi,
-                    })
-                },
-            );
+    let argument4_boxed: BoxedParser<'tokens, BoxedArgumentSyntax> =
+        recursive::<_, BoxedArgumentSyntax, _, _, _>(|argument4| {
+            let gek_argument =
+                modal_forethought_connective_with_free_modifiers(free_modifier.clone())
+                    .then(argument.clone().map(Box::new))
+                    .then(gik_connective_with_free_modifiers(free_modifier.clone()))
+                    .then(argument4)
+                    .then(optional_gihi_terminator())
+                    .map(
+                        |((((gek, leading_argument), gik), trailing_argument), gihi)| {
+                            Box::new(new!(ArgumentSyntax::Gek {
+                                gek,
+                                leading_argument,
+                                gik,
+                                trailing_argument,
+                                gihi,
+                            }))
+                        },
+                    );
 
-        choice((gek_argument, base_argument.clone())).boxed()
-    });
-    let argument3 = recursive(|argument3| {
-        argument4
-            .clone()
-            .then(
-                connective_with_free_modifiers(argument_connective(), free_modifier.clone())
-                    .then(tense_modal().or_not())
-                    .then(cmavo(Cmavo::Bo))
-                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                    .then(argument3)
-                    .or_not(),
-            )
-            .map(|(leading_argument, bo_tail)| match bo_tail {
-                None => leading_argument,
-                Some((
-                    (((bo_connective, bo_tense_modal), bo), free_modifiers),
-                    trailing_argument,
-                )) => {
-                    new!(ArgumentSyntax::Bo {
-                        leading_argument: Box::new(leading_argument),
-                        bo_connective: Some(Box::new(bo_connective)),
-                        bo_tense_modal: bo_tense_modal.map(Box::new),
-                        bo: WithFreeModifiers::new(bo, free_modifiers),
-                        trailing_argument: Box::new(trailing_argument),
-                    })
-                }
-            })
-            .boxed()
-    });
+            choice((gek_argument, base_argument.clone().map(Box::new))).boxed()
+        })
+        .boxed();
+    let argument3_boxed: BoxedParser<'tokens, BoxedArgumentSyntax> =
+        recursive::<_, BoxedArgumentSyntax, _, _, _>(|argument3| {
+            argument4_boxed
+                .clone()
+                .then(
+                    connective_with_free_modifiers(argument_connective(), free_modifier.clone())
+                        .then(tense_modal_boxed().or_not())
+                        .then(cmavo(Cmavo::Bo))
+                        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                        .then(argument3)
+                        .map(
+                            |(
+                                (((connective, tense_modal), bo), free_modifiers),
+                                trailing_argument,
+                            )| {
+                                Box::new(BoArgumentTailSyntax {
+                                    connective,
+                                    tense_modal,
+                                    bo,
+                                    free_modifiers,
+                                    trailing_argument,
+                                })
+                            },
+                        )
+                        .boxed()
+                        .or_not(),
+                )
+                .map(|(leading_argument, bo_tail)| match bo_tail {
+                    None => leading_argument,
+                    Some(bo_tail) => {
+                        let BoArgumentTailSyntax {
+                            connective,
+                            tense_modal,
+                            bo,
+                            free_modifiers,
+                            trailing_argument,
+                        } = *bo_tail;
+                        Box::new(new!(ArgumentSyntax::Bo {
+                            leading_argument,
+                            bo_connective: Some(Box::new(connective)),
+                            bo_tense_modal: tense_modal,
+                            bo: WithFreeModifiers::new(bo, free_modifiers),
+                            trailing_argument,
+                        }))
+                    }
+                })
+                .boxed()
+        })
+        .boxed();
     let afterthought_argument_tail =
         connective_with_free_modifiers(argument_connective(), free_modifier.clone())
-            .then(argument3.clone())
+            .then(argument3_boxed.clone())
             .boxed();
-    let argument2 = argument3
+    let argument2_boxed = argument3_boxed
         .clone()
         .then(
             afterthought_argument_tail
@@ -3470,32 +3610,46 @@ where
                 .collect::<Vec<_>>(),
         )
         .map(|(first, continuations)| {
-            continuations.into_iter().fold(
-                first,
+            Box::new(continuations.into_iter().fold(
+                *first,
                 |leading_argument, (connective, trailing_argument)| {
                     new!(ArgumentSyntax::Connected {
                         leading_argument: Box::new(leading_argument),
                         connective,
-                        trailing_argument: Box::new(trailing_argument),
+                        trailing_argument,
                     })
                 },
-            )
+            ))
         })
         .boxed();
 
     let argument_ke_tail =
         connective_with_free_modifiers(argument_connective(), free_modifier.clone())
-            .then(tense_modal().or_not())
+            .then(tense_modal_boxed().or_not())
             .then(cmavo(Cmavo::Ke))
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(argument.clone())
+            .then(argument.clone().map(Box::new))
             .then(
                 cmavo(Cmavo::Kehe)
                     .then(free_modifier.clone().repeated().collect::<Vec<_>>())
                     .or_not(),
             )
+            .map(
+                |(((((connective, tense_modal), ke), free_modifiers), inner_argument), kehe)| {
+                    Box::new(KeArgumentTailSyntax {
+                        connective,
+                        tense_modal,
+                        ke,
+                        free_modifiers,
+                        inner_argument,
+                        kehe: kehe.map(|(kehe, free_modifiers)| {
+                            WithFreeModifiers::new(kehe, free_modifiers)
+                        }),
+                    })
+                },
+            )
             .boxed();
-    let argument1 = argument2
+    let argument1_boxed = argument2_boxed
         .clone()
         .then(
             argument_ke_tail
@@ -3506,30 +3660,33 @@ where
         )
         .map(|(leading_argument, ke_tail)| match ke_tail {
             None => leading_argument,
-            Some((
-                ((((connective, tense_modal), ke), ke_free_modifiers), inner_argument),
-                kehe,
-            )) => {
+            Some(ke_tail) => {
+                let KeArgumentTailSyntax {
+                    connective,
+                    tense_modal,
+                    ke,
+                    free_modifiers,
+                    inner_argument,
+                    kehe,
+                } = *ke_tail;
                 let connective = match tense_modal {
                     None => connective,
-                    Some(tense_modal) => append_tense_modal_words(connective, tense_modal),
+                    Some(tense_modal) => append_tense_modal_words(connective, *tense_modal),
                 };
-                new!(ArgumentSyntax::Connected {
-                    leading_argument: Box::new(leading_argument),
+                Box::new(new!(ArgumentSyntax::Connected {
+                    leading_argument,
                     connective,
                     trailing_argument: Box::new(new!(ArgumentSyntax::Ke {
-                        ke: WithFreeModifiers::new(ke, ke_free_modifiers),
-                        inner_argument: Box::new(inner_argument),
-                        kehe: kehe.map(|(kehe, free_modifiers)| {
-                            WithFreeModifiers::new(kehe, free_modifiers)
-                        }),
+                        ke: WithFreeModifiers::new(ke, free_modifiers),
+                        inner_argument,
+                        kehe,
                     })),
-                })
+                }))
             }
         })
         .boxed();
 
-    argument1
+    argument1_boxed
         .then(
             cmavo(Cmavo::Vuho)
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -3540,10 +3697,10 @@ where
                 )
                 .then(
                     argument_connective()
-                        .then(argument)
+                        .then(argument.map(Box::new))
                         .map(|(connective, argument)| ArgumentConnectionSyntax {
                             connective,
-                            argument: Box::new(argument),
+                            argument,
                         })
                         .or_not(),
                 )
@@ -3555,20 +3712,20 @@ where
             {
                 if !relative_clauses.is_empty() && connected_argument.is_none() {
                     new!(ArgumentSyntax::RelativeClause {
-                        base_argument: Box::new(base_argument),
+                        base_argument,
                         vuho: Some(WithFreeModifiers::new(vuho, vuho_free_modifiers)),
                         relative_clauses,
                     })
                 } else {
                     new!(ArgumentSyntax::Vuho {
-                        base_argument: Box::new(base_argument),
+                        base_argument,
                         vuho_marker: WithFreeModifiers::new(vuho, vuho_free_modifiers),
                         relative_clauses,
                         connected_argument: connected_argument.map(Box::new),
                     })
                 }
             } else {
-                base_argument
+                *base_argument
             }
         })
         .boxed()
@@ -3660,13 +3817,21 @@ where
 #[requires(true)]
 #[ensures(true)]
 fn number_quantifier<'tokens>() -> BoxedParser<'tokens, QuantifierSyntax> {
+    number_quantifier_boxed()
+        .map(|quantifier| *quantifier)
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn number_quantifier_boxed<'tokens>() -> BoxedParser<'tokens, BoxedQuantifierSyntax> {
     number_words()
         .then(cmavo(Cmavo::Boi).or_not())
         .map(|(number, boi)| {
-            new!(QuantifierSyntax::Number {
+            Box::new(new!(QuantifierSyntax::Number {
                 number: WithFreeModifiers::new(word_run(number), Vec::new()),
                 boi: boi.map(|boi| WithFreeModifiers::new(boi, Vec::new())),
-            })
+            }))
         })
         .boxed()
 }
@@ -3674,17 +3839,23 @@ fn number_quantifier<'tokens>() -> BoxedParser<'tokens, QuantifierSyntax> {
 #[requires(true)]
 #[ensures(true)]
 fn quantifier<'tokens>() -> BoxedParser<'tokens, QuantifierSyntax> {
+    quantifier_boxed().map(|quantifier| *quantifier).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quantifier_boxed<'tokens>() -> BoxedParser<'tokens, BoxedQuantifierSyntax> {
     let vei_quantifier = cmavo(Cmavo::Vei)
-        .then(math_expression_body())
+        .then(math_expression_body().map(Box::new))
         .then(cmavo(Cmavo::Veho).or_not())
         .map(|((vei, math_expression), veho)| {
-            new!(QuantifierSyntax::Vei {
+            Box::new(new!(QuantifierSyntax::Vei {
                 vei: WithFreeModifiers::new(vei, Vec::new()),
-                math_expression: Box::new(math_expression),
+                math_expression,
                 veho: veho.map(|veho| WithFreeModifiers::new(veho, Vec::new())),
-            })
+            }))
         });
-    choice((vei_quantifier, number_quantifier())).boxed()
+    choice((vei_quantifier, number_quantifier_boxed())).boxed()
 }
 
 #[requires(true)]
@@ -3701,21 +3872,36 @@ where
         + Clone
         + 'tokens,
 {
+    quantifier_with_context_boxed(argument, relation, free_modifier)
+        .map(|quantifier| *quantifier)
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quantifier_with_context_boxed<'tokens, A, R, F>(
+    argument: A,
+    relation: R,
+    free_modifier: F,
+) -> BoxedParser<'tokens, BoxedQuantifierSyntax>
+where
+    A: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    R: Parser<'tokens, ParserInput<'tokens>, RelationSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
     let vei_quantifier = cmavo(Cmavo::Vei)
-        .then(math_expression_body_with_context(
-            argument,
-            relation,
-            free_modifier,
-        ))
+        .then(math_expression_body_with_context(argument, relation, free_modifier).map(Box::new))
         .then(cmavo(Cmavo::Veho).or_not())
         .map(|((vei, math_expression), veho)| {
-            new!(QuantifierSyntax::Vei {
+            Box::new(new!(QuantifierSyntax::Vei {
                 vei: WithFreeModifiers::new(vei, Vec::new()),
-                math_expression: Box::new(math_expression),
+                math_expression,
                 veho: veho.map(|veho| WithFreeModifiers::new(veho, Vec::new())),
-            })
+            }))
         });
-    choice((vei_quantifier, number_quantifier())).boxed()
+    choice((vei_quantifier, number_quantifier_boxed())).boxed()
 }
 
 #[requires(true)]
@@ -3732,10 +3918,32 @@ where
         + Clone
         + 'tokens,
 {
+    quantifier_with_free_modifiers_boxed(quantifier.map(Box::new), free_modifier)
+        .map(|quantifier| *quantifier)
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quantifier_with_free_modifiers_boxed<'tokens, Q, F>(
+    quantifier: Q,
+    free_modifier: F,
+) -> BoxedParser<'tokens, BoxedQuantifierSyntax>
+where
+    Q: Parser<'tokens, ParserInput<'tokens>, BoxedQuantifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
     quantifier
         .then(free_modifier.repeated().collect::<Vec<_>>())
         .map(|(quantifier, free_modifiers)| {
-            attach_quantifier_free_modifiers(quantifier, free_modifiers)
+            Box::new(attach_quantifier_free_modifiers(
+                *quantifier,
+                free_modifiers,
+            ))
         })
         .boxed()
 }
@@ -3794,19 +4002,19 @@ where
     let compound_quote = any()
         .try_map(move |word: Token, span| {
             match word.core_word().as_data() {
-                data!(WordLike::ZoQuote { .. }) => Ok(new!(ArgumentSyntax::Quote(Box::new(new!(QuoteSyntax::Zo(
+                data!(WordLike::ZoQuote { .. }) => Ok(Box::new(new!(QuoteSyntax::Zo(
                     WithFreeModifiers::new(word.clone(), Vec::new()),
-                )))))),
-                data!(WordLike::ZoiQuote { .. }) => Ok(new!(ArgumentSyntax::Quote(Box::new(new!(QuoteSyntax::Zoi(
+                )))),
+                data!(WordLike::ZoiQuote { .. }) => Ok(Box::new(new!(QuoteSyntax::Zoi(
                     WithFreeModifiers::new(word.clone(), Vec::new()),
-                )))))),
-                data!(WordLike::LohuQuote { .. }) => Ok(new!(ArgumentSyntax::Quote(Box::new(new!(QuoteSyntax::Lohu(
+                )))),
+                data!(WordLike::LohuQuote { .. }) => Ok(Box::new(new!(QuoteSyntax::Lohu(
                     WithFreeModifiers::new(word.clone(), Vec::new()),
-                )))))),
+                )))),
                 data!(WordLike::SingleWordQuote { .. }) => {
-                    Ok(new!(ArgumentSyntax::Quote(Box::new(new!(QuoteSyntax::ZohOi(
+                    Ok(Box::new(new!(QuoteSyntax::ZohOi(
                         WithFreeModifiers::new(word.clone(), Vec::new()),
-                    ))))))
+                    ))))
                 },
                 _ => Err(SyntaxParseError::expected(
                     span,
@@ -3819,19 +4027,17 @@ where
         .labelled("QUOTE")
         .as_terminal()
         .map_with(
-            |argument,
+            |quote,
              extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
-            if let data!(ArgumentSyntax::Quote(quote)) = argument.as_data()
-                && let data!(QuoteSyntax::ZohOi(zohoi)) = quote.as_data()
-            {
+            if let data!(QuoteSyntax::ZohOi(zohoi)) = quote.as_data() {
                 extra
                     .state()
                     .warn(ExperimentalConstruct::ExperimentalZohOiQuote, &zohoi.value);
             }
-            argument
+            quote
         })
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|(argument, free_modifiers)| attach_quote_free_modifiers(argument, free_modifiers));
+        .map(|(quote, free_modifiers)| attach_boxed_quote_free_modifiers(quote, free_modifiers));
 
     let lu_quote = cmavo(Cmavo::Lu)
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -3842,32 +4048,26 @@ where
                 .or_not(),
         )
         .map(|(((lu, free_modifiers), text), lihu)| {
-            new!(ArgumentSyntax::Quote(Box::new(new!(QuoteSyntax::Lu {
+            Box::new(new!(QuoteSyntax::Lu {
                 lu: WithFreeModifiers::new(lu, free_modifiers),
                 text: Box::new(text),
                 lihu: lihu
                     .map(|(lihu, free_modifiers)| WithFreeModifiers::new(lihu, free_modifiers)),
-            }))))
+            }))
         });
 
-    choice((compound_quote, lu_quote)).boxed()
+    choice((compound_quote, lu_quote))
+        .map(|quote| new!(ArgumentSyntax::Quote(quote)))
+        .boxed()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn attach_quote_free_modifiers(
-    argument: ArgumentSyntax,
+fn attach_boxed_quote_free_modifiers(
+    quote: Box<QuoteSyntax>,
     free_modifiers: Vec<FreeModifierSyntax>,
-) -> ArgumentSyntax {
-    match argument.into_data() {
-        data!(ArgumentSyntax::Quote(quote)) => {
-            new!(ArgumentSyntax::Quote(Box::new(quote_with_free_modifiers(
-                *quote,
-                free_modifiers
-            ))))
-        }
-        other => ArgumentSyntax::from_data(other),
-    }
+) -> Box<QuoteSyntax> {
+    Box::new(quote_with_free_modifiers(*quote, free_modifiers))
 }
 
 #[requires(true)]
@@ -4553,11 +4753,11 @@ fn append_connective_words(connective: ConnectiveSyntax, words: Vec<Token>) -> C
 #[ensures(true)]
 fn append_optional_tense_modal_and_bo(
     connective: ConnectiveSyntax,
-    tense_modal: Option<TenseModalSyntax>,
+    tense_modal: Option<BoxedTenseModalSyntax>,
     bo: Token,
 ) -> ConnectiveSyntax {
     let connective = if let Some(tense_modal) = tense_modal {
-        append_tense_modal_words(connective, tense_modal)
+        append_tense_modal_words(connective, *tense_modal)
     } else {
         connective
     };
@@ -4726,8 +4926,9 @@ fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyn
         .then(cmavo(Cmavo::Nai).or_not())
         .map(|((se, ga), nai)| {
             connective_syntax(ConnectiveKind::Forethought, se, None, None, vec![ga], nai)
-        });
-    let modal_gi = tense_modal()
+        })
+        .boxed();
+    let modal_gi = tense_modal_boxed()
         .then(cmavo(Cmavo::Gi))
         .then(zantufa_gek_bo())
         .map(|((tense_modal, gi), bo)| {
@@ -4736,7 +4937,8 @@ fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyn
             cmavo.push(gi);
             cmavo.extend(bo);
             connective_syntax(ConnectiveKind::Forethought, None, None, None, cmavo, None)
-        });
+        })
+        .boxed();
     let jek_as_gek = jek_connective().map_with(
         |connective,
          extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
@@ -4747,14 +4949,16 @@ fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyn
             }
             connective
         },
-    );
+    )
+    .boxed();
     let joik_jek_gi = choice((joik_connective(), jek_as_gek))
         .then(cmavo(Cmavo::Gi))
         .then(zantufa_gek_bo())
         .map(|((connective, gi), bo)| {
             let extra = [Some(gi), bo].into_iter().flatten().collect::<Vec<_>>();
             append_connective_words(connective, extra)
-        });
+        })
+        .boxed();
     let zantufa_initial_gi = cmavo(Cmavo::Gi)
         .map_with(
             |gi, extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
@@ -4768,7 +4972,7 @@ fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyn
             choice((
                 joik_connective().map(connective_tense_modal_leaves),
                 jek_connective().map(connective_tense_modal_leaves),
-                tense_modal().map(|tense_modal| {
+                tense_modal_boxed().map(|tense_modal| {
                     let mut words = Vec::new();
                     tense_modal.extend_words_into(&mut words);
                     words
@@ -4782,7 +4986,8 @@ fn modal_forethought_connective<'tokens>() -> BoxedParser<'tokens, ConnectiveSyn
             cmavo.append(&mut tail_words);
             cmavo.extend(bo);
             connective_syntax(ConnectiveKind::Forethought, None, None, None, cmavo, None)
-        });
+        })
+        .boxed();
     if dialect.zantufa_connectives_enabled {
         choice((ga, zantufa_initial_gi, joik_jek_gi, modal_gi)).boxed()
     } else {
@@ -5347,10 +5552,10 @@ where
         + 'tokens,
 {
     let zantufa_quotes_enabled = parser_dialect_config().zantufa_quotes_enabled;
-    let tense_modal_with_free_modifiers = tense_modal()
+    let tense_modal_with_free_modifiers = tense_modal_boxed()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(tense_modal, free_modifiers)| {
-            attach_tense_modal_free_modifiers(tense_modal, free_modifiers)
+            attach_boxed_tense_modal_free_modifiers(tense_modal, free_modifiers)
         })
         .boxed();
     let me_argument = argument.clone().or(letter_string().map(|letter| {
@@ -5465,7 +5670,7 @@ where
         .map(|((xohi, free_modifiers), tag)| {
             new!(RelationUnitSyntax::Xohi {
                 xohi: wrapped_word(xohi, free_modifiers),
-                tag: Box::new(tag),
+                tag,
             })
         });
 
@@ -5487,7 +5692,7 @@ where
             new!(RelationUnitSyntax::Ke {
                 ke_tense_modal: None,
                 ke: wrapped_word(ke, ke_free_modifiers),
-                relation: Box::new(relation),
+                relation,
                 kehe: kehe.map(|(kehe, free_modifiers)| wrapped_word(kehe, free_modifiers)),
             })
         });
@@ -5563,8 +5768,8 @@ where
         .map(|(tense_modal, inner_relation)| {
             new!(RelationUnitSyntax::Wrapped(Box::new(new!(
                 RelationSyntax::TenseModal {
-                    tense_modal: Box::new(tense_modal),
-                    inner_relation: Box::new(inner_relation),
+                    tense_modal,
+                    inner_relation,
                 }
             ))))
         });
@@ -5629,7 +5834,7 @@ where
         .map(|(((jai, free_modifiers), tense_modal), inner_unit)| {
             new!(RelationUnitSyntax::Jai {
                 jai: wrapped_word(jai, free_modifiers),
-                tense_modal: tense_modal.map(Box::new),
+                tense_modal,
                 inner_unit: Box::new(inner_unit),
             })
         });
@@ -5777,6 +5982,7 @@ where
             word_unit.clone(),
             goha_unit.clone(),
         ))
+        .map(Box::new)
         .boxed()
     } else {
         choice((
@@ -5797,6 +6003,7 @@ where
             word_unit.clone(),
             goha_unit.clone(),
         ))
+        .map(Box::new)
         .boxed()
     };
     let base_unit_for_cei = if zantufa_quotes_enabled {
@@ -5820,6 +6027,7 @@ where
             goha_unit.clone(),
             word_unit.clone(),
         ))
+        .map(Box::new)
         .boxed()
     } else {
         choice((
@@ -5840,12 +6048,13 @@ where
             goha_unit.clone(),
             word_unit.clone(),
         ))
+        .map(Box::new)
         .boxed()
     };
     let be_link = be_link_parser(argument.clone(), free_modifier.clone());
     let selbri_relative_clause = cmavo(Cmavo::Nohoi)
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(relation.clone())
+        .then(relation.clone().map(Box::new))
         .then(
             cmavo(Cmavo::Kuhoi)
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -5854,14 +6063,14 @@ where
         .map(|(((nohoi, leading_free_modifiers), relation), kuhoi)| {
             new!(SelbriRelativeClauseSyntax {
                 nohoi: WithFreeModifiers::new(nohoi, leading_free_modifiers),
-                relation: Box::new(relation),
+                relation,
                 kuhoi: kuhoi
                     .map(|(kuhoi, free_modifiers)| WithFreeModifiers::new(kuhoi, free_modifiers)),
             })
         })
         .boxed();
 
-    let linked_unit_from = |base_unit: BoxedParser<'tokens, RelationUnitSyntax>| {
+    let linked_unit_from = |base_unit: BoxedParser<'tokens, BoxedRelationUnitSyntax>| {
         base_unit
             .then(be_link.clone().or_not())
             .map(|(base, be_link)| match be_link {
@@ -5875,14 +6084,14 @@ where
                         beho,
                     }) = link.into_data();
 
-                    new!(RelationUnitSyntax::Be {
-                        base: Box::new(base),
+                    Box::new(new!(RelationUnitSyntax::Be {
+                        base,
                         be,
                         fa,
                         first_argument,
                         bei_links,
                         beho,
-                    })
+                    }))
                 }
             })
             .then(
@@ -5895,10 +6104,10 @@ where
                 if selbri_relative_clauses.is_empty() {
                     linked_unit
                 } else {
-                    new!(RelationUnitSyntax::SelbriRelativeClause {
-                        base: Box::new(linked_unit),
+                    Box::new(new!(RelationUnitSyntax::SelbriRelativeClause {
+                        base: linked_unit,
                         selbri_relative_clauses,
-                    })
+                    }))
                 }
             })
             .boxed()
@@ -5912,14 +6121,14 @@ where
             beho,
         }) = link.into_data();
 
-        new!(RelationUnitSyntax::PreposedBe {
+        Box::new(new!(RelationUnitSyntax::PreposedBe {
             be,
             fa,
             first_argument,
             bei_links,
             beho,
-            base: Box::new(base),
-        })
+            base,
+        }))
     });
     let linked_unit = linked_unit_from(base_unit);
     let linked_unit_for_cei = linked_unit_from(base_unit_for_cei);
@@ -5933,86 +6142,101 @@ where
                 .collect::<Vec<_>>(),
         )
         .map(|(base, be_link)| {
-            new!(RelationUnitSyntax::Cei {
-                base: Box::new(base),
+            Box::new(new!(RelationUnitSyntax::Cei {
+                base,
                 assignments: be_link
                     .into_iter()
                     .map(|(cei, relation_unit)| new!(CeiAssignmentSyntax {
                         cei: wrapped_word(cei, Vec::new()),
-                        relation_unit: Box::new(relation_unit),
+                        relation_unit,
                     }))
                     .collect(),
-            })
+            }))
         })
         .boxed();
 
-    let bo_unit = recursive(|bo_unit| {
-        let guha_unit = guhek_connective()
-            .then(relation.clone())
-            .then(gik_connective_with_free_modifiers(free_modifier.clone()))
-            .then(bo_unit.clone())
-            .then(optional_gihi_terminator())
-            .map(
-                |((((guhek, leading_relation), gik), trailing_unit), gihi)| {
-                    new!(RelationUnitSyntax::Wrapped(Box::new(new!(
-                        RelationSyntax::Guha {
-                            guhek,
-                            leading_predicate: Box::new(relation_to_empty_predicate(
-                                leading_relation
-                            )),
-                            gik,
-                            trailing_predicate: Box::new(relation_to_empty_predicate(
-                                relation_unit_to_relation(&trailing_unit),
-                            )),
-                            gihi,
-                        }
-                    ))))
-                },
-            );
-        let atom_unit = choice((
-            guha_unit,
-            preposed_unit.clone(),
-            cei_unit.clone(),
-            linked_unit.clone(),
-        ))
-        .boxed();
-        let connected_bo_tail = statement_connective()
-            .then(tense_modal().or_not())
-            .then(cmavo(Cmavo::Bo))
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(bo_unit.clone())
-            .map(
-                |((((connective, bo_tense_modal), bo), free_modifiers), trailing_unit)| {
-                    (
-                        Some(connective),
-                        bo_tense_modal,
+    let bo_unit: BoxedParser<'tokens, BoxedRelationUnitSyntax> =
+        recursive::<_, BoxedRelationUnitSyntax, _, _, _>(|bo_unit| {
+            let guha_unit = guhek_connective()
+                .then(relation.clone().map(Box::new))
+                .then(gik_connective_with_free_modifiers(free_modifier.clone()))
+                .then(bo_unit.clone())
+                .then(optional_gihi_terminator())
+                .map(
+                    |((((guhek, leading_relation), gik), trailing_unit), gihi)| {
+                        Box::new(new!(RelationUnitSyntax::Wrapped(Box::new(new!(
+                            RelationSyntax::Guha {
+                                guhek,
+                                leading_predicate: Box::new(relation_to_empty_predicate(
+                                    *leading_relation
+                                )),
+                                gik,
+                                trailing_predicate: Box::new(relation_to_empty_predicate(
+                                    relation_unit_to_relation(&trailing_unit),
+                                )),
+                                gihi,
+                            }
+                        )))))
+                    },
+                );
+            let atom_unit = choice((
+                guha_unit,
+                preposed_unit.clone(),
+                cei_unit.clone(),
+                linked_unit.clone(),
+            ))
+            .boxed();
+            let connected_bo_tail = statement_connective()
+                .then(tense_modal_boxed().or_not())
+                .then(cmavo(Cmavo::Bo))
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(bo_unit.clone())
+                .map(
+                    |((((connective, bo_tense_modal), bo), free_modifiers), trailing_unit)| {
+                        Box::new(BoRelationUnitTailSyntax {
+                            connective: Some(Box::new(connective)),
+                            tense_modal: bo_tense_modal,
+                            bo,
+                            free_modifiers,
+                            trailing_unit,
+                        })
+                    },
+                );
+            let bare_bo_tail = cmavo(Cmavo::Bo)
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(bo_unit)
+                .map(|((bo, free_modifiers), trailing_unit)| {
+                    Box::new(BoRelationUnitTailSyntax {
+                        connective: None,
+                        tense_modal: None,
                         bo,
                         free_modifiers,
                         trailing_unit,
-                    )
-                },
-            );
-        let bare_bo_tail = cmavo(Cmavo::Bo)
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(bo_unit)
-            .map(|((bo, free_modifiers), trailing_unit)| {
-                (None, None, bo, free_modifiers, trailing_unit)
-            });
-        atom_unit
-            .then(choice((connected_bo_tail, bare_bo_tail)).or_not())
-            .map(|(leading_unit, bo_tail)| match bo_tail {
-                None => leading_unit,
-                Some((bo_connective, bo_tense_modal, bo, free_modifiers, trailing_unit)) => {
-                    new!(RelationUnitSyntax::Bo {
-                        leading_unit: Box::new(leading_unit),
-                        bo_connective: bo_connective.map(Box::new),
-                        bo_tense_modal: bo_tense_modal.map(Box::new),
-                        bo: wrapped_word(bo, free_modifiers),
-                        trailing_unit: Box::new(trailing_unit),
                     })
-                }
-            })
-    });
+                });
+            atom_unit
+                .then(choice((connected_bo_tail, bare_bo_tail)).or_not())
+                .map(|(leading_unit, bo_tail)| match bo_tail {
+                    None => leading_unit,
+                    Some(bo_tail) => {
+                        let BoRelationUnitTailSyntax {
+                            connective,
+                            tense_modal,
+                            bo,
+                            free_modifiers,
+                            trailing_unit,
+                        } = *bo_tail;
+                        Box::new(new!(RelationUnitSyntax::Bo {
+                            leading_unit,
+                            bo_connective: connective,
+                            bo_tense_modal: tense_modal,
+                            bo: wrapped_word(bo, free_modifiers),
+                            trailing_unit,
+                        }))
+                    }
+                })
+        })
+        .boxed();
 
     let connected_unit = bo_unit
         .clone()
@@ -6026,11 +6250,11 @@ where
             continuations
                 .into_iter()
                 .fold(first, |leading_unit, (connective, trailing_unit)| {
-                    new!(RelationUnitSyntax::Connected {
-                        leading_unit: Box::new(leading_unit),
+                    Box::new(new!(RelationUnitSyntax::Connected {
+                        leading_unit,
                         connective,
-                        trailing_unit: Box::new(trailing_unit),
-                    })
+                        trailing_unit,
+                    }))
                 })
         });
 
@@ -6038,7 +6262,7 @@ where
         .repeated()
         .at_least(1)
         .collect::<Vec<_>>()
-        .map(relation_from_units);
+        .map(boxed_relation_from_boxed_units);
 
     let base_relation = relation_units;
     let connected_relation = base_relation
@@ -6050,24 +6274,22 @@ where
         )
         .map(|(leading_relation, connected)| match connected {
             None => leading_relation,
-            Some((connective, trailing_relation)) => {
-                new!(RelationSyntax::Connected {
-                    connective,
-                    leading_relation: Box::new(leading_relation),
-                    trailing_relation: Box::new(trailing_relation),
-                })
-            }
+            Some((connective, trailing_relation)) => Box::new(new!(RelationSyntax::Connected {
+                connective,
+                leading_relation,
+                trailing_relation,
+            })),
         });
     let na_relation = na_cmavo()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(relation)
+        .then(relation.clone().map(Box::new))
         .map(|((na, free_modifiers), inner_relation)| {
-            new!(RelationSyntax::Na {
+            Box::new(new!(RelationSyntax::Na {
                 na: wrapped_word(na, free_modifiers),
-                inner_relation: Box::new(inner_relation),
-            })
+                inner_relation,
+            }))
         });
-    let co_relation = recursive(|co_relation| {
+    let co_relation = recursive::<_, BoxedRelationSyntax, _, _, _>(|co_relation| {
         connected_relation
             .clone()
             .then(
@@ -6079,11 +6301,11 @@ where
             .map(|(leading_relation, co_tail)| match co_tail {
                 None => leading_relation,
                 Some(((co, free_modifiers), trailing_relation)) => {
-                    new!(RelationSyntax::Co {
-                        leading_relation: Box::new(leading_relation),
+                    Box::new(new!(RelationSyntax::Co {
+                        leading_relation,
                         co: wrapped_word(co, free_modifiers),
-                        trailing_relation: Box::new(trailing_relation),
-                    })
+                        trailing_relation,
+                    }))
                 }
             })
     });
@@ -6092,13 +6314,15 @@ where
     let tagged_relation = tense_modal_with_free_modifiers
         .then(untagged_relation.clone())
         .map(|(tense_modal, inner_relation)| {
-            new!(RelationSyntax::TenseModal {
-                tense_modal: Box::new(tense_modal),
-                inner_relation: Box::new(inner_relation),
-            })
+            Box::new(new!(RelationSyntax::TenseModal {
+                tense_modal,
+                inner_relation,
+            }))
         });
 
-    choice((tagged_relation, untagged_relation)).boxed()
+    choice((tagged_relation, untagged_relation))
+        .map(|relation| *relation)
+        .boxed()
 }
 
 #[requires(true)]
@@ -6109,7 +6333,7 @@ fn relation_units_inner<'tokens, P, S, T, F>(
     text: T,
     free_modifier: F,
     _source: Option<&'tokens str>,
-) -> BoxedParser<'tokens, RelationSyntax>
+) -> BoxedParser<'tokens, BoxedRelationSyntax>
 where
     P: Parser<'tokens, ParserInput<'tokens>, ArgumentSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
     S: Parser<'tokens, ParserInput<'tokens>, SubsentenceSyntax, ParseExtra<'tokens>>
@@ -6120,7 +6344,7 @@ where
         + Clone
         + 'tokens,
 {
-    recursive(|inner_relation| {
+    recursive::<_, BoxedRelationSyntax, _, _, _>(|inner_relation| {
         let zantufa_quotes_enabled = parser_dialect_config().zantufa_quotes_enabled;
         let me_argument = argument.clone().or(letter_string().map(|letter| {
             new!(ArgumentSyntax::Letter {
@@ -6229,11 +6453,11 @@ where
             });
         let xohi_unit = cmavo(Cmavo::Xohi)
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(tense_modal())
+            .then(tense_modal_boxed())
             .map(|((xohi, free_modifiers), tag)| {
                 new!(RelationUnitSyntax::Xohi {
                     xohi: wrapped_word(xohi, free_modifiers),
-                    tag: Box::new(tag),
+                    tag,
                 })
             });
         let nu_cmavo = || selmaho(Selmaho::Nu);
@@ -6309,7 +6533,7 @@ where
                 new!(RelationUnitSyntax::Ke {
                     ke_tense_modal: None,
                     ke: wrapped_word(ke, ke_free_modifiers),
-                    relation: Box::new(relation),
+                    relation,
                     kehe: kehe.map(|(kehe, free_modifiers)| wrapped_word(kehe, free_modifiers)),
                 })
             });
@@ -6386,12 +6610,12 @@ where
         .boxed();
         let jai_unit = cmavo(Cmavo::Jai)
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(tense_modal().or_not())
+            .then(tense_modal_boxed().or_not())
             .then(jai_inner_unit)
             .map(|(((jai, free_modifiers), tense_modal), inner_unit)| {
                 new!(RelationUnitSyntax::Jai {
                     jai: wrapped_word(jai, free_modifiers),
-                    tense_modal: tense_modal.map(Box::new),
+                    tense_modal,
                     inner_unit: Box::new(inner_unit),
                 })
             });
@@ -6432,7 +6656,7 @@ where
             .map(|(((nohoi, leading_free_modifiers), relation), kuhoi)| {
                 new!(SelbriRelativeClauseSyntax {
                     nohoi: WithFreeModifiers::new(nohoi, leading_free_modifiers),
-                    relation: Box::new(relation),
+                    relation,
                     kuhoi: kuhoi.map(|(kuhoi, free_modifiers)| {
                         WithFreeModifiers::new(kuhoi, free_modifiers)
                     }),
@@ -6461,6 +6685,7 @@ where
                 word_unit.clone(),
                 goha_unit.clone(),
             ))
+            .map(Box::new)
             .boxed()
         } else {
             choice((
@@ -6481,6 +6706,7 @@ where
                 word_unit.clone(),
                 goha_unit.clone(),
             ))
+            .map(Box::new)
             .boxed()
         };
         let base_unit_for_cei = if zantufa_quotes_enabled {
@@ -6504,6 +6730,7 @@ where
                 goha_unit.clone(),
                 word_unit.clone(),
             ))
+            .map(Box::new)
             .boxed()
         } else {
             choice((
@@ -6524,9 +6751,10 @@ where
                 goha_unit.clone(),
                 word_unit.clone(),
             ))
+            .map(Box::new)
             .boxed()
         };
-        let linked_unit_from = |base_unit: BoxedParser<'tokens, RelationUnitSyntax>| {
+        let linked_unit_from = |base_unit: BoxedParser<'tokens, BoxedRelationUnitSyntax>| {
             base_unit
                 .then(be_link.clone().or_not())
                 .map(|(base, be_link)| match be_link {
@@ -6540,14 +6768,14 @@ where
                             beho,
                         }) = link.into_data();
 
-                        new!(RelationUnitSyntax::Be {
-                            base: Box::new(base),
+                        Box::new(new!(RelationUnitSyntax::Be {
+                            base,
                             be,
                             fa,
                             first_argument,
                             bei_links,
                             beho,
-                        })
+                        }))
                     }
                 })
                 .then(
@@ -6560,10 +6788,10 @@ where
                     if selbri_relative_clauses.is_empty() {
                         linked_unit
                     } else {
-                        new!(RelationUnitSyntax::SelbriRelativeClause {
-                            base: Box::new(linked_unit),
+                        Box::new(new!(RelationUnitSyntax::SelbriRelativeClause {
+                            base: linked_unit,
                             selbri_relative_clauses,
-                        })
+                        }))
                     }
                 })
                 .boxed()
@@ -6577,14 +6805,14 @@ where
                 beho,
             }) = link.into_data();
 
-            new!(RelationUnitSyntax::PreposedBe {
+            Box::new(new!(RelationUnitSyntax::PreposedBe {
                 be,
                 fa,
                 first_argument,
                 bei_links,
                 beho,
-                base: Box::new(base),
-            })
+                base,
+            }))
         });
         let linked_unit = linked_unit_from(base_unit);
         let linked_unit_for_cei = linked_unit_from(base_unit_for_cei);
@@ -6598,85 +6826,100 @@ where
                     .collect::<Vec<_>>(),
             )
             .map(|(base, be_link)| {
-                new!(RelationUnitSyntax::Cei {
-                    base: Box::new(base),
+                Box::new(new!(RelationUnitSyntax::Cei {
+                    base,
                     assignments: be_link
                         .into_iter()
                         .map(|(cei, relation_unit)| new!(CeiAssignmentSyntax {
                             cei: wrapped_word(cei, Vec::new()),
-                            relation_unit: Box::new(relation_unit),
+                            relation_unit,
                         }))
                         .collect(),
-                })
+                }))
             })
             .boxed();
-        let bo_unit = recursive(|bo_unit| {
-            let guha_unit = guhek_connective()
-                .then(inner_relation.clone())
-                .then(gik_connective_with_free_modifiers(free_modifier.clone()))
-                .then(bo_unit.clone())
-                .then(optional_gihi_terminator())
-                .map(
-                    |((((guhek, leading_relation), gik), trailing_unit), gihi)| {
-                        new!(RelationUnitSyntax::Wrapped(Box::new(new!(
-                            RelationSyntax::Guha {
-                                guhek,
-                                leading_predicate: Box::new(relation_to_empty_predicate(
-                                    leading_relation,
-                                )),
-                                gik,
-                                trailing_predicate: Box::new(relation_to_empty_predicate(
-                                    relation_unit_to_relation(&trailing_unit),
-                                )),
-                                gihi,
-                            }
-                        ))))
-                    },
-                );
-            let atom_unit = choice((
-                guha_unit,
-                preposed_unit.clone(),
-                cei_unit.clone(),
-                linked_unit.clone(),
-            ))
-            .boxed();
-            let connected_bo_tail = statement_connective()
-                .then(tense_modal().or_not())
-                .then(cmavo(Cmavo::Bo))
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .then(bo_unit.clone())
-                .map(
-                    |((((connective, bo_tense_modal), bo), free_modifiers), trailing_unit)| {
-                        (
-                            Some(connective),
-                            bo_tense_modal,
+        let bo_unit: BoxedParser<'tokens, BoxedRelationUnitSyntax> =
+            recursive::<_, BoxedRelationUnitSyntax, _, _, _>(|bo_unit| {
+                let guha_unit = guhek_connective()
+                    .then(inner_relation.clone())
+                    .then(gik_connective_with_free_modifiers(free_modifier.clone()))
+                    .then(bo_unit.clone())
+                    .then(optional_gihi_terminator())
+                    .map(
+                        |((((guhek, leading_relation), gik), trailing_unit), gihi)| {
+                            Box::new(new!(RelationUnitSyntax::Wrapped(Box::new(new!(
+                                RelationSyntax::Guha {
+                                    guhek,
+                                    leading_predicate: Box::new(relation_to_empty_predicate(
+                                        *leading_relation,
+                                    )),
+                                    gik,
+                                    trailing_predicate: Box::new(relation_to_empty_predicate(
+                                        relation_unit_to_relation(&trailing_unit),
+                                    )),
+                                    gihi,
+                                }
+                            )))))
+                        },
+                    );
+                let atom_unit = choice((
+                    guha_unit,
+                    preposed_unit.clone(),
+                    cei_unit.clone(),
+                    linked_unit.clone(),
+                ))
+                .boxed();
+                let connected_bo_tail = statement_connective()
+                    .then(tense_modal_boxed().or_not())
+                    .then(cmavo(Cmavo::Bo))
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .then(bo_unit.clone())
+                    .map(
+                        |((((connective, bo_tense_modal), bo), free_modifiers), trailing_unit)| {
+                            Box::new(BoRelationUnitTailSyntax {
+                                connective: Some(Box::new(connective)),
+                                tense_modal: bo_tense_modal,
+                                bo,
+                                free_modifiers,
+                                trailing_unit,
+                            })
+                        },
+                    );
+                let bare_bo_tail = cmavo(Cmavo::Bo)
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .then(bo_unit)
+                    .map(|((bo, free_modifiers), trailing_unit)| {
+                        Box::new(BoRelationUnitTailSyntax {
+                            connective: None,
+                            tense_modal: None,
                             bo,
                             free_modifiers,
                             trailing_unit,
-                        )
-                    },
-                );
-            let bare_bo_tail = cmavo(Cmavo::Bo)
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .then(bo_unit)
-                .map(|((bo, free_modifiers), trailing_unit)| {
-                    (None, None, bo, free_modifiers, trailing_unit)
-                });
-            atom_unit
-                .then(choice((connected_bo_tail, bare_bo_tail)).or_not())
-                .map(|(leading_unit, bo_tail)| match bo_tail {
-                    None => leading_unit,
-                    Some((bo_connective, bo_tense_modal, bo, free_modifiers, trailing_unit)) => {
-                        new!(RelationUnitSyntax::Bo {
-                            leading_unit: Box::new(leading_unit),
-                            bo_connective: bo_connective.map(Box::new),
-                            bo_tense_modal: bo_tense_modal.map(Box::new),
-                            bo: wrapped_word(bo, free_modifiers),
-                            trailing_unit: Box::new(trailing_unit),
                         })
-                    }
-                })
-        });
+                    });
+                atom_unit
+                    .then(choice((connected_bo_tail, bare_bo_tail)).or_not())
+                    .map(|(leading_unit, bo_tail)| match bo_tail {
+                        None => leading_unit,
+                        Some(bo_tail) => {
+                            let BoRelationUnitTailSyntax {
+                                connective,
+                                tense_modal,
+                                bo,
+                                free_modifiers,
+                                trailing_unit,
+                            } = *bo_tail;
+                            Box::new(new!(RelationUnitSyntax::Bo {
+                                leading_unit,
+                                bo_connective: connective,
+                                bo_tense_modal: tense_modal,
+                                bo: wrapped_word(bo, free_modifiers),
+                                trailing_unit,
+                            }))
+                        }
+                    })
+            })
+            .boxed();
         bo_unit
             .clone()
             .then(
@@ -6689,20 +6932,38 @@ where
                 continuations.into_iter().fold(
                     first,
                     |leading_unit, (connective, trailing_unit)| {
-                        new!(RelationUnitSyntax::Connected {
-                            leading_unit: Box::new(leading_unit),
+                        Box::new(new!(RelationUnitSyntax::Connected {
+                            leading_unit,
                             connective,
-                            trailing_unit: Box::new(trailing_unit),
-                        })
+                            trailing_unit,
+                        }))
                     },
                 )
             })
             .repeated()
             .at_least(1)
             .collect::<Vec<_>>()
-            .map(relation_from_units)
+            .map(boxed_relation_from_boxed_units)
     })
     .boxed()
+}
+
+#[requires(!units.is_empty(), "relation unit sequences must be non-empty")]
+#[ensures(true)]
+fn boxed_relation_from_boxed_units(units: Vec<BoxedRelationUnitSyntax>) -> BoxedRelationSyntax {
+    Box::new(relation_from_boxed_units(units))
+}
+
+#[requires(true)]
+#[ensures(ret.len() == old(terms.len()))]
+fn unbox_terms(terms: Vec<BoxedTermSyntax>) -> Vec<TermSyntax> {
+    terms.into_iter().map(|term| *term).collect()
+}
+
+#[requires(!units.is_empty(), "relation unit sequences must be non-empty")]
+#[ensures(true)]
+fn relation_from_boxed_units(units: Vec<BoxedRelationUnitSyntax>) -> RelationSyntax {
+    relation_from_units(units.into_iter().map(|unit| *unit).collect())
 }
 
 #[requires(!units.is_empty(), "relation unit sequences must be non-empty")]
@@ -7008,6 +7269,14 @@ fn flat_tag_chunk_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSynta
 #[requires(true)]
 #[ensures(true)]
 fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
+    composite_tense_modal_boxed()
+        .map(|tense_modal| *tense_modal)
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn composite_tense_modal_boxed<'tokens>() -> BoxedParser<'tokens, BoxedTenseModalSyntax> {
     let pu = selmaho(Selmaho::Pu)
         .then(cmavo(Cmavo::Nai).or_not())
         .then(selmaho(Selmaho::Zi).or_not())
@@ -7015,9 +7284,12 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             let mut leaves = vec![pu];
             leaves.extend(nai);
             leaves.extend(distance);
-            tense_modal_from_leaves(leaves, Vec::new())
-        });
-    let zi = selmaho(Selmaho::Zi).map(|zi| tense_modal_from_leaves(vec![zi], Vec::new()));
+            boxed_tense_modal_from_leaves(leaves, Vec::new())
+        })
+        .boxed();
+    let zi = selmaho(Selmaho::Zi)
+        .map(|zi| boxed_tense_modal_from_leaves(vec![zi], Vec::new()))
+        .boxed();
     let faha = selmaho(Selmaho::Faha)
         .then(cmavo(Cmavo::Nai).or_not())
         .then(selmaho(Selmaho::Va).or_not())
@@ -7025,9 +7297,12 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             let mut leaves = vec![faha];
             leaves.extend(nai);
             leaves.extend(distance);
-            tense_modal_from_leaves(leaves, Vec::new())
-        });
-    let va = selmaho(Selmaho::Va).map(|va| tense_modal_from_leaves(vec![va], Vec::new()));
+            boxed_tense_modal_from_leaves(leaves, Vec::new())
+        })
+        .boxed();
+    let va = selmaho(Selmaho::Va)
+        .map(|va| boxed_tense_modal_from_leaves(vec![va], Vec::new()))
+        .boxed();
     let numbered_interval_start = number_words()
         .then(selmaho(Selmaho::Roi))
         .rewind()
@@ -7041,26 +7316,34 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             let mut leaves = word_run_leaves(&number);
             leaves.push(roi_or_tahe);
             leaves.extend(nai);
-            tense_modal_from_leaves(leaves, Vec::new())
-        });
-    let tahe_interval =
-        selmaho(Selmaho::Tahe)
-            .then(cmavo(Cmavo::Nai).or_not())
-            .map(|(roi_or_tahe, nai)| {
-                let mut leaves = vec![roi_or_tahe];
-                leaves.extend(nai);
-                tense_modal_from_leaves(leaves, Vec::new())
-            });
-    let caha = selmaho(Selmaho::Caha).map(|caha| tense_modal_from_leaves(vec![caha], Vec::new()));
+            boxed_tense_modal_from_leaves(leaves, Vec::new())
+        })
+        .boxed();
+    let tahe_interval = selmaho(Selmaho::Tahe)
+        .then(cmavo(Cmavo::Nai).or_not())
+        .map(|(roi_or_tahe, nai)| {
+            let mut leaves = vec![roi_or_tahe];
+            leaves.extend(nai);
+            boxed_tense_modal_from_leaves(leaves, Vec::new())
+        })
+        .boxed();
+    let caha = selmaho(Selmaho::Caha)
+        .map(|caha| boxed_tense_modal_from_leaves(vec![caha], Vec::new()))
+        .boxed();
     let zaho = selmaho(Selmaho::Zaho)
         .then(cmavo(Cmavo::Nai).or_not())
         .map(|(zaho, nai)| {
             let mut leaves = vec![zaho];
             leaves.extend(nai);
-            tense_modal_from_leaves(leaves, Vec::new())
-        });
-    let ki = cmavo(Cmavo::Ki).map(|ki| tense_modal_from_leaves(vec![ki], Vec::new()));
-    let cuhe = selmaho(Selmaho::Cuhe).map(|cuhe| tense_modal_from_leaves(vec![cuhe], Vec::new()));
+            boxed_tense_modal_from_leaves(leaves, Vec::new())
+        })
+        .boxed();
+    let ki = cmavo(Cmavo::Ki)
+        .map(|ki| boxed_tense_modal_from_leaves(vec![ki], Vec::new()))
+        .boxed();
+    let cuhe = selmaho(Selmaho::Cuhe)
+        .map(|cuhe| boxed_tense_modal_from_leaves(vec![cuhe], Vec::new()))
+        .boxed();
 
     let zeha_clause = selmaho(Selmaho::Zeha)
         .then(
@@ -7074,72 +7357,85 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 leaves.push(pu);
                 leaves.extend(nai);
             }
-            tense_modal_from_leaves(leaves, Vec::new())
-        });
+            boxed_tense_modal_from_leaves(leaves, Vec::new())
+        })
+        .boxed();
     let interval_property = choice((numbered_interval, tahe_interval, zaho)).boxed();
     let time_offset = pu;
+    let time_tense_with_zi = zi
+        .clone()
+        .then(time_offset.clone().repeated().collect::<Vec<_>>())
+        .then(zeha_clause.clone().or_not())
+        .then(interval_property.clone().repeated().collect::<Vec<_>>())
+        .map(|(((zi, offsets), zeha), props)| {
+            let mut parts = vec![zi];
+            parts.extend(offsets);
+            parts.extend(zeha);
+            parts.extend(props);
+            combine_boxed_composite_tense_modals(parts)
+        })
+        .boxed();
+    let time_tense_with_offset = zi
+        .clone()
+        .or_not()
+        .then(
+            time_offset
+                .clone()
+                .repeated()
+                .at_least(1)
+                .collect::<Vec<_>>(),
+        )
+        .then(zeha_clause.clone().or_not())
+        .then(interval_property.clone().repeated().collect::<Vec<_>>())
+        .map(|(((zi, offsets), zeha), props)| {
+            let mut parts = Vec::new();
+            parts.extend(zi);
+            parts.extend(offsets);
+            parts.extend(zeha);
+            parts.extend(props);
+            combine_boxed_composite_tense_modals(parts)
+        })
+        .boxed();
+    let time_tense_with_interval = zi
+        .clone()
+        .or_not()
+        .then(time_offset.clone().repeated().collect::<Vec<_>>())
+        .then(zeha_clause.clone())
+        .then(interval_property.clone().repeated().collect::<Vec<_>>())
+        .map(|(((zi, offsets), zeha), props)| {
+            let mut parts = Vec::new();
+            parts.extend(zi);
+            parts.extend(offsets);
+            parts.push(zeha);
+            parts.extend(props);
+            combine_boxed_composite_tense_modals(parts)
+        })
+        .boxed();
+    let time_tense_with_properties = zi
+        .or_not()
+        .then(time_offset.repeated().collect::<Vec<_>>())
+        .then(zeha_clause.or_not())
+        .then(
+            interval_property
+                .clone()
+                .repeated()
+                .at_least(1)
+                .collect::<Vec<_>>(),
+        )
+        .map(|(((zi, offsets), zeha), props)| {
+            let mut parts = Vec::new();
+            parts.extend(zi);
+            parts.extend(offsets);
+            parts.extend(zeha);
+            parts.extend(props);
+            combine_boxed_composite_tense_modals(parts)
+        })
+        .boxed();
     let time_tense = choice((
-        zi.clone()
-            .then(time_offset.clone().repeated().collect::<Vec<_>>())
-            .then(zeha_clause.clone().or_not())
-            .then(interval_property.clone().repeated().collect::<Vec<_>>())
-            .map(|(((zi, offsets), zeha), props)| {
-                let mut parts = vec![zi];
-                parts.extend(offsets);
-                parts.extend(zeha);
-                parts.extend(props);
-                combine_composite_tense_modals(parts)
-            }),
-        zi.clone()
-            .or_not()
-            .then(
-                time_offset
-                    .clone()
-                    .repeated()
-                    .at_least(1)
-                    .collect::<Vec<_>>(),
-            )
-            .then(zeha_clause.clone().or_not())
-            .then(interval_property.clone().repeated().collect::<Vec<_>>())
-            .map(|(((zi, offsets), zeha), props)| {
-                let mut parts = Vec::new();
-                parts.extend(zi);
-                parts.extend(offsets);
-                parts.extend(zeha);
-                parts.extend(props);
-                combine_composite_tense_modals(parts)
-            }),
-        zi.clone()
-            .or_not()
-            .then(time_offset.clone().repeated().collect::<Vec<_>>())
-            .then(zeha_clause.clone())
-            .then(interval_property.clone().repeated().collect::<Vec<_>>())
-            .map(|(((zi, offsets), zeha), props)| {
-                let mut parts = Vec::new();
-                parts.extend(zi);
-                parts.extend(offsets);
-                parts.push(zeha);
-                parts.extend(props);
-                combine_composite_tense_modals(parts)
-            }),
-        zi.or_not()
-            .then(time_offset.repeated().collect::<Vec<_>>())
-            .then(zeha_clause.or_not())
-            .then(
-                interval_property
-                    .clone()
-                    .repeated()
-                    .at_least(1)
-                    .collect::<Vec<_>>(),
-            )
-            .map(|(((zi, offsets), zeha), props)| {
-                let mut parts = Vec::new();
-                parts.extend(zi);
-                parts.extend(offsets);
-                parts.extend(zeha);
-                parts.extend(props);
-                combine_composite_tense_modals(parts)
-            }),
+        time_tense_with_zi,
+        time_tense_with_offset,
+        time_tense_with_interval,
+        time_tense_with_properties,
     ))
     .boxed();
 
@@ -7149,134 +7445,154 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         .map(|(veha, viha)| {
             let mut leaves = vec![veha];
             leaves.extend(viha);
-            tense_modal_from_leaves(leaves, Vec::new())
+            boxed_tense_modal_from_leaves(leaves, Vec::new())
         })
-        .or(selmaho(Selmaho::Viha).map(|viha| tense_modal_from_leaves(vec![viha], Vec::new())));
+        .or(selmaho(Selmaho::Viha)
+            .map(|viha| boxed_tense_modal_from_leaves(vec![viha], Vec::new())))
+        .boxed();
     let faha_nai = selmaho(Selmaho::Faha)
         .then(cmavo(Cmavo::Nai).or_not())
         .map(|(faha, nai)| {
             let mut leaves = vec![faha];
             leaves.extend(nai);
-            tense_modal_from_leaves(leaves, Vec::new())
-        });
-    let fehe_interval_property =
-        cmavo(Cmavo::Fehe)
-            .then(interval_property)
-            .map(|(fehe, interval)| {
-                combine_composite_tense_modals(vec![
-                    tense_modal_from_leaves(vec![fehe], Vec::new()),
-                    interval,
-                ])
-            });
+            boxed_tense_modal_from_leaves(leaves, Vec::new())
+        })
+        .boxed();
+    let fehe_interval_property = cmavo(Cmavo::Fehe)
+        .then(interval_property)
+        .map(|(fehe, interval)| {
+            combine_boxed_composite_tense_modals(vec![
+                boxed_tense_modal_from_leaves(vec![fehe], Vec::new()),
+                interval,
+            ])
+        })
+        .boxed();
     let space_interval_properties = fehe_interval_property
         .repeated()
         .at_least(1)
         .collect::<Vec<_>>()
-        .map(combine_composite_tense_modals)
+        .map(combine_boxed_composite_tense_modals)
         .boxed();
-    let space_interval = veha_viha
+    let space_interval_with_extent = veha_viha
         .then(faha_nai.or_not())
         .then(space_interval_properties.clone().or_not())
         .map(|((vv, faha), props)| {
             let mut parts = vec![vv];
             parts.extend(faha);
             parts.extend(props);
-            combine_composite_tense_modals(parts)
+            combine_boxed_composite_tense_modals(parts)
         })
+        .boxed();
+    let space_interval = space_interval_with_extent
         .or(space_interval_properties)
         .boxed();
     let mohi_offset = selmaho(Selmaho::Mohi)
         .then(space_offset.clone())
         .map(|(mohi, offset)| {
-            combine_composite_tense_modals(vec![
-                tense_modal_from_leaves(vec![mohi], Vec::new()),
+            combine_boxed_composite_tense_modals(vec![
+                boxed_tense_modal_from_leaves(vec![mohi], Vec::new()),
                 offset,
             ])
-        });
+        })
+        .boxed();
+    let space_tense_with_va = va
+        .clone()
+        .then(space_offset.clone().repeated().collect::<Vec<_>>())
+        .then(space_interval.clone().or_not())
+        .then(mohi_offset.clone().or_not())
+        .map(|(((va, offsets), interval), mohi)| {
+            let mut parts = vec![va];
+            parts.extend(offsets);
+            parts.extend(interval);
+            parts.extend(mohi);
+            combine_boxed_composite_tense_modals(parts)
+        })
+        .boxed();
+    let space_tense_with_offset = va
+        .clone()
+        .or_not()
+        .then(
+            space_offset
+                .clone()
+                .repeated()
+                .at_least(1)
+                .collect::<Vec<_>>(),
+        )
+        .then(space_interval.clone().or_not())
+        .then(mohi_offset.clone().or_not())
+        .map(|(((va, offsets), interval), mohi)| {
+            let mut parts = Vec::new();
+            parts.extend(va);
+            parts.extend(offsets);
+            parts.extend(interval);
+            parts.extend(mohi);
+            combine_boxed_composite_tense_modals(parts)
+        })
+        .boxed();
+    let space_tense_with_interval = va
+        .clone()
+        .or_not()
+        .then(space_offset.clone().repeated().collect::<Vec<_>>())
+        .then(space_interval.clone())
+        .then(mohi_offset.clone().or_not())
+        .map(|(((va, offsets), interval), mohi)| {
+            let mut parts = Vec::new();
+            parts.extend(va);
+            parts.extend(offsets);
+            parts.push(interval);
+            parts.extend(mohi);
+            combine_boxed_composite_tense_modals(parts)
+        })
+        .boxed();
+    let space_tense_with_mohi = va
+        .or_not()
+        .then(space_offset.repeated().collect::<Vec<_>>())
+        .then(space_interval.or_not())
+        .then(mohi_offset)
+        .map(|(((va, offsets), interval), mohi)| {
+            let mut parts = Vec::new();
+            parts.extend(va);
+            parts.extend(offsets);
+            parts.extend(interval);
+            parts.push(mohi);
+            combine_boxed_composite_tense_modals(parts)
+        })
+        .boxed();
     let space_tense = choice((
-        va.clone()
-            .then(space_offset.clone().repeated().collect::<Vec<_>>())
-            .then(space_interval.clone().or_not())
-            .then(mohi_offset.clone().or_not())
-            .map(|(((va, offsets), interval), mohi)| {
-                let mut parts = vec![va];
-                parts.extend(offsets);
-                parts.extend(interval);
-                parts.extend(mohi);
-                combine_composite_tense_modals(parts)
-            }),
-        va.clone()
-            .or_not()
-            .then(
-                space_offset
-                    .clone()
-                    .repeated()
-                    .at_least(1)
-                    .collect::<Vec<_>>(),
-            )
-            .then(space_interval.clone().or_not())
-            .then(mohi_offset.clone().or_not())
-            .map(|(((va, offsets), interval), mohi)| {
-                let mut parts = Vec::new();
-                parts.extend(va);
-                parts.extend(offsets);
-                parts.extend(interval);
-                parts.extend(mohi);
-                combine_composite_tense_modals(parts)
-            }),
-        va.clone()
-            .or_not()
-            .then(space_offset.clone().repeated().collect::<Vec<_>>())
-            .then(space_interval.clone())
-            .then(mohi_offset.clone().or_not())
-            .map(|(((va, offsets), interval), mohi)| {
-                let mut parts = Vec::new();
-                parts.extend(va);
-                parts.extend(offsets);
-                parts.push(interval);
-                parts.extend(mohi);
-                combine_composite_tense_modals(parts)
-            }),
-        va.or_not()
-            .then(space_offset.repeated().collect::<Vec<_>>())
-            .then(space_interval.or_not())
-            .then(mohi_offset)
-            .map(|(((va, offsets), interval), mohi)| {
-                let mut parts = Vec::new();
-                parts.extend(va);
-                parts.extend(offsets);
-                parts.extend(interval);
-                parts.push(mohi);
-                combine_composite_tense_modals(parts)
-            }),
+        space_tense_with_va,
+        space_tense_with_offset,
+        space_tense_with_interval,
+        space_tense_with_mohi,
     ))
     .boxed();
 
-    let time_space_caha = choice((
-        time_tense
-            .clone()
-            .then(space_tense.clone().or_not())
-            .then(caha.clone().or_not())
-            .map(|((time, space), caha)| {
-                let mut parts = vec![time];
-                parts.extend(space);
-                parts.extend(caha);
-                combine_composite_tense_modals(parts)
-            }),
-        space_tense
-            .then(time_tense.or_not())
-            .then(caha.or_not())
-            .map(|((space, time), caha)| {
-                let mut parts = vec![space];
-                parts.extend(time);
-                parts.extend(caha);
-                combine_composite_tense_modals(parts)
-            }),
-        selmaho(Selmaho::Caha).map(|caha| tense_modal_from_leaves(vec![caha], Vec::new())),
-    ))
-    .boxed();
+    let time_then_space_caha = time_tense
+        .clone()
+        .then(space_tense.clone().or_not())
+        .then(caha.clone().or_not())
+        .map(|((time, space), caha)| {
+            let mut parts = vec![time];
+            parts.extend(space);
+            parts.extend(caha);
+            combine_boxed_composite_tense_modals(parts)
+        })
+        .boxed();
+    let space_then_time_caha = space_tense
+        .then(time_tense.or_not())
+        .then(caha.or_not())
+        .map(|((space, time), caha)| {
+            let mut parts = vec![space];
+            parts.extend(time);
+            parts.extend(caha);
+            combine_boxed_composite_tense_modals(parts)
+        })
+        .boxed();
+    let bare_caha = selmaho(Selmaho::Caha)
+        .map(|caha| boxed_tense_modal_from_leaves(vec![caha], Vec::new()))
+        .boxed();
+    let time_space_caha = choice((time_then_space_caha, space_then_time_caha, bare_caha)).boxed();
     let nahe_before_time_space_caha = selmaho(Selmaho::Nahe)
-        .then(time_space_caha.clone().rewind())
+        .then(time_space_caha.clone().rewind().ignored())
         .rewind()
         .ignore_then(selmaho(Selmaho::Nahe));
 
@@ -7286,11 +7602,11 @@ fn composite_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         .then(ki.or_not())
         .map(|((nahe, tense), ki)| {
             let tense = match nahe {
-                Some(nahe) => prefix_tense_modal_nahe(nahe, tense),
+                Some(nahe) => prefix_boxed_tense_modal_nahe(nahe, tense),
                 None => tense,
             };
             if let Some(ki) = ki {
-                combine_composite_tense_modals(vec![tense, ki])
+                combine_boxed_composite_tense_modals(vec![tense, ki])
             } else {
                 tense
             }
@@ -7317,6 +7633,21 @@ fn prefix_tense_modal_nahe(nahe: Token, modal: TenseModalSyntax) -> TenseModalSy
     new!(TenseModalSyntax::Composite { parts })
 }
 
+#[requires(matches!(
+    modal.as_ref().as_data(),
+    data!(TenseModalSyntax::Composite { .. })
+))]
+#[ensures(matches!(
+    ret.as_ref().as_data(),
+    data!(TenseModalSyntax::Composite { .. })
+))]
+fn prefix_boxed_tense_modal_nahe(
+    nahe: Token,
+    modal: BoxedTenseModalSyntax,
+) -> BoxedTenseModalSyntax {
+    Box::new(prefix_tense_modal_nahe(nahe, *modal))
+}
+
 #[requires(!parts.is_empty())]
 #[ensures(matches!(
     ret.as_data(),
@@ -7338,16 +7669,47 @@ fn combine_composite_tense_modals(parts: Vec<TenseModalSyntax>) -> TenseModalSyn
     })
 }
 
+#[requires(!parts.is_empty())]
+#[ensures(matches!(
+    ret.as_ref().as_data(),
+    data!(TenseModalSyntax::Composite { .. })
+))]
+fn combine_boxed_composite_tense_modals(
+    parts: Vec<BoxedTenseModalSyntax>,
+) -> BoxedTenseModalSyntax {
+    let mut combined_parts = Vec::new();
+    let mut free_modifiers = Vec::new();
+
+    for part in parts {
+        if let data!(TenseModalSyntax::Composite { parts }) = (*part).into_data() {
+            combined_parts.extend(parts.value);
+            free_modifiers.extend(parts.free_modifiers);
+        }
+    }
+
+    Box::new(new!(TenseModalSyntax::Composite {
+        parts: WithFreeModifiers::new(combined_parts, free_modifiers),
+    }))
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
+    leading_term_tag_tense_modal_boxed()
+        .map(|tense_modal| *tense_modal)
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn leading_term_tag_tense_modal_boxed<'tokens>() -> BoxedParser<'tokens, BoxedTenseModalSyntax> {
     let pu_before_nahe = selmaho(Selmaho::Pu)
         .then(cmavo(Cmavo::Nai).or_not())
         .then(selmaho(Selmaho::Nahe).rewind().ignored())
         .map(|((pu, nai), _)| {
             let mut leaves = vec![pu];
             leaves.extend(nai);
-            tense_modal_from_leaves(leaves, Vec::new())
+            boxed_tense_modal_from_leaves(leaves, Vec::new())
         });
     let pu_distance_before_tag = selmaho(Selmaho::Pu)
         .then(cmavo(Cmavo::Nai).or_not())
@@ -7357,14 +7719,14 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
             let mut leaves = vec![pu];
             leaves.extend(nai);
             leaves.push(distance);
-            tense_modal_from_leaves(leaves, Vec::new())
+            boxed_tense_modal_from_leaves(leaves, Vec::new())
         });
     let zi_before_zi = selmaho(Selmaho::Zi)
         .then(selmaho(Selmaho::Zi).rewind())
-        .map(|(zi, _)| tense_modal_from_leaves(vec![zi], Vec::new()));
+        .map(|(zi, _)| boxed_tense_modal_from_leaves(vec![zi], Vec::new()));
     let va_before_va = selmaho(Selmaho::Va)
         .then(selmaho(Selmaho::Va).rewind())
-        .map(|(va, _)| tense_modal_from_leaves(vec![va], Vec::new()));
+        .map(|(va, _)| boxed_tense_modal_from_leaves(vec![va], Vec::new()));
     let mohi_before_mohi = selmaho(Selmaho::Mohi)
         .then(selmaho(Selmaho::Faha))
         .then(cmavo(Cmavo::Nai).or_not())
@@ -7374,7 +7736,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
             let mut leaves = vec![mohi, direction];
             leaves.extend(nai);
             leaves.extend(distance);
-            tense_modal_from_leaves(leaves, Vec::new())
+            boxed_tense_modal_from_leaves(leaves, Vec::new())
         });
     let zaho_property =
         selmaho(Selmaho::Zaho)
@@ -7382,7 +7744,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
             .map(|(zaho, nai)| {
                 let mut leaves = vec![zaho];
                 leaves.extend(nai);
-                tense_modal_from_leaves(leaves, Vec::new())
+                boxed_tense_modal_from_leaves(leaves, Vec::new())
             });
     let numbered_interval_start = number_words()
         .then(selmaho(Selmaho::Roi))
@@ -7397,7 +7759,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
             let mut leaves = word_run_leaves(&number);
             leaves.push(roi_or_tahe);
             leaves.extend(nai);
-            tense_modal_from_leaves(leaves, Vec::new())
+            boxed_tense_modal_from_leaves(leaves, Vec::new())
         });
     let tahe_interval =
         selmaho(Selmaho::Tahe)
@@ -7405,15 +7767,15 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
             .map(|(roi_or_tahe, nai)| {
                 let mut leaves = vec![roi_or_tahe];
                 leaves.extend(nai);
-                tense_modal_from_leaves(leaves, Vec::new())
+                boxed_tense_modal_from_leaves(leaves, Vec::new())
             });
     let caha_before_tag = selmaho(Selmaho::Caha)
-        .then(tense_modal().rewind())
+        .then(tense_modal_boxed().rewind().ignored())
         .map(|(caha, _)| {
-            new!(TenseModalSyntax::Caha(WithFreeModifiers::new(
+            Box::new(new!(TenseModalSyntax::Caha(WithFreeModifiers::new(
                 caha,
                 Vec::new()
-            )))
+            ))))
         });
     let property_split_follower = choice((
         selmaho(Selmaho::Pu).ignored(),
@@ -7436,7 +7798,7 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
         mohi_before_mohi,
         caha_before_tag,
         leading_interval_property.map(|(tense_modal, _)| tense_modal),
-        tense_modal(),
+        tense_modal_boxed(),
     ))
     .boxed()
 }
@@ -7444,7 +7806,13 @@ fn leading_term_tag_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyn
 #[requires(true)]
 #[ensures(true)]
 fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
-    let atom = tense_modal_atom();
+    tense_modal_boxed().map(|tense_modal| *tense_modal).boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tense_modal_boxed<'tokens>() -> BoxedParser<'tokens, BoxedTenseModalSyntax> {
+    let atom = tense_modal_atom_boxed();
     atom.clone()
         .then(
             choice((joik_connective(), jek_connective()))
@@ -7452,33 +7820,33 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
                 .repeated()
                 .collect::<Vec<_>>(),
         )
-        .map(|(first, continuations)| combine_connected_tense_modals(first, continuations))
+        .map(|(first, continuations)| combine_connected_boxed_tense_modals(first, continuations))
         .boxed()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn combine_connected_tense_modals(
-    first: TenseModalSyntax,
-    continuations: Vec<(ConnectiveSyntax, TenseModalSyntax)>,
-) -> TenseModalSyntax {
+fn combine_connected_boxed_tense_modals(
+    first: BoxedTenseModalSyntax,
+    continuations: Vec<(ConnectiveSyntax, BoxedTenseModalSyntax)>,
+) -> BoxedTenseModalSyntax {
     if continuations.is_empty() {
         return first;
     }
 
-    let mut parts = vec![tense_modal_as_composite(first)];
+    let mut parts = vec![Box::new(tense_modal_as_composite(*first))];
     for (connective, tense_modal) in continuations {
-        parts.push(connective_tense_modal_from_leaves(
+        parts.push(Box::new(connective_tense_modal_from_leaves(
             connective_tense_modal_leaves(connective),
-        ));
-        parts.push(tense_modal_as_composite(tense_modal));
+        )));
+        parts.push(Box::new(tense_modal_as_composite(*tense_modal)));
     }
-    combine_composite_tense_modals(parts)
+    combine_boxed_composite_tense_modals(parts)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn tense_modal_atom<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
+fn tense_modal_atom_boxed<'tokens>() -> BoxedParser<'tokens, BoxedTenseModalSyntax> {
     #[invariant(true)]
     #[invariant(::Distance(distance) => distance.is_selmaho(Selmaho::Zi))]
     #[invariant(::Caha(caha) => caha.is_selmaho(Selmaho::Caha))]
@@ -7488,96 +7856,119 @@ fn tense_modal_atom<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
         Caha(Token),
     }
 
-    choice((
-        composite_tense_modal(),
-        selmaho(Selmaho::Pu)
-            .then(
-                choice((
-                    selmaho(Selmaho::Zi).map(|distance| new!(PuTail::Distance(distance))),
-                    selmaho(Selmaho::Caha).map(|caha| new!(PuTail::Caha(caha))),
-                ))
-                .or_not(),
-            )
-            .map(|(pu, tail)| match tail.map(|tail| tail.into_data()) {
-                Some(data!(PuTail::Distance(distance))) => new!(TenseModalSyntax::PuDistance {
+    let pu_tail = choice((
+        selmaho(Selmaho::Zi).map(|distance| new!(PuTail::Distance(distance))),
+        selmaho(Selmaho::Caha).map(|caha| new!(PuTail::Caha(caha))),
+    ))
+    .boxed();
+    let pu = selmaho(Selmaho::Pu)
+        .then(pu_tail.or_not())
+        .map(|(pu, tail)| match tail.map(|tail| tail.into_data()) {
+            Some(data!(PuTail::Distance(distance))) => {
+                Box::new(new!(TenseModalSyntax::PuDistance {
                     pu,
                     distance: WithFreeModifiers::new(distance, Vec::new()),
-                }),
-                Some(data!(PuTail::Caha(caha))) => new!(TenseModalSyntax::PuCaha {
-                    pu,
-                    caha: WithFreeModifiers::new(caha, Vec::new()),
-                }),
-                None => new!(TenseModalSyntax::Pu(WithFreeModifiers::new(pu, Vec::new()))),
-            }),
-        selmaho(Selmaho::Va).map(|word| {
-            new!(TenseModalSyntax::SpaceDistance(WithFreeModifiers::new(
+                }))
+            }
+            Some(data!(PuTail::Caha(caha))) => Box::new(new!(TenseModalSyntax::PuCaha {
+                pu,
+                caha: WithFreeModifiers::new(caha, Vec::new()),
+            })),
+            None => Box::new(new!(TenseModalSyntax::Pu(WithFreeModifiers::new(
+                pu,
+                Vec::new()
+            )))),
+        })
+        .boxed();
+    let va = selmaho(Selmaho::Va)
+        .map(|word| {
+            Box::new(new!(TenseModalSyntax::SpaceDistance(
+                WithFreeModifiers::new(word, Vec::new())
+            )))
+        })
+        .boxed();
+    let zeha = selmaho(Selmaho::Zeha)
+        .map(|word| {
+            Box::new(new!(TenseModalSyntax::TimeInterval(
+                WithFreeModifiers::new(word, Vec::new())
+            )))
+        })
+        .boxed();
+    let faha = selmaho(Selmaho::Faha)
+        .map(|word| {
+            Box::new(new!(TenseModalSyntax::SpaceDirection(
+                WithFreeModifiers::new(word, Vec::new())
+            )))
+        })
+        .boxed();
+    let mohi = selmaho(Selmaho::Mohi)
+        .then(selmaho(Selmaho::Faha))
+        .then(selmaho(Selmaho::Va).or_not())
+        .map(|((mohi, direction), distance)| {
+            Box::new(new!(TenseModalSyntax::SpaceMovement {
+                mohi,
+                direction: WithFreeModifiers::new(direction, Vec::new()),
+                distance: distance.map(|distance| WithFreeModifiers::new(distance, Vec::new())),
+            }))
+        })
+        .boxed();
+    let caha = selmaho(Selmaho::Caha)
+        .map(|word| {
+            Box::new(new!(TenseModalSyntax::Caha(WithFreeModifiers::new(
                 word,
                 Vec::new()
-            )))
-        }),
-        selmaho(Selmaho::Zeha).map(|word| {
-            new!(TenseModalSyntax::TimeInterval(WithFreeModifiers::new(
-                word,
-                Vec::new()
-            )))
-        }),
-        selmaho(Selmaho::Faha).map(|word| {
-            new!(TenseModalSyntax::SpaceDirection(WithFreeModifiers::new(
-                word,
-                Vec::new()
-            )))
-        }),
-        selmaho(Selmaho::Mohi)
-            .then(selmaho(Selmaho::Faha))
-            .then(selmaho(Selmaho::Va).or_not())
-            .map(|((mohi, direction), distance)| {
-                new!(TenseModalSyntax::SpaceMovement {
-                    mohi,
-                    direction: WithFreeModifiers::new(direction, Vec::new()),
-                    distance: distance.map(|distance| WithFreeModifiers::new(distance, Vec::new())),
-                })
-            }),
-        selmaho(Selmaho::Caha).map(|word| {
-            new!(TenseModalSyntax::Caha(WithFreeModifiers::new(
-                word,
-                Vec::new()
-            )))
-        }),
-        fiho_tense_modal(),
-        selmaho(Selmaho::Zaho).map(|word| {
-            new!(TenseModalSyntax::Zaho(WithFreeModifiers::new(
+            ))))
+        })
+        .boxed();
+    let fiho = fiho_tense_modal().map(Box::new).boxed();
+    let zaho = selmaho(Selmaho::Zaho)
+        .map(|word| {
+            Box::new(new!(TenseModalSyntax::Zaho(WithFreeModifiers::new(
                 vec![word],
                 Vec::new()
-            )))
-        }),
-        simple_tense_modal(),
-        flat_tag_chunk_tense_modal(),
-        cmavo(Cmavo::Ki)
-            .map(|ki| new!(TenseModalSyntax::Ki(WithFreeModifiers::new(ki, Vec::new())))),
-        pa_word()
-            .repeated()
-            .at_least(1)
-            .collect::<Vec<_>>()
-            .then(selmaho(Selmaho::Roi).or(selmaho(Selmaho::Tahe)))
-            .then(cmavo(Cmavo::Nai).or_not())
-            .map(|((number, roi_or_tahe), nai)| {
-                new!(TenseModalSyntax::Interval {
-                    number: Some(word_run(number)),
-                    roi_or_tahe: WithFreeModifiers::new(roi_or_tahe, Vec::new()),
-                    nai: nai.map(|nai| WithFreeModifiers::new(nai, Vec::new())),
-                })
-            }),
-        selmaho(Selmaho::Tahe)
-            .then(cmavo(Cmavo::Nai).or_not())
-            .map(|(roi_or_tahe, nai)| {
-                new!(TenseModalSyntax::Interval {
-                    number: None,
-                    roi_or_tahe: WithFreeModifiers::new(roi_or_tahe, Vec::new()),
-                    nai: nai.map(|nai| WithFreeModifiers::new(nai, Vec::new())),
-                })
-            }),
-    ))
-    .boxed()
+            ))))
+        })
+        .boxed();
+    let simple = simple_tense_modal().map(Box::new).boxed();
+    let flat_tag_chunk = flat_tag_chunk_tense_modal().map(Box::new).boxed();
+    let ki = cmavo(Cmavo::Ki)
+        .map(|ki| {
+            Box::new(new!(TenseModalSyntax::Ki(WithFreeModifiers::new(
+                ki,
+                Vec::new()
+            ))))
+        })
+        .boxed();
+    let numbered_interval = pa_word()
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .then(selmaho(Selmaho::Roi).or(selmaho(Selmaho::Tahe)))
+        .then(cmavo(Cmavo::Nai).or_not())
+        .map(|((number, roi_or_tahe), nai)| {
+            Box::new(new!(TenseModalSyntax::Interval {
+                number: Some(word_run(number)),
+                roi_or_tahe: WithFreeModifiers::new(roi_or_tahe, Vec::new()),
+                nai: nai.map(|nai| WithFreeModifiers::new(nai, Vec::new())),
+            }))
+        })
+        .boxed();
+    let tahe = selmaho(Selmaho::Tahe)
+        .then(cmavo(Cmavo::Nai).or_not())
+        .map(|(roi_or_tahe, nai)| {
+            Box::new(new!(TenseModalSyntax::Interval {
+                number: None,
+                roi_or_tahe: WithFreeModifiers::new(roi_or_tahe, Vec::new()),
+                nai: nai.map(|nai| WithFreeModifiers::new(nai, Vec::new())),
+            }))
+        })
+        .boxed();
+
+    let structural_atoms =
+        choice((composite_tense_modal_boxed(), pu, va, zeha, faha, mohi)).boxed();
+    let tag_atoms = choice((caha, fiho, zaho, simple, flat_tag_chunk, ki)).boxed();
+    let interval_atoms = choice((numbered_interval, tahe)).boxed();
+    choice((structural_atoms, tag_atoms, interval_atoms)).boxed()
 }
 
 #[requires(true)]

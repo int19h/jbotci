@@ -408,6 +408,34 @@ impl OptionalSyntaxCmavoExt for Option<WithFreeModifiers<Token>> {
     }
 }
 
+#[contract_trait]
+impl OptionalSyntaxCmavoExt for Option<Box<WithFreeModifiers<Token>>> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_absent_or_cmavo(&self, cmavo: Cmavo) -> bool {
+        self.as_ref().is_none_or(|word| word.is_cmavo(cmavo))
+    }
+
+    #[requires(!cmavo.is_empty())]
+    #[ensures(true)]
+    fn is_absent_or_one_of_cmavo(&self, cmavo: &[Cmavo]) -> bool {
+        self.as_ref().is_none_or(|word| word.is_one_of_cmavo(cmavo))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_absent_or_selmaho(&self, selmaho: Selmaho) -> bool {
+        self.as_ref().is_none_or(|word| word.is_selmaho(selmaho))
+    }
+
+    #[requires(!selmaho.is_empty())]
+    #[ensures(true)]
+    fn is_absent_or_one_of_selmaho(&self, selmaho: &[Selmaho]) -> bool {
+        self.as_ref()
+            .is_none_or(|word| word.is_one_of_selmaho(selmaho))
+    }
+}
+
 impl<T: fmt::Display> fmt::Display for WithIndicators<T> {
     #[requires(true)]
     #[ensures(true)]
@@ -482,7 +510,7 @@ pub struct Indicator {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PredicateSyntax {
     pub leading_terms: Vec<TermSyntax>,
-    pub cu: Option<WithFreeModifiers<Token>>,
+    pub cu: Option<Box<WithFreeModifiers<Token>>>,
     #[tree_child(primary)]
     pub predicate_tail: Box<PredicateTailSyntax>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
@@ -506,9 +534,9 @@ pub struct KePredicateTailSyntax {
     pub ke: WithFreeModifiers<Token>,
     #[tree_child(primary)]
     pub predicate_tail: Box<PredicateTailSyntax>,
-    pub kehe: Option<WithFreeModifiers<Token>>,
+    pub kehe: Option<Box<WithFreeModifiers<Token>>>,
     pub tail_terms: Vec<TermSyntax>,
-    pub vau: Option<WithFreeModifiers<Token>>,
+    pub vau: Option<Box<WithFreeModifiers<Token>>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
@@ -526,11 +554,11 @@ pub struct PredicateTail1Syntax {
 pub struct PredicateTailContinuationSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<Box<TenseModalSyntax>>,
-    pub cu: Option<WithFreeModifiers<Token>>,
+    pub cu: Option<Box<WithFreeModifiers<Token>>>,
     #[tree_child(primary)]
     pub predicate_tail: Box<PredicateTail2Syntax>,
     pub tail_terms: Vec<TermSyntax>,
-    pub vau: Option<WithFreeModifiers<Token>>,
+    pub vau: Option<Box<WithFreeModifiers<Token>>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
@@ -550,11 +578,11 @@ pub struct BoPredicateTailSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<Box<TenseModalSyntax>>,
     pub bo: WithFreeModifiers<Token>,
-    pub cu: Option<WithFreeModifiers<Token>>,
+    pub cu: Option<Box<WithFreeModifiers<Token>>>,
     #[tree_child(primary)]
     pub predicate_tail: Box<PredicateTail2Syntax>,
     pub tail_terms: Vec<TermSyntax>,
-    pub vau: Option<WithFreeModifiers<Token>>,
+    pub vau: Option<Box<WithFreeModifiers<Token>>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
@@ -567,7 +595,7 @@ pub enum PredicateTail3Syntax {
         #[tree_child(primary)]
         relation: Box<RelationSyntax>,
         terms: Vec<TermSyntax>,
-        vau: Option<WithFreeModifiers<Token>>,
+        vau: Option<Box<WithFreeModifiers<Token>>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     GekSentence(Box<GekSentenceSyntax>),
@@ -586,7 +614,7 @@ pub enum GekSentenceSyntax {
         second: Box<SubsentenceSyntax>,
         gihi: Option<Token>,
         tail_terms: Vec<TermSyntax>,
-        vau: Option<WithFreeModifiers<Token>>,
+        vau: Option<Box<WithFreeModifiers<Token>>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     Ke {
@@ -594,7 +622,7 @@ pub enum GekSentenceSyntax {
         ke: WithFreeModifiers<Token>,
         #[tree_child(primary)]
         inner: Box<GekSentenceSyntax>,
-        kehe: Option<WithFreeModifiers<Token>>,
+        kehe: Option<Box<WithFreeModifiers<Token>>>,
     },
     Na {
         na: WithFreeModifiers<Token>,
@@ -1213,48 +1241,48 @@ pub enum ConnectiveSyntax {
         nahe: Option<Token>,
         na: Option<Token>,
         #[tree_child(primary)]
-        cmavo: WithFreeModifiers<Vec<Token>>,
-        nai: Option<WithFreeModifiers<Token>>,
+        cmavo: Box<WithFreeModifiers<Vec<Token>>>,
+        nai: Option<Box<WithFreeModifiers<Token>>>,
     },
     Relation {
         se: Option<Token>,
         nahe: Option<Token>,
         na: Option<Token>,
         #[tree_child(primary)]
-        cmavo: WithFreeModifiers<Vec<Token>>,
-        nai: Option<WithFreeModifiers<Token>>,
+        cmavo: Box<WithFreeModifiers<Vec<Token>>>,
+        nai: Option<Box<WithFreeModifiers<Token>>>,
     },
     PredicateTail {
         se: Option<Token>,
         nahe: Option<Token>,
         na: Option<Token>,
         #[tree_child(primary)]
-        cmavo: WithFreeModifiers<Vec<Token>>,
-        nai: Option<WithFreeModifiers<Token>>,
+        cmavo: Box<WithFreeModifiers<Vec<Token>>>,
+        nai: Option<Box<WithFreeModifiers<Token>>>,
     },
     Forethought {
         se: Option<Token>,
         nahe: Option<Token>,
         na: Option<Token>,
         #[tree_child(primary)]
-        cmavo: WithFreeModifiers<Vec<Token>>,
-        nai: Option<WithFreeModifiers<Token>>,
+        cmavo: Box<WithFreeModifiers<Vec<Token>>>,
+        nai: Option<Box<WithFreeModifiers<Token>>>,
     },
     NonLogical {
         se: Option<Token>,
         nahe: Option<Token>,
         na: Option<Token>,
         #[tree_child(primary)]
-        cmavo: WithFreeModifiers<Vec<Token>>,
-        nai: Option<WithFreeModifiers<Token>>,
+        cmavo: Box<WithFreeModifiers<Vec<Token>>>,
+        nai: Option<Box<WithFreeModifiers<Token>>>,
     },
     Interval {
         se: Option<Token>,
         nahe: Option<Token>,
         na: Option<Token>,
         #[tree_child(primary)]
-        cmavo: WithFreeModifiers<Vec<Token>>,
-        nai: Option<WithFreeModifiers<Token>>,
+        cmavo: Box<WithFreeModifiers<Vec<Token>>>,
+        nai: Option<Box<WithFreeModifiers<Token>>>,
     },
 }
 
@@ -1876,7 +1904,7 @@ pub(crate) fn is_valid_connective_parts(
     nahe: &Option<Token>,
     na: &Option<Token>,
     cmavo: &WithFreeModifiers<Vec<Token>>,
-    nai: &Option<WithFreeModifiers<Token>>,
+    nai: &Option<Box<WithFreeModifiers<Token>>>,
 ) -> bool {
     se.is_absent_or_selmaho(Selmaho::Se)
         && nahe.is_absent_or_selmaho(Selmaho::Nahe)

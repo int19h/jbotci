@@ -1554,43 +1554,43 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo,
-                nai,
+                cmavo: Box::new(cmavo),
+                nai: nai.map(Box::new),
             }),
             ConnectiveKind::Relation => new!(ConnectiveSyntax::Relation {
                 se,
                 nahe,
                 na,
-                cmavo,
-                nai,
+                cmavo: Box::new(cmavo),
+                nai: nai.map(Box::new),
             }),
             ConnectiveKind::PredicateTail => new!(ConnectiveSyntax::PredicateTail {
                 se,
                 nahe,
                 na,
-                cmavo,
-                nai,
+                cmavo: Box::new(cmavo),
+                nai: nai.map(Box::new),
             }),
             ConnectiveKind::Forethought => new!(ConnectiveSyntax::Forethought {
                 se,
                 nahe,
                 na,
-                cmavo,
-                nai,
+                cmavo: Box::new(cmavo),
+                nai: nai.map(Box::new),
             }),
             ConnectiveKind::NonLogical => new!(ConnectiveSyntax::NonLogical {
                 se,
                 nahe,
                 na,
-                cmavo,
-                nai,
+                cmavo: Box::new(cmavo),
+                nai: nai.map(Box::new),
             }),
             ConnectiveKind::Interval => new!(ConnectiveSyntax::Interval {
                 se,
                 nahe,
                 na,
-                cmavo,
-                nai,
+                cmavo: Box::new(cmavo),
+                nai: nai.map(Box::new),
             }),
         }
     }
@@ -1617,7 +1617,7 @@ impl ConnectiveSyntax {
             | data!(ConnectiveSyntax::PredicateTail { cmavo, .. })
             | data!(ConnectiveSyntax::Forethought { cmavo, .. })
             | data!(ConnectiveSyntax::NonLogical { cmavo, .. })
-            | data!(ConnectiveSyntax::Interval { cmavo, .. }) => cmavo,
+            | data!(ConnectiveSyntax::Interval { cmavo, .. }) => cmavo.as_ref(),
         }
     }
 
@@ -1636,8 +1636,8 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo,
-                nai,
+                cmavo: *cmavo,
+                nai: nai.map(|nai| *nai),
             },
             data!(ConnectiveSyntax::Relation {
                 se,
@@ -1650,8 +1650,8 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo,
-                nai,
+                cmavo: *cmavo,
+                nai: nai.map(|nai| *nai),
             },
             data!(ConnectiveSyntax::PredicateTail {
                 se,
@@ -1664,8 +1664,8 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo,
-                nai,
+                cmavo: *cmavo,
+                nai: nai.map(|nai| *nai),
             },
             data!(ConnectiveSyntax::Forethought {
                 se,
@@ -1678,8 +1678,8 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo,
-                nai,
+                cmavo: *cmavo,
+                nai: nai.map(|nai| *nai),
             },
             data!(ConnectiveSyntax::NonLogical {
                 se,
@@ -1692,8 +1692,8 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo,
-                nai,
+                cmavo: *cmavo,
+                nai: nai.map(|nai| *nai),
             },
             data!(ConnectiveSyntax::Interval {
                 se,
@@ -1706,8 +1706,8 @@ impl ConnectiveSyntax {
                 se,
                 nahe,
                 na,
-                cmavo,
-                nai,
+                cmavo: *cmavo,
+                nai: nai.map(|nai| *nai),
             },
         }
     }

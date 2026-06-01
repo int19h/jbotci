@@ -623,6 +623,51 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn parses_nested_descriptor_tail_on_fixture_worker_stack() {
+        run_on_fixture_worker_stack(|| {
+            let source = "mi pensi ledu'u mi ba stidi fi la nitcion. fe le pu selsnu be mi joi do poi ckini lei bifce poi pu xabju le mi zdani kei";
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+
+            parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_modal_abstraction_tail_on_fixture_worker_stack() {
+        run_on_fixture_worker_stack(|| {
+            let source = ".ino'iji'a pa makcu nixli cu pleji fi mi lenu kelci ki'u lenu te cusku fe lesedu'u mi xamgu to malglico toi kelci";
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+
+            parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_grouped_argument_recursion_on_fixture_worker_stack() {
+        run_on_fixture_worker_stack(|| {
+            let source = concat!(
+                " i abu zi ba le nu facki le du'u makau drani tadji le nu kurji cy ",
+                "to no'u le nu tongau cy ja'e lo jgena gi'e tagji jgari le cy pritu ",
+                "kerlo ku joi le cy zunle jamfu ja'e le nu rivbi le nu cy sezytolplo ",
+                "toi cu bevri cy le bartu vacri i lu lei du romu'ei le du'u mi na ",
+                "lebna le vi cifnu sei la alis pensi cu ba catra cy za lo djedi be ",
+                "li ji'ire i xu na zekri fa le nu cliva cy li'u i abu cladu cusku ",
+                "lei romoi valsi i le cmalu cu spuda cmoni to cy ca ba'o senci toi ",
+                "i lu ko na cmoni sei la alis cusku i nasai drani tadji le nu cusku li'u ",
+            );
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+
+            parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn bare_vowel_cmavo_are_not_implicit_letters() {
         run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("a cmene").expect("valid morphology");
@@ -1126,7 +1171,7 @@ mod tests {
             assert!(
                 try_new!(PredicateSyntax {
                     leading_terms: Vec::new(),
-                    cu: Some(free_word("ku")),
+                    cu: Some(Box::new(free_word("ku"))),
                     predicate_tail: Box::new(predicate_tail.clone()),
                     free_modifiers: Vec::new(),
                 })
@@ -1138,7 +1183,7 @@ mod tests {
                     tense_modal: None,
                     ke: free_word("ke"),
                     predicate_tail: Box::new(predicate_tail.clone()),
-                    kehe: Some(free_word("ku")),
+                    kehe: Some(Box::new(free_word("ku"))),
                     tail_terms: Vec::new(),
                     vau: None,
                     free_modifiers: Vec::new(),
@@ -1357,5 +1402,17 @@ mod tests {
     #[ensures(true)]
     fn run_on_normal_stack(test: impl FnOnce()) {
         test();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn run_on_fixture_worker_stack(test: impl FnOnce() + Send + 'static) {
+        let handle = std::thread::Builder::new()
+            .stack_size(2 * 1024 * 1024)
+            .spawn(test)
+            .expect("fixture worker stack test thread should spawn");
+        if let Err(panic) = handle.join() {
+            std::panic::resume_unwind(panic);
+        }
     }
 }
