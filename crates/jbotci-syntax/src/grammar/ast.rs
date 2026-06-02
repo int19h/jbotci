@@ -659,6 +659,14 @@ impl SimpleBridiTailSyntax {
             data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(
                 forethought_connection
             )) => forethought_connection.words(),
+            data!(SimpleBridiTailSyntax::TermPrefixedBridiTail { terms, bridi_tail }) => {
+                let mut words = Vec::new();
+                for term in terms {
+                    words.extend(term.words());
+                }
+                words.extend(bridi_tail.words());
+                words
+            }
         }
     }
 }
@@ -4433,6 +4441,12 @@ impl SimpleBridiTailSyntax {
             data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(
                 forethought_connection
             )) => forethought_connection.visit_words(visitor),
+            data!(SimpleBridiTailSyntax::TermPrefixedBridiTail { terms, bridi_tail }) => {
+                for term in terms {
+                    term.visit_words(visitor);
+                }
+                bridi_tail.visit_words(visitor);
+            }
         }
     }
 }

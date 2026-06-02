@@ -837,6 +837,7 @@ pub enum ExperimentalConstruct {
     ExperimentalIauReset,
     ExperimentalGohoiSelbriUnit,
     ExperimentalKeTermset,
+    ExperimentalCuTermsSelbri,
     ExperimentalLaheNaheTermWrapper,
     ExperimentalForethoughtRelativeClauseConnective,
     ExperimentalBroadAConnective,
@@ -933,6 +934,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalIauReset => "syntax.warning.experimental-iau-reset",
             Self::ExperimentalGohoiSelbriUnit => "syntax.warning.experimental-gohoi-selbri-unit",
             Self::ExperimentalKeTermset => "syntax.warning.experimental-ke-termset",
+            Self::ExperimentalCuTermsSelbri => "syntax.warning.experimental-cu-terms-selbri",
             Self::ExperimentalLaheNaheTermWrapper => {
                 "syntax.warning.experimental-lahe-nahe-term-wrapper"
             }
@@ -1057,6 +1059,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalIauReset => "IhAU bridi-level reset",
             Self::ExperimentalGohoiSelbriUnit => "GOhOI pro-bridi word quote",
             Self::ExperimentalKeTermset => "KE/KEhE termset grouping",
+            Self::ExperimentalCuTermsSelbri => "CU followed by terms before the main selbri",
             Self::ExperimentalLaheNaheTermWrapper => "LAhE/NAhE term wrapper",
             Self::ExperimentalForethoughtRelativeClauseConnective => {
                 "forethought connective used between relative clauses"

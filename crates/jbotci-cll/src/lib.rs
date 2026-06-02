@@ -21,6 +21,12 @@ const PARAGRAPH_SEARCH_MIN_CHARS: usize = 200;
 include!(concat!(env!("OUT_DIR"), "/embedded_cll.rs"));
 
 static EMBEDDED_SITE: OnceLock<Result<CllSite, CllError>> = OnceLock::new();
+static CHRESTOMATHY_METADATA: OnceLock<Result<CllChrestomathyMetadata, String>> = OnceLock::new();
+
+const CHRESTOMATHY_METADATA_TOML: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../vendor/cll-chrestomathy.toml"
+));
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,6 +140,68 @@ pub struct CllTableCell {
     pub col_span: Option<usize>,
     pub row_span: Option<usize>,
     pub parse_href: Option<String>,
+    pub parse_group: Option<CllTableParseGroup>,
+}
+
+#[invariant(!group_id.is_empty())]
+#[invariant(*row_count > 0)]
+#[invariant(*row_index < *row_count)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CllTableParseGroup {
+    pub group_id: String,
+    pub row_count: usize,
+    pub row_index: usize,
+}
+
+#[invariant(!section.is_empty())]
+#[invariant(!area.is_empty())]
+#[invariant(!group_id.is_empty())]
+#[invariant(!text.trim().is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CllChrestomathyGroupText {
+    section: String,
+    area: String,
+    group_id: String,
+    text: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum CllTableRowArea {
+    Header,
+    Body,
+}
+
+#[invariant(parse_href.as_ref().is_none_or(|href| !href.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CllChrestomathyParseInfo {
+    parse_href: Option<String>,
+    parse_group: Option<CllTableParseGroup>,
+}
+
+#[invariant(!section.is_empty())]
+#[invariant(section.iter().all(|item| !item.id.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+struct CllChrestomathyMetadata {
+    section: Vec<CllChrestomathySectionMetadata>,
+}
+
+#[invariant(!id.is_empty())]
+#[invariant(header_groups.iter().all(|group| !group.is_empty() && group.iter().all(|row| *row > 0)))]
+#[invariant(body_groups.iter().all(|group| !group.is_empty() && group.iter().all(|row| *row > 0)))]
+#[invariant(header_no_parse.iter().all(|row| *row > 0))]
+#[invariant(body_no_parse.iter().all(|row| *row > 0))]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+struct CllChrestomathySectionMetadata {
+    id: String,
+    #[serde(default)]
+    header_groups: Vec<Vec<usize>>,
+    #[serde(default)]
+    body_groups: Vec<Vec<usize>>,
+    #[serde(default)]
+    header_no_parse: Vec<usize>,
+    #[serde(default)]
+    body_no_parse: Vec<usize>,
 }
 
 #[invariant(!term.is_empty() || !blocks.is_empty())]
@@ -1341,13 +1409,38 @@ fn parse_table_block(
         .or_else(|| child_element(node, "tbody"))
         .unwrap_or(node);
     let header_rows = child_element(source, "thead")
-        .map(|thead| parse_table_rows(thead, context, parse_state, examples, anchors))
+        .map(|thead| {
+            parse_table_rows(
+                thead,
+                CllTableRowArea::Header,
+                context,
+                parse_state,
+                examples,
+                anchors,
+            )
+        })
         .unwrap_or_default();
     let tbody_rows = child_element(source, "tbody")
-        .map(|tbody| parse_table_rows(tbody, context, parse_state, examples, anchors))
+        .map(|tbody| {
+            parse_table_rows(
+                tbody,
+                CllTableRowArea::Body,
+                context,
+                parse_state,
+                examples,
+                anchors,
+            )
+        })
         .unwrap_or_default();
     let body_rows = if tbody_rows.is_empty() {
-        parse_table_rows(source, context, parse_state, examples, anchors)
+        parse_table_rows(
+            source,
+            CllTableRowArea::Body,
+            context,
+            parse_state,
+            examples,
+            anchors,
+        )
     } else {
         tbody_rows
     };
@@ -1380,14 +1473,30 @@ fn parse_table_block(
 #[ensures(true)]
 fn parse_table_rows(
     node: Node<'_, '_>,
+    area: CllTableRowArea,
     context: &SectionParseContext,
     parse_state: &mut BlockParseState,
     examples: &mut Vec<CllExample>,
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Vec<Vec<CllTableCell>> {
-    node.children()
+    let rows = node
+        .children()
         .filter(|row| row.is_element() && (row.has_tag_name("row") || row.has_tag_name("tr")))
-        .map(|row| parse_table_row(row, context, parse_state, examples, anchors))
+        .collect::<Vec<_>>();
+    rows.iter()
+        .enumerate()
+        .map(|(index, row)| {
+            parse_table_row(
+                *row,
+                area,
+                index + 1,
+                &rows,
+                context,
+                parse_state,
+                examples,
+                anchors,
+            )
+        })
         .filter(|row| !row.is_empty())
         .collect()
 }
@@ -1396,6 +1505,9 @@ fn parse_table_rows(
 #[ensures(true)]
 fn parse_table_row(
     row: Node<'_, '_>,
+    area: CllTableRowArea,
+    row_index: usize,
+    area_rows: &[Node<'_, '_>],
     context: &SectionParseContext,
     parse_state: &mut BlockParseState,
     examples: &mut Vec<CllExample>,
@@ -1429,28 +1541,201 @@ fn parse_table_row(
                     });
                 }
             }
+            let parse_info =
+                chrestomathy_parse_info(context, area, row_index, area_rows, cell_index, cell);
+            let data!(CllChrestomathyParseInfo {
+                parse_href,
+                parse_group,
+            }) = parse_info.into_data();
             new!(CllTableCell {
                 blocks,
                 col_span: attr_usize(cell, "colspan"),
                 row_span: attr_usize(cell, "rowspan"),
-                parse_href: chrestomathy_parse_href(context, cell_index, cell),
+                parse_href,
+                parse_group,
             })
         })
         .collect()
 }
 
 #[requires(cell.is_element())]
-#[ensures(ret.as_ref().is_none_or(|href| href.starts_with("../gentufa?text=")))]
-fn chrestomathy_parse_href(
+#[requires(row_index > 0)]
+#[ensures(ret.parse_href.as_ref().is_none_or(|href| href.starts_with("../gentufa?text=")))]
+fn chrestomathy_parse_info(
     context: &SectionParseContext,
+    area: CllTableRowArea,
+    row_index: usize,
+    area_rows: &[Node<'_, '_>],
     cell_index: usize,
     cell: Node<'_, '_>,
-) -> Option<String> {
-    if context.chapter_id != "volume-chrestomathy" || cell_index != 0 || !cell.has_tag_name("td") {
-        return None;
+) -> CllChrestomathyParseInfo {
+    if context.chapter_id != "volume-chrestomathy"
+        || cell_index != 0
+        || !(cell.has_tag_name("td") || cell.has_tag_name("th"))
+    {
+        return new!(CllChrestomathyParseInfo {
+            parse_href: None,
+            parse_group: None,
+        });
     }
-    let text = visible_text(cell);
-    jbo_parse_href(&text)
+    let Some(metadata) = chrestomathy_section_metadata(&context.section_id) else {
+        return new!(CllChrestomathyParseInfo {
+            parse_href: None,
+            parse_group: None,
+        });
+    };
+    let Some((group_index, group_rows)) =
+        chrestomathy_group_containing_row(metadata, area, row_index)
+    else {
+        return new!(CllChrestomathyParseInfo {
+            parse_href: None,
+            parse_group: None,
+        });
+    };
+    let row_position = group_rows
+        .iter()
+        .position(|row| *row == row_index)
+        .expect("group lookup returns groups containing the requested row");
+    let group_id = chrestomathy_group_id(&context.section_id, area, group_index, group_rows);
+    let parse_href = (row_position == 0)
+        .then(|| chrestomathy_group_text_from_rows(area_rows, group_rows))
+        .flatten()
+        .and_then(|text| jbo_parse_href(&text));
+    new!(CllChrestomathyParseInfo {
+        parse_href,
+        parse_group: Some(new!(CllTableParseGroup {
+            group_id,
+            row_count: group_rows.len(),
+            row_index: row_position,
+        })),
+    })
+}
+
+#[requires(true)]
+#[ensures(!ret.section.is_empty())]
+fn chrestomathy_metadata() -> &'static CllChrestomathyMetadata {
+    CHRESTOMATHY_METADATA
+        .get_or_init(|| {
+            toml::from_str::<CllChrestomathyMetadata>(CHRESTOMATHY_METADATA_TOML)
+                .map_err(|error| error.to_string())
+        })
+        .as_ref()
+        .expect("vendor/cll-chrestomathy.toml must be valid")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|metadata| metadata.id == section_id))]
+fn chrestomathy_section_metadata(
+    section_id: &str,
+) -> Option<&'static CllChrestomathySectionMetadata> {
+    chrestomathy_metadata()
+        .section
+        .iter()
+        .find(|metadata| metadata.id == section_id)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn chrestomathy_area_groups(
+    metadata: &CllChrestomathySectionMetadata,
+    area: CllTableRowArea,
+) -> &[Vec<usize>] {
+    match area {
+        CllTableRowArea::Header => &metadata.header_groups,
+        CllTableRowArea::Body => &metadata.body_groups,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn chrestomathy_area_no_parse_rows(
+    metadata: &CllChrestomathySectionMetadata,
+    area: CllTableRowArea,
+) -> &[usize] {
+    match area {
+        CllTableRowArea::Header => &metadata.header_no_parse,
+        CllTableRowArea::Body => &metadata.body_no_parse,
+    }
+}
+
+#[requires(row_index > 0)]
+#[ensures(ret.as_ref().is_none_or(|(_, rows)| rows.contains(&row_index)))]
+fn chrestomathy_group_containing_row(
+    metadata: &CllChrestomathySectionMetadata,
+    area: CllTableRowArea,
+    row_index: usize,
+) -> Option<(usize, &[usize])> {
+    chrestomathy_area_groups(metadata, area)
+        .iter()
+        .enumerate()
+        .find(|(_, group)| group.contains(&row_index))
+        .map(|(index, group)| (index, group.as_slice()))
+}
+
+#[requires(!section_id.is_empty())]
+#[requires(!group_rows.is_empty())]
+#[ensures(!ret.is_empty())]
+fn chrestomathy_group_id(
+    section_id: &str,
+    area: CllTableRowArea,
+    group_index: usize,
+    group_rows: &[usize],
+) -> String {
+    let first = group_rows
+        .first()
+        .expect("precondition requires non-empty group");
+    let last = group_rows
+        .last()
+        .expect("precondition requires non-empty group");
+    format!(
+        "{}-{}-{}-{}-{}",
+        section_id,
+        chrestomathy_area_label(area),
+        group_index + 1,
+        first,
+        last
+    )
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn chrestomathy_area_label(area: CllTableRowArea) -> &'static str {
+    match area {
+        CllTableRowArea::Header => "header",
+        CllTableRowArea::Body => "body",
+    }
+}
+
+#[requires(group_rows.iter().all(|row| *row > 0))]
+#[ensures(ret.as_ref().is_none_or(|text| !text.trim().is_empty()))]
+fn chrestomathy_group_text_from_rows(
+    area_rows: &[Node<'_, '_>],
+    group_rows: &[usize],
+) -> Option<String> {
+    let mut lines = Vec::new();
+    for row_index in group_rows {
+        let row = area_rows.get(row_index.checked_sub(1)?)?;
+        let text = chrestomathy_source_row_text(*row)?;
+        if !text.trim().is_empty() {
+            lines.push(text);
+        }
+    }
+    (!lines.is_empty()).then(|| lines.join("\n"))
+}
+
+#[requires(row.is_element())]
+#[ensures(ret.as_ref().is_none_or(|text| !text.trim().is_empty()))]
+fn chrestomathy_source_row_text(row: Node<'_, '_>) -> Option<String> {
+    row.children()
+        .filter(|cell| {
+            cell.is_element()
+                && (cell.has_tag_name("entry")
+                    || cell.has_tag_name("td")
+                    || cell.has_tag_name("th"))
+        })
+        .next()
+        .map(visible_text)
+        .filter(|text| !text.trim().is_empty())
 }
 
 #[requires(true)]
@@ -3530,6 +3815,127 @@ pub fn cll_lookup_section<'a>(site: &'a CllSite, section_id: &str) -> Option<&'a
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|href| href.starts_with("../gentufa?text=")))]
+pub fn chrestomathy_section_parse_href(section: &CllSection) -> Option<String> {
+    if section.chapter_id != "volume-chrestomathy"
+        || chrestomathy_section_metadata(&section.section_id).is_none()
+    {
+        return None;
+    }
+    let text = chrestomathy_section_group_texts(section)
+        .into_iter()
+        .map(|group| group.into_data().text)
+        .collect::<Vec<_>>()
+        .join("\n");
+    jbo_parse_href(&text)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn chrestomathy_section_group_texts(section: &CllSection) -> Vec<CllChrestomathyGroupText> {
+    let mut groups = Vec::new();
+    if section.chapter_id != "volume-chrestomathy"
+        || chrestomathy_section_metadata(&section.section_id).is_none()
+    {
+        return groups;
+    }
+    for block in &section.blocks {
+        chrestomathy_block_group_texts(&section.section_id, block, &mut groups);
+    }
+    groups
+}
+
+#[requires(!section_id.is_empty())]
+#[ensures(true)]
+fn chrestomathy_block_group_texts(
+    section_id: &str,
+    block: &CllBlock,
+    groups: &mut Vec<CllChrestomathyGroupText>,
+) {
+    match block {
+        CllBlock::Table {
+            header_rows,
+            body_rows,
+            ..
+        } => {
+            chrestomathy_table_group_texts(
+                section_id,
+                CllTableRowArea::Header,
+                header_rows,
+                groups,
+            );
+            chrestomathy_table_group_texts(section_id, CllTableRowArea::Body, body_rows, groups);
+        }
+        CllBlock::List { items, .. } => {
+            for item in items {
+                for child in item {
+                    chrestomathy_block_group_texts(section_id, child, groups);
+                }
+            }
+        }
+        CllBlock::Example(example) => {
+            for child in &example.blocks {
+                chrestomathy_block_group_texts(section_id, child, groups);
+            }
+        }
+        CllBlock::BlockQuote { blocks, .. } | CllBlock::Rule { body: blocks, .. } => {
+            for child in blocks {
+                chrestomathy_block_group_texts(section_id, child, groups);
+            }
+        }
+        CllBlock::VariableList { entries, .. } => {
+            for entry in entries {
+                for child in &entry.blocks {
+                    chrestomathy_block_group_texts(section_id, child, groups);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+#[requires(!section_id.is_empty())]
+#[ensures(true)]
+fn chrestomathy_table_group_texts(
+    section_id: &str,
+    area: CllTableRowArea,
+    rows: &[Vec<CllTableCell>],
+    groups: &mut Vec<CllChrestomathyGroupText>,
+) {
+    let Some(metadata) = chrestomathy_section_metadata(section_id) else {
+        return;
+    };
+    for (group_index, group_rows) in chrestomathy_area_groups(metadata, area).iter().enumerate() {
+        let mut lines = Vec::new();
+        for row_index in group_rows {
+            let Some(row) = row_index.checked_sub(1).and_then(|index| rows.get(index)) else {
+                continue;
+            };
+            if let Some(text) = chrestomathy_table_source_cell_text(row) {
+                lines.push(text);
+            }
+        }
+        if lines.is_empty() {
+            continue;
+        }
+        groups.push(new!(CllChrestomathyGroupText {
+            section: section_id.to_owned(),
+            area: chrestomathy_area_label(area).to_owned(),
+            group_id: chrestomathy_group_id(section_id, area, group_index, group_rows),
+            text: lines.join("\n"),
+        }));
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|text| !text.trim().is_empty()))]
+fn chrestomathy_table_source_cell_text(row: &[CllTableCell]) -> Option<String> {
+    row.first()
+        .map(|cell| normalized_plain_text(&blocks_plain_text(&cell.blocks)))
+        .filter(|text| !text.trim().is_empty())
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub fn cll_lookup_example<'a>(site: &'a CllSite, example_id: &str) -> Option<&'a CllExample> {
     site.examples_by_id.get(example_id)
@@ -3834,9 +4240,19 @@ pub fn render_section(site: &CllSite, section: &CllSection, format: CllRenderFor
     match format {
         CllRenderFormat::Html => {
             let mut output = String::new();
-            output.push_str("<article class=\"cll-section-content\"><h1>");
+            output.push_str(
+                "<article class=\"cll-section-content\"><div class=\"cll-section-heading\"><h1>",
+            );
             output.push_str(&escape_html(&format_section_display_title(section)));
             output.push_str("</h1>");
+            if let Some(parse_href) = chrestomathy_section_parse_href(section) {
+                output.push_str(
+                    "<a class=\"cll-parse-example cll-parse-section spa-cll-link spa-cll-link-parse\" href=\"",
+                );
+                output.push_str(&escape_html(&parse_href));
+                output.push_str("\">Parse</a>");
+            }
+            output.push_str("</div>");
             for block in &section.blocks {
                 output.push_str(&render_block_html(site, block));
             }
@@ -3845,6 +4261,9 @@ pub fn render_section(site: &CllSite, section: &CllSection, format: CllRenderFor
         }
         CllRenderFormat::Markdown | CllRenderFormat::Raw => {
             let mut output = format!("# {}\n\n", format_section_display_title(section));
+            if let Some(parse_href) = chrestomathy_section_parse_href(section) {
+                output.push_str(&format!("[Parse]({parse_href})\n\n"));
+            }
             for block in &section.blocks {
                 render_block_markdown(site, block, &mut output, 0);
             }
@@ -4958,7 +5377,9 @@ fn render_table_rows_html(
     output: &mut String,
 ) {
     for row in rows {
-        output.push_str("<tr>");
+        output.push_str("<tr");
+        output.push_str(&render_table_row_parse_attrs(row));
+        output.push('>');
         for cell in row {
             output.push('<');
             output.push_str(tag_name);
@@ -4970,9 +5391,9 @@ fn render_table_rows_html(
             }
             output.push('>');
             if let Some(parse_href) = &cell.parse_href {
-                output.push_str(
-                    "<a class=\"cll-parse-example cll-parse-snippet spa-cll-link spa-cll-link-parse\" href=\"",
-                );
+                output.push_str("<a class=\"");
+                output.push_str(&escape_html(&table_cell_parse_link_class(cell)));
+                output.push_str("\" href=\"");
                 output.push_str(&escape_html(parse_href));
                 output.push_str("\">Parse</a>");
             }
@@ -4985,6 +5406,53 @@ fn render_table_rows_html(
         }
         output.push_str("</tr>");
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_table_row_parse_attrs(row: &[CllTableCell]) -> String {
+    let Some(group) = table_row_parse_group(row) else {
+        return String::new();
+    };
+    let mut classes = vec!["cll-parse-group-row"];
+    if group.row_count > 1 {
+        classes.push("cll-parse-group-multi");
+    }
+    if group.row_index == 0 {
+        classes.push("cll-parse-group-start");
+    }
+    if group.row_index + 1 == group.row_count {
+        classes.push("cll-parse-group-end");
+    }
+    if group.row_index > 0 {
+        classes.push("cll-parse-group-continuation");
+    }
+    format!(
+        " class=\"{}\" data-cll-parse-group=\"{}\"",
+        classes.join(" "),
+        escape_html(&group.group_id)
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn table_row_parse_group(row: &[CllTableCell]) -> Option<&CllTableParseGroup> {
+    row.first().and_then(|cell| cell.parse_group.as_ref())
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn table_cell_parse_link_class(cell: &CllTableCell) -> String {
+    let mut class_name =
+        "cll-parse-example cll-parse-snippet spa-cll-link spa-cll-link-parse".to_owned();
+    if cell
+        .parse_group
+        .as_ref()
+        .is_some_and(|group| group.row_count > 1)
+    {
+        class_name.push_str(" cll-parse-group-link");
+    }
+    class_name
 }
 
 #[requires(true)]
@@ -5722,6 +6190,8 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
+    use jbotci_morphology::segment_words_with_modifiers;
+    use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_options};
 
     #[test]
     #[requires(true)]
@@ -5928,6 +6398,175 @@ mod tests {
                 .iter()
                 .all(|href| href.starts_with("../gentufa?text=") && !href.contains("dialect="))
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chrestomathy_metadata_has_no_overlaps_and_covers_source_rows() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        for metadata in &chrestomathy_metadata().section {
+            let section =
+                cll_lookup_section(site, &metadata.id).expect("metadata section should exist");
+            assert_chrestomathy_area_metadata_is_disjoint(metadata, CllTableRowArea::Header);
+            assert_chrestomathy_area_metadata_is_disjoint(metadata, CllTableRowArea::Body);
+            let (header_rows, body_rows) = first_table_rows(section);
+            assert_chrestomathy_rows_are_covered(metadata, CllTableRowArea::Header, header_rows);
+            assert_chrestomathy_rows_are_covered(metadata, CllTableRowArea::Body, body_rows);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chrestomathy_metadata_group_and_section_parse_targets_parse() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        for metadata in &chrestomathy_metadata().section {
+            let section =
+                cll_lookup_section(site, &metadata.id).expect("metadata section should exist");
+            for group in chrestomathy_section_group_texts(section) {
+                let data!(CllChrestomathyGroupText { group_id, text, .. }) = group.into_data();
+                assert_parseable_chrestomathy_text(&group_id, &text);
+            }
+            let section_text = chrestomathy_section_group_texts(section)
+                .into_iter()
+                .map(|group| group.into_data().text)
+                .collect::<Vec<_>>()
+                .join("\n");
+            assert_parseable_chrestomathy_text(&section.section_id, &section_text);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chrestomathy_grouped_rows_render_single_parse_button_and_group_classes() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section =
+            cll_lookup_section(site, "section-forest-nymph").expect("section should exist");
+        let (_header_rows, body_rows) = first_table_rows(section);
+        let row_12_group = body_rows[11][0]
+            .parse_group
+            .as_ref()
+            .expect("row 12 should have parse group");
+        let row_13_group = body_rows[12][0]
+            .parse_group
+            .as_ref()
+            .expect("row 13 should have parse group");
+        assert_eq!(row_12_group.group_id, row_13_group.group_id);
+        assert_eq!(row_12_group.row_count, 2);
+        assert_eq!(row_12_group.row_index, 0);
+        assert_eq!(row_13_group.row_index, 1);
+        assert!(body_rows[11][0].parse_href.is_some());
+        assert!(body_rows[12][0].parse_href.is_none());
+
+        let html = render_section(site, section, CllRenderFormat::Html);
+        assert!(html.contains("cll-parse-section"));
+        assert!(html.contains("cll-parse-group-start"));
+        assert!(html.contains("cll-parse-group-continuation"));
+        assert!(html.contains("cll-parse-group-link"));
+        assert!(html.contains("data-cll-parse-group=\"section-forest-nymph-body-12-12-13\""));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_chrestomathy_area_metadata_is_disjoint(
+        metadata: &CllChrestomathySectionMetadata,
+        area: CllTableRowArea,
+    ) {
+        let mut covered = BTreeSet::new();
+        for group in chrestomathy_area_groups(metadata, area) {
+            for row in group {
+                assert!(
+                    covered.insert(*row),
+                    "{} {} row {} is listed more than once",
+                    metadata.id,
+                    chrestomathy_area_label(area),
+                    row
+                );
+            }
+        }
+        for row in chrestomathy_area_no_parse_rows(metadata, area) {
+            assert!(
+                covered.insert(*row),
+                "{} {} row {} is both parseable and no-parse",
+                metadata.id,
+                chrestomathy_area_label(area),
+                row
+            );
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_chrestomathy_rows_are_covered(
+        metadata: &CllChrestomathySectionMetadata,
+        area: CllTableRowArea,
+        rows: &[Vec<CllTableCell>],
+    ) {
+        let covered = chrestomathy_area_groups(metadata, area)
+            .iter()
+            .flatten()
+            .copied()
+            .chain(
+                chrestomathy_area_no_parse_rows(metadata, area)
+                    .iter()
+                    .copied(),
+            )
+            .collect::<BTreeSet<_>>();
+        let no_parse = chrestomathy_area_no_parse_rows(metadata, area)
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        for (index, row) in rows.iter().enumerate() {
+            let row_index = index + 1;
+            let Some(text) = chrestomathy_table_source_cell_text(row) else {
+                continue;
+            };
+            assert!(
+                covered.contains(&row_index),
+                "{} {} row {} is missing metadata: {}",
+                metadata.id,
+                chrestomathy_area_label(area),
+                row_index,
+                text
+            );
+            let parse_group = row.first().and_then(|cell| cell.parse_group.as_ref());
+            if no_parse.contains(&row_index) {
+                assert!(
+                    parse_group.is_none(),
+                    "no-parse rows should not have groups"
+                );
+            } else {
+                assert!(parse_group.is_some(), "parseable rows should have groups");
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_parseable_chrestomathy_text(label: &str, text: &str) {
+        let words = segment_words_with_modifiers(text)
+            .unwrap_or_else(|error| panic!("{label} morphology failed: {error:?}"));
+        parse_syntax_tree_with_options(&words, &ParseOptions::default())
+            .unwrap_or_else(|error| panic!("{label} syntax failed: {error:?}"));
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.0.is_empty() || !ret.1.is_empty())]
+    fn first_table_rows(section: &CllSection) -> (&[Vec<CllTableCell>], &[Vec<CllTableCell>]) {
+        section
+            .blocks
+            .iter()
+            .find_map(|block| match block {
+                CllBlock::Table {
+                    header_rows,
+                    body_rows,
+                    ..
+                } => Some((header_rows.as_slice(), body_rows.as_slice())),
+                _ => None,
+            })
+            .expect("chrestomathy section should have a table")
     }
 
     #[test]

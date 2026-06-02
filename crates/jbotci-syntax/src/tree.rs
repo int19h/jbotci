@@ -589,6 +589,7 @@ pub struct BoundBridiTailConnectionSyntax {
 #[invariant(true)]
 #[invariant(::SelbriBridiTail => vau.is_absent_or_cmavo(Cmavo::Vau))]
 #[invariant(::ForethoughtBridiTailConnection(..) => true)]
+#[invariant(::TermPrefixedBridiTail => !terms.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum SimpleBridiTailSyntax {
     SelbriBridiTail {
@@ -599,6 +600,11 @@ pub enum SimpleBridiTailSyntax {
         free_modifiers: Vec<FreeModifierSyntax>,
     },
     ForethoughtBridiTailConnection(Box<ForethoughtBridiConnectionSyntax>),
+    TermPrefixedBridiTail {
+        terms: Vec<TermSyntax>,
+        #[tree_child(primary)]
+        bridi_tail: Box<BridiTailSyntax>,
+    },
 }
 
 #[invariant(true)]
@@ -845,7 +851,7 @@ pub enum FragmentSyntax {
 }
 
 #[invariant(true)]
-#[invariant(::Termset => nuhi.is_cmavo(Cmavo::Nuhi) && !termset.is_empty() && nuhu.is_absent_or_cmavo(Cmavo::Nuhu))]
+#[invariant(::Termset => (nuhi.is_cmavo(Cmavo::Nuhi) && nuhu.is_absent_or_cmavo(Cmavo::Nuhu) || nuhi.is_cmavo(Cmavo::Ke) && nuhu.is_absent_or_cmavo(Cmavo::Kehe)) && !termset.is_empty())]
 #[invariant(::ForethoughtTermsetConnection => m_nuhi.as_ref().is_none_or(|nuhi| nuhi.is_cmavo(Cmavo::Nuhi)) && !terms.is_empty() && nuhu.is_absent_or_cmavo(Cmavo::Nuhu) && !gik_terms.is_empty() && gihi.is_absent_or_selmaho(Selmaho::Gihi) && gik_nuhu.is_absent_or_cmavo(Cmavo::Nuhu))]
 #[invariant(::TermsetGroup => !leading_terms.is_empty() && cehe.is_cmavo(Cmavo::Cehe) && !trailing_terms.is_empty())]
 #[invariant(::TermsetConnection => !leading_terms.is_empty() && pehe.is_cmavo(Cmavo::Pehe) && !trailing_terms.is_empty())]

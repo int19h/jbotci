@@ -1082,9 +1082,11 @@ pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
     };
     let expectations = error.expectations();
 
+    let byte_start = error.span().start.min(error.span().end);
+    let byte_end = error.span().start.max(error.span().end);
     SyntaxError::Parse {
-        byte_start: error.span().start,
-        byte_end: error.span().end,
+        byte_start,
+        byte_end,
         reason,
         expected,
         expectations,

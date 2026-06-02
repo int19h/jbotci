@@ -7,11 +7,11 @@ use std::sync::OnceLock;
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{
     CllBlock, CllSearchChunkKind, CuktaSearchMode, CuktaTargetFilter, DEFAULT_CUKTA_SECTION_ID,
-    DEFAULT_CUKTA_WEB_RESULT_COUNT, MAX_CUKTA_RESULT_COUNT, cll_first_section_id,
-    cll_index_entries, cll_lookup_section, cll_next_section_id, cll_previous_section_id,
-    cll_resolve_section_reference, cll_search_all_chunks, cll_search_chunk_href,
-    cll_section_chapter_title, cukta_search, embedded_cll_site, format_section_display_title,
-    truncate_preview,
+    DEFAULT_CUKTA_WEB_RESULT_COUNT, MAX_CUKTA_RESULT_COUNT, chrestomathy_section_parse_href,
+    cll_first_section_id, cll_index_entries, cll_lookup_section, cll_next_section_id,
+    cll_previous_section_id, cll_resolve_section_reference, cll_search_all_chunks,
+    cll_search_chunk_href, cll_section_chapter_title, cukta_search, embedded_cll_site,
+    format_section_display_title, truncate_preview,
 };
 use jbotci_diagnostics::{Diagnostic, DiagnosticPhase};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
@@ -1129,6 +1129,7 @@ pub struct CuktaSemanticSearchHit {
 pub enum CuktaPageKind {
     Section {
         section_heading: String,
+        section_parse_href: Option<String>,
         chapter_title: Option<String>,
         previous_section: Option<CuktaSectionLink>,
         next_section: Option<CuktaSectionLink>,
@@ -1823,6 +1824,7 @@ pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPage
                 current_section_id: Some(section.section_id.clone()),
                 page_kind: CuktaPageKind::Section {
                     section_heading: format_section_display_title(section),
+                    section_parse_href: chrestomathy_section_parse_href(section),
                     chapter_title: cll_section_chapter_title(site, &section.section_id),
                     previous_section: cll_previous_section_id(site, &section.section_id).and_then(
                         |section_id| build_cukta_section_link(site, base_path, section_id),

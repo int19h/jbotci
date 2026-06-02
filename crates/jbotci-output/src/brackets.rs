@@ -315,6 +315,13 @@ fn predicate_tail3(value: &SimpleBridiTailSyntax, source: &BracketContext<'_>) -
         data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(gek)) => {
             forethought_connection(gek, source)
         }
+        data!(SimpleBridiTailSyntax::TermPrefixedBridiTail {
+            terms,
+            bridi_tail: inner_tail,
+        }) => sexpr::node(vec![
+            list_node(terms.iter().map(|item| term(item, source)).collect()),
+            bridi_tail(inner_tail, source),
+        ]),
     }
 }
 

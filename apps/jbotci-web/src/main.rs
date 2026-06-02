@@ -2,8 +2,8 @@ use dioxus::core::Task;
 use dioxus::prelude::*;
 use jbotci_cll::{
     CllBlock, CllEbnfEntry, CllEbnfToken, CllInline, CllInterlinearRow, CllLanguageSpanKind,
-    CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation, cll_link_href,
-    embedded_cll_site, wrap_ebnf_choice_lines,
+    CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation, CllTableCell,
+    cll_link_href, embedded_cll_site, wrap_ebnf_choice_lines,
 };
 use jbotci_dialect::{
     CustomDialect, DialectSettings, add_dialect_formula_reference, builtin_dialect_names,
@@ -3295,6 +3295,7 @@ fn render_cukta_page(
                         match &page.page_kind {
                             CuktaPageKind::Section {
                                 section_heading,
+                                section_parse_href,
                                 chapter_title,
                                 previous_section,
                                 next_section,
@@ -3303,6 +3304,7 @@ fn render_cukta_page(
                             } => render_cukta_section(
                                 pending_cukta_scroll,
                                 section_heading,
+                                section_parse_href.as_deref(),
                                 chapter_title.as_deref(),
                                 previous_section.as_ref(),
                                 next_section.as_ref(),
@@ -3680,6 +3682,7 @@ fn cukta_toc_expansion_with_node_state(
 fn render_cukta_section(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     heading: &str,
+    parse_href: Option<&str>,
     chapter_title: Option<&str>,
     previous: Option<&jbotci_web_core::CuktaSectionLink>,
     next: Option<&jbotci_web_core::CuktaSectionLink>,
@@ -3690,7 +3693,16 @@ fn render_cukta_section(
     let _ = chapter_title;
     rsx! {
         article { class: "cll-section-content",
-            h1 { "{heading}" }
+            div { class: "cll-section-heading",
+                h1 { "{heading}" }
+                if let Some(parse_href) = parse_href {
+                    { render_cll_parse_link(
+                        "cll-parse-example cll-parse-section spa-cll-link spa-cll-link-parse",
+                        parse_href,
+                        base_path,
+                    ) }
+                }
+            }
             if !prelude_blocks.is_empty() {
                 div { class: "cll-chapter-prelude",
                     for block in prelude_blocks.iter() {
@@ -4128,17 +4140,26 @@ fn render_cll_block(
                 if !header_rows.is_empty() {
                     thead {
                         for row in header_rows.iter() {
-                            tr {
+                            {
+                                let row_class = cll_table_row_parse_class(row);
+                                let row_group_id = cll_table_row_parse_group_id(row).unwrap_or_default();
+                                rsx! {
+                            tr { class: "{row_class}", "data-cll-parse-group": "{row_group_id}",
                                 for cell in row.iter() {
                                     th {
                                         colspan: "{cell.col_span.unwrap_or(1)}",
                                         rowspan: "{cell.row_span.unwrap_or(1)}",
                                         if let Some(parse_href) = &cell.parse_href {
+                                            {
+                                                let parse_class = cll_table_cell_parse_link_class(cell);
+                                                rsx! {
                                             { render_cll_parse_link(
-                                                "cll-parse-example cll-parse-snippet spa-cll-link spa-cll-link-parse",
+                                                &parse_class,
                                                 parse_href,
                                                 base_path,
                                             ) }
+                                                }
+                                            }
                                         }
                                         for child in cell.blocks.iter() {
                                             { render_cll_block(child, pending_cukta_scroll, base_path) }
@@ -4146,27 +4167,40 @@ fn render_cll_block(
                                     }
                                 }
                             }
+                                }
+                            }
                         }
                     }
                 }
                 tbody {
                     for row in body_rows.iter() {
-                        tr {
+                        {
+                            let row_class = cll_table_row_parse_class(row);
+                            let row_group_id = cll_table_row_parse_group_id(row).unwrap_or_default();
+                            rsx! {
+                        tr { class: "{row_class}", "data-cll-parse-group": "{row_group_id}",
                             for cell in row.iter() {
                                 td {
                                     colspan: "{cell.col_span.unwrap_or(1)}",
                                     rowspan: "{cell.row_span.unwrap_or(1)}",
                                     if let Some(parse_href) = &cell.parse_href {
+                                        {
+                                            let parse_class = cll_table_cell_parse_link_class(cell);
+                                            rsx! {
                                         { render_cll_parse_link(
-                                            "cll-parse-example cll-parse-snippet spa-cll-link spa-cll-link-parse",
+                                            &parse_class,
                                             parse_href,
                                             base_path,
                                         ) }
+                                            }
+                                        }
                                     }
                                     for child in cell.blocks.iter() {
                                         { render_cll_block(child, pending_cukta_scroll, base_path) }
                                     }
                                 }
+                            }
+                        }
                             }
                         }
                     }
@@ -5047,6 +5081,55 @@ fn cll_link_kind_class(kind: CllLinkKind) -> &'static str {
         CllLinkKind::Asset => "spa-cll-link-asset",
         CllLinkKind::External => "spa-cll-link-external",
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_table_row_parse_class(row: &[CllTableCell]) -> String {
+    let Some(group) = cll_table_row_parse_group(row) else {
+        return String::new();
+    };
+    let mut classes = vec!["cll-parse-group-row"];
+    if group.row_count > 1 {
+        classes.push("cll-parse-group-multi");
+    }
+    if group.row_index == 0 {
+        classes.push("cll-parse-group-start");
+    }
+    if group.row_index + 1 == group.row_count {
+        classes.push("cll-parse-group-end");
+    }
+    if group.row_index > 0 {
+        classes.push("cll-parse-group-continuation");
+    }
+    classes.join(" ")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_table_row_parse_group_id(row: &[CllTableCell]) -> Option<String> {
+    cll_table_row_parse_group(row).map(|group| group.group_id.clone())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_table_row_parse_group(row: &[CllTableCell]) -> Option<&jbotci_cll::CllTableParseGroup> {
+    row.first().and_then(|cell| cell.parse_group.as_ref())
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn cll_table_cell_parse_link_class(cell: &CllTableCell) -> String {
+    let mut class_name =
+        "cll-parse-example cll-parse-snippet spa-cll-link spa-cll-link-parse".to_owned();
+    if cell
+        .parse_group
+        .as_ref()
+        .is_some_and(|group| group.row_count > 1)
+    {
+        class_name.push_str(" cll-parse-group-link");
+    }
+    class_name
 }
 
 #[requires(true)]

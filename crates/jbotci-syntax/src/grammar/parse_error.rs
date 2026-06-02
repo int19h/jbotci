@@ -265,7 +265,13 @@ where
             .try_into()
             .ok()
             .and_then(|pattern| context_from_rich_pattern(&pattern))
-            .map(|construct| SyntaxConstructContext::new(construct, span.start, span.end));
+            .map(|construct| {
+                SyntaxConstructContext::new(
+                    construct,
+                    span.start.min(span.end),
+                    span.start.max(span.end),
+                )
+            });
         <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::in_context(
             &mut self.inner,
             label.clone(),

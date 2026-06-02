@@ -1562,6 +1562,29 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     branch_cursors: None,
                 }
             }
+            data!(SimpleBridiTailSyntax::TermPrefixedBridiTail { terms, bridi_tail }) => {
+                self.analyze_terms_nested(terms);
+                let BridiTailAnalysis {
+                    frames,
+                    terms: inner_terms,
+                    branch_cursors,
+                } = self.analyze_bridi_tail(bridi_tail, gek_branch_initial_place);
+                let mut prefixed_terms = terms.iter().collect::<Vec<_>>();
+                prefixed_terms.extend(inner_terms);
+                let raw = self.raw_for(bridi_tail3_node_ref(tail));
+                let frame = self.add_frame(
+                    raw,
+                    PlaceFrameKind::BridiTail,
+                    None,
+                    None,
+                    propagation_connective_branches(frames),
+                );
+                BridiTailAnalysis {
+                    frames: vec![frame],
+                    terms: prefixed_terms,
+                    branch_cursors,
+                }
+            }
         }
     }
 
@@ -3660,6 +3683,10 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
             data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(gek)) => {
                 self.visit_gek_sentence(gek)
             }
+            data!(SimpleBridiTailSyntax::TermPrefixedBridiTail { terms, bridi_tail }) => {
+                self.visit_terms(terms);
+                self.visit_bridi_tail(bridi_tail);
+            }
         }
     }
 
@@ -5468,6 +5495,9 @@ fn bridi_tail3_node_ref<'tree>(tail: &'tree SimpleBridiTailSyntax) -> SyntaxNode
         data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(..)) => {
             SyntaxNodeRef::SimpleBridiTailSyntaxForethoughtBridiTailConnection(tail)
         }
+        data!(SimpleBridiTailSyntax::TermPrefixedBridiTail { .. }) => {
+            SyntaxNodeRef::SimpleBridiTailSyntaxTermPrefixedBridiTail(tail)
+        }
     }
 }
 
@@ -6263,6 +6293,9 @@ fn bridi_tail3_base_letter(bridi_tail: &SimpleBridiTailSyntax) -> Option<String>
             relation_base_letter(selbri)
         }
         data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(_)) => None,
+        data!(SimpleBridiTailSyntax::TermPrefixedBridiTail { bridi_tail, .. }) => {
+            bridi_tail_base_letter(bridi_tail)
+        }
     }
 }
 

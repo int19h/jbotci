@@ -4815,6 +4815,21 @@ body::-webkit-scrollbar-thumb:hover,
   font-size: 0.66rem;
 }
 
+.cll-page .cll-section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.cll-page .cll-section-heading h1 {
+  min-width: 0;
+}
+
+.cll-page .cll-parse-section {
+  flex: 0 0 auto;
+}
+
 .cll-page .cll-table,
 .cll-page .cll-cmavo-list table {
   width: auto;
@@ -4846,6 +4861,24 @@ body::-webkit-scrollbar-thumb:hover,
 .cll-page .cll-cmavo-list td p + p,
 .cll-page .cll-cmavo-list th p + p {
   margin-top: 0.2rem;
+}
+
+.cll-page .cll-table tr.cll-parse-group-start:has(.cll-parse-group-link:hover) > td,
+.cll-page .cll-table tr.cll-parse-group-start:has(.cll-parse-group-link:hover) > th {
+  border-bottom-color: transparent;
+}
+
+.cll-page .cll-table tr.cll-parse-group-start:has(.cll-parse-group-link:hover) + tr.cll-parse-group-continuation > td,
+.cll-page .cll-table tr.cll-parse-group-start:has(.cll-parse-group-link:hover) + tr.cll-parse-group-continuation > th,
+.cll-page .cll-table tr.cll-parse-group-start:has(.cll-parse-group-link:hover) + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation > td,
+.cll-page .cll-table tr.cll-parse-group-start:has(.cll-parse-group-link:hover) + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation > th,
+.cll-page .cll-table tr.cll-parse-group-start:has(.cll-parse-group-link:hover) + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation > td,
+.cll-page .cll-table tr.cll-parse-group-start:has(.cll-parse-group-link:hover) + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation > th,
+.cll-page .cll-table tr.cll-parse-group-start:has(.cll-parse-group-link:hover) + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation > td,
+.cll-page .cll-table tr.cll-parse-group-start:has(.cll-parse-group-link:hover) + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation > th,
+.cll-page .cll-table tr.cll-parse-group-start:has(.cll-parse-group-link:hover) + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation > td,
+.cll-page .cll-table tr.cll-parse-group-start:has(.cll-parse-group-link:hover) + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation + tr.cll-parse-group-continuation > th {
+  border-top-color: transparent;
 }
 
 .cll-page .cll-table.cll-table-noborder td,

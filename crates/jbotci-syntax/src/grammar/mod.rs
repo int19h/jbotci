@@ -1301,6 +1301,106 @@ mod tests {
         parse_syntax_tree(&words, options).expect("valid syntax")
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chrestomathy_cu_terms_selbri_fallback_parses_alice_naku() {
+        let parsed = parse_source("mi cu naku naku klama", &ParseOptions::default());
+        assert!(has_warning_kind(
+            &parsed,
+            ExperimentalConstruct::ExperimentalCuTermsSelbri
+        ));
+        assert!(format!("{:?}", parsed.parse_tree).contains("TermPrefixedBridiTail"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chrestomathy_cu_terms_selbri_fallback_preserves_existing_cu_parses() {
+        for source in [
+            "mi cu pu klama",
+            "mi cu na klama",
+            "mi cu fa klama",
+            "cu klama",
+            "cu fa klama",
+        ] {
+            let parsed = parse_source(source, &ParseOptions::default());
+            let raw = format!("{:?}", parsed.parse_tree);
+            assert!(
+                !raw.contains("TermPrefixedBridiTail"),
+                "{source} should keep its existing bridi-tail parse"
+            );
+            assert!(
+                !has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalCuTermsSelbri),
+                "{source} should not use the CU TERMS fallback"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chrestomathy_statement_i_stag_bo_accepts_free_modifier() {
+        parse_source(
+            "do tavla .i ca bo sei mi cusku mi klama",
+            &ParseOptions::default(),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chrestomathy_ke_termset_parses_alice_table_row() {
+        let parsed = parse_source(
+            "la .alis. cu penmi le cmalu jubme .i cpana le jubme fa ke po'o le cmacma ke solji ckiku",
+            &ParseOptions::default(),
+        );
+        assert!(has_warning_kind(
+            &parsed,
+            ExperimentalConstruct::ExperimentalKeTermset
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chrestomathy_repeated_cehe_termset_group_parses_forest_row() {
+        let parsed = parse_source(
+            ".i ko klama doi cilce je ricfoi ninmu .i ko klama .i mi prami do .i .au mi skicu fi le prenu noi ke'a fi do co'u morji ce'e fe le nu do ca'o renvi gi'e ca'o melbi ce'e fe le nu le risna be do ca'o ka'e prami ce'e fe le nu do badri gi'e se betri",
+            &ParseOptions::default(),
+        );
+        let raw = format!("{:?}", parsed.parse_tree);
+        assert!(raw.matches("TermsetGroup").count() >= 3);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chrestomathy_forest_split_quote_rows_parse_when_combined() {
+        parse_source(
+            ".i fe lu .e'o sai doi do'u .e'o .e'o doi le ricfoi ninmu do'u .e'o mi catlu do cu pikci cusku fa mi .i ba bo go'i lu pu ki ca le po'o nai nu mi zvati le ckana be fi lo'e cifnu cu skicu fi mi fe lo zabna ranmi be do fe la'e lo se sanga poi jufra do .i je mi manci gi'e audji lo ka co'a zgana do .i mi ca le nu mi verba kei so'i roi ku ca lo nicte cu senva tu'a do fe lo nu do sanga fi mi fe lo jai se manci gi'e punji fi le stedu be mi fe lo xrula noi ja'e jadni ri\n.i ca le nu mi cilce verba be pu zi ku do ca'o raktu mi lo ka senva ma kau gi'e jai se senva mi fai lo nu do fagri gi'e kavbu gi'e jgari mi le ka se xance lo milxe glare kei tai lo nu do ralci gi'e milxe satre gi'e se panci lo ricfoi xrula gi'e vindu ja'e lo nu de'a sanji .i mi pu ta'e senva lo nu mi jersi do ije le risna be mi pu ku audji tu'a do gi'e prami do .i pu ta'e ku ca lo nicte mi di'a cikna tai lo da'i nu mi tirna lo nicte se sanga be do gi'e viska lo nu do vofli ni'a lei cizra tsani .i ku'i do .i do pu zvati ma ja'e lo nu mi tu'a do na ku ka'e ku viska gi'a tirna .i ba'e nau ku mi ta'e catlu le ricfoi gi'e zgana ri fau lo nu mi pacna gi'e djica lo nu mi cliva le cladu tcadu te zu'e lo nu mi klama gi'e penmi do li'u",
+            &ParseOptions::default(),
+        );
+        parse_source(
+            "lu .ia nai .i mi ba'o xlura ke ricfoi crida .i mi'a ba'o simxu lo ka kansa fi lo ka vofli bu'u lo ricfoi .i mi'a ba'o zukte lo ka gleki jinru lo ve'i rirxe .i mi'a ba'o cilce kelci ca lo nu le lunra cu te gusni .i mi'a ca cu spofu gi'e badri .i do'o pu lebna tu'a le citno dalgidva pe loi cmana zi'e noi se prami mi'a gi'e na'e dunku gi'e zifre .i le zgike poi sance lo flani pe le dalgidva pu je ca nai se minra fo le se stuzi be lo jbini be lo'i su'o cmana .i je le sance be le nu le dalgidva cu cinmo vasxu cu pu je ca nai se bevri ni'a le klina tsani ca lo nicte .i ba'o ku le dalgidva cu klaku fi tu'a mi'a gi'a senva tu'a mi'a gi'a zenba lo ka kandi ri'a tu'a mi'a\n.i do'o ne le za'u tcadu cu gasnu le cnino nabmi e le daspo be ge mi'a gi le dalgidva .i le dalgidva cu canci gi'e canci fau le nu ri te prina fi no da kei gi'e me le na'e cando virnu noi klama fo lu'i le foldi e le cmana fu lo ka se marce lo cilce xirma zi'e noi gasnu lo banli zi'e noi ta'e ku su'o me ke'a co'a morsi gi'a jinga .i nauku so'u roi ku su'o remna cu klama fo lu'i le klaji pe le ricfoi .i ro go'i cu ruble gi'e dunku gi'e du'e va'e pensi gi'e na'e cinmo gi'e to'e ckire gi'e badri .i le'e remna mo'u cliva mi'a gi'e na'e gleki fau le nu le nei na kansa mi'a .i le banli tcadu ku voi cpana le terdi cu cpana le spofu risna be lo remna .i le nurma tcadu cu simsa lo'e muzga be lo morsi .i bu'u le do'o banli malsi ba'o ku su'o da pikci .i mi pu prami le pa citno pe le cmana .i je ku'i ba bo le se go'i co'u prami mi gi'e cliva .i mi badri gi'e spofu .i ca le'e nicte e le'e donri mi klama fo lu'i le za'u ricfoi gi'e lausku le cmene be ra .i ku'i fliba .i le lastu flani be ra no roi se sance to'o su'o da li'u",
+            &ParseOptions::default(),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chrestomathy_kubla_split_poem_rows_parse_when_combined() {
+        parse_source(
+            "la .alf. noi censa rirxe lei\nnoi so'i mei vau kevna fo",
+            &ParseOptions::default(),
+        );
+        parse_source(
+            ".uo li re pi'i mu se minli\nlei ferti dertu joi lei noi cinla\nvau korcu flecu joi lei purdi",
+            &ParseOptions::default(),
+        );
+    }
+
     #[requires(!text.is_empty())]
     #[ensures(true)]
     fn free_word(text: &str) -> WithFreeModifiers<Token> {

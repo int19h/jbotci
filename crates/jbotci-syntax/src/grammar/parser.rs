@@ -767,7 +767,13 @@ fn statement_parser<'tokens>(
             });
         let nuhi_termset = cmavo(Cmavo::Nuhi)
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(boxed_term.repeated().at_least(1).collect::<Vec<_>>())
+            .then(
+                boxed_term
+                    .clone()
+                    .repeated()
+                    .at_least(1)
+                    .collect::<Vec<_>>(),
+            )
             .then(
                 cmavo(Cmavo::Nuhu)
                     .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -781,10 +787,44 @@ fn statement_parser<'tokens>(
                         .map(|(nuhu, free_modifiers)| WithFreeModifiers::new(nuhu, free_modifiers)),
                 })
             });
+        let ke_termset =
+            cmavo(Cmavo::Ke)
+                .map_with(
+                    |ke,
+                     extra: &mut MapExtra<
+                        'tokens,
+                        '_,
+                        ParserInput<'tokens>,
+                        ParseExtra<'tokens>,
+                    >| {
+                        extra
+                            .state()
+                            .warn(ExperimentalConstruct::ExperimentalKeTermset, &ke);
+                        ke
+                    },
+                )
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(boxed_term.repeated().at_least(1).collect::<Vec<_>>())
+                .then(
+                    cmavo(Cmavo::Kehe)
+                        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                        .or_not(),
+                )
+                .map(|(((ke, ke_free_modifiers), termset), kehe)| {
+                    new!(TermSyntax::Termset {
+                        nuhi: WithFreeModifiers::new(ke, ke_free_modifiers),
+                        termset: unbox_terms(termset),
+                        nuhu: kehe.map(|(kehe, free_modifiers)| WithFreeModifiers::new(
+                            kehe,
+                            free_modifiers
+                        )),
+                    })
+                });
         let simple_term = choice((
             base_simple_term.clone().map(Box::new),
             gek_nuhi_termset.map(Box::new),
             nuhi_termset.map(Box::new),
+            ke_termset.map(Box::new),
         ))
         .boxed();
         let cehe_term = simple_term
@@ -792,24 +832,21 @@ fn statement_parser<'tokens>(
             .then(
                 cmavo(Cmavo::Cehe)
                     .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                    .then(
-                        simple_term
-                            .clone()
-                            .repeated()
-                            .at_least(1)
-                            .collect::<Vec<_>>(),
-                    )
-                    .or_not(),
+                    .then(simple_term.clone())
+                    .repeated()
+                    .collect::<Vec<_>>(),
             )
-            .map(|(leading_term, cehe_tail)| match cehe_tail {
-                None => leading_term,
-                Some(((cehe, free_modifiers), trailing_terms)) => {
-                    Box::new(new!(TermSyntax::TermsetGroup {
-                        leading_terms: vec![*leading_term],
-                        cehe: WithFreeModifiers::new(cehe, free_modifiers),
-                        trailing_terms: unbox_terms(trailing_terms),
-                    }))
-                }
+            .map(|(leading_term, cehe_tails)| {
+                cehe_tails.into_iter().fold(
+                    leading_term,
+                    |leading_term, ((cehe, free_modifiers), trailing_term)| {
+                        Box::new(new!(TermSyntax::TermsetGroup {
+                            leading_terms: vec![*leading_term],
+                            cehe: WithFreeModifiers::new(cehe, free_modifiers),
+                            trailing_terms: vec![*trailing_term],
+                        }))
+                    },
+                )
             })
             .boxed();
         let post_bo_argument_gate = if dialect.term_hierarchy_enabled {
@@ -1144,6 +1181,26 @@ fn statement_parser<'tokens>(
                 },
             )
         });
+        let cu_terms_bridi_tail = term
+            .clone()
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .then(bridi_tail.clone())
+            .map(|(terms, bridi_tail)| BridiTailSyntax {
+                first: Box::new(AfterthoughtBridiTailSyntax {
+                    first: Box::new(BoGroupedBridiTailSyntax {
+                        first: Box::new(new!(SimpleBridiTailSyntax::TermPrefixedBridiTail {
+                            terms,
+                            bridi_tail: Box::new(bridi_tail),
+                        })),
+                        bo_continuation: None,
+                    }),
+                    continuations: Vec::new(),
+                }),
+                ke_continuation: None,
+            })
+            .boxed();
         let predicate_with_leading_terms = term
             .clone()
             .repeated()
@@ -1166,6 +1223,42 @@ fn statement_parser<'tokens>(
                     free_modifiers,
                 })
             });
+
+        let predicate_with_post_cu_terms = term
+            .clone()
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .then(
+                cu.clone()
+                    .map_with(
+                        |cu,
+                         extra: &mut MapExtra<
+                            'tokens,
+                            '_,
+                            ParserInput<'tokens>,
+                            ParseExtra<'tokens>,
+                        >| {
+                            extra
+                                .state()
+                                .warn(ExperimentalConstruct::ExperimentalCuTermsSelbri, &cu);
+                            cu
+                        },
+                    )
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>()),
+            )
+            .then(cu_terms_bridi_tail.clone())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(
+                |(((leading_terms, (cu, cu_free_modifiers)), bridi_tail), free_modifiers)| {
+                    new!(BridiSyntax {
+                        leading_terms,
+                        cu: Some(Arc::new(WithFreeModifiers::new(cu, cu_free_modifiers))),
+                        bridi_tail: Box::new(bridi_tail),
+                        free_modifiers,
+                    })
+                },
+            );
 
         let relation_only = bridi_tail
             .clone()
@@ -1192,6 +1285,34 @@ fn statement_parser<'tokens>(
                 })
             })
             .boxed();
+        let bare_cu_terms_predicate =
+            cu.clone()
+                .map_with(
+                    |cu,
+                     extra: &mut MapExtra<
+                        'tokens,
+                        '_,
+                        ParserInput<'tokens>,
+                        ParseExtra<'tokens>,
+                    >| {
+                        extra
+                            .state()
+                            .warn(ExperimentalConstruct::ExperimentalCuTermsSelbri, &cu);
+                        cu
+                    },
+                )
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(cu_terms_bridi_tail)
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .map(|(((cu, cu_free_modifiers), bridi_tail), free_modifiers)| {
+                    new!(BridiSyntax {
+                        leading_terms: Vec::new(),
+                        cu: Some(Arc::new(WithFreeModifiers::new(cu, cu_free_modifiers))),
+                        bridi_tail: Box::new(bridi_tail),
+                        free_modifiers,
+                    })
+                })
+                .boxed();
         let forethought_predicate_with_leading_terms = gek_leading_term
             .clone()
             .repeated()
@@ -1218,7 +1339,9 @@ fn statement_parser<'tokens>(
         choice((
             forethought_predicate_with_leading_terms,
             predicate_with_leading_terms,
+            predicate_with_post_cu_terms,
             bare_cu_predicate,
+            bare_cu_terms_predicate,
             relation_only,
         ))
         .boxed()
@@ -1490,6 +1613,13 @@ fn statement_parser<'tokens>(
         .then(cmavo(Cmavo::I).rewind())
         .map(|((i, connective), _)| (i, connective))
         .boxed();
+    let optional_statement_tag_bo = tense_modal_with_free_modifiers
+        .clone()
+        .or_not()
+        .then(cmavo(Cmavo::Bo))
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .or_not()
+        .boxed();
     let chained_i_connective_statement_tail = pending_i_connective
         .clone()
         .repeated()
@@ -1498,13 +1628,7 @@ fn statement_parser<'tokens>(
         .then(
             cmavo(Cmavo::I)
                 .then(statement_connective())
-                .then(
-                    tense_modal_with_free_modifiers
-                        .clone()
-                        .or_not()
-                        .then(cmavo(Cmavo::Bo))
-                        .or_not(),
-                )
+                .then(optional_statement_tag_bo.clone())
                 .then(simple_statement_after_i_connective.clone()),
         )
         .map(
@@ -1522,9 +1646,10 @@ fn statement_parser<'tokens>(
                 );
                 let connective = match tag_bo {
                     None => connective,
-                    Some((tense_modal, bo)) => {
-                        append_optional_tense_modal_and_bo(connective, tense_modal, bo)
-                    }
+                    Some(((tense_modal, bo), free_modifiers)) => append_connective_free_modifiers(
+                        append_optional_tense_modal_and_bo(connective, tense_modal, bo),
+                        free_modifiers,
+                    ),
                 };
                 let mut pending_words = pending_words;
                 pending_words.push(i);
@@ -1539,60 +1664,55 @@ fn statement_parser<'tokens>(
         );
     let i_connective_statement_tail = cmavo(Cmavo::I)
         .then(statement_connective())
-        .then(
-            tense_modal_with_free_modifiers
-                .clone()
-                .or_not()
-                .then(cmavo(Cmavo::Bo))
-                .or_not(),
-        )
+        .then(optional_statement_tag_bo.clone())
         .then(simple_statement_after_i_connective.clone())
         .map(|(((i, connective), tag_bo), trailing_statement)| {
             let connective = match tag_bo {
                 None => connective,
-                Some((tense_modal, bo)) => {
-                    append_optional_tense_modal_and_bo(connective, tense_modal, bo)
-                }
+                Some(((tense_modal, bo), free_modifiers)) => append_connective_free_modifiers(
+                    append_optional_tense_modal_and_bo(connective, tense_modal, bo),
+                    free_modifiers,
+                ),
             };
             (false, i, connective, trailing_statement)
         });
     let i_bo_statement_tail = cmavo(Cmavo::I)
         .then(tense_modal_with_free_modifiers.clone().or_not())
         .then(cmavo(Cmavo::Bo))
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(simple_statement_after_i_connective.clone())
-        .map(|(((i, tense_modal), bo), trailing_statement)| {
-            let mut cmavo = Vec::new();
-            if let Some(tense_modal) = tense_modal {
-                tense_modal.extend_words_into(&mut cmavo);
-            }
-            cmavo.push(bo);
-            (
-                false,
-                i,
-                connective_syntax(ConnectiveKind::Selbri, None, None, None, cmavo, None),
-                trailing_statement,
-            )
-        });
+        .map(
+            |((((i, tense_modal), bo), bo_free_modifiers), trailing_statement)| {
+                let mut cmavo = Vec::new();
+                if let Some(tense_modal) = tense_modal {
+                    tense_modal.extend_words_into(&mut cmavo);
+                }
+                cmavo.push(bo);
+                let connective =
+                    connective_syntax(ConnectiveKind::Selbri, None, None, None, cmavo, None);
+                (
+                    false,
+                    i,
+                    append_connective_free_modifiers(connective, bo_free_modifiers),
+                    trailing_statement,
+                )
+            },
+        );
     let connected_statement_tail = choice((
         chained_i_connective_statement_tail,
         i_connective_statement_tail,
         i_bo_statement_tail,
         statement_connective()
-            .then(
-                tense_modal_with_free_modifiers
-                    .clone()
-                    .or_not()
-                    .then(cmavo(Cmavo::Bo))
-                    .or_not(),
-            )
+            .then(optional_statement_tag_bo)
             .then(cmavo(Cmavo::I))
             .then(simple_statement_after_i_connective.clone())
             .map(|(((connective, tag_bo), i), trailing_statement)| {
                 let connective = match tag_bo {
                     None => connective,
-                    Some((tense_modal, bo)) => {
-                        append_optional_tense_modal_and_bo(connective, tense_modal, bo)
-                    }
+                    Some(((tense_modal, bo), free_modifiers)) => append_connective_free_modifiers(
+                        append_optional_tense_modal_and_bo(connective, tense_modal, bo),
+                        free_modifiers,
+                    ),
                 };
                 (true, i, connective, trailing_statement)
             }),
@@ -2201,6 +2321,7 @@ fn predicate_tail3_has_tail_terms(bridi_tail: &SimpleBridiTailSyntax) -> bool {
         data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(
             forethought_connection
         )) => gek_sentence_has_tail_terms(forethought_connection),
+        data!(SimpleBridiTailSyntax::TermPrefixedBridiTail { .. }) => true,
     }
 }
 
