@@ -4,22 +4,22 @@ tags = ["v0-adhoc", "warnings"]
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] })), Argument(Quote(ZohOi(WithFreeModifiers { value: Bare(SingleWordQuote { marker: Cmavo { phonemes: Phonemes { text: "me'oĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }, text: "broda" } }), free_modifiers: [] })))], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(ProSumti(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] })), Sumti(QuotedSumti(DelimitedWordQuote(WithFreeModifiers { value: Plain(DelimitedWordQuote { marker: Cmavo { phonemes: Phonemes { text: "me'oĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None }, text: "broda" } }), free_modifiers: [] })))], vau: None })) }] }] }"""
 diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zoh-oi-quote", byte-span = [3, 14], source-text = "me'oi broda", message = "experimental syntax: ZOhOI single-word foreign quote", word-index = 1 }]
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥14) {
+Terms @[0‥14) {
   terms: [
     Cmavo @[0‥2) "mi",
-    SingleWordQuote @[3‥14) {
+    DelimitedWordQuote @[3‥14) {
       marker: Cmavo @[3‥8) "me'oĭ",
       Verbatim @[9‥14) "broda",
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Koha":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}},{"Argument":{"Quote":{"ZohOi":{"Bare":{"SingleWordQuote":{"marker":{"Cmavo":{"phonemes":"me'oĭ","span":[3,8]}},"quoted_text":{"span":[9,14],"text":"broda"}}}}}}}]}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}},{"Sumti":{"QuotedSumti":{"DelimitedWordQuote":{"Plain":{"DelimitedWordQuote":{"marker":{"Cmavo":{"phonemes":"me'oĭ","span":[3,8]}},"quoted_text":{"span":[9,14],"text":"broda"}}}}}}}]}}}}]}]}"""

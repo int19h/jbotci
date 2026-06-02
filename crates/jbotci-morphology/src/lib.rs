@@ -32,7 +32,7 @@ pub use lujvo::{
 };
 pub use syntax_eq::{strip_diacritics, word_like_syntax_eq, word_syntax_eq};
 pub use tree::{
-    AtomRef, Jvopau, NodeRef, TreeNode, Verbatim, VerbatimData, Word, WordData, WordLike,
+    AtomRef, LujvoPart, NodeRef, TreeNode, Verbatim, VerbatimData, Word, WordData, WordLike,
     WordLikeData,
 };
 
@@ -290,7 +290,7 @@ impl Word {
                 span: Arc::new(span),
             }),
             WordKind::Lujvo => new!(Word::Lujvo {
-                parts: Vec1::new(Jvopau::rafsi(phonemes)),
+                parts: Vec1::new(LujvoPart::rafsi(phonemes)),
                 span: Arc::new(span),
             }),
             WordKind::Fuhivla => new!(Word::Fuhivla {
@@ -306,7 +306,7 @@ impl Word {
 
     #[requires(!parts.is_empty())]
     #[ensures(ret.kind() == WordKind::Lujvo)]
-    pub fn lujvo(parts: Vec1<Jvopau>, span: SourceSpan) -> Self {
+    pub fn lujvo(parts: Vec1<LujvoPart>, span: SourceSpan) -> Self {
         new!(Word::Lujvo {
             parts: parts,
             span: Arc::new(span),
@@ -336,7 +336,7 @@ impl Word {
             data!(Word::Lujvo { parts, .. }) => Phonemes::from_canonical(
                 parts
                     .iter()
-                    .map(Jvopau::phonemes)
+                    .map(LujvoPart::phonemes)
                     .map(Phonemes::as_str)
                     .collect::<String>(),
             )
@@ -358,7 +358,7 @@ impl Word {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn lujvo_parts(&self) -> Option<&Vec1<Jvopau>> {
+    pub fn lujvo_parts(&self) -> Option<&Vec1<LujvoPart>> {
         match self.as_data() {
             data!(Word::Lujvo { parts, .. }) => Some(parts),
             _ => None,
@@ -456,24 +456,24 @@ impl Word {
     }
 }
 
-impl Jvopau {
+impl LujvoPart {
     #[requires(!phonemes.as_str().is_empty())]
     #[ensures(true)]
     pub fn rafsi(phonemes: Phonemes) -> Self {
-        Jvopau::Rafsi(phonemes)
+        LujvoPart::Rafsi(phonemes)
     }
 
     #[requires(!phonemes.as_str().is_empty())]
     #[ensures(true)]
     pub fn hyphen(phonemes: Phonemes) -> Self {
-        Jvopau::Hyphen(phonemes)
+        LujvoPart::Hyphen(phonemes)
     }
 
     #[requires(true)]
     #[ensures(!ret.as_str().is_empty())]
     pub fn phonemes(&self) -> &Phonemes {
         match self {
-            Jvopau::Rafsi(phonemes) | Jvopau::Hyphen(phonemes) => phonemes,
+            LujvoPart::Rafsi(phonemes) | LujvoPart::Hyphen(phonemes) => phonemes,
         }
     }
 }
@@ -493,13 +493,13 @@ impl WordLike {
     #[requires(true)]
     #[ensures(true)]
     pub fn bare(word: Word) -> Self {
-        new!(WordLike::Bare(word))
+        new!(WordLike::PlainWord(word))
     }
 
     #[requires(zo.is_cmavo(Cmavo::Zo))]
     #[ensures(true)]
     pub fn zo_quote(zo: Word, word: Word) -> Self {
-        new!(WordLike::ZoQuote {
+        new!(WordLike::QuotedWord {
             zo: Box::new(zo),
             word: Box::new(word),
         })
@@ -519,7 +519,7 @@ impl WordLike {
         quoted_text: Verbatim,
         closing_delimiter: Word,
     ) -> Self {
-        new!(WordLike::ZoiQuote {
+        new!(WordLike::DelimitedNonLojbanQuote {
             zoi: Box::new(zoi),
             opening_delimiter: Box::new(opening_delimiter),
             quoted_text: Box::new(quoted_text),
@@ -531,7 +531,7 @@ impl WordLike {
     #[requires(lehu.is_cmavo(Cmavo::Lehu))]
     #[ensures(true)]
     pub fn lohu_quote(lohu: Word, quoted_words: Vec<Word>, lehu: Word) -> Self {
-        new!(WordLike::LohuQuote {
+        new!(WordLike::QuotedWords {
             lohu: Box::new(lohu),
             quoted_words: quoted_words,
             lehu: Box::new(lehu),
@@ -541,7 +541,7 @@ impl WordLike {
     #[requires(is_single_word_quote_marker(&marker))]
     #[ensures(true)]
     pub fn single_word_quote(marker: Word, quoted_text: Verbatim) -> Self {
-        new!(WordLike::SingleWordQuote {
+        new!(WordLike::DelimitedWordQuote {
             marker: Box::new(marker),
             quoted_text: Box::new(quoted_text),
         })
@@ -550,7 +550,7 @@ impl WordLike {
     #[requires(bu.is_cmavo(Cmavo::Bu))]
     #[ensures(true)]
     pub fn letter(base: WordLike, bu: Word) -> Self {
-        new!(WordLike::Letter {
+        new!(WordLike::LerfuWord {
             base: Box::new(base),
             bu: Box::new(bu),
         })
@@ -559,7 +559,7 @@ impl WordLike {
     #[requires(zei.is_cmavo(Cmavo::Zei))]
     #[ensures(true)]
     pub fn zei_lujvo(left: WordLike, zei: Word, right: Word) -> Self {
-        new!(WordLike::ZeiLujvo {
+        new!(WordLike::ZeiCompound {
             left: Box::new(left),
             zei: Box::new(zei),
             right: Box::new(right),
@@ -567,22 +567,22 @@ impl WordLike {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_some() == matches!(self.as_data(), data!(WordLike::Bare(_))))]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(WordLike::PlainWord(_))))]
     pub fn bare_word(&self) -> Option<&Word> {
         match self.as_data() {
-            data!(WordLike::Bare(word)) => Some(word),
+            data!(WordLike::PlainWord(word)) => Some(word),
             _ => None,
         }
     }
 
     #[requires(true)]
-    #[ensures(ret.is_some() == matches!(self.as_data(), data!(WordLike::ZoQuote { .. }) | data!(WordLike::ZoiQuote { .. }) | data!(WordLike::LohuQuote { .. }) | data!(WordLike::SingleWordQuote { .. })))]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(WordLike::QuotedWord { .. }) | data!(WordLike::DelimitedNonLojbanQuote { .. }) | data!(WordLike::QuotedWords { .. }) | data!(WordLike::DelimitedWordQuote { .. })))]
     pub fn quote_marker_cmavo(&self) -> Option<Cmavo> {
         match self.as_data() {
-            data!(WordLike::ZoQuote { zo, .. }) => zo.cmavo(),
-            data!(WordLike::ZoiQuote { zoi, .. }) => zoi.cmavo(),
-            data!(WordLike::LohuQuote { lohu, .. }) => lohu.cmavo(),
-            data!(WordLike::SingleWordQuote { marker, .. }) => marker.cmavo(),
+            data!(WordLike::QuotedWord { zo, .. }) => zo.cmavo(),
+            data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => zoi.cmavo(),
+            data!(WordLike::QuotedWords { lohu, .. }) => lohu.cmavo(),
+            data!(WordLike::DelimitedWordQuote { marker, .. }) => marker.cmavo(),
             _ => None,
         }
     }
@@ -625,15 +625,15 @@ impl WordLike {
     }
 
     #[requires(true)]
-    #[ensures(ret == matches!(self.as_data(), data!(WordLike::Bare(word)) if word.is_brivla()))]
+    #[ensures(ret == matches!(self.as_data(), data!(WordLike::PlainWord(word)) if word.is_brivla()))]
     pub fn is_brivla(&self) -> bool {
-        matches!(self.as_data(), data!(WordLike::Bare(word)) if word.is_brivla())
+        matches!(self.as_data(), data!(WordLike::PlainWord(word)) if word.is_brivla())
     }
 
     #[requires(true)]
-    #[ensures(ret == matches!(self.as_data(), data!(WordLike::Bare(word)) if word.is_cmevla()))]
+    #[ensures(ret == matches!(self.as_data(), data!(WordLike::PlainWord(word)) if word.is_cmevla()))]
     pub fn is_cmevla(&self) -> bool {
-        matches!(self.as_data(), data!(WordLike::Bare(word)) if word.is_cmevla())
+        matches!(self.as_data(), data!(WordLike::PlainWord(word)) if word.is_cmevla())
     }
 
     #[requires(true)]
@@ -654,12 +654,12 @@ impl WordLike {
     #[ensures(true)]
     pub fn source_spans_into<'a>(&'a self, out: &mut Vec<&'a SourceSpan>) {
         match self.as_data() {
-            data!(WordLike::Bare(word)) => out.push(word.span()),
-            data!(WordLike::ZoQuote { zo, word }) => {
+            data!(WordLike::PlainWord(word)) => out.push(word.span()),
+            data!(WordLike::QuotedWord { zo, word }) => {
                 out.push(zo.span());
                 out.push(word.span());
             }
-            data!(WordLike::ZoiQuote {
+            data!(WordLike::DelimitedNonLojbanQuote {
                 zoi,
                 opening_delimiter,
                 quoted_text,
@@ -670,7 +670,7 @@ impl WordLike {
                 out.push(quoted_text.span.as_ref());
                 out.push(closing_delimiter.span());
             }
-            data!(WordLike::LohuQuote {
+            data!(WordLike::QuotedWords {
                 lohu,
                 quoted_words,
                 lehu,
@@ -681,18 +681,18 @@ impl WordLike {
                 }
                 out.push(lehu.span());
             }
-            data!(WordLike::SingleWordQuote {
+            data!(WordLike::DelimitedWordQuote {
                 marker,
                 quoted_text,
             }) => {
                 out.push(marker.span());
                 out.push(quoted_text.span.as_ref());
             }
-            data!(WordLike::Letter { base, bu }) => {
+            data!(WordLike::LerfuWord { base, bu }) => {
                 base.source_spans_into(out);
                 out.push(bu.span());
             }
-            data!(WordLike::ZeiLujvo { left, zei, right }) => {
+            data!(WordLike::ZeiCompound { left, zei, right }) => {
                 left.source_spans_into(out);
                 out.push(zei.span());
                 out.push(right.span());
@@ -718,9 +718,9 @@ impl fmt::Display for WordLike {
     #[ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.as_data() {
-            data!(WordLike::Bare(word)) => write!(f, "{word}"),
-            data!(WordLike::ZoQuote { zo, word }) => write!(f, "{zo}-<<{word}>>"),
-            data!(WordLike::ZoiQuote {
+            data!(WordLike::PlainWord(word)) => write!(f, "{word}"),
+            data!(WordLike::QuotedWord { zo, word }) => write!(f, "{zo}-<<{word}>>"),
+            data!(WordLike::DelimitedNonLojbanQuote {
                 zoi,
                 opening_delimiter,
                 quoted_text,
@@ -730,7 +730,7 @@ impl fmt::Display for WordLike {
                 "{zoi}-{opening_delimiter}-{:?}-{closing_delimiter}",
                 quoted_text.text
             ),
-            data!(WordLike::LohuQuote {
+            data!(WordLike::QuotedWords {
                 lohu,
                 quoted_words,
                 lehu,
@@ -744,12 +744,12 @@ impl fmt::Display for WordLike {
                 }
                 write!(f, ">>-{lehu}")
             }
-            data!(WordLike::SingleWordQuote {
+            data!(WordLike::DelimitedWordQuote {
                 marker,
                 quoted_text,
             }) => write!(f, "{marker}-{text:?}", text = quoted_text.text),
-            data!(WordLike::Letter { base, bu }) => write!(f, "{base}-{bu}"),
-            data!(WordLike::ZeiLujvo { left, zei, right }) => {
+            data!(WordLike::LerfuWord { base, bu }) => write!(f, "{base}-{bu}"),
+            data!(WordLike::ZeiCompound { left, zei, right }) => {
                 write!(f, "{left}-{zei}-{right}")
             }
         }
@@ -763,12 +763,12 @@ where
     F: Fn(SourceSpan) -> Result<SourceSpan, String>,
 {
     Ok(match word_like.into_data() {
-        data!(WordLike::Bare(word)) => WordLike::bare(map_word_spans(word, map_span)?),
-        data!(WordLike::ZoQuote { zo, word }) => WordLike::zo_quote(
+        data!(WordLike::PlainWord(word)) => WordLike::bare(map_word_spans(word, map_span)?),
+        data!(WordLike::QuotedWord { zo, word }) => WordLike::zo_quote(
             map_word_spans(*zo, map_span)?,
             map_word_spans(*word, map_span)?,
         ),
-        data!(WordLike::ZoiQuote {
+        data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,
             quoted_text,
@@ -779,7 +779,7 @@ where
             map_verbatim_span(*quoted_text, map_span)?,
             map_word_spans(*closing_delimiter, map_span)?,
         ),
-        data!(WordLike::LohuQuote {
+        data!(WordLike::QuotedWords {
             lohu,
             quoted_words,
             lehu,
@@ -791,18 +791,18 @@ where
                 .collect::<Result<Vec<_>, _>>()?,
             map_word_spans(*lehu, map_span)?,
         ),
-        data!(WordLike::SingleWordQuote {
+        data!(WordLike::DelimitedWordQuote {
             marker,
             quoted_text,
         }) => WordLike::single_word_quote(
             map_word_spans(*marker, map_span)?,
             map_verbatim_span(*quoted_text, map_span)?,
         ),
-        data!(WordLike::Letter { base, bu }) => WordLike::letter(
+        data!(WordLike::LerfuWord { base, bu }) => WordLike::letter(
             map_word_like_spans(*base, map_span)?,
             map_word_spans(*bu, map_span)?,
         ),
-        data!(WordLike::ZeiLujvo { left, zei, right }) => WordLike::zei_lujvo(
+        data!(WordLike::ZeiCompound { left, zei, right }) => WordLike::zei_lujvo(
             map_word_like_spans(*left, map_span)?,
             map_word_spans(*zei, map_span)?,
             map_word_spans(*right, map_span)?,
@@ -1047,10 +1047,10 @@ pub enum MorphologyContextKind {
     Lujvo,
     Fuhivla,
     Cmevla,
-    ZoQuote,
-    ZoiQuote,
-    LohuQuote,
-    SingleWordQuote,
+    QuotedWord,
+    DelimitedNonLojbanQuote,
+    QuotedWords,
+    DelimitedWordQuote,
     Bu,
     Zei,
 }
@@ -1065,10 +1065,10 @@ impl MorphologyContextKind {
             Self::Lujvo => "while parsing lujvo",
             Self::Fuhivla => "while parsing fu'ivla",
             Self::Cmevla => "while parsing cmevla",
-            Self::ZoQuote => "while parsing ZO quote",
-            Self::ZoiQuote => "while parsing ZOI quote",
-            Self::LohuQuote => "while parsing LOhU quote",
-            Self::SingleWordQuote => "while parsing single-word quote",
+            Self::QuotedWord => "while parsing ZO quote",
+            Self::DelimitedNonLojbanQuote => "while parsing ZOI quote",
+            Self::QuotedWords => "while parsing LOhU quote",
+            Self::DelimitedWordQuote => "while parsing single-word quote",
             Self::Bu => "while applying BU",
             Self::Zei => "while applying ZEI",
         }
@@ -1405,7 +1405,7 @@ fn apply_cmavo_dialect_entry_to_word_like(
     word_like: WordLike,
     entry: &CmavoDialectEntry,
 ) -> Vec<WordLike> {
-    let data!(WordLike::Bare(word)) = word_like.as_data() else {
+    let data!(WordLike::PlainWord(word)) = word_like.as_data() else {
         return vec![word_like];
     };
     let Some(replacement) = cmavo_dialect_replacement(word, entry) else {
@@ -1452,7 +1452,7 @@ fn cmavo_dialect_entry_matches(word: &Word, candidate: &str) -> bool {
 }
 
 #[requires(!phonemes.is_empty())]
-#[ensures(matches!(ret.as_data(), data!(WordLike::Bare(word)) if word.kind() == WordKind::Cmavo))]
+#[ensures(matches!(ret.as_data(), data!(WordLike::PlainWord(word)) if word.kind() == WordKind::Cmavo))]
 fn replacement_cmavo(phonemes: &str, span: &SourceSpan) -> WordLike {
     let normalized =
         segment::parse_cmavo_form(phonemes).unwrap_or_else(|| canonicalize_text(phonemes));
@@ -1517,23 +1517,23 @@ fn word_like_from_json(value: serde_json::Value) -> Result<WordLike, String> {
     let (constructor, payload) = single_constructor(object)?;
     let mut payload = json_object(payload)?;
     match constructor.as_str() {
-        "Bare" => Ok(WordLike::bare(word_payload(payload)?)),
-        "ZoQuote" => Ok(WordLike::zo_quote(
+        "Bare" | "PlainWord" => Ok(WordLike::bare(word_payload(payload)?)),
+        "QuotedWord" => Ok(WordLike::zo_quote(
             word_field(&mut payload, "zo")?,
             word_field(&mut payload, "word")?,
         )),
-        "ZoiQuote" => Ok(WordLike::zoi_quote(
+        "DelimitedNonLojbanQuote" => Ok(WordLike::zoi_quote(
             word_field(&mut payload, "zoi")?,
             word_field(&mut payload, "opening_delimiter")?,
             verbatim_field(&mut payload, "quoted_text")?,
             word_field(&mut payload, "closing_delimiter")?,
         )),
-        "LohuQuote" => Ok(WordLike::lohu_quote(
+        "QuotedWords" => Ok(WordLike::lohu_quote(
             word_field(&mut payload, "lohu")?,
             words_field(&mut payload, "quoted_words")?,
             word_field(&mut payload, "lehu")?,
         )),
-        "SingleWordQuote" => Ok(WordLike::single_word_quote(
+        "DelimitedWordQuote" => Ok(WordLike::single_word_quote(
             word_field(&mut payload, "marker")?,
             verbatim_field(&mut payload, "quoted_text")?,
         )),
@@ -1541,7 +1541,7 @@ fn word_like_from_json(value: serde_json::Value) -> Result<WordLike, String> {
             word_like_field(&mut payload, "base")?,
             word_field(&mut payload, "bu")?,
         )),
-        "ZeiLujvo" => Ok(WordLike::zei_lujvo(
+        "ZeiCompound" => Ok(WordLike::zei_lujvo(
             word_like_field(&mut payload, "left")?,
             word_field(&mut payload, "zei")?,
             word_field(&mut payload, "right")?,
@@ -1841,13 +1841,13 @@ pub fn selmaho(cmavo: &str) -> Option<&'static str> {
 #[ensures(true)]
 pub(crate) fn erasure_selmaho(word_like: &WordLike) -> Option<&'static str> {
     match word_like.as_data() {
-        data!(WordLike::Bare(word)) => word.selmaho(),
-        data!(WordLike::ZoQuote { .. }) => Some("ZO"),
-        data!(WordLike::ZoiQuote { zoi, .. }) => zoi.selmaho(),
-        data!(WordLike::LohuQuote { .. }) => Some("LOhU"),
-        data!(WordLike::SingleWordQuote { marker, .. }) => marker.selmaho(),
-        data!(WordLike::Letter { .. }) => Some("BU"),
-        data!(WordLike::ZeiLujvo { .. }) => Some("ZEI"),
+        data!(WordLike::PlainWord(word)) => word.selmaho(),
+        data!(WordLike::QuotedWord { .. }) => Some("ZO"),
+        data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => zoi.selmaho(),
+        data!(WordLike::QuotedWords { .. }) => Some("LOhU"),
+        data!(WordLike::DelimitedWordQuote { marker, .. }) => marker.selmaho(),
+        data!(WordLike::LerfuWord { .. }) => Some("BU"),
+        data!(WordLike::ZeiCompound { .. }) => Some("ZEI"),
     }
 }
 
@@ -1855,24 +1855,26 @@ pub(crate) fn erasure_selmaho(word_like: &WordLike) -> Option<&'static str> {
 #[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 fn word_like_byte_range(word_like: &WordLike) -> Option<std::ops::Range<usize>> {
     match word_like.as_data() {
-        data!(WordLike::Bare(word)) => Some(word.span().byte_start..word.span().byte_end),
-        data!(WordLike::ZoQuote { zo, word }) => Some(zo.span().byte_start..word.span().byte_end),
-        data!(WordLike::ZoiQuote {
+        data!(WordLike::PlainWord(word)) => Some(word.span().byte_start..word.span().byte_end),
+        data!(WordLike::QuotedWord { zo, word }) => {
+            Some(zo.span().byte_start..word.span().byte_end)
+        }
+        data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             closing_delimiter,
             ..
         }) => Some(zoi.span().byte_start..closing_delimiter.span().byte_end),
-        data!(WordLike::LohuQuote { lohu, lehu, .. }) => {
+        data!(WordLike::QuotedWords { lohu, lehu, .. }) => {
             Some(lohu.span().byte_start..lehu.span().byte_end)
         }
-        data!(WordLike::SingleWordQuote {
+        data!(WordLike::DelimitedWordQuote {
             marker,
             quoted_text
         }) => Some(marker.span().byte_start..quoted_text.span.byte_end),
-        data!(WordLike::Letter { base, bu }) => {
+        data!(WordLike::LerfuWord { base, bu }) => {
             word_like_byte_range(base).map(|range| range.start..bu.span().byte_end.max(range.end))
         }
-        data!(WordLike::ZeiLujvo { left, right, .. }) => word_like_byte_range(left)
+        data!(WordLike::ZeiCompound { left, right, .. }) => word_like_byte_range(left)
             .map(|range| range.start..right.span().byte_end.max(range.end)),
     }
 }
@@ -2313,7 +2315,7 @@ mod tests {
         let mut left = segment_words_with_modifiers("coi").expect("valid morphology");
         let mut right = segment_words_with_modifiers("coi").expect("valid morphology");
         let word = match right[0].as_data() {
-            data!(WordLike::Bare(word)) => word.clone(),
+            data!(WordLike::PlainWord(word)) => word.clone(),
             _ => panic!("expected bare word"),
         };
         right[0] = WordLike::bare(Word::from_kind(
@@ -2371,7 +2373,7 @@ mod tests {
     fn word_like_deserializes_compact_constructor_json() {
         let word_like = serde_json::from_str::<WordLike>(
             r#"{
-                "ZoQuote": {
+                "QuotedWord": {
                     "zo": {"Cmavo": {"phonemes": "zo", "span": {"source_id": null, "byte_start": 0, "byte_end": 2, "char_start": 0, "char_end": 2, "start": null, "end": null}}},
                     "word": {"Cmavo": {"phonemes": "coi", "span": {"source_id": null, "byte_start": 3, "byte_end": 6, "char_start": 3, "char_end": 6, "start": null, "end": null}}}
                 }
@@ -2379,7 +2381,7 @@ mod tests {
         )
         .expect("compact constructor JSON should deserialize");
 
-        let data!(WordLike::ZoQuote { zo, word }) = word_like.as_data() else {
+        let data!(WordLike::QuotedWord { zo, word }) = word_like.as_data() else {
             panic!("expected zo quote");
         };
         assert!(zo.is_cmavo(Cmavo::Zo));
@@ -2561,7 +2563,7 @@ mod tests {
     #[ensures(true)]
     fn base_word(word: &WordLike) -> Option<&Word> {
         match word.as_data() {
-            data!(WordLike::Bare(word)) => Some(word),
+            data!(WordLike::PlainWord(word)) => Some(word),
             _ => None,
         }
     }
@@ -2595,10 +2597,10 @@ mod tests {
 
     #[requires(true)]
     #[ensures(!ret.is_empty())]
-    fn jvopau_label(part: &Jvopau) -> String {
+    fn jvopau_label(part: &LujvoPart) -> String {
         match part {
-            Jvopau::Rafsi(phonemes) => format!("rafsi:{}", render_unstressed(phonemes)),
-            Jvopau::Hyphen(phonemes) => format!("hyphen:{}", render_unstressed(phonemes)),
+            LujvoPart::Rafsi(phonemes) => format!("rafsi:{}", render_unstressed(phonemes)),
+            LujvoPart::Hyphen(phonemes) => format!("hyphen:{}", render_unstressed(phonemes)),
         }
     }
 

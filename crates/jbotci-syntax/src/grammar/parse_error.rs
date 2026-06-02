@@ -525,13 +525,13 @@ mod tests {
     #[ensures(true)]
     fn labelled_error_records_start_nested_reason() {
         let mut error = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
-        label_with(&mut error, "argument");
+        label_with(&mut error, "sumti");
 
         let expectations = error.expectations();
         assert_eq!(expectations.len(), 1);
         match expectations[0].reason.as_data() {
             data!(SyntaxExpectationReason::StartNested { construct }) => {
-                assert_eq!(construct, "argument");
+                assert_eq!(construct, "sumti");
             }
             other => panic!("expected start-nested reason, got {other:?}"),
         }
@@ -545,7 +545,7 @@ mod tests {
             Span::from(4..4),
             vec![new!(SyntaxExpectedToken::EndOfInput)],
         );
-        in_context(&mut error, "relation");
+        in_context(&mut error, "selbri");
         in_context(&mut error, "text");
 
         let expectations = error.expectations();
@@ -553,7 +553,7 @@ mod tests {
         match expectations[0].reason.as_data() {
             data!(SyntaxExpectationReason::EndThenStart { starts, ends }) => {
                 assert_eq!(starts, "end of input");
-                assert_eq!(ends, &["relation".to_owned(), "text".to_owned()]);
+                assert_eq!(ends, &["selbri".to_owned(), "text".to_owned()]);
             }
             other => panic!("expected end-then-start reason, got {other:?}"),
         }
@@ -563,22 +563,22 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn merge_for_report_preserves_branch_expectation_reasons() {
-        let mut relation = SyntaxParseError::expected(Span::from(4..6), vec![named_token("be")]);
-        in_context(&mut relation, "relation");
-        let mut argument = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
-        label_with(&mut argument, "argument");
+        let mut selbri = SyntaxParseError::expected(Span::from(4..6), vec![named_token("be")]);
+        in_context(&mut selbri, "selbri");
+        let mut sumti = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
+        label_with(&mut sumti, "sumti");
 
-        let merged = relation.merge_for_report(argument);
+        let merged = selbri.merge_for_report(sumti);
         let expectations = merged.expectations();
 
         assert_eq!(expectations.len(), 2);
         assert!(expectations.iter().any(|expectation| matches!(
             expectation.reason.as_data(),
-            data!(SyntaxExpectationReason::ContinueCurrent { construct }) if construct == "relation"
+            data!(SyntaxExpectationReason::ContinueCurrent { construct }) if construct == "selbri"
         )));
         assert!(expectations.iter().any(|expectation| matches!(
             expectation.reason.as_data(),
-            data!(SyntaxExpectationReason::StartNested { construct }) if construct == "argument"
+            data!(SyntaxExpectationReason::StartNested { construct }) if construct == "sumti"
         )));
     }
 
@@ -587,13 +587,13 @@ mod tests {
     #[ensures(true)]
     fn current_context_uses_single_branch_innermost_context() {
         let mut error = SyntaxParseError::expected(Span::from(8..10), vec![named_token("lo")]);
-        in_context_span(&mut error, "relation", 0..8);
+        in_context_span(&mut error, "selbri", 0..8);
         in_context_span(&mut error, "statement", 0..8);
         in_context_span(&mut error, "text", 0..8);
 
         let context = error.current_context().expect("selected context");
 
-        assert_eq!(context.construct, "relation");
+        assert_eq!(context.construct, "selbri");
         assert_eq!([context.byte_start, context.byte_end], [0, 8]);
     }
 
@@ -601,23 +601,23 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn current_context_peels_to_common_parent_across_branches() {
-        let mut argument = SyntaxParseError::expected(Span::from(8..10), vec![named_token("lo")]);
-        in_context_span(&mut argument, "argument", 4..8);
-        in_context_span(&mut argument, "relation", 0..8);
-        in_context_span(&mut argument, "statement", 0..8);
-        in_context_span(&mut argument, "text", 0..8);
+        let mut sumti = SyntaxParseError::expected(Span::from(8..10), vec![named_token("lo")]);
+        in_context_span(&mut sumti, "sumti", 4..8);
+        in_context_span(&mut sumti, "selbri", 0..8);
+        in_context_span(&mut sumti, "statement", 0..8);
+        in_context_span(&mut sumti, "text", 0..8);
         let mut term = SyntaxParseError::expected(Span::from(8..10), vec![named_token("fa")]);
         in_context_span(&mut term, "term", 4..8);
-        in_context_span(&mut term, "relation", 0..8);
+        in_context_span(&mut term, "selbri", 0..8);
         in_context_span(&mut term, "statement", 0..8);
         in_context_span(&mut term, "text", 0..8);
 
-        let context = argument
+        let context = sumti
             .merge_for_report(term)
             .current_context()
             .expect("selected context");
 
-        assert_eq!(context.construct, "relation");
+        assert_eq!(context.construct, "selbri");
         assert_eq!([context.byte_start, context.byte_end], [0, 8]);
     }
 
@@ -627,13 +627,13 @@ mod tests {
     fn current_context_prefers_shared_innermost_context_across_divergent_routes() {
         let mut via_relation =
             SyntaxParseError::expected(Span::from(8..10), vec![named_token("lo")]);
-        in_context_span(&mut via_relation, "argument", 4..8);
+        in_context_span(&mut via_relation, "sumti", 4..8);
         in_context_span(&mut via_relation, "term", 4..8);
-        in_context_span(&mut via_relation, "relation", 0..8);
+        in_context_span(&mut via_relation, "selbri", 0..8);
         in_context_span(&mut via_relation, "statement", 0..8);
         in_context_span(&mut via_relation, "text", 0..8);
         let mut via_free = SyntaxParseError::expected(Span::from(8..10), vec![named_token("le")]);
-        in_context_span(&mut via_free, "argument", 4..8);
+        in_context_span(&mut via_free, "sumti", 4..8);
         in_context_span(&mut via_free, "term", 4..8);
         in_context_span(&mut via_free, "free modifier", 2..8);
         in_context_span(&mut via_free, "statement", 0..8);
@@ -644,7 +644,7 @@ mod tests {
             .current_context()
             .expect("selected context");
 
-        assert_eq!(context.construct, "argument");
+        assert_eq!(context.construct, "sumti");
         assert_eq!([context.byte_start, context.byte_end], [4, 8]);
     }
 
@@ -652,19 +652,14 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn current_context_omits_root_only_ambiguity() {
-        let mut argument = SyntaxParseError::expected(Span::from(8..10), vec![named_token("lo")]);
-        in_context_span(&mut argument, "argument", 0..8);
-        in_context_span(&mut argument, "text", 0..8);
-        let mut relation = SyntaxParseError::expected(Span::from(8..10), vec![named_token("ga")]);
-        in_context_span(&mut relation, "relation", 0..8);
-        in_context_span(&mut relation, "text", 0..8);
+        let mut sumti = SyntaxParseError::expected(Span::from(8..10), vec![named_token("lo")]);
+        in_context_span(&mut sumti, "sumti", 0..8);
+        in_context_span(&mut sumti, "text", 0..8);
+        let mut selbri = SyntaxParseError::expected(Span::from(8..10), vec![named_token("ga")]);
+        in_context_span(&mut selbri, "selbri", 0..8);
+        in_context_span(&mut selbri, "text", 0..8);
 
-        assert!(
-            argument
-                .merge_for_report(relation)
-                .current_context()
-                .is_none()
-        );
+        assert!(sumti.merge_for_report(selbri).current_context().is_none());
     }
 
     #[test]
@@ -672,11 +667,11 @@ mod tests {
     #[ensures(true)]
     fn current_context_treats_matching_construct_with_different_span_as_ambiguous() {
         let mut first = SyntaxParseError::expected(Span::from(8..10), vec![named_token("lo")]);
-        in_context_span(&mut first, "argument", 0..8);
+        in_context_span(&mut first, "sumti", 0..8);
         in_context_span(&mut first, "statement", 0..8);
         in_context_span(&mut first, "text", 0..8);
         let mut second = SyntaxParseError::expected(Span::from(8..10), vec![named_token("le")]);
-        in_context_span(&mut second, "argument", 3..8);
+        in_context_span(&mut second, "sumti", 3..8);
         in_context_span(&mut second, "statement", 0..8);
         in_context_span(&mut second, "text", 0..8);
 

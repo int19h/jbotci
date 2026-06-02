@@ -8,11 +8,11 @@ entry-id = "17448"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "mu'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "li'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "mu'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "li'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "failure"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } }))), connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Simple { nahe: None, se: None, bai: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "mu'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None } })), free_modifiers: [] }, nai: None, ki: None }), argument: Koha(WithFreeModifiers { value: WithIndicator { base: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "li'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } }, nai: None }, free_modifiers: [] }) }], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 4, char_start: 3, char_end: 4, start: None, end: None } }))), connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [TaggedSumti { tense_modal: Some(Modal { nahe: None, se: None, bai: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "mu'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None } })), free_modifiers: [] }, nai: None, ki: None }), sumti: ProSumti(WithFreeModifiers { value: WithIndicator { base: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "li'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } }, nai: None }, free_modifiers: [] }) }], vau: None })) }] }] }"""
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
@@ -24,16 +24,16 @@ tree = """
   Cmavo @[10‥12) "ma",
   Cmavo @[13‥17) "li'o",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[3,4]}}},{"Bare":{"Cmavo":{"phonemes":"mu'i","span":[5,9]}}},{"Bare":{"Cmavo":{"phonemes":"ma","span":[10,12]}}},{"Bare":{"Cmavo":{"phonemes":"li'o","span":[13,17]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[3,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"mu'i","span":[5,9]}}},{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[10,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"li'o","span":[13,17]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement @[3‥17) {
   i: Cmavo @[3‥4) "i",
-  Term @[5‥17) {
+  Terms @[5‥17) {
     terms: [
-      Tagged @[5‥17) {
-        tense_modal: Simple @[5‥9) {
+      TaggedSumti @[5‥17) {
+        tense_modal: Modal @[5‥9) {
           bai: Cmavo @[5‥9) "mu'i",
         },
         WithIndicator @[10‥17) {
@@ -44,4 +44,4 @@ ParagraphStatement @[3‥17) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[3,4]}}}},"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Simple":{"bai":{"Bare":{"Bare":{"Cmavo":{"phonemes":"mu'i","span":[5,9]}}}}}},"argument":{"Koha":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ma","span":[10,12]}}}},"indicator":{"Cmavo":{"phonemes":"li'o","span":[13,17]}}}}}}}]}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[3,4]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu'i","span":[5,9]}}}}}},"sumti":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[10,12]}}}},"indicator":{"Cmavo":{"phonemes":"li'o","span":[13,17]}}}}}}}]}}}}]}]}"""

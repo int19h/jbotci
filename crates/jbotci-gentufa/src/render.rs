@@ -1396,7 +1396,7 @@ mod tests {
         let mut block = test_gentufa_block(0, 1, 0);
         block.ref_markers.push(ReferenceMarker {
             role: ReferenceMarkerRole::Referent,
-            kind: "argument".to_owned(),
+            kind: "sumti".to_owned(),
             label: ReferenceLabel::new(
                 "b",
                 Some(2),
@@ -1438,7 +1438,7 @@ mod tests {
         let mut block = test_gentufa_block(0, 1, 0);
         block.ref_markers.push(ReferenceMarker {
             role: ReferenceMarkerRole::Referent,
-            kind: "argument".to_owned(),
+            kind: "sumti".to_owned(),
             label: ReferenceLabel::new("b", Some(2), Some(ReferenceSlotLabel::Numbered(1))),
         });
         let layout = GentufaBlocksLayout {

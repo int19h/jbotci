@@ -8,7 +8,7 @@ entry-id = "16511"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "tádni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } }), Letter { base: Bare(Cmevla { phonemes: Phonemes { text: "lojban" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 21, char_start: 15, char_end: 21, start: None, end: None } }), bu: Cmavo { phonemes: Phonemes { text: "bu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None } } }, Bare(Cmavo { phonemes: Phonemes { text: "co'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 30, char_start: 26, char_end: 30, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "tádni" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } }), LerfuWord { base: PlainWord(Cmevla { phonemes: Phonemes { text: "lojban" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 21, char_start: 15, char_end: 21, start: None, end: None } }), bu: Cmavo { phonemes: Phonemes { text: "bu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 25, char_start: 23, char_end: 25, start: None, end: None } } }, PlainWord(Cmavo { phonemes: Phonemes { text: "co'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 30, char_start: 26, char_end: 30, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "failure"
@@ -22,10 +22,10 @@ tree = """
   Cmavo @[3‥5) "mi",
   Gismu @[6‥11) "tádni",
   Cmavo @[12‥14) "la",
-  Letter @[15‥25) {
+  LerfuWord @[15‥25) {
     Cmevla @[15‥21) "lojban",
     bu: Cmavo @[23‥25) "bu",
   },
   Cmavo @[26‥30) "co'a",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[3,5]}}},{"Bare":{"Gismu":{"phonemes":"tádni","span":[6,11]}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[12,14]}}},{"Letter":{"base":{"Bare":{"Cmevla":{"phonemes":"lojban","span":[15,21]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[23,25]}}}},{"Bare":{"Cmavo":{"phonemes":"co'a","span":[26,30]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}},{"PlainWord":{"Gismu":{"phonemes":"tádni","span":[6,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}},{"LerfuWord":{"base":{"PlainWord":{"Cmevla":{"phonemes":"lojban","span":[15,21]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[23,25]}}}},{"PlainWord":{"Cmavo":{"phonemes":"co'a","span":[26,30]}}}]"""

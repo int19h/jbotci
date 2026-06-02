@@ -8,15 +8,15 @@ entry-id = "21507"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "fi'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "cpána" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "fi'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "cpána" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Tagged { tense_modal: Some(Fiho { fiho: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "fi'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }, relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "cpána" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None } }))), fehu: None }), argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [TaggedSumti { tense_modal: Some(AdHocModal { fiho: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "fi'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }, selbri: SelbriWord(Plain(PlainWord(Gismu { phonemes: Phonemes { text: "cpána" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 10, char_start: 5, char_end: 10, start: None, end: None } }))), fehu: None }), sumti: ElidedSumti { tag: None, maybe_ku: None, free_modifiers: [] } }], vau: None })) }] }] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":5,"length":5},"kind":"base-relation","relation":{"offset":5,"length":5},"relation-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":5,"length":5},"kind":"base-selbri","selbri":{"offset":5,"length":5},"tanru-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(fi'o cpána)"
@@ -25,19 +25,19 @@ tree = """
   Cmavo @[0‥4) "fi'o",
   Gismu @[5‥10) "cpána",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"fi'o","span":[0,4]}}},{"Bare":{"Gismu":{"phonemes":"cpána","span":[5,10]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"fi'o","span":[0,4]}}},{"PlainWord":{"Gismu":{"phonemes":"cpána","span":[5,10]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥10) {
+Terms @[0‥10) {
   terms: [
-    Tagged @[0‥10) {
-      tense_modal: Fiho @[0‥10) {
+    TaggedSumti @[0‥10) {
+      tense_modal: AdHocModal @[0‥10) {
         fiho: Cmavo @[0‥4) "fi'o",
         Gismu @[5‥10) "cpána",
       },
-      Zohe {},
+      ElidedSumti {},
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Tagged":{"tense_modal":{"Fiho":{"fiho":{"Bare":{"Bare":{"Cmavo":{"phonemes":"fi'o","span":[0,4]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"cpána","span":[5,10]}}}}}}},"argument":{"Zohe":{}}}}]}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"AdHocModal":{"fiho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi'o","span":[0,4]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cpána","span":[5,10]}}}}}}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}"""

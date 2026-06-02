@@ -14,15 +14,15 @@ source-path = "vendor/cll/chapters/11.xml"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "tu'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "vórme" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "lu'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ki'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 23, char_start: 19, char_end: 23, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "tu'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "vórme" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "lu'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ki'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 23, char_start: 19, char_end: 23, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Lahe { lahe: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "tu'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }, relative_clauses: [], inner_argument: Descriptor(DescriptorSyntax { outer_quantifier: None, descriptor: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }), tail_elements: [], relation: Some(Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "vórme" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } })))), relative_clauses: [], ku: None }), luhu: Some(WithFreeModifiers { value: WithIndicator { base: Bare(Bare(Cmavo { phonemes: Phonemes { text: "lu'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ki'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 23, char_start: 19, char_end: 23, start: None, end: None } }, nai: None }, free_modifiers: [] }) })], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(ReferentSumti { lahe: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "tu'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), free_modifiers: [] }, relative_clauses: [], inner_sumti: Description(DescriptionSyntax { outer_quantifier: None, description: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } })), free_modifiers: [] }), tail_elements: [], selbri: Some(SelbriWord(Plain(PlainWord(Gismu { phonemes: Phonemes { text: "vórme" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } })))), relative_clauses: [], ku: None }), luhu: Some(WithFreeModifiers { value: WithIndicator { base: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "lu'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ki'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 23, char_start: 19, char_end: 23, start: None, end: None } }, nai: None }, free_modifiers: [] }) })], vau: None })) }] }] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":8,"length":5},"kind":"base-relation","relation":{"offset":8,"length":5},"relation-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":8,"length":5},"kind":"base-selbri","selbri":{"offset":8,"length":5},"tanru-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(tu'a le vórme lu'u ki'a)"
@@ -34,18 +34,18 @@ tree = """
   Cmavo @[14‥18) "lu'u",
   Cmavo @[19‥23) "ki'a",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"tu'a","span":[0,4]}}},{"Bare":{"Cmavo":{"phonemes":"le","span":[5,7]}}},{"Bare":{"Gismu":{"phonemes":"vórme","span":[8,13]}}},{"Bare":{"Cmavo":{"phonemes":"lu'u","span":[14,18]}}},{"Bare":{"Cmavo":{"phonemes":"ki'a","span":[19,23]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[0,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}},{"PlainWord":{"Gismu":{"phonemes":"vórme","span":[8,13]}}},{"PlainWord":{"Cmavo":{"phonemes":"lu'u","span":[14,18]}}},{"PlainWord":{"Cmavo":{"phonemes":"ki'a","span":[19,23]}}}]"""
 
 [expectations.output.gentufa]
 brackets = "(tu'a [le vórme] [lu'u ki'a])"
 tree = """
-Term @[0‥23) {
+Terms @[0‥23) {
   terms: [
-    Lahe @[0‥23) {
+    ReferentSumti @[0‥23) {
       lahe: Cmavo @[0‥4) "tu'a",
-      Descriptor @[5‥13) {
-        descriptor: Cmavo @[5‥7) "le",
-        relation: Gismu @[8‥13) "vórme",
+      Description @[5‥13) {
+        description: Cmavo @[5‥7) "le",
+        selbri: Gismu @[8‥13) "vórme",
       },
       luhu: WithIndicator @[14‥23) {
         Cmavo @[14‥18) "lu'u",
@@ -54,4 +54,4 @@ Term @[0‥23) {
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Lahe":{"lahe":{"Bare":{"Bare":{"Cmavo":{"phonemes":"tu'a","span":[0,4]}}}},"inner_argument":{"Descriptor":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"vórme","span":[8,13]}}}}}}},"luhu":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"lu'u","span":[14,18]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[19,23]}}}}}}}]}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ReferentSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[0,4]}}}},"inner_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vórme","span":[8,13]}}}}}}},"luhu":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu'u","span":[14,18]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[19,23]}}}}}}}]}}}}]}]}"""

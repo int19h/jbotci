@@ -8,22 +8,22 @@ entry-id = "13214"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "to" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), ZoiQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 47, char_start: 9, char_end: 47, start: None, end: None }, text: " i take some time to look up the gismu" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 48, byte_end: 50, char_start: 48, char_end: 50, start: None, end: None } } }, Bare(Cmavo { phonemes: Phonemes { text: "toĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 51, byte_end: 54, char_start: 51, char_end: 54, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "to" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 47, char_start: 9, char_end: 47, start: None, end: None }, text: " i take some time to look up the gismu" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 48, byte_end: 50, char_start: 48, char_end: 50, start: None, end: None } } }, PlainWord(Cmavo { phonemes: Phonemes { text: "toĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 51, byte_end: 54, char_start: 51, char_end: 54, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [To { to: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "to" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zoi(WithFreeModifiers { value: Bare(ZoiQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 47, char_start: 9, char_end: 47, start: None, end: None }, text: " i take some time to look up the gismu" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 48, byte_end: 50, char_start: 48, char_end: 50, start: None, end: None } } }), free_modifiers: [] })))], vau: None })) }] }] }, toi: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "toĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 51, byte_end: 54, char_start: 51, char_end: 54, start: None, end: None } })), free_modifiers: [] }) }], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [ParentheticalText { to: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "to" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, text: TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(QuotedSumti(DelimitedNonLojbanQuote(WithFreeModifiers { value: Plain(DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 47, char_start: 9, char_end: 47, start: None, end: None }, text: " i take some time to look up the gismu" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "ly" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 48, byte_end: 50, char_start: 48, char_end: 50, start: None, end: None } } }), free_modifiers: [] })))], vau: None })) }] }] }, toi: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "toĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 51, byte_end: 54, char_start: 51, char_end: 54, start: None, end: None } })), free_modifiers: [] }) }], leading_connective: None, paragraphs: [] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(to [zoĭ ly i take some time to look up the gismu ly] toĭ)"
 tree = """
 [
   Cmavo @[0‥2) "to",
-  ZoiQuote @[3‥50) {
+  DelimitedNonLojbanQuote @[3‥50) {
     zoi: Cmavo @[3‥6) "zoĭ",
     opening_delimiter: Cmavo @[7‥9) "ly",
     quoted_text: Verbatim @[9‥47) "i take some time to look up the gismu",
@@ -31,17 +31,17 @@ tree = """
   },
   Cmavo @[51‥54) "toĭ",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[7,9]}},"quoted_text":{"span":[9,47],"text":" i take some time to look up the gismu"},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[48,50]}}}},{"Bare":{"Cmavo":{"phonemes":"toĭ","span":[51,54]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[7,9]}},"quoted_text":{"span":[9,47],"text":" i take some time to look up the gismu"},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[48,50]}}}},{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[51,54]}}}]'
 
 [expectations.output.gentufa]
 tree = """
 Text @[0‥54) {
   leading_free_modifiers: [
-    To @[0‥54) {
+    ParentheticalText @[0‥54) {
       to: Cmavo @[0‥2) "to",
-      Term @[3‥50) {
+      Terms @[3‥50) {
         terms: [
-          ZoiQuote @[3‥50) {
+          DelimitedNonLojbanQuote @[3‥50) {
             zoi: Cmavo @[3‥6) "zoĭ",
             opening_delimiter: Cmavo @[7‥9) "ly",
             quoted_text: Verbatim @[9‥47) "i take some time to look up the gismu",
@@ -53,4 +53,4 @@ Text @[0‥54) {
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"To":{"to":{"Bare":{"Bare":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[7,9]}},"quoted_text":{"span":[9,47],"text":" i take some time to look up the gismu"},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[48,50]}}}}}}}}]}}}}]}]},"toi":{"Bare":{"Bare":{"Cmavo":{"phonemes":"toĭ","span":[51,54]}}}}}}]}'
+json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[7,9]}},"quoted_text":{"span":[9,47],"text":" i take some time to look up the gismu"},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[48,50]}}}}}}}}]}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[51,54]}}}}}}]}'

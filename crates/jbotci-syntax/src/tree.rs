@@ -21,12 +21,12 @@ pub struct WithFreeModifiers<T> {
 }
 
 #[invariant(true)]
-#[invariant(::Bare(_) => true)]
+#[invariant(::Plain(_) => true)]
 #[invariant(::Emphasized => true)]
 #[invariant(::WithIndicator => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WithIndicators<T> {
-    Bare(T),
+    Plain(T),
     Emphasized {
         bahe: Word,
         word_like: T,
@@ -42,7 +42,7 @@ impl<T> WithIndicators<T> {
     #[requires(true)]
     #[ensures(true)]
     pub fn bare(word_like: T) -> Self {
-        WithIndicators::Bare(word_like)
+        WithIndicators::Plain(word_like)
     }
 
     #[requires(bahe.is_selmaho(Selmaho::Bahe))]
@@ -201,7 +201,7 @@ impl WithIndicators<WordLike> {
     #[ensures(true)]
     pub fn core_word(&self) -> &WordLike {
         match self {
-            WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
+            WithIndicators::Plain(word_like) | WithIndicators::Emphasized { word_like, .. } => {
                 word_like
             }
             WithIndicators::WithIndicator { base, .. } => base.core_word(),
@@ -263,7 +263,7 @@ impl WithIndicators<WordLike> {
     #[ensures(true)]
     pub fn source_spans_into<'a>(&'a self, out: &mut Vec<&'a jbotci_source::SourceSpan>) {
         match self {
-            WithIndicators::Bare(word_like) => word_like.source_spans_into(out),
+            WithIndicators::Plain(word_like) => word_like.source_spans_into(out),
             WithIndicators::Emphasized { bahe, word_like } => {
                 out.push(bahe.span());
                 word_like.source_spans_into(out);
@@ -441,7 +441,7 @@ impl<T: fmt::Display> fmt::Display for WithIndicators<T> {
     #[ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            WithIndicators::Bare(word_like) => write!(f, "{word_like}"),
+            WithIndicators::Plain(word_like) => write!(f, "{word_like}"),
             WithIndicators::Emphasized { bahe, word_like } => {
                 write!(f, "{bahe}-{word_like}")
             }
@@ -496,7 +496,7 @@ pub fn elidable_terminator_for_absent_field(_node: NodeRef<'_>, field: FieldRef)
 
 jbotci_tree::tree_model! {
 pub type WordRun = Vec1<Token>;
-pub type MathExpressionVec = Vec1<MathExpressionSyntax>;
+pub type MeksoVec = Vec1<MeksoSyntax>;
 
 #[invariant(indicator.core_word().bare_word().is_some_and(crate::is_indicator_word))]
 #[invariant(nai.as_ref().is_none_or(|nai| nai.is_cmavo(Cmavo::Nai)))]
@@ -508,32 +508,32 @@ pub struct Indicator {
 
 #[invariant(cu.is_absent_or_cmavo(Cmavo::Cu))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct PredicateSyntax {
+pub struct BridiSyntax {
     pub leading_terms: Vec<TermSyntax>,
     pub cu: Option<Arc<WithFreeModifiers<Token>>>,
     #[tree_child(primary)]
-    pub predicate_tail: Box<PredicateTailSyntax>,
+    pub bridi_tail: Box<BridiTailSyntax>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct PredicateTailSyntax {
+pub struct BridiTailSyntax {
     #[tree_child(primary)]
-    pub first: Box<PredicateTail1Syntax>,
-    pub ke_continuation: Option<Box<KePredicateTailSyntax>>,
+    pub first: Box<AfterthoughtBridiTailSyntax>,
+    pub ke_continuation: Option<Box<GroupedBridiTailConnectionSyntax>>,
 }
 
 #[invariant(ke.is_cmavo(Cmavo::Ke))]
 #[invariant(kehe.is_absent_or_cmavo(Cmavo::Kehe))]
 #[invariant(vau.is_absent_or_cmavo(Cmavo::Vau))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct KePredicateTailSyntax {
+pub struct GroupedBridiTailConnectionSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<Box<TenseModalSyntax>>,
     pub ke: WithFreeModifiers<Token>,
     #[tree_child(primary)]
-    pub predicate_tail: Box<PredicateTailSyntax>,
+    pub bridi_tail: Box<BridiTailSyntax>,
     pub kehe: Option<Arc<WithFreeModifiers<Token>>>,
     pub tail_terms: Vec<TermSyntax>,
     pub vau: Option<Arc<WithFreeModifiers<Token>>>,
@@ -542,21 +542,21 @@ pub struct KePredicateTailSyntax {
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct PredicateTail1Syntax {
+pub struct AfterthoughtBridiTailSyntax {
     #[tree_child(primary)]
-    pub first: Box<PredicateTail2Syntax>,
-    pub continuations: Vec<PredicateTailContinuationSyntax>,
+    pub first: Box<BoGroupedBridiTailSyntax>,
+    pub continuations: Vec<BridiTailConnectionSyntax>,
 }
 
 #[invariant(cu.is_absent_or_cmavo(Cmavo::Cu))]
 #[invariant(vau.is_absent_or_cmavo(Cmavo::Vau))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct PredicateTailContinuationSyntax {
+pub struct BridiTailConnectionSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<Box<TenseModalSyntax>>,
     pub cu: Option<Arc<WithFreeModifiers<Token>>>,
     #[tree_child(primary)]
-    pub predicate_tail: Box<PredicateTail2Syntax>,
+    pub bridi_tail: Box<BoGroupedBridiTailSyntax>,
     pub tail_terms: Vec<TermSyntax>,
     pub vau: Option<Arc<WithFreeModifiers<Token>>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
@@ -564,84 +564,84 @@ pub struct PredicateTailContinuationSyntax {
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct PredicateTail2Syntax {
+pub struct BoGroupedBridiTailSyntax {
     #[tree_child(primary)]
-    pub first: Box<PredicateTail3Syntax>,
-    pub bo_continuation: Option<Box<BoPredicateTailSyntax>>,
+    pub first: Box<SimpleBridiTailSyntax>,
+    pub bo_continuation: Option<Box<BoundBridiTailConnectionSyntax>>,
 }
 
 #[invariant(bo.is_cmavo(Cmavo::Bo))]
 #[invariant(cu.is_absent_or_cmavo(Cmavo::Cu))]
 #[invariant(vau.is_absent_or_cmavo(Cmavo::Vau))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct BoPredicateTailSyntax {
+pub struct BoundBridiTailConnectionSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<Box<TenseModalSyntax>>,
     pub bo: WithFreeModifiers<Token>,
     pub cu: Option<Arc<WithFreeModifiers<Token>>>,
     #[tree_child(primary)]
-    pub predicate_tail: Box<PredicateTail2Syntax>,
+    pub bridi_tail: Box<BoGroupedBridiTailSyntax>,
     pub tail_terms: Vec<TermSyntax>,
     pub vau: Option<Arc<WithFreeModifiers<Token>>>,
     pub free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[invariant(true)]
-#[invariant(::Relation => vau.is_absent_or_cmavo(Cmavo::Vau))]
-#[invariant(::GekSentence(..) => true)]
+#[invariant(::SelbriBridiTail => vau.is_absent_or_cmavo(Cmavo::Vau))]
+#[invariant(::ForethoughtBridiTailConnection(..) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum PredicateTail3Syntax {
-    Relation {
+pub enum SimpleBridiTailSyntax {
+    SelbriBridiTail {
         #[tree_child(primary)]
-        relation: Box<RelationSyntax>,
+        selbri: Box<SelbriSyntax>,
         terms: Vec<TermSyntax>,
         vau: Option<Arc<WithFreeModifiers<Token>>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
-    GekSentence(Box<GekSentenceSyntax>),
+    ForethoughtBridiTailConnection(Box<ForethoughtBridiConnectionSyntax>),
 }
 
 #[invariant(true)]
-#[invariant(::Pair => gihi.is_absent_or_selmaho(Selmaho::Gihi) && vau.is_absent_or_cmavo(Cmavo::Vau))]
-#[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
-#[invariant(::Na => na.is_selmaho(Selmaho::Na))]
+#[invariant(::BridiConnection => gihi.is_absent_or_selmaho(Selmaho::Gihi) && vau.is_absent_or_cmavo(Cmavo::Vau))]
+#[invariant(::GroupedBridiConnection => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
+#[invariant(::NegatedBridiConnection => na.is_selmaho(Selmaho::Na))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum GekSentenceSyntax {
-    Pair {
+pub enum ForethoughtBridiConnectionSyntax {
+    BridiConnection {
         gek: ConnectiveSyntax,
-        first: Box<SubsentenceSyntax>,
+        first: Box<SubbridiSyntax>,
         gik: ConnectiveSyntax,
-        second: Box<SubsentenceSyntax>,
+        second: Box<SubbridiSyntax>,
         gihi: Option<Token>,
         tail_terms: Vec<TermSyntax>,
         vau: Option<Arc<WithFreeModifiers<Token>>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
-    Ke {
+    GroupedBridiConnection {
         tense_modal: Option<Box<TenseModalSyntax>>,
         ke: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner: Box<GekSentenceSyntax>,
+        inner: Box<ForethoughtBridiConnectionSyntax>,
         kehe: Option<Arc<WithFreeModifiers<Token>>>,
     },
-    Na {
+    NegatedBridiConnection {
         na: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner: Box<GekSentenceSyntax>,
+        inner: Box<ForethoughtBridiConnectionSyntax>,
     },
 }
 
 #[invariant(true)]
-#[invariant(::Plain(..) => true)]
+#[invariant(::Bridi(..) => true)]
 #[invariant(::Prenex => zohu.is_cmavo(Cmavo::Zohu))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum SubsentenceSyntax {
-    Plain(Box<PredicateSyntax>),
+pub enum SubbridiSyntax {
+    Bridi(Box<BridiSyntax>),
     Prenex {
         prenex_terms: Vec<TermSyntax>,
         zohu: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner_subsentence: Box<SubsentenceSyntax>,
+        inner_subbridi: Box<SubbridiSyntax>,
     },
 }
 
@@ -680,49 +680,49 @@ pub struct ParagraphStatementSyntax {
 }
 
 #[invariant(true)]
-#[invariant(::Sei => sei.is_selmaho(Selmaho::Sei) && cu.is_absent_or_cmavo(Cmavo::Cu) && sehu.is_absent_or_cmavo(Cmavo::Sehu))]
-#[invariant(::To => to.is_selmaho(Selmaho::To) && toi.is_absent_or_cmavo(Cmavo::Toi))]
-#[invariant(::Xi => xi.is_selmaho(Selmaho::Xi))]
-#[invariant(::Mai => is_word_run_number_or_letter(number) && mai.is_selmaho(Selmaho::Mai))]
-#[invariant(::Soi => soi.is_selmaho(Selmaho::Soi) && sehu.is_absent_or_cmavo(Cmavo::Sehu))]
+#[invariant(::MetalinguisticBridi => sei.is_selmaho(Selmaho::Sei) && cu.is_absent_or_cmavo(Cmavo::Cu) && sehu.is_absent_or_cmavo(Cmavo::Sehu))]
+#[invariant(::ParentheticalText => to.is_selmaho(Selmaho::To) && toi.is_absent_or_cmavo(Cmavo::Toi))]
+#[invariant(::Subscript => xi.is_selmaho(Selmaho::Xi))]
+#[invariant(::UtteranceOrdinal => is_word_run_number_or_letter(number) && mai.is_selmaho(Selmaho::Mai))]
+#[invariant(::ReciprocalSumti => soi.is_selmaho(Selmaho::Soi) && sehu.is_absent_or_cmavo(Cmavo::Sehu))]
 #[invariant(::Vocative => is_valid_vocative_marker_words(&vocative_markers.value) && dohu.is_absent_or_cmavo(Cmavo::Dohu))]
-#[invariant(::Replacement => lohai.is_absent_or_cmavo(Cmavo::Lohai) && sahai.is_absent_or_cmavo(Cmavo::Sahai) && lehai.is_cmavo(Cmavo::Lehai))]
+#[invariant(::TextReplacement => lohai.is_absent_or_cmavo(Cmavo::Lohai) && sahai.is_absent_or_cmavo(Cmavo::Sahai) && lehai.is_cmavo(Cmavo::Lehai))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum FreeModifierSyntax {
-    Sei {
+    MetalinguisticBridi {
         sei: WithFreeModifiers<Token>,
         terms: Vec<TermSyntax>,
         cu: Option<WithFreeModifiers<Token>>,
-        relation: Box<RelationSyntax>,
+        selbri: Box<SelbriSyntax>,
         sehu: Option<WithFreeModifiers<Token>>,
     },
-    To {
+    ParentheticalText {
         to: WithFreeModifiers<Token>,
         #[tree_child(primary)]
         text: Box<TextSyntax>,
         toi: Option<WithFreeModifiers<Token>>,
     },
-    Xi {
+    Subscript {
         xi: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        expression: Box<MathExpressionSyntax>,
+        expression: Box<MeksoSyntax>,
     },
-    Mai {
+    UtteranceOrdinal {
         number: WordRun,
         mai: WithFreeModifiers<Token>,
     },
-    Soi {
+    ReciprocalSumti {
         soi: WithFreeModifiers<Token>,
-        leading_argument: Box<ArgumentSyntax>,
-        trailing_argument: Option<Box<ArgumentSyntax>>,
+        leading_sumti: Box<SumtiSyntax>,
+        trailing_sumti: Option<Box<SumtiSyntax>>,
         sehu: Option<WithFreeModifiers<Token>>,
     },
     Vocative {
         vocative_markers: WithFreeModifiers<Vec<Token>>,
-        argument: Option<Box<ArgumentSyntax>>,
+        sumti: Option<Box<SumtiSyntax>>,
         dohu: Option<WithFreeModifiers<Token>>,
     },
-    Replacement {
+    TextReplacement {
         lohai: Option<Token>,
         old_words: Vec<Token>,
         sahai: Option<Token>,
@@ -732,17 +732,17 @@ pub enum FreeModifierSyntax {
 }
 
 #[invariant(true)]
-#[invariant(::Tuhe => tuhe.is_cmavo(Cmavo::Tuhe) && tuhu.is_absent_or_cmavo(Cmavo::Tuhu))]
+#[invariant(::TextGroup => tuhe.is_cmavo(Cmavo::Tuhe) && tuhu.is_absent_or_cmavo(Cmavo::Tuhu))]
 #[invariant(::Prenex => zohu.is_cmavo(Cmavo::Zohu))]
-#[invariant(::Predicate(..) => true)]
-#[invariant(::Connected => i.is_cmavo(Cmavo::I))]
-#[invariant(::PreIConnected => i.is_cmavo(Cmavo::I))]
+#[invariant(::Bridi(..) => true)]
+#[invariant(::StatementConnection => i.is_cmavo(Cmavo::I))]
+#[invariant(::PreposedIStatementConnection => i.is_cmavo(Cmavo::I))]
 #[invariant(::Iau => iau.is_cmavo(Cmavo::Ihau))]
-#[invariant(::ExperimentalPredicateContinuation => true)]
+#[invariant(::ExperimentalBridiContinuation => true)]
 #[invariant(::Fragment(..) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum StatementSyntax {
-    Tuhe {
+    TextGroup {
         tense_modal: Option<Box<TenseModalSyntax>>,
         tuhe: WithFreeModifiers<Token>,
         #[tree_child(primary)]
@@ -755,14 +755,14 @@ pub enum StatementSyntax {
         #[tree_child(primary)]
         inner_statement: Box<StatementSyntax>,
     },
-    Predicate(Box<PredicateSyntax>),
-    Connected {
+    Bridi(Box<BridiSyntax>),
+    StatementConnection {
         leading_statement: Box<StatementSyntax>,
         i: Token,
         connective: ConnectiveSyntax,
         trailing_statement: Box<StatementSyntax>,
     },
-    PreIConnected {
+    PreposedIStatementConnection {
         leading_statement: Box<StatementSyntax>,
         connective: ConnectiveSyntax,
         i: Token,
@@ -774,29 +774,29 @@ pub enum StatementSyntax {
         iau: WithFreeModifiers<Token>,
         reset_terms: Vec<TermSyntax>,
     },
-    ExperimentalPredicateContinuation {
+    ExperimentalBridiContinuation {
         leading_statement: Box<StatementSyntax>,
-        continuation: PredicateStatementContinuationSyntax,
+        continuation: BridiStatementContinuationSyntax,
     },
     Fragment(Box<FragmentSyntax>),
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct PredicateStatementContinuationSyntax {
+pub struct BridiStatementContinuationSyntax {
     pub connective: ConnectiveSyntax,
     pub tense_modal: Option<Box<TenseModalSyntax>>,
-    pub marker: PredicateStatementContinuationMarkerSyntax,
-    pub trailing_subsentence: Box<SubsentenceSyntax>,
+    pub marker: BridiStatementContinuationMarkerSyntax,
+    pub trailing_subbridi: Box<SubbridiSyntax>,
 }
 
 #[invariant(true)]
-#[invariant(::Bo(bo) => bo.is_cmavo(Cmavo::Bo))]
-#[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
+#[invariant(::BoGrouped(bo) => bo.is_cmavo(Cmavo::Bo))]
+#[invariant(::KeGrouped => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum PredicateStatementContinuationMarkerSyntax {
-    Bo(WithFreeModifiers<Token>),
-    Ke {
+pub enum BridiStatementContinuationMarkerSyntax {
+    BoGrouped(WithFreeModifiers<Token>),
+    KeGrouped {
         ke: WithFreeModifiers<Token>,
         kehe: Option<WithFreeModifiers<Token>>,
     },
@@ -804,22 +804,22 @@ pub enum PredicateStatementContinuationMarkerSyntax {
 
 #[invariant(true)]
 #[invariant(::Ek(..) => true)]
-#[invariant(::Gihek(..) => true)]
+#[invariant(::BridiTailConnective(..) => true)]
 #[invariant(::Other(words) => !words.value.is_empty())]
-#[invariant(::Ijek => i.is_cmavo(Cmavo::I))]
+#[invariant(::BridiConnective => i.is_cmavo(Cmavo::I))]
 #[invariant(::Prenex => zohu.is_cmavo(Cmavo::Zohu))]
-#[invariant(::BeLink => be.is_cmavo(Cmavo::Be) && fa.is_absent_or_selmaho(Selmaho::Fa) && (fa.is_none() || first_argument.is_some()) && beho.is_absent_or_cmavo(Cmavo::Beho))]
-#[invariant(::BeiLink(bei_only_links) => !bei_only_links.is_empty())]
-#[invariant(::RelativeClause(relative_clauses) => !relative_clauses.is_empty())]
-#[invariant(::MathExpression(..) => true)]
-#[invariant(::Term => vau.is_absent_or_cmavo(Cmavo::Vau))]
-#[invariant(::Relation(..) => true)]
+#[invariant(::LinkedSumti => be.is_cmavo(Cmavo::Be) && fa.is_absent_or_selmaho(Selmaho::Fa) && (fa.is_none() || first_sumti.is_some()) && beho.is_absent_or_cmavo(Cmavo::Beho))]
+#[invariant(::LinkedSumtiContinuation(bei_only_links) => !bei_only_links.is_empty())]
+#[invariant(::RelativeClauses(relative_clauses) => !relative_clauses.is_empty())]
+#[invariant(::Mekso(..) => true)]
+#[invariant(::Terms => vau.is_absent_or_cmavo(Cmavo::Vau))]
+#[invariant(::Selbri(..) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum FragmentSyntax {
     Ek(ConnectiveSyntax),
-    Gihek(ConnectiveSyntax),
+    BridiTailConnective(ConnectiveSyntax),
     Other(WithFreeModifiers<Vec<Token>>),
-    Ijek {
+    BridiConnective {
         i: Token,
         connective: ConnectiveSyntax,
     },
@@ -827,48 +827,48 @@ pub enum FragmentSyntax {
         terms: Vec<TermSyntax>,
         zohu: WithFreeModifiers<Token>,
     },
-    BeLink {
+    LinkedSumti {
         be: WithFreeModifiers<Token>,
         fa: Option<WithFreeModifiers<Token>>,
-        first_argument: Option<Box<ArgumentSyntax>>,
-        bei_links: Vec<BeiLinkSyntax>,
+        first_sumti: Option<Box<SumtiSyntax>>,
+        bei_links: Vec<AdditionalLinkedSumtiSyntax>,
         beho: Option<WithFreeModifiers<Token>>,
     },
-    BeiLink(Vec<BeiLinkSyntax>),
-    RelativeClause(Vec<RelativeClauseSyntax>),
-    MathExpression(Box<MathExpressionSyntax>),
-    Term {
+    LinkedSumtiContinuation(Vec<AdditionalLinkedSumtiSyntax>),
+    RelativeClauses(Vec<RelativeClauseSyntax>),
+    Mekso(Box<MeksoSyntax>),
+    Terms {
         terms: Vec<TermSyntax>,
         vau: Option<WithFreeModifiers<Token>>,
     },
-    Relation(Box<RelationSyntax>),
+    Selbri(Box<SelbriSyntax>),
 }
 
 #[invariant(true)]
-#[invariant(::NuhiTermset => nuhi.is_cmavo(Cmavo::Nuhi) && !termset.is_empty() && nuhu.is_absent_or_cmavo(Cmavo::Nuhu))]
-#[invariant(::GekNuhiTermset => m_nuhi.as_ref().is_none_or(|nuhi| nuhi.is_cmavo(Cmavo::Nuhi)) && !terms.is_empty() && nuhu.is_absent_or_cmavo(Cmavo::Nuhu) && !gik_terms.is_empty() && gihi.is_absent_or_selmaho(Selmaho::Gihi) && gik_nuhu.is_absent_or_cmavo(Cmavo::Nuhu))]
-#[invariant(::Cehe => !leading_terms.is_empty() && cehe.is_cmavo(Cmavo::Cehe) && !trailing_terms.is_empty())]
-#[invariant(::Pehe => !leading_terms.is_empty() && pehe.is_cmavo(Cmavo::Pehe) && !trailing_terms.is_empty())]
-#[invariant(::Argument(..) => true)]
-#[invariant(::Fa => fa.is_selmaho(Selmaho::Fa) && ku.is_absent_or_cmavo(Cmavo::Ku))]
-#[invariant(::NaKu => na.is_selmaho(Selmaho::Na) && na_ku.is_cmavo(Cmavo::Ku))]
-#[invariant(::BareNa(na) => na.is_selmaho(Selmaho::Na))]
-#[invariant(::NoihaAdverbial => noiha.is_selmaho(Selmaho::Noiha) && fehu.is_absent_or_cmavo(Cmavo::Fehu))]
-#[invariant(::PoihaBrigahi => poiha.is_selmaho(Selmaho::Noiha) && brigahi_ku.is_cmavo(Cmavo::Ku))]
-#[invariant(::FihoiAdverbial => fihoi.is_cmavo(Cmavo::Fihoi) && fihau.is_absent_or_cmavo(Cmavo::Fihau))]
-#[invariant(::SoiAdverbial => soi.is_selmaho(Selmaho::Soi) && sehu.is_absent_or_cmavo(Cmavo::Sehu))]
-#[invariant(::JaiTagged => jai.is_cmavo(Cmavo::Jai))]
-#[invariant(::Tagged => tense_modal.is_some())]
-#[invariant(::Connected => !leading_terms.is_empty() && !trailing_terms.is_empty())]
-#[invariant(::BoConnected => !leading_terms.is_empty() && bo.is_cmavo(Cmavo::Bo))]
+#[invariant(::Termset => nuhi.is_cmavo(Cmavo::Nuhi) && !termset.is_empty() && nuhu.is_absent_or_cmavo(Cmavo::Nuhu))]
+#[invariant(::ForethoughtTermsetConnection => m_nuhi.as_ref().is_none_or(|nuhi| nuhi.is_cmavo(Cmavo::Nuhi)) && !terms.is_empty() && nuhu.is_absent_or_cmavo(Cmavo::Nuhu) && !gik_terms.is_empty() && gihi.is_absent_or_selmaho(Selmaho::Gihi) && gik_nuhu.is_absent_or_cmavo(Cmavo::Nuhu))]
+#[invariant(::TermsetGroup => !leading_terms.is_empty() && cehe.is_cmavo(Cmavo::Cehe) && !trailing_terms.is_empty())]
+#[invariant(::TermsetConnection => !leading_terms.is_empty() && pehe.is_cmavo(Cmavo::Pehe) && !trailing_terms.is_empty())]
+#[invariant(::Sumti(..) => true)]
+#[invariant(::PlaceTaggedSumti => fa.is_selmaho(Selmaho::Fa) && ku.is_absent_or_cmavo(Cmavo::Ku))]
+#[invariant(::BridiNegation => na.is_selmaho(Selmaho::Na) && na_ku.is_cmavo(Cmavo::Ku))]
+#[invariant(::BareNegation(na) => na.is_selmaho(Selmaho::Na))]
+#[invariant(::RelativeAdverbialTerm => noiha.is_selmaho(Selmaho::Noiha) && fehu.is_absent_or_cmavo(Cmavo::Fehu))]
+#[invariant(::BridiVariableAdverbialTerm => poiha.is_selmaho(Selmaho::Noiha) && brigahi_ku.is_cmavo(Cmavo::Ku))]
+#[invariant(::AdHocBridiAdverbialTerm => fihoi.is_cmavo(Cmavo::Fihoi) && fihau.is_absent_or_cmavo(Cmavo::Fihau))]
+#[invariant(::ReciprocalBridiAdverbialTerm => soi.is_selmaho(Selmaho::Soi) && sehu.is_absent_or_cmavo(Cmavo::Sehu))]
+#[invariant(::JaiTaggedSumti => jai.is_cmavo(Cmavo::Jai))]
+#[invariant(::TaggedSumti => tense_modal.is_some())]
+#[invariant(::TermConnection => !leading_terms.is_empty() && !trailing_terms.is_empty())]
+#[invariant(::BoundTermConnection => !leading_terms.is_empty() && bo.is_cmavo(Cmavo::Bo))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum TermSyntax {
-    NuhiTermset {
+    Termset {
         nuhi: WithFreeModifiers<Token>,
         termset: Vec<TermSyntax>,
         nuhu: Option<WithFreeModifiers<Token>>,
     },
-    GekNuhiTermset {
+    ForethoughtTermsetConnection {
         m_nuhi: Option<WithFreeModifiers<Token>>,
         gek: ConnectiveSyntax,
         terms: Vec<TermSyntax>,
@@ -878,72 +878,72 @@ pub enum TermSyntax {
         gihi: Option<Token>,
         gik_nuhu: Option<WithFreeModifiers<Token>>,
     },
-    Cehe {
+    TermsetGroup {
         leading_terms: Vec<TermSyntax>,
         cehe: WithFreeModifiers<Token>,
         trailing_terms: Vec<TermSyntax>,
     },
-    Pehe {
+    TermsetConnection {
         leading_terms: Vec<TermSyntax>,
         pehe: WithFreeModifiers<Token>,
         connective: ConnectiveSyntax,
         trailing_terms: Vec<TermSyntax>,
     },
-    Argument(Box<ArgumentSyntax>),
-    Fa {
+    Sumti(Box<SumtiSyntax>),
+    PlaceTaggedSumti {
         fa: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        argument: Box<ArgumentSyntax>,
+        sumti: Box<SumtiSyntax>,
         ku: Option<WithFreeModifiers<Token>>,
     },
-    NaKu {
+    BridiNegation {
         na: Token,
         na_ku: WithFreeModifiers<Token>,
     },
-    BareNa(WithFreeModifiers<Token>),
-    NoihaAdverbial {
+    BareNegation(WithFreeModifiers<Token>),
+    RelativeAdverbialTerm {
         noiha: WithFreeModifiers<Token>,
-        tail_elements: Vec<ArgumentTailElementSyntax>,
-        relation: Option<Box<RelationSyntax>>,
+        tail_elements: Vec<DescriptionTailElementSyntax>,
+        selbri: Option<Box<SelbriSyntax>>,
         relative_clauses: Vec<RelativeClauseSyntax>,
         fehu: Option<WithFreeModifiers<Token>>,
     },
-    PoihaBrigahi {
+    BridiVariableAdverbialTerm {
         poiha: WithFreeModifiers<Token>,
-        tail_elements: Vec<ArgumentTailElementSyntax>,
-        relation: Option<Box<RelationSyntax>>,
+        tail_elements: Vec<DescriptionTailElementSyntax>,
+        selbri: Option<Box<SelbriSyntax>>,
         relative_clauses: Vec<RelativeClauseSyntax>,
         brigahi_ku: WithFreeModifiers<Token>,
     },
-    FihoiAdverbial {
+    AdHocBridiAdverbialTerm {
         fihoi: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        subsentence: Box<SubsentenceSyntax>,
+        subbridi: Box<SubbridiSyntax>,
         fihau: Option<WithFreeModifiers<Token>>,
     },
-    SoiAdverbial {
+    ReciprocalBridiAdverbialTerm {
         soi: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        subsentence: Box<SubsentenceSyntax>,
+        subbridi: Box<SubbridiSyntax>,
         sehu: Option<WithFreeModifiers<Token>>,
     },
-    JaiTagged {
+    JaiTaggedSumti {
         jai: WithFreeModifiers<Token>,
         tag: Option<Box<TenseModalSyntax>>,
         #[tree_child(primary)]
-        argument: Box<ArgumentSyntax>,
+        sumti: Box<SumtiSyntax>,
     },
-    Tagged {
+    TaggedSumti {
         tense_modal: Option<Box<TenseModalSyntax>>,
         #[tree_child(primary)]
-        argument: Box<ArgumentSyntax>,
+        sumti: Box<SumtiSyntax>,
     },
-    Connected {
+    TermConnection {
         leading_terms: Vec<TermSyntax>,
         connective: ConnectiveSyntax,
         trailing_terms: Vec<TermSyntax>,
     },
-    BoConnected {
+    BoundTermConnection {
         leading_terms: Vec<TermSyntax>,
         bo_connective: Option<Box<ConnectiveSyntax>>,
         tense_modal: Option<Box<TenseModalSyntax>>,
@@ -953,284 +953,284 @@ pub enum TermSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum TermWrapperKindSyntax {
-    Lahe,
-    NaheBo,
-    Nahe,
+pub enum SumtiWrapperKindSyntax {
+    Referent,
+    ScalarNegationWithBo,
+    ScalarNegation,
 }
 
 #[invariant(true)]
 #[invariant(::TenseModal(..) => true)]
-#[invariant(::Fa(fa) => fa.is_selmaho(Selmaho::Fa))]
+#[invariant(::PlaceTag(fa) => fa.is_selmaho(Selmaho::Fa))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum ArgumentTagSyntax {
+pub enum SumtiTagSyntax {
     TenseModal(Box<TenseModalSyntax>),
-    Fa(WithFreeModifiers<Token>),
+    PlaceTag(WithFreeModifiers<Token>),
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ArgumentConnectionSyntax {
+pub struct SumtiConnectionSyntax {
     pub connective: ConnectiveSyntax,
     #[tree_child(primary)]
-    pub argument: Box<ArgumentSyntax>,
+    pub sumti: Box<SumtiSyntax>,
 }
 
 #[invariant(true)]
-#[invariant(::Quote(..) => true)]
-#[invariant(::MathExpression => li.is_selmaho(Selmaho::Li) && loho.is_absent_or_cmavo(Cmavo::Loho))]
-#[invariant(::Letter => is_word_run_number_or_letter(&letter.value) && boi.is_absent_or_cmavo(Cmavo::Boi))]
-#[invariant(::Quantified => true)]
-#[invariant(::RelativeClause => vuho.is_absent_or_cmavo(Cmavo::Vuho) && !relative_clauses.is_empty())]
-#[invariant(::Vuho => vuho_marker.is_cmavo(Cmavo::Vuho) && (!relative_clauses.is_empty() || connected_argument.is_some()))]
+#[invariant(::QuotedSumti(..) => true)]
+#[invariant(::NumberSumti => li.is_selmaho(Selmaho::Li) && loho.is_absent_or_cmavo(Cmavo::Loho))]
+#[invariant(::LerfuStringSumti => is_word_run_number_or_letter(&letter.value) && boi.is_absent_or_cmavo(Cmavo::Boi))]
+#[invariant(::QuantifiedSumti => true)]
+#[invariant(::SumtiWithRelativeClauses => vuho.is_absent_or_cmavo(Cmavo::Vuho) && !relative_clauses.is_empty())]
+#[invariant(::SumtiWithComplexRelativeClauses => vuho_marker.is_cmavo(Cmavo::Vuho) && (!relative_clauses.is_empty() || sumti_connection.is_some()))]
 #[invariant(::BridiDescription => lohoi.is_selmaho(Selmaho::Lohoi) && kuhau.is_absent_or_cmavo(Cmavo::Kuhau))]
-#[invariant(::NaKu => na.is_selmaho(Selmaho::Na) && ku.is_cmavo(Cmavo::Ku))]
-#[invariant(::Tagged => true)]
-#[invariant(::NaheBo => nahe.is_selmaho(Selmaho::Nahe) && bo.is_cmavo(Cmavo::Bo) && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
-#[invariant(::Nahe => nahe.is_selmaho(Selmaho::Nahe) && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
-#[invariant(::TermWrapped => match term_wrapper_kind {
-    TermWrapperKindSyntax::Lahe => wrapper.is_selmaho(Selmaho::Lahe) && wrapper_bo.is_none(),
-    TermWrapperKindSyntax::NaheBo => wrapper.is_selmaho(Selmaho::Nahe)
+#[invariant(::NegatedSumti => na.is_selmaho(Selmaho::Na) && ku.is_cmavo(Cmavo::Ku))]
+#[invariant(::TaggedSumti => true)]
+#[invariant(::ScalarNegatedSumtiWithBo => nahe.is_selmaho(Selmaho::Nahe) && bo.is_cmavo(Cmavo::Bo) && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
+#[invariant(::ScalarNegatedSumti => nahe.is_selmaho(Selmaho::Nahe) && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
+#[invariant(::QualifiedTerm => match term_wrapper_kind {
+    SumtiWrapperKindSyntax::Referent => wrapper.is_selmaho(Selmaho::Lahe) && wrapper_bo.is_none(),
+    SumtiWrapperKindSyntax::ScalarNegationWithBo => wrapper.is_selmaho(Selmaho::Nahe)
         && wrapper_bo.as_ref().is_some_and(|bo| bo.is_cmavo(Cmavo::Bo)),
-    TermWrapperKindSyntax::Nahe => wrapper.is_selmaho(Selmaho::Nahe) && wrapper_bo.is_none(),
+    SumtiWrapperKindSyntax::ScalarNegation => wrapper.is_selmaho(Selmaho::Nahe) && wrapper_bo.is_none(),
 } && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
-#[invariant(::Koha(koha) => crate::grammar::tokens::is_koha_argument(&koha.value))]
-#[invariant(::Zohe => maybe_ku.is_absent_or_cmavo(Cmavo::Ku))]
-#[invariant(::Lahe => lahe.is_selmaho(Selmaho::Lahe) && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
-#[invariant(::Connected => true)]
-#[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
-#[invariant(::Bo => bo.is_cmavo(Cmavo::Bo))]
-#[invariant(::Gek => gihi.is_absent_or_selmaho(Selmaho::Gihi))]
-#[invariant(::Descriptor(descriptor) => descriptor.descriptor.as_ref().is_none_or(|marker| marker.is_one_of_selmaho(&[Selmaho::Le, Selmaho::La])) && descriptor.ku.is_absent_or_cmavo(Cmavo::Ku) && (descriptor.descriptor.is_some() || (!descriptor.tail_elements.is_empty() && descriptor.relation.is_some())))]
-#[invariant(::ConnectedDescriptor(descriptor) => descriptor.leading_descriptor_head.descriptor.is_one_of_selmaho(&[Selmaho::Le, Selmaho::La]) && descriptor.trailing_descriptor_head.descriptor.is_one_of_selmaho(&[Selmaho::Le, Selmaho::La]) && descriptor.ku.is_absent_or_cmavo(Cmavo::Ku))]
-#[invariant(::Name => la.is_selmaho(Selmaho::La) && is_word_run_cmevla(&names.value))]
-#[invariant(::Cmevla(names) => is_word_run_cmevla(&names.value))]
-#[invariant(::RelationVocative => true)]
+#[invariant(::ProSumti(koha) => crate::grammar::tokens::is_koha_argument(&koha.value))]
+#[invariant(::ElidedSumti => maybe_ku.is_absent_or_cmavo(Cmavo::Ku))]
+#[invariant(::ReferentSumti => lahe.is_selmaho(Selmaho::Lahe) && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
+#[invariant(::SumtiConnection => true)]
+#[invariant(::GroupedSumti => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
+#[invariant(::BoundSumtiConnection => bo.is_cmavo(Cmavo::Bo))]
+#[invariant(::ForethoughtSumtiConnection => gihi.is_absent_or_selmaho(Selmaho::Gihi))]
+#[invariant(::Description(description) => description.description.as_ref().is_none_or(|marker| marker.is_one_of_selmaho(&[Selmaho::Le, Selmaho::La])) && description.ku.is_absent_or_cmavo(Cmavo::Ku) && (description.description.is_some() || (!description.tail_elements.is_empty() && description.selbri.is_some())))]
+#[invariant(::DescriptionConnection(description) => description.leading_description_head.description.is_one_of_selmaho(&[Selmaho::Le, Selmaho::La]) && description.trailing_description_head.description.is_one_of_selmaho(&[Selmaho::Le, Selmaho::La]) && description.ku.is_absent_or_cmavo(Cmavo::Ku))]
+#[invariant(::NameDescription => la.is_selmaho(Selmaho::La) && is_word_run_cmevla(&names.value))]
+#[invariant(::NameWords(names) => is_word_run_cmevla(&names.value))]
+#[invariant(::SelbriVocative => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum ArgumentSyntax {
-    Quote(Box<QuoteSyntax>),
-    MathExpression {
+pub enum SumtiSyntax {
+    QuotedSumti(Box<QuoteSyntax>),
+    NumberSumti {
         li: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        expression: Box<MathExpressionSyntax>,
+        expression: Box<MeksoSyntax>,
         loho: Option<WithFreeModifiers<Token>>,
     },
-    Letter {
+    LerfuStringSumti {
         letter: WithFreeModifiers<WordRun>,
         boi: Option<WithFreeModifiers<Token>>,
     },
-    Quantified {
+    QuantifiedSumti {
         quantifier: QuantifierSyntax,
         #[tree_child(primary)]
-        inner_argument: Box<ArgumentSyntax>,
+        inner_sumti: Box<SumtiSyntax>,
     },
-    RelativeClause {
-        base_argument: Box<ArgumentSyntax>,
+    SumtiWithRelativeClauses {
+        base_sumti: Box<SumtiSyntax>,
         vuho: Option<WithFreeModifiers<Token>>,
         relative_clauses: Vec<RelativeClauseSyntax>,
     },
-    Vuho {
-        base_argument: Box<ArgumentSyntax>,
+    SumtiWithComplexRelativeClauses {
+        base_sumti: Box<SumtiSyntax>,
         vuho_marker: WithFreeModifiers<Token>,
         relative_clauses: Vec<RelativeClauseSyntax>,
-        connected_argument: Option<Box<ArgumentConnectionSyntax>>,
+        sumti_connection: Option<Box<SumtiConnectionSyntax>>,
     },
     BridiDescription {
         lohoi: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        subsentence: Box<SubsentenceSyntax>,
+        subbridi: Box<SubbridiSyntax>,
         kuhau: Option<WithFreeModifiers<Token>>,
     },
-    NaKu {
+    NegatedSumti {
         na: Token,
         ku: WithFreeModifiers<Token>,
     },
-    Tagged {
-        tag: ArgumentTagSyntax,
+    TaggedSumti {
+        tag: SumtiTagSyntax,
         #[tree_child(primary)]
-        inner_argument: Box<ArgumentSyntax>,
+        inner_sumti: Box<SumtiSyntax>,
     },
-    NaheBo {
+    ScalarNegatedSumtiWithBo {
         nahe: Token,
         bo: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner_argument: Box<ArgumentSyntax>,
+        inner_sumti: Box<SumtiSyntax>,
         luhu: Option<WithFreeModifiers<Token>>,
     },
-    Nahe {
+    ScalarNegatedSumti {
         nahe: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner_argument: Box<ArgumentSyntax>,
+        inner_sumti: Box<SumtiSyntax>,
         luhu: Option<WithFreeModifiers<Token>>,
     },
-    TermWrapped {
-        term_wrapper_kind: TermWrapperKindSyntax,
+    QualifiedTerm {
+        term_wrapper_kind: SumtiWrapperKindSyntax,
         wrapper: WithFreeModifiers<Token>,
         wrapper_bo: Option<WithFreeModifiers<Token>>,
         #[tree_child(primary)]
         inner_term: Box<TermSyntax>,
         luhu: Option<WithFreeModifiers<Token>>,
     },
-    Koha(WithFreeModifiers<Token>),
-    Zohe {
-        tag: Option<Box<ArgumentTagSyntax>>,
+    ProSumti(WithFreeModifiers<Token>),
+    ElidedSumti {
+        tag: Option<Box<SumtiTagSyntax>>,
         maybe_ku: Option<WithFreeModifiers<Token>>,
         free_modifiers: Vec<FreeModifierSyntax>,
     },
-    Lahe {
+    ReferentSumti {
         lahe: WithFreeModifiers<Token>,
         relative_clauses: Vec<RelativeClauseSyntax>,
         #[tree_child(primary)]
-        inner_argument: Box<ArgumentSyntax>,
+        inner_sumti: Box<SumtiSyntax>,
         luhu: Option<WithFreeModifiers<Token>>,
     },
-    Connected {
-        leading_argument: Box<ArgumentSyntax>,
+    SumtiConnection {
+        leading_sumti: Box<SumtiSyntax>,
         connective: ConnectiveSyntax,
-        trailing_argument: Box<ArgumentSyntax>,
+        trailing_sumti: Box<SumtiSyntax>,
     },
-    Ke {
+    GroupedSumti {
         ke: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner_argument: Box<ArgumentSyntax>,
+        inner_sumti: Box<SumtiSyntax>,
         kehe: Option<WithFreeModifiers<Token>>,
     },
-    Bo {
-        leading_argument: Box<ArgumentSyntax>,
+    BoundSumtiConnection {
+        leading_sumti: Box<SumtiSyntax>,
         bo_connective: Option<Box<ConnectiveSyntax>>,
         bo_tense_modal: Option<Box<TenseModalSyntax>>,
         bo: WithFreeModifiers<Token>,
-        trailing_argument: Box<ArgumentSyntax>,
+        trailing_sumti: Box<SumtiSyntax>,
     },
-    Gek {
+    ForethoughtSumtiConnection {
         gek: ConnectiveSyntax,
-        leading_argument: Box<ArgumentSyntax>,
+        leading_sumti: Box<SumtiSyntax>,
         gik: ConnectiveSyntax,
-        trailing_argument: Box<ArgumentSyntax>,
+        trailing_sumti: Box<SumtiSyntax>,
         gihi: Option<Token>,
     },
-    Descriptor(Box<DescriptorSyntax>),
-    ConnectedDescriptor(Box<ConnectedDescriptorSyntax>),
-    Name {
+    Description(Box<DescriptionSyntax>),
+    DescriptionConnection(Box<DescriptionConnectionSyntax>),
+    NameDescription {
         la: WithFreeModifiers<Token>,
         names: WithFreeModifiers<WordRun>,
     },
-    Cmevla(WithFreeModifiers<WordRun>),
-    RelationVocative {
+    NameWords(WithFreeModifiers<WordRun>),
+    SelbriVocative {
         leading_relative_clauses: Vec<RelativeClauseSyntax>,
-        relation: Box<RelationSyntax>,
+        selbri: Box<SelbriSyntax>,
         trailing_relative_clauses: Vec<RelativeClauseSyntax>,
     },
 }
 
 #[invariant(true)]
-#[invariant(::Goi(goi) => goi.goi.is_selmaho(Selmaho::Goi) && goi.gehu.is_absent_or_cmavo(Cmavo::Gehu))]
-#[invariant(::Noi => noi.is_one_of_cmavo(NONRESTRICTIVE_RELATIVE_CLAUSE_CMAVO) && kuho.is_absent_or_cmavo(Cmavo::Kuho))]
-#[invariant(::Poi => poi.is_one_of_cmavo(RESTRICTIVE_RELATIVE_CLAUSE_CMAVO) && kuho.is_absent_or_cmavo(Cmavo::Kuho))]
-#[invariant(::Zihe => zihe.is_cmavo(Cmavo::Zihe))]
-#[invariant(::Connected => true)]
+#[invariant(::SumtiAssociationPhrase(phrase) => phrase.association_marker.is_selmaho(Selmaho::Goi) && phrase.gehu.is_absent_or_cmavo(Cmavo::Gehu))]
+#[invariant(::IncidentalRelativeBridi => noi.is_one_of_cmavo(NONRESTRICTIVE_RELATIVE_CLAUSE_CMAVO) && kuho.is_absent_or_cmavo(Cmavo::Kuho))]
+#[invariant(::RestrictiveRelativeBridi => poi.is_one_of_cmavo(RESTRICTIVE_RELATIVE_CLAUSE_CMAVO) && kuho.is_absent_or_cmavo(Cmavo::Kuho))]
+#[invariant(::JoinedRelativeClauses => zihe.is_cmavo(Cmavo::Zihe))]
+#[invariant(::RelativeClauseConnection => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum RelativeClauseSyntax {
-    Goi(Box<GoiRelativeClauseSyntax>),
-    Noi {
+    SumtiAssociationPhrase(Box<SumtiAssociationPhraseSyntax>),
+    IncidentalRelativeBridi {
         noi: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        subsentence: Box<SubsentenceSyntax>,
+        subbridi: Box<SubbridiSyntax>,
         kuho: Option<WithFreeModifiers<Token>>,
     },
-    Poi {
+    RestrictiveRelativeBridi {
         poi: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        subsentence: Box<SubsentenceSyntax>,
+        subbridi: Box<SubbridiSyntax>,
         kuho: Option<WithFreeModifiers<Token>>,
     },
-    Zihe {
+    JoinedRelativeClauses {
         zihe: WithFreeModifiers<Token>,
         #[tree_child(primary)]
         inner: Box<RelativeClauseSyntax>,
     },
-    Connected {
+    RelativeClauseConnection {
         connective: ConnectiveSyntax,
         #[tree_child(primary)]
         inner: Box<RelativeClauseSyntax>,
     },
 }
 
-#[invariant(goi.is_selmaho(Selmaho::Goi))]
+#[invariant(association_marker.is_selmaho(Selmaho::Goi))]
 #[invariant(gehu.is_absent_or_cmavo(Cmavo::Gehu))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct GoiRelativeClauseSyntax {
-    pub goi: WithFreeModifiers<Token>,
+pub struct SumtiAssociationPhraseSyntax {
+    pub association_marker: WithFreeModifiers<Token>,
     #[tree_child(primary)]
-    pub argument: Box<ArgumentSyntax>,
+    pub sumti: Box<SumtiSyntax>,
     pub gehu: Option<WithFreeModifiers<Token>>,
 }
 
 #[invariant(nohoi.is_cmavo(Cmavo::Nohoi))]
 #[invariant(kuhoi.is_absent_or_cmavo(Cmavo::Kuhoi))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct SelbriRelativeClauseSyntax {
+pub struct SelbriRelativePhraseSyntax {
     pub nohoi: WithFreeModifiers<Token>,
     #[tree_child(primary)]
-    pub relation: Box<RelationSyntax>,
+    pub selbri: Box<SelbriSyntax>,
     pub kuhoi: Option<WithFreeModifiers<Token>>,
 }
 
 #[invariant(true)]
-#[invariant(::Lu => lu.is_cmavo(Cmavo::Lu) && lihu.is_absent_or_cmavo(Cmavo::Lihu))]
-#[invariant(::Zo(zo) => zo.is_quote_marker_cmavo(Cmavo::Zo))]
-#[invariant(::ZohOi(zohoi) => zohoi.quote_marker_cmavo().is_some_and(|cmavo| [Cmavo::Zohoi, Cmavo::Lahoi, Cmavo::Rahoi, Cmavo::Mehoi, Cmavo::Gohoi].contains(&cmavo)))]
-#[invariant(::Zoi(zoi) => zoi.quote_marker_cmavo().is_some_and(|cmavo| Selmaho::Zoi.contains(cmavo)))]
-#[invariant(::Lohu(lohu) => lohu.is_quote_marker_cmavo(Cmavo::Lohu))]
+#[invariant(::TextQuote => lu.is_cmavo(Cmavo::Lu) && lihu.is_absent_or_cmavo(Cmavo::Lihu))]
+#[invariant(::WordQuote(zo) => zo.is_quote_marker_cmavo(Cmavo::Zo))]
+#[invariant(::DelimitedWordQuote(zohoi) => zohoi.quote_marker_cmavo().is_some_and(|cmavo| [Cmavo::Zohoi, Cmavo::Lahoi, Cmavo::Rahoi, Cmavo::Mehoi, Cmavo::Gohoi].contains(&cmavo)))]
+#[invariant(::DelimitedNonLojbanQuote(zoi) => zoi.quote_marker_cmavo().is_some_and(|cmavo| Selmaho::Zoi.contains(cmavo)))]
+#[invariant(::WordsQuote(lohu) => lohu.is_quote_marker_cmavo(Cmavo::Lohu))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum QuoteSyntax {
-    Lu {
+    TextQuote {
         lu: WithFreeModifiers<Token>,
         #[tree_child(primary)]
         text: Box<TextSyntax>,
         lihu: Option<WithFreeModifiers<Token>>,
     },
-    Zo(WithFreeModifiers<Token>),
-    ZohOi(WithFreeModifiers<Token>),
-    Zoi(WithFreeModifiers<Token>),
-    Lohu(WithFreeModifiers<Token>),
+    WordQuote(WithFreeModifiers<Token>),
+    DelimitedWordQuote(WithFreeModifiers<Token>),
+    DelimitedNonLojbanQuote(WithFreeModifiers<Token>),
+    WordsQuote(WithFreeModifiers<Token>),
 }
 
-#[invariant(descriptor.as_ref().is_none_or(|descriptor| descriptor.is_one_of_selmaho(&[Selmaho::Le, Selmaho::La])))]
+#[invariant(description.as_ref().is_none_or(|description| description.is_one_of_selmaho(&[Selmaho::Le, Selmaho::La])))]
 #[invariant(ku.is_absent_or_cmavo(Cmavo::Ku))]
-#[invariant(descriptor.is_some() || (!tail_elements.is_empty() && relation.is_some()))]
+#[invariant(description.is_some() || (!tail_elements.is_empty() && selbri.is_some()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct DescriptorSyntax {
+pub struct DescriptionSyntax {
     pub outer_quantifier: Option<Box<QuantifierSyntax>>,
-    pub descriptor: Option<WithFreeModifiers<Token>>,
-    pub tail_elements: Vec<ArgumentTailElementSyntax>,
-    pub relation: Option<Box<RelationSyntax>>,
+    pub description: Option<WithFreeModifiers<Token>>,
+    pub tail_elements: Vec<DescriptionTailElementSyntax>,
+    pub selbri: Option<Box<SelbriSyntax>>,
     pub relative_clauses: Vec<RelativeClauseSyntax>,
     pub ku: Option<WithFreeModifiers<Token>>,
 }
 
-#[invariant(descriptor.is_one_of_selmaho(&[Selmaho::Le, Selmaho::La]))]
+#[invariant(description.is_one_of_selmaho(&[Selmaho::Le, Selmaho::La]))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct DescriptorHeadSyntax {
-    pub descriptor: WithFreeModifiers<Token>,
+pub struct DescriptionHeadSyntax {
+    pub description: WithFreeModifiers<Token>,
 }
 
 #[invariant(ku.is_absent_or_cmavo(Cmavo::Ku))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ConnectedDescriptorSyntax {
-    pub leading_descriptor_head: Box<DescriptorHeadSyntax>,
+pub struct DescriptionConnectionSyntax {
+    pub leading_description_head: Box<DescriptionHeadSyntax>,
     pub connective: ConnectiveSyntax,
-    pub trailing_descriptor_head: Box<DescriptorHeadSyntax>,
-    pub tail_elements: Vec<ArgumentTailElementSyntax>,
-    pub relation: Option<Box<RelationSyntax>>,
+    pub trailing_description_head: Box<DescriptionHeadSyntax>,
+    pub tail_elements: Vec<DescriptionTailElementSyntax>,
+    pub selbri: Option<Box<SelbriSyntax>>,
     pub relative_clauses: Vec<RelativeClauseSyntax>,
     pub ku: Option<WithFreeModifiers<Token>>,
 }
 
 #[invariant(true)]
 #[invariant(::Afterthought => is_valid_connective_parts(se, nahe, na, cmavo, nai))]
-#[invariant(::Relation => is_valid_connective_parts(se, nahe, na, cmavo, nai))]
-#[invariant(::PredicateTail => is_valid_connective_parts(se, nahe, na, cmavo, nai))]
+#[invariant(::Selbri => is_valid_connective_parts(se, nahe, na, cmavo, nai))]
+#[invariant(::BridiTail => is_valid_connective_parts(se, nahe, na, cmavo, nai))]
 #[invariant(::Forethought => is_valid_connective_parts(se, nahe, na, cmavo, nai))]
 #[invariant(::NonLogical => is_valid_connective_parts(se, nahe, na, cmavo, nai))]
 #[invariant(::Interval => is_valid_connective_parts(se, nahe, na, cmavo, nai))]
@@ -1244,7 +1244,7 @@ pub enum ConnectiveSyntax {
         cmavo: Arc<WithFreeModifiers<Vec<Token>>>,
         nai: Option<Arc<WithFreeModifiers<Token>>>,
     },
-    Relation {
+    Selbri {
         se: Option<Token>,
         nahe: Option<Token>,
         na: Option<Token>,
@@ -1252,7 +1252,7 @@ pub enum ConnectiveSyntax {
         cmavo: Arc<WithFreeModifiers<Vec<Token>>>,
         nai: Option<Arc<WithFreeModifiers<Token>>>,
     },
-    PredicateTail {
+    BridiTail {
         se: Option<Token>,
         nahe: Option<Token>,
         na: Option<Token>,
@@ -1287,281 +1287,281 @@ pub enum ConnectiveSyntax {
 }
 
 #[invariant(bei.is_cmavo(Cmavo::Bei))]
-#[invariant(fa.is_none() || argument.is_some(), "lifted FA link tags must have an argument")]
+#[invariant(fa.is_none() || sumti.is_some(), "lifted FA link tags must have an sumti")]
 #[invariant(fa.is_absent_or_selmaho(Selmaho::Fa))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct BeiLinkSyntax {
+pub struct AdditionalLinkedSumtiSyntax {
     pub bei: WithFreeModifiers<Token>,
     pub fa: Option<WithFreeModifiers<Token>>,
-    pub argument: Option<Box<ArgumentSyntax>>,
+    pub sumti: Option<Box<SumtiSyntax>>,
 }
 
-#[invariant(fa.is_none() || argument.is_some(), "lifted FA link tags must have an argument")]
+#[invariant(fa.is_none() || sumti.is_some(), "lifted FA link tags must have an sumti")]
 #[invariant(fa.is_absent_or_selmaho(Selmaho::Fa))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct LinkArgumentSyntax {
+pub struct LinkedSumtiSyntax {
     pub fa: Option<WithFreeModifiers<Token>>,
-    pub argument: Option<Box<ArgumentSyntax>>,
+    pub sumti: Option<Box<SumtiSyntax>>,
 }
 
 #[invariant(be.is_cmavo(Cmavo::Be))]
-#[invariant(fa.is_none() || first_argument.is_some(), "lifted FA link tags must have an argument")]
+#[invariant(fa.is_none() || first_sumti.is_some(), "lifted FA link tags must have an sumti")]
 #[invariant(fa.is_absent_or_selmaho(Selmaho::Fa))]
 #[invariant(beho.is_absent_or_cmavo(Cmavo::Beho))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct BeLinkSyntax {
+pub struct LinkedSumtiListSyntax {
     pub be: WithFreeModifiers<Token>,
     pub fa: Option<WithFreeModifiers<Token>>,
-    pub first_argument: Option<Box<ArgumentSyntax>>,
-    pub bei_links: Vec<BeiLinkSyntax>,
+    pub first_sumti: Option<Box<SumtiSyntax>>,
+    pub bei_links: Vec<AdditionalLinkedSumtiSyntax>,
     pub beho: Option<WithFreeModifiers<Token>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum ConnectiveKind {
     Afterthought,
-    Relation,
-    PredicateTail,
+    Selbri,
+    BridiTail,
     Forethought,
     NonLogical,
     Interval,
 }
 
 #[invariant(true)]
-#[invariant(::Argument(..) => true)]
-#[invariant(::RelativeClauses(relative_clauses) => !relative_clauses.is_empty())]
-#[invariant(::Quantifier(..) => true)]
+#[invariant(::DescriptionTailSumti(..) => true)]
+#[invariant(::DescriptionTailRelativeClauses(relative_clauses) => !relative_clauses.is_empty())]
+#[invariant(::DescriptionTailQuantifier(..) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum ArgumentTailElementSyntax {
-    Argument(Box<ArgumentSyntax>),
-    RelativeClauses(Vec<RelativeClauseSyntax>),
-    Quantifier(QuantifierSyntax),
+pub enum DescriptionTailElementSyntax {
+    DescriptionTailSumti(Box<SumtiSyntax>),
+    DescriptionTailRelativeClauses(Vec<RelativeClauseSyntax>),
+    DescriptionTailQuantifier(QuantifierSyntax),
 }
 
 #[invariant(true)]
-#[invariant(::Number => is_word_run_number_or_letter(&number.value) && boi.is_absent_or_cmavo(Cmavo::Boi))]
-#[invariant(::Vei => vei.is_cmavo(Cmavo::Vei) && veho.is_absent_or_cmavo(Cmavo::Veho))]
+#[invariant(::NumberQuantifier => is_word_run_number_or_letter(&number.value) && boi.is_absent_or_cmavo(Cmavo::Boi))]
+#[invariant(::MeksoQuantifier => vei.is_cmavo(Cmavo::Vei) && veho.is_absent_or_cmavo(Cmavo::Veho))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum QuantifierSyntax {
-    Number {
+    NumberQuantifier {
         #[tree_child(primary)]
         number: WithFreeModifiers<WordRun>,
         boi: Option<WithFreeModifiers<Token>>,
     },
-    Vei {
+    MeksoQuantifier {
         vei: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        math_expression: Box<MathExpressionSyntax>,
+        mekso: Box<MeksoSyntax>,
         veho: Option<WithFreeModifiers<Token>>,
     },
 }
 
 #[invariant(true)]
-#[invariant(::Number(..) => true)]
-#[invariant(::Letter => is_word_run_number_or_letter(&letter.value) && boi.is_absent_or_cmavo(Cmavo::Boi))]
-#[invariant(::Vei => vei.is_cmavo(Cmavo::Vei) && veho.is_absent_or_cmavo(Cmavo::Veho))]
-#[invariant(::Gek => true)]
-#[invariant(::Forethought => peho.as_ref().is_none_or(|peho| peho.is_cmavo(Cmavo::Peho)) && !operands.is_empty() && kuhe.is_absent_or_cmavo(Cmavo::Kuhe))]
+#[invariant(::NumberMekso(..) => true)]
+#[invariant(::LerfuStringMekso => is_word_run_number_or_letter(&letter.value) && boi.is_absent_or_cmavo(Cmavo::Boi))]
+#[invariant(::ParenthesizedMekso => vei.is_cmavo(Cmavo::Vei) && veho.is_absent_or_cmavo(Cmavo::Veho))]
+#[invariant(::ForethoughtMeksoConnection => true)]
+#[invariant(::ForethoughtCall => peho.as_ref().is_none_or(|peho| peho.is_cmavo(Cmavo::Peho)) && !operands.is_empty() && kuhe.is_absent_or_cmavo(Cmavo::Kuhe))]
 #[invariant(::ReversePolish => fuha.is_cmavo(Cmavo::Fuha) && !operands.is_empty())]
-#[invariant(::Nihe => nihe.is_cmavo(Cmavo::Nihe) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
-#[invariant(::Mohe => mohe.is_cmavo(Cmavo::Mohe) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
-#[invariant(::Johi => johi.is_cmavo(Cmavo::Johi) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
-#[invariant(::Lahe => matches!(markers.value.as_slice(), [nahe, bo] if nahe.is_selmaho(Selmaho::Nahe) && bo.is_cmavo(Cmavo::Bo)) && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
-#[invariant(::Connected => true)]
-#[invariant(::Binary => true)]
-#[invariant(::Bihe => bihe.is_cmavo(Cmavo::Bihe))]
+#[invariant(::SelbriOperand => nihe.is_cmavo(Cmavo::Nihe) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
+#[invariant(::SumtiOperand => mohe.is_cmavo(Cmavo::Mohe) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
+#[invariant(::MeksoArray => johi.is_cmavo(Cmavo::Johi) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
+#[invariant(::QualifiedOperand => matches!(markers.value.as_slice(), [nahe, bo] if nahe.is_selmaho(Selmaho::Nahe) && bo.is_cmavo(Cmavo::Bo)) && luhu.is_absent_or_cmavo(Cmavo::Luhu))]
+#[invariant(::MeksoConnection => true)]
+#[invariant(::Infix => true)]
+#[invariant(::PrecedenceInfix => bihe.is_cmavo(Cmavo::Bihe))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum MathExpressionSyntax {
-    Number(Box<QuantifierSyntax>),
-    Letter {
+pub enum MeksoSyntax {
+    NumberMekso(Box<QuantifierSyntax>),
+    LerfuStringMekso {
         #[tree_child(primary)]
         letter: WithFreeModifiers<WordRun>,
         boi: Option<WithFreeModifiers<Token>>,
     },
-    Vei {
+    ParenthesizedMekso {
         vei: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner_expression: Box<MathExpressionSyntax>,
+        inner_expression: Box<MeksoSyntax>,
         veho: Option<WithFreeModifiers<Token>>,
     },
-    Gek {
+    ForethoughtMeksoConnection {
         gek: ConnectiveSyntax,
-        left_expression: Box<MathExpressionSyntax>,
+        left_expression: Box<MeksoSyntax>,
         gik: ConnectiveSyntax,
-        right_expression: Box<MathExpressionSyntax>,
+        right_expression: Box<MeksoSyntax>,
     },
-    Forethought {
+    ForethoughtCall {
         peho: Option<WithFreeModifiers<Token>>,
-        operator: Box<MathOperatorSyntax>,
-        operands: Vec<MathExpressionSyntax>,
+        operator: Box<MeksoOperatorSyntax>,
+        operands: Vec<MeksoSyntax>,
         kuhe: Option<WithFreeModifiers<Token>>,
     },
     ReversePolish {
         fuha: WithFreeModifiers<Token>,
-        operands: Vec<MathExpressionSyntax>,
-        operators: Vec<MathOperatorSyntax>,
+        operands: Vec<MeksoSyntax>,
+        operators: Vec<MeksoOperatorSyntax>,
     },
-    Nihe {
+    SelbriOperand {
         nihe: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        relation: Box<RelationSyntax>,
+        selbri: Box<SelbriSyntax>,
         tehu: Option<WithFreeModifiers<Token>>,
     },
-    Mohe {
+    SumtiOperand {
         mohe: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        argument: Box<ArgumentSyntax>,
+        sumti: Box<SumtiSyntax>,
         tehu: Option<WithFreeModifiers<Token>>,
     },
-    Johi {
+    MeksoArray {
         johi: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        expressions: MathExpressionVec,
+        expressions: MeksoVec,
         tehu: Option<WithFreeModifiers<Token>>,
     },
-    Lahe {
+    QualifiedOperand {
         markers: WithFreeModifiers<Vec<Token>>,
         #[tree_child(primary)]
-        inner_expression: Box<MathExpressionSyntax>,
+        inner_expression: Box<MeksoSyntax>,
         luhu: Option<WithFreeModifiers<Token>>,
     },
-    Connected {
-        left_expression: Box<MathExpressionSyntax>,
+    MeksoConnection {
+        left_expression: Box<MeksoSyntax>,
         connective: ConnectiveSyntax,
-        right_expression: Box<MathExpressionSyntax>,
+        right_expression: Box<MeksoSyntax>,
     },
-    Binary {
-        left_expression: Box<MathExpressionSyntax>,
-        operator: Box<MathOperatorSyntax>,
-        right_expression: Box<MathExpressionSyntax>,
+    Infix {
+        left_expression: Box<MeksoSyntax>,
+        operator: Box<MeksoOperatorSyntax>,
+        right_expression: Box<MeksoSyntax>,
     },
-    Bihe {
-        left_expression: Box<MathExpressionSyntax>,
+    PrecedenceInfix {
+        left_expression: Box<MeksoSyntax>,
         bihe: WithFreeModifiers<Token>,
-        operator: Box<MathOperatorSyntax>,
-        right_expression: Box<MathExpressionSyntax>,
+        operator: Box<MeksoOperatorSyntax>,
+        right_expression: Box<MeksoSyntax>,
     },
 }
 
 #[invariant(true)]
-#[invariant(::Vuhu(vuhu) => vuhu.is_selmaho(Selmaho::Vuhu))]
-#[invariant(::Maho => maho.is_cmavo(Cmavo::Maho) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
-#[invariant(::Se => se.is_selmaho(Selmaho::Se))]
-#[invariant(::Nahe => nahe.is_selmaho(Selmaho::Nahe))]
-#[invariant(::Nahu => nahu.is_cmavo(Cmavo::Nahu) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
-#[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
-#[invariant(::Bo => bo.is_cmavo(Cmavo::Bo))]
-#[invariant(::Connected => true)]
+#[invariant(::Primitive(vuhu) => vuhu.is_selmaho(Selmaho::Vuhu))]
+#[invariant(::OperandAsOperator => maho.is_cmavo(Cmavo::Maho) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
+#[invariant(::Converted => se.is_selmaho(Selmaho::Se))]
+#[invariant(::ScalarNegated => nahe.is_selmaho(Selmaho::Nahe))]
+#[invariant(::SelbriAsOperator => nahu.is_cmavo(Cmavo::Nahu) && tehu.is_absent_or_cmavo(Cmavo::Tehu))]
+#[invariant(::GroupedOperator => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
+#[invariant(::BoundOperatorConnection => bo.is_cmavo(Cmavo::Bo))]
+#[invariant(::OperatorConnection => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum MathOperatorSyntax {
-    Vuhu(WithFreeModifiers<Token>),
-    Maho {
+pub enum MeksoOperatorSyntax {
+    Primitive(WithFreeModifiers<Token>),
+    OperandAsOperator {
         maho: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        math_expression: Box<MathExpressionSyntax>,
+        mekso: Box<MeksoSyntax>,
         tehu: Option<WithFreeModifiers<Token>>,
     },
-    Se {
+    Converted {
         se: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner_operator: Box<MathOperatorSyntax>,
+        inner_operator: Box<MeksoOperatorSyntax>,
     },
-    Nahe {
+    ScalarNegated {
         nahe: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner_operator: Box<MathOperatorSyntax>,
+        inner_operator: Box<MeksoOperatorSyntax>,
     },
-    Nahu {
+    SelbriAsOperator {
         nahu: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        relation: Box<RelationSyntax>,
+        selbri: Box<SelbriSyntax>,
         tehu: Option<WithFreeModifiers<Token>>,
     },
-    Ke {
+    GroupedOperator {
         ke: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner_operator: Box<MathOperatorSyntax>,
+        inner_operator: Box<MeksoOperatorSyntax>,
         kehe: Option<WithFreeModifiers<Token>>,
     },
-    Bo {
-        left_operator: Box<MathOperatorSyntax>,
+    BoundOperatorConnection {
+        left_operator: Box<MeksoOperatorSyntax>,
         connective: ConnectiveSyntax,
         bo: WithFreeModifiers<Token>,
-        right_operator: Box<MathOperatorSyntax>,
+        right_operator: Box<MeksoOperatorSyntax>,
     },
-    Connected {
-        left_operator: Box<MathOperatorSyntax>,
+    OperatorConnection {
+        left_operator: Box<MeksoOperatorSyntax>,
         connective: ConnectiveSyntax,
-        right_operator: Box<MathOperatorSyntax>,
+        right_operator: Box<MeksoOperatorSyntax>,
     },
 }
 
 #[invariant(true)]
-#[invariant(::Connected => true)]
-#[invariant(::Co => co.is_cmavo(Cmavo::Co))]
-#[invariant(::Bo => bo.is_cmavo(Cmavo::Bo))]
-#[invariant(::Na => na.is_selmaho(Selmaho::Na))]
-#[invariant(::Base(word) => crate::grammar::tokens::is_relation_word(word) || crate::grammar::tokens::is_cmevla_word(word))]
-#[invariant(::Se => se.is_selmaho(Selmaho::Se))]
-#[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
-#[invariant(::TenseModal => true)]
-#[invariant(::Guha => gihi.is_absent_or_selmaho(Selmaho::Gihi))]
-#[invariant(::Abstraction(abstraction) => abstraction.nu.is_selmaho(Selmaho::Nu) && abstraction.nai.is_absent_or_cmavo(Cmavo::Nai) && abstraction.additional_nu.iter().all(|additional_nu| additional_nu.nu.is_selmaho(Selmaho::Nu) && additional_nu.nai.is_absent_or_cmavo(Cmavo::Nai)) && abstraction.kei.is_absent_or_cmavo(Cmavo::Kei))]
-#[invariant(::Compound(..) => true)]
+#[invariant(::SelbriConnection => true)]
+#[invariant(::InvertedTanru => co.is_cmavo(Cmavo::Co))]
+#[invariant(::BoundSelbriConnection => bo.is_cmavo(Cmavo::Bo))]
+#[invariant(::Negated => na.is_selmaho(Selmaho::Na))]
+#[invariant(::SelbriWord(word) => crate::grammar::tokens::is_relation_word(word) || crate::grammar::tokens::is_cmevla_word(word))]
+#[invariant(::ConvertedSelbri => se.is_selmaho(Selmaho::Se))]
+#[invariant(::GroupedSelbri => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
+#[invariant(::TaggedSelbri => true)]
+#[invariant(::ForethoughtSelbriConnection => gihi.is_absent_or_selmaho(Selmaho::Gihi))]
+#[invariant(::Abstraction(abstraction) => abstraction.nu.is_selmaho(Selmaho::Nu) && abstraction.nai.is_absent_or_cmavo(Cmavo::Nai) && abstraction.abstractor_connections.iter().all(|connected_abstractor| connected_abstractor.nu.is_selmaho(Selmaho::Nu) && connected_abstractor.nai.is_absent_or_cmavo(Cmavo::Nai)) && abstraction.kei.is_absent_or_cmavo(Cmavo::Kei))]
+#[invariant(::Tanru(..) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum RelationSyntax {
-    Connected {
-        leading_relation: Box<RelationSyntax>,
+pub enum SelbriSyntax {
+    SelbriConnection {
+        leading_selbri: Box<SelbriSyntax>,
         connective: ConnectiveSyntax,
-        trailing_relation: Box<RelationSyntax>,
+        trailing_selbri: Box<SelbriSyntax>,
     },
-    Co {
-        leading_relation: Box<RelationSyntax>,
+    InvertedTanru {
+        leading_selbri: Box<SelbriSyntax>,
         co: WithFreeModifiers<Token>,
-        trailing_relation: Box<RelationSyntax>,
+        trailing_selbri: Box<SelbriSyntax>,
     },
-    Bo {
-        leading_relation: Box<RelationSyntax>,
+    BoundSelbriConnection {
+        leading_selbri: Box<SelbriSyntax>,
         bo_connective: Option<Box<ConnectiveSyntax>>,
         bo_tense_modal: Option<Box<TenseModalSyntax>>,
         bo: WithFreeModifiers<Token>,
-        trailing_relation: Box<RelationSyntax>,
+        trailing_selbri: Box<SelbriSyntax>,
     },
-    Na {
+    Negated {
         na: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner_relation: Box<RelationSyntax>,
+        inner_selbri: Box<SelbriSyntax>,
     },
-    Base(Token),
-    Se {
+    SelbriWord(Token),
+    ConvertedSelbri {
         se: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner_relation: Box<RelationSyntax>,
+        inner_selbri: Box<SelbriSyntax>,
     },
-    Ke {
+    GroupedSelbri {
         ke_tense_modal: Option<Box<TenseModalSyntax>>,
         ke: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        relation: Box<RelationSyntax>,
+        selbri: Box<SelbriSyntax>,
         kehe: Option<WithFreeModifiers<Token>>,
     },
-    TenseModal {
+    TaggedSelbri {
         tense_modal: Box<TenseModalSyntax>,
         #[tree_child(primary)]
-        inner_relation: Box<RelationSyntax>,
+        inner_selbri: Box<SelbriSyntax>,
     },
-    Guha {
+    ForethoughtSelbriConnection {
         guhek: ConnectiveSyntax,
-        leading_predicate: Box<PredicateSyntax>,
+        leading_bridi: Box<BridiSyntax>,
         gik: ConnectiveSyntax,
-        trailing_predicate: Box<PredicateSyntax>,
+        trailing_bridi: Box<BridiSyntax>,
         gihi: Option<Token>,
     },
     Abstraction(Box<AbstractionSyntax>),
-    Compound(Box<RelationUnitVec>),
+    Tanru(Box<TanruUnitVec>),
 }
 
-pub type RelationUnitVec = Vec1<RelationUnitSyntax>;
+pub type TanruUnitVec = Vec1<TanruUnitSyntax>;
 
 #[invariant(direction.iter().all(|direction| direction.is_selmaho(Selmaho::Pu)))]
 #[invariant(distance.as_ref().is_none_or(|distance| distance.is_selmaho(Selmaho::Zi)))]
@@ -1618,50 +1618,50 @@ pub struct SimpleTenseModalSyntax {
 #[invariant(fiho.is_cmavo(Cmavo::Fiho))]
 #[invariant(fehu.is_absent_or_cmavo(Cmavo::Fehu))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct FihoModalSyntax {
+pub struct AdHocModalSyntax {
     pub nahe: Option<Token>,
     pub fiho: WithFreeModifiers<Token>,
-    pub relation: Box<RelationSyntax>,
+    pub selbri: Box<SelbriSyntax>,
     pub fehu: Option<WithFreeModifiers<Token>>,
 }
 
 #[invariant(true)]
-#[invariant(::Word(word) => is_valid_tense_modal_word(word) || word.is_one_of_selmaho(&[Selmaho::Na, Selmaho::Ja, Selmaho::Joi, Selmaho::Bihi, Selmaho::Gaho]))]
-#[invariant(::Fiho(fiho) => fiho.nahe.is_absent_or_selmaho(Selmaho::Nahe) && fiho.fiho.is_cmavo(Cmavo::Fiho) && fiho.fehu.is_absent_or_cmavo(Cmavo::Fehu))]
+#[invariant(::Cmavo(word) => is_valid_tense_modal_word(word) || word.is_one_of_selmaho(&[Selmaho::Na, Selmaho::Ja, Selmaho::Joi, Selmaho::Bihi, Selmaho::Gaho]))]
+#[invariant(::AdHocModal(fiho) => fiho.nahe.is_absent_or_selmaho(Selmaho::Nahe) && fiho.fiho.is_cmavo(Cmavo::Fiho) && fiho.fehu.is_absent_or_cmavo(Cmavo::Fehu))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum CompositeTenseModalPartSyntax {
-    Word(Token),
-    Fiho(Box<FihoModalSyntax>),
+    Cmavo(Token),
+    AdHocModal(Box<AdHocModalSyntax>),
 }
 
 #[invariant(true)]
 #[invariant(::Composite => !parts.value.is_empty())]
-#[invariant(::Pu(pu) => pu.is_selmaho(Selmaho::Pu))]
-#[invariant(::PuDistance => pu.is_selmaho(Selmaho::Pu) && distance.is_selmaho(Selmaho::Zi))]
+#[invariant(::TimeDirection(pu) => pu.is_selmaho(Selmaho::Pu))]
+#[invariant(::TimeDirectionDistance => pu.is_selmaho(Selmaho::Pu) && distance.is_selmaho(Selmaho::Zi))]
 #[invariant(::TimeInterval(interval) => interval.is_selmaho(Selmaho::Zeha))]
-#[invariant(::PuCaha => pu.is_selmaho(Selmaho::Pu) && caha.is_selmaho(Selmaho::Caha))]
+#[invariant(::TimeDirectionActuality => pu.is_selmaho(Selmaho::Pu) && caha.is_selmaho(Selmaho::Caha))]
 #[invariant(::SpaceDistance(distance) => distance.is_selmaho(Selmaho::Va))]
 #[invariant(::SpaceDirection(direction) => direction.is_selmaho(Selmaho::Faha))]
 #[invariant(::SpaceMovement => mohi.is_cmavo(Cmavo::Mohi) && direction.is_selmaho(Selmaho::Faha) && distance.is_absent_or_selmaho(Selmaho::Va))]
-#[invariant(::Simple => nahe.as_ref().is_none_or(|nahe| nahe.is_selmaho(Selmaho::Nahe)) && se.as_ref().is_none_or(|se| se.is_selmaho(Selmaho::Se)) && bai.is_selmaho(Selmaho::Bai) && nai.is_absent_or_cmavo(Cmavo::Nai) && ki.is_absent_or_cmavo(Cmavo::Ki))]
-#[invariant(::Ki(ki) => ki.is_cmavo(Cmavo::Ki))]
-#[invariant(::Fiho => fiho.is_cmavo(Cmavo::Fiho) && fehu.is_absent_or_cmavo(Cmavo::Fehu))]
-#[invariant(::Caha(caha) => caha.is_selmaho(Selmaho::Caha))]
-#[invariant(::Zaho(zaho) => zaho.value.iter().all(|word| word.is_selmaho(Selmaho::Zaho)))]
-#[invariant(::Interval => number.as_ref().is_none_or(is_word_run_number_or_letter) && roi_or_tahe.is_one_of_selmaho(&[Selmaho::Roi, Selmaho::Tahe]) && nai.is_absent_or_cmavo(Cmavo::Nai))]
+#[invariant(::Modal => nahe.as_ref().is_none_or(|nahe| nahe.is_selmaho(Selmaho::Nahe)) && se.as_ref().is_none_or(|se| se.is_selmaho(Selmaho::Se)) && bai.is_selmaho(Selmaho::Bai) && nai.is_absent_or_cmavo(Cmavo::Nai) && ki.is_absent_or_cmavo(Cmavo::Ki))]
+#[invariant(::Sticky(ki) => ki.is_cmavo(Cmavo::Ki))]
+#[invariant(::AdHocModal => fiho.is_cmavo(Cmavo::Fiho) && fehu.is_absent_or_cmavo(Cmavo::Fehu))]
+#[invariant(::Actuality(caha) => caha.is_selmaho(Selmaho::Caha))]
+#[invariant(::EventContour(zaho) => zaho.value.iter().all(|word| word.is_selmaho(Selmaho::Zaho)))]
+#[invariant(::IntervalProperty => number.as_ref().is_none_or(is_word_run_number_or_letter) && roi_or_tahe.is_one_of_selmaho(&[Selmaho::Roi, Selmaho::Tahe]) && nai.is_absent_or_cmavo(Cmavo::Nai))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum TenseModalSyntax {
     Composite {
         #[tree_child(primary)]
         parts: WithFreeModifiers<Vec<CompositeTenseModalPartSyntax>>,
     },
-    Pu(WithFreeModifiers<Token>),
-    PuDistance {
+    TimeDirection(WithFreeModifiers<Token>),
+    TimeDirectionDistance {
         pu: Token,
         distance: WithFreeModifiers<Token>,
     },
     TimeInterval(WithFreeModifiers<Token>),
-    PuCaha {
+    TimeDirectionActuality {
         pu: Token,
         caha: WithFreeModifiers<Token>,
     },
@@ -1672,23 +1672,23 @@ pub enum TenseModalSyntax {
         direction: WithFreeModifiers<Token>,
         distance: Option<WithFreeModifiers<Token>>,
     },
-    Simple {
+    Modal {
         nahe: Option<WithFreeModifiers<Token>>,
         se: Option<WithFreeModifiers<Token>>,
         bai: WithFreeModifiers<Token>,
         nai: Option<WithFreeModifiers<Token>>,
         ki: Option<WithFreeModifiers<Token>>,
     },
-    Ki(WithFreeModifiers<Token>),
-    Fiho {
+    Sticky(WithFreeModifiers<Token>),
+    AdHocModal {
         fiho: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        relation: Box<RelationSyntax>,
+        selbri: Box<SelbriSyntax>,
         fehu: Option<WithFreeModifiers<Token>>,
     },
-    Caha(WithFreeModifiers<Token>),
-    Zaho(WithFreeModifiers<Vec<Token>>),
-    Interval {
+    Actuality(WithFreeModifiers<Token>),
+    EventContour(WithFreeModifiers<Vec<Token>>),
+    IntervalProperty {
         number: Option<WordRun>,
         roi_or_tahe: WithFreeModifiers<Token>,
         nai: Option<WithFreeModifiers<Token>>,
@@ -1702,154 +1702,154 @@ pub enum TenseModalSyntax {
 pub struct AbstractionSyntax {
     pub nu: WithFreeModifiers<Token>,
     pub nai: Option<WithFreeModifiers<Token>>,
-    pub additional_nu: Vec<AdditionalNuSyntax>,
+    pub abstractor_connections: Vec<AbstractorConnectionSyntax>,
     #[tree_child(primary)]
-    pub subsentence: Box<SubsentenceSyntax>,
+    pub subbridi: Box<SubbridiSyntax>,
     pub kei: Option<WithFreeModifiers<Token>>,
 }
 
 #[invariant(nu.is_selmaho(Selmaho::Nu))]
 #[invariant(nai.is_absent_or_cmavo(Cmavo::Nai))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct AdditionalNuSyntax {
+pub struct AbstractorConnectionSyntax {
     pub connective: ConnectiveSyntax,
     pub nu: WithFreeModifiers<Token>,
     pub nai: Option<WithFreeModifiers<Token>>,
 }
 
 #[invariant(true)]
-#[invariant(::Word(word) => crate::grammar::tokens::is_relation_word(&word.value) || crate::grammar::tokens::is_cmevla_word(&word.value))]
-#[invariant(::Goha => goha.is_selmaho(Selmaho::Goha) && raho.is_absent_or_cmavo(Cmavo::Raho))]
-#[invariant(::Se => se.is_selmaho(Selmaho::Se))]
-#[invariant(::Ke => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
-#[invariant(::Nahe => nahe.is_selmaho(Selmaho::Nahe))]
-#[invariant(::Bo => bo.is_cmavo(Cmavo::Bo))]
-#[invariant(::Connected => true)]
-#[invariant(::SelbriRelativeClause => !selbri_relative_clauses.is_empty())]
-#[invariant(::Wrapped(..) => true)]
-#[invariant(::Jai => jai.is_cmavo(Cmavo::Jai))]
-#[invariant(::Be => be.is_cmavo(Cmavo::Be) && fa.is_absent_or_selmaho(Selmaho::Fa) && (fa.is_none() || first_argument.is_some()) && beho.is_absent_or_cmavo(Cmavo::Beho))]
-#[invariant(::PreposedBe => be.is_cmavo(Cmavo::Be) && fa.is_absent_or_selmaho(Selmaho::Fa) && (fa.is_none() || first_argument.is_some()) && beho.is_absent_or_cmavo(Cmavo::Beho))]
-#[invariant(::Abstraction(abstraction) => abstraction.nu.is_selmaho(Selmaho::Nu) && abstraction.nai.is_absent_or_cmavo(Cmavo::Nai) && abstraction.additional_nu.iter().all(|additional_nu| additional_nu.nu.is_selmaho(Selmaho::Nu) && additional_nu.nai.is_absent_or_cmavo(Cmavo::Nai)) && abstraction.kei.is_absent_or_cmavo(Cmavo::Kei))]
-#[invariant(::Me => me.is_cmavo(Cmavo::Me) && mehu.is_absent_or_cmavo(Cmavo::Mehu) && moi_marker.is_absent_or_selmaho(Selmaho::Moi))]
-#[invariant(::Mehoi(mehoi) => mehoi.is_quote_marker_cmavo(Cmavo::Mehoi))]
-#[invariant(::Gohoi(gohoi) => gohoi.is_quote_marker_cmavo(Cmavo::Gohoi))]
-#[invariant(::Muhoi(muhoi) => muhoi.is_quote_marker_cmavo(Cmavo::Muhoi))]
-#[invariant(::Luhei => luhei.is_cmavo(Cmavo::Luhei) && liau.is_absent_or_cmavo(Cmavo::Lihau))]
-#[invariant(::Moi => is_word_run_number_or_letter(number) && moi.is_selmaho(Selmaho::Moi))]
-#[invariant(::Nuha => nuha.is_cmavo(Cmavo::Nuha))]
-#[invariant(::Xohi => xohi.is_cmavo(Cmavo::Xohi))]
-#[invariant(::Cei => !assignments.is_empty())]
+#[invariant(::TanruUnitWord(word) => crate::grammar::tokens::is_relation_word(&word.value) || crate::grammar::tokens::is_cmevla_word(&word.value))]
+#[invariant(::ProBridi => goha.is_selmaho(Selmaho::Goha) && raho.is_absent_or_cmavo(Cmavo::Raho))]
+#[invariant(::ConvertedTanruUnit => se.is_selmaho(Selmaho::Se))]
+#[invariant(::GroupedTanruUnit => ke.is_cmavo(Cmavo::Ke) && kehe.is_absent_or_cmavo(Cmavo::Kehe))]
+#[invariant(::ScalarNegatedTanruUnit => nahe.is_selmaho(Selmaho::Nahe))]
+#[invariant(::BoundTanruUnitConnection => bo.is_cmavo(Cmavo::Bo))]
+#[invariant(::TanruUnitConnection => true)]
+#[invariant(::RelativeClauses => !selbri_relative_clauses.is_empty())]
+#[invariant(::SelbriGroupTanruUnit(..) => true)]
+#[invariant(::ModalConversion => jai.is_cmavo(Cmavo::Jai))]
+#[invariant(::LinkedSumtiTanruUnit => be.is_cmavo(Cmavo::Be) && fa.is_absent_or_selmaho(Selmaho::Fa) && (fa.is_none() || first_sumti.is_some()) && beho.is_absent_or_cmavo(Cmavo::Beho))]
+#[invariant(::PreposedLinkedSumtiTanruUnit => be.is_cmavo(Cmavo::Be) && fa.is_absent_or_selmaho(Selmaho::Fa) && (fa.is_none() || first_sumti.is_some()) && beho.is_absent_or_cmavo(Cmavo::Beho))]
+#[invariant(::Abstraction(abstraction) => abstraction.nu.is_selmaho(Selmaho::Nu) && abstraction.nai.is_absent_or_cmavo(Cmavo::Nai) && abstraction.abstractor_connections.iter().all(|connected_abstractor| connected_abstractor.nu.is_selmaho(Selmaho::Nu) && connected_abstractor.nai.is_absent_or_cmavo(Cmavo::Nai)) && abstraction.kei.is_absent_or_cmavo(Cmavo::Kei))]
+#[invariant(::SumtiSelbri => me.is_cmavo(Cmavo::Me) && mehu.is_absent_or_cmavo(Cmavo::Mehu) && moi_marker.is_absent_or_selmaho(Selmaho::Moi))]
+#[invariant(::QuotedWordSelbri(mehoi) => mehoi.is_quote_marker_cmavo(Cmavo::Mehoi))]
+#[invariant(::QuotedBridiSelbri(gohoi) => gohoi.is_quote_marker_cmavo(Cmavo::Gohoi))]
+#[invariant(::QuotedTextSelbri(muhoi) => muhoi.is_quote_marker_cmavo(Cmavo::Muhoi))]
+#[invariant(::TextSelbri => luhei.is_cmavo(Cmavo::Luhei) && liau.is_absent_or_cmavo(Cmavo::Lihau))]
+#[invariant(::OrdinalSelbri => is_word_run_number_or_letter(number) && moi.is_selmaho(Selmaho::Moi))]
+#[invariant(::OperatorSelbri => nuha.is_cmavo(Cmavo::Nuha))]
+#[invariant(::TagSelbri => xohi.is_cmavo(Cmavo::Xohi))]
+#[invariant(::AssignedProBridi => !assignments.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum RelationUnitSyntax {
-    Word(WithFreeModifiers<Token>),
-    Goha {
+pub enum TanruUnitSyntax {
+    TanruUnitWord(WithFreeModifiers<Token>),
+    ProBridi {
         goha: WithFreeModifiers<Token>,
         raho: Option<WithFreeModifiers<Token>>,
     },
-    Se {
+    ConvertedTanruUnit {
         se: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner_unit: Box<RelationUnitSyntax>,
+        inner_unit: Box<TanruUnitSyntax>,
     },
-    Ke {
+    GroupedTanruUnit {
         ke_tense_modal: Option<Box<TenseModalSyntax>>,
         ke: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        relation: Box<RelationSyntax>,
+        selbri: Box<SelbriSyntax>,
         kehe: Option<WithFreeModifiers<Token>>,
     },
-    Nahe {
+    ScalarNegatedTanruUnit {
         nahe: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        inner_unit: Box<RelationUnitSyntax>,
+        inner_unit: Box<TanruUnitSyntax>,
     },
-    Bo {
-        leading_unit: Box<RelationUnitSyntax>,
+    BoundTanruUnitConnection {
+        leading_unit: Box<TanruUnitSyntax>,
         bo_connective: Option<Box<ConnectiveSyntax>>,
         bo_tense_modal: Option<Box<TenseModalSyntax>>,
         bo: WithFreeModifiers<Token>,
-        trailing_unit: Box<RelationUnitSyntax>,
+        trailing_unit: Box<TanruUnitSyntax>,
     },
-    Connected {
-        leading_unit: Box<RelationUnitSyntax>,
+    TanruUnitConnection {
+        leading_unit: Box<TanruUnitSyntax>,
         connective: ConnectiveSyntax,
-        trailing_unit: Box<RelationUnitSyntax>,
+        trailing_unit: Box<TanruUnitSyntax>,
     },
-    SelbriRelativeClause {
+    RelativeClauses {
         #[tree_child(primary)]
-        base: Box<RelationUnitSyntax>,
-        selbri_relative_clauses: Vec<SelbriRelativeClauseSyntax>,
+        base: Box<TanruUnitSyntax>,
+        selbri_relative_clauses: Vec<SelbriRelativePhraseSyntax>,
     },
-    Wrapped(Box<RelationSyntax>),
-    Jai {
+    SelbriGroupTanruUnit(Box<SelbriSyntax>),
+    ModalConversion {
         jai: WithFreeModifiers<Token>,
         tense_modal: Option<Box<TenseModalSyntax>>,
         #[tree_child(primary)]
-        inner_unit: Box<RelationUnitSyntax>,
+        inner_unit: Box<TanruUnitSyntax>,
     },
-    Be {
+    LinkedSumtiTanruUnit {
         #[tree_child(primary)]
-        base: Box<RelationUnitSyntax>,
+        base: Box<TanruUnitSyntax>,
         be: WithFreeModifiers<Token>,
         fa: Option<WithFreeModifiers<Token>>,
-        first_argument: Option<Box<ArgumentSyntax>>,
-        bei_links: Vec<BeiLinkSyntax>,
+        first_sumti: Option<Box<SumtiSyntax>>,
+        bei_links: Vec<AdditionalLinkedSumtiSyntax>,
         beho: Option<WithFreeModifiers<Token>>,
     },
-    PreposedBe {
+    PreposedLinkedSumtiTanruUnit {
         be: WithFreeModifiers<Token>,
         fa: Option<WithFreeModifiers<Token>>,
-        first_argument: Option<Box<ArgumentSyntax>>,
-        bei_links: Vec<BeiLinkSyntax>,
+        first_sumti: Option<Box<SumtiSyntax>>,
+        bei_links: Vec<AdditionalLinkedSumtiSyntax>,
         beho: Option<WithFreeModifiers<Token>>,
         #[tree_child(primary)]
-        base: Box<RelationUnitSyntax>,
+        base: Box<TanruUnitSyntax>,
     },
     Abstraction(Box<AbstractionSyntax>),
-    Me {
+    SumtiSelbri {
         me: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        argument: Box<ArgumentSyntax>,
+        sumti: Box<SumtiSyntax>,
         mehu: Option<WithFreeModifiers<Token>>,
         moi_marker: Option<WithFreeModifiers<Token>>,
     },
-    Mehoi(WithFreeModifiers<Token>),
-    Gohoi(WithFreeModifiers<Token>),
-    Muhoi(WithFreeModifiers<Token>),
-    Luhei {
+    QuotedWordSelbri(WithFreeModifiers<Token>),
+    QuotedBridiSelbri(WithFreeModifiers<Token>),
+    QuotedTextSelbri(WithFreeModifiers<Token>),
+    TextSelbri {
         luhei: WithFreeModifiers<Token>,
         #[tree_child(primary)]
         text: Box<TextSyntax>,
         liau: Option<WithFreeModifiers<Token>>,
     },
-    Moi {
+    OrdinalSelbri {
         number: WordRun,
         moi: WithFreeModifiers<Token>,
     },
-    Nuha {
+    OperatorSelbri {
         nuha: WithFreeModifiers<Token>,
         #[tree_child(primary)]
-        math_operator: Box<MathOperatorSyntax>,
+        mekso_operator: Box<MeksoOperatorSyntax>,
     },
-    Xohi {
+    TagSelbri {
         xohi: WithFreeModifiers<Token>,
         #[tree_child(primary)]
         tag: Box<TenseModalSyntax>,
     },
-    Cei {
+    AssignedProBridi {
         #[tree_child(primary)]
-        base: Box<RelationUnitSyntax>,
-        assignments: Vec<CeiAssignmentSyntax>,
+        base: Box<TanruUnitSyntax>,
+        assignments: Vec<ProBridiAssignmentSyntax>,
     },
 }
 
 #[invariant(cei.is_cmavo(Cmavo::Cei))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct CeiAssignmentSyntax {
+pub struct ProBridiAssignmentSyntax {
     pub cei: WithFreeModifiers<Token>,
     #[tree_child(primary)]
-    pub relation_unit: Box<RelationUnitSyntax>,
+    pub tanru_unit: Box<TanruUnitSyntax>,
 }
 
 }

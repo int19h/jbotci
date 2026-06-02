@@ -8,7 +8,7 @@ entry-id = "6807"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Lujvo { parts: [Rafsi(Phonemes { text: "mal" }), Rafsi(Phonemes { text: "nínmu" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "or" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } }), Bare(Lujvo { parts: [Rafsi(Phonemes { text: "din" }), Rafsi(Phonemes { text: "gle" }), Rafsi(Phonemes { text: "nínmu" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 23, char_start: 12, char_end: 23, start: None, end: None } })]'
+raw = '[PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "mal" }), Rafsi(Phonemes { text: "nínmu" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "or" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } }), PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "din" }), Rafsi(Phonemes { text: "gle" }), Rafsi(Phonemes { text: "nínmu" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 23, char_start: 12, char_end: 23, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -22,4 +22,4 @@ tree = """
   Cmevla @[9‥11) "or",
   Lujvo @[12‥23) "dinglenínmu",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"nínmu"}],"span":[0,8]}}},{"Bare":{"Cmevla":{"phonemes":"or","span":[9,11]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"din"},{"Rafsi":"gle"},{"Rafsi":"nínmu"}],"span":[12,23]}}}]'
+json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"nínmu"}],"span":[0,8]}}},{"PlainWord":{"Cmevla":{"phonemes":"or","span":[9,11]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"din"},{"Rafsi":"gle"},{"Rafsi":"nínmu"}],"span":[12,23]}}}]'

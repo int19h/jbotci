@@ -8,15 +8,15 @@ entry-id = "20762"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ki'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "zu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } }), Bare(Lujvo { parts: [Rafsi(Phonemes { text: "sel" }), Rafsi(Phonemes { text: "sánga" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 21, char_start: 13, char_end: 21, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ki'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "zu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } }), PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "sel" }), Rafsi(Phonemes { text: "sánga" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 21, char_start: 13, char_end: 21, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Descriptor(DescriptorSyntax { outer_quantifier: None, descriptor: Some(WithFreeModifiers { value: WithIndicator { base: Bare(Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ki'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }, nai: None }, free_modifiers: [] }), tail_elements: [], relation: Some(TenseModal { tense_modal: Composite { parts: WithFreeModifiers { value: [Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }))), Word(Bare(Bare(Cmavo { phonemes: Phonemes { text: "zu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } })))], free_modifiers: [] } }, inner_relation: Base(Bare(Bare(Lujvo { parts: [Rafsi(Phonemes { text: "sel" }), Rafsi(Phonemes { text: "sánga" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 21, char_start: 13, char_end: 21, start: None, end: None } }))) }), relative_clauses: [], ku: None }))], vau: None })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(Description(DescriptionSyntax { outer_quantifier: None, description: Some(WithFreeModifiers { value: WithIndicator { base: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ki'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }, nai: None }, free_modifiers: [] }), tail_elements: [], selbri: Some(TaggedSelbri { tense_modal: Composite { parts: WithFreeModifiers { value: [Cmavo(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }))), Cmavo(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "zu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 12, char_start: 10, char_end: 12, start: None, end: None } })))], free_modifiers: [] } }, inner_selbri: SelbriWord(Plain(PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "sel" }), Rafsi(Phonemes { text: "sánga" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 21, char_start: 13, char_end: 21, start: None, end: None } }))) }), relative_clauses: [], ku: None }))], vau: None })) }] }] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":13,"length":8},"kind":"base-relation","relation":{"offset":13,"length":8},"relation-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":8,"length":13},"kind":"forwarding","relation":{"offset":8,"length":13},"relation-unit":null,"propagation":{"kind":"forward","inner":0}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":13,"length":8},"kind":"base-selbri","selbri":{"offset":13,"length":8},"tanru-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":8,"length":13},"kind":"forwarding","selbri":{"offset":8,"length":13},"tanru-unit":null,"propagation":{"kind":"forward","inner":0}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(le ki'a pu zu selsánga)"
@@ -28,18 +28,18 @@ tree = """
   Cmavo @[10‥12) "zu",
   Lujvo @[13‥21) "selsánga",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"ki'a","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"pu","span":[8,10]}}},{"Bare":{"Cmavo":{"phonemes":"zu","span":[10,12]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"sánga"}],"span":[13,21]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"ki'a","span":[3,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[8,10]}}},{"PlainWord":{"Cmavo":{"phonemes":"zu","span":[10,12]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"sánga"}],"span":[13,21]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥21) {
+Terms @[0‥21) {
   terms: [
-    Descriptor @[0‥21) {
-      descriptor: WithIndicator @[0‥7) {
+    Description @[0‥21) {
+      description: WithIndicator @[0‥7) {
         Cmavo @[0‥2) "le",
         indicator: Cmavo @[3‥7) "ki'a",
       },
-      relation: TenseModal @[8‥21) {
+      selbri: TaggedSelbri @[8‥21) {
         tense_modal: Composite @[8‥12) {
           Cmavo @[8‥10) "pu",
           Cmavo @[10‥12) "zu",
@@ -49,4 +49,4 @@ Term @[0‥21) {
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Descriptor":{"descriptor":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[3,7]}}}},"relation":{"TenseModal":{"tense_modal":{"Composite":{"parts":[{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"pu","span":[8,10]}}}}},{"Word":{"Bare":{"Bare":{"Cmavo":{"phonemes":"zu","span":[10,12]}}}}}]}},"inner_relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"sánga"}],"span":[13,21]}}}}}}}}}}]}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[3,7]}}}},"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[8,10]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zu","span":[10,12]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"sánga"}],"span":[13,21]}}}}}}}}}}]}}}}]}]}"""

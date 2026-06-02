@@ -8,11 +8,11 @@ entry-id = "19287"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "ju'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ja'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "ju'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ja'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "failure"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: WithIndicator { base: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ju'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ja'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None } }, nai: None }, nai: None }], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: WithIndicator { base: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ju'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ja'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None } }, nai: None }, nai: None }], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
@@ -22,7 +22,7 @@ tree = """
   Cmavo @[3‥7) "ju'o",
   Cmavo @[8‥12) "ja'o",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"ju'o","span":[3,7]}}},{"Bare":{"Cmavo":{"phonemes":"ja'o","span":[8,12]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"ju'o","span":[3,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"ja'o","span":[8,12]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -36,4 +36,4 @@ Text @[3‥12) {
     },
   ],
 }"""
-json = """{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ju'o","span":[3,7]}}}},"indicator":{"Cmavo":{"phonemes":"ja'o","span":[8,12]}}}}}]}"""
+json = """{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju'o","span":[3,7]}}}},"indicator":{"Cmavo":{"phonemes":"ja'o","span":[8,12]}}}}}]}"""

@@ -8,11 +8,11 @@ entry-id = "20044"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "pe'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), Bare(Lujvo { parts: [Rafsi(Phonemes { text: "ci'á" }), Rafsi(Phonemes { text: "jbu" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 12, char_start: 5, char_end: 12, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ja'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "pe'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "ci'á" }), Rafsi(Phonemes { text: "jbu" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 12, char_start: 5, char_end: 12, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ja'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "failure"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: Bare(Bare(Cmavo { phonemes: Phonemes { text: "pe'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), nai: None }], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [], cu: None, predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Lujvo { parts: [Rafsi(Phonemes { text: "ci'á" }), Rafsi(Phonemes { text: "jbu" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 12, char_start: 5, char_end: 12, start: None, end: None } }))), terms: [BareNa(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "ja'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } })), free_modifiers: [] })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [Indicator { indicator: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "pe'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } })), nai: None }], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Bridi(BridiSyntax { leading_terms: [], cu: None, bridi_tail: BridiTailSyntax { first: AfterthoughtBridiTailSyntax { first: BoGroupedBridiTailSyntax { first: SelbriBridiTail { selbri: SelbriWord(Plain(PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "ci'á" }), Rafsi(Phonemes { text: "jbu" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 12, char_start: 5, char_end: 12, start: None, end: None } }))), terms: [BareNegation(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ja'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 17, char_start: 13, char_end: 17, start: None, end: None } })), free_modifiers: [] })], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
 
 [expectations.output.vlasei]
@@ -23,7 +23,7 @@ tree = """
   Lujvo @[5‥12) "ci'ájbu",
   Cmavo @[13‥17) "ja'a",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"pe'a","span":[0,4]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"ci'á"},{"Rafsi":"jbu"}],"span":[5,12]}}},{"Bare":{"Cmavo":{"phonemes":"ja'a","span":[13,17]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"pe'a","span":[0,4]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ci'á"},{"Rafsi":"jbu"}],"span":[5,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"ja'a","span":[13,17]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -33,11 +33,11 @@ Text @[0‥17) {
       indicator: Cmavo @[0‥4) "pe'a",
     },
   ],
-  Relation @[5‥17) {
+  SelbriBridiTail @[5‥17) {
     Lujvo @[5‥12) "ci'ájbu",
     terms: [
       Cmavo @[13‥17) "ja'a",
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Predicate":{"predicate_tail":{"first":{"first":{"first":{"Relation":{"relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"ci'á"},{"Rafsi":"jbu"}],"span":[5,12]}}}}},"terms":[{"BareNa":{"Bare":{"Bare":{"Cmavo":{"phonemes":"ja'a","span":[13,17]}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Bare":{"Bare":{"Cmavo":{"phonemes":"pe'a","span":[0,4]}}}}}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ci'á"},{"Rafsi":"jbu"}],"span":[5,12]}}}}},"terms":[{"BareNegation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ja'a","span":[13,17]}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'a","span":[0,4]}}}}}]}"""

@@ -729,7 +729,7 @@ fn compact_constructor_object(object: &serde_json::Map<String, Value>) -> Option
     }
     let (constructor, payload) = object.iter().next()?;
     match constructor.as_str() {
-        "Bare" => {
+        "PlainWord" => {
             let Value::Object(payload) = payload else {
                 return None;
             };
@@ -738,18 +738,19 @@ fn compact_constructor_object(object: &serde_json::Map<String, Value>) -> Option
             }
             None
         }
-        "GekSentence" => single_payload_field(constructor, payload, "gek_sentence"),
-        "Argument" => single_payload_field(constructor, payload, "argument"),
-        "BeiLink" => single_payload_field(constructor, payload, "bei_only_links"),
-        "RelativeClause" => single_payload_field(constructor, payload, "relative_clauses"),
-        "MathExpression" => single_payload_field(constructor, payload, "math_expression"),
-        "Relation" => single_payload_field(constructor, payload, "relation"),
-        "Descriptor" => single_payload_field(constructor, payload, "descriptor"),
-        "ConnectedDescriptor" => single_payload_field(constructor, payload, "connected_descriptor"),
-        "Base" => single_payload_field(constructor, payload, "word"),
+        "ForethoughtBridiTailConnection" => {
+            single_payload_field(constructor, payload, "forethought_bridi_tail_connection")
+        }
+        "Sumti" => single_payload_field(constructor, payload, "sumti"),
+        "LinkedSumtiContinuation" => single_payload_field(constructor, payload, "bei_only_links"),
+        "RelativeClauses" => single_payload_field(constructor, payload, "relative_clauses"),
+        "Mekso" => single_payload_field(constructor, payload, "mekso"),
+        "Selbri" => single_payload_field(constructor, payload, "selbri"),
+        "Description" => single_payload_field(constructor, payload, "description"),
+        "DescriptionConnection" => {
+            single_payload_field(constructor, payload, "description_connection")
+        }
         "Abstraction" => single_payload_field(constructor, payload, "abstraction"),
-        "Compound" => single_payload_field(constructor, payload, "units"),
-        "Wrapped" => single_payload_field(constructor, payload, "relation"),
         _ => None,
     }
 }
@@ -947,10 +948,10 @@ mod tests {
         let tree = render_tree_with_elided("mi klama");
         assert!(tree.contains("vau: Cmavo @[8‥8) \"vau\""), "{tree}");
 
-        let descriptor = render_tree_with_elided("le broda");
+        let description = render_tree_with_elided("le broda");
         assert!(
-            descriptor.contains("ku: Cmavo @[8‥8) \"ku\""),
-            "{descriptor}"
+            description.contains("ku: Cmavo @[8‥8) \"ku\""),
+            "{description}"
         );
 
         let abstraction = render_tree_with_elided("lo nu mi klama");

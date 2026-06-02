@@ -8,15 +8,15 @@ entry-id = "17733"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "bésna" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ga'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 17, char_start: 14, char_end: 17, start: None, end: None } })]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "bésna" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ga'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 17, char_start: 14, char_end: 17, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Base(WithIndicator { base: Bare(Bare(Gismu { phonemes: Phonemes { text: "bésna" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ga'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None } }, nai: Some(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 17, char_start: 14, char_end: 17, start: None, end: None } }) }), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, sumti: Some(SelbriVocative { leading_relative_clauses: [], selbri: SelbriWord(WithIndicator { base: Plain(PlainWord(Gismu { phonemes: Phonemes { text: "bésna" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ga'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 14, char_start: 10, char_end: 14, start: None, end: None } }, nai: Some(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 17, char_start: 14, char_end: 17, start: None, end: None } }) }), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":4,"length":13},"kind":"base-relation","relation":{"offset":4,"length":13},"relation-unit":null,"propagation":{"kind":"none"}}],"assignments":[{"frame":0,"frame-node":{"offset":4,"length":13},"relation":{"offset":4,"length":13},"relation-unit":null,"slot":{"kind":"numbered","place":1},"argument":{"offset":4,"length":13},"term":null,"source":"sequential-term"}],"relation-places":[{"frame":0,"relation":{"offset":4,"length":13},"place":1,"argument":{"offset":4,"length":13}}],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":4,"length":13},"kind":"base-selbri","selbri":{"offset":4,"length":13},"tanru-unit":null,"propagation":{"kind":"none"}}],"assignments":[{"frame":0,"frame-node":{"offset":4,"length":13},"selbri":{"offset":4,"length":13},"tanru-unit":null,"slot":{"kind":"numbered","place":1},"sumti":{"offset":4,"length":13},"term":null,"source":"sequential-term"}],"selbri-places":[{"frame":0,"selbri":{"offset":4,"length":13},"place":1,"sumti":{"offset":4,"length":13}}],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(doĭ bésna ga'i naĭ)"
@@ -27,7 +27,7 @@ tree = """
   Cmavo @[10‥14) "ga'i",
   Cmavo @[14‥17) "naĭ",
 ]"""
-json = """[{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"Bare":{"Gismu":{"phonemes":"bésna","span":[4,9]}}},{"Bare":{"Cmavo":{"phonemes":"ga'i","span":[10,14]}}},{"Bare":{"Cmavo":{"phonemes":"naĭ","span":[14,17]}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"PlainWord":{"Gismu":{"phonemes":"bésna","span":[4,9]}}},{"PlainWord":{"Cmavo":{"phonemes":"ga'i","span":[10,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[14,17]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -37,8 +37,8 @@ Text @[0‥17) {
       vocative_markers: [
         Cmavo @[0‥3) "doĭ",
       ],
-      argument: RelationVocative @[4‥17) {
-        relation: WithIndicator @[4‥17) {
+      sumti: SelbriVocative @[4‥17) {
+        selbri: WithIndicator @[4‥17) {
           Gismu @[4‥9) "bésna",
           indicator: Cmavo @[10‥14) "ga'i",
           nai: Cmavo @[14‥17) "naĭ",
@@ -47,4 +47,4 @@ Text @[0‥17) {
     },
   ],
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}],"argument":{"RelationVocative":{"relation":{"Base":{"WithIndicator":{"base":{"Bare":{"Bare":{"Gismu":{"phonemes":"bésna","span":[4,9]}}}},"indicator":{"Cmavo":{"phonemes":"ga'i","span":[10,14]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[14,17]}}}}}}}}}]}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}],"sumti":{"SelbriVocative":{"selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bésna","span":[4,9]}}}},"indicator":{"Cmavo":{"phonemes":"ga'i","span":[10,14]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[14,17]}}}}}}}}}]}"""

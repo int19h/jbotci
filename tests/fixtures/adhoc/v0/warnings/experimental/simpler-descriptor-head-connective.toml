@@ -4,26 +4,26 @@ tags = ["v0-adhoc", "warnings"]
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(ConnectedDescriptor(ConnectedDescriptorSyntax { leading_descriptor_head: DescriptorHeadSyntax { descriptor: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "lo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] } }, connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "je" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }))], free_modifiers: [] }, nai: None }, trailing_descriptor_head: DescriptorHeadSyntax { descriptor: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } })), free_modifiers: [] } }, tail_elements: [], relation: Some(Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } })))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(DescriptionConnection(DescriptionConnectionSyntax { leading_description_head: DescriptionHeadSyntax { description: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "lo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] } }, connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "je" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }))], free_modifiers: [] }, nai: None }, trailing_description_head: DescriptionHeadSyntax { description: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "le" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } })), free_modifiers: [] } }, tail_elements: [], selbri: Some(SelbriWord(Plain(PlainWord(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } })))), relative_clauses: [], ku: None }))], vau: None })) }] }] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":9,"length":5},"kind":"base-relation","relation":{"offset":9,"length":5},"relation-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":9,"length":5},"kind":"base-selbri","selbri":{"offset":9,"length":5},"tanru-unit":null,"propagation":{"kind":"none"}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.gentufa]
 tree = """
-Term @[0‥14) {
+Terms @[0‥14) {
   terms: [
-    ConnectedDescriptor @[0‥14) {
-      leading_descriptor_head: DescriptorHead @[0‥2) {
-        descriptor: Cmavo @[0‥2) "lo",
+    DescriptionConnection @[0‥14) {
+      leading_description_head: DescriptionHead @[0‥2) {
+        description: Cmavo @[0‥2) "lo",
       },
       connective: Cmavo @[3‥5) "je",
-      trailing_descriptor_head: DescriptorHead @[6‥8) {
-        descriptor: Cmavo @[6‥8) "le",
+      trailing_description_head: DescriptionHead @[6‥8) {
+        description: Cmavo @[6‥8) "le",
       },
-      relation: Gismu @[9‥14) "bróda",
+      selbri: Gismu @[9‥14) "bróda",
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"ConnectedDescriptor":{"leading_descriptor_head":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"je","span":[3,5]}}}}]}},"trailing_descriptor_head":{"descriptor":{"Bare":{"Bare":{"Cmavo":{"phonemes":"le","span":[6,8]}}}}},"relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"bróda","span":[9,14]}}}}}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"DescriptionConnection":{"leading_description_head":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[3,5]}}}}]}},"trailing_description_head":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[9,14]}}}}}}}}]}}}}]}]}'

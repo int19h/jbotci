@@ -8,15 +8,15 @@ entry-id = "285"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "fi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 28, char_start: 26, char_end: 28, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "cu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 47, byte_end: 49, char_start: 47, char_end: 49, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "válsi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 54, byte_end: 59, char_start: 54, char_end: 59, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "fi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 28, char_start: 26, char_end: 28, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "cu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 47, byte_end: 49, char_start: 47, char_end: 49, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "válsi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 54, byte_end: 59, char_start: 54, char_end: 59, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Predicate(PredicateSyntax { leading_terms: [Fa { fa: WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "fi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 28, char_start: 26, char_end: 28, start: None, end: None } })), free_modifiers: [] }, argument: Zohe { tag: None, maybe_ku: None, free_modifiers: [] }, ku: None }], cu: Some(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: "cu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 47, byte_end: 49, char_start: 47, char_end: 49, start: None, end: None } })), free_modifiers: [] }), predicate_tail: PredicateTailSyntax { first: PredicateTail1Syntax { first: PredicateTail2Syntax { first: Relation { relation: Base(Bare(Bare(Gismu { phonemes: Phonemes { text: "válsi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 54, byte_end: 59, char_start: 54, char_end: 59, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Bridi(BridiSyntax { leading_terms: [PlaceTaggedSumti { fa: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "fi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 26, byte_end: 28, char_start: 26, char_end: 28, start: None, end: None } })), free_modifiers: [] }, sumti: ElidedSumti { tag: None, maybe_ku: None, free_modifiers: [] }, ku: None }], cu: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "cu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 47, byte_end: 49, char_start: 47, char_end: 49, start: None, end: None } })), free_modifiers: [] }), bridi_tail: BridiTailSyntax { first: AfterthoughtBridiTailSyntax { first: BoGroupedBridiTailSyntax { first: SelbriBridiTail { selbri: SelbriWord(Plain(PlainWord(Gismu { phonemes: Phonemes { text: "válsi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 54, byte_end: 59, char_start: 54, char_end: 59, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":54,"length":5},"kind":"base-relation","relation":{"offset":54,"length":5},"relation-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":54,"length":5},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":54,"length":5},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[1]}},{"index":3,"node":{"offset":54,"length":5},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[2]}},{"index":4,"node":{"offset":54,"length":5},"kind":"predicate-tail","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[3]}},{"index":5,"node":{"offset":26,"length":33},"kind":"predicate","relation":null,"relation-unit":null,"propagation":{"kind":"connected","branches":[4]}}],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":54,"length":5},"kind":"base-selbri","selbri":{"offset":54,"length":5},"tanru-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":54,"length":5},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":54,"length":5},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[1]}},{"index":3,"node":{"offset":54,"length":5},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[2]}},{"index":4,"node":{"offset":54,"length":5},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[3]}},{"index":5,"node":{"offset":26,"length":33},"kind":"bridi","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[4]}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(fi cu válsi)"
@@ -26,18 +26,18 @@ tree = """
   Cmavo @[47‥49) "cu",
   Gismu @[54‥59) "válsi",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"fi","span":[26,28]}}},{"Bare":{"Cmavo":{"phonemes":"cu","span":[47,49]}}},{"Bare":{"Gismu":{"phonemes":"válsi","span":[54,59]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[26,28]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[47,49]}}},{"PlainWord":{"Gismu":{"phonemes":"válsi","span":[54,59]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Predicate @[26‥59) {
+Bridi @[26‥59) {
   leading_terms: [
-    Fa @[26‥28) {
+    PlaceTaggedSumti @[26‥28) {
       fa: Cmavo @[26‥28) "fi",
-      Zohe {},
+      ElidedSumti {},
     },
   ],
   cu: Cmavo @[47‥49) "cu",
   Gismu @[54‥59) "válsi",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Predicate":{"leading_terms":[{"Fa":{"fa":{"Bare":{"Bare":{"Cmavo":{"phonemes":"fi","span":[26,28]}}}},"argument":{"Zohe":{}}}}],"cu":{"Bare":{"Bare":{"Cmavo":{"phonemes":"cu","span":[47,49]}}}},"predicate_tail":{"first":{"first":{"first":{"Relation":{"Base":{"Bare":{"Bare":{"Gismu":{"phonemes":"válsi","span":[54,59]}}}}}}}}}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[26,28]}}}},"sumti":{"ElidedSumti":{}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[47,49]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"válsi","span":[54,59]}}}}}}}}}}}}}]}]}'

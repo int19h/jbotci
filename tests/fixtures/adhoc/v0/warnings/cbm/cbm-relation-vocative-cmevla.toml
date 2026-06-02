@@ -5,12 +5,12 @@ tags = ["v0-adhoc", "warnings"]
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Base(Bare(Bare(Cmevla { phonemes: Phonemes { text: "alis" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None } }))), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }'
-diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-cbm-cmevla-relation-word", byte-span = [5, 9], source-text = "alis", message = "experimental syntax: CBM cmevla used as a relation word", word-index = 1 }]
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, sumti: Some(SelbriVocative { leading_relative_clauses: [], selbri: SelbriWord(Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "alis" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 9, char_start: 5, char_end: 9, start: None, end: None } }))), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }'
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-cbm-cmevla-selbri-word", byte-span = [5, 9], source-text = "alis", message = "experimental syntax: CBM cmevla used as a selbri word", word-index = 1 }]
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":5,"length":4},"kind":"base-relation","relation":{"offset":5,"length":4},"relation-unit":null,"propagation":{"kind":"none"}}],"assignments":[{"frame":0,"frame-node":{"offset":5,"length":4},"relation":{"offset":5,"length":4},"relation-unit":null,"slot":{"kind":"numbered","place":1},"argument":{"offset":5,"length":4},"term":null,"source":"sequential-term"}],"relation-places":[{"frame":0,"relation":{"offset":5,"length":4},"place":1,"argument":{"offset":5,"length":4}}],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":5,"length":4},"kind":"base-selbri","selbri":{"offset":5,"length":4},"tanru-unit":null,"propagation":{"kind":"none"}}],"assignments":[{"frame":0,"frame-node":{"offset":5,"length":4},"selbri":{"offset":5,"length":4},"tanru-unit":null,"slot":{"kind":"numbered","place":1},"sumti":{"offset":5,"length":4},"term":null,"source":"sequential-term"}],"selbri-places":[{"frame":0,"selbri":{"offset":5,"length":4},"place":1,"sumti":{"offset":5,"length":4}}],"references":[]}'
 
 [expectations.output.gentufa]
 tree = """
@@ -20,10 +20,10 @@ Text @[0‥9) {
       vocative_markers: [
         Cmavo @[0‥3) "coĭ",
       ],
-      argument: RelationVocative @[5‥9) {
-        relation: Cmevla @[5‥9) "alis",
+      sumti: SelbriVocative @[5‥9) {
+        selbri: Cmevla @[5‥9) "alis",
       },
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"argument":{"RelationVocative":{"relation":{"Base":{"Bare":{"Bare":{"Cmevla":{"phonemes":"alis","span":[5,9]}}}}}}}}}]}'
+json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"SelbriVocative":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"alis","span":[5,9]}}}}}}}}}]}'

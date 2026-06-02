@@ -8,7 +8,7 @@ entry-id = "3953"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "vo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Letter { base: Bare(Cmavo { phonemes: Phonemes { text: "ca" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } }), bu: Cmavo { phonemes: Phonemes { text: "bu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } } }, Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "ry" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "vo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), LerfuWord { base: PlainWord(Cmavo { phonemes: Phonemes { text: "ca" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } }), bu: Cmavo { phonemes: Phonemes { text: "bu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } } }, PlainWord(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ry" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -19,11 +19,11 @@ brackets = "(vo [ca bu] la ry)"
 tree = """
 [
   Cmavo @[0‥2) "vo",
-  Letter @[2‥6) {
+  LerfuWord @[2‥6) {
     Cmavo @[2‥4) "ca",
     bu: Cmavo @[4‥6) "bu",
   },
   Cmavo @[6‥8) "la",
   Cmavo @[8‥10) "ry",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"vo","span":[0,2]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"ca","span":[2,4]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[4,6]}}}},{"Bare":{"Cmavo":{"phonemes":"la","span":[6,8]}}},{"Bare":{"Cmavo":{"phonemes":"ry","span":[8,10]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[0,2]}}},{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[2,4]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[4,6]}}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[6,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"ry","span":[8,10]}}}]'

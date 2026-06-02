@@ -616,7 +616,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture frame propagation is a serialization projection of validated frame ids",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Connected",
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::ConnectiveBranches",
         "fixture frame propagation is a serialization projection of validated frame ids",
     ),
     (
@@ -764,8 +764,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "frame ids are validated through PlaceAnalysis lookup APIs",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Connected",
-        "connected propagation may be temporarily empty for partially analyzed or unresolved selbri structures",
+        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::ConnectiveBranches",
+        "connective-branch propagation may be temporarily empty for partially analyzed or unresolved selbri structures",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Compound",
@@ -884,6 +884,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "feature payload is closed over DialectFeature and toggle enums",
     ),
     (
+        "crates/jbotci-dialect/src/lib.rs:DialectFormulaComponent::Atom",
+        "formula normalization drops empty atoms before rendering and this private parser state is not constructed outside dialect helpers",
+    ),
+    (
+        "crates/jbotci-dialect/src/lib.rs:DialectFormulaComponent::Group",
+        "grouped formula text is produced by the local parenthesis collector and normalized before rendering",
+    ),
+    (
         "crates/jbotci-dialect/src/lib.rs:DialectToken::Atom",
         "tokenizer emits atoms from non-empty spans before parser validation",
     ),
@@ -904,19 +912,19 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper delegates validity to SourceLocationError",
     ),
     (
-        "crates/jbotci-morphology/src/tree.rs:Jvopau::Rafsi",
+        "crates/jbotci-morphology/src/tree.rs:LujvoPart::Rafsi",
         "Phonemes owns canonical non-empty phoneme validity",
     ),
     (
-        "crates/jbotci-morphology/src/tree.rs:Jvopau::Hyphen",
+        "crates/jbotci-morphology/src/tree.rs:LujvoPart::Hyphen",
         "Phonemes owns canonical non-empty phoneme validity",
     ),
     (
-        "crates/jbotci-morphology/src/tree.rs:WordLike::Bare",
+        "crates/jbotci-morphology/src/tree.rs:WordLike::PlainWord",
         "bare word-like values delegate all validity to the wrapped Word",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:WithIndicators::Bare",
+        "crates/jbotci-syntax/src/tree.rs:WithIndicators::Plain",
         "generic wrapper delegates word validity to the payload type",
     ),
     (
@@ -936,19 +944,19 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "semantic builder placeholder has no payload beyond the diagnostic variant",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:PredicateTail3Syntax::GekSentence",
-        "variant delegates all grammar markers to GekSentenceSyntax",
+        "crates/jbotci-syntax/src/tree.rs:SimpleBridiTailSyntax::ForethoughtBridiTailConnection",
+        "variant delegates all grammar markers to ForethoughtBridiConnectionSyntax",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:SubsentenceSyntax::Plain",
-        "plain subsentence is exactly a PredicateSyntax payload",
+        "crates/jbotci-syntax/src/tree.rs:SubbridiSyntax::Bridi",
+        "plain subbridi is exactly a BridiSyntax payload",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:StatementSyntax::Predicate",
-        "variant delegates all grammar markers to PredicateSyntax",
+        "crates/jbotci-syntax/src/tree.rs:StatementSyntax::Bridi",
+        "variant delegates all grammar markers to BridiSyntax",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:StatementSyntax::ExperimentalPredicateContinuation",
+        "crates/jbotci-syntax/src/tree.rs:StatementSyntax::ExperimentalBridiContinuation",
         "variant combines two validated syntax payloads without its own marker",
     ),
     (
@@ -960,96 +968,96 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fragment is exactly a validated afterthought connective",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:FragmentSyntax::Gihek",
+        "crates/jbotci-syntax/src/tree.rs:FragmentSyntax::BridiTailConnective",
         "fragment is exactly a validated predicate-tail connective",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:FragmentSyntax::MathExpression",
-        "fragment delegates all grammar markers to MathExpressionSyntax",
+        "crates/jbotci-syntax/src/tree.rs:FragmentSyntax::Mekso",
+        "fragment delegates all grammar markers to MeksoSyntax",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:FragmentSyntax::Relation",
-        "fragment delegates all grammar markers to RelationSyntax",
+        "crates/jbotci-syntax/src/tree.rs:FragmentSyntax::Selbri",
+        "fragment delegates all grammar markers to SelbriSyntax",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:TermSyntax::Argument",
-        "term is exactly a validated ArgumentSyntax payload",
+        "crates/jbotci-syntax/src/tree.rs:TermSyntax::Sumti",
+        "term is exactly a validated SumtiSyntax payload",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:ArgumentTagSyntax::TenseModal",
+        "crates/jbotci-syntax/src/tree.rs:SumtiTagSyntax::TenseModal",
         "tag delegates all grammar markers to TenseModalSyntax",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:ArgumentSyntax::Quote",
+        "crates/jbotci-syntax/src/tree.rs:SumtiSyntax::QuotedSumti",
         "argument delegates all grammar markers to QuoteSyntax",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:ArgumentSyntax::Quantified",
+        "crates/jbotci-syntax/src/tree.rs:SumtiSyntax::QuantifiedSumti",
         "variant combines validated quantifier and argument payloads",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:ArgumentSyntax::Tagged",
+        "crates/jbotci-syntax/src/tree.rs:SumtiSyntax::TaggedSumti",
         "variant combines a validated tag and argument payload",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:ArgumentSyntax::Connected",
+        "crates/jbotci-syntax/src/tree.rs:SumtiSyntax::SumtiConnection",
         "variant combines validated argument payloads through a validated connective",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:ArgumentSyntax::RelationVocative",
-        "vocative relation has no required relative-clause marker beyond RelationSyntax",
+        "crates/jbotci-syntax/src/tree.rs:SumtiSyntax::SelbriVocative",
+        "vocative relation has no required relative-clause marker beyond SelbriSyntax",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:RelativeClauseSyntax::Connected",
+        "crates/jbotci-syntax/src/tree.rs:RelativeClauseSyntax::RelativeClauseConnection",
         "variant combines a validated connective and relative-clause payload",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:ArgumentTailElementSyntax::Argument",
-        "tail element is exactly a validated ArgumentSyntax payload",
+        "crates/jbotci-syntax/src/tree.rs:DescriptionTailElementSyntax::DescriptionTailSumti",
+        "tail element is exactly a validated SumtiSyntax payload",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:ArgumentTailElementSyntax::Quantifier",
+        "crates/jbotci-syntax/src/tree.rs:DescriptionTailElementSyntax::DescriptionTailQuantifier",
         "tail element is exactly a validated QuantifierSyntax payload",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:MathExpressionSyntax::Number",
+        "crates/jbotci-syntax/src/tree.rs:MeksoSyntax::NumberMekso",
         "math expression delegates all marker checks to QuantifierSyntax",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:MathExpressionSyntax::Gek",
+        "crates/jbotci-syntax/src/tree.rs:MeksoSyntax::ForethoughtMeksoConnection",
         "forethought math expression uses validated connective and expression payloads",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:MathExpressionSyntax::Connected",
+        "crates/jbotci-syntax/src/tree.rs:MeksoSyntax::MeksoConnection",
         "connected math expression uses validated connective and expression payloads",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:MathExpressionSyntax::Binary",
+        "crates/jbotci-syntax/src/tree.rs:MeksoSyntax::Infix",
         "binary math expression uses a validated operator and expression payloads",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:MathOperatorSyntax::Connected",
+        "crates/jbotci-syntax/src/tree.rs:MeksoOperatorSyntax::OperatorConnection",
         "connected math operator uses validated connective and operator payloads",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:RelationSyntax::Connected",
+        "crates/jbotci-syntax/src/tree.rs:SelbriSyntax::SelbriConnection",
         "connected relation uses validated connective and relation payloads",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:RelationSyntax::TenseModal",
+        "crates/jbotci-syntax/src/tree.rs:SelbriSyntax::TaggedSelbri",
         "relation prefix delegates marker checks to TenseModalSyntax",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:RelationSyntax::Compound",
-        "compound relation non-emptiness is enforced by RelationUnitVec",
+        "crates/jbotci-syntax/src/tree.rs:SelbriSyntax::Tanru",
+        "compound relation non-emptiness is enforced by TanruUnitVec",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:RelationUnitSyntax::Connected",
-        "connected relation unit uses validated connective and unit payloads",
+        "crates/jbotci-syntax/src/tree.rs:TanruUnitSyntax::TanruUnitConnection",
+        "connected tanru unit uses validated connective and unit payloads",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:RelationUnitSyntax::Wrapped",
-        "wrapped relation unit is exactly a validated RelationSyntax payload",
+        "crates/jbotci-syntax/src/tree.rs:TanruUnitSyntax::SelbriGroupTanruUnit",
+        "wrapped tanru unit is exactly a validated SelbriSyntax payload",
     ),
     (
         "apps/jbotci/src/main.rs:Command::Vlasei",

@@ -8,15 +8,15 @@ entry-id = "9336"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None } }), Bare(Lujvo { parts: [Rafsi(Phonemes { text: "fra" }), Rafsi(Phonemes { text: "ctúre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 16, char_start: 8, char_end: 16, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None } }), PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "fra" }), Rafsi(Phonemes { text: "ctúre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 16, char_start: 8, char_end: 16, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), Bare(Bare(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None } }))], free_modifiers: [] }, argument: Some(RelationVocative { leading_relative_clauses: [], relation: Base(Bare(Bare(Lujvo { parts: [Rafsi(Phonemes { text: "fra" }), Rafsi(Phonemes { text: "ctúre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 16, char_start: 8, char_end: 16, start: None, end: None } }))), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None } }))], free_modifiers: [] }, sumti: Some(SelbriVocative { leading_relative_clauses: [], selbri: SelbriWord(Plain(PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "fra" }), Rafsi(Phonemes { text: "ctúre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 16, char_start: 8, char_end: 16, start: None, end: None } }))), trailing_relative_clauses: [] }), dohu: None }], leading_connective: None, paragraphs: [] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":8,"length":8},"kind":"base-relation","relation":{"offset":8,"length":8},"relation-unit":null,"propagation":{"kind":"none"}}],"assignments":[{"frame":0,"frame-node":{"offset":8,"length":8},"relation":{"offset":8,"length":8},"relation-unit":null,"slot":{"kind":"numbered","place":1},"argument":{"offset":8,"length":8},"term":null,"source":"sequential-term"}],"relation-places":[{"frame":0,"relation":{"offset":8,"length":8},"place":1,"argument":{"offset":8,"length":8}}],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":8,"length":8},"kind":"base-selbri","selbri":{"offset":8,"length":8},"tanru-unit":null,"propagation":{"kind":"none"}}],"assignments":[{"frame":0,"frame-node":{"offset":8,"length":8},"selbri":{"offset":8,"length":8},"tanru-unit":null,"slot":{"kind":"numbered","place":1},"sumti":{"offset":8,"length":8},"term":null,"source":"sequential-term"}],"selbri-places":[{"frame":0,"selbri":{"offset":8,"length":8},"place":1,"sumti":{"offset":8,"length":8}}],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(coĭ doĭ fractúre)"
@@ -26,7 +26,7 @@ tree = """
   Cmavo @[4‥7) "doĭ",
   Lujvo @[8‥16) "fractúre",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[4,7]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"ctúre"}],"span":[8,16]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[4,7]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"ctúre"}],"span":[8,16]}}}]'
 
 [expectations.output.gentufa]
 tree = """
@@ -37,10 +37,10 @@ Text @[0‥16) {
         Cmavo @[0‥3) "coĭ",
         Cmavo @[4‥7) "doĭ",
       ],
-      argument: RelationVocative @[8‥16) {
-        relation: Lujvo @[8‥16) "fractúre",
+      sumti: SelbriVocative @[8‥16) {
+        selbri: Lujvo @[8‥16) "fractúre",
       },
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}},{"Bare":{"Bare":{"Cmavo":{"phonemes":"doĭ","span":[4,7]}}}}],"argument":{"RelationVocative":{"relation":{"Base":{"Bare":{"Bare":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"ctúre"}],"span":[8,16]}}}}}}}}}]}'
+json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[4,7]}}}}],"sumti":{"SelbriVocative":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"fra"},{"Rafsi":"ctúre"}],"span":[8,16]}}}}}}}}}]}'

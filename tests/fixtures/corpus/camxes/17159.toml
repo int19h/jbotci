@@ -8,15 +8,15 @@ entry-id = "17159"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Cmevla { phonemes: Phonemes { text: "er" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "cu'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } })]"""
+raw = """[PlainWord(Cmevla { phonemes: Phonemes { text: "er" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "cu'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [WithIndicator { base: Bare(Bare(Cmevla { phonemes: Phonemes { text: "er" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "cu'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }, nai: None }], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [WithIndicator { base: Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "er" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "cu'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }, nai: None }], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(.er. cu'i)"
@@ -25,7 +25,7 @@ tree = """
   Cmevla @[0‥2) "er",
   Cmavo @[3‥7) "cu'i",
 ]"""
-json = """[{"Bare":{"Cmevla":{"phonemes":"er","span":[0,2]}}},{"Bare":{"Cmavo":{"phonemes":"cu'i","span":[3,7]}}}]"""
+json = """[{"PlainWord":{"Cmevla":{"phonemes":"er","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu'i","span":[3,7]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -37,4 +37,4 @@ Text @[0‥7) {
     },
   ],
 }"""
-json = """{"leading_cmevla":[{"WithIndicator":{"base":{"Bare":{"Bare":{"Cmevla":{"phonemes":"er","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"cu'i","span":[3,7]}}}}]}"""
+json = """{"leading_cmevla":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"er","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"cu'i","span":[3,7]}}}}]}"""

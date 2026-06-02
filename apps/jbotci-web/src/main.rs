@@ -199,8 +199,10 @@ enum AppRoute {
     Vlacku,
 }
 
+#[invariant(!self.gentufa_text_explicit || matches!(&self.web_route, WebRoute::Gentufa(_)))]
+#[invariant(self.settings_query.is_empty() || matches!(&self.web_route, WebRoute::Settings))]
+#[invariant(self.hash.as_ref().is_none_or(|hash| !hash.is_empty() && !hash.starts_with('#')))]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
 struct JbotciRoute {
     web_route: WebRoute,
     gentufa_text_explicit: bool,
@@ -212,23 +214,23 @@ impl JbotciRoute {
     #[requires(true)]
     #[ensures(matches!(ret.web_route, WebRoute::Gentufa(_)))]
     fn default_gentufa() -> Self {
-        Self {
+        new!(JbotciRoute {
             web_route: WebRoute::Gentufa(GentufaWebState::default()),
             gentufa_text_explicit: false,
             settings_query: String::new(),
             hash: None,
-        }
+        })
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn from_web_route(web_route: WebRoute, gentufa_text_explicit: bool) -> Self {
-        Self {
+        new!(JbotciRoute {
             web_route,
             gentufa_text_explicit,
             settings_query: String::new(),
             hash: None,
-        }
+        })
     }
 
     #[requires(true)]
@@ -240,12 +242,12 @@ impl JbotciRoute {
     #[requires(true)]
     #[ensures(ret.web_route == self.web_route)]
     fn without_hash(&self) -> Self {
-        Self {
+        new!(JbotciRoute {
             web_route: self.web_route.clone(),
             gentufa_text_explicit: self.gentufa_text_explicit,
             settings_query: self.settings_query.clone(),
             hash: None,
-        }
+        })
     }
 }
 
@@ -281,7 +283,7 @@ impl FromStr for JbotciRoute {
     #[requires(true)]
     #[ensures(true)]
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        jbotci_route_from_dioxus_route(raw).ok_or(JbotciRouteParseError)
+        jbotci_route_from_dioxus_route(raw).ok_or_else(JbotciRouteParseError::new)
     }
 }
 
@@ -299,9 +301,19 @@ impl Routable for JbotciRoute {
     }
 }
 
+#[invariant(std::mem::size_of_val(self) == 0)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-struct JbotciRouteParseError;
+struct JbotciRouteParseError {
+    marker: (),
+}
+
+impl JbotciRouteParseError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn new() -> Self {
+        new!(JbotciRouteParseError { marker: () })
+    }
+}
 
 impl fmt::Display for JbotciRouteParseError {
     #[requires(true)]
@@ -10248,7 +10260,7 @@ fn jbotci_route_from_href(base_path: &str, href: &str) -> Option<JbotciRoute> {
     let logical_path = logical_app_path_for_client(path, base_path)?;
     let web_route = parse_web_route(&logical_path, query);
     let app_route = app_route_for_web_route(&web_route);
-    Some(JbotciRoute {
+    Some(new!(JbotciRoute {
         gentufa_text_explicit: app_route == AppRoute::Gentufa && query_has_key(query, "text"),
         settings_query: if app_route == AppRoute::Settings {
             query.trim_start_matches('?').to_owned()
@@ -10259,7 +10271,7 @@ fn jbotci_route_from_href(base_path: &str, href: &str) -> Option<JbotciRoute> {
             .map(|hash| hash.trim_start_matches('#').to_owned())
             .filter(|hash| !hash.is_empty()),
         web_route,
-    })
+    }))
 }
 
 #[requires(true)]

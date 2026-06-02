@@ -28,7 +28,7 @@ tree_model! {
         },
         Lujvo {
             #[tree_child(primary)]
-            parts: Vec1<Jvopau>,
+            parts: Vec1<LujvoPart>,
             span: Arc<SourceSpan>,
         },
         Fuhivla {
@@ -44,7 +44,7 @@ tree_model! {
     #[invariant(::Rafsi(_) => true)]
     #[invariant(::Hyphen(_) => true)]
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-    pub enum Jvopau {
+    pub enum LujvoPart {
         Rafsi(Phonemes),
         Hyphen(Phonemes),
     }
@@ -56,50 +56,50 @@ tree_model! {
         pub text: String,
     }
 
-    #[invariant(::Bare(_) => true)]
-    #[invariant(::ZoQuote => zo.is_cmavo(Cmavo::Zo))]
-    #[invariant(::ZoiQuote => zoi.is_selmaho(Selmaho::Zoi)
+    #[invariant(::PlainWord(_) => true)]
+    #[invariant(::QuotedWord => zo.is_cmavo(Cmavo::Zo))]
+    #[invariant(::DelimitedNonLojbanQuote => zoi.is_selmaho(Selmaho::Zoi)
         && crate::canonical_text_eq(
             opening_delimiter.phonemes().as_str(),
             closing_delimiter.phonemes().as_str(),
         )
         && opening_delimiter.span().byte_end <= quoted_text.span.byte_start
         && quoted_text.span.byte_end <= closing_delimiter.span().byte_start)]
-    #[invariant(::LohuQuote => lohu.is_cmavo(Cmavo::Lohu) && lehu.is_cmavo(Cmavo::Lehu))]
-    #[invariant(::SingleWordQuote => super::is_single_word_quote_marker(marker))]
-    #[invariant(::Letter => bu.is_cmavo(Cmavo::Bu))]
-    #[invariant(::ZeiLujvo => zei.is_cmavo(Cmavo::Zei))]
+    #[invariant(::QuotedWords => lohu.is_cmavo(Cmavo::Lohu) && lehu.is_cmavo(Cmavo::Lehu))]
+    #[invariant(::DelimitedWordQuote => super::is_single_word_quote_marker(marker))]
+    #[invariant(::LerfuWord => bu.is_cmavo(Cmavo::Bu))]
+    #[invariant(::ZeiCompound => zei.is_cmavo(Cmavo::Zei))]
     #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
     pub enum WordLike {
-        Bare(#[tree_child(primary)] Word),
-        ZoQuote {
+        PlainWord(#[tree_child(primary)] Word),
+        QuotedWord {
             zo: Box<Word>,
             #[tree_child(primary)]
             word: Box<Word>,
         },
-        ZoiQuote {
+        DelimitedNonLojbanQuote {
             zoi: Box<Word>,
             opening_delimiter: Box<Word>,
             quoted_text: Box<Verbatim>,
             closing_delimiter: Box<Word>,
         },
-        LohuQuote {
+        QuotedWords {
             lohu: Box<Word>,
             #[tree_child(primary)]
             quoted_words: Vec<Word>,
             lehu: Box<Word>,
         },
-        SingleWordQuote {
+        DelimitedWordQuote {
             marker: Box<Word>,
             #[tree_child(primary)]
             quoted_text: Box<Verbatim>,
         },
-        Letter {
+        LerfuWord {
             #[tree_child(primary)]
             base: Box<WordLike>,
             bu: Box<Word>,
         },
-        ZeiLujvo {
+        ZeiCompound {
             left: Box<WordLike>,
             zei: Box<Word>,
             #[tree_child(primary)]

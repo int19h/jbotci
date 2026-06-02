@@ -6,25 +6,27 @@ use crate::{Word, WordLike, WordLikeData};
 #[ensures(true)]
 pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
     match (left.as_data(), right.as_data()) {
-        (data!(WordLike::Bare(left)), data!(WordLike::Bare(right))) => word_syntax_eq(left, right),
+        (data!(WordLike::PlainWord(left)), data!(WordLike::PlainWord(right))) => {
+            word_syntax_eq(left, right)
+        }
         (
-            data!(WordLike::ZoQuote {
+            data!(WordLike::QuotedWord {
                 zo: left_zo,
                 word: left_word,
             }),
-            data!(WordLike::ZoQuote {
+            data!(WordLike::QuotedWord {
                 zo: right_zo,
                 word: right_word,
             }),
         ) => word_syntax_eq(left_zo, right_zo) && word_syntax_eq(left_word, right_word),
         (
-            data!(WordLike::ZoiQuote {
+            data!(WordLike::DelimitedNonLojbanQuote {
                 zoi: left_zoi,
                 opening_delimiter: left_opening,
                 quoted_text: left_quoted,
                 closing_delimiter: left_closing,
             }),
-            data!(WordLike::ZoiQuote {
+            data!(WordLike::DelimitedNonLojbanQuote {
                 zoi: right_zoi,
                 opening_delimiter: right_opening,
                 quoted_text: right_quoted,
@@ -37,12 +39,12 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
                 && word_syntax_eq(left_closing, right_closing)
         }
         (
-            data!(WordLike::LohuQuote {
+            data!(WordLike::QuotedWords {
                 lohu: left_lohu,
                 quoted_words: left_words,
                 lehu: left_lehu,
             }),
-            data!(WordLike::LohuQuote {
+            data!(WordLike::QuotedWords {
                 lohu: right_lohu,
                 quoted_words: right_words,
                 lehu: right_lehu,
@@ -57,32 +59,32 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
                 && word_syntax_eq(left_lehu, right_lehu)
         }
         (
-            data!(WordLike::SingleWordQuote {
+            data!(WordLike::DelimitedWordQuote {
                 marker: left_marker,
                 quoted_text: left_quoted,
             }),
-            data!(WordLike::SingleWordQuote {
+            data!(WordLike::DelimitedWordQuote {
                 marker: right_marker,
                 quoted_text: right_quoted,
             }),
         ) => word_syntax_eq(left_marker, right_marker) && left_quoted == right_quoted,
         (
-            data!(WordLike::Letter {
+            data!(WordLike::LerfuWord {
                 base: left_base,
                 bu: left_bu,
             }),
-            data!(WordLike::Letter {
+            data!(WordLike::LerfuWord {
                 base: right_base,
                 bu: right_bu,
             }),
         ) => word_like_syntax_eq(left_base, right_base) && word_syntax_eq(left_bu, right_bu),
         (
-            data!(WordLike::ZeiLujvo {
+            data!(WordLike::ZeiCompound {
                 left: left_left,
                 zei: left_zei,
                 right: left_right,
             }),
-            data!(WordLike::ZeiLujvo {
+            data!(WordLike::ZeiCompound {
                 left: right_left,
                 zei: right_zei,
                 right: right_right,

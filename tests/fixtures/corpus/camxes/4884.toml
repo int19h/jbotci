@@ -8,7 +8,7 @@ entry-id = "4884"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Gismu { phonemes: Phonemes { text: "pónse" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "xámgu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }), Bare(Gismu { phonemes: Phonemes { text: "válsi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None } })]'
+raw = '[PlainWord(Gismu { phonemes: Phonemes { text: "pónse" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 5, char_start: 0, char_end: 5, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "xámgu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "válsi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 20, char_start: 15, char_end: 20, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -23,4 +23,4 @@ tree = """
   Gismu @[9‥14) "xámgu",
   Gismu @[15‥20) "válsi",
 ]"""
-json = '[{"Bare":{"Gismu":{"phonemes":"pónse","span":[0,5]}}},{"Bare":{"Cmavo":{"phonemes":"na","span":[6,8]}}},{"Bare":{"Gismu":{"phonemes":"xámgu","span":[9,14]}}},{"Bare":{"Gismu":{"phonemes":"válsi","span":[15,20]}}}]'
+json = '[{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[0,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"na","span":[6,8]}}},{"PlainWord":{"Gismu":{"phonemes":"xámgu","span":[9,14]}}},{"PlainWord":{"Gismu":{"phonemes":"válsi","span":[15,20]}}}]'

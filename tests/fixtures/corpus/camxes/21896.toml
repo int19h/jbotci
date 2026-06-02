@@ -8,7 +8,7 @@ entry-id = "21896"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Lujvo { parts: [Rafsi(Phonemes { text: "sel" }), Rafsi(Phonemes { text: "císka" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "or" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } }), Bare(Lujvo { parts: [Rafsi(Phonemes { text: "ter" }), Rafsi(Phonemes { text: "císka" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 20, char_start: 12, char_end: 20, start: None, end: None } })]'
+raw = '[PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "sel" }), Rafsi(Phonemes { text: "císka" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "or" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } }), PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "ter" }), Rafsi(Phonemes { text: "císka" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 20, char_start: 12, char_end: 20, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -22,4 +22,4 @@ tree = """
   Cmevla @[9‥11) "or",
   Lujvo @[12‥20) "tercíska",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"císka"}],"span":[0,8]}}},{"Bare":{"Cmevla":{"phonemes":"or","span":[9,11]}}},{"Bare":{"Lujvo":{"parts":[{"Rafsi":"ter"},{"Rafsi":"císka"}],"span":[12,20]}}}]'
+json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"císka"}],"span":[0,8]}}},{"PlainWord":{"Cmevla":{"phonemes":"or","span":[9,11]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ter"},{"Rafsi":"císka"}],"span":[12,20]}}}]'

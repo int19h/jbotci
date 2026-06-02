@@ -4,7 +4,7 @@ tags = ["morphology", "warnings"]
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Lujvo { parts: [Rafsi(Phonemes { text: "kam" }), Rafsi(Phonemes { text: "zífre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None } })]'
+raw = '[PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "kam" }), Rafsi(Phonemes { text: "zífre" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None } })]'
 diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-mz", byte-span = [2, 4], source-text = "mz", message = "experimental morphology: MZ consonant pair" }]
 
 [expectations.output.vlasei]
@@ -13,4 +13,4 @@ tree = """
 [
   Lujvo @[0‥8) "kamzífre",
 ]"""
-json = '[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"kam"},{"Rafsi":"zífre"}],"span":[0,8]}}}]'
+json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"kam"},{"Rafsi":"zífre"}],"span":[0,8]}}}]'

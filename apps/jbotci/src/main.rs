@@ -3919,7 +3919,7 @@ mod tests {
         assert!(error.is_empty());
         let stdout = String::from_utf8(output).expect("stdout utf8");
         assert!(stdout.contains("syntax:"));
-        assert!(stdout.contains("- argument"));
+        assert!(stdout.contains("- sumti"));
         assert!(stdout.contains("- free modifier"));
     }
 
@@ -4337,12 +4337,15 @@ mod tests {
         let value: serde_json::Value =
             serde_json::from_slice(&output).expect("valid uncolored JSON");
 
-        assert_eq!(value[0]["Bare"]["Cmavo"]["phonemes"], "coĭ");
-        assert_eq!(value[0]["Bare"]["Cmavo"]["span"], serde_json::json!([0, 3]));
+        assert_eq!(value[0]["PlainWord"]["Cmavo"]["phonemes"], "coĭ");
+        assert_eq!(
+            value[0]["PlainWord"]["Cmavo"]["span"],
+            serde_json::json!([0, 3])
+        );
         assert!(
             String::from_utf8(output)
                 .expect("utf8")
-                .contains("\"Bare\"")
+                .contains("\"PlainWord\"")
         );
     }
 
@@ -4416,7 +4419,7 @@ mod tests {
         let output = String::from_utf8(output).expect("utf8");
 
         assert!(output.starts_with("[\n"));
-        assert!(output.contains("Bare("));
+        assert!(output.contains("PlainWord("));
         assert!(output.contains("Cmavo"));
         assert!(output.contains("Phonemes"));
     }
@@ -4436,8 +4439,8 @@ mod tests {
         let output = String::from_utf8(output).expect("utf8");
 
         assert!(!output.trim_end().contains('\n'));
-        assert!(output.starts_with("[Bare("));
-        assert!(output.contains("Bare("));
+        assert!(output.starts_with("[PlainWord("));
+        assert!(output.contains("PlainWord("));
         assert!(output.contains("Cmavo"));
         assert!(output.contains("Phonemes"));
     }
@@ -4745,7 +4748,7 @@ mod tests {
 
             assert!(value.get("leading_nai").is_none());
             assert!(value["paragraphs"].as_array().is_some());
-            assert!(text.contains("\"Predicate\""));
+            assert!(text.contains("\"Bridi\""));
             assert!(!text.contains("\"constructor\""));
             assert!(!text.contains("\"kind\": \"node\""));
             assert!(!text.contains("\"leadingNai\""));
@@ -4787,7 +4790,7 @@ mod tests {
             assert!(error.is_empty());
             let output = String::from_utf8(output).expect("utf8");
 
-            assert!(output.starts_with("Predicate {\n"));
+            assert!(output.starts_with("Bridi {\n"));
             assert!(output.contains("\n  leading_terms: [\n    Cmavo \"mi\""));
             assert!(output.contains("leading_terms: ["));
             assert!(output.contains("Gismu \"kláma\""));
@@ -4798,7 +4801,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gentufa_tree_preserves_source_order_for_connected_relation() {
+    fn gentufa_tree_preserves_source_order_for_selbri_connection() {
         run_on_normal_stack(|| {
             let cli = Cli::try_parse_from([
                 "jbotci", "gentufa", "--format", "tree", "gleki", "je", "klama",
@@ -4810,9 +4813,9 @@ mod tests {
             assert!(error.is_empty());
             let output = String::from_utf8(output).expect("utf8");
 
-            let leading = output.find("leading_relation").expect("leading relation");
+            let leading = output.find("leading_selbri").expect("leading selbri");
             let connective = output.find("connective").expect("connective");
-            let trailing = output.find("trailing_relation").expect("trailing relation");
+            let trailing = output.find("trailing_selbri").expect("trailing selbri");
             assert!(leading < connective);
             assert!(connective < trailing);
         });
@@ -4857,7 +4860,7 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
             assert_eq!(
                 output.trim_end(),
-                r#"Predicate{leading_terms:[Cmavo "mi"],Gismu "kláma"}"#
+                r#"Bridi{leading_terms:[Cmavo "mi"],Gismu "kláma"}"#
             );
         });
     }
@@ -4900,7 +4903,7 @@ mod tests {
             assert!(!stdout.contains("warning:"));
             assert!(stderr.contains("experimental syntax"), "{stderr}");
             assert!(stderr.contains("syntax.warning.experimental-fihoi-adverbial"));
-            assert!(stderr.contains("FIhOI bridi/subsentence adverbial term"));
+            assert!(stderr.contains("FIhOI bridi/subbridi adverbial term"));
             assert!(stderr.contains("fi'oi"));
         });
     }
@@ -4984,19 +4987,19 @@ mod tests {
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("needs one of:"));
-            assert!(stderr.contains("relation"));
+            assert!(stderr.contains("selbri"));
             assert!(stderr.contains("{be}"));
             assert!(stderr.contains("BRIVLA"));
-            assert!(stderr.contains("[ends relation, statement or text]"));
+            assert!(stderr.contains("[ends selbri, statement or text]"));
             assert!(!stderr.contains("end of input (end of input)"));
             let compact_stderr = stderr.split_whitespace().collect::<Vec<_>>().join(" ");
-            let argument = compact_stderr.find("- argument").expect("argument group");
-            let relation = compact_stderr
-                .find("[continues relation]")
-                .expect("relation continuation group");
-            let end = compact_stderr.find("[ends relation").expect("end group");
-            assert!(argument < relation);
-            assert!(relation < end);
+            let sumti = compact_stderr.find("- sumti").expect("sumti group");
+            let selbri = compact_stderr
+                .find("[continues selbri]")
+                .expect("selbri continuation group");
+            let end = compact_stderr.find("[ends selbri").expect("end group");
+            assert!(sumti < selbri);
+            assert!(selbri < end);
             assert!(!stderr.contains("\x1b["));
         });
     }
@@ -5268,7 +5271,7 @@ mod tests {
             assert!(error.is_empty());
             let output = String::from_utf8(output).expect("utf8");
             assert!(output.contains("TextSyntax"));
-            assert!(output.contains("PredicateSyntax"));
+            assert!(output.contains("BridiSyntax"));
             assert!(!output.contains("SyntaxValue"));
         });
     }
@@ -5289,7 +5292,7 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
             assert!(!output.trim_end().contains('\n'));
             assert!(output.starts_with("TextSyntax"));
-            assert!(output.contains("PredicateSyntax"));
+            assert!(output.contains("BridiSyntax"));
         });
     }
 
@@ -5483,7 +5486,7 @@ mod tests {
             run_cli(cli, &mut output, &mut error, false).expect("gentufa tree color run");
             assert!(error.is_empty());
             let output = String::from_utf8(output).expect("utf8");
-            assert!(output.contains("\x1b[94mPredicate\x1b[39m"));
+            assert!(output.contains("\x1b[94mBridi\x1b[39m"));
             assert!(output.contains("\x1b[94mCmavo\x1b[39m"));
             assert!(output.contains("\x1b[33m\"mi\"\x1b[39m"));
         });
@@ -5531,10 +5534,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn json_colorizer_distinguishes_keys_from_string_values() {
-        let output = colorize_json(r#"{"key":"value","Predicate":{}}"#, true);
+        let output = colorize_json(r#"{"key":"value","Bridi":{}}"#, true);
         assert!(output.contains("\x1b[32m\"key\"\x1b[39m"));
         assert!(output.contains("\x1b[33m\"value\"\x1b[39m"));
-        assert!(output.contains("\x1b[94m\"Predicate\"\x1b[39m"));
+        assert!(output.contains("\x1b[94m\"Bridi\"\x1b[39m"));
         assert!(output.contains("\x1b[90m{\x1b[39m"));
         assert!(output.contains("\x1b[90m}\x1b[39m"));
         assert!(!output.contains("\x1b[36m"));

@@ -4,7 +4,7 @@ tags = ["v0-adhoc", "morphology", "streaming-morphology"]
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmevla { phonemes: Phonemes { text: "alis" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 5, char_start: 1, char_end: 5, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } })]'
+raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "alis" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 5, char_start: 1, char_end: 5, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } })]'
 
 [expectations.output.vlasei]
 brackets = "(.alis. mi)"
@@ -13,4 +13,4 @@ tree = """
   Cmevla @[1‥5) "alis",
   Cmavo @[6‥8) "mi",
 ]"""
-json = '[{"Bare":{"Cmevla":{"phonemes":"alis","span":[1,5]}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[6,8]}}}]'
+json = '[{"PlainWord":{"Cmevla":{"phonemes":"alis","span":[1,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[6,8]}}}]'

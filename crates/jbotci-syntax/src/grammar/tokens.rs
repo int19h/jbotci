@@ -110,10 +110,10 @@ pub(super) fn na_cmavo<'tokens>() -> BoxedParser<'tokens, Token> {
 #[ensures(true)]
 pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, Token> {
     token_matching(
-        "KOhA argument",
-        "KOhA argument",
+        "KOhA sumti",
+        "KOhA sumti",
         vec![new!(SyntaxExpectedToken::WordCategory(
-            SyntaxWordCategory::KohaArgument,
+            SyntaxWordCategory::ProSumti,
         ))],
         is_koha_argument,
     )
@@ -123,10 +123,10 @@ pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, Token> {
 #[ensures(true)]
 pub(super) fn relation_word<'tokens>() -> BoxedParser<'tokens, Token> {
     token_matching(
-        "relation word",
-        "RELATION WORD",
+        "selbri word",
+        "SELBRI WORD",
         vec![new!(SyntaxExpectedToken::WordCategory(
-            SyntaxWordCategory::RelationWord,
+            SyntaxWordCategory::SelbriWord,
         ))],
         is_relation_word,
     )
@@ -154,7 +154,7 @@ pub(super) fn brivla_relation_word<'tokens>(cbm_enabled: bool) -> BoxedParser<'t
                     super::ParseExtra<'tokens>,
                 >| {
                     extra.state().warn(
-                        ExperimentalConstruct::ExperimentalCbmCmevlaRelationWord,
+                        ExperimentalConstruct::ExperimentalCbmCmevlaSelbriWord,
                         &word,
                     );
                     word
@@ -199,7 +199,7 @@ pub(super) fn token_matching<'tokens>(
     label: &'static str,
     debug_label: &'static str,
     expected: Vec<SyntaxExpectedToken>,
-    predicate: impl Fn(&Token) -> bool + Clone + 'tokens,
+    bridi: impl Fn(&Token) -> bool + Clone + 'tokens,
 ) -> BoxedParser<'tokens, Token> {
     assert!(
         !expected.is_empty(),
@@ -209,7 +209,7 @@ pub(super) fn token_matching<'tokens>(
         let checkpoint = input.save();
         let cursor = input.cursor();
         match input.next() {
-            Some(word) if predicate(&word) => {
+            Some(word) if bridi(&word) => {
                 let span = word.core_word().byte_range().unwrap_or(0..0);
                 let state: &mut ParserState = input.state();
                 warn_experimental_cmavo(state, label, &word);
@@ -296,15 +296,11 @@ fn experimental_construct_for_cmavo(label: &str, cmavo: Cmavo) -> Option<Experim
         ("cmavo", Cmavo::Nohoi) => {
             Some(ExperimentalConstruct::ExperimentalNohoiSelbriRelativeClause)
         }
-        ("cmavo", Cmavo::Gohoi) => Some(ExperimentalConstruct::ExperimentalGohoiRelationUnit),
-        ("LIhAU" | "LUhEI", _) => Some(ExperimentalConstruct::ExperimentalZantufaLuheiRelationUnit),
-        ("cmavo", Cmavo::Luhei) => {
-            Some(ExperimentalConstruct::ExperimentalZantufaLuheiRelationUnit)
-        }
-        ("cmavo", Cmavo::Muhoi) => {
-            Some(ExperimentalConstruct::ExperimentalZantufaMuhoiRelationUnit)
-        }
-        ("cmavo", Cmavo::Xohi) => Some(ExperimentalConstruct::ExperimentalXohiTagRelation),
+        ("cmavo", Cmavo::Gohoi) => Some(ExperimentalConstruct::ExperimentalGohoiSelbriUnit),
+        ("LIhAU" | "LUhEI", _) => Some(ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit),
+        ("cmavo", Cmavo::Luhei) => Some(ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit),
+        ("cmavo", Cmavo::Muhoi) => Some(ExperimentalConstruct::ExperimentalZantufaMuhoiSelbriUnit),
+        ("cmavo", Cmavo::Xohi) => Some(ExperimentalConstruct::ExperimentalXohiTagSelbri),
         _ if is_general_experimental_cmavo_for_context(label, cmavo) => {
             Some(ExperimentalConstruct::ExperimentalCmavo)
         }
@@ -874,7 +870,7 @@ fn is_relation_indicators(word: &WithIndicators<WordLike>) -> bool {
     }
 
     match word {
-        WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
+        WithIndicators::Plain(word_like) | WithIndicators::Emphasized { word_like, .. } => {
             word_like_is_relation_word(word_like)
         }
         _ => false,
@@ -891,13 +887,13 @@ pub(crate) fn is_brivla_relation_word(word: &Token) -> bool {
 #[ensures(true)]
 pub(crate) fn word_like_is_relation_word(word_like: &WordLike) -> bool {
     match word_like.as_data() {
-        data!(WordLike::Bare(word)) => {
+        data!(WordLike::PlainWord(word)) => {
             matches!(
                 word.kind(),
                 WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla
             )
         }
-        data!(WordLike::ZeiLujvo { .. }) => true,
+        data!(WordLike::ZeiCompound { .. }) => true,
         _ => false,
     }
 }
@@ -912,7 +908,7 @@ pub(crate) fn is_cmevla_word(word: &Token) -> bool {
 #[ensures(true)]
 fn is_cmevla_indicators(word: &WithIndicators<WordLike>) -> bool {
     match word {
-        WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
+        WithIndicators::Plain(word_like) | WithIndicators::Emphasized { word_like, .. } => {
             word_like_kind(word_like).is_some_and(|kind| kind == WordKind::Cmevla)
         }
         WithIndicators::WithIndicator { base, .. } => is_cmevla_indicators(base),
@@ -929,10 +925,10 @@ pub(crate) fn is_letter_word(word: &Token) -> bool {
 #[ensures(true)]
 fn is_letter_indicators(word: &WithIndicators<WordLike>) -> bool {
     match word {
-        WithIndicators::Bare(word_like) | WithIndicators::Emphasized { word_like, .. } => {
+        WithIndicators::Plain(word_like) | WithIndicators::Emphasized { word_like, .. } => {
             match word_like.as_data() {
-                data!(WordLike::Letter { .. }) => true,
-                data!(WordLike::Bare(word)) => {
+                data!(WordLike::LerfuWord { .. }) => true,
+                data!(WordLike::PlainWord(word)) => {
                     let phonemes = word.phonemes();
                     word.kind() == WordKind::Cmavo
                         && ((phonemes.as_str() != "bu" && phonemes.as_str().ends_with("bu"))
@@ -955,7 +951,7 @@ fn is_letter_indicators(word: &WithIndicators<WordLike>) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn word_like_kind(word_like: &WordLike) -> Option<WordKind> {
-    let data!(WordLike::Bare(word)) = word_like.as_data() else {
+    let data!(WordLike::PlainWord(word)) = word_like.as_data() else {
         return None;
     };
     Some(word.kind())
@@ -964,10 +960,10 @@ pub(crate) fn word_like_kind(word_like: &WordLike) -> Option<WordKind> {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn bare_word_kind_and_phonemes(word: &Token) -> Option<(WordKind, String)> {
-    let WithIndicators::Bare(word_like) = word.as_indicators() else {
+    let WithIndicators::Plain(word_like) = word.as_indicators() else {
         return None;
     };
-    let data!(WordLike::Bare(word)) = word_like.as_data() else {
+    let data!(WordLike::PlainWord(word)) = word_like.as_data() else {
         return None;
     };
     Some((word.kind(), word.phonemes().into_string()))
@@ -1014,7 +1010,7 @@ pub(super) fn word_byte_range(word: &Token) -> Option<Range<usize>> {
 #[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 fn word_indicators_byte_range(word: &WithIndicators<WordLike>) -> Option<Range<usize>> {
     match word {
-        WithIndicators::Bare(word_like) => word_like_byte_range(word_like),
+        WithIndicators::Plain(word_like) => word_like_byte_range(word_like),
         WithIndicators::Emphasized { bahe, word_like } => {
             word_like_byte_range(word_like).map(|range| {
                 bahe.span().byte_start.min(range.start)..bahe.span().byte_end.max(range.end)
@@ -1040,24 +1036,26 @@ fn word_indicators_byte_range(word: &WithIndicators<WordLike>) -> Option<Range<u
 #[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
     match word_like.as_data() {
-        data!(WordLike::Bare(word)) => Some(word.span().byte_start..word.span().byte_end),
-        data!(WordLike::ZoQuote { zo, word }) => Some(zo.span().byte_start..word.span().byte_end),
-        data!(WordLike::ZoiQuote {
+        data!(WordLike::PlainWord(word)) => Some(word.span().byte_start..word.span().byte_end),
+        data!(WordLike::QuotedWord { zo, word }) => {
+            Some(zo.span().byte_start..word.span().byte_end)
+        }
+        data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             closing_delimiter,
             ..
         }) => Some(zoi.span().byte_start..closing_delimiter.span().byte_end),
-        data!(WordLike::LohuQuote { lohu, lehu, .. }) => {
+        data!(WordLike::QuotedWords { lohu, lehu, .. }) => {
             Some(lohu.span().byte_start..lehu.span().byte_end)
         }
-        data!(WordLike::SingleWordQuote {
+        data!(WordLike::DelimitedWordQuote {
             marker,
             quoted_text,
         }) => Some(marker.span().byte_start..quoted_text.span.byte_end),
-        data!(WordLike::Letter { base, bu }) => {
+        data!(WordLike::LerfuWord { base, bu }) => {
             word_like_byte_range(base).map(|range| range.start..bu.span().byte_end.max(range.end))
         }
-        data!(WordLike::ZeiLujvo { left, right, .. }) => word_like_byte_range(left)
+        data!(WordLike::ZeiCompound { left, right, .. }) => word_like_byte_range(left)
             .map(|range| range.start..right.span().byte_end.max(range.end)),
     }
 }

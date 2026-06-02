@@ -3,7 +3,7 @@ use std::ops::Range;
 use bityzba::{ensures, invariant, new, requires};
 use vec1::Vec1;
 
-use crate::{Jvopau, MorphologyErrorKind, MorphologyOptions, Phonemes, WordKind};
+use crate::{LujvoPart, MorphologyErrorKind, MorphologyOptions, Phonemes, WordKind};
 
 mod fast;
 pub(crate) use fast::classify_fast_simple_word;
@@ -369,7 +369,7 @@ fn acute_vowel(ch: char) -> char {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
-pub(crate) fn parse_lujvo_parts(word: &str) -> Option<Vec1<Jvopau>> {
+pub(crate) fn parse_lujvo_parts(word: &str) -> Option<Vec1<LujvoPart>> {
     let chars = text_chars(word);
     if chars.len() <= 3 || !chars.iter().all(|value| is_lujvo_char(*value)) {
         return None;
@@ -1083,7 +1083,11 @@ fn lujvo_from(chars: &[char], index: usize, has_initial_rafsi: bool) -> bool {
 
 #[requires(index <= chars.len())]
 #[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
-fn lujvo_parts_from(chars: &[char], index: usize, has_initial_rafsi: bool) -> Option<Vec<Jvopau>> {
+fn lujvo_parts_from(
+    chars: &[char],
+    index: usize,
+    has_initial_rafsi: bool,
+) -> Option<Vec<LujvoPart>> {
     if index >= chars.len() {
         return None;
     }
@@ -1109,7 +1113,7 @@ fn lujvo_parts_from(chars: &[char], index: usize, has_initial_rafsi: bool) -> Op
 
 #[requires(start < end && end <= chars.len())]
 #[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
-fn initial_rafsi_parts(chars: &[char], start: usize, end: usize) -> Option<Vec<Jvopau>> {
+fn initial_rafsi_parts(chars: &[char], start: usize, end: usize) -> Option<Vec<LujvoPart>> {
     if let Some(hyphen_start) = (start + 1..end).find(|index| is_rafsi_hyphen_start(chars, *index))
     {
         return Some(vec![
@@ -1130,14 +1134,14 @@ fn is_rafsi_hyphen_start(chars: &[char], index: usize) -> bool {
 
 #[requires(start < end && end <= chars.len())]
 #[ensures(true)]
-fn rafsi_part(chars: &[char], start: usize, end: usize) -> Option<Jvopau> {
-    phonemes_part(chars, start, end).map(Jvopau::rafsi)
+fn rafsi_part(chars: &[char], start: usize, end: usize) -> Option<LujvoPart> {
+    phonemes_part(chars, start, end).map(LujvoPart::rafsi)
 }
 
 #[requires(start < end && end <= chars.len())]
 #[ensures(true)]
-fn hyphen_part(chars: &[char], start: usize, end: usize) -> Option<Jvopau> {
-    phonemes_part(chars, start, end).map(Jvopau::hyphen)
+fn hyphen_part(chars: &[char], start: usize, end: usize) -> Option<LujvoPart> {
+    phonemes_part(chars, start, end).map(LujvoPart::hyphen)
 }
 
 #[requires(start < end && end <= chars.len())]

@@ -502,7 +502,7 @@ mod tests {
 
             let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
 
-            assert!(format!("{:#?}", parsed.parse_tree).contains("Ke"));
+            assert!(format!("{:#?}", parsed.parse_tree).contains("GroupedOperator"));
         });
     }
 
@@ -533,7 +533,7 @@ mod tests {
             let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
             let raw = format!("{:?}", parsed.parse_tree);
 
-            assert!(raw.contains("Pehe"));
+            assert!(raw.contains("TermsetConnection"));
             assert!(raw.contains("NonLogical"));
         });
     }
@@ -565,7 +565,7 @@ mod tests {
             let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
             let raw = format!("{:?}", parsed.parse_tree);
 
-            assert!(raw.contains("connective: Some(Relation"));
+            assert!(raw.contains("connective: Some(Selbri"));
             assert!(raw.contains("fi'o"));
             assert!(raw.contains("bróda"));
         });
@@ -578,7 +578,7 @@ mod tests {
         run_on_normal_stack(|| {
             let raw = parse_tree_debug("mi ca pilno .ije ca'o nelci", &ParseOptions::default());
 
-            assert!(raw.contains("Connected"));
+            assert!(raw.contains("StatementConnection"));
             assert!(raw.contains("leading_statement"));
             assert!(raw.contains("trailing_statement"));
         });
@@ -594,9 +594,9 @@ mod tests {
                 &ParseOptions::default(),
             );
 
-            assert!(raw.contains("TenseModal"));
+            assert!(raw.contains("TaggedSelbri"));
             assert!(raw.contains("mo'i"));
-            assert!(!raw.contains("Koha(WithFreeModifiers { value: Bare(Bare(Cmavo { phonemes: Phonemes { text: \"mo'i\" }"));
+            assert!(!raw.contains("ProSumti(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: \"mo'i\" }"));
 
             let words = segment_words_with_modifiers("da poi palci vimo'i selklama")
                 .expect("valid morphology");
@@ -674,7 +674,7 @@ mod tests {
             assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
 
             let raw = parse_tree_debug("a bu cmene", &ParseOptions::default());
-            assert!(raw.contains("Letter"));
+            assert!(raw.contains("LerfuWord"));
         });
     }
 
@@ -716,7 +716,7 @@ mod tests {
             assert_eq!(warning_span(quote_warning), [9, 20]);
             assert!(matches!(
                 quote_warning.anchor.core_word().as_data(),
-                data!(WordLike::SingleWordQuote { .. })
+                data!(WordLike::DelimitedWordQuote { .. })
             ));
         });
     }
@@ -783,7 +783,7 @@ mod tests {
         run_on_normal_stack(|| {
             let parsed = parse_source("mi so'emu'ei spuda", &ParseOptions::default());
 
-            assert!(format!("{:?}", parsed.parse_tree).contains("TenseModal"));
+            assert!(format!("{:?}", parsed.parse_tree).contains("Composite"));
             assert!(has_warning_kind(
                 &parsed,
                 ExperimentalConstruct::ExperimentalCmavo
@@ -807,7 +807,7 @@ mod tests {
             let parsed = parse_syntax_tree(&words, &options).expect("valid zantufa quote syntax");
 
             assert!(parsed.warnings.iter().any(|warning| {
-                warning.kind == ExperimentalConstruct::ExperimentalZantufaLuheiRelationUnit
+                warning.kind == ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit
             }));
 
             let words =
@@ -818,7 +818,7 @@ mod tests {
             let parsed = parse_syntax_tree(&words, &options).expect("valid zantufa MUhOI syntax");
 
             assert!(parsed.warnings.iter().any(|warning| {
-                warning.kind == ExperimentalConstruct::ExperimentalZantufaMuhoiRelationUnit
+                warning.kind == ExperimentalConstruct::ExperimentalZantufaMuhoiSelbriUnit
             }));
         });
     }
@@ -1061,8 +1061,8 @@ mod tests {
             let dialect = parse_dialect_definition("(+CBM)").expect("valid dialect definition");
             let options = ParseOptions::default().with_dialect_definition(&dialect);
             let cbm = parse_tree_debug(source, &options);
-            assert!(cbm.contains("Argument("));
-            assert!(cbm.contains("Descriptor("));
+            assert!(cbm.contains("Sumti("));
+            assert!(cbm.contains("Description("));
             assert!(cbm.contains("Cmevla {"));
         });
     }
@@ -1078,12 +1078,12 @@ mod tests {
             assert_warning_kind(
                 "lo .alis. broda cu melbi",
                 &options,
-                ExperimentalConstruct::ExperimentalCbmCmevlaRelationWord,
+                ExperimentalConstruct::ExperimentalCbmCmevlaSelbriWord,
             );
             assert_warning_kind(
                 ".alis. broda",
                 &options,
-                ExperimentalConstruct::ExperimentalCbmCmevlaRelationWord,
+                ExperimentalConstruct::ExperimentalCbmCmevlaSelbriWord,
             );
         });
     }
@@ -1093,25 +1093,25 @@ mod tests {
     #[ensures(true)]
     fn rejects_wrong_enum_variant_cmavo_markers() {
         run_on_normal_stack(|| {
-            let subsentence = sample_subsentence();
+            let subbridi = sample_subbridi();
 
             assert!(
-                try_new!(ArgumentSyntax::BridiDescription {
+                try_new!(SumtiSyntax::BridiDescription {
                     lohoi: free_word("le"),
-                    subsentence: Box::new(subsentence.clone()),
+                    subbridi: Box::new(subbridi.clone()),
                     kuhau: None,
                 })
                 .is_err()
             );
             assert!(
-                try_new!(ArgumentSyntax::BridiDescription {
+                try_new!(SumtiSyntax::BridiDescription {
                     lohoi: free_word("lo'oi"),
-                    subsentence: Box::new(subsentence),
+                    subbridi: Box::new(subbridi),
                     kuhau: Some(free_word("ku'o")),
                 })
                 .is_err()
             );
-            assert!(try_new!(RelationUnitSyntax::Mehoi(free_word("go'oi broda"))).is_err());
+            assert!(try_new!(TanruUnitSyntax::QuotedWordSelbri(free_word("go'oi broda"))).is_err());
         });
     }
 
@@ -1120,69 +1120,69 @@ mod tests {
     #[ensures(true)]
     fn rejects_wrong_struct_cmavo_markers() {
         run_on_normal_stack(|| {
-            let argument = sample_argument();
-            let relation = sample_relation();
-            let subsentence = sample_subsentence();
-            let predicate_tail = sample_predicate_tail();
+            let sumti = sample_argument();
+            let selbri = sample_relation();
+            let subbridi = sample_subbridi();
+            let bridi_tail = sample_predicate_tail();
             let predicate_tail2 = sample_predicate_tail2();
             let connective = sample_connective();
 
             assert!(
-                try_new!(GoiRelativeClauseSyntax {
-                    goi: free_word("le"),
-                    argument: Box::new(argument.clone()),
+                try_new!(SumtiAssociationPhraseSyntax {
+                    association_marker: free_word("le"),
+                    sumti: Box::new(sumti.clone()),
                     gehu: None,
                 })
                 .is_err()
             );
             assert!(
-                try_new!(SelbriRelativeClauseSyntax {
+                try_new!(SelbriRelativePhraseSyntax {
                     nohoi: free_word("no'oi"),
-                    relation: Box::new(relation.clone()),
+                    selbri: Box::new(selbri.clone()),
                     kuhoi: Some(free_word("ku'o")),
                 })
                 .is_err()
             );
             assert!(
-                try_new!(DescriptorHeadSyntax {
-                    descriptor: free_word("mi"),
+                try_new!(DescriptionHeadSyntax {
+                    description: free_word("mi"),
                 })
                 .is_err()
             );
             assert!(
-                try_new!(DescriptorSyntax {
+                try_new!(DescriptionSyntax {
                     outer_quantifier: None,
-                    descriptor: Some(free_word("lo")),
+                    description: Some(free_word("lo")),
                     tail_elements: Vec::new(),
-                    relation: None,
+                    selbri: None,
                     relative_clauses: Vec::new(),
                     ku: Some(free_word("ku'o")),
                 })
                 .is_err()
             );
             assert!(
-                try_new!(BeiLinkSyntax {
+                try_new!(AdditionalLinkedSumtiSyntax {
                     bei: free_word("be"),
                     fa: Some(free_word("fa")),
-                    argument: None,
+                    sumti: None,
                 })
                 .is_err()
             );
             assert!(
-                try_new!(PredicateSyntax {
+                try_new!(BridiSyntax {
                     leading_terms: Vec::new(),
                     cu: Some(std::sync::Arc::new(free_word("ku"))),
-                    predicate_tail: Box::new(predicate_tail.clone()),
+                    bridi_tail: Box::new(bridi_tail.clone()),
                     free_modifiers: Vec::new(),
                 })
                 .is_err()
             );
             assert!(
-                try_new!(KePredicateTailSyntax {
+                try_new!(GroupedBridiTailConnectionSyntax {
                     connective: connective.clone(),
                     tense_modal: None,
                     ke: free_word("ke"),
-                    predicate_tail: Box::new(predicate_tail.clone()),
+                    bridi_tail: Box::new(bridi_tail.clone()),
                     kehe: Some(std::sync::Arc::new(free_word("ku"))),
                     tail_terms: Vec::new(),
                     vau: None,
@@ -1191,12 +1191,12 @@ mod tests {
                 .is_err()
             );
             assert!(
-                try_new!(BoPredicateTailSyntax {
+                try_new!(BoundBridiTailConnectionSyntax {
                     connective: connective.clone(),
                     tense_modal: None,
                     bo: free_word("boi"),
                     cu: None,
-                    predicate_tail: Box::new(predicate_tail2),
+                    bridi_tail: Box::new(predicate_tail2),
                     tail_terms: Vec::new(),
                     vau: None,
                     free_modifiers: Vec::new(),
@@ -1224,10 +1224,10 @@ mod tests {
                 .is_err()
             );
             assert!(
-                try_new!(FihoModalSyntax {
+                try_new!(AdHocModalSyntax {
                     nahe: None,
                     fiho: free_word("fe'u"),
-                    relation: Box::new(relation.clone()),
+                    selbri: Box::new(selbri.clone()),
                     fehu: None,
                 })
                 .is_err()
@@ -1236,14 +1236,14 @@ mod tests {
                 try_new!(AbstractionSyntax {
                     nu: free_word("nu"),
                     nai: None,
-                    additional_nu: Vec::new(),
-                    subsentence: Box::new(subsentence),
+                    abstractor_connections: Vec::new(),
+                    subbridi: Box::new(subbridi),
                     kei: Some(free_word("ku")),
                 })
                 .is_err()
             );
             assert!(
-                try_new!(AdditionalNuSyntax {
+                try_new!(AbstractorConnectionSyntax {
                     connective,
                     nu: free_word("ka'e"),
                     nai: None,
@@ -1251,9 +1251,9 @@ mod tests {
                 .is_err()
             );
             assert!(
-                try_new!(CeiAssignmentSyntax {
+                try_new!(ProBridiAssignmentSyntax {
                     cei: free_word("bei"),
-                    relation_unit: Box::new(new!(RelationUnitSyntax::Word(free_word("klama")))),
+                    tanru_unit: Box::new(new!(TanruUnitSyntax::TanruUnitWord(free_word("klama")))),
                 })
                 .is_err()
             );
@@ -1264,9 +1264,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn rejects_empty_repeated_enum_payloads() {
-        assert!(try_new!(FragmentSyntax::BeiLink(Vec::new())).is_err());
-        assert!(try_new!(FragmentSyntax::RelativeClause(Vec::new())).is_err());
-        assert!(try_new!(ArgumentTailElementSyntax::RelativeClauses(Vec::new())).is_err());
+        assert!(try_new!(FragmentSyntax::LinkedSumtiContinuation(Vec::new())).is_err());
+        assert!(try_new!(FragmentSyntax::RelativeClauses(Vec::new())).is_err());
+        assert!(
+            try_new!(DescriptionTailElementSyntax::DescriptionTailRelativeClauses(Vec::new()))
+                .is_err()
+        );
     }
 
     #[requires(!source.is_empty())]
@@ -1336,53 +1339,53 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn sample_subsentence() -> SubsentenceSyntax {
+    fn sample_subbridi() -> SubbridiSyntax {
         let words = segment_words_with_modifiers("mi klama").expect("valid morphology");
         let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
         let statement = parsed.parse_tree.paragraphs[0].statements[0]
             .statement
             .as_ref()
             .expect("parsed statement");
-        let predicate = match statement.as_data() {
-            data!(StatementSyntax::Predicate(predicate)) => *predicate.clone(),
-            _ => panic!("test helper expected a predicate statement"),
+        let bridi = match statement.as_data() {
+            data!(StatementSyntax::Bridi(bridi)) => *bridi.clone(),
+            _ => panic!("test helper expected a bridi statement"),
         };
-        new!(SubsentenceSyntax::Plain(Box::new(predicate)))
+        new!(SubbridiSyntax::Bridi(Box::new(bridi)))
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn sample_argument() -> ArgumentSyntax {
-        new!(ArgumentSyntax::Koha(free_word("mi")))
+    fn sample_argument() -> SumtiSyntax {
+        new!(SumtiSyntax::ProSumti(free_word("mi")))
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn sample_relation() -> RelationSyntax {
-        new!(RelationSyntax::Base(indicated_word("klama")))
+    fn sample_relation() -> SelbriSyntax {
+        new!(SelbriSyntax::SelbriWord(indicated_word("klama")))
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn sample_predicate() -> PredicateSyntax {
-        let data!(SubsentenceSyntax::Plain(predicate)) = sample_subsentence().into_data() else {
-            panic!("test helper expected a predicate subsentence");
+    fn sample_predicate() -> BridiSyntax {
+        let data!(SubbridiSyntax::Bridi(bridi)) = sample_subbridi().into_data() else {
+            panic!("test helper expected a bridi subbridi");
         };
-        *predicate
+        *bridi
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn sample_predicate_tail() -> PredicateTailSyntax {
-        let data!(PredicateSyntax { predicate_tail, .. }) = sample_predicate().into_data();
-        *predicate_tail
+    fn sample_predicate_tail() -> BridiTailSyntax {
+        let data!(BridiSyntax { bridi_tail, .. }) = sample_predicate().into_data();
+        *bridi_tail
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn sample_predicate_tail2() -> PredicateTail2Syntax {
-        let predicate_tail = sample_predicate_tail();
-        *predicate_tail.first.first
+    fn sample_predicate_tail2() -> BoGroupedBridiTailSyntax {
+        let bridi_tail = sample_predicate_tail();
+        *bridi_tail.first.first
     }
 
     #[requires(true)]

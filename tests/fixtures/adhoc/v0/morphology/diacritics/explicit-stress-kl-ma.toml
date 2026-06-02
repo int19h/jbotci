@@ -4,7 +4,7 @@ tags = ["v0-adhoc", "morphology"]
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 5, start: None, end: None } })]'
+raw = '[PlainWord(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 6, char_start: 0, char_end: 5, start: None, end: None } })]'
 
 [expectations.output.vlasei]
 brackets = "kláma"
@@ -12,4 +12,4 @@ tree = """
 [
   Gismu @[0‥5) "kláma",
 ]"""
-json = '[{"Bare":{"Gismu":{"phonemes":"kláma","span":[0,5]}}}]'
+json = '[{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[0,5]}}}]'

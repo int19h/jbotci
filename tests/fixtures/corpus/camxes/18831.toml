@@ -8,7 +8,7 @@ entry-id = "18831"
 
 [expectations.morphology]
 status = "success"
-raw = """[Bare(Lujvo { parts: [Rafsi(Phonemes { text: "gum" }), Rafsi(Phonemes { text: "cú'a" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None } }), Bare(Cmevla { phonemes: Phonemes { text: "even" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None } })]"""
+raw = """[PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "gum" }), Rafsi(Phonemes { text: "cú'a" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "even" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None } })]"""
 
 [expectations.syntax]
 status = "failure"
@@ -21,4 +21,4 @@ tree = """
   Lujvo @[0‥7) "gumcú'a",
   Cmevla @[8‥12) "even",
 ]"""
-json = """[{"Bare":{"Lujvo":{"parts":[{"Rafsi":"gum"},{"Rafsi":"cú'a"}],"span":[0,7]}}},{"Bare":{"Cmevla":{"phonemes":"even","span":[8,12]}}}]"""
+json = """[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"gum"},{"Rafsi":"cú'a"}],"span":[0,7]}}},{"PlainWord":{"Cmevla":{"phonemes":"even","span":[8,12]}}}]"""

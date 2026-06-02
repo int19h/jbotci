@@ -8,37 +8,37 @@ entry-id = "12495"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } }), ZoiQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 38, char_start: 12, char_end: 38, start: None, end: None }, text: "led-editor.sourceforge.net" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None } } }]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } }), DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 38, char_start: 12, char_end: 38, start: None, end: None }, text: "led-editor.sourceforge.net" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None } } }]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Bare(Bare(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } }))), connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Quote(Zoi(WithFreeModifiers { value: Bare(ZoiQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 38, char_start: 12, char_end: 38, start: None, end: None }, text: "led-editor.sourceforge.net" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None } } }), free_modifiers: [] })))], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: Some(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 1, byte_end: 2, char_start: 1, char_end: 2, start: None, end: None } }))), connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(QuotedSumti(DelimitedNonLojbanQuote(WithFreeModifiers { value: Plain(DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 38, char_start: 12, char_end: 38, start: None, end: None }, text: "led-editor.sourceforge.net" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None } } }), free_modifiers: [] })))], vau: None })) }] }] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(.i [zoĭ cy led-editor.sourceforge.net cy])"
 tree = """
 [
   Cmavo @[1‥2) "i",
-  ZoiQuote @[3‥42) {
+  DelimitedNonLojbanQuote @[3‥42) {
     zoi: Cmavo @[3‥6) "zoĭ",
     opening_delimiter: Cmavo @[8‥10) "cy",
     quoted_text: Verbatim @[12‥38) "led-editor.sourceforge.net",
     closing_delimiter: Cmavo @[40‥42) "cy",
   },
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"cy","span":[8,10]}},"quoted_text":{"span":[12,38],"text":"led-editor.sourceforge.net"},"closing_delimiter":{"Cmavo":{"phonemes":"cy","span":[40,42]}}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"cy","span":[8,10]}},"quoted_text":{"span":[12,38],"text":"led-editor.sourceforge.net"},"closing_delimiter":{"Cmavo":{"phonemes":"cy","span":[40,42]}}}}]'
 
 [expectations.output.gentufa]
 tree = """
 ParagraphStatement @[1‥42) {
   i: Cmavo @[1‥2) "i",
-  Term @[3‥42) {
+  Terms @[3‥42) {
     terms: [
-      ZoiQuote @[3‥42) {
+      DelimitedNonLojbanQuote @[3‥42) {
         zoi: Cmavo @[3‥6) "zoĭ",
         opening_delimiter: Cmavo @[8‥10) "cy",
         quoted_text: Verbatim @[12‥38) "led-editor.sourceforge.net",
@@ -47,4 +47,4 @@ ParagraphStatement @[1‥42) {
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Bare":{"Bare":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Quote":{"Zoi":{"Bare":{"ZoiQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"cy","span":[8,10]}},"quoted_text":{"span":[12,38],"text":"led-editor.sourceforge.net"},"closing_delimiter":{"Cmavo":{"phonemes":"cy","span":[40,42]}}}}}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"cy","span":[8,10]}},"quoted_text":{"span":[12,38],"text":"led-editor.sourceforge.net"},"closing_delimiter":{"Cmavo":{"phonemes":"cy","span":[40,42]}}}}}}}}]}}}}]}]}'

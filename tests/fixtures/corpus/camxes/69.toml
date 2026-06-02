@@ -8,15 +8,15 @@ entry-id = "69"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "by" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 45, char_start: 44, char_end: 45, start: None, end: None } }), Bare(Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 46, byte_end: 48, char_start: 46, char_end: 48, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "by" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 45, char_start: 44, char_end: 45, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 46, byte_end: 48, char_start: 46, char_end: 48, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Term { terms: [Argument(Connected { leading_argument: Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "by" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None } }))], free_modifiers: [] }, boi: None }, connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 45, char_start: 44, char_end: 45, start: None, end: None } }))], free_modifiers: [] }, nai: None }, trailing_argument: Letter { letter: WithFreeModifiers { value: [Bare(Bare(Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 46, byte_end: 48, char_start: 46, char_end: 48, start: None, end: None } }))], free_modifiers: [] }, boi: None } })], vau: None })) }] }] }'
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [Sumti(SumtiConnection { leading_sumti: LerfuStringSumti { letter: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "by" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None } }))], free_modifiers: [] }, boi: None }, connective: Afterthought { se: None, nahe: None, na: None, cmavo: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 45, char_start: 44, char_end: 45, start: None, end: None } }))], free_modifiers: [] }, nai: None }, trailing_sumti: LerfuStringSumti { letter: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 46, byte_end: 48, char_start: 46, char_end: 48, start: None, end: None } }))], free_modifiers: [] }, boi: None } })], vau: None })) }] }] }'
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"relation-places":[],"references":[]}'
+raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(by .e cy)"
@@ -26,20 +26,20 @@ tree = """
   Cmavo @[44‥45) "e",
   Cmavo @[46‥48) "cy",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"by","span":[40,42]}}},{"Bare":{"Cmavo":{"phonemes":"e","span":[44,45]}}},{"Bare":{"Cmavo":{"phonemes":"cy","span":[46,48]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"by","span":[40,42]}}},{"PlainWord":{"Cmavo":{"phonemes":"e","span":[44,45]}}},{"PlainWord":{"Cmavo":{"phonemes":"cy","span":[46,48]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Term @[40‥48) {
+Terms @[40‥48) {
   terms: [
-    Connected @[40‥48) {
-      leading_argument: Letter @[40‥42) {
+    SumtiConnection @[40‥48) {
+      leading_sumti: LerfuStringSumti @[40‥42) {
         letter: [
           Cmavo @[40‥42) "by",
         ],
       },
       connective: Cmavo @[44‥45) "e",
-      trailing_argument: Letter @[46‥48) {
+      trailing_sumti: LerfuStringSumti @[46‥48) {
         letter: [
           Cmavo @[46‥48) "cy",
         ],
@@ -47,4 +47,4 @@ Term @[40‥48) {
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Term":{"terms":[{"Argument":{"Connected":{"leading_argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"by","span":[40,42]}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"e","span":[44,45]}}}}]}},"trailing_argument":{"Letter":{"letter":[{"Bare":{"Bare":{"Cmavo":{"phonemes":"cy","span":[46,48]}}}}]}}}}}]}}}}]}]}'
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[40,42]}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[44,45]}}}}]}},"trailing_sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cy","span":[46,48]}}}}]}}}}}]}}}}]}]}'

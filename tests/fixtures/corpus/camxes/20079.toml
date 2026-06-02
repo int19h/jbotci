@@ -8,7 +8,7 @@ entry-id = "20079"
 
 [expectations.morphology]
 status = "success"
-raw = '[Bare(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), Letter { base: Bare(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), bu: Cmavo { phonemes: Phonemes { text: "bu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } } }, Bare(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "na" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), LerfuWord { base: PlainWord(Cmavo { phonemes: Phonemes { text: "la" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), bu: Cmavo { phonemes: Phonemes { text: "bu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 5, byte_end: 7, char_start: 5, char_end: 7, start: None, end: None } } }, PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } })]'
 
 [expectations.syntax]
 status = "failure"
@@ -19,10 +19,10 @@ brackets = "(na [la bu] mi)"
 tree = """
 [
   Cmavo @[0‥2) "na",
-  Letter @[3‥7) {
+  LerfuWord @[3‥7) {
     Cmavo @[3‥5) "la",
     bu: Cmavo @[5‥7) "bu",
   },
   Cmavo @[8‥10) "mi",
 ]"""
-json = '[{"Bare":{"Cmavo":{"phonemes":"na","span":[0,2]}}},{"Letter":{"base":{"Bare":{"Cmavo":{"phonemes":"la","span":[3,5]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[5,7]}}}},{"Bare":{"Cmavo":{"phonemes":"mi","span":[8,10]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"na","span":[0,2]}}},{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[5,7]}}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[8,10]}}}]'
