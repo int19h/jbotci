@@ -1545,7 +1545,7 @@ fn render_topbar(
     gentufa_route: JbotciRoute,
     settings_route: JbotciRoute,
     base_path: &str,
-    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     settings_layout: TopbarSettingsLayout,
     settings_open: Signal<bool>,
     activity: &AsyncActivityState,
@@ -1559,6 +1559,7 @@ fn render_topbar(
     let show_theme_inline = settings_layout.shows_theme_inline();
     let show_script_inline = settings_layout.shows_script_inline();
     let topbar_cukta_scroll_target = route_href_with_base_path(base_path, &cukta_route);
+    let topbar_cukta_click_route = cukta_route.clone();
     rsx! {
         header { class: "{header_class}",
             div { class: "app-topbar-inner spa-topbar-inner",
@@ -1586,8 +1587,13 @@ fn render_topbar(
                             class: topbar_link_class(route == AppRoute::Cukta, cukta_loading),
                             to: cukta_route.clone(),
                             aria_current: if route == AppRoute::Cukta { "page" } else { "false" },
+                            onclick_only: true,
                             onclick: move |_| {
-                                pending_cukta_scroll.set(Some(cukta_stored_pending_scroll(topbar_cukta_scroll_target.clone())));
+                                push_route_with_cukta_scroll_intent(
+                                    pending_cukta_scroll,
+                                    Some(cukta_stored_pending_scroll(topbar_cukta_scroll_target.clone())),
+                                    topbar_cukta_click_route.clone(),
+                                );
                             },
                             span { class: "app-topbar-link-label", "cukta" }
                         }
@@ -1654,17 +1660,23 @@ fn render_topbar_nav(
     vlacku_route: JbotciRoute,
     gentufa_route: JbotciRoute,
     base_path: &str,
-    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
 ) -> Element {
     let topbar_cukta_scroll_target = route_href_with_base_path(base_path, &cukta_route);
+    let topbar_cukta_click_route = cukta_route.clone();
     rsx! {
         nav { class: "spa-nav", aria_label: "Primary navigation",
             Link {
                 class: topbar_link_class(route == AppRoute::Cukta, cukta_loading),
                 to: cukta_route,
                 aria_current: if route == AppRoute::Cukta { "page" } else { "false" },
+                onclick_only: true,
                 onclick: move |_| {
-                    pending_cukta_scroll.set(Some(cukta_stored_pending_scroll(topbar_cukta_scroll_target.clone())));
+                    push_route_with_cukta_scroll_intent(
+                        pending_cukta_scroll,
+                        Some(cukta_stored_pending_scroll(topbar_cukta_scroll_target.clone())),
+                        topbar_cukta_click_route.clone(),
+                    );
                 },
                 span { class: "app-topbar-link-label", "cukta" }
             }
@@ -3151,6 +3163,18 @@ fn render_cukta_page(
     );
     let current_toc_width = clamp_cukta_toc_width(*toc_width.read());
     let shell_style = format!("--cll-sidebar-width:{current_toc_width:.0}px;");
+    let cukta_index_route = JbotciRoute::from_web_route(
+        WebRoute::Cukta(CuktaWebState {
+            view: CuktaWebView::Index,
+        }),
+        false,
+    );
+    let cukta_search_route = JbotciRoute::from_web_route(
+        WebRoute::Cukta(CuktaWebState {
+            view: CuktaWebView::Search(CuktaWebSearchState::default()),
+        }),
+        false,
+    );
     rsx! {
         section { class: "spa-page cll-page spa-cukta-page",
             h1 { class: "sr-only", "jbotci cukta" }
@@ -3198,27 +3222,27 @@ fn render_cukta_page(
                             div { class: "cll-toc-search-meta",
                                 Link {
                                     class: "cll-toc-header-link cll-toc-index-link",
-                                    to: JbotciRoute::from_web_route(
-                                        WebRoute::Cukta(CuktaWebState { view: CuktaWebView::Index }),
-                                        false,
-                                    ),
-                                    onclick: move |event| {
-                                        let _ = event;
-                                        let mut pending = pending_cukta_scroll;
-                                        pending.set(Some(cukta_top_pending_scroll()));
+                                    to: cukta_index_route.clone(),
+                                    onclick_only: true,
+                                    onclick: move |_| {
+                                        push_route_with_cukta_scroll_intent(
+                                            pending_cukta_scroll,
+                                            Some(cukta_top_pending_scroll()),
+                                            cukta_index_route.clone(),
+                                        );
                                     },
                                     "index"
                                 }
                                 Link {
                                     class: "cll-toc-header-link cll-toc-advanced-link",
-                                    to: JbotciRoute::from_web_route(
-                                        WebRoute::Cukta(CuktaWebState { view: CuktaWebView::Search(CuktaWebSearchState::default()) }),
-                                        false,
-                                    ),
-                                    onclick: move |event| {
-                                        let _ = event;
-                                        let mut pending = pending_cukta_scroll;
-                                        pending.set(Some(cukta_top_pending_scroll()));
+                                    to: cukta_search_route.clone(),
+                                    onclick_only: true,
+                                    onclick: move |_| {
+                                        push_route_with_cukta_scroll_intent(
+                                            pending_cukta_scroll,
+                                            Some(cukta_top_pending_scroll()),
+                                            cukta_search_route.clone(),
+                                        );
                                     },
                                     "advanced search"
                                 }
@@ -3414,7 +3438,7 @@ fn render_cukta_toc_node(
     toc_expansion: Signal<CuktaTocExpansionState>,
     node: &CuktaTocNode,
     filter: &str,
-    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     let filter = filter.trim().to_ascii_lowercase();
@@ -3449,10 +3473,11 @@ fn render_cukta_toc_node(
             ("is-expanded", expanded),
         ],
     );
-    let route = jbotci_route_from_href(base_path, &node.href);
-    let pending_scroll = route
-        .as_ref()
-        .map(|route| cukta_pending_scroll_for_route_link(base_path, route));
+    let route = jbotci_route_from_href(base_path, &node.href).map(|route| {
+        let pending_scroll = cukta_pending_scroll_for_route_link(base_path, &route);
+        let click_route = route.clone();
+        (route, click_route, pending_scroll)
+    });
     rsx! {
         li { key: "{node.node_id}", class: "{class}",
             div { class: "cll-toc-row",
@@ -3481,14 +3506,17 @@ fn render_cukta_toc_node(
                 } else {
                     span { class: "cll-toc-spacer", aria_hidden: "true" }
                 }
-                if let Some(route) = route {
+                if let Some((route, click_route, pending_scroll)) = route {
                     Link {
                         class: "cll-toc-link",
                         to: route,
+                        onclick_only: true,
                         onclick: move |_| {
-                            if let Some(scroll) = pending_scroll.clone() {
-                                pending_cukta_scroll.set(Some(scroll));
-                            }
+                            push_route_with_cukta_scroll_intent(
+                                pending_cukta_scroll,
+                                Some(pending_scroll.clone()),
+                                click_route.clone(),
+                            );
                         },
                         if let Some(number) = &node.number_label {
                             { render_cukta_toc_number(number, number_has_trailing_dot) }
@@ -3680,17 +3708,25 @@ fn render_cukta_section(
 fn render_cukta_section_pager_link(
     section: &jbotci_web_core::CuktaSectionLink,
     direction: &str,
-    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     let class_name = format!("cll-section-pager-link cll-section-pager-link-{direction}");
     if let Some(route) = jbotci_route_from_href(base_path, &section.href) {
         let pending_scroll = cukta_pending_scroll_for_route_link(base_path, &route);
+        let click_route = route.clone();
         rsx! {
             Link {
                 class: "{class_name}",
                 to: route,
-                onclick: move |_| pending_cukta_scroll.set(Some(pending_scroll.clone())),
+                onclick_only: true,
+                onclick: move |_| {
+                    push_route_with_cukta_scroll_intent(
+                        pending_cukta_scroll,
+                        Some(pending_scroll.clone()),
+                        click_route.clone(),
+                    );
+                },
                 span { class: "cll-section-pager-link-label", "{section.label}" }
             }
         }
@@ -3709,7 +3745,7 @@ fn render_cukta_section_pager_link(
 #[ensures(true)]
 fn render_cukta_index(
     entries: &[jbotci_web_core::CuktaIndexEntry],
-    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     rsx! {
@@ -3724,10 +3760,18 @@ fn render_cukta_index(
                                 {
                                     if let Some(route) = jbotci_route_from_href(base_path, &reference.href) {
                                         let pending_scroll = cukta_pending_scroll_for_route_link(base_path, &route);
+                                        let click_route = route.clone();
                                         rsx! {
                                             Link {
                                                 to: route,
-                                                onclick: move |_| pending_cukta_scroll.set(Some(pending_scroll.clone())),
+                                                onclick_only: true,
+                                                onclick: move |_| {
+                                                    push_route_with_cukta_scroll_intent(
+                                                        pending_cukta_scroll,
+                                                        Some(pending_scroll.clone()),
+                                                        click_route.clone(),
+                                                    );
+                                                },
                                                 "{reference.label}"
                                             }
                                         }
@@ -3926,26 +3970,30 @@ fn render_cukta_target_check(
 #[ensures(true)]
 fn render_cukta_search_card(
     card: &CuktaSearchResultCard,
-    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
-    let route = jbotci_route_from_href(base_path, &card.href);
-    let pending_scroll = route
-        .as_ref()
-        .map(|route| cukta_pending_scroll_for_route_link(base_path, route));
+    let route = jbotci_route_from_href(base_path, &card.href).map(|route| {
+        let pending_scroll = cukta_pending_scroll_for_route_link(base_path, &route);
+        let click_route = route.clone();
+        (route, click_route, pending_scroll)
+    });
     rsx! {
         article { class: "cll-search-result-card result-card",
             header { class: "cll-search-result-head result-header",
                 div {
                     p { class: "cll-search-result-meta", "{card.kind} · {card.section_label}" }
                     h2 { class: "cll-search-result-title",
-                        if let Some(route) = route {
+                        if let Some((route, click_route, pending_scroll)) = route {
                             Link {
                                 to: route,
+                                onclick_only: true,
                                 onclick: move |_| {
-                                    if let Some(scroll) = pending_scroll.clone() {
-                                        pending_cukta_scroll.set(Some(scroll));
-                                    }
+                                    push_route_with_cukta_scroll_intent(
+                                        pending_cukta_scroll,
+                                        Some(pending_scroll.clone()),
+                                        click_route.clone(),
+                                    );
                                 },
                                 "{card.rank}. {card.label}"
                             }
@@ -4282,7 +4330,7 @@ fn render_cll_block(
 #[ensures(true)]
 fn render_cll_inline(
     inline: &CllInline,
-    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     match inline {
@@ -4347,19 +4395,23 @@ fn render_cll_inline(
             let route = jbotci_route_from_href(base_path, &href).map(|route| {
                 let pending_scroll =
                     cukta_pending_scroll_for_explicit_route_link(base_path, &route);
-                (route, pending_scroll)
+                let click_route = route.clone();
+                (route, click_route, pending_scroll)
             });
             if let Some(card) = &tooltip {
                 rsx! {
                     span { class: "dictionary-tooltip-host",
-                        if let Some((route, pending_scroll)) = route {
+                        if let Some((route, click_route, pending_scroll)) = route {
                             Link {
                                 class: "{class_name}",
                                 to: route,
+                                onclick_only: true,
                                 onclick: move |_| {
-                                    if let Some(scroll) = pending_scroll.clone() {
-                                        pending_cukta_scroll.set(Some(scroll));
-                                    }
+                                    push_route_with_cukta_scroll_intent(
+                                        pending_cukta_scroll,
+                                        pending_scroll.clone(),
+                                        click_route.clone(),
+                                    );
                                 },
                                 for child in inlines.iter() {
                                     { render_cll_inline(child, pending_cukta_scroll, base_path) }
@@ -4378,15 +4430,18 @@ fn render_cll_inline(
                     }
                 }
             } else {
-                if let Some((route, pending_scroll)) = route {
+                if let Some((route, click_route, pending_scroll)) = route {
                     rsx! {
                         Link {
                             class: "{class_name}",
                             to: route,
+                            onclick_only: true,
                             onclick: move |_| {
-                                if let Some(scroll) = pending_scroll.clone() {
-                                    pending_cukta_scroll.set(Some(scroll));
-                                }
+                                push_route_with_cukta_scroll_intent(
+                                    pending_cukta_scroll,
+                                    pending_scroll.clone(),
+                                    click_route.clone(),
+                                );
                             },
                             for child in inlines.iter() {
                                 { render_cll_inline(child, pending_cukta_scroll, base_path) }
@@ -4708,7 +4763,7 @@ fn render_cll_ebnf_token(
 fn render_cll_ebnf_elidable(
     body: &str,
     href: Option<&str>,
-    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     let pieces = cll_ebnf_elidable_hash_pieces(body);
@@ -4717,19 +4772,23 @@ fn render_cll_ebnf_elidable(
         let href = cll_ebnf_href(base_path, href);
         let route = jbotci_route_from_href(base_path, &href).map(|route| {
             let pending_scroll = cukta_pending_scroll_for_explicit_route_link(base_path, &route);
-            (route, pending_scroll)
+            let click_route = route.clone();
+            (route, click_route, pending_scroll)
         });
         if let Some(card) = &tooltip {
             rsx! {
                 span { class: "dictionary-tooltip-host",
-                    if let Some((route, pending_scroll)) = route {
+                    if let Some((route, click_route, pending_scroll)) = route {
                         Link {
                             class: "cll-ebnf-elidable",
                             to: route,
+                            onclick_only: true,
                             onclick: move |_| {
-                                if let Some(scroll) = pending_scroll.clone() {
-                                    pending_cukta_scroll.set(Some(scroll));
-                                }
+                                push_route_with_cukta_scroll_intent(
+                                    pending_cukta_scroll,
+                                    pending_scroll.clone(),
+                                    click_route.clone(),
+                                );
                             },
                             if let Some((prefix, suffix)) = pieces {
                                 "{prefix}"
@@ -4754,15 +4813,18 @@ fn render_cll_ebnf_elidable(
                 }
             }
         } else {
-            if let Some((route, pending_scroll)) = route {
+            if let Some((route, click_route, pending_scroll)) = route {
                 rsx! {
                     Link {
                         class: "cll-ebnf-elidable",
                         to: route,
+                        onclick_only: true,
                         onclick: move |_| {
-                            if let Some(scroll) = pending_scroll.clone() {
-                                pending_cukta_scroll.set(Some(scroll));
-                            }
+                            push_route_with_cukta_scroll_intent(
+                                pending_cukta_scroll,
+                                pending_scroll.clone(),
+                                click_route.clone(),
+                            );
                         },
                         if let Some((prefix, suffix)) = pieces {
                             "{prefix}"
@@ -4808,7 +4870,7 @@ fn render_cll_ebnf_link(
     class_name: &str,
     body: &str,
     href: Option<&str>,
-    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     if let Some(href) = href {
@@ -4816,19 +4878,23 @@ fn render_cll_ebnf_link(
         let href = cll_ebnf_href(base_path, href);
         let route = jbotci_route_from_href(base_path, &href).map(|route| {
             let pending_scroll = cukta_pending_scroll_for_explicit_route_link(base_path, &route);
-            (route, pending_scroll)
+            let click_route = route.clone();
+            (route, click_route, pending_scroll)
         });
         if let Some(card) = &tooltip {
             rsx! {
                 span { class: "dictionary-tooltip-host",
-                    if let Some((route, pending_scroll)) = route {
+                    if let Some((route, click_route, pending_scroll)) = route {
                         Link {
                             class: "{class_name}",
                             to: route,
+                            onclick_only: true,
                             onclick: move |_| {
-                                if let Some(scroll) = pending_scroll.clone() {
-                                    pending_cukta_scroll.set(Some(scroll));
-                                }
+                                push_route_with_cukta_scroll_intent(
+                                    pending_cukta_scroll,
+                                    pending_scroll.clone(),
+                                    click_route.clone(),
+                                );
                             },
                             "{body}"
                         }
@@ -4839,15 +4905,18 @@ fn render_cll_ebnf_link(
                 }
             }
         } else {
-            if let Some((route, pending_scroll)) = route {
+            if let Some((route, click_route, pending_scroll)) = route {
                 rsx! {
                     Link {
                         class: "{class_name}",
                         to: route,
+                        onclick_only: true,
                         onclick: move |_| {
-                            if let Some(scroll) = pending_scroll.clone() {
-                                pending_cukta_scroll.set(Some(scroll));
-                            }
+                            push_route_with_cukta_scroll_intent(
+                                pending_cukta_scroll,
+                                pending_scroll.clone(),
+                                click_route.clone(),
+                            );
                         },
                         "{body}"
                     }
@@ -5850,22 +5919,26 @@ fn render_vlacku_metadata_pill(
 fn render_vlacku_selmaho_segment(
     card: &VlackuWebCard,
     selmaho: &str,
-    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
 ) -> Element {
     if card.word_type_key == "gismu" {
         let href = format!("{}/cukta", base_path.trim_end_matches('/'));
         if let Some(route) = jbotci_route_from_href(base_path, &href) {
             let pending_scroll = cukta_pending_scroll_for_explicit_route_link(base_path, &route);
+            let click_route = route.clone();
             rsx! {
                 Link {
                     class: "dictionary-meta-segment dictionary-selmaho-tag",
                     to: route,
                     title: "CLL gismu section",
+                    onclick_only: true,
                     onclick: move |_| {
-                        if let Some(scroll) = pending_scroll.clone() {
-                            pending_cukta_scroll.set(Some(scroll));
-                        }
+                        push_route_with_cukta_scroll_intent(
+                            pending_cukta_scroll,
+                            pending_scroll.clone(),
+                            click_route.clone(),
+                        );
                     },
                     em { "{selmaho}" }
                 }
@@ -10393,6 +10466,19 @@ fn cukta_pending_scroll_for_explicit_route_link(
     } else {
         None
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_route_with_cukta_scroll_intent(
+    mut pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    pending_scroll: Option<CuktaPendingScroll>,
+    route: JbotciRoute,
+) {
+    if let Some(scroll) = pending_scroll {
+        pending_cukta_scroll.set(Some(scroll));
+    }
+    let _ = navigator().push(route);
 }
 
 #[requires(true)]
