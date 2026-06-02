@@ -32,9 +32,9 @@ use jbotci_web_core::{
     VlackuDictionaryCountNode, VlackuDictionaryInfo, VlackuInline, VlackuInlineData,
     VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
     VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
-    VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebResult,
-    VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest,
-    WebComputeResponse, WebFeatureAvailability, WebRoute, build_page_meta,
+    VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebAuthor, VlackuWebCard, VlackuWebMode,
+    VlackuWebResult, VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection,
+    WebComputeRequest, WebComputeResponse, WebFeatureAvailability, WebRoute, build_page_meta,
     build_vlacku_jvozba_output, dictionary_tooltip_for_rafsi, dictionary_tooltip_for_word,
     gentufa_web_url, normalize_vlacku_state, parse_web_route, reference_slot_display_text,
     toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
@@ -5737,6 +5737,9 @@ fn render_vlacku_card(
                     }
                 }
                 div { class: "tag-row",
+                    if let Some(author) = &card.author {
+                        { render_vlacku_author_credit(author) }
+                    }
                     { render_vlacku_metadata_pill(card, pending_cukta_scroll, base_path) }
                 }
             }
@@ -5755,6 +5758,12 @@ fn render_vlacku_card(
             if !card.notes.is_empty() {
                 p { class: "dictionary-note-copy", title: "Dictionary note",
                     { render_inline_spans(&card.notes, jvozba_pane, jvozba_available, base_path) }
+                }
+            }
+            if !card.etymology.is_empty() {
+                p { class: "dictionary-etymology-copy", title: "Etymology",
+                    span { class: "dictionary-detail-label", "etymology: " }
+                    { render_inline_spans(&card.etymology, jvozba_pane, jvozba_available, base_path) }
                 }
             }
         }
@@ -6170,6 +6179,26 @@ fn render_vlacku_decomposition_inline(
 #[ensures(true)]
 fn render_vlacku_inline_separator(text: &str) -> Element {
     rsx! { span { class: "dictionary-word-inline-separator", "{text}" } }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn vlacku_author_credit_text(author: &VlackuWebAuthor) -> String {
+    match author.realname.as_deref() {
+        Some(realname) if !realname.trim().is_empty() => {
+            format!("by {} ({realname})", author.username)
+        }
+        _ => format!("by {}", author.username),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlacku_author_credit(author: &VlackuWebAuthor) -> Element {
+    let credit = vlacku_author_credit_text(author);
+    rsx! {
+        span { class: "dictionary-author-credit", "{credit}" }
+    }
 }
 
 #[requires(true)]
@@ -6881,7 +6910,7 @@ fn vote_class(value: &str) -> &'static str {
 #[ensures(!ret.is_empty())]
 fn vote_title(value: &str) -> &'static str {
     if value == "∞" {
-        "Official baseline lexicon word. The infinity marker replaces the raw Lensisku community tally once the official-word threshold is exceeded."
+        "Official baseline lexicon word. The infinity marker replaces the raw Lensisku community tally for officialdata entries."
     } else {
         "Community upvote/downvote tally from Lensisku contributors."
     }

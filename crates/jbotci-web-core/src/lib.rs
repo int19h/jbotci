@@ -46,10 +46,10 @@ use jbotci_output::{
     reference_slot_name_for_place_slot,
 };
 use jbotci_search::vlacku::{
-    DEFAULT_VLACKU_RESULT_COUNT, OFFICIAL_WORD_VOTE_THRESHOLD, ParsedWordDictionaryMatch,
-    VlackuCard, VlackuCompositionKind, VlackuRequest, VlackuSearchOptions, dictionary_entry_card,
-    dictionary_matches_for_word_likes, filter_vlacku_cards, format_votes,
-    grouped_word_type_filter_key, is_brivla_like, normalize_word_type_filter, run_vlacku_requests,
+    DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
+    VlackuRequest, VlackuSearchOptions, dictionary_entry_card, dictionary_matches_for_word_likes,
+    filter_vlacku_cards, format_vote_display, grouped_word_type_filter_key, is_brivla_like,
+    normalize_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::references::{
     PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, SelbriPlaceFrameId, SumtiPlaceAssignmentId,
@@ -244,6 +244,15 @@ pub struct DictionaryTooltipCard {
     pub notes: Vec<VlackuInline>,
     pub decomposition: Vec<VlackuCompositionPiece>,
     pub can_add_to_jvozba: bool,
+}
+
+#[invariant(!self.username.is_empty())]
+#[invariant(self.realname.as_ref().is_none_or(|realname| !realname.trim().is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct VlackuWebAuthor {
+    pub username: String,
+    pub realname: Option<String>,
 }
 
 #[invariant(self.card.is_some() || self.missing_word.is_some() || !self.rows.is_empty())]
@@ -1453,6 +1462,7 @@ pub struct VlackuWebCard {
     pub word_type: String,
     pub word_type_key: String,
     pub selmaho: Option<String>,
+    pub author: Option<VlackuWebAuthor>,
     pub ipa: Option<String>,
     pub similarity: Option<f32>,
     pub votes: VlackuVoteDisplay,
@@ -1460,6 +1470,8 @@ pub struct VlackuWebCard {
     pub glosses: Vec<String>,
     pub definition: Vec<VlackuInline>,
     pub notes: Vec<VlackuInline>,
+    #[serde(default)]
+    pub etymology: Vec<VlackuInline>,
     pub decomposition: Vec<VlackuCompositionPiece>,
     pub can_add_to_jvozba: bool,
 }
@@ -3261,7 +3273,7 @@ fn dictionary_tooltip_card_from_search_card(
             .map(|similarity| format!("{:.0}%", similarity * 100.0)),
         votes: card
             .votes
-            .map(|votes| VlackuVoteDisplay::Known(format_votes(votes)))
+            .map(|votes| VlackuVoteDisplay::Known(format_vote_display(votes, card.is_official)))
             .unwrap_or(VlackuVoteDisplay::Unknown),
         rafsi: card.rafsi,
         glosses: card.glosses,
@@ -3854,6 +3866,12 @@ fn web_card_from_search_card(
     rank: usize,
     card: jbotci_search::vlacku::VlackuCard,
 ) -> VlackuWebCard {
+    let author = card.author.map(web_author_from_search_author);
+    let etymology = card
+        .etymology
+        .as_deref()
+        .map(|text| parse_vlacku_inline_text(jbotci_dictionary_data::english(), text))
+        .unwrap_or_default();
     VlackuWebCard {
         rank,
         ipa: dictionary_word_ipa(&card.word),
@@ -3862,15 +3880,17 @@ fn web_card_from_search_card(
         word_type: card.word_type.clone(),
         word_type_key: normalize_word_type_filter(&card.word_type),
         selmaho: card.selmaho,
+        author,
         similarity: card.similarity,
         votes: card
             .votes
-            .map(|votes| VlackuVoteDisplay::Known(format_votes(votes)))
+            .map(|votes| VlackuVoteDisplay::Known(format_vote_display(votes, card.is_official)))
             .unwrap_or(VlackuVoteDisplay::Unknown),
         rafsi: card.rafsi,
         glosses: card.glosses,
         definition: parse_vlacku_inline_text(jbotci_dictionary_data::english(), &card.definition),
         notes: parse_vlacku_inline_text(jbotci_dictionary_data::english(), &card.notes),
+        etymology,
         decomposition: card
             .decomposition
             .into_iter()
@@ -3901,6 +3921,13 @@ fn web_card_from_search_card(
             .collect(),
         can_add_to_jvozba: word_type_allows_jvozba(&card.word_type),
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn web_author_from_search_author(author: jbotci_search::vlacku::VlackuAuthor) -> VlackuWebAuthor {
+    let data!(jbotci_search::vlacku::VlackuAuthor { username, realname }) = author.into_data();
+    new!(VlackuWebAuthor { username, realname })
 }
 
 #[requires(true)]
@@ -4653,13 +4680,6 @@ fn percent_encode(input: &str) -> String {
         .collect()
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn _official_vote_marker_for_linking(entry: &DictionaryEntry<'_>) -> Option<String> {
-    let votes = entry.score.get().round() as i32;
-    (votes > OFFICIAL_WORD_VOTE_THRESHOLD).then(|| format_votes(votes))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -5286,6 +5306,84 @@ mod tests {
         assert!(!card.definition.is_empty());
         assert!(matches!(card.votes, VlackuVoteDisplay::Known(_)));
         assert_eq!(card.href, "/vlacku/klama");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_full_cards_include_author_and_etymology() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "abniena".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        let card = result.cards.first().expect("abniena card");
+        assert_eq!(card.word, "abniena");
+        let author = card.author.as_ref().expect("author");
+        assert_eq!(author.username, "phma");
+        assert_eq!(author.realname.as_deref(), Some("Pierre Abbat"));
+        assert!(!card.etymology.is_empty());
+
+        let json = serde_json::to_string(card).expect("card serializes");
+        assert!(json.contains("\"author\""), "{json}");
+        assert!(json.contains("\"etymology\""), "{json}");
+        assert!(json.contains("ava, people"), "{json}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_full_cards_use_author_for_official_vote_marker() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "birka".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        let card = result.cards.first().expect("birka card");
+        assert_eq!(card.word, "birka");
+        assert_eq!(card.votes, VlackuVoteDisplay::Known("∞".to_owned()));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_tooltip_cards_omit_author_and_etymology() {
+        let card = dictionary_tooltip_for_word("", "abniena").expect("abniena tooltip");
+        let value = serde_json::to_value(&card).expect("tooltip serializes");
+
+        assert!(value.get("author").is_none(), "{value:?}");
+        assert!(value.get("etymology").is_none(), "{value:?}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_web_cards_deserialize_without_etymology_for_compatibility() {
+        let json = r#"{
+            "rank": 1,
+            "word": "klama",
+            "display-word": "klama",
+            "word-type": "gismu",
+            "word-type-key": "gismu",
+            "selmaho": null,
+            "author": null,
+            "ipa": null,
+            "similarity": null,
+            "votes": "unknown",
+            "rafsi": [],
+            "glosses": [],
+            "definition": [],
+            "notes": [],
+            "decomposition": [],
+            "can-add-to-jvozba": true
+        }"#;
+
+        let card = serde_json::from_str::<VlackuWebCard>(json).expect("old card shape");
+        assert!(card.etymology.is_empty());
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use bityzba::{data, invariant, requires};
+use bityzba::{data, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, DictionaryEntry, Keyword, WordType, normalize_lookup_query};
 use jbotci_jvozba::{LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
@@ -12,7 +12,7 @@ use crate::phonetic::{
 };
 
 pub const DEFAULT_VLACKU_RESULT_COUNT: usize = 20;
-pub const OFFICIAL_WORD_VOTE_THRESHOLD: i32 = 10_000;
+pub const OFFICIAL_AUTHOR_USERNAME: &str = "officialdata";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -77,13 +77,24 @@ pub struct VlackuCard {
     pub word: String,
     pub word_type: String,
     pub selmaho: Option<String>,
+    pub author: Option<VlackuAuthor>,
+    pub is_official: bool,
     pub similarity: Option<f32>,
     pub votes: Option<i32>,
     pub rafsi: Vec<String>,
     pub glosses: Vec<String>,
     pub definition: String,
     pub notes: String,
+    pub etymology: Option<String>,
     pub decomposition: Vec<VlackuCompositionPiece>,
+}
+
+#[invariant(!self.username.is_empty())]
+#[invariant(self.realname.as_ref().is_none_or(|realname| !realname.trim().is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VlackuAuthor {
+    pub username: String,
+    pub realname: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -286,15 +297,22 @@ pub fn is_brivla_like(normalized_type: &str) -> bool {
 }
 
 #[requires(true)]
-#[ensures(value > OFFICIAL_WORD_VOTE_THRESHOLD -> ret == "∞")]
-#[ensures(value <= OFFICIAL_WORD_VOTE_THRESHOLD -> ret.starts_with('+') == (value > 0))]
+#[ensures(ret.starts_with('+') == (value > 0))]
 pub fn format_votes(value: i32) -> String {
-    if value > OFFICIAL_WORD_VOTE_THRESHOLD {
-        "∞".to_owned()
-    } else if value > 0 {
+    if value > 0 {
         format!("+{value}")
     } else {
         value.to_string()
+    }
+}
+
+#[requires(true)]
+#[ensures(is_official -> ret == "∞")]
+pub fn format_vote_display(value: i32, is_official: bool) -> String {
+    if is_official {
+        "∞".to_owned()
+    } else {
+        format_votes(value)
     }
 }
 
@@ -946,12 +964,25 @@ fn entry_card_with_decomposition(
         word: entry.word.to_owned(),
         word_type: entry.word_type.as_str().to_owned(),
         selmaho: entry.selmaho.map(|selmaho| selmaho.0.to_owned()),
+        author: Some(new!(VlackuAuthor {
+            username: entry.user.username.to_owned(),
+            realname: entry
+                .user
+                .realname
+                .filter(|realname| !realname.trim().is_empty())
+                .map(str::to_owned),
+        })),
+        is_official: entry.user.username == OFFICIAL_AUTHOR_USERNAME,
         similarity,
         votes: Some(entry.score.get().round() as i32),
         rafsi: entry.rafsi.iter().map(|rafsi| rafsi.0.to_owned()).collect(),
         glosses: entry.gloss_keywords.iter().map(format_keyword).collect(),
         definition: entry.definition.to_owned(),
         notes: entry.notes.to_owned(),
+        etymology: entry
+            .etymology
+            .filter(|etymology| !etymology.trim().is_empty())
+            .map(str::to_owned),
         decomposition: decomposition
             .map(composition_from_decomposition)
             .unwrap_or_default(),
@@ -968,12 +999,15 @@ fn unknown_card(
         word: classification.word,
         word_type: classification.word_type,
         selmaho: classification.selmaho,
+        author: None,
+        is_official: false,
         similarity: None,
         votes: None,
         rafsi: Vec::new(),
         glosses: Vec::new(),
         definition: String::new(),
         notes: String::new(),
+        etymology: None,
         decomposition: decomposition
             .map(composition_from_decomposition)
             .unwrap_or_default(),
@@ -1362,6 +1396,54 @@ mod tests {
 
         assert_eq!(card.word, "brode");
         assert_eq!(card.selmaho, None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_entry_cards_include_author_and_official_status() {
+        let entry = jbotci_dictionary_data::english()
+            .lookup_word("klama")
+            .expect("entry for klama");
+        let card =
+            dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
+
+        let author = card.author.as_ref().expect("author");
+        assert_eq!(author.username, "officialdata");
+        assert_eq!(author.realname.as_deref(), Some("Official Data"));
+        assert!(card.is_official);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_entry_cards_include_etymology() {
+        let entry = jbotci_dictionary_data::english()
+            .lookup_word("abniena")
+            .expect("entry for abniena");
+        let card =
+            dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
+
+        let etymology = card.etymology.as_deref().expect("etymology");
+        assert!(etymology.contains("ava, people"), "{etymology}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn official_status_uses_author_not_vote_threshold() {
+        let entry = jbotci_dictionary_data::english()
+            .lookup_word("birka")
+            .expect("entry for birka");
+        let card =
+            dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
+
+        assert_eq!(card.votes, Some(10000));
+        assert!(card.is_official);
+        assert_eq!(
+            format_vote_display(card.votes.unwrap(), card.is_official),
+            "∞"
+        );
     }
 
     #[test]

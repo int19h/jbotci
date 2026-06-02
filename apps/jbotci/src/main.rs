@@ -45,10 +45,10 @@ use jbotci_output::{
     reference_display_model_for_syntax_tree, render_diagnostics, render_trace_report,
 };
 use jbotci_search::vlacku::{
-    DEFAULT_VLACKU_RESULT_COUNT, OFFICIAL_WORD_VOTE_THRESHOLD, VlackuCard, VlackuCompositionKind,
-    VlackuCompositionPiece, VlackuOutcome, VlackuRequest, VlackuSearchOptions, VlackuSearchOutput,
+    DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
+    VlackuOutcome, VlackuRequest, VlackuSearchOptions, VlackuSearchOutput,
     dictionary_cards_for_word_likes, dictionary_entry_card, dictionary_matches_for_word_likes,
-    filter_vlacku_cards, format_votes, normalize_word_type_filter, run_vlacku_requests,
+    filter_vlacku_cards, format_vote_display, normalize_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::references::ReferenceAnalysis;
 use jbotci_source::SourceId;
@@ -59,6 +59,9 @@ use jbotci_syntax::{
 use jbotci_syntax::{syntax_grammar_ebnf, syntax_grammar_svg};
 use owo_colors::OwoColorize;
 use unicode_width::UnicodeWidthStr;
+
+#[cfg(test)]
+use jbotci_search::vlacku::VlackuAuthor;
 
 const VLACKU_DETAIL_INDENT: &str = "    ";
 
@@ -574,6 +577,7 @@ struct VlackuInput {
     min_similarity: Option<f32>,
     sumti_places: CliSumtiPlaces,
     decompose_lujvo: bool,
+    show_etymology: bool,
     requests: Vec<VlackuRequest>,
     query: Vec<String>,
 }
@@ -697,6 +701,11 @@ fn augment_vlacku_args(command: ClapCommand) -> ClapCommand {
                 .long("decompose-lujvo")
                 .action(ArgAction::SetTrue),
         )
+        .arg(
+            Arg::new("show_etymology")
+                .long("show-etymology")
+                .action(ArgAction::SetTrue),
+        )
         .arg(Arg::new("query").action(ArgAction::Append).num_args(0..))
 }
 
@@ -746,6 +755,7 @@ fn parse_vlacku_matches(matches: &ArgMatches) -> VlackuInput {
             .and_then(|value| CliSumtiPlaces::parse(value))
             .unwrap_or(CliSumtiPlaces::Index),
         decompose_lujvo: matches.get_flag("decompose_lujvo"),
+        show_etymology: matches.get_flag("show_etymology"),
         requests: ordered_requests
             .into_iter()
             .map(|(_, request)| request)
@@ -1292,6 +1302,7 @@ fn run_vlacku<WOut: Write, WErr: Write>(
                     glyphs,
                     output_terminal_width,
                     sumti_places: input.sumti_places,
+                    show_etymology: input.show_etymology,
                 }),
             )
         )?;
@@ -1715,6 +1726,7 @@ struct VlackuRenderOptions {
     glyphs: GlyphStyle,
     output_terminal_width: Option<usize>,
     sumti_places: CliSumtiPlaces,
+    show_etymology: bool,
 }
 
 #[requires(true)]
@@ -1727,6 +1739,7 @@ fn render_vlacku_output(output: &VlackuSearchOutput, color: bool, glyphs: GlyphS
             glyphs,
             output_terminal_width: None,
             sumti_places: CliSumtiPlaces::Index,
+            show_etymology: false,
         }),
     )
 }
@@ -1746,6 +1759,7 @@ fn render_vlacku_output_with_width(
             glyphs,
             output_terminal_width,
             sumti_places: CliSumtiPlaces::Index,
+            show_etymology: false,
         }),
     )
 }
@@ -1776,6 +1790,11 @@ fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOpt
     header.push_str(&dark(&format!("{index}."), options.color));
     header.push(' ');
     header.push_str(&yellow_underlined(&card.word, options.color));
+    if let Some(author) = &card.author {
+        header.push_str(&dark(" | ", options.color));
+        header.push_str(&dark("by: ", options.color));
+        header.push_str(&author.username);
+    }
     header.push_str(&dark(" | ", options.color));
     header.push_str(&blue(&vlacku_header_type(card), options.color));
     if let Some(similarity) = card.similarity {
@@ -1790,7 +1809,7 @@ fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOpt
         header.push_str(&dark(" | ", options.color));
         header.push_str(&dark("votes: ", options.color));
         header.push_str(&green(
-            &format_vlacku_votes(votes, options.glyphs),
+            &format_vlacku_votes(votes, card.is_official, options.glyphs),
             options.color,
         ));
     }
@@ -1828,6 +1847,18 @@ fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOpt
         lines.push(format!("  {}", dark("notes:", options.color)));
         for line in card.notes.lines() {
             push_vlacku_detail_lines(&mut lines, line, options);
+        }
+    }
+    if options.show_etymology {
+        if let Some(etymology) = card
+            .etymology
+            .as_deref()
+            .filter(|etymology| !etymology.trim().is_empty())
+        {
+            lines.push(format!("  {}", dark("etymology:", options.color)));
+            for line in etymology.lines() {
+                push_vlacku_detail_lines(&mut lines, line, options);
+            }
         }
     }
     lines.join("\n") + "\n"
@@ -1946,12 +1977,12 @@ fn format_similarity_percent(value: f32) -> String {
 }
 
 #[requires(true)]
-#[ensures(glyphs == GlyphStyle::Ascii && value > OFFICIAL_WORD_VOTE_THRESHOLD -> ret == "official")]
-fn format_vlacku_votes(value: i32, glyphs: GlyphStyle) -> String {
-    if glyphs == GlyphStyle::Ascii && value > OFFICIAL_WORD_VOTE_THRESHOLD {
+#[ensures(glyphs == GlyphStyle::Ascii && is_official -> ret == "official")]
+fn format_vlacku_votes(value: i32, is_official: bool, glyphs: GlyphStyle) -> String {
+    if glyphs == GlyphStyle::Ascii && is_official {
         "official".to_owned()
     } else {
-        format_votes(value)
+        format_vote_display(value, is_official)
     }
 }
 
@@ -2408,6 +2439,7 @@ fn render_gentufa(
                     glyphs,
                     output_terminal_width: None,
                     sumti_places: CliSumtiPlaces::Index,
+                    show_etymology: false,
                 }),
             ));
         }
@@ -5410,8 +5442,8 @@ mod tests {
             "mi",
             "klama",
         ]);
-        assert!(output.starts_with("1. mi | cmavo: KOhA3"));
-        assert!(output.contains("\n2. klama | gismu"));
+        assert!(output.starts_with("1. mi | by: officialdata | cmavo: KOhA3"));
+        assert!(output.contains("\n2. klama | by: officialdata | gismu"));
         assert!(output.contains("  definitions:"));
         assert!(output.contains("\n\n(mi kl"));
     }
@@ -5431,8 +5463,14 @@ mod tests {
                 "mi",
                 "klama",
             ]);
-            assert!(output.starts_with("1. mi | cmavo: KOhA3"), "{format}");
-            assert!(output.contains("\n2. klama | gismu"), "{format}");
+            assert!(
+                output.starts_with("1. mi | by: officialdata | cmavo: KOhA3"),
+                "{format}"
+            );
+            assert!(
+                output.contains("\n2. klama | by: officialdata | gismu"),
+                "{format}"
+            );
             assert!(output.contains("\n\n"), "{format}");
         }
     }
@@ -5553,7 +5591,7 @@ mod tests {
         assert!(run.stderr.is_empty(), "{}", run.stderr);
         assert!(
             run.stdout
-                .contains("1. klama | gismu | similarity: 100% | votes: ∞")
+                .contains("1. klama | by: officialdata | gismu | similarity: 100% | votes: ∞")
         );
         assert!(run.stdout.contains("  rafsi: "));
         assert!(run.stdout.contains("  glosses:"));
@@ -5845,7 +5883,7 @@ mod tests {
         assert!(run.stderr.is_empty(), "{}", run.stderr);
         assert!(
             run.stdout
-                .contains("1. klama | gismu | similarity: 100% | votes: ∞")
+                .contains("1. klama | by: officialdata | gismu | similarity: 100% | votes: ∞")
         );
     }
 
@@ -5866,9 +5904,9 @@ mod tests {
             &run.stdout,
             &[
                 "1. mivyselbai | lujvo",
-                "2. jmive | gismu",
-                "3. se | cmavo: SE",
-                "4. bapli | gismu",
+                "2. jmive | by: officialdata | gismu",
+                "3. se | by: officialdata | cmavo: SE",
+                "4. bapli | by: officialdata | gismu",
             ],
         );
     }
@@ -5904,7 +5942,7 @@ mod tests {
             false,
         );
         assert_eq!(found.status, CliStatus::Success);
-        assert!(found.stdout.contains("1. klama | gismu"));
+        assert!(found.stdout.contains("1. klama | by: officialdata | gismu"));
 
         let invalid = run_cli_capture(&["jbotci", "vlacku", "--glob", "K"], false);
         assert_eq!(invalid.status, CliStatus::InvalidInput);
@@ -5935,6 +5973,62 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlacku_official_author_low_score_renders_official_marker() {
+        let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "birka"], false);
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(
+            run.stdout
+                .contains("1. birka | by: officialdata | gismu | similarity: 100% | votes: ∞"),
+            "{}",
+            run.stdout
+        );
+        assert!(!run.stdout.contains("votes: +10000"), "{}", run.stdout);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_ascii_renders_official_author_marker_as_ascii() {
+        let run = run_cli_capture(&["jbotci", "vlacku", "--ascii", "--valsi", "birka"], false);
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(run.stdout.contains("votes: official"), "{}", run.stdout);
+        assert!(!run.stdout.contains('∞'), "{}", run.stdout);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_hides_etymology_by_default() {
+        let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "abniena"], false);
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(!run.stdout.contains("etymology:"), "{}", run.stdout);
+        assert!(run.stdout.contains("Guaraní in aspect"), "{}", run.stdout);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_show_etymology_renders_etymology_section() {
+        let run = run_cli_capture(
+            &["jbotci", "vlacku", "--show-etymology", "--valsi", "abniena"],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(run.stdout.contains("  etymology:"), "{}", run.stdout);
+        assert!(run.stdout.contains("ava, people"), "{}", run.stdout);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_sound_search_accepts_bracketed_ipa_and_orders_by_similarity() {
         let run = run_cli_capture(
             &[
@@ -5952,9 +6046,18 @@ mod tests {
 
         assert_eq!(run.status, CliStatus::Success);
         assert!(run.stderr.is_empty(), "{}", run.stderr);
-        assert!(run.stdout.contains("1. klama | gismu | similarity: 100%"));
-        assert!(run.stdout.contains("2. klani | gismu | similarity: 92%"));
-        assert!(run.stdout.contains("3. klina | gismu | similarity: 92%"));
+        assert!(
+            run.stdout
+                .contains("1. klama | by: officialdata | gismu | similarity: 100%")
+        );
+        assert!(
+            run.stdout
+                .contains("2. klani | by: officialdata | gismu | similarity: 92%")
+        );
+        assert!(
+            run.stdout
+                .contains("3. klina | by: officialdata | gismu | similarity: 92%")
+        );
     }
 
     #[test]
@@ -5967,12 +6070,15 @@ mod tests {
                     word: "klama".to_owned(),
                     word_type: "gismu".to_owned(),
                     selmaho: None,
+                    author: None,
+                    is_official: false,
                     similarity: Some(1.0),
                     votes: Some(7),
                     rafsi: vec!["kla".to_owned()],
                     glosses: vec!["come".to_owned()],
                     definition: "references {cadzu} at $x_1$; malformed {bad link}.".to_owned(),
                     notes: "unmatched $ remains plain".to_owned(),
+                    etymology: None,
                     decomposition: Vec::new(),
                 }],
                 outcome: VlackuOutcome::Found,
@@ -5983,6 +6089,7 @@ mod tests {
                 glyphs: GlyphStyle::Unicode,
                 output_terminal_width: None,
                 sumti_places: CliSumtiPlaces::Index,
+                show_etymology: false,
             }),
         );
 
@@ -6012,12 +6119,15 @@ mod tests {
                     word: "klama".to_owned(),
                     word_type: "gismu".to_owned(),
                     selmaho: None,
+                    author: None,
+                    is_official: false,
                     similarity: Some(1.0),
                     votes: Some(7),
                     rafsi: Vec::new(),
                     glosses: Vec::new(),
                     definition: "$x_2=b_1$ moves to $x_3$.".to_owned(),
                     notes: String::new(),
+                    etymology: None,
                     decomposition: Vec::new(),
                 }],
                 outcome: VlackuOutcome::Found,
@@ -6028,6 +6138,7 @@ mod tests {
                 glyphs: GlyphStyle::Unicode,
                 output_terminal_width: None,
                 sumti_places: CliSumtiPlaces::Raw,
+                show_etymology: false,
             }),
         );
 
@@ -6047,12 +6158,15 @@ mod tests {
                     word: "cmevla".to_owned(),
                     word_type: "lujvo".to_owned(),
                     selmaho: None,
+                    author: None,
+                    is_official: false,
                     similarity: Some(1.0),
                     votes: Some(4),
                     rafsi: Vec::new(),
                     glosses: Vec::new(),
                     definition: "$x_1$ is a morphologically defined name word meaning $x_2$ in language $x_3$.".to_owned(),
                     notes: "In Lojban, such words are characterized by ending with a consonant.".to_owned(),
+                    etymology: None,
                     decomposition: Vec::new(),
                 }],
                 outcome: VlackuOutcome::Found,
@@ -6080,19 +6194,25 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn vlacku_votes_above_official_threshold_render_infinity() {
+    fn vlacku_official_author_renders_infinity() {
         let output = render_vlacku_output(
             &VlackuSearchOutput {
                 cards: vec![VlackuCard {
-                    word: "klama".to_owned(),
+                    word: "birka".to_owned(),
                     word_type: "gismu".to_owned(),
                     selmaho: None,
+                    author: Some(new!(VlackuAuthor {
+                        username: "officialdata".to_owned(),
+                        realname: Some("Official Data".to_owned()),
+                    })),
+                    is_official: true,
                     similarity: Some(1.0),
-                    votes: Some(10001),
+                    votes: Some(10000),
                     rafsi: Vec::new(),
                     glosses: Vec::new(),
                     definition: String::new(),
                     notes: String::new(),
+                    etymology: None,
                     decomposition: Vec::new(),
                 }],
                 outcome: VlackuOutcome::Found,
@@ -6103,7 +6223,7 @@ mod tests {
         );
 
         assert!(output.contains("votes: ∞"));
-        assert!(!output.contains("votes: +10001"));
+        assert!(!output.contains("votes: +10000"));
     }
 
     #[test]
@@ -6116,12 +6236,18 @@ mod tests {
                     word: "fuhivla".to_owned(),
                     word_type: "fu'ivla".to_owned(),
                     selmaho: None,
+                    author: Some(new!(VlackuAuthor {
+                        username: "officialdata".to_owned(),
+                        realname: Some("Official Data".to_owned()),
+                    })),
+                    is_official: true,
                     similarity: Some(1.0),
-                    votes: Some(10001),
+                    votes: Some(10000),
                     rafsi: Vec::new(),
                     glosses: Vec::new(),
                     definition: "$x_1$ is a loanword meaning $x_2$.".to_owned(),
                     notes: String::new(),
+                    etymology: None,
                     decomposition: Vec::new(),
                 }],
                 outcome: VlackuOutcome::Found,
@@ -6132,6 +6258,7 @@ mod tests {
                 glyphs: GlyphStyle::Ascii,
                 output_terminal_width: None,
                 sumti_places: CliSumtiPlaces::Index,
+                show_etymology: false,
             }),
         );
 
