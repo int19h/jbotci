@@ -117,6 +117,9 @@ const COMPUTE_CHANNEL_EMBEDDINGS: &str = "embedding-corpus";
 const COMPUTE_CHANNEL_EXPORT: &str = "gentufa-export";
 const ASYNC_ACTIVITY_INDICATOR_DELAY_MS: i32 = 100;
 const SEMANTIC_LOADING_MESSAGE_DELAY_MS: i32 = 100;
+const SEMANTIC_SEARCH_SETUP_MESSAGE: &str = "Download model and embeddings to use semantic search";
+const SEMANTIC_SEARCH_SETUP_LINK_LABEL: &str = "Download";
+const SEMANTIC_SEARCH_SETUP_LINK_SUFFIX: &str = " model and embeddings to use semantic search";
 #[cfg(target_arch = "wasm32")]
 const VLACKU_JVOZBA_MIN_WIDTH_PX: f64 = 981.0;
 #[cfg(target_arch = "wasm32")]
@@ -2985,10 +2988,7 @@ async fn embedding_search_json(
     _limit: usize,
     _kind_filters: &[String],
 ) -> Result<String, String> {
-    Err(
-        "Open Settings and download embeddings in the browser before using meaning search."
-            .to_owned(),
-    )
+    Err(SEMANTIC_SEARCH_SETUP_MESSAGE.to_owned())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -3898,7 +3898,7 @@ fn render_cukta_search(
                 &target_options,
             ) }
             if let Some(message) = message {
-                p { class: "dictionary-empty cll-search-message", "{message}" }
+                { render_semantic_search_message("dictionary-empty cll-search-message", message) }
             }
             div { class: "cll-search-results",
                 for card in results.iter() {
@@ -5550,7 +5550,7 @@ fn render_vlacku_page(
                     { render_dictionary_info(info) }
                 }
                 if let Some(message) = &result.message {
-                    p { class: "dictionary-empty", "{message}" }
+                    { render_semantic_search_message("dictionary-empty", message) }
                 }
                 for error in result.errors.iter() {
                     div { class: "spa-error dictionary-error", "{error}" }
@@ -5564,6 +5564,27 @@ fn render_vlacku_page(
                     }
                 }
             }
+        }
+    }
+}
+
+#[requires(!class_name.is_empty())]
+#[ensures(true)]
+fn render_semantic_search_message(class_name: &str, message: &str) -> Element {
+    if message == SEMANTIC_SEARCH_SETUP_MESSAGE {
+        let settings_route = JbotciRoute::from_web_route(WebRoute::Settings, false);
+        rsx! {
+            p { class: "{class_name}",
+                Link {
+                    to: settings_route,
+                    "{SEMANTIC_SEARCH_SETUP_LINK_LABEL}"
+                }
+                "{SEMANTIC_SEARCH_SETUP_LINK_SUFFIX}"
+            }
+        }
+    } else {
+        rsx! {
+            p { class: "{class_name}", "{message}" }
         }
     }
 }

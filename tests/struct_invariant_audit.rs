@@ -84,6 +84,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "pending scroll state is transient browser navigation state normalized by the cukta scroll handlers",
     ),
     (
+        "apps/jbotci-web/src/main.rs:PendingLocalRouteWrites",
+        "pending route writes are transient browser navigation synchronization state normalized by record and consume helpers",
+    ),
+    (
         "apps/jbotci-web/src/main.rs:GentufaAsyncPageState",
         "async page state is transient UI cache data keyed and replaced by latest-wins worker tasks",
     ),

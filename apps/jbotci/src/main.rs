@@ -3720,7 +3720,7 @@ mod tests {
             "jbotci",
             "gentufa",
             "--dialect",
-            "(zantufa-connectives)",
+            "(+ZANTUFA-CONNECTIVES)",
             "coi",
         ])
         .expect("dialect flag parses")
@@ -3762,7 +3762,7 @@ mod tests {
         assert_eq!(svg_input.output_file, Some(PathBuf::from("grammar.svg")));
 
         let Command::Gerna(dialect_input) =
-            Cli::try_parse_from(["jbotci", "gerna", "--dialect", "(zantufa-quotes)"])
+            Cli::try_parse_from(["jbotci", "gerna", "--dialect", "(+ZANTUFA-QUOTES)"])
                 .expect("gerna dialect")
                 .command
         else {
@@ -5414,8 +5414,9 @@ mod tests {
     #[ensures(true)]
     fn gerna_dialect_changes_output() {
         let default_cli = Cli::try_parse_from(["jbotci", "gerna"]).expect("default gerna");
-        let zantufa_cli = Cli::try_parse_from(["jbotci", "gerna", "--dialect", "(zantufa-quotes)"])
-            .expect("zantufa gerna");
+        let zantufa_cli =
+            Cli::try_parse_from(["jbotci", "gerna", "--dialect", "(+ZANTUFA-QUOTES)"])
+                .expect("zantufa gerna");
         let mut default_output = Vec::new();
         let mut zantufa_output = Vec::new();
 

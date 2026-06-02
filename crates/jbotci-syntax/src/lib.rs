@@ -1588,7 +1588,7 @@ mod tests {
     #[ensures(true)]
     fn grammar_debug_dialect_changes_generated_grammar() {
         let default_output = syntax_grammar_ebnf(&ParseOptions::default());
-        let dialect = jbotci_dialect::parse_dialect_definition("(zantufa-quotes)")
+        let dialect = jbotci_dialect::parse_dialect_definition("(+ZANTUFA-QUOTES)")
             .expect("valid dialect definition");
         let zantufa_options = ParseOptions::default().with_dialect_definition(&dialect);
         let zantufa_output = syntax_grammar_ebnf(&zantufa_options);

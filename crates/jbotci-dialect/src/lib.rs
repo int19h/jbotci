@@ -264,10 +264,9 @@ pub fn builtin_dialect_names() -> Vec<&'static str> {
 #[requires(true)]
 #[ensures(true)]
 pub fn find_builtin_dialect(requested_name: &str) -> Option<BuiltinDialect> {
-    let canonical_name = builtin_reference_canonical_name(requested_name);
     builtin_dialects()
         .into_iter()
-        .find(|dialect| dialect.name == canonical_name)
+        .find(|dialect| dialect.name == requested_name)
 }
 
 #[requires(true)]
@@ -502,8 +501,7 @@ fn lookup_custom_or_builtin_dialect_reference(
     reference_name: &str,
     stack: &[String],
 ) -> Result<DialectDefinition, DialectError> {
-    let canonical_builtin = builtin_reference_canonical_name(reference_name);
-    if let Some(dialect) = find_builtin_dialect(canonical_builtin) {
+    if let Some(dialect) = find_builtin_dialect(reference_name) {
         return Ok(dialect.dialect);
     }
 
@@ -1403,41 +1401,25 @@ fn lookup_builtin_dialect_reference_in_stack(
     reference_name: &str,
     stack: &[&str],
 ) -> Result<DialectDefinition, DialectError> {
-    let canonical_name = builtin_reference_canonical_name(reference_name);
-    if stack.contains(&canonical_name) {
+    if stack.contains(&reference_name) {
         let mut cycle: Vec<&str> = stack.iter().rev().copied().collect();
-        cycle.push(canonical_name);
+        cycle.push(reference_name);
         return Err(DialectError::new(format!(
             "Builtin dialect reference cycle: {}",
             cycle.join(" -> ")
         )));
     }
     let sources = builtin_dialect_source_map();
-    let Some(source) = sources.get(canonical_name) else {
+    let Some(source) = sources.get(reference_name) else {
         return Err(DialectError::new(format!(
             "Unknown dialect reference: {reference_name}"
         )));
     };
     let mut next_stack = stack.to_vec();
-    next_stack.push(canonical_name);
+    next_stack.push(reference_name);
     parse_dialect_definition_with_reference_resolver(source, &|reference| {
         lookup_builtin_dialect_reference_in_stack(reference, &next_stack)
     })
-}
-
-#[ensures(!ret.is_empty())]
-#[requires(true)]
-fn builtin_reference_canonical_name(reference_name: &str) -> &str {
-    match reference_name {
-        "zantufa-connectives" => "zantufa/connectives",
-        "zantufa-terms" => "zantufa/terms",
-        "zantufa-tags" => "zantufa/tags",
-        "zantufa-adverbials" => "zantufa/adverbials",
-        "zantufa-quotes" => "zantufa/quotes",
-        "zantufa-morphology" => "zantufa/morphology",
-        "zantufa-mex" => "zantufa/mex",
-        other => other,
-    }
 }
 
 #[ensures(!ret.is_empty())]
@@ -1449,16 +1431,9 @@ fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
         ("case-insensitive", "(+CASE-INSENSITIVE)"),
         ("soi-adverbials", "(+SOI-ADVERBIALS)"),
         ("term-hierarchy", "(+TERM-HIERARCHY)"),
-        ("zantufa/connectives", "(+ZANTUFA-CONNECTIVES)"),
-        ("zantufa/terms", "(+ZANTUFA-TERMS)"),
-        ("zantufa/tags", "(+ZANTUFA-TAGS)"),
-        ("zantufa/adverbials", "(+ZANTUFA-ADVERBIALS)"),
-        ("zantufa/quotes", "(+ZANTUFA-QUOTES)"),
-        ("zantufa/morphology", "(+ZANTUFA-MORPHOLOGY)"),
-        ("zantufa/mex", "(+ZANTUFA-MEX)"),
         (
             "zantufa",
-            "(cbm soi-adverbials term-hierarchy zantufa/connectives zantufa/terms zantufa/tags zantufa/adverbials zantufa/quotes zantufa/morphology)",
+            "(cbm soi-adverbials term-hierarchy +ZANTUFA-CONNECTIVES +ZANTUFA-TERMS +ZANTUFA-TAGS +ZANTUFA-ADVERBIALS +ZANTUFA-QUOTES +ZANTUFA-MORPHOLOGY)",
         ),
         ("jboponei", "((po ↦ lo su'u) (nei ↦ kei))"),
         (
@@ -2028,7 +2003,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn parses_zantufa_and_legacy_slash_aliases() {
+    fn parses_zantufa_package_without_feature_dialect_references() {
         let zantufa = parse_dialect_definition("(zantufa)").expect("dialect");
         assert!(zantufa.features.contains(&DialectFeature::Cbm));
         assert!(
@@ -2036,6 +2011,14 @@ mod tests {
                 .features
                 .contains(&DialectFeature::ZantufaMorphology)
         );
+        assert!(!zantufa.features.contains(&DialectFeature::ZantufaMex));
+        assert!(
+            !builtin_dialect_names()
+                .into_iter()
+                .any(|name| name.starts_with("zantufa/"))
+        );
+        assert!(parse_dialect_definition("(zantufa/connectives)").is_err());
+        assert!(parse_dialect_definition("(zantufa-connectives)").is_err());
         assert!(parse_dialect_definition("(zantufa-cmavo)").is_err());
     }
 
@@ -2094,7 +2077,7 @@ mod tests {
         };
         assert!(custom_dialect_is_valid(&[custom.clone(), duplicate.clone()], &duplicate).is_err());
         let builtin_alias = CustomDialect {
-            name: "zantufa-connectives".to_owned(),
+            name: "zantufa".to_owned(),
             definition: "()".to_owned(),
             show_in_gentufa: true,
         };

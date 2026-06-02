@@ -178,7 +178,7 @@ async function search(corpusId, query, limit, kindFiltersJson) {
   if (!pack) {
     return {
       hits: [],
-      message: "Open Settings and download embeddings before using meaning search.",
+      message: "Download model and embeddings to use semantic search",
     };
   }
   const corpus = pack.corpora?.[corpusId];
