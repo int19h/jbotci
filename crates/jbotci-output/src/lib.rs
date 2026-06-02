@@ -19,9 +19,14 @@ pub use jbotci_diagnostics::DiagnosticDetailMode;
 use jbotci_morphology::WordLike;
 pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
 use jbotci_syntax::ast::TextSyntax;
-pub use places::format_definition_or_notes_line_with_indexed_places;
+pub use places::{
+    IndexedPlaceSpan, format_definition_or_notes_line_with_indexed_places,
+    indexed_place_spans_for_definition_or_notes_line,
+};
 pub use references::{
-    ReferenceAnnotations, ReferenceDisplayModel, ReferenceName, ReferenceSlotName,
+    ReferenceAnnotationSource, ReferenceAnnotationSourceData, ReferenceAnnotations,
+    ReferenceDisplayModel, ReferenceName, ReferenceSlotName, RichReferenceAnnotation,
+    RichReferenceAnnotations, reference_slot_name_for_place_slot,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

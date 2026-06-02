@@ -17,6 +17,8 @@ use jbotci_output::{
     GlideMark, PhonemeRenderOptions, StressMark,
     qr_code::{encode_qr_alphanumeric_h, qr_code_svg},
 };
+#[cfg(test)]
+use jbotci_web_core::ReferenceSlotLabel;
 use jbotci_web_core::{
     CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption, CuktaPageData, CuktaPageKind,
     CuktaSearchResultCard, CuktaSemanticSearchHit, CuktaTargetOption, CuktaTocNode, CuktaWebMode,
@@ -24,13 +26,15 @@ use jbotci_web_core::{
     GentufaBlocksLayout, GentufaBracketFragment, GentufaCell, GentufaError, GentufaScript,
     GentufaSuccess, GentufaTreeGuide, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest,
     GentufaWebResult, GentufaWebState, GentufaWebViewMode, PageMeta, ReferenceLabel,
-    ReferenceMarker, ReferenceMarkerRole, VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT,
-    VlackuCompositionPiece, VlackuCompositionPieceKind, VlackuDictionaryCountNode,
-    VlackuDictionaryInfo, VlackuInline, VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind,
-    VlackuJvozbaMode, VlackuJvozbaOutput, VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart,
-    VlackuMathPartData, VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebCard, VlackuWebMode,
-    VlackuWebResult, VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection,
-    WebComputeRequest, WebComputeResponse, WebFeatureAvailability, WebRoute, build_page_meta,
+    ReferenceMarker, ReferenceMarkerRole, ReferenceTooltip, ReferenceTooltipInline,
+    ReferenceTooltipInlineData, ReferenceTooltipRow, VLACKU_WEB_DEFAULT_COUNT,
+    VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece, VlackuCompositionPieceKind,
+    VlackuDictionaryCountNode, VlackuDictionaryInfo, VlackuInline, VlackuInlineData,
+    VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
+    VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
+    VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebCard, VlackuWebMode, VlackuWebResult,
+    VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest,
+    WebComputeResponse, WebFeatureAvailability, WebRoute, build_page_meta,
     build_vlacku_jvozba_output, dictionary_tooltip_for_rafsi, dictionary_tooltip_for_word,
     gentufa_web_url, normalize_vlacku_state, parse_web_route, reference_slot_display_text,
     toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
@@ -937,6 +941,7 @@ fn AppShell() -> Element {
     let dialect = use_signal(move || initial_dialect.clone());
     let mut parsed_dialect = use_signal(move || initial_parsed_dialect.clone());
     let reference_hover = use_signal(ReferenceHoverState::default);
+    let reference_tooltip_open = use_signal(|| None::<HoveredReference>);
     let gentufa_page = use_signal(GentufaAsyncPageState::default);
     let gentufa_page_task = use_signal(|| None::<LatestAsyncTask>);
     let export_task = use_signal(|| None::<LatestAsyncTask>);
@@ -1498,7 +1503,7 @@ fn AppShell() -> Element {
                                             }
                                         }
                                         div { class: "gentufa-result-stack",
-                                            { render_result(&result, view_mode, view_mode_value, gentufa_display, gentufa_display_value, settings_value, reference_hover, activity, export_task) }
+                                            { render_result(&result, view_mode, view_mode_value, gentufa_display, gentufa_display_value, settings_value, reference_hover, reference_tooltip_open, activity, export_task) }
                                         }
                                     }
                                 }
@@ -5852,6 +5857,187 @@ fn render_dictionary_tooltip(
 
 #[requires(true)]
 #[ensures(true)]
+fn render_reference_tooltip(tooltip: &ReferenceTooltip, base_path: &str) -> Element {
+    rsx! {
+        span { class: "rich-reference-tooltip-stack", role: "tooltip",
+            if let Some(card) = &tooltip.card {
+                { render_reference_dictionary_card(card, tooltip, base_path) }
+            } else if let Some(word) = &tooltip.missing_word {
+                span { class: "rich-dictionary-tooltip reference-missing-card",
+                    span { class: "tooltip-word-line",
+                        span { class: "tooltip-headword",
+                            span { class: "tooltip-word", "{word}" }
+                        }
+                    }
+                    span { class: "tooltip-copy",
+                        "No dictionary card available."
+                    }
+                }
+            }
+            for row in tooltip.rows.iter() {
+                { render_reference_tooltip_row(row) }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_reference_dictionary_card(
+    card: &DictionaryTooltipCard,
+    tooltip: &ReferenceTooltip,
+    base_path: &str,
+) -> Element {
+    rsx! {
+        span { class: "rich-dictionary-tooltip reference-definition-card",
+            span { class: "tooltip-word-line",
+                span { class: "tooltip-headword",
+                    span { class: "tooltip-word", "{card.display_word}" }
+                    if let Some(ipa) = &card.ipa {
+                        span { class: "tooltip-ipa", "/{ipa}/" }
+                    }
+                }
+                span { class: "tooltip-head-tags",
+                    span { class: word_type_tag_class(&card.word_type_key), "{card.word_type}" }
+                    if let Some(selmaho) = &card.selmaho {
+                        span { class: "dictionary-meta-segment dictionary-selmaho-tag",
+                            em { "{selmaho}" }
+                        }
+                    }
+                }
+            }
+            if !card.decomposition.is_empty() {
+                span { class: "tooltip-row tooltip-decomposition",
+                    span { class: "tooltip-label", "decomposition" }
+                    span { class: "tooltip-decomposition-pieces",
+                        for piece in card.decomposition.iter().filter(|piece| piece.kind != VlackuCompositionPieceKind::Hyphen) {
+                            if let Some(source) = &piece.source {
+                                span { class: "tooltip-rafsi-piece",
+                                    span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
+                                    span { class: "tooltip-rafsi-source", "{piece.display_source.as_deref().unwrap_or(source)}" }
+                                }
+                            } else {
+                                span { class: "tooltip-rafsi-piece",
+                                    span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if !tooltip.definition.is_empty() {
+                span { class: "tooltip-copy",
+                    { render_reference_tooltip_inline_spans(&tooltip.definition, base_path) }
+                }
+            }
+            if !card.glosses.is_empty() {
+                span { class: "tooltip-chip-row tooltip-glosses",
+                    for gloss in card.glosses.iter() {
+                        span { class: "tooltip-chip", "{gloss}" }
+                    }
+                }
+            }
+            if !tooltip.notes.is_empty() {
+                span { class: "tooltip-notes",
+                    { render_reference_tooltip_inline_spans(&tooltip.notes, base_path) }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_reference_tooltip_inline_spans(
+    spans: &[ReferenceTooltipInline],
+    base_path: &str,
+) -> Element {
+    rsx! {
+        for span in spans.iter() {
+            {
+                match span.as_data() {
+                    data!(ReferenceTooltipInline::Text(text)) => rsx! { "{text}" },
+                    data!(ReferenceTooltipInline::Math(math)) => render_vlacku_math(math),
+                    data!(ReferenceTooltipInline::WordRef { label, href, .. }) => {
+                        let resolved_href = resolved_href_with_base_path(base_path, href);
+                        rsx! {
+                            span { class: "tooltip-inline-link", "data-href": "{resolved_href}", "{label}" }
+                        }
+                    }
+                    data!(ReferenceTooltipInline::IndexedPlace { text, highlighted, .. }) => {
+                        let class = if *highlighted {
+                            "tooltip-indexed-place is-highlighted"
+                        } else {
+                            "tooltip-indexed-place"
+                        };
+                        rsx! {
+                            span { class: "{class}", "{text}" }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_reference_tooltip_row(row: &ReferenceTooltipRow) -> Element {
+    let view = reference_tooltip_row_view_model(row);
+    rsx! {
+        span { class: "reference-resolution-tooltip",
+            span { class: "reference-row-symbol reference-row-base",
+                { render_reference_base_label(&row.label) }
+            }
+            if let Some(slot) = view.slot_text.as_deref() {
+                span { class: "reference-row-symbol", "⟨" }
+                span { class: "reference-row-slot", "{slot}" }
+                span { class: "reference-row-symbol", "⟩" }
+            }
+            span { class: "reference-row-symbol reference-row-arrow", "→" }
+            span { class: "reference-row-target", "{view.target_text}" }
+        }
+    }
+}
+
+#[invariant(self.slot_text.as_ref().map_or(true, |slot| !slot.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ReferenceTooltipRowViewModel {
+    slot_text: Option<String>,
+    target_text: String,
+}
+
+#[requires(true)]
+#[ensures(ret.target_text == row.target_text)]
+fn reference_tooltip_row_view_model(row: &ReferenceTooltipRow) -> ReferenceTooltipRowViewModel {
+    new!(ReferenceTooltipRowViewModel {
+        slot_text: row.label.slot.as_ref().map(reference_slot_display_text),
+        target_text: row.target_text.clone(),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_reference_base_label(label: &ReferenceLabel) -> Element {
+    let stem = math_alphanumeric_stem(&label.stem);
+    rsx! {
+        span { class: "spa-cll-math reference-row-base-math",
+            math { class: "math-var", display: "inline",
+                if let Some(occurrence) = label.occurrence {
+                    msub {
+                        mi { "{stem}" }
+                        mtext { "{occurrence}" }
+                    }
+                } else {
+                    mi { "{stem}" }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn render_tooltip_inline_spans(
     spans: &[VlackuInline],
     base_path: &str,
@@ -6901,6 +7087,7 @@ fn render_result(
     display_value: GentufaDisplayState,
     settings_value: UserSettings,
     reference_hover: Signal<ReferenceHoverState>,
+    reference_tooltip_open: Signal<Option<HoveredReference>>,
     activity: Signal<AsyncActivityState>,
     export_task: Signal<Option<LatestAsyncTask>>,
 ) -> Element {
@@ -6915,6 +7102,7 @@ fn render_result(
             display_value,
             settings_value,
             reference_hover,
+            reference_tooltip_open,
             activity,
             export_task,
         ),
@@ -6953,6 +7141,7 @@ fn render_success(
     display_value: GentufaDisplayState,
     settings_value: UserSettings,
     reference_hover: Signal<ReferenceHoverState>,
+    reference_tooltip_open: Signal<Option<HoveredReference>>,
     activity: Signal<AsyncActivityState>,
     export_task: Signal<Option<LatestAsyncTask>>,
 ) -> Element {
@@ -6968,10 +7157,10 @@ fn render_success(
             }
             match view_mode_value {
                 GentufaWebViewMode::Blocks => rsx! {
-                    { render_blocks(success, display_value.show_glosses, settings_value.script, reference_hover, activity, export_task) }
+                    { render_blocks(success, display_value.show_glosses, settings_value.script, reference_hover, reference_tooltip_open, activity, export_task) }
                 },
                 GentufaWebViewMode::Tree => rsx! {
-                    { render_tree(success, reference_hover) }
+                    { render_tree(success, reference_hover, reference_tooltip_open) }
                 },
                 GentufaWebViewMode::Ipa => rsx! {
                     { render_ipa_output(success) }
@@ -7195,6 +7384,7 @@ fn render_blocks(
     show_glosses: bool,
     script: GentufaScript,
     reference_hover: Signal<ReferenceHoverState>,
+    reference_tooltip_open: Signal<Option<HoveredReference>>,
     activity: Signal<AsyncActivityState>,
     export_task: Signal<Option<LatestAsyncTask>>,
 ) -> Element {
@@ -7231,7 +7421,7 @@ fn render_blocks(
                             }
                             for block in success.blocks_layout.blocks.iter() {
                                 { render_block_reference_height_sizer(block) }
-                                { render_block(block, reference_hover, export_anchor_id, &success.blocks_layout, show_glosses, script, activity, export_task) }
+                                { render_block(block, reference_hover, reference_tooltip_open, export_anchor_id, &success.blocks_layout, show_glosses, script, activity, export_task) }
                             }
                             if show_glosses {
                                 for block in success.blocks_layout.blocks.iter().filter(|block| block.is_leaf) {
@@ -7360,6 +7550,7 @@ fn render_block_reference_height_sizer(block: &GentufaBlock) -> Element {
 fn render_block(
     block: &GentufaBlock,
     reference_hover: Signal<ReferenceHoverState>,
+    reference_tooltip_open: Signal<Option<HoveredReference>>,
     export_anchor_id: Option<&str>,
     export_layout: &GentufaBlocksLayout,
     export_show_glosses: bool,
@@ -7371,6 +7562,7 @@ fn render_block(
     let col = block.col + 1;
     let classes = block_class(block);
     let hover_state = reference_hover.read().clone();
+    let tooltip_open_state = reference_tooltip_open.read().clone();
     let incoming_count = block
         .ref_markers
         .iter()
@@ -7407,7 +7599,7 @@ fn render_block(
                 span { class: "{incoming_class}",
                     for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Referent) {
                         span { class: "ref-math ref-line",
-                            { render_ref_marker(marker, reference_hover, &hover_state) }
+                            { render_ref_marker(marker, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state) }
                         }
                     }
                 }
@@ -7449,7 +7641,7 @@ fn render_block(
                     span { class: "ref-math",
                         for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Reference) {
                             span { class: "ref-arrow", "→" }
-                            { render_ref_marker(marker, reference_hover, &hover_state) }
+                            { render_ref_marker(marker, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state) }
                         }
                     }
                 }
@@ -7501,29 +7693,118 @@ fn render_block(
 fn render_ref_marker(
     marker: &ReferenceMarker,
     reference_hover: Signal<ReferenceHoverState>,
+    reference_tooltip_open: Signal<Option<HoveredReference>>,
     hover_state: &ReferenceHoverState,
+    tooltip_open_state: &Option<HoveredReference>,
 ) -> Element {
-    let class = reference_marker_class(marker, hover_state);
-    let role = reference_role_attr(marker.role);
-    let base = marker.label.base_key();
-    let label = marker.label.full_key();
-    let enter_hover = reference_hover;
-    let leave_hover = reference_hover;
-    let enter_role = marker.role;
-    let enter_label = marker.label.clone();
-    rsx! {
-        span {
-            class: "{class}",
-            title: "{marker.kind}",
-            "data-ref-role": "{role}",
-            "data-ref-kind": "{marker.kind}",
-            "data-ref-label": "{label}",
-            "data-ref-base": "{base}",
-            onmouseenter: move |_| set_reference_hover(enter_hover, enter_role, enter_label.clone()),
-            onmouseleave: move |_| clear_reference_hover(leave_hover),
-            { render_reference_label(&marker.label) }
+    let view = reference_marker_view_model(marker, hover_state).into_data();
+    let class = view.class;
+    let role = view.role_attr;
+    let base = view.base_key;
+    let label = view.full_key;
+    let kind = view.kind;
+    if let Some(tooltip) = &marker.tooltip {
+        let host_class = reference_tooltip_host_class(marker, tooltip_open_state);
+        let base_path = router_base_path();
+        let enter_hover = reference_hover;
+        let leave_hover = reference_hover;
+        let leave_tooltip_open = reference_tooltip_open;
+        let click_tooltip_open = reference_tooltip_open;
+        let enter_role = marker.role;
+        let enter_label = marker.label.clone();
+        let click_role = marker.role;
+        let click_label = marker.label.clone();
+        rsx! {
+            span {
+                class: "{host_class}",
+                onmouseenter: move |_| set_reference_hover(enter_hover, enter_role, enter_label.clone()),
+                onmouseleave: move |_| {
+                    clear_reference_hover(leave_hover);
+                    clear_reference_tooltip_open(leave_tooltip_open);
+                },
+                onclick: move |_| set_reference_tooltip_open(click_tooltip_open, click_role, click_label.clone()),
+                span {
+                    class: "{class}",
+                    "data-ref-role": "{role}",
+                    "data-ref-kind": "{kind}",
+                    "data-ref-label": "{label}",
+                    "data-ref-base": "{base}",
+                    { render_reference_label(&marker.label) }
+                }
+                { render_reference_tooltip(tooltip, &base_path) }
+            }
+        }
+    } else {
+        let enter_hover = reference_hover;
+        let leave_hover = reference_hover;
+        let leave_tooltip_open = reference_tooltip_open;
+        let enter_role = marker.role;
+        let enter_label = marker.label.clone();
+        rsx! {
+            span {
+                class: "{class}",
+                "data-ref-role": "{role}",
+                "data-ref-kind": "{kind}",
+                "data-ref-label": "{label}",
+                "data-ref-base": "{base}",
+                onmouseenter: move |_| set_reference_hover(enter_hover, enter_role, enter_label.clone()),
+                onmouseleave: move |_| {
+                    clear_reference_hover(leave_hover);
+                    clear_reference_tooltip_open(leave_tooltip_open);
+                },
+                { render_reference_label(&marker.label) }
+            }
         }
     }
+}
+
+#[invariant(!self.class.is_empty())]
+#[invariant(!self.role_attr.is_empty())]
+#[invariant(!self.kind.is_empty())]
+#[invariant(!self.base_key.is_empty())]
+#[invariant(!self.full_key.is_empty())]
+#[invariant(self.native_title.is_none())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ReferenceMarkerViewModel {
+    class: String,
+    role_attr: &'static str,
+    kind: String,
+    base_key: String,
+    full_key: String,
+    has_tooltip: bool,
+    native_title: Option<String>,
+}
+
+#[requires(true)]
+#[ensures(ret.native_title.is_none())]
+fn reference_marker_view_model(
+    marker: &ReferenceMarker,
+    hover_state: &ReferenceHoverState,
+) -> ReferenceMarkerViewModel {
+    new!(ReferenceMarkerViewModel {
+        class: reference_marker_class(marker, hover_state),
+        role_attr: reference_role_attr(marker.role),
+        kind: marker.kind.clone(),
+        base_key: marker.label.base_key(),
+        full_key: marker.label.full_key(),
+        has_tooltip: marker.tooltip.is_some(),
+        native_title: None,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.contains("reference-tooltip-host"))]
+fn reference_tooltip_host_class(
+    marker: &ReferenceMarker,
+    tooltip_open_state: &Option<HoveredReference>,
+) -> String {
+    class_names(
+        "reference-tooltip-host",
+        &[(
+            "is-open",
+            reference_tooltip_matches_marker(marker, tooltip_open_state),
+        )],
+    )
 }
 
 #[requires(true)]
@@ -7686,7 +7967,11 @@ fn render_gloss_block(block: &GentufaBlock, gloss_row: usize) -> Element {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_tree(success: &GentufaSuccess, reference_hover: Signal<ReferenceHoverState>) -> Element {
+fn render_tree(
+    success: &GentufaSuccess,
+    reference_hover: Signal<ReferenceHoverState>,
+    reference_tooltip_open: Signal<Option<HoveredReference>>,
+) -> Element {
     rsx! {
         div { class: "table-view",
             div { class: "table-wrap",
@@ -7694,7 +7979,7 @@ fn render_tree(success: &GentufaSuccess, reference_hover: Signal<ReferenceHoverS
                 table { class: "parse-table spa-gentufa-table",
                     tbody {
                         for row in success.tree_rows.iter() {
-                            { render_tree_row(row, reference_hover) }
+                            { render_tree_row(row, reference_hover, reference_tooltip_open) }
                         }
                     }
                 }
@@ -7705,7 +7990,11 @@ fn render_tree(success: &GentufaSuccess, reference_hover: Signal<ReferenceHoverS
 
 #[requires(true)]
 #[ensures(true)]
-fn render_tree_row(row: &GentufaTreeRow, reference_hover: Signal<ReferenceHoverState>) -> Element {
+fn render_tree_row(
+    row: &GentufaTreeRow,
+    reference_hover: Signal<ReferenceHoverState>,
+    reference_tooltip_open: Signal<Option<HoveredReference>>,
+) -> Element {
     let row_class = class_names(
         "tree-row",
         &[
@@ -7723,6 +8012,7 @@ fn render_tree_row(row: &GentufaTreeRow, reference_hover: Signal<ReferenceHoverS
         row.color, row.color, indent_count
     );
     let hover_state = reference_hover.read().clone();
+    let tooltip_open_state = reference_tooltip_open.read().clone();
     let incoming_markers = row
         .ref_markers
         .iter()
@@ -7763,13 +8053,13 @@ fn render_tree_row(row: &GentufaTreeRow, reference_hover: Signal<ReferenceHoverS
                     }
                 }
             }
-            { render_tree_edge_cell(incoming_markers, reference_hover, &hover_state) }
+            { render_tree_edge_cell(incoming_markers, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state) }
             td { class: "col-text",
                 div { class: "cell-pad tree-text-cell",
                     for cell in row.cells.iter() {
                         { render_tree_cell(cell) }
                     }
-                    { render_tree_outgoing_edges(outgoing_markers, reference_hover, &hover_state) }
+                    { render_tree_outgoing_edges(outgoing_markers, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state) }
                 }
             }
         }
@@ -7796,14 +8086,16 @@ fn render_tree_guide(guide: &GentufaTreeGuide) -> Element {
 fn render_tree_edge_cell(
     markers: Vec<&ReferenceMarker>,
     reference_hover: Signal<ReferenceHoverState>,
+    reference_tooltip_open: Signal<Option<HoveredReference>>,
     hover_state: &ReferenceHoverState,
+    tooltip_open_state: &Option<HoveredReference>,
 ) -> Element {
     let has_markers = !markers.is_empty();
     rsx! {
         td { class: "col-edge col-edge-in",
             div { class: "cell-pad edge-cell",
                 for marker in markers {
-                    { render_ref_marker(marker, reference_hover, hover_state) }
+                    { render_ref_marker(marker, reference_hover, reference_tooltip_open, hover_state, tooltip_open_state) }
                 }
                 if has_markers {
                     span { class: "ref-arrow edge-arrow", "→" }
@@ -7818,7 +8110,9 @@ fn render_tree_edge_cell(
 fn render_tree_outgoing_edges(
     markers: Vec<&ReferenceMarker>,
     reference_hover: Signal<ReferenceHoverState>,
+    reference_tooltip_open: Signal<Option<HoveredReference>>,
     hover_state: &ReferenceHoverState,
+    tooltip_open_state: &Option<HoveredReference>,
 ) -> Element {
     let has_markers = !markers.is_empty();
     rsx! {
@@ -7826,7 +8120,7 @@ fn render_tree_outgoing_edges(
             span { class: "tree-outgoing-edge edge-cell",
                 span { class: "ref-arrow edge-arrow", "→" }
                 for marker in markers {
-                    { render_ref_marker(marker, reference_hover, hover_state) }
+                    { render_ref_marker(marker, reference_hover, reference_tooltip_open, hover_state, tooltip_open_state) }
                 }
             }
         }
@@ -8021,6 +8315,22 @@ fn clear_reference_hover(mut reference_hover: Signal<ReferenceHoverState>) {
 
 #[requires(true)]
 #[ensures(true)]
+fn set_reference_tooltip_open(
+    mut reference_tooltip_open: Signal<Option<HoveredReference>>,
+    role: ReferenceMarkerRole,
+    label: ReferenceLabel,
+) {
+    reference_tooltip_open.set(Some(HoveredReference { role, label }));
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn clear_reference_tooltip_open(mut reference_tooltip_open: Signal<Option<HoveredReference>>) {
+    reference_tooltip_open.set(None);
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn refresh_reference_hover(mut reference_hover: Signal<ReferenceHoverState>) {
     let Some(hovered) = reference_hover.read().hovered.clone() else {
         return;
@@ -8076,6 +8386,17 @@ fn reference_matches_hover(marker: &ReferenceMarker, state: &ReferenceHoverState
             ReferenceMarkerRole::Referent => marker.label.full_key() == hovered.label.full_key(),
         },
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reference_tooltip_matches_marker(
+    marker: &ReferenceMarker,
+    opened: &Option<HoveredReference>,
+) -> bool {
+    opened
+        .as_ref()
+        .is_some_and(|opened| marker.role == opened.role && marker.label == opened.label)
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -10127,7 +10448,7 @@ fn position_dictionary_tooltip_from_event(event: &web_sys::Event) {
     else {
         return;
     };
-    let Ok(Some(host)) = target.closest(".dictionary-tooltip-host") else {
+    let Ok(Some(host)) = target.closest(".dictionary-tooltip-host, .reference-tooltip-host") else {
         return;
     };
     activate_dictionary_tooltip_host(&host);
@@ -10141,7 +10462,9 @@ fn activate_dictionary_tooltip_host(active_host: &web_sys::Element) {
     let Some(document) = web_sys::window().and_then(|window| window.document()) else {
         return;
     };
-    let Ok(hosts) = document.query_selector_all(".dictionary-tooltip-host") else {
+    let Ok(hosts) =
+        document.query_selector_all(".dictionary-tooltip-host, .reference-tooltip-host")
+    else {
         return;
     };
     for index in 0..hosts.length() {
@@ -10191,9 +10514,14 @@ fn clear_dictionary_tooltip_immediate_hide(host: &web_sys::Element) {
 #[requires(true)]
 #[ensures(true)]
 fn dictionary_tooltip_element_for_host(host: &web_sys::Element) -> Option<web_sys::HtmlElement> {
-    host.query_selector(".rich-dictionary-tooltip")
+    host.query_selector(".rich-reference-tooltip-stack")
         .ok()
         .flatten()
+        .or_else(|| {
+            host.query_selector(".rich-dictionary-tooltip")
+                .ok()
+                .flatten()
+        })
         .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok())
 }
 
@@ -10201,17 +10529,14 @@ fn dictionary_tooltip_element_for_host(host: &web_sys::Element) -> Option<web_sy
 #[requires(true)]
 #[ensures(true)]
 fn position_dictionary_tooltip(host: &web_sys::Element) {
-    let Ok(Some(tooltip)) = host.query_selector(".rich-dictionary-tooltip") else {
-        return;
-    };
-    let Some(tooltip_html) = tooltip.dyn_ref::<web_sys::HtmlElement>() else {
+    let Some(tooltip_html) = dictionary_tooltip_element_for_host(host) else {
         return;
     };
     let Some(window) = web_sys::window() else {
         return;
     };
     let host_rect = host.get_bounding_client_rect();
-    let tooltip_rect = tooltip.get_bounding_client_rect();
+    let tooltip_rect = tooltip_html.get_bounding_client_rect();
     let viewport_width = window
         .inner_width()
         .ok()
@@ -10239,6 +10564,8 @@ fn position_dictionary_tooltip(host: &web_sys::Element) {
     let style = tooltip_html.style();
     let _ = style.set_property("--dictionary-tooltip-left", &format!("{left:.2}px"));
     let _ = style.set_property("--dictionary-tooltip-top", &format!("{top:.2}px"));
+    let _ = style.set_property("left", &format!("{left:.2}px"));
+    let _ = style.set_property("top", &format!("{top:.2}px"));
 }
 
 #[requires(true)]
@@ -11975,6 +12302,73 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn reference_marker_view_model_omits_native_title() {
+        let hover_state = ReferenceHoverState::default();
+        let plain = test_reference_marker(ReferenceMarkerRole::Reference, 0);
+        let plain_view = reference_marker_view_model(&plain, &hover_state);
+        assert_eq!(plain_view.native_title, None);
+        assert!(!plain_view.has_tooltip);
+
+        let mut rich = test_reference_marker(ReferenceMarkerRole::Reference, 0);
+        rich.tooltip = Some(test_reference_tooltip());
+        let rich_view = reference_marker_view_model(&rich, &hover_state);
+        assert_eq!(rich_view.native_title, None);
+        assert!(rich_view.has_tooltip);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_tooltip_host_class_opens_only_for_clicked_marker() {
+        let marker = test_reference_marker(ReferenceMarkerRole::Reference, 0);
+        assert_eq!(
+            reference_tooltip_host_class(&marker, &None),
+            "reference-tooltip-host"
+        );
+
+        let opened = Some(HoveredReference {
+            role: marker.role,
+            label: marker.label.clone(),
+        });
+        assert_eq!(
+            reference_tooltip_host_class(&marker, &opened),
+            "reference-tooltip-host is-open"
+        );
+
+        let other_role = Some(HoveredReference {
+            role: ReferenceMarkerRole::Referent,
+            label: marker.label.clone(),
+        });
+        assert_eq!(
+            reference_tooltip_host_class(&marker, &other_role),
+            "reference-tooltip-host"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_tooltip_row_view_model_separates_slot_and_target_text() {
+        let row = new!(ReferenceTooltipRow {
+            label: ReferenceLabel::new("k", None, Some(ReferenceSlotLabel::Numbered(1))),
+            target_text: "lo mlatu be mi".to_owned(),
+        });
+        let view = reference_tooltip_row_view_model(&row);
+        assert_eq!(view.slot_text.as_deref(), Some("𝟣"));
+        assert_eq!(view.target_text, "lo mlatu be mi");
+
+        let discourse_row = new!(ReferenceTooltipRow {
+            label: ReferenceLabel::new("ko'a", Some(1), None),
+            target_text: "mi".to_owned(),
+        });
+        let discourse_view = reference_tooltip_row_view_model(&discourse_row);
+        assert_eq!(discourse_view.slot_text, None);
+        assert_eq!(discourse_view.target_text, "mi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn blocks_grid_row_template_uses_compact_rows() {
         assert_eq!(
             blocks_grid_row_template(3, true),
@@ -12316,6 +12710,21 @@ mod tests {
             role,
             kind: "test".to_owned(),
             label: ReferenceLabel::new("b", Some(index + 1), None),
+            source: None,
+            tooltip: None,
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn test_reference_tooltip() -> ReferenceTooltip {
+        new!(ReferenceTooltip {
+            card: None,
+            missing_word: Some("b".to_owned()),
+            highlighted_places: Vec::new(),
+            definition: Vec::new(),
+            notes: Vec::new(),
+            rows: Vec::new(),
+        })
     }
 }

@@ -1,6 +1,13 @@
-use bityzba::{invariant, new, requires};
+use bityzba::{data, invariant, new, requires};
 
 use crate::GlyphStyle;
+
+#[invariant(!self.text.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndexedPlaceSpan {
+    pub text: String,
+    pub place: Option<usize>,
+}
 
 #[invariant(!self.letter.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,7 +22,19 @@ pub fn format_definition_or_notes_line_with_indexed_places(
     input: &str,
     glyphs: GlyphStyle,
 ) -> String {
-    replace_place_markers_with_indexed_places(&substitute_definition_vars("x", input), glyphs)
+    indexed_place_spans_for_definition_or_notes_line(input, glyphs)
+        .into_iter()
+        .map(|span| span.into_data().text)
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn indexed_place_spans_for_definition_or_notes_line(
+    input: &str,
+    glyphs: GlyphStyle,
+) -> Vec<IndexedPlaceSpan> {
+    replace_place_markers_with_indexed_place_spans(&substitute_definition_vars("x", input), glyphs)
 }
 
 #[requires(!target_letter.is_empty())]
@@ -29,35 +48,62 @@ fn substitute_definition_vars(target_letter: &str, input: &str) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn replace_place_markers_with_indexed_places(input: &str, glyphs: GlyphStyle) -> String {
-    let mut output = String::new();
+fn replace_place_markers_with_indexed_place_spans(
+    input: &str,
+    glyphs: GlyphStyle,
+) -> Vec<IndexedPlaceSpan> {
+    let mut output = Vec::new();
     let mut remaining = input;
     while !remaining.is_empty() {
         if let Some(after_x) = remaining.strip_prefix('x') {
             let (subscripts, rest) = span_subscript_digits(after_x);
             if subscripts.is_empty() {
-                output.push('x');
+                push_indexed_place_span(&mut output, "x", None);
                 remaining = after_x;
                 continue;
             }
             if let Some(place_index) = decode_subscript_digits(subscripts) {
-                output.push_str(glyphs.slot_open());
-                output.push_str(&place_index.to_string());
-                output.push_str(glyphs.slot_close());
+                let text = format!(
+                    "{}{}{}",
+                    glyphs.slot_open(),
+                    place_index,
+                    glyphs.slot_close()
+                );
+                push_indexed_place_span(&mut output, &text, Some(place_index));
             } else {
-                output.push('x');
-                output.push_str(subscripts);
+                push_indexed_place_span(&mut output, &format!("x{subscripts}"), None);
             }
             remaining = rest;
             continue;
         }
         let mut chars = remaining.chars();
         if let Some(character) = chars.next() {
-            output.push(character);
+            push_indexed_place_span(&mut output, &character.to_string(), None);
         }
         remaining = chars.as_str();
     }
     output
+}
+
+#[requires(true)]
+#[ensures(output.len() >= old(output.len()))]
+fn push_indexed_place_span(output: &mut Vec<IndexedPlaceSpan>, text: &str, place: Option<usize>) {
+    if text.is_empty() {
+        return;
+    }
+    if let Some(last) = output.last_mut()
+        && last.place == place
+    {
+        let merged_text = format!("{}{}", last.text, text);
+        *last = last.clone().with_data(data! {
+            text: merged_text,
+        });
+        return;
+    }
+    output.push(new!(IndexedPlaceSpan {
+        text: text.to_owned(),
+        place,
+    }));
 }
 
 #[requires(true)]
@@ -434,6 +480,78 @@ mod tests {
                 GlyphStyle::Unicode,
             ),
             "$bad$ ⟨1⟩"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exposes_indexed_place_spans_for_repeated_places() {
+        let spans = indexed_place_spans_for_definition_or_notes_line(
+            "$x_1$ sees $x_2$; $x_1$ again.",
+            GlyphStyle::Unicode,
+        );
+
+        assert_eq!(
+            spans,
+            vec![
+                new!(IndexedPlaceSpan {
+                    text: "⟨1⟩".to_owned(),
+                    place: Some(1),
+                }),
+                new!(IndexedPlaceSpan {
+                    text: " sees ".to_owned(),
+                    place: None,
+                }),
+                new!(IndexedPlaceSpan {
+                    text: "⟨2⟩".to_owned(),
+                    place: Some(2),
+                }),
+                new!(IndexedPlaceSpan {
+                    text: "; ".to_owned(),
+                    place: None,
+                }),
+                new!(IndexedPlaceSpan {
+                    text: "⟨1⟩".to_owned(),
+                    place: Some(1),
+                }),
+                new!(IndexedPlaceSpan {
+                    text: " again.".to_owned(),
+                    place: None,
+                }),
+            ]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exposes_mapped_lujvo_and_malformed_place_spans() {
+        let spans = indexed_place_spans_for_definition_or_notes_line(
+            "$bad$ $x_1=p_2$ foo $bi_3=ba_2$",
+            GlyphStyle::Ascii,
+        );
+
+        assert_eq!(
+            spans,
+            vec![
+                new!(IndexedPlaceSpan {
+                    text: "$bad$ ".to_owned(),
+                    place: None,
+                }),
+                new!(IndexedPlaceSpan {
+                    text: "<1>".to_owned(),
+                    place: Some(1),
+                }),
+                new!(IndexedPlaceSpan {
+                    text: " foo ".to_owned(),
+                    place: None,
+                }),
+                new!(IndexedPlaceSpan {
+                    text: "<2>".to_owned(),
+                    place: Some(2),
+                }),
+            ]
         );
     }
 }

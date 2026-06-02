@@ -130,8 +130,8 @@ impl Default for GentufaPngOptions {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|svg| svg.contains("<svg")) || ret.is_err())]
-pub fn render_gentufa_blocks_svg<Tooltip>(
-    layout: &GentufaBlocksLayout<Tooltip>,
+pub fn render_gentufa_blocks_svg<Tooltip, ReferenceTooltip>(
+    layout: &GentufaBlocksLayout<Tooltip, ReferenceTooltip>,
     options: &GentufaSvgOptions,
     fonts: GentufaFontData<'_>,
 ) -> Result<String, GentufaExportError> {
@@ -143,8 +143,8 @@ pub fn render_gentufa_blocks_svg<Tooltip>(
 
 #[requires(options.scale.is_finite() && options.scale > 0.0)]
 #[ensures(ret.as_ref().is_ok_and(|png| png.starts_with(b"\x89PNG\r\n\x1a\n")) || ret.is_err())]
-pub fn render_gentufa_blocks_png<Tooltip>(
-    layout: &GentufaBlocksLayout<Tooltip>,
+pub fn render_gentufa_blocks_png<Tooltip, ReferenceTooltip>(
+    layout: &GentufaBlocksLayout<Tooltip, ReferenceTooltip>,
     options: &GentufaPngOptions,
     fonts: GentufaFontData<'_>,
 ) -> Result<Vec<u8>, GentufaExportError> {
@@ -339,8 +339,8 @@ struct PositionedBlocks {
 impl PositionedBlocks {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|layout| layout.width > 0.0 && layout.height > 0.0) || ret.is_err())]
-    fn new<Tooltip>(
-        layout: &GentufaBlocksLayout<Tooltip>,
+    fn new<Tooltip, ReferenceTooltip>(
+        layout: &GentufaBlocksLayout<Tooltip, ReferenceTooltip>,
         options: &GentufaSvgOptions,
         measurer: &mut TextMeasurer,
     ) -> Result<Self, GentufaExportError> {
@@ -420,9 +420,9 @@ impl PositionedBlocks {
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn grow_rows_for_leaf_labels<Tooltip>(
+fn grow_rows_for_leaf_labels<Tooltip, ReferenceTooltip>(
     row_heights: &mut [f32],
-    blocks: &[GentufaBlock<Tooltip>],
+    blocks: &[GentufaBlock<Tooltip, ReferenceTooltip>],
     options: &GentufaSvgOptions,
     measurer: &mut TextMeasurer,
 ) -> Result<(), GentufaExportError> {
@@ -443,13 +443,17 @@ fn grow_rows_for_leaf_labels<Tooltip>(
 
 #[requires(true)]
 #[ensures(ret >= block.row)]
-fn block_bottom_row<Tooltip>(block: &GentufaBlock<Tooltip>) -> usize {
+fn block_bottom_row<Tooltip, ReferenceTooltip>(
+    block: &GentufaBlock<Tooltip, ReferenceTooltip>,
+) -> usize {
     block.row + block.row_span.saturating_sub(1)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn block_has_incoming_references<Tooltip>(block: &GentufaBlock<Tooltip>) -> bool {
+fn block_has_incoming_references<Tooltip, ReferenceTooltip>(
+    block: &GentufaBlock<Tooltip, ReferenceTooltip>,
+) -> bool {
     block
         .ref_markers
         .iter()
@@ -458,10 +462,10 @@ fn block_has_incoming_references<Tooltip>(block: &GentufaBlock<Tooltip>) -> bool
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn grow_rows_for_references<Tooltip>(
+fn grow_rows_for_references<Tooltip, ReferenceTooltip>(
     row_heights: &mut [f32],
     column_widths: &[f32],
-    blocks: &[GentufaBlock<Tooltip>],
+    blocks: &[GentufaBlock<Tooltip, ReferenceTooltip>],
     options: &GentufaSvgOptions,
     measurer: &mut TextMeasurer,
 ) -> Result<(), GentufaExportError> {
@@ -483,8 +487,8 @@ fn grow_rows_for_references<Tooltip>(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|growth| *growth >= 0.0) || ret.is_err())]
-fn block_leaf_label_height_growth<Tooltip>(
-    block: &GentufaBlock<Tooltip>,
+fn block_leaf_label_height_growth<Tooltip, ReferenceTooltip>(
+    block: &GentufaBlock<Tooltip, ReferenceTooltip>,
     row_heights: &[f32],
     options: &GentufaSvgOptions,
     measurer: &mut TextMeasurer,
@@ -503,8 +507,8 @@ fn block_leaf_label_height_growth<Tooltip>(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|growth| *growth >= 0.0) || ret.is_err())]
-fn block_reference_height_growth<Tooltip>(
-    block: &GentufaBlock<Tooltip>,
+fn block_reference_height_growth<Tooltip, ReferenceTooltip>(
+    block: &GentufaBlock<Tooltip, ReferenceTooltip>,
     row_heights: &[f32],
     column_widths: &[f32],
     options: &GentufaSvgOptions,
@@ -587,8 +591,8 @@ fn reference_containment_deficit(reference_bottom: f32, span_height: f32) -> f32
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|bottoms| bottoms.is_none_or(|value| value.stack >= 0.0)) || ret.is_err())]
-fn reference_stack_bottoms<Tooltip>(
-    block: &GentufaBlock<Tooltip>,
+fn reference_stack_bottoms<Tooltip, ReferenceTooltip>(
+    block: &GentufaBlock<Tooltip, ReferenceTooltip>,
     label_left: f32,
     label_right: f32,
     options: &GentufaSvgOptions,
@@ -647,8 +651,8 @@ fn horizontal_ranges_overlap(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|height| *height > 0.0) || ret.is_err())]
-fn gloss_row_height<Tooltip>(
-    blocks: &[GentufaBlock<Tooltip>],
+fn gloss_row_height<Tooltip, ReferenceTooltip>(
+    blocks: &[GentufaBlock<Tooltip, ReferenceTooltip>],
     options: &GentufaSvgOptions,
     measurer: &mut TextMeasurer,
 ) -> Result<f32, GentufaExportError> {
@@ -664,9 +668,9 @@ fn gloss_row_height<Tooltip>(
 
 #[requires(!column_widths.is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn grow_columns_for_blocks<Tooltip>(
+fn grow_columns_for_blocks<Tooltip, ReferenceTooltip>(
     column_widths: &mut [f32],
-    blocks: &[GentufaBlock<Tooltip>],
+    blocks: &[GentufaBlock<Tooltip, ReferenceTooltip>],
     options: &GentufaSvgOptions,
     measurer: &mut TextMeasurer,
 ) -> Result<(), GentufaExportError> {
@@ -693,8 +697,8 @@ fn grow_columns_for_blocks<Tooltip>(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|width| *width > 0.0) || ret.is_err())]
-fn required_block_width<Tooltip>(
-    block: &GentufaBlock<Tooltip>,
+fn required_block_width<Tooltip, ReferenceTooltip>(
+    block: &GentufaBlock<Tooltip, ReferenceTooltip>,
     options: &GentufaSvgOptions,
     measurer: &mut TextMeasurer,
 ) -> Result<f32, GentufaExportError> {
@@ -752,9 +756,9 @@ fn measure_if_not_empty(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|width| *width >= 0.0) || ret.is_err())]
-fn markers_width<'a>(
+fn markers_width<'a, ReferenceTooltip: 'a>(
     measurer: &mut TextMeasurer,
-    markers: impl Iterator<Item = &'a ReferenceMarker>,
+    markers: impl Iterator<Item = &'a ReferenceMarker<ReferenceTooltip>>,
     script: GentufaScript,
 ) -> Result<f32, GentufaExportError> {
     let mut width: f32 = 0.0;
@@ -774,7 +778,9 @@ fn markers_width<'a>(
 
 #[requires(true)]
 #[ensures(true)]
-fn block_gloss_text<Tooltip>(block: &GentufaBlock<Tooltip>) -> Option<&str> {
+fn block_gloss_text<Tooltip, ReferenceTooltip>(
+    block: &GentufaBlock<Tooltip, ReferenceTooltip>,
+) -> Option<&str> {
     block
         .computed_gloss
         .as_deref()
@@ -784,7 +790,9 @@ fn block_gloss_text<Tooltip>(block: &GentufaBlock<Tooltip>) -> Option<&str> {
 
 #[requires(true)]
 #[ensures(true)]
-fn reference_source_text<'a>(markers: impl Iterator<Item = &'a ReferenceMarker>) -> String {
+fn reference_source_text<'a, Tooltip: 'a>(
+    markers: impl Iterator<Item = &'a ReferenceMarker<Tooltip>>,
+) -> String {
     let mut parts = Vec::new();
     for marker in markers.filter(|marker| marker.role == ReferenceMarkerRole::Reference) {
         parts.push("→".to_owned());
@@ -834,8 +842,8 @@ fn subscript_digit(character: char) -> char {
 
 #[requires(true)]
 #[ensures(true)]
-fn svg_document<Tooltip>(
-    layout: &GentufaBlocksLayout<Tooltip>,
+fn svg_document<Tooltip, ReferenceTooltip>(
+    layout: &GentufaBlocksLayout<Tooltip, ReferenceTooltip>,
     options: &GentufaSvgOptions,
     fonts: GentufaFontData<'_>,
     positioned: &PositionedBlocks,
@@ -882,8 +890,8 @@ fn svg_document<Tooltip>(
 
 #[requires(true)]
 #[ensures(true)]
-fn block_element<Tooltip>(
-    block: &GentufaBlock<Tooltip>,
+fn block_element<Tooltip, ReferenceTooltip>(
+    block: &GentufaBlock<Tooltip, ReferenceTooltip>,
     options: &GentufaSvgOptions,
     positioned: &PositionedBlocks,
     measurer: &mut TextMeasurer,
@@ -909,8 +917,8 @@ fn block_element<Tooltip>(
 
 #[requires(true)]
 #[ensures(true)]
-fn add_block_label<Tooltip>(
-    block: &GentufaBlock<Tooltip>,
+fn add_block_label<Tooltip, ReferenceTooltip>(
+    block: &GentufaBlock<Tooltip, ReferenceTooltip>,
     options: &GentufaSvgOptions,
     group: &mut SvgElement,
     x: f32,
@@ -945,8 +953,8 @@ fn add_block_label<Tooltip>(
 
 #[requires(true)]
 #[ensures(true)]
-fn add_referent_text<Tooltip>(
-    block: &GentufaBlock<Tooltip>,
+fn add_referent_text<Tooltip, ReferenceTooltip>(
+    block: &GentufaBlock<Tooltip, ReferenceTooltip>,
     options: &GentufaSvgOptions,
     group: &mut SvgElement,
     x: f32,
@@ -980,8 +988,8 @@ fn add_referent_text<Tooltip>(
 
 #[requires(true)]
 #[ensures(true)]
-fn add_reference_text<Tooltip>(
-    block: &GentufaBlock<Tooltip>,
+fn add_reference_text<Tooltip, ReferenceTooltip>(
+    block: &GentufaBlock<Tooltip, ReferenceTooltip>,
     options: &GentufaSvgOptions,
     group: &mut SvgElement,
     x: f32,
@@ -1024,8 +1032,8 @@ fn bottom_aligned_text_baseline_y(
 
 #[requires(true)]
 #[ensures(true)]
-fn gloss_element<Tooltip>(
-    block: &GentufaBlock<Tooltip>,
+fn gloss_element<Tooltip, ReferenceTooltip>(
+    block: &GentufaBlock<Tooltip, ReferenceTooltip>,
     options: &GentufaSvgOptions,
     positioned: &PositionedBlocks,
 ) -> SvgElement {
@@ -1405,6 +1413,8 @@ mod tests {
                     "be\u{301}rvi".to_owned(),
                 ])),
             ),
+            source: None,
+            tooltip: None,
         });
         let layout = GentufaBlocksLayout {
             blocks: vec![block],
@@ -1440,6 +1450,8 @@ mod tests {
             role: ReferenceMarkerRole::Referent,
             kind: "sumti".to_owned(),
             label: ReferenceLabel::new("b", Some(2), Some(ReferenceSlotLabel::Numbered(1))),
+            source: None,
+            tooltip: None,
         });
         let layout = GentufaBlocksLayout {
             blocks: vec![block],
@@ -1513,6 +1525,8 @@ mod tests {
                     "bervi".to_owned(),
                 ])),
             ),
+            source: None,
+            tooltip: None,
         });
         let blocks = vec![block];
 
@@ -1622,7 +1636,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn png_render_has_magic_header() {
-        let layout = GentufaBlocksLayout {
+        let layout: GentufaBlocksLayout<(), ()> = GentufaBlocksLayout {
             blocks: vec![GentufaBlock {
                 block_id: "n1".to_owned(),
                 node_ids: vec![1],
@@ -1751,6 +1765,8 @@ mod tests {
             role: ReferenceMarkerRole::Referent,
             kind: "test".to_owned(),
             label: ReferenceLabel::new("b", Some(index + 1), None),
+            source: None,
+            tooltip: None,
         }
     }
 }

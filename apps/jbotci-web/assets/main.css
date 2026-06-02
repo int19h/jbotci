@@ -114,6 +114,13 @@ input:disabled {
   --blocks-ref-text: color-mix(in srgb, var(--blocks-label-color) 82%, transparent);
   --blocks-ref-symbol: var(--blocks-label-color);
   --blocks-grid-line: var(--page-bg);
+  --reference-place-highlight-bg: color-mix(in srgb, #f2c36b 42%, transparent);
+  --reference-place-highlight-underline: color-mix(in srgb, #9f581e 64%, transparent);
+  --reference-place-highlight-text: #5c3215;
+  --reference-row-bg: color-mix(in srgb, var(--app-surface-0) 92%, #d8eee8);
+  --reference-row-symbol: #1d5f87;
+  --reference-row-slot: #8c3159;
+  --reference-row-target: #27563f;
   --indent-size: 1.25rem;
   --square-size: 0.82rem;
   min-height: 100dvh;
@@ -204,6 +211,13 @@ body::-webkit-scrollbar-thumb:hover,
   --blocks-label-color: var(--blocks-ink);
   --blocks-ref-text: color-mix(in srgb, var(--blocks-label-color) 78%, transparent);
   --blocks-ref-symbol: var(--blocks-label-color);
+  --reference-place-highlight-bg: color-mix(in srgb, #f8c96e 34%, transparent);
+  --reference-place-highlight-underline: color-mix(in srgb, #ffd178 72%, transparent);
+  --reference-place-highlight-text: #ffe8b4;
+  --reference-row-bg: color-mix(in srgb, var(--app-surface-0) 88%, #20483d);
+  --reference-row-symbol: #8fd8ff;
+  --reference-row-slot: #ff9ac4;
+  --reference-row-target: #a7efc7;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -251,6 +265,13 @@ body::-webkit-scrollbar-thumb:hover,
     --blocks-label-color: var(--blocks-ink);
     --blocks-ref-text: color-mix(in srgb, var(--blocks-label-color) 78%, transparent);
     --blocks-ref-symbol: var(--blocks-label-color);
+    --reference-place-highlight-bg: color-mix(in srgb, #f8c96e 34%, transparent);
+    --reference-place-highlight-underline: color-mix(in srgb, #ffd178 72%, transparent);
+    --reference-place-highlight-text: #ffe8b4;
+    --reference-row-bg: color-mix(in srgb, var(--app-surface-0) 88%, #20483d);
+    --reference-row-symbol: #8fd8ff;
+    --reference-row-slot: #ff9ac4;
+    --reference-row-target: #a7efc7;
   }
 }
 
@@ -1118,7 +1139,7 @@ body::-webkit-scrollbar-thumb:hover,
   position: absolute;
   top: 0;
   right: 0;
-  z-index: 8;
+  z-index: 5;
   display: flex;
   gap: 0;
   transform: none;
@@ -1321,7 +1342,7 @@ body::-webkit-scrollbar-thumb:hover,
 .parse-page .block-ref-target,
 .parse-page .block-ref-source {
   position: absolute;
-  z-index: 2;
+  z-index: 12;
   font-size: var(--blocks-place-size);
   display: inline-flex;
   align-items: center;
@@ -1331,6 +1352,15 @@ body::-webkit-scrollbar-thumb:hover,
   line-height: 1.05;
   overflow: visible;
   font-style: normal;
+}
+
+.parse-page .block:has(.reference-tooltip-host.is-open) {
+  z-index: 22000;
+}
+
+.parse-page .block-ref-target:has(.reference-tooltip-host.is-open),
+.parse-page .block-ref-source:has(.reference-tooltip-host.is-open) {
+  z-index: 22001;
 }
 
 .parse-page .block-ref-target {
@@ -1468,7 +1498,7 @@ body::-webkit-scrollbar-thumb:hover,
   width: 100vw;
   height: 100vh;
   pointer-events: none;
-  z-index: 1000;
+  z-index: 8;
   overflow: visible;
 }
 
@@ -1777,6 +1807,12 @@ body::-webkit-scrollbar-thumb:hover,
   justify-content: flex-end;
   gap: 0.18rem;
   white-space: nowrap;
+}
+
+.parse-page .parse-table td:has(.reference-tooltip-host.is-open),
+.parse-page .parse-table .edge-cell:has(.reference-tooltip-host.is-open),
+.parse-page .parse-table .tree-outgoing-edge:has(.reference-tooltip-host.is-open) {
+  z-index: 22001;
 }
 
 .parse-page .parse-table .col-edge-in .edge-cell {
@@ -3088,7 +3124,8 @@ body::-webkit-scrollbar-thumb:hover,
   color: var(--app-link-hover);
 }
 
-.dictionary-tooltip-host {
+.dictionary-tooltip-host,
+.reference-tooltip-host {
   position: relative;
   display: inline-block;
   vertical-align: baseline;
@@ -3097,7 +3134,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .rich-dictionary-tooltip {
   position: fixed;
-  z-index: 1500;
+  z-index: 20000;
   left: var(--dictionary-tooltip-left, 0);
   top: var(--dictionary-tooltip-top, 0);
   display: grid;
@@ -3129,6 +3166,96 @@ body::-webkit-scrollbar-thumb:hover,
   visibility: visible;
   pointer-events: auto;
   transition-delay: 0s;
+}
+
+.rich-reference-tooltip-stack {
+  position: fixed;
+  z-index: 21000;
+  left: var(--dictionary-tooltip-left, 0);
+  top: var(--dictionary-tooltip-top, 0);
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  visibility: hidden;
+  pointer-events: none;
+  transition: none;
+}
+
+.reference-tooltip-host.is-open:hover > .rich-reference-tooltip-stack {
+  visibility: visible;
+  pointer-events: none;
+  transition-delay: 0s;
+}
+
+.rich-reference-tooltip-stack .rich-dictionary-tooltip {
+  position: static;
+  left: auto;
+  top: auto;
+  transition: none;
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: min(58vh, 24rem);
+}
+
+.reference-tooltip-host.is-open:hover > .rich-reference-tooltip-stack > .rich-dictionary-tooltip {
+  visibility: visible;
+}
+
+.tooltip-indexed-place {
+  border-radius: 4px;
+  padding: 0 0.13em;
+}
+
+.tooltip-indexed-place.is-highlighted {
+  background: var(--reference-place-highlight-bg);
+  box-shadow: inset 0 -0.09em 0 var(--reference-place-highlight-underline);
+  color: var(--reference-place-highlight-text);
+  font-weight: 700;
+}
+
+.reference-resolution-tooltip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  width: fit-content;
+  max-width: calc(100vw - 2rem);
+  padding: 0.32rem 0.48rem;
+  border: 1px solid color-mix(in srgb, var(--app-border-strong) 80%, transparent);
+  border-radius: 6px;
+  background: var(--reference-row-bg);
+  box-shadow: 0 0.42rem 1.1rem rgb(0 0 0 / 0.2), 0 0.08rem 0.22rem rgb(0 0 0 / 0.14);
+  font-family: "Noto Sans", "STIX Two Math", Verdana, sans-serif;
+  font-size: 0.82rem;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 1.32;
+  white-space: normal;
+}
+
+.reference-resolution-tooltip .reference-row-symbol {
+  color: var(--reference-row-symbol);
+  font-weight: 800;
+}
+
+.reference-resolution-tooltip .reference-row-slot {
+  color: var(--reference-row-slot);
+  font-weight: 800;
+}
+
+.reference-resolution-tooltip .reference-row-target {
+  min-width: 0;
+  margin-left: 0.38rem;
+  color: var(--reference-row-target);
+  overflow-wrap: anywhere;
+}
+
+.reference-resolution-tooltip .reference-row-base-math,
+.reference-resolution-tooltip .reference-row-base-math math {
+  color: inherit;
+  font-size: 1em;
+  line-height: normal;
+  vertical-align: baseline;
 }
 
 .rich-dictionary-tooltip .tooltip-headword,

@@ -22,13 +22,13 @@ use jbotci_gentufa::{
     display_text_for_spans as gentufa_display_text_for_spans,
     elided_terminators as build_elided_terminators, range_from_spans as gentufa_range_from_spans,
     reference_markers_for_node as gentufa_reference_markers_for_node,
-    rendered_leaves as build_rendered_leaves,
+    reference_slot_label_from_output, rendered_leaves as build_rendered_leaves,
     syntax_constructor_name as gentufa_syntax_constructor_name,
 };
 pub use jbotci_gentufa::{
-    GentufaBlockAnnotation, GentufaBlockOptions, GentufaScript, ReferenceLabel, ReferenceMarker,
-    ReferenceMarkerRole, ReferenceSlotLabel, TransformInfo, WebSourceRange,
-    reference_slot_display_text,
+    GentufaBlockAnnotation, GentufaBlockOptions, GentufaScript, ReferenceLabel,
+    ReferenceMarkerRole, ReferenceMarkerSource, ReferenceMarkerSourceData, ReferenceSlotLabel,
+    TransformInfo, WebSourceRange, reference_slot_display_text,
 };
 use jbotci_jvozba::{
     JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegment, JvozbaSegmentKind,
@@ -40,9 +40,10 @@ use jbotci_morphology::{
 };
 use jbotci_output::{
     BracketRenderOptions, BracketSourceFragment, BracketSourceRange, GlyphStyle,
-    ReferenceDisplayModel, TreeRenderOptions, ipa_morphology_text,
-    pretty_bracket_source_fragments_with_options, pretty_brackets_with_options,
-    reference_display_model_for_syntax_tree,
+    ReferenceDisplayModel, TreeRenderOptions, indexed_place_spans_for_definition_or_notes_line,
+    ipa_morphology_text, pretty_bracket_source_fragments_with_options,
+    pretty_brackets_with_options, reference_display_model_for_syntax_tree,
+    reference_slot_name_for_place_slot,
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, OFFICIAL_WORD_VOTE_THRESHOLD, ParsedWordDictionaryMatch,
@@ -50,14 +51,21 @@ use jbotci_search::vlacku::{
     dictionary_matches_for_word_likes, filter_vlacku_cards, format_votes,
     grouped_word_type_filter_key, is_brivla_like, normalize_word_type_filter, run_vlacku_requests,
 };
-use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis};
+use jbotci_semantics::references::{
+    PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, SelbriPlaceFrameId, SumtiPlaceAssignmentId,
+};
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_source_and_options_attempt};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-pub type GentufaBlock = jbotci_gentufa::GentufaBlock<DictionaryTooltipCard>;
-pub type GentufaBlocksLayout = jbotci_gentufa::GentufaBlocksLayout<DictionaryTooltipCard>;
+pub type ReferenceMarker = jbotci_gentufa::ReferenceMarker<ReferenceTooltip>;
+pub type GentufaBlock = jbotci_gentufa::GentufaBlock<DictionaryTooltipCard, ReferenceTooltip>;
+pub type GentufaBlocksLayout =
+    jbotci_gentufa::GentufaBlocksLayout<DictionaryTooltipCard, ReferenceTooltip>;
+type BareReferenceMarker = jbotci_gentufa::ReferenceMarker<()>;
+type BareGentufaBlock = jbotci_gentufa::GentufaBlock<DictionaryTooltipCard, ()>;
+type BareGentufaBlocksLayout = jbotci_gentufa::GentufaBlocksLayout<DictionaryTooltipCard, ()>;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -238,6 +246,51 @@ pub struct DictionaryTooltipCard {
     pub can_add_to_jvozba: bool,
 }
 
+#[invariant(self.card.is_some() || self.missing_word.is_some() || !self.rows.is_empty())]
+#[invariant(self.missing_word.as_ref().map_or(true, |word| !word.is_empty()))]
+#[invariant(self.highlighted_places.iter().all(|place| *place > 0))]
+#[invariant(self.highlighted_places.iter().enumerate().all(|(index, place)| !self.highlighted_places[..index].contains(place)))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ReferenceTooltip {
+    pub card: Option<DictionaryTooltipCard>,
+    pub missing_word: Option<String>,
+    pub highlighted_places: Vec<usize>,
+    pub definition: Vec<ReferenceTooltipInline>,
+    pub notes: Vec<ReferenceTooltipInline>,
+    pub rows: Vec<ReferenceTooltipRow>,
+}
+
+#[invariant(!self.label.stem.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ReferenceTooltipRow {
+    pub label: ReferenceLabel,
+    pub target_text: String,
+}
+
+#[invariant(true)]
+#[invariant(::Text(text) => !text.is_empty())]
+#[invariant(::WordRef { label, href, .. } => !label.is_empty() && !href.is_empty())]
+#[invariant(::Math(math) => !math.parts.is_empty())]
+#[invariant(::IndexedPlace { text, place, .. } => !text.is_empty() && *place > 0)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ReferenceTooltipInline {
+    Text(String),
+    WordRef {
+        label: String,
+        href: String,
+        can_add_to_jvozba: bool,
+    },
+    Math(VlackuMath),
+    IndexedPlace {
+        text: String,
+        place: usize,
+        highlighted: bool,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
@@ -377,7 +430,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         source,
         tree_render_options(request.options.phonemes, request.options.show_elided),
     );
-    let blocks_layout = build_blocks_layout(
+    let bare_blocks_layout = build_blocks_layout(
         &analysis,
         &reference_model,
         source,
@@ -394,7 +447,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         &elided_terminators,
         &dictionary_annotations,
         &block_options,
-        &blocks_layout,
+        &bare_blocks_layout,
     );
     let ipa_text = ipa_morphology_text(&words, source).unwrap_or_else(|error| error.to_string());
     let brackets_text = pretty_brackets_with_options(
@@ -423,7 +476,11 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         },
     )
     .map(|fragments| {
-        gentufa_bracket_fragments_from_source(&fragments, &blocks_layout, &dictionary_annotations)
+        gentufa_bracket_fragments_from_source(
+            &fragments,
+            &bare_blocks_layout,
+            &dictionary_annotations,
+        )
     })
     .unwrap_or_else(|_| {
         vec![GentufaBracketFragment::Text {
@@ -431,6 +488,15 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
             elided: false,
         }]
     });
+
+    let blocks_layout = attach_reference_tooltips_to_blocks_layout(
+        bare_blocks_layout,
+        &analysis,
+        source,
+        &leaves,
+        &block_options,
+        "",
+    );
 
     GentufaWebResult::Success(GentufaSuccess {
         ipa_text,
@@ -539,7 +605,7 @@ fn tree_rows(
     elided_terminators: &[ElidedTerminator],
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
     options: &GentufaBlockOptions,
-    blocks_layout: &GentufaBlocksLayout,
+    blocks_layout: &BareGentufaBlocksLayout,
 ) -> Vec<GentufaTreeRow> {
     let block_colors = block_color_map(blocks_layout);
     let mut rows = Vec::new();
@@ -597,7 +663,14 @@ fn tree_rows(
                     transform: None,
                 }],
                 computed_gloss: None,
-                ref_markers: gentufa_reference_markers_for_node(reference_model, id),
+                ref_markers: attach_reference_tooltips_to_markers(
+                    gentufa_reference_markers_for_node(reference_model, id),
+                    analysis,
+                    source,
+                    leaves,
+                    options,
+                    "",
+                ),
                 glosses: annotation
                     .map(|annotation| annotation.glosses.clone())
                     .unwrap_or_default(),
@@ -631,7 +704,7 @@ fn push_elided_terminator_rows(
     parent_color: &str,
     elided_terminators: &[ElidedTerminator],
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
-    blocks_layout: &GentufaBlocksLayout,
+    blocks_layout: &BareGentufaBlocksLayout,
 ) {
     for (terminator_index, terminator) in elided_terminators
         .iter()
@@ -797,7 +870,7 @@ fn syntax_label_for_node(analysis: &ReferenceAnalysis<'_>, id: RawSyntaxNodeId) 
 
 #[requires(true)]
 #[ensures(true)]
-fn block_color_map(blocks_layout: &GentufaBlocksLayout) -> HashMap<usize, String> {
+fn block_color_map(blocks_layout: &BareGentufaBlocksLayout) -> HashMap<usize, String> {
     let mut colors = HashMap::new();
     for block in blocks_layout.blocks.iter().filter(|block| !block.is_leaf) {
         for node_id in &block.node_ids {
@@ -819,7 +892,7 @@ fn block_color_map(blocks_layout: &GentufaBlocksLayout) -> HashMap<usize, String
 #[requires(true)]
 #[ensures(true)]
 fn block_color_for_elided_terminator(
-    blocks_layout: &GentufaBlocksLayout,
+    blocks_layout: &BareGentufaBlocksLayout,
     terminator: &ElidedTerminator,
 ) -> Option<String> {
     blocks_layout
@@ -3052,31 +3125,37 @@ fn prefixed_web_path(base_path: &str, suffix: &str) -> String {
 #[requires(true)]
 #[ensures(true)]
 pub fn dictionary_tooltip_for_word(base_path: &str, word: &str) -> Option<DictionaryTooltipCard> {
-    let output = run_vlacku_requests(
-        jbotci_dictionary_data::english(),
-        &[VlackuRequest::Valsi(word.to_owned())],
-        &tooltip_vlacku_options(),
-    );
-    output
-        .cards
-        .into_iter()
-        .next()
+    dictionary_tooltip_search_card_for_word(word)
         .map(|card| dictionary_tooltip_card_from_search_card(base_path, card))
 }
 
 #[requires(true)]
 #[ensures(true)]
+fn dictionary_tooltip_search_card_for_word(word: &str) -> Option<VlackuCard> {
+    let output = run_vlacku_requests(
+        jbotci_dictionary_data::english(),
+        &[VlackuRequest::Valsi(word.to_owned())],
+        &tooltip_vlacku_options(),
+    );
+    output.cards.into_iter().next()
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub fn dictionary_tooltip_for_rafsi(base_path: &str, rafsi: &str) -> Option<DictionaryTooltipCard> {
+    dictionary_tooltip_search_card_for_rafsi(rafsi)
+        .map(|card| dictionary_tooltip_card_from_search_card(base_path, card))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_tooltip_search_card_for_rafsi(rafsi: &str) -> Option<VlackuCard> {
     let output = run_vlacku_requests(
         jbotci_dictionary_data::english(),
         &[VlackuRequest::Rafsi(rafsi.to_owned())],
         &tooltip_vlacku_options(),
     );
-    output
-        .cards
-        .into_iter()
-        .next()
-        .map(|card| dictionary_tooltip_card_from_search_card(base_path, card))
+    output.cards.into_iter().next()
 }
 
 #[requires(true)]
@@ -3221,10 +3300,382 @@ fn dictionary_tooltip_card_from_search_card(
 }
 
 #[requires(true)]
+#[ensures(ret.max_col == layout.max_col)]
+fn attach_reference_tooltips_to_blocks_layout(
+    layout: BareGentufaBlocksLayout,
+    analysis: &ReferenceAnalysis<'_>,
+    source: &str,
+    leaves: &[RenderedLeaf],
+    options: &GentufaBlockOptions,
+    base_path: &str,
+) -> GentufaBlocksLayout {
+    GentufaBlocksLayout {
+        blocks: layout
+            .blocks
+            .into_iter()
+            .map(|block| {
+                attach_reference_tooltips_to_block(
+                    block, analysis, source, leaves, options, base_path,
+                )
+            })
+            .collect(),
+        max_col: layout.max_col,
+        max_row: layout.max_row,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_reference_tooltips_to_block(
+    block: BareGentufaBlock,
+    analysis: &ReferenceAnalysis<'_>,
+    source: &str,
+    leaves: &[RenderedLeaf],
+    options: &GentufaBlockOptions,
+    base_path: &str,
+) -> GentufaBlock {
+    let jbotci_gentufa::GentufaBlock {
+        block_id,
+        node_ids,
+        label,
+        is_leaf,
+        is_elided,
+        token_kind,
+        ref_markers,
+        span,
+        node_types,
+        ancestors,
+        col,
+        col_span,
+        row,
+        row_span,
+        color,
+        parent_color,
+        raw_text,
+        display_text,
+        transform,
+        glosses,
+        definition,
+        computed_gloss,
+        tooltip,
+    } = block;
+    GentufaBlock {
+        block_id,
+        node_ids,
+        label,
+        is_leaf,
+        is_elided,
+        token_kind,
+        ref_markers: attach_reference_tooltips_to_markers(
+            ref_markers,
+            analysis,
+            source,
+            leaves,
+            options,
+            base_path,
+        ),
+        span,
+        node_types,
+        ancestors,
+        col,
+        col_span,
+        row,
+        row_span,
+        color,
+        parent_color,
+        raw_text,
+        display_text,
+        transform,
+        glosses,
+        definition,
+        computed_gloss,
+        tooltip,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() == old(markers.len()))]
+fn attach_reference_tooltips_to_markers(
+    markers: Vec<BareReferenceMarker>,
+    analysis: &ReferenceAnalysis<'_>,
+    source: &str,
+    leaves: &[RenderedLeaf],
+    options: &GentufaBlockOptions,
+    base_path: &str,
+) -> Vec<ReferenceMarker> {
+    markers
+        .into_iter()
+        .map(|marker| {
+            let tooltip =
+                reference_tooltip_for_marker(&marker, analysis, source, leaves, options, base_path);
+            let jbotci_gentufa::ReferenceMarker {
+                role,
+                kind,
+                label,
+                source,
+                tooltip: _,
+            } = marker;
+            ReferenceMarker {
+                role,
+                kind,
+                label,
+                source,
+                tooltip,
+            }
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reference_tooltip_for_marker(
+    marker: &BareReferenceMarker,
+    analysis: &ReferenceAnalysis<'_>,
+    source: &str,
+    leaves: &[RenderedLeaf],
+    options: &GentufaBlockOptions,
+    base_path: &str,
+) -> Option<ReferenceTooltip> {
+    let marker_source = marker.source.as_ref()?;
+    match (marker.role, marker_source.as_data()) {
+        (
+            ReferenceMarkerRole::Referent,
+            data!(ReferenceMarkerSource::PlaceAssignment {
+                assignment,
+                lookup_word,
+                ..
+            }),
+        ) => {
+            let assignment = analysis
+                .place_analysis
+                .assignment(SumtiPlaceAssignmentId(*assignment))?;
+            Some(reference_tooltip_for_lookup_word(
+                base_path,
+                lookup_word,
+                numbered_slots_from_iter([assignment.slot]),
+                Vec::new(),
+            ))
+        }
+        (
+            ReferenceMarkerRole::Reference,
+            data!(ReferenceMarkerSource::PlaceFrame {
+                frame,
+                lookup_word,
+                ..
+            }),
+        ) => {
+            let assignment_ids = analysis
+                .place_analysis
+                .assignments_for_frame(SelbriPlaceFrameId(*frame));
+            let mut slots = Vec::new();
+            let mut rows = Vec::new();
+            for assignment_id in assignment_ids {
+                let Some(assignment) = analysis.place_analysis.assignment(*assignment_id) else {
+                    continue;
+                };
+                slots.push(assignment.slot);
+                let slot =
+                    reference_slot_label_for_place_slot(assignment.slot, analysis, source, options);
+                rows.push(new!(ReferenceTooltipRow {
+                    label: reference_label_with_slot(&marker.label, slot),
+                    target_text: reference_target_text_for_node(
+                        analysis,
+                        assignment.sumti.0,
+                        source,
+                        leaves,
+                        options,
+                    ),
+                }));
+            }
+            Some(reference_tooltip_for_lookup_word(
+                base_path,
+                lookup_word,
+                numbered_slots_from_iter(slots),
+                rows,
+            ))
+        }
+        (
+            ReferenceMarkerRole::Reference,
+            data!(ReferenceMarkerSource::DiscourseEdge {
+                target_node,
+                lookup_word,
+                ..
+            }),
+        ) => Some(reference_tooltip_for_lookup_word(
+            base_path,
+            lookup_word,
+            Vec::new(),
+            vec![new!(ReferenceTooltipRow {
+                label: marker.label.clone(),
+                target_text: reference_target_text_for_node(
+                    analysis,
+                    RawSyntaxNodeId(*target_node),
+                    source,
+                    leaves,
+                    options,
+                ),
+            })],
+        )),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reference_tooltip_for_lookup_word(
+    base_path: &str,
+    lookup_word: &str,
+    highlighted_places: Vec<usize>,
+    rows: Vec<ReferenceTooltipRow>,
+) -> ReferenceTooltip {
+    let highlighted_places = sorted_unique_places(highlighted_places);
+    let raw_card = dictionary_tooltip_search_card_for_word(lookup_word);
+    let dictionary = jbotci_dictionary_data::english();
+    let (card, missing_word, definition, notes) = if let Some(raw_card) = raw_card {
+        let definition = parse_reference_tooltip_inline_text(
+            dictionary,
+            &raw_card.definition,
+            &highlighted_places,
+        );
+        let notes =
+            parse_reference_tooltip_inline_text(dictionary, &raw_card.notes, &highlighted_places);
+        (
+            Some(dictionary_tooltip_card_from_search_card(
+                base_path, raw_card,
+            )),
+            None,
+            definition,
+            notes,
+        )
+    } else {
+        (
+            None,
+            (!lookup_word.is_empty()).then_some(lookup_word.to_owned()),
+            Vec::new(),
+            Vec::new(),
+        )
+    };
+    new!(ReferenceTooltip {
+        card,
+        missing_word,
+        highlighted_places,
+        definition,
+        notes,
+        rows,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_reference_tooltip_inline_text(
+    dictionary: &Dictionary<'_>,
+    text: &str,
+    highlighted_places: &[usize],
+) -> Vec<ReferenceTooltipInline> {
+    let mut output = Vec::new();
+    for span in indexed_place_spans_for_definition_or_notes_line(text, GlyphStyle::Unicode) {
+        let span = span.into_data();
+        if let Some(place) = span.place {
+            output.push(new!(ReferenceTooltipInline::IndexedPlace {
+                text: span.text,
+                place,
+                highlighted: highlighted_places.contains(&place),
+            }));
+        } else {
+            output.extend(
+                parse_vlacku_inline_text(dictionary, &span.text)
+                    .into_iter()
+                    .map(reference_tooltip_inline_from_vlacku_inline),
+            );
+        }
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reference_tooltip_inline_from_vlacku_inline(inline: VlackuInline) -> ReferenceTooltipInline {
+    match inline.as_data() {
+        data!(VlackuInline::Text(text)) => new!(ReferenceTooltipInline::Text(text.clone())),
+        data!(VlackuInline::WordRef {
+            label,
+            href,
+            can_add_to_jvozba,
+        }) => new!(ReferenceTooltipInline::WordRef {
+            label: label.clone(),
+            href: href.clone(),
+            can_add_to_jvozba: *can_add_to_jvozba,
+        }),
+        data!(VlackuInline::Math(math)) => new!(ReferenceTooltipInline::Math(math.clone())),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn numbered_slots_from_iter(slots: impl IntoIterator<Item = PlaceSlot>) -> Vec<usize> {
+    let mut places = slots
+        .into_iter()
+        .filter_map(PlaceSlot::numbered_index)
+        .map(usize::from)
+        .collect::<Vec<_>>();
+    places.sort_unstable();
+    places.dedup();
+    places
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= old(places.len()))]
+fn sorted_unique_places(mut places: Vec<usize>) -> Vec<usize> {
+    places.sort_unstable();
+    places.dedup();
+    places
+}
+
+#[requires(true)]
+#[ensures(ret.slot.is_some())]
+fn reference_label_with_slot(label: &ReferenceLabel, slot: ReferenceSlotLabel) -> ReferenceLabel {
+    ReferenceLabel::new(&label.stem, label.occurrence, Some(slot))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reference_slot_label_for_place_slot(
+    slot: PlaceSlot,
+    analysis: &ReferenceAnalysis<'_>,
+    source: &str,
+    options: &GentufaBlockOptions,
+) -> ReferenceSlotLabel {
+    reference_slot_label_from_output(&reference_slot_name_for_place_slot(
+        slot,
+        &analysis.syntax_index,
+        source,
+        tree_render_options(options.phonemes, options.show_elided),
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reference_target_text_for_node(
+    analysis: &ReferenceAnalysis<'_>,
+    node: RawSyntaxNodeId,
+    source: &str,
+    leaves: &[RenderedLeaf],
+    options: &GentufaBlockOptions,
+) -> String {
+    analysis
+        .syntax_index
+        .metadata(node)
+        .map(|metadata| {
+            gentufa_display_text_for_spans(&metadata.source_spans, leaves, source, options)
+        })
+        .unwrap_or_default()
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn gentufa_bracket_fragments_from_source(
     fragments: &[BracketSourceFragment],
-    blocks_layout: &GentufaBlocksLayout,
+    blocks_layout: &BareGentufaBlocksLayout,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> Vec<GentufaBracketFragment> {
     fragments
@@ -3239,7 +3690,7 @@ fn gentufa_bracket_fragments_from_source(
 #[ensures(true)]
 fn gentufa_bracket_fragment_from_source(
     fragment: &BracketSourceFragment,
-    blocks_layout: &GentufaBlocksLayout,
+    blocks_layout: &BareGentufaBlocksLayout,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> Vec<GentufaBracketFragment> {
     match fragment {
@@ -3285,7 +3736,7 @@ fn decorated_bracket_fragment(
     children: Vec<GentufaBracketFragment>,
     range: Option<WebSourceRange>,
     text: Option<&str>,
-    blocks_layout: &GentufaBlocksLayout,
+    blocks_layout: &BareGentufaBlocksLayout,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> Vec<GentufaBracketFragment> {
     if children.is_empty() {
@@ -3341,7 +3792,7 @@ fn annotation_for_range_and_text<'a>(
 #[requires(true)]
 #[ensures(true)]
 fn bracket_color_for_range_and_text(
-    blocks_layout: &GentufaBlocksLayout,
+    blocks_layout: &BareGentufaBlocksLayout,
     range: Option<WebSourceRange>,
     text: Option<&str>,
 ) -> Option<String> {
@@ -4254,6 +4705,90 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
+    fn block_marker<'a>(
+        success: &'a GentufaSuccess,
+        raw_text: &str,
+        role: ReferenceMarkerRole,
+        label: &str,
+    ) -> &'a ReferenceMarker {
+        success
+            .blocks_layout
+            .blocks
+            .iter()
+            .find(|block| block.raw_text == raw_text || block.display_text == raw_text)
+            .and_then(|block| {
+                block
+                    .ref_markers
+                    .iter()
+                    .find(|marker| marker.role == role && marker.label.full_key() == label)
+            })
+            .unwrap_or_else(|| panic!("missing {role:?} marker {label:?} on block {raw_text:?}"))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn outgoing_tooltip_for_block<'a>(
+        success: &'a GentufaSuccess,
+        raw_text: &str,
+    ) -> &'a ReferenceTooltip {
+        success
+            .blocks_layout
+            .blocks
+            .iter()
+            .find(|block| block.raw_text == raw_text || block.display_text == raw_text)
+            .and_then(|block| {
+                block
+                    .ref_markers
+                    .iter()
+                    .find(|marker| marker.role == ReferenceMarkerRole::Reference)
+            })
+            .and_then(|marker| marker.tooltip.as_ref())
+            .unwrap_or_else(|| panic!("missing outgoing tooltip on block {raw_text:?}"))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn tooltip_highlights_place(tooltip: &ReferenceTooltip, place: usize) -> bool {
+        tooltip.highlighted_places.contains(&place)
+            && (spans_highlight_place(&tooltip.definition, place)
+                || spans_highlight_place(&tooltip.notes, place))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn spans_highlight_place(spans: &[ReferenceTooltipInline], place: usize) -> bool {
+        spans.iter().any(|span| match span.as_data() {
+            data!(ReferenceTooltipInline::IndexedPlace {
+                place: span_place,
+                highlighted,
+                ..
+            }) => *span_place == place && *highlighted,
+            _ => false,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn row_label_keys(tooltip: &ReferenceTooltip) -> BTreeSet<String> {
+        tooltip
+            .rows
+            .iter()
+            .map(|row| row.label.full_key())
+            .collect()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn row_target_texts(tooltip: &ReferenceTooltip) -> BTreeSet<String> {
+        tooltip
+            .rows
+            .iter()
+            .map(|row| row.target_text.clone())
+            .collect()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn all_reference_stems(success: &GentufaSuccess) -> BTreeSet<String> {
         success
             .tree_rows
@@ -4796,6 +5331,79 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn reference_tooltips_use_base_word_and_base_places_for_se_conversion() {
+        let success = parse_success("mi se klama do");
+
+        let incoming = block_marker(&success, "mi", ReferenceMarkerRole::Referent, "k<2>");
+        let incoming_tooltip = incoming.tooltip.as_ref().expect("incoming tooltip");
+        assert_eq!(
+            incoming_tooltip
+                .card
+                .as_ref()
+                .map(|card| card.word.as_str()),
+            Some("klama")
+        );
+        assert!(tooltip_highlights_place(incoming_tooltip, 2));
+        assert!(!tooltip_highlights_place(incoming_tooltip, 1));
+        assert!(incoming_tooltip.rows.is_empty());
+
+        let outgoing = outgoing_tooltip_for_block(&success, "klama");
+        assert_eq!(
+            outgoing.card.as_ref().map(|card| card.word.as_str()),
+            Some("klama")
+        );
+        assert!(tooltip_highlights_place(outgoing, 1));
+        assert!(tooltip_highlights_place(outgoing, 2));
+        assert_eq!(
+            row_label_keys(outgoing),
+            BTreeSet::from(["k<1>".to_owned(), "k<2>".to_owned()])
+        );
+        assert_eq!(
+            row_target_texts(outgoing),
+            BTreeSet::from(["do".to_owned(), "mi".to_owned()])
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_tooltips_scope_tanru_modifier_to_shared_x1() {
+        let success = parse_success("mi sutra klama do");
+
+        let modifier = outgoing_tooltip_for_block(&success, "sutra");
+        assert_eq!(
+            modifier.card.as_ref().map(|card| card.word.as_str()),
+            Some("sutra")
+        );
+        assert_eq!(
+            row_label_keys(modifier),
+            BTreeSet::from(["s<1>".to_owned()])
+        );
+        assert_eq!(
+            row_target_texts(modifier),
+            BTreeSet::from(["mi".to_owned()])
+        );
+        assert!(tooltip_highlights_place(modifier, 1));
+        assert!(!tooltip_highlights_place(modifier, 2));
+
+        let head = outgoing_tooltip_for_block(&success, "klama");
+        assert_eq!(
+            head.card.as_ref().map(|card| card.word.as_str()),
+            Some("klama")
+        );
+        assert_eq!(
+            row_label_keys(head),
+            BTreeSet::from(["k<1>".to_owned(), "k<2>".to_owned()])
+        );
+        assert_eq!(
+            row_target_texts(head),
+            BTreeSet::from(["do".to_owned(), "mi".to_owned()])
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn reference_labels_match_cli_tree_model_for_goi_and_goi_reference() {
         let success = parse_success("mi goi ko'a klama ko'a");
         let referents = tree_reference_keys(&success, ReferenceMarkerRole::Referent);
@@ -4805,6 +5413,29 @@ mod tests {
         assert!(references.contains("k"));
         assert!(references.contains("ko'a1"));
         assert!(references.contains("ko'a2"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_tooltips_render_discourse_resolution_rows() {
+        let success = parse_success("mi goi ko'a klama ko'a");
+        let mut koha_tooltips = success
+            .blocks_layout
+            .blocks
+            .iter()
+            .flat_map(|block| block.ref_markers.iter())
+            .filter(|marker| {
+                marker.role == ReferenceMarkerRole::Reference && marker.label.stem == "ko'a"
+            })
+            .filter_map(|marker| marker.tooltip.as_ref())
+            .collect::<Vec<_>>();
+        koha_tooltips.sort_by_key(|tooltip| tooltip.rows.len());
+
+        assert!(koha_tooltips.iter().any(|tooltip| {
+            tooltip.card.as_ref().map(|card| card.word.as_str()) == Some("ko'a")
+                && tooltip.rows.iter().any(|row| !row.target_text.is_empty())
+        }));
     }
 
     #[test]
@@ -4830,6 +5461,55 @@ mod tests {
         assert!(referents.contains("k<1>"));
         assert!(references.contains("k"));
         assert!(references.contains("b"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_tooltips_render_modal_rows_without_numbered_highlight() {
+        let success = parse_success("mi ta'i do klama");
+
+        let incoming = block_marker(&success, "do", ReferenceMarkerRole::Referent, "k<ta'i>");
+        let incoming_tooltip = incoming.tooltip.as_ref().expect("incoming modal tooltip");
+        assert_eq!(
+            incoming_tooltip
+                .card
+                .as_ref()
+                .map(|card| card.word.as_str()),
+            Some("klama")
+        );
+        assert!(incoming_tooltip.highlighted_places.is_empty());
+        assert!(!tooltip_highlights_place(incoming_tooltip, 1));
+        assert!(incoming_tooltip.rows.is_empty());
+
+        let outgoing = outgoing_tooltip_for_block(&success, "klama");
+        assert!(row_label_keys(outgoing).contains("k<ta'i>"));
+        assert!(row_target_texts(outgoing).contains("do"));
+        assert!(tooltip_highlights_place(outgoing, 1));
+        assert!(!tooltip_highlights_place(outgoing, 2));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_tooltips_render_fai_rows_without_numbered_highlight() {
+        let success = parse_success("mi fai do klama");
+
+        let incoming = block_marker(&success, "do", ReferenceMarkerRole::Referent, "k<fai>");
+        let incoming_tooltip = incoming.tooltip.as_ref().expect("incoming fai tooltip");
+        assert_eq!(
+            incoming_tooltip
+                .card
+                .as_ref()
+                .map(|card| card.word.as_str()),
+            Some("klama")
+        );
+        assert!(incoming_tooltip.highlighted_places.is_empty());
+        assert!(!tooltip_highlights_place(incoming_tooltip, 1));
+
+        let outgoing = outgoing_tooltip_for_block(&success, "klama");
+        assert!(row_label_keys(outgoing).contains("k<fai>"));
+        assert!(row_target_texts(outgoing).contains("do"));
     }
 
     #[test]

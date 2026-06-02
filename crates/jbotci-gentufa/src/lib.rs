@@ -7,14 +7,15 @@ use std::collections::HashMap;
 use std::fmt;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_morphology::{
     Cmavo, PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData,
 };
 pub use jbotci_output::{GlideMark, StressMark};
 use jbotci_output::{
-    ReferenceDisplayModel, ReferenceName as OutputReferenceName,
-    ReferenceSlotName as OutputReferenceSlotName,
+    ReferenceAnnotationSource, ReferenceAnnotationSourceData, ReferenceDisplayModel,
+    ReferenceName as OutputReferenceName, ReferenceSlotName as OutputReferenceSlotName,
+    RichReferenceAnnotation,
 };
 use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis, SyntaxNodeMetadata};
 use jbotci_source::SourceSpan;
@@ -141,8 +142,8 @@ pub fn reference_slot_display_text(slot: &ReferenceSlotLabel) -> String {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
-pub struct GentufaBlocksLayout<Tooltip = ()> {
-    pub blocks: Vec<GentufaBlock<Tooltip>>,
+pub struct GentufaBlocksLayout<Tooltip = (), ReferenceTooltip = ()> {
+    pub blocks: Vec<GentufaBlock<Tooltip, ReferenceTooltip>>,
     pub max_col: usize,
     pub max_row: usize,
 }
@@ -150,14 +151,14 @@ pub struct GentufaBlocksLayout<Tooltip = ()> {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
-pub struct GentufaBlock<Tooltip = ()> {
+pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
     pub block_id: String,
     pub node_ids: Vec<usize>,
     pub label: String,
     pub is_leaf: bool,
     pub is_elided: bool,
     pub token_kind: Option<String>,
-    pub ref_markers: Vec<ReferenceMarker>,
+    pub ref_markers: Vec<ReferenceMarker<ReferenceTooltip>>,
     pub span: Option<WebSourceRange>,
     pub node_types: Vec<String>,
     pub ancestors: Vec<String>,
@@ -198,10 +199,42 @@ pub enum ReferenceMarkerRole {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
-pub struct ReferenceMarker {
+pub struct ReferenceMarker<Tooltip = ()> {
     pub role: ReferenceMarkerRole,
     pub kind: String,
     pub label: ReferenceLabel,
+    pub source: Option<ReferenceMarkerSource>,
+    pub tooltip: Option<Tooltip>,
+}
+
+#[invariant(true)]
+#[invariant(::PlaceFrame { display_word, lookup_word, .. } => !display_word.is_empty() && !lookup_word.is_empty())]
+#[invariant(::PlaceAssignment { display_word, lookup_word, .. } => !display_word.is_empty() && !lookup_word.is_empty())]
+#[invariant(::DiscourseEdge { display_word, lookup_word, .. } => !display_word.is_empty() && !lookup_word.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "kind")]
+pub enum ReferenceMarkerSource {
+    PlaceFrame {
+        frame: usize,
+        source_node: usize,
+        display_word: String,
+        lookup_word: String,
+    },
+    PlaceAssignment {
+        frame: usize,
+        assignment: usize,
+        source_node: usize,
+        target_node: usize,
+        display_word: String,
+        lookup_word: String,
+    },
+    DiscourseEdge {
+        edge: usize,
+        source_node: usize,
+        target_node: usize,
+        display_word: String,
+        lookup_word: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1491,23 +1524,91 @@ pub fn reference_markers_for_node(
 ) -> Vec<ReferenceMarker> {
     let mut markers = Vec::new();
     let annotations = reference_model.annotations_for_syntax_ids(&[id]);
+    let rich_annotations = reference_model.rich_annotations_for_syntax_ids(&[id]);
     for label in annotations.incoming {
+        let source = source_for_rich_annotation(&rich_annotations.incoming, &label);
         let label = reference_label_from_output(&label);
         markers.push(ReferenceMarker {
             role: ReferenceMarkerRole::Referent,
             kind: reference_kind_for_label(&label),
             label,
+            source,
+            tooltip: None,
         });
     }
     for label in annotations.outgoing {
+        let source = source_for_rich_annotation(&rich_annotations.outgoing, &label);
         let label = reference_label_from_output(&label);
         markers.push(ReferenceMarker {
             role: ReferenceMarkerRole::Reference,
             kind: reference_kind_for_label(&label),
             label,
+            source,
+            tooltip: None,
         });
     }
     markers
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn source_for_rich_annotation(
+    annotations: &[RichReferenceAnnotation],
+    label: &OutputReferenceName,
+) -> Option<ReferenceMarkerSource> {
+    annotations
+        .iter()
+        .find(|annotation| &annotation.name == label)
+        .and_then(|annotation| reference_marker_source_from_output(&annotation.source))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reference_marker_source_from_output(
+    source: &ReferenceAnnotationSource,
+) -> Option<ReferenceMarkerSource> {
+    match source.as_data() {
+        data!(ReferenceAnnotationSource::PlaceFrame {
+            frame,
+            source_node,
+            display_word,
+            lookup_word,
+        }) => Some(new!(ReferenceMarkerSource::PlaceFrame {
+            frame: frame.0,
+            source_node: source_node.0,
+            display_word: display_word.clone(),
+            lookup_word: lookup_word.clone(),
+        })),
+        data!(ReferenceAnnotationSource::PlaceAssignment {
+            frame,
+            assignment,
+            source_node,
+            target_node,
+            display_word,
+            lookup_word,
+        }) => Some(new!(ReferenceMarkerSource::PlaceAssignment {
+            frame: frame.0,
+            assignment: assignment.0,
+            source_node: source_node.0,
+            target_node: target_node.0,
+            display_word: display_word.clone(),
+            lookup_word: lookup_word.clone(),
+        })),
+        data!(ReferenceAnnotationSource::DiscourseEdge {
+            edge,
+            source_node,
+            target_node,
+            display_word,
+            lookup_word,
+            ..
+        }) => Some(new!(ReferenceMarkerSource::DiscourseEdge {
+            edge: edge.0,
+            source_node: source_node.0,
+            target_node: target_node.0,
+            display_word: display_word.clone(),
+            lookup_word: lookup_word.clone(),
+        })),
+    }
 }
 
 #[requires(true)]

@@ -3,10 +3,11 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, new, requires};
+use jbotci_morphology::canonicalize_text;
 use jbotci_semantics::references::{
-    PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, ReferenceKind, ReferenceTarget,
-    SelbriPlaceFrame, SyntaxIndex,
+    PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, ReferenceEdgeId, ReferenceKind,
+    ReferenceTarget, SelbriPlaceFrame, SelbriPlaceFrameId, SumtiPlaceAssignmentId, SyntaxIndex,
 };
 use jbotci_syntax::ast::{
     AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, SelbriSyntax, TenseModalSyntax,
@@ -56,11 +57,58 @@ pub struct ReferenceAnnotations {
     pub outgoing: Vec<ReferenceName>,
 }
 
+#[invariant(self.incoming.iter().enumerate().all(|(index, annotation)| !self.incoming[..index].contains(annotation)))]
+#[invariant(self.outgoing.iter().enumerate().all(|(index, annotation)| !self.outgoing[..index].contains(annotation)))]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RichReferenceAnnotations {
+    pub incoming: Vec<RichReferenceAnnotation>,
+    pub outgoing: Vec<RichReferenceAnnotation>,
+}
+
+#[invariant(!self.name.stem.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RichReferenceAnnotation {
+    pub name: ReferenceName,
+    pub source: ReferenceAnnotationSource,
+}
+
+#[invariant(true)]
+#[invariant(::PlaceFrame { display_word, lookup_word, .. } => !display_word.is_empty() && !lookup_word.is_empty())]
+#[invariant(::PlaceAssignment { display_word, lookup_word, .. } => !display_word.is_empty() && !lookup_word.is_empty())]
+#[invariant(::DiscourseEdge { display_word, lookup_word, .. } => !display_word.is_empty() && !lookup_word.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReferenceAnnotationSource {
+    PlaceFrame {
+        frame: SelbriPlaceFrameId,
+        source_node: RawSyntaxNodeId,
+        display_word: String,
+        lookup_word: String,
+    },
+    PlaceAssignment {
+        frame: SelbriPlaceFrameId,
+        assignment: SumtiPlaceAssignmentId,
+        source_node: RawSyntaxNodeId,
+        target_node: RawSyntaxNodeId,
+        display_word: String,
+        lookup_word: String,
+    },
+    DiscourseEdge {
+        edge: ReferenceEdgeId,
+        kind: ReferenceKind,
+        source_node: RawSyntaxNodeId,
+        target_node: RawSyntaxNodeId,
+        display_word: String,
+        lookup_word: String,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 pub struct ReferenceDisplayModel {
     incoming_by_node: BTreeMap<RawSyntaxNodeId, BTreeSet<ReferenceName>>,
     outgoing_by_node: BTreeMap<RawSyntaxNodeId, BTreeSet<ReferenceName>>,
+    rich_incoming_by_node: BTreeMap<RawSyntaxNodeId, Vec<RichReferenceAnnotation>>,
+    rich_outgoing_by_node: BTreeMap<RawSyntaxNodeId, Vec<RichReferenceAnnotation>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,6 +127,16 @@ struct ReferenceSource {
     preorder: usize,
 }
 
+#[invariant(!self.name.stem.is_empty())]
+#[invariant(!self.display_word.is_empty())]
+#[invariant(!self.lookup_word.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ReferenceSourceName {
+    name: ReferenceName,
+    display_word: String,
+    lookup_word: String,
+}
+
 impl ReferenceDisplayModel {
     #[requires(true)]
     #[ensures(true)]
@@ -94,6 +152,8 @@ impl ReferenceDisplayModel {
         let mut model = Self {
             incoming_by_node: BTreeMap::new(),
             outgoing_by_node: BTreeMap::new(),
+            rich_incoming_by_node: BTreeMap::new(),
+            rich_outgoing_by_node: BTreeMap::new(),
         };
         model.add_place_annotations(analysis, source, options, &source_names);
         model.add_discourse_annotations(analysis, tree, &source_names);
@@ -124,12 +184,31 @@ impl ReferenceDisplayModel {
 
     #[requires(true)]
     #[ensures(true)]
+    pub fn rich_annotations_for_syntax_ids(
+        &self,
+        syntax_ids: &[RawSyntaxNodeId],
+    ) -> RichReferenceAnnotations {
+        let mut incoming = Vec::new();
+        let mut outgoing = Vec::new();
+        for id in syntax_ids {
+            if let Some(annotations) = self.rich_incoming_by_node.get(id) {
+                extend_unique_rich_annotations(&mut incoming, annotations.iter().cloned());
+            }
+            if let Some(annotations) = self.rich_outgoing_by_node.get(id) {
+                extend_unique_rich_annotations(&mut outgoing, annotations.iter().cloned());
+            }
+        }
+        new!(RichReferenceAnnotations { incoming, outgoing })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn add_place_annotations(
         &mut self,
         analysis: &ReferenceAnalysis<'_>,
         source: &str,
         options: TreeRenderOptions,
-        source_names: &HashMap<RawSyntaxNodeId, ReferenceName>,
+        source_names: &HashMap<RawSyntaxNodeId, ReferenceSourceName>,
     ) {
         for frame in analysis
             .place_analysis
@@ -144,19 +223,32 @@ impl ReferenceDisplayModel {
             {
                 continue;
             }
-            let Some(base_name) = source_names.get(&frame.node).cloned() else {
+            let Some(source_name) = source_names.get(&frame.node).cloned() else {
                 continue;
             };
+            let base_name = source_name.name.clone();
             self.outgoing_by_node
                 .entry(frame.node)
                 .or_default()
                 .insert(base_name.clone());
+            self.rich_outgoing_by_node
+                .entry(frame.node)
+                .or_default()
+                .push(new!(RichReferenceAnnotation {
+                    name: base_name.clone(),
+                    source: new!(ReferenceAnnotationSource::PlaceFrame {
+                        frame: frame.id,
+                        source_node: frame.node,
+                        display_word: source_name.display_word.clone(),
+                        lookup_word: source_name.lookup_word.clone(),
+                    }),
+                }));
             for assignment_id in analysis.place_analysis.assignments_for_frame(frame.id) {
                 let Some(assignment) = analysis.place_analysis.assignment(*assignment_id) else {
                     continue;
                 };
                 let mut place_name = base_name.clone();
-                place_name.slot = Some(slot_name(
+                place_name.slot = Some(reference_slot_name_for_place_slot(
                     assignment.slot,
                     &analysis.syntax_index,
                     source,
@@ -165,7 +257,21 @@ impl ReferenceDisplayModel {
                 self.incoming_by_node
                     .entry(assignment.sumti.0)
                     .or_default()
-                    .insert(place_name);
+                    .insert(place_name.clone());
+                self.rich_incoming_by_node
+                    .entry(assignment.sumti.0)
+                    .or_default()
+                    .push(new!(RichReferenceAnnotation {
+                        name: place_name,
+                        source: new!(ReferenceAnnotationSource::PlaceAssignment {
+                            frame: frame.id,
+                            assignment: *assignment_id,
+                            source_node: frame.node,
+                            target_node: assignment.sumti.0,
+                            display_word: source_name.display_word.clone(),
+                            lookup_word: source_name.lookup_word.clone(),
+                        }),
+                    }));
             }
         }
     }
@@ -176,7 +282,7 @@ impl ReferenceDisplayModel {
         &mut self,
         analysis: &ReferenceAnalysis<'_>,
         tree: &TreeValue,
-        source_names: &HashMap<RawSyntaxNodeId, ReferenceName>,
+        source_names: &HashMap<RawSyntaxNodeId, ReferenceSourceName>,
     ) {
         for edge in analysis.discourse_references.edges() {
             let Some(target) = resolved_reference_target_node(analysis, &edge.target) else {
@@ -185,17 +291,45 @@ impl ReferenceDisplayModel {
             if !contains_syntax_id(tree, target) {
                 continue;
             }
-            let Some(name) = source_names.get(&edge.source).cloned() else {
+            let Some(source_name) = source_names.get(&edge.source).cloned() else {
                 continue;
             };
+            let name = source_name.name.clone();
             self.outgoing_by_node
                 .entry(edge.source)
                 .or_default()
                 .insert(name.clone());
+            self.rich_outgoing_by_node
+                .entry(edge.source)
+                .or_default()
+                .push(new!(RichReferenceAnnotation {
+                    name: name.clone(),
+                    source: new!(ReferenceAnnotationSource::DiscourseEdge {
+                        edge: edge.id,
+                        kind: edge.kind.clone(),
+                        source_node: edge.source,
+                        target_node: target,
+                        display_word: source_name.display_word.clone(),
+                        lookup_word: source_name.lookup_word.clone(),
+                    }),
+                }));
             self.incoming_by_node
                 .entry(target)
                 .or_default()
                 .insert(name);
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(target.len() >= old(target.len()))]
+fn extend_unique_rich_annotations(
+    target: &mut Vec<RichReferenceAnnotation>,
+    source: impl IntoIterator<Item = RichReferenceAnnotation>,
+) {
+    for item in source {
+        if !target.iter().any(|existing| existing == &item) {
+            target.push(item);
         }
     }
 }
@@ -259,7 +393,7 @@ fn reference_sources(analysis: &ReferenceAnalysis<'_>, tree: &TreeValue) -> Vec<
 fn source_names(
     sources: &[ReferenceSource],
     visible_words: &HashSet<String>,
-) -> HashMap<RawSyntaxNodeId, ReferenceName> {
+) -> HashMap<RawSyntaxNodeId, ReferenceSourceName> {
     let unique_words = sources
         .iter()
         .map(|source| source.word.text.clone())
@@ -286,11 +420,15 @@ fn source_names(
         for (index, source) in word_sources.into_iter().enumerate() {
             names.insert(
                 source.node,
-                ReferenceName {
-                    stem: stem.clone(),
-                    occurrence: needs_occurrence.then_some(index + 1),
-                    slot: None,
-                },
+                new!(ReferenceSourceName {
+                    name: ReferenceName {
+                        stem: stem.clone(),
+                        occurrence: needs_occurrence.then_some(index + 1),
+                        slot: None,
+                    },
+                    display_word: source.word.text.clone(),
+                    lookup_word: canonicalize_text(&source.word.text),
+                }),
             );
         }
     }
@@ -385,7 +523,7 @@ fn is_displayed_place_frame(analysis: &ReferenceAnalysis<'_>, frame: &SelbriPlac
 
 #[requires(true)]
 #[ensures(true)]
-fn slot_name(
+pub fn reference_slot_name_for_place_slot(
     slot: PlaceSlot,
     index: &SyntaxIndex<'_>,
     source: &str,
@@ -681,9 +819,10 @@ mod tests {
     fn disambiguates_prefix_group_with_shared_length() {
         let sources = vec![source(1, "kláma", false, 1), source(2, "kárce", false, 2)];
         let names = source_names(&sources, &HashSet::new());
-        assert_eq!(names[&RawSyntaxNodeId(1)].stem, "kl");
-        assert_eq!(names[&RawSyntaxNodeId(2)].stem, "ká");
-        assert_eq!(names[&RawSyntaxNodeId(1)].occurrence, None);
+        assert_eq!(names[&RawSyntaxNodeId(1)].name.stem, "kl");
+        assert_eq!(names[&RawSyntaxNodeId(2)].name.stem, "ká");
+        assert_eq!(names[&RawSyntaxNodeId(1)].name.occurrence, None);
+        assert_eq!(names[&RawSyntaxNodeId(1)].lookup_word, "klama");
     }
 
     #[test]
@@ -695,9 +834,9 @@ mod tests {
             source(11, "kláma", false, 30),
         ];
         let names = source_names(&sources, &HashSet::new());
-        assert_eq!(names[&RawSyntaxNodeId(10)].stem, "k");
-        assert_eq!(names[&RawSyntaxNodeId(10)].occurrence, Some(1));
-        assert_eq!(names[&RawSyntaxNodeId(11)].occurrence, Some(2));
+        assert_eq!(names[&RawSyntaxNodeId(10)].name.stem, "k");
+        assert_eq!(names[&RawSyntaxNodeId(10)].name.occurrence, Some(1));
+        assert_eq!(names[&RawSyntaxNodeId(11)].name.occurrence, Some(2));
     }
 
     #[test]
@@ -707,8 +846,8 @@ mod tests {
         let sources = vec![source(1, "ri", true, 1)];
         let visible_words = HashSet::from(["ri".to_owned()]);
         let names = source_names(&sources, &visible_words);
-        assert_eq!(names[&RawSyntaxNodeId(1)].stem, "ri");
-        assert_eq!(names[&RawSyntaxNodeId(1)].occurrence, Some(1));
+        assert_eq!(names[&RawSyntaxNodeId(1)].name.stem, "ri");
+        assert_eq!(names[&RawSyntaxNodeId(1)].name.occurrence, Some(1));
     }
 
     #[requires(!word.is_empty())]
