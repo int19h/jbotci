@@ -1939,12 +1939,25 @@ fn brivla_onset_ends(chars: &[char], index: usize) -> Vec<usize> {
         .into_iter()
         .map(|(_, end)| end)
         .collect();
+    if let Some(end) = experimental_cgv_brivla_onset_end(chars, index) {
+        ends.push(end);
+    }
     if chars.get(index) == Some(&'\'') {
         ends.push(index + 1);
     }
     ends.sort_unstable_by(|left, right| right.cmp(left));
     ends.dedup();
     ends
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
+fn experimental_cgv_brivla_onset_end(chars: &[char], index: usize) -> Option<usize> {
+    chars
+        .get(index)
+        .is_some_and(|value| is_consonant(*value) && starts_glide(chars, index + 1))
+        .then(|| next_non_comma_index(chars, index + 2))
+        .flatten()
 }
 
 #[requires(start <= end && end <= chars.len())]
