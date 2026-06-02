@@ -80,6 +80,26 @@ input:disabled {
   --danger-bg: #fff1ef;
   --danger-border: #d1968e;
   --danger-text: #8b2018;
+  --diagnostic-error: #b42318;
+  --diagnostic-error-bg: color-mix(in srgb, #f04438 13%, transparent);
+  --diagnostic-error-bg-strong: color-mix(in srgb, #f04438 24%, transparent);
+  --diagnostic-error-squiggle: #d92d20;
+  --diagnostic-warning: #8a5b00;
+  --diagnostic-warning-bg: color-mix(in srgb, #f2b90f 18%, transparent);
+  --diagnostic-warning-bg-strong: color-mix(in srgb, #f2b90f 32%, transparent);
+  --diagnostic-warning-squiggle: #b77900;
+  --diagnostic-context-bg: color-mix(in srgb, #2f80ed 15%, transparent);
+  --diagnostic-context-outline: color-mix(in srgb, #2f80ed 58%, transparent);
+  --diagnostic-card-bg: color-mix(in srgb, var(--app-surface-0) 78%, transparent);
+  --diagnostic-card-hover-bg: color-mix(in srgb, var(--app-surface-0) 64%, var(--diagnostic-context-bg));
+  --diagnostic-note-bg: color-mix(in srgb, var(--app-surface-2) 62%, transparent);
+  --diagnostic-code-bg: color-mix(in srgb, var(--app-text) 8%, transparent);
+  --diagnostic-token-construct: #5b3fc4;
+  --diagnostic-token-word: #067a91;
+  --diagnostic-token-selmaho: #0e6f91;
+  --diagnostic-token-category: #28763b;
+  --diagnostic-token-keyword: #6d6152;
+  --diagnostic-token-punctuation: #837565;
   --topbar-bg: #0b0a09;
   --topbar-border: #2f2921;
   --topbar-text: #f4ede2;
@@ -200,6 +220,26 @@ body::-webkit-scrollbar-thumb:hover,
   --danger-bg: #351a17;
   --danger-border: #744239;
   --danger-text: #ffb9ae;
+  --diagnostic-error: #ffb4ab;
+  --diagnostic-error-bg: color-mix(in srgb, #f97066 18%, transparent);
+  --diagnostic-error-bg-strong: color-mix(in srgb, #f97066 30%, transparent);
+  --diagnostic-error-squiggle: #ff8a7a;
+  --diagnostic-warning: #ffd166;
+  --diagnostic-warning-bg: color-mix(in srgb, #fdb022 17%, transparent);
+  --diagnostic-warning-bg-strong: color-mix(in srgb, #fdb022 28%, transparent);
+  --diagnostic-warning-squiggle: #ffd166;
+  --diagnostic-context-bg: color-mix(in srgb, #6cb6ff 16%, transparent);
+  --diagnostic-context-outline: color-mix(in srgb, #8ecbff 66%, transparent);
+  --diagnostic-card-bg: color-mix(in srgb, var(--app-surface-2) 72%, transparent);
+  --diagnostic-card-hover-bg: color-mix(in srgb, var(--app-surface-2) 58%, var(--diagnostic-context-bg));
+  --diagnostic-note-bg: color-mix(in srgb, var(--app-surface-3) 46%, transparent);
+  --diagnostic-code-bg: color-mix(in srgb, var(--app-text) 10%, transparent);
+  --diagnostic-token-construct: #c3b5ff;
+  --diagnostic-token-word: #75d7ec;
+  --diagnostic-token-selmaho: #8fd8ff;
+  --diagnostic-token-category: #91e7a4;
+  --diagnostic-token-keyword: #c6b39c;
+  --diagnostic-token-punctuation: #aa9380;
   --app-scrollbar-track: #372b22;
   --app-scrollbar-thumb: #7b624c;
   --app-scrollbar-thumb-hover: #957659;
@@ -254,6 +294,26 @@ body::-webkit-scrollbar-thumb:hover,
     --danger-bg: #351a17;
     --danger-border: #744239;
     --danger-text: #ffb9ae;
+    --diagnostic-error: #ffb4ab;
+    --diagnostic-error-bg: color-mix(in srgb, #f97066 18%, transparent);
+    --diagnostic-error-bg-strong: color-mix(in srgb, #f97066 30%, transparent);
+    --diagnostic-error-squiggle: #ff8a7a;
+    --diagnostic-warning: #ffd166;
+    --diagnostic-warning-bg: color-mix(in srgb, #fdb022 17%, transparent);
+    --diagnostic-warning-bg-strong: color-mix(in srgb, #fdb022 28%, transparent);
+    --diagnostic-warning-squiggle: #ffd166;
+    --diagnostic-context-bg: color-mix(in srgb, #6cb6ff 16%, transparent);
+    --diagnostic-context-outline: color-mix(in srgb, #8ecbff 66%, transparent);
+    --diagnostic-card-bg: color-mix(in srgb, var(--app-surface-2) 72%, transparent);
+    --diagnostic-card-hover-bg: color-mix(in srgb, var(--app-surface-2) 58%, var(--diagnostic-context-bg));
+    --diagnostic-note-bg: color-mix(in srgb, var(--app-surface-3) 46%, transparent);
+    --diagnostic-code-bg: color-mix(in srgb, var(--app-text) 10%, transparent);
+    --diagnostic-token-construct: #c3b5ff;
+    --diagnostic-token-word: #75d7ec;
+    --diagnostic-token-selmaho: #8fd8ff;
+    --diagnostic-token-category: #91e7a4;
+    --diagnostic-token-keyword: #c6b39c;
+    --diagnostic-token-punctuation: #aa9380;
     --app-scrollbar-track: #372b22;
     --app-scrollbar-thumb: #7b624c;
     --app-scrollbar-thumb-hover: #957659;
@@ -731,20 +791,117 @@ body::-webkit-scrollbar-thumb:hover,
   gap: 0.65rem;
 }
 
-.parse-page #gentufa-text {
+.parse-page .gentufa-input-editor {
+  position: relative;
   width: 100%;
   min-height: calc(1.42em + 1.3rem + 2px);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface-elevated);
+}
+
+.parse-page .gentufa-input-editor:focus-within {
+  box-shadow: 0 0 0 3px var(--app-focus);
+}
+
+.parse-page #gentufa-text {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  min-height: calc(1.42em + 1.3rem);
   height: calc(1.42em + 1.3rem + 2px);
   resize: none;
   box-sizing: border-box;
   padding: 0.65rem 0.75rem;
-  border: 1px solid var(--border-color);
+  border: 0;
   border-radius: 6px;
   color: var(--app-text);
-  background: var(--surface-elevated);
+  background: transparent;
   font-size: 0.95rem;
   line-height: 1.42;
   overflow-y: hidden;
+}
+
+.parse-page #gentufa-text:focus-visible {
+  box-shadow: none;
+}
+
+.parse-page .gentufa-text-overlay {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 6px;
+  color: transparent;
+  font-size: 0.95rem;
+  line-height: 1.42;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.parse-page .gentufa-diagnostic-overlay-fragment {
+  color: transparent;
+}
+
+.parse-page .gentufa-diagnostic-overlay-fragment.has-diagnostic {
+  border-radius: 2px;
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-thickness: 0.09em;
+  text-underline-offset: 0.18em;
+  pointer-events: auto;
+}
+
+.parse-page .gentufa-diagnostic-overlay-fragment.is-error {
+  text-decoration-color: var(--diagnostic-error-squiggle);
+}
+
+.parse-page .gentufa-diagnostic-overlay-fragment.is-warning {
+  text-decoration-color: var(--diagnostic-warning-squiggle);
+}
+
+.parse-page .gentufa-diagnostic-overlay-fragment.is-active-primary.is-error {
+  background: var(--diagnostic-error-bg-strong);
+}
+
+.parse-page .gentufa-diagnostic-overlay-fragment.is-active-primary.is-warning {
+  background: var(--diagnostic-warning-bg-strong);
+}
+
+.parse-page .gentufa-diagnostic-overlay-fragment.is-active-context {
+  background: var(--diagnostic-context-bg);
+  box-shadow: inset 0 0 0 1px var(--diagnostic-context-outline);
+  text-decoration-color: var(--diagnostic-context-outline);
+}
+
+.parse-page .gentufa-diagnostic-overlay-caret {
+  position: relative;
+  display: inline-block;
+  width: 0.24rem;
+  margin-right: -0.24rem;
+  min-height: 1.18em;
+  pointer-events: auto;
+}
+
+.parse-page .gentufa-diagnostic-overlay-caret::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.08em;
+  height: 1.18em;
+  border-left: 2px solid var(--diagnostic-warning-squiggle);
+}
+
+.parse-page .gentufa-diagnostic-overlay-caret.is-error::after {
+  border-left-color: var(--diagnostic-error-squiggle);
+}
+
+.parse-page .gentufa-diagnostic-overlay-caret.is-active-context::after {
+  border-left-color: var(--diagnostic-context-outline);
 }
 
 .parse-page .form-actions {
@@ -963,42 +1120,160 @@ body::-webkit-scrollbar-thumb:hover,
   text-decoration: none;
 }
 
-.parse-page .lean-warning-bar {
+.parse-page .gentufa-diagnostics-pane {
+  display: grid;
+  gap: 0.48rem;
   margin-bottom: 0.85rem;
-  padding: 0.8rem 0.95rem;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--app-accent) 10%, var(--surface));
 }
 
-.parse-page .lean-warning-text {
+.parse-page .gentufa-diagnostics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.parse-page .gentufa-diagnostics-title {
   margin: 0;
+  color: var(--app-muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.parse-page .gentufa-diagnostics-toggle {
+  min-height: 1.7rem;
+  padding: 0.16rem 0.42rem;
+  border: 0;
+  border-radius: 4px;
+  color: var(--app-link);
+  background: transparent;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.parse-page .gentufa-diagnostics-toggle:hover {
+  color: var(--app-link-hover);
+  background: var(--app-surface-2);
+}
+
+.parse-page .gentufa-diagnostics-list {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.parse-page .gentufa-diagnostic-card {
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.58rem 0.68rem;
+  border-radius: 6px;
+  background: var(--diagnostic-card-bg);
+}
+
+.parse-page .gentufa-diagnostic-card:hover {
+  background: var(--diagnostic-card-hover-bg);
+}
+
+.parse-page .gentufa-diagnostic-card.is-error {
+  color: var(--diagnostic-error);
+}
+
+.parse-page .gentufa-diagnostic-card.is-warning {
+  color: var(--diagnostic-warning);
+}
+
+.parse-page .gentufa-diagnostic-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.42rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.parse-page .gentufa-diagnostic-severity {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.parse-page .gentufa-diagnostic-code {
+  padding: 0.08rem 0.28rem;
+  border-radius: 4px;
+  color: inherit;
+  background: var(--diagnostic-code-bg);
+  font-family: var(--math-font);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.parse-page .gentufa-diagnostic-message {
+  min-width: min(18rem, 100%);
+  color: var(--app-text);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.parse-page .gentufa-diagnostic-primary-detail {
+  color: var(--app-text);
+  font-size: 0.84rem;
+}
+
+.parse-page .gentufa-diagnostic-context {
+  color: var(--app-muted);
+  font-size: 0.83rem;
+}
+
+.parse-page .gentufa-diagnostic-notes {
+  display: grid;
+  gap: 0.18rem;
+  margin-top: 0.1rem;
+}
+
+.parse-page .gentufa-diagnostic-note {
+  padding: 0.32rem 0.42rem;
+  border-radius: 5px;
+  color: var(--app-text);
+  background: var(--diagnostic-note-bg);
+  font-size: 0.82rem;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.parse-page .gentufa-diagnostic-styled-note.is-detailed {
+  font-family: inherit;
+}
+
+.parse-page .diagnostic-text-construct {
+  color: var(--diagnostic-token-construct);
+  font-weight: 700;
+}
+
+.parse-page .diagnostic-text-specific-word {
+  color: var(--diagnostic-token-word);
+  font-style: italic;
+}
+
+.parse-page .diagnostic-text-selmaho {
+  color: var(--diagnostic-token-selmaho);
+  font-weight: 700;
+}
+
+.parse-page .diagnostic-text-word-category {
+  color: var(--diagnostic-token-category);
+  font-weight: 700;
+}
+
+.parse-page .diagnostic-text-keyword {
+  color: var(--diagnostic-token-keyword);
+  font-weight: 650;
+}
+
+.parse-page .diagnostic-text-punctuation {
+  color: var(--diagnostic-token-punctuation);
 }
 
 .parse-page .error-section {
   margin-top: 0.5rem;
-}
-
-.parse-page .error-box {
-  background: var(--danger-bg);
-  border: 1px solid var(--danger-border);
-  border-radius: 8px;
-  padding: 1rem 1.1rem;
-}
-
-.parse-page .error-message {
-  margin: 0 0 0.75rem;
-  color: var(--danger-text);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.parse-page .error-list {
-  margin: 0;
-  padding-left: 1.35rem;
-  color: var(--danger-text);
 }
 
 .parse-page .view-toolbar {

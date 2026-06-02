@@ -5,6 +5,10 @@ use jbotci_cll::{
     CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation, CllTableCell,
     cll_link_href, embedded_cll_site, wrap_ebnf_choice_lines,
 };
+use jbotci_diagnostics::{
+    Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticStyledNote, DiagnosticTextRole,
+    DiagnosticTextSegment,
+};
 use jbotci_dialect::{
     CustomDialect, DialectSettings, add_dialect_formula_reference, builtin_dialect_names,
     custom_dialect_definition_to_johau_uri_with_custom_dialects, custom_dialect_is_valid,
@@ -197,6 +201,43 @@ struct ReferenceRect {
     top: f64,
     right: f64,
     bottom: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct DiagnosticSourceLocation {
+    line: usize,
+    column: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct DiagnosticCounts {
+    errors: usize,
+    warnings: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum DiagnosticOverlayRole {
+    Primary,
+    ActivePrimary,
+    ActiveContext,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct DiagnosticOverlayMark {
+    diagnostic_index: usize,
+    role: DiagnosticOverlayRole,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct DiagnosticOverlayFragment {
+    text: String,
+    class_name: String,
+    title: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -972,6 +1013,8 @@ fn AppShell() -> Element {
     let reference_tooltip_open = use_signal(|| None::<HoveredReference>);
     let gentufa_page = use_signal(GentufaAsyncPageState::default);
     let gentufa_page_task = use_signal(|| None::<LatestAsyncTask>);
+    let gentufa_diagnostics_open = use_signal(|| true);
+    let gentufa_active_diagnostic = use_signal(|| None::<usize>);
     let export_task = use_signal(|| None::<LatestAsyncTask>);
     let mut pending_local_route_writes = use_signal(PendingLocalRouteWrites::default);
 
@@ -982,7 +1025,9 @@ fn AppShell() -> Element {
     let route_value = *route.read();
     let view_mode_value = *view_mode.read();
     let gentufa_display_value = *gentufa_display.read();
-    let result = gentufa_page.read().result.clone();
+    let gentufa_page_value = gentufa_page.read().clone();
+    let result = gentufa_page_value.result.clone();
+    let gentufa_request = gentufa_page_value.request.clone();
     let nav_gentufa_state = gentufa_state_from_parts(
         &input_text.read(),
         &dialect.read(),
@@ -1517,18 +1562,14 @@ fn AppShell() -> Element {
                                     div { class: "page-container",
                                         div { class: "input-form",
                                             div { class: "form-group",
-                                                textarea {
-                                                    id: "gentufa-text",
-                                                    aria_label: "Lojban text",
-                                                    placeholder: "{DEFAULT_GENTUFA_TEXT}",
-                                                    value: "{input_text.read()}",
-                                                    spellcheck: "false",
-                                                    oninput: move |event| {
-                                                        input_text.set(event.value());
-                                                        gentufa_text_explicit.set(true);
-                                                        schedule_gentufa_textarea_resize();
-                                                    },
-                                                }
+                                                { render_gentufa_input(
+                                                    input_text,
+                                                    gentufa_text_explicit,
+                                                    &result,
+                                                    gentufa_request.as_ref(),
+                                                    *gentufa_active_diagnostic.read(),
+                                                    gentufa_active_diagnostic,
+                                                ) }
                                                 div { class: "form-actions",
                                                     { render_dialect_control(dialect, dialect_settings_value.clone(), gentufa_dialect_picker_open) }
                                                     button {
@@ -1552,7 +1593,22 @@ fn AppShell() -> Element {
                                             }
                                         }
                                         div { class: "gentufa-result-stack",
-                                            { render_result(&result, view_mode, view_mode_value, gentufa_display, gentufa_display_value, settings_value, reference_hover, reference_tooltip_open, activity, export_task) }
+                                            { render_result(
+                                                &result,
+                                                gentufa_request.as_ref(),
+                                                gentufa_diagnostics_open,
+                                                *gentufa_diagnostics_open.read(),
+                                                gentufa_active_diagnostic,
+                                                view_mode,
+                                                view_mode_value,
+                                                gentufa_display,
+                                                gentufa_display_value,
+                                                settings_value,
+                                                reference_hover,
+                                                reference_tooltip_open,
+                                                activity,
+                                                export_task,
+                                            ) }
                                         }
                                     }
                                 }
@@ -7270,8 +7326,68 @@ fn set_vlacku_jvozba_pane(
 
 #[requires(true)]
 #[ensures(true)]
+fn render_gentufa_input(
+    mut input_text: Signal<String>,
+    mut gentufa_text_explicit: Signal<bool>,
+    result: &GentufaWebResult,
+    request: Option<&GentufaWebRequest>,
+    active_diagnostic: Option<usize>,
+    mut active_diagnostic_signal: Signal<Option<usize>>,
+) -> Element {
+    let text = input_text.read().clone();
+    let diagnostics = current_gentufa_input_diagnostics(&text, result, request);
+    rsx! {
+        div { class: "gentufa-input-editor",
+            { render_gentufa_diagnostic_overlay(&text, diagnostics, active_diagnostic) }
+            textarea {
+                id: "gentufa-text",
+                aria_label: "Lojban text",
+                placeholder: "{DEFAULT_GENTUFA_TEXT}",
+                value: "{text}",
+                spellcheck: "false",
+                oninput: move |event| {
+                    input_text.set(event.value());
+                    gentufa_text_explicit.set(true);
+                    active_diagnostic_signal.set(None);
+                    schedule_gentufa_textarea_resize();
+                },
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_gentufa_diagnostic_overlay(
+    text: &str,
+    diagnostics: &[Diagnostic],
+    active_diagnostic: Option<usize>,
+) -> Element {
+    if diagnostics.is_empty() {
+        return rsx! {};
+    }
+    let fragments = diagnostic_overlay_fragments(text, diagnostics, active_diagnostic);
+    rsx! {
+        div { class: "gentufa-text-overlay", aria_hidden: "true",
+            for fragment in fragments.iter() {
+                span {
+                    class: "{fragment.class_name}",
+                    title: "{fragment.title}",
+                    "{fragment.text}"
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn render_result(
     result: &GentufaWebResult,
+    request: Option<&GentufaWebRequest>,
+    diagnostics_open: Signal<bool>,
+    diagnostics_open_value: bool,
+    active_diagnostic: Signal<Option<usize>>,
     view_mode: Signal<GentufaWebViewMode>,
     view_mode_value: GentufaWebViewMode,
     display: Signal<GentufaDisplayState>,
@@ -7284,9 +7400,19 @@ fn render_result(
 ) -> Element {
     match result {
         GentufaWebResult::Blank => rsx! {},
-        GentufaWebResult::Error(error) => render_error(error),
+        GentufaWebResult::Error(error) => render_error(
+            error,
+            request,
+            diagnostics_open,
+            diagnostics_open_value,
+            active_diagnostic,
+        ),
         GentufaWebResult::Success(success) => render_success(
             success,
+            request,
+            diagnostics_open,
+            diagnostics_open_value,
+            active_diagnostic,
             view_mode,
             view_mode_value,
             display,
@@ -7302,22 +7428,24 @@ fn render_result(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_error(error: &GentufaError) -> Element {
+fn render_error(
+    error: &GentufaError,
+    request: Option<&GentufaWebRequest>,
+    diagnostics_open: Signal<bool>,
+    diagnostics_open_value: bool,
+    active_diagnostic: Signal<Option<usize>>,
+) -> Element {
+    let source = gentufa_request_source(request);
     rsx! {
         section { class: "result-section error-section",
-            div { class: "error-box failure-errors",
-                pre { class: "error-message", "{error.message}" }
-                if !error.diagnostics.is_empty() {
-                    ul { class: "error-list",
-                        for diagnostic in error.diagnostics.iter() {
-                            li { class: diagnostic_class(diagnostic),
-                                strong { "{diagnostic.code}" }
-                                span { " {diagnostic.message}" }
-                            }
-                        }
-                    }
-                }
-            }
+            { render_diagnostics_pane(
+                &error.diagnostics,
+                source,
+                Some(error.message.as_str()),
+                diagnostics_open,
+                diagnostics_open_value,
+                active_diagnostic,
+            ) }
         }
     }
 }
@@ -7326,6 +7454,10 @@ fn render_error(error: &GentufaError) -> Element {
 #[ensures(true)]
 fn render_success(
     success: &GentufaSuccess,
+    request: Option<&GentufaWebRequest>,
+    diagnostics_open: Signal<bool>,
+    diagnostics_open_value: bool,
+    active_diagnostic: Signal<Option<usize>>,
     view_mode: Signal<GentufaWebViewMode>,
     view_mode_value: GentufaWebViewMode,
     display: Signal<GentufaDisplayState>,
@@ -7337,11 +7469,19 @@ fn render_success(
     export_task: Signal<Option<LatestAsyncTask>>,
 ) -> Element {
     let reference_hover_value = reference_hover.read().clone();
+    let source = gentufa_request_source(request);
     rsx! {
         section { class: "result-section",
             { render_reference_overlay(&reference_hover_value) }
             { render_surface_output(success) }
-            { render_diagnostics(success) }
+            { render_diagnostics_pane(
+                &success.diagnostics,
+                source,
+                None,
+                diagnostics_open,
+                diagnostics_open_value,
+                active_diagnostic,
+            ) }
             div { class: "view-toolbar",
                 { render_view_tabs(view_mode, view_mode_value) }
                 { render_output_controls(display, display_value) }
@@ -7464,21 +7604,617 @@ fn render_bracket_fragment(fragment: &GentufaBracketFragment) -> Element {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_diagnostics(success: &GentufaSuccess) -> Element {
-    if success.diagnostics.is_empty() {
+fn render_diagnostics_pane(
+    diagnostics: &[Diagnostic],
+    source: &str,
+    fallback_error: Option<&str>,
+    mut diagnostics_open: Signal<bool>,
+    diagnostics_open_value: bool,
+    active_diagnostic: Signal<Option<usize>>,
+) -> Element {
+    let fallback_error = fallback_error.filter(|message| !message.is_empty());
+    if diagnostics.is_empty() && fallback_error.is_none() {
         return rsx! {};
     }
+    let counts = diagnostic_counts(diagnostics, fallback_error);
+    let title = diagnostic_pane_title(counts);
+    let toggle_label = diagnostics_toggle_label(diagnostics_open_value);
     rsx! {
-        div { class: "lean-warning-bar syntax-warning-list", role: "alert", aria_live: "polite",
-            pre { class: "lean-warning-text",
-                for diagnostic in success.diagnostics.iter() {
-                    span { class: diagnostic_class(diagnostic),
-                        "{diagnostic.code}: {diagnostic.message}\n"
+        section { class: "gentufa-diagnostics-pane", role: "alert", aria_live: "polite",
+            div { class: "gentufa-diagnostics-header",
+                h2 { class: "gentufa-diagnostics-title", "{title}" }
+                button {
+                    class: "gentufa-diagnostics-toggle",
+                    r#type: "button",
+                    aria_expanded: if diagnostics_open_value { "true" } else { "false" },
+                    onclick: move |_| diagnostics_open.set(!diagnostics_open_value),
+                    "{toggle_label}"
+                }
+            }
+            if diagnostics_open_value {
+                div { class: "gentufa-diagnostics-list",
+                    if diagnostics.is_empty() {
+                        if let Some(message) = fallback_error {
+                            article { class: "gentufa-diagnostic-card is-error",
+                                div { class: "gentufa-diagnostic-main",
+                                    span { class: "gentufa-diagnostic-severity", "error" }
+                                    span { class: "gentufa-diagnostic-message", "{message}" }
+                                }
+                            }
+                        }
+                    } else {
+                        for (index, diagnostic) in diagnostics.iter().enumerate() {
+                            { render_diagnostic_card(index, diagnostic, source, active_diagnostic) }
+                        }
                     }
                 }
             }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_diagnostic_card(
+    index: usize,
+    diagnostic: &Diagnostic,
+    source: &str,
+    active_diagnostic: Signal<Option<usize>>,
+) -> Element {
+    let mut enter_active = active_diagnostic;
+    let mut leave_active = active_diagnostic;
+    let card_class = diagnostic_card_class(diagnostic);
+    let primary = diagnostic.primary_label();
+    let location = diagnostic_label_location(source, primary);
+    let location_text = format!(
+        "{}:{}: {}",
+        location.line, location.column, diagnostic.message
+    );
+    let primary_detail = diagnostic_primary_detail(diagnostic);
+    let context_labels = diagnostic_context_labels(diagnostic);
+    let styled_notes = diagnostic_styled_notes_for_web(diagnostic);
+    rsx! {
+        article {
+            class: "{card_class}",
+            onmouseenter: move |_| enter_active.set(Some(index)),
+            onmouseleave: move |_| leave_active.set(None),
+            div { class: "gentufa-diagnostic-main",
+                span { class: "gentufa-diagnostic-severity", "{diagnostic_severity_text(diagnostic.severity)}" }
+                code { class: "gentufa-diagnostic-code", "{diagnostic.code}" }
+                span { class: "gentufa-diagnostic-message", "{location_text}" }
+            }
+            for label in context_labels {
+                div { class: "gentufa-diagnostic-context",
+                    em { "{label.message}" }
+                }
+            }
+            if let Some(detail) = primary_detail {
+                div { class: "gentufa-diagnostic-primary-detail", "{detail}" }
+            }
+            if !diagnostic.notes.is_empty() || !styled_notes.is_empty() {
+                div { class: "gentufa-diagnostic-notes",
+                    for note in diagnostic.notes.iter() {
+                        div { class: "gentufa-diagnostic-note", "{note}" }
+                    }
+                    for note in styled_notes {
+                        { render_styled_diagnostic_note(note) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_styled_diagnostic_note(note: &DiagnosticStyledNote) -> Element {
+    let class_name = diagnostic_styled_note_class(note);
+    rsx! {
+        div { class: "{class_name}",
+            for segment in note.segments.iter() {
+                { render_diagnostic_note_segment(segment) }
+            }
+        }
+    }
+}
+
+#[requires(!segment.text.is_empty())]
+#[ensures(true)]
+fn render_diagnostic_note_segment(segment: &DiagnosticTextSegment) -> Element {
+    let class_name = diagnostic_text_role_class(segment.role);
+    let text = diagnostic_text_segment_display_text(segment);
+    rsx! {
+        span { class: "{class_name}", "{text}" }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn current_gentufa_input_diagnostics<'a>(
+    input_text: &str,
+    result: &'a GentufaWebResult,
+    request: Option<&GentufaWebRequest>,
+) -> &'a [Diagnostic] {
+    if diagnostics_decorate_current_input(input_text, request) {
+        gentufa_result_diagnostics(result)
+    } else {
+        &[]
+    }
+}
+
+#[requires(true)]
+#[ensures(ret -> request.is_some())]
+fn diagnostics_decorate_current_input(
+    input_text: &str,
+    request: Option<&GentufaWebRequest>,
+) -> bool {
+    request.is_some_and(|request| request.text == input_text)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_result_diagnostics(result: &GentufaWebResult) -> &[Diagnostic] {
+    match result {
+        GentufaWebResult::Blank => &[],
+        GentufaWebResult::Success(success) => &success.diagnostics,
+        GentufaWebResult::Error(error) => &error.diagnostics,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_request_source(request: Option<&GentufaWebRequest>) -> &str {
+    request.map_or("", |request| request.text.as_str())
+}
+
+#[requires(true)]
+#[ensures(ret.errors + ret.warnings >= diagnostics.len() || fallback_error.is_some())]
+fn diagnostic_counts(diagnostics: &[Diagnostic], fallback_error: Option<&str>) -> DiagnosticCounts {
+    if diagnostics.is_empty() && fallback_error.is_some() {
+        return DiagnosticCounts {
+            errors: 1,
+            warnings: 0,
+        };
+    }
+    let mut errors = 0;
+    let mut warnings = 0;
+    for diagnostic in diagnostics {
+        match diagnostic.severity {
+            DiagnosticSeverity::Error => errors += 1,
+            DiagnosticSeverity::Warning | DiagnosticSeverity::Advice => warnings += 1,
+        }
+    }
+    DiagnosticCounts { errors, warnings }
+}
+
+#[requires(true)]
+#[ensures(ret.contains("Diagnostics"))]
+fn diagnostic_pane_title(counts: DiagnosticCounts) -> String {
+    format!(
+        "Diagnostics: {}, {}",
+        plural_count(counts.errors, "error", "errors"),
+        plural_count(counts.warnings, "warning", "warnings")
+    )
+}
+
+#[requires(!singular.is_empty())]
+#[requires(!plural.is_empty())]
+#[ensures(!ret.is_empty())]
+fn plural_count(count: usize, singular: &str, plural: &str) -> String {
+    if count == 1 {
+        format!("1 {singular}")
+    } else {
+        format!("{count} {plural}")
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn diagnostics_toggle_label(open: bool) -> &'static str {
+    if open { "Hide" } else { "Show" }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn diagnostic_card_class(diagnostic: &Diagnostic) -> String {
+    class_names(
+        "gentufa-diagnostic-card",
+        &[
+            ("is-error", diagnostic.severity == DiagnosticSeverity::Error),
+            (
+                "is-warning",
+                diagnostic.severity != DiagnosticSeverity::Error,
+            ),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn diagnostic_severity_text(severity: DiagnosticSeverity) -> &'static str {
+    match severity {
+        DiagnosticSeverity::Error => "error",
+        DiagnosticSeverity::Warning => "warning",
+        DiagnosticSeverity::Advice => "advice",
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.line > 0)]
+#[ensures(ret.column > 0)]
+fn diagnostic_label_location(source: &str, label: &DiagnosticLabel) -> DiagnosticSourceLocation {
+    source_location_for_char_offset(source, label.span.char_start)
+}
+
+#[requires(true)]
+#[ensures(ret.line > 0)]
+#[ensures(ret.column > 0)]
+fn source_location_for_char_offset(source: &str, char_offset: usize) -> DiagnosticSourceLocation {
+    let mut line = 1;
+    let mut column = 1;
+    for (index, character) in source.chars().enumerate() {
+        if index == char_offset {
+            return DiagnosticSourceLocation { line, column };
+        }
+        if character == '\n' {
+            line += 1;
+            column = 1;
+        } else {
+            column += 1;
+        }
+    }
+    DiagnosticSourceLocation { line, column }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_primary_detail(diagnostic: &Diagnostic) -> Option<&str> {
+    let label = diagnostic.primary_label();
+    (label.message != diagnostic.message).then_some(label.message.as_str())
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|label| !label.primary))]
+fn diagnostic_context_labels(diagnostic: &Diagnostic) -> Vec<&DiagnosticLabel> {
+    diagnostic
+        .labels
+        .iter()
+        .filter(|label| !label.primary)
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_styled_notes_for_web(diagnostic: &Diagnostic) -> Vec<&DiagnosticStyledNote> {
+    diagnostic.styled_notes.iter().collect()
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn diagnostic_styled_note_class(note: &DiagnosticStyledNote) -> String {
+    class_names(
+        "gentufa-diagnostic-note gentufa-diagnostic-styled-note",
+        &[
+            (
+                "is-always",
+                matches!(note.mode, jbotci_diagnostics::DiagnosticNoteMode::Always),
+            ),
+            (
+                "is-summary",
+                matches!(note.mode, jbotci_diagnostics::DiagnosticNoteMode::Summary),
+            ),
+            (
+                "is-detailed",
+                matches!(note.mode, jbotci_diagnostics::DiagnosticNoteMode::Detailed),
+            ),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn diagnostic_text_role_class(role: DiagnosticTextRole) -> &'static str {
+    match role {
+        DiagnosticTextRole::Construct => "diagnostic-text diagnostic-text-construct",
+        DiagnosticTextRole::SpecificWord => "diagnostic-text diagnostic-text-specific-word",
+        DiagnosticTextRole::Selmaho => "diagnostic-text diagnostic-text-selmaho",
+        DiagnosticTextRole::WordCategory => "diagnostic-text diagnostic-text-word-category",
+        DiagnosticTextRole::Keyword => "diagnostic-text diagnostic-text-keyword",
+        DiagnosticTextRole::Punctuation => "diagnostic-text diagnostic-text-punctuation",
+        DiagnosticTextRole::Plain => "diagnostic-text diagnostic-text-plain",
+    }
+}
+
+#[requires(!segment.text.is_empty())]
+#[ensures(!ret.is_empty())]
+fn diagnostic_text_segment_display_text(segment: &DiagnosticTextSegment) -> String {
+    segment.text.clone()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_overlay_fragments(
+    text: &str,
+    diagnostics: &[Diagnostic],
+    active_diagnostic: Option<usize>,
+) -> Vec<DiagnosticOverlayFragment> {
+    let chars = text.chars().collect::<Vec<_>>();
+    let mut fragments = Vec::new();
+    let mut run_text = String::new();
+    let mut run_class = String::new();
+    let mut run_title = String::new();
+
+    for index in 0..=chars.len() {
+        if has_diagnostic_caret_at(index, chars.len(), diagnostics, active_diagnostic) {
+            flush_diagnostic_overlay_run(
+                &mut fragments,
+                &mut run_text,
+                &mut run_class,
+                &mut run_title,
+            );
+            push_diagnostic_overlay_carets(
+                &mut fragments,
+                index,
+                chars.len(),
+                diagnostics,
+                active_diagnostic,
+            );
+        }
+        let Some(character) = chars.get(index) else {
+            break;
+        };
+        let mark =
+            diagnostic_overlay_mark_for_char(index, chars.len(), diagnostics, active_diagnostic);
+        let class_name = diagnostic_overlay_class(mark, diagnostics);
+        let title = diagnostic_overlay_title(mark, diagnostics);
+        if !run_text.is_empty() && (run_class != class_name || run_title != title) {
+            flush_diagnostic_overlay_run(
+                &mut fragments,
+                &mut run_text,
+                &mut run_class,
+                &mut run_title,
+            );
+        }
+        if run_text.is_empty() {
+            run_class = class_name;
+            run_title = title;
+        }
+        run_text.push(*character);
+    }
+    flush_diagnostic_overlay_run(
+        &mut fragments,
+        &mut run_text,
+        &mut run_class,
+        &mut run_title,
+    );
+    fragments
+}
+
+#[requires(true)]
+#[ensures(run_text.is_empty())]
+fn flush_diagnostic_overlay_run(
+    fragments: &mut Vec<DiagnosticOverlayFragment>,
+    run_text: &mut String,
+    run_class: &mut String,
+    run_title: &mut String,
+) {
+    if run_text.is_empty() {
+        return;
+    }
+    fragments.push(DiagnosticOverlayFragment {
+        text: std::mem::take(run_text),
+        class_name: std::mem::take(run_class),
+        title: std::mem::take(run_title),
+    });
+}
+
+#[requires(index <= char_len)]
+#[ensures(true)]
+fn has_diagnostic_caret_at(
+    index: usize,
+    char_len: usize,
+    diagnostics: &[Diagnostic],
+    active_diagnostic: Option<usize>,
+) -> bool {
+    diagnostics
+        .iter()
+        .enumerate()
+        .any(|(diagnostic_index, diagnostic)| {
+            diagnostic.labels.iter().any(|label| {
+                diagnostic_label_is_visible_in_overlay(diagnostic_index, label, active_diagnostic)
+                    && label_span_char_range(label, char_len) == (index, index)
+            })
+        })
+}
+
+#[requires(index <= char_len)]
+#[ensures(true)]
+fn push_diagnostic_overlay_carets(
+    fragments: &mut Vec<DiagnosticOverlayFragment>,
+    index: usize,
+    char_len: usize,
+    diagnostics: &[Diagnostic],
+    active_diagnostic: Option<usize>,
+) {
+    for (diagnostic_index, diagnostic) in diagnostics.iter().enumerate() {
+        for label in &diagnostic.labels {
+            if !diagnostic_label_is_visible_in_overlay(diagnostic_index, label, active_diagnostic) {
+                continue;
+            }
+            if label_span_char_range(label, char_len) != (index, index) {
+                continue;
+            }
+            let role = if label.primary {
+                if active_diagnostic == Some(diagnostic_index) {
+                    DiagnosticOverlayRole::ActivePrimary
+                } else {
+                    DiagnosticOverlayRole::Primary
+                }
+            } else {
+                DiagnosticOverlayRole::ActiveContext
+            };
+            let mark = Some(DiagnosticOverlayMark {
+                diagnostic_index,
+                role,
+            });
+            fragments.push(DiagnosticOverlayFragment {
+                text: String::new(),
+                class_name: diagnostic_overlay_caret_class(mark, diagnostics),
+                title: diagnostic_overlay_title(mark, diagnostics),
+            });
+        }
+    }
+}
+
+#[requires(index < char_len)]
+#[ensures(true)]
+fn diagnostic_overlay_mark_for_char(
+    index: usize,
+    char_len: usize,
+    diagnostics: &[Diagnostic],
+    active_diagnostic: Option<usize>,
+) -> Option<DiagnosticOverlayMark> {
+    if let Some(active_index) = active_diagnostic
+        && let Some(active) = diagnostics.get(active_index)
+    {
+        if label_contains_char(active.primary_label(), index, char_len) {
+            return Some(DiagnosticOverlayMark {
+                diagnostic_index: active_index,
+                role: DiagnosticOverlayRole::ActivePrimary,
+            });
+        }
+        if active
+            .labels
+            .iter()
+            .any(|label| !label.primary && label_contains_char(label, index, char_len))
+        {
+            return Some(DiagnosticOverlayMark {
+                diagnostic_index: active_index,
+                role: DiagnosticOverlayRole::ActiveContext,
+            });
+        }
+    }
+    primary_overlay_mark_for_char(index, char_len, diagnostics)
+}
+
+#[requires(index < char_len)]
+#[ensures(true)]
+fn primary_overlay_mark_for_char(
+    index: usize,
+    char_len: usize,
+    diagnostics: &[Diagnostic],
+) -> Option<DiagnosticOverlayMark> {
+    diagnostics
+        .iter()
+        .enumerate()
+        .filter(|(_, diagnostic)| diagnostic.severity == DiagnosticSeverity::Error)
+        .find(|(_, diagnostic)| label_contains_char(diagnostic.primary_label(), index, char_len))
+        .map(|(diagnostic_index, _)| DiagnosticOverlayMark {
+            diagnostic_index,
+            role: DiagnosticOverlayRole::Primary,
+        })
+        .or_else(|| {
+            diagnostics
+                .iter()
+                .enumerate()
+                .find(|(_, diagnostic)| {
+                    label_contains_char(diagnostic.primary_label(), index, char_len)
+                })
+                .map(|(diagnostic_index, _)| DiagnosticOverlayMark {
+                    diagnostic_index,
+                    role: DiagnosticOverlayRole::Primary,
+                })
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_label_is_visible_in_overlay(
+    diagnostic_index: usize,
+    label: &DiagnosticLabel,
+    active_diagnostic: Option<usize>,
+) -> bool {
+    label.primary || active_diagnostic == Some(diagnostic_index)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn label_contains_char(label: &DiagnosticLabel, index: usize, char_len: usize) -> bool {
+    let (start, end) = label_span_char_range(label, char_len);
+    start <= index && index < end
+}
+
+#[requires(true)]
+#[ensures(ret.0 <= ret.1)]
+#[ensures(ret.1 <= char_len)]
+fn label_span_char_range(label: &DiagnosticLabel, char_len: usize) -> (usize, usize) {
+    let start = label.span.char_start.min(char_len);
+    let end = label.span.char_end.min(char_len).max(start);
+    (start, end)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn diagnostic_overlay_class(
+    mark: Option<DiagnosticOverlayMark>,
+    diagnostics: &[Diagnostic],
+) -> String {
+    let Some(mark) = mark else {
+        return "gentufa-diagnostic-overlay-fragment".to_owned();
+    };
+    diagnostic_overlay_mark_class("gentufa-diagnostic-overlay-fragment", mark, diagnostics)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn diagnostic_overlay_caret_class(
+    mark: Option<DiagnosticOverlayMark>,
+    diagnostics: &[Diagnostic],
+) -> String {
+    let Some(mark) = mark else {
+        return "gentufa-diagnostic-overlay-caret".to_owned();
+    };
+    diagnostic_overlay_mark_class("gentufa-diagnostic-overlay-caret", mark, diagnostics)
+}
+
+#[requires(!base.is_empty())]
+#[ensures(!ret.is_empty())]
+fn diagnostic_overlay_mark_class(
+    base: &str,
+    mark: DiagnosticOverlayMark,
+    diagnostics: &[Diagnostic],
+) -> String {
+    let severity = diagnostics
+        .get(mark.diagnostic_index)
+        .map(|diagnostic| diagnostic.severity)
+        .unwrap_or(DiagnosticSeverity::Warning);
+    class_names(
+        base,
+        &[
+            ("has-diagnostic", true),
+            ("is-error", severity == DiagnosticSeverity::Error),
+            ("is-warning", severity != DiagnosticSeverity::Error),
+            (
+                "is-active-primary",
+                mark.role == DiagnosticOverlayRole::ActivePrimary,
+            ),
+            (
+                "is-active-context",
+                mark.role == DiagnosticOverlayRole::ActiveContext,
+            ),
+        ],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_overlay_title(
+    mark: Option<DiagnosticOverlayMark>,
+    diagnostics: &[Diagnostic],
+) -> String {
+    mark.and_then(|mark| diagnostics.get(mark.diagnostic_index))
+        .map(|diagnostic| format!("{}: {}", diagnostic.code, diagnostic.message))
+        .unwrap_or_default()
 }
 
 #[requires(true)]
@@ -9620,16 +10356,6 @@ fn toggle_glosses(display: &mut Signal<GentufaDisplayState>) {
     let mut next = *display.read();
     next.show_glosses = !next.show_glosses;
     display.set(next);
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn diagnostic_class(diagnostic: &jbotci_diagnostics::Diagnostic) -> &'static str {
-    match diagnostic.severity {
-        jbotci_diagnostics::DiagnosticSeverity::Error => "diagnostic error",
-        jbotci_diagnostics::DiagnosticSeverity::Warning
-        | jbotci_diagnostics::DiagnosticSeverity::Advice => "diagnostic",
-    }
 }
 
 #[requires(true)]
@@ -12360,6 +13086,156 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn diagnostic_location_uses_one_indexed_line_column() {
+        let source = "coi\nmi broda";
+        let diagnostic = test_diagnostic(
+            source,
+            DiagnosticSeverity::Error,
+            "syntax.parse",
+            "syntax parse failed",
+            4,
+            6,
+            "expected selbri",
+        );
+
+        let location = diagnostic_label_location(source, diagnostic.primary_label());
+
+        assert_eq!(location.line, 2);
+        assert_eq!(location.column, 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_location_uses_character_offsets_for_unicode() {
+        let source = "coi\nzo'é mi";
+        let diagnostic = test_diagnostic(
+            source,
+            DiagnosticSeverity::Error,
+            "morphology.invalid",
+            "invalid morphology",
+            7,
+            8,
+            "invalid character",
+        );
+
+        let location = diagnostic_label_location(source, diagnostic.primary_label());
+
+        assert_eq!(location.line, 2);
+        assert_eq!(location.column, 4);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_pane_title_counts_errors_and_warning_like_diagnostics() {
+        let source = "coi";
+        let diagnostics = vec![
+            test_diagnostic(
+                source,
+                DiagnosticSeverity::Error,
+                "syntax.parse",
+                "syntax parse failed",
+                0,
+                1,
+                "expected text",
+            ),
+            test_diagnostic(
+                source,
+                DiagnosticSeverity::Warning,
+                "syntax.warning.experimental",
+                "experimental syntax",
+                1,
+                2,
+                "experimental",
+            ),
+            test_diagnostic(
+                source,
+                DiagnosticSeverity::Advice,
+                "syntax.advice",
+                "syntax advice",
+                2,
+                3,
+                "advice",
+            ),
+        ];
+
+        let title = diagnostic_pane_title(diagnostic_counts(&diagnostics, None));
+
+        assert_eq!(title, "Diagnostics: 1 error, 2 warnings");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn stale_gentufa_input_disables_decorations() {
+        let source = "coi";
+        let diagnostic = test_diagnostic(
+            source,
+            DiagnosticSeverity::Error,
+            "syntax.parse",
+            "syntax parse failed",
+            0,
+            1,
+            "expected text",
+        );
+        let request = GentufaWebRequest {
+            text: source.to_owned(),
+            options: GentufaWebOptions::default(),
+        };
+        let result = GentufaWebResult::Error(GentufaError {
+            phase: None,
+            message: "syntax parse failed".to_owned(),
+            diagnostics: vec![diagnostic],
+        });
+
+        assert_eq!(
+            current_gentufa_input_diagnostics(source, &result, Some(&request)).len(),
+            1
+        );
+        assert!(current_gentufa_input_diagnostics("coi mi", &result, Some(&request)).is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn styled_diagnostic_notes_include_detailed_needs_one_of() {
+        let source = "coi";
+        let diagnostic = test_diagnostic(
+            source,
+            DiagnosticSeverity::Error,
+            "syntax.parse",
+            "syntax parse failed",
+            0,
+            1,
+            "expected text",
+        )
+        .with_styled_notes(vec![DiagnosticStyledNote::new(
+            jbotci_diagnostics::DiagnosticNoteMode::Detailed,
+            vec![
+                DiagnosticTextSegment::new(DiagnosticTextRole::Plain, "needs one of:\n".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "- ".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Construct, "selbri".to_owned()),
+            ],
+        )]);
+
+        let notes = diagnostic_styled_notes_for_web(&diagnostic);
+        let note_text = notes[0]
+            .segments
+            .iter()
+            .fold(String::new(), |mut text, segment| {
+                text.push_str(&segment.text);
+                text
+            });
+
+        assert_eq!(notes.len(), 1);
+        assert!(note_text.contains("needs one of:"));
+        assert!(note_text.contains("selbri"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_search_debounce_is_longer_than_url_debounce() {
         assert_eq!(VLACKU_SEARCH_DEBOUNCE_MS, 900);
         assert_eq!(CUKTA_SEARCH_DEBOUNCE_MS, VLACKU_SEARCH_DEBOUNCE_MS);
@@ -13117,5 +13993,33 @@ mod tests {
             notes: Vec::new(),
             rows: Vec::new(),
         })
+    }
+
+    #[requires(char_start <= char_end)]
+    #[requires(!code.is_empty())]
+    #[requires(!message.is_empty())]
+    #[requires(!label.is_empty())]
+    #[ensures(!ret.labels.is_empty())]
+    fn test_diagnostic(
+        source: &str,
+        severity: DiagnosticSeverity,
+        code: &str,
+        message: &str,
+        char_start: usize,
+        char_end: usize,
+        label: &str,
+    ) -> Diagnostic {
+        let span =
+            jbotci_diagnostics::source_span_from_char_offsets(None, source, char_start, char_end)
+                .expect("test span is valid");
+        Diagnostic::new(
+            severity,
+            jbotci_diagnostics::DiagnosticPhase::Syntax,
+            code.to_owned(),
+            message.to_owned(),
+            vec![DiagnosticLabel::new(span, label.to_owned(), true)],
+            Vec::new(),
+            None,
+        )
     }
 }
