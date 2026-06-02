@@ -107,6 +107,7 @@ const CLL_MEDIA_CHAPTER_TOUR: Asset = asset!("/assets/cll/media/chapter-tour.svg
 const CLL_MEDIA_LOGO: Asset = asset!("/assets/cll/media/logo.png");
 const DEFAULT_GENTUFA_TEXT: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
 const VLACKU_SEARCH_DEBOUNCE_MS: i32 = 900;
+const CUKTA_SEARCH_DEBOUNCE_MS: i32 = VLACKU_SEARCH_DEBOUNCE_MS;
 const VLACKU_URL_DEBOUNCE_MS: i32 = 450;
 const GENTUFA_URL_DEBOUNCE_MS: i32 = 650;
 const COMPUTE_CHANNEL_GENTUFA: &str = "gentufa-page";
@@ -140,6 +141,7 @@ const DIALECT_SETTINGS_STORAGE_KEY: &str = "jbotci.dialect-settings.v1";
 thread_local! {
     static VLACKU_URL_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
     static VLACKU_SEARCH_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
+    static CUKTA_SEARCH_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
     static GENTUFA_URL_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
     static BROWSER_STATE_HANDLERS_INSTALLED: Cell<bool> = const { Cell::new(false) };
 }
@@ -328,6 +330,28 @@ impl fmt::Display for JbotciRouteParseError {
 }
 
 impl Error for JbotciRouteParseError {}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[invariant(true)]
+struct PendingLocalRouteWrites {
+    routes: Vec<JbotciRoute>,
+}
+
+impl PendingLocalRouteWrites {
+    #[requires(true)]
+    #[ensures(self.routes.iter().any(|pending| pending == route))]
+    fn record(&mut self, route: &JbotciRoute) {
+        self.routes.push(route.clone());
+    }
+
+    #[requires(true)]
+    #[ensures(ret -> !self.routes.iter().any(|pending| pending == route))]
+    fn consume(&mut self, route: &JbotciRoute) -> bool {
+        let initial_len = self.routes.len();
+        self.routes.retain(|pending| pending != route);
+        self.routes.len() != initial_len
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
@@ -908,7 +932,8 @@ fn AppShell() -> Element {
     let gentufa_display = use_signal(move || initial_gentufa_display);
     let mut gentufa_text_explicit = use_signal(move || initial_gentufa_has_text);
     let initial_cukta = initial_cukta_state(&current_route_location);
-    let cukta_state = use_signal(|| initial_cukta);
+    let cukta_draft_state = use_signal(|| initial_cukta.clone());
+    let cukta_committed_state = use_signal(|| initial_cukta);
     let cukta_toc_filter = use_signal(String::new);
     let cukta_toc_pinned = use_signal(load_cukta_toc_pinned);
     let cukta_toc_expansion = use_signal(load_cukta_toc_expansion);
@@ -945,6 +970,7 @@ fn AppShell() -> Element {
     let gentufa_page = use_signal(GentufaAsyncPageState::default);
     let gentufa_page_task = use_signal(|| None::<LatestAsyncTask>);
     let export_task = use_signal(|| None::<LatestAsyncTask>);
+    let mut pending_local_route_writes = use_signal(PendingLocalRouteWrites::default);
 
     let settings_value = *settings.read();
     let dialect_settings_value = dialect_settings.read().clone();
@@ -962,7 +988,7 @@ fn AppShell() -> Element {
         *gentufa_text_explicit.read(),
     );
     let topbar_cukta_route =
-        JbotciRoute::from_web_route(WebRoute::Cukta(cukta_state.read().clone()), false);
+        JbotciRoute::from_web_route(WebRoute::Cukta(cukta_committed_state.read().clone()), false);
     let topbar_vlacku_route = JbotciRoute::from_web_route(
         WebRoute::Vlacku(vlacku_committed_state.read().clone()),
         false,
@@ -1000,11 +1026,14 @@ fn AppShell() -> Element {
     ));
     let sync_route_location = current_route_location.clone();
     use_effect(use_reactive((&sync_route_location,), move |(location,)| {
+        let is_local_route_write =
+            pending_local_route_writes.with_mut(|pending| pending.consume(&location));
         apply_web_route_to_client_state(
-            &location.web_route,
-            location.gentufa_text_explicit,
+            &location,
+            is_local_route_write,
             route,
-            cukta_state,
+            cukta_draft_state,
+            cukta_committed_state,
             vlacku_draft_state,
             vlacku_committed_state,
             input_text,
@@ -1241,7 +1270,7 @@ fn AppShell() -> Element {
     });
     use_effect(move || {
         let mut result_signal = cukta_semantic_result;
-        let state = cukta_state.read().clone();
+        let state = cukta_committed_state.read().clone();
         let search_state = match state.view {
             CuktaWebView::Search(search_state)
                 if search_state.mode == CuktaWebMode::Meaning
@@ -1284,7 +1313,7 @@ fn AppShell() -> Element {
             cancel_latest_task(cukta_page_task);
             return;
         }
-        let state = cukta_state.read().clone();
+        let state = cukta_committed_state.read().clone();
         let semantic = cukta_semantic_result.read().clone();
         let request = cukta_compute_request(&cukta_page_base_path, &state, &semantic);
         let mut page_signal = cukta_page;
@@ -1326,7 +1355,7 @@ fn AppShell() -> Element {
         );
     });
     let cukta_scroll_route = route;
-    let cukta_scroll_state = cukta_state;
+    let cukta_scroll_state = cukta_committed_state;
     let cukta_scroll_page = cukta_page;
     let mut cukta_scroll_pending = pending_cukta_scroll;
     use_effect(move || {
@@ -1349,21 +1378,33 @@ fn AppShell() -> Element {
         }
     });
     let vlacku_url_history = app_history.clone();
+    let vlacku_url_route_location = current_route_location.clone();
     use_effect(move || {
         if *route.read() == AppRoute::Vlacku {
             let state = vlacku_committed_state.read().clone();
-            schedule_vlacku_url_push(vlacku_url_history.clone(), &state);
+            schedule_vlacku_url_push(
+                vlacku_url_history.clone(),
+                pending_local_route_writes,
+                &vlacku_url_route_location,
+                &state,
+            );
         }
     });
-    let cukta_route_location = current_route_location.clone();
+    let cukta_url_route_location = current_route_location.clone();
     let cukta_url_history = app_history.clone();
-    use_effect(use_reactive((&cukta_route_location,), move |(location,)| {
+    use_effect(move || {
         if *route.read() == AppRoute::Cukta {
-            let state = cukta_state.read().clone();
-            push_cukta_url(cukta_url_history.clone(), &location, &state);
+            let state = cukta_committed_state.read().clone();
+            push_cukta_url(
+                cukta_url_history.clone(),
+                pending_local_route_writes,
+                &cukta_url_route_location,
+                &state,
+            );
         }
-    }));
+    });
     let gentufa_url_history = app_history.clone();
+    let gentufa_url_route_location = current_route_location.clone();
     use_effect(move || {
         if *route.read() == AppRoute::Gentufa {
             let state = gentufa_state_from_parts(
@@ -1373,7 +1414,12 @@ fn AppShell() -> Element {
                 *gentufa_display.read(),
                 *gentufa_text_explicit.read(),
             );
-            schedule_gentufa_url_replace(gentufa_url_history.clone(), &state);
+            schedule_gentufa_url_replace(
+                gentufa_url_history.clone(),
+                pending_local_route_writes,
+                &gentufa_url_route_location,
+                &state,
+            );
         }
     });
     use_effect(move || {
@@ -1520,7 +1566,8 @@ fn AppShell() -> Element {
                             ),
                             AppRoute::Cukta => {
                                 render_cukta_page(
-                                    cukta_state,
+                                    cukta_draft_state,
+                                    cukta_committed_state,
                                     cukta_page,
                                     cukta_toc_filter,
                                     cukta_toc_pinned,
@@ -3158,7 +3205,8 @@ fn human_bytes(bytes: u64) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn render_cukta_page(
-    cukta_state: Signal<CuktaWebState>,
+    cukta_draft_state: Signal<CuktaWebState>,
+    cukta_committed_state: Signal<CuktaWebState>,
     cukta_page: Signal<CuktaAsyncPageState>,
     mut toc_filter: Signal<String>,
     mut toc_pinned: Signal<bool>,
@@ -3322,23 +3370,26 @@ fn render_cukta_page(
                             }
                             CuktaPageKind::Search {
                                 state,
-                                mode_options,
-                                target_options,
+                                mode_options: _,
+                                target_options: _,
                                 results,
                                 message,
                                 has_more,
                                 load_more_href: _,
-                            } => render_cukta_search(
-                                cukta_state,
-                                pending_cukta_scroll,
-                                state,
-                                mode_options,
-                                target_options,
-                                results,
-                                message.as_deref(),
-                                *has_more,
-                                base_path,
-                            ),
+                            } => {
+                                let draft_search =
+                                    cukta_search_draft_for_page(&cukta_draft_state.read(), state);
+                                render_cukta_search(
+                                    cukta_draft_state,
+                                    cukta_committed_state,
+                                    pending_cukta_scroll,
+                                    &draft_search,
+                                    results,
+                                    message.as_deref(),
+                                    *has_more,
+                                    base_path,
+                                )
+                            }
                             CuktaPageKind::Error { message } => rsx! {
                                 div { class: "spa-error", "{message}" }
                             },
@@ -3825,20 +3876,27 @@ fn render_cukta_index(
 #[requires(true)]
 #[ensures(true)]
 fn render_cukta_search(
-    cukta_state: Signal<CuktaWebState>,
+    cukta_draft_state: Signal<CuktaWebState>,
+    cukta_committed_state: Signal<CuktaWebState>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
-    state: &CuktaWebSearchState,
-    mode_options: &[CuktaModeOption],
-    target_options: &[CuktaTargetOption],
+    draft_state: &CuktaWebSearchState,
     results: &[CuktaSearchResultCard],
     message: Option<&str>,
     has_more: bool,
     base_path: &str,
 ) -> Element {
-    let state_for_load_more = state.clone();
+    let state_for_load_more = draft_state.clone();
+    let mode_options = cukta_draft_mode_options(draft_state.mode);
+    let target_options = cukta_draft_target_options(&draft_state.targets);
     rsx! {
         section { class: "cll-search-view dictionary-page",
-            { render_cukta_search_controls(cukta_state, state, mode_options, target_options) }
+            { render_cukta_search_controls(
+                cukta_draft_state,
+                cukta_committed_state,
+                draft_state,
+                &mode_options,
+                &target_options,
+            ) }
             if let Some(message) = message {
                 p { class: "dictionary-empty cll-search-message", "{message}" }
             }
@@ -3855,9 +3913,13 @@ fn render_cukta_search(
                         onclick: move |_| {
                             let mut next = state_for_load_more.clone();
                             next.count = next.count.saturating_mul(2).clamp(1, CUKTA_WEB_MAX_COUNT);
-                            set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                                view: CuktaWebView::Search(next),
-                            });
+                            set_cukta_state_immediate(
+                                cukta_draft_state,
+                                cukta_committed_state,
+                                CuktaWebState {
+                                    view: CuktaWebView::Search(next),
+                                },
+                            );
                         },
                         "Load more"
                     }
@@ -3870,7 +3932,8 @@ fn render_cukta_search(
 #[requires(true)]
 #[ensures(true)]
 fn render_cukta_search_controls(
-    cukta_state: Signal<CuktaWebState>,
+    mut cukta_draft_state: Signal<CuktaWebState>,
+    cukta_committed_state: Signal<CuktaWebState>,
     state: &CuktaWebSearchState,
     mode_options: &[CuktaModeOption],
     target_options: &[CuktaTargetOption],
@@ -3888,7 +3951,7 @@ fn render_cukta_search_controls(
                             }
                             div { class: "mode-toggle-group", role: "group", aria_label: "CLL search mode",
                                 for option in mode_options.iter() {
-                                    { render_cukta_mode_button(cukta_state, state, option) }
+                                    { render_cukta_mode_button(cukta_draft_state, cukta_committed_state, state, option) }
                                 }
                             }
                         }
@@ -3897,7 +3960,7 @@ fn render_cukta_search_controls(
                 div { class: "cll-target-control",
                     div { class: "cll-target-grid", aria_label: "CLL search targets",
                         for option in target_options.iter() {
-                            { render_cukta_target_check(cukta_state, state, option) }
+                            { render_cukta_target_check(cukta_draft_state, cukta_committed_state, state, option) }
                         }
                     }
                 }
@@ -3911,12 +3974,13 @@ fn render_cukta_search_controls(
                     spellcheck: "false",
                     value: "{state.query}",
                     oninput: move |event| {
-                        let mut next = state_for_input.clone();
-                        next.query = event.value();
-                        next.count = CUKTA_WEB_DEFAULT_COUNT;
-                        set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
+                        let query = event.value();
+                        let next = cukta_search_state_with_query(&state_for_input, &query);
+                        let next_state = CuktaWebState {
                             view: CuktaWebView::Search(next),
-                        });
+                        };
+                        cukta_draft_state.set(next_state.clone());
+                        schedule_cukta_search_commit(cukta_committed_state, next_state);
                     },
                 }
             }
@@ -3927,7 +3991,8 @@ fn render_cukta_search_controls(
 #[requires(true)]
 #[ensures(true)]
 fn render_cukta_mode_button(
-    cukta_state: Signal<CuktaWebState>,
+    cukta_draft_state: Signal<CuktaWebState>,
+    cukta_committed_state: Signal<CuktaWebState>,
     state: &CuktaWebSearchState,
     option: &CuktaModeOption,
 ) -> Element {
@@ -3952,9 +4017,13 @@ fn render_cukta_mode_button(
                     let mut next = state_for_click.clone();
                     next.mode = mode;
                     next.count = CUKTA_WEB_DEFAULT_COUNT;
-                    set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                        view: CuktaWebView::Search(next),
-                    });
+                    set_cukta_state_immediate(
+                        cukta_draft_state,
+                        cukta_committed_state,
+                        CuktaWebState {
+                            view: CuktaWebView::Search(next),
+                        },
+                    );
                 }
             },
             "{option_label}"
@@ -3965,7 +4034,8 @@ fn render_cukta_mode_button(
 #[requires(true)]
 #[ensures(true)]
 fn render_cukta_target_check(
-    cukta_state: Signal<CuktaWebState>,
+    cukta_draft_state: Signal<CuktaWebState>,
+    cukta_committed_state: Signal<CuktaWebState>,
     state: &CuktaWebSearchState,
     option: &CuktaTargetOption,
 ) -> Element {
@@ -3985,9 +4055,13 @@ fn render_cukta_target_check(
                     let mut next = state_for_change.clone();
                     next.targets = toggle_cukta_target_selection(&next.targets, &value);
                     next.count = CUKTA_WEB_DEFAULT_COUNT;
-                    set_cukta_state(&mut cukta_state.clone(), CuktaWebState {
-                        view: CuktaWebView::Search(next),
-                    });
+                    set_cukta_state_immediate(
+                        cukta_draft_state,
+                        cukta_committed_state,
+                        CuktaWebState {
+                            view: CuktaWebView::Search(next),
+                        },
+                    );
                 },
             }
             span { class: "vlacku-filter-label", "{option.label}" }
@@ -5366,8 +5440,75 @@ fn cll_known_media_href(file_name: &str) -> Option<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn set_cukta_state(cukta_state: &mut Signal<CuktaWebState>, state: CuktaWebState) {
-    cukta_state.set(state);
+fn cukta_search_draft_for_page(
+    draft_state: &CuktaWebState,
+    committed_search: &CuktaWebSearchState,
+) -> CuktaWebSearchState {
+    if let CuktaWebView::Search(search) = &draft_state.view {
+        search.clone()
+    } else {
+        committed_search.clone()
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() == 2)]
+fn cukta_draft_mode_options(selected: CuktaWebMode) -> Vec<CuktaModeOption> {
+    vec![
+        CuktaModeOption {
+            value: "smuni".to_owned(),
+            label: "meaning".to_owned(),
+            selected: selected == CuktaWebMode::Meaning,
+            disabled: false,
+        },
+        CuktaModeOption {
+            value: "valsi".to_owned(),
+            label: "word".to_owned(),
+            selected: selected == CuktaWebMode::Word,
+            disabled: false,
+        },
+    ]
+}
+
+#[requires(true)]
+#[ensures(ret.len() == 3)]
+fn cukta_draft_target_options(selected_targets: &[String]) -> Vec<CuktaTargetOption> {
+    [
+        ("section", "Sections"),
+        ("paragraph", "Paragraphs"),
+        ("example", "Examples"),
+    ]
+    .iter()
+    .map(|(value, label)| CuktaTargetOption {
+        value: (*value).to_owned(),
+        label: (*label).to_owned(),
+        selected: selected_targets.iter().any(|target| target == value),
+    })
+    .collect()
+}
+
+#[requires(true)]
+#[ensures(ret.query == query)]
+#[ensures(ret.count == CUKTA_WEB_DEFAULT_COUNT)]
+fn cukta_search_state_with_query(state: &CuktaWebSearchState, query: &str) -> CuktaWebSearchState {
+    CuktaWebSearchState {
+        mode: state.mode,
+        query: query.to_owned(),
+        count: CUKTA_WEB_DEFAULT_COUNT,
+        targets: state.targets.clone(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_cukta_state_immediate(
+    mut draft_state: Signal<CuktaWebState>,
+    mut committed_state: Signal<CuktaWebState>,
+    state: CuktaWebState,
+) {
+    clear_cukta_search_timer();
+    draft_state.set(state.clone());
+    committed_state.set(state);
 }
 
 #[requires(true)]
@@ -10732,10 +10873,11 @@ fn jbotci_route_from_dioxus_route(raw: &str) -> Option<JbotciRoute> {
 #[requires(true)]
 #[ensures(true)]
 fn apply_web_route_to_client_state(
-    web_route: &WebRoute,
-    gentufa_text_is_explicit: bool,
+    location: &JbotciRoute,
+    is_local_route_write: bool,
     mut route: Signal<AppRoute>,
-    mut cukta_state: Signal<CuktaWebState>,
+    mut cukta_draft_state: Signal<CuktaWebState>,
+    mut cukta_committed_state: Signal<CuktaWebState>,
     mut vlacku_draft_state: Signal<VlackuWebState>,
     mut vlacku_committed_state: Signal<VlackuWebState>,
     mut input_text: Signal<String>,
@@ -10746,11 +10888,16 @@ fn apply_web_route_to_client_state(
     mut gentufa_display: Signal<GentufaDisplayState>,
     mut gentufa_text_explicit: Signal<bool>,
 ) {
-    route.set(app_route_for_web_route(web_route));
+    let web_route = &location.web_route;
+    route.set(location.app_route());
+    if is_local_route_write {
+        return;
+    }
+    clear_route_bound_input_timers();
     match web_route {
         WebRoute::Gentufa(state) => {
             let input = state.text.clone();
-            let parsed = if state.text.is_empty() && !gentufa_text_is_explicit {
+            let parsed = if state.text.is_empty() && !location.gentufa_text_explicit {
                 DEFAULT_GENTUFA_TEXT.to_owned()
             } else {
                 state.text.clone()
@@ -10765,12 +10912,15 @@ fn apply_web_route_to_client_state(
                 show_elided: state.show_elided,
                 show_glosses: state.show_glosses,
             });
-            gentufa_text_explicit.set(gentufa_text_is_explicit);
+            gentufa_text_explicit.set(location.gentufa_text_explicit);
         }
         WebRoute::Cukta(state) => {
-            cukta_state.set(state.clone());
+            clear_cukta_search_timer();
+            cukta_draft_state.set(state.clone());
+            cukta_committed_state.set(state.clone());
         }
         WebRoute::Vlacku(state) => {
+            clear_vlacku_url_timer();
             clear_vlacku_search_timer();
             vlacku_draft_state.set(state.clone());
             vlacku_committed_state.set(state.clone());
@@ -11128,6 +11278,7 @@ fn set_vlacku_state_immediate(
     committed_state: &mut Signal<VlackuWebState>,
     state: VlackuWebState,
 ) {
+    clear_vlacku_url_timer();
     clear_vlacku_search_timer();
     draft_state.set(state.clone());
     committed_state.set(state);
@@ -11144,6 +11295,7 @@ fn schedule_vlacku_search_commit(
         committed_state.set(state);
         return;
     };
+    clear_vlacku_url_timer();
     clear_vlacku_search_timer();
     let closure = Closure::once(move || {
         committed_state.set(state);
@@ -11165,6 +11317,36 @@ fn schedule_vlacku_search_commit(
     state: VlackuWebState,
 ) {
     let _ = VLACKU_SEARCH_DEBOUNCE_MS;
+    clear_vlacku_url_timer();
+    committed_state.set(state);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_cukta_search_commit(mut committed_state: Signal<CuktaWebState>, state: CuktaWebState) {
+    let Some(window) = web_sys::window() else {
+        committed_state.set(state);
+        return;
+    };
+    clear_cukta_search_timer();
+    let closure = Closure::once(move || {
+        committed_state.set(state);
+    });
+    if let Ok(handle) = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        closure.as_ref().unchecked_ref(),
+        CUKTA_SEARCH_DEBOUNCE_MS,
+    ) {
+        CUKTA_SEARCH_TIMER.with(|timer| timer.set(Some(handle)));
+        closure.forget();
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_cukta_search_commit(mut committed_state: Signal<CuktaWebState>, state: CuktaWebState) {
+    let _ = CUKTA_SEARCH_DEBOUNCE_MS;
     committed_state.set(state);
 }
 
@@ -11187,21 +11369,29 @@ fn clear_vlacku_search_timer() {
 #[ensures(true)]
 fn clear_vlacku_search_timer() {}
 
+#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
-fn schedule_vlacku_url_push(history: Rc<dyn History>, state: &VlackuWebState) {
-    let target = JbotciRoute::from_web_route(WebRoute::Vlacku(state.clone()), false);
-    schedule_route_push(
-        history,
-        route_path_for_route(&target),
-        VLACKU_URL_DEBOUNCE_MS,
-    );
+fn clear_cukta_search_timer() {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    CUKTA_SEARCH_TIMER.with(|timer| {
+        if let Some(handle) = timer.replace(None) {
+            window.clear_timeout_with_handle(handle);
+        }
+    });
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn clear_cukta_search_timer() {}
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
-fn schedule_route_push(history: Rc<dyn History>, target: String, delay_ms: i32) {
+fn clear_vlacku_url_timer() {
     let Some(window) = web_sys::window() else {
         return;
     };
@@ -11210,8 +11400,73 @@ fn schedule_route_push(history: Rc<dyn History>, target: String, delay_ms: i32) 
             window.clear_timeout_with_handle(handle);
         }
     });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn clear_vlacku_url_timer() {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn clear_gentufa_url_timer() {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    GENTUFA_URL_TIMER.with(|timer| {
+        if let Some(handle) = timer.replace(None) {
+            window.clear_timeout_with_handle(handle);
+        }
+    });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn clear_gentufa_url_timer() {}
+
+#[requires(true)]
+#[ensures(true)]
+fn clear_route_bound_input_timers() {
+    clear_vlacku_url_timer();
+    clear_vlacku_search_timer();
+    clear_cukta_search_timer();
+    clear_gentufa_url_timer();
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn schedule_vlacku_url_push(
+    history: Rc<dyn History>,
+    pending_writes: Signal<PendingLocalRouteWrites>,
+    current: &JbotciRoute,
+    state: &VlackuWebState,
+) {
+    let target = JbotciRoute::from_web_route(WebRoute::Vlacku(state.clone()), false);
+    if current.without_hash() == target {
+        return;
+    }
+    schedule_route_push(history, pending_writes, target, VLACKU_URL_DEBOUNCE_MS);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_route_push(
+    history: Rc<dyn History>,
+    pending_writes: Signal<PendingLocalRouteWrites>,
+    target: JbotciRoute,
+    delay_ms: i32,
+) {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    clear_vlacku_url_timer();
     let closure = Closure::once(move || {
-        history.push(target);
+        let mut pending_writes = pending_writes;
+        pending_writes.with_mut(|pending| pending.record(&target));
+        history.push(route_path_for_route(&target));
     });
     if let Ok(handle) = window.set_timeout_with_callback_and_timeout_and_arguments_0(
         closure.as_ref().unchecked_ref(),
@@ -11225,37 +11480,50 @@ fn schedule_route_push(history: Rc<dyn History>, target: String, delay_ms: i32) 
 #[cfg(not(target_arch = "wasm32"))]
 #[requires(true)]
 #[ensures(true)]
-fn schedule_route_push(history: Rc<dyn History>, target: String, delay_ms: i32) {
+fn schedule_route_push(
+    history: Rc<dyn History>,
+    mut pending_writes: Signal<PendingLocalRouteWrites>,
+    target: JbotciRoute,
+    delay_ms: i32,
+) {
     let _ = delay_ms;
-    history.push(target);
+    pending_writes.with_mut(|pending| pending.record(&target));
+    history.push(route_path_for_route(&target));
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn schedule_gentufa_url_replace(history: Rc<dyn History>, state: &GentufaWebState) {
+fn schedule_gentufa_url_replace(
+    history: Rc<dyn History>,
+    pending_writes: Signal<PendingLocalRouteWrites>,
+    current: &JbotciRoute,
+    state: &GentufaWebState,
+) {
     let target =
         JbotciRoute::from_web_route(WebRoute::Gentufa(state.clone()), !state.text.is_empty());
-    schedule_route_replace(
-        history,
-        route_path_for_route(&target),
-        GENTUFA_URL_DEBOUNCE_MS,
-    );
+    if current.without_hash() == target {
+        return;
+    }
+    schedule_route_replace(history, pending_writes, target, GENTUFA_URL_DEBOUNCE_MS);
 }
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
-fn schedule_route_replace(history: Rc<dyn History>, target: String, delay_ms: i32) {
+fn schedule_route_replace(
+    history: Rc<dyn History>,
+    pending_writes: Signal<PendingLocalRouteWrites>,
+    target: JbotciRoute,
+    delay_ms: i32,
+) {
     let Some(window) = web_sys::window() else {
         return;
     };
-    GENTUFA_URL_TIMER.with(|timer| {
-        if let Some(handle) = timer.replace(None) {
-            window.clear_timeout_with_handle(handle);
-        }
-    });
+    clear_gentufa_url_timer();
     let closure = Closure::once(move || {
-        history.replace(target);
+        let mut pending_writes = pending_writes;
+        pending_writes.with_mut(|pending| pending.record(&target));
+        history.replace(route_path_for_route(&target));
     });
     if let Ok(handle) = window.set_timeout_with_callback_and_timeout_and_arguments_0(
         closure.as_ref().unchecked_ref(),
@@ -11269,9 +11537,15 @@ fn schedule_route_replace(history: Rc<dyn History>, target: String, delay_ms: i3
 #[cfg(not(target_arch = "wasm32"))]
 #[requires(true)]
 #[ensures(true)]
-fn schedule_route_replace(history: Rc<dyn History>, target: String, delay_ms: i32) {
+fn schedule_route_replace(
+    history: Rc<dyn History>,
+    mut pending_writes: Signal<PendingLocalRouteWrites>,
+    target: JbotciRoute,
+    delay_ms: i32,
+) {
     let _ = delay_ms;
-    history.replace(target);
+    pending_writes.with_mut(|pending| pending.record(&target));
+    history.replace(route_path_for_route(&target));
 }
 
 #[requires(true)]
@@ -11282,11 +11556,17 @@ fn route_path_for_route(route: &JbotciRoute) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn push_cukta_url(history: Rc<dyn History>, current: &JbotciRoute, state: &CuktaWebState) {
+fn push_cukta_url(
+    history: Rc<dyn History>,
+    mut pending_writes: Signal<PendingLocalRouteWrites>,
+    current: &JbotciRoute,
+    state: &CuktaWebState,
+) {
     let target = JbotciRoute::from_web_route(WebRoute::Cukta(state.clone()), false);
     if current.without_hash() == target {
         return;
     }
+    pending_writes.with_mut(|pending| pending.record(&target));
     history.push(route_path_for_route(&target));
 }
 
@@ -12061,8 +12341,69 @@ mod tests {
     #[ensures(true)]
     fn vlacku_search_debounce_is_longer_than_url_debounce() {
         assert_eq!(VLACKU_SEARCH_DEBOUNCE_MS, 900);
+        assert_eq!(CUKTA_SEARCH_DEBOUNCE_MS, VLACKU_SEARCH_DEBOUNCE_MS);
         assert!(VLACKU_SEARCH_DEBOUNCE_MS > VLACKU_URL_DEBOUNCE_MS);
         assert!(GENTUFA_URL_DEBOUNCE_MS > VLACKU_URL_DEBOUNCE_MS);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn pending_local_route_writes_consume_exact_route_once() {
+        let route = parse_test_route("", "/vlacku/klama");
+        let mut pending = PendingLocalRouteWrites::default();
+
+        pending.record(&route);
+
+        assert!(pending.consume(&route));
+        assert!(!pending.consume(&route));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn pending_local_route_writes_do_not_consume_nonmatching_routes() {
+        let route = parse_test_route("", "/vlacku/klama");
+        let other = parse_test_route("", "/vlacku/ciska");
+        let mut pending = PendingLocalRouteWrites::default();
+
+        pending.record(&route);
+
+        assert!(!pending.consume(&other));
+        assert!(pending.consume(&route));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn pending_local_route_writes_consume_duplicate_targets_together() {
+        let route = parse_test_route("", "/gentufa?text=coi");
+        let mut pending = PendingLocalRouteWrites::default();
+
+        pending.record(&route);
+        pending.record(&route);
+
+        assert!(pending.consume(&route));
+        assert!(!pending.consume(&route));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_search_query_draft_resets_count_and_preserves_controls() {
+        let state = CuktaWebSearchState {
+            mode: CuktaWebMode::Word,
+            query: "klama".to_owned(),
+            count: 80,
+            targets: vec!["example".to_owned()],
+        };
+
+        let next = cukta_search_state_with_query(&state, "ciska");
+
+        assert_eq!(next.mode, CuktaWebMode::Word);
+        assert_eq!(next.query, "ciska");
+        assert_eq!(next.count, CUKTA_WEB_DEFAULT_COUNT);
+        assert_eq!(next.targets, vec!["example".to_owned()]);
     }
 
     #[test]
