@@ -237,8 +237,16 @@ struct DiagnosticOverlayMark {
 struct DiagnosticOverlayFragment {
     text: String,
     class_name: String,
-    title: String,
     selection_start: u32,
+    diagnostic_index: Option<usize>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[invariant(true)]
+struct DiagnosticInputTooltip {
+    diagnostic_index: usize,
+    x: f64,
+    y: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1023,6 +1031,7 @@ fn AppShell() -> Element {
     let gentufa_page_task = use_signal(|| None::<LatestAsyncTask>);
     let gentufa_diagnostics_open = use_signal(|| true);
     let gentufa_active_diagnostic = use_signal(|| None::<usize>);
+    let gentufa_input_diagnostic_tooltip = use_signal(|| None::<DiagnosticInputTooltip>);
     let export_task = use_signal(|| None::<LatestAsyncTask>);
     let mut pending_local_route_writes = use_signal(PendingLocalRouteWrites::default);
 
@@ -1577,6 +1586,10 @@ fn AppShell() -> Element {
                                                     gentufa_request.as_ref(),
                                                     *gentufa_active_diagnostic.read(),
                                                     gentufa_active_diagnostic,
+                                                    gentufa_input_diagnostic_tooltip,
+                                                    *gentufa_input_diagnostic_tooltip.read(),
+                                                    pending_cukta_scroll,
+                                                    &base_path,
                                                 ) }
                                                 div { class: "form-actions",
                                                     { render_dialect_control(dialect, dialect_settings_value.clone(), gentufa_dialect_picker_open) }
@@ -7343,12 +7356,21 @@ fn render_gentufa_input(
     request: Option<&GentufaWebRequest>,
     active_diagnostic: Option<usize>,
     mut active_diagnostic_signal: Signal<Option<usize>>,
+    mut diagnostic_tooltip: Signal<Option<DiagnosticInputTooltip>>,
+    diagnostic_tooltip_value: Option<DiagnosticInputTooltip>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
 ) -> Element {
     let text = input_text.read().clone();
     let diagnostics = current_gentufa_input_diagnostics(&text, result, request);
     rsx! {
         div { class: "gentufa-input-editor",
-            { render_gentufa_diagnostic_overlay(&text, diagnostics, active_diagnostic) }
+            { render_gentufa_diagnostic_overlay(
+                &text,
+                diagnostics,
+                active_diagnostic,
+                diagnostic_tooltip,
+            ) }
             textarea {
                 id: "gentufa-text",
                 aria_label: "Lojban text",
@@ -7359,9 +7381,18 @@ fn render_gentufa_input(
                     input_text.set(event.value());
                     gentufa_text_explicit.set(true);
                     active_diagnostic_signal.set(None);
+                    diagnostic_tooltip.set(None);
                     schedule_gentufa_textarea_resize();
                 },
             }
+            { render_gentufa_diagnostic_input_tooltip(
+                diagnostic_tooltip_value,
+                diagnostics,
+                &text,
+                active_diagnostic_signal,
+                pending_cukta_scroll,
+                base_path,
+            ) }
         }
     }
 }
@@ -7372,6 +7403,7 @@ fn render_gentufa_diagnostic_overlay(
     text: &str,
     diagnostics: &[Diagnostic],
     active_diagnostic: Option<usize>,
+    diagnostic_tooltip: Signal<Option<DiagnosticInputTooltip>>,
 ) -> Element {
     if diagnostics.is_empty() {
         return rsx! {};
@@ -7380,21 +7412,114 @@ fn render_gentufa_diagnostic_overlay(
     rsx! {
         div { class: "gentufa-text-overlay", aria_hidden: "true",
             for fragment in fragments.iter() {
-                span {
-                    class: "{fragment.class_name}",
-                    title: "{fragment.title}",
-                    "data-selection-start": "{fragment.selection_start}",
-                    onmousedown: move |event| {
-                        event.prevent_default();
-                        let coordinates = event.data().client_coordinates();
-                        place_gentufa_textarea_caret_from_overlay_click(
-                            coordinates.x,
-                            coordinates.y,
-                        );
-                    },
-                    "{fragment.text}"
-                }
+                { render_gentufa_diagnostic_overlay_fragment(
+                    fragment,
+                    diagnostic_tooltip,
+                ) }
             }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_gentufa_diagnostic_overlay_fragment(
+    fragment: &DiagnosticOverlayFragment,
+    diagnostic_tooltip: Signal<Option<DiagnosticInputTooltip>>,
+) -> Element {
+    let diagnostic_index = fragment.diagnostic_index;
+    let mut over_tooltip = diagnostic_tooltip;
+    let mut enter_tooltip = diagnostic_tooltip;
+    let mut move_tooltip = diagnostic_tooltip;
+    let mut out_tooltip = diagnostic_tooltip;
+    let mut leave_tooltip = diagnostic_tooltip;
+    rsx! {
+        span {
+            class: "{fragment.class_name}",
+            "data-selection-start": "{fragment.selection_start}",
+            onmouseover: move |event| {
+                if let Some(diagnostic_index) = diagnostic_index {
+                    let coordinates = event.data().client_coordinates();
+                    over_tooltip.set(Some(DiagnosticInputTooltip {
+                        diagnostic_index,
+                        x: coordinates.x,
+                        y: coordinates.y,
+                    }));
+                }
+            },
+            onmouseenter: move |event| {
+                if let Some(diagnostic_index) = diagnostic_index {
+                    let coordinates = event.data().client_coordinates();
+                    enter_tooltip.set(Some(DiagnosticInputTooltip {
+                        diagnostic_index,
+                        x: coordinates.x,
+                        y: coordinates.y,
+                    }));
+                }
+            },
+            onmousemove: move |event| {
+                if let Some(diagnostic_index) = diagnostic_index {
+                    let coordinates = event.data().client_coordinates();
+                    move_tooltip.set(Some(DiagnosticInputTooltip {
+                        diagnostic_index,
+                        x: coordinates.x,
+                        y: coordinates.y,
+                    }));
+                }
+            },
+            onmouseout: move |_| {
+                if diagnostic_index.is_some() {
+                    out_tooltip.set(None);
+                }
+            },
+            onmouseleave: move |_| {
+                if diagnostic_index.is_some() {
+                    leave_tooltip.set(None);
+                }
+            },
+            onmousedown: move |event| {
+                event.prevent_default();
+                let coordinates = event.data().client_coordinates();
+                place_gentufa_textarea_caret_from_overlay_click(
+                    coordinates.x,
+                    coordinates.y,
+                );
+            },
+            "{fragment.text}"
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_gentufa_diagnostic_input_tooltip(
+    tooltip: Option<DiagnosticInputTooltip>,
+    diagnostics: &[Diagnostic],
+    source: &str,
+    active_diagnostic: Signal<Option<usize>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+) -> Element {
+    let Some(tooltip) = tooltip else {
+        return rsx! {};
+    };
+    let Some(diagnostic) = diagnostics.get(tooltip.diagnostic_index) else {
+        return rsx! {};
+    };
+    let style = format!(
+        "--diagnostic-tooltip-x: {:.2}px; --diagnostic-tooltip-y: {:.2}px;",
+        tooltip.x, tooltip.y
+    );
+    rsx! {
+        div { class: "gentufa-diagnostic-input-tooltip", style: "{style}",
+            { render_diagnostic_card(
+                tooltip.diagnostic_index,
+                diagnostic,
+                source,
+                active_diagnostic,
+                pending_cukta_scroll,
+                base_path,
+            ) }
         }
     }
 }
@@ -8757,8 +8882,8 @@ fn diagnostic_overlay_fragments(
     let mut fragments = Vec::new();
     let mut run_text = String::new();
     let mut run_class = String::new();
-    let mut run_title = String::new();
     let mut run_selection_start = 0u32;
+    let mut run_diagnostic_index = None;
     let mut selection_offset = 0u32;
 
     for index in 0..=chars.len() {
@@ -8767,8 +8892,8 @@ fn diagnostic_overlay_fragments(
                 &mut fragments,
                 &mut run_text,
                 &mut run_class,
-                &mut run_title,
                 &mut run_selection_start,
+                &mut run_diagnostic_index,
             );
             push_diagnostic_overlay_carets(
                 &mut fragments,
@@ -8785,20 +8910,22 @@ fn diagnostic_overlay_fragments(
         let mark =
             diagnostic_overlay_mark_for_char(index, chars.len(), diagnostics, active_diagnostic);
         let class_name = diagnostic_overlay_class(mark, diagnostics);
-        let title = diagnostic_overlay_title(mark, diagnostics);
-        if !run_text.is_empty() && (run_class != class_name || run_title != title) {
+        let diagnostic_index = mark.map(|mark| mark.diagnostic_index);
+        if !run_text.is_empty()
+            && (run_class != class_name || run_diagnostic_index != diagnostic_index)
+        {
             flush_diagnostic_overlay_run(
                 &mut fragments,
                 &mut run_text,
                 &mut run_class,
-                &mut run_title,
                 &mut run_selection_start,
+                &mut run_diagnostic_index,
             );
         }
         if run_text.is_empty() {
             run_class = class_name;
-            run_title = title;
             run_selection_start = selection_offset;
+            run_diagnostic_index = diagnostic_index;
         }
         run_text.push(*character);
         selection_offset += character.len_utf16() as u32;
@@ -8807,9 +8934,10 @@ fn diagnostic_overlay_fragments(
         &mut fragments,
         &mut run_text,
         &mut run_class,
-        &mut run_title,
         &mut run_selection_start,
+        &mut run_diagnostic_index,
     );
+    mark_active_context_overlay_groups(&mut fragments);
     fragments
 }
 
@@ -8819,8 +8947,8 @@ fn flush_diagnostic_overlay_run(
     fragments: &mut Vec<DiagnosticOverlayFragment>,
     run_text: &mut String,
     run_class: &mut String,
-    run_title: &mut String,
     run_selection_start: &mut u32,
+    run_diagnostic_index: &mut Option<usize>,
 ) {
     if run_text.is_empty() {
         return;
@@ -8828,10 +8956,72 @@ fn flush_diagnostic_overlay_run(
     fragments.push(DiagnosticOverlayFragment {
         text: std::mem::take(run_text),
         class_name: std::mem::take(run_class),
-        title: std::mem::take(run_title),
         selection_start: *run_selection_start,
+        diagnostic_index: *run_diagnostic_index,
     });
     *run_selection_start = 0;
+    *run_diagnostic_index = None;
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn mark_active_context_overlay_groups(fragments: &mut [DiagnosticOverlayFragment]) {
+    let mut group_start = None;
+    for index in 0..=fragments.len() {
+        let in_group = fragments
+            .get(index)
+            .is_some_and(|fragment| diagnostic_overlay_fragment_is_active_context(fragment));
+        match (group_start, in_group) {
+            (None, true) => group_start = Some(index),
+            (Some(start), false) => {
+                mark_active_context_overlay_group(fragments, start, index);
+                group_start = None;
+            }
+            _ => {}
+        }
+    }
+}
+
+#[requires(start < end)]
+#[requires(end <= fragments.len())]
+#[ensures(true)]
+fn mark_active_context_overlay_group(
+    fragments: &mut [DiagnosticOverlayFragment],
+    start: usize,
+    end: usize,
+) {
+    if let Some(first) = fragments.get_mut(start) {
+        append_css_class(&mut first.class_name, "is-active-context-start");
+    }
+    if let Some(last) = fragments.get_mut(end - 1) {
+        append_css_class(&mut last.class_name, "is-active-context-end");
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_overlay_fragment_is_active_context(fragment: &DiagnosticOverlayFragment) -> bool {
+    css_class_contains(&fragment.class_name, "is-active-context")
+        || css_class_contains(&fragment.class_name, "is-active-context-token")
+}
+
+#[requires(!class_name.is_empty())]
+#[requires(!class_to_add.is_empty())]
+#[ensures(css_class_contains(class_name, class_to_add))]
+fn append_css_class(class_name: &mut String, class_to_add: &str) {
+    if css_class_contains(class_name, class_to_add) {
+        return;
+    }
+    class_name.push(' ');
+    class_name.push_str(class_to_add);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn css_class_contains(class_name: &str, expected: &str) -> bool {
+    class_name
+        .split_whitespace()
+        .any(|class_name| class_name == expected)
 }
 
 #[requires(index <= char_len)]
@@ -8887,8 +9077,8 @@ fn push_diagnostic_overlay_carets(
             fragments.push(DiagnosticOverlayFragment {
                 text: String::new(),
                 class_name: diagnostic_overlay_caret_class(mark, diagnostics),
-                title: diagnostic_overlay_title(mark, diagnostics),
                 selection_start: selection_offset,
+                diagnostic_index: mark.map(|mark| mark.diagnostic_index),
             });
         }
     }
@@ -9056,17 +9246,6 @@ fn diagnostic_overlay_mark_class(
             ),
         ],
     )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn diagnostic_overlay_title(
-    mark: Option<DiagnosticOverlayMark>,
-    diagnostics: &[Diagnostic],
-) -> String {
-    mark.and_then(|mark| diagnostics.get(mark.diagnostic_index))
-        .map(diagnostic_tooltip_text)
-        .unwrap_or_default()
 }
 
 #[requires(true)]
@@ -14095,6 +14274,14 @@ mod tests {
             &context_prefix.class_name,
             "is-active-context"
         ));
+        assert!(has_css_class(
+            &context_prefix.class_name,
+            "is-active-context-start"
+        ));
+        assert!(!has_css_class(
+            &context_prefix.class_name,
+            "is-active-context-end"
+        ));
         assert!(!has_css_class(
             &context_prefix.class_name,
             "is-active-primary"
@@ -14104,6 +14291,11 @@ mod tests {
             &primary.class_name,
             "is-active-context-token"
         ));
+        assert!(!has_css_class(
+            &primary.class_name,
+            "is-active-context-start"
+        ));
+        assert!(has_css_class(&primary.class_name, "is-active-context-end"));
         assert!(!has_css_class(&primary.class_name, "is-active-context"));
     }
 
