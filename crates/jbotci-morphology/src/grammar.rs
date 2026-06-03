@@ -3,9 +3,10 @@ use jbotci_diagnostics::{TraceEventKind, TraceLevel, TracePhase, TraceRecorder};
 use jbotci_source::{SourceId, SourceSpan};
 
 use crate::{
-    Cmavo, MorphologyContext, MorphologyContextKind, MorphologyError, MorphologyErrorKind,
-    MorphologyOptions, MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind,
-    Phonemes, Verbatim, Word, WordKind, WordLike, WordLikeData, canonical_text_eq,
+    Cmavo, ExpectedWordDetailKind, MorphologyContext, MorphologyContextKind, MorphologyError,
+    MorphologyErrorDetail, MorphologyErrorDetailData, MorphologyErrorKind, MorphologyOptions,
+    MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind, Phonemes, Verbatim, Word,
+    WordKind, WordLike, WordLikeData, ZoiDelimiterDetailKind, canonical_text_eq,
     canonical_text_is_all, canonicalize_text, erasure_selmaho,
 };
 
@@ -386,11 +387,12 @@ impl<'a> Segmenter<'a> {
             self.trace_failure("word", invalid_index, invalid_index + 1, || {
                 Some(format!("unsupported character `{invalid_char}`"))
             });
-            return Err(self.invalid_span(
+            return Err(self.invalid_span_with_detail(
                 MorphologyErrorKind::InvalidCharacter,
                 invalid_index,
                 invalid_index + 1,
                 None,
+                crate::phonotactic_error_detail(MorphologyErrorKind::InvalidCharacter),
             ));
         }
         let normalized = crate::segment::normalize_word_with_options(raw, self.options);
@@ -538,11 +540,14 @@ impl<'a> Segmenter<'a> {
         let quoted = match self.next_plain_non_y_word() {
             Ok(quoted) => quoted,
             Err(error) if is_expected_word_error(&error) => {
-                return Err(self.invalid_span(
+                return Err(self.invalid_span_with_detail(
                     MorphologyErrorKind::ExpectedWord,
                     after_marker,
                     after_marker,
                     quote_context,
+                    Some(new!(MorphologyErrorDetail::ExpectedWord {
+                        expected: ExpectedWordDetailKind::QuoteTarget,
+                    })),
                 ));
             }
             Err(error) => return Err(error_with_fallback_context(error, quote_context)),
@@ -557,11 +562,14 @@ impl<'a> Segmenter<'a> {
         })?;
         let quoted_context = word_like_context(&quoted, MorphologyContextKind::QuotedWord);
         let word = into_bare_word(quoted).ok_or_else(|| {
-            self.invalid_span(
+            self.invalid_span_with_detail(
                 MorphologyErrorKind::ExpectedWord,
                 after_marker,
                 self.index,
                 quoted_context,
+                Some(new!(MorphologyErrorDetail::ExpectedWord {
+                    expected: ExpectedWordDetailKind::QuoteTarget,
+                })),
             )
         })?;
         Ok(vec![base_word_like(WordLike::zo_quote(zo, word))])
@@ -582,11 +590,14 @@ impl<'a> Segmenter<'a> {
         let opening_word_with_modifiers = match self.next_plain_word() {
             Ok(opening_word_with_modifiers) => opening_word_with_modifiers,
             Err(error) if is_expected_word_error(&error) => {
-                return Err(self.invalid_span(
+                return Err(self.invalid_span_with_detail(
                     MorphologyErrorKind::InvalidZoiDelimiter,
                     after_marker,
                     after_marker,
                     quote_context,
+                    Some(new!(MorphologyErrorDetail::InvalidZoiDelimiter {
+                        reason: ZoiDelimiterDetailKind::Missing,
+                    })),
                 ));
             }
             Err(error) => return Err(error_with_fallback_context(error, quote_context)),
@@ -604,15 +615,18 @@ impl<'a> Segmenter<'a> {
             MorphologyContextKind::DelimitedNonLojbanQuote,
         );
         let opening_delimiter = into_bare_word(opening_word_with_modifiers).ok_or_else(|| {
-            self.invalid_span(
+            self.invalid_span_with_detail(
                 MorphologyErrorKind::InvalidZoiDelimiter,
                 after_marker,
                 self.index,
                 delimiter_context,
+                Some(new!(MorphologyErrorDetail::InvalidZoiDelimiter {
+                    reason: ZoiDelimiterDetailKind::NotSingleWord,
+                })),
             )
         })?;
         if is_y_word_text(opening_delimiter.phonemes().as_str()) {
-            return Err(self.invalid_span(
+            return Err(self.invalid_span_with_detail(
                 MorphologyErrorKind::InvalidZoiDelimiter,
                 opening_delimiter.span().char_start,
                 opening_delimiter.span().char_end,
@@ -621,6 +635,9 @@ impl<'a> Segmenter<'a> {
                     after_marker,
                     self.index,
                 ),
+                Some(new!(MorphologyErrorDetail::InvalidZoiDelimiter {
+                    reason: ZoiDelimiterDetailKind::YWord,
+                })),
             ));
         }
         if self.index == self.chars.len() {
@@ -757,11 +774,14 @@ impl<'a> Segmenter<'a> {
         let Some(prev) = acc.pop() else {
             let (start, end) =
                 word_like_char_range(&bu_word_with_modifiers).unwrap_or((self.index, self.index));
-            return Err(self.invalid_span(
+            return Err(self.invalid_span_with_detail(
                 MorphologyErrorKind::ExpectedWord,
                 start,
                 end,
                 word_like_context(&bu_word_with_modifiers, MorphologyContextKind::Bu),
+                Some(new!(MorphologyErrorDetail::ExpectedWord {
+                    expected: ExpectedWordDetailKind::BuOperand,
+                })),
             ));
         };
         let bu_context = word_like_context(&bu_word_with_modifiers, MorphologyContextKind::Bu);
@@ -889,11 +909,14 @@ impl<'a> Segmenter<'a> {
                 };
                 let right_context = word_like_context(&next, MorphologyContextKind::Zei);
                 let Some(right) = into_bare_word(next) else {
-                    return Err(self.invalid_span(
+                    return Err(self.invalid_span_with_detail(
                         MorphologyErrorKind::ExpectedWord,
                         self.index,
                         self.index,
                         right_context,
+                        Some(new!(MorphologyErrorDetail::ExpectedWord {
+                            expected: ExpectedWordDetailKind::ZeiOperand,
+                        })),
                     ));
                 };
                 while acc.len() > prev_index + 1 {
@@ -913,21 +936,27 @@ impl<'a> Segmenter<'a> {
             (None, Ok(_)) => {
                 let (start, end) = word_like_char_range(&zei_word_with_modifiers)
                     .unwrap_or((self.index, self.index));
-                return Err(self.invalid_span(
+                return Err(self.invalid_span_with_detail(
                     MorphologyErrorKind::ExpectedWord,
                     start,
                     end,
                     word_like_context(&zei_word_with_modifiers, MorphologyContextKind::Zei),
+                    Some(new!(MorphologyErrorDetail::ExpectedWord {
+                        expected: ExpectedWordDetailKind::ZeiOperand,
+                    })),
                 ));
             }
             (_, Err(_)) => {
                 let (start, end) = word_like_char_range(&zei_word_with_modifiers)
                     .unwrap_or((self.index, self.index));
-                return Err(self.invalid_span(
+                return Err(self.invalid_span_with_detail(
                     MorphologyErrorKind::ExpectedWord,
                     start,
                     end,
                     word_like_context(&zei_word_with_modifiers, MorphologyContextKind::Zei),
+                    Some(new!(MorphologyErrorDetail::ExpectedWord {
+                        expected: ExpectedWordDetailKind::ZeiOperand,
+                    })),
                 ));
             }
         }
@@ -1206,11 +1235,12 @@ impl<'a> Segmenter<'a> {
         })?;
         let word = if kind == WordKind::Lujvo {
             let parts = crate::segment::parse_lujvo_parts(phonemes.as_str()).ok_or_else(|| {
-                self.invalid_span(
+                self.invalid_span_with_detail(
                     MorphologyErrorKind::InvalidLujvo,
                     start,
                     end,
                     self.context(MorphologyContextKind::Lujvo, start, end),
+                    crate::segment::invalid_lujvo_error_detail(phonemes.as_str()),
                 )
             })?;
             Word::lujvo(parts, span)
@@ -1416,11 +1446,39 @@ impl<'a> Segmenter<'a> {
             self.options,
         );
         if let Some(violation) = crate::segment::first_morphology_violation(&normalized) {
-            return self.invalid_span(
+            let detail = if violation.kind == MorphologyErrorKind::Slinkuhi {
+                Some(new!(MorphologyErrorDetail::Slinkuhi))
+            } else {
+                crate::phonotactic_error_detail(violation.kind)
+            };
+            return self.invalid_span_with_detail(
                 violation.kind,
                 violation.start,
                 violation.end,
                 self.context(context_kind_for_violation(violation.kind), start, end),
+                detail,
+            );
+        }
+        let stripped = normalized
+            .iter()
+            .filter_map(|source_char| (source_char.value != ',').then_some(source_char.value))
+            .collect::<String>();
+        if let Some(detail) = crate::segment::invalid_lujvo_error_detail(&stripped) {
+            return self.invalid_span_with_detail(
+                MorphologyErrorKind::InvalidLujvo,
+                start,
+                end,
+                self.context(MorphologyContextKind::Lujvo, start, end),
+                Some(detail),
+            );
+        }
+        if let Some(detail) = crate::segment::fuhivla_y_error_detail(&stripped) {
+            return self.invalid_span_with_detail(
+                MorphologyErrorKind::UnrecognizedWord,
+                start,
+                end,
+                self.context(MorphologyContextKind::Fuhivla, start, end),
+                Some(detail),
             );
         }
         self.invalid_span(MorphologyErrorKind::UnrecognizedWord, start, end, None)
@@ -1435,12 +1493,26 @@ impl<'a> Segmenter<'a> {
         end: usize,
         context: Option<MorphologyContext>,
     ) -> MorphologyError {
+        self.invalid_span_with_detail(kind, start, end, context, None)
+    }
+
+    #[requires(start <= end && end <= self.chars.len())]
+    #[ensures(true)]
+    fn invalid_span_with_detail(
+        &self,
+        kind: MorphologyErrorKind,
+        start: usize,
+        end: usize,
+        context: Option<MorphologyContext>,
+        detail: Option<MorphologyErrorDetail>,
+    ) -> MorphologyError {
         MorphologyError::Invalid {
             kind,
             char_start: start,
             char_end: end,
             text: self.slice(start, end).to_owned(),
             context,
+            detail,
         }
     }
 
@@ -1499,12 +1571,14 @@ fn error_with_fallback_context(
             char_end,
             text,
             context: None,
+            detail,
         } => MorphologyError::Invalid {
             kind,
             char_start,
             char_end,
             text,
             context: fallback_context,
+            detail,
         },
         MorphologyError::UnterminatedZoiQuote {
             char_offset,
@@ -1535,9 +1609,8 @@ fn word_context_kind(kind: WordKind) -> MorphologyContextKind {
 #[ensures(true)]
 fn context_kind_for_violation(kind: MorphologyErrorKind) -> MorphologyContextKind {
     match kind {
-        MorphologyErrorKind::Slinkuhi | MorphologyErrorKind::InvalidLujvo => {
-            MorphologyContextKind::Lujvo
-        }
+        MorphologyErrorKind::Slinkuhi => MorphologyContextKind::Fuhivla,
+        MorphologyErrorKind::InvalidLujvo => MorphologyContextKind::Lujvo,
         MorphologyErrorKind::InvalidZoiDelimiter => MorphologyContextKind::DelimitedNonLojbanQuote,
         MorphologyErrorKind::InvalidQuoteMarker => MorphologyContextKind::QuotedWord,
         _ => MorphologyContextKind::Fuhivla,
@@ -1929,6 +2002,7 @@ fn digit_to_cmavo(value: char) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{LujvoParseExpectation, PhonotacticDetailKind};
     use bityzba::requires;
 
     #[test]
@@ -2067,6 +2141,90 @@ mod tests {
             .expect_err("CgV relaxation must not bypass fu'ivla shape parsing");
 
         assert_invalid_error(&error, MorphologyErrorKind::UnrecognizedWord, 0, 8, None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_lujvo_reports_parser_progress_for_xlaglymlu() {
+        let error = segment_words_with_modifiers("xlaglymlu", &MorphologyOptions::default(), None)
+            .expect_err("invalid lujvo-like word should fail");
+
+        assert_invalid_error(
+            &error,
+            MorphologyErrorKind::InvalidLujvo,
+            0,
+            9,
+            Some(MorphologyContextKind::Lujvo),
+        );
+        let data!(MorphologyErrorDetail::InvalidLujvo {
+            parsed_prefix,
+            expected,
+        }) = invalid_error_detail(&error)
+            .expect("invalid lujvo detail")
+            .as_data()
+        else {
+            panic!("expected invalid lujvo detail, got {error:?}");
+        };
+        assert_eq!(parsed_prefix.as_deref(), Some("xla"));
+        assert_eq!(*expected, LujvoParseExpectation::FinalOrInitialRafsi);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_lujvo_neighbors_remain_valid() {
+        let xlagymlu =
+            segment_words_with_modifiers("xlagymlu", &MorphologyOptions::default(), None)
+                .expect("valid lujvo with y-hyphen");
+        let laglymlu =
+            segment_words_with_modifiers("laglymlu", &MorphologyOptions::default(), None)
+                .expect("valid lujvo without leading x");
+
+        assert_eq!(
+            bare_word(&xlagymlu[0]).expect("bare word").kind(),
+            WordKind::Lujvo
+        );
+        assert_eq!(
+            bare_word(&laglymlu[0]).expect("bare word").kind(),
+            WordKind::Lujvo
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn slinkuhi_reports_fuhivla_context() {
+        let error = segment_words_with_modifiers("xlamkai", &MorphologyOptions::default(), None)
+            .expect_err("slinku'i form should fail");
+
+        assert_invalid_error(
+            &error,
+            MorphologyErrorKind::Slinkuhi,
+            0,
+            7,
+            Some(MorphologyContextKind::Fuhivla),
+        );
+        let expected = new!(MorphologyErrorDetail::Slinkuhi);
+        assert_eq!(invalid_error_detail(&error), Some(&expected));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fuhivla_y_rejection_reports_y_specific_detail() {
+        let error = segment_words_with_modifiers("jgruyta", &MorphologyOptions::default(), None)
+            .expect_err("fu'ivla candidate with y should fail");
+
+        assert_invalid_error(
+            &error,
+            MorphologyErrorKind::UnrecognizedWord,
+            0,
+            7,
+            Some(MorphologyContextKind::Fuhivla),
+        );
+        let expected = new!(MorphologyErrorDetail::FuhivlaContainsY);
+        assert_eq!(invalid_error_detail(&error), Some(&expected));
     }
 
     #[test]
@@ -2242,16 +2400,16 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn zo_quote_preserves_unrecognized_quoted_word_error() {
+    fn zo_quote_preserves_specific_quoted_word_error() {
         let error = segment_words_with_modifiers("zo biryrka", &MorphologyOptions::default(), None)
             .expect_err("invalid ZO target should surface its own morphology error");
 
         assert_invalid_error(
             &error,
-            MorphologyErrorKind::UnrecognizedWord,
+            MorphologyErrorKind::InvalidLujvo,
             3,
             10,
-            Some(MorphologyContextKind::QuotedWord),
+            Some(MorphologyContextKind::Lujvo),
         );
     }
 
@@ -2269,6 +2427,10 @@ mod tests {
             7,
             Some(MorphologyContextKind::Fuhivla),
         );
+        let expected = new!(MorphologyErrorDetail::Phonotactic {
+            reason: PhonotacticDetailKind::VoicingMismatch,
+        });
+        assert_eq!(invalid_error_detail(&error), Some(&expected));
     }
 
     #[test]
@@ -2317,22 +2479,26 @@ mod tests {
             9,
             Some(MorphologyContextKind::Zei),
         );
+        let expected = new!(MorphologyErrorDetail::ExpectedWord {
+            expected: ExpectedWordDetailKind::ZeiOperand,
+        });
+        assert_eq!(invalid_error_detail(&error), Some(&expected));
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn zei_preserves_unrecognized_right_operand_error() {
+    fn zei_preserves_specific_right_operand_error() {
         let error =
             segment_words_with_modifiers("broda zei biryrka", &MorphologyOptions::default(), None)
                 .expect_err("invalid ZEI right operand should surface its own morphology error");
 
         assert_invalid_error(
             &error,
-            MorphologyErrorKind::UnrecognizedWord,
+            MorphologyErrorKind::InvalidLujvo,
             10,
             17,
-            Some(MorphologyContextKind::Zei),
+            Some(MorphologyContextKind::Lujvo),
         );
     }
 
@@ -2350,12 +2516,16 @@ mod tests {
             3,
             Some(MorphologyContextKind::DelimitedNonLojbanQuote),
         );
+        let expected = new!(MorphologyErrorDetail::InvalidZoiDelimiter {
+            reason: ZoiDelimiterDetailKind::Missing,
+        });
+        assert_eq!(invalid_error_detail(&error), Some(&expected));
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn zoi_quote_preserves_unrecognized_opening_delimiter_error() {
+    fn zoi_quote_preserves_specific_opening_delimiter_error() {
         let error = segment_words_with_modifiers(
             "zoi biryrka foo biryrka",
             &MorphologyOptions::default(),
@@ -2365,10 +2535,10 @@ mod tests {
 
         assert_invalid_error(
             &error,
-            MorphologyErrorKind::UnrecognizedWord,
+            MorphologyErrorKind::InvalidLujvo,
             4,
             11,
-            Some(MorphologyContextKind::DelimitedNonLojbanQuote),
+            Some(MorphologyContextKind::Lujvo),
         );
     }
 
@@ -2387,6 +2557,10 @@ mod tests {
             5,
             Some(MorphologyContextKind::DelimitedNonLojbanQuote),
         );
+        let expected = new!(MorphologyErrorDetail::InvalidZoiDelimiter {
+            reason: ZoiDelimiterDetailKind::YWord,
+        });
+        assert_eq!(invalid_error_detail(&error), Some(&expected));
     }
 
     #[test]
@@ -2458,5 +2632,14 @@ mod tests {
             context.as_ref().map(|context| context.kind),
             expected_context
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_error_detail(error: &MorphologyError) -> Option<&MorphologyErrorDetail> {
+        let MorphologyError::Invalid { detail, .. } = error else {
+            return None;
+        };
+        detail.as_ref()
     }
 }

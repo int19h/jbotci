@@ -4708,6 +4708,47 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlasei_detailed_error_reports_xlaglymlu_lujvo_progress() {
+        let run = run_cli_capture(
+            &["jbotci", "vlasei", "--detailed-errors", "xlaglymlu"],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Failure);
+        assert!(run.stdout.is_empty());
+        assert!(run.stderr.contains("morphology.invalid-lujvo"));
+        assert!(run.stderr.contains("after parsing"));
+        assert!(run.stderr.contains("`xla`"));
+        assert!(!run.stderr.contains("morphology.slinkuhi"));
+        assert!(
+            !run.stderr
+                .contains("reason: word is not a valid Lojban word")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_detailed_error_reports_zoi_delimiter_reason() {
+        let run = run_cli_capture(&["jbotci", "vlasei", "--detailed-errors", "zoi"], false);
+
+        assert_eq!(run.status, CliStatus::Failure);
+        assert!(run.stdout.is_empty());
+        assert!(run.stderr.contains("morphology.invalid-zoi-delimiter"));
+        assert!(run.stderr.contains("ZOI requires an"));
+        assert!(
+            run.stderr
+                .contains("opening delimiter word after the quote marker")
+        );
+        assert!(
+            !run.stderr
+                .contains("reason: ZOI delimiter must be a single non-y word")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlasei_raw_output_is_debug_morphology() {
         let cli = Cli::try_parse_from(["jbotci", "vlasei", "--format", "raw", "coi"])
             .expect("vlasei raw");

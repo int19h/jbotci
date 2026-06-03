@@ -3,7 +3,10 @@ use std::ops::Range;
 use bityzba::{ensures, invariant, new, requires};
 use vec1::Vec1;
 
-use crate::{LujvoPart, MorphologyErrorKind, MorphologyOptions, Phonemes, WordKind};
+use crate::{
+    LujvoParseExpectation, LujvoPart, MorphologyErrorDetail, MorphologyErrorDetailData,
+    MorphologyErrorKind, MorphologyOptions, Phonemes, WordKind,
+};
 
 mod fast;
 pub(crate) use fast::classify_fast_simple_word;
@@ -370,11 +373,105 @@ fn acute_vowel(ch: char) -> char {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
 pub(crate) fn parse_lujvo_parts(word: &str) -> Option<Vec1<LujvoPart>> {
+    match analyze_lujvo_parts(word) {
+        Ok(parts) => Some(parts),
+        Err(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn invalid_lujvo_error_detail(word: &str) -> Option<MorphologyErrorDetail> {
     let chars = text_chars(word);
-    if chars.len() <= 3 || !chars.iter().all(|value| is_lujvo_char(*value)) {
+    if !chars.iter().any(|value| is_y(*value)) {
         return None;
     }
-    Vec1::try_from_vec(lujvo_parts_from(&chars, 0, false)?).ok()
+    let Err(failure) = analyze_lujvo_parts_chars(&chars) else {
+        return None;
+    };
+    failure.to_detail(&chars)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn fuhivla_y_error_detail(word: &str) -> Option<MorphologyErrorDetail> {
+    let chars = text_chars(word);
+    fuhivla_shape_slice_rejected_by_y(&chars, 0, chars.len())
+        .then_some(new!(MorphologyErrorDetail::FuhivlaContainsY))
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct LujvoParseFailure {
+    index: usize,
+    expected: LujvoParseExpectation,
+}
+
+impl LujvoParseFailure {
+    #[requires(true)]
+    #[ensures(ret.index == index)]
+    #[ensures(ret.expected == expected)]
+    fn new(index: usize, expected: LujvoParseExpectation) -> Self {
+        LujvoParseFailure {
+            index: index,
+            expected: expected,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn to_detail(self, chars: &[char]) -> Option<MorphologyErrorDetail> {
+        if self.index == 0 || self.index > chars.len() {
+            return None;
+        }
+        Some(new!(MorphologyErrorDetail::InvalidLujvo {
+            parsed_prefix: Some(chars[..self.index].iter().collect()),
+            expected: self.expected,
+        }))
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|parts| !parts.is_empty()) || ret.as_ref().is_err())]
+fn analyze_lujvo_parts(word: &str) -> Result<Vec1<LujvoPart>, LujvoParseFailure> {
+    let chars = text_chars(word);
+    analyze_lujvo_parts_chars(&chars)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|parts| !parts.is_empty()) || ret.as_ref().is_err())]
+fn analyze_lujvo_parts_chars(chars: &[char]) -> Result<Vec1<LujvoPart>, LujvoParseFailure> {
+    let mut failure = None;
+    if chars.len() <= 3 || !chars.iter().all(|value| is_lujvo_char(*value)) {
+        record_lujvo_failure(&mut failure, 0, false);
+        return Err(failure.expect("initial lujvo failure was recorded"));
+    }
+    if let Some(parts) = lujvo_parts_from(chars, 0, false, &mut failure)
+        && let Ok(parts) = Vec1::try_from_vec(parts)
+    {
+        return Ok(parts);
+    }
+    Err(failure.unwrap_or_else(|| {
+        LujvoParseFailure::new(0, LujvoParseExpectation::InitialOrStandaloneFinalRafsi)
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn record_lujvo_failure(
+    failure: &mut Option<LujvoParseFailure>,
+    index: usize,
+    has_initial_rafsi: bool,
+) {
+    let expected = if has_initial_rafsi {
+        LujvoParseExpectation::FinalOrInitialRafsi
+    } else {
+        LujvoParseExpectation::InitialOrStandaloneFinalRafsi
+    };
+    let candidate = LujvoParseFailure::new(index, expected);
+    if failure.is_none_or(|current| candidate.index > current.index) {
+        *failure = Some(candidate);
+    }
 }
 
 #[requires(true)]
@@ -1087,8 +1184,10 @@ fn lujvo_parts_from(
     chars: &[char],
     index: usize,
     has_initial_rafsi: bool,
+    failure: &mut Option<LujvoParseFailure>,
 ) -> Option<Vec<LujvoPart>> {
     if index >= chars.len() {
+        record_lujvo_failure(failure, index, has_initial_rafsi);
         return None;
     }
     if has_initial_rafsi && is_lujvo_core(chars, index) {
@@ -1101,13 +1200,14 @@ fn lujvo_parts_from(
         if end <= index {
             continue;
         }
-        let Some(mut rest) = lujvo_parts_from(chars, end, true) else {
+        let Some(mut rest) = lujvo_parts_from(chars, end, true, failure) else {
             continue;
         };
         let mut parts = initial_rafsi_parts(chars, index, end)?;
         parts.append(&mut rest);
         return Some(parts);
     }
+    record_lujvo_failure(failure, index, has_initial_rafsi);
     None
 }
 
@@ -1476,6 +1576,25 @@ fn is_fuhivla_shape(word: &str) -> bool {
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn is_fuhivla_shape_slice(chars: &[char], start: usize, end: usize) -> bool {
+    is_fuhivla_shape_slice_with_y_policy(chars, start, end, false)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn fuhivla_shape_slice_rejected_by_y(chars: &[char], start: usize, end: usize) -> bool {
+    start < end
+        && chars[start..end].iter().any(|value| is_y(*value))
+        && is_fuhivla_shape_slice_with_y_policy(chars, start, end, true)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn is_fuhivla_shape_slice_with_y_policy(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    allows_y: bool,
+) -> bool {
     if end <= start
         || end - start < 4
         || !chars[end - 1..end].iter().all(|value| is_vowel(*value))
@@ -1484,7 +1603,7 @@ fn is_fuhivla_shape_slice(chars: &[char], start: usize, end: usize) -> bool {
             .filter(|value| is_vowel(**value))
             .count()
             < 2
-        || chars[start..end].iter().any(|value| is_y(*value))
+        || (!allows_y && chars[start..end].iter().any(|value| is_y(*value)))
         || has_vowel_hiatus(&chars[start..end])
     {
         return false;

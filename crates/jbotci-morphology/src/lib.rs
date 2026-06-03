@@ -1102,6 +1102,204 @@ impl MorphologyContext {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+pub enum LujvoParseExpectation {
+    InitialOrStandaloneFinalRafsi,
+    FinalOrInitialRafsi,
+}
+
+impl LujvoParseExpectation {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn description(self) -> &'static str {
+        match self {
+            Self::InitialOrStandaloneFinalRafsi => "an initial rafsi or a standalone final rafsi",
+            Self::FinalOrInitialRafsi => "a final rafsi or another initial rafsi",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+pub enum ExpectedWordDetailKind {
+    PlainWord,
+    QuoteTarget,
+    BuOperand,
+    ZeiOperand,
+    ZoiDelimiter,
+}
+
+impl ExpectedWordDetailKind {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn description(self) -> &'static str {
+        match self {
+            Self::PlainWord => "the parser reached a point where a Lojban word is required",
+            Self::QuoteTarget => "ZO requires one following non-y word to quote",
+            Self::BuOperand => "BU must attach to a preceding word",
+            Self::ZeiOperand => "ZEI must have a word on both sides",
+            Self::ZoiDelimiter => "ZOI requires an opening delimiter word after the quote marker",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+pub enum ZoiDelimiterDetailKind {
+    Missing,
+    YWord,
+    NotSingleWord,
+}
+
+impl ZoiDelimiterDetailKind {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn description(self) -> &'static str {
+        match self {
+            Self::Missing => "ZOI requires an opening delimiter word after the quote marker",
+            Self::YWord => "y is grammar noise, so it cannot delimit a ZOI quote",
+            Self::NotSingleWord => "a ZOI delimiter must be exactly one bare word",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+pub enum PhonotacticDetailKind {
+    InvalidCharacter,
+    InvalidApostrophe,
+    GeminatedConsonant,
+    VoicingMismatch,
+    ForbiddenConsonantPair,
+    ForbiddenConsonantTriple,
+    VowelHiatus,
+    YHiatus,
+    BreveNotGlide,
+    DigitApostrophe,
+    DigitVowel,
+}
+
+impl PhonotacticDetailKind {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn description(self) -> &'static str {
+        match self {
+            Self::InvalidCharacter => "this character is not part of Lojban morphology",
+            Self::InvalidApostrophe => "apostrophe can only separate two vowel nuclei",
+            Self::GeminatedConsonant => "the same consonant appears twice in a row",
+            Self::VoicingMismatch => "this consonant pair mixes voiced and unvoiced consonants",
+            Self::ForbiddenConsonantPair => "this consonant pair is not a permissible Lojban pair",
+            Self::ForbiddenConsonantTriple => {
+                "this consonant triple does not contain a permissible adjacent pair"
+            }
+            Self::VowelHiatus => "these adjacent vowel nuclei need a separating apostrophe",
+            Self::YHiatus => "y cannot be immediately followed by another vowel nucleus",
+            Self::BreveNotGlide => "a breve-marked vowel must be part of a glide",
+            Self::DigitApostrophe => "digit lerfu cannot be followed directly by apostrophe",
+            Self::DigitVowel => "digit lerfu cannot be followed directly by a vowel nucleus",
+        }
+    }
+}
+
+#[invariant(true)]
+#[invariant(::InvalidLujvo => parsed_prefix.as_ref().is_none_or(|prefix| !prefix.is_empty()))]
+#[invariant(::ExpectedWord => matches!(expected,
+    ExpectedWordDetailKind::PlainWord
+        | ExpectedWordDetailKind::QuoteTarget
+        | ExpectedWordDetailKind::BuOperand
+        | ExpectedWordDetailKind::ZeiOperand
+        | ExpectedWordDetailKind::ZoiDelimiter))]
+#[invariant(::InvalidZoiDelimiter => matches!(reason,
+    ZoiDelimiterDetailKind::Missing
+        | ZoiDelimiterDetailKind::YWord
+        | ZoiDelimiterDetailKind::NotSingleWord))]
+#[invariant(::Phonotactic => matches!(reason,
+    PhonotacticDetailKind::InvalidCharacter
+        | PhonotacticDetailKind::InvalidApostrophe
+        | PhonotacticDetailKind::GeminatedConsonant
+        | PhonotacticDetailKind::VoicingMismatch
+        | PhonotacticDetailKind::ForbiddenConsonantPair
+        | PhonotacticDetailKind::ForbiddenConsonantTriple
+        | PhonotacticDetailKind::VowelHiatus
+        | PhonotacticDetailKind::YHiatus
+        | PhonotacticDetailKind::BreveNotGlide
+        | PhonotacticDetailKind::DigitApostrophe
+        | PhonotacticDetailKind::DigitVowel))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MorphologyErrorDetail {
+    InvalidLujvo {
+        parsed_prefix: Option<String>,
+        expected: LujvoParseExpectation,
+    },
+    FuhivlaContainsY,
+    Slinkuhi,
+    ExpectedWord {
+        expected: ExpectedWordDetailKind,
+    },
+    InvalidZoiDelimiter {
+        reason: ZoiDelimiterDetailKind,
+    },
+    Phonotactic {
+        reason: PhonotacticDetailKind,
+    },
+}
+
+impl MorphologyErrorDetail {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn construct(&self) -> &'static str {
+        match self.as_data() {
+            data!(MorphologyErrorDetail::InvalidLujvo { .. }) => "invalid lujvo",
+            data!(MorphologyErrorDetail::FuhivlaContainsY) => "fu'ivla",
+            data!(MorphologyErrorDetail::Slinkuhi) => "slinku'i",
+            data!(MorphologyErrorDetail::ExpectedWord { .. }) => "expected word",
+            data!(MorphologyErrorDetail::InvalidZoiDelimiter { .. }) => "ZOI delimiter",
+            data!(MorphologyErrorDetail::Phonotactic { .. }) => "phonotactics",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn reason(&self) -> String {
+        match self.as_data() {
+            data!(MorphologyErrorDetail::InvalidLujvo {
+                parsed_prefix,
+                expected,
+            }) => parsed_prefix.as_ref().map_or_else(
+                || {
+                    format!(
+                        "the lujvo parser expected {} at the start",
+                        expected.description()
+                    )
+                },
+                |prefix| {
+                    format!(
+                        "after parsing `{prefix}`, the lujvo parser expected {} at the next source position",
+                        expected.description()
+                    )
+                },
+            ),
+            data!(MorphologyErrorDetail::FuhivlaContainsY) => {
+                "fu'ivla syllables cannot use y as a vowel nucleus".to_owned()
+            }
+            data!(MorphologyErrorDetail::Slinkuhi) => {
+                "adding a leading consonant before a lujvo-shaped form would break word resolution"
+                    .to_owned()
+            }
+            data!(MorphologyErrorDetail::ExpectedWord { expected }) => {
+                expected.description().to_owned()
+            }
+            data!(MorphologyErrorDetail::InvalidZoiDelimiter { reason }) => {
+                reason.description().to_owned()
+            }
+            data!(MorphologyErrorDetail::Phonotactic { reason }) => {
+                reason.description().to_owned()
+            }
+        }
+    }
+}
+
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Invalid => true)]
@@ -1115,6 +1313,7 @@ pub enum MorphologyError {
         char_end: usize,
         text: String,
         context: Option<MorphologyContext>,
+        detail: Option<MorphologyErrorDetail>,
     },
     #[error("unterminated ZOI quote, expected closing delimiter `{delimiter}`")]
     UnterminatedZoiQuote {
@@ -1137,24 +1336,23 @@ impl MorphologyError {
                 char_end,
                 text,
                 context,
-            } => morphology_diagnostic(
-                source_id.clone(),
-                source,
-                new!(MorphologyDiagnosticDetails {
-                    severity: DiagnosticSeverity::Error,
-                    code: kind.code(),
-                    message: kind.message(),
-                }),
-                *char_start,
-                *char_end,
-                kind.message(),
-                context.as_ref(),
-            )
-            .with_styled_notes(vec![morphology_detail_note(
-                kind.message(),
-                text,
-                kind.message(),
-            )]),
+                detail,
+            } => {
+                let diagnostic = morphology_diagnostic(
+                    source_id.clone(),
+                    source,
+                    new!(MorphologyDiagnosticDetails {
+                        severity: DiagnosticSeverity::Error,
+                        code: kind.code(),
+                        message: kind.message(),
+                    }),
+                    *char_start,
+                    *char_end,
+                    kind.message(),
+                    context.as_ref(),
+                );
+                diagnostic_with_optional_detail(diagnostic, text, detail.as_ref())
+            }
             Self::UnterminatedZoiQuote {
                 char_offset,
                 delimiter,
@@ -1195,6 +1393,48 @@ impl MorphologyError {
             }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(!ret.code.is_empty())]
+fn diagnostic_with_optional_detail(
+    diagnostic: Diagnostic,
+    text: &str,
+    detail: Option<&MorphologyErrorDetail>,
+) -> Diagnostic {
+    let Some(detail) = detail else {
+        return diagnostic;
+    };
+    let reason = detail.reason();
+    diagnostic.with_styled_notes(vec![morphology_detail_note(
+        detail.construct(),
+        text,
+        &reason,
+    )])
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn phonotactic_error_detail(kind: MorphologyErrorKind) -> Option<MorphologyErrorDetail> {
+    let reason = match kind {
+        MorphologyErrorKind::InvalidCharacter => PhonotacticDetailKind::InvalidCharacter,
+        MorphologyErrorKind::InvalidApostrophe => PhonotacticDetailKind::InvalidApostrophe,
+        MorphologyErrorKind::GeminatedConsonant => PhonotacticDetailKind::GeminatedConsonant,
+        MorphologyErrorKind::VoicingMismatch => PhonotacticDetailKind::VoicingMismatch,
+        MorphologyErrorKind::ForbiddenConsonantPair => {
+            PhonotacticDetailKind::ForbiddenConsonantPair
+        }
+        MorphologyErrorKind::ForbiddenConsonantTriple => {
+            PhonotacticDetailKind::ForbiddenConsonantTriple
+        }
+        MorphologyErrorKind::VowelHiatus => PhonotacticDetailKind::VowelHiatus,
+        MorphologyErrorKind::YHiatus => PhonotacticDetailKind::YHiatus,
+        MorphologyErrorKind::BreveNotGlide => PhonotacticDetailKind::BreveNotGlide,
+        MorphologyErrorKind::DigitApostrophe => PhonotacticDetailKind::DigitApostrophe,
+        MorphologyErrorKind::DigitVowel => PhonotacticDetailKind::DigitVowel,
+        _ => return None,
+    };
+    Some(new!(MorphologyErrorDetail::Phonotactic { reason }))
 }
 
 #[requires(!message.is_empty())]
@@ -2072,6 +2312,11 @@ mod tests {
         assert_eq!(label.span.byte_end, 3);
         assert_eq!(label.span.char_start, 0);
         assert_eq!(label.span.char_end, 2);
+        assert!(diagnostic.styled_notes.iter().any(|note| {
+            note.segments
+                .iter()
+                .any(|segment| segment.text.contains("adjacent vowel nuclei"))
+        }));
     }
 
     #[test]
