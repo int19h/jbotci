@@ -75,6 +75,8 @@ struct Cli {
 #[invariant(::ExportWebEmbeddingCorpus(..) => true)]
 #[invariant(::BuildWebEmbeddings(..) => true)]
 #[invariant(::DistServer(..) => true)]
+#[invariant(::RenderDockerBuild(..) => true)]
+#[invariant(::RenderDockerRun(..) => true)]
 enum Command {
     Check,
     Test,
@@ -98,6 +100,8 @@ enum Command {
     ExportWebEmbeddingCorpus(ExportWebEmbeddingCorpusArgs),
     BuildWebEmbeddings(BuildWebEmbeddingsArgs),
     DistServer(DistServerArgs),
+    RenderDockerBuild(RenderDockerBuildArgs),
+    RenderDockerRun(RenderDockerRunArgs),
 }
 
 #[derive(Debug, Args)]
@@ -230,7 +234,7 @@ struct BuildWebEmbeddingsArgs {
 struct DistServerArgs {
     #[arg(long, default_value = ".jbotci-build/jbotci-web")]
     out_dir: PathBuf,
-    #[arg(long, default_value = "/jbotci")]
+    #[arg(long, default_value = "/")]
     base_path: String,
     #[arg(long)]
     skip_web_bundle: bool,
@@ -240,6 +244,40 @@ struct DistServerArgs {
     embedding_dtypes: Vec<String>,
     #[arg(long, default_value = "transformers")]
     embedding_backend: String,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct RenderDockerBuildArgs {
+    #[arg(long, default_value = "jbotci-render:local")]
+    image: String,
+    #[arg(long, default_value = "/")]
+    base_path: String,
+    #[arg(long = "embedding-dtype", default_values_t = ["q4".to_owned(), "q8".to_owned()])]
+    embedding_dtypes: Vec<String>,
+    #[arg(long, default_value = "transformers")]
+    embedding_backend: String,
+    #[arg(long)]
+    no_cache: bool,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct RenderDockerRunArgs {
+    #[arg(long, default_value = "jbotci-render:local")]
+    image: String,
+    #[arg(long, default_value_t = 8080)]
+    host_port: u16,
+    #[arg(long, default_value_t = 10000)]
+    container_port: u16,
+    #[arg(long, default_value = "/")]
+    base_path: String,
+    #[arg(long = "embedding-dtype", default_values_t = ["q4".to_owned(), "q8".to_owned()])]
+    embedding_dtypes: Vec<String>,
+    #[arg(long, default_value = "transformers")]
+    embedding_backend: String,
+    #[arg(long)]
+    no_build: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -325,6 +363,8 @@ fn main() -> Result<()> {
         Command::ExportWebEmbeddingCorpus(args) => export_web_embedding_corpus(args),
         Command::BuildWebEmbeddings(args) => build_web_embeddings(args),
         Command::DistServer(args) => dist_server(args),
+        Command::RenderDockerBuild(args) => render_docker_build(args),
+        Command::RenderDockerRun(args) => render_docker_run(args),
     }
 }
 
@@ -760,40 +800,43 @@ fn dist_server(args: DistServerArgs) -> Result<()> {
             &args.embedding_backend,
         )?;
     }
-    build_server_binary()
+    server_bundle_path(&out_dir).map(|_| ())
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
+    clean_dioxus_web_release_output()?;
     prepare_dioxus_web_public_input()?;
-    let base_path = normalized_dist_base_path(base_path);
-    let dioxus_public = Path::new("target/dx/jbotci-web/release/web/public");
-    if dioxus_public.exists() {
-        fs::remove_dir_all(dioxus_public)
-            .with_context(|| format!("removing old Dioxus output `{}`", dioxus_public.display()))?;
-    }
-    let mut command = dx_web_release_command("bundle");
+    let mut command = ProcessCommand::new("dx");
     set_dioxus_base_path_env(&mut command, &base_path);
     command
+        .arg("bundle")
         .arg("--out-dir")
         .arg(out_dir)
+        .arg("@client")
+        .arg("--web")
+        .arg("-p")
+        .arg("jbotci-web")
+        .arg("--release")
+        .arg("--debug-symbols=false")
+        .arg("--inject-loading-scripts=false")
         .arg("--base-path")
-        .arg(base_path);
+        .arg(base_path)
+        .arg("@server")
+        .arg("--server")
+        .arg("-p")
+        .arg("jbotci-server")
+        .arg("--release");
     let status = command.status().context("failed to run `dx bundle`")?;
     check_status(
         status,
-        "dx bundle --web --release --debug-symbols=false --inject-loading-scripts=false",
+        "dx bundle @client --web -p jbotci-web --release @server --server -p jbotci-server --release",
     )?;
     let web_dist = web_dist_dir(out_dir)?;
     write_release_service_worker(&web_dist)?;
+    server_bundle_path(out_dir)?;
     Ok(())
-}
-
-#[requires(true)]
-#[ensures(!ret.starts_with('/'))]
-fn normalized_dist_base_path(base_path: &str) -> String {
-    base_path.trim().trim_matches('/').to_owned()
 }
 
 #[requires(out_dir.is_absolute())]
@@ -809,6 +852,109 @@ fn web_dist_dir(out_dir: &Path) -> Result<PathBuf> {
                 out_dir.display()
             )
         })
+}
+
+#[requires(out_dir.is_absolute())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_file()) || ret.is_err())]
+fn server_bundle_path(out_dir: &Path) -> Result<PathBuf> {
+    let server = out_dir.join("server");
+    if server.is_file() {
+        Ok(server)
+    } else {
+        bail!(
+            "could not find Dioxus server bundle executable at `{}`",
+            server.display()
+        )
+    }
+}
+
+#[requires(!args.image.trim().is_empty())]
+#[requires(!args.embedding_dtypes.is_empty())]
+#[requires(!args.embedding_backend.trim().is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn render_docker_build(args: RenderDockerBuildArgs) -> Result<()> {
+    let mut command = ProcessCommand::new("docker");
+    command.arg("build");
+    if args.no_cache {
+        command.arg("--no-cache");
+    }
+    command
+        .arg("-f")
+        .arg("deploy/render/Dockerfile")
+        .arg("-t")
+        .arg(&args.image)
+        .arg("--build-arg")
+        .arg(format!("BASE_PATH={}", args.base_path))
+        .arg("--build-arg")
+        .arg(format!("EMBEDDING_BACKEND={}", args.embedding_backend))
+        .arg("--build-arg")
+        .arg(format!(
+            "EMBEDDING_DTYPES={}",
+            docker_embedding_dtypes_arg(&args.embedding_dtypes)
+        ))
+        .arg(".");
+    let status = command
+        .status()
+        .context("failed to run Render Docker build")?;
+    check_status(status, "docker build -f deploy/render/Dockerfile")
+}
+
+#[requires(!args.image.trim().is_empty())]
+#[requires(!args.embedding_dtypes.is_empty())]
+#[requires(!args.embedding_backend.trim().is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn render_docker_run(args: RenderDockerRunArgs) -> Result<()> {
+    if !args.no_build {
+        render_docker_build(RenderDockerBuildArgs {
+            image: args.image.clone(),
+            base_path: args.base_path.clone(),
+            embedding_dtypes: args.embedding_dtypes.clone(),
+            embedding_backend: args.embedding_backend.clone(),
+            no_cache: false,
+        })?;
+    }
+    let host_url = format!("http://127.0.0.1:{}", args.host_port);
+    println!("running {} on {}", args.image, host_url);
+    let status = ProcessCommand::new("docker")
+        .arg("run")
+        .arg("--rm")
+        .arg("-p")
+        .arg(format!(
+            "127.0.0.1:{}:{}",
+            args.host_port, args.container_port
+        ))
+        .arg("-e")
+        .arg("IP=0.0.0.0")
+        .arg("-e")
+        .arg(format!("PORT={}", args.container_port))
+        .arg("-e")
+        .arg(format!(
+            "DIOXUS_ASSET_ROOT={}",
+            dioxus_runtime_asset_root(&args.base_path)
+        ))
+        .arg("-e")
+        .arg("DIOXUS_PUBLIC_PATH=/opt/jbotci/public")
+        .arg(&args.image)
+        .status()
+        .context("failed to run Render Docker image")?;
+    check_status(status, "docker run jbotci-render")
+}
+
+#[requires(!dtypes.is_empty())]
+#[ensures(!ret.is_empty())]
+fn docker_embedding_dtypes_arg(dtypes: &[String]) -> String {
+    dtypes.join(" ")
+}
+
+#[requires(true)]
+#[ensures(ret.starts_with('/'))]
+fn dioxus_runtime_asset_root(base_path: &str) -> String {
+    let trimmed = base_path.trim().trim_matches('/');
+    if trimmed.is_empty() {
+        "/".to_owned()
+    } else {
+        format!("/{trimmed}")
+    }
 }
 
 #[requires(true)]
@@ -1143,19 +1289,6 @@ fn ensure_node_embedding_dependencies() -> Result<()> {
         .status()
         .context("failed to run `npm ci --prefix tools/embedding-pack`")?;
     check_status(status, "npm ci --prefix tools/embedding-pack")
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn build_server_binary() -> Result<()> {
-    let status = ProcessCommand::new("cargo")
-        .arg("build")
-        .arg("-p")
-        .arg("jbotci-server")
-        .arg("--release")
-        .status()
-        .context("failed to run server release build")?;
-    check_status(status, "cargo build -p jbotci-server --release")
 }
 
 #[requires(true)]
@@ -4256,6 +4389,26 @@ mod tests {
         assert_eq!(dioxus_asset_root(" / "), None);
         assert_eq!(dioxus_asset_root("/jbotci"), Some("/jbotci".to_owned()));
         assert_eq!(dioxus_asset_root("jbotci/"), Some("/jbotci".to_owned()));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dioxus_runtime_asset_root_keeps_root_explicit_for_render() {
+        assert_eq!(dioxus_runtime_asset_root("/"), "/");
+        assert_eq!(dioxus_runtime_asset_root(""), "/");
+        assert_eq!(dioxus_runtime_asset_root("/jbotci"), "/jbotci");
+        assert_eq!(dioxus_runtime_asset_root("jbotci/"), "/jbotci");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn docker_embedding_dtypes_are_passed_as_one_build_arg_value() {
+        assert_eq!(
+            docker_embedding_dtypes_arg(&["q4".to_owned(), "q8".to_owned()]),
+            "q4 q8"
+        );
     }
 
     #[test]

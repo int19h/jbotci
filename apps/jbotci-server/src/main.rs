@@ -7,7 +7,7 @@ use bityzba::{ensures, requires};
 #[requires(true)]
 #[ensures(true)]
 async fn main() -> ExitCode {
-    match jbotci_server::run_server(jbotci_server::config_from_cli()).await {
+    match jbotci_server::run_server(jbotci_server::config_from_env()).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("jbotci-server: {error}");

@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: jbotci
+    runtime: docker
+    dockerfilePath: ./deploy/render/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: IP
+        value: 0.0.0.0
+      - key: DIOXUS_ASSET_ROOT
+        value: /
+      - key: DIOXUS_PUBLIC_PATH
+        value: /opt/jbotci/public

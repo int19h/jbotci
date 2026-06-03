@@ -24,12 +24,13 @@ use jbotci_output::{
 #[cfg(test)]
 use jbotci_web_core::ReferenceSlotLabel;
 use jbotci_web_core::{
-    CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption, CuktaPageData, CuktaPageKind,
-    CuktaSearchResultCard, CuktaSemanticSearchHit, CuktaTargetOption, CuktaTocNode, CuktaWebMode,
-    CuktaWebSearchState, CuktaWebState, CuktaWebView, DictionaryTooltipCard, GentufaBlock,
-    GentufaBlocksLayout, GentufaBracketFragment, GentufaCell, GentufaError, GentufaScript,
-    GentufaSuccess, GentufaTreeGuide, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest,
-    GentufaWebResult, GentufaWebState, GentufaWebViewMode, PageMeta, ReferenceLabel,
+    APPLE_TOUCH_ICON_ASSET_PATH, CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption,
+    CuktaPageData, CuktaPageKind, CuktaSearchResultCard, CuktaSemanticSearchHit, CuktaTargetOption,
+    CuktaTocNode, CuktaWebMode, CuktaWebSearchState, CuktaWebState, CuktaWebView,
+    DictionaryTooltipCard, FAVICON_ASSET_PATH, GentufaBlock, GentufaBlocksLayout,
+    GentufaBracketFragment, GentufaCell, GentufaError, GentufaScript, GentufaSuccess,
+    GentufaTreeGuide, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest, GentufaWebResult,
+    GentufaWebState, GentufaWebViewMode, MANIFEST_ASSET_PATH, PageMeta, ReferenceLabel,
     ReferenceMarker, ReferenceMarkerRole, ReferenceTooltip, ReferenceTooltipInline,
     ReferenceTooltipInlineData, ReferenceTooltipRow, VLACKU_WEB_DEFAULT_COUNT,
     VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece, VlackuCompositionPieceKind,
@@ -38,7 +39,7 @@ use jbotci_web_core::{
     VlackuJvozbaSegmentTone, VlackuMath, VlackuSemanticSearchHit, VlackuVoteDisplay,
     VlackuWebAuthor, VlackuWebCard, VlackuWebMode, VlackuWebResult, VlackuWebState,
     VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest, WebComputeResponse,
-    WebFeatureAvailability, WebRoute, build_page_meta, build_vlacku_jvozba_output,
+    WebFeatureAvailability, WebRoute, build_page_head, build_page_meta, build_vlacku_jvozba_output,
     dictionary_tooltip_for_rafsi, dictionary_tooltip_for_word, gentufa_web_url,
     normalize_vlacku_state, parse_web_route, reference_slot_display_text,
     toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
@@ -72,9 +73,6 @@ const COMPUTE_WORKER_JS: Asset = asset!("/assets/compute-worker.js");
 const EMBEDDINGS_JS: Asset = asset!("/assets/embeddings.js");
 const EMBEDDING_WORKER_JS: Asset = asset!("/assets/embedding-worker.js");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
-const MANIFEST_PATH: &str = "/manifest.webmanifest";
-const FAVICON_PATH: &str = "/assets/icons/jbotci-icon-192.png";
-const APPLE_TOUCH_ICON_PATH: &str = "/assets/icons/apple-touch-icon.png";
 const BUILD_GIT_COMMIT: Option<&str> = option_env!("JBOTCI_GIT_COMMIT");
 const BUILD_GIT_COMMIT_SHORT: Option<&str> = option_env!("JBOTCI_GIT_COMMIT_SHORT");
 const NOTO_SANS: Asset = asset!("/assets/fonts/noto-sans-variable.ttf");
@@ -1583,9 +1581,10 @@ fn AppShell() -> Element {
         theme_class(settings_value.theme),
         script_class(settings_value.script)
     );
-    let manifest_href = static_asset_href_with_base_path(&base_path, MANIFEST_PATH);
-    let favicon_href = static_asset_href_with_base_path(&base_path, FAVICON_PATH);
-    let apple_touch_icon_href = static_asset_href_with_base_path(&base_path, APPLE_TOUCH_ICON_PATH);
+    let manifest_href = static_asset_href_with_base_path(&base_path, MANIFEST_ASSET_PATH);
+    let favicon_href = static_asset_href_with_base_path(&base_path, FAVICON_ASSET_PATH);
+    let apple_touch_icon_href =
+        static_asset_href_with_base_path(&base_path, APPLE_TOUCH_ICON_ASSET_PATH);
 
     rsx! {
         style { "{font_face_css()}" }
@@ -13634,7 +13633,8 @@ fn sync_document_head(meta: &PageMeta) {
     let Some(document) = window.document() else {
         return;
     };
-    document.set_title(&meta.title);
+    let head_model = build_page_head(meta);
+    document.set_title(&head_model.title);
     if let Ok(nodes) = document.query_selector_all("[data-jbotci-meta='1']") {
         for index in 0..nodes.length() {
             if let Some(node) = nodes.item(index)
@@ -13647,16 +13647,10 @@ fn sync_document_head(meta: &PageMeta) {
     let Ok(Some(head)) = document.query_selector("head") else {
         return;
     };
-    let canonical_url = absolute_href_for_client(&meta.canonical_url);
-    let base_path = router_base_path();
-    let manifest_href =
-        absolute_href_for_client(&static_asset_href_with_base_path(&base_path, MANIFEST_PATH));
-    let icon_href =
-        absolute_href_for_client(&static_asset_href_with_base_path(&base_path, FAVICON_PATH));
-    let apple_touch_icon_href = absolute_href_for_client(&static_asset_href_with_base_path(
-        &base_path,
-        APPLE_TOUCH_ICON_PATH,
-    ));
+    let canonical_url = absolute_href_for_client(&head_model.canonical_url);
+    let manifest_href = absolute_href_for_client(&head_model.manifest_href);
+    let icon_href = absolute_href_for_client(&head_model.icon_href);
+    let apple_touch_icon_href = absolute_href_for_client(&head_model.apple_touch_icon_href);
     append_meta_name(&document, &head, "application-name", "jbotci");
     append_meta_name(&document, &head, "apple-mobile-web-app-capable", "yes");
     append_meta_name(&document, &head, "apple-mobile-web-app-title", "jbotci");
@@ -13665,31 +13659,36 @@ fn sync_document_head(meta: &PageMeta) {
         &document,
         &head,
         "theme-color",
-        "#f6f1e8",
+        &head_model.light_theme_color,
         &[("media", "(prefers-color-scheme: light)")],
     );
     append_meta_name_with_extra(
         &document,
         &head,
         "theme-color",
-        "#090705",
+        &head_model.dark_theme_color,
         &[("media", "(prefers-color-scheme: dark)")],
     );
     append_link(&document, &head, "manifest", &manifest_href);
     append_link(&document, &head, "icon", &icon_href);
     append_link(&document, &head, "shortcut icon", &icon_href);
     append_link(&document, &head, "apple-touch-icon", &apple_touch_icon_href);
-    append_meta_name(&document, &head, "description", &meta.description);
+    append_meta_name(&document, &head, "description", &head_model.description);
     append_link(&document, &head, "canonical", &canonical_url);
-    append_meta_property(&document, &head, "og:title", &meta.title);
-    append_meta_property(&document, &head, "og:description", &meta.description);
+    append_meta_property(&document, &head, "og:title", &head_model.title);
+    append_meta_property(&document, &head, "og:description", &head_model.description);
     append_meta_property(&document, &head, "og:type", "website");
     append_meta_property(&document, &head, "og:url", &canonical_url);
-    append_meta_name(&document, &head, "twitter:title", &meta.title);
-    append_meta_name(&document, &head, "twitter:description", &meta.description);
-    if let Some(image) = &meta.image {
+    append_meta_name(&document, &head, "twitter:title", &head_model.title);
+    append_meta_name(
+        &document,
+        &head,
+        "twitter:description",
+        &head_model.description,
+    );
+    append_meta_name(&document, &head, "twitter:card", &head_model.twitter_card);
+    if let Some(image) = &head_model.image {
         let image_url = absolute_href_for_client(&image.href);
-        append_meta_name(&document, &head, "twitter:card", "summary_large_image");
         append_meta_property(&document, &head, "og:image", &image_url);
         append_meta_name(&document, &head, "twitter:image", &image_url);
         append_meta_property(&document, &head, "og:image:width", &image.width.to_string());
@@ -13699,8 +13698,6 @@ fn sync_document_head(meta: &PageMeta) {
             "og:image:height",
             &image.height.to_string(),
         );
-    } else {
-        append_meta_name(&document, &head, "twitter:card", "summary");
     }
 }
 

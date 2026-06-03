@@ -1321,6 +1321,34 @@ pub struct PageMeta {
     pub image: Option<SocialImage>,
 }
 
+#[invariant(!self.title.is_empty())]
+#[invariant(!self.description.is_empty())]
+#[invariant(self.canonical_url.starts_with('/'))]
+#[invariant(self.manifest_href.starts_with('/'))]
+#[invariant(self.icon_href.starts_with('/'))]
+#[invariant(self.apple_touch_icon_href.starts_with('/'))]
+#[invariant(!self.twitter_card.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct PageHead {
+    pub title: String,
+    pub description: String,
+    pub canonical_url: String,
+    pub manifest_href: String,
+    pub icon_href: String,
+    pub apple_touch_icon_href: String,
+    pub light_theme_color: String,
+    pub dark_theme_color: String,
+    pub twitter_card: String,
+    pub image: Option<SocialImage>,
+}
+
+pub const FAVICON_ASSET_PATH: &str = "/assets/icons/jbotci-icon-192.png";
+pub const APPLE_TOUCH_ICON_ASSET_PATH: &str = "/assets/icons/apple-touch-icon.png";
+pub const MANIFEST_ASSET_PATH: &str = "/manifest.webmanifest";
+pub const META_BLOCK_START: &str = "<!-- jbotci-meta-start -->";
+pub const META_BLOCK_END: &str = "<!-- jbotci-meta-end -->";
+
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -2107,6 +2135,86 @@ pub fn build_page_meta(base_path: &str, route: &WebRoute) -> PageMeta {
             None,
         ),
     }
+}
+
+#[requires(true)]
+#[ensures(!ret.title.is_empty())]
+pub fn build_page_head(meta: &PageMeta) -> PageHead {
+    let asset_base = base_path_from_canonical(&meta.canonical_url);
+    new!(PageHead {
+        title: meta.title.clone(),
+        description: meta.description.clone(),
+        canonical_url: meta.canonical_url.clone(),
+        manifest_href: prefixed_web_path(&asset_base, MANIFEST_ASSET_PATH),
+        icon_href: prefixed_web_path(&asset_base, FAVICON_ASSET_PATH),
+        apple_touch_icon_href: prefixed_web_path(&asset_base, APPLE_TOUCH_ICON_ASSET_PATH),
+        light_theme_color: "#f6f1e8".to_owned(),
+        dark_theme_color: "#090705".to_owned(),
+        twitter_card: if meta.image.is_some() {
+            "summary_large_image".to_owned()
+        } else {
+            "summary".to_owned()
+        },
+        image: meta.image.clone(),
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.contains(META_BLOCK_START))]
+pub fn render_page_head_metadata_block(
+    origin: Option<&str>,
+    meta: &PageMeta,
+    include_title: bool,
+) -> String {
+    let head = build_page_head(meta);
+    let canonical_url = absolute_page_head_url(origin, &head.canonical_url);
+    let mut lines = Vec::new();
+    lines.push(META_BLOCK_START.to_owned());
+    if include_title {
+        lines.push(format!("<title>{}</title>", escape_html_text(&head.title)));
+    }
+    lines.push(meta_tag("application-name", "jbotci"));
+    lines.push(meta_tag("apple-mobile-web-app-capable", "yes"));
+    lines.push(meta_tag("apple-mobile-web-app-title", "jbotci"));
+    lines.push(meta_tag("mobile-web-app-capable", "yes"));
+    lines.push(meta_tag_with_extra(
+        "theme-color",
+        &head.light_theme_color,
+        " media=\"(prefers-color-scheme: light)\"",
+    ));
+    lines.push(meta_tag_with_extra(
+        "theme-color",
+        &head.dark_theme_color,
+        " media=\"(prefers-color-scheme: dark)\"",
+    ));
+    lines.push(link_tag("manifest", &head.manifest_href));
+    lines.push(link_tag("icon", &head.icon_href));
+    lines.push(link_tag("shortcut icon", &head.icon_href));
+    lines.push(link_tag("apple-touch-icon", &head.apple_touch_icon_href));
+    lines.push(meta_tag("description", &head.description));
+    lines.push(link_tag("canonical", &canonical_url));
+    lines.push(property_meta_tag("og:title", &head.title));
+    lines.push(property_meta_tag("og:description", &head.description));
+    lines.push(property_meta_tag("og:type", "website"));
+    lines.push(property_meta_tag("og:url", &canonical_url));
+    lines.push(meta_tag("twitter:title", &head.title));
+    lines.push(meta_tag("twitter:description", &head.description));
+    lines.push(meta_tag("twitter:card", &head.twitter_card));
+    if let Some(image) = &head.image {
+        let image_url = absolute_page_head_url(origin, &image.href);
+        lines.push(property_meta_tag("og:image", &image_url));
+        lines.push(meta_tag("twitter:image", &image_url));
+        lines.push(property_meta_tag(
+            "og:image:width",
+            &image.width.to_string(),
+        ));
+        lines.push(property_meta_tag(
+            "og:image:height",
+            &image.height.to_string(),
+        ));
+    }
+    lines.push(META_BLOCK_END.to_owned());
+    format!("\n{}\n", lines.join("\n"))
 }
 
 #[requires(!title.is_empty())]
@@ -3105,6 +3213,102 @@ fn prefixed_web_path(base_path: &str, suffix: &str) -> String {
     } else {
         format!("{prefix}{suffix}")
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn base_path_from_canonical(canonical_url: &str) -> String {
+    let path = canonical_url
+        .split_once('?')
+        .map_or(canonical_url, |(path, _)| path);
+    ["/gentufa", "/cukta", "/vlacku", "/settings"]
+        .iter()
+        .find_map(|route| path.find(route).map(|index| path[..index].to_owned()))
+        .unwrap_or_default()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn absolute_page_head_url(origin: Option<&str>, href: &str) -> String {
+    if href.starts_with('/') {
+        if let Some(origin) = origin.filter(|value| !value.trim().is_empty()) {
+            format!("{}{}", origin.trim_end_matches('/'), href)
+        } else {
+            href.to_owned()
+        }
+    } else {
+        href.to_owned()
+    }
+}
+
+#[requires(!name.is_empty())]
+#[ensures(ret.contains("meta"))]
+fn meta_tag(name: &str, content: &str) -> String {
+    meta_tag_with_extra(name, content, "")
+}
+
+#[requires(!name.is_empty())]
+#[ensures(ret.contains("meta"))]
+fn meta_tag_with_extra(name: &str, content: &str, extra_attributes: &str) -> String {
+    format!(
+        "<meta name=\"{}\" content=\"{}\"{}>",
+        escape_html_attr(name),
+        escape_html_attr(content),
+        extra_attributes
+    )
+}
+
+#[requires(!property.is_empty())]
+#[ensures(ret.contains("meta"))]
+fn property_meta_tag(property: &str, content: &str) -> String {
+    format!(
+        "<meta property=\"{}\" content=\"{}\">",
+        escape_html_attr(property),
+        escape_html_attr(content),
+    )
+}
+
+#[requires(!rel.is_empty())]
+#[requires(href.starts_with('/') || href.starts_with("http://") || href.starts_with("https://"))]
+#[ensures(ret.contains("link"))]
+fn link_tag(rel: &str, href: &str) -> String {
+    format!(
+        "<link rel=\"{}\" href=\"{}\">",
+        escape_html_attr(rel),
+        escape_html_attr(href),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn escape_html_text(input: &str) -> String {
+    let mut output = String::new();
+    for ch in input.chars() {
+        match ch {
+            '&' => output.push_str("&amp;"),
+            '<' => output.push_str("&lt;"),
+            '>' => output.push_str("&gt;"),
+            _ => output.push(ch),
+        }
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn escape_html_attr(input: &str) -> String {
+    let mut output = String::new();
+    for ch in input.chars() {
+        match ch {
+            '&' => output.push_str("&amp;"),
+            '<' => output.push_str("&lt;"),
+            '>' => output.push_str("&gt;"),
+            '"' => output.push_str("&quot;"),
+            '\'' => output.push_str("&#39;"),
+            _ => output.push(ch),
+        }
+    }
+    output
 }
 
 #[requires(true)]
@@ -5698,6 +5902,53 @@ mod tests {
         assert_eq!(gentufa.title, "mi klama - jbotci gentufa");
         assert!(gentufa.description.starts_with("Parse succeeded:"));
         assert!(gentufa.image.is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn page_head_assets_follow_metadata_canonical_base_path() {
+        let meta = build_page_meta("/jbotci", &parse_web_route("/vlacku/klama", ""));
+        let head = build_page_head(&meta);
+
+        assert_eq!(head.title, "klama - jbotci vlacku");
+        assert_eq!(head.canonical_url, "/jbotci/vlacku/klama");
+        assert_eq!(head.manifest_href, "/jbotci/manifest.webmanifest");
+        assert_eq!(head.icon_href, "/jbotci/assets/icons/jbotci-icon-192.png");
+        assert_eq!(
+            head.apple_touch_icon_href,
+            "/jbotci/assets/icons/apple-touch-icon.png"
+        );
+        assert_eq!(head.twitter_card, "summary");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn page_head_metadata_block_escapes_text_and_attributes() {
+        let meta = page_meta(
+            "A & <B>".to_owned(),
+            "Quote \" & <desc>".to_owned(),
+            "/jbotci/gentufa?text=a&b=\"".to_owned(),
+            Some(social_image(
+                "/jbotci/assets/social/image\".png".to_owned(),
+                1200,
+                630,
+            )),
+        );
+        let block = render_page_head_metadata_block(Some("https://example.test"), &meta, true);
+
+        assert!(block.contains(META_BLOCK_START));
+        assert!(block.contains("<title>A &amp; &lt;B&gt;</title>"));
+        assert!(block.contains("content=\"Quote &quot; &amp; &lt;desc&gt;\""));
+        assert!(
+            block.contains("content=\"https://example.test/jbotci/gentufa?text=a&amp;b=&quot;\"")
+        );
+        assert!(block.contains("name=\"twitter:card\" content=\"summary_large_image\""));
+        assert!(
+            block.contains("content=\"https://example.test/jbotci/assets/social/image&quot;.png\"")
+        );
+        assert!(block.contains(META_BLOCK_END));
     }
 
     #[test]

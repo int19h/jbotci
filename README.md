@@ -30,11 +30,19 @@ cargo xtask test
 cargo xtask clippy
 cargo xtask fixture-check
 cargo xtask fixture-list --profile cargo
-cargo build-web-release
+cargo xtask build-web-release
+cargo xtask dist-server --out-dir .jbotci-build/jbotci-web --base-path /
+cargo xtask render-docker-build --embedding-backend fixture
+cargo xtask render-docker-run --embedding-backend fixture
 ```
 
 Use the web release wrappers instead of raw `dx` release commands while Dioxus
 0.7.x needs `--debug-symbols=false` to avoid the wasm-opt DWARF abort.
+
+`dist-server` produces the Dioxus server bundle shape used for deployment:
+`<out>/server` plus `<out>/public`. The Render Docker path builds that bundle
+inside `deploy/render/Dockerfile` and runs the server with `IP`, `PORT`,
+`DIOXUS_ASSET_ROOT`, and `DIOXUS_PUBLIC_PATH`.
 
 The parser facets are scaffolded but intentionally return `NotImplemented` at
 this checkpoint. Use `cargo xtask fixture-test --profile all --facet morphology

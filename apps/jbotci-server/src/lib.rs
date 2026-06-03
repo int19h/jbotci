@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use axum::body::Body;
-use axum::extract::State;
+use axum::extract::Extension;
 use axum::http::header::{
     ACCEPT_ENCODING, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE, HOST, HeaderMap, HeaderValue,
     LOCATION,
@@ -17,55 +17,27 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
-use clap::Parser;
+use dioxus::server::{DioxusRouterExt, FullstackState};
 use jbotci_web_core::{
-    GentufaError, GentufaWebRequest, GentufaWebResult, PageMeta, WebFeatureAvailability, WebRoute,
-    build_page_meta, parse_gentufa_for_web, parse_web_route,
+    FAVICON_ASSET_PATH, GentufaError, GentufaWebRequest, GentufaWebResult, MANIFEST_ASSET_PATH,
+    META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability, WebRoute, build_page_meta,
+    parse_gentufa_for_web, parse_web_route, render_page_head_metadata_block,
 };
 use serde::Serialize;
-
-#[derive(Debug, Parser)]
-#[command(name = "jbotci-server")]
-#[command(about = "Server application for jbotci web and HTTP integrations")]
-#[invariant(true)]
-pub struct Cli {
-    #[arg(long, default_value = "127.0.0.1")]
-    pub host: String,
-    #[arg(long, default_value_t = 8080)]
-    pub port: u16,
-    #[arg(long, default_value = "/jbotci")]
-    pub base_path: String,
-    #[arg(long)]
-    pub static_dir: Option<PathBuf>,
-}
 
 #[derive(Debug, Clone)]
 #[invariant(true)]
 pub struct ServerConfig {
-    pub host: String,
-    pub port: u16,
+    pub address: SocketAddr,
     pub base_path: String,
-    pub static_dir: Option<PathBuf>,
-}
-
-impl From<Cli> for ServerConfig {
-    #[requires(true)]
-    #[ensures(true)]
-    fn from(cli: Cli) -> Self {
-        Self {
-            host: cli.host,
-            port: cli.port,
-            base_path: normalize_base_path(&cli.base_path),
-            static_dir: cli.static_dir,
-        }
-    }
+    pub public_dir: PathBuf,
 }
 
 #[derive(Debug, Clone)]
 #[invariant(true)]
 struct AppState {
     base_path: String,
-    static_dir: Option<PathBuf>,
+    public_dir: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -75,29 +47,31 @@ struct HealthResponse {
     features: WebFeatureAvailability,
 }
 
-const FAVICON_ASSET_PATH: &str = "/assets/icons/jbotci-icon-192.png";
-const APPLE_TOUCH_ICON_ASSET_PATH: &str = "/assets/icons/apple-touch-icon.png";
-const MANIFEST_ASSET_PATH: &str = "/manifest.webmanifest";
 const SERVICE_WORKER_ASSET_PATH: &str = "/service-worker.js";
-const META_BLOCK_START: &str = "<!-- jbotci-meta-start -->";
-const META_BLOCK_END: &str = "<!-- jbotci-meta-end -->";
+const DIOXUS_PUBLIC_PATH_ENV: &str = "DIOXUS_PUBLIC_PATH";
 
 #[requires(true)]
 #[ensures(ret.base_path.starts_with('/'))]
-pub fn config_from_cli() -> ServerConfig {
-    Cli::parse().into()
+pub fn config_from_env() -> ServerConfig {
+    let address = dioxus::cli_config::fullstack_address_or_localhost();
+    let base_path = normalize_base_path(dioxus::cli_config::base_path().as_deref().unwrap_or("/"));
+    let public_dir = public_dir_from_env_or_exe(
+        std::env::var_os(DIOXUS_PUBLIC_PATH_ENV).map(PathBuf::from),
+        std::env::current_exe().ok().as_deref(),
+    );
+    ServerConfig {
+        address,
+        base_path,
+        public_dir,
+    }
 }
 
-#[requires(!config.host.is_empty())]
 #[requires(config.base_path.starts_with('/'))]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub async fn run_server(config: ServerConfig) -> Result<()> {
-    let address: SocketAddr = format!("{}:{}", config.host, config.port)
-        .parse()
-        .with_context(|| format!("invalid listen address `{}:{}`", config.host, config.port))?;
-    let listener = tokio::net::TcpListener::bind(address)
+    let listener = tokio::net::TcpListener::bind(config.address)
         .await
-        .with_context(|| format!("failed to bind `{address}`"))?;
+        .with_context(|| format!("failed to bind `{}`", config.address))?;
     axum::serve(listener, router(config))
         .await
         .context("server failed")?;
@@ -109,14 +83,23 @@ pub async fn run_server(config: ServerConfig) -> Result<()> {
 pub fn router(config: ServerConfig) -> Router {
     let state = Arc::new(AppState {
         base_path: normalize_base_path(&config.base_path),
-        static_dir: config.static_dir,
+        public_dir: config.public_dir,
     });
-    Router::new()
+    let use_dioxus_static_assets = dioxus_public_dir()
+        .as_ref()
+        .is_some_and(|public_dir| public_dir.is_dir() && public_dir == &state.public_dir);
+    let router = Router::<FullstackState>::new()
         .route("/api/health", get(health))
         .route("/api/features", get(features))
         .route("/api/gentufa", post(gentufa))
         .fallback(static_or_spa)
-        .with_state(state)
+        .layer(Extension(Arc::clone(&state)));
+    let router = if use_dioxus_static_assets {
+        router.serve_static_assets()
+    } else {
+        router
+    };
+    router.with_state(FullstackState::headless())
 }
 
 #[requires(true)]
@@ -132,6 +115,34 @@ fn normalize_base_path(base_path: &str) -> String {
         format!("/{trimmed}")
     };
     with_leading.trim_end_matches('/').to_owned()
+}
+
+#[requires(true)]
+#[ensures(!ret.as_os_str().is_empty())]
+fn public_dir_from_env_or_exe(
+    env_public_path: Option<PathBuf>,
+    current_exe: Option<&Path>,
+) -> PathBuf {
+    env_public_path.unwrap_or_else(|| {
+        current_exe
+            .and_then(Path::parent)
+            .map(|parent| parent.join("public"))
+            .unwrap_or_else(|| PathBuf::from("public"))
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dioxus_public_dir() -> Option<PathBuf> {
+    std::env::var_os(DIOXUS_PUBLIC_PATH_ENV)
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::current_exe()
+                .ok()
+                .as_deref()
+                .and_then(Path::parent)
+                .map(|parent| parent.join("public"))
+        })
 }
 
 #[requires(true)]
@@ -176,15 +187,18 @@ fn gentufa_task_error(error: tokio::task::JoinError) -> GentufaWebResult {
 #[requires(true)]
 #[ensures(true)]
 async fn static_or_spa(
-    State(state): State<Arc<AppState>>,
+    Extension(state): Extension<Arc<AppState>>,
     headers: HeaderMap,
     uri: Uri,
 ) -> Response<Body> {
     let request_path = uri.path();
     if request_path == "/favicon.ico" {
-        if let Some(static_dir) = &state.static_dir
-            && let Some(response) =
-                static_dir_response(static_dir, FAVICON_ASSET_PATH, accepts_brotli(&headers)).await
+        if let Some(response) = static_dir_response(
+            &state.public_dir,
+            FAVICON_ASSET_PATH,
+            accepts_brotli(&headers),
+        )
+        .await
         {
             return response;
         }
@@ -208,9 +222,8 @@ async fn static_or_spa(
             .await
             .unwrap_or_else(|| plain_response(StatusCode::NOT_FOUND, "not found"));
     }
-    if let Some(static_dir) = &state.static_dir
-        && let Some(response) =
-            static_dir_response(static_dir, &asset_path, accepts_brotli(&headers)).await
+    if let Some(response) =
+        static_dir_response(&state.public_dir, &asset_path, accepts_brotli(&headers)).await
     {
         return response;
     }
@@ -255,11 +268,9 @@ async fn build_page_meta_blocking(base_path: String, route: WebRoute) -> Option<
 #[requires(true)]
 #[ensures(true)]
 async fn load_index_html_bytes(state: &AppState) -> Option<Vec<u8>> {
-    if let Some(static_dir) = &state.static_dir {
-        let index_path = static_dir.join("index.html");
-        if let Ok(bytes) = tokio::fs::read(index_path).await {
-            return Some(bytes);
-        }
+    let index_path = state.public_dir.join("index.html");
+    if let Ok(bytes) = tokio::fs::read(index_path).await {
+        return Some(bytes);
     }
     None
 }
@@ -429,7 +440,7 @@ fn asset_response(
 fn apply_spa_head_metadata(html: &str, origin: Option<&str>, meta: &PageMeta) -> String {
     let without_old_block = remove_managed_meta_block(html);
     let (with_title, inserted_title) = replace_title(&without_old_block, &meta.title);
-    let block = render_meta_block(origin, meta, !inserted_title);
+    let block = render_page_head_metadata_block(origin, meta, !inserted_title);
     if let Some(head_end) = with_title.find("</head>") {
         let mut output = String::with_capacity(with_title.len() + block.len() + 1);
         output.push_str(&with_title[..head_end]);
@@ -479,149 +490,6 @@ fn replace_title(html: &str, title: &str) -> (String, bool) {
 }
 
 #[requires(true)]
-#[ensures(ret.contains(META_BLOCK_START))]
-fn render_meta_block(origin: Option<&str>, meta: &PageMeta, include_title: bool) -> String {
-    let canonical_url = absolute_url(origin, &meta.canonical_url);
-    let mut lines = Vec::new();
-    lines.push(META_BLOCK_START.to_owned());
-    if include_title {
-        lines.push(format!("<title>{}</title>", escape_html_text(&meta.title)));
-    }
-    lines.push(meta_tag("application-name", "jbotci"));
-    lines.push(meta_tag("apple-mobile-web-app-capable", "yes"));
-    lines.push(meta_tag("apple-mobile-web-app-title", "jbotci"));
-    lines.push(meta_tag("mobile-web-app-capable", "yes"));
-    lines.push(meta_tag_with_extra(
-        "theme-color",
-        "#f6f1e8",
-        " media=\"(prefers-color-scheme: light)\"",
-    ));
-    lines.push(meta_tag_with_extra(
-        "theme-color",
-        "#090705",
-        " media=\"(prefers-color-scheme: dark)\"",
-    ));
-    let asset_base = base_path_from_canonical(&meta.canonical_url);
-    lines.push(link_tag(
-        "manifest",
-        &prefixed_asset_path(&asset_base, MANIFEST_ASSET_PATH),
-    ));
-    lines.push(link_tag(
-        "icon",
-        &prefixed_asset_path(&asset_base, FAVICON_ASSET_PATH),
-    ));
-    lines.push(link_tag(
-        "shortcut icon",
-        &prefixed_asset_path(&asset_base, FAVICON_ASSET_PATH),
-    ));
-    lines.push(link_tag(
-        "apple-touch-icon",
-        &prefixed_asset_path(&asset_base, APPLE_TOUCH_ICON_ASSET_PATH),
-    ));
-    lines.push(meta_tag("description", &meta.description));
-    lines.push(link_tag("canonical", &canonical_url));
-    lines.push(property_meta_tag("og:title", &meta.title));
-    lines.push(property_meta_tag("og:description", &meta.description));
-    lines.push(property_meta_tag("og:type", "website"));
-    lines.push(property_meta_tag("og:url", &canonical_url));
-    lines.push(meta_tag("twitter:title", &meta.title));
-    lines.push(meta_tag("twitter:description", &meta.description));
-    if let Some(image) = &meta.image {
-        let image_url = absolute_url(origin, &image.href);
-        lines.push(meta_tag("twitter:card", "summary_large_image"));
-        lines.push(property_meta_tag("og:image", &image_url));
-        lines.push(meta_tag("twitter:image", &image_url));
-        lines.push(property_meta_tag(
-            "og:image:width",
-            &image.width.to_string(),
-        ));
-        lines.push(property_meta_tag(
-            "og:image:height",
-            &image.height.to_string(),
-        ));
-    } else {
-        lines.push(meta_tag("twitter:card", "summary"));
-    }
-    lines.push(META_BLOCK_END.to_owned());
-    format!("\n{}\n", lines.join("\n"))
-}
-
-#[requires(!name.is_empty())]
-#[ensures(ret.contains("meta"))]
-fn meta_tag(name: &str, content: &str) -> String {
-    meta_tag_with_extra(name, content, "")
-}
-
-#[requires(!name.is_empty())]
-#[ensures(ret.contains("meta"))]
-fn meta_tag_with_extra(name: &str, content: &str, extra_attributes: &str) -> String {
-    format!(
-        "<meta name=\"{}\" content=\"{}\"{}>",
-        escape_html_attr(name),
-        escape_html_attr(content),
-        extra_attributes
-    )
-}
-
-#[requires(!property.is_empty())]
-#[ensures(ret.contains("meta"))]
-fn property_meta_tag(property: &str, content: &str) -> String {
-    format!(
-        "<meta property=\"{}\" content=\"{}\">",
-        escape_html_attr(property),
-        escape_html_attr(content),
-    )
-}
-
-#[requires(!rel.is_empty())]
-#[requires(href.starts_with('/') || href.starts_with("http://") || href.starts_with("https://"))]
-#[ensures(ret.contains("link"))]
-fn link_tag(rel: &str, href: &str) -> String {
-    format!(
-        "<link rel=\"{}\" href=\"{}\">",
-        escape_html_attr(rel),
-        escape_html_attr(href),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn base_path_from_canonical(canonical_url: &str) -> String {
-    let path = canonical_url
-        .split_once('?')
-        .map_or(canonical_url, |(path, _)| path);
-    ["/gentufa", "/cukta", "/vlacku", "/settings"]
-        .iter()
-        .find_map(|route| path.find(route).map(|index| path[..index].to_owned()))
-        .unwrap_or_default()
-}
-
-#[requires(suffix.starts_with('/'))]
-#[ensures(ret.starts_with('/'))]
-fn prefixed_asset_path(base_path: &str, suffix: &str) -> String {
-    let base_path = base_path.trim_end_matches('/');
-    if base_path.is_empty() {
-        suffix.to_owned()
-    } else {
-        format!("{base_path}{suffix}")
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn absolute_url(origin: Option<&str>, href: &str) -> String {
-    if href.starts_with('/') {
-        if let Some(origin) = origin.filter(|value| !value.trim().is_empty()) {
-            format!("{}{}", origin.trim_end_matches('/'), href)
-        } else {
-            href.to_owned()
-        }
-    } else {
-        href.to_owned()
-    }
-}
-
-#[requires(true)]
 #[ensures(true)]
 fn request_origin(headers: &HeaderMap) -> Option<String> {
     let host = headers
@@ -651,23 +519,6 @@ fn escape_html_text(input: &str) -> String {
             '&' => output.push_str("&amp;"),
             '<' => output.push_str("&lt;"),
             '>' => output.push_str("&gt;"),
-            _ => output.push(ch),
-        }
-    }
-    output
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn escape_html_attr(input: &str) -> String {
-    let mut output = String::new();
-    for ch in input.chars() {
-        match ch {
-            '&' => output.push_str("&amp;"),
-            '<' => output.push_str("&lt;"),
-            '>' => output.push_str("&gt;"),
-            '"' => output.push_str("&quot;"),
-            '\'' => output.push_str("&#39;"),
             _ => output.push(ch),
         }
     }
@@ -757,6 +608,22 @@ mod tests {
     }
 
     #[requires(true)]
+    #[ensures(ret.base_path.starts_with('/'))]
+    fn test_config(public_dir: PathBuf) -> ServerConfig {
+        test_config_with_base_path("/jbotci", public_dir)
+    }
+
+    #[requires(base_path.starts_with('/'))]
+    #[ensures(ret.base_path.starts_with('/'))]
+    fn test_config_with_base_path(base_path: &str, public_dir: PathBuf) -> ServerConfig {
+        ServerConfig {
+            address: "127.0.0.1:0".parse().expect("valid test address"),
+            base_path: base_path.to_owned(),
+            public_dir,
+        }
+    }
+
+    #[requires(true)]
     #[ensures(true)]
     async fn response_text(response: Response<Body>) -> String {
         let bytes = to_bytes(response.into_body(), usize::MAX)
@@ -821,16 +688,65 @@ mod tests {
         );
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn public_dir_uses_dioxus_env_before_exe_adjacent_default() {
+        assert_eq!(
+            public_dir_from_env_or_exe(
+                Some(PathBuf::from("/tmp/jbotci-public")),
+                Some(Path::new("/opt/jbotci/server")),
+            ),
+            PathBuf::from("/tmp/jbotci-public")
+        );
+        assert_eq!(
+            public_dir_from_env_or_exe(None, Some(Path::new("/opt/jbotci/server"))),
+            PathBuf::from("/opt/jbotci/public")
+        );
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn health_and_features_routes_return_availability() {
+        let app = router(test_config(test_static_dir()));
+        let health = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/health")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("health response");
+        assert_eq!(health.status(), StatusCode::OK);
+        let health_json: serde_json::Value =
+            serde_json::from_str(&response_text(health).await).expect("health JSON");
+        assert_eq!(health_json["status"], "ok");
+        assert_eq!(health_json["features"]["gentufa"], true);
+
+        let features = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/features")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("features response");
+        assert_eq!(features.status(), StatusCode::OK);
+        let features_json: serde_json::Value =
+            serde_json::from_str(&response_text(features).await).expect("features JSON");
+        assert_eq!(features_json["cukta"], true);
+        assert_eq!(features_json["vlacku"], true);
+    }
+
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
     async fn gentufa_api_matches_direct_parser() {
-        let app = router(ServerConfig {
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            base_path: "/jbotci".to_owned(),
-            static_dir: None,
-        });
+        let app = router(test_config(test_static_dir()));
         let request = GentufaWebRequest {
             text: "mi klama".to_owned(),
             options: Default::default(),
@@ -861,12 +777,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     async fn missing_api_route_does_not_fall_back_to_spa() {
-        let app = router(ServerConfig {
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            base_path: "/jbotci".to_owned(),
-            static_dir: None,
-        });
+        let app = router(test_config(test_static_dir()));
         let response = app
             .clone()
             .oneshot(
@@ -894,12 +805,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     async fn embedding_assets_return_404_without_static_dir() {
-        let app = router(ServerConfig {
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            base_path: "/jbotci".to_owned(),
-            static_dir: None,
-        });
+        let app = router(test_config(test_static_dir()));
         let response = app
             .oneshot(
                 Request::builder()
@@ -933,12 +839,7 @@ mod tests {
             [0u8, 0, 0, 0],
         )
         .expect("write vector file");
-        let app = router(ServerConfig {
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            base_path: "/jbotci".to_owned(),
-            static_dir: Some(static_dir),
-        });
+        let app = router(test_config(static_dir));
         let catalog = app
             .clone()
             .oneshot(
@@ -990,12 +891,7 @@ mod tests {
         std::fs::create_dir_all(static_dir.join("assets")).expect("create assets dir");
         std::fs::write(static_dir.join("assets/app.js"), "plain").expect("write asset");
         std::fs::write(static_dir.join("assets/app.js.br"), "brotli").expect("write br asset");
-        let app = router(ServerConfig {
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            base_path: "/jbotci".to_owned(),
-            static_dir: Some(static_dir),
-        });
+        let app = router(test_config(static_dir));
         let response = app
             .oneshot(
                 Request::builder()
@@ -1033,12 +929,7 @@ mod tests {
         std::fs::create_dir_all(static_dir.join("assets")).expect("create assets dir");
         std::fs::write(static_dir.join("assets/app.js"), "plain").expect("write asset");
         std::fs::write(static_dir.join("assets/app.js.br"), "brotli").expect("write br asset");
-        let app = router(ServerConfig {
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            base_path: "/jbotci".to_owned(),
-            static_dir: Some(static_dir),
-        });
+        let app = router(test_config(static_dir));
         let response = app
             .oneshot(
                 Request::builder()
@@ -1058,12 +949,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     async fn missing_static_asset_returns_404() {
-        let app = router(ServerConfig {
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            base_path: "/jbotci".to_owned(),
-            static_dir: Some(test_static_dir()),
-        });
+        let app = router(test_config(test_static_dir()));
         let response = app
             .oneshot(
                 Request::builder()
@@ -1087,12 +973,7 @@ mod tests {
             .expect("test root has parent")
             .join("secret.txt");
         std::fs::write(&secret_path, "secret").expect("write secret");
-        let app = router(ServerConfig {
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            base_path: "/jbotci".to_owned(),
-            static_dir: Some(static_dir),
-        });
+        let app = router(test_config(static_dir));
         let response = app
             .oneshot(
                 Request::builder()
@@ -1110,12 +991,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     async fn root_redirects_to_gentufa_route() {
-        let app = router(ServerConfig {
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            base_path: "/jbotci".to_owned(),
-            static_dir: None,
-        });
+        let app = router(test_config(test_static_dir()));
         let response = app
             .oneshot(
                 Request::builder()
@@ -1138,14 +1014,33 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
+    async fn root_base_redirects_to_unprefixed_gentufa_route() {
+        let app = router(test_config_with_base_path("/", test_static_dir()));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::FOUND);
+        assert_eq!(
+            response
+                .headers()
+                .get(LOCATION)
+                .and_then(|value| value.to_str().ok()),
+            Some("/gentufa"),
+        );
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
     async fn root_favicon_serves_v0_png_icon() {
         let static_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../jbotci-web");
-        let app = router(ServerConfig {
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            base_path: "/jbotci".to_owned(),
-            static_dir: Some(static_dir),
-        });
+        let app = router(test_config(static_dir));
         let response = app
             .oneshot(
                 Request::builder()
@@ -1173,12 +1068,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     async fn spa_gentufa_metadata_is_rendered_without_social_image() {
-        let app = router(ServerConfig {
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            base_path: "/jbotci".to_owned(),
-            static_dir: Some(test_static_dir()),
-        });
+        let app = router(test_config(test_static_dir()));
         let response = app
             .oneshot(
                 Request::builder()
@@ -1212,12 +1102,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     async fn spa_cukta_and_vlacku_metadata_include_canonical_social_tags() {
-        let app = router(ServerConfig {
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            base_path: "/jbotci".to_owned(),
-            static_dir: Some(test_static_dir()),
-        });
+        let app = router(test_config(test_static_dir()));
         let cukta = app
             .clone()
             .oneshot(
@@ -1258,6 +1143,29 @@ mod tests {
             vlacku_body.contains(
                 "property=\"og:url\" content=\"http://example.test/jbotci/vlacku/klama\""
             )
+        );
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn spa_unknown_route_uses_default_gentufa_metadata() {
+        let app = router(test_config(test_static_dir()));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/unknown-route")
+                    .header(HOST, "example.test")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_text(response).await;
+        assert!(body.contains("<title>jbotci gentufa</title>"));
+        assert!(
+            body.contains("property=\"og:url\" content=\"http://example.test/jbotci/gentufa\"")
         );
     }
 }
