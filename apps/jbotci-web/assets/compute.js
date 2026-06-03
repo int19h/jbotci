@@ -3,7 +3,7 @@ let configuredAppModuleUrl = null;
 let nextRequestId = 1;
 
 const MIN_IDLE_WORKERS = 1;
-const MAX_IDLE_WORKERS = 1;
+const MAX_IDLE_WORKERS = 3;
 
 const pending = new Map();
 const channelRequests = new Map();
