@@ -56,6 +56,7 @@ use jbotci_semantics::references::{
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_source_and_options_attempt};
+use math_core::{LatexToMathML, MathCoreConfig, MathDisplay};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -281,7 +282,7 @@ pub struct ReferenceTooltipRow {
 #[invariant(true)]
 #[invariant(::Text(text) => !text.is_empty())]
 #[invariant(::WordRef { label, href, .. } => !label.is_empty() && !href.is_empty())]
-#[invariant(::Math(math) => !math.parts.is_empty())]
+#[invariant(::Math(math) => !math.source.is_empty())]
 #[invariant(::IndexedPlace { text, place, .. } => !text.is_empty() && *place > 0)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -585,22 +586,7 @@ fn append_inline_plain_text(inline: &VlackuInline, output: &mut String) {
     match inline.as_data() {
         data!(VlackuInline::Text(text)) => output.push_str(text),
         data!(VlackuInline::WordRef { label, .. }) => output.push_str(label),
-        data!(VlackuInline::Math(math)) => {
-            for part in &math.parts {
-                match part.as_data() {
-                    data!(VlackuMathPart::Text(text)) | data!(VlackuMathPart::Operator(text)) => {
-                        output.push_str(text)
-                    }
-                    data!(VlackuMathPart::Variable { stem, subscript }) => {
-                        output.push_str(stem);
-                        if let Some(subscript) = subscript {
-                            output.push('_');
-                            output.push_str(subscript);
-                        }
-                    }
-                }
-            }
-        }
+        data!(VlackuInline::Math(math)) => output.push_str(&math.source),
     }
 }
 
@@ -1491,7 +1477,7 @@ pub enum VlackuVoteDisplay {
 #[invariant(true)]
 #[invariant(::Text(text) => !text.is_empty())]
 #[invariant(::WordRef { label, href, .. } => !label.is_empty() && !href.is_empty())]
-#[invariant(::Math(math) => !math.parts.is_empty())]
+#[invariant(::Math(math) => !math.source.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum VlackuInline {
@@ -1504,26 +1490,13 @@ pub enum VlackuInline {
     Math(VlackuMath),
 }
 
-#[invariant(!self.parts.is_empty())]
+#[invariant(!self.source.is_empty())]
+#[invariant(self.markup.starts_with("<math") && self.markup.ends_with("</math>"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct VlackuMath {
-    pub parts: Vec<VlackuMathPart>,
-}
-
-#[invariant(true)]
-#[invariant(::Text(text) => !text.is_empty())]
-#[invariant(::Operator(operator) => matches!(operator.as_str(), "=" | "," | ";" | ":" | "/" | "+" | "-"))]
-#[invariant(::Variable { stem, subscript } => !stem.is_empty() && subscript.as_ref().map_or(true, |value| !value.is_empty()))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum VlackuMathPart {
-    Text(String),
-    Operator(String),
-    Variable {
-        stem: String,
-        subscript: Option<String>,
-    },
+    pub source: String,
+    pub markup: String,
 }
 
 #[invariant(true)]
@@ -4436,6 +4409,7 @@ fn word_type_order_key(section: VlackuWordTypeSection, value: &str) -> (u8, Stri
 #[ensures(true)]
 fn parse_vlacku_inline_text(dictionary: &Dictionary<'_>, text: &str) -> Vec<VlackuInline> {
     let mut output = Vec::new();
+    let math_converter = vlacku_math_converter();
     let mut remaining = text;
     while !remaining.is_empty() {
         let Some(open_index) = remaining.find('$') else {
@@ -4449,7 +4423,7 @@ fn parse_vlacku_inline_text(dictionary: &Dictionary<'_>, text: &str) -> Vec<Vlac
             break;
         };
         let math_body = &after_open[..close_index];
-        if let Some(math) = parse_vlacku_math(math_body) {
+        if let Some(math) = parse_vlacku_math(math_converter.as_ref(), math_body) {
             output.push(new!(VlackuInline::Math(math)));
         } else {
             push_vlacku_text_inline(&format!("${math_body}$"), &mut output);
@@ -4526,103 +4500,23 @@ fn dictionary_word_allows_jvozba(dictionary: &Dictionary<'_>, word: &str) -> boo
 
 #[requires(true)]
 #[ensures(true)]
-fn parse_vlacku_math(source: &str) -> Option<VlackuMath> {
-    let parts = parse_vlacku_math_parts(source)?;
-    if parts.is_empty() {
-        None
-    } else {
-        Some(new!(VlackuMath { parts }))
-    }
+fn vlacku_math_converter() -> Option<LatexToMathML> {
+    LatexToMathML::new(MathCoreConfig::default()).ok()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn parse_vlacku_math_parts(source: &str) -> Option<Vec<VlackuMathPart>> {
-    let chars = source.chars().collect::<Vec<_>>();
-    let mut index = 0usize;
-    let mut parts = Vec::new();
-    while index < chars.len() {
-        let ch = chars[index];
-        if ch.is_whitespace() {
-            let start = index;
-            while index < chars.len() && chars[index].is_whitespace() {
-                index += 1;
-            }
-            parts.push(new!(VlackuMathPart::Text(
-                chars[start..index].iter().collect()
-            )));
-        } else if ch == '='
-            || ch == ','
-            || ch == ';'
-            || ch == ':'
-            || ch == '/'
-            || ch == '+'
-            || ch == '-'
-        {
-            parts.push(new!(VlackuMathPart::Operator(ch.to_string())));
-            index += 1;
-        } else if ch.is_ascii_alphabetic() {
-            let start = index;
-            index += 1;
-            while index < chars.len() && chars[index].is_ascii_alphabetic() {
-                index += 1;
-            }
-            let stem = chars[start..index].iter().collect::<String>();
-            let subscript = if index < chars.len() && chars[index] == '_' {
-                index += 1;
-                parse_vlacku_math_subscript(&chars, &mut index)?
-            } else {
-                None
-            };
-            parts.push(new!(VlackuMathPart::Variable { stem, subscript }));
-        } else if ch.is_ascii_digit() {
-            let start = index;
-            while index < chars.len() && chars[index].is_ascii_digit() {
-                index += 1;
-            }
-            parts.push(new!(VlackuMathPart::Text(
-                chars[start..index].iter().collect()
-            )));
-        } else {
-            return None;
-        }
-    }
-    Some(parts)
-}
-
-#[requires(*index <= chars.len())]
-#[ensures(*index <= chars.len())]
-fn parse_vlacku_math_subscript(chars: &[char], index: &mut usize) -> Option<Option<String>> {
-    if *index >= chars.len() {
+fn parse_vlacku_math(converter: Option<&LatexToMathML>, source: &str) -> Option<VlackuMath> {
+    if source.is_empty() {
         return None;
     }
-    if chars[*index] == '{' {
-        *index += 1;
-        let start = *index;
-        while *index < chars.len() && chars[*index] != '}' {
-            *index += 1;
-        }
-        if *index >= chars.len() {
-            return None;
-        }
-        let body = chars[start..*index].iter().collect::<String>();
-        *index += 1;
-        if body.is_empty() {
-            None
-        } else {
-            Some(Some(body))
-        }
-    } else {
-        let start = *index;
-        while *index < chars.len() && chars[*index].is_ascii_alphanumeric() {
-            *index += 1;
-        }
-        if start == *index {
-            None
-        } else {
-            Some(Some(chars[start..*index].iter().collect()))
-        }
-    }
+    let markup = converter?
+        .convert_with_local_counter(source, MathDisplay::Inline)
+        .ok()?;
+    Some(new!(VlackuMath {
+        source: source.to_owned(),
+        markup,
+    }))
 }
 
 #[requires(true)]
@@ -6545,14 +6439,11 @@ mod tests {
         let data!(VlackuInline::Math(math)) = first.as_data() else {
             panic!("expected leading math span, got {first:?}");
         };
-        let [part] = math.parts.as_slice() else {
-            panic!("expected single math variable, got {math:?}");
-        };
-        let data!(VlackuMathPart::Variable { stem, subscript }) = part.as_data() else {
-            panic!("expected math variable, got {part:?}");
-        };
-        assert_eq!(stem, "x");
-        assert_eq!(subscript.as_deref(), Some("1"));
+        assert_eq!(math.source, "x_1");
+        assert!(math.markup.starts_with("<math"));
+        assert!(math.markup.contains("<msub>"));
+        assert!(math.markup.contains("<mi>x</mi>"));
+        assert!(math.markup.contains("<mn>1</mn>"));
         assert!(spans.iter().any(|span| matches!(
             span.as_data(),
             data!(VlackuInline::WordRef { label, can_add_to_jvozba, .. })
@@ -6566,6 +6457,136 @@ mod tests {
             span.as_data(),
             data!(VlackuInline::Text(text)) if text.contains("{two words}")
         )));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_rich_text_renders_broader_latex_math() {
+        for (source, snippets) in [
+            ("A^T", &["<msup>", "<mi>A</mi>", "<mi>T</mi>"][..]),
+            ("10^{-2}", &["<msup>", "<mn>10</mn>", "<mn>2</mn>"]),
+            ("N_{A}", &["<msub>", "<mi>N</mi>", "<mi>A</mi>"]),
+            (
+                r"\frac1{\sqrt{1-|X|^2}}",
+                &["<mfrac>", "<msqrt>", "<mi>X</mi>"],
+            ),
+            (
+                r"\sum_{i = 0}^{\infty}{x_i}",
+                &["∑", "∞", "<msub><mi>x</mi><mi>i</mi></msub>"],
+            ),
+            (
+                r"\alpha \approx 7.2973525698(\dots)*10^{(-3)}",
+                &["α", "≈", "<mn>7.2973525698</mn>"],
+            ),
+            (
+                r"A \subseteq O, A^{c} = O \setminus A",
+                &["⊆", "∖", "<msup><mi>A</mi><mi>c</mi></msup>"],
+            ),
+            (
+                r"a_1 \circ a_2 \circ \dots \circ a_n",
+                &["∘", "<msub><mi>a</mi><mn>1</mn></msub>"],
+            ),
+        ] {
+            assert_vlacku_math_markup_contains(source, snippets);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_rich_text_renders_parseable_currency_span_as_math() {
+        let spans = parse_vlacku_inline_text(
+            jbotci_dictionary_data::english(),
+            "a single bill worth 20.00$ can be exchanged for four bills each of which are worth 5.00$;",
+        );
+        let matches = spans
+            .iter()
+            .filter_map(|span| match span.as_data() {
+                data!(VlackuInline::Math(math)) => Some(math.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let [math] = matches.as_slice() else {
+            panic!("expected exactly one math span, got {spans:?}");
+        };
+
+        assert_eq!(
+            math.source,
+            " can be exchanged for four bills each of which are worth 5.00"
+        );
+        assert!(math.markup.starts_with("<math"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_rich_text_keeps_unrenderable_math_literal() {
+        let spans =
+            parse_vlacku_inline_text(jbotci_dictionary_data::english(), "before $a & b$ after");
+
+        assert!(spans.iter().any(|span| matches!(
+            span.as_data(),
+            data!(VlackuInline::Text(text)) if text.contains("$a & b$")
+        )));
+        assert!(
+            !spans
+                .iter()
+                .any(|span| matches!(span.as_data(), data!(VlackuInline::Math(_))))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_rich_text_escapes_generated_mathml() {
+        let script = single_vlacku_math_span(r"<script>alert(1)</script>");
+        assert!(!script.markup.contains("<script>"));
+        assert!(!script.markup.contains("</script>"));
+        assert!(script.markup.contains("&lt;"));
+
+        let image = single_vlacku_math_span(r"\text{<img src=x onerror=alert(1)>}");
+        assert!(!image.markup.contains("<img"));
+        assert!(image.markup.contains("&lt;img"));
+    }
+
+    #[requires(!source.contains('$'))]
+    #[ensures(ret.source == source)]
+    fn single_vlacku_math_span(source: &str) -> VlackuMath {
+        let text = format!("before ${source}$ after");
+        let spans = parse_vlacku_inline_text(jbotci_dictionary_data::english(), &text);
+        let matches = spans
+            .iter()
+            .filter_map(|span| match span.as_data() {
+                data!(VlackuInline::Math(math)) => Some(math.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let [math] = matches.as_slice() else {
+            panic!("expected exactly one math span for {source:?}, got {spans:?}");
+        };
+        math.clone()
+    }
+
+    #[requires(!source.is_empty())]
+    #[requires(snippets.iter().all(|snippet| !snippet.is_empty()))]
+    #[ensures(true)]
+    fn assert_vlacku_math_markup_contains(source: &str, snippets: &[&str]) {
+        let math = single_vlacku_math_span(source);
+        assert_eq!(math.source, source);
+        assert!(math.markup.starts_with("<math"));
+        assert!(
+            math.markup.ends_with("</math>"),
+            "expected MathML root for {source:?}, got {}",
+            math.markup
+        );
+        for snippet in snippets {
+            assert!(
+                math.markup.contains(snippet),
+                "expected MathML for {source:?} to contain {snippet:?}, got {}",
+                math.markup
+            );
+        }
     }
 
     #[test]

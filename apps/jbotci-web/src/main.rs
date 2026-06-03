@@ -35,12 +35,12 @@ use jbotci_web_core::{
     VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece, VlackuCompositionPieceKind,
     VlackuDictionaryCountNode, VlackuDictionaryInfo, VlackuInline, VlackuInlineData,
     VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
-    VlackuJvozbaSegmentTone, VlackuMath, VlackuMathPart, VlackuMathPartData,
-    VlackuSemanticSearchHit, VlackuVoteDisplay, VlackuWebAuthor, VlackuWebCard, VlackuWebMode,
-    VlackuWebResult, VlackuWebState, VlackuWordTypeOption, VlackuWordTypeSection,
-    WebComputeRequest, WebComputeResponse, WebFeatureAvailability, WebRoute, build_page_meta,
-    build_vlacku_jvozba_output, dictionary_tooltip_for_rafsi, dictionary_tooltip_for_word,
-    gentufa_web_url, normalize_vlacku_state, parse_web_route, reference_slot_display_text,
+    VlackuJvozbaSegmentTone, VlackuMath, VlackuSemanticSearchHit, VlackuVoteDisplay,
+    VlackuWebAuthor, VlackuWebCard, VlackuWebMode, VlackuWebResult, VlackuWebState,
+    VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest, WebComputeResponse,
+    WebFeatureAvailability, WebRoute, build_page_meta, build_vlacku_jvozba_output,
+    dictionary_tooltip_for_rafsi, dictionary_tooltip_for_word, gentufa_web_url,
+    normalize_vlacku_state, parse_web_route, reference_slot_display_text,
     toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
     vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
 };
@@ -6911,37 +6911,7 @@ fn resolved_href_with_base_path(base_path: &str, href: &str) -> String {
 #[ensures(true)]
 fn render_vlacku_math(math: &VlackuMath) -> Element {
     rsx! {
-        span { class: "spa-cll-math",
-            math { class: "math-var", display: "inline",
-                mrow {
-                    for part in math.parts.iter() {
-                        { render_vlacku_math_part(part) }
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_vlacku_math_part(part: &VlackuMathPart) -> Element {
-    match part.as_data() {
-        data!(VlackuMathPart::Text(text)) => rsx! { mtext { "{text}" } },
-        data!(VlackuMathPart::Operator(text)) => rsx! { mo { "{text}" } },
-        data!(VlackuMathPart::Variable { stem, subscript }) => {
-            let math_stem = math_alphanumeric_stem(stem);
-            if let Some(subscript) = subscript {
-                rsx! {
-                    msub {
-                        mi { "{math_stem}" }
-                        mn { "{subscript}" }
-                    }
-                }
-            } else {
-                rsx! { mi { "{math_stem}" } }
-            }
-        }
+        span { class: "spa-cll-math", dangerous_inner_html: "{math.markup}" }
     }
 }
 
