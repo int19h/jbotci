@@ -40,7 +40,20 @@ function initCompute(mainModuleUrl) {
 }
 
 self.onmessage = async (event) => {
-  const { id, requestJson, mainModuleUrl } = event.data || {};
+  const { kind, id, requestJson, mainModuleUrl } = event.data || {};
+  if (kind === "warm") {
+    try {
+      await initCompute(mainModuleUrl);
+      self.postMessage({ kind: "ready", ok: true });
+    } catch (error) {
+      self.postMessage({
+        kind: "ready",
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    return;
+  }
   try {
     await initCompute(mainModuleUrl);
     const value = computeHandle(requestJson || "{}");
