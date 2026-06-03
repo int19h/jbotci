@@ -1,6 +1,10 @@
+mod benchmark;
+
+use benchmark::BenchmarkMeasurement;
 use bityzba::{invariant, new, requires};
 use std::fs;
 use std::io::{IsTerminal, Read, Write};
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -65,7 +69,7 @@ use jbotci_search::vlacku::VlackuAuthor;
 
 const VLACKU_DETAIL_INDENT: &str = "    ";
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Clone, Parser)]
 #[command(name = "jbotci")]
 #[command(about = "Command-line Lojban toolkit")]
 #[invariant(true)]
@@ -81,11 +85,13 @@ struct Cli {
         require_equals = true,
     )]
     color: concolor_clap::ColorChoice,
+    #[arg(long = "benchmark", global = true, value_name = "N")]
+    benchmark: Option<NonZeroUsize>,
     #[command(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Clone, Subcommand)]
 #[invariant(true)]
 #[invariant(::Vlasei(..) => true)]
 #[invariant(::Gentufa(..) => true)]
@@ -283,7 +289,7 @@ impl From<CliGlideMark> for GlideMark {
     }
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 #[invariant(true)]
 struct VlaseiInput {
     #[arg(long = "file", alias = "sfaile")]
@@ -337,7 +343,13 @@ impl VlaseiInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     fn read_text(&self) -> Result<String> {
-        read_text_input(self.file.as_ref(), &self.text)
+        self.read_text_with_stdin(None)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
+        read_text_input(self.file.as_ref(), &self.text, stdin_text)
     }
 
     #[requires(true)]
@@ -347,7 +359,7 @@ impl VlaseiInput {
     }
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 #[invariant(true)]
 struct TextInput {
     #[arg(long = "file", alias = "sfaile")]
@@ -376,7 +388,13 @@ impl TextInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     fn read_text(&self) -> Result<String> {
-        read_text_input(self.file.as_ref(), &self.text)
+        self.read_text_with_stdin(None)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
+        read_text_input(self.file.as_ref(), &self.text, stdin_text)
     }
 
     #[requires(true)]
@@ -386,7 +404,7 @@ impl TextInput {
     }
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 #[invariant(true)]
 struct GentufaInput {
     #[arg(long = "file", alias = "sfaile")]
@@ -457,7 +475,13 @@ impl GentufaInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     fn read_text(&self) -> Result<String> {
-        read_text_input(self.file.as_ref(), &self.text)
+        self.read_text_with_stdin(None)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
+        read_text_input(self.file.as_ref(), &self.text, stdin_text)
     }
 
     #[requires(true)]
@@ -468,7 +492,7 @@ impl GentufaInput {
 }
 
 #[cfg(feature = "grammar-debug")]
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 #[invariant(true)]
 struct GernaInput {
     #[arg(
@@ -493,7 +517,7 @@ impl GernaInput {
     }
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 #[invariant(true)]
 struct CuktaInput {
     #[arg(short = 'n', long = "count")]
@@ -993,7 +1017,76 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
     output_terminal_width: Option<usize>,
 ) -> Result<CliStatus> {
     let color_policy = color_policy.with_choice(cli.color);
-    match cli.command {
+    if let Some(iterations) = cli.benchmark {
+        return run_cli_benchmark(
+            cli.command,
+            iterations,
+            stdout,
+            stderr,
+            color_policy,
+            diagnostic_terminal_width,
+            output_terminal_width,
+        );
+    }
+    run_cli_command(
+        cli.command,
+        stdout,
+        stderr,
+        color_policy,
+        diagnostic_terminal_width,
+        output_terminal_width,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(diagnostic_terminal_width > 0)]
+#[requires(output_terminal_width.is_none_or(|width| width > 0))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_cli_benchmark<WOut: Write, WErr: Write>(
+    command: Command,
+    iterations: NonZeroUsize,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color_policy: CliColorPolicy,
+    diagnostic_terminal_width: usize,
+    output_terminal_width: Option<usize>,
+) -> Result<CliStatus> {
+    validate_benchmark_command(&command)?;
+    let stdin_text = benchmark_stdin_text(&command)?;
+    let mut measurement = BenchmarkMeasurement::start(iterations);
+    for _ in 0..iterations.get() {
+        let iteration_start = std::time::Instant::now();
+        let status = run_cli_command(
+            command.clone(),
+            stdout,
+            stderr,
+            color_policy,
+            diagnostic_terminal_width,
+            output_terminal_width,
+            stdin_text.as_deref(),
+        )?;
+        measurement.record_iteration(iteration_start.elapsed(), status);
+    }
+    let report = measurement.finish();
+    stderr.write_all(report.render().as_bytes())?;
+    Ok(report.final_status())
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(diagnostic_terminal_width > 0)]
+#[requires(output_terminal_width.is_none_or(|width| width > 0))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_cli_command<WOut: Write, WErr: Write>(
+    command: Command,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color_policy: CliColorPolicy,
+    diagnostic_terminal_width: usize,
+    output_terminal_width: Option<usize>,
+    stdin_text: Option<&str>,
+) -> Result<CliStatus> {
+    match command {
         Command::Vlasei(mut input) => {
             let glyphs = cli_glyph_style(input.ascii);
             let diagnostic_detail = cli_diagnostic_detail(input.detailed_errors);
@@ -1031,7 +1124,7 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
                 trace_limit,
             )?;
             let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
-            let text = input.read_text()?;
+            let text = input.read_text_with_stdin(stdin_text)?;
             let dialect = input.dialect_definition()?;
             let morphology_options = MorphologyOptions::default()
                 .with_dialect_definition(&dialect)
@@ -1183,6 +1276,7 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
                     phase: requested_trace_phase.unwrap_or(TracePhase::Syntax),
                     limit: trace_limit,
                 },
+                stdin_text,
             )
         }
         Command::Mulgau(input) => {
@@ -1193,7 +1287,7 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
                 false,
                 false,
             )?;
-            let _ = input.read_text()?;
+            let _ = input.read_text_with_stdin(stdin_text)?;
             command_not_implemented("mulgau")?;
             Ok(CliStatus::Success)
         }
@@ -1205,7 +1299,7 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
                 false,
                 false,
             )?;
-            let _ = input.read_text()?;
+            let _ = input.read_text_with_stdin(stdin_text)?;
             command_not_implemented("tersmu")?;
             Ok(CliStatus::Success)
         }
@@ -1230,7 +1324,7 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
                 false,
                 false,
             )?;
-            let _ = input.read_text()?;
+            let _ = input.read_text_with_stdin(stdin_text)?;
             command_not_implemented("zbasu")?;
             Ok(CliStatus::Success)
         }
@@ -1238,6 +1332,76 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
         #[cfg(feature = "grammar-debug")]
         Command::Gerna(input) => run_gerna(input, stdout),
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_benchmark_command(command: &Command) -> Result<()> {
+    if command_supports_benchmark(command) {
+        Ok(())
+    } else {
+        bail!("`--benchmark` is only supported with vlasei, gentufa, vlacku, and cukta")
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn command_supports_benchmark(command: &Command) -> bool {
+    matches!(
+        command,
+        Command::Vlasei(_) | Command::Gentufa(_) | Command::Vlacku(_) | Command::Cukta(_)
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn benchmark_stdin_text(command: &Command) -> Result<Option<String>> {
+    if benchmark_command_reads_stdin(command) {
+        read_text_input(None, &[], None).map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn benchmark_command_reads_stdin(command: &Command) -> bool {
+    match command {
+        Command::Vlasei(input) => vlasei_input_reads_stdin(input),
+        Command::Gentufa(input) => gentufa_input_reads_stdin(input),
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(input.file.is_some() -> !ret)]
+fn vlasei_input_reads_stdin(input: &VlaseiInput) -> bool {
+    if input.trace_list {
+        return false;
+    }
+    trace_text_input_reads_stdin(&input.file, &input.text, &input.trace)
+}
+
+#[requires(true)]
+#[ensures(input.file.is_some() -> !ret)]
+fn gentufa_input_reads_stdin(input: &GentufaInput) -> bool {
+    if input.trace_list {
+        return false;
+    }
+    trace_text_input_reads_stdin(&input.file, &input.text, &input.trace)
+}
+
+#[requires(true)]
+#[ensures(file.is_some() -> !ret)]
+fn trace_text_input_reads_stdin(
+    file: &Option<PathBuf>,
+    text: &[String],
+    trace: &Option<Option<String>>,
+) -> bool {
+    let mut normalized_trace = trace.clone();
+    let mut normalized_text = text.to_owned();
+    normalize_trace_text_input(&mut normalized_trace, file, &mut normalized_text);
+    file.is_none() && normalized_text.is_empty()
 }
 
 #[requires(true)]
@@ -2248,6 +2412,7 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     glyphs: GlyphStyle,
     diagnostic_terminal_width: usize,
     trace: CliTraceConfig,
+    stdin_text: Option<&str>,
 ) -> Result<CliStatus> {
     let output_file = input.output_file.clone();
     let rendered = render_gentufa(
@@ -2257,6 +2422,7 @@ fn run_gentufa<WOut: Write, WErr: Write>(
         glyphs,
         diagnostic_terminal_width,
         trace,
+        stdin_text,
     )?;
     stderr.write_all(rendered.stderr.as_bytes())?;
     if rendered.status == CliStatus::Success
@@ -2323,13 +2489,14 @@ fn render_gentufa(
     glyphs: GlyphStyle,
     diagnostic_terminal_width: usize,
     trace: CliTraceConfig,
+    stdin_text: Option<&str>,
 ) -> Result<GentufaRendered> {
     normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
     validate_gentufa_options(&input, glyphs)?;
     let morphology_trace_options = trace_options(&input.trace, trace.phase, trace.limit)?;
     let syntax_trace_options = trace_options(&input.trace, trace.phase, trace.limit)?;
     let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
-    let text = input.read_text()?;
+    let text = input.read_text_with_stdin(stdin_text)?;
     let dialect = input.dialect_definition()?;
     let morphology_options = MorphologyOptions::default()
         .with_dialect_definition(&dialect)
@@ -3283,12 +3450,19 @@ fn debug_output_string<T: std::fmt::Debug>(value: &T, indent: Option<usize>) -> 
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn read_text_input(file: Option<&PathBuf>, text: &[String]) -> Result<String> {
+fn read_text_input(
+    file: Option<&PathBuf>,
+    text: &[String],
+    stdin_text: Option<&str>,
+) -> Result<String> {
     match (file, text.is_empty()) {
         (Some(path), _) => fs::read_to_string(path)
             .map_err(|source| anyhow!("failed to read `{}`: {source}", path.display())),
         (None, false) => Ok(text.join(" ")),
         (None, true) => {
+            if let Some(input) = stdin_text {
+                return Ok(input.to_owned());
+            }
             let mut input = String::new();
             let mut stdin = std::io::stdin();
             stdin
@@ -3463,6 +3637,99 @@ mod tests {
         ));
         assert!(Cli::try_parse_from(["jbotci", "server"]).is_err());
         assert!(Cli::try_parse_from(["jbotci", "selfu"]).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_benchmark_before_and_after_subcommand() {
+        let before_cli = Cli::try_parse_from(["jbotci", "--benchmark", "3", "vlasei", "coi"])
+            .expect("benchmark before subcommand");
+        assert_eq!(before_cli.benchmark.map(NonZeroUsize::get), Some(3));
+        assert!(matches!(before_cli.command, Command::Vlasei(_)));
+
+        let after_cli = Cli::try_parse_from(["jbotci", "vlasei", "--benchmark", "4", "coi"])
+            .expect("benchmark after subcommand");
+        assert_eq!(after_cli.benchmark.map(NonZeroUsize::get), Some(4));
+        assert!(matches!(after_cli.command, Command::Vlasei(_)));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_zero_benchmark_iterations() {
+        let error = Cli::try_parse_from(["jbotci", "vlasei", "--benchmark", "0", "coi"])
+            .expect_err("zero benchmark iteration count is rejected");
+        assert_eq!(error.kind(), ErrorKind::ValueValidation);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn benchmark_repeats_stdout_and_reports_success_metrics() {
+        let once = run_cli_capture(&["jbotci", "vlasei", "--format", "brackets", "coi"], false);
+        assert_eq!(once.status, CliStatus::Success);
+        assert!(once.stderr.is_empty());
+
+        let benchmark = run_cli_capture(
+            &[
+                "jbotci",
+                "vlasei",
+                "--benchmark",
+                "2",
+                "--format",
+                "brackets",
+                "coi",
+            ],
+            false,
+        );
+        assert_eq!(benchmark.status, CliStatus::Success);
+        assert_eq!(benchmark.stdout, format!("{}{}", once.stdout, once.stdout));
+        assert_benchmark_report_contains(
+            &benchmark.stderr,
+            "iterations: 2",
+            "statuses: success=2 failure=0 valid-missing=0 invalid-input=0",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn benchmark_continues_failure_statuses_and_appends_metrics_after_stderr() {
+        let once = run_cli_capture(&["jbotci", "vlasei", "aa"], false);
+        assert_eq!(once.status, CliStatus::Failure);
+        assert!(!once.stderr.is_empty());
+
+        let benchmark = run_cli_capture(&["jbotci", "vlasei", "--benchmark", "2", "aa"], false);
+        assert_eq!(benchmark.status, CliStatus::Failure);
+        let benchmark_start = benchmark
+            .stderr
+            .rfind("benchmark:\n")
+            .expect("benchmark report");
+        assert_eq!(
+            &benchmark.stderr[..benchmark_start],
+            format!("{}{}", once.stderr, once.stderr)
+        );
+        assert_benchmark_report_contains(
+            &benchmark.stderr[benchmark_start..],
+            "iterations: 2",
+            "statuses: success=0 failure=2 valid-missing=0 invalid-input=0",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn benchmark_rejects_unsupported_commands() {
+        let cli = Cli::try_parse_from(["jbotci", "jvozba", "--benchmark", "2", "lojbo", "bangu"])
+            .expect("benchmark flag parses globally");
+        let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+            .expect_err("benchmark rejects unsupported command");
+        assert!(
+            error
+                .to_string()
+                .contains("only supported with vlasei, gentufa, vlacku, and cukta")
+        );
     }
 
     #[test]
@@ -6373,6 +6640,31 @@ mod tests {
             };
             start_index += relative_index + needle.len();
         }
+    }
+
+    #[requires(!expected_statuses.is_empty())]
+    #[requires(!expected_iterations.is_empty())]
+    #[ensures(true)]
+    fn assert_benchmark_report_contains(
+        stderr: &str,
+        expected_iterations: &str,
+        expected_statuses: &str,
+    ) {
+        assert_in_order(
+            stderr,
+            &[
+                "benchmark:\n",
+                expected_iterations,
+                expected_statuses,
+                "wall: total=",
+                "throughput=",
+                "cpu: ",
+                "memory: ",
+                "page-faults: ",
+                "context-switches: ",
+                "block-io: ",
+            ],
+        );
     }
 
     #[requires(true)]

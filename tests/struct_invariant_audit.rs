@@ -172,6 +172,30 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "trace limit is validated once at CLI entry and phase is a closed enum",
     ),
     (
+        "apps/jbotci/src/benchmark.rs:BenchmarkMeasurement",
+        "benchmark measurement is mutable accumulator state bounded by NonZeroUsize and record_iteration contracts",
+    ),
+    (
+        "apps/jbotci/src/benchmark.rs:BenchmarkReport",
+        "benchmark report is derived measurement output validated by finish and render contracts",
+    ),
+    (
+        "apps/jbotci/src/benchmark.rs:BenchmarkStatusCounts",
+        "benchmark status counts are derived counters updated only from CliStatus",
+    ),
+    (
+        "apps/jbotci/src/benchmark.rs:ProcessResourceDelta",
+        "process resource deltas are optional platform measurements with unavailable metrics represented by None",
+    ),
+    (
+        "apps/jbotci/src/benchmark.rs:ProcessResourceUsage",
+        "process resource snapshots mirror optional platform APIs with unavailable metrics represented by None",
+    ),
+    (
+        "apps/jbotci/src/benchmark.rs:WallTimeStats",
+        "wall-time stats are derived from non-empty iteration measurements by wall_time_stats",
+    ),
+    (
         "crates/bityzba/tests/contract_scanner/complete/src/lib.rs:ImplType",
         "contract scanner fixture intentionally contains accepted no-op markers",
     ),

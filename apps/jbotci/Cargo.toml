@@ -41,6 +41,16 @@ serde_json.workspace = true
 terminal_size.workspace = true
 unicode-width.workspace = true
 
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+] }
+
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }
 
