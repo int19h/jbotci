@@ -929,17 +929,13 @@ fn is_letter_indicators(word: &WithIndicators<WordLike>) -> bool {
             match word_like.as_data() {
                 data!(WordLike::LerfuWord { .. }) => true,
                 data!(WordLike::PlainWord(word)) => {
-                    let phonemes = word.phonemes();
                     word.kind() == WordKind::Cmavo
-                        && ((phonemes.as_str() != "bu" && phonemes.as_str().ends_with("bu"))
-                            || word.cmavo().is_some_and(|cmavo| {
-                                (!matches!(
-                                    cmavo,
-                                    Cmavo::A | Cmavo::E | Cmavo::I | Cmavo::O | Cmavo::U
-                                ) && cmavo.is_selmaho(Selmaho::By))
-                                    || cmavo == Cmavo::Sehe
-                                    || cmavo == Cmavo::Y
-                            }))
+                        && word.cmavo().is_some_and(|cmavo| {
+                            (!matches!(cmavo, Cmavo::A | Cmavo::E | Cmavo::I | Cmavo::O | Cmavo::U)
+                                && cmavo.is_selmaho(Selmaho::By))
+                                || cmavo == Cmavo::Sehe
+                                || cmavo == Cmavo::Y
+                        })
                 }
                 _ => false,
             }

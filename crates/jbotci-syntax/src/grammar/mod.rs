@@ -675,6 +675,9 @@ mod tests {
 
             let raw = parse_tree_debug("a bu cmene", &ParseOptions::default());
             assert!(raw.contains("LerfuWord"));
+
+            let raw = parse_tree_debug("abu cmene", &ParseOptions::default());
+            assert!(raw.contains("LerfuWord"));
         });
     }
 
