@@ -1325,8 +1325,17 @@ fn AppShell() -> Element {
         }
         let state = vlacku_committed_state.read().clone();
         let semantic = vlacku_semantic_result.read().clone();
-        let request = vlacku_compute_request(&vlacku_page_base_path, &state, &semantic);
         let mut page_signal = vlacku_result;
+        if vlacku_semantic_result_is_pending(&state, &semantic) {
+            cancel_compute_channel(COMPUTE_CHANNEL_VLACKU);
+            cancel_latest_task(vlacku_result_task);
+            let meta = page_signal.with_mut(|page| {
+                apply_vlacku_semantic_pending_page(page, &vlacku_page_base_path, &state, &semantic)
+            });
+            sync_document_head(&meta);
+            return;
+        }
+        let request = vlacku_compute_request(&vlacku_page_base_path, &state, &semantic);
         page_signal.with_mut(|page| {
             page.state = Some(state.clone());
             page.loading = true;
@@ -2962,6 +2971,40 @@ fn vlacku_async_error_state(state: &VlackuWebState, message: &str) -> VlackuAsyn
 }
 
 #[requires(true)]
+#[ensures(!ret || state.mode == VlackuWebMode::Meaning)]
+fn vlacku_semantic_result_is_pending(
+    state: &VlackuWebState,
+    semantic: &VlackuSemanticResultState,
+) -> bool {
+    state.mode == VlackuWebMode::Meaning
+        && !state.query.trim().is_empty()
+        && (semantic.state.as_ref() != Some(state) || semantic.loading)
+}
+
+#[requires(vlacku_semantic_result_is_pending(state, semantic))]
+#[ensures(page.state.as_ref() == Some(state))]
+#[ensures(page.loading)]
+#[ensures(page.error.is_none())]
+fn apply_vlacku_semantic_pending_page(
+    page: &mut VlackuAsyncResultState,
+    base_path: &str,
+    state: &VlackuWebState,
+    semantic: &VlackuSemanticResultState,
+) -> PageMeta {
+    let meta = build_page_meta(base_path, &WebRoute::Vlacku(state.clone()));
+    page.state = Some(state.clone());
+    page.meta = Some(meta.clone());
+    page.loading = true;
+    page.error = None;
+    if semantic.state.as_ref() == Some(state)
+        && let Some(message) = &semantic.message
+    {
+        page.result = vlacku_loading_result(state, message);
+    }
+    meta
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn vlacku_compute_request(
     base_path: &str,
@@ -2974,8 +3017,7 @@ fn vlacku_compute_request(
             state: state.clone(),
         };
     }
-    let loading = !state.query.trim().is_empty()
-        && (semantic.state.as_ref() != Some(state) || semantic.loading);
+    let loading = vlacku_semantic_result_is_pending(state, semantic);
     let message = if semantic.state.as_ref() == Some(state) {
         semantic.message.clone()
     } else {
@@ -3504,8 +3546,10 @@ fn render_cukta_page(
                                 has_more,
                                 load_more_href: _,
                             } => {
+                                // Keep CLL search results out of the draft-query dependency path;
+                                // the focused input already reflects keystrokes until debounce commits.
                                 let draft_search =
-                                    cukta_search_draft_for_page(&cukta_draft_state.read(), state);
+                                    cukta_search_draft_for_page(&cukta_draft_state.peek(), state);
                                 render_cukta_search(
                                     cukta_draft_state,
                                     cukta_committed_state,
@@ -5657,7 +5701,9 @@ fn render_vlacku_page(
     } else {
         vlacku_loading_result(&committed_state, "Loading dictionary results.")
     };
-    let draft_state = vlacku_draft_state.read().clone();
+    // Keep result cards out of the draft-query dependency path; the focused input
+    // already reflects keystrokes until the debounced committed state catches up.
+    let draft_state = vlacku_draft_state.peek().clone();
     let word_type_options = vlacku_word_type_options(&draft_state.word_types);
     let jvozba_available_value = *jvozba_available.read();
     let jvozba_open = jvozba_available_value && jvozba_pane.read().open;
@@ -12754,10 +12800,10 @@ fn apply_web_route_to_client_state(
     mut gentufa_text_explicit: Signal<bool>,
 ) {
     let web_route = &location.web_route;
-    route.set(location.app_route());
     if is_local_route_write {
         return;
     }
+    route.set(location.app_route());
     clear_route_bound_input_timers();
     match web_route {
         WebRoute::Gentufa(state) => {
@@ -15130,6 +15176,124 @@ mod tests {
             word_types: Vec::new(),
         };
         assert_eq!(vlacku_semantic_worker_limit(&state), VLACKU_WEB_MAX_COUNT);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_semantic_result_is_pending_for_stale_or_loading_results() {
+        let state = VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "klama".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        };
+        let semantic = VlackuSemanticResultState::default();
+
+        assert!(vlacku_semantic_result_is_pending(&state, &semantic));
+
+        let loading = VlackuSemanticResultState {
+            state: Some(state.clone()),
+            hits: Vec::new(),
+            message: Some("Loading semantic search model.".to_owned()),
+            loading: true,
+        };
+        assert!(vlacku_semantic_result_is_pending(&state, &loading));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_semantic_pending_page_preserves_existing_result() {
+        let previous_state = VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "klama".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        };
+        let state = VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "klama!".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        };
+        let mut page = VlackuAsyncResultState {
+            state: Some(previous_state.clone()),
+            result: vlacku_loading_result(&previous_state, "Previous result remains visible."),
+            meta: None,
+            loading: false,
+            error: None,
+        };
+        let semantic = VlackuSemanticResultState::default();
+
+        let meta = apply_vlacku_semantic_pending_page(&mut page, "/jbotci", &state, &semantic);
+
+        assert_eq!(page.state.as_ref(), Some(&state));
+        assert!(page.loading);
+        assert!(page.error.is_none());
+        assert_eq!(
+            page.result.message.as_deref(),
+            Some("Previous result remains visible.")
+        );
+        assert_eq!(meta.title, "klama! - jbotci vlacku");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_semantic_pending_page_shows_explicit_loading_message() {
+        let state = VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "klama".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        };
+        let mut page = VlackuAsyncResultState {
+            state: Some(state.clone()),
+            result: vlacku_loading_result(&state, "Previous result remains visible."),
+            meta: None,
+            loading: false,
+            error: None,
+        };
+        let semantic = VlackuSemanticResultState {
+            state: Some(state.clone()),
+            hits: Vec::new(),
+            message: Some("Loading semantic search model.".to_owned()),
+            loading: true,
+        };
+
+        apply_vlacku_semantic_pending_page(&mut page, "/jbotci", &state, &semantic);
+
+        assert_eq!(
+            page.result.message.as_deref(),
+            Some("Loading semantic search model.")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_semantic_result_ready_uses_compute_worker_path() {
+        let state = VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "klama".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        };
+        let semantic = VlackuSemanticResultState {
+            state: Some(state.clone()),
+            hits: Vec::new(),
+            message: None,
+            loading: false,
+        };
+
+        assert!(!vlacku_semantic_result_is_pending(&state, &semantic));
+
+        let request = vlacku_compute_request("/jbotci", &state, &semantic);
+        assert!(matches!(
+            request,
+            WebComputeRequest::VlackuSemanticPage { loading: false, .. }
+        ));
     }
 
     #[test]
