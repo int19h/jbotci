@@ -52,6 +52,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "reference bottoms are transient browser DOM measurements checked by reference height sizer tests",
     ),
     (
+        "apps/jbotci-web/src/main.rs:DiagnosticOverlayMark",
+        "diagnostic overlay marks are transient render annotations whose index is validated against the paired diagnostics slice at render time",
+    ),
+    (
         "apps/jbotci-web/src/main.rs:VlackuJvozbaPaneState",
         "vlacku jvozba pane state is transient persisted UI state normalized by load/save helpers",
     ),

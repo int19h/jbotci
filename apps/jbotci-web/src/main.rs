@@ -203,15 +203,16 @@ struct ReferenceRect {
     bottom: f64,
 }
 
+#[invariant(self.line > 0)]
+#[invariant(self.column > 0)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
 struct DiagnosticSourceLocation {
     line: usize,
     column: usize,
 }
 
+#[invariant(self.errors <= usize::MAX - self.warnings)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
 struct DiagnosticCounts {
     errors: usize,
     warnings: usize,
@@ -232,8 +233,9 @@ struct DiagnosticOverlayMark {
     role: DiagnosticOverlayRole,
 }
 
+#[invariant(self.class_name.split_whitespace().next().is_some())]
+#[invariant(self.diagnostic_index.is_none() || css_class_contains(&self.class_name, "has-diagnostic"))]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
 struct DiagnosticOverlayFragment {
     text: String,
     class_name: String,
@@ -241,16 +243,17 @@ struct DiagnosticOverlayFragment {
     diagnostic_index: Option<usize>,
 }
 
+#[invariant(self.x.is_finite())]
+#[invariant(self.y.is_finite())]
 #[derive(Debug, Clone, Copy, PartialEq)]
-#[invariant(true)]
 struct DiagnosticInputTooltip {
     diagnostic_index: usize,
     x: f64,
     y: f64,
 }
 
+#[invariant(!self.text.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
 struct DiagnosticTextRenderPart {
     role: DiagnosticTextRole,
     text: String,
@@ -7440,31 +7443,31 @@ fn render_gentufa_diagnostic_overlay_fragment(
             onmouseover: move |event| {
                 if let Some(diagnostic_index) = diagnostic_index {
                     let coordinates = event.data().client_coordinates();
-                    over_tooltip.set(Some(DiagnosticInputTooltip {
+                    over_tooltip.set(Some(new!(DiagnosticInputTooltip {
                         diagnostic_index,
                         x: coordinates.x,
                         y: coordinates.y,
-                    }));
+                    })));
                 }
             },
             onmouseenter: move |event| {
                 if let Some(diagnostic_index) = diagnostic_index {
                     let coordinates = event.data().client_coordinates();
-                    enter_tooltip.set(Some(DiagnosticInputTooltip {
+                    enter_tooltip.set(Some(new!(DiagnosticInputTooltip {
                         diagnostic_index,
                         x: coordinates.x,
                         y: coordinates.y,
-                    }));
+                    })));
                 }
             },
             onmousemove: move |event| {
                 if let Some(diagnostic_index) = diagnostic_index {
                     let coordinates = event.data().client_coordinates();
-                    move_tooltip.set(Some(DiagnosticInputTooltip {
+                    move_tooltip.set(Some(new!(DiagnosticInputTooltip {
                         diagnostic_index,
                         x: coordinates.x,
                         y: coordinates.y,
-                    }));
+                    })));
                 }
             },
             onmouseout: move |_| {
@@ -8090,10 +8093,10 @@ fn gentufa_request_source(request: Option<&GentufaWebRequest>) -> &str {
 #[ensures(ret.errors + ret.warnings >= diagnostics.len() || fallback_error.is_some())]
 fn diagnostic_counts(diagnostics: &[Diagnostic], fallback_error: Option<&str>) -> DiagnosticCounts {
     if diagnostics.is_empty() && fallback_error.is_some() {
-        return DiagnosticCounts {
+        return new!(DiagnosticCounts {
             errors: 1,
             warnings: 0,
-        };
+        });
     }
     let mut errors = 0;
     let mut warnings = 0;
@@ -8103,7 +8106,7 @@ fn diagnostic_counts(diagnostics: &[Diagnostic], fallback_error: Option<&str>) -
             DiagnosticSeverity::Warning | DiagnosticSeverity::Advice => warnings += 1,
         }
     }
-    DiagnosticCounts { errors, warnings }
+    new!(DiagnosticCounts { errors, warnings })
 }
 
 #[requires(true)]
@@ -8173,7 +8176,7 @@ fn source_location_for_char_offset(source: &str, char_offset: usize) -> Diagnost
     let mut column = 1;
     for (index, character) in source.chars().enumerate() {
         if index == char_offset {
-            return DiagnosticSourceLocation { line, column };
+            return new!(DiagnosticSourceLocation { line, column });
         }
         if character == '\n' {
             line += 1;
@@ -8182,7 +8185,7 @@ fn source_location_for_char_offset(source: &str, char_offset: usize) -> Diagnost
             column += 1;
         }
     }
-    DiagnosticSourceLocation { line, column }
+    new!(DiagnosticSourceLocation { line, column })
 }
 
 #[requires(true)]
@@ -8612,7 +8615,7 @@ fn diagnostic_text_segment_display_text(segment: &DiagnosticTextSegment) -> Stri
 #[requires(!text.is_empty())]
 #[ensures(!ret.text.is_empty())]
 fn diagnostic_text_render_part(role: DiagnosticTextRole, text: String) -> DiagnosticTextRenderPart {
-    DiagnosticTextRenderPart { role, text }
+    new!(DiagnosticTextRenderPart { role, text })
 }
 
 #[requires(true)]
@@ -8622,11 +8625,16 @@ fn merge_diagnostic_text_parts(
 ) -> Vec<DiagnosticTextRenderPart> {
     let mut merged = Vec::<DiagnosticTextRenderPart>::new();
     for part in parts {
-        if let Some(previous) = merged.last_mut()
+        if let Some(previous) = merged.last()
             && previous.role == part.role
             && diagnostic_text_part_href(previous, "") == diagnostic_text_part_href(&part, "")
         {
-            previous.text.push_str(&part.text);
+            let mut previous_data = merged
+                .pop()
+                .expect("last text part was checked above")
+                .into_data();
+            previous_data.text.push_str(&part.text);
+            merged.push(DiagnosticTextRenderPart::from_data(previous_data));
             continue;
         }
         merged.push(part);
@@ -8953,12 +8961,12 @@ fn flush_diagnostic_overlay_run(
     if run_text.is_empty() {
         return;
     }
-    fragments.push(DiagnosticOverlayFragment {
+    fragments.push(new!(DiagnosticOverlayFragment {
         text: std::mem::take(run_text),
         class_name: std::mem::take(run_class),
         selection_start: *run_selection_start,
         diagnostic_index: *run_diagnostic_index,
-    });
+    }));
     *run_selection_start = 0;
     *run_diagnostic_index = None;
 }
@@ -8991,10 +8999,10 @@ fn mark_active_context_overlay_group(
     end: usize,
 ) {
     if let Some(first) = fragments.get_mut(start) {
-        append_css_class(&mut first.class_name, "is-active-context-start");
+        append_diagnostic_overlay_fragment_css_class(first, "is-active-context-start");
     }
     if let Some(last) = fragments.get_mut(end - 1) {
-        append_css_class(&mut last.class_name, "is-active-context-end");
+        append_diagnostic_overlay_fragment_css_class(last, "is-active-context-end");
     }
 }
 
@@ -9003,6 +9011,20 @@ fn mark_active_context_overlay_group(
 fn diagnostic_overlay_fragment_is_active_context(fragment: &DiagnosticOverlayFragment) -> bool {
     css_class_contains(&fragment.class_name, "is-active-context")
         || css_class_contains(&fragment.class_name, "is-active-context-token")
+}
+
+#[requires(!class_to_add.is_empty())]
+#[ensures(css_class_contains(&fragment.class_name, class_to_add))]
+fn append_diagnostic_overlay_fragment_css_class(
+    fragment: &mut DiagnosticOverlayFragment,
+    class_to_add: &str,
+) {
+    if css_class_contains(&fragment.class_name, class_to_add) {
+        return;
+    }
+    let mut data = fragment.clone().into_data();
+    append_css_class(&mut data.class_name, class_to_add);
+    *fragment = DiagnosticOverlayFragment::from_data(data);
 }
 
 #[requires(!class_name.is_empty())]
@@ -9074,12 +9096,12 @@ fn push_diagnostic_overlay_carets(
                 diagnostic_index,
                 role,
             });
-            fragments.push(DiagnosticOverlayFragment {
+            fragments.push(new!(DiagnosticOverlayFragment {
                 text: String::new(),
                 class_name: diagnostic_overlay_caret_class(mark, diagnostics),
                 selection_start: selection_offset,
                 diagnostic_index: mark.map(|mark| mark.diagnostic_index),
-            });
+            }));
         }
     }
 }
@@ -14529,22 +14551,22 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn diagnostic_token_links_follow_cukta_and_vlacku_conventions() {
-        let word = DiagnosticTextRenderPart {
+        let word = new!(DiagnosticTextRenderPart {
             role: DiagnosticTextRole::SpecificWord,
             text: "fe'e".to_owned(),
-        };
-        let selmaho = DiagnosticTextRenderPart {
+        });
+        let selmaho = new!(DiagnosticTextRenderPart {
             role: DiagnosticTextRole::Selmaho,
             text: "BAI".to_owned(),
-        };
-        let category = DiagnosticTextRenderPart {
+        });
+        let category = new!(DiagnosticTextRenderPart {
             role: DiagnosticTextRole::WordCategory,
             text: "BRIVLA".to_owned(),
-        };
-        let construct = DiagnosticTextRenderPart {
+        });
+        let construct = new!(DiagnosticTextRenderPart {
             role: DiagnosticTextRole::Construct,
             text: "sumti".to_owned(),
-        };
+        });
 
         assert_eq!(
             diagnostic_text_part_href(&word, "/jbotci").as_deref(),
