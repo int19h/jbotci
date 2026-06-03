@@ -73,9 +73,45 @@ pub async fn run_server(config: ServerConfig) -> Result<()> {
         .await
         .with_context(|| format!("failed to bind `{}`", config.address))?;
     axum::serve(listener, router(config))
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .context("server failed")?;
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        let ctrl_c = tokio::signal::ctrl_c();
+        let terminate = async {
+            match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+                Ok(mut signal) => {
+                    signal.recv().await;
+                }
+                Err(error) => {
+                    eprintln!("failed to install SIGTERM handler: {error}");
+                    std::future::pending::<()>().await;
+                }
+            }
+        };
+        tokio::select! {
+            result = ctrl_c => {
+                if let Err(error) = result {
+                    eprintln!("failed to install Ctrl-C handler: {error}");
+                }
+            }
+            () = terminate => {}
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        if let Err(error) = tokio::signal::ctrl_c().await {
+            eprintln!("failed to install Ctrl-C handler: {error}");
+        }
+    }
 }
 
 #[requires(config.base_path.starts_with('/'))]

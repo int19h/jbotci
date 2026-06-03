@@ -33,7 +33,7 @@ cargo xtask fixture-list --profile cargo
 cargo xtask build-web-release
 cargo xtask dist-server --out-dir .jbotci-build/jbotci-web --base-path /
 cargo xtask render-docker-build --embedding-backend fixture
-cargo xtask render-docker-run --embedding-backend fixture
+cargo xtask render-docker-run --engine podman --embedding-backend fixture
 ```
 
 Use the web release wrappers instead of raw `dx` release commands while Dioxus

@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result, bail};
 use bityzba::{contract_trait, ensures, invariant, requires};
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity};
 use jbotci_dictionary::import::parse_lensisku_json;
 use jbotci_morphology::{
@@ -249,6 +249,8 @@ struct DistServerArgs {
 #[derive(Debug, Args)]
 #[invariant(true)]
 struct RenderDockerBuildArgs {
+    #[arg(long, value_enum, default_value = "auto")]
+    engine: ContainerEngineArg,
     #[arg(long, default_value = "jbotci-render:local")]
     image: String,
     #[arg(long, default_value = "/")]
@@ -264,6 +266,8 @@ struct RenderDockerBuildArgs {
 #[derive(Debug, Args)]
 #[invariant(true)]
 struct RenderDockerRunArgs {
+    #[arg(long, value_enum, default_value = "auto")]
+    engine: ContainerEngineArg,
     #[arg(long, default_value = "jbotci-render:local")]
     image: String,
     #[arg(long, default_value_t = 8080)]
@@ -278,6 +282,57 @@ struct RenderDockerRunArgs {
     embedding_backend: String,
     #[arg(long)]
     no_build: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[invariant(true)]
+#[invariant(::Auto => true)]
+#[invariant(::Docker => true)]
+#[invariant(::Podman => true)]
+enum ContainerEngineArg {
+    Auto,
+    Docker,
+    Podman,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+#[invariant(::Docker => true)]
+#[invariant(::Podman => true)]
+enum ContainerEngine {
+    Docker,
+    Podman,
+}
+
+impl ContainerEngineArg {
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn resolve(self) -> Result<ContainerEngine> {
+        match self {
+            Self::Docker => Ok(ContainerEngine::Docker),
+            Self::Podman => Ok(ContainerEngine::Podman),
+            Self::Auto => {
+                if container_engine_available(ContainerEngine::Docker.command_name()) {
+                    Ok(ContainerEngine::Docker)
+                } else if container_engine_available(ContainerEngine::Podman.command_name()) {
+                    Ok(ContainerEngine::Podman)
+                } else {
+                    bail!("could not find `docker` or `podman` in PATH")
+                }
+            }
+        }
+    }
+}
+
+impl ContainerEngine {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn command_name(self) -> &'static str {
+        match self {
+            Self::Docker => "docker",
+            Self::Podman => "podman",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -873,7 +928,9 @@ fn server_bundle_path(out_dir: &Path) -> Result<PathBuf> {
 #[requires(!args.embedding_backend.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn render_docker_build(args: RenderDockerBuildArgs) -> Result<()> {
-    let mut command = ProcessCommand::new("docker");
+    let engine = args.engine.resolve()?;
+    let engine_command = engine.command_name();
+    let mut command = ProcessCommand::new(engine_command);
     command.arg("build");
     if args.no_cache {
         command.arg("--no-cache");
@@ -896,7 +953,10 @@ fn render_docker_build(args: RenderDockerBuildArgs) -> Result<()> {
     let status = command
         .status()
         .context("failed to run Render Docker build")?;
-    check_status(status, "docker build -f deploy/render/Dockerfile")
+    check_status(
+        status,
+        &format!("{engine_command} build -f deploy/render/Dockerfile"),
+    )
 }
 
 #[requires(!args.image.trim().is_empty())]
@@ -906,6 +966,7 @@ fn render_docker_build(args: RenderDockerBuildArgs) -> Result<()> {
 fn render_docker_run(args: RenderDockerRunArgs) -> Result<()> {
     if !args.no_build {
         render_docker_build(RenderDockerBuildArgs {
+            engine: args.engine,
             image: args.image.clone(),
             base_path: args.base_path.clone(),
             embedding_dtypes: args.embedding_dtypes.clone(),
@@ -913,9 +974,11 @@ fn render_docker_run(args: RenderDockerRunArgs) -> Result<()> {
             no_cache: false,
         })?;
     }
+    let engine = args.engine.resolve()?;
+    let engine_command = engine.command_name();
     let host_url = format!("http://127.0.0.1:{}", args.host_port);
     println!("running {} on {}", args.image, host_url);
-    let status = ProcessCommand::new("docker")
+    let status = ProcessCommand::new(engine_command)
         .arg("run")
         .arg("--rm")
         .arg("-p")
@@ -937,7 +1000,18 @@ fn render_docker_run(args: RenderDockerRunArgs) -> Result<()> {
         .arg(&args.image)
         .status()
         .context("failed to run Render Docker image")?;
-    check_status(status, "docker run jbotci-render")
+    check_status(status, &format!("{engine_command} run jbotci-render"))
+}
+
+#[requires(!command_name.trim().is_empty())]
+#[ensures(true)]
+fn container_engine_available(command_name: &str) -> bool {
+    ProcessCommand::new(command_name)
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok_and(|status| status.success())
 }
 
 #[requires(!dtypes.is_empty())]
@@ -4409,6 +4483,22 @@ mod tests {
             docker_embedding_dtypes_arg(&["q4".to_owned(), "q8".to_owned()]),
             "q4 q8"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn explicit_container_engine_args_resolve_without_path_probe() {
+        assert_eq!(
+            ContainerEngineArg::Docker.resolve().expect("docker engine"),
+            ContainerEngine::Docker
+        );
+        assert_eq!(
+            ContainerEngineArg::Podman.resolve().expect("podman engine"),
+            ContainerEngine::Podman
+        );
+        assert_eq!(ContainerEngine::Docker.command_name(), "docker");
+        assert_eq!(ContainerEngine::Podman.command_name(), "podman");
     }
 
     #[test]
