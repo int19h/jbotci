@@ -76,6 +76,9 @@ struct HealthResponse {
 }
 
 const FAVICON_ASSET_PATH: &str = "/assets/icons/jbotci-icon-192.png";
+const APPLE_TOUCH_ICON_ASSET_PATH: &str = "/assets/icons/apple-touch-icon.png";
+const MANIFEST_ASSET_PATH: &str = "/manifest.webmanifest";
+const SERVICE_WORKER_ASSET_PATH: &str = "/service-worker.js";
 const META_BLOCK_START: &str = "<!-- jbotci-meta-start -->";
 const META_BLOCK_END: &str = "<!-- jbotci-meta-end -->";
 
@@ -501,19 +504,19 @@ fn render_meta_block(origin: Option<&str>, meta: &PageMeta, include_title: bool)
     let asset_base = base_path_from_canonical(&meta.canonical_url);
     lines.push(link_tag(
         "manifest",
-        &prefixed_asset_path(&asset_base, "/assets/manifest.webmanifest"),
+        &prefixed_asset_path(&asset_base, MANIFEST_ASSET_PATH),
     ));
     lines.push(link_tag(
         "icon",
-        &prefixed_asset_path(&asset_base, "/assets/icons/jbotci-icon-192.png"),
+        &prefixed_asset_path(&asset_base, FAVICON_ASSET_PATH),
     ));
     lines.push(link_tag(
         "shortcut icon",
-        &prefixed_asset_path(&asset_base, "/assets/icons/jbotci-icon-192.png"),
+        &prefixed_asset_path(&asset_base, FAVICON_ASSET_PATH),
     ));
     lines.push(link_tag(
         "apple-touch-icon",
-        &prefixed_asset_path(&asset_base, "/assets/icons/jbotci-icon-192.png"),
+        &prefixed_asset_path(&asset_base, APPLE_TOUCH_ICON_ASSET_PATH),
     ));
     lines.push(meta_tag("description", &meta.description));
     lines.push(link_tag("canonical", &canonical_url));
@@ -694,7 +697,11 @@ fn content_type_for_path(path: &str) -> &'static str {
 #[requires(path.starts_with('/'))]
 #[ensures(!ret.is_empty())]
 fn cache_control_for_path(path: &str) -> &'static str {
-    if path == "/index.html" || path == "/assets/embeddings/web/v1/catalog.json" {
+    if path == "/index.html"
+        || path == MANIFEST_ASSET_PATH
+        || path == SERVICE_WORKER_ASSET_PATH
+        || path == "/assets/embeddings/web/v1/catalog.json"
+    {
         "no-cache"
     } else {
         "public, max-age=31536000, immutable"
@@ -785,12 +792,32 @@ mod tests {
             Some("/assets/app.js")
         );
         assert_eq!(
+            asset_path_for_request("/jbotci/manifest.webmanifest", "/jbotci").as_deref(),
+            Some("/manifest.webmanifest")
+        );
+        assert_eq!(
+            asset_path_for_request("/jbotci/service-worker.js", "/jbotci").as_deref(),
+            Some("/service-worker.js")
+        );
+        assert_eq!(
             asset_path_for_request("/jbotci/cukta", "/jbotci").as_deref(),
             Some("/index.html")
         );
         assert_eq!(
             asset_path_for_request("/jbotci/cukta/section/11.9", "/jbotci").as_deref(),
             Some("/index.html")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn pwa_root_assets_are_not_cached_as_immutable() {
+        assert_eq!(cache_control_for_path("/manifest.webmanifest"), "no-cache");
+        assert_eq!(cache_control_for_path("/service-worker.js"), "no-cache");
+        assert_eq!(
+            cache_control_for_path("/assets/icons/jbotci-icon-192.png"),
+            "public, max-age=31536000, immutable"
         );
     }
 
@@ -1168,6 +1195,10 @@ mod tests {
 
         assert!(body.contains("<title>mi klama - jbotci gentufa</title>"));
         assert!(body.contains("name=\"description\""));
+        assert!(body.contains("<link rel=\"manifest\" href=\"/jbotci/manifest.webmanifest\">"));
+        assert!(body.contains(
+            "<link rel=\"apple-touch-icon\" href=\"/jbotci/assets/icons/apple-touch-icon.png\">"
+        ));
         assert!(body.contains("Parse succeeded:"));
         assert!(body.contains(
             "property=\"og:url\" content=\"https://example.test/jbotci/gentufa?text=mi+klama\""

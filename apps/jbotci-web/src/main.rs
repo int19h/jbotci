@@ -71,9 +71,10 @@ const COMPUTE_JS: Asset = asset!("/assets/compute.js");
 const COMPUTE_WORKER_JS: Asset = asset!("/assets/compute-worker.js");
 const EMBEDDINGS_JS: Asset = asset!("/assets/embeddings.js");
 const EMBEDDING_WORKER_JS: Asset = asset!("/assets/embedding-worker.js");
-const MANIFEST: Asset = asset!("/assets/manifest.webmanifest");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
-const FAVICON: Asset = asset!("/assets/icons/jbotci-icon-192.png");
+const MANIFEST_PATH: &str = "/manifest.webmanifest";
+const FAVICON_PATH: &str = "/assets/icons/jbotci-icon-192.png";
+const APPLE_TOUCH_ICON_PATH: &str = "/assets/icons/apple-touch-icon.png";
 const BUILD_GIT_COMMIT: Option<&str> = option_env!("JBOTCI_GIT_COMMIT");
 const BUILD_GIT_COMMIT_SHORT: Option<&str> = option_env!("JBOTCI_GIT_COMMIT_SHORT");
 const NOTO_SANS: Asset = asset!("/assets/fonts/noto-sans-variable.ttf");
@@ -1568,6 +1569,9 @@ fn AppShell() -> Element {
         theme_class(settings_value.theme),
         script_class(settings_value.script)
     );
+    let manifest_href = static_asset_href_with_base_path(&base_path, MANIFEST_PATH);
+    let favicon_href = static_asset_href_with_base_path(&base_path, FAVICON_PATH);
+    let apple_touch_icon_href = static_asset_href_with_base_path(&base_path, APPLE_TOUCH_ICON_PATH);
 
     rsx! {
         style { "{font_face_css()}" }
@@ -1576,10 +1580,10 @@ fn AppShell() -> Element {
         document::Link { rel: "modulepreload", href: COMPUTE_WORKER_JS }
         document::Link { rel: "modulepreload", href: EMBEDDINGS_JS }
         document::Link { rel: "modulepreload", href: EMBEDDING_WORKER_JS }
-        document::Link { rel: "manifest", href: MANIFEST }
-        document::Link { rel: "icon", r#type: "image/png", href: FAVICON }
-        document::Link { rel: "shortcut icon", r#type: "image/png", href: FAVICON }
-        document::Link { rel: "apple-touch-icon", href: FAVICON }
+        document::Link { rel: "manifest", href: "{manifest_href}" }
+        document::Link { rel: "icon", r#type: "image/png", href: "{favicon_href}" }
+        document::Link { rel: "shortcut icon", r#type: "image/png", href: "{favicon_href}" }
+        document::Link { rel: "apple-touch-icon", href: "{apple_touch_icon_href}" }
         div { class: "{app_class}",
             { render_topbar(
                 route_value,
@@ -11590,6 +11594,18 @@ fn route_href_with_base_path(base_path: &str, route: &JbotciRoute) -> String {
     }
 }
 
+#[requires(base_path.is_empty() || base_path.starts_with('/'))]
+#[requires(path.starts_with('/'))]
+#[ensures(ret.starts_with('/'))]
+fn static_asset_href_with_base_path(base_path: &str, path: &str) -> String {
+    let prefix = base_path.trim_end_matches('/');
+    if prefix.is_empty() || prefix == "/" {
+        path.to_owned()
+    } else {
+        format!("{prefix}{path}")
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn gentufa_state_from_parts(
@@ -13443,8 +13459,15 @@ fn sync_document_head(meta: &PageMeta) {
         return;
     };
     let canonical_url = absolute_href_for_client(&meta.canonical_url);
-    let manifest_href = absolute_href_for_client(&format!("{MANIFEST}"));
-    let icon_href = absolute_href_for_client(&format!("{FAVICON}"));
+    let base_path = router_base_path();
+    let manifest_href =
+        absolute_href_for_client(&static_asset_href_with_base_path(&base_path, MANIFEST_PATH));
+    let icon_href =
+        absolute_href_for_client(&static_asset_href_with_base_path(&base_path, FAVICON_PATH));
+    let apple_touch_icon_href = absolute_href_for_client(&static_asset_href_with_base_path(
+        &base_path,
+        APPLE_TOUCH_ICON_PATH,
+    ));
     append_meta_name(&document, &head, "application-name", "jbotci");
     append_meta_name(&document, &head, "apple-mobile-web-app-capable", "yes");
     append_meta_name(&document, &head, "apple-mobile-web-app-title", "jbotci");
@@ -13466,7 +13489,7 @@ fn sync_document_head(meta: &PageMeta) {
     append_link(&document, &head, "manifest", &manifest_href);
     append_link(&document, &head, "icon", &icon_href);
     append_link(&document, &head, "shortcut icon", &icon_href);
-    append_link(&document, &head, "apple-touch-icon", &icon_href);
+    append_link(&document, &head, "apple-touch-icon", &apple_touch_icon_href);
     append_meta_name(&document, &head, "description", &meta.description);
     append_link(&document, &head, "canonical", &canonical_url);
     append_meta_property(&document, &head, "og:title", &meta.title);

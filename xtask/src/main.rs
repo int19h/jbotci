@@ -33,9 +33,11 @@ use jbotci_syntax::{
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use walkdir::WalkDir;
 
 const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-web/release/web";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
+const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
 static WEB_ASSET_COPY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -340,7 +342,8 @@ fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
     check_status(
         status,
         "dx build --web --release --debug-symbols=false --inject-loading-scripts=false",
-    )
+    )?;
+    write_release_service_worker(&Path::new(DIOXUS_WEB_RELEASE_DIR).join("public"))
 }
 
 #[requires(true)]
@@ -434,7 +437,8 @@ fn dioxus_web_public_input_dir() -> PathBuf {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn remove_obsolete_web_public_assets(public_dir: &Path) -> Result<()> {
-    remove_obsolete_web_public_dir(public_dir, Path::new("assets/generated"))
+    remove_obsolete_web_public_dir(public_dir, Path::new("assets/generated"))?;
+    remove_obsolete_web_public_file(public_dir, Path::new("assets/manifest.webmanifest"))
 }
 
 #[requires(true)]
@@ -455,17 +459,29 @@ fn remove_obsolete_web_public_dir(public_dir: &Path, relative: &Path) -> Result<
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn remove_obsolete_web_public_file(public_dir: &Path, relative: &Path) -> Result<()> {
+    let path = public_dir.join(relative);
+    match fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error).with_context(|| {
+            format!(
+                "removing obsolete web public asset file `{}`",
+                path.display()
+            )
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn copy_stable_web_assets_to_public(public_dir: &Path) -> Result<()> {
     copy_stable_web_asset_file(
         public_dir,
         Path::new("manifest.webmanifest"),
-        Path::new("assets/manifest.webmanifest"),
+        Path::new("manifest.webmanifest"),
     )?;
-    copy_stable_web_asset_file(
-        public_dir,
-        Path::new("icons/jbotci-icon-192.png"),
-        Path::new("assets/icons/jbotci-icon-192.png"),
-    )?;
+    copy_stable_web_asset_dir(public_dir, Path::new("icons"), Path::new("assets/icons"))?;
     copy_stable_web_asset_dir(
         public_dir,
         Path::new("cll/media"),
@@ -560,6 +576,70 @@ fn copy_web_asset_file_atomically(source: &Path, target: &Path, description: &st
         format!(
             "copying {description} `{}` to temporary file `{}`",
             source.display(),
+            temp_path.display()
+        )
+    })?;
+    match fs::rename(&temp_path, target) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == ErrorKind::AlreadyExists => {
+            fs::remove_file(target).with_context(|| {
+                format!(
+                    "removing old {description} `{}` before replace",
+                    target.display()
+                )
+            })?;
+            fs::rename(&temp_path, target).with_context(|| {
+                format!(
+                    "moving temporary {description} `{}` to `{}`",
+                    temp_path.display(),
+                    target.display()
+                )
+            })
+        }
+        Err(error) => {
+            let _ = fs::remove_file(&temp_path);
+            Err(error).with_context(|| {
+                format!(
+                    "moving temporary {description} `{}` to `{}`",
+                    temp_path.display(),
+                    target.display()
+                )
+            })
+        }
+    }
+}
+
+#[requires(!contents.is_empty())]
+#[requires(!description.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn write_web_asset_text_atomically(target: &Path, contents: &str, description: &str) -> Result<()> {
+    let parent = target
+        .parent()
+        .with_context(|| format!("{description} target `{}` has no parent", target.display()))?;
+    fs::create_dir_all(parent)
+        .with_context(|| format!("creating {description} directory `{}`", parent.display()))?;
+    let temp_dir = web_asset_sync_temp_dir(target);
+    fs::create_dir_all(&temp_dir).with_context(|| {
+        format!(
+            "creating temporary {description} directory `{}`",
+            temp_dir.display()
+        )
+    })?;
+    let file_name = target.file_name().with_context(|| {
+        format!(
+            "{description} target `{}` has no file name",
+            target.display()
+        )
+    })?;
+    let temp_path = temp_dir.join(format!(
+        "{}-{}-{}.tmp",
+        std::process::id(),
+        WEB_ASSET_COPY_COUNTER.fetch_add(1, Ordering::Relaxed),
+        file_name.to_string_lossy()
+    ));
+    fs::write(&temp_path, contents).with_context(|| {
+        format!(
+            "writing {description} temporary file `{}`",
             temp_path.display()
         )
     })?;
@@ -705,7 +785,8 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
         status,
         "dx bundle --web --release --debug-symbols=false --inject-loading-scripts=false",
     )?;
-    let _ = web_dist_dir(out_dir)?;
+    let web_dist = web_dist_dir(out_dir)?;
+    write_release_service_worker(&web_dist)?;
     Ok(())
 }
 
@@ -729,6 +810,272 @@ fn web_dist_dir(out_dir: &Path) -> Result<PathBuf> {
             )
         })
 }
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn write_release_service_worker(public_dir: &Path) -> Result<()> {
+    let precache_paths = release_service_worker_precache_paths(public_dir)?;
+    let cache_version = release_service_worker_cache_version(public_dir, &precache_paths)?;
+    let contents = render_release_service_worker(&cache_version, &precache_paths)?;
+    write_web_asset_text_atomically(
+        &public_dir.join(RELEASE_SERVICE_WORKER_FILE_NAME),
+        &contents,
+        "release service worker",
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|paths| paths.iter().all(|path| !path.starts_with('/'))) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|paths| paths.windows(2).all(|pair| pair[0] <= pair[1])) || ret.is_err())]
+fn release_service_worker_precache_paths(public_dir: &Path) -> Result<Vec<String>> {
+    if !public_dir.is_dir() {
+        bail!(
+            "release web public directory `{}` does not exist",
+            public_dir.display()
+        );
+    }
+    let mut paths = Vec::new();
+    for entry in WalkDir::new(public_dir) {
+        let entry = entry
+            .with_context(|| format!("walking release web output `{}`", public_dir.display()))?;
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let relative = web_relative_asset_path(public_dir, entry.path())?;
+        if release_service_worker_should_precache(&relative) {
+            paths.push(relative);
+        }
+    }
+    paths.sort();
+    Ok(paths)
+}
+
+#[requires(root.is_dir())]
+#[requires(path.is_file())]
+#[ensures(ret.as_ref().is_ok_and(|path| !path.is_empty() && !path.starts_with('/')) || ret.is_err())]
+fn web_relative_asset_path(root: &Path, path: &Path) -> Result<String> {
+    let relative = path.strip_prefix(root).with_context(|| {
+        format!(
+            "making `{}` relative to `{}`",
+            path.display(),
+            root.display()
+        )
+    })?;
+    let mut parts = Vec::new();
+    for component in relative.components() {
+        match component {
+            std::path::Component::Normal(part) => {
+                let text = part.to_str().with_context(|| {
+                    format!("release web asset path `{}` is not utf-8", path.display())
+                })?;
+                parts.push(text);
+            }
+            _ => bail!(
+                "release web asset path `{}` is not normalized",
+                path.display()
+            ),
+        }
+    }
+    if parts.is_empty() {
+        bail!(
+            "release web asset path `{}` has no relative components",
+            path.display()
+        );
+    }
+    Ok(parts.join("/"))
+}
+
+#[requires(!path.is_empty())]
+#[ensures(true)]
+fn release_service_worker_should_precache(path: &str) -> bool {
+    path != RELEASE_SERVICE_WORKER_FILE_NAME
+        && !path.ends_with(".br")
+        && !path.ends_with(".gz")
+        && !path.ends_with(".map")
+        && !path.starts_with("assets/embeddings/")
+}
+
+#[requires(public_dir.is_dir())]
+#[requires(paths.iter().all(|path| !path.is_empty() && !path.starts_with('/')))]
+#[ensures(ret.as_ref().is_ok_and(|version| !version.is_empty()) || ret.is_err())]
+fn release_service_worker_cache_version(public_dir: &Path, paths: &[String]) -> Result<String> {
+    let mut hasher = Sha256::new();
+    hasher.update(RELEASE_SERVICE_WORKER_TEMPLATE.as_bytes());
+    hasher.update([0]);
+    for path in paths {
+        let bytes = fs::read(public_dir.join(path))
+            .with_context(|| format!("reading release web asset `{path}` for cache version"))?;
+        hasher.update(path.as_bytes());
+        hasher.update([0]);
+        hasher.update(&bytes);
+        hasher.update([0xff]);
+    }
+    let hash = format!("{:x}", hasher.finalize());
+    Ok(hash[..16].to_owned())
+}
+
+#[requires(!cache_version.is_empty())]
+#[requires(precache_paths.iter().all(|path| !path.is_empty() && !path.starts_with('/')))]
+#[ensures(ret.as_ref().is_ok_and(|script| script.contains(cache_version)) || ret.is_err())]
+fn render_release_service_worker(cache_version: &str, precache_paths: &[String]) -> Result<String> {
+    let cache_version_json = serde_json::to_string(cache_version)?;
+    let precache_paths_json = serde_json::to_string(precache_paths)?;
+    Ok(RELEASE_SERVICE_WORKER_TEMPLATE
+        .replace("__CACHE_VERSION_JSON__", &cache_version_json)
+        .replace("__PRECACHE_PATHS_JSON__", &precache_paths_json))
+}
+
+const RELEASE_SERVICE_WORKER_TEMPLATE: &str = r#"const CACHE_VERSION = __CACHE_VERSION_JSON__;
+const STATIC_CACHE_NAME = `jbotci-static-${CACHE_VERSION}`;
+const RUNTIME_CACHE_NAME = `jbotci-runtime-${CACHE_VERSION}`;
+const CURRENT_CACHE_NAMES = new Set([STATIC_CACHE_NAME, RUNTIME_CACHE_NAME]);
+const PRECACHE_PATHS = __PRECACHE_PATHS_JSON__;
+
+const SCOPE_URL = new URL(self.registration.scope);
+if (!SCOPE_URL.pathname.endsWith("/")) {
+  SCOPE_URL.pathname = `${SCOPE_URL.pathname}/`;
+}
+const APP_SHELL_URL = new URL("index.html", SCOPE_URL).href;
+const PRECACHE_URLS = new Set(
+  PRECACHE_PATHS.map((path) => new URL(path, SCOPE_URL).href),
+);
+
+self.addEventListener("install", (event) => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(STATIC_CACHE_NAME);
+    await cache.addAll(
+      PRECACHE_PATHS.map((path) => new Request(new URL(path, SCOPE_URL), {
+        cache: "default",
+      })),
+    );
+    await self.skipWaiting();
+  })());
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil((async () => {
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map((name) => {
+      if (name.startsWith("jbotci-") && !CURRENT_CACHE_NAMES.has(name)) {
+        return caches.delete(name);
+      }
+      return Promise.resolve(false);
+    }));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.method !== "GET") {
+    return;
+  }
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  const relativePath = relativeScopedPath(url);
+  if (relativePath === null) {
+    return;
+  }
+
+  if (isApiRequest(relativePath)) {
+    event.respondWith(networkOnlyJson(request));
+    return;
+  }
+
+  if (isEmbeddingAssetRequest(relativePath)) {
+    return;
+  }
+
+  if (request.mode === "navigate") {
+    event.respondWith(networkFirst(request, RUNTIME_CACHE_NAME, APP_SHELL_URL));
+    return;
+  }
+
+  if (PRECACHE_URLS.has(url.href)) {
+    event.respondWith(networkFirst(request, STATIC_CACHE_NAME, null));
+    return;
+  }
+
+  if (isStaticOrCoreRequest(relativePath)) {
+    event.respondWith(networkFirst(request, RUNTIME_CACHE_NAME, null));
+  }
+});
+
+function relativeScopedPath(url) {
+  if (!url.pathname.startsWith(SCOPE_URL.pathname)) {
+    return null;
+  }
+  return url.pathname.slice(SCOPE_URL.pathname.length);
+}
+
+function isApiRequest(relativePath) {
+  return relativePath === "api" || relativePath.startsWith("api/");
+}
+
+function isEmbeddingAssetRequest(relativePath) {
+  return relativePath.startsWith("assets/embeddings/");
+}
+
+function isStaticOrCoreRequest(relativePath) {
+  return relativePath === ""
+    || relativePath === "index.html"
+    || relativePath === "manifest.webmanifest"
+    || relativePath === "service-worker.js"
+    || relativePath.startsWith("assets/");
+}
+
+async function networkFirst(request, cacheName, fallbackUrl) {
+  const cache = await caches.open(cacheName);
+  try {
+    const response = await fetch(request);
+    if (response.ok && response.type !== "opaque") {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const cached = await caches.match(request);
+    if (cached) {
+      return cached;
+    }
+    if (fallbackUrl !== null) {
+      const fallback = await caches.match(fallbackUrl);
+      if (fallback) {
+        return fallback;
+      }
+    }
+    return offlineTextResponse();
+  }
+}
+
+async function networkOnlyJson(request) {
+  try {
+    return await fetch(request);
+  } catch (error) {
+    return new Response(JSON.stringify({
+      error: "offline",
+      message: "jbotci is offline and this API request is not cached.",
+    }), {
+      status: 503,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    });
+  }
+}
+
+function offlineTextResponse() {
+  return new Response("jbotci is offline and this resource is not cached.", {
+    status: 503,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+    },
+  });
+}
+"#;
 
 #[requires(web_dist.is_dir())]
 #[requires(corpus.is_file())]
@@ -3941,5 +4288,60 @@ mod tests {
         assert!(!target.join("obsolete.txt").exists());
         assert!(target.join("nested").is_dir());
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn release_service_worker_precache_excludes_sidecars_and_embeddings() {
+        let root = std::env::temp_dir().join(format!(
+            "jbotci-xtask-sw-assets-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let public = root.join("public");
+        fs::create_dir_all(public.join("assets/embeddings/web/v1")).unwrap();
+        fs::create_dir_all(public.join("assets/icons")).unwrap();
+        fs::write(public.join("index.html"), "<!doctype html>").unwrap();
+        fs::write(public.join("manifest.webmanifest"), "{}").unwrap();
+        fs::write(public.join("service-worker.js"), "old").unwrap();
+        fs::write(public.join("assets/app.js"), "app").unwrap();
+        fs::write(public.join("assets/app.js.br"), "compressed").unwrap();
+        fs::write(public.join("assets/app.js.map"), "sourcemap").unwrap();
+        fs::write(public.join("assets/icons/jbotci-icon-512.png"), "icon").unwrap();
+        fs::write(
+            public.join("assets/embeddings/web/v1/catalog.json"),
+            "embedding",
+        )
+        .unwrap();
+
+        let paths = release_service_worker_precache_paths(&public).unwrap();
+
+        assert_eq!(
+            paths,
+            vec![
+                "assets/app.js".to_owned(),
+                "assets/icons/jbotci-icon-512.png".to_owned(),
+                "index.html".to_owned(),
+                "manifest.webmanifest".to_owned(),
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn release_service_worker_script_uses_network_first_and_jbotci_cache_prefix() {
+        let paths = vec!["index.html".to_owned(), "manifest.webmanifest".to_owned()];
+        let script = render_release_service_worker("abc123", &paths).unwrap();
+
+        assert!(script.contains("const CACHE_VERSION = \"abc123\";"));
+        assert!(script.contains("networkFirst(request, RUNTIME_CACHE_NAME, APP_SHELL_URL)"));
+        assert!(script.contains("name.startsWith(\"jbotci-\")"));
+        assert!(script.contains("\"manifest.webmanifest\""));
     }
 }

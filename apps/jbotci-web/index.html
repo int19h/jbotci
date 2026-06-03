@@ -10,6 +10,8 @@
     <div id="main"></div>
     <script type="module">
       const rawBasePath = "{base_path}";
+      const generatedJsPath = "{js_path}";
+      const generatedWasmPath = "{wasm_path}";
       const normalizedBasePath = rawBasePath
         .trim()
         .replace(/^\/+|\/+$/g, "");
@@ -18,17 +20,86 @@
           ? "/"
           : `/${normalizedBasePath}/`;
       const appRoot = new URL(appRootPath, window.location.origin);
-      const mainModuleUrl = new URL("{js_path}", appRoot).href;
-      const mainWasmUrl = new URL("{wasm_path}", appRoot).href;
+      const mainModuleUrl = new URL(generatedJsPath, appRoot).href;
+      const mainWasmUrl = new URL(generatedWasmPath, appRoot).href;
       const serviceWorkerUrl = new URL("service-worker.js", appRoot).href;
+      const releaseBuild =
+        generatedJsPath.startsWith("assets/")
+        || generatedJsPath.startsWith("./assets/")
+        || generatedJsPath.includes("/assets/");
+
+      function appendBootstrapLink(rel, href, attributes = {}) {
+        const link = document.createElement("link");
+        link.setAttribute("data-jbotci-bootstrap", "1");
+        link.setAttribute("rel", rel);
+        link.setAttribute("href", href);
+        for (const [name, value] of Object.entries(attributes)) {
+          link.setAttribute(name, value);
+        }
+        document.head.appendChild(link);
+      }
+
+      function serviceWorkerScriptUrl(registration) {
+        return registration.active?.scriptURL
+          ?? registration.installing?.scriptURL
+          ?? registration.waiting?.scriptURL
+          ?? "";
+      }
+
+      function registerReleaseServiceWorker() {
+        if (!("serviceWorker" in navigator)) {
+          return;
+        }
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register(serviceWorkerUrl, { scope: appRoot.pathname })
+            .catch((error) => {
+              console.warn("jbotci service worker registration failed", error);
+            });
+        }, { once: true });
+      }
+
+      function unregisterDebugServiceWorker() {
+        if (!("serviceWorker" in navigator)) {
+          return;
+        }
+        navigator.serviceWorker.getRegistration(appRoot.href)
+          .then((registration) => {
+            if (!registration || registration.scope !== appRoot.href) {
+              return;
+            }
+            const scriptUrl = serviceWorkerScriptUrl(registration);
+            if (scriptUrl.endsWith("/service-worker.js")) {
+              return registration.unregister();
+            }
+          })
+          .catch((error) => {
+            console.warn("jbotci service worker cleanup failed", error);
+          });
+      }
+
+      appendBootstrapLink("manifest", new URL("manifest.webmanifest", appRoot).href);
+      appendBootstrapLink("icon", new URL("assets/icons/jbotci-icon-192.png", appRoot).href, {
+        type: "image/png",
+      });
+      appendBootstrapLink("shortcut icon", new URL("assets/icons/jbotci-icon-192.png", appRoot).href, {
+        type: "image/png",
+      });
+      appendBootstrapLink("apple-touch-icon", new URL("assets/icons/apple-touch-icon.png", appRoot).href);
 
       globalThis.JBOTCI_WEB_BOOTSTRAP = Object.freeze({
         appRootUrl: appRoot.href,
         mainModuleUrl,
         mainWasmUrl,
-        releaseBuild: "{js_path}".startsWith("assets/"),
+        releaseBuild,
         serviceWorkerUrl,
       });
+
+      if (releaseBuild) {
+        registerReleaseServiceWorker();
+      } else {
+        unregisterDebugServiceWorker();
+      }
 
       import(mainModuleUrl);
     </script>
