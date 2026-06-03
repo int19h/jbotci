@@ -1745,17 +1745,29 @@ fn statement_parser<'tokens>(
     free_modifier.define(syntax_context(
         "free modifier",
         choice((
-            replacement_free(free_modifier.clone()),
-            mai_free(free_modifier.clone()),
-            xi_free(free_modifier.clone()),
-            sei_free(term.clone(), selbri.clone(), free_modifier.clone()),
-            soi_free(sumti.clone(), free_modifier.clone()),
-            to_free(text.clone(), free_modifier.clone()),
-            vocative_free(
-                sumti.clone(),
-                selbri.clone(),
-                subbridi.clone(),
-                free_modifier.clone(),
+            syntax_label(
+                "replacement phrase",
+                replacement_free(free_modifier.clone()),
+            ),
+            syntax_label("utterance ordinal", mai_free(free_modifier.clone())),
+            syntax_label("subscript", xi_free(free_modifier.clone())),
+            syntax_label(
+                "metalinguistic comment",
+                sei_free(term.clone(), selbri.clone(), free_modifier.clone()),
+            ),
+            syntax_label("reciprocal", soi_free(sumti.clone(), free_modifier.clone())),
+            syntax_label(
+                "parenthetical text",
+                to_free(text.clone(), free_modifier.clone()),
+            ),
+            syntax_label(
+                "vocative phrase",
+                vocative_free(
+                    sumti.clone(),
+                    selbri.clone(),
+                    subbridi.clone(),
+                    free_modifier.clone(),
+                ),
             ),
         )),
     ));
@@ -1990,6 +2002,15 @@ fn syntax_context<'tokens, O: 'tokens>(
                 }),
         )
         .boxed()
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(true)]
+fn syntax_label<'tokens, O: 'tokens>(
+    construct: &'static str,
+    parser: impl Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + 'tokens,
+) -> BoxedParser<'tokens, O> {
+    parser.labelled(construct).boxed()
 }
 
 #[requires(!construct.is_empty())]
@@ -2556,7 +2577,10 @@ where
         + Clone
         + 'tokens,
 {
-    math_parser_pair_with_context(sumti, selbri, free_modifier).0
+    syntax_label(
+        "mex",
+        math_parser_pair_with_context(sumti, selbri, free_modifier).0,
+    )
 }
 
 #[requires(true)]
@@ -3240,77 +3264,92 @@ where
         + Clone
         + 'tokens,
 {
-    let quote = quote_argument(source, text, free_modifier.clone());
+    let quote = syntax_label("quote", quote_argument(source, text, free_modifier.clone()));
 
-    let mekso = selmaho(Selmaho::Li)
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(math_expression_body_with_context(
-            sumti.clone(),
-            selbri.clone(),
-            free_modifier.clone(),
-        ))
-        .then(
-            cmavo(Cmavo::Loho)
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .or_not(),
-        )
-        .map(|(((li, li_free_modifiers), expression), loho)| {
-            new!(SumtiSyntax::NumberSumti {
-                li: WithFreeModifiers::new(li, li_free_modifiers),
-                expression: Box::new(expression),
-                loho: loho
-                    .map(|(loho, free_modifiers)| WithFreeModifiers::new(loho, free_modifiers)),
-            })
-        });
-
-    let letter = letter_string()
-        .then_ignore(selmaho(Selmaho::Moi).rewind().not())
-        .then_ignore(selmaho(Selmaho::Mai).rewind().not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(
-            cmavo(Cmavo::Boi)
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .or_not(),
-        )
-        .map(|((letter, letter_free_modifiers), boi)| {
-            new!(SumtiSyntax::LerfuStringSumti {
-                letter: WithFreeModifiers::new(word_run(letter), letter_free_modifiers),
-                boi: boi.map(|(boi, free_modifiers)| WithFreeModifiers::new(boi, free_modifiers)),
-            })
-        });
-
-    let koha = koha_argument()
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|(koha, free_modifiers)| {
-            new!(SumtiSyntax::ProSumti(WithFreeModifiers::new(
-                koha,
-                free_modifiers
-            )))
-        });
-    let lahe = lahe_cmavo()
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(
-            relative_clauses(sumti.clone(), subbridi.clone(), free_modifier.clone())
-                .or_not()
-                .map(Option::unwrap_or_default),
-        )
-        .then(sumti.clone())
-        .then(
-            cmavo(Cmavo::Luhu)
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .or_not(),
-        )
-        .map(
-            |((((lahe, free_modifiers), relative_clauses), inner_sumti), luhu)| {
-                new!(SumtiSyntax::ReferentSumti {
-                    lahe: WithFreeModifiers::new(lahe, free_modifiers),
-                    relative_clauses,
-                    inner_sumti: Box::new(inner_sumti),
-                    luhu: luhu
-                        .map(|(luhu, free_modifiers)| WithFreeModifiers::new(luhu, free_modifiers)),
+    let mekso = syntax_context(
+        "number sumti",
+        selmaho(Selmaho::Li)
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(math_expression_body_with_context(
+                sumti.clone(),
+                selbri.clone(),
+                free_modifier.clone(),
+            ))
+            .then(
+                cmavo(Cmavo::Loho)
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
+            .map(|(((li, li_free_modifiers), expression), loho)| {
+                new!(SumtiSyntax::NumberSumti {
+                    li: WithFreeModifiers::new(li, li_free_modifiers),
+                    expression: Box::new(expression),
+                    loho: loho.map(|(loho, free_modifiers)| {
+                        WithFreeModifiers::new(loho, free_modifiers)
+                    }),
                 })
-            },
-        );
+            }),
+    );
+
+    let letter = syntax_context(
+        "lerfu string",
+        letter_string()
+            .then_ignore(selmaho(Selmaho::Moi).rewind().not())
+            .then_ignore(selmaho(Selmaho::Mai).rewind().not())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(
+                cmavo(Cmavo::Boi)
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
+            .map(|((letter, letter_free_modifiers), boi)| {
+                new!(SumtiSyntax::LerfuStringSumti {
+                    letter: WithFreeModifiers::new(word_run(letter), letter_free_modifiers),
+                    boi: boi
+                        .map(|(boi, free_modifiers)| WithFreeModifiers::new(boi, free_modifiers)),
+                })
+            }),
+    );
+
+    let koha = syntax_context(
+        "pro-sumti",
+        koha_argument()
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|(koha, free_modifiers)| {
+                new!(SumtiSyntax::ProSumti(WithFreeModifiers::new(
+                    koha,
+                    free_modifiers
+                )))
+            }),
+    );
+    let lahe = syntax_context(
+        "converted sumti",
+        lahe_cmavo()
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(
+                relative_clauses(sumti.clone(), subbridi.clone(), free_modifier.clone())
+                    .or_not()
+                    .map(Option::unwrap_or_default),
+            )
+            .then(sumti.clone())
+            .then(
+                cmavo(Cmavo::Luhu)
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
+            .map(
+                |((((lahe, free_modifiers), relative_clauses), inner_sumti), luhu)| {
+                    new!(SumtiSyntax::ReferentSumti {
+                        lahe: WithFreeModifiers::new(lahe, free_modifiers),
+                        relative_clauses,
+                        inner_sumti: Box::new(inner_sumti),
+                        luhu: luhu.map(|(luhu, free_modifiers)| {
+                            WithFreeModifiers::new(luhu, free_modifiers)
+                        }),
+                    })
+                },
+            ),
+    );
     let lahe_term_wrapper = lahe_cmavo()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(single_term.clone())
@@ -3331,16 +3370,19 @@ where
         })
         .boxed();
 
-    let name = la_cmavo()
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(cmevla_word().repeated().at_least(1).collect::<Vec<_>>())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|(((la, la_free_modifiers), names), name_free_modifiers)| {
-            new!(SumtiSyntax::NameDescription {
-                la: WithFreeModifiers::new(la, la_free_modifiers),
-                names: WithFreeModifiers::new(word_run(names), name_free_modifiers),
-            })
-        });
+    let name = syntax_context(
+        "name",
+        la_cmavo()
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(cmevla_word().repeated().at_least(1).collect::<Vec<_>>())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|(((la, la_free_modifiers), names), name_free_modifiers)| {
+                new!(SumtiSyntax::NameDescription {
+                    la: WithFreeModifiers::new(la, la_free_modifiers),
+                    names: WithFreeModifiers::new(word_run(names), name_free_modifiers),
+                })
+            }),
+    );
 
     let contextual_quantifier = quantifier_with_free_modifiers_boxed(
         quantifier_with_context_boxed(sumti.clone(), selbri.clone(), free_modifier.clone()),
@@ -3600,10 +3642,10 @@ where
     ))
     .boxed();
     let descriptor_argument_core = choice((
-        description_connection,
-        descriptor_with_outer_quantifier,
-        descriptor_with_gadri,
-        descriptor_without_gadri,
+        syntax_label("description", description_connection),
+        syntax_label("description", descriptor_with_outer_quantifier),
+        syntax_label("description", descriptor_with_gadri),
+        syntax_label("description", descriptor_without_gadri),
         koha,
     ))
     .boxed();
@@ -4234,33 +4276,35 @@ where
     S: Parser<'tokens, ParserInput<'tokens>, SubbridiSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
     let clause = relative_clause(sumti, subbridi, free_modifier.clone());
-    clause
-        .clone()
-        .then(
-            choice((
-                cmavo(Cmavo::Zihe)
-                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                    .then(clause.clone())
-                    .map(|((zihe, free_modifiers), inner)| {
-                        new!(RelativeClauseSyntax::JoinedRelativeClauses {
-                            zihe: WithFreeModifiers::new(zihe, free_modifiers),
-                            inner: Box::new(inner),
-                        })
-                    }),
-                relative_clause_connective()
-                    .then(clause)
-                    .map(|(connective, inner)| {
-                        new!(RelativeClauseSyntax::RelativeClauseConnection {
-                            connective,
-                            inner: Box::new(inner),
-                        })
-                    }),
-            ))
-            .repeated()
-            .collect::<Vec<_>>(),
-        )
-        .map(|(first, rest)| std::iter::once(first).chain(rest).collect())
-        .boxed()
+    syntax_context(
+        "relative clauses",
+        clause
+            .clone()
+            .then(
+                choice((
+                    cmavo(Cmavo::Zihe)
+                        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                        .then(clause.clone())
+                        .map(|((zihe, free_modifiers), inner)| {
+                            new!(RelativeClauseSyntax::JoinedRelativeClauses {
+                                zihe: WithFreeModifiers::new(zihe, free_modifiers),
+                                inner: Box::new(inner),
+                            })
+                        }),
+                    relative_clause_connective()
+                        .then(clause)
+                        .map(|(connective, inner)| {
+                            new!(RelativeClauseSyntax::RelativeClauseConnection {
+                                connective,
+                                inner: Box::new(inner),
+                            })
+                        }),
+                ))
+                .repeated()
+                .collect::<Vec<_>>(),
+            )
+            .map(|(first, rest)| std::iter::once(first).chain(rest).collect()),
+    )
 }
 
 #[requires(true)]
@@ -4277,47 +4321,56 @@ fn relative_clause<'tokens, R>(
 where
     R: Parser<'tokens, ParserInput<'tokens>, SubbridiSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
-    let goi = goi_relative_clause(sumti, free_modifier.clone()).map(|value| {
+    let goi = syntax_label(
+        "sumti association phrase",
+        goi_relative_clause(sumti, free_modifier.clone()),
+    )
+    .map(|value| {
         new!(RelativeClauseSyntax::SumtiAssociationPhrase(Box::new(
             value
         )))
     });
-    let noi = cmavo_one_of(
-        "NOI",
-        &[
-            Cmavo::Noi,
-            Cmavo::Nohoi,
-            Cmavo::Poi,
-            Cmavo::Pohoi,
-            Cmavo::Voi,
-            Cmavo::Voihi,
-        ],
-    )
-    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-    .then(subbridi)
-    .then(
-        cmavo(Cmavo::Kuho)
-            .then(free_modifier.repeated().collect::<Vec<_>>())
-            .or_not(),
-    )
-    .map(|(((marker, leading_free_modifiers), subbridi), kuho)| {
-        if marker.is_one_of_cmavo(crate::tree::RESTRICTIVE_RELATIVE_CLAUSE_CMAVO) {
-            new!(RelativeClauseSyntax::RestrictiveRelativeBridi {
-                poi: WithFreeModifiers::new(marker, leading_free_modifiers),
-                subbridi: Box::new(subbridi),
-                kuho: kuho
-                    .map(|(kuho, free_modifiers)| WithFreeModifiers::new(kuho, free_modifiers)),
-            })
-        } else {
-            new!(RelativeClauseSyntax::IncidentalRelativeBridi {
-                noi: WithFreeModifiers::new(marker, leading_free_modifiers),
-                subbridi: Box::new(subbridi),
-                kuho: kuho
-                    .map(|(kuho, free_modifiers)| WithFreeModifiers::new(kuho, free_modifiers)),
-            })
-        }
-    });
-    choice((goi, noi)).boxed()
+    let noi = syntax_label(
+        "relative bridi",
+        cmavo_one_of(
+            "NOI",
+            &[
+                Cmavo::Noi,
+                Cmavo::Nohoi,
+                Cmavo::Poi,
+                Cmavo::Pohoi,
+                Cmavo::Voi,
+                Cmavo::Voihi,
+            ],
+        )
+        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+        .then(subbridi)
+        .then(
+            cmavo(Cmavo::Kuho)
+                .then(free_modifier.repeated().collect::<Vec<_>>())
+                .or_not(),
+        )
+        .map(|(((marker, leading_free_modifiers), subbridi), kuho)| {
+            if marker.is_one_of_cmavo(crate::tree::RESTRICTIVE_RELATIVE_CLAUSE_CMAVO) {
+                new!(RelativeClauseSyntax::RestrictiveRelativeBridi {
+                    poi: WithFreeModifiers::new(marker, leading_free_modifiers),
+                    subbridi: Box::new(subbridi),
+                    kuho: kuho.map(|(kuho, free_modifiers)| {
+                        WithFreeModifiers::new(kuho, free_modifiers)
+                    }),
+                })
+            } else {
+                new!(RelativeClauseSyntax::IncidentalRelativeBridi {
+                    noi: WithFreeModifiers::new(marker, leading_free_modifiers),
+                    subbridi: Box::new(subbridi),
+                    kuho: kuho.map(|(kuho, free_modifiers)| {
+                        WithFreeModifiers::new(kuho, free_modifiers)
+                    }),
+                })
+            }
+        }),
+    );
+    syntax_label("relative clause", choice((goi, noi))).boxed()
 }
 
 #[requires(true)]

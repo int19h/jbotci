@@ -5224,10 +5224,11 @@ mod tests {
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("syntax.parse"), "{stderr}");
             assert!(stderr.contains("syntax parse failed"));
-            assert!(stderr.contains("expected one of:"));
-            assert!(stderr.contains("{be}"));
-            assert!(stderr.contains("BRIVLA"));
+            assert!(stderr.contains("expected: free modifier, statement, or end of input"));
+            assert!(!stderr.contains("expected one of:"));
             assert!(!stderr.contains("needs one of:"));
+            assert!(!stderr.contains("{be}"));
+            assert!(!stderr.contains("BRIVLA"));
             assert!(stderr.contains("ku"));
             assert!(!stderr.contains("jbotci:"));
             assert!(!stderr.contains("\x1b["));
@@ -5239,9 +5240,17 @@ mod tests {
     #[ensures(true)]
     fn gentufa_syntax_error_uses_explicit_diagnostic_width() {
         run_on_normal_stack(|| {
-            let cli =
-                Cli::try_parse_from(["jbotci", "gentufa", "gleki", "ku", "klama", "zei", "klama"])
-                    .expect("gentufa parses");
+            let cli = Cli::try_parse_from([
+                "jbotci",
+                "gentufa",
+                "--detailed-errors",
+                "gleki",
+                "ku",
+                "klama",
+                "zei",
+                "klama",
+            ])
+            .expect("gentufa parses");
             let mut output = Vec::new();
             let mut error = Vec::new();
             let status = run_cli_with_color_policy_and_width(
@@ -5256,7 +5265,8 @@ mod tests {
             assert_eq!(status, CliStatus::Failure);
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
-            assert!(stderr.contains("expected one of:"));
+            assert!(stderr.contains("expected: free modifier, statement, or end of input"));
+            assert!(!stderr.contains("expected one of:"));
             assert!(stderr.contains("\n            "));
             assert!(!stderr.contains("\x1b["));
         });
@@ -5289,14 +5299,18 @@ mod tests {
             assert!(stderr.contains("selbri"));
             assert!(stderr.contains("{be}"));
             assert!(stderr.contains("BRIVLA"));
-            assert!(stderr.contains("[ends selbri, statement or text]"));
+            assert!(stderr.contains("[ends selbri, statement, or text]"));
             assert!(!stderr.contains("end of input (end of input)"));
             let compact_stderr = stderr.split_whitespace().collect::<Vec<_>>().join(" ");
+            let free_modifier = compact_stderr
+                .find("- metalinguistic comment")
+                .expect("free modifier subtype group");
             let sumti = compact_stderr.find("- sumti").expect("sumti group");
             let selbri = compact_stderr
                 .find("[continues selbri]")
                 .expect("selbri continuation group");
             let end = compact_stderr.find("[ends selbri").expect("end group");
+            assert!(free_modifier < sumti);
             assert!(sumti < selbri);
             assert!(selbri < end);
             assert!(!stderr.contains("\x1b["));

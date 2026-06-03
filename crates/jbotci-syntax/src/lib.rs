@@ -220,18 +220,76 @@ impl SyntaxConstructContext {
 }
 
 #[requires(!construct.is_empty())]
-#[ensures(ret <= 6)]
-pub(crate) fn syntax_construct_depth(construct: &str) -> usize {
+#[ensures(true)]
+fn syntax_construct_parent(construct: &str) -> Option<&'static str> {
     match construct {
-        "free modifier" => 6,
-        "sumti" => 5,
-        "term" => 4,
-        "selbri" => 3,
-        "subbridi" => 2,
-        "statement" => 1,
-        "text" | "parse_text" | "end of input" | "syntax construct" => 0,
-        _ => panic!("missing syntax diagnostic construct metadata for {construct:?}"),
+        "bridi" | "prenex" | "text group" => Some("statement"),
+        "statement" | "fragment" | "free modifier" => Some("text"),
+        "terms" | "tail terms" | "forethought bridi connection" => Some("bridi"),
+        "term" | "termset" => Some("terms"),
+        "sumti" | "tag" | "place tag" | "NA KU term" => Some("term"),
+        "description"
+        | "pro-sumti"
+        | "name"
+        | "quote"
+        | "number sumti"
+        | "lerfu string"
+        | "converted sumti"
+        | "bridi description"
+        | "forethought sumti connection"
+        | "relative clauses" => Some("sumti"),
+        "descriptor" | "description tail" => Some("description"),
+        "relative clause" => Some("relative clauses"),
+        "relative bridi" | "sumti association phrase" => Some("relative clause"),
+        "mex" => Some("number sumti"),
+        "operand" | "operator" | "forethought mex" | "reverse Polish mex" => Some("mex"),
+        "number" | "parenthesized mex" | "selbri operand" | "sumti operand" | "mekso array"
+        | "qualified operand" => Some("operand"),
+        "VUhU operator" | "operand-to-operator" | "selbri-to-operator" | "converted operator" => {
+            Some("operator")
+        }
+        "selbri" => Some("bridi"),
+        "negated selbri" | "forethought selbri connection" | "tanru" => Some("selbri"),
+        "tanru unit" => Some("tanru"),
+        "abstraction"
+        | "grouped tanru"
+        | "sumti-to-selbri"
+        | "operator-to-selbri"
+        | "ordinal selbri"
+        | "converted tanru unit"
+        | "modal conversion"
+        | "linked arguments"
+        | "selbri relative phrase" => Some("tanru unit"),
+        "subbridi" => Some("abstraction"),
+        "quantifier" => Some("description"),
+        "simple tense/modal" | "FIhO modal" | "connected tag" => Some("tag"),
+        "modal tag" | "time tense" | "space tense" => Some("simple tense/modal"),
+        "vocative phrase"
+        | "parenthetical text"
+        | "metalinguistic comment"
+        | "reciprocal"
+        | "subscript"
+        | "utterance ordinal"
+        | "replacement phrase" => Some("free modifier"),
+        "word quote" | "text quote" | "word-sequence quote" | "non-Lojban quote" => Some("quote"),
+        "text" | "parse_text" | "end of input" | "syntax construct" => None,
+        _ => None,
     }
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(ret <= 8)]
+pub(crate) fn syntax_construct_depth(construct: &str) -> usize {
+    if !syntax_construct_is_known(construct) {
+        panic!("missing syntax diagnostic construct metadata for {construct:?}");
+    }
+    let mut depth = 0;
+    let mut current = construct;
+    while let Some(parent) = syntax_construct_parent(current) {
+        depth += 1;
+        current = parent;
+    }
+    depth
 }
 
 #[requires(!construct.is_empty())]
@@ -239,28 +297,50 @@ pub(crate) fn syntax_construct_depth(construct: &str) -> usize {
 pub(crate) fn syntax_construct_is_known(construct: &str) -> bool {
     matches!(
         construct,
-        "free modifier"
-            | "sumti"
-            | "term"
-            | "selbri"
-            | "subbridi"
-            | "statement"
-            | "text"
-            | "parse_text"
-            | "end of input"
-            | "syntax construct"
-    )
+        "text" | "parse_text" | "end of input" | "syntax construct"
+    ) || matches!(syntax_construct_parent(construct), Some(_))
 }
 
 #[requires(!construct.is_empty())]
 #[ensures(ret == matches!(construct, "text" | "parse_text"))]
 pub(crate) fn syntax_construct_is_root(construct: &str) -> bool {
-    match construct {
-        "text" | "parse_text" => true,
-        "free modifier" | "sumti" | "term" | "selbri" | "subbridi" | "statement"
-        | "end of input" | "syntax construct" => false,
-        _ => panic!("missing syntax diagnostic construct metadata for {construct:?}"),
+    if !syntax_construct_is_known(construct) {
+        panic!("missing syntax diagnostic construct metadata for {construct:?}");
     }
+    matches!(construct, "text" | "parse_text")
+}
+
+#[requires(!ancestor.is_empty())]
+#[requires(!descendant.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|child| !child.is_empty()))]
+pub(crate) fn syntax_immediate_child_under(ancestor: &str, descendant: &str) -> Option<String> {
+    if ancestor == descendant || !syntax_construct_is_known(ancestor) {
+        return None;
+    }
+    let mut child = descendant;
+    let mut parent = syntax_construct_parent(child)?;
+    while parent != ancestor {
+        child = parent;
+        parent = syntax_construct_parent(child)?;
+    }
+    Some(child.to_owned())
+}
+
+#[requires(!ancestor.is_empty())]
+#[requires(!descendant.is_empty())]
+#[ensures(ret -> syntax_construct_is_known(ancestor))]
+pub(crate) fn syntax_construct_is_descendant_of(ancestor: &str, descendant: &str) -> bool {
+    if ancestor == descendant || !syntax_construct_is_known(ancestor) {
+        return false;
+    }
+    let mut current = descendant;
+    while let Some(parent) = syntax_construct_parent(current) {
+        if parent == ancestor {
+            return true;
+        }
+        current = parent;
+    }
+    false
 }
 
 #[invariant(::ContinueCurrent { construct } => !construct.is_empty())]
@@ -376,10 +456,6 @@ fn syntax_expected_notes(
     let mut notes = Vec::new();
     if !expectations.is_empty() {
         notes.push(DiagnosticStyledNote::new(
-            DiagnosticNoteMode::Summary,
-            syntax_summary_segments_from_expectations(expectations),
-        ));
-        notes.push(DiagnosticStyledNote::new(
             DiagnosticNoteMode::Detailed,
             syntax_detailed_segments(expectations),
         ));
@@ -390,6 +466,84 @@ fn syntax_expected_notes(
         ));
     }
     notes
+}
+
+#[requires(!expectations.is_empty())]
+#[ensures(ret.starts_with("expected: "))]
+pub(crate) fn syntax_expectation_summary_message(
+    expectations: &[SyntaxExpectation],
+    scope: Option<&str>,
+) -> String {
+    let constructs = syntax_expectation_summary_constructs(expectations, scope);
+    format!("expected: {}", prose_list_text(&constructs))
+}
+
+#[requires(!expectations.is_empty())]
+#[ensures(!ret.is_empty())]
+fn syntax_expectation_summary_constructs(
+    expectations: &[SyntaxExpectation],
+    scope: Option<&str>,
+) -> Vec<String> {
+    let mut constructs = Vec::new();
+    for expectation in merge_expectations_by_reason(expectations) {
+        let construct = syntax_expectation_summary_construct(expectation.reason.construct(), scope);
+        if !constructs.contains(&construct) {
+            constructs.push(construct);
+        }
+    }
+    if let Some(scope) = scope
+        && constructs.len() > 1
+    {
+        constructs.retain(|construct| construct != scope);
+    }
+    constructs
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(!ret.is_empty())]
+fn syntax_expectation_summary_construct(construct: &str, scope: Option<&str>) -> String {
+    if let Some(scope) = scope {
+        if construct == scope {
+            return construct.to_owned();
+        }
+        if let Some(child) = syntax_immediate_child_under(scope, construct) {
+            return child;
+        }
+    }
+    if construct != "free modifier" && syntax_construct_is_descendant_of("free modifier", construct)
+    {
+        "free modifier".to_owned()
+    } else {
+        construct.to_owned()
+    }
+}
+
+#[requires(!items.is_empty())]
+#[ensures(!ret.is_empty())]
+fn prose_list_text(items: &[String]) -> String {
+    let mut text = String::new();
+    for (index, item) in items.iter().enumerate() {
+        if index > 0 {
+            push_prose_list_separator_text(&mut text, index, items.len());
+        }
+        text.push_str(item);
+    }
+    text
+}
+
+#[requires(index > 0)]
+#[requires(index < len)]
+#[ensures(!text.is_empty())]
+fn push_prose_list_separator_text(text: &mut String, index: usize, len: usize) {
+    if index + 1 == len {
+        if len > 2 {
+            text.push_str(", or ");
+        } else {
+            text.push_str(" or ");
+        }
+    } else {
+        text.push_str(", ");
+    }
 }
 
 #[requires(!expectations.is_empty())]
@@ -407,7 +561,7 @@ fn syntax_summary_segments_from_expectations(
     }
     sort_syntax_tokens(&mut tokens);
     let mut segments = vec![plain_segment("expected one of: ")];
-    push_comma_token_list(&mut segments, &tokens);
+    push_token_list(&mut segments, &tokens);
     segments
 }
 
@@ -417,7 +571,7 @@ fn syntax_summary_segments_from_strings(expected: &[String]) -> Vec<DiagnosticTe
     let mut segments = vec![plain_segment("expected one of: ")];
     for (index, item) in expected.iter().enumerate() {
         if index > 0 {
-            segments.push(punctuation_segment(", "));
+            push_prose_list_separator_segment(&mut segments, index, expected.len());
         }
         segments.push(plain_segment(item));
     }
@@ -562,6 +716,12 @@ fn push_expectation_segments(
 #[requires(true)]
 #[ensures(true)]
 fn compare_syntax_expectations(left: &SyntaxExpectation, right: &SyntaxExpectation) -> Ordering {
+    let bucket_order =
+        syntax_reason_sort_bucket(&left.reason).cmp(&syntax_reason_sort_bucket(&right.reason));
+    if bucket_order != Ordering::Equal {
+        return bucket_order;
+    }
+
     let depth_order =
         syntax_reason_sort_depth(&right.reason).cmp(&syntax_reason_sort_depth(&left.reason));
     if depth_order != Ordering::Equal {
@@ -586,6 +746,18 @@ fn compare_syntax_expectations(left: &SyntaxExpectation, right: &SyntaxExpectati
     }
 
     compare_syntax_token_slices(&left.tokens, &right.tokens)
+}
+
+#[requires(true)]
+#[ensures(ret <= 1)]
+fn syntax_reason_sort_bucket(reason: &SyntaxExpectationReason) -> u8 {
+    let construct = syntax_reason_sort_construct(reason);
+    if construct == "free modifier" || syntax_construct_is_descendant_of("free modifier", construct)
+    {
+        0
+    } else {
+        1
+    }
 }
 
 #[requires(true)]
@@ -695,28 +867,7 @@ fn token_list_redundantly_names_construct(construct: &str, tokens: &[SyntaxExpec
 fn push_token_list(segments: &mut Vec<DiagnosticTextSegment>, tokens: &[SyntaxExpectedToken]) {
     for (index, token) in tokens.iter().enumerate() {
         if index > 0 {
-            if index + 1 == tokens.len() {
-                segments.push(punctuation_segment(" or "));
-            } else {
-                segments.push(punctuation_segment(", "));
-            }
-        }
-        segments.push(DiagnosticTextSegment::new(
-            token.role(),
-            token.summary_text(),
-        ));
-    }
-}
-
-#[requires(!tokens.is_empty())]
-#[ensures(true)]
-fn push_comma_token_list(
-    segments: &mut Vec<DiagnosticTextSegment>,
-    tokens: &[SyntaxExpectedToken],
-) {
-    for (index, token) in tokens.iter().enumerate() {
-        if index > 0 {
-            segments.push(punctuation_segment(", "));
+            push_prose_list_separator_segment(segments, index, tokens.len());
         }
         segments.push(DiagnosticTextSegment::new(
             token.role(),
@@ -730,13 +881,28 @@ fn push_comma_token_list(
 fn push_construct_list(segments: &mut Vec<DiagnosticTextSegment>, constructs: &[String]) {
     for (index, construct) in constructs.iter().enumerate() {
         if index > 0 {
-            if index + 1 == constructs.len() {
-                segments.push(punctuation_segment(" or "));
-            } else {
-                segments.push(punctuation_segment(", "));
-            }
+            push_prose_list_separator_segment(segments, index, constructs.len());
         }
         segments.push(construct_segment(construct));
+    }
+}
+
+#[requires(index > 0)]
+#[requires(index < len)]
+#[ensures(true)]
+fn push_prose_list_separator_segment(
+    segments: &mut Vec<DiagnosticTextSegment>,
+    index: usize,
+    len: usize,
+) {
+    if index + 1 == len {
+        if len > 2 {
+            segments.push(punctuation_segment(", or "));
+        } else {
+            segments.push(punctuation_segment(" or "));
+        }
+    } else {
+        segments.push(punctuation_segment(", "));
     }
 }
 
@@ -1509,7 +1675,7 @@ mod tests {
 
         let text = segment_text(&syntax_detailed_segments(&expectations));
 
-        assert!(text.contains("- sumti (BRIVLA, GAhO, be or lo)"));
+        assert!(text.contains("- sumti (BRIVLA, GAhO, be, or lo)"));
     }
 
     #[test]
@@ -1567,7 +1733,210 @@ mod tests {
 
         let text = segment_text(&syntax_summary_segments_from_expectations(&expectations));
 
-        assert_eq!(text, "expected one of: BRIVLA, GAhO, lo");
+        assert_eq!(text, "expected one of: BRIVLA, GAhO, or lo");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn significant_construct_tree_collapses_to_immediate_child() {
+        assert_eq!(
+            syntax_immediate_child_under("sumti", "mex"),
+            Some("number sumti".to_owned())
+        );
+        assert_eq!(
+            syntax_immediate_child_under("number sumti", "mex"),
+            Some("mex".to_owned())
+        );
+        assert!(syntax_construct_is_descendant_of(
+            "free modifier",
+            "metalinguistic comment"
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_expectation_summary_message_uses_constructs_and_oxford_comma() {
+        let expectations = vec![
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::Selmaho(Selmaho::Sei))],
+                new!(SyntaxExpectationReason::StartNested {
+                    construct: "free modifier".to_owned(),
+                }),
+            ),
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::WordCategory(
+                    SyntaxWordCategory::LetterWord
+                ))],
+                new!(SyntaxExpectationReason::StartNested {
+                    construct: "mex".to_owned(),
+                }),
+            ),
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::WordCategory(
+                    SyntaxWordCategory::Quote
+                ))],
+                new!(SyntaxExpectationReason::StartNested {
+                    construct: "quote".to_owned(),
+                }),
+            ),
+        ];
+
+        assert_eq!(
+            syntax_expectation_summary_message(&expectations, None),
+            "expected: free modifier, mex, or quote"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_expectation_summary_message_collapses_to_summary_scope() {
+        let expectations = vec![
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::Selmaho(Selmaho::Lahe))],
+                new!(SyntaxExpectationReason::StartNested {
+                    construct: "converted sumti".to_owned(),
+                }),
+            ),
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::Selmaho(Selmaho::Le))],
+                new!(SyntaxExpectationReason::StartNested {
+                    construct: "description".to_owned(),
+                }),
+            ),
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::WordCategory(
+                    SyntaxWordCategory::Brivla
+                ))],
+                new!(SyntaxExpectationReason::ContinueCurrent {
+                    construct: "selbri".to_owned(),
+                }),
+            ),
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::Selmaho(Selmaho::Sei))],
+                new!(SyntaxExpectationReason::StartNested {
+                    construct: "metalinguistic comment".to_owned(),
+                }),
+            ),
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::EndOfInput)],
+                new!(SyntaxExpectationReason::EndThenStart {
+                    starts: "end of input".to_owned(),
+                    ends: vec!["selbri".to_owned(), "statement".to_owned()],
+                }),
+            ),
+        ];
+
+        assert_eq!(
+            syntax_expectation_summary_message(&expectations, Some("text")),
+            "expected: free modifier, statement, or end of input"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_expectation_summary_message_omits_current_scope_when_alternatives_exist() {
+        let expectations = vec![
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::Selmaho(Selmaho::Sei))],
+                new!(SyntaxExpectationReason::StartNested {
+                    construct: "free modifier".to_owned(),
+                }),
+            ),
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::WordCategory(
+                    SyntaxWordCategory::Brivla
+                ))],
+                new!(SyntaxExpectationReason::StartNested {
+                    construct: "bridi".to_owned(),
+                }),
+            ),
+            SyntaxExpectation::new(
+                vec![new!(SyntaxExpectedToken::Selmaho(Selmaho::Ja))],
+                new!(SyntaxExpectationReason::ContinueCurrent {
+                    construct: "statement".to_owned(),
+                }),
+            ),
+        ];
+
+        assert_eq!(
+            syntax_expectation_summary_message(&expectations, Some("statement")),
+            "expected: free modifier or bridi"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn structured_expected_notes_drop_duplicate_summary_note() {
+        let expectations = vec![SyntaxExpectation::new(
+            vec![new!(SyntaxExpectedToken::WordCategory(
+                SyntaxWordCategory::LetterWord
+            ))],
+            new!(SyntaxExpectationReason::StartNested {
+                construct: "mex".to_owned(),
+            }),
+        )];
+
+        let notes = syntax_expected_notes(&["LERFU".to_owned()], &expectations);
+
+        assert_eq!(notes.len(), 1);
+        assert!(matches!(notes[0].mode, DiagnosticNoteMode::Detailed));
+        let text = segment_text(&notes[0].segments);
+        assert!(text.starts_with("needs one of:"));
+        assert!(!text.contains("expected one of:"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn li_nu_error_reports_number_sumti_and_mex() {
+        let source = "li nu";
+        let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
+        let error = parse_syntax_tree(&words).expect_err("li requires a mex");
+
+        let SyntaxError::Parse {
+            reason,
+            expectations,
+            context,
+            ..
+        } = &error
+        else {
+            panic!("expected syntax parse error");
+        };
+
+        assert_eq!(reason, "expected: free modifier or mex");
+        assert_eq!(
+            context.as_ref().map(|context| context.construct.as_str()),
+            Some("number sumti")
+        );
+        assert!(expectations.iter().any(|expectation| matches!(
+            expectation.reason.as_data(),
+            data!(SyntaxExpectationReason::StartNested { construct }) if construct == "free modifier"
+        )));
+        assert!(expectations.iter().any(|expectation| matches!(
+            expectation.reason.as_data(),
+            data!(SyntaxExpectationReason::StartNested { construct }) if construct == "mex"
+        )));
+
+        let diagnostic = error.to_diagnostic(None, source);
+        assert_eq!(
+            diagnostic.primary_label().message,
+            "expected: free modifier or mex"
+        );
+        assert_eq!(diagnostic.styled_notes.len(), 1);
+        assert!(matches!(
+            diagnostic.styled_notes[0].mode,
+            DiagnosticNoteMode::Detailed
+        ));
+        let note_text = segment_text(&diagnostic.styled_notes[0].segments);
+        assert!(note_text.contains("needs one of:"));
+        assert!(note_text.contains("LERFU"));
+        assert!(!note_text.contains("LETTER WORD"));
+        assert!(!note_text.contains("expected one of:"));
     }
 
     #[cfg(feature = "grammar-debug")]

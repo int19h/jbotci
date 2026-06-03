@@ -15,7 +15,7 @@ use jbotci_source::SourceSpan;
 use super::{BoxedParser, ParseExtra, ParserInput, ParserState, SpannedToken, SyntaxParseError};
 use crate::{
     SyntaxConstructContext, SyntaxError, SyntaxExpectedToken, SyntaxExpectedTokenData,
-    SyntaxWordCategory,
+    SyntaxWordCategory, syntax_expectation_summary_message,
 };
 
 #[requires(true)]
@@ -1070,13 +1070,17 @@ pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
         };
     };
 
-    let expected = error.expected_strings();
-    let reason = match error.reason() {
-        RichReason::Custom(message) => message.to_string(),
-        RichReason::ExpectedFound { .. } if expected.is_empty() => "unexpected input".to_owned(),
-        RichReason::ExpectedFound { .. } => format!("expected {}", expected.join(", ")),
-    };
     let expectations = error.expectations();
+    let expected = error.expected_strings();
+    let summary_context = error.summary_context();
+    let reason = syntax_error_reason(
+        error.reason(),
+        &expected,
+        &expectations,
+        summary_context
+            .as_ref()
+            .map(|context| context.construct.as_str()),
+    );
 
     let byte_start = error.span().start.min(error.span().end);
     let byte_end = error.span().start.max(error.span().end);
@@ -1104,12 +1108,17 @@ pub(super) fn syntax_trace_failure_summary(
         .iter()
         .map(|error| (*error).clone())
         .reduce(SyntaxParseError::merge_for_report)?;
+    let expectations = merged.expectations();
     let expected = merged.expected_strings();
-    let reason = match merged.reason() {
-        RichReason::Custom(message) => message.to_string(),
-        RichReason::ExpectedFound { .. } if expected.is_empty() => "unexpected input".to_owned(),
-        RichReason::ExpectedFound { .. } => format!("expected {}", expected.join(", ")),
-    };
+    let summary_context = merged.summary_context();
+    let reason = syntax_error_reason(
+        merged.reason(),
+        &expected,
+        &expectations,
+        summary_context
+            .as_ref()
+            .map(|context| context.construct.as_str()),
+    );
     let branches = farthest
         .into_iter()
         .flat_map(trace_failure_branches)
@@ -1121,6 +1130,24 @@ pub(super) fn syntax_trace_failure_summary(
         branches,
         current_context: merged.current_context().map(trace_context),
     }))
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn syntax_error_reason(
+    reason: &RichReason<'_, Token>,
+    expected: &[String],
+    expectations: &[crate::SyntaxExpectation],
+    summary_scope: Option<&str>,
+) -> String {
+    if !expectations.is_empty() {
+        return syntax_expectation_summary_message(expectations, summary_scope);
+    }
+    match reason {
+        RichReason::Custom(message) => message.to_string(),
+        RichReason::ExpectedFound { .. } if expected.is_empty() => "unexpected input".to_owned(),
+        RichReason::ExpectedFound { .. } => format!("expected {}", expected.join(", ")),
+    }
 }
 
 #[requires(true)]

@@ -8267,6 +8267,11 @@ fn diagnostic_primary_detail(diagnostic: &Diagnostic) -> Option<&str> {
 #[requires(true)]
 #[ensures(true)]
 fn diagnostic_primary_detail_parts(diagnostic: &Diagnostic) -> Vec<DiagnosticTextRenderPart> {
+    if let Some(detail) = diagnostic_primary_detail(diagnostic)
+        && detail.starts_with("expected:")
+    {
+        return diagnostic_plain_text_render_parts(detail);
+    }
     diagnostic_expected_detail_parts_from_detailed_note(diagnostic).unwrap_or_else(|| {
         diagnostic_primary_detail(diagnostic)
             .map(diagnostic_plain_text_render_parts)
@@ -8856,9 +8861,34 @@ fn diagnostic_word_category_href(base_path: &str, text: &str) -> Option<String> 
 #[ensures(ret.as_ref().is_none_or(|href| !href.is_empty()))]
 fn diagnostic_construct_href(base_path: &str, text: &str) -> Option<String> {
     let rule = match text {
+        "abstraction" => "tanru-unit",
+        "bridi" => "bridi-tail",
+        "bridi description" => "sumti-6",
+        "converted sumti" => "sumti-6",
+        "description" => "sumti-tail",
+        "description tail" => "sumti-tail",
         "free modifier" => "free",
+        "fragment" => "fragment",
+        "lerfu string" => "lerfu-string",
+        "linked arguments" => "linkargs",
+        "mex" => "mex",
+        "name" => "sumti-6",
+        "number sumti" => "sumti-6",
+        "operand" => "operand",
+        "operator" => "operator",
+        "pro-sumti" => "sumti-6",
+        "quantifier" => "quantifier",
+        "quote" => "sumti-6",
+        "relative clause" => "relative-clause",
+        "relative clauses" => "relative-clauses",
         "sumti" => "sumti",
+        "tag" => "tag",
+        "tail terms" => "tail-terms",
+        "tanru" => "selbri",
+        "tanru unit" => "tanru-unit",
         "term" => "term",
+        "termset" => "termset",
+        "terms" => "terms",
         "selbri" => "selbri",
         "statement" => "statement",
         "text" | "parse_text" => "text",
@@ -8901,16 +8931,78 @@ const DIAGNOSTIC_KEYWORD_LABELS: &[(&str, bool)] = &[
 ];
 
 const DIAGNOSTIC_PHRASE_ROLES: &[(&str, &str, DiagnosticTextRole)] = &[
+    ("abstraction", "abstraction", DiagnosticTextRole::Construct),
+    (
+        "bridi description",
+        "bridi description",
+        DiagnosticTextRole::Construct,
+    ),
+    ("bridi", "bridi", DiagnosticTextRole::Construct),
+    (
+        "converted sumti",
+        "converted sumti",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "description tail",
+        "description tail",
+        DiagnosticTextRole::Construct,
+    ),
+    ("description", "description", DiagnosticTextRole::Construct),
     (
         "free modifier",
         "free modifier",
         DiagnosticTextRole::Construct,
     ),
+    ("fragment", "fragment", DiagnosticTextRole::Construct),
+    (
+        "lerfu string",
+        "lerfu string",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "linked arguments",
+        "linked arguments",
+        DiagnosticTextRole::Construct,
+    ),
+    ("mex", "mex", DiagnosticTextRole::Construct),
+    ("name", "name", DiagnosticTextRole::Construct),
+    (
+        "number sumti",
+        "number sumti",
+        DiagnosticTextRole::Construct,
+    ),
+    ("operand", "operand", DiagnosticTextRole::Construct),
+    ("operator", "operator", DiagnosticTextRole::Construct),
+    ("pro-sumti", "pro-sumti", DiagnosticTextRole::Construct),
+    ("quantifier", "quantifier", DiagnosticTextRole::Construct),
+    ("quote", "quote", DiagnosticTextRole::Construct),
+    (
+        "relative clauses",
+        "relative clauses",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "relative clause",
+        "relative clause",
+        DiagnosticTextRole::Construct,
+    ),
+    ("sumti", "sumti", DiagnosticTextRole::Construct),
+    ("selbri", "selbri", DiagnosticTextRole::Construct),
+    ("statement", "statement", DiagnosticTextRole::Construct),
     (
         "syntax construct",
         "syntax construct",
         DiagnosticTextRole::Construct,
     ),
+    ("tag", "tag", DiagnosticTextRole::Construct),
+    ("tail terms", "tail terms", DiagnosticTextRole::Construct),
+    ("tanru unit", "tanru unit", DiagnosticTextRole::Construct),
+    ("tanru", "tanru", DiagnosticTextRole::Construct),
+    ("termset", "termset", DiagnosticTextRole::Construct),
+    ("terms", "terms", DiagnosticTextRole::Construct),
+    ("term", "term", DiagnosticTextRole::Construct),
+    ("text", "text", DiagnosticTextRole::Construct),
     (
         "end of input",
         "end of input",
@@ -14603,6 +14695,46 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn diagnostic_tooltip_prefers_structured_expected_headline() {
+        let source = "li nu";
+        let diagnostic = test_diagnostic(
+            source,
+            DiagnosticSeverity::Error,
+            "syntax.parse",
+            "syntax parse failed",
+            3,
+            5,
+            "expected: free modifier or mex",
+        )
+        .with_styled_notes(vec![DiagnosticStyledNote::new(
+            jbotci_diagnostics::DiagnosticNoteMode::Detailed,
+            vec![
+                DiagnosticTextSegment::new(DiagnosticTextRole::Plain, "needs one of:\n".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "- ".to_owned()),
+                DiagnosticTextSegment::new(
+                    DiagnosticTextRole::Construct,
+                    "free modifier".to_owned(),
+                ),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " (".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::WordCategory, "LERFU".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ")\n".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "- ".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Construct, "mex".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " (".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Selmaho, "PA".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ")".to_owned()),
+            ],
+        )]);
+
+        assert_eq!(
+            diagnostic_tooltip_text(&diagnostic),
+            "syntax.parse: expected: free modifier or mex"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn diagnostic_tooltip_uses_detailed_expectation_order_and_lerfu_name() {
         let source = "coi";
         let diagnostic = test_diagnostic(
@@ -14704,7 +14836,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn diagnostic_plain_text_segments_style_expectation_terms() {
-        let parts = diagnostic_plain_text_render_parts("expected free modifier, SE, LERFU, fe'e");
+        let parts = diagnostic_plain_text_render_parts(
+            "expected free modifier, statement, SE, LERFU, fe'e",
+        );
 
         assert!(
             parts.iter().any(|part| {
@@ -14713,6 +14847,9 @@ mod tests {
         );
         assert!(parts.iter().any(|part| {
             part.role == DiagnosticTextRole::Construct && part.text == "free modifier"
+        }));
+        assert!(parts.iter().any(|part| {
+            part.role == DiagnosticTextRole::Construct && part.text == "statement"
         }));
         assert!(
             parts
@@ -14729,6 +14866,27 @@ mod tests {
                 part.role == DiagnosticTextRole::SpecificWord && part.text == "fe'e"
             })
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_input_tooltip_card_uses_opaque_background_variable() {
+        let css = include_str!("../assets/main.css");
+        let selector = ".parse-page .gentufa-diagnostic-input-tooltip .gentufa-diagnostic-card";
+        let selector_start = css.find(selector).expect("tooltip card selector");
+        let rule_tail = &css[selector_start..];
+        let rule_end = rule_tail.find('}').expect("tooltip card rule end");
+        let rule = &rule_tail[..rule_end];
+
+        assert!(css.contains("--diagnostic-tooltip-card-bg: var(--app-surface-0);"));
+        assert!(css.contains("--diagnostic-tooltip-card-bg: var(--app-surface-2);"));
+        assert!(rule.contains("background: var(--diagnostic-tooltip-card-bg);"));
+        let background_line = rule
+            .lines()
+            .find(|line| line.trim_start().starts_with("background:"))
+            .expect("tooltip card background declaration");
+        assert!(!background_line.contains("transparent"));
     }
 
     #[test]
@@ -14751,6 +14909,10 @@ mod tests {
             role: DiagnosticTextRole::Construct,
             text: "sumti".to_owned(),
         });
+        let statement = new!(DiagnosticTextRenderPart {
+            role: DiagnosticTextRole::Construct,
+            text: "statement".to_owned(),
+        });
 
         assert_eq!(
             diagnostic_text_part_href(&word, "/jbotci").as_deref(),
@@ -14767,6 +14929,10 @@ mod tests {
         assert_eq!(
             diagnostic_text_part_href(&construct, "/jbotci").as_deref(),
             Some("/jbotci/cukta/section/section-EBNF#ebnf-rule-sumti")
+        );
+        assert_eq!(
+            diagnostic_text_part_href(&statement, "/jbotci").as_deref(),
+            Some("/jbotci/cukta/section/section-EBNF#ebnf-rule-statement")
         );
     }
 

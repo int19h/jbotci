@@ -101,6 +101,7 @@ input:disabled {
   --diagnostic-context-bg: color-mix(in srgb, #2f80ed 15%, transparent);
   --diagnostic-context-outline: color-mix(in srgb, #2f80ed 58%, transparent);
   --diagnostic-card-bg: color-mix(in srgb, var(--app-surface-0) 78%, transparent);
+  --diagnostic-tooltip-card-bg: var(--app-surface-0);
   --diagnostic-note-bg: color-mix(in srgb, var(--app-surface-2) 62%, transparent);
   --diagnostic-code-bg: color-mix(in srgb, var(--app-text) 8%, transparent);
   --diagnostic-token-construct: #5b3fc4;
@@ -242,6 +243,7 @@ body::-webkit-scrollbar-thumb:hover,
   --diagnostic-context-bg: color-mix(in srgb, #6cb6ff 16%, transparent);
   --diagnostic-context-outline: color-mix(in srgb, #8ecbff 66%, transparent);
   --diagnostic-card-bg: color-mix(in srgb, var(--app-surface-2) 72%, transparent);
+  --diagnostic-tooltip-card-bg: var(--app-surface-2);
   --diagnostic-note-bg: color-mix(in srgb, var(--app-surface-3) 46%, transparent);
   --diagnostic-code-bg: color-mix(in srgb, var(--app-text) 10%, transparent);
   --diagnostic-token-construct: #c3b5ff;
@@ -315,6 +317,7 @@ body::-webkit-scrollbar-thumb:hover,
     --diagnostic-context-bg: color-mix(in srgb, #6cb6ff 16%, transparent);
     --diagnostic-context-outline: color-mix(in srgb, #8ecbff 66%, transparent);
     --diagnostic-card-bg: color-mix(in srgb, var(--app-surface-2) 72%, transparent);
+    --diagnostic-tooltip-card-bg: var(--app-surface-2);
     --diagnostic-note-bg: color-mix(in srgb, var(--app-surface-3) 46%, transparent);
     --diagnostic-code-bg: color-mix(in srgb, var(--app-text) 10%, transparent);
     --diagnostic-token-construct: #c3b5ff;
@@ -957,6 +960,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .parse-page .gentufa-diagnostic-input-tooltip .gentufa-diagnostic-card {
+  background: var(--diagnostic-tooltip-card-bg);
   border: 1px solid var(--diagnostic-context-outline);
   box-shadow: 0 12px 32px color-mix(in srgb, #000 22%, transparent);
 }

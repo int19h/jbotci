@@ -8,7 +8,8 @@ use super::{Span, Token};
 use crate::{
     SyntaxConstructContext, SyntaxExpectation, SyntaxExpectationReason,
     SyntaxExpectationReasonData, SyntaxExpectedToken, SyntaxExpectedTokenData,
-    syntax_construct_is_known, syntax_construct_is_root,
+    syntax_construct_is_descendant_of, syntax_construct_is_known, syntax_construct_is_root,
+    syntax_immediate_child_under,
 };
 
 #[invariant(true)]
@@ -99,6 +100,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
                     .reason
                     .clone()
                     .unwrap_or_else(|| expectation_reason(&group.tokens, &contexts));
+                let reason = normalize_expectation_reason(reason, &self.context_paths);
                 expectations.push(SyntaxExpectation::new(group.tokens.clone(), reason));
             }
         }
@@ -110,9 +112,12 @@ impl<'tokens> SyntaxParseError<'tokens> {
             {
                 expectations.push(SyntaxExpectation::new(
                     vec![token],
-                    expectation_reason(
-                        &[new!(SyntaxExpectedToken::Named("input".to_owned()))],
-                        &contexts,
+                    normalize_expectation_reason(
+                        expectation_reason(
+                            &[new!(SyntaxExpectedToken::Named("input".to_owned()))],
+                            &contexts,
+                        ),
+                        &self.context_paths,
                     ),
                 ));
             }
@@ -124,6 +129,13 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
     pub(super) fn current_context(&self) -> Option<SyntaxConstructContext> {
         select_current_context(&self.context_paths)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
+    pub(super) fn summary_context(&self) -> Option<SyntaxConstructContext> {
+        select_current_context(&self.context_paths)
+            .or_else(|| select_outer_common_context_including_roots(&self.context_paths))
     }
 
     #[requires(true)]
@@ -413,6 +425,102 @@ fn expectation_reason(
 }
 
 #[requires(true)]
+#[ensures(!ret.construct().is_empty())]
+fn normalize_expectation_reason(
+    reason: SyntaxExpectationReason,
+    paths: &[Vec<SyntaxConstructContext>],
+) -> SyntaxExpectationReason {
+    let Some(current_context) = select_current_context(paths) else {
+        return reason;
+    };
+    match reason.into_data() {
+        data!(SyntaxExpectationReason::ContinueCurrent { construct }) => {
+            if construct == current_context.construct {
+                new!(SyntaxExpectationReason::ContinueCurrent { construct })
+            } else if let Some(child) =
+                immediate_child_under_current(&current_context.construct, &construct, paths)
+            {
+                new!(SyntaxExpectationReason::StartNested { construct: child })
+            } else if let Some(construct) =
+                external_start_construct(&current_context.construct, &construct)
+            {
+                new!(SyntaxExpectationReason::StartNested { construct })
+            } else {
+                new!(SyntaxExpectationReason::ContinueCurrent { construct })
+            }
+        }
+        data!(SyntaxExpectationReason::StartNested { construct }) => {
+            let construct =
+                immediate_child_under_current(&current_context.construct, &construct, paths)
+                    .or_else(|| external_start_construct(&current_context.construct, &construct))
+                    .unwrap_or(construct);
+            new!(SyntaxExpectationReason::StartNested { construct })
+        }
+        data!(SyntaxExpectationReason::EndThenStart { starts, ends }) => {
+            let starts = immediate_child_under_current(&current_context.construct, &starts, paths)
+                .or_else(|| external_start_construct(&current_context.construct, &starts))
+                .unwrap_or(starts);
+            new!(SyntaxExpectationReason::EndThenStart { starts, ends })
+        }
+    }
+}
+
+#[requires(!current.is_empty())]
+#[requires(!construct.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|construct| !construct.is_empty()))]
+fn external_start_construct(current: &str, construct: &str) -> Option<String> {
+    if current != "free modifier"
+        && (construct == "free modifier"
+            || syntax_construct_is_descendant_of("free modifier", construct))
+    {
+        Some("free modifier".to_owned())
+    } else {
+        None
+    }
+}
+
+#[requires(!current.is_empty())]
+#[requires(!descendant.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|child| !child.is_empty()))]
+fn immediate_child_under_current(
+    current: &str,
+    descendant: &str,
+    paths: &[Vec<SyntaxConstructContext>],
+) -> Option<String> {
+    if current == descendant {
+        return None;
+    }
+    immediate_child_from_context_paths(current, descendant, paths)
+        .or_else(|| syntax_immediate_child_under(current, descendant))
+}
+
+#[requires(!current.is_empty())]
+#[requires(!descendant.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|child| !child.is_empty()))]
+fn immediate_child_from_context_paths(
+    current: &str,
+    descendant: &str,
+    paths: &[Vec<SyntaxConstructContext>],
+) -> Option<String> {
+    for path in paths {
+        let Some(current_index) = path.iter().position(|context| context.construct == current)
+        else {
+            continue;
+        };
+        let Some(descendant_index) = path
+            .iter()
+            .position(|context| context.construct == descendant)
+        else {
+            continue;
+        };
+        if descendant_index < current_index && current_index > 0 {
+            return Some(path[current_index - 1].construct.clone());
+        }
+    }
+    None
+}
+
+#[requires(true)]
 #[ensures(!ret.is_empty())]
 fn empty_context_paths() -> Vec<Vec<SyntaxConstructContext>> {
     vec![Vec::new()]
@@ -486,6 +594,19 @@ fn select_shared_innermost_context(
 fn select_outer_common_context(
     paths: &[Vec<SyntaxConstructContext>],
 ) -> Option<SyntaxConstructContext> {
+    let selected = select_outer_common_context_including_roots(paths)?;
+    if syntax_construct_is_root(&selected.construct) {
+        None
+    } else {
+        Some(selected)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
+fn select_outer_common_context_including_roots(
+    paths: &[Vec<SyntaxConstructContext>],
+) -> Option<SyntaxConstructContext> {
     let shortest_path_len = paths.iter().map(Vec::len).min()?;
     let mut selected = None;
     for outer_index in 0..shortest_path_len {
@@ -499,12 +620,7 @@ fn select_outer_common_context(
             break;
         }
     }
-    let selected = selected?;
-    if syntax_construct_is_root(&selected.construct) {
-        None
-    } else {
-        Some(selected.clone())
-    }
+    selected.cloned()
 }
 
 #[requires(true)]
