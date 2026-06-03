@@ -1360,22 +1360,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask web release args delegate validation to clap defaults and command code",
     ),
     (
-        "xtask/src/main.rs:ServeWebReleaseArgs",
-        "xtask web release args delegate validation to clap defaults and command code",
-    ),
-    (
-        "xtask/src/main.rs:WebWorkerWatchFile",
-        "web worker watch file records are opaque filesystem metadata snapshots used only for equality checks",
-    ),
-    (
-        "xtask/src/main.rs:WebWorkerWatchSnapshot",
-        "web worker watch snapshots are opaque filesystem metadata maps used only for equality checks",
-    ),
-    (
-        "xtask/src/main.rs:StableWebAssetWatchSnapshot",
-        "stable web asset watch snapshots are opaque filesystem metadata maps used only for equality checks",
-    ),
-    (
         "xtask/src/main.rs:ExportWebEmbeddingCorpusArgs",
         "xtask web embedding corpus export args delegate validation to clap defaults and command code",
     ),

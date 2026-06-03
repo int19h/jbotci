@@ -1200,10 +1200,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask command enum delegates validation to clap and option structs",
     ),
     (
-        "xtask/src/main.rs:Command::ServeWebRelease",
-        "xtask command enum delegates validation to clap and option structs",
-    ),
-    (
         "xtask/src/main.rs:Command::DistServer",
         "xtask command enum delegates validation to clap and option structs",
     ),

@@ -868,10 +868,37 @@ impl Default for CuktaTocExpansionState {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn main() {
+    if is_window_document_context() {
+        dioxus::launch(App);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 #[requires(true)]
 #[ensures(true)]
 fn main() {
     dioxus::launch(App);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn is_window_document_context() -> bool {
+    let global = js_sys::global();
+    let Ok(window) = js_sys::Reflect::get(&global, &JsValue::from_str("window")) else {
+        return false;
+    };
+    if window.is_null() || window.is_undefined() {
+        return false;
+    }
+    let Ok(document) = js_sys::Reflect::get(&window, &JsValue::from_str("document")) else {
+        return false;
+    };
+    !document.is_null() && !document.is_undefined()
 }
 
 #[allow(non_snake_case)]
@@ -2568,6 +2595,20 @@ extern "C" {
 
     #[wasm_bindgen(js_name = jbotciComputeRequest)]
     fn js_compute_request(channel: &str, request_json: &str) -> js_sys::Promise;
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(js_name = jbotciComputeHandle)]
+#[requires(true)]
+#[ensures(true)]
+pub fn jbotci_compute_handle(request_json: &str) -> Result<String, JsValue> {
+    web_compute_handle(request_json).map_err(|error| JsValue::from_str(&error))
+}
+
+#[requires(!request_json.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|json| !json.is_empty()) || ret.is_err())]
+fn web_compute_handle(request_json: &str) -> Result<String, String> {
+    jbotci_web_core::run_web_compute_request_json(request_json).map_err(|error| error.to_string())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -15159,7 +15200,7 @@ mod tests {
             JbotciRoute::from_str("vlacku/klama").unwrap().to_string(),
             "/vlacku/klama"
         );
-        assert!(JbotciRoute::from_str("assets/generated/jbotci_web_worker.js").is_err());
+        assert!(JbotciRoute::from_str("assets/compute-worker.js").is_err());
     }
 
     #[requires(true)]

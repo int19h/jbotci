@@ -3,10 +3,8 @@ use std::fmt;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command as ProcessCommand, ExitStatus, Stdio};
+use std::process::{Command as ProcessCommand, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::thread;
-use std::time::{Duration, SystemTime};
 
 use anyhow::{Context, Result, bail};
 use bityzba::{contract_trait, ensures, invariant, requires};
@@ -35,13 +33,10 @@ use jbotci_syntax::{
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use walkdir::WalkDir;
 
 const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-web/release/web";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
-const WEB_WORKER_BINDGEN_TEMP_DIR: &str = "target/jbotci-web-worker-bindgen";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
-const WEB_WORKER_WATCH_POLL_INTERVAL: Duration = Duration::from_secs(1);
 static WEB_ASSET_COPY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[path = "../../tests/support/fixtures/mod.rs"]
@@ -75,7 +70,6 @@ struct Cli {
 #[invariant(::FixtureTest(..) => true)]
 #[invariant(::VendorDictionary(..) => true)]
 #[invariant(::BuildWebRelease(..) => true)]
-#[invariant(::ServeWebRelease(..) => true)]
 #[invariant(::ExportWebEmbeddingCorpus(..) => true)]
 #[invariant(::BuildWebEmbeddings(..) => true)]
 #[invariant(::DistServer(..) => true)]
@@ -99,7 +93,6 @@ enum Command {
     FixtureTest(FixtureRunArgs),
     VendorDictionary(VendorDictionaryArgs),
     BuildWebRelease(BuildWebReleaseArgs),
-    ServeWebRelease(ServeWebReleaseArgs),
     ExportWebEmbeddingCorpus(ExportWebEmbeddingCorpusArgs),
     BuildWebEmbeddings(BuildWebEmbeddingsArgs),
     DistServer(DistServerArgs),
@@ -208,38 +201,6 @@ struct VendorDictionaryArgs {
 struct BuildWebReleaseArgs {
     #[arg(long)]
     base_path: Option<String>,
-}
-
-#[derive(Debug, Args)]
-#[invariant(true)]
-struct ServeWebReleaseArgs {
-    #[arg(long, default_value_t = 8081)]
-    port: u16,
-    #[arg(long)]
-    addr: Option<String>,
-    #[arg(long, default_value_t = false, num_args = 0..=1, default_missing_value = "true")]
-    open: bool,
-    #[arg(long, default_value = "/")]
-    base_path: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-struct WebWorkerWatchFile {
-    modified: Option<SystemTime>,
-    len: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-struct WebWorkerWatchSnapshot {
-    files: BTreeMap<PathBuf, WebWorkerWatchFile>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-struct StableWebAssetWatchSnapshot {
-    files: BTreeMap<PathBuf, WebWorkerWatchFile>,
 }
 
 #[derive(Debug, Args)]
@@ -359,7 +320,6 @@ fn main() -> Result<()> {
         Command::FixtureTest(args) => fixture_test(args),
         Command::VendorDictionary(args) => vendor_dictionary(args),
         Command::BuildWebRelease(args) => build_web_release(args),
-        Command::ServeWebRelease(args) => serve_web_release(args),
         Command::ExportWebEmbeddingCorpus(args) => export_web_embedding_corpus(args),
         Command::BuildWebEmbeddings(args) => build_web_embeddings(args),
         Command::DistServer(args) => dist_server(args),
@@ -377,36 +337,10 @@ fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
         command.arg("--base-path").arg(base_path);
     }
     let status = command.status().context("failed to run `dx build`")?;
-    check_status(status, "dx build --web --release --debug-symbols=false")
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn serve_web_release(args: ServeWebReleaseArgs) -> Result<()> {
-    clean_dioxus_web_release_output()?;
-    prepare_dioxus_web_public_input()?;
-    let mut command = dx_web_release_command("serve");
-    set_dioxus_base_path_env(&mut command, &args.base_path);
-    command
-        .arg("--base-path")
-        .arg(args.base_path)
-        .arg("--port")
-        .arg(args.port.to_string())
-        .arg("--open")
-        .arg(args.open.to_string());
-    if let Some(addr) = args.addr {
-        command.arg("--addr").arg(addr);
-    }
-    let mut child = command.spawn().context("failed to run `dx serve`")?;
-    let status = match watch_web_worker_assets_until_exit(&mut child) {
-        Ok(status) => status,
-        Err(error) => {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(error);
-        }
-    };
-    check_status(status, "dx serve --web --release --debug-symbols=false")
+    check_status(
+        status,
+        "dx build --web --release --debug-symbols=false --inject-loading-scripts=false",
+    )
 }
 
 #[requires(true)]
@@ -431,7 +365,7 @@ fn build_web_embeddings(args: BuildWebEmbeddingsArgs) -> Result<()> {
     build_web_embedding_assets(&web_dist, &corpus, &args.dtypes, &args.backend)
 }
 
-#[requires(matches!(subcommand, "build" | "bundle" | "serve"))]
+#[requires(matches!(subcommand, "build" | "bundle"))]
 #[ensures(true)]
 fn dx_web_release_command(subcommand: &str) -> ProcessCommand {
     let mut command = ProcessCommand::new("dx");
@@ -442,7 +376,8 @@ fn dx_web_release_command(subcommand: &str) -> ProcessCommand {
         .arg("-p")
         .arg("jbotci-web")
         // Dioxus 0.7.x can emit DWARF that makes wasm-opt abort during release web builds.
-        .arg("--debug-symbols=false");
+        .arg("--debug-symbols=false")
+        .arg("--inject-loading-scripts=false");
     command
 }
 
@@ -470,69 +405,6 @@ fn dioxus_asset_root(base_path: &str) -> Option<String> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn build_web_worker_assets() -> Result<()> {
-    let output_dir = dioxus_web_public_input_dir().join("assets/generated");
-    let temp_output_dir = Path::new(WEB_WORKER_BINDGEN_TEMP_DIR);
-    if temp_output_dir.exists() {
-        fs::remove_dir_all(temp_output_dir).with_context(|| {
-            format!(
-                "removing temporary worker asset directory `{}`",
-                temp_output_dir.display()
-            )
-        })?;
-    }
-    fs::create_dir_all(temp_output_dir).with_context(|| {
-        format!(
-            "creating temporary worker asset directory `{}`",
-            temp_output_dir.display()
-        )
-    })?;
-
-    let status = ProcessCommand::new("cargo")
-        .arg("build")
-        .arg("-p")
-        .arg("jbotci-web-worker")
-        .arg("--release")
-        .arg("--target")
-        .arg("wasm32-unknown-unknown")
-        .status()
-        .context("failed to run web worker cargo build")?;
-    check_status(
-        status,
-        "cargo build -p jbotci-web-worker --release --target wasm32-unknown-unknown",
-    )?;
-
-    let worker_wasm = Path::new("target/wasm32-unknown-unknown/release/jbotci_web_worker.wasm");
-    if !worker_wasm.is_file() {
-        bail!(
-            "web worker build did not produce `{}`",
-            worker_wasm.display()
-        );
-    }
-    let status = ProcessCommand::new("wasm-bindgen")
-        .arg("--target")
-        .arg("web")
-        .arg("--out-dir")
-        .arg(temp_output_dir)
-        .arg("--out-name")
-        .arg("jbotci_web_worker")
-        .arg(worker_wasm)
-        .status()
-        .context("failed to run `wasm-bindgen`; install the `wasm-bindgen-cli` binary")?;
-    check_status(status, "wasm-bindgen --target web jbotci-web-worker")?;
-
-    copy_flat_web_asset_dir(temp_output_dir, &output_dir, "generated worker asset")?;
-    fs::remove_dir_all(temp_output_dir).with_context(|| {
-        format!(
-            "removing temporary worker asset directory `{}`",
-            temp_output_dir.display()
-        )
-    })?;
-    Ok(())
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn clean_dioxus_web_release_output() -> Result<()> {
     let release_dir = Path::new(DIOXUS_WEB_RELEASE_DIR);
     if release_dir.exists() {
@@ -548,143 +420,8 @@ fn clean_dioxus_web_release_output() -> Result<()> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn watch_web_worker_assets_until_exit(child: &mut Child) -> Result<ExitStatus> {
-    let mut snapshot = web_worker_watch_snapshot()?;
-    let mut stable_asset_snapshot = stable_web_asset_watch_snapshot()?;
-    loop {
-        if let Some(status) = child
-            .try_wait()
-            .context("checking whether `dx serve` exited")?
-        {
-            return Ok(status);
-        }
-        thread::sleep(WEB_WORKER_WATCH_POLL_INTERVAL);
-        let next_stable_asset_snapshot = stable_web_asset_watch_snapshot()?;
-        if next_stable_asset_snapshot != stable_asset_snapshot {
-            println!("stable web asset changed; updating Dioxus public input");
-            match copy_stable_web_assets_to_public(&dioxus_web_public_input_dir()) {
-                Ok(()) => {
-                    stable_asset_snapshot = stable_web_asset_watch_snapshot()?;
-                    println!("stable web assets updated");
-                }
-                Err(error) => {
-                    eprintln!("stable web asset update failed: {error:#}");
-                    stable_asset_snapshot = next_stable_asset_snapshot;
-                }
-            }
-        }
-        let next_snapshot = web_worker_watch_snapshot()?;
-        if next_snapshot == snapshot {
-            continue;
-        }
-        println!("web worker source changed; rebuilding generated worker assets");
-        match build_web_worker_assets() {
-            Ok(()) => {
-                snapshot = web_worker_watch_snapshot()?;
-                println!("web worker assets rebuilt");
-            }
-            Err(error) => {
-                eprintln!("web worker asset rebuild failed: {error:#}");
-                snapshot = next_snapshot;
-            }
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn stable_web_asset_watch_snapshot() -> Result<StableWebAssetWatchSnapshot> {
-    let mut files = BTreeMap::new();
-    for root in stable_web_asset_watch_roots() {
-        if root.is_file() {
-            record_web_worker_watch_file(&root, &mut files)?;
-        } else if root.is_dir() {
-            for entry in WalkDir::new(&root).into_iter() {
-                let entry = entry.with_context(|| {
-                    format!("walking stable web asset watch root `{}`", root.display())
-                })?;
-                if entry.file_type().is_file() {
-                    record_web_worker_watch_file(entry.path(), &mut files)?;
-                }
-            }
-        }
-    }
-    Ok(StableWebAssetWatchSnapshot { files })
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn stable_web_asset_watch_roots() -> Vec<PathBuf> {
-    vec![
-        PathBuf::from("apps/jbotci-web/assets/manifest.webmanifest"),
-        PathBuf::from("apps/jbotci-web/assets/icons/jbotci-icon-192.png"),
-        PathBuf::from("apps/jbotci-web/assets/cll/media"),
-    ]
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn web_worker_watch_snapshot() -> Result<WebWorkerWatchSnapshot> {
-    let mut files = BTreeMap::new();
-    for root in web_worker_watch_roots() {
-        if root.is_file() {
-            record_web_worker_watch_file(&root, &mut files)?;
-        } else if root.is_dir() {
-            for entry in WalkDir::new(&root).into_iter() {
-                let entry = entry
-                    .with_context(|| format!("walking worker watch root `{}`", root.display()))?;
-                if entry.file_type().is_file() {
-                    record_web_worker_watch_file(entry.path(), &mut files)?;
-                }
-            }
-        }
-    }
-    Ok(WebWorkerWatchSnapshot { files })
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn web_worker_watch_roots() -> Vec<PathBuf> {
-    vec![
-        PathBuf::from("Cargo.lock"),
-        PathBuf::from("Cargo.toml"),
-        PathBuf::from("apps/jbotci-web-worker"),
-        PathBuf::from("crates"),
-    ]
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn record_web_worker_watch_file(
-    path: &Path,
-    files: &mut BTreeMap<PathBuf, WebWorkerWatchFile>,
-) -> Result<()> {
-    let metadata = match fs::metadata(path) {
-        Ok(metadata) => metadata,
-        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
-        Err(error) => {
-            return Err(error).with_context(|| {
-                format!(
-                    "reading metadata for worker watch file `{}`",
-                    path.display()
-                )
-            });
-        }
-    };
-    files.insert(
-        path.to_path_buf(),
-        WebWorkerWatchFile {
-            modified: metadata.modified().ok(),
-            len: metadata.len(),
-        },
-    );
-    Ok(())
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn prepare_dioxus_web_public_input() -> Result<()> {
-    build_web_worker_assets()?;
+    remove_obsolete_web_public_assets(&dioxus_web_public_input_dir())?;
     copy_stable_web_assets_to_public(&dioxus_web_public_input_dir())
 }
 
@@ -692,6 +429,28 @@ fn prepare_dioxus_web_public_input() -> Result<()> {
 #[ensures(!ret.as_os_str().is_empty())]
 fn dioxus_web_public_input_dir() -> PathBuf {
     PathBuf::from(DIOXUS_WEB_PUBLIC_INPUT_DIR)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn remove_obsolete_web_public_assets(public_dir: &Path) -> Result<()> {
+    remove_obsolete_web_public_dir(public_dir, Path::new("assets/generated"))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn remove_obsolete_web_public_dir(public_dir: &Path, relative: &Path) -> Result<()> {
+    let path = public_dir.join(relative);
+    match fs::remove_dir_all(&path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error).with_context(|| {
+            format!(
+                "removing obsolete web public asset directory `{}`",
+                path.display()
+            )
+        }),
+    }
 }
 
 #[requires(true)]
@@ -942,7 +701,10 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
         .arg("--base-path")
         .arg(base_path);
     let status = command.status().context("failed to run `dx bundle`")?;
-    check_status(status, "dx bundle --web --release --debug-symbols=false")?;
+    check_status(
+        status,
+        "dx bundle --web --release --debug-symbols=false --inject-loading-scripts=false",
+    )?;
     let _ = web_dist_dir(out_dir)?;
     Ok(())
 }
@@ -4156,7 +3918,7 @@ mod tests {
         let root = std::env::temp_dir().join(format!(
             "jbotci-xtask-flat-assets-{}-{}",
             std::process::id(),
-            SystemTime::now()
+            std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_nanos()

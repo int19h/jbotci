@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>{app_title}</title>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+  </head>
+  <body>
+    <div id="main"></div>
+    <script type="module">
+      const rawBasePath = "{base_path}";
+      const normalizedBasePath = rawBasePath
+        .trim()
+        .replace(/^\/+|\/+$/g, "");
+      const appRootPath =
+        normalizedBasePath === "" || normalizedBasePath === "."
+          ? "/"
+          : `/${normalizedBasePath}/`;
+      const appRoot = new URL(appRootPath, window.location.origin);
+      const mainModuleUrl = new URL("{js_path}", appRoot).href;
+      const mainWasmUrl = new URL("{wasm_path}", appRoot).href;
+      const serviceWorkerUrl = new URL("service-worker.js", appRoot).href;
+
+      globalThis.JBOTCI_WEB_BOOTSTRAP = Object.freeze({
+        appRootUrl: appRoot.href,
+        mainModuleUrl,
+        mainWasmUrl,
+        releaseBuild: "{js_path}".startsWith("assets/"),
+        serviceWorkerUrl,
+      });
+
+      import(mainModuleUrl);
+    </script>
+  </body>
+</html>

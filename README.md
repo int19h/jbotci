@@ -30,25 +30,11 @@ cargo xtask test
 cargo xtask clippy
 cargo xtask fixture-check
 cargo xtask fixture-list --profile cargo
-cargo serve-web-release
 cargo build-web-release
 ```
 
 Use the web release wrappers instead of raw `dx` release commands while Dioxus
 0.7.x needs `--debug-symbols=false` to avoid the wasm-opt DWARF abort.
-Install the `wasm-bindgen-cli` binary at the version locked by `Cargo.lock`
-before using the wrappers:
-
-```sh
-cargo install wasm-bindgen-cli --version 0.2.122 --locked
-```
-
-To test the web app from another device on the LAN, such as iOS Safari, bind
-the Dioxus dev server to all interfaces and open the host machine URL:
-
-```sh
-cargo serve-web-release --port 8082 --addr 0.0.0.0 --open false --base-path /jbotci
-```
 
 The parser facets are scaffolded but intentionally return `NotImplemented` at
 this checkpoint. Use `cargo xtask fixture-test --profile all --facet morphology

@@ -1,10 +1,20 @@
 let configuredWorkerUrl = null;
+let configuredAppModuleUrl = null;
 let nextRequestId = 1;
 const pending = new Map();
 const channelRequests = new Map();
 
 function workerUrl() {
   return configuredWorkerUrl ?? new URL("./compute-worker.js", import.meta.url);
+}
+
+function appModuleUrl() {
+  const bootstrapUrl = globalThis.JBOTCI_WEB_BOOTSTRAP?.mainModuleUrl;
+  const url = configuredAppModuleUrl ?? bootstrapUrl;
+  if (typeof url !== "string" || url.length === 0) {
+    throw new Error("compute app module URL is not configured");
+  }
+  return new URL(url, globalThis.location.href);
 }
 
 function addChannelRequest(channel, id) {
@@ -46,6 +56,13 @@ export function jbotciComputeConfigureWorker(workerUrlString) {
   configuredWorkerUrl = new URL(workerUrlString, globalThis.location.href);
 }
 
+export function jbotciComputeConfigureAppModule(appModuleUrlString) {
+  if (typeof appModuleUrlString !== "string" || appModuleUrlString.length === 0) {
+    throw new Error("compute app module URL is empty");
+  }
+  configuredAppModuleUrl = new URL(appModuleUrlString, globalThis.location.href).href;
+}
+
 export function jbotciComputeCancel(channel) {
   const ids = Array.from(channelRequests.get(channel) ?? []);
   for (const id of ids) {
@@ -64,7 +81,9 @@ export function jbotciComputeRequest(channel, requestJson) {
   return new Promise((resolve, reject) => {
     const id = nextRequestId++;
     let worker;
+    let mainModuleUrl;
     try {
+      mainModuleUrl = appModuleUrl().href;
       worker = new Worker(workerUrl(), { type: "module" });
     } catch (error) {
       reject(error instanceof Error ? error.message : String(error));
@@ -94,7 +113,7 @@ export function jbotciComputeRequest(channel, requestJson) {
       });
     };
     try {
-      worker.postMessage({ id, requestJson });
+      worker.postMessage({ id, requestJson, mainModuleUrl });
     } catch (error) {
       finishRequest(id, {
         ok: false,
