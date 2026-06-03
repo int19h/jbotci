@@ -1033,6 +1033,7 @@ fn AppShell() -> Element {
     let initial_vlacku = initial_vlacku_state(&current_route_location);
     let vlacku_draft_state = use_signal(|| initial_vlacku.clone());
     let vlacku_committed_state = use_signal(|| initial_vlacku);
+    let pending_vlacku_scroll_restore = use_signal(|| None::<i32>);
     let vlacku_semantic_result = use_signal(VlackuSemanticResultState::default);
     let vlacku_result = use_signal(VlackuAsyncResultState::default);
     let vlacku_result_task = use_signal(|| None::<LatestAsyncTask>);
@@ -1370,6 +1371,7 @@ fn AppShell() -> Element {
                         result_signal.set(vlacku_async_error_state(&state, &error));
                     }
                 }
+                schedule_vlacku_jvozba_pane_metrics_sync();
             },
         );
     });
@@ -1484,14 +1486,17 @@ fn AppShell() -> Element {
     });
     let vlacku_url_history = app_history.clone();
     let vlacku_url_route_location = current_route_location.clone();
+    let mut vlacku_url_scroll_restore = pending_vlacku_scroll_restore;
     use_effect(move || {
         if *route.read() == AppRoute::Vlacku {
             let state = vlacku_committed_state.read().clone();
+            let restore_scroll_y = vlacku_url_scroll_restore.write().take();
             schedule_vlacku_url_push(
                 vlacku_url_history.clone(),
                 pending_local_route_writes,
                 &vlacku_url_route_location,
                 &state,
+                restore_scroll_y,
             );
         }
     });
@@ -1712,6 +1717,7 @@ fn AppShell() -> Element {
                                     jvozba_available,
                                     jvozba_drag,
                                     pending_cukta_scroll,
+                                    pending_vlacku_scroll_restore,
                                     &base_path,
                                 )
                             },
@@ -5692,6 +5698,7 @@ fn render_vlacku_page(
     jvozba_available: Signal<bool>,
     jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    pending_vlacku_scroll_restore: Signal<Option<i32>>,
     base_path: &str,
 ) -> Element {
     let committed_state = vlacku_committed_state.read().clone();
@@ -5730,7 +5737,7 @@ fn render_vlacku_page(
                 }
                 div { class: "dictionary-layout",
                     div { class: "dictionary-main-column",
-                        { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, jvozba_available_value, pending_cukta_scroll, base_path) }
+                        { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, jvozba_available_value, pending_cukta_scroll, pending_vlacku_scroll_restore, base_path) }
                     }
                     if jvozba_available_value {
                         { render_vlacku_jvozba_pane(jvozba_pane, jvozba_drag) }
@@ -5945,12 +5952,13 @@ fn render_vlacku_body(
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_available: bool,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    mut pending_vlacku_scroll_restore: Signal<Option<i32>>,
     base_path: &str,
 ) -> Element {
     rsx! {
         div { class: "dictionary-results",
             if !result.cards.is_empty() {
-                div { class: "dictionary-results-grid",
+                div { class: "dictionary-results-grid", "data-jvozba-pane-anchor": "1",
                     for card in result.cards.iter() {
                         { render_vlacku_card(card, jvozba_pane, jvozba_available, pending_cukta_scroll, base_path) }
                     }
@@ -5962,8 +5970,8 @@ fn render_vlacku_body(
                         class: "btn-parse load-more-link",
                         r#type: "button",
                         onclick: move |_| {
-                            let mut next = vlacku_draft_state.read().clone();
-                            next.count = next.count.saturating_mul(2).clamp(1, VLACKU_WEB_MAX_COUNT);
+                            pending_vlacku_scroll_restore.set(Some(current_scroll_y()));
+                            let next = vlacku_load_more_state(&vlacku_draft_state.read());
                             set_vlacku_state_immediate(
                                 &mut vlacku_draft_state,
                                 &mut vlacku_committed_state,
@@ -13009,6 +13017,13 @@ fn scroll_container_by_selector(selector: &str) -> Option<web_sys::HtmlElement> 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
+fn scroll_container_is_scrollable(element: &web_sys::HtmlElement) -> bool {
+    element.scroll_height() > element.client_height()
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
 fn cukta_scroll_container() -> Option<web_sys::HtmlElement> {
     scroll_container_by_selector("[data-cukta-scroll='main']")
 }
@@ -13017,7 +13032,12 @@ fn cukta_scroll_container() -> Option<web_sys::HtmlElement> {
 #[requires(true)]
 #[ensures(true)]
 fn active_scroll_container() -> Option<web_sys::HtmlElement> {
-    cukta_scroll_container().or_else(|| scroll_container_by_selector("[data-app-scroll='main']"))
+    cukta_scroll_container()
+        .filter(scroll_container_is_scrollable)
+        .or_else(|| {
+            scroll_container_by_selector("[data-app-scroll='main']")
+                .filter(scroll_container_is_scrollable)
+        })
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -13087,9 +13107,7 @@ fn save_current_scroll_position() {
         location.pathname().unwrap_or_default(),
         location.search().unwrap_or_default()
     ));
-    let y = active_scroll_container()
-        .map(|element| element.scroll_top())
-        .unwrap_or_else(|| window.scroll_y().unwrap_or(0.0).round() as i32);
+    let y = current_scroll_y();
     session_storage_set(&key, &y.to_string());
 }
 
@@ -13117,6 +13135,28 @@ fn restore_scroll_for_current_url() {
 #[requires(true)]
 #[ensures(true)]
 fn restore_scroll_for_current_url() {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret >= 0)]
+fn current_scroll_y() -> i32 {
+    active_scroll_container()
+        .map(|element| element.scroll_top().max(0))
+        .unwrap_or_else(|| {
+            web_sys::window()
+                .and_then(|window| window.scroll_y().ok())
+                .unwrap_or(0.0)
+                .round()
+                .max(0.0) as i32
+        })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(ret == 0)]
+fn current_scroll_y() -> i32 {
+    0
+}
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
@@ -13150,6 +13190,35 @@ fn restore_scroll_for_url(url: &str) {
 #[ensures(true)]
 fn restore_scroll_for_url(url: &str) {
     let _ = url;
+}
+
+#[requires(true)]
+#[ensures(ret.mode == state.mode)]
+#[ensures(ret.query == state.query)]
+#[ensures(ret.word_types == state.word_types)]
+#[ensures(ret.count >= 1 && ret.count <= VLACKU_WEB_MAX_COUNT)]
+fn vlacku_load_more_state(state: &VlackuWebState) -> VlackuWebState {
+    let mut next = state.clone();
+    next.count = next.count.saturating_mul(2).clamp(1, VLACKU_WEB_MAX_COUNT);
+    next
+}
+
+#[requires(match anchor_viewport_top { Some(top) => top.is_finite(), None => true })]
+#[requires(scroll_top >= 0)]
+#[requires(fallback_top.is_finite())]
+#[requires(topbar_bottom.is_finite())]
+#[ensures(ret.is_finite())]
+#[ensures(ret >= topbar_bottom)]
+fn stable_jvozba_pane_top(
+    anchor_viewport_top: Option<f64>,
+    scroll_top: i32,
+    fallback_top: f64,
+    topbar_bottom: f64,
+) -> f64 {
+    anchor_viewport_top
+        .map(|top| top + f64::from(scroll_top))
+        .unwrap_or(fallback_top)
+        .max(topbar_bottom)
 }
 
 #[requires(true)]
@@ -13323,12 +13392,19 @@ fn schedule_vlacku_url_push(
     pending_writes: Signal<PendingLocalRouteWrites>,
     current: &JbotciRoute,
     state: &VlackuWebState,
+    restore_scroll_y: Option<i32>,
 ) {
     let target = JbotciRoute::from_web_route(WebRoute::Vlacku(state.clone()), false);
     if current.without_hash() == target {
         return;
     }
-    schedule_route_push(history, pending_writes, target, VLACKU_URL_DEBOUNCE_MS);
+    schedule_route_push(
+        history,
+        pending_writes,
+        target,
+        VLACKU_URL_DEBOUNCE_MS,
+        restore_scroll_y,
+    );
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -13339,6 +13415,7 @@ fn schedule_route_push(
     pending_writes: Signal<PendingLocalRouteWrites>,
     target: JbotciRoute,
     delay_ms: i32,
+    restore_scroll_y: Option<i32>,
 ) {
     let Some(window) = web_sys::window() else {
         return;
@@ -13348,6 +13425,9 @@ fn schedule_route_push(
         let mut pending_writes = pending_writes;
         pending_writes.with_mut(|pending| pending.record(&target));
         history.push(route_path_for_route(&target));
+        if let Some(y) = restore_scroll_y {
+            schedule_scroll_container_to_y(y);
+        }
     });
     if let Ok(handle) = window.set_timeout_with_callback_and_timeout_and_arguments_0(
         closure.as_ref().unchecked_ref(),
@@ -13366,8 +13446,9 @@ fn schedule_route_push(
     mut pending_writes: Signal<PendingLocalRouteWrites>,
     target: JbotciRoute,
     delay_ms: i32,
+    restore_scroll_y: Option<i32>,
 ) {
-    let _ = delay_ms;
+    let _ = (delay_ms, restore_scroll_y);
     pending_writes.with_mut(|pending| pending.record(&target));
     history.push(route_path_for_route(&target));
 }
@@ -13747,18 +13828,41 @@ fn sync_vlacku_jvozba_pane_metrics() {
         .ok()
         .flatten()
         .map(|element| element.get_bounding_client_rect().bottom());
+    let anchor_top = document
+        .query_selector("[data-jvozba-pane-anchor='1']")
+        .ok()
+        .flatten()
+        .map(|element| element.get_bounding_client_rect().top());
     let viewport_height = window
         .inner_height()
         .ok()
         .and_then(|value| value.as_f64())
         .unwrap_or(720.0);
-    let top = form_bottom.unwrap_or(topbar_bottom).max(topbar_bottom) + 12.0;
+    let app_scroll_container = document
+        .query_selector("[data-app-scroll='main']")
+        .ok()
+        .flatten()
+        .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok());
+    let app_scroll_top = app_scroll_container
+        .as_ref()
+        .map(|main| main.scroll_top().max(0))
+        .unwrap_or(0);
+    let app_scrollbar_gutter_width = app_scroll_container
+        .as_ref()
+        .map(|main| (main.offset_width() - main.client_width()).max(0))
+        .unwrap_or(0);
+    let fallback_top = form_bottom.unwrap_or(topbar_bottom).max(topbar_bottom) + 12.0;
+    let top = stable_jvozba_pane_top(anchor_top, app_scroll_top, fallback_top, topbar_bottom);
     let bottom = 12.0;
     let height = (viewport_height - top - bottom).max(280.0) * VLACKU_JVOZBA_HEIGHT_SCALE;
     let style = pane.style();
     let _ = style.set_property("--jvozba-pane-top", &format!("{top}px"));
     let _ = style.set_property("--jvozba-pane-bottom", &format!("{bottom}px"));
     let _ = style.set_property("--jvozba-pane-height", &format!("{height}px"));
+    let _ = style.set_property(
+        "--app-scrollbar-gutter-width",
+        &format!("{app_scrollbar_gutter_width}px"),
+    );
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -15146,6 +15250,61 @@ mod tests {
             word_types: Vec::new(),
         };
         assert_eq!(vlacku_semantic_worker_limit(&state), VLACKU_WEB_MAX_COUNT);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_load_more_state_only_expands_count() {
+        let state = VlackuWebState {
+            mode: VlackuWebMode::Rafsi,
+            query: "kla".to_owned(),
+            count: 20,
+            word_types: vec!["gismu".to_owned()],
+        };
+
+        let next = vlacku_load_more_state(&state);
+
+        assert_eq!(next.mode, state.mode);
+        assert_eq!(next.query, state.query);
+        assert_eq!(next.word_types, state.word_types);
+        assert_eq!(next.count, 40);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_load_more_state_clamps_count() {
+        let state = VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "klama".to_owned(),
+            count: VLACKU_WEB_MAX_COUNT,
+            word_types: Vec::new(),
+        };
+
+        let next = vlacku_load_more_state(&state);
+
+        assert_eq!(next.count, VLACKU_WEB_MAX_COUNT);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn stable_jvozba_pane_top_uses_anchor_at_unscrolled_position() {
+        let top_at_page_top = stable_jvozba_pane_top(Some(242.0), 0, 46.0, 34.0);
+        let top_after_scroll = stable_jvozba_pane_top(Some(-658.0), 900, 46.0, 34.0);
+
+        assert_eq!(top_at_page_top, 242.0);
+        assert_eq!(top_after_scroll, top_at_page_top);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn stable_jvozba_pane_top_uses_fallback_until_results_render() {
+        let top = stable_jvozba_pane_top(None, 900, 46.0, 34.0);
+
+        assert_eq!(top, 46.0);
     }
 
     #[test]
