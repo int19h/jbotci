@@ -222,7 +222,7 @@ struct DiagnosticCounts {
 enum DiagnosticOverlayRole {
     Primary,
     ActivePrimary,
-    ActiveContext,
+    ActiveContextPrefix,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -238,6 +238,14 @@ struct DiagnosticOverlayFragment {
     text: String,
     class_name: String,
     title: String,
+    selection_start: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct DiagnosticTextRenderPart {
+    role: DiagnosticTextRole,
+    text: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1599,6 +1607,8 @@ fn AppShell() -> Element {
                                                 gentufa_diagnostics_open,
                                                 *gentufa_diagnostics_open.read(),
                                                 gentufa_active_diagnostic,
+                                                pending_cukta_scroll,
+                                                &base_path,
                                                 view_mode,
                                                 view_mode_value,
                                                 gentufa_display,
@@ -7373,11 +7383,154 @@ fn render_gentufa_diagnostic_overlay(
                 span {
                     class: "{fragment.class_name}",
                     title: "{fragment.title}",
+                    "data-selection-start": "{fragment.selection_start}",
+                    onmousedown: move |event| {
+                        event.prevent_default();
+                        let coordinates = event.data().client_coordinates();
+                        place_gentufa_textarea_caret_from_overlay_click(
+                            coordinates.x,
+                            coordinates.y,
+                        );
+                    },
                     "{fragment.text}"
                 }
             }
         }
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn place_gentufa_textarea_caret_from_overlay_click(x: f64, y: f64) {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Some(selection_start) = diagnostic_overlay_selection_offset_from_point(&document, x, y)
+    else {
+        return;
+    };
+    let Some(textarea) = document
+        .get_element_by_id("gentufa-text")
+        .and_then(|element| element.dyn_into::<web_sys::HtmlTextAreaElement>().ok())
+    else {
+        return;
+    };
+    let _ = textarea.focus();
+    let _ = textarea.set_selection_start(Some(selection_start));
+    let _ = textarea.set_selection_end(Some(selection_start));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn place_gentufa_textarea_caret_from_overlay_click(_x: f64, _y: f64) {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_overlay_selection_offset_from_point(
+    document: &web_sys::Document,
+    x: f64,
+    y: f64,
+) -> Option<u32> {
+    diagnostic_overlay_caret_position_offset_from_point(document, x, y)
+        .or_else(|| diagnostic_overlay_caret_range_offset_from_point(document, x, y))
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_overlay_caret_position_offset_from_point(
+    document: &web_sys::Document,
+    x: f64,
+    y: f64,
+) -> Option<u32> {
+    let document_value = document.as_ref();
+    let function = js_sys::Reflect::get(
+        document_value,
+        &wasm_bindgen::JsValue::from_str("caretPositionFromPoint"),
+    )
+    .ok()?
+    .dyn_into::<js_sys::Function>()
+    .ok()?;
+    let position = function
+        .call2(
+            document_value,
+            &wasm_bindgen::JsValue::from_f64(x),
+            &wasm_bindgen::JsValue::from_f64(y),
+        )
+        .ok()?;
+    if position.is_null() || position.is_undefined() {
+        return None;
+    }
+    let node = js_sys::Reflect::get(&position, &wasm_bindgen::JsValue::from_str("offsetNode"))
+        .ok()?
+        .dyn_into::<web_sys::Node>()
+        .ok()?;
+    let offset = js_sys::Reflect::get(&position, &wasm_bindgen::JsValue::from_str("offset"))
+        .ok()?
+        .as_f64()? as u32;
+    diagnostic_overlay_selection_offset_from_node_offset(node, offset)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_overlay_caret_range_offset_from_point(
+    document: &web_sys::Document,
+    x: f64,
+    y: f64,
+) -> Option<u32> {
+    let document_value = document.as_ref();
+    let function = js_sys::Reflect::get(
+        document_value,
+        &wasm_bindgen::JsValue::from_str("caretRangeFromPoint"),
+    )
+    .ok()?
+    .dyn_into::<js_sys::Function>()
+    .ok()?;
+    let range = function
+        .call2(
+            document_value,
+            &wasm_bindgen::JsValue::from_f64(x),
+            &wasm_bindgen::JsValue::from_f64(y),
+        )
+        .ok()?;
+    if range.is_null() || range.is_undefined() {
+        return None;
+    }
+    let node = js_sys::Reflect::get(&range, &wasm_bindgen::JsValue::from_str("startContainer"))
+        .ok()?
+        .dyn_into::<web_sys::Node>()
+        .ok()?;
+    let offset = js_sys::Reflect::get(&range, &wasm_bindgen::JsValue::from_str("startOffset"))
+        .ok()?
+        .as_f64()? as u32;
+    diagnostic_overlay_selection_offset_from_node_offset(node, offset)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_overlay_selection_offset_from_node_offset(
+    node: web_sys::Node,
+    offset: u32,
+) -> Option<u32> {
+    let mut element = node
+        .dyn_ref::<web_sys::Element>()
+        .cloned()
+        .or_else(|| node.parent_element());
+    while let Some(current) = element {
+        if let Some(start) = current
+            .get_attribute("data-selection-start")
+            .and_then(|value| value.parse::<u32>().ok())
+        {
+            return Some(start.saturating_add(offset));
+        }
+        element = current.parent_element();
+    }
+    None
 }
 
 #[requires(true)]
@@ -7388,6 +7541,8 @@ fn render_result(
     diagnostics_open: Signal<bool>,
     diagnostics_open_value: bool,
     active_diagnostic: Signal<Option<usize>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
     view_mode: Signal<GentufaWebViewMode>,
     view_mode_value: GentufaWebViewMode,
     display: Signal<GentufaDisplayState>,
@@ -7406,6 +7561,8 @@ fn render_result(
             diagnostics_open,
             diagnostics_open_value,
             active_diagnostic,
+            pending_cukta_scroll,
+            base_path,
         ),
         GentufaWebResult::Success(success) => render_success(
             success,
@@ -7413,6 +7570,8 @@ fn render_result(
             diagnostics_open,
             diagnostics_open_value,
             active_diagnostic,
+            pending_cukta_scroll,
+            base_path,
             view_mode,
             view_mode_value,
             display,
@@ -7434,6 +7593,8 @@ fn render_error(
     diagnostics_open: Signal<bool>,
     diagnostics_open_value: bool,
     active_diagnostic: Signal<Option<usize>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
 ) -> Element {
     let source = gentufa_request_source(request);
     rsx! {
@@ -7445,6 +7606,8 @@ fn render_error(
                 diagnostics_open,
                 diagnostics_open_value,
                 active_diagnostic,
+                pending_cukta_scroll,
+                base_path,
             ) }
         }
     }
@@ -7458,6 +7621,8 @@ fn render_success(
     diagnostics_open: Signal<bool>,
     diagnostics_open_value: bool,
     active_diagnostic: Signal<Option<usize>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
     view_mode: Signal<GentufaWebViewMode>,
     view_mode_value: GentufaWebViewMode,
     display: Signal<GentufaDisplayState>,
@@ -7481,6 +7646,8 @@ fn render_success(
                 diagnostics_open,
                 diagnostics_open_value,
                 active_diagnostic,
+                pending_cukta_scroll,
+                base_path,
             ) }
             div { class: "view-toolbar",
                 { render_view_tabs(view_mode, view_mode_value) }
@@ -7611,6 +7778,8 @@ fn render_diagnostics_pane(
     mut diagnostics_open: Signal<bool>,
     diagnostics_open_value: bool,
     active_diagnostic: Signal<Option<usize>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
 ) -> Element {
     let fallback_error = fallback_error.filter(|message| !message.is_empty());
     if diagnostics.is_empty() && fallback_error.is_none() {
@@ -7644,7 +7813,14 @@ fn render_diagnostics_pane(
                         }
                     } else {
                         for (index, diagnostic) in diagnostics.iter().enumerate() {
-                            { render_diagnostic_card(index, diagnostic, source, active_diagnostic) }
+                            { render_diagnostic_card(
+                                index,
+                                diagnostic,
+                                source,
+                                active_diagnostic,
+                                pending_cukta_scroll,
+                                base_path,
+                            ) }
                         }
                     }
                 }
@@ -7660,6 +7836,8 @@ fn render_diagnostic_card(
     diagnostic: &Diagnostic,
     source: &str,
     active_diagnostic: Signal<Option<usize>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
 ) -> Element {
     let mut enter_active = active_diagnostic;
     let mut leave_active = active_diagnostic;
@@ -7670,9 +7848,10 @@ fn render_diagnostic_card(
         "{}:{}: {}",
         location.line, location.column, diagnostic.message
     );
-    let primary_detail = diagnostic_primary_detail(diagnostic);
     let context_labels = diagnostic_context_labels(diagnostic);
     let styled_notes = diagnostic_styled_notes_for_web(diagnostic);
+    let plain_notes = diagnostic_plain_notes_for_web(diagnostic);
+    let primary_detail_segments = diagnostic_primary_detail_parts(diagnostic);
     rsx! {
         article {
             class: "{card_class}",
@@ -7684,20 +7863,26 @@ fn render_diagnostic_card(
                 span { class: "gentufa-diagnostic-message", "{location_text}" }
             }
             for label in context_labels {
-                div { class: "gentufa-diagnostic-context",
-                    em { "{label.message}" }
+                { render_diagnostic_context_label(label) }
+            }
+            if !primary_detail_segments.is_empty() {
+                div { class: "gentufa-diagnostic-primary-detail",
+                    for segment in primary_detail_segments.iter() {
+                        { render_diagnostic_text_part(segment, pending_cukta_scroll, base_path) }
+                    }
                 }
             }
-            if let Some(detail) = primary_detail {
-                div { class: "gentufa-diagnostic-primary-detail", "{detail}" }
-            }
-            if !diagnostic.notes.is_empty() || !styled_notes.is_empty() {
+            if !plain_notes.is_empty() || !styled_notes.is_empty() {
                 div { class: "gentufa-diagnostic-notes",
-                    for note in diagnostic.notes.iter() {
-                        div { class: "gentufa-diagnostic-note", "{note}" }
+                    for note in plain_notes.iter() {
+                        div { class: "gentufa-diagnostic-note",
+                            for segment in diagnostic_plain_text_render_parts(note).iter() {
+                                { render_diagnostic_text_part(segment, pending_cukta_scroll, base_path) }
+                            }
+                        }
                     }
                     for note in styled_notes {
-                        { render_styled_diagnostic_note(note) }
+                        { render_styled_diagnostic_note(note, pending_cukta_scroll, base_path) }
                     }
                 }
             }
@@ -7707,12 +7892,16 @@ fn render_diagnostic_card(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_styled_diagnostic_note(note: &DiagnosticStyledNote) -> Element {
+fn render_styled_diagnostic_note(
+    note: &DiagnosticStyledNote,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+) -> Element {
     let class_name = diagnostic_styled_note_class(note);
     rsx! {
         div { class: "{class_name}",
             for segment in note.segments.iter() {
-                { render_diagnostic_note_segment(segment) }
+                { render_diagnostic_note_segment(segment, pending_cukta_scroll, base_path) }
             }
         }
     }
@@ -7720,11 +7909,16 @@ fn render_styled_diagnostic_note(note: &DiagnosticStyledNote) -> Element {
 
 #[requires(!segment.text.is_empty())]
 #[ensures(true)]
-fn render_diagnostic_note_segment(segment: &DiagnosticTextSegment) -> Element {
-    let class_name = diagnostic_text_role_class(segment.role);
-    let text = diagnostic_text_segment_display_text(segment);
+fn render_diagnostic_note_segment(
+    segment: &DiagnosticTextSegment,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+) -> Element {
+    let parts = diagnostic_text_segment_render_parts(segment);
     rsx! {
-        span { class: "{class_name}", "{text}" }
+        for part in parts.iter() {
+            { render_diagnostic_text_part(part, pending_cukta_scroll, base_path) }
+        }
     }
 }
 
@@ -7874,6 +8068,132 @@ fn diagnostic_primary_detail(diagnostic: &Diagnostic) -> Option<&str> {
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn diagnostic_primary_detail_parts(diagnostic: &Diagnostic) -> Vec<DiagnosticTextRenderPart> {
+    diagnostic_expected_detail_parts_from_detailed_note(diagnostic).unwrap_or_else(|| {
+        diagnostic_primary_detail(diagnostic)
+            .map(diagnostic_plain_text_render_parts)
+            .unwrap_or_default()
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_primary_detail_display_text(diagnostic: &Diagnostic) -> Option<String> {
+    let parts = diagnostic_primary_detail_parts(diagnostic);
+    (!parts.is_empty()).then(|| diagnostic_text_parts_text(&parts))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
+fn diagnostic_expected_detail_parts_from_detailed_note(
+    diagnostic: &Diagnostic,
+) -> Option<Vec<DiagnosticTextRenderPart>> {
+    let note = diagnostic.styled_notes.iter().find(|note| {
+        matches!(note.mode, jbotci_diagnostics::DiagnosticNoteMode::Detailed)
+            && diagnostic_styled_note_text(note)
+                .trim_start()
+                .starts_with("needs one of:")
+    })?;
+    let mut output = vec![
+        diagnostic_text_render_part(DiagnosticTextRole::Keyword, "expected".to_owned()),
+        diagnostic_text_render_part(DiagnosticTextRole::Plain, " ".to_owned()),
+    ];
+    let mut heading_seen = false;
+    let mut skipping_heading_tail = false;
+    let mut at_line_start = true;
+    let mut pending_separator = false;
+    let mut content_started = false;
+
+    for segment in &note.segments {
+        for part in diagnostic_text_segment_render_parts(segment) {
+            let mut index = 0usize;
+            if !heading_seen {
+                if part.role == DiagnosticTextRole::Keyword && part.text == "needs one of" {
+                    heading_seen = true;
+                    skipping_heading_tail = true;
+                }
+                continue;
+            }
+            while index < part.text.len() {
+                let Some(character) = part.text[index..].chars().next() else {
+                    break;
+                };
+                if skipping_heading_tail {
+                    index += character.len_utf8();
+                    if character == '\n' {
+                        skipping_heading_tail = false;
+                        at_line_start = true;
+                    }
+                    continue;
+                }
+                if character == '\n' {
+                    index += character.len_utf8();
+                    if content_started {
+                        pending_separator = true;
+                    }
+                    at_line_start = true;
+                    continue;
+                }
+                if at_line_start {
+                    if character.is_whitespace() {
+                        index += character.len_utf8();
+                        continue;
+                    }
+                    if character == '-' {
+                        index += character.len_utf8();
+                        if index < part.text.len()
+                            && part.text[index..]
+                                .chars()
+                                .next()
+                                .is_some_and(char::is_whitespace)
+                        {
+                            let next = part.text[index..]
+                                .chars()
+                                .next()
+                                .expect("checked above that a character is present");
+                            index += next.len_utf8();
+                        }
+                        continue;
+                    }
+                    if pending_separator {
+                        output.push(diagnostic_text_render_part(
+                            DiagnosticTextRole::Punctuation,
+                            ", ".to_owned(),
+                        ));
+                        pending_separator = false;
+                    }
+                    at_line_start = false;
+                }
+                let start = index;
+                index += character.len_utf8();
+                while index < part.text.len() {
+                    let next = part.text[index..]
+                        .chars()
+                        .next()
+                        .expect("index is inside the current text part");
+                    if next == '\n' {
+                        break;
+                    }
+                    index += next.len_utf8();
+                }
+                output.push(diagnostic_text_render_part(
+                    part.role,
+                    part.text[start..index].to_owned(),
+                ));
+                content_started = true;
+            }
+        }
+    }
+
+    if heading_seen && content_started {
+        Some(merge_diagnostic_text_parts(output))
+    } else {
+        None
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.iter().all(|label| !label.primary))]
 fn diagnostic_context_labels(diagnostic: &Diagnostic) -> Vec<&DiagnosticLabel> {
     diagnostic
@@ -7885,8 +8205,86 @@ fn diagnostic_context_labels(diagnostic: &Diagnostic) -> Vec<&DiagnosticLabel> {
 
 #[requires(true)]
 #[ensures(true)]
+fn render_diagnostic_context_label(label: &DiagnosticLabel) -> Element {
+    let descriptor = diagnostic_context_descriptor(&label.message);
+    rsx! {
+        div { class: "gentufa-diagnostic-context",
+            em {
+                if let Some(descriptor) = descriptor {
+                    "while parsing "
+                    span { class: "gentufa-diagnostic-context-descriptor", "{descriptor}" }
+                } else {
+                    "{label.message}"
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_context_descriptor(message: &str) -> Option<&str> {
+    message.strip_prefix("while parsing ")
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|note| !diagnostic_plain_note_is_hidden(note)))]
+fn diagnostic_plain_notes_for_web(diagnostic: &Diagnostic) -> Vec<&str> {
+    diagnostic
+        .notes
+        .iter()
+        .map(String::as_str)
+        .filter(|note| !note.is_empty() && !diagnostic_plain_note_is_hidden(note))
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(text.starts_with("expected one of:") -> ret)]
+fn diagnostic_plain_note_is_hidden(text: &str) -> bool {
+    text.trim_start().starts_with("expected one of:")
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn diagnostic_styled_notes_for_web(diagnostic: &Diagnostic) -> Vec<&DiagnosticStyledNote> {
-    diagnostic.styled_notes.iter().collect()
+    diagnostic
+        .styled_notes
+        .iter()
+        .filter(|note| !diagnostic_styled_note_is_hidden(note))
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(matches!(note.mode, jbotci_diagnostics::DiagnosticNoteMode::Summary) && diagnostic_styled_note_text(note).trim_start().starts_with("expected one of:") -> ret)]
+fn diagnostic_styled_note_is_hidden(note: &DiagnosticStyledNote) -> bool {
+    matches!(note.mode, jbotci_diagnostics::DiagnosticNoteMode::Summary)
+        && diagnostic_styled_note_text(note)
+            .trim_start()
+            .starts_with("expected one of:")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_styled_note_text(note: &DiagnosticStyledNote) -> String {
+    diagnostic_text_segments_text(&note.segments)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_text_segments_text(segments: &[DiagnosticTextSegment]) -> String {
+    segments.iter().fold(String::new(), |mut text, segment| {
+        text.push_str(&segment.text);
+        text
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_text_parts_text(parts: &[DiagnosticTextRenderPart]) -> String {
+    parts.iter().fold(String::new(), |mut text, part| {
+        text.push_str(&part.text);
+        text
+    })
 }
 
 #[requires(true)]
@@ -7927,9 +8325,426 @@ fn diagnostic_text_role_class(role: DiagnosticTextRole) -> &'static str {
 
 #[requires(!segment.text.is_empty())]
 #[ensures(!ret.is_empty())]
-fn diagnostic_text_segment_display_text(segment: &DiagnosticTextSegment) -> String {
-    segment.text.clone()
+fn diagnostic_text_segment_render_parts(
+    segment: &DiagnosticTextSegment,
+) -> Vec<DiagnosticTextRenderPart> {
+    if segment.role == DiagnosticTextRole::Plain {
+        diagnostic_plain_text_render_parts(&segment.text)
+    } else {
+        vec![diagnostic_text_render_part(
+            segment.role,
+            diagnostic_text_segment_display_text(segment),
+        )]
+    }
 }
+
+#[requires(!text.is_empty())]
+#[ensures(!ret.is_empty())]
+fn diagnostic_plain_text_render_parts(text: &str) -> Vec<DiagnosticTextRenderPart> {
+    let mut parts = Vec::new();
+    let mut index = 0usize;
+    while index < text.len() {
+        if let Some((mut matched, next_index)) = diagnostic_plain_prefix_parts(text, index) {
+            parts.append(&mut matched);
+            index = next_index;
+            continue;
+        }
+        let Some(character) = text[index..].chars().next() else {
+            break;
+        };
+        if diagnostic_identifier_char(character) {
+            let start = index;
+            index += character.len_utf8();
+            while index < text.len()
+                && text[index..]
+                    .chars()
+                    .next()
+                    .is_some_and(diagnostic_identifier_char)
+            {
+                let next = text[index..]
+                    .chars()
+                    .next()
+                    .expect("checked above that a character is present");
+                index += next.len_utf8();
+            }
+            let token = &text[start..index];
+            let role = diagnostic_identifier_role(token).unwrap_or(DiagnosticTextRole::Plain);
+            parts.push(diagnostic_text_render_part(
+                role,
+                diagnostic_display_text_for_role(role, token),
+            ));
+        } else {
+            parts.push(diagnostic_text_render_part(
+                if character.is_ascii_punctuation() {
+                    DiagnosticTextRole::Punctuation
+                } else {
+                    DiagnosticTextRole::Plain
+                },
+                character.to_string(),
+            ));
+            index += character.len_utf8();
+        }
+    }
+    merge_diagnostic_text_parts(parts)
+}
+
+#[requires(index < text.len())]
+#[ensures(ret.as_ref().is_none_or(|(_, next)| *next > index && *next <= text.len()))]
+fn diagnostic_plain_prefix_parts(
+    text: &str,
+    index: usize,
+) -> Option<(Vec<DiagnosticTextRenderPart>, usize)> {
+    for (label, has_colon) in DIAGNOSTIC_KEYWORD_LABELS {
+        if let Some(next_index) = diagnostic_match_phrase(text, index, label) {
+            let mut parts = vec![diagnostic_text_render_part(
+                DiagnosticTextRole::Keyword,
+                (*label).to_owned(),
+            )];
+            if *has_colon && text[next_index..].starts_with(':') {
+                parts.push(diagnostic_text_render_part(
+                    DiagnosticTextRole::Punctuation,
+                    ":".to_owned(),
+                ));
+                return Some((parts, next_index + 1));
+            }
+            return Some((parts, next_index));
+        }
+    }
+    for (phrase, display, role) in DIAGNOSTIC_PHRASE_ROLES {
+        if let Some(next_index) = diagnostic_match_phrase(text, index, phrase) {
+            return Some((
+                vec![diagnostic_text_render_part(
+                    *role,
+                    diagnostic_display_text_for_role(*role, display),
+                )],
+                next_index,
+            ));
+        }
+    }
+    None
+}
+
+#[requires(!phrase.is_empty())]
+#[requires(index < text.len())]
+#[ensures(ret.is_none_or(|next| next > index && next <= text.len()))]
+fn diagnostic_match_phrase(text: &str, index: usize, phrase: &str) -> Option<usize> {
+    let after = index.checked_add(phrase.len())?;
+    if after > text.len() || !text[index..].starts_with(phrase) {
+        return None;
+    }
+    let before_ok = index == 0
+        || text[..index]
+            .chars()
+            .next_back()
+            .is_none_or(|character| !diagnostic_identifier_char(character));
+    let after_ok = after == text.len()
+        || text[after..]
+            .chars()
+            .next()
+            .is_none_or(|character| !diagnostic_identifier_char(character));
+    (before_ok && after_ok).then_some(after)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_identifier_char(character: char) -> bool {
+    character.is_ascii_alphanumeric() || matches!(character, '\'' | '-' | 'h')
+}
+
+#[requires(!token.is_empty())]
+#[ensures(true)]
+fn diagnostic_identifier_role(token: &str) -> Option<DiagnosticTextRole> {
+    if diagnostic_word_category_display(token).is_some() {
+        Some(DiagnosticTextRole::WordCategory)
+    } else if DIAGNOSTIC_SELMAHO_NAMES.contains(&token) {
+        Some(DiagnosticTextRole::Selmaho)
+    } else if DIAGNOSTIC_SPECIFIC_WORDS.contains(&token) {
+        Some(DiagnosticTextRole::SpecificWord)
+    } else if DIAGNOSTIC_KEYWORDS.contains(&token) {
+        Some(DiagnosticTextRole::Keyword)
+    } else {
+        None
+    }
+}
+
+#[requires(!text.is_empty())]
+#[ensures(!ret.is_empty())]
+fn diagnostic_display_text_for_role(role: DiagnosticTextRole, text: &str) -> String {
+    match role {
+        DiagnosticTextRole::WordCategory => diagnostic_word_category_display(text)
+            .unwrap_or(text)
+            .to_owned(),
+        _ => text.to_owned(),
+    }
+}
+
+#[requires(!segment.text.is_empty())]
+#[ensures(!ret.is_empty())]
+fn diagnostic_text_segment_display_text(segment: &DiagnosticTextSegment) -> String {
+    diagnostic_display_text_for_role(segment.role, &segment.text)
+}
+
+#[requires(!text.is_empty())]
+#[ensures(!ret.text.is_empty())]
+fn diagnostic_text_render_part(role: DiagnosticTextRole, text: String) -> DiagnosticTextRenderPart {
+    DiagnosticTextRenderPart { role, text }
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|part| !part.text.is_empty()))]
+fn merge_diagnostic_text_parts(
+    parts: Vec<DiagnosticTextRenderPart>,
+) -> Vec<DiagnosticTextRenderPart> {
+    let mut merged = Vec::<DiagnosticTextRenderPart>::new();
+    for part in parts {
+        if let Some(previous) = merged.last_mut()
+            && previous.role == part.role
+            && diagnostic_text_part_href(previous, "") == diagnostic_text_part_href(&part, "")
+        {
+            previous.text.push_str(&part.text);
+            continue;
+        }
+        merged.push(part);
+    }
+    merged
+}
+
+#[requires(!part.text.is_empty())]
+#[ensures(true)]
+fn render_diagnostic_text_part(
+    part: &DiagnosticTextRenderPart,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: &str,
+) -> Element {
+    let class_name = diagnostic_text_role_class(part.role);
+    let href = diagnostic_text_part_href(part, base_path);
+    if let Some(href) = href {
+        render_diagnostic_text_link(
+            class_name,
+            &href,
+            base_path,
+            &part.text,
+            pending_cukta_scroll,
+        )
+    } else {
+        rsx! {
+            span { class: "{class_name}", "{part.text}" }
+        }
+    }
+}
+
+#[requires(!class_name.is_empty())]
+#[requires(!href.is_empty())]
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn render_diagnostic_text_link(
+    class_name: &str,
+    href: &str,
+    base_path: &str,
+    label: &str,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+) -> Element {
+    let class_name = format!("{class_name} diagnostic-text-link");
+    if let Some(route) = jbotci_route_from_href(base_path, href) {
+        let pending_scroll = cukta_pending_scroll_for_explicit_route_link(base_path, &route);
+        let click_route = route.clone();
+        rsx! {
+            Link {
+                class: "{class_name}",
+                to: route,
+                onclick_only: true,
+                onclick: move |_| {
+                    if let Some(pending_scroll) = pending_scroll.clone() {
+                        push_route_with_cukta_scroll_intent(
+                            pending_cukta_scroll,
+                            Some(pending_scroll),
+                            click_route.clone(),
+                        );
+                    }
+                },
+                "{label}"
+            }
+        }
+    } else {
+        rsx! {
+            a { class: "{class_name}", href: "{href}", "{label}" }
+        }
+    }
+}
+
+#[requires(!part.text.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|href| !href.is_empty()))]
+fn diagnostic_text_part_href(part: &DiagnosticTextRenderPart, base_path: &str) -> Option<String> {
+    match part.role {
+        DiagnosticTextRole::SpecificWord => {
+            Some(diagnostic_vlacku_href(base_path, part.text.as_str()))
+        }
+        DiagnosticTextRole::Selmaho => Some(diagnostic_cukta_section_href(
+            base_path,
+            "section-index",
+            Some(part.text.as_str()),
+        )),
+        DiagnosticTextRole::WordCategory => diagnostic_word_category_href(base_path, &part.text),
+        DiagnosticTextRole::Construct => diagnostic_construct_href(base_path, &part.text),
+        DiagnosticTextRole::Keyword
+        | DiagnosticTextRole::Punctuation
+        | DiagnosticTextRole::Plain => None,
+    }
+}
+
+#[requires(!word.is_empty())]
+#[ensures(!ret.is_empty())]
+fn diagnostic_vlacku_href(base_path: &str, word: &str) -> String {
+    format!("{}/vlacku/{word}", base_path.trim_end_matches('/'))
+}
+
+#[requires(!section_id.is_empty())]
+#[ensures(!ret.is_empty())]
+fn diagnostic_cukta_section_href(
+    base_path: &str,
+    section_id: &str,
+    anchor: Option<&str>,
+) -> String {
+    let mut href = format!(
+        "{}/cukta/section/{section_id}",
+        base_path.trim_end_matches('/')
+    );
+    if let Some(anchor) = anchor.filter(|anchor| !anchor.is_empty()) {
+        href.push('#');
+        href.push_str(anchor.trim_start_matches('#'));
+    }
+    href
+}
+
+#[requires(!text.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|href| !href.is_empty()))]
+fn diagnostic_word_category_href(base_path: &str, text: &str) -> Option<String> {
+    match text {
+        "BRIVLA" => Some(diagnostic_cukta_section_href(
+            base_path,
+            "section-morphology-brivla",
+            None,
+        )),
+        "CMEVLA" => Some(diagnostic_cukta_section_href(
+            base_path,
+            "section-cmevla",
+            None,
+        )),
+        "LERFU" => Some(diagnostic_cukta_section_href(
+            base_path,
+            "section-lerfu-liste",
+            None,
+        )),
+        "SELBRI WORD" => Some(diagnostic_ebnf_rule_href(base_path, "selbri")),
+        "PRO-SUMTI" => Some(diagnostic_cukta_section_href(
+            base_path,
+            "section-anaphoric-cmavo-introduction",
+            None,
+        )),
+        "QUOTE" => Some(diagnostic_cukta_section_href(
+            base_path,
+            "section-quotation",
+            None,
+        )),
+        _ => None,
+    }
+}
+
+#[requires(!text.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|href| !href.is_empty()))]
+fn diagnostic_construct_href(base_path: &str, text: &str) -> Option<String> {
+    let rule = match text {
+        "free modifier" => "free",
+        "sumti" => "sumti",
+        "term" => "term",
+        "selbri" => "selbri",
+        "statement" => "statement",
+        "text" | "parse_text" => "text",
+        _ => return None,
+    };
+    Some(diagnostic_ebnf_rule_href(base_path, rule))
+}
+
+#[requires(!rule_name.is_empty())]
+#[ensures(!ret.is_empty())]
+fn diagnostic_ebnf_rule_href(base_path: &str, rule_name: &str) -> String {
+    diagnostic_cukta_section_href(
+        base_path,
+        "section-EBNF",
+        Some(jbotci_cll::ebnf_rule_anchor_id(rule_name).as_str()),
+    )
+}
+
+#[requires(!text.is_empty())]
+#[ensures(ret.is_none_or(|display| !display.is_empty()))]
+fn diagnostic_word_category_display(text: &str) -> Option<&'static str> {
+    match text {
+        "BRIVLA" => Some("BRIVLA"),
+        "CMEVLA" => Some("CMEVLA"),
+        "LERFU" => Some("LERFU"),
+        "SELBRI WORD" => Some("SELBRI WORD"),
+        "PRO-SUMTI" => Some("PRO-SUMTI"),
+        "REPLACEMENT WORD" => Some("REPLACEMENT WORD"),
+        "QUOTE" => Some("QUOTE"),
+        _ => None,
+    }
+}
+
+const DIAGNOSTIC_KEYWORD_LABELS: &[(&str, bool)] = &[
+    ("expected one of", true),
+    ("needs one of", true),
+    ("morphology detail", true),
+    ("reason", true),
+    ("expected", false),
+];
+
+const DIAGNOSTIC_PHRASE_ROLES: &[(&str, &str, DiagnosticTextRole)] = &[
+    (
+        "free modifier",
+        "free modifier",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "syntax construct",
+        "syntax construct",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "end of input",
+        "end of input",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "SELBRI WORD",
+        "SELBRI WORD",
+        DiagnosticTextRole::WordCategory,
+    ),
+    (
+        "REPLACEMENT WORD",
+        "REPLACEMENT WORD",
+        DiagnosticTextRole::WordCategory,
+    ),
+];
+
+const DIAGNOSTIC_KEYWORDS: &[&str] = &["continues", "ends"];
+
+const DIAGNOSTIC_SPECIFIC_WORDS: &[&str] = &[
+    "doi", "fe'e", "fi'o", "fu'a", "jo'i", "ke", "ki", "le", "le'ai", "lo", "lo'ai", "ma'o",
+    "mo'e", "na'u", "ni'e", "pe'o", "sa'ai", "soi", "tei", "vei",
+];
+
+const DIAGNOSTIC_SELMAHO_NAMES: &[&str] = &[
+    "A", "BAI", "BE", "BEI", "BEhO", "BIhE", "BIhI", "BO", "BOI", "BRIVLA", "BU", "BY", "CAI",
+    "CAhA", "CEI", "CEhE", "CMEVLA", "CO", "COI", "CU", "CUhE", "DAhO", "DOI", "DOhU", "FA",
+    "FAhA", "FEhE", "FEhU", "FOI", "FUhA", "FUhE", "FUhO", "GA", "GAhO", "GEhU", "GI", "GIhA",
+    "GOI", "GOhA", "GUhA", "I", "JA", "JAI", "JOhI", "JOI", "KE", "KEI", "KEhE", "KI", "KOhA",
+    "KU", "KUhE", "KUhO", "LA", "LAU", "LAhE", "LE", "LEhU", "LI", "LIhU", "LOhO", "LOhU", "LU",
+    "LUhU", "MAI", "MAhO", "ME", "MEhU", "MOI", "MOhE", "MOhI", "NA", "NAI", "NAhE", "NAhU",
+    "NIhO", "NOI", "NU", "NUhA", "NUhI", "NUhU", "PA", "PEhE", "PEhO", "PU", "RAhO", "ROI", "SA",
+    "SE", "SEI", "SEhU", "SI", "SOI", "SU", "TAhE", "TEI", "TEhU", "TO", "TOI", "TUhE", "TUhU",
+    "UI", "VA", "VAU", "VEI", "VEhA", "VEhO", "VIhA", "VUhO", "VUhU", "XI", "Y", "ZA", "ZAhO",
+    "ZEI", "ZEhA", "ZI", "ZIhE", "ZO", "ZOhU", "ZOI",
+];
 
 #[requires(true)]
 #[ensures(true)]
@@ -7943,6 +8758,8 @@ fn diagnostic_overlay_fragments(
     let mut run_text = String::new();
     let mut run_class = String::new();
     let mut run_title = String::new();
+    let mut run_selection_start = 0u32;
+    let mut selection_offset = 0u32;
 
     for index in 0..=chars.len() {
         if has_diagnostic_caret_at(index, chars.len(), diagnostics, active_diagnostic) {
@@ -7951,11 +8768,13 @@ fn diagnostic_overlay_fragments(
                 &mut run_text,
                 &mut run_class,
                 &mut run_title,
+                &mut run_selection_start,
             );
             push_diagnostic_overlay_carets(
                 &mut fragments,
                 index,
                 chars.len(),
+                selection_offset,
                 diagnostics,
                 active_diagnostic,
             );
@@ -7973,19 +8792,23 @@ fn diagnostic_overlay_fragments(
                 &mut run_text,
                 &mut run_class,
                 &mut run_title,
+                &mut run_selection_start,
             );
         }
         if run_text.is_empty() {
             run_class = class_name;
             run_title = title;
+            run_selection_start = selection_offset;
         }
         run_text.push(*character);
+        selection_offset += character.len_utf16() as u32;
     }
     flush_diagnostic_overlay_run(
         &mut fragments,
         &mut run_text,
         &mut run_class,
         &mut run_title,
+        &mut run_selection_start,
     );
     fragments
 }
@@ -7997,6 +8820,7 @@ fn flush_diagnostic_overlay_run(
     run_text: &mut String,
     run_class: &mut String,
     run_title: &mut String,
+    run_selection_start: &mut u32,
 ) {
     if run_text.is_empty() {
         return;
@@ -8005,7 +8829,9 @@ fn flush_diagnostic_overlay_run(
         text: std::mem::take(run_text),
         class_name: std::mem::take(run_class),
         title: std::mem::take(run_title),
+        selection_start: *run_selection_start,
     });
+    *run_selection_start = 0;
 }
 
 #[requires(index <= char_len)]
@@ -8033,6 +8859,7 @@ fn push_diagnostic_overlay_carets(
     fragments: &mut Vec<DiagnosticOverlayFragment>,
     index: usize,
     char_len: usize,
+    selection_offset: u32,
     diagnostics: &[Diagnostic],
     active_diagnostic: Option<usize>,
 ) {
@@ -8051,7 +8878,7 @@ fn push_diagnostic_overlay_carets(
                     DiagnosticOverlayRole::Primary
                 }
             } else {
-                DiagnosticOverlayRole::ActiveContext
+                DiagnosticOverlayRole::ActiveContextPrefix
             };
             let mark = Some(DiagnosticOverlayMark {
                 diagnostic_index,
@@ -8061,6 +8888,7 @@ fn push_diagnostic_overlay_carets(
                 text: String::new(),
                 class_name: diagnostic_overlay_caret_class(mark, diagnostics),
                 title: diagnostic_overlay_title(mark, diagnostics),
+                selection_start: selection_offset,
             });
         }
     }
@@ -8083,18 +8911,33 @@ fn diagnostic_overlay_mark_for_char(
                 role: DiagnosticOverlayRole::ActivePrimary,
             });
         }
-        if active
-            .labels
-            .iter()
-            .any(|label| !label.primary && label_contains_char(label, index, char_len))
-        {
+        if active_context_range_contains_char(active, index, char_len) {
             return Some(DiagnosticOverlayMark {
                 diagnostic_index: active_index,
-                role: DiagnosticOverlayRole::ActiveContext,
+                role: DiagnosticOverlayRole::ActiveContextPrefix,
             });
         }
     }
     primary_overlay_mark_for_char(index, char_len, diagnostics)
+}
+
+#[requires(index < char_len)]
+#[ensures(true)]
+fn active_context_range_contains_char(
+    diagnostic: &Diagnostic,
+    index: usize,
+    char_len: usize,
+) -> bool {
+    let (primary_start, primary_end) = label_span_char_range(diagnostic.primary_label(), char_len);
+    diagnostic.labels.iter().any(|label| {
+        if label.primary {
+            return false;
+        }
+        let (context_start, _) = label_span_char_range(label, char_len);
+        let start = context_start.min(primary_start);
+        let end = primary_end.max(primary_start);
+        start <= index && index < end
+    })
 }
 
 #[requires(index < char_len)]
@@ -8200,7 +9043,16 @@ fn diagnostic_overlay_mark_class(
             ),
             (
                 "is-active-context",
-                mark.role == DiagnosticOverlayRole::ActiveContext,
+                mark.role == DiagnosticOverlayRole::ActiveContextPrefix,
+            ),
+            (
+                "is-active-context-token",
+                mark.role == DiagnosticOverlayRole::ActivePrimary
+                    && diagnostics
+                        .get(mark.diagnostic_index)
+                        .is_some_and(|diagnostic| {
+                            diagnostic.labels.iter().any(|label| !label.primary)
+                        }),
             ),
         ],
     )
@@ -8213,8 +9065,16 @@ fn diagnostic_overlay_title(
     diagnostics: &[Diagnostic],
 ) -> String {
     mark.and_then(|mark| diagnostics.get(mark.diagnostic_index))
-        .map(|diagnostic| format!("{}: {}", diagnostic.code, diagnostic.message))
+        .map(diagnostic_tooltip_text)
         .unwrap_or_default()
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn diagnostic_tooltip_text(diagnostic: &Diagnostic) -> String {
+    let message = diagnostic_primary_detail_display_text(diagnostic)
+        .unwrap_or_else(|| diagnostic.message.clone());
+    format!("{}: {message}", diagnostic.code)
 }
 
 #[requires(true)]
@@ -13199,6 +14059,94 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn active_overlay_context_prefix_extends_to_primary_span() {
+        let source = "mi broda";
+        let diagnostic = test_diagnostic(
+            source,
+            DiagnosticSeverity::Error,
+            "syntax.parse",
+            "syntax parse failed",
+            3,
+            8,
+            "expected selbri",
+        );
+        let context_span = jbotci_diagnostics::source_span_from_char_offsets(None, source, 0, 2)
+            .expect("test context span is valid");
+        let mut labels = diagnostic.labels.clone();
+        labels.push(DiagnosticLabel::new(
+            context_span,
+            "while parsing sumti".to_owned(),
+            false,
+        ));
+        let diagnostic = diagnostic.with_data(data! { labels: labels });
+        let diagnostics = vec![diagnostic];
+
+        let fragments = diagnostic_overlay_fragments(source, &diagnostics, Some(0));
+        let context_prefix = fragments
+            .iter()
+            .find(|fragment| fragment.text == "mi ")
+            .expect("context prefix should include text up to the primary span");
+        let primary = fragments
+            .iter()
+            .find(|fragment| fragment.text == "broda")
+            .expect("primary span should be a separate fragment");
+
+        assert!(has_css_class(
+            &context_prefix.class_name,
+            "is-active-context"
+        ));
+        assert!(!has_css_class(
+            &context_prefix.class_name,
+            "is-active-primary"
+        ));
+        assert!(has_css_class(&primary.class_name, "is-active-primary"));
+        assert!(has_css_class(
+            &primary.class_name,
+            "is-active-context-token"
+        ));
+        assert!(!has_css_class(&primary.class_name, "is-active-context"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_overlay_selection_offsets_are_utf16_offsets() {
+        let source = "a 😀 broda";
+        let diagnostic = test_diagnostic(
+            source,
+            DiagnosticSeverity::Error,
+            "syntax.parse",
+            "syntax parse failed",
+            4,
+            9,
+            "expected selbri",
+        );
+        let context_span = jbotci_diagnostics::source_span_from_char_offsets(None, source, 0, 1)
+            .expect("test context span is valid");
+        let mut labels = diagnostic.labels.clone();
+        labels.push(DiagnosticLabel::new(
+            context_span,
+            "while parsing sumti".to_owned(),
+            false,
+        ));
+        let diagnostic = diagnostic.with_data(data! { labels: labels });
+        let diagnostics = vec![diagnostic];
+
+        let fragments = diagnostic_overlay_fragments(source, &diagnostics, Some(0));
+        let primary = fragments
+            .iter()
+            .find(|fragment| fragment.text == "broda")
+            .expect("primary span should be present");
+
+        assert_eq!(
+            primary.selection_start,
+            "a 😀 ".encode_utf16().count() as u32
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn styled_diagnostic_notes_include_detailed_needs_one_of() {
         let source = "coi";
         let diagnostic = test_diagnostic(
@@ -13231,6 +14179,197 @@ mod tests {
         assert_eq!(notes.len(), 1);
         assert!(note_text.contains("needs one of:"));
         assert!(note_text.contains("selbri"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_tooltip_uses_primary_detail_when_available() {
+        let source = "coi";
+        let diagnostic = test_diagnostic(
+            source,
+            DiagnosticSeverity::Error,
+            "syntax.parse",
+            "syntax parse failed",
+            0,
+            1,
+            "expected free modifier, SE",
+        );
+
+        assert_eq!(
+            diagnostic_tooltip_text(&diagnostic),
+            "syntax.parse: expected free modifier, SE"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_tooltip_uses_detailed_expectation_order_and_lerfu_name() {
+        let source = "coi";
+        let diagnostic = test_diagnostic(
+            source,
+            DiagnosticSeverity::Error,
+            "syntax.parse",
+            "syntax parse failed",
+            0,
+            1,
+            "expected SE, free modifier, LERFU",
+        )
+        .with_styled_notes(vec![DiagnosticStyledNote::new(
+            jbotci_diagnostics::DiagnosticNoteMode::Detailed,
+            vec![
+                DiagnosticTextSegment::new(DiagnosticTextRole::Plain, "needs one of:\n".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "- ".to_owned()),
+                DiagnosticTextSegment::new(
+                    DiagnosticTextRole::Construct,
+                    "free modifier".to_owned(),
+                ),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " (".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::WordCategory, "LERFU".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " or ".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Selmaho, "COI".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ")\n".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "- ".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::WordCategory, "BRIVLA".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " or ".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Selmaho, "SE".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " [".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Keyword, "continues".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " ".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Construct, "sumti".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "]".to_owned()),
+            ],
+        )]);
+
+        assert_eq!(
+            diagnostic_tooltip_text(&diagnostic),
+            "syntax.parse: expected free modifier (LERFU or COI), BRIVLA or SE [continues sumti]"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_diagnostics_hide_redundant_expected_summary_notes() {
+        let source = "coi";
+        let diagnostic = test_diagnostic(
+            source,
+            DiagnosticSeverity::Error,
+            "syntax.parse",
+            "syntax parse failed",
+            0,
+            1,
+            "expected text",
+        )
+        .with_data(data! {
+            notes: vec![
+                "expected one of: BRIVLA, SE".to_owned(),
+                "another note".to_owned(),
+            ],
+        })
+        .with_styled_notes(vec![
+            DiagnosticStyledNote::new(
+                jbotci_diagnostics::DiagnosticNoteMode::Summary,
+                vec![
+                    DiagnosticTextSegment::new(
+                        DiagnosticTextRole::Plain,
+                        "expected one of: ".to_owned(),
+                    ),
+                    DiagnosticTextSegment::new(DiagnosticTextRole::Selmaho, "SE".to_owned()),
+                ],
+            ),
+            DiagnosticStyledNote::new(
+                jbotci_diagnostics::DiagnosticNoteMode::Detailed,
+                vec![
+                    DiagnosticTextSegment::new(
+                        DiagnosticTextRole::Plain,
+                        "needs one of:\n".to_owned(),
+                    ),
+                    DiagnosticTextSegment::new(DiagnosticTextRole::Construct, "sumti".to_owned()),
+                ],
+            ),
+        ]);
+
+        let plain_notes = diagnostic_plain_notes_for_web(&diagnostic);
+        let styled_notes = diagnostic_styled_notes_for_web(&diagnostic);
+
+        assert_eq!(plain_notes, vec!["another note"]);
+        assert_eq!(styled_notes.len(), 1);
+        assert_eq!(
+            diagnostic_styled_note_text(styled_notes[0]),
+            "needs one of:\nsumti"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_plain_text_segments_style_expectation_terms() {
+        let parts = diagnostic_plain_text_render_parts("expected free modifier, SE, LERFU, fe'e");
+
+        assert!(
+            parts.iter().any(|part| {
+                part.role == DiagnosticTextRole::Keyword && part.text == "expected"
+            })
+        );
+        assert!(parts.iter().any(|part| {
+            part.role == DiagnosticTextRole::Construct && part.text == "free modifier"
+        }));
+        assert!(
+            parts
+                .iter()
+                .any(|part| { part.role == DiagnosticTextRole::Selmaho && part.text == "SE" })
+        );
+        assert!(
+            parts.iter().any(|part| {
+                part.role == DiagnosticTextRole::WordCategory && part.text == "LERFU"
+            })
+        );
+        assert!(
+            parts.iter().any(|part| {
+                part.role == DiagnosticTextRole::SpecificWord && part.text == "fe'e"
+            })
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_token_links_follow_cukta_and_vlacku_conventions() {
+        let word = DiagnosticTextRenderPart {
+            role: DiagnosticTextRole::SpecificWord,
+            text: "fe'e".to_owned(),
+        };
+        let selmaho = DiagnosticTextRenderPart {
+            role: DiagnosticTextRole::Selmaho,
+            text: "BAI".to_owned(),
+        };
+        let category = DiagnosticTextRenderPart {
+            role: DiagnosticTextRole::WordCategory,
+            text: "BRIVLA".to_owned(),
+        };
+        let construct = DiagnosticTextRenderPart {
+            role: DiagnosticTextRole::Construct,
+            text: "sumti".to_owned(),
+        };
+
+        assert_eq!(
+            diagnostic_text_part_href(&word, "/jbotci").as_deref(),
+            Some("/jbotci/vlacku/fe'e")
+        );
+        assert_eq!(
+            diagnostic_text_part_href(&selmaho, "/jbotci").as_deref(),
+            Some("/jbotci/cukta/section/section-index#BAI")
+        );
+        assert_eq!(
+            diagnostic_text_part_href(&category, "/jbotci").as_deref(),
+            Some("/jbotci/cukta/section/section-morphology-brivla")
+        );
+        assert_eq!(
+            diagnostic_text_part_href(&construct, "/jbotci").as_deref(),
+            Some("/jbotci/cukta/section/section-EBNF#ebnf-rule-sumti")
+        );
     }
 
     #[test]
@@ -14021,5 +15160,13 @@ mod tests {
             Vec::new(),
             None,
         )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn has_css_class(class_name: &str, expected: &str) -> bool {
+        class_name
+            .split_whitespace()
+            .any(|class_name| class_name == expected)
     }
 }

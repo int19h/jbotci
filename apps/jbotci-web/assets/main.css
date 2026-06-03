@@ -91,7 +91,6 @@ input:disabled {
   --diagnostic-context-bg: color-mix(in srgb, #2f80ed 15%, transparent);
   --diagnostic-context-outline: color-mix(in srgb, #2f80ed 58%, transparent);
   --diagnostic-card-bg: color-mix(in srgb, var(--app-surface-0) 78%, transparent);
-  --diagnostic-card-hover-bg: color-mix(in srgb, var(--app-surface-0) 64%, var(--diagnostic-context-bg));
   --diagnostic-note-bg: color-mix(in srgb, var(--app-surface-2) 62%, transparent);
   --diagnostic-code-bg: color-mix(in srgb, var(--app-text) 8%, transparent);
   --diagnostic-token-construct: #5b3fc4;
@@ -231,7 +230,6 @@ body::-webkit-scrollbar-thumb:hover,
   --diagnostic-context-bg: color-mix(in srgb, #6cb6ff 16%, transparent);
   --diagnostic-context-outline: color-mix(in srgb, #8ecbff 66%, transparent);
   --diagnostic-card-bg: color-mix(in srgb, var(--app-surface-2) 72%, transparent);
-  --diagnostic-card-hover-bg: color-mix(in srgb, var(--app-surface-2) 58%, var(--diagnostic-context-bg));
   --diagnostic-note-bg: color-mix(in srgb, var(--app-surface-3) 46%, transparent);
   --diagnostic-code-bg: color-mix(in srgb, var(--app-text) 10%, transparent);
   --diagnostic-token-construct: #c3b5ff;
@@ -305,7 +303,6 @@ body::-webkit-scrollbar-thumb:hover,
     --diagnostic-context-bg: color-mix(in srgb, #6cb6ff 16%, transparent);
     --diagnostic-context-outline: color-mix(in srgb, #8ecbff 66%, transparent);
     --diagnostic-card-bg: color-mix(in srgb, var(--app-surface-2) 72%, transparent);
-    --diagnostic-card-hover-bg: color-mix(in srgb, var(--app-surface-2) 58%, var(--diagnostic-context-bg));
     --diagnostic-note-bg: color-mix(in srgb, var(--app-surface-3) 46%, transparent);
     --diagnostic-code-bg: color-mix(in srgb, var(--app-text) 10%, transparent);
     --diagnostic-token-construct: #c3b5ff;
@@ -875,7 +872,11 @@ body::-webkit-scrollbar-thumb:hover,
 .parse-page .gentufa-diagnostic-overlay-fragment.is-active-context {
   background: var(--diagnostic-context-bg);
   box-shadow: inset 0 0 0 1px var(--diagnostic-context-outline);
-  text-decoration-color: var(--diagnostic-context-outline);
+  text-decoration-line: none;
+}
+
+.parse-page .gentufa-diagnostic-overlay-fragment.is-active-context-token {
+  box-shadow: inset 0 0 0 1px var(--diagnostic-context-outline);
 }
 
 .parse-page .gentufa-diagnostic-overlay-caret {
@@ -1169,10 +1170,6 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--diagnostic-card-bg);
 }
 
-.parse-page .gentufa-diagnostic-card:hover {
-  background: var(--diagnostic-card-hover-bg);
-}
-
 .parse-page .gentufa-diagnostic-card.is-error {
   color: var(--diagnostic-error);
 }
@@ -1223,6 +1220,21 @@ body::-webkit-scrollbar-thumb:hover,
   font-size: 0.83rem;
 }
 
+.parse-page .gentufa-diagnostic-context-descriptor {
+  border-radius: 3px;
+  padding: 0.02rem 0.18rem;
+  transition:
+    background-color 0.12s ease,
+    box-shadow 0.12s ease,
+    color 0.12s ease;
+}
+
+.parse-page .gentufa-diagnostic-card:hover .gentufa-diagnostic-context-descriptor {
+  color: var(--app-text);
+  background: var(--diagnostic-context-bg);
+  box-shadow: inset 0 0 0 1px var(--diagnostic-context-outline);
+}
+
 .parse-page .gentufa-diagnostic-notes {
   display: grid;
   gap: 0.18rem;
@@ -1245,7 +1257,6 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .diagnostic-text-construct {
   color: var(--diagnostic-token-construct);
-  font-weight: 700;
 }
 
 .parse-page .diagnostic-text-specific-word {
@@ -1255,21 +1266,32 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .diagnostic-text-selmaho {
   color: var(--diagnostic-token-selmaho);
-  font-weight: 700;
 }
 
 .parse-page .diagnostic-text-word-category {
   color: var(--diagnostic-token-category);
-  font-weight: 700;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0;
 }
 
 .parse-page .diagnostic-text-keyword {
   color: var(--diagnostic-token-keyword);
-  font-weight: 650;
+  font-weight: 750;
 }
 
 .parse-page .diagnostic-text-punctuation {
   color: var(--diagnostic-token-punctuation);
+}
+
+.parse-page .diagnostic-text-link {
+  text-decoration: underline;
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.18em;
+}
+
+.parse-page .diagnostic-text-link:hover,
+.parse-page .diagnostic-text-link:focus-visible {
+  color: var(--app-link-hover);
 }
 
 .parse-page .error-section {

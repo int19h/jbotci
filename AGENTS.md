@@ -298,7 +298,7 @@ For the web app, all processing should happen on the client in the browser and s
 
 # Build
 
-If you have made any changes, always build the `jbotci` release binary and do `cargo build-web-release` before you wrap up your work.
+If you have made any changes, always build the `jbotci` debug binary and do a debug `dx build` before you wrap up your work.
 
 
 # Test suite

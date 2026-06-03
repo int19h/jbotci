@@ -190,7 +190,7 @@ impl SyntaxWordCategory {
             Self::Cmevla => "CMEVLA",
             Self::SelbriWord => "SELBRI WORD",
             Self::ProSumti => "PRO-SUMTI",
-            Self::LetterWord => "LETTER WORD",
+            Self::LetterWord => "LERFU",
             Self::ReplacementWord => "REPLACEMENT WORD",
             Self::Quote => "QUOTE",
         }

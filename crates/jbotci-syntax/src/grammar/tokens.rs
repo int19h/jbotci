@@ -183,8 +183,8 @@ pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, Token> {
 #[ensures(true)]
 pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, Token> {
     token_matching(
-        "letter word",
-        "LETTER WORD",
+        "lerfu",
+        "LERFU",
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::LetterWord,
         ))],
