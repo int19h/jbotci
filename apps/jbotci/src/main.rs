@@ -5372,7 +5372,8 @@ mod tests {
             assert_eq!(status, CliStatus::Failure);
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
-            assert!(stderr.contains("while parsing statement"), "{stderr}");
+            assert!(stderr.contains("while parsing bridi"), "{stderr}");
+            assert_eq!(stderr.matches("while parsing").count(), 1, "{stderr}");
             assert!(stderr.contains("mi cu"));
             assert!(stderr.contains("needs one of:"));
         });

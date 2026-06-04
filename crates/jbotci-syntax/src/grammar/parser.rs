@@ -442,52 +442,68 @@ fn statement_parser<'tokens>(
         .or_not()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(maybe_ku, free_modifiers)| build_zohe_argument(None, maybe_ku, free_modifiers));
-    let fa_term = selmaho(Selmaho::Fa)
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(sumti.clone().or(elided_argument))
-        .map(|((fa, free_modifiers), sumti)| {
-            new!(TermSyntax::PlaceTaggedSumti {
-                fa: WithFreeModifiers::new(fa, free_modifiers),
-                sumti: Box::new(sumti),
-                ku: None,
-            })
-        });
-    let zantufa_jai_tag_term = cmavo(Cmavo::Jai)
-        .map_with(
-            |jai, extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
-                extra
-                    .state()
-                    .warn(ExperimentalConstruct::ExperimentalZantufaJaiTagTerm, &jai);
-                jai
-            },
-        )
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(tense_modal_boxed().or_not())
-        .then(
-            sumti.clone().or(cmavo(Cmavo::Ku)
-                .or_not()
+    let fa_term = syntax_label(
+        "place tag",
+        selmaho(Selmaho::Fa)
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(sumti.clone().or(elided_argument))
+            .map(|((fa, free_modifiers), sumti)| {
+                new!(TermSyntax::PlaceTaggedSumti {
+                    fa: WithFreeModifiers::new(fa, free_modifiers),
+                    sumti: Box::new(sumti),
+                    ku: None,
+                })
+            }),
+    );
+    let zantufa_jai_tag_term =
+        syntax_label(
+            "tag",
+            cmavo(Cmavo::Jai)
+                .map_with(
+                    |jai,
+                     extra: &mut MapExtra<
+                        'tokens,
+                        '_,
+                        ParserInput<'tokens>,
+                        ParseExtra<'tokens>,
+                    >| {
+                        extra
+                            .state()
+                            .warn(ExperimentalConstruct::ExperimentalZantufaJaiTagTerm, &jai);
+                        jai
+                    },
+                )
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .map(|(maybe_ku, free_modifiers)| {
-                    build_zohe_argument(None, maybe_ku, free_modifiers)
-                })),
-        )
-        .map(|(((jai, free_modifiers), tag), sumti)| {
-            new!(TermSyntax::JaiTaggedSumti {
-                jai: WithFreeModifiers::new(jai, free_modifiers),
-                tag,
-                sumti: Box::new(sumti),
-            })
-        })
-        .boxed();
-    let na_ku_term = na_cmavo()
-        .then(cmavo(Cmavo::Ku))
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|((na, na_ku), free_modifiers)| {
-            new!(TermSyntax::BridiNegation {
-                na,
-                na_ku: WithFreeModifiers::new(na_ku, free_modifiers),
-            })
-        });
+                .then(tense_modal_boxed().or_not())
+                .then(
+                    sumti.clone().or(cmavo(Cmavo::Ku)
+                        .or_not()
+                        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                        .map(|(maybe_ku, free_modifiers)| {
+                            build_zohe_argument(None, maybe_ku, free_modifiers)
+                        })),
+                )
+                .map(|(((jai, free_modifiers), tag), sumti)| {
+                    new!(TermSyntax::JaiTaggedSumti {
+                        jai: WithFreeModifiers::new(jai, free_modifiers),
+                        tag,
+                        sumti: Box::new(sumti),
+                    })
+                })
+                .boxed(),
+        );
+    let na_ku_term = syntax_label(
+        "NA KU term",
+        na_cmavo()
+            .then(cmavo(Cmavo::Ku))
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|((na, na_ku), free_modifiers)| {
+                new!(TermSyntax::BridiNegation {
+                    na,
+                    na_ku: WithFreeModifiers::new(na_ku, free_modifiers),
+                })
+            }),
+    );
     let tagged_term_before_tag_start = leading_term_tag_tense_modal_boxed()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(tense_modal_boxed().rewind().ignored())
@@ -553,7 +569,10 @@ fn statement_parser<'tokens>(
                 sumti: Box::new(sumti),
             })
         });
-    let tagged_term = choice((tagged_term_before_tag, tagged_term_before_non_relation));
+    let tagged_term = syntax_label(
+        "tag",
+        choice((tagged_term_before_tag, tagged_term_before_non_relation)),
+    );
     let noiha_terminator =
         if dialect.zantufa_adverbials_enabled {
             cmavo(Cmavo::Fehu)
@@ -726,68 +745,76 @@ fn statement_parser<'tokens>(
                 })
             })
             .boxed();
-        let gek_nuhi_termset = gek_nuhi_termset_head
-            .then(gik_connective_with_free_modifiers(free_modifier.clone()))
-            .then(
-                boxed_term
-                    .clone()
-                    .repeated()
-                    .at_least(1)
-                    .collect::<Vec<_>>(),
-            )
-            .then(optional_gihi_terminator())
-            .then(
-                cmavo(Cmavo::Nuhu)
-                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                    .or_not(),
-            )
-            .map(|((((head, gik), gik_terms), gihi), gik_nuhu)| {
-                let GekNuhiTermsetHeadSyntax {
-                    m_nuhi,
-                    gek,
-                    terms,
-                    nuhu,
-                } = *head;
-                new!(TermSyntax::ForethoughtTermsetConnection {
-                    m_nuhi: m_nuhi.map(|(nuhi, free_modifiers)| {
-                        WithFreeModifiers::new(nuhi, free_modifiers)
-                    }),
-                    gek,
-                    terms: unbox_terms(terms),
-                    nuhu: nuhu.map(|(nuhu, free_modifiers)| {
-                        WithFreeModifiers::new(nuhu, free_modifiers)
-                    }),
-                    gik,
-                    gik_terms: unbox_terms(gik_terms),
-                    gihi,
-                    gik_nuhu: gik_nuhu.map(|(nuhu, free_modifiers)| {
-                        WithFreeModifiers::new(nuhu, free_modifiers)
-                    }),
-                })
-            });
-        let nuhi_termset = cmavo(Cmavo::Nuhi)
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(
-                boxed_term
-                    .clone()
-                    .repeated()
-                    .at_least(1)
-                    .collect::<Vec<_>>(),
-            )
-            .then(
-                cmavo(Cmavo::Nuhu)
-                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                    .or_not(),
-            )
-            .map(|(((nuhi, nuhi_free_modifiers), termset), nuhu)| {
-                new!(TermSyntax::Termset {
-                    nuhi: WithFreeModifiers::new(nuhi, nuhi_free_modifiers),
-                    termset: unbox_terms(termset),
-                    nuhu: nuhu
-                        .map(|(nuhu, free_modifiers)| WithFreeModifiers::new(nuhu, free_modifiers)),
-                })
-            });
-        let ke_termset =
+        let gek_nuhi_termset = syntax_label(
+            "termset",
+            gek_nuhi_termset_head
+                .then(gik_connective_with_free_modifiers(free_modifier.clone()))
+                .then(
+                    boxed_term
+                        .clone()
+                        .repeated()
+                        .at_least(1)
+                        .collect::<Vec<_>>(),
+                )
+                .then(optional_gihi_terminator())
+                .then(
+                    cmavo(Cmavo::Nuhu)
+                        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                        .or_not(),
+                )
+                .map(|((((head, gik), gik_terms), gihi), gik_nuhu)| {
+                    let GekNuhiTermsetHeadSyntax {
+                        m_nuhi,
+                        gek,
+                        terms,
+                        nuhu,
+                    } = *head;
+                    new!(TermSyntax::ForethoughtTermsetConnection {
+                        m_nuhi: m_nuhi.map(|(nuhi, free_modifiers)| {
+                            WithFreeModifiers::new(nuhi, free_modifiers)
+                        }),
+                        gek,
+                        terms: unbox_terms(terms),
+                        nuhu: nuhu.map(|(nuhu, free_modifiers)| {
+                            WithFreeModifiers::new(nuhu, free_modifiers)
+                        }),
+                        gik,
+                        gik_terms: unbox_terms(gik_terms),
+                        gihi,
+                        gik_nuhu: gik_nuhu.map(|(nuhu, free_modifiers)| {
+                            WithFreeModifiers::new(nuhu, free_modifiers)
+                        }),
+                    })
+                }),
+        );
+        let nuhi_termset = syntax_label(
+            "termset",
+            cmavo(Cmavo::Nuhi)
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(
+                    boxed_term
+                        .clone()
+                        .repeated()
+                        .at_least(1)
+                        .collect::<Vec<_>>(),
+                )
+                .then(
+                    cmavo(Cmavo::Nuhu)
+                        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                        .or_not(),
+                )
+                .map(|(((nuhi, nuhi_free_modifiers), termset), nuhu)| {
+                    new!(TermSyntax::Termset {
+                        nuhi: WithFreeModifiers::new(nuhi, nuhi_free_modifiers),
+                        termset: unbox_terms(termset),
+                        nuhu: nuhu.map(|(nuhu, free_modifiers)| {
+                            WithFreeModifiers::new(nuhu, free_modifiers)
+                        }),
+                    })
+                }),
+        );
+        let ke_termset = syntax_label(
+            "termset",
             cmavo(Cmavo::Ke)
                 .map_with(
                     |ke,
@@ -819,7 +846,8 @@ fn statement_parser<'tokens>(
                             free_modifiers
                         )),
                     })
-                });
+                }),
+        );
         let simple_term = choice((
             base_simple_term.clone().map(Box::new),
             gek_nuhi_termset.map(Box::new),
@@ -827,28 +855,30 @@ fn statement_parser<'tokens>(
             ke_termset.map(Box::new),
         ))
         .boxed();
-        let cehe_term = simple_term
-            .clone()
-            .then(
-                cmavo(Cmavo::Cehe)
-                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                    .then(simple_term.clone())
-                    .repeated()
-                    .collect::<Vec<_>>(),
-            )
-            .map(|(leading_term, cehe_tails)| {
-                cehe_tails.into_iter().fold(
-                    leading_term,
-                    |leading_term, ((cehe, free_modifiers), trailing_term)| {
-                        Box::new(new!(TermSyntax::TermsetGroup {
-                            leading_terms: vec![*leading_term],
-                            cehe: WithFreeModifiers::new(cehe, free_modifiers),
-                            trailing_terms: vec![*trailing_term],
-                        }))
-                    },
+        let cehe_term = syntax_label(
+            "termset",
+            simple_term
+                .clone()
+                .then(
+                    cmavo(Cmavo::Cehe)
+                        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                        .then(simple_term.clone())
+                        .repeated()
+                        .collect::<Vec<_>>(),
                 )
-            })
-            .boxed();
+                .map(|(leading_term, cehe_tails)| {
+                    cehe_tails.into_iter().fold(
+                        leading_term,
+                        |leading_term, ((cehe, free_modifiers), trailing_term)| {
+                            Box::new(new!(TermSyntax::TermsetGroup {
+                                leading_terms: vec![*leading_term],
+                                cehe: WithFreeModifiers::new(cehe, free_modifiers),
+                                trailing_terms: vec![*trailing_term],
+                            }))
+                        },
+                    )
+                }),
+        );
         let post_bo_argument_gate = if dialect.term_hierarchy_enabled {
             empty().to(()).boxed()
         } else {
@@ -1006,7 +1036,7 @@ fn statement_parser<'tokens>(
                         inner: Box::new(inner),
                     })
                 });
-            choice((pair, ke, na)).boxed()
+            syntax_context("forethought bridi connection", choice((pair, ke, na)))
         });
         let implicit_tagged_term_before_grouped_gek = tense_modal_with_free_modifiers
             .clone()
@@ -1023,16 +1053,20 @@ fn statement_parser<'tokens>(
             non_grouped_gek_term,
         ))
         .boxed();
-        let predicate_tail_terms = tail_term
-            .clone()
-            .repeated()
-            .collect::<Vec<_>>()
-            .then(cmavo(Cmavo::Vau).or_not())
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .map(|((tail_terms, vau), free_modifiers)| {
-                let (vau, free_modifiers) = split_optional_word_free_modifiers(vau, free_modifiers);
-                (tail_terms, vau, free_modifiers)
-            });
+        let predicate_tail_terms = syntax_label(
+            "tail terms",
+            tail_term
+                .clone()
+                .repeated()
+                .collect::<Vec<_>>()
+                .then(cmavo(Cmavo::Vau).or_not())
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .map(|((tail_terms, vau), free_modifiers)| {
+                    let (vau, free_modifiers) =
+                        split_optional_word_free_modifiers(vau, free_modifiers);
+                    (tail_terms, vau, free_modifiers)
+                }),
+        );
         let experimental_predicate_tail_cu = cu
             .clone()
             .then(free_modifier.clone().repeated().collect::<Vec<_>>())
@@ -1336,35 +1370,39 @@ fn statement_parser<'tokens>(
                 })
             });
 
-        choice((
-            forethought_predicate_with_leading_terms,
-            predicate_with_leading_terms,
-            predicate_with_post_cu_terms,
-            bare_cu_predicate,
-            bare_cu_terms_predicate,
-            relation_only,
-        ))
-        .boxed()
+        syntax_context(
+            "bridi",
+            choice((
+                forethought_predicate_with_leading_terms,
+                predicate_with_leading_terms,
+                predicate_with_post_cu_terms,
+                bare_cu_predicate,
+                bare_cu_terms_predicate,
+                relation_only,
+            )),
+        )
     });
     let plain_subbridi = basic_predicate
         .clone()
         .map(|value| new!(SubbridiSyntax::Bridi(Box::new(value))));
-    let prenex_subbridi = term
-        .clone()
-        .repeated()
-        .collect::<Vec<_>>()
-        .then(cmavo(Cmavo::Zohu))
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(subbridi.clone())
-        .map(
-            |(((prenex_terms, zohu), zohu_free_modifiers), inner_subbridi)| {
-                new!(SubbridiSyntax::Prenex {
-                    prenex_terms,
-                    zohu: WithFreeModifiers::new(zohu, zohu_free_modifiers),
-                    inner_subbridi: Box::new(inner_subbridi),
-                })
-            },
-        );
+    let prenex_subbridi = syntax_label(
+        "prenex",
+        term.clone()
+            .repeated()
+            .collect::<Vec<_>>()
+            .then(cmavo(Cmavo::Zohu))
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(subbridi.clone())
+            .map(
+                |(((prenex_terms, zohu), zohu_free_modifiers), inner_subbridi)| {
+                    new!(SubbridiSyntax::Prenex {
+                        prenex_terms,
+                        zohu: WithFreeModifiers::new(zohu, zohu_free_modifiers),
+                        inner_subbridi: Box::new(inner_subbridi),
+                    })
+                },
+            ),
+    );
     subbridi.define(syntax_context(
         "subbridi",
         choice((prenex_subbridi, plain_subbridi)),
@@ -1426,21 +1464,25 @@ fn statement_parser<'tokens>(
 
     let fragment_term = term.clone();
 
-    let term_fragment = fragment_term
-        .repeated()
-        .at_least(1)
-        .collect::<Vec<_>>()
-        .then(
-            cmavo(Cmavo::Vau)
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .or_not(),
-        )
-        .map(|(terms, vau)| {
-            statement_from_fragment(new!(FragmentSyntax::Terms {
-                terms,
-                vau: vau.map(|(vau, free_modifiers)| WithFreeModifiers::new(vau, free_modifiers)),
-            }))
-        });
+    let term_fragment = syntax_label(
+        "terms",
+        fragment_term
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .then(
+                cmavo(Cmavo::Vau)
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
+            .map(|(terms, vau)| {
+                statement_from_fragment(new!(FragmentSyntax::Terms {
+                    terms,
+                    vau: vau
+                        .map(|(vau, free_modifiers)| WithFreeModifiers::new(vau, free_modifiers)),
+                }))
+            }),
+    );
 
     let relative_clause_fragment =
         relative_clauses(sumti.clone(), subbridi.clone(), free_modifier.clone()).map(
@@ -1534,72 +1576,82 @@ fn statement_parser<'tokens>(
         .clone()
         .map(|selbri| statement_from_fragment(new!(FragmentSyntax::Selbri(Box::new(selbri)))));
 
-    let prenex_fragment = term
-        .clone()
-        .repeated()
-        .collect::<Vec<_>>()
-        .then(cmavo(Cmavo::Zohu))
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|((terms, zohu), zohu_free_modifiers)| {
-            statement_from_fragment(new!(FragmentSyntax::Prenex {
-                terms,
-                zohu: WithFreeModifiers::new(zohu, zohu_free_modifiers),
-            }))
-        });
-
-    let prenex_statement = term
-        .clone()
-        .repeated()
-        .collect::<Vec<_>>()
-        .then(cmavo(Cmavo::Zohu))
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(statement.clone())
-        .map(
-            |(((prenex_terms, zohu), zohu_free_modifiers), inner_statement)| {
-                new!(StatementSyntax::Prenex {
-                    prenex_terms,
+    let prenex_fragment = syntax_label(
+        "prenex",
+        term.clone()
+            .repeated()
+            .collect::<Vec<_>>()
+            .then(cmavo(Cmavo::Zohu))
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|((terms, zohu), zohu_free_modifiers)| {
+                statement_from_fragment(new!(FragmentSyntax::Prenex {
+                    terms,
                     zohu: WithFreeModifiers::new(zohu, zohu_free_modifiers),
-                    inner_statement: Box::new(inner_statement),
-                })
-            },
-        );
-    let tuhe_statement = tense_modal_with_free_modifiers
-        .clone()
-        .or_not()
-        .then(cmavo(Cmavo::Tuhe))
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(text.clone())
-        .then(
-            cmavo(Cmavo::Tuhu)
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .or_not(),
-        )
-        .map(
-            |((((tense_modal, tuhe), tuhe_free_modifiers), text), tuhu)| {
-                new!(StatementSyntax::TextGroup {
-                    tense_modal,
-                    tuhe: WithFreeModifiers::new(tuhe, tuhe_free_modifiers),
-                    text: Box::new(text),
-                    tuhu: tuhu
-                        .map(|(tuhu, free_modifiers)| WithFreeModifiers::new(tuhu, free_modifiers)),
-                })
-            },
-        );
+                }))
+            }),
+    );
 
-    let fragment_statement = choice((
-        prenex_fragment,
-        relation_fragment,
-        multiple_na_fragment,
-        single_na_fragment,
-        term_fragment,
-        ek_fragment,
-        gihek_fragment,
-        math_expression_fragment,
-        relative_clause_fragment,
-        bei_link_fragment,
-        be_link_fragment,
-    ))
-    .boxed();
+    let prenex_statement = syntax_label(
+        "prenex",
+        term.clone()
+            .repeated()
+            .collect::<Vec<_>>()
+            .then(cmavo(Cmavo::Zohu))
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(statement.clone())
+            .map(
+                |(((prenex_terms, zohu), zohu_free_modifiers), inner_statement)| {
+                    new!(StatementSyntax::Prenex {
+                        prenex_terms,
+                        zohu: WithFreeModifiers::new(zohu, zohu_free_modifiers),
+                        inner_statement: Box::new(inner_statement),
+                    })
+                },
+            ),
+    );
+    let tuhe_statement = syntax_label(
+        "text group",
+        tense_modal_with_free_modifiers
+            .clone()
+            .or_not()
+            .then(cmavo(Cmavo::Tuhe))
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(text.clone())
+            .then(
+                cmavo(Cmavo::Tuhu)
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
+            .map(
+                |((((tense_modal, tuhe), tuhe_free_modifiers), text), tuhu)| {
+                    new!(StatementSyntax::TextGroup {
+                        tense_modal,
+                        tuhe: WithFreeModifiers::new(tuhe, tuhe_free_modifiers),
+                        text: Box::new(text),
+                        tuhu: tuhu.map(|(tuhu, free_modifiers)| {
+                            WithFreeModifiers::new(tuhu, free_modifiers)
+                        }),
+                    })
+                },
+            ),
+    );
+
+    let fragment_statement = syntax_label(
+        "fragment",
+        choice((
+            prenex_fragment,
+            relation_fragment,
+            multiple_na_fragment,
+            single_na_fragment,
+            term_fragment,
+            ek_fragment,
+            gihek_fragment,
+            math_expression_fragment,
+            relative_clause_fragment,
+            bei_link_fragment,
+            be_link_fragment,
+        )),
+    );
 
     let simple_statement_after_i_connective = choice((bridi, tuhe_statement)).boxed();
 
@@ -2637,9 +2689,11 @@ where
         + Clone
         + 'tokens,
 {
-    let number =
+    let number = syntax_label(
+        "number",
         quantifier_with_free_modifiers_boxed(number_quantifier_boxed(), free_modifier.clone())
-            .map(|value| new!(MeksoSyntax::NumberMekso(value)));
+            .map(|value| new!(MeksoSyntax::NumberMekso(value))),
+    );
     let letter = letter_string()
         .then_ignore(selmaho(Selmaho::Moi).rewind().not())
         .then(cmavo(Cmavo::Boi).or_not())
@@ -2657,190 +2711,220 @@ where
                 boi: boi.map(|boi| WithFreeModifiers::new(boi, free_modifiers)),
             })
         });
-    let nihe = cmavo(Cmavo::Nihe)
-        .then(selbri.clone())
-        .then(cmavo(Cmavo::Tehu).or_not())
-        .map(|((nihe, selbri), tehu)| {
-            new!(MeksoSyntax::SelbriOperand {
-                nihe: WithFreeModifiers::new(nihe, Vec::new()),
-                selbri: Box::new(selbri),
-                tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, Vec::new())),
-            })
-        });
-    let mohe = cmavo(Cmavo::Mohe)
-        .then(sumti)
-        .then(cmavo(Cmavo::Tehu).or_not())
-        .map(|((mohe, sumti), tehu)| {
-            new!(MeksoSyntax::SumtiOperand {
-                mohe: WithFreeModifiers::new(mohe, Vec::new()),
-                sumti: Box::new(sumti),
-                tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, Vec::new())),
-            })
-        });
+    let nihe = syntax_label(
+        "selbri operand",
+        cmavo(Cmavo::Nihe)
+            .then(selbri.clone())
+            .then(cmavo(Cmavo::Tehu).or_not())
+            .map(|((nihe, selbri), tehu)| {
+                new!(MeksoSyntax::SelbriOperand {
+                    nihe: WithFreeModifiers::new(nihe, Vec::new()),
+                    selbri: Box::new(selbri),
+                    tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, Vec::new())),
+                })
+            }),
+    );
+    let mohe = syntax_label(
+        "sumti operand",
+        cmavo(Cmavo::Mohe)
+            .then(sumti)
+            .then(cmavo(Cmavo::Tehu).or_not())
+            .map(|((mohe, sumti), tehu)| {
+                new!(MeksoSyntax::SumtiOperand {
+                    mohe: WithFreeModifiers::new(mohe, Vec::new()),
+                    sumti: Box::new(sumti),
+                    tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, Vec::new())),
+                })
+            }),
+    );
     let no_free_modifiers = empty().to(Vec::<FreeModifierSyntax>::new());
-    let johi = cmavo(Cmavo::Johi)
-        .then(no_free_modifiers.clone())
-        .then(
-            expression
-                .clone()
-                .repeated()
-                .at_least(1)
-                .collect::<Vec<_>>(),
-        )
-        .then(cmavo(Cmavo::Tehu).or_not())
-        .then(no_free_modifiers)
-        .map(
-            |((((johi, free_modifiers), expressions), tehu), tehu_free_modifiers)| {
-                new!(MeksoSyntax::MeksoArray {
-                    johi: WithFreeModifiers::new(johi, free_modifiers),
-                    expressions: math_expression_vec(expressions),
-                    tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, tehu_free_modifiers)),
-                })
-            },
-        );
-    let vei = cmavo(Cmavo::Vei)
-        .then(expression.clone())
-        .then(cmavo(Cmavo::Veho).or_not())
-        .map(|((vei, inner_expression), veho)| {
-            new!(MeksoSyntax::ParenthesizedMekso {
-                vei: WithFreeModifiers::new(vei, Vec::new()),
-                inner_expression: Box::new(inner_expression),
-                veho: veho.map(|veho| WithFreeModifiers::new(veho, Vec::new())),
-            })
-        });
-    let gek = modal_forethought_connective_with_free_modifiers(free_modifier.clone())
-        .then(expression.clone())
-        .then(gik_connective_with_free_modifiers(free_modifier.clone()))
-        .then(expression)
-        .map(|(((gek, left_expression), gik), right_expression)| {
-            new!(MeksoSyntax::ForethoughtMeksoConnection {
-                gek,
-                left_expression: Box::new(left_expression),
-                gik,
-                right_expression: Box::new(right_expression),
-            })
-        });
-    let math_operand_atom = choice((gek, vei, nihe, mohe, johi, number, letter)).boxed();
-    let math_operand = recursive(|math_operand| {
-        let math_operand2 = recursive(|math_operand2| {
-            math_operand_atom
-                .clone()
-                .then(
-                    operand_connective()
-                        .then(tense_modal().or_not())
-                        .then(cmavo(Cmavo::Bo))
-                        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                        .then(math_operand2)
-                        .or_not(),
-                )
-                .map(|(left_expression, bo_tail)| match bo_tail {
-                    None => left_expression,
-                    Some(((((connective, tense_modal), bo), free_modifiers), right_expression)) => {
-                        let connective = match tense_modal {
-                            None => connective,
-                            Some(tag) => append_tense_modal_words(connective, tag),
-                        };
-                        let connective =
-                            append_connective_free_modifiers(connective, free_modifiers);
-                        let connective = append_connective_words(connective, vec![bo]);
-                        new!(MeksoSyntax::MeksoConnection {
-                            left_expression: Box::new(left_expression),
-                            connective,
-                            right_expression: Box::new(right_expression),
-                        })
-                    }
-                })
-        });
-        let math_operand1 = math_operand2
-            .clone()
+    let johi = syntax_label(
+        "mekso array",
+        cmavo(Cmavo::Johi)
+            .then(no_free_modifiers.clone())
             .then(
-                operand_connective()
-                    .then(math_operand2)
-                    .repeated()
-                    .collect::<Vec<_>>(),
-            )
-            .map(|(first, continuations)| {
-                continuations.into_iter().fold(
-                    first,
-                    |left_expression, (connective, right_expression)| {
-                        new!(MeksoSyntax::MeksoConnection {
-                            left_expression: Box::new(left_expression),
-                            connective,
-                            right_expression: Box::new(right_expression),
-                        })
-                    },
-                )
-            });
-        math_operand1
-            .clone()
-            .then(
-                operand_connective()
-                    .then(tense_modal().or_not())
-                    .then(cmavo(Cmavo::Ke))
-                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                    .then(math_operand)
-                    .then(cmavo(Cmavo::Kehe).or_not())
-                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                    .or_not(),
-            )
-            .map(|(left_expression, grouped_tail)| match grouped_tail {
-                None => left_expression,
-                Some((
-                    (
-                        ((((connective, tense_modal), ke), ke_free_modifiers), right_expression),
-                        kehe,
-                    ),
-                    kehe_free_modifiers,
-                )) => {
-                    let connective = match tense_modal {
-                        None => connective,
-                        Some(tag) => append_tense_modal_words(connective, tag),
-                    };
-                    new!(MeksoSyntax::MeksoConnection {
-                        left_expression: Box::new(left_expression),
-                        connective,
-                        right_expression: Box::new(new!(MeksoSyntax::ParenthesizedMekso {
-                            vei: WithFreeModifiers::new(ke, ke_free_modifiers),
-                            inner_expression: Box::new(right_expression),
-                            veho: kehe
-                                .map(|kehe| WithFreeModifiers::new(kehe, kehe_free_modifiers)),
-                        })),
-                    })
-                }
-            })
-            .boxed()
-    });
-    let math_expression2 = recursive(|math_expression2| {
-        let lahe = selmaho(Selmaho::Nahe)
-            .then(cmavo(Cmavo::Bo))
-            .then(math_expression2.clone())
-            .then(cmavo(Cmavo::Luhu).or_not())
-            .map(|(((nahe, bo), inner_expression), luhu)| {
-                new!(MeksoSyntax::QualifiedOperand {
-                    markers: WithFreeModifiers::new(vec![nahe, bo], Vec::new()),
-                    inner_expression: Box::new(inner_expression),
-                    luhu: luhu.map(|luhu| WithFreeModifiers::new(luhu, Vec::new())),
-                })
-            });
-        let forethought = cmavo(Cmavo::Peho)
-            .or_not()
-            .then(operator.clone())
-            .then(
-                math_expression2
+                expression
                     .clone()
                     .repeated()
                     .at_least(1)
                     .collect::<Vec<_>>(),
             )
-            .then(cmavo(Cmavo::Kuhe).or_not())
-            .map(|(((peho, operator), operands), kuhe)| {
-                new!(MeksoSyntax::ForethoughtCall {
-                    peho: peho.map(|peho| WithFreeModifiers::new(peho, Vec::new())),
-                    operator: Box::new(operator),
-                    operands,
-                    kuhe: kuhe.map(|kuhe| WithFreeModifiers::new(kuhe, Vec::new())),
+            .then(cmavo(Cmavo::Tehu).or_not())
+            .then(no_free_modifiers)
+            .map(
+                |((((johi, free_modifiers), expressions), tehu), tehu_free_modifiers)| {
+                    new!(MeksoSyntax::MeksoArray {
+                        johi: WithFreeModifiers::new(johi, free_modifiers),
+                        expressions: math_expression_vec(expressions),
+                        tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, tehu_free_modifiers)),
+                    })
+                },
+            ),
+    );
+    let vei = syntax_label(
+        "parenthesized mex",
+        cmavo(Cmavo::Vei)
+            .then(expression.clone())
+            .then(cmavo(Cmavo::Veho).or_not())
+            .map(|((vei, inner_expression), veho)| {
+                new!(MeksoSyntax::ParenthesizedMekso {
+                    vei: WithFreeModifiers::new(vei, Vec::new()),
+                    inner_expression: Box::new(inner_expression),
+                    veho: veho.map(|veho| WithFreeModifiers::new(veho, Vec::new())),
                 })
+            }),
+    );
+    let gek = syntax_context(
+        "forethought mex",
+        modal_forethought_connective_with_free_modifiers(free_modifier.clone())
+            .then(expression.clone())
+            .then(gik_connective_with_free_modifiers(free_modifier.clone()))
+            .then(expression)
+            .map(|(((gek, left_expression), gik), right_expression)| {
+                new!(MeksoSyntax::ForethoughtMeksoConnection {
+                    gek,
+                    left_expression: Box::new(left_expression),
+                    gik,
+                    right_expression: Box::new(right_expression),
+                })
+            }),
+    );
+    let math_operand_atom = choice((gek, vei, nihe, mohe, johi, number, letter)).boxed();
+    let math_operand = syntax_label(
+        "operand",
+        recursive(|math_operand| {
+            let math_operand2 = recursive(|math_operand2| {
+                math_operand_atom
+                    .clone()
+                    .then(
+                        operand_connective()
+                            .then(tense_modal().or_not())
+                            .then(cmavo(Cmavo::Bo))
+                            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                            .then(math_operand2)
+                            .or_not(),
+                    )
+                    .map(|(left_expression, bo_tail)| match bo_tail {
+                        None => left_expression,
+                        Some((
+                            (((connective, tense_modal), bo), free_modifiers),
+                            right_expression,
+                        )) => {
+                            let connective = match tense_modal {
+                                None => connective,
+                                Some(tag) => append_tense_modal_words(connective, tag),
+                            };
+                            let connective =
+                                append_connective_free_modifiers(connective, free_modifiers);
+                            let connective = append_connective_words(connective, vec![bo]);
+                            new!(MeksoSyntax::MeksoConnection {
+                                left_expression: Box::new(left_expression),
+                                connective,
+                                right_expression: Box::new(right_expression),
+                            })
+                        }
+                    })
             });
+            let math_operand1 = math_operand2
+                .clone()
+                .then(
+                    operand_connective()
+                        .then(math_operand2)
+                        .repeated()
+                        .collect::<Vec<_>>(),
+                )
+                .map(|(first, continuations)| {
+                    continuations.into_iter().fold(
+                        first,
+                        |left_expression, (connective, right_expression)| {
+                            new!(MeksoSyntax::MeksoConnection {
+                                left_expression: Box::new(left_expression),
+                                connective,
+                                right_expression: Box::new(right_expression),
+                            })
+                        },
+                    )
+                });
+            math_operand1
+                .clone()
+                .then(
+                    operand_connective()
+                        .then(tense_modal().or_not())
+                        .then(cmavo(Cmavo::Ke))
+                        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                        .then(math_operand)
+                        .then(cmavo(Cmavo::Kehe).or_not())
+                        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                        .or_not(),
+                )
+                .map(|(left_expression, grouped_tail)| match grouped_tail {
+                    None => left_expression,
+                    Some((
+                        (
+                            (
+                                (((connective, tense_modal), ke), ke_free_modifiers),
+                                right_expression,
+                            ),
+                            kehe,
+                        ),
+                        kehe_free_modifiers,
+                    )) => {
+                        let connective = match tense_modal {
+                            None => connective,
+                            Some(tag) => append_tense_modal_words(connective, tag),
+                        };
+                        new!(MeksoSyntax::MeksoConnection {
+                            left_expression: Box::new(left_expression),
+                            connective,
+                            right_expression: Box::new(new!(MeksoSyntax::ParenthesizedMekso {
+                                vei: WithFreeModifiers::new(ke, ke_free_modifiers),
+                                inner_expression: Box::new(right_expression),
+                                veho: kehe
+                                    .map(|kehe| WithFreeModifiers::new(kehe, kehe_free_modifiers)),
+                            })),
+                        })
+                    }
+                })
+                .boxed()
+        }),
+    );
+    let math_expression2 = recursive(|math_expression2| {
+        let lahe = syntax_label(
+            "qualified operand",
+            selmaho(Selmaho::Nahe)
+                .then(cmavo(Cmavo::Bo))
+                .then(math_expression2.clone())
+                .then(cmavo(Cmavo::Luhu).or_not())
+                .map(|(((nahe, bo), inner_expression), luhu)| {
+                    new!(MeksoSyntax::QualifiedOperand {
+                        markers: WithFreeModifiers::new(vec![nahe, bo], Vec::new()),
+                        inner_expression: Box::new(inner_expression),
+                        luhu: luhu.map(|luhu| WithFreeModifiers::new(luhu, Vec::new())),
+                    })
+                }),
+        );
+        let forethought = syntax_context(
+            "forethought mex",
+            cmavo(Cmavo::Peho)
+                .or_not()
+                .then(operator.clone())
+                .then(
+                    math_expression2
+                        .clone()
+                        .repeated()
+                        .at_least(1)
+                        .collect::<Vec<_>>(),
+                )
+                .then(cmavo(Cmavo::Kuhe).or_not())
+                .map(|(((peho, operator), operands), kuhe)| {
+                    new!(MeksoSyntax::ForethoughtCall {
+                        peho: peho.map(|peho| WithFreeModifiers::new(peho, Vec::new())),
+                        operator: Box::new(operator),
+                        operands,
+                        kuhe: kuhe.map(|kuhe| WithFreeModifiers::new(kuhe, Vec::new())),
+                    })
+                }),
+        );
         choice((math_operand.clone(), lahe, forethought)).boxed()
     });
     let reverse_polish_parts = recursive(|reverse_polish_parts| {
@@ -2864,7 +2948,8 @@ where
                 (operands, operators)
             })
     });
-    let reverse_polish =
+    let reverse_polish = syntax_label(
+        "reverse Polish mex",
         cmavo(Cmavo::Fuha)
             .then(reverse_polish_parts)
             .map(|(fuha, (operands, operators))| {
@@ -2873,7 +2958,8 @@ where
                     operands,
                     operators,
                 })
-            });
+            }),
+    );
     let math_expression1 = recursive(|math_expression1| {
         math_expression2
             .clone()
@@ -3227,19 +3313,21 @@ where
             )
         });
 
-    leading_tail_elements
-        .then(choice((
-            quantifier_relation_tail,
-            quantifier_argument_tail,
-            relation_tail,
-        )))
-        .map(
-            |(mut leading_tail_elements, (tail_elements, selbri, relative_clauses))| {
-                leading_tail_elements.extend(tail_elements);
-                (leading_tail_elements, selbri, relative_clauses)
-            },
-        )
-        .boxed()
+    syntax_label(
+        "description tail",
+        leading_tail_elements
+            .then(choice((
+                quantifier_relation_tail,
+                quantifier_argument_tail,
+                relation_tail,
+            )))
+            .map(
+                |(mut leading_tail_elements, (tail_elements, selbri, relative_clauses))| {
+                    leading_tail_elements.extend(tail_elements);
+                    (leading_tail_elements, selbri, relative_clauses)
+                },
+            ),
+    )
 }
 
 #[requires(true)]
@@ -3396,14 +3484,17 @@ where
         subbridi.clone(),
         free_modifier.clone(),
     );
-    let descriptor_head = le_cmavo()
-        .or(la_cmavo())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|(description, descriptor_free_modifiers)| {
-            new!(DescriptionHeadSyntax {
-                description: WithFreeModifiers::new(description, descriptor_free_modifiers),
-            })
-        });
+    let descriptor_head = syntax_label(
+        "descriptor",
+        le_cmavo()
+            .or(la_cmavo())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|(description, descriptor_free_modifiers)| {
+                new!(DescriptionHeadSyntax {
+                    description: WithFreeModifiers::new(description, descriptor_free_modifiers),
+                })
+            }),
+    );
     let descriptor_head_connective = jek_connective()
         .map(|connective| connective_with_kind(connective, ConnectiveKind::Afterthought));
     let description_connection = descriptor_head
@@ -3607,23 +3698,28 @@ where
             })
         })
         .boxed();
-    let bridi_description = selmaho(Selmaho::Lohoi)
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(subbridi.clone())
-        .then(
-            cmavo(Cmavo::Kuhau)
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .or_not(),
-        )
-        .map(|(((lohoi, lohoi_free_modifiers), subbridi), kuhau)| {
-            new!(SumtiSyntax::BridiDescription {
-                lohoi: WithFreeModifiers::new(lohoi, lohoi_free_modifiers),
-                subbridi: Box::new(subbridi),
-                kuhau: kuhau
-                    .map(|(kuhau, free_modifiers)| WithFreeModifiers::new(kuhau, free_modifiers)),
+    let bridi_description = syntax_label(
+        "bridi description",
+        selmaho(Selmaho::Lohoi)
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(subbridi.clone())
+            .then(
+                cmavo(Cmavo::Kuhau)
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
+            .map(|(((lohoi, lohoi_free_modifiers), subbridi), kuhau)| {
+                new!(SumtiSyntax::BridiDescription {
+                    lohoi: WithFreeModifiers::new(lohoi, lohoi_free_modifiers),
+                    subbridi: Box::new(subbridi),
+                    kuhau: kuhau.map(|(kuhau, free_modifiers)| WithFreeModifiers::new(
+                        kuhau,
+                        free_modifiers
+                    )),
+                })
             })
-        })
-        .boxed();
+            .boxed(),
+    );
     let quoted_or_simple_argument_core = choice((
         quote,
         mekso,
@@ -3697,7 +3793,8 @@ where
 
     let sumti4_boxed: BoxedParser<'tokens, BoxedSumtiSyntax> =
         recursive::<_, BoxedSumtiSyntax, _, _, _>(|argument4| {
-            let gek_argument =
+            let gek_argument = syntax_context(
+                "forethought sumti connection",
                 modal_forethought_connective_with_free_modifiers(free_modifier.clone())
                     .then(sumti.clone().map(Box::new))
                     .then(gik_connective_with_free_modifiers(free_modifier.clone()))
@@ -3711,7 +3808,8 @@ where
                             trailing_sumti,
                             gihi,
                         }))
-                    });
+                    }),
+            );
 
             choice((gek_argument, base_sumti.clone().map(Box::new))).boxed()
         })
@@ -4022,7 +4120,10 @@ fn quantifier_boxed<'tokens>() -> BoxedParser<'tokens, BoxedQuantifierSyntax> {
                 veho: veho.map(|veho| WithFreeModifiers::new(veho, Vec::new())),
             }))
         });
-    choice((vei_quantifier, number_quantifier_boxed())).boxed()
+    syntax_label(
+        "quantifier",
+        choice((vei_quantifier, number_quantifier_boxed())),
+    )
 }
 
 #[requires(true)]
@@ -4068,7 +4169,10 @@ where
                 veho: veho.map(|veho| WithFreeModifiers::new(veho, Vec::new())),
             }))
         });
-    choice((vei_quantifier, number_quantifier_boxed())).boxed()
+    syntax_label(
+        "quantifier",
+        choice((vei_quantifier, number_quantifier_boxed())),
+    )
 }
 
 #[requires(true)]
@@ -4162,62 +4266,116 @@ where
         + Clone
         + 'tokens,
 {
-    let compound_quote = any()
-        .try_map(move |word: Token, span| {
-            match word.core_word().as_data() {
+    let word_quote = syntax_label(
+        "word quote",
+        any()
+            .try_map(|word: Token, span| match word.core_word().as_data() {
                 data!(WordLike::QuotedWord { .. }) => Ok(Box::new(new!(QuoteSyntax::WordQuote(
                     WithFreeModifiers::new(word.clone(), Vec::new()),
                 )))),
-                data!(WordLike::DelimitedNonLojbanQuote { .. }) => Ok(Box::new(new!(QuoteSyntax::DelimitedNonLojbanQuote(
-                    WithFreeModifiers::new(word.clone(), Vec::new()),
-                )))),
-                data!(WordLike::QuotedWords { .. }) => Ok(Box::new(new!(QuoteSyntax::WordsQuote(
-                    WithFreeModifiers::new(word.clone(), Vec::new()),
-                )))),
-                data!(WordLike::DelimitedWordQuote { .. }) => {
-                    Ok(Box::new(new!(QuoteSyntax::DelimitedWordQuote(
-                        WithFreeModifiers::new(word.clone(), Vec::new()),
-                    ))))
-                },
                 _ => Err(SyntaxParseError::expected(
                     span,
                     vec![new!(SyntaxExpectedToken::WordCategory(
                         SyntaxWordCategory::Quote
                     ))],
                 )),
-            }
-        })
-        .labelled("QUOTE")
-        .as_terminal()
-        .map_with(
-            |quote,
-             extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+            })
+            .labelled("QUOTE")
+            .as_terminal(),
+    );
+    let delimited_word_quote = syntax_label(
+        "word quote",
+        any()
+            .try_map(|word: Token, span| match word.core_word().as_data() {
+                data!(WordLike::DelimitedWordQuote { .. }) => {
+                    Ok(Box::new(new!(QuoteSyntax::DelimitedWordQuote(
+                        WithFreeModifiers::new(word.clone(), Vec::new()),
+                    ))))
+                }
+                _ => Err(SyntaxParseError::expected(
+                    span,
+                    vec![new!(SyntaxExpectedToken::WordCategory(
+                        SyntaxWordCategory::Quote
+                    ))],
+                )),
+            })
+            .labelled("QUOTE")
+            .as_terminal(),
+    );
+    let word_sequence_quote = syntax_label(
+        "word-sequence quote",
+        any()
+            .try_map(|word: Token, span| match word.core_word().as_data() {
+                data!(WordLike::QuotedWords { .. }) => Ok(Box::new(new!(QuoteSyntax::WordsQuote(
+                    WithFreeModifiers::new(word.clone(), Vec::new()),
+                )))),
+                _ => Err(SyntaxParseError::expected(
+                    span,
+                    vec![new!(SyntaxExpectedToken::WordCategory(
+                        SyntaxWordCategory::Quote
+                    ))],
+                )),
+            })
+            .labelled("QUOTE")
+            .as_terminal(),
+    );
+    let non_lojban_quote = syntax_label(
+        "non-Lojban quote",
+        any()
+            .try_map(|word: Token, span| match word.core_word().as_data() {
+                data!(WordLike::DelimitedNonLojbanQuote { .. }) => {
+                    Ok(Box::new(new!(QuoteSyntax::DelimitedNonLojbanQuote(
+                        WithFreeModifiers::new(word.clone(), Vec::new())
+                    ))))
+                }
+                _ => Err(SyntaxParseError::expected(
+                    span,
+                    vec![new!(SyntaxExpectedToken::WordCategory(
+                        SyntaxWordCategory::Quote
+                    ))],
+                )),
+            })
+            .labelled("QUOTE")
+            .as_terminal(),
+    );
+    let compound_quote = choice((
+        word_quote,
+        delimited_word_quote,
+        word_sequence_quote,
+        non_lojban_quote,
+    ))
+    .map_with(
+        |quote, extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
             if let data!(QuoteSyntax::DelimitedWordQuote(zohoi)) = quote.as_data() {
                 extra
                     .state()
                     .warn(ExperimentalConstruct::ExperimentalZohOiQuote, &zohoi.value);
             }
             quote
-        })
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|(quote, free_modifiers)| attach_boxed_quote_free_modifiers(quote, free_modifiers));
+        },
+    )
+    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+    .map(|(quote, free_modifiers)| attach_boxed_quote_free_modifiers(quote, free_modifiers));
 
-    let lu_quote = cmavo(Cmavo::Lu)
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(text)
-        .then(
-            cmavo(Cmavo::Lihu)
-                .then(free_modifier.repeated().collect::<Vec<_>>())
-                .or_not(),
-        )
-        .map(|(((lu, free_modifiers), text), lihu)| {
-            Box::new(new!(QuoteSyntax::TextQuote {
-                lu: WithFreeModifiers::new(lu, free_modifiers),
-                text: Box::new(text),
-                lihu: lihu
-                    .map(|(lihu, free_modifiers)| WithFreeModifiers::new(lihu, free_modifiers)),
-            }))
-        });
+    let lu_quote = syntax_label(
+        "text quote",
+        cmavo(Cmavo::Lu)
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(text)
+            .then(
+                cmavo(Cmavo::Lihu)
+                    .then(free_modifier.repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
+            .map(|(((lu, free_modifiers), text), lihu)| {
+                Box::new(new!(QuoteSyntax::TextQuote {
+                    lu: WithFreeModifiers::new(lu, free_modifiers),
+                    text: Box::new(text),
+                    lihu: lihu
+                        .map(|(lihu, free_modifiers)| WithFreeModifiers::new(lihu, free_modifiers)),
+                }))
+            }),
+    );
 
     choice((compound_quote, lu_quote))
         .map(|quote| new!(SumtiSyntax::QuotedSumti(quote)))
@@ -5377,22 +5535,28 @@ where
         + Clone
         + 'tokens,
 {
-    let vuhu = selmaho(Selmaho::Vuhu).map(|vuhu| {
-        new!(MeksoOperatorSyntax::Primitive(WithFreeModifiers::new(
-            vuhu,
-            Vec::new()
-        )))
-    });
-    let maho = cmavo(Cmavo::Maho)
-        .then(expression)
-        .then(cmavo(Cmavo::Tehu).or_not())
-        .map(|((maho, mekso), tehu)| {
-            new!(MeksoOperatorSyntax::OperandAsOperator {
-                maho: WithFreeModifiers::new(maho, Vec::new()),
-                mekso: Box::new(mekso),
-                tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, Vec::new())),
-            })
-        });
+    let vuhu = syntax_label(
+        "VUhU operator",
+        selmaho(Selmaho::Vuhu).map(|vuhu| {
+            new!(MeksoOperatorSyntax::Primitive(WithFreeModifiers::new(
+                vuhu,
+                Vec::new()
+            )))
+        }),
+    );
+    let maho = syntax_label(
+        "operand-to-operator",
+        cmavo(Cmavo::Maho)
+            .then(expression)
+            .then(cmavo(Cmavo::Tehu).or_not())
+            .map(|((maho, mekso), tehu)| {
+                new!(MeksoOperatorSyntax::OperandAsOperator {
+                    maho: WithFreeModifiers::new(maho, Vec::new()),
+                    mekso: Box::new(mekso),
+                    tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, Vec::new())),
+                })
+            }),
+    );
     let ke = cmavo(Cmavo::Ke)
         .then(operator.clone())
         .then(cmavo(Cmavo::Kehe).or_not())
@@ -5434,26 +5598,29 @@ where
             }
             None => left_operator,
         });
-    bo_operator
-        .clone()
-        .then(
-            standard_statement_connective()
-                .then(bo_operator)
-                .repeated()
-                .collect::<Vec<_>>(),
-        )
-        .map(|(first, continuations)| {
-            continuations
-                .into_iter()
-                .fold(first, |left_operator, (connective, right_operator)| {
-                    new!(MeksoOperatorSyntax::OperatorConnection {
-                        left_operator: Box::new(left_operator),
-                        connective,
-                        right_operator: Box::new(right_operator),
-                    })
-                })
-        })
-        .boxed()
+    syntax_label(
+        "operator",
+        bo_operator
+            .clone()
+            .then(
+                standard_statement_connective()
+                    .then(bo_operator)
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(|(first, continuations)| {
+                continuations.into_iter().fold(
+                    first,
+                    |left_operator, (connective, right_operator)| {
+                        new!(MeksoOperatorSyntax::OperatorConnection {
+                            left_operator: Box::new(left_operator),
+                            connective,
+                            right_operator: Box::new(right_operator),
+                        })
+                    },
+                )
+            }),
+    )
 }
 
 #[requires(true)]
@@ -5470,48 +5637,63 @@ where
         + 'tokens,
     R: Parser<'tokens, ParserInput<'tokens>, SelbriSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
 {
-    let vuhu = selmaho(Selmaho::Vuhu).map(|vuhu| {
-        new!(MeksoOperatorSyntax::Primitive(WithFreeModifiers::new(
-            vuhu,
-            Vec::new()
-        )))
-    });
-    let maho = cmavo(Cmavo::Maho)
-        .then(expression)
-        .then(cmavo(Cmavo::Tehu).or_not())
-        .map(|((maho, mekso), tehu)| {
-            new!(MeksoOperatorSyntax::OperandAsOperator {
-                maho: WithFreeModifiers::new(maho, Vec::new()),
-                mekso: Box::new(mekso),
-                tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, Vec::new())),
-            })
-        });
-    let se = selmaho(Selmaho::Se)
-        .then(operator.clone())
-        .map(|(se, inner_operator)| {
-            new!(MeksoOperatorSyntax::Converted {
-                se: WithFreeModifiers::new(se, Vec::new()),
-                inner_operator: Box::new(inner_operator),
-            })
-        });
-    let nahe = selmaho(Selmaho::Nahe)
-        .then(operator.clone())
-        .map(|(nahe, inner_operator)| {
-            new!(MeksoOperatorSyntax::ScalarNegated {
-                nahe: WithFreeModifiers::new(nahe, Vec::new()),
-                inner_operator: Box::new(inner_operator),
-            })
-        });
-    let nahu = cmavo(Cmavo::Nahu)
-        .then(selbri)
-        .then(cmavo(Cmavo::Tehu).or_not())
-        .map(|((nahu, selbri), tehu)| {
-            new!(MeksoOperatorSyntax::SelbriAsOperator {
-                nahu: WithFreeModifiers::new(nahu, Vec::new()),
-                selbri: Box::new(selbri),
-                tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, Vec::new())),
-            })
-        });
+    let vuhu = syntax_label(
+        "VUhU operator",
+        selmaho(Selmaho::Vuhu).map(|vuhu| {
+            new!(MeksoOperatorSyntax::Primitive(WithFreeModifiers::new(
+                vuhu,
+                Vec::new()
+            )))
+        }),
+    );
+    let maho = syntax_label(
+        "operand-to-operator",
+        cmavo(Cmavo::Maho)
+            .then(expression)
+            .then(cmavo(Cmavo::Tehu).or_not())
+            .map(|((maho, mekso), tehu)| {
+                new!(MeksoOperatorSyntax::OperandAsOperator {
+                    maho: WithFreeModifiers::new(maho, Vec::new()),
+                    mekso: Box::new(mekso),
+                    tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, Vec::new())),
+                })
+            }),
+    );
+    let se = syntax_label(
+        "converted operator",
+        selmaho(Selmaho::Se)
+            .then(operator.clone())
+            .map(|(se, inner_operator)| {
+                new!(MeksoOperatorSyntax::Converted {
+                    se: WithFreeModifiers::new(se, Vec::new()),
+                    inner_operator: Box::new(inner_operator),
+                })
+            }),
+    );
+    let nahe = syntax_label(
+        "converted operator",
+        selmaho(Selmaho::Nahe)
+            .then(operator.clone())
+            .map(|(nahe, inner_operator)| {
+                new!(MeksoOperatorSyntax::ScalarNegated {
+                    nahe: WithFreeModifiers::new(nahe, Vec::new()),
+                    inner_operator: Box::new(inner_operator),
+                })
+            }),
+    );
+    let nahu = syntax_label(
+        "selbri-to-operator",
+        cmavo(Cmavo::Nahu)
+            .then(selbri)
+            .then(cmavo(Cmavo::Tehu).or_not())
+            .map(|((nahu, selbri), tehu)| {
+                new!(MeksoOperatorSyntax::SelbriAsOperator {
+                    nahu: WithFreeModifiers::new(nahu, Vec::new()),
+                    selbri: Box::new(selbri),
+                    tehu: tehu.map(|tehu| WithFreeModifiers::new(tehu, Vec::new())),
+                })
+            }),
+    );
     let ke = cmavo(Cmavo::Ke)
         .then(operator.clone())
         .then(cmavo(Cmavo::Kehe).or_not())
@@ -5553,26 +5735,29 @@ where
             }
             None => left_operator,
         });
-    bo_operator
-        .clone()
-        .then(
-            standard_statement_connective()
-                .then(bo_operator)
-                .repeated()
-                .collect::<Vec<_>>(),
-        )
-        .map(|(first, continuations)| {
-            continuations
-                .into_iter()
-                .fold(first, |left_operator, (connective, right_operator)| {
-                    new!(MeksoOperatorSyntax::OperatorConnection {
-                        left_operator: Box::new(left_operator),
-                        connective,
-                        right_operator: Box::new(right_operator),
-                    })
-                })
-        })
-        .boxed()
+    syntax_label(
+        "operator",
+        bo_operator
+            .clone()
+            .then(
+                standard_statement_connective()
+                    .then(bo_operator)
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(|(first, continuations)| {
+                continuations.into_iter().fold(
+                    first,
+                    |left_operator, (connective, right_operator)| {
+                        new!(MeksoOperatorSyntax::OperatorConnection {
+                            left_operator: Box::new(left_operator),
+                            connective,
+                            right_operator: Box::new(right_operator),
+                        })
+                    },
+                )
+            }),
+    )
 }
 
 #[requires(true)]
@@ -5725,28 +5910,32 @@ where
             boi: None,
         })
     }));
-    let me_unit = cmavo(Cmavo::Me)
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(me_argument)
-        .then(
-            cmavo(Cmavo::Mehu)
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .or_not(),
-        )
-        .then(
-            selmaho(Selmaho::Moi)
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .or_not(),
-        )
-        .map(|((((me, me_free_modifiers), sumti), mehu), moi_marker)| {
-            new!(TanruUnitSyntax::SumtiSelbri {
-                me: wrapped_word(me, me_free_modifiers),
-                sumti: Box::new(sumti),
-                mehu: mehu.map(|(mehu, free_modifiers)| wrapped_word(mehu, free_modifiers)),
-                moi_marker: moi_marker
-                    .map(|(moi_marker, free_modifiers)| wrapped_word(moi_marker, free_modifiers)),
-            })
-        });
+    let me_unit = syntax_label(
+        "sumti-to-selbri",
+        cmavo(Cmavo::Me)
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(me_argument)
+            .then(
+                cmavo(Cmavo::Mehu)
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
+            .then(
+                selmaho(Selmaho::Moi)
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
+            .map(|((((me, me_free_modifiers), sumti), mehu), moi_marker)| {
+                new!(TanruUnitSyntax::SumtiSelbri {
+                    me: wrapped_word(me, me_free_modifiers),
+                    sumti: Box::new(sumti),
+                    mehu: mehu.map(|(mehu, free_modifiers)| wrapped_word(mehu, free_modifiers)),
+                    moi_marker: moi_marker.map(|(moi_marker, free_modifiers)| {
+                        wrapped_word(moi_marker, free_modifiers)
+                    }),
+                })
+            }),
+    );
     let mehoi_unit =
         single_word_quoted_relation_unit(Cmavo::Mehoi, free_modifier.clone(), |word| {
             new!(TanruUnitSyntax::QuotedWordSelbri(word))
@@ -5809,26 +5998,32 @@ where
         .then(cmavo(Cmavo::Raho))
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|((goha, raho), free_modifiers)| goha_relation_unit(goha, Some(raho), free_modifiers));
-    let moi_unit = number_or_letter_words()
-        .then(selmaho(Selmaho::Moi))
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .map(|((number, moi), free_modifiers)| {
-            new!(TanruUnitSyntax::OrdinalSelbri {
-                number: word_run(number),
-                moi: wrapped_word(moi, free_modifiers),
-            })
-        });
+    let moi_unit = syntax_label(
+        "ordinal selbri",
+        number_or_letter_words()
+            .then(selmaho(Selmaho::Moi))
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .map(|((number, moi), free_modifiers)| {
+                new!(TanruUnitSyntax::OrdinalSelbri {
+                    number: word_run(number),
+                    moi: wrapped_word(moi, free_modifiers),
+                })
+            }),
+    );
     let contextual_math_operator =
         math_parser_pair_with_context(sumti.clone(), selbri.clone(), free_modifier.clone()).1;
-    let nuha_unit = cmavo(Cmavo::Nuha)
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(contextual_math_operator)
-        .map(|((nuha, free_modifiers), mekso_operator)| {
-            new!(TanruUnitSyntax::OperatorSelbri {
-                nuha: wrapped_word(nuha, free_modifiers),
-                mekso_operator: Box::new(mekso_operator),
-            })
-        });
+    let nuha_unit = syntax_label(
+        "operator-to-selbri",
+        cmavo(Cmavo::Nuha)
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(contextual_math_operator)
+            .map(|((nuha, free_modifiers), mekso_operator)| {
+                new!(TanruUnitSyntax::OperatorSelbri {
+                    nuha: wrapped_word(nuha, free_modifiers),
+                    mekso_operator: Box::new(mekso_operator),
+                })
+            }),
+    );
     let xohi_unit = cmavo(Cmavo::Xohi)
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .then(tense_modal_with_free_modifiers.clone())
@@ -5839,87 +6034,92 @@ where
             })
         });
 
-    let ke_unit = cmavo(Cmavo::Ke)
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(relation_units_inner(
-            sumti.clone(),
-            subbridi.clone(),
-            text.clone(),
-            free_modifier.clone(),
-            source,
-        ))
-        .then(
-            cmavo(Cmavo::Kehe)
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .or_not(),
-        )
-        .map(|(((ke, ke_free_modifiers), selbri), kehe)| {
-            new!(TanruUnitSyntax::GroupedTanruUnit {
-                ke_tense_modal: None,
-                ke: wrapped_word(ke, ke_free_modifiers),
-                selbri,
-                kehe: kehe.map(|(kehe, free_modifiers)| wrapped_word(kehe, free_modifiers)),
-            })
-        });
+    let ke_unit = syntax_label(
+        "grouped tanru",
+        cmavo(Cmavo::Ke)
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(relation_units_inner(
+                sumti.clone(),
+                subbridi.clone(),
+                text.clone(),
+                free_modifier.clone(),
+                source,
+            ))
+            .then(
+                cmavo(Cmavo::Kehe)
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
+            .map(|(((ke, ke_free_modifiers), selbri), kehe)| {
+                new!(TanruUnitSyntax::GroupedTanruUnit {
+                    ke_tense_modal: None,
+                    ke: wrapped_word(ke, ke_free_modifiers),
+                    selbri,
+                    kehe: kehe.map(|(kehe, free_modifiers)| wrapped_word(kehe, free_modifiers)),
+                })
+            }),
+    );
 
-    let se_unit = recursive(|se_unit| {
-        let nahe_inner_choices = if zantufa_quotes_enabled {
-            choice((
-                se_unit.clone(),
-                me_unit.clone(),
-                mehoi_unit.clone(),
-                gohoi_unit.clone(),
-                muhoi_unit.clone(),
-                luhei_unit.clone(),
-                xohi_unit.clone(),
-                nuha_unit.clone(),
-                moi_unit.clone(),
-                goha_unit.clone(),
-                word_unit.clone(),
-            ))
-            .boxed()
-        } else {
-            choice((
-                se_unit.clone(),
-                me_unit.clone(),
-                mehoi_unit.clone(),
-                gohoi_unit.clone(),
-                xohi_unit.clone(),
-                nuha_unit.clone(),
-                moi_unit.clone(),
-                goha_unit.clone(),
-                word_unit.clone(),
-            ))
-            .boxed()
-        };
-        let nahe_inner_unit = selmaho(Selmaho::Nahe)
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(nahe_inner_choices)
-            .map(|((nahe, free_modifiers), inner_unit)| {
-                new!(TanruUnitSyntax::ScalarNegatedTanruUnit {
-                    nahe: wrapped_word(nahe, free_modifiers),
-                    inner_unit: Box::new(inner_unit),
+    let se_unit = syntax_label(
+        "converted tanru unit",
+        recursive(|se_unit| {
+            let nahe_inner_choices = if zantufa_quotes_enabled {
+                choice((
+                    se_unit.clone(),
+                    me_unit.clone(),
+                    mehoi_unit.clone(),
+                    gohoi_unit.clone(),
+                    muhoi_unit.clone(),
+                    luhei_unit.clone(),
+                    xohi_unit.clone(),
+                    nuha_unit.clone(),
+                    moi_unit.clone(),
+                    goha_unit.clone(),
+                    word_unit.clone(),
+                ))
+                .boxed()
+            } else {
+                choice((
+                    se_unit.clone(),
+                    me_unit.clone(),
+                    mehoi_unit.clone(),
+                    gohoi_unit.clone(),
+                    xohi_unit.clone(),
+                    nuha_unit.clone(),
+                    moi_unit.clone(),
+                    goha_unit.clone(),
+                    word_unit.clone(),
+                ))
+                .boxed()
+            };
+            let nahe_inner_unit = selmaho(Selmaho::Nahe)
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(nahe_inner_choices)
+                .map(|((nahe, free_modifiers), inner_unit)| {
+                    new!(TanruUnitSyntax::ScalarNegatedTanruUnit {
+                        nahe: wrapped_word(nahe, free_modifiers),
+                        inner_unit: Box::new(inner_unit),
+                    })
+                });
+            selmaho(Selmaho::Se)
+                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                .then(choice((
+                    ke_unit.clone(),
+                    moi_unit.clone(),
+                    nuha_unit.clone(),
+                    nahe_inner_unit,
+                    se_unit,
+                    word_unit.clone(),
+                    goha_unit.clone(),
+                )))
+                .map(|((se, free_modifiers), inner_unit)| {
+                    new!(TanruUnitSyntax::ConvertedTanruUnit {
+                        se: wrapped_word(se, free_modifiers),
+                        inner_unit: Box::new(inner_unit),
+                    })
                 })
-            });
-        selmaho(Selmaho::Se)
-            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-            .then(choice((
-                ke_unit.clone(),
-                moi_unit.clone(),
-                nuha_unit.clone(),
-                nahe_inner_unit,
-                se_unit,
-                word_unit.clone(),
-                goha_unit.clone(),
-            )))
-            .map(|((se, free_modifiers), inner_unit)| {
-                new!(TanruUnitSyntax::ConvertedTanruUnit {
-                    se: wrapped_word(se, free_modifiers),
-                    inner_unit: Box::new(inner_unit),
-                })
-            })
-    })
-    .boxed();
+        }),
+    );
 
     let wrapped_tense_unit = tense_modal_with_free_modifiers
         .clone()
@@ -5992,26 +6192,32 @@ where
     })
     .boxed();
 
-    let jai_unit = cmavo(Cmavo::Jai)
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(tense_modal_with_free_modifiers.clone().or_not())
-        .then(jai_inner_unit)
-        .map(|(((jai, free_modifiers), tense_modal), inner_unit)| {
-            new!(TanruUnitSyntax::ModalConversion {
-                jai: wrapped_word(jai, free_modifiers),
-                tense_modal,
-                inner_unit: Box::new(inner_unit),
-            })
-        });
-    let se_jai_unit = selmaho(Selmaho::Se)
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(jai_unit.clone())
-        .map(|((se, free_modifiers), inner_unit)| {
-            new!(TanruUnitSyntax::ConvertedTanruUnit {
-                se: wrapped_word(se, free_modifiers),
-                inner_unit: Box::new(inner_unit),
-            })
-        });
+    let jai_unit = syntax_label(
+        "modal conversion",
+        cmavo(Cmavo::Jai)
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(tense_modal_with_free_modifiers.clone().or_not())
+            .then(jai_inner_unit)
+            .map(|(((jai, free_modifiers), tense_modal), inner_unit)| {
+                new!(TanruUnitSyntax::ModalConversion {
+                    jai: wrapped_word(jai, free_modifiers),
+                    tense_modal,
+                    inner_unit: Box::new(inner_unit),
+                })
+            }),
+    );
+    let se_jai_unit = syntax_label(
+        "converted tanru unit",
+        selmaho(Selmaho::Se)
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(jai_unit.clone())
+            .map(|((se, free_modifiers), inner_unit)| {
+                new!(TanruUnitSyntax::ConvertedTanruUnit {
+                    se: wrapped_word(se, free_modifiers),
+                    inner_unit: Box::new(inner_unit),
+                })
+            }),
+    );
 
     let nahe_unit = recursive(|nahe_unit| {
         selmaho(Selmaho::Nahe)
@@ -6081,52 +6287,57 @@ where
                 nai: nai.map(|nai| WithFreeModifiers::new(nai, free_modifiers)),
             })
         });
-    let abstraction_subbridi_unit = nu_cmavo()
-        .then(cmavo(Cmavo::Nai).or_not())
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(abstractor_connections.repeated().collect::<Vec<_>>())
-        .then(subbridi)
-        .then(
-            cmavo(Cmavo::Kei)
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .or_not(),
-        )
-        .map(
-            |(((((nu, nai), free_modifiers), abstractor_connections), subbridi), kei)| {
-                new!(TanruUnitSyntax::Abstraction(Box::new(new!(
-                    AbstractionSyntax {
-                        nu: WithFreeModifiers::new(
-                            nu,
-                            if nai.is_some() {
-                                Vec::new()
-                            } else {
-                                free_modifiers.clone()
-                            },
-                        ),
-                        nai: nai.map(|nai| WithFreeModifiers::new(nai, free_modifiers)),
-                        abstractor_connections,
-                        subbridi: Box::new(subbridi),
-                        kei: kei.map(|(kei, free_modifiers)| WithFreeModifiers::new(
-                            kei,
-                            free_modifiers
-                        )),
-                    }
-                ))))
-            },
-        )
-        .boxed();
+    let abstraction_subbridi_unit = syntax_label(
+        "abstraction",
+        nu_cmavo()
+            .then(cmavo(Cmavo::Nai).or_not())
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(abstractor_connections.repeated().collect::<Vec<_>>())
+            .then(subbridi)
+            .then(
+                cmavo(Cmavo::Kei)
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
+            .map(
+                |(((((nu, nai), free_modifiers), abstractor_connections), subbridi), kei)| {
+                    new!(TanruUnitSyntax::Abstraction(Box::new(new!(
+                        AbstractionSyntax {
+                            nu: WithFreeModifiers::new(
+                                nu,
+                                if nai.is_some() {
+                                    Vec::new()
+                                } else {
+                                    free_modifiers.clone()
+                                },
+                            ),
+                            nai: nai.map(|nai| WithFreeModifiers::new(nai, free_modifiers)),
+                            abstractor_connections,
+                            subbridi: Box::new(subbridi),
+                            kei: kei.map(|(kei, free_modifiers)| WithFreeModifiers::new(
+                                kei,
+                                free_modifiers
+                            )),
+                        }
+                    ))))
+                },
+            ),
+    );
 
-    let se_abstraction_unit = selmaho(Selmaho::Se)
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(abstraction_subbridi_unit.clone())
-        .map(|((se, free_modifiers), inner_unit)| {
-            new!(TanruUnitSyntax::ConvertedTanruUnit {
-                se: wrapped_word(se, free_modifiers),
-                inner_unit: Box::new(inner_unit),
-            })
-        });
+    let se_abstraction_unit = syntax_label(
+        "converted tanru unit",
+        selmaho(Selmaho::Se)
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(abstraction_subbridi_unit.clone())
+            .map(|((se, free_modifiers), inner_unit)| {
+                new!(TanruUnitSyntax::ConvertedTanruUnit {
+                    se: wrapped_word(se, free_modifiers),
+                    inner_unit: Box::new(inner_unit),
+                })
+            }),
+    );
 
-    let base_unit = if zantufa_quotes_enabled {
+    let base_unit_choices = if zantufa_quotes_enabled {
         choice((
             goha_raho_unit.clone(),
             me_unit.clone(),
@@ -6171,7 +6382,8 @@ where
         .map(Box::new)
         .boxed()
     };
-    let base_unit_for_cei = if zantufa_quotes_enabled {
+    let base_unit = syntax_label("tanru unit", base_unit_choices);
+    let base_unit_for_cei_choices = if zantufa_quotes_enabled {
         choice((
             goha_raho_unit.clone(),
             me_unit.clone(),
@@ -6216,24 +6428,31 @@ where
         .map(Box::new)
         .boxed()
     };
-    let be_link = be_link_parser(sumti.clone(), free_modifier.clone());
-    let selbri_relative_clause = cmavo(Cmavo::Nohoi)
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(selbri.clone().map(Box::new))
-        .then(
-            cmavo(Cmavo::Kuhoi)
-                .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .or_not(),
-        )
-        .map(|(((nohoi, leading_free_modifiers), selbri), kuhoi)| {
-            new!(SelbriRelativePhraseSyntax {
-                nohoi: WithFreeModifiers::new(nohoi, leading_free_modifiers),
-                selbri,
-                kuhoi: kuhoi
-                    .map(|(kuhoi, free_modifiers)| WithFreeModifiers::new(kuhoi, free_modifiers)),
-            })
-        })
-        .boxed();
+    let base_unit_for_cei = syntax_label("tanru unit", base_unit_for_cei_choices);
+    let be_link = syntax_label(
+        "linked arguments",
+        be_link_parser(sumti.clone(), free_modifier.clone()),
+    );
+    let selbri_relative_clause = syntax_label(
+        "selbri relative phrase",
+        cmavo(Cmavo::Nohoi)
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(selbri.clone().map(Box::new))
+            .then(
+                cmavo(Cmavo::Kuhoi)
+                    .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+                    .or_not(),
+            )
+            .map(|(((nohoi, leading_free_modifiers), selbri), kuhoi)| {
+                new!(SelbriRelativePhraseSyntax {
+                    nohoi: WithFreeModifiers::new(nohoi, leading_free_modifiers),
+                    selbri,
+                    kuhoi: kuhoi.map(|(kuhoi, free_modifiers)| {
+                        WithFreeModifiers::new(kuhoi, free_modifiers)
+                    }),
+                })
+            }),
+    );
 
     let linked_unit_from = |base_unit: BoxedParser<'tokens, BoxedTanruUnitSyntax>| {
         base_unit
@@ -6322,24 +6541,29 @@ where
 
     let bo_unit: BoxedParser<'tokens, BoxedTanruUnitSyntax> =
         recursive::<_, BoxedTanruUnitSyntax, _, _, _>(|bo_unit| {
-            let guha_unit = guhek_connective()
-                .then(selbri.clone().map(Box::new))
-                .then(gik_connective_with_free_modifiers(free_modifier.clone()))
-                .then(bo_unit.clone())
-                .then(optional_gihi_terminator())
-                .map(|((((guhek, leading_selbri), gik), trailing_unit), gihi)| {
-                    Box::new(new!(TanruUnitSyntax::SelbriGroupTanruUnit(Box::new(new!(
-                        SelbriSyntax::ForethoughtSelbriConnection {
-                            guhek,
-                            leading_bridi: Box::new(relation_to_empty_predicate(*leading_selbri)),
-                            gik,
-                            trailing_bridi: Box::new(relation_to_empty_predicate(
-                                relation_unit_to_relation(&trailing_unit),
-                            )),
-                            gihi,
-                        }
-                    )))))
-                });
+            let guha_unit = syntax_context(
+                "forethought selbri connection",
+                guhek_connective()
+                    .then(selbri.clone().map(Box::new))
+                    .then(gik_connective_with_free_modifiers(free_modifier.clone()))
+                    .then(bo_unit.clone())
+                    .then(optional_gihi_terminator())
+                    .map(|((((guhek, leading_selbri), gik), trailing_unit), gihi)| {
+                        Box::new(new!(TanruUnitSyntax::SelbriGroupTanruUnit(Box::new(new!(
+                            SelbriSyntax::ForethoughtSelbriConnection {
+                                guhek,
+                                leading_bridi: Box::new(relation_to_empty_predicate(
+                                    *leading_selbri
+                                )),
+                                gik,
+                                trailing_bridi: Box::new(relation_to_empty_predicate(
+                                    relation_unit_to_relation(&trailing_unit),
+                                )),
+                                gihi,
+                            }
+                        )))))
+                    }),
+            );
             let atom_unit = choice((
                 guha_unit,
                 preposed_unit.clone(),
@@ -6399,31 +6623,38 @@ where
         })
         .boxed();
 
-    let connected_unit = bo_unit
-        .clone()
-        .then(
-            relation_afterthought_connective()
-                .then(bo_unit)
-                .repeated()
-                .collect::<Vec<_>>(),
-        )
-        .map(|(first, continuations)| {
-            continuations
-                .into_iter()
-                .fold(first, |leading_unit, (connective, trailing_unit)| {
-                    Box::new(new!(TanruUnitSyntax::TanruUnitConnection {
-                        leading_unit,
-                        connective,
-                        trailing_unit,
-                    }))
-                })
-        });
+    let connected_unit = syntax_label(
+        "tanru unit",
+        bo_unit
+            .clone()
+            .then(
+                relation_afterthought_connective()
+                    .then(bo_unit)
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(|(first, continuations)| {
+                continuations.into_iter().fold(
+                    first,
+                    |leading_unit, (connective, trailing_unit)| {
+                        Box::new(new!(TanruUnitSyntax::TanruUnitConnection {
+                            leading_unit,
+                            connective,
+                            trailing_unit,
+                        }))
+                    },
+                )
+            }),
+    );
 
-    let tanru_units = connected_unit
-        .repeated()
-        .at_least(1)
-        .collect::<Vec<_>>()
-        .map(boxed_selbri_from_boxed_units);
+    let tanru_units = syntax_label(
+        "tanru",
+        connected_unit
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .map(boxed_selbri_from_boxed_units),
+    );
 
     let base_relation = tanru_units;
     let connected_relation = base_relation
@@ -6441,15 +6672,18 @@ where
                 trailing_selbri,
             })),
         });
-    let na_relation = na_cmavo()
-        .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(selbri.clone().map(Box::new))
-        .map(|((na, free_modifiers), inner_selbri)| {
-            Box::new(new!(SelbriSyntax::Negated {
-                na: wrapped_word(na, free_modifiers),
-                inner_selbri,
-            }))
-        });
+    let na_relation = syntax_label(
+        "negated selbri",
+        na_cmavo()
+            .then(free_modifier.clone().repeated().collect::<Vec<_>>())
+            .then(selbri.clone().map(Box::new))
+            .map(|((na, free_modifiers), inner_selbri)| {
+                Box::new(new!(SelbriSyntax::Negated {
+                    na: wrapped_word(na, free_modifiers),
+                    inner_selbri,
+                }))
+            }),
+    );
     let co_selbri = recursive::<_, BoxedSelbriSyntax, _, _, _>(|co_selbri| {
         connected_relation
             .clone()
@@ -7340,17 +7574,19 @@ fn fiho_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             .map(relation_from_units)
     });
 
-    cmavo(Cmavo::Fiho)
-        .then(selbri)
-        .then(cmavo(Cmavo::Fehu).or_not())
-        .map(|((fiho, selbri), fehu)| {
-            new!(TenseModalSyntax::AdHocModal {
-                fiho: WithFreeModifiers::new(fiho, Vec::new()),
-                selbri: Box::new(selbri),
-                fehu: fehu.map(|fehu| WithFreeModifiers::new(fehu, Vec::new())),
-            })
-        })
-        .boxed()
+    syntax_label(
+        "FIhO modal",
+        cmavo(Cmavo::Fiho)
+            .then(selbri)
+            .then(cmavo(Cmavo::Fehu).or_not())
+            .map(|((fiho, selbri), fehu)| {
+                new!(TenseModalSyntax::AdHocModal {
+                    fiho: WithFreeModifiers::new(fiho, Vec::new()),
+                    selbri: Box::new(selbri),
+                    fehu: fehu.map(|fehu| WithFreeModifiers::new(fehu, Vec::new())),
+                })
+            }),
+    )
 }
 
 #[requires(true)]
@@ -7600,13 +7836,15 @@ fn composite_tense_modal_boxed<'tokens>() -> BoxedParser<'tokens, BoxedTenseModa
             combine_boxed_composite_tense_modals(parts)
         })
         .boxed();
-    let time_tense = choice((
-        time_tense_with_zi,
-        time_tense_with_offset,
-        time_tense_with_interval,
-        time_tense_with_properties,
-    ))
-    .boxed();
+    let time_tense = syntax_label(
+        "time tense",
+        choice((
+            time_tense_with_zi,
+            time_tense_with_offset,
+            time_tense_with_interval,
+            time_tense_with_properties,
+        )),
+    );
 
     let space_offset = faha;
     let veha_viha = selmaho(Selmaho::Veha)
@@ -7727,13 +7965,15 @@ fn composite_tense_modal_boxed<'tokens>() -> BoxedParser<'tokens, BoxedTenseModa
             combine_boxed_composite_tense_modals(parts)
         })
         .boxed();
-    let space_tense = choice((
-        space_tense_with_va,
-        space_tense_with_offset,
-        space_tense_with_interval,
-        space_tense_with_mohi,
-    ))
-    .boxed();
+    let space_tense = syntax_label(
+        "space tense",
+        choice((
+            space_tense_with_va,
+            space_tense_with_offset,
+            space_tense_with_interval,
+            space_tense_with_mohi,
+        )),
+    );
 
     let time_then_space_caha = time_tense
         .clone()
@@ -7982,13 +8222,16 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
 #[ensures(true)]
 fn tense_modal_boxed<'tokens>() -> BoxedParser<'tokens, BoxedTenseModalSyntax> {
     let atom = tense_modal_atom_boxed();
+    let continuations = syntax_label(
+        "connected tag",
+        choice((joik_connective(), jek_connective()))
+            .then(atom.clone())
+            .repeated()
+            .at_least(1)
+            .collect::<Vec<_>>(),
+    );
     atom.clone()
-        .then(
-            choice((joik_connective(), jek_connective()))
-                .then(atom)
-                .repeated()
-                .collect::<Vec<_>>(),
-        )
+        .then(continuations.or_not().map(Option::unwrap_or_default))
         .map(|(first, continuations)| combine_connected_boxed_tense_modals(first, continuations))
         .boxed()
 }
@@ -8143,22 +8386,27 @@ fn tense_modal_atom_boxed<'tokens>() -> BoxedParser<'tokens, BoxedTenseModalSynt
 #[requires(true)]
 #[ensures(true)]
 fn simple_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
-    selmaho(Selmaho::Nahe)
-        .or_not()
-        .then(selmaho(Selmaho::Se).or_not())
-        .then(selmaho(Selmaho::Bai))
-        .then(cmavo(Cmavo::Nai).or_not())
-        .then(cmavo(Cmavo::Ki).or_not())
-        .map(|((((nahe, se), bai), nai), ki)| {
-            new!(TenseModalSyntax::Modal {
-                nahe: nahe.map(|nahe| WithFreeModifiers::new(nahe, Vec::new())),
-                se: se.map(|se| WithFreeModifiers::new(se, Vec::new())),
-                bai: WithFreeModifiers::new(bai, Vec::new()),
-                nai: nai.map(|nai| WithFreeModifiers::new(nai, Vec::new())),
-                ki: ki.map(|ki| WithFreeModifiers::new(ki, Vec::new())),
-            })
-        })
-        .boxed()
+    syntax_label(
+        "simple tense/modal",
+        syntax_label(
+            "modal tag",
+            selmaho(Selmaho::Nahe)
+                .or_not()
+                .then(selmaho(Selmaho::Se).or_not())
+                .then(selmaho(Selmaho::Bai))
+                .then(cmavo(Cmavo::Nai).or_not())
+                .then(cmavo(Cmavo::Ki).or_not())
+                .map(|((((nahe, se), bai), nai), ki)| {
+                    new!(TenseModalSyntax::Modal {
+                        nahe: nahe.map(|nahe| WithFreeModifiers::new(nahe, Vec::new())),
+                        se: se.map(|se| WithFreeModifiers::new(se, Vec::new())),
+                        bai: WithFreeModifiers::new(bai, Vec::new()),
+                        nai: nai.map(|nai| WithFreeModifiers::new(nai, Vec::new())),
+                        ki: ki.map(|ki| WithFreeModifiers::new(ki, Vec::new())),
+                    })
+                }),
+        ),
+    )
 }
 
 #[requires(true)]

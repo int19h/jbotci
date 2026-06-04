@@ -219,66 +219,450 @@ impl SyntaxConstructContext {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum SyntaxConstructWiring {
+    Parser,
+    Synthetic,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct SyntaxConstructMetadata {
+    name: &'static str,
+    parent: Option<&'static str>,
+    wiring: SyntaxConstructWiring,
+}
+
+const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
+    SyntaxConstructMetadata {
+        name: "bridi",
+        parent: Some("statement"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "prenex",
+        parent: Some("statement"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "text group",
+        parent: Some("statement"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "statement",
+        parent: Some("text"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "fragment",
+        parent: Some("text"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "free modifier",
+        parent: Some("text"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "terms",
+        parent: Some("bridi"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "tail terms",
+        parent: Some("bridi"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "forethought bridi connection",
+        parent: Some("bridi"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "term",
+        parent: Some("terms"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "termset",
+        parent: Some("terms"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "sumti",
+        parent: Some("term"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "tag",
+        parent: Some("term"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "place tag",
+        parent: Some("term"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "NA KU term",
+        parent: Some("term"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "description",
+        parent: Some("sumti"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "pro-sumti",
+        parent: Some("sumti"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "name",
+        parent: Some("sumti"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "quote",
+        parent: Some("sumti"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "number sumti",
+        parent: Some("sumti"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "lerfu string",
+        parent: Some("sumti"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "converted sumti",
+        parent: Some("sumti"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "bridi description",
+        parent: Some("sumti"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "forethought sumti connection",
+        parent: Some("sumti"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "relative clauses",
+        parent: Some("sumti"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "descriptor",
+        parent: Some("description"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "description tail",
+        parent: Some("description"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "relative clause",
+        parent: Some("relative clauses"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "relative bridi",
+        parent: Some("relative clause"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "sumti association phrase",
+        parent: Some("relative clause"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "mex",
+        parent: Some("number sumti"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "operand",
+        parent: Some("mex"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "operator",
+        parent: Some("mex"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "forethought mex",
+        parent: Some("mex"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "reverse Polish mex",
+        parent: Some("mex"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "number",
+        parent: Some("operand"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "parenthesized mex",
+        parent: Some("operand"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "selbri operand",
+        parent: Some("operand"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "sumti operand",
+        parent: Some("operand"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "mekso array",
+        parent: Some("operand"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "qualified operand",
+        parent: Some("operand"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "VUhU operator",
+        parent: Some("operator"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "operand-to-operator",
+        parent: Some("operator"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "selbri-to-operator",
+        parent: Some("operator"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "converted operator",
+        parent: Some("operator"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "selbri",
+        parent: Some("bridi"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "negated selbri",
+        parent: Some("selbri"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "forethought selbri connection",
+        parent: Some("selbri"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "tanru",
+        parent: Some("selbri"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "tanru unit",
+        parent: Some("tanru"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "abstraction",
+        parent: Some("tanru unit"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "grouped tanru",
+        parent: Some("tanru unit"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "sumti-to-selbri",
+        parent: Some("tanru unit"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "operator-to-selbri",
+        parent: Some("tanru unit"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "ordinal selbri",
+        parent: Some("tanru unit"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "converted tanru unit",
+        parent: Some("tanru unit"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "modal conversion",
+        parent: Some("tanru unit"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "linked arguments",
+        parent: Some("tanru unit"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "selbri relative phrase",
+        parent: Some("tanru unit"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "subbridi",
+        parent: Some("abstraction"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "quantifier",
+        parent: Some("description"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "simple tense/modal",
+        parent: Some("tag"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "FIhO modal",
+        parent: Some("tag"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "connected tag",
+        parent: Some("tag"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "modal tag",
+        parent: Some("simple tense/modal"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "time tense",
+        parent: Some("simple tense/modal"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "space tense",
+        parent: Some("simple tense/modal"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "vocative phrase",
+        parent: Some("free modifier"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "parenthetical text",
+        parent: Some("free modifier"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "metalinguistic comment",
+        parent: Some("free modifier"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "reciprocal",
+        parent: Some("free modifier"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "subscript",
+        parent: Some("free modifier"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "utterance ordinal",
+        parent: Some("free modifier"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "replacement phrase",
+        parent: Some("free modifier"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "word quote",
+        parent: Some("quote"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "text quote",
+        parent: Some("quote"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "word-sequence quote",
+        parent: Some("quote"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "non-Lojban quote",
+        parent: Some("quote"),
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "text",
+        parent: None,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "parse_text",
+        parent: None,
+        wiring: SyntaxConstructWiring::Synthetic,
+    },
+    SyntaxConstructMetadata {
+        name: "end of input",
+        parent: None,
+        wiring: SyntaxConstructWiring::Synthetic,
+    },
+    SyntaxConstructMetadata {
+        name: "syntax construct",
+        parent: None,
+        wiring: SyntaxConstructWiring::Synthetic,
+    },
+];
+
 #[requires(!construct.is_empty())]
-#[ensures(true)]
-fn syntax_construct_parent(construct: &str) -> Option<&'static str> {
-    match construct {
-        "bridi" | "prenex" | "text group" => Some("statement"),
-        "statement" | "fragment" | "free modifier" => Some("text"),
-        "terms" | "tail terms" | "forethought bridi connection" => Some("bridi"),
-        "term" | "termset" => Some("terms"),
-        "sumti" | "tag" | "place tag" | "NA KU term" => Some("term"),
-        "description"
-        | "pro-sumti"
-        | "name"
-        | "quote"
-        | "number sumti"
-        | "lerfu string"
-        | "converted sumti"
-        | "bridi description"
-        | "forethought sumti connection"
-        | "relative clauses" => Some("sumti"),
-        "descriptor" | "description tail" => Some("description"),
-        "relative clause" => Some("relative clauses"),
-        "relative bridi" | "sumti association phrase" => Some("relative clause"),
-        "mex" => Some("number sumti"),
-        "operand" | "operator" | "forethought mex" | "reverse Polish mex" => Some("mex"),
-        "number" | "parenthesized mex" | "selbri operand" | "sumti operand" | "mekso array"
-        | "qualified operand" => Some("operand"),
-        "VUhU operator" | "operand-to-operator" | "selbri-to-operator" | "converted operator" => {
-            Some("operator")
-        }
-        "selbri" => Some("bridi"),
-        "negated selbri" | "forethought selbri connection" | "tanru" => Some("selbri"),
-        "tanru unit" => Some("tanru"),
-        "abstraction"
-        | "grouped tanru"
-        | "sumti-to-selbri"
-        | "operator-to-selbri"
-        | "ordinal selbri"
-        | "converted tanru unit"
-        | "modal conversion"
-        | "linked arguments"
-        | "selbri relative phrase" => Some("tanru unit"),
-        "subbridi" => Some("abstraction"),
-        "quantifier" => Some("description"),
-        "simple tense/modal" | "FIhO modal" | "connected tag" => Some("tag"),
-        "modal tag" | "time tense" | "space tense" => Some("simple tense/modal"),
-        "vocative phrase"
-        | "parenthetical text"
-        | "metalinguistic comment"
-        | "reciprocal"
-        | "subscript"
-        | "utterance ordinal"
-        | "replacement phrase" => Some("free modifier"),
-        "word quote" | "text quote" | "word-sequence quote" | "non-Lojban quote" => Some("quote"),
-        "text" | "parse_text" | "end of input" | "syntax construct" => None,
-        _ => None,
-    }
+#[ensures(ret.as_ref().is_none_or(|metadata| metadata.name == construct))]
+fn syntax_construct_metadata(construct: &str) -> Option<&'static SyntaxConstructMetadata> {
+    SYNTAX_CONSTRUCT_METADATA
+        .iter()
+        .find(|metadata| metadata.name == construct)
 }
 
 #[requires(!construct.is_empty())]
-#[ensures(ret <= 8)]
+#[ensures(true)]
+pub(crate) fn syntax_construct_parent(construct: &str) -> Option<&'static str> {
+    syntax_construct_metadata(construct).and_then(|metadata| metadata.parent)
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(ret < SYNTAX_CONSTRUCT_METADATA.len())]
 pub(crate) fn syntax_construct_depth(construct: &str) -> usize {
     if !syntax_construct_is_known(construct) {
         panic!("missing syntax diagnostic construct metadata for {construct:?}");
@@ -295,10 +679,7 @@ pub(crate) fn syntax_construct_depth(construct: &str) -> usize {
 #[requires(!construct.is_empty())]
 #[ensures(ret -> !construct.is_empty())]
 pub(crate) fn syntax_construct_is_known(construct: &str) -> bool {
-    matches!(
-        construct,
-        "text" | "parse_text" | "end of input" | "syntax construct"
-    ) || matches!(syntax_construct_parent(construct), Some(_))
+    syntax_construct_metadata(construct).is_some()
 }
 
 #[requires(!construct.is_empty())]
@@ -496,7 +877,44 @@ fn syntax_expectation_summary_constructs(
     {
         constructs.retain(|construct| construct != scope);
     }
+    if let Some(scope) = scope {
+        let has_scoped_construct = constructs
+            .iter()
+            .any(|construct| syntax_construct_is_relevant_to_summary_scope(scope, construct));
+        if has_scoped_construct {
+            constructs.retain(|construct| {
+                syntax_construct_is_relevant_to_summary_scope(scope, construct)
+                    || syntax_construct_is_free_modifier_summary(construct)
+                    || construct == "end of input"
+            });
+        }
+    }
     constructs
+}
+
+#[requires(!scope.is_empty())]
+#[requires(!construct.is_empty())]
+#[ensures(true)]
+fn syntax_construct_is_relevant_to_summary_scope(scope: &str, construct: &str) -> bool {
+    if construct == scope {
+        return true;
+    }
+    if syntax_construct_is_descendant_of(scope, construct) {
+        return true;
+    }
+    if let Some(parent) = syntax_construct_parent(scope)
+        && scope.starts_with("forethought ")
+        && (construct == parent || syntax_construct_is_descendant_of(parent, construct))
+    {
+        return true;
+    }
+    false
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(true)]
+fn syntax_construct_is_free_modifier_summary(construct: &str) -> bool {
+    construct == "free modifier" || syntax_construct_is_descendant_of("free modifier", construct)
 }
 
 #[requires(!construct.is_empty())]
@@ -1939,6 +2357,62 @@ mod tests {
         assert!(!note_text.contains("expected one of:"));
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_wires_all_parser_diagnostic_constructs() {
+        let parser_source = include_str!("grammar/parser.rs");
+
+        for metadata in SYNTAX_CONSTRUCT_METADATA {
+            if metadata.wiring == SyntaxConstructWiring::Synthetic {
+                continue;
+            }
+            assert!(
+                parser_source_wires_construct(parser_source, metadata.name),
+                "parser-wired diagnostic construct {:?} is missing a parser label/context",
+                metadata.name,
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn truncated_forethought_forms_report_committed_constructs() {
+        assert_error_context("ga mi broda gi", "forethought bridi connection");
+        assert_error_mentions_construct("ga lo mlatu gi", "forethought sumti connection");
+        assert_error_context("mi gu'e broda gi", "forethought selbri connection");
+        assert_error_context("li ga pa gi", "forethought mex");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn representative_constructs_appear_in_structured_expectations() {
+        assert_error_mentions_construct("nu'i", "termset");
+        assert_error_mentions_construct("lo pa", "quantifier");
+        assert_error_mentions_construct("li peho", "operator");
+        assert_error_mentions_construct("lo vei", "number sumti");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quote_subtype_branches_still_parse() {
+        for source in [
+            "zo coi",
+            "lu mi klama li'u",
+            "lo'u coi rodo le'u",
+            "zoi gy hello gy",
+        ] {
+            let words =
+                jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+            parse_syntax_tree(&words).unwrap_or_else(|error| {
+                panic!("quote source {source:?} should parse, got {error:?}");
+            });
+        }
+    }
+
     #[cfg(feature = "grammar-debug")]
     #[test]
     #[requires(true)]
@@ -1973,5 +2447,75 @@ mod tests {
             .iter()
             .map(|segment| segment.text.as_str())
             .collect::<String>()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_source_wires_construct(parser_source: &str, construct: &str) -> bool {
+        let normalized = parser_source
+            .chars()
+            .filter(|ch| !ch.is_whitespace())
+            .collect::<String>();
+        let normalized_construct = construct
+            .chars()
+            .filter(|ch| !ch.is_whitespace())
+            .collect::<String>();
+        [
+            format!("syntax_context(\"{normalized_construct}\""),
+            format!("syntax_label(\"{normalized_construct}\""),
+            format!(".labelled(\"{normalized_construct}\""),
+        ]
+        .into_iter()
+        .any(|pattern| normalized.contains(&pattern))
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn assert_error_context(source: &str, construct: &str) {
+        let error = syntax_error_for_source(source);
+        let SyntaxError::Parse { context, .. } = error else {
+            panic!("expected syntax parse error for {source:?}");
+        };
+        assert_eq!(
+            context.as_ref().map(|context| context.construct.as_str()),
+            Some(construct),
+            "unexpected diagnostic context for {source:?}",
+        );
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn assert_error_mentions_construct(source: &str, construct: &str) {
+        let error = syntax_error_for_source(source);
+        assert!(
+            syntax_error_mentions_construct(&error, construct),
+            "syntax error for {source:?} did not mention construct {construct:?}: {error:?}",
+        );
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn syntax_error_for_source(source: &str) -> SyntaxError {
+        let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
+        parse_syntax_tree(&words).expect_err("source should have a syntax error")
+    }
+
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    fn syntax_error_mentions_construct(error: &SyntaxError, construct: &str) -> bool {
+        let SyntaxError::Parse {
+            expectations,
+            context,
+            ..
+        } = error
+        else {
+            return false;
+        };
+        context
+            .as_ref()
+            .is_some_and(|context| context.construct == construct)
+            || expectations
+                .iter()
+                .any(|expectation| expectation.reason.construct() == construct)
     }
 }

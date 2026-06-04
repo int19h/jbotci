@@ -39,12 +39,15 @@ use jbotci_web_core::{
     VlackuJvozbaSegmentTone, VlackuMath, VlackuSemanticSearchHit, VlackuVoteDisplay,
     VlackuWebAuthor, VlackuWebCard, VlackuWebMode, VlackuWebResult, VlackuWebState,
     VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest, WebComputeResponse,
-    WebFeatureAvailability, WebRoute, build_page_head, build_page_meta, build_vlacku_jvozba_output,
+    WebFeatureAvailability, WebRoute, build_page_meta, build_vlacku_jvozba_output,
     dictionary_tooltip_for_rafsi, dictionary_tooltip_for_word, gentufa_web_url,
     normalize_vlacku_state, parse_web_route, reference_slot_display_text,
     toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
     vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
 };
+
+#[cfg(target_arch = "wasm32")]
+use jbotci_web_core::build_page_head;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
@@ -8860,27 +8863,60 @@ fn diagnostic_word_category_href(base_path: &str, text: &str) -> Option<String> 
 #[ensures(ret.as_ref().is_none_or(|href| !href.is_empty()))]
 fn diagnostic_construct_href(base_path: &str, text: &str) -> Option<String> {
     let rule = match text {
+        "FIhO modal" => "tense-modal",
+        "NA KU term" => "term",
+        "VUhU operator" => "mex-operator",
         "abstraction" => "tanru-unit",
         "bridi" => "bridi-tail",
         "bridi description" => "sumti-6",
+        "connected tag" => "tag",
+        "converted operator" => "mex-operator",
         "converted sumti" => "sumti-6",
+        "converted tanru unit" => "tanru-unit-2",
+        "descriptor" => "sumti-6",
         "description" => "sumti-tail",
         "description tail" => "sumti-tail",
+        "forethought bridi connection" => "gek-sentence",
+        "forethought mex" => "mex",
+        "forethought selbri connection" => "selbri-6",
+        "forethought sumti connection" => "sumti-4",
         "free modifier" => "free",
         "fragment" => "fragment",
+        "grouped tanru" => "tanru-unit-2",
         "lerfu string" => "lerfu-string",
         "linked arguments" => "linkargs",
+        "mekso array" => "operand-3",
         "mex" => "mex",
+        "modal conversion" => "tanru-unit-2",
+        "modal tag" => "simple-tense-modal",
         "name" => "sumti-6",
+        "negated selbri" => "selbri-1",
+        "non-Lojban quote" => "sumti-6",
         "number sumti" => "sumti-6",
+        "number" => "number",
         "operand" => "operand",
+        "operand-to-operator" => "mex-operator",
         "operator" => "operator",
+        "operator-to-selbri" => "tanru-unit-2",
+        "ordinal selbri" => "tanru-unit-2",
+        "parenthesized mex" => "mex",
+        "place tag" => "term",
         "pro-sumti" => "sumti-6",
         "quantifier" => "quantifier",
+        "qualified operand" => "operand-3",
         "quote" => "sumti-6",
         "relative clause" => "relative-clause",
         "relative clauses" => "relative-clauses",
+        "reverse Polish mex" => "rp-expression",
+        "selbri operand" => "operand-3",
+        "selbri relative phrase" => "tanru-unit",
+        "selbri-to-operator" => "mex-operator",
+        "simple tense/modal" => "simple-tense-modal",
+        "space tense" => "space",
+        "subbridi" => "subsentence",
         "sumti" => "sumti",
+        "sumti operand" => "operand-3",
+        "sumti-to-selbri" => "tanru-unit-2",
         "tag" => "tag",
         "tail terms" => "tail-terms",
         "tanru" => "selbri",
@@ -8890,6 +8926,18 @@ fn diagnostic_construct_href(base_path: &str, text: &str) -> Option<String> {
         "terms" => "terms",
         "selbri" => "selbri",
         "statement" => "statement",
+        "text group" => "statement-3",
+        "text quote" => "sumti-6",
+        "time tense" => "time",
+        "word quote" => "sumti-6",
+        "word-sequence quote" => "sumti-6",
+        "metalinguistic comment"
+        | "parenthetical text"
+        | "reciprocal"
+        | "replacement phrase"
+        | "subscript"
+        | "utterance ordinal"
+        | "vocative phrase" => "free",
         "text" | "parse_text" => "text",
         _ => return None,
     };
@@ -8930,47 +8978,211 @@ const DIAGNOSTIC_KEYWORD_LABELS: &[(&str, bool)] = &[
 ];
 
 const DIAGNOSTIC_PHRASE_ROLES: &[(&str, &str, DiagnosticTextRole)] = &[
+    (
+        "forethought bridi connection",
+        "forethought bridi connection",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "forethought selbri connection",
+        "forethought selbri connection",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "forethought sumti connection",
+        "forethought sumti connection",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "forethought mex",
+        "forethought mex",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "metalinguistic comment",
+        "metalinguistic comment",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "word-sequence quote",
+        "word-sequence quote",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "parenthetical text",
+        "parenthetical text",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "operand-to-operator",
+        "operand-to-operator",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "operator-to-selbri",
+        "operator-to-selbri",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "selbri-to-operator",
+        "selbri-to-operator",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "sumti-to-selbri",
+        "sumti-to-selbri",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "converted tanru unit",
+        "converted tanru unit",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "selbri relative phrase",
+        "selbri relative phrase",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "simple tense/modal",
+        "simple tense/modal",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "reverse Polish mex",
+        "reverse Polish mex",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "replacement phrase",
+        "replacement phrase",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "bridi description",
+        "bridi description",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "description tail",
+        "description tail",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "free modifier",
+        "free modifier",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "linked arguments",
+        "linked arguments",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "parenthesized mex",
+        "parenthesized mex",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "converted operator",
+        "converted operator",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "converted sumti",
+        "converted sumti",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "non-Lojban quote",
+        "non-Lojban quote",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "utterance ordinal",
+        "utterance ordinal",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "vocative phrase",
+        "vocative phrase",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "grouped tanru",
+        "grouped tanru",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "modal conversion",
+        "modal conversion",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "ordinal selbri",
+        "ordinal selbri",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "qualified operand",
+        "qualified operand",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "selbri operand",
+        "selbri operand",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "sumti operand",
+        "sumti operand",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "connected tag",
+        "connected tag",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "lerfu string",
+        "lerfu string",
+        DiagnosticTextRole::Construct,
+    ),
+    ("mekso array", "mekso array", DiagnosticTextRole::Construct),
+    ("modal tag", "modal tag", DiagnosticTextRole::Construct),
+    ("NA KU term", "NA KU term", DiagnosticTextRole::Construct),
+    (
+        "negated selbri",
+        "negated selbri",
+        DiagnosticTextRole::Construct,
+    ),
+    (
+        "number sumti",
+        "number sumti",
+        DiagnosticTextRole::Construct,
+    ),
+    ("place tag", "place tag", DiagnosticTextRole::Construct),
+    ("space tense", "space tense", DiagnosticTextRole::Construct),
+    ("text group", "text group", DiagnosticTextRole::Construct),
+    ("text quote", "text quote", DiagnosticTextRole::Construct),
+    ("time tense", "time tense", DiagnosticTextRole::Construct),
+    (
+        "VUhU operator",
+        "VUhU operator",
+        DiagnosticTextRole::Construct,
+    ),
+    ("word quote", "word quote", DiagnosticTextRole::Construct),
+    ("FIhO modal", "FIhO modal", DiagnosticTextRole::Construct),
     ("abstraction", "abstraction", DiagnosticTextRole::Construct),
-    (
-        "bridi description",
-        "bridi description",
-        DiagnosticTextRole::Construct,
-    ),
-    ("bridi", "bridi", DiagnosticTextRole::Construct),
-    (
-        "converted sumti",
-        "converted sumti",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "description tail",
-        "description tail",
-        DiagnosticTextRole::Construct,
-    ),
+    ("descriptor", "descriptor", DiagnosticTextRole::Construct),
     ("description", "description", DiagnosticTextRole::Construct),
-    (
-        "free modifier",
-        "free modifier",
-        DiagnosticTextRole::Construct,
-    ),
     ("fragment", "fragment", DiagnosticTextRole::Construct),
-    (
-        "lerfu string",
-        "lerfu string",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "linked arguments",
-        "linked arguments",
-        DiagnosticTextRole::Construct,
-    ),
+    ("subbridi", "subbridi", DiagnosticTextRole::Construct),
+    ("prenex", "prenex", DiagnosticTextRole::Construct),
+    ("bridi", "bridi", DiagnosticTextRole::Construct),
     ("mex", "mex", DiagnosticTextRole::Construct),
     ("name", "name", DiagnosticTextRole::Construct),
-    (
-        "number sumti",
-        "number sumti",
-        DiagnosticTextRole::Construct,
-    ),
+    ("number", "number", DiagnosticTextRole::Construct),
     ("operand", "operand", DiagnosticTextRole::Construct),
     ("operator", "operator", DiagnosticTextRole::Construct),
     ("pro-sumti", "pro-sumti", DiagnosticTextRole::Construct),
@@ -8994,6 +9206,7 @@ const DIAGNOSTIC_PHRASE_ROLES: &[(&str, &str, DiagnosticTextRole)] = &[
         "syntax construct",
         DiagnosticTextRole::Construct,
     ),
+    ("subscript", "subscript", DiagnosticTextRole::Construct),
     ("tag", "tag", DiagnosticTextRole::Construct),
     ("tail terms", "tail terms", DiagnosticTextRole::Construct),
     ("tanru unit", "tanru unit", DiagnosticTextRole::Construct),
@@ -14834,7 +15047,7 @@ mod tests {
     #[ensures(true)]
     fn diagnostic_plain_text_segments_style_expectation_terms() {
         let parts = diagnostic_plain_text_render_parts(
-            "expected free modifier, statement, SE, LERFU, fe'e",
+            "expected forethought selbri connection, linked arguments, FIhO modal, VUhU operator, statement, SE, LERFU, fe'e",
         );
 
         assert!(
@@ -14843,7 +15056,17 @@ mod tests {
             })
         );
         assert!(parts.iter().any(|part| {
-            part.role == DiagnosticTextRole::Construct && part.text == "free modifier"
+            part.role == DiagnosticTextRole::Construct
+                && part.text == "forethought selbri connection"
+        }));
+        assert!(parts.iter().any(|part| {
+            part.role == DiagnosticTextRole::Construct && part.text == "linked arguments"
+        }));
+        assert!(parts.iter().any(|part| {
+            part.role == DiagnosticTextRole::Construct && part.text == "FIhO modal"
+        }));
+        assert!(parts.iter().any(|part| {
+            part.role == DiagnosticTextRole::Construct && part.text == "VUhU operator"
         }));
         assert!(parts.iter().any(|part| {
             part.role == DiagnosticTextRole::Construct && part.text == "statement"
@@ -14931,6 +15154,38 @@ mod tests {
             diagnostic_text_part_href(&statement, "/jbotci").as_deref(),
             Some("/jbotci/cukta/section/section-EBNF#ebnf-rule-statement")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_construct_links_cover_new_syntax_constructs() {
+        for (construct, rule) in [
+            ("forethought bridi connection", "gek-sentence"),
+            ("forethought sumti connection", "sumti-4"),
+            ("forethought selbri connection", "selbri-6"),
+            ("forethought mex", "mex"),
+            ("termset", "termset"),
+            ("place tag", "term"),
+            ("quantifier", "quantifier"),
+            ("linked arguments", "linkargs"),
+            ("operator", "operator"),
+            ("word-sequence quote", "sumti-6"),
+            ("FIhO modal", "tense-modal"),
+            ("VUhU operator", "mex-operator"),
+        ] {
+            let part = new!(DiagnosticTextRenderPart {
+                role: DiagnosticTextRole::Construct,
+                text: construct.to_owned(),
+            });
+            let expected_href = diagnostic_ebnf_rule_href("/jbotci", rule);
+
+            assert_eq!(
+                diagnostic_text_part_href(&part, "/jbotci").as_deref(),
+                Some(expected_href.as_str()),
+                "unexpected link for diagnostic construct {construct:?}",
+            );
+        }
     }
 
     #[test]

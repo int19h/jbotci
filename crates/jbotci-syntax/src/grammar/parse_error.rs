@@ -9,7 +9,7 @@ use crate::{
     SyntaxConstructContext, SyntaxExpectation, SyntaxExpectationReason,
     SyntaxExpectationReasonData, SyntaxExpectedToken, SyntaxExpectedTokenData,
     syntax_construct_is_descendant_of, syntax_construct_is_known, syntax_construct_is_root,
-    syntax_immediate_child_under,
+    syntax_construct_parent, syntax_immediate_child_under,
 };
 
 #[invariant(true)]
@@ -492,6 +492,18 @@ fn immediate_child_under_current(
     }
     immediate_child_from_context_paths(current, descendant, paths)
         .or_else(|| syntax_immediate_child_under(current, descendant))
+        .or_else(|| immediate_child_under_forethought_parent(current, descendant))
+}
+
+#[requires(!current.is_empty())]
+#[requires(!descendant.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|child| !child.is_empty()))]
+fn immediate_child_under_forethought_parent(current: &str, descendant: &str) -> Option<String> {
+    if !current.starts_with("forethought ") {
+        return None;
+    }
+    let parent = syntax_construct_parent(current)?;
+    syntax_immediate_child_under(parent, descendant)
 }
 
 #[requires(!current.is_empty())]
