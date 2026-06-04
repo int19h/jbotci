@@ -1,12 +1,13 @@
 [package]
 name = "xtask"
-description = "Workspace automation for jbotci."
+description = "Lightweight workspace automation dispatcher for jbotci."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
+publish = false
 
 [features]
 expensive_contracts = []
@@ -17,25 +18,10 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
-clap.workspace = true
 bityzba.workspace = true
-jbotci-dialect.workspace = true
-jbotci-diagnostics.workspace = true
-jbotci-dictionary = { workspace = true, features = ["import"] }
-jbotci-embedding-inputs.workspace = true
-jbotci-morphology.workspace = true
-jbotci-output.workspace = true
-jbotci-semantics.workspace = true
-jbotci-source.workspace = true
-jbotci-syntax.workspace = true
-rayon.workspace = true
-serde.workspace = true
+clap.workspace = true
 serde_json.workspace = true
-serde_stacker.workspace = true
 sha2.workspace = true
-thiserror.workspace = true
-toml.workspace = true
-ureq.workspace = true
 walkdir.workspace = true
 
 [build-dependencies]

@@ -16,7 +16,7 @@ COPY . .
 
 RUN set -eux; \
     export JBOTCI_WEB_EMBEDDINGS_BASE_URL="${WEB_EMBEDDINGS_BASE_URL}"; \
-    cargo xtask dist-server \
+    cargo run -p xtask -- dist-server \
         --out-dir /opt/jbotci \
         --base-path "${BASE_PATH}" \
         --skip-web-embeddings
