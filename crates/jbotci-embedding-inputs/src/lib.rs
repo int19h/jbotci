@@ -295,7 +295,7 @@ fn input_documents_hash(corpus_id: &str, documents: &[EmbeddingInputDocument]) -
     hasher.update(corpus_id.as_bytes());
     hasher.update([0]);
     for document in documents {
-        hasher.update(document.id.to_le_bytes());
+        hasher.update(document_id_hash_bytes(document.id));
         hasher.update([0]);
         hasher.update(document.input_hash.as_bytes());
         hasher.update([0]);
@@ -305,6 +305,14 @@ fn input_documents_hash(corpus_id: &str, documents: &[EmbeddingInputDocument]) -
         hasher.update([0]);
     }
     hex_digest(hasher.finalize())
+}
+
+#[requires(true)]
+#[ensures(ret.len() == 8)]
+fn document_id_hash_bytes(id: usize) -> [u8; 8] {
+    u64::try_from(id)
+        .expect("embedding document ids must fit in u64")
+        .to_le_bytes()
 }
 
 #[requires(dictionary_hash.len() == 64)]
@@ -419,9 +427,58 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn document_id_hash_bytes_are_target_independent() {
+        assert_eq!(document_id_hash_bytes(0), [0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(document_id_hash_bytes(1), [1, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(
+            document_id_hash_bytes(0x0102_0304),
+            [4, 3, 2, 1, 0, 0, 0, 0]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn corpus_document_hash_uses_fixed_width_document_ids() {
+        let documents = [
+            EmbeddingInputDocument {
+                id: 1,
+                input: "first".to_owned(),
+                input_hash: sha256_hex_bytes(b"first"),
+                kind: Some("example".to_owned()),
+            },
+            EmbeddingInputDocument {
+                id: 0x0102_0304,
+                input: "second".to_owned(),
+                input_hash: sha256_hex_bytes(b"second"),
+                kind: None,
+            },
+        ];
+
+        assert_eq!(
+            input_documents_hash("test-corpus", &documents),
+            "6c80634525e74a7bff41c626509a90110dbd2906bb8e03b9b9f4b1968202549c"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn exported_corpus_has_whole_and_per_entry_hashes() {
         let corpus = embedding_input_corpus();
         assert_eq!(corpus.model_key, DEFAULT_MODEL_KEY);
+        assert_eq!(
+            corpus.input_hash,
+            "87e2f6f75a310b77f4ade8e0923b60ec126b40969530ca159db0c450cc0f8685"
+        );
+        assert_eq!(
+            corpus.dictionary_hash,
+            "f4c73060bc1b96304984bfe8e3fe5dc013b19eacd4037ff29d1bdf1bd9743bf4"
+        );
+        assert_eq!(
+            corpus.cll_hash,
+            "982ffc064ba58e10a90aa1321aa013bc7c71859290417a1d7562601b7f12624c"
+        );
         assert_eq!(corpus.input_hash.len(), 64);
         assert!(
             corpus
