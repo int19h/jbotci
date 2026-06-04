@@ -2003,7 +2003,7 @@ fn append_normalized_lojban_input_chunk(
 #[requires(true)]
 #[ensures(true)]
 fn normalized_lojban_input_separator(value: char) -> char {
-    if segment::is_cyrillic_period(value) {
+    if segment::is_cyrillic_period(value) || segment::is_zbalermorna_period(value) {
         '.'
     } else {
         value
@@ -2457,6 +2457,18 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn segments_zbalermorna_cmavo_and_gismu() {
+        let words = segment_words_with_modifiers(
+            "\u{ed87}\u{eda2} \u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0} \u{ed91}\u{eda3}",
+        )
+        .expect("valid morphology");
+
+        assert_eq!(base_phoneme_texts(&words), vec!["mi", "kláma", "do"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn normalizes_cyrillic_aliases_and_implicit_apostrophe() {
         let cases = [
             ("шой", "coĭ"),
@@ -2468,6 +2480,34 @@ mod tests {
             ("лэ", "le"),
             ("лє", "le"),
             ("ӏфіныксӏ", "finyks"),
+        ];
+
+        for (source, expected) in cases {
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            assert_eq!(
+                base_phonemes(&words[0]).as_deref(),
+                Some(expected),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn normalizes_zbalermorna_glyphs() {
+        let cases = [
+            ("\u{ed87}\u{edb2}", "mi"),
+            ("\u{ed86}\u{edb3}\u{edaa}", "coĭ"),
+            ("\u{ed86}\u{edb3}\u{ed8a}\u{edb2}", "co'i"),
+            (
+                "\u{ed89}\u{ed83}\u{edb2}\u{ed97}\u{eda5}\u{ed82}\u{ed85}\u{ed89}",
+                "finyks",
+            ),
+            (
+                "\u{ed89}\u{edb0}\u{ed84}\u{edb2}\u{ed98}\u{ed85}\u{ed89}",
+                "alís",
+            ),
         ];
 
         for (source, expected) in cases {
@@ -2532,13 +2572,43 @@ mod tests {
             normalize_lojban_input_text("ӏфіныксӏ").as_deref(),
             Some(".finyks.")
         );
+        assert_eq!(
+            normalize_lojban_input_text(
+                "\u{ed87}\u{eda2} \u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}"
+            )
+            .as_deref(),
+            Some("mi klama")
+        );
+        assert_eq!(
+            normalize_lojban_input_text("\u{ed86}\u{edb3}\u{ed8a}\u{edb2}").as_deref(),
+            Some("co'i")
+        );
+        assert_eq!(
+            normalize_lojban_input_text(
+                "\u{ed89}\u{ed83}\u{edb2}\u{ed97}\u{eda5}\u{ed82}\u{ed85}\u{ed89}"
+            )
+            .as_deref(),
+            Some(".finyks.")
+        );
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn zbalermorna_input_is_deferred_by_normalizer() {
-        assert_eq!(normalize_lojban_input_text("\u{ed87}\u{eda2}"), None);
+    fn zbalermorna_input_does_not_insert_implicit_apostrophes() {
+        let error = segment_words_with_modifiers("\u{eda0}\u{eda0}")
+            .expect_err("zbalermorna vowels should not insert apostrophes");
+
+        assert!(
+            matches!(
+                error,
+                MorphologyError::Invalid {
+                    kind: MorphologyErrorKind::VowelHiatus,
+                    ..
+                }
+            ),
+            "{error:?}"
+        );
     }
 
     #[test]

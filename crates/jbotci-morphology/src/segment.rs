@@ -20,6 +20,7 @@ use fast::{
 pub(crate) fn is_separator(value: char) -> bool {
     value.is_whitespace()
         || is_cyrillic_period(value)
+        || is_zbalermorna_period(value)
         || matches!(
             value,
             '.' | '?'
@@ -124,14 +125,14 @@ pub(crate) fn normalize_source_chars(
     options: &MorphologyOptions,
 ) -> Vec<NormalizedSourceChar> {
     let mut normalized = Vec::new();
-    let mut previous_cyrillic_full_vowel = false;
+    let mut previous_implicit_apostrophe_vowel = false;
     for (source_index, value) in chars {
         match normalize_char_event(value, options) {
             Some(NormalizedCharEvent::Emit {
                 value: normalized_value,
-                cyrillic_full_vowel,
+                implicit_apostrophe_vowel,
             }) => {
-                if previous_cyrillic_full_vowel && cyrillic_full_vowel {
+                if previous_implicit_apostrophe_vowel && implicit_apostrophe_vowel {
                     normalized.push(new!(NormalizedSourceChar {
                         source_start: source_index,
                         source_end: source_index,
@@ -143,13 +144,13 @@ pub(crate) fn normalize_source_chars(
                     source_end: source_index + 1,
                     value: normalized_value,
                 }));
-                previous_cyrillic_full_vowel = cyrillic_full_vowel;
+                previous_implicit_apostrophe_vowel = implicit_apostrophe_vowel;
             }
             Some(NormalizedCharEvent::StressPrevious) => {
                 stress_last_normalized_char(&mut normalized);
             }
             None => {
-                previous_cyrillic_full_vowel = false;
+                previous_implicit_apostrophe_vowel = false;
             }
         }
     }
@@ -519,7 +520,7 @@ pub(crate) fn pronunciation_syllable_texts(phonemes: &str) -> Option<Vec<String>
 enum NormalizedCharEvent {
     Emit {
         value: char,
-        cyrillic_full_vowel: bool,
+        implicit_apostrophe_vowel: bool,
     },
     StressPrevious,
 }
@@ -536,7 +537,9 @@ fn normalize_char(value: char, options: &MorphologyOptions) -> Option<char> {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|event| matches!(event, NormalizedCharEvent::StressPrevious) || matches!(event, NormalizedCharEvent::Emit { value, .. } if is_valid_normalized_char(*value))))]
 fn normalize_char_event(value: char, options: &MorphologyOptions) -> Option<NormalizedCharEvent> {
-    if is_combining_stress_mark(value) {
+    if is_combining_stress_mark(value)
+        || (options.accept_zbalermorna && is_zbalermorna_stress_mark(value))
+    {
         return Some(NormalizedCharEvent::StressPrevious);
     }
     if options.accept_latin && is_latin_apostrophe(value) {
@@ -554,19 +557,25 @@ fn normalize_char_event(value: char, options: &MorphologyOptions) -> Option<Norm
         return Some(normalized_emit(normalized, false));
     }
     if options.accept_cyrillic
-        && let Some((normalized, cyrillic_full_vowel)) = normalize_cyrillic_char(value, options)
+        && let Some((normalized, implicit_apostrophe_vowel)) =
+            normalize_cyrillic_char(value, options)
     {
-        return Some(normalized_emit(normalized, cyrillic_full_vowel));
+        return Some(normalized_emit(normalized, implicit_apostrophe_vowel));
+    }
+    if options.accept_zbalermorna
+        && let Some(normalized) = normalize_zbalermorna_char(value)
+    {
+        return Some(normalized_emit(normalized, false));
     }
     None
 }
 
 #[requires(is_valid_normalized_char(value))]
-#[ensures(matches!(ret, NormalizedCharEvent::Emit { value: emitted, cyrillic_full_vowel } if emitted == value && cyrillic_full_vowel == cyrillic))]
-fn normalized_emit(value: char, cyrillic: bool) -> NormalizedCharEvent {
+#[ensures(matches!(ret, NormalizedCharEvent::Emit { value: emitted, implicit_apostrophe_vowel } if emitted == value && implicit_apostrophe_vowel == insert_implicit_apostrophe))]
+fn normalized_emit(value: char, insert_implicit_apostrophe: bool) -> NormalizedCharEvent {
     NormalizedCharEvent::Emit {
         value,
-        cyrillic_full_vowel: cyrillic,
+        implicit_apostrophe_vowel: insert_implicit_apostrophe,
     }
 }
 
@@ -669,6 +678,41 @@ fn normalize_cyrillic_char(value: char, options: &MorphologyOptions) -> Option<(
     }
 }
 
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|value| is_valid_normalized_char(*value)))]
+fn normalize_zbalermorna_char(value: char) -> Option<char> {
+    match value {
+        '\u{ed80}' => Some('p'),
+        '\u{ed81}' => Some('t'),
+        '\u{ed82}' => Some('k'),
+        '\u{ed83}' => Some('f'),
+        '\u{ed84}' => Some('l'),
+        '\u{ed85}' => Some('s'),
+        '\u{ed86}' => Some('c'),
+        '\u{ed87}' => Some('m'),
+        '\u{ed88}' => Some('x'),
+        '\u{ed8a}' => Some('\''),
+        '\u{ed90}' => Some('b'),
+        '\u{ed91}' => Some('d'),
+        '\u{ed92}' => Some('g'),
+        '\u{ed93}' => Some('v'),
+        '\u{ed94}' => Some('r'),
+        '\u{ed95}' => Some('z'),
+        '\u{ed96}' => Some('j'),
+        '\u{ed97}' => Some('n'),
+        '\u{ed9a}' => Some(','),
+        '\u{eda0}' | '\u{edb0}' => Some('a'),
+        '\u{eda1}' | '\u{edb1}' => Some('e'),
+        '\u{eda2}' | '\u{edb2}' => Some('i'),
+        '\u{eda3}' | '\u{edb3}' => Some('o'),
+        '\u{eda4}' | '\u{edb4}' => Some('u'),
+        '\u{eda5}' | '\u{edb5}' => Some('y'),
+        '\u{edaa}' => Some('ĭ'),
+        '\u{edab}' => Some('ŭ'),
+        _ => None,
+    }
+}
+
 #[requires(matches!(value, 'a' | 'e' | 'i' | 'o' | 'u' | 'y'))]
 #[ensures(true)]
 fn stressable_uppercase_vowel(value: char, options: &MorphologyOptions) -> char {
@@ -710,8 +754,20 @@ pub(crate) fn is_cyrillic_period(value: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+pub(crate) fn is_zbalermorna_period(value: char) -> bool {
+    matches!(value, '\u{ed89}')
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn is_combining_stress_mark(value: char) -> bool {
     matches!(value, '\u{0301}' | '\u{0300}')
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_zbalermorna_stress_mark(value: char) -> bool {
+    matches!(value, '\u{ed98}')
 }
 
 #[requires(true)]

@@ -6309,6 +6309,25 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn zbalermorna_input_parses_in_gentufa() {
+        let success = parse_success("\u{ed87}\u{eda2} \u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}");
+
+        assert_eq!(success.surface_text, "mi kláma");
+        assert_eq!(
+            success
+                .blocks_layout
+                .blocks
+                .iter()
+                .filter(|block| block.is_leaf)
+                .map(|block| block.display_text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["mi", "kláma"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn phoneme_options_remove_stress_and_glide_marks() {
         let request = GentufaWebRequest {
             text: "brodau".to_owned(),
@@ -6349,6 +6368,12 @@ mod tests {
         assert_eq!(cyrillic.mode, VlackuWebMode::Word);
         assert_eq!(cyrillic.query, "klama");
         assert_eq!(vlacku_web_url("", &cyrillic), "/vlacku/klama");
+
+        let zbalermorna =
+            parse_vlacku_web_route("/vlacku/\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}", "");
+        assert_eq!(zbalermorna.mode, VlackuWebMode::Word);
+        assert_eq!(zbalermorna.query, "klama");
+        assert_eq!(vlacku_web_url("", &zbalermorna), "/vlacku/klama");
     }
 
     #[test]
@@ -6387,6 +6412,16 @@ mod tests {
 
         let cyrillic = parse_cukta_web_route("/cukta/search", "?mode=valsi&q=ложбан");
         let CuktaWebView::Search(search_state) = cyrillic.view else {
+            panic!("expected search state");
+        };
+        assert_eq!(search_state.mode, CuktaWebMode::Word);
+        assert_eq!(search_state.query, "lojban");
+
+        let zbalermorna = parse_cukta_web_route(
+            "/cukta/search",
+            "?mode=valsi&q=\u{ed84}\u{eda3}\u{ed96}\u{ed90}\u{eda0}\u{ed97}",
+        );
+        let CuktaWebView::Search(search_state) = zbalermorna.view else {
             panic!("expected search state");
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
@@ -6767,6 +6802,33 @@ mod tests {
             "/cukta/search?mode=valsi&q=lojban&count=3"
         );
 
+        let zbalermorna_word_page = build_cukta_web_page(
+            "",
+            &CuktaWebState {
+                view: CuktaWebView::Search(CuktaWebSearchState {
+                    mode: CuktaWebMode::Word,
+                    query: "\u{ed84}\u{eda3}\u{ed96}\u{ed90}\u{eda0}\u{ed97}".to_owned(),
+                    count: 3,
+                    targets: default_cukta_target_values(),
+                }),
+            },
+        );
+        let CuktaPageKind::Search {
+            state,
+            results,
+            message,
+            ..
+        } = zbalermorna_word_page.page_kind
+        else {
+            panic!("expected zbalermorna word search page");
+        };
+        assert_eq!(state.query, "lojban");
+        assert!(message.is_none(), "{message:?}");
+        assert_eq!(
+            results.first().map(|card| card.label.as_str()),
+            Some("4.3. brivla")
+        );
+
         let meaning_state = CuktaWebState {
             view: CuktaWebView::Search(CuktaWebSearchState {
                 mode: CuktaWebMode::Meaning,
@@ -6946,10 +7008,53 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlacku_word_search_accepts_zbalermorna_exact_query() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(result.state.query, "klama");
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("klama")
+        );
+        assert_eq!(vlacku_web_url("", &result.state), "/vlacku/klama");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_rafsi_search_accepts_cyrillic_exact_query() {
         let result = build_vlacku_web_result(&VlackuWebState {
             mode: VlackuWebMode::Rafsi,
             query: "кла".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(result.state.query, "kla");
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("klama")
+        );
+        assert_eq!(
+            vlacku_web_url("", &result.state),
+            "/vlacku?mode=rafsi&q=kla"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_rafsi_search_accepts_zbalermorna_exact_query() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Rafsi,
+            query: "\u{ed82}\u{ed84}\u{eda0}".to_owned(),
             count: 20,
             word_types: Vec::new(),
         });
