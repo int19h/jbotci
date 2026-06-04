@@ -1765,17 +1765,18 @@ fn render_topbar(
     let header_class = topbar_header_class(settings_layout, *settings_open.read());
     let show_theme_inline = settings_layout.shows_theme_inline();
     let show_script_inline = settings_layout.shows_script_inline();
+    let topbar_home_href = deployment_root_href(base_path);
     let topbar_cukta_scroll_target = route_href_with_base_path(base_path, &cukta_route);
     let topbar_cukta_click_route = cukta_route.clone();
     rsx! {
         header { class: "{header_class}",
             div { class: "app-topbar-inner spa-topbar-inner",
                 div { class: "app-topbar-left",
-                    Link {
+                    a {
                         class: "app-topbar-brand",
-                        to: settings_route.clone(),
-                        aria_label: "Settings",
-                        title: "Settings",
+                        href: "{topbar_home_href}",
+                        aria_label: "jbotci home",
+                        title: "jbotci home",
                         img { class: "app-topbar-brand-logo", src: LOGO, alt: "jbotci" }
                     }
                     { render_topbar_settings_button(settings, current, settings_route.clone(), settings_layout, settings_open) }
@@ -2447,8 +2448,9 @@ fn render_dialect_control(
                         aria_hidden: "true",
                         { render_dialect_highlight(&formula_text) }
                     }
-                    input {
+                    textarea {
                         class: "settings-text-input settings-dialect-definition gentufa-dialect-formula-input",
+                        rows: "1",
                         value: "{formula_text}",
                         placeholder: "baseline (CLL + xorlo + LTR-magic)",
                         spellcheck: "false",
@@ -2589,6 +2591,38 @@ fn dialect_highlight_class(token: &str) -> &'static str {
     } else {
         "dialect-token-word"
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(inline_js = r#"
+export function jbotciCopyTextToClipboard(text) {
+  const value = String(text ?? "");
+  const fallback = () => {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-10000px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand("copy");
+    } finally {
+      textarea.remove();
+    }
+  };
+
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(value).catch(fallback);
+  } else {
+    fallback();
+  }
+}
+"#)]
+extern "C" {
+    #[wasm_bindgen(js_name = jbotciCopyTextToClipboard)]
+    fn js_copy_text_to_clipboard(text: &str);
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -6112,11 +6146,7 @@ fn render_vlacku_card(
     rsx! {
         section { class: "result-card",
             header { class: "result-header",
-                h2 { class: "word",
-                    span { class: "dictionary-word-line",
-                        { render_vlacku_headword_line(card, jvozba_pane, jvozba_available, base_path) }
-                    }
-                }
+                { render_vlacku_headword_line(card, jvozba_pane, jvozba_available, base_path) }
                 div { class: "tag-row",
                     if let Some(author) = &card.author {
                         { render_vlacku_author_credit(author) }
@@ -6127,6 +6157,19 @@ fn render_vlacku_card(
             if !card.definition.is_empty() {
                 p { class: "dictionary-definition-copy",
                     { render_inline_spans(&card.definition, jvozba_pane, jvozba_available, base_path) }
+                    {
+                        let definition_source = card.definition_source.clone();
+                        rsx! {
+                            button {
+                                class: "dictionary-definition-copy-button",
+                                r#type: "button",
+                                aria_label: "Copy definition",
+                                title: "Copy definition",
+                                onclick: move |_| copy_text_to_clipboard(&definition_source),
+                                { render_copy_icon() }
+                            }
+                        }
+                    }
                 }
             }
             if !card.glosses.is_empty() {
@@ -6137,7 +6180,7 @@ fn render_vlacku_card(
                 }
             }
             if !card.notes.is_empty() {
-                p { class: "dictionary-note-copy", title: "Dictionary note",
+                p { class: "dictionary-note-copy", "data-note-tooltip": "Dictionary notes",
                     { render_inline_spans(&card.notes, jvozba_pane, jvozba_available, base_path) }
                 }
             }
@@ -6475,26 +6518,34 @@ fn render_vlacku_headword_line(
         },
     );
     rsx! {
-        { render_vlacku_headword_action(
-            jvozba_pane,
-            jvozba_available,
-            card.can_add_to_jvozba,
-            &card.word,
-            &card.display_word,
-            &word_href,
-            base_path,
-        ) }
-        if let Some(ipa) = &card.ipa {
-            span { class: "dictionary-headword-ipa", "/{ipa}/" }
-        }
-        if !card.decomposition.is_empty() {
-            { render_vlacku_inline_separator("=") }
-            { render_vlacku_decomposition_inline(card, jvozba_pane, jvozba_available, base_path) }
-        } else if !card.rafsi.is_empty() {
-            { render_vlacku_inline_separator("≘") }
-            span { class: "dictionary-inline-pill-row",
-                for rafsi in card.rafsi.iter() {
-                    { render_rafsi_pill(jvozba_pane, jvozba_available, &card.word, rafsi) }
+        div { class: "dictionary-word-cluster",
+            h2 { class: "word dictionary-headword-title",
+                { render_vlacku_headword_action(
+                    jvozba_pane,
+                    jvozba_available,
+                    card.can_add_to_jvozba,
+                    &card.word,
+                    &card.display_word,
+                    &word_href,
+                    base_path,
+                ) }
+            }
+            if let Some(ipa) = &card.ipa {
+                span { class: "dictionary-headword-ipa", "/{ipa}/" }
+            }
+            if !card.decomposition.is_empty() {
+                span { class: "dictionary-word-composition-group dictionary-word-decomposition-group",
+                    { render_vlacku_inline_separator("=") }
+                    { render_vlacku_decomposition_inline(card, jvozba_pane, jvozba_available, base_path) }
+                }
+            } else if !card.rafsi.is_empty() {
+                span { class: "dictionary-word-composition-group dictionary-word-rafsi-group",
+                    { render_vlacku_inline_separator("≘") }
+                    span { class: "dictionary-inline-pill-row",
+                        for rafsi in card.rafsi.iter() {
+                            { render_rafsi_pill(jvozba_pane, jvozba_available, &card.word, rafsi) }
+                        }
+                    }
                 }
             }
         }
@@ -6561,6 +6612,38 @@ fn render_vlacku_decomposition_inline(
 fn render_vlacku_inline_separator(text: &str) -> Element {
     rsx! { span { class: "dictionary-word-inline-separator", "{text}" } }
 }
+
+#[requires(true)]
+#[ensures(true)]
+fn render_copy_icon() -> Element {
+    rsx! {
+        svg {
+            class: "dictionary-copy-icon",
+            "viewBox": "0 0 24 24",
+            "aria-hidden": "true",
+            path {
+                d: "M8 7h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2zM5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1",
+                fill: "none",
+                stroke: "currentColor",
+                stroke_width: "2",
+                stroke_linecap: "round",
+                stroke_linejoin: "round",
+            }
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn copy_text_to_clipboard(text: &str) {
+    js_copy_text_to_clipboard(text);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn copy_text_to_clipboard(_text: &str) {}
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
@@ -7472,9 +7555,12 @@ fn render_gentufa_input(
     base_path: &str,
 ) -> Element {
     let text = input_text.read().clone();
+    let content_sizer_text = gentufa_textarea_content_sizer_text(&text);
     let diagnostics = current_gentufa_input_diagnostics(&text, result, request);
     rsx! {
         div { class: "gentufa-input-editor",
+            div { class: "gentufa-text-sizer", aria_hidden: "true", "{content_sizer_text}" }
+            div { class: "gentufa-text-sizer", aria_hidden: "true", "{DEFAULT_GENTUFA_TEXT}" }
             { render_gentufa_diagnostic_overlay(
                 &text,
                 diagnostics,
@@ -7504,6 +7590,17 @@ fn render_gentufa_input(
                 base_path,
             ) }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(!source.ends_with('\n') || ret.ends_with(' '))]
+#[ensures(source.ends_with('\n') || ret == source)]
+fn gentufa_textarea_content_sizer_text(source: &str) -> String {
+    if source.ends_with('\n') {
+        format!("{source} ")
+    } else {
+        source.to_owned()
     }
 }
 
@@ -11959,6 +12056,17 @@ fn route_href_with_base_path(base_path: &str, route: &JbotciRoute) -> String {
 }
 
 #[requires(base_path.is_empty() || base_path.starts_with('/'))]
+#[ensures(ret.starts_with('/'))]
+fn deployment_root_href(base_path: &str) -> String {
+    let prefix = base_path.trim_end_matches('/');
+    if prefix.is_empty() || prefix == "/" {
+        "/".to_owned()
+    } else {
+        format!("{prefix}/")
+    }
+}
+
+#[requires(base_path.is_empty() || base_path.starts_with('/'))]
 #[requires(path.starts_with('/'))]
 #[ensures(ret.starts_with('/'))]
 fn static_asset_href_with_base_path(base_path: &str, path: &str) -> String {
@@ -12170,13 +12278,7 @@ fn resize_gentufa_textarea() {
     };
     let textarea_html: &web_sys::HtmlElement = textarea.unchecked_ref();
     let style = textarea_html.style();
-    if textarea.value().is_empty() {
-        let _ = style.remove_property("height");
-        return;
-    }
-    let _ = style.set_property("height", "auto");
-    let height = textarea_html.scroll_height().saturating_add(2);
-    let _ = style.set_property("height", &format!("{height}px"));
+    let _ = style.remove_property("height");
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -16009,6 +16111,16 @@ mod tests {
             "/vlacku/klama"
         );
         assert!(JbotciRoute::from_str("assets/compute-worker.js").is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn deployment_root_href_targets_router_prefix_root() {
+        assert_eq!(deployment_root_href(""), "/");
+        assert_eq!(deployment_root_href("/"), "/");
+        assert_eq!(deployment_root_href("/jbotci"), "/jbotci/");
+        assert_eq!(deployment_root_href("/jbotci/"), "/jbotci/");
     }
 
     #[requires(true)]

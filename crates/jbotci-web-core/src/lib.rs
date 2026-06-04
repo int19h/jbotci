@@ -1482,6 +1482,8 @@ pub struct VlackuWebCard {
     pub votes: VlackuVoteDisplay,
     pub rafsi: Vec<String>,
     pub glosses: Vec<String>,
+    #[serde(default)]
+    pub definition_source: String,
     pub definition: Vec<VlackuInline>,
     pub notes: Vec<VlackuInline>,
     #[serde(default)]
@@ -4065,6 +4067,7 @@ fn web_card_from_search_card(
             .unwrap_or(VlackuVoteDisplay::Unknown),
         rafsi: card.rafsi,
         glosses: card.glosses,
+        definition_source: card.definition.clone(),
         definition: parse_vlacku_inline_text(jbotci_dictionary_data::english(), &card.definition),
         notes: parse_vlacku_inline_text(jbotci_dictionary_data::english(), &card.notes),
         etymology,
