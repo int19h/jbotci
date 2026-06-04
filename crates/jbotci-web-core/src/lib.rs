@@ -13,10 +13,15 @@ use jbotci_cll::{
     cll_search_chunk_href, cll_section_chapter_title, cukta_search, embedded_cll_site,
     format_section_display_title, truncate_preview,
 };
-use jbotci_diagnostics::{Diagnostic, DiagnosticPhase};
+use jbotci_diagnostics::{Diagnostic, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_dictionary::{Dictionary, DictionaryEntry, WordType};
 use jbotci_embedding_inputs::embedding_input_corpus_json;
+pub use jbotci_gentufa::{
+    DEFAULT_GENTUFA_PNG_SCALE, GentufaBlockAnnotation, GentufaBlockOptions, GentufaScript,
+    ReferenceLabel, ReferenceMarkerRole, ReferenceMarkerSource, ReferenceMarkerSourceData,
+    ReferenceSlotLabel, TransformInfo, WebSourceRange, reference_slot_display_text,
+};
 use jbotci_gentufa::{
     ElidedTerminator, RenderedLeaf, blocks_layout as build_blocks_layout,
     display_text_for_spans as gentufa_display_text_for_spans,
@@ -24,11 +29,6 @@ use jbotci_gentufa::{
     reference_markers_for_node as gentufa_reference_markers_for_node,
     reference_slot_label_from_output, rendered_leaves as build_rendered_leaves,
     syntax_constructor_name as gentufa_syntax_constructor_name,
-};
-pub use jbotci_gentufa::{
-    GentufaBlockAnnotation, GentufaBlockOptions, GentufaScript, ReferenceLabel,
-    ReferenceMarkerRole, ReferenceMarkerSource, ReferenceMarkerSourceData, ReferenceSlotLabel,
-    TransformInfo, WebSourceRange, reference_slot_display_text,
 };
 use jbotci_jvozba::{
     JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegment, JvozbaSegmentKind,
@@ -40,10 +40,10 @@ use jbotci_morphology::{
 };
 use jbotci_output::{
     BracketRenderOptions, BracketSourceFragment, BracketSourceRange, GlyphStyle,
-    ReferenceDisplayModel, TreeRenderOptions, indexed_place_spans_for_definition_or_notes_line,
-    ipa_morphology_text, pretty_bracket_source_fragments_with_options,
-    pretty_brackets_with_options, reference_display_model_for_syntax_tree,
-    reference_slot_name_for_place_slot,
+    ReferenceDisplayModel, TreeRenderOptions, format_definition_or_notes_line_with_indexed_places,
+    indexed_place_spans_for_definition_or_notes_line, ipa_morphology_text,
+    pretty_bracket_source_fragments_with_options, pretty_brackets_with_options,
+    reference_display_model_for_syntax_tree, reference_slot_name_for_place_slot,
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
@@ -140,6 +140,31 @@ impl Default for GentufaWebState {
 pub struct GentufaWebRequest {
     pub text: String,
     pub options: GentufaWebOptions,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+#[invariant(::Png => true)]
+#[invariant(::Svg => true)]
+pub enum GentufaExportFormat {
+    Png,
+    Svg,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+pub struct GentufaWebExport {
+    pub content_type: String,
+    pub bytes: Vec<u8>,
+    pub width: Option<usize>,
+    pub height: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+pub struct GentufaWebExportRequest {
+    pub state: GentufaWebState,
+    pub script: GentufaScript,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1007,12 +1032,14 @@ pub fn run_web_compute_request(
             show_glosses,
             script,
         } => {
-            let svg = jbotci_gentufa::render_gentufa_blocks_svg(
+            let export = render_gentufa_blocks_web_export(
                 &layout,
-                &gentufa_svg_export_options(show_glosses, script),
-                jbotci_gentufa::EmbeddedGentufaFonts::get(),
-            )
-            .map_err(|error| WebComputeError::Export(error.to_string()))?;
+                show_glosses,
+                script,
+                GentufaExportFormat::Svg,
+            )?;
+            let svg = String::from_utf8(export.bytes)
+                .map_err(|error| WebComputeError::Export(error.to_string()))?;
             Ok(WebComputeResponse::GentufaBlocksSvg { svg })
         }
         WebComputeRequest::GentufaBlocksPng {
@@ -1020,15 +1047,13 @@ pub fn run_web_compute_request(
             show_glosses,
             script,
         } => {
-            let bytes = jbotci_gentufa::render_gentufa_blocks_png(
+            let export = render_gentufa_blocks_web_export(
                 &layout,
-                &jbotci_gentufa::GentufaPngOptions {
-                    svg: gentufa_svg_export_options(show_glosses, script),
-                    ..jbotci_gentufa::GentufaPngOptions::default()
-                },
-                jbotci_gentufa::EmbeddedGentufaFonts::get(),
-            )
-            .map_err(|error| WebComputeError::Export(error.to_string()))?;
+                show_glosses,
+                script,
+                GentufaExportFormat::Png,
+            )?;
+            let bytes = export.bytes;
             Ok(WebComputeResponse::GentufaBlocksPng { bytes })
         }
     }
@@ -2263,6 +2288,229 @@ fn gentufa_svg_export_options(
 }
 
 #[requires(true)]
+#[ensures(!ret.is_empty())]
+fn gentufa_export_content_type(format: GentufaExportFormat) -> &'static str {
+    match format {
+        GentufaExportFormat::Png => "image/png",
+        GentufaExportFormat::Svg => "image/svg+xml; charset=utf-8",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn gentufa_export_extension(format: GentufaExportFormat) -> &'static str {
+    match format {
+        GentufaExportFormat::Png => "png",
+        GentufaExportFormat::Svg => "svg",
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|export| !export.bytes.is_empty()) || ret.is_err())]
+pub fn render_gentufa_blocks_web_export(
+    layout: &GentufaBlocksLayout,
+    show_glosses: bool,
+    script: GentufaScript,
+    format: GentufaExportFormat,
+) -> Result<GentufaWebExport, WebComputeError> {
+    match format {
+        GentufaExportFormat::Svg => {
+            let svg = jbotci_gentufa::render_gentufa_blocks_svg(
+                layout,
+                &gentufa_svg_export_options(show_glosses, script),
+                jbotci_gentufa::EmbeddedGentufaFonts::get(),
+            )
+            .map_err(|error| WebComputeError::Export(error.to_string()))?;
+            let dimensions = svg_dimensions(&svg);
+            Ok(GentufaWebExport {
+                content_type: gentufa_export_content_type(format).to_owned(),
+                bytes: svg.into_bytes(),
+                width: dimensions.map(|(width, _)| width),
+                height: dimensions.map(|(_, height)| height),
+            })
+        }
+        GentufaExportFormat::Png => {
+            let bytes = jbotci_gentufa::render_gentufa_blocks_png(
+                layout,
+                &jbotci_gentufa::GentufaPngOptions {
+                    svg: gentufa_svg_export_options(show_glosses, script),
+                    ..jbotci_gentufa::GentufaPngOptions::default()
+                },
+                jbotci_gentufa::EmbeddedGentufaFonts::get(),
+            )
+            .map_err(|error| WebComputeError::Export(error.to_string()))?;
+            let dimensions = png_dimensions(&bytes);
+            Ok(GentufaWebExport {
+                content_type: gentufa_export_content_type(format).to_owned(),
+                bytes,
+                width: dimensions.map(|(width, _)| width),
+                height: dimensions.map(|(_, height)| height),
+            })
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|export| !export.bytes.is_empty()) || ret.is_err())]
+pub fn render_gentufa_state_web_export(
+    state: &GentufaWebState,
+    script: GentufaScript,
+    format: GentufaExportFormat,
+) -> Result<GentufaWebExport, WebComputeError> {
+    let state = normalize_gentufa_state(state);
+    if state.text.is_empty() {
+        return Err(WebComputeError::Export(
+            "gentufa export requires input text".to_owned(),
+        ));
+    }
+    let request = GentufaWebRequest {
+        text: state.text.clone(),
+        options: GentufaWebOptions {
+            dialect: state.dialect.clone(),
+            view_mode: GentufaWebViewMode::Blocks,
+            script,
+            show_elided: state.show_elided,
+            show_glosses: state.show_glosses,
+            show_definitions: false,
+            phonemes: PhonemeRenderOptions::default(),
+        },
+    };
+    match parse_gentufa_for_web(&request) {
+        GentufaWebResult::Success(success) => render_gentufa_blocks_web_export(
+            &success.blocks_layout,
+            state.show_glosses,
+            script,
+            format,
+        ),
+        GentufaWebResult::Blank => Err(WebComputeError::Export(
+            "gentufa export requires input text".to_owned(),
+        )),
+        GentufaWebResult::Error(error) => Err(WebComputeError::Export(
+            gentufa_error_metadata_description(&error, &state.text),
+        )),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.starts_with(base_path) || base_path.is_empty())]
+pub fn gentufa_export_url(
+    base_path: &str,
+    state: &GentufaWebState,
+    format: GentufaExportFormat,
+    script: GentufaScript,
+) -> String {
+    let state = normalize_gentufa_state(state);
+    let mut pairs = Vec::new();
+    if !state.text.is_empty() {
+        pairs.push(("text".to_owned(), state.text.clone()));
+    }
+    if let Some(dialect) = state.dialect.as_ref() {
+        pairs.push(("dialect".to_owned(), dialect.clone()));
+    }
+    if state.show_glosses {
+        pairs.push(("glosses".to_owned(), "true".to_owned()));
+    }
+    if state.show_elided {
+        pairs.push(("elided".to_owned(), "true".to_owned()));
+    }
+    if script != GentufaScript::Latin {
+        pairs.push((
+            "script".to_owned(),
+            gentufa_script_query_value(script).to_owned(),
+        ));
+    }
+    let path = prefixed_web_path(
+        base_path,
+        &format!("/gentufa.{}", gentufa_export_extension(format)),
+    );
+    if pairs.is_empty() {
+        path
+    } else {
+        format!(
+            "{path}?{}",
+            pairs
+                .iter()
+                .map(|(key, value)| format!("{key}={}", percent_encode(value)))
+                .collect::<Vec<_>>()
+                .join("&")
+        )
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_gentufa_web_export_request(query: &str) -> GentufaWebExportRequest {
+    let mut state = parse_gentufa_web_route("/gentufa", query);
+    let mut script = GentufaScript::Latin;
+    for (key, value) in parse_query_pairs(query) {
+        match key.as_str() {
+            "script" | "orthography" => {
+                if let Some(parsed) = parse_gentufa_script_query_value(&value) {
+                    script = parsed;
+                }
+            }
+            _ => {}
+        }
+    }
+    state.view_mode = GentufaWebViewMode::Blocks;
+    GentufaWebExportRequest { state, script }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn svg_dimensions(svg: &str) -> Option<(usize, usize)> {
+    let document = roxmltree::Document::parse(svg).ok()?;
+    let root = document.root_element();
+    let width = root.attribute("width")?.parse::<f32>().ok()?;
+    let height = root.attribute("height")?.parse::<f32>().ok()?;
+    positive_ceil_dimensions(width, height)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn png_dimensions(bytes: &[u8]) -> Option<(usize, usize)> {
+    if bytes.len() < 24 || !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return None;
+    }
+    let width = u32::from_be_bytes(bytes[16..20].try_into().ok()?);
+    let height = u32::from_be_bytes(bytes[20..24].try_into().ok()?);
+    if width == 0 || height == 0 {
+        return None;
+    }
+    Some((width as usize, height as usize))
+}
+
+#[requires(width.is_finite() && height.is_finite())]
+#[ensures(ret.is_none_or(|(width, height)| width > 0 && height > 0))]
+fn positive_ceil_dimensions(width: f32, height: f32) -> Option<(usize, usize)> {
+    if width <= 0.0 || height <= 0.0 {
+        return None;
+    }
+    Some((width.ceil() as usize, height.ceil() as usize))
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn gentufa_script_query_value(script: GentufaScript) -> &'static str {
+    match script {
+        GentufaScript::Latin => "latin",
+        GentufaScript::Cyrillic => "cyrillic",
+        GentufaScript::Zbalermorna => "zbalermorna",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_gentufa_script_query_value(value: &str) -> Option<GentufaScript> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "latin" => Some(GentufaScript::Latin),
+        "cyrillic" => Some(GentufaScript::Cyrillic),
+        "zbalermorna" | "zbal" => Some(GentufaScript::Zbalermorna),
+        _ => None,
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn build_gentufa_page_meta(base_path: &str, state: &GentufaWebState) -> PageMeta {
     let state = normalize_gentufa_state(state);
@@ -2299,17 +2547,154 @@ fn build_gentufa_page_meta_from_result(
         GentufaWebResult::Blank => {
             "Parse Lojban text into blocks, table rows, or Lean semantics.".to_owned()
         }
-        GentufaWebResult::Success(success) => {
-            format!(
-                "Parse succeeded: {}",
-                truncate_preview(&success.brackets_text, 160)
-            )
-        }
-        GentufaWebResult::Error(error) => {
-            format!("Parse failed: {}", truncate_preview(&error.message, 160))
-        }
+        GentufaWebResult::Success(success) => truncate_preview(&success.brackets_text, 160),
+        GentufaWebResult::Error(error) => gentufa_error_metadata_description(error, &state.text),
     };
-    page_meta(title, description, gentufa_web_url(base_path, &state), None)
+    let image = match result {
+        GentufaWebResult::Success(success) => {
+            gentufa_social_image_from_success(base_path, &state, success)
+        }
+        GentufaWebResult::Blank | GentufaWebResult::Error(_) => None,
+    };
+    page_meta(
+        title,
+        description,
+        gentufa_web_url(base_path, &state),
+        image,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_social_image_from_success(
+    base_path: &str,
+    state: &GentufaWebState,
+    success: &GentufaSuccess,
+) -> Option<SocialImage> {
+    let export = render_gentufa_blocks_web_export(
+        &success.blocks_layout,
+        state.show_glosses,
+        GentufaScript::Latin,
+        GentufaExportFormat::Svg,
+    )
+    .ok()?;
+    let svg_width = export.width?;
+    let svg_height = export.height?;
+    let width = (svg_width as f32 * DEFAULT_GENTUFA_PNG_SCALE).ceil() as usize;
+    let height = (svg_height as f32 * DEFAULT_GENTUFA_PNG_SCALE).ceil() as usize;
+    Some(social_image(
+        gentufa_export_url(
+            base_path,
+            state,
+            GentufaExportFormat::Png,
+            GentufaScript::Latin,
+        ),
+        width,
+        height,
+    ))
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn gentufa_error_metadata_description(error: &GentufaError, source: &str) -> String {
+    let Some(diagnostic) = error_metadata_diagnostic(&error.diagnostics) else {
+        return error.message.clone();
+    };
+    let (line, column) = diagnostic_line_column(source, diagnostic);
+    let mut lines = vec![
+        format!(
+            "{} {} {line}:{column}:",
+            diagnostic_severity_metadata_text(diagnostic.severity),
+            diagnostic.code
+        ),
+        diagnostic.message.clone(),
+    ];
+    for label in diagnostic.labels.iter().filter(|label| !label.primary) {
+        lines.push(label.message.clone());
+    }
+    for note in &diagnostic.notes {
+        if !diagnostic_plain_note_is_hidden(note) {
+            lines.push(note.clone());
+        }
+    }
+    for note in &diagnostic.styled_notes {
+        if !diagnostic_styled_note_is_hidden(note) {
+            let note_text = diagnostic_text_segments_text(&note.segments);
+            if !note_text.trim().is_empty() {
+                lines.push(note_text);
+            }
+        }
+    }
+    lines.join("\n")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn error_metadata_diagnostic(diagnostics: &[Diagnostic]) -> Option<&Diagnostic> {
+    diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
+        .or_else(|| diagnostics.last())
+}
+
+#[requires(true)]
+#[ensures(ret.0 > 0 && ret.1 > 0)]
+fn diagnostic_line_column(source: &str, diagnostic: &Diagnostic) -> (usize, usize) {
+    let primary = diagnostic.primary_label();
+    char_offset_line_column(source, primary.span.char_start)
+}
+
+#[requires(true)]
+#[ensures(ret.0 > 0 && ret.1 > 0)]
+fn char_offset_line_column(source: &str, char_offset: usize) -> (usize, usize) {
+    let mut line = 1usize;
+    let mut column = 1usize;
+    for (index, ch) in source.chars().enumerate() {
+        if index == char_offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            column = 1;
+        } else {
+            column += 1;
+        }
+    }
+    (line, column)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn diagnostic_severity_metadata_text(severity: DiagnosticSeverity) -> &'static str {
+    match severity {
+        DiagnosticSeverity::Error => "error",
+        DiagnosticSeverity::Warning => "warning",
+        DiagnosticSeverity::Advice => "advice",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_plain_note_is_hidden(text: &str) -> bool {
+    text.trim_start().starts_with("expected one of:")
+}
+
+#[requires(true)]
+#[ensures(matches!(note.mode, DiagnosticNoteMode::Summary) && diagnostic_text_segments_text(&note.segments).trim_start().starts_with("expected one of:") -> ret)]
+fn diagnostic_styled_note_is_hidden(note: &jbotci_diagnostics::DiagnosticStyledNote) -> bool {
+    matches!(note.mode, DiagnosticNoteMode::Summary)
+        && diagnostic_text_segments_text(&note.segments)
+            .trim_start()
+            .starts_with("expected one of:")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_text_segments_text(segments: &[jbotci_diagnostics::DiagnosticTextSegment]) -> String {
+    segments.iter().fold(String::new(), |mut text, segment| {
+        text.push_str(&segment.text);
+        text
+    })
 }
 
 #[requires(true)]
@@ -2370,15 +2755,8 @@ fn build_cukta_page_meta(base_path: &str, state: &CuktaWebState) -> PageMeta {
                 );
             };
             let title = format!(
-                "The Complete Lojban Language - Chapter {}",
-                cll_section_chapter_title(site, &section.section_id).unwrap_or_else(|| {
-                    section
-                        .number
-                        .split_once('.')
-                        .map(|(chapter_number, _)| chapter_number.to_owned())
-                        .filter(|value| !value.is_empty())
-                        .unwrap_or_else(|| "Unknown chapter".to_owned())
-                })
+                "The Complete Lojban Language - {}",
+                cll_section_chapter_display_title(site, section)
             );
             page_meta(
                 title,
@@ -2396,17 +2774,15 @@ fn build_vlacku_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
     let state = normalize_vlacku_state(state);
     let query = state.query.trim();
     page_meta(
-        if state.mode == VlackuWebMode::Word && !query.is_empty() {
-            format!("{query} - jbotci vlacku")
-        } else if query.is_empty() {
-            "jbotci dictionary".to_owned()
+        if query.is_empty() {
+            "jbotci vlacku".to_owned()
         } else {
             format!("{query} - jbotci vlacku")
         },
-        if state.mode == VlackuWebMode::Word && !query.is_empty() {
-            format!("Dictionary lookup for “{query}”.")
-        } else if query.is_empty() {
+        if query.is_empty() {
             "Browse the embedded dictionary and Lensisku import metadata.".to_owned()
+        } else if let Some(description) = vlacku_exact_metadata_description(&state) {
+            description
         } else {
             match state.mode {
                 VlackuWebMode::Meaning => format!("Meaning search for “{query}”."),
@@ -2422,6 +2798,52 @@ fn build_vlacku_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
 
 #[requires(true)]
 #[ensures(true)]
+fn vlacku_exact_metadata_description(state: &VlackuWebState) -> Option<String> {
+    let query = state.query.trim();
+    if query.is_empty() {
+        return None;
+    }
+    let request = match state.mode {
+        VlackuWebMode::Word => VlackuRequest::Valsi(query.to_owned()),
+        VlackuWebMode::Rafsi => VlackuRequest::Rafsi(query.to_owned()),
+        VlackuWebMode::Meaning | VlackuWebMode::Sound => return None,
+    };
+    let output = run_vlacku_requests(
+        jbotci_dictionary_data::english(),
+        &[request],
+        &VlackuSearchOptions {
+            count: 1,
+            word_types: state.word_types.clone(),
+            min_votes: None,
+            min_similarity: None,
+            decompose_lujvo: true,
+        },
+    );
+    output
+        .cards
+        .first()
+        .and_then(vlacku_card_metadata_description)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_card_metadata_description(card: &VlackuCard) -> Option<String> {
+    let definition = card
+        .definition
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())?;
+    let formatted =
+        format_definition_or_notes_line_with_indexed_places(definition, GlyphStyle::Unicode);
+    let visible = inline_plain_text(&parse_vlacku_inline_text(
+        jbotci_dictionary_data::english(),
+        &formatted,
+    ));
+    Some(truncate_preview(visible.trim(), 300)).filter(|description| !description.is_empty())
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn cukta_section_social_image(
     base_path: &str,
     site: &jbotci_cll::CllSite,
@@ -2431,7 +2853,38 @@ fn cukta_section_social_image(
         .chapters
         .iter()
         .find(|chapter| chapter.chapter_id == section.chapter_id)?;
+    if !chapter
+        .root_section_ids
+        .first()
+        .is_some_and(|first_section_id| first_section_id == &section.section_id)
+    {
+        return None;
+    }
     first_social_image_from_blocks(base_path, &chapter.prelude_blocks)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn cll_section_chapter_display_title(
+    site: &jbotci_cll::CllSite,
+    section: &jbotci_cll::CllSection,
+) -> String {
+    let chapter_number = section_chapter_number(section).unwrap_or_else(|| "Unknown".to_owned());
+    match cll_section_chapter_title(site, &section.section_id) {
+        Some(chapter_title) => format!("Chapter {chapter_number}. {chapter_title}"),
+        None => format!("Chapter {chapter_number}"),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|number| !number.is_empty()))]
+fn section_chapter_number(section: &jbotci_cll::CllSection) -> Option<String> {
+    section
+        .number
+        .split_once('.')
+        .map(|(chapter_number, _)| chapter_number.to_owned())
+        .or_else(|| (!section.number.is_empty()).then(|| section.number.clone()))
+        .filter(|value| !value.is_empty())
 }
 
 #[requires(true)]
@@ -5883,14 +6336,53 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn gentufa_export_route_round_trips_export_url_state() {
+        let request = parse_gentufa_web_export_request(
+            "?text=mi+klama&dialect=%28cbm%29&view=tree&glosses=true&elided=true&script=cyrillic",
+        );
+        assert_eq!(request.state.text, "mi klama");
+        assert_eq!(request.state.dialect.as_deref(), Some("(cbm)"));
+        assert_eq!(request.state.view_mode, GentufaWebViewMode::Blocks);
+        assert!(request.state.show_glosses);
+        assert!(request.state.show_elided);
+        assert_eq!(request.script, GentufaScript::Cyrillic);
+        assert_eq!(
+            gentufa_export_url(
+                "/jbotci",
+                &request.state,
+                GentufaExportFormat::Svg,
+                request.script
+            ),
+            "/jbotci/gentufa.svg?text=mi+klama&dialect=%28cbm%29&glosses=true&elided=true&script=cyrillic"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn web_route_and_metadata_follow_v0_page_details() {
         let route = parse_web_route("/vlacku/klama", "");
         assert_eq!(web_route_url("/jbotci", &route), "/jbotci/vlacku/klama");
         let meta = build_page_meta("/jbotci", &route);
         assert_eq!(meta.title, "klama - jbotci vlacku");
-        assert_eq!(meta.description, "Dictionary lookup for “klama”.");
+        assert!(
+            meta.description.contains("comes/goes"),
+            "{}",
+            meta.description
+        );
         assert_eq!(meta.canonical_url, "/jbotci/vlacku/klama");
         assert!(meta.image.is_none());
+
+        let blank_vlacku = build_page_meta("", &parse_web_route("/vlacku", ""));
+        assert_eq!(blank_vlacku.title, "jbotci vlacku");
+
+        let rafsi = build_page_meta("", &parse_web_route("/vlacku", "mode=rafsi&q=kla"));
+        assert_eq!(rafsi.title, "kla - jbotci vlacku");
+        assert!(
+            rafsi.description.contains("comes/goes"),
+            "{}",
+            rafsi.description
+        );
 
         let gentufa = build_page_meta(
             "",
@@ -5903,8 +6395,46 @@ mod tests {
             }),
         );
         assert_eq!(gentufa.title, "mi klama - jbotci gentufa");
-        assert!(gentufa.description.starts_with("Parse succeeded:"));
-        assert!(gentufa.image.is_none());
+        assert!(!gentufa.description.starts_with("Parse succeeded:"));
+        assert!(!gentufa.description.trim().is_empty());
+        let image = gentufa.image.as_ref().expect("gentufa social image");
+        assert_eq!(image.href, "/gentufa.png?text=mi+klama");
+        assert!(image.width > 0);
+        assert!(image.height > 0);
+
+        let failure = build_page_meta(
+            "",
+            &WebRoute::Gentufa(GentufaWebState {
+                text: "perhaps".to_owned(),
+                dialect: None,
+                view_mode: GentufaWebViewMode::Blocks,
+                show_elided: false,
+                show_glosses: false,
+            }),
+        );
+        assert!(
+            failure
+                .description
+                .starts_with("error morphology.invalid-apostrophe")
+        );
+        assert!(failure.description.contains("\nwhile parsing "));
+        assert!(failure.description.contains("\nreason:"));
+        assert!(failure.image.is_none());
+
+        let first_cukta = build_page_meta("", &parse_web_route("/cukta/section/1.1", ""));
+        assert!(
+            first_cukta.title.contains("Chapter 1."),
+            "{}",
+            first_cukta.title
+        );
+        assert!(first_cukta.image.is_some());
+        let later_cukta = build_page_meta("", &parse_web_route("/cukta/section/1.2", ""));
+        assert!(
+            later_cukta.title.contains("Chapter 1."),
+            "{}",
+            later_cukta.title
+        );
+        assert!(later_cukta.image.is_none());
     }
 
     #[test]

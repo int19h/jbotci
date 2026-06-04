@@ -19,9 +19,10 @@ use axum::{Json, Router};
 use bityzba::{ensures, invariant, requires};
 use dioxus::server::{DioxusRouterExt, FullstackState};
 use jbotci_web_core::{
-    FAVICON_ASSET_PATH, GentufaError, GentufaWebRequest, GentufaWebResult, MANIFEST_ASSET_PATH,
-    META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability, WebRoute, build_page_meta,
-    parse_gentufa_for_web, parse_web_route, render_page_head_metadata_block,
+    FAVICON_ASSET_PATH, GentufaError, GentufaExportFormat, GentufaWebRequest, GentufaWebResult,
+    MANIFEST_ASSET_PATH, META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability,
+    WebRoute, build_page_meta, parse_gentufa_for_web, parse_gentufa_web_export_request,
+    parse_web_route, render_gentufa_state_web_export, render_page_head_metadata_block,
 };
 use serde::Serialize;
 
@@ -250,6 +251,9 @@ async fn static_or_spa(
         let location = gentufa_location(&state.base_path);
         return redirect_response(&location);
     }
+    if let Some(format) = gentufa_export_format_for_request_path(request_path, &state.base_path) {
+        return gentufa_export_response(format, uri.query().unwrap_or_default().to_owned()).await;
+    }
     let Some(asset_path) = asset_path_for_request(request_path, &state.base_path) else {
         return plain_response(StatusCode::NOT_FOUND, "not found");
     };
@@ -293,6 +297,32 @@ async fn spa_index_response(
     ))
 }
 
+#[requires(true)]
+#[ensures(true)]
+async fn gentufa_export_response(format: GentufaExportFormat, query: String) -> Response<Body> {
+    let request = parse_gentufa_web_export_request(&query);
+    let task = tokio::task::spawn_blocking(move || {
+        render_gentufa_state_web_export(&request.state, request.script, format)
+    })
+    .await;
+    let export = match task {
+        Ok(Ok(export)) => export,
+        Ok(Err(error)) => return plain_response(StatusCode::BAD_REQUEST, &error.to_string()),
+        Err(error) => {
+            return plain_response(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                &format!("gentufa export task failed: {error}"),
+            );
+        }
+    };
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(CONTENT_TYPE, export.content_type)
+        .header(CACHE_CONTROL, "no-cache")
+        .body(Body::from(export.bytes))
+        .expect("gentufa export response builder is valid")
+}
+
 #[requires(base_path.starts_with('/'))]
 #[ensures(true)]
 async fn build_page_meta_blocking(base_path: String, route: WebRoute) -> Option<PageMeta> {
@@ -323,6 +353,20 @@ fn asset_path_for_request(path: &str, base_path: &str) -> Option<String> {
         return Some("/index.html".to_owned());
     }
     Some(stripped)
+}
+
+#[requires(path.starts_with('/'))]
+#[requires(base_path.starts_with('/'))]
+#[ensures(true)]
+fn gentufa_export_format_for_request_path(
+    path: &str,
+    base_path: &str,
+) -> Option<GentufaExportFormat> {
+    match strip_base_path(path, base_path).as_deref() {
+        Some("/gentufa.png") => Some(GentufaExportFormat::Png),
+        Some("/gentufa.svg") => Some(GentufaExportFormat::Svg),
+        _ => None,
+    }
 }
 
 #[requires(path.starts_with('/'))]
@@ -1103,7 +1147,73 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    async fn spa_gentufa_metadata_is_rendered_without_social_image() {
+    async fn gentufa_export_routes_render_png_and_svg() {
+        let app = router(test_config(test_static_dir()));
+        let png = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa.png?text=mi+klama")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("PNG response");
+        assert_eq!(png.status(), StatusCode::OK);
+        assert_eq!(
+            png.headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("image/png")
+        );
+        let png_bytes = response_bytes(png).await;
+        assert!(png_bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
+
+        let svg = app
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa.svg?text=mi+klama&script=cyrillic")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("SVG response");
+        assert_eq!(svg.status(), StatusCode::OK);
+        assert_eq!(
+            svg.headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("image/svg+xml; charset=utf-8")
+        );
+        let svg_body = response_text(svg).await;
+        assert!(svg_body.contains("<svg"));
+        assert!(svg_body.contains("ми"));
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn gentufa_export_route_returns_bad_request_for_parse_error() {
+        let app = router(test_config(test_static_dir()));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa.png?text=perhaps")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = response_text(response).await;
+        assert!(body.contains("morphology.invalid-apostrophe"));
+        assert!(body.contains("\nreason:"));
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn spa_gentufa_metadata_is_rendered_with_png_social_image() {
         let app = router(test_config(test_static_dir()));
         let response = app
             .oneshot(
@@ -1125,13 +1235,18 @@ mod tests {
         assert!(body.contains(
             "<link rel=\"apple-touch-icon\" href=\"/jbotci/assets/icons/apple-touch-icon.png\">"
         ));
-        assert!(body.contains("Parse succeeded:"));
+        assert!(!body.contains("Parse succeeded:"));
         assert!(body.contains(
             "property=\"og:url\" content=\"https://example.test/jbotci/gentufa?text=mi+klama\""
         ));
-        assert!(body.contains("name=\"twitter:card\" content=\"summary\""));
-        assert!(!body.contains("property=\"og:image\""));
-        assert!(!body.contains("name=\"twitter:image\""));
+        assert!(body.contains("name=\"twitter:card\" content=\"summary_large_image\""));
+        assert!(body.contains(
+            "property=\"og:image\" content=\"https://example.test/jbotci/gentufa.png?text=mi+klama\""
+        ));
+        assert!(body.contains(
+            "name=\"twitter:image\" content=\"https://example.test/jbotci/gentufa.png?text=mi+klama\""
+        ));
+        assert!(!body.contains("gentufa.svg"));
     }
 
     #[tokio::test]
@@ -1174,7 +1289,7 @@ mod tests {
             .expect("response");
         let vlacku_body = response_text(vlacku).await;
         assert!(vlacku_body.contains("<title>klama - jbotci vlacku</title>"));
-        assert!(vlacku_body.contains("Dictionary lookup for “klama”."));
+        assert!(vlacku_body.contains("comes/goes"));
         assert!(
             vlacku_body.contains(
                 "property=\"og:url\" content=\"http://example.test/jbotci/vlacku/klama\""
