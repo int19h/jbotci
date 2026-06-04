@@ -83,12 +83,13 @@ export function jbotciEmbeddingConfigureRemoteBase(remoteBaseUrl) {
 function request(type, payload = {}) {
   return new Promise((resolve, reject) => {
     const id = nextRequestId++;
+    const remoteBaseUrl = payload.remoteBaseUrl || configuredRemoteBaseUrl;
     pending.set(id, { resolve, reject });
     try {
       ensureWorker().postMessage({
         id,
         type,
-        payload: { ...payload, remoteBaseUrl: configuredRemoteBaseUrl },
+        payload: { ...payload, remoteBaseUrl },
       });
     } catch (error) {
       pending.delete(id);
@@ -101,8 +102,8 @@ export function jbotciEmbeddingStatus() {
   return request("status");
 }
 
-export function jbotciEmbeddingSetup(corpusJson) {
-  return request("setup", { corpusJson });
+export function jbotciEmbeddingSetup(corpusJson, remoteBaseUrl = configuredRemoteBaseUrl) {
+  return request("setup", { corpusJson, remoteBaseUrl });
 }
 
 export function jbotciEmbeddingRemove() {

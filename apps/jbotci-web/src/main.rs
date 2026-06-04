@@ -2597,7 +2597,7 @@ extern "C" {
     fn js_embedding_status() -> js_sys::Promise;
 
     #[wasm_bindgen(js_name = jbotciEmbeddingSetup)]
-    fn js_embedding_setup(corpus_json: &str) -> js_sys::Promise;
+    fn js_embedding_setup(corpus_json: &str, remote_base_url: &str) -> js_sys::Promise;
 
     #[wasm_bindgen(js_name = jbotciEmbeddingRemove)]
     fn js_embedding_remove() -> js_sys::Promise;
@@ -3142,7 +3142,7 @@ async fn embedding_status_is_loading_model() -> bool {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
 async fn embedding_setup_json(corpus_json: &str) -> Result<String, String> {
-    promise_to_string(js_embedding_setup(corpus_json)).await
+    promise_to_string(js_embedding_setup(corpus_json, web_embeddings_base_url())).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
