@@ -4,6 +4,7 @@ const LOG_PREFIX = "[jbotci embeddings]";
 let configuredWorkerUrl = null;
 let configuredRemoteBaseUrl = DEFAULT_REMOTE_BASE_URL;
 let worker = null;
+let forceWasm = false;
 let nextRequestId = 1;
 const pending = new Map();
 
@@ -30,6 +31,24 @@ function rejectPending(error) {
   pending.clear();
 }
 
+function terminateWorker(error) {
+  if (worker !== null) {
+    worker.terminate();
+    worker = null;
+  }
+  rejectPending(error);
+}
+
+function retryWithWasmError(message) {
+  const error = new Error(message);
+  error.retryWithWasm = true;
+  return error;
+}
+
+function shouldRetryWithWasm(error) {
+  return typeof error === "object" && error !== null && error.retryWithWasm === true;
+}
+
 function ensureWorker() {
   if (worker !== null) {
     return worker;
@@ -52,11 +71,12 @@ function ensureWorker() {
     if (message.ok) {
       request.resolve(JSON.stringify(message.value));
     } else {
+      const error = message.error || "embedding worker request failed";
       logWarn("worker request failed", {
         id: message.id,
-        error: message.error || "embedding worker request failed",
+        error,
       });
-      request.reject(message.error || "embedding worker request failed");
+      request.reject(message.retryWithWasm ? retryWithWasmError(error) : error);
     }
   };
   worker.onerror = (event) => {
@@ -87,9 +107,7 @@ export function jbotciEmbeddingConfigureWorker(workerUrl) {
   configuredWorkerUrl = nextWorkerUrl;
   logInfo("configured worker URL", { workerUrl: configuredWorkerUrl.href });
   if (worker !== null) {
-    worker.terminate();
-    worker = null;
-    rejectPending("embedding worker URL changed");
+    terminateWorker("embedding worker URL changed");
   }
 }
 
@@ -103,14 +121,16 @@ export function jbotciEmbeddingConfigureRemoteBase(remoteBaseUrl) {
   logInfo("configured remote base URL", { remoteBaseUrl: configuredRemoteBaseUrl });
 }
 
-function request(type, payload = {}) {
+function sendRequest(type, payload = {}) {
   return new Promise((resolve, reject) => {
     const id = nextRequestId++;
     const remoteBaseUrl = payload.remoteBaseUrl || configuredRemoteBaseUrl;
+    const requestForceWasm = payload.forceWasm === true || forceWasm;
     if (type === "setup") {
       logInfo("sending setup request", {
         id,
         remoteBaseUrl,
+        forceWasm: requestForceWasm,
         corpusJsonBytes: typeof payload.corpusJson === "string" ? payload.corpusJson.length : 0,
       });
     }
@@ -119,13 +139,29 @@ function request(type, payload = {}) {
       ensureWorker().postMessage({
         id,
         type,
-        payload: { ...payload, remoteBaseUrl },
+        payload: { ...payload, remoteBaseUrl, forceWasm: requestForceWasm },
       });
     } catch (error) {
       pending.delete(id);
       reject(error instanceof Error ? error.message : String(error));
     }
   });
+}
+
+async function request(type, payload = {}, allowWasmRetry = true) {
+  try {
+    return await sendRequest(type, payload);
+  } catch (error) {
+    if (!allowWasmRetry || !shouldRetryWithWasm(error)) {
+      throw error;
+    }
+    forceWasm = true;
+    logWarn("restarting embedding worker for CPU/WASM fallback", {
+      reason: error.message,
+    });
+    terminateWorker("embedding worker restarting for CPU/WASM fallback");
+    return request(type, payload, false);
+  }
 }
 
 export function jbotciEmbeddingStatus() {

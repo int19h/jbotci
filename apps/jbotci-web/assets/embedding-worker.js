@@ -39,6 +39,14 @@ let dbPromise = null;
 let setupInProgress = false;
 const vectorCache = new Map();
 
+class RetryWithWasmError extends Error {
+  constructor(webGpuErrorMessage) {
+    super(`WebGPU Q4 failed; retrying in a fresh worker with CPU/WASM Q8. ${webGpuErrorMessage}`);
+    this.name = "RetryWithWasmError";
+    this.retryWithWasm = true;
+  }
+}
+
 function logInfo(message, detail = null) {
   if (detail === null) {
     console.info(`${LOG_PREFIX} ${message}`);
@@ -65,6 +73,7 @@ function logError(message, detail = null) {
 
 self.onmessage = async (event) => {
   const { id, type, payload } = event.data || {};
+  const forceWasm = payload?.forceWasm === true;
   try {
     let value;
     if (type === "status") {
@@ -73,6 +82,7 @@ self.onmessage = async (event) => {
       value = await setup(
         payload?.corpusJson || "{}",
         normalizeRemoteBaseUrl(payload?.remoteBaseUrl),
+        forceWasm,
       );
     } else if (type === "remove") {
       value = await removeAll();
@@ -82,20 +92,25 @@ self.onmessage = async (event) => {
         payload?.query,
         payload?.limit || 0,
         payload?.kindFiltersJson || "[]",
+        forceWasm,
       );
     } else {
       throw new Error(`unknown embedding worker request: ${type}`);
     }
     self.postMessage({ id, ok: true, value });
   } catch (error) {
-    logError("request failed", {
+    const retryWithWasm = isRetryWithWasmError(error);
+    const logFailure = retryWithWasm ? logWarn : logError;
+    logFailure("request failed", {
       type,
       error: errorMessage(error),
+      retryWithWasm,
     });
     self.postMessage({
       id,
       ok: false,
       error: error instanceof Error ? error.message : String(error),
+      retryWithWasm,
     });
   }
 };
@@ -145,7 +160,7 @@ function packSummary(pack) {
   };
 }
 
-async function setup(corpusJson, remoteBaseUrl) {
+async function setup(corpusJson, remoteBaseUrl, forceWasm) {
   if (setupInProgress) {
     logInfo("setup request ignored because setup is already active");
     return status();
@@ -158,11 +173,11 @@ async function setup(corpusJson, remoteBaseUrl) {
       corpus: corpusSummary(corpus),
     });
     await requestPersistentStorage();
-    await checkQuota();
+    await checkQuota(forceWasm);
     await updateStatus("loading-model", "Downloading or opening EmbeddingGemma.");
-    await ensureModel();
+    await ensureModel(forceWasm);
     logInfo("query model ready", { runtime: activeQueryRuntime() });
-    await checkQuota();
+    await checkQuota(forceWasm);
     await updateStatus("checking", "Looking for a vector pack.");
     const remoteAttempt = await loadRemotePackIfAvailable(corpus, remoteBaseUrl);
     if (!remoteAttempt.loaded) {
@@ -181,6 +196,9 @@ async function setup(corpusJson, remoteBaseUrl) {
       : "Using a browser-built vector pack with local query embeddings.");
     return status();
   } catch (error) {
+    if (isRetryWithWasmError(error)) {
+      throw error;
+    }
     await updateStatus("error", `Embedding setup failed: ${errorMessage(error)}`);
     throw error;
   } finally {
@@ -256,7 +274,7 @@ async function removeAll() {
   return status();
 }
 
-async function search(corpusId, query, limit, kindFiltersJson) {
+async function search(corpusId, query, limit, kindFiltersJson, forceWasm) {
   const trimmedQuery = String(query || "").trim();
   if (!trimmedQuery) {
     return { hits: [], message: null };
@@ -291,7 +309,7 @@ async function search(corpusId, query, limit, kindFiltersJson) {
       message: "The cached embedding pack was built for a different browser embedding runtime. Open Settings and update embeddings.",
     };
   }
-  await ensureModel();
+  await ensureModel(forceWasm);
   const runtime = activeQueryRuntime();
   if (!packCompatibleWithRuntime(pack, runtime)) {
     return {
@@ -305,19 +323,19 @@ async function search(corpusId, query, limit, kindFiltersJson) {
   return { hits, message: hits.length === 0 ? "No matches found." : null };
 }
 
-async function ensureModel() {
+async function ensureModel(forceWasm = false) {
   if (tokenizerPromise === null) {
     tokenizerPromise = AutoTokenizer.from_pretrained(MODEL_ID);
   }
   if (modelPromise === null) {
-    modelPromise = loadModelWithFallback();
+    modelPromise = loadModelWithFallback(forceWasm);
   }
   const [tokenizer, model] = await Promise.all([tokenizerPromise, modelPromise]);
   return { tokenizer, model };
 }
 
-async function loadModelWithFallback() {
-  if (await hasUsableWebGpu()) {
+async function loadModelWithFallback(forceWasm = false) {
+  if (!forceWasm && await hasUsableWebGpu()) {
     try {
       await updateStatus("loading-model", "Opening EmbeddingGemma Q4 with WebGPU.");
       const model = await AutoModel.from_pretrained(MODEL_ID, {
@@ -329,14 +347,18 @@ async function loadModelWithFallback() {
       await putMeta("modelRuntime", modelRuntime);
       return model;
     } catch (error) {
+      const webGpuErrorMessage = errorMessage(error);
       await updateStatus(
         "loading-model",
-        `WebGPU Q4 failed; falling back to CPU/WASM Q8. ${errorMessage(error)}`,
+        `WebGPU Q4 failed; restarting embedding worker for CPU/WASM Q8. ${webGpuErrorMessage}`,
       );
+      throw new RetryWithWasmError(webGpuErrorMessage);
     }
   }
+  await updateStatus("loading-model", "Opening EmbeddingGemma Q8 with CPU/WASM.");
   const model = await AutoModel.from_pretrained(MODEL_ID, {
     dtype: FALLBACK_MODEL_DTYPE,
+    device: "wasm",
     progress_callback: modelProgressCallback(FALLBACK_MODEL_DTYPE, "wasm"),
   });
   modelRuntime = { dtype: FALLBACK_MODEL_DTYPE, device: "wasm" };
@@ -387,6 +409,10 @@ function modelProgressCallback(dtype, device) {
 
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isRetryWithWasmError(error) {
+  return typeof error === "object" && error !== null && error.retryWithWasm === true;
 }
 
 function normalizeCorpus(raw) {
@@ -1310,14 +1336,16 @@ async function requestPersistentStorage() {
   }
 }
 
-async function checkQuota() {
+async function checkQuota(forceWasm = false) {
   if (!navigator.storage?.estimate) {
     return;
   }
   const estimate = await navigator.storage.estimate();
   const usage = estimate.usage || 0;
   const quota = estimate.quota || 0;
-  const minimum = modelRuntime?.dtype === PREFERRED_MODEL_DTYPE || (!modelRuntime && await hasUsableWebGpu())
+  const expectsPreferredModel = modelRuntime?.dtype === PREFERRED_MODEL_DTYPE
+    || (!modelRuntime && !forceWasm && await hasUsableWebGpu());
+  const minimum = expectsPreferredModel
     ? Q4_MIN_FREE_BYTES
     : Q8_MIN_FREE_BYTES;
   if (quota > 0 && quota - usage < minimum) {
