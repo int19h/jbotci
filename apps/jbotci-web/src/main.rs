@@ -422,6 +422,13 @@ impl PendingLocalRouteWrites {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
+struct RouteLocationSyncAction {
+    app_route: AppRoute,
+    hydrate_route_bound_state: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
 struct UserSettings {
     theme: ThemeMode,
     script: GentufaScript,
@@ -13111,10 +13118,11 @@ fn apply_web_route_to_client_state(
     mut gentufa_text_explicit: Signal<bool>,
 ) {
     let web_route = &location.web_route;
-    if is_local_route_write {
+    let action = route_location_sync_action(location, is_local_route_write);
+    route.set(action.app_route);
+    if !action.hydrate_route_bound_state {
         return;
     }
-    route.set(location.app_route());
     clear_route_bound_input_timers();
     match web_route {
         WebRoute::Gentufa(state) => {
@@ -13148,6 +13156,19 @@ fn apply_web_route_to_client_state(
             vlacku_committed_state.set(state.clone());
         }
         WebRoute::Settings => {}
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.app_route == location.app_route())]
+#[ensures(ret.hydrate_route_bound_state == !is_local_route_write)]
+fn route_location_sync_action(
+    location: &JbotciRoute,
+    is_local_route_write: bool,
+) -> RouteLocationSyncAction {
+    RouteLocationSyncAction {
+        app_route: location.app_route(),
+        hydrate_route_bound_state: !is_local_route_write,
     }
 }
 
@@ -15266,6 +15287,30 @@ mod tests {
 
         assert!(pending.consume(&route));
         assert!(!pending.consume(&route));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn local_route_writes_still_update_active_page_selection() {
+        let route = parse_test_route("", "/gentufa?text=coi");
+
+        let action = route_location_sync_action(&route, true);
+
+        assert_eq!(action.app_route, AppRoute::Gentufa);
+        assert!(!action.hydrate_route_bound_state);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn browser_route_changes_update_page_selection_and_hydrate_state() {
+        let route = parse_test_route("", "/vlacku?mode=smuni&q=nonsense");
+
+        let action = route_location_sync_action(&route, false);
+
+        assert_eq!(action.app_route, AppRoute::Vlacku);
+        assert!(action.hydrate_route_bound_state);
     }
 
     #[test]
