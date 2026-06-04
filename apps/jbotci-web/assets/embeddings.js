@@ -1,10 +1,27 @@
 const DEFAULT_REMOTE_BASE_URL = "/assets/embeddings/web/v1";
+const LOG_PREFIX = "[jbotci embeddings]";
 
 let configuredWorkerUrl = null;
 let configuredRemoteBaseUrl = DEFAULT_REMOTE_BASE_URL;
 let worker = null;
 let nextRequestId = 1;
 const pending = new Map();
+
+function logInfo(message, detail = null) {
+  if (detail === null) {
+    console.info(`${LOG_PREFIX} ${message}`);
+  } else {
+    console.info(`${LOG_PREFIX} ${message}`, detail);
+  }
+}
+
+function logWarn(message, detail = null) {
+  if (detail === null) {
+    console.warn(`${LOG_PREFIX} ${message}`);
+  } else {
+    console.warn(`${LOG_PREFIX} ${message}`, detail);
+  }
+}
 
 function rejectPending(error) {
   for (const request of pending.values()) {
@@ -35,6 +52,10 @@ function ensureWorker() {
     if (message.ok) {
       request.resolve(JSON.stringify(message.value));
     } else {
+      logWarn("worker request failed", {
+        id: message.id,
+        error: message.error || "embedding worker request failed",
+      });
       request.reject(message.error || "embedding worker request failed");
     }
   };
@@ -64,6 +85,7 @@ export function jbotciEmbeddingConfigureWorker(workerUrl) {
     return;
   }
   configuredWorkerUrl = nextWorkerUrl;
+  logInfo("configured worker URL", { workerUrl: configuredWorkerUrl.href });
   if (worker !== null) {
     worker.terminate();
     worker = null;
@@ -78,12 +100,20 @@ export function jbotciEmbeddingConfigureRemoteBase(remoteBaseUrl) {
   const trimmed = remoteBaseUrl.trim();
   const normalized = trimmed.length > 1 ? trimmed.replace(/\/+$/, "") : trimmed;
   configuredRemoteBaseUrl = normalized || DEFAULT_REMOTE_BASE_URL;
+  logInfo("configured remote base URL", { remoteBaseUrl: configuredRemoteBaseUrl });
 }
 
 function request(type, payload = {}) {
   return new Promise((resolve, reject) => {
     const id = nextRequestId++;
     const remoteBaseUrl = payload.remoteBaseUrl || configuredRemoteBaseUrl;
+    if (type === "setup") {
+      logInfo("sending setup request", {
+        id,
+        remoteBaseUrl,
+        corpusJsonBytes: typeof payload.corpusJson === "string" ? payload.corpusJson.length : 0,
+      });
+    }
     pending.set(id, { resolve, reject });
     try {
       ensureWorker().postMessage({

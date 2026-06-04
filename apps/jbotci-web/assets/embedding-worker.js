@@ -15,6 +15,7 @@ const META_STORE = "meta";
 const BLOB_STORE = "blobs";
 const TRANSFORMERS_VERSION = "4.2.0";
 const DEFAULT_REMOTE_BASE_URL = "/assets/embeddings/web/v1";
+const LOG_PREFIX = "[jbotci embeddings worker]";
 const LOCAL_VECTOR_SPACE_PREFIX = "browser-local";
 const Q4_MIN_FREE_BYTES = 300 * 1024 * 1024;
 const Q8_MIN_FREE_BYTES = 500 * 1024 * 1024;
@@ -37,6 +38,30 @@ let modelRuntime = null;
 let dbPromise = null;
 let setupInProgress = false;
 const vectorCache = new Map();
+
+function logInfo(message, detail = null) {
+  if (detail === null) {
+    console.info(`${LOG_PREFIX} ${message}`);
+  } else {
+    console.info(`${LOG_PREFIX} ${message}`, detail);
+  }
+}
+
+function logWarn(message, detail = null) {
+  if (detail === null) {
+    console.warn(`${LOG_PREFIX} ${message}`);
+  } else {
+    console.warn(`${LOG_PREFIX} ${message}`, detail);
+  }
+}
+
+function logError(message, detail = null) {
+  if (detail === null) {
+    console.error(`${LOG_PREFIX} ${message}`);
+  } else {
+    console.error(`${LOG_PREFIX} ${message}`, detail);
+  }
+}
 
 self.onmessage = async (event) => {
   const { id, type, payload } = event.data || {};
@@ -63,6 +88,10 @@ self.onmessage = async (event) => {
     }
     self.postMessage({ id, ok: true, value });
   } catch (error) {
+    logError("request failed", {
+      type,
+      error: errorMessage(error),
+    });
     self.postMessage({
       id,
       ok: false,
@@ -83,24 +112,70 @@ function remotePackUrl(remoteBaseUrl, path) {
   return `${remoteBaseUrl}/${path.replace(/^\/+/, "")}`;
 }
 
+function corpusSummary(corpus) {
+  return {
+    modelKey: corpus?.modelKey || null,
+    inputFormatVersion: corpus?.inputFormatVersion || null,
+    inputHash: shortHash(corpus?.inputHash),
+    dictionaryHash: shortHash(corpus?.dictionaryHash),
+    cllHash: shortHash(corpus?.cllHash),
+    dictionaryRows: Array.isArray(corpus?.dictionary) ? corpus.dictionary.length : null,
+    cllRows: Array.isArray(corpus?.cll) ? corpus.cll.length : null,
+  };
+}
+
+function packSummary(pack) {
+  if (!pack) {
+    return null;
+  }
+  return {
+    source: pack.source || null,
+    packId: pack.packId || null,
+    modelKey: pack.modelKey || null,
+    inputHash: shortHash(pack.inputHash),
+    vectorSpaceKey: pack.vectorSpaceKey || null,
+    corpora: Object.fromEntries(Object.entries(pack.corpora || {}).map(([id, corpus]) => [
+      id,
+      {
+        inputHash: shortHash(corpus?.inputHash),
+        rowCount: corpus?.rowCount || null,
+        dimensions: corpus?.dimensions || null,
+      },
+    ])),
+  };
+}
+
 async function setup(corpusJson, remoteBaseUrl) {
   if (setupInProgress) {
+    logInfo("setup request ignored because setup is already active");
     return status();
   }
   setupInProgress = true;
   try {
     const corpus = normalizeCorpus(JSON.parse(corpusJson));
+    logInfo("setup started", {
+      remoteBaseUrl,
+      corpus: corpusSummary(corpus),
+    });
     await requestPersistentStorage();
     await checkQuota();
     await updateStatus("loading-model", "Downloading or opening EmbeddingGemma.");
     await ensureModel();
+    logInfo("query model ready", { runtime: activeQueryRuntime() });
     await checkQuota();
     await updateStatus("checking", "Looking for a vector pack.");
-    const remoteLoaded = await loadRemotePackIfAvailable(corpus, remoteBaseUrl);
-    if (!remoteLoaded) {
+    const remoteAttempt = await loadRemotePackIfAvailable(corpus, remoteBaseUrl);
+    if (!remoteAttempt.loaded) {
+      logWarn("remote vector pack unavailable; falling back to browser-local indexing", {
+        reason: remoteAttempt.reason,
+        detail: remoteAttempt.detail || null,
+      });
       await buildLocalPack(corpus);
     }
     const pack = await getMeta("pack");
+    logInfo("setup finished", {
+      pack: packSummary(pack),
+    });
     await updateStatus("ready", pack?.source === "remote"
       ? "Using cached vector pack with local query embeddings."
       : "Using a browser-built vector pack with local query embeddings.");
@@ -432,8 +507,18 @@ async function buildLocalPack(corpus) {
   const packId = `${vectorSpaceKey}-${shortHash(corpus.inputHash)}`;
   const existing = await getMeta("pack");
   if (cachedPackMatchesCorpus(existing, corpus, runtime, vectorSpaceKey)) {
+    logInfo("existing browser-local vector pack is already current", {
+      pack: packSummary(existing),
+    });
     return;
   }
+  logInfo("building browser-local vector pack", {
+    packId,
+    runtime,
+    vectorSpaceKey,
+    corpus: corpusSummary(corpus),
+    reusablePack: packSummary(packCompatibleWithRuntime(existing, runtime) ? existing : null),
+  });
   vectorCache.clear();
   const reusablePack = packCompatibleWithRuntime(existing, runtime) ? existing : null;
   const corpora = {};
@@ -462,6 +547,11 @@ async function buildLocalPack(corpus) {
     compatibleQueryRuntimes: [runtime],
     corpora,
   });
+  logInfo("browser-local vector pack ready", {
+    packId,
+    vectorSpaceKey,
+    corpusIds: Object.keys(corpora),
+  });
   vectorCache.clear();
 }
 
@@ -472,6 +562,12 @@ async function buildLocalCorpus(corpusId, docs, inputHash, packId, reusableCorpu
     progressValue("index", corpusId, 0, docs.length),
   );
   const reusableRows = await reusableRowsByInputHash(reusableCorpus);
+  logInfo("building browser-local corpus", {
+    corpusId,
+    rows: docs.length,
+    inputHash: shortHash(inputHash),
+    reusableRows: reusableRows.size,
+  });
   const vectors = new Float32Array(docs.length * DIMENSIONS);
   const pendingDocs = [];
   const pendingRows = [];
@@ -547,18 +643,42 @@ async function reusableRowsByInputHash(corpus) {
 
 async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
   const runtime = activeQueryRuntime();
-  const catalog = await fetchJsonIfAvailable(remotePackUrl(remoteBaseUrl, "catalog.json"));
+  logInfo("looking for remote vector pack", {
+    remoteBaseUrl,
+    runtime,
+    corpus: corpusSummary(corpus),
+  });
+  const catalogUrl = remotePackUrl(remoteBaseUrl, "catalog.json");
+  const catalog = await fetchJsonIfAvailable(catalogUrl, "remote catalog");
   if (catalog === null) {
-    return false;
+    return remoteMiss("catalog-unavailable", { catalogUrl });
   }
+  logInfo("remote catalog loaded", {
+    catalogUrl,
+    catalog: catalogSummary(catalog),
+  });
   const vectorSpace = selectCatalogVectorSpace(catalog, runtime);
   if (!vectorSpace?.manifest_url) {
-    return false;
+    return remoteMiss("no-compatible-vector-space", {
+      runtime,
+      catalog: catalogSummary(catalog),
+    });
   }
+  logInfo("selected remote vector space", {
+    vectorSpace: vectorSpaceSummary(vectorSpace),
+  });
   const manifestUrl = remotePackUrl(remoteBaseUrl, vectorSpace.manifest_url);
-  const manifest = await fetchJsonIfAvailable(manifestUrl);
-  if (manifest === null || !manifestCompatible(manifest, corpus, runtime)) {
-    return false;
+  const manifest = await fetchJsonIfAvailable(manifestUrl, "remote manifest");
+  if (manifest === null) {
+    return remoteMiss("manifest-unavailable", { manifestUrl });
+  }
+  logInfo("remote manifest loaded", {
+    manifestUrl,
+    manifest: manifestSummary(manifest),
+  });
+  const manifestIssue = manifestCompatibilityIssue(manifest, corpus, runtime);
+  if (manifestIssue !== null) {
+    return remoteMiss("manifest-incompatible", manifestIssue);
   }
   const existing = await getMeta("pack");
   if (
@@ -568,7 +688,10 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
     && existing.vectorSpaceKey === manifest.vector_space_key
     && packCompatibleWithRuntime(existing, runtime)
   ) {
-    return true;
+    logInfo("existing remote vector pack is already current", {
+      pack: packSummary(existing),
+    });
+    return remoteHit();
   }
   vectorCache.clear();
   const packBase = manifestUrl.replace(/\/manifest\.json$/, "");
@@ -576,21 +699,41 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
   let downloadedVectorBytes = 0;
   const corpora = {};
   for (const corpusManifest of manifest.corpora || []) {
-    if (!corpusManifestCompatible(corpusManifest, corpus)) {
-      return false;
+    const corpusIssue = corpusManifestCompatibilityIssue(corpusManifest, corpus);
+    if (corpusIssue !== null) {
+      return remoteMiss("corpus-manifest-incompatible", corpusIssue);
     }
+    logInfo("remote corpus pack accepted", {
+      corpusId: corpusManifest.corpus_id,
+      inputHash: shortHash(corpusManifest.input_hash),
+      rowCount: corpusManifest.row_count,
+      dimensions: corpusManifest.dimensions,
+      itemsUrl: `${packBase}/${corpusManifest.items_url}`,
+      vectorUrl: `${packBase}/${corpusManifest.vector_url}`,
+      vectorByteLen: corpusManifest.vector_byte_len,
+    });
     await updateStatus(
       "downloading-index",
       `Downloading ${corpusManifest.corpus_id} vector pack.`,
       progressValue("index", corpusManifest.corpus_id, downloadedVectorBytes, totalVectorBytes),
     );
-    const itemBytes = await fetchArrayBuffer(`${packBase}/${corpusManifest.items_url}`);
+    const itemsUrl = `${packBase}/${corpusManifest.items_url}`;
+    logInfo("fetching remote corpus items", {
+      corpusId: corpusManifest.corpus_id,
+      url: itemsUrl,
+    });
+    const itemBytes = await fetchArrayBuffer(itemsUrl, "remote corpus items");
     await verifySha256(itemBytes, corpusManifest.items_sha256, corpusManifest.items_url);
     const items = parseJsonBytes(itemBytes, corpusManifest.items_url);
     if (!Array.isArray(items) || items.length !== corpusManifest.row_count) {
       throw new Error(`remote items ${corpusManifest.items_url} have the wrong row count`);
     }
     const vectorUrl = `${packBase}/${corpusManifest.vector_url}`;
+    logInfo("fetching remote corpus vectors", {
+      corpusId: corpusManifest.corpus_id,
+      url: vectorUrl,
+      expectedBytes: corpusManifest.vector_byte_len,
+    });
     const bytes = await fetchArrayBufferWithProgress(vectorUrl, async (loaded) => {
       await updateStatus(
         "downloading-index",
@@ -609,6 +752,11 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
     await verifySha256(bytes, corpusManifest.vector_sha256, corpusManifest.vector_url);
     const key = `remote/${MODEL_KEY}/${manifest.vector_space_key}/${manifest.pack_id}/${corpusManifest.corpus_id}/vectors.f32`;
     await putBinary(key, bytes);
+    logInfo("cached remote corpus vectors", {
+      corpusId: corpusManifest.corpus_id,
+      key,
+      bytes: bytes.byteLength,
+    });
     downloadedVectorBytes += bytes.byteLength;
     corpora[corpusManifest.corpus_id] = {
       corpusId: corpusManifest.corpus_id,
@@ -619,7 +767,7 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
       shards: [{ key, byteLen: bytes.byteLength }],
     };
   }
-  await putMeta("pack", {
+  const pack = {
     source: "remote",
     packId: manifest.pack_id,
     modelKey: MODEL_KEY,
@@ -629,8 +777,12 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
     runtime,
     compatibleQueryRuntimes: manifest.compatible_query_runtimes || [],
     corpora,
+  };
+  await putMeta("pack", pack);
+  logInfo("remote vector pack ready", {
+    pack: packSummary(pack),
   });
-  return true;
+  return remoteHit();
 }
 
 function selectCatalogVectorSpace(catalog, runtime) {
@@ -645,30 +797,130 @@ function selectCatalogVectorSpace(catalog, runtime) {
   ) || null;
 }
 
-function manifestCompatible(manifest, corpus, runtime) {
-  return manifest.schema_version === 1
-    && manifest.model_key === MODEL_KEY
-    && manifest.input_hash === corpus.inputHash
-    && manifest.input_format_version === corpus.inputFormatVersion
-    && manifest.dimensions === DIMENSIONS
-    && manifest.element_type === "f32le"
-    && manifest.normalized === true
-    && manifest.distance === "dot"
-    && (manifest.compatible_query_runtimes || []).some((candidate) =>
-      runtimeMatches(candidate, runtime)
-    );
+function remoteHit() {
+  return { loaded: true };
 }
 
-function corpusManifestCompatible(corpusManifest, corpus) {
+function remoteMiss(reason, detail = null) {
+  logWarn("remote vector pack rejected", { reason, detail });
+  return { loaded: false, reason, detail };
+}
+
+function catalogSummary(catalog) {
+  return {
+    schemaVersion: catalog?.schema_version || null,
+    models: (catalog?.models || []).map((model) => ({
+      modelKey: model.model_key || null,
+      vectorSpaces: (model.vector_spaces || []).map(vectorSpaceSummary),
+    })),
+  };
+}
+
+function vectorSpaceSummary(vectorSpace) {
+  return {
+    vectorSpaceKey: vectorSpace?.vector_space_key || null,
+    latestPackId: vectorSpace?.latest_pack_id || null,
+    manifestUrl: vectorSpace?.manifest_url || null,
+    compatibleQueryRuntimes: vectorSpace?.compatible_query_runtimes || [],
+  };
+}
+
+function manifestSummary(manifest) {
+  return {
+    schemaVersion: manifest?.schema_version || null,
+    modelKey: manifest?.model_key || null,
+    inputFormatVersion: manifest?.input_format_version || null,
+    inputHash: shortHash(manifest?.input_hash),
+    vectorSpaceKey: manifest?.vector_space_key || null,
+    packId: manifest?.pack_id || null,
+    dimensions: manifest?.dimensions || null,
+    compatibleQueryRuntimes: manifest?.compatible_query_runtimes || [],
+    corpora: (manifest?.corpora || []).map((corpus) => ({
+      corpusId: corpus.corpus_id || null,
+      inputHash: shortHash(corpus.input_hash),
+      rowCount: corpus.row_count || null,
+      dimensions: corpus.dimensions || null,
+      vectorByteLen: corpus.vector_byte_len || null,
+    })),
+  };
+}
+
+function manifestCompatibilityIssue(manifest, corpus, runtime) {
+  for (const [field, actual, expected] of [
+    ["schema_version", manifest.schema_version, 1],
+    ["model_key", manifest.model_key, MODEL_KEY],
+    ["input_hash", manifest.input_hash, corpus.inputHash],
+    ["input_format_version", manifest.input_format_version, corpus.inputFormatVersion],
+    ["dimensions", manifest.dimensions, DIMENSIONS],
+    ["element_type", manifest.element_type, "f32le"],
+    ["normalized", manifest.normalized, true],
+    ["distance", manifest.distance, "dot"],
+  ]) {
+    if (actual !== expected) {
+      return {
+        field,
+        expected: summarizeCompatibilityValue(expected),
+        actual: summarizeCompatibilityValue(actual),
+        corpus: corpusSummary(corpus),
+        manifest: manifestSummary(manifest),
+        runtime,
+      };
+    }
+  }
+  if (!(manifest.compatible_query_runtimes || []).some((candidate) =>
+    runtimeMatches(candidate, runtime)
+  )) {
+    return {
+      field: "compatible_query_runtimes",
+      expected: runtime,
+      actual: manifest.compatible_query_runtimes || [],
+      corpus: corpusSummary(corpus),
+      manifest: manifestSummary(manifest),
+      runtime,
+    };
+  }
+  return null;
+}
+
+function corpusManifestCompatibilityIssue(corpusManifest, corpus) {
   const expectedHash = corpusManifest.corpus_id === "vlacku-en"
     ? corpus.dictionaryHash
     : corpusManifest.corpus_id === "cukta-cll"
       ? corpus.cllHash
       : null;
-  return expectedHash !== null
-    && corpusManifest.input_hash === expectedHash
-    && corpusManifest.dimensions === DIMENSIONS
-    && corpusManifest.vector_byte_len === corpusManifest.row_count * DIMENSIONS * 4;
+  if (expectedHash === null) {
+    return {
+      field: "corpus_id",
+      expected: ["vlacku-en", "cukta-cll"],
+      actual: corpusManifest.corpus_id || null,
+      corpus: corpusSummary(corpus),
+      corpusManifest: manifestSummary({ corpora: [corpusManifest] }).corpora[0],
+    };
+  }
+  for (const [field, actual, expected] of [
+    ["input_hash", corpusManifest.input_hash, expectedHash],
+    ["dimensions", corpusManifest.dimensions, DIMENSIONS],
+    ["vector_byte_len", corpusManifest.vector_byte_len, corpusManifest.row_count * DIMENSIONS * 4],
+  ]) {
+    if (actual !== expected) {
+      return {
+        field,
+        corpusId: corpusManifest.corpus_id,
+        expected: summarizeCompatibilityValue(expected),
+        actual: summarizeCompatibilityValue(actual),
+        corpus: corpusSummary(corpus),
+        corpusManifest: manifestSummary({ corpora: [corpusManifest] }).corpora[0],
+      };
+    }
+  }
+  return null;
+}
+
+function summarizeCompatibilityValue(value) {
+  if (typeof value === "string" && value.length === 64) {
+    return shortHash(value);
+  }
+  return value;
 }
 
 function runtimeMatches(candidate, runtime) {
@@ -717,35 +969,88 @@ function remotePackVectorBytes(manifest) {
   return total;
 }
 
-async function fetchJsonIfAvailable(url) {
-  const response = await fetch(url, { cache: "no-cache" }).catch(() => null);
-  if (!response?.ok) {
+async function fetchJsonIfAvailable(url, label = "JSON") {
+  logInfo("fetching JSON", { label, url });
+  const response = await fetch(url, { cache: "no-cache" }).catch((error) => {
+    logWarn("JSON fetch failed", {
+      label,
+      url,
+      error: errorMessage(error),
+    });
+    return null;
+  });
+  if (!response) {
+    return null;
+  }
+  if (!response.ok) {
+    logWarn("JSON fetch returned non-OK response", {
+      label,
+      url,
+      status: response.status,
+      statusText: response.statusText,
+    });
     return null;
   }
   const text = await response.text();
   if (looksLikeHtmlResponse(response, text)) {
+    logWarn("JSON fetch returned HTML", {
+      label,
+      url,
+      contentType: response.headers.get("content-type") || "",
+      preview: text.trimStart().slice(0, 120),
+    });
     return null;
   }
   try {
     return JSON.parse(text);
-  } catch (_) {
+  } catch (error) {
+    logWarn("JSON fetch returned invalid JSON", {
+      label,
+      url,
+      error: errorMessage(error),
+      preview: text.trimStart().slice(0, 120),
+    });
     return null;
   }
 }
 
-async function fetchArrayBuffer(url) {
+async function fetchArrayBuffer(url, label = "binary") {
+  logInfo("fetching binary", { label, url });
   const response = await fetch(url);
   if (!response.ok) {
+    logWarn("binary fetch returned non-OK response", {
+      label,
+      url,
+      status: response.status,
+      statusText: response.statusText,
+    });
     throw new Error(`failed to fetch ${url}: ${response.status}`);
   }
+  logInfo("binary fetch response ready", {
+    label,
+    url,
+    contentLength: response.headers.get("content-length"),
+    contentEncoding: response.headers.get("content-encoding"),
+  });
   return response.arrayBuffer();
 }
 
 async function fetchArrayBufferWithProgress(url, onProgress) {
+  logInfo("fetching binary with progress", { url });
   const response = await fetch(url);
   if (!response.ok) {
+    logWarn("binary progress fetch returned non-OK response", {
+      url,
+      status: response.status,
+      statusText: response.statusText,
+    });
     throw new Error(`failed to fetch ${url}: ${response.status}`);
   }
+  logInfo("binary progress fetch response ready", {
+    url,
+    contentLength: response.headers.get("content-length"),
+    contentEncoding: response.headers.get("content-encoding"),
+  });
   if (!response.body?.getReader) {
     const buffer = await response.arrayBuffer();
     await onProgress(buffer.byteLength);
@@ -775,8 +1080,19 @@ async function fetchArrayBufferWithProgress(url, onProgress) {
 async function verifySha256(buffer, expected, name) {
   const actual = await sha256Hex(buffer);
   if (actual !== expected) {
+    logWarn("SHA-256 verification failed", {
+      name,
+      expected: summarizeCompatibilityValue(expected),
+      actual: summarizeCompatibilityValue(actual),
+      byteLength: buffer.byteLength,
+    });
     throw new Error(`${name} SHA-256 mismatch`);
   }
+  logInfo("SHA-256 verified", {
+    name,
+    sha256: summarizeCompatibilityValue(actual),
+    byteLength: buffer.byteLength,
+  });
 }
 
 async function sha256Hex(buffer) {
@@ -1046,7 +1362,7 @@ function indeterminateProgress(kind, label) {
 }
 
 function shortHash(value) {
-  return String(value || "").slice(0, 12);
+  return typeof value === "string" && value.length >= 12 ? value.slice(0, 12) : value || null;
 }
 
 async function openDb() {
