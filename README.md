@@ -50,6 +50,13 @@ build automatically. Direct Docker builds must provide either
 `--build-arg JBOTCI_GIT_COMMIT=$(git rev-parse HEAD)` so the web top bar can
 link to the exact deployed commit.
 
+The Render Dockerfile uses cargo-chef dependency layers plus BuildKit cache
+mounts for Cargo registry/git downloads and tool installs. Direct Docker builds
+therefore need a builder that supports `# syntax=docker/dockerfile:1` and
+`RUN --mount=type=cache`; if cache mounts are not persisted by the deployment
+builder, the cargo-chef layers still provide dependency reuse through normal
+Docker layer caching.
+
 Browser embedding packs are deployed separately to Cloudflare R2 with
 `cargo xtask publish-web-embeddings-r2`. Production builds set
 `JBOTCI_WEB_EMBEDDINGS_BASE_URL` to
