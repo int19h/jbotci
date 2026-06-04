@@ -2,6 +2,8 @@ FROM rust:1-bookworm AS build
 
 ARG BASE_PATH=/
 ARG WEB_EMBEDDINGS_BASE_URL=https://assets.jbotci.app/embeddings/web/v1
+ARG RENDER_GIT_COMMIT=
+ARG JBOTCI_GIT_COMMIT=
 
 WORKDIR /src
 
@@ -15,6 +17,12 @@ RUN cargo install dioxus-cli --version 0.7.9 --locked
 COPY . .
 
 RUN set -eux; \
+    build_commit="${JBOTCI_GIT_COMMIT:-${RENDER_GIT_COMMIT:-}}"; \
+    if ! printf '%s' "${build_commit}" | grep -Eq '^[0-9a-fA-F]{40}$'; then \
+        echo >&2 "expected RENDER_GIT_COMMIT or JBOTCI_GIT_COMMIT build arg to be a 40-character hexadecimal Git commit hash"; \
+        exit 1; \
+    fi; \
+    export JBOTCI_GIT_COMMIT="${build_commit}"; \
     export JBOTCI_WEB_EMBEDDINGS_BASE_URL="${WEB_EMBEDDINGS_BASE_URL}"; \
     cargo run -p xtask -- dist-server \
         --out-dir /opt/jbotci \

@@ -980,6 +980,7 @@ fn server_bundle_path(out_dir: &Path) -> Result<PathBuf> {
 fn render_docker_build(args: RenderDockerBuildArgs) -> Result<()> {
     let engine = args.engine.resolve()?;
     let engine_command = engine.command_name();
+    let git_commit = current_git_commit()?;
     let mut command = ProcessCommand::new(engine_command);
     command.arg("build");
     if args.no_cache {
@@ -997,6 +998,8 @@ fn render_docker_build(args: RenderDockerBuildArgs) -> Result<()> {
             "WEB_EMBEDDINGS_BASE_URL={}",
             args.web_embeddings_base_url
         ))
+        .arg("--build-arg")
+        .arg(format!("RENDER_GIT_COMMIT={git_commit}"))
         .arg(".");
     let status = command
         .status()
@@ -1005,6 +1008,35 @@ fn render_docker_build(args: RenderDockerBuildArgs) -> Result<()> {
         status,
         &format!("{engine_command} build -f deploy/render/Dockerfile"),
     )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|commit| is_git_commit_hash(commit)) || ret.is_err())]
+fn current_git_commit() -> Result<String> {
+    let output = ProcessCommand::new("git")
+        .arg("rev-parse")
+        .arg("HEAD")
+        .output()
+        .context("failed to run `git rev-parse HEAD` for Render Docker build")?;
+    if !output.status.success() {
+        bail!("`git rev-parse HEAD` failed while preparing Render Docker build");
+    }
+    let commit = String::from_utf8(output.stdout)
+        .context("`git rev-parse HEAD` did not return UTF-8 output")?
+        .trim()
+        .to_owned();
+    if !is_git_commit_hash(&commit) {
+        bail!(
+            "`git rev-parse HEAD` returned `{commit}`, expected a 40-character hexadecimal Git commit hash"
+        );
+    }
+    Ok(commit)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_git_commit_hash(value: &str) -> bool {
+    value.len() == 40 && value.chars().all(|character| character.is_ascii_hexdigit())
 }
 
 #[requires(!args.image.trim().is_empty())]

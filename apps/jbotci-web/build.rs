@@ -19,14 +19,24 @@ fn emit_git_build_info() {
     println!("cargo:rerun-if-env-changed=JBOTCI_GIT_COMMIT");
     emit_git_rerun_paths();
 
-    if let Some(commit) = env::var("JBOTCI_GIT_COMMIT")
-        .ok()
-        .filter(|value| is_git_commit_hash(value))
-        .or_else(current_git_commit)
-    {
+    if let Some(commit) = explicit_git_commit().or_else(current_git_commit) {
         let short = commit.chars().take(7).collect::<String>();
         println!("cargo:rustc-env=JBOTCI_GIT_COMMIT={commit}");
         println!("cargo:rustc-env=JBOTCI_GIT_COMMIT_SHORT={short}");
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|commit| is_git_commit_hash(commit)))]
+fn explicit_git_commit() -> Option<String> {
+    match env::var("JBOTCI_GIT_COMMIT") {
+        Ok(commit) if is_git_commit_hash(&commit) => Some(commit),
+        Ok(commit) => {
+            panic!(
+                "JBOTCI_GIT_COMMIT must be a 40-character hexadecimal Git commit hash, got `{commit}`"
+            );
+        }
+        Err(_) => None,
     }
 }
 

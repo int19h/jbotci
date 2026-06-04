@@ -44,6 +44,11 @@ Use the web release wrappers instead of raw `dx` release commands while Dioxus
 `<out>/server` plus `<out>/public`. The Render Docker path builds that bundle
 inside `deploy/render/Dockerfile` and runs the server with `IP`, `PORT`,
 `DIOXUS_ASSET_ROOT`, and `DIOXUS_PUBLIC_PATH`.
+`cargo xtask render-docker-build` passes the current Git commit into the Docker
+build automatically. Direct Docker builds must provide either
+`--build-arg RENDER_GIT_COMMIT=$(git rev-parse HEAD)` or
+`--build-arg JBOTCI_GIT_COMMIT=$(git rev-parse HEAD)` so the web top bar can
+link to the exact deployed commit.
 
 Browser embedding packs are deployed separately to Cloudflare R2 with
 `cargo xtask publish-web-embeddings-r2`. Production builds set
