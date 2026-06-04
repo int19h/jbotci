@@ -2,7 +2,7 @@
 
 import { brotliCompress } from "node:zlib";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
@@ -32,11 +32,16 @@ async function main() {
     return;
   }
   const corpus = JSON.parse(await readFile(required(args.input, "--input"), "utf8"));
-  const outRoot = required(args.out, "--out");
+  const finalOutRoot = required(args.out, "--out");
+  const outRoot = args.stage || `${finalOutRoot}.staging`;
+  if (outRoot === finalOutRoot) {
+    throw new Error("--stage must differ from --out");
+  }
   const backend = args.backend || "transformers";
   const dtypes = args.dtype.length > 0 ? args.dtype : DEFAULT_DTYPES;
-  await rm(outRoot, { recursive: true, force: true });
   await mkdir(outRoot, { recursive: true });
+  await rm(join(outRoot, "catalog.json"), { force: true });
+  await rm(join(outRoot, "catalog.json.br"), { force: true });
 
   const catalog = {
     schema_version: SCHEMA_VERSION,
@@ -65,6 +70,23 @@ async function main() {
       "packs",
       packId,
     );
+    const manifestUrl = `models/${corpus.modelKey}/spaces/${vectorSpaceKey}/packs/${packId}/manifest.json`;
+    const reusableManifest = await readReusableManifest(
+      join(packRoot, "manifest.json"),
+      packRoot,
+      corpus,
+      vectorSpaceKey,
+      packId,
+      dtype,
+      backend,
+      args.dimensions,
+    );
+    if (reusableManifest !== null) {
+      console.error(`reusing complete ${vectorSpaceKey} pack at ${packRoot}`);
+      modelEntry.vector_spaces.push(catalogVectorSpace(manifestUrl, reusableManifest));
+      continue;
+    }
+    await rm(packRoot, { recursive: true, force: true });
     await mkdir(packRoot, { recursive: true });
     const embedder = await createEmbedder({ backend, dtype, dimensions: args.dimensions });
     const corpora = [];
@@ -101,15 +123,10 @@ async function main() {
       corpora,
     };
     await writeJson(join(packRoot, "manifest.json"), manifest);
-    const manifestUrl = `models/${corpus.modelKey}/spaces/${vectorSpaceKey}/packs/${packId}/manifest.json`;
-    modelEntry.vector_spaces.push({
-      vector_space_key: vectorSpaceKey,
-      latest_pack_id: packId,
-      manifest_url: manifestUrl,
-      compatible_query_runtimes: manifest.compatible_query_runtimes,
-    });
+    modelEntry.vector_spaces.push(catalogVectorSpace(manifestUrl, manifest));
   }
   await writeJson(join(outRoot, "catalog.json"), catalog);
+  await promoteStagingOutput(outRoot, finalOutRoot);
 }
 
 function parseArgs(argv) {
@@ -128,6 +145,8 @@ function parseArgs(argv) {
       args.backend = argv[++i];
     } else if (arg === "--dimensions") {
       args.dimensions = Number.parseInt(argv[++i], 10);
+    } else if (arg === "--stage") {
+      args.stage = argv[++i];
     } else {
       throw new Error(`unknown argument: ${arg}`);
     }
@@ -136,7 +155,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log(`Usage: node build-web-embeddings.mjs --input corpus.json --out dist/assets/embeddings/web/v1 [--dtype q4] [--dtype q8] [--backend transformers|fixture]`);
+  console.log(`Usage: node build-web-embeddings.mjs --input corpus.json --out dist/assets/embeddings/web/v1 [--stage dist/assets/embeddings/web/v1.staging] [--dtype q4] [--dtype q8] [--backend transformers|fixture]`);
 }
 
 function required(value, name) {
@@ -218,6 +237,153 @@ async function writeCorpus(packRoot, corpus, corpusId, sourceKey, idField, embed
     vector_byte_len: vectorBytes.byteLength,
     vector_sha256: sha256(vectorBytes),
   };
+}
+
+function catalogVectorSpace(manifestUrl, manifest) {
+  return {
+    vector_space_key: manifest.vector_space_key,
+    latest_pack_id: manifest.pack_id,
+    manifest_url: manifestUrl,
+    compatible_query_runtimes: manifest.compatible_query_runtimes,
+  };
+}
+
+async function readReusableManifest(
+  manifestPath,
+  packRoot,
+  corpus,
+  vectorSpaceKey,
+  packId,
+  dtype,
+  backend,
+  dimensions,
+) {
+  const manifest = await readJsonIfExists(manifestPath);
+  if (manifest === null) {
+    return null;
+  }
+  const expectedRuntime = backend === "transformers" ? "node-transformers.js" : "fixture";
+  const expectedVersion = backend === "transformers" ? TRANSFORMERS_VERSION : "test";
+  const expectedDevice = backend === "transformers" ? "onnxruntime-node" : "fixture";
+  const expectedDimensions = dimensions || DEFAULT_DIMENSIONS;
+  if (
+    manifest.schema_version !== SCHEMA_VERSION ||
+    manifest.model_key !== corpus.modelKey ||
+    manifest.model_revision !== corpus.modelRevision ||
+    manifest.web_model !== MODEL_ID ||
+    manifest.transformers_version !== TRANSFORMERS_VERSION ||
+    manifest.vector_space_key !== vectorSpaceKey ||
+    manifest.pack_id !== packId ||
+    manifest.input_format_version !== corpus.inputFormatVersion ||
+    manifest.input_hash !== corpus.inputHash ||
+    manifest.dimensions !== expectedDimensions ||
+    manifest.element_type !== "f32le" ||
+    manifest.normalized !== true ||
+    manifest.distance !== "dot" ||
+    manifest.built_by?.runtime !== expectedRuntime ||
+    manifest.built_by?.version !== expectedVersion ||
+    manifest.built_by?.dtype !== dtype ||
+    manifest.built_by?.device !== expectedDevice ||
+    !Array.isArray(manifest.compatible_query_runtimes) ||
+    !Array.isArray(manifest.corpora)
+  ) {
+    return null;
+  }
+  for (const [corpusId, sourceKey, idField] of CORPORA) {
+    const docs = corpus[sourceKey] || [];
+    const corpusManifest = manifest.corpora.find((item) => item?.corpus_id === corpusId);
+    if (!corpusManifest) {
+      return null;
+    }
+    if (
+      corpusManifest.input_format_version !== corpus.inputFormatVersion ||
+      corpusManifest.input_hash !== (corpusId === "vlacku-en" ? corpus.dictionaryHash : corpus.cllHash) ||
+      corpusManifest.row_count !== docs.length ||
+      corpusManifest.dimensions !== expectedDimensions ||
+      corpusManifest.items_url !== `corpora/${corpusId}/items.json` ||
+      corpusManifest.vector_url !== `corpora/${corpusId}/vectors.f32`
+    ) {
+      return null;
+    }
+    const itemsPath = join(packRoot, corpusManifest.items_url);
+    const vectorPath = join(packRoot, corpusManifest.vector_url);
+    const itemsBytes = await readFileIfExists(itemsPath);
+    const vectorBytes = await readFileIfExists(vectorPath);
+    if (itemsBytes === null || vectorBytes === null) {
+      return null;
+    }
+    if (
+      !(await pathExists(`${itemsPath}.br`)) ||
+      !(await pathExists(`${vectorPath}.br`)) ||
+      corpusManifest.items_sha256 !== sha256(itemsBytes) ||
+      corpusManifest.vector_sha256 !== sha256(vectorBytes) ||
+      corpusManifest.vector_byte_len !== vectorBytes.byteLength
+    ) {
+      return null;
+    }
+    const items = JSON.parse(itemsBytes.toString("utf8"));
+    if (
+      !Array.isArray(items) ||
+      items.length !== docs.length ||
+      items.some((item, row) =>
+        item?.[idField] !== docs[row].id ||
+        item?.input_hash !== docs[row].inputHash ||
+        item?.row !== row
+      )
+    ) {
+      return null;
+    }
+  }
+  return manifest;
+}
+
+async function readJsonIfExists(path) {
+  const bytes = await readFileIfExists(path);
+  return bytes === null ? null : JSON.parse(bytes.toString("utf8"));
+}
+
+async function readFileIfExists(path) {
+  try {
+    return await readFile(path);
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function pathExists(path) {
+  try {
+    await stat(path);
+    return true;
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function promoteStagingOutput(stageRoot, finalOutRoot) {
+  const backupRoot = `${finalOutRoot}.previous`;
+  await rm(backupRoot, { recursive: true, force: true });
+  let backupCreated = false;
+  try {
+    if (await pathExists(finalOutRoot)) {
+      await rename(finalOutRoot, backupRoot);
+      backupCreated = true;
+    }
+    await rename(stageRoot, finalOutRoot);
+    if (backupCreated) {
+      await rm(backupRoot, { recursive: true, force: true });
+    }
+  } catch (error) {
+    if (backupCreated && !(await pathExists(finalOutRoot)) && (await pathExists(backupRoot))) {
+      await rename(backupRoot, finalOutRoot).catch(() => {});
+    }
+    throw error;
+  }
 }
 
 async function writeJson(path, value) {

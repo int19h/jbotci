@@ -32,8 +32,9 @@ cargo xtask fixture-check
 cargo xtask fixture-list --profile cargo
 cargo xtask build-web-release
 cargo xtask dist-server --out-dir .jbotci-build/jbotci-web --base-path /
-cargo xtask render-docker-build --embedding-backend fixture
-cargo xtask render-docker-run --engine podman --embedding-backend fixture
+cargo xtask publish-web-embeddings-r2 --backend fixture --embedding-dtype q4
+cargo xtask render-docker-build
+cargo xtask render-docker-run --engine podman
 ```
 
 Use the web release wrappers instead of raw `dx` release commands while Dioxus
@@ -43,6 +44,12 @@ Use the web release wrappers instead of raw `dx` release commands while Dioxus
 `<out>/server` plus `<out>/public`. The Render Docker path builds that bundle
 inside `deploy/render/Dockerfile` and runs the server with `IP`, `PORT`,
 `DIOXUS_ASSET_ROOT`, and `DIOXUS_PUBLIC_PATH`.
+
+Browser embedding packs are deployed separately to Cloudflare R2 with
+`cargo xtask publish-web-embeddings-r2`. Production builds set
+`JBOTCI_WEB_EMBEDDINGS_BASE_URL` to
+`https://assets.jbotci.app/embeddings/web/v1`; local static builds default to
+`/assets/embeddings/web/v1`.
 
 The parser facets are scaffolded but intentionally return `NotImplemented` at
 this checkpoint. Use `cargo xtask fixture-test --profile all --facet morphology

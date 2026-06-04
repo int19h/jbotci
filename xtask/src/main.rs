@@ -39,6 +39,8 @@ const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-web/release/web";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
+const R2_CATALOG_CACHE_CONTROL: &str = "public, max-age=300";
+const R2_IMMUTABLE_CACHE_CONTROL: &str = "public, max-age=31536000, immutable";
 static WEB_ASSET_COPY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[path = "../../tests/support/fixtures/mod.rs"]
@@ -75,6 +77,7 @@ struct Cli {
 #[invariant(::ExportWebEmbeddingCorpus(..) => true)]
 #[invariant(::BuildWebEmbeddings(..) => true)]
 #[invariant(::DistServer(..) => true)]
+#[invariant(::PublishWebEmbeddingsR2(..) => true)]
 #[invariant(::RenderDockerBuild(..) => true)]
 #[invariant(::RenderDockerRun(..) => true)]
 enum Command {
@@ -100,6 +103,7 @@ enum Command {
     ExportWebEmbeddingCorpus(ExportWebEmbeddingCorpusArgs),
     BuildWebEmbeddings(BuildWebEmbeddingsArgs),
     DistServer(DistServerArgs),
+    PublishWebEmbeddingsR2(PublishWebEmbeddingsR2Args),
     RenderDockerBuild(RenderDockerBuildArgs),
     RenderDockerRun(RenderDockerRunArgs),
 }
@@ -248,6 +252,23 @@ struct DistServerArgs {
 
 #[derive(Debug, Args)]
 #[invariant(true)]
+struct PublishWebEmbeddingsR2Args {
+    #[arg(long, default_value = "jbotci-web-assets")]
+    bucket: String,
+    #[arg(long, default_value = "embeddings/web/v1")]
+    prefix: String,
+    #[arg(long, default_value = ".jbotci-build/r2-web-embeddings")]
+    out_dir: PathBuf,
+    #[arg(long)]
+    corpus: Option<PathBuf>,
+    #[arg(long = "embedding-dtype", alias = "dtype", default_values_t = ["q4".to_owned(), "q8".to_owned()])]
+    embedding_dtypes: Vec<String>,
+    #[arg(long, default_value = "transformers")]
+    backend: String,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
 struct RenderDockerBuildArgs {
     #[arg(long, value_enum, default_value = "auto")]
     engine: ContainerEngineArg,
@@ -255,10 +276,8 @@ struct RenderDockerBuildArgs {
     image: String,
     #[arg(long, default_value = "/")]
     base_path: String,
-    #[arg(long = "embedding-dtype", default_values_t = ["q4".to_owned(), "q8".to_owned()])]
-    embedding_dtypes: Vec<String>,
-    #[arg(long, default_value = "transformers")]
-    embedding_backend: String,
+    #[arg(long, default_value = "https://assets.jbotci.app/embeddings/web/v1")]
+    web_embeddings_base_url: String,
     #[arg(long)]
     no_cache: bool,
 }
@@ -276,10 +295,8 @@ struct RenderDockerRunArgs {
     container_port: u16,
     #[arg(long, default_value = "/")]
     base_path: String,
-    #[arg(long = "embedding-dtype", default_values_t = ["q4".to_owned(), "q8".to_owned()])]
-    embedding_dtypes: Vec<String>,
-    #[arg(long, default_value = "transformers")]
-    embedding_backend: String,
+    #[arg(long, default_value = "https://assets.jbotci.app/embeddings/web/v1")]
+    web_embeddings_base_url: String,
     #[arg(long)]
     no_build: bool,
 }
@@ -302,6 +319,16 @@ enum ContainerEngineArg {
 enum ContainerEngine {
     Docker,
     Podman,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct R2UploadObject {
+    local_path: PathBuf,
+    object_key: String,
+    content_type: &'static str,
+    content_encoding: Option<&'static str>,
+    cache_control: &'static str,
 }
 
 impl ContainerEngineArg {
@@ -418,6 +445,7 @@ fn main() -> Result<()> {
         Command::ExportWebEmbeddingCorpus(args) => export_web_embedding_corpus(args),
         Command::BuildWebEmbeddings(args) => build_web_embeddings(args),
         Command::DistServer(args) => dist_server(args),
+        Command::PublishWebEmbeddingsR2(args) => publish_web_embeddings_r2(args),
         Command::RenderDockerBuild(args) => render_docker_build(args),
         Command::RenderDockerRun(args) => render_docker_run(args),
     }
@@ -461,6 +489,29 @@ fn build_web_embeddings(args: BuildWebEmbeddingsArgs) -> Result<()> {
         }
     };
     build_web_embedding_assets(&web_dist, &corpus, &args.dtypes, &args.backend)
+}
+
+#[requires(!args.bucket.trim().is_empty())]
+#[requires(!args.prefix.trim().is_empty())]
+#[requires(!args.embedding_dtypes.is_empty())]
+#[requires(!args.backend.trim().is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn publish_web_embeddings_r2(args: PublishWebEmbeddingsR2Args) -> Result<()> {
+    let output = absolute_path(&args.out_dir)?;
+    let corpus = match args.corpus {
+        Some(path) => absolute_path(&path)?,
+        None => {
+            let output = absolute_path(Path::new(".jbotci-build/web-embedding-corpus.json"))?;
+            write_web_embedding_corpus(&output)?;
+            output
+        }
+    };
+    build_web_embedding_assets_to(&output, &corpus, &args.embedding_dtypes, &args.backend)?;
+    let objects = r2_upload_objects(&output, &args.prefix)?;
+    for object in objects {
+        put_r2_object(&args.bucket, &object)?;
+    }
+    Ok(())
 }
 
 #[requires(matches!(subcommand, "build" | "bundle"))]
@@ -924,8 +975,7 @@ fn server_bundle_path(out_dir: &Path) -> Result<PathBuf> {
 }
 
 #[requires(!args.image.trim().is_empty())]
-#[requires(!args.embedding_dtypes.is_empty())]
-#[requires(!args.embedding_backend.trim().is_empty())]
+#[requires(!args.web_embeddings_base_url.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn render_docker_build(args: RenderDockerBuildArgs) -> Result<()> {
     let engine = args.engine.resolve()?;
@@ -943,11 +993,9 @@ fn render_docker_build(args: RenderDockerBuildArgs) -> Result<()> {
         .arg("--build-arg")
         .arg(format!("BASE_PATH={}", args.base_path))
         .arg("--build-arg")
-        .arg(format!("EMBEDDING_BACKEND={}", args.embedding_backend))
-        .arg("--build-arg")
         .arg(format!(
-            "EMBEDDING_DTYPES={}",
-            docker_embedding_dtypes_arg(&args.embedding_dtypes)
+            "WEB_EMBEDDINGS_BASE_URL={}",
+            args.web_embeddings_base_url
         ))
         .arg(".");
     let status = command
@@ -960,8 +1008,7 @@ fn render_docker_build(args: RenderDockerBuildArgs) -> Result<()> {
 }
 
 #[requires(!args.image.trim().is_empty())]
-#[requires(!args.embedding_dtypes.is_empty())]
-#[requires(!args.embedding_backend.trim().is_empty())]
+#[requires(!args.web_embeddings_base_url.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn render_docker_run(args: RenderDockerRunArgs) -> Result<()> {
     if !args.no_build {
@@ -969,8 +1016,7 @@ fn render_docker_run(args: RenderDockerRunArgs) -> Result<()> {
             engine: args.engine,
             image: args.image.clone(),
             base_path: args.base_path.clone(),
-            embedding_dtypes: args.embedding_dtypes.clone(),
-            embedding_backend: args.embedding_backend.clone(),
+            web_embeddings_base_url: args.web_embeddings_base_url.clone(),
             no_cache: false,
         })?;
     }
@@ -997,6 +1043,11 @@ fn render_docker_run(args: RenderDockerRunArgs) -> Result<()> {
         ))
         .arg("-e")
         .arg("DIOXUS_PUBLIC_PATH=/opt/jbotci/public")
+        .arg("-e")
+        .arg(format!(
+            "JBOTCI_WEB_EMBEDDINGS_BASE_URL={}",
+            args.web_embeddings_base_url
+        ))
         .arg(&args.image)
         .status()
         .context("failed to run Render Docker image")?;
@@ -1012,12 +1063,6 @@ fn container_engine_available(command_name: &str) -> bool {
         .stderr(Stdio::null())
         .status()
         .is_ok_and(|status| status.success())
-}
-
-#[requires(!dtypes.is_empty())]
-#[ensures(!ret.is_empty())]
-fn docker_embedding_dtypes_arg(dtypes: &[String]) -> String {
-    dtypes.join(" ")
 }
 
 #[requires(true)]
@@ -1308,12 +1353,25 @@ fn build_web_embedding_assets(
     dtypes: &[String],
     backend: &str,
 ) -> Result<()> {
-    ensure_node_embedding_dependencies()?;
     let output = web_dist
         .join("assets")
         .join("embeddings")
         .join("web")
         .join("v1");
+    build_web_embedding_assets_to(&output, corpus, dtypes, backend)
+}
+
+#[requires(corpus.is_file())]
+#[requires(!dtypes.is_empty())]
+#[requires(!backend.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_web_embedding_assets_to(
+    output: &Path,
+    corpus: &Path,
+    dtypes: &[String],
+    backend: &str,
+) -> Result<()> {
+    ensure_node_embedding_dependencies()?;
     let mut command = ProcessCommand::new("node");
     command
         .arg("tools/embedding-pack/build-web-embeddings.mjs")
@@ -1333,6 +1391,266 @@ fn build_web_embedding_assets(
         )
     })?;
     check_status(status, "node tools/embedding-pack/build-web-embeddings.mjs")
+}
+
+#[requires(build_root.is_dir())]
+#[requires(!prefix.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|objects| !objects.is_empty()) || ret.is_err())]
+fn r2_upload_objects(build_root: &Path, prefix: &str) -> Result<Vec<R2UploadObject>> {
+    let prefix = normalize_r2_prefix(prefix)?;
+    let mut pack_objects = catalog_referenced_r2_object_keys(build_root)?
+        .into_iter()
+        .map(|relative_key| r2_upload_object_for_key(build_root, &prefix, &relative_key))
+        .collect::<Result<Vec<_>>>()?;
+    let catalog = r2_upload_object_for_key(build_root, &prefix, "catalog.json")?;
+    pack_objects.push(catalog);
+    Ok(pack_objects)
+}
+
+#[requires(build_root.is_dir())]
+#[ensures(ret.as_ref().is_ok_and(|keys| !keys.is_empty() && !keys.contains(&"catalog.json".to_owned())) || ret.is_err())]
+fn catalog_referenced_r2_object_keys(build_root: &Path) -> Result<Vec<String>> {
+    let catalog = read_json_file(&build_root.join("catalog.json"))?;
+    let mut keys = BTreeSet::new();
+    let models = catalog
+        .get("models")
+        .and_then(serde_json::Value::as_array)
+        .context("web embedding catalog `models` must be an array")?;
+    for model in models {
+        let vector_spaces = model
+            .get("vector_spaces")
+            .and_then(serde_json::Value::as_array)
+            .context("web embedding catalog `vector_spaces` must be an array")?;
+        for vector_space in vector_spaces {
+            let manifest_key = json_string_field(vector_space, "manifest_url")?;
+            let manifest_dir_key = manifest_key
+                .strip_suffix("/manifest.json")
+                .context("web embedding manifest_url must end with `/manifest.json`")?;
+            keys.insert(manifest_key.to_owned());
+            let manifest = read_json_file(&object_key_local_path(build_root, manifest_key)?)?;
+            let corpora = manifest
+                .get("corpora")
+                .and_then(serde_json::Value::as_array)
+                .context("web embedding manifest `corpora` must be an array")?;
+            for corpus in corpora {
+                let items_key = join_relative_object_key(
+                    manifest_dir_key,
+                    json_string_field(corpus, "items_url")?,
+                )?;
+                let vector_key = join_relative_object_key(
+                    manifest_dir_key,
+                    json_string_field(corpus, "vector_url")?,
+                )?;
+                keys.insert(items_key);
+                keys.insert(vector_key);
+            }
+        }
+    }
+    Ok(keys.into_iter().collect())
+}
+
+#[requires(path.components().next().is_some())]
+#[ensures(ret.as_ref().is_ok_and(|value| value.is_object() || value.is_array() || value.is_null() || value.is_boolean() || value.is_number() || value.is_string()) || ret.is_err())]
+fn read_json_file(path: &Path) -> Result<serde_json::Value> {
+    let text = fs::read_to_string(path)
+        .with_context(|| format!("reading JSON file `{}`", path.display()))?;
+    serde_json::from_str(&text).with_context(|| format!("parsing JSON file `{}`", path.display()))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| !value.is_empty()) || ret.is_err())]
+fn json_string_field<'a>(value: &'a serde_json::Value, field: &str) -> Result<&'a str> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .filter(|text| !text.trim().is_empty())
+        .with_context(|| format!("web embedding JSON field `{field}` must be a non-empty string"))
+}
+
+#[requires(!base.trim().is_empty())]
+#[requires(!relative.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|key| !key.starts_with('/')) || ret.is_err())]
+fn join_relative_object_key(base: &str, relative: &str) -> Result<String> {
+    let base = normalize_relative_object_key(base)?;
+    let relative = normalize_relative_object_key(relative)?;
+    Ok(format!("{base}/{relative}"))
+}
+
+#[requires(!key.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|key| !key.starts_with('/') && !key.ends_with('/')) || ret.is_err())]
+fn normalize_relative_object_key(key: &str) -> Result<String> {
+    let normalized = key.trim().trim_matches('/');
+    if normalized.is_empty() {
+        bail!("R2 object key must not be empty")
+    }
+    if normalized
+        .split('/')
+        .any(|component| component.is_empty() || component == "." || component == "..")
+    {
+        bail!("R2 object key `{key}` must not contain empty, `.` or `..` path components")
+    }
+    Ok(normalized.to_owned())
+}
+
+#[requires(build_root.is_dir())]
+#[requires(!relative_key.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.starts_with(build_root)) || ret.is_err())]
+fn object_key_local_path(build_root: &Path, relative_key: &str) -> Result<PathBuf> {
+    let mut path = build_root.to_path_buf();
+    for component in normalize_relative_object_key(relative_key)?.split('/') {
+        path.push(component);
+    }
+    Ok(path)
+}
+
+#[requires(build_root.is_dir())]
+#[requires(!prefix.trim().is_empty())]
+#[requires(!relative_key.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|object| object.object_key.starts_with(prefix)) || ret.is_err())]
+fn r2_upload_object_for_key(
+    build_root: &Path,
+    prefix: &str,
+    relative_key: &str,
+) -> Result<R2UploadObject> {
+    let relative_key = normalize_relative_object_key(relative_key)?;
+    let local_uncompressed = object_key_local_path(build_root, &relative_key)?;
+    if !local_uncompressed.is_file() {
+        bail!(
+            "web embedding upload object `{}` does not exist under `{}`",
+            relative_key,
+            build_root.display()
+        );
+    }
+    let brotli_path = brotli_sidecar_path(&local_uncompressed)?;
+    let (local_path, content_encoding) = if brotli_path.is_file() {
+        (brotli_path, Some("br"))
+    } else {
+        (local_uncompressed, None)
+    };
+    Ok(R2UploadObject {
+        local_path,
+        content_type: r2_content_type(&relative_key),
+        content_encoding,
+        cache_control: r2_cache_control(&relative_key),
+        object_key: format!("{prefix}/{relative_key}"),
+    })
+}
+
+#[requires(!prefix.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|prefix| !prefix.starts_with('/') && !prefix.ends_with('/')) || ret.is_err())]
+fn normalize_r2_prefix(prefix: &str) -> Result<String> {
+    let normalized = prefix.trim().trim_matches('/');
+    if normalized.is_empty() {
+        bail!("R2 prefix must not be empty")
+    }
+    if normalized
+        .split('/')
+        .any(|component| component.is_empty() || component == "." || component == "..")
+    {
+        bail!("R2 prefix `{prefix}` must not contain empty, `.` or `..` path components")
+    }
+    Ok(normalized.to_owned())
+}
+
+#[requires(path.components().next().is_some())]
+#[ensures(ret.as_ref().is_ok_and(|key| !key.starts_with('/')) || ret.is_err())]
+fn relative_path_to_object_key(path: &Path) -> Result<String> {
+    let mut components = Vec::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::Normal(name) => {
+                let Some(name) = name.to_str() else {
+                    bail!("R2 object path `{}` is not valid UTF-8", path.display())
+                };
+                components.push(name.to_owned());
+            }
+            _ => bail!(
+                "R2 object path `{}` must be relative and contain only normal components",
+                path.display()
+            ),
+        }
+    }
+    if components.is_empty() {
+        bail!("R2 object path must not be empty")
+    }
+    Ok(components.join("/"))
+}
+
+#[requires(path.file_name().is_some())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.file_name().is_some_and(|name| name.to_string_lossy().ends_with(".br"))) || ret.is_err())]
+fn brotli_sidecar_path(path: &Path) -> Result<PathBuf> {
+    let Some(file_name) = path.file_name() else {
+        bail!("path `{}` has no file name", path.display())
+    };
+    let mut sidecar_file_name = file_name.to_os_string();
+    sidecar_file_name.push(".br");
+    Ok(path.with_file_name(sidecar_file_name))
+}
+
+#[requires(!path.trim().is_empty())]
+#[ensures(!ret.is_empty())]
+fn r2_content_type(path: &str) -> &'static str {
+    match Path::new(path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+    {
+        Some("json") => "application/json; charset=utf-8",
+        Some("f32") => "application/octet-stream",
+        _ => "application/octet-stream",
+    }
+}
+
+#[requires(!path.trim().is_empty())]
+#[ensures(!ret.is_empty())]
+fn r2_cache_control(path: &str) -> &'static str {
+    if path == "catalog.json" {
+        R2_CATALOG_CACHE_CONTROL
+    } else {
+        R2_IMMUTABLE_CACHE_CONTROL
+    }
+}
+
+#[requires(path.components().next().is_some())]
+#[requires(!extension.is_empty())]
+#[ensures(true)]
+fn path_has_extension(path: &Path, extension: &str) -> bool {
+    path.extension()
+        .and_then(|actual| actual.to_str())
+        .is_some_and(|actual| actual == extension)
+}
+
+#[requires(!bucket.trim().is_empty())]
+#[requires(!object.object_key.trim().is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn put_r2_object(bucket: &str, object: &R2UploadObject) -> Result<()> {
+    let target = format!("{}/{}", bucket.trim(), object.object_key);
+    let mut command = ProcessCommand::new("npx");
+    command
+        .arg("--yes")
+        .arg("wrangler")
+        .arg("r2")
+        .arg("object")
+        .arg("put")
+        .arg(target)
+        .arg("--file")
+        .arg(&object.local_path)
+        .arg("--content-type")
+        .arg(object.content_type)
+        .arg("--cache-control")
+        .arg(object.cache_control)
+        .arg("--remote")
+        .arg("--force");
+    if let Some(content_encoding) = object.content_encoding {
+        command.arg("--content-encoding").arg(content_encoding);
+    }
+    let status = command.status().with_context(|| {
+        format!(
+            "uploading `{}` to R2 object `{}`",
+            object.local_path.display(),
+            object.object_key
+        )
+    })?;
+    check_status(status, "npx --yes wrangler r2 object put")
 }
 
 #[requires(true)]
@@ -4478,16 +4796,6 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn docker_embedding_dtypes_are_passed_as_one_build_arg_value() {
-        assert_eq!(
-            docker_embedding_dtypes_arg(&["q4".to_owned(), "q8".to_owned()]),
-            "q4 q8"
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
     fn explicit_container_engine_args_resolve_without_path_probe() {
         assert_eq!(
             ContainerEngineArg::Docker.resolve().expect("docker engine"),
@@ -4499,6 +4807,134 @@ mod tests {
         );
         assert_eq!(ContainerEngine::Docker.command_name(), "docker");
         assert_eq!(ContainerEngine::Podman.command_name(), "podman");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn r2_prefix_is_normalized_without_allowing_escape_components() {
+        assert_eq!(
+            normalize_r2_prefix("/embeddings/web/v1/").unwrap(),
+            "embeddings/web/v1"
+        );
+        assert!(normalize_r2_prefix("/").is_err());
+        assert!(normalize_r2_prefix("embeddings/../v1").is_err());
+        assert!(normalize_r2_prefix("embeddings//v1").is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn r2_upload_plan_writes_only_prefixed_objects_and_catalog_last() {
+        let root = std::env::temp_dir().join(format!(
+            "jbotci-xtask-r2-plan-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let pack =
+            root.join("models/model/spaces/transformers-js-q4/packs/pack/corpora/dictionary");
+        fs::create_dir_all(&pack).unwrap();
+        fs::write(
+            root.join("catalog.json"),
+            r#"{
+  "schema_version": 1,
+  "models": [
+    {
+      "model_key": "model",
+      "vector_spaces": [
+        {
+          "vector_space_key": "transformers-js-q4",
+          "latest_pack_id": "pack",
+          "manifest_url": "models/model/spaces/transformers-js-q4/packs/pack/manifest.json",
+          "compatible_query_runtimes": []
+        }
+      ]
+    }
+  ]
+}
+"#,
+        )
+        .unwrap();
+        fs::write(root.join("catalog.json.br"), "compressed catalog").unwrap();
+        fs::write(
+            root.join("models/model/spaces/transformers-js-q4/packs/pack/manifest.json"),
+            r#"{
+  "schema_version": 1,
+  "corpora": [
+    {
+      "corpus_id": "dictionary",
+      "items_url": "corpora/dictionary/items.json",
+      "vector_url": "corpora/dictionary/vectors.f32"
+    }
+  ]
+}
+"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("models/model/spaces/transformers-js-q4/packs/pack/manifest.json.br"),
+            "compressed manifest",
+        )
+        .unwrap();
+        fs::write(pack.join("items.json"), "[]").unwrap();
+        fs::write(pack.join("items.json.br"), "compressed items").unwrap();
+        fs::write(pack.join("vectors.f32"), [0_u8, 1, 2, 3]).unwrap();
+        fs::write(pack.join("vectors.f32.br"), "compressed vectors").unwrap();
+        fs::write(root.join("stale.json"), "{}").unwrap();
+        fs::write(root.join("stale.json.br"), "compressed stale").unwrap();
+
+        let objects = r2_upload_objects(&root, "/embeddings/web/v1/").unwrap();
+        let keys = objects
+            .iter()
+            .map(|object| object.object_key.as_str())
+            .collect::<Vec<_>>();
+
+        assert!(keys.iter().all(|key| key.starts_with("embeddings/web/v1/")));
+        assert!(!keys.iter().any(|key| key.ends_with(".br")));
+        assert!(!keys.iter().any(|key| key.ends_with("stale.json")));
+        assert_eq!(keys.last().copied(), Some("embeddings/web/v1/catalog.json"));
+        assert!(keys.iter().any(|key| key.ends_with("/manifest.json")));
+        assert!(keys.iter().any(|key| key.ends_with("/items.json")));
+        assert!(keys.iter().any(|key| key.ends_with("/vectors.f32")));
+
+        let catalog = objects.last().unwrap();
+        assert_eq!(catalog.content_type, "application/json; charset=utf-8");
+        assert_eq!(catalog.content_encoding, Some("br"));
+        assert_eq!(catalog.cache_control, R2_CATALOG_CACHE_CONTROL);
+        assert!(catalog.local_path.ends_with("catalog.json.br"));
+
+        let vectors = objects
+            .iter()
+            .find(|object| object.object_key.ends_with("/vectors.f32"))
+            .unwrap();
+        assert_eq!(vectors.content_type, "application/octet-stream");
+        assert_eq!(vectors.content_encoding, Some("br"));
+        assert_eq!(vectors.cache_control, R2_IMMUTABLE_CACHE_CONTROL);
+        assert!(vectors.local_path.ends_with("vectors.f32.br"));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn r2_upload_policy_uses_short_catalog_cache_and_immutable_pack_cache() {
+        assert_eq!(
+            r2_content_type("catalog.json"),
+            "application/json; charset=utf-8"
+        );
+        assert_eq!(
+            r2_content_type("models/model/spaces/q4/packs/pack/corpora/dictionary/vectors.f32"),
+            "application/octet-stream"
+        );
+        assert_eq!(r2_cache_control("catalog.json"), R2_CATALOG_CACHE_CONTROL);
+        assert_eq!(
+            r2_cache_control("models/model/spaces/q4/packs/pack/manifest.json"),
+            R2_IMMUTABLE_CACHE_CONTROL
+        );
     }
 
     #[test]

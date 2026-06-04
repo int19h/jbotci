@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { strict as assert } from "node:assert";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -10,6 +10,8 @@ const root = await mkdtemp(join(tmpdir(), "jbotci-web-embeddings-"));
 try {
   const input = join(root, "corpus.json");
   const out = join(root, "out");
+  await mkdir(out);
+  await writeFile(join(out, "sentinel.txt"), "old output");
   await writeFile(
     input,
     JSON.stringify({
@@ -45,6 +47,50 @@ try {
     { stdio: "inherit" },
   );
   assert.equal(result.status, 0);
+  assert.equal(await pathExists(`${out}.staging`), false);
+  await assert.rejects(readFile(join(out, "sentinel.txt")), { code: "ENOENT" });
+  const badResult = spawnSync(
+    process.execPath,
+    [
+      new URL("./build-web-embeddings.mjs", import.meta.url).pathname,
+      "--input",
+      input,
+      "--out",
+      out,
+      "--backend",
+      "unknown",
+      "--dimensions",
+      "4",
+      "--dtype",
+      "q4",
+    ],
+    { stdio: "ignore" },
+  );
+  assert.notEqual(badResult.status, 0);
+  assert.equal((await readFile(join(out, "catalog.json"), "utf8")).startsWith("{"), true);
+  const resumeOut = join(root, "resume-out");
+  await cp(out, `${resumeOut}.staging`, { recursive: true });
+  const resumeResult = spawnSync(
+    process.execPath,
+    [
+      new URL("./build-web-embeddings.mjs", import.meta.url).pathname,
+      "--input",
+      input,
+      "--out",
+      resumeOut,
+      "--backend",
+      "fixture",
+      "--dimensions",
+      "4",
+      "--dtype",
+      "q4",
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(resumeResult.status, 0);
+  assert.match(resumeResult.stderr, /reusing complete transformers-js-q4 pack/);
+  assert.equal(await pathExists(`${resumeOut}.staging`), false);
+  await readFile(join(resumeOut, "catalog.json"), "utf8");
   const catalog = JSON.parse(await readFile(join(out, "catalog.json"), "utf8"));
   assert.equal(catalog.schema_version, 1);
   const vectorSpace = catalog.models[0].vector_spaces[0];
@@ -59,4 +105,16 @@ try {
   await readFile(`${manifestPath}.br`);
 } finally {
   await rm(root, { recursive: true, force: true });
+}
+
+async function pathExists(path) {
+  try {
+    await stat(path);
+    return true;
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
 }

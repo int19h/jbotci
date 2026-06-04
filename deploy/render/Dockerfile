@@ -1,8 +1,7 @@
 FROM rust:1-bookworm AS build
 
 ARG BASE_PATH=/
-ARG EMBEDDING_BACKEND=transformers
-ARG EMBEDDING_DTYPES="q4 q8"
+ARG WEB_EMBEDDINGS_BASE_URL=https://assets.jbotci.app/embeddings/web/v1
 
 WORKDIR /src
 
@@ -16,15 +15,11 @@ RUN cargo install dioxus-cli --version 0.7.9 --locked
 COPY . .
 
 RUN set -eux; \
-    dtype_args=""; \
-    for dtype in ${EMBEDDING_DTYPES}; do \
-        dtype_args="${dtype_args} --embedding-dtype ${dtype}"; \
-    done; \
+    export JBOTCI_WEB_EMBEDDINGS_BASE_URL="${WEB_EMBEDDINGS_BASE_URL}"; \
     cargo xtask dist-server \
         --out-dir /opt/jbotci \
         --base-path "${BASE_PATH}" \
-        --embedding-backend "${EMBEDDING_BACKEND}" \
-        ${dtype_args}
+        --skip-web-embeddings
 
 FROM debian:bookworm-slim AS runtime
 
@@ -42,6 +37,7 @@ ENV IP=0.0.0.0
 ENV PORT=10000
 ENV DIOXUS_ASSET_ROOT=/
 ENV DIOXUS_PUBLIC_PATH=/opt/jbotci/public
+ENV JBOTCI_WEB_EMBEDDINGS_BASE_URL=https://assets.jbotci.app/embeddings/web/v1
 
 EXPOSE 10000
 

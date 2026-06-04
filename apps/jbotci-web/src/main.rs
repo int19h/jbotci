@@ -76,6 +76,8 @@ const COMPUTE_WORKER_JS: Asset = asset!("/assets/compute-worker.js");
 const EMBEDDINGS_JS: Asset = asset!("/assets/embeddings.js");
 const EMBEDDING_WORKER_JS: Asset = asset!("/assets/embedding-worker.js");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
+const DEFAULT_WEB_EMBEDDINGS_BASE_URL: &str = "/assets/embeddings/web/v1";
+const BUILD_WEB_EMBEDDINGS_BASE_URL: Option<&str> = option_env!("JBOTCI_WEB_EMBEDDINGS_BASE_URL");
 const BUILD_GIT_COMMIT: Option<&str> = option_env!("JBOTCI_GIT_COMMIT");
 const BUILD_GIT_COMMIT_SHORT: Option<&str> = option_env!("JBOTCI_GIT_COMMIT_SHORT");
 const NOTO_SANS: Asset = asset!("/assets/fonts/noto-sans-variable.ttf");
@@ -1145,6 +1147,7 @@ fn AppShell() -> Element {
     }));
     use_effect(move || {
         configure_embedding_worker_url(&format!("{EMBEDDING_WORKER_JS}"));
+        configure_embedding_remote_base_url(web_embeddings_base_url());
         configure_compute_worker_url(&format!("{COMPUTE_WORKER_JS}"));
     });
     use_effect(move || {
@@ -2587,6 +2590,9 @@ extern "C" {
     #[wasm_bindgen(js_name = jbotciEmbeddingConfigureWorker)]
     fn js_embedding_configure_worker(worker_url: &str);
 
+    #[wasm_bindgen(js_name = jbotciEmbeddingConfigureRemoteBase)]
+    fn js_embedding_configure_remote_base(remote_base_url: &str);
+
     #[wasm_bindgen(js_name = jbotciEmbeddingStatus)]
     fn js_embedding_status() -> js_sys::Promise;
 
@@ -2644,6 +2650,29 @@ fn configure_embedding_worker_url(worker_url: &str) {
 #[ensures(true)]
 fn configure_embedding_worker_url(worker_url: &str) {
     let _ = worker_url;
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn web_embeddings_base_url() -> &'static str {
+    match BUILD_WEB_EMBEDDINGS_BASE_URL {
+        Some(base_url) if !base_url.trim().is_empty() => base_url.trim(),
+        _ => DEFAULT_WEB_EMBEDDINGS_BASE_URL,
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(!remote_base_url.is_empty())]
+#[ensures(true)]
+fn configure_embedding_remote_base_url(remote_base_url: &str) {
+    js_embedding_configure_remote_base(remote_base_url);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(!remote_base_url.is_empty())]
+#[ensures(true)]
+fn configure_embedding_remote_base_url(remote_base_url: &str) {
+    let _ = remote_base_url;
 }
 
 #[cfg(target_arch = "wasm32")]

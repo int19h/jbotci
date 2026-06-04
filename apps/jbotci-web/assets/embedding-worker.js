@@ -14,7 +14,7 @@ const DB_NAME = "jbotci-embeddings-v1";
 const META_STORE = "meta";
 const BLOB_STORE = "blobs";
 const TRANSFORMERS_VERSION = "4.2.0";
-const REMOTE_BASE = "/assets/embeddings/web/v1";
+const DEFAULT_REMOTE_BASE_URL = "/assets/embeddings/web/v1";
 const LOCAL_VECTOR_SPACE_PREFIX = "browser-local";
 const Q4_MIN_FREE_BYTES = 300 * 1024 * 1024;
 const Q8_MIN_FREE_BYTES = 500 * 1024 * 1024;
@@ -45,7 +45,10 @@ self.onmessage = async (event) => {
     if (type === "status") {
       value = await status();
     } else if (type === "setup") {
-      value = await setup(payload?.corpusJson || "{}");
+      value = await setup(
+        payload?.corpusJson || "{}",
+        normalizeRemoteBaseUrl(payload?.remoteBaseUrl),
+      );
     } else if (type === "remove") {
       value = await removeAll();
     } else if (type === "search") {
@@ -68,7 +71,19 @@ self.onmessage = async (event) => {
   }
 };
 
-async function setup(corpusJson) {
+function normalizeRemoteBaseUrl(remoteBaseUrl) {
+  if (typeof remoteBaseUrl !== "string" || remoteBaseUrl.trim().length === 0) {
+    return DEFAULT_REMOTE_BASE_URL;
+  }
+  const trimmed = remoteBaseUrl.trim();
+  return trimmed === "/" ? "" : trimmed.replace(/\/+$/, "");
+}
+
+function remotePackUrl(remoteBaseUrl, path) {
+  return `${remoteBaseUrl}/${path.replace(/^\/+/, "")}`;
+}
+
+async function setup(corpusJson, remoteBaseUrl) {
   if (setupInProgress) {
     return status();
   }
@@ -80,14 +95,14 @@ async function setup(corpusJson) {
     await updateStatus("loading-model", "Downloading or opening EmbeddingGemma.");
     await ensureModel();
     await checkQuota();
-    await updateStatus("checking", "Looking for a same-origin vector pack.");
-    const remoteLoaded = await loadRemotePackIfAvailable(corpus);
+    await updateStatus("checking", "Looking for a vector pack.");
+    const remoteLoaded = await loadRemotePackIfAvailable(corpus, remoteBaseUrl);
     if (!remoteLoaded) {
       await buildLocalPack(corpus);
     }
     const pack = await getMeta("pack");
     await updateStatus("ready", pack?.source === "remote"
-      ? "Using cached same-origin vector pack with local query embeddings."
+      ? "Using cached vector pack with local query embeddings."
       : "Using a browser-built vector pack with local query embeddings.");
     return status();
   } catch (error) {
@@ -530,9 +545,9 @@ async function reusableRowsByInputHash(corpus) {
   return rows;
 }
 
-async function loadRemotePackIfAvailable(corpus) {
+async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
   const runtime = activeQueryRuntime();
-  const catalog = await fetchJsonIfAvailable(`${REMOTE_BASE}/catalog.json`);
+  const catalog = await fetchJsonIfAvailable(remotePackUrl(remoteBaseUrl, "catalog.json"));
   if (catalog === null) {
     return false;
   }
@@ -540,7 +555,7 @@ async function loadRemotePackIfAvailable(corpus) {
   if (!vectorSpace?.manifest_url) {
     return false;
   }
-  const manifestUrl = `${REMOTE_BASE}/${vectorSpace.manifest_url}`;
+  const manifestUrl = remotePackUrl(remoteBaseUrl, vectorSpace.manifest_url);
   const manifest = await fetchJsonIfAvailable(manifestUrl);
   if (manifest === null || !manifestCompatible(manifest, corpus, runtime)) {
     return false;

@@ -1,4 +1,7 @@
+const DEFAULT_REMOTE_BASE_URL = "/assets/embeddings/web/v1";
+
 let configuredWorkerUrl = null;
+let configuredRemoteBaseUrl = DEFAULT_REMOTE_BASE_URL;
 let worker = null;
 let nextRequestId = 1;
 const pending = new Map();
@@ -68,12 +71,25 @@ export function jbotciEmbeddingConfigureWorker(workerUrl) {
   }
 }
 
+export function jbotciEmbeddingConfigureRemoteBase(remoteBaseUrl) {
+  if (typeof remoteBaseUrl !== "string" || remoteBaseUrl.trim().length === 0) {
+    throw new Error("embedding remote base URL is empty");
+  }
+  const trimmed = remoteBaseUrl.trim();
+  const normalized = trimmed.length > 1 ? trimmed.replace(/\/+$/, "") : trimmed;
+  configuredRemoteBaseUrl = normalized || DEFAULT_REMOTE_BASE_URL;
+}
+
 function request(type, payload = {}) {
   return new Promise((resolve, reject) => {
     const id = nextRequestId++;
     pending.set(id, { resolve, reject });
     try {
-      ensureWorker().postMessage({ id, type, payload });
+      ensureWorker().postMessage({
+        id,
+        type,
+        payload: { ...payload, remoteBaseUrl: configuredRemoteBaseUrl },
+      });
     } catch (error) {
       pending.delete(id);
       reject(error instanceof Error ? error.message : String(error));
