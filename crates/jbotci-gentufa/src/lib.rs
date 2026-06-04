@@ -1765,11 +1765,27 @@ fn needs_leading_pause(word: &Word) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn render_loose_latin_surface(text: String, options: &GentufaBlockOptions) -> String {
-    match options.script {
-        GentufaScript::Latin => text,
-        GentufaScript::Cyrillic => latin_surface_to_cyrillic(&text),
-        GentufaScript::Zbalermorna => latin_surface_to_zbalermorna(WordKind::Gismu, &text),
+    render_loose_latin_text_for_script(options.script, &text)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn render_loose_latin_text_for_script(script: GentufaScript, text: &str) -> String {
+    match script {
+        GentufaScript::Latin => text.to_owned(),
+        GentufaScript::Cyrillic => latin_surface_to_cyrillic(text),
+        GentufaScript::Zbalermorna => latin_surface_to_zbalermorna(WordKind::Gismu, text),
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn render_latin_word_surface_for_script(
+    script: GentufaScript,
+    kind: WordKind,
+    latin: &str,
+) -> String {
+    render_latin_surface(script, kind, latin)
 }
 
 #[requires(true)]

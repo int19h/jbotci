@@ -1650,6 +1650,7 @@ fn AppShell() -> Element {
                                                     *gentufa_input_diagnostic_tooltip.read(),
                                                     pending_cukta_scroll,
                                                     &base_path,
+                                                    settings_value.script,
                                                 ) }
                                                 div { class: "form-actions",
                                                     { render_dialect_control(dialect, dialect_settings_value.clone(), gentufa_dialect_picker_open) }
@@ -1718,6 +1719,7 @@ fn AppShell() -> Element {
                                     cukta_toc_resize,
                                     pending_cukta_scroll,
                                     &base_path,
+                                    settings_value.script,
                                 )
                             }
                             AppRoute::Vlacku => {
@@ -1731,6 +1733,7 @@ fn AppShell() -> Element {
                                     pending_cukta_scroll,
                                     pending_vlacku_scroll_restore,
                                     &base_path,
+                                    settings_value.script,
                                 )
                             },
                         }
@@ -3462,6 +3465,7 @@ fn render_cukta_page(
     mut toc_resize: Signal<Option<CuktaTocResizeState>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let page = cukta_page.read().page.clone();
     let toc_is_pinned = *toc_pinned.read();
@@ -3611,6 +3615,7 @@ fn render_cukta_page(
                                 chapter_prelude_blocks,
                                 blocks,
                                 base_path,
+                                script,
                             ),
                             CuktaPageKind::Index { entries } => {
                                 render_cukta_index(entries, pending_cukta_scroll, base_path)
@@ -3637,6 +3642,7 @@ fn render_cukta_page(
                                     message.as_deref(),
                                     *has_more,
                                     base_path,
+                                    script,
                                 )
                             }
                             CuktaPageKind::Error { message } => rsx! {
@@ -3994,6 +4000,7 @@ fn render_cukta_section(
     prelude_blocks: &[CllBlock],
     blocks: &[CllBlock],
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let _ = chapter_title;
     rsx! {
@@ -4011,12 +4018,12 @@ fn render_cukta_section(
             if !prelude_blocks.is_empty() {
                 div { class: "cll-chapter-prelude",
                     for block in prelude_blocks.iter() {
-                        { render_cll_block(block, pending_cukta_scroll, base_path) }
+                        { render_cll_block(block, pending_cukta_scroll, base_path, script) }
                     }
                 }
             }
             for block in blocks.iter() {
-                { render_cll_block(block, pending_cukta_scroll, base_path) }
+                { render_cll_block(block, pending_cukta_scroll, base_path, script) }
             }
             if previous.is_some() || next.is_some() {
                 nav { class: "cll-section-pager",
@@ -4133,6 +4140,7 @@ fn render_cukta_search(
     message: Option<&str>,
     has_more: bool,
     base_path: &str,
+    _script: GentufaScript,
 ) -> Element {
     let state_for_load_more = draft_state.clone();
     let mode_options = cukta_draft_mode_options(draft_state.mode);
@@ -4372,6 +4380,7 @@ fn render_cll_block(
     block: &CllBlock,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     match block {
         CllBlock::Paragraph {
@@ -4390,7 +4399,7 @@ fn render_cll_block(
                         "{text}"
                     } else {
                         for inline in inlines.iter() {
-                            { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                            { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
                         }
                     }
                 }
@@ -4403,7 +4412,7 @@ fn render_cll_block(
                         for item in items.iter() {
                             li {
                                 for child in item.iter() {
-                                    { render_cll_block(child, pending_cukta_scroll, base_path) }
+                                    { render_cll_block(child, pending_cukta_scroll, base_path, script) }
                                 }
                             }
                         }
@@ -4415,7 +4424,7 @@ fn render_cll_block(
                         for item in items.iter() {
                             li {
                                 for child in item.iter() {
-                                    { render_cll_block(child, pending_cukta_scroll, base_path) }
+                                    { render_cll_block(child, pending_cukta_scroll, base_path, script) }
                                 }
                             }
                         }
@@ -4438,12 +4447,15 @@ fn render_cll_block(
                 if example.blocks.is_empty() {
                     div { class: "cll-interlinear",
                         for line in example.lines.iter() {
-                            p { class: "cll-ig-line cll-ig-{line.kind}", "{line.text}" }
+                            {
+                                let text = cll_display_text_for_kind(script, &line.kind, &line.text);
+                                rsx! { p { class: "cll-ig-line cll-ig-{line.kind}", "{text}" } }
+                            }
                         }
                     }
                 } else {
                     for child in example.blocks.iter() {
-                        { render_cll_block(child, pending_cukta_scroll, base_path) }
+                        { render_cll_block(child, pending_cukta_scroll, base_path, script) }
                     }
                 }
             }
@@ -4461,7 +4473,7 @@ fn render_cll_block(
                 if let Some(caption) = caption {
                     caption {
                         for inline in caption.iter() {
-                            { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                            { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
                         }
                     }
                 }
@@ -4490,7 +4502,7 @@ fn render_cll_block(
                                             }
                                         }
                                         for child in cell.blocks.iter() {
-                                            { render_cll_block(child, pending_cukta_scroll, base_path) }
+                                            { render_cll_block(child, pending_cukta_scroll, base_path, script) }
                                         }
                                     }
                                 }
@@ -4524,7 +4536,7 @@ fn render_cll_block(
                                         }
                                     }
                                     for child in cell.blocks.iter() {
-                                        { render_cll_block(child, pending_cukta_scroll, base_path) }
+                                        { render_cll_block(child, pending_cukta_scroll, base_path, script) }
                                     }
                                 }
                             }
@@ -4556,7 +4568,7 @@ fn render_cll_block(
                                     td {
                                         if let Some(inlines) = cell {
                                             for inline in inlines.iter() {
-                                                { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                                                { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
                                             }
                                         }
                                     }
@@ -4572,12 +4584,12 @@ fn render_cll_block(
                 for entry in entries.iter() {
                     dt {
                         for inline in entry.term.iter() {
-                            { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                            { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
                         }
                     }
                     dd {
                         for child in entry.blocks.iter() {
-                            { render_cll_block(child, pending_cukta_scroll, base_path) }
+                            { render_cll_block(child, pending_cukta_scroll, base_path, script) }
                         }
                     }
                 }
@@ -4596,7 +4608,7 @@ fn render_cll_block(
                     if let Some(title) = title {
                         figcaption {
                             for inline in title.iter() {
-                                { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                                { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
                             }
                         }
                     }
@@ -4608,7 +4620,7 @@ fn render_cll_block(
                 dt { "{term}" }
                 dd {
                     for child in body.iter() {
-                        { render_cll_block(child, pending_cukta_scroll, base_path) }
+                        { render_cll_block(child, pending_cukta_scroll, base_path, script) }
                     }
                 }
             }
@@ -4630,7 +4642,7 @@ fn render_cll_block(
             rsx! {
                 h2 { id: id.clone().unwrap_or_default(), class: "{class_name}",
                     for inline in inlines.iter() {
-                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
                     }
                 }
             }
@@ -4638,14 +4650,14 @@ fn render_cll_block(
         CllBlock::BlockQuote { id, blocks } => rsx! {
             blockquote { id: id.clone().unwrap_or_default(), class: "cll-blockquote",
                 for child in blocks.iter() {
-                    { render_cll_block(child, pending_cukta_scroll, base_path) }
+                    { render_cll_block(child, pending_cukta_scroll, base_path, script) }
                 }
             }
         },
         CllBlock::Definition { id, body } => rsx! {
             p { id: id.clone().unwrap_or_default(), class: "cll-definition",
                 for inline in body.iter() {
-                    { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                    { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
                 }
             }
         },
@@ -4667,6 +4679,7 @@ fn render_cll_block(
             comments,
             pending_cukta_scroll,
             base_path,
+            script,
         ),
         CllBlock::CmavoList {
             id,
@@ -4680,23 +4693,36 @@ fn render_cll_block(
             rows,
             pending_cukta_scroll,
             base_path,
+            script,
         ),
-        CllBlock::Lojbanization { id, lines } => {
-            render_cll_lojbanization(id.as_deref(), lines, pending_cukta_scroll, base_path)
-        }
-        CllBlock::LujvoMaking { id, parts } => {
-            render_cll_lujvo_making(id.as_deref(), parts, pending_cukta_scroll, base_path)
-        }
+        CllBlock::Lojbanization { id, lines } => render_cll_lojbanization(
+            id.as_deref(),
+            lines,
+            pending_cukta_scroll,
+            base_path,
+            script,
+        ),
+        CllBlock::LujvoMaking { id, parts } => render_cll_lujvo_making(
+            id.as_deref(),
+            parts,
+            pending_cukta_scroll,
+            base_path,
+            script,
+        ),
         CllBlock::GrammarTemplate { id, body } => rsx! {
             p { id: id.clone().unwrap_or_default(), class: "cll-grammar-template",
                 for inline in body.iter() {
-                    { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                    { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
                 }
             }
         },
-        CllBlock::Ebnf { id, entries } => {
-            render_cll_ebnf(id.as_deref(), entries, pending_cukta_scroll, base_path)
-        }
+        CllBlock::Ebnf { id, entries } => render_cll_ebnf(
+            id.as_deref(),
+            entries,
+            pending_cukta_scroll,
+            base_path,
+            script,
+        ),
     }
 }
 
@@ -4706,33 +4732,51 @@ fn render_cll_inline(
     inline: &CllInline,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
+    lojban_context: bool,
 ) -> Element {
     match inline {
-        CllInline::Text(text) => rsx! { "{text}" },
-        CllInline::Emphasis { language, inlines } => rsx! {
-            em { lang: language.clone().unwrap_or_default(),
-                for child in inlines.iter() {
-                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
+        CllInline::Text(text) => {
+            let text = if lojban_context {
+                display_lojban_text(script, text)
+            } else {
+                text.clone()
+            };
+            rsx! { "{text}" }
+        }
+        CllInline::Emphasis { language, inlines } => {
+            let child_context = lojban_context || cll_language_is_lojban(language.as_deref());
+            rsx! {
+                em { lang: language.clone().unwrap_or_default(),
+                    for child in inlines.iter() {
+                        { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
+                    }
                 }
             }
-        },
-        CllInline::Quote { language, inlines } => rsx! {
-            q { lang: language.clone().unwrap_or_default(),
-                for child in inlines.iter() {
-                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
+        }
+        CllInline::Quote { language, inlines } => {
+            let child_context = lojban_context || cll_language_is_lojban(language.as_deref());
+            rsx! {
+                q { lang: language.clone().unwrap_or_default(),
+                    for child in inlines.iter() {
+                        { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
+                    }
                 }
             }
-        },
+        }
         CllInline::LanguageSpan {
             kind,
             language,
             inlines,
         } => {
             let class_name = cll_language_span_class(*kind);
+            let child_context = lojban_context
+                || *kind == CllLanguageSpanKind::JboPhrase
+                || cll_language_is_lojban(language.as_deref());
             rsx! {
                 span { class: "{class_name}", lang: language.clone().unwrap_or_default(),
                     for child in inlines.iter() {
-                        { render_cll_inline(child, pending_cukta_scroll, base_path) }
+                        { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
                     }
                 }
             }
@@ -4740,21 +4784,21 @@ fn render_cll_inline(
         CllInline::CiteTitle { inlines } => rsx! {
             cite {
                 for child in inlines.iter() {
-                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
+                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, lojban_context) }
                 }
             }
         },
         CllInline::Subscript { inlines } => rsx! {
             sub {
                 for child in inlines.iter() {
-                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
+                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, lojban_context) }
                 }
             }
         },
         CllInline::Superscript { inlines } => rsx! {
             sup {
                 for child in inlines.iter() {
-                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
+                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, lojban_context) }
                 }
             }
         },
@@ -4766,6 +4810,7 @@ fn render_cll_inline(
             let href = cll_inline_href(base_path, *kind, target);
             let class_name = format!("spa-cll-link {}", cll_link_kind_class(*kind));
             let tooltip = cll_dictionary_tooltip_for_link(base_path, *kind, target);
+            let child_context = lojban_context || cll_link_text_is_lojban(*kind);
             let route = jbotci_route_from_href(base_path, &href).map(|route| {
                 let pending_scroll =
                     cukta_pending_scroll_for_explicit_route_link(base_path, &route);
@@ -4788,7 +4833,7 @@ fn render_cll_inline(
                                     );
                                 },
                                 for child in inlines.iter() {
-                                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
+                                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
                                 }
                             }
                         } else {
@@ -4796,11 +4841,11 @@ fn render_cll_inline(
                                 class: "{class_name}",
                                 href: "{href}",
                                 for child in inlines.iter() {
-                                    { render_cll_inline(child, pending_cukta_scroll, base_path) }
+                                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
                                 }
                             }
                         }
-                        { render_dictionary_tooltip(card, false, base_path) }
+                        { render_dictionary_tooltip(card, false, base_path, script) }
                     }
                 }
             } else {
@@ -4818,7 +4863,7 @@ fn render_cll_inline(
                                 );
                             },
                             for child in inlines.iter() {
-                                { render_cll_inline(child, pending_cukta_scroll, base_path) }
+                                { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
                             }
                         }
                     }
@@ -4828,7 +4873,7 @@ fn render_cll_inline(
                             class: "{class_name}",
                             href: "{href}",
                             for child in inlines.iter() {
-                                { render_cll_inline(child, pending_cukta_scroll, base_path) }
+                                { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
                             }
                         }
                     }
@@ -4845,10 +4890,10 @@ fn render_cll_inline(
             rsx! {
                 span { class: "{class_name}",
                     if inlines.is_empty() {
-                        "{shown}"
+                        "{display_lojban_text_if(script, shown, lojban_context)}"
                     } else {
                         for child in inlines.iter() {
-                            { render_cll_inline(child, pending_cukta_scroll, base_path) }
+                            { render_cll_inline(child, pending_cukta_scroll, base_path, script, lojban_context) }
                         }
                     }
                 }
@@ -4863,6 +4908,51 @@ fn render_cll_inline(
 
 #[requires(true)]
 #[ensures(true)]
+fn display_lojban_text(script: GentufaScript, text: &str) -> String {
+    jbotci_gentufa::render_loose_latin_text_for_script(script, text)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn display_lojban_text_if(script: GentufaScript, text: &str, lojban_context: bool) -> String {
+    if lojban_context {
+        display_lojban_text(script, text)
+    } else {
+        text.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == language.is_some_and(|language| language.eq_ignore_ascii_case("jbo") || language.eq_ignore_ascii_case("lojban")))]
+fn cll_language_is_lojban(language: Option<&str>) -> bool {
+    language.is_some_and(|language| {
+        language.eq_ignore_ascii_case("jbo") || language.eq_ignore_ascii_case("lojban")
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_link_text_is_lojban(kind: CllLinkKind) -> bool {
+    matches!(
+        kind,
+        CllLinkKind::Dictionary | CllLinkKind::Rafsi | CllLinkKind::Parse
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_kind_is_lojban(kind: &str) -> bool {
+    matches!(kind, "jbo" | "jbophrase" | "veljvo" | "rafsi")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_display_text_for_kind(script: GentufaScript, kind: &str, text: &str) -> String {
+    display_lojban_text_if(script, text, cll_kind_is_lojban(kind))
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn render_cll_interlinear(
     id: Option<&str>,
     aligned: bool,
@@ -4873,6 +4963,7 @@ fn render_cll_interlinear(
     comments: &[Vec<CllInline>],
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let class_name = class_names(
         "cll-interlinear",
@@ -4896,11 +4987,16 @@ fn render_cll_interlinear(
                     table { class: "{table_class}",
                         tbody {
                             for row in rows.iter() {
-                                tr { class: "cll-ig-row cll-ig-{row.kind} cll-interlinear-row cll-interlinear-row-{row.kind}",
-                                    for cell in row.cells.iter() {
-                                        td { class: "cll-ig-cell",
-                                            for inline in cell.iter() {
-                                                { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                                {
+                                    let row_context = cll_kind_is_lojban(&row.kind);
+                                    rsx! {
+                                        tr { class: "cll-ig-row cll-ig-{row.kind} cll-interlinear-row cll-interlinear-row-{row.kind}",
+                                            for cell in row.cells.iter() {
+                                                td { class: "cll-ig-cell",
+                                                    for inline in cell.iter() {
+                                                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, row_context) }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -4911,11 +5007,16 @@ fn render_cll_interlinear(
                 } else {
                     div { class: "cll-interlinear-itemized",
                         for row in rows.iter() {
-                            div { class: "cll-ig-line-wrap",
-                                p { class: "cll-ig-line cll-ig-inline cll-ig-{row.kind}",
-                                    for cell in row.cells.iter() {
-                                        for inline in cell.iter() {
-                                            { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                            {
+                                let row_context = cll_kind_is_lojban(&row.kind);
+                                rsx! {
+                                    div { class: "cll-ig-line-wrap",
+                                        p { class: "cll-ig-line cll-ig-inline cll-ig-{row.kind}",
+                                            for cell in row.cells.iter() {
+                                                for inline in cell.iter() {
+                                                    { render_cll_inline(inline, pending_cukta_scroll, base_path, script, row_context) }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -4927,14 +5028,14 @@ fn render_cll_interlinear(
             for comment in comments.iter() {
                 p { class: "cll-ig-comment cll-interlinear-comment",
                     for inline in comment.iter() {
-                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
                     }
                 }
             }
             for line in natlang.iter() {
                 p { class: "cll-ig-natlang-text cll-natlang",
                     for inline in line.iter() {
-                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
                     }
                 }
             }
@@ -4951,13 +5052,14 @@ fn render_cll_cmavo_list(
     rows: &[Vec<Vec<CllInline>>],
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     rsx! {
         div { id: id.unwrap_or_default(), class: "cll-cmavo-list",
             for title in titles.iter() {
                 p { class: "cll-cmavo-list-title",
                     for inline in title.iter() {
-                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
                     }
                 }
             }
@@ -4968,7 +5070,7 @@ fn render_cll_cmavo_list(
                             for header in headers.iter() {
                                 th {
                                     for inline in header.iter() {
-                                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
                                     }
                                 }
                             }
@@ -4979,7 +5081,7 @@ fn render_cll_cmavo_list(
                             for cell in row.iter() {
                                 td {
                                     for inline in cell.iter() {
-                                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
                                     }
                                 }
                             }
@@ -4998,22 +5100,28 @@ fn render_cll_lojbanization(
     lines: &[CllLojbanizationLine],
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     rsx! {
         table { id: id.unwrap_or_default(), class: "cll-lojbanization cll-lojbanization-table",
             tbody {
                 for line in lines.iter() {
-                    tr { class: "cll-lojbanization-row cll-lojbanization-line cll-lojbanization-line-{line.kind} cll-lojbanization-{line.kind}",
-                        th { "{line.kind}" }
-                        td {
-                            for inline in line.body.iter() {
-                                { render_cll_inline(inline, pending_cukta_scroll, base_path) }
-                            }
-                        }
-                        td {
-                            if let Some(comment) = &line.comment {
-                                for inline in comment.iter() {
-                                    { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                    {
+                        let line_context = cll_kind_is_lojban(&line.kind);
+                        rsx! {
+                            tr { class: "cll-lojbanization-row cll-lojbanization-line cll-lojbanization-line-{line.kind} cll-lojbanization-{line.kind}",
+                                th { "{line.kind}" }
+                                td {
+                                    for inline in line.body.iter() {
+                                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, line_context) }
+                                    }
+                                }
+                                td {
+                                    if let Some(comment) = &line.comment {
+                                        for inline in comment.iter() {
+                                            { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -5031,14 +5139,20 @@ fn render_cll_lujvo_making(
     parts: &[CllLujvoPart],
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     rsx! {
         ul { id: id.unwrap_or_default(), class: "cll-lujvo-making",
             for part in parts.iter() {
-                li { class: "cll-lujvo-part cll-lujvo-part-{part.kind}",
-                    span { class: "cll-lujvo-part-kind", "{part.kind}" }
-                    for inline in part.body.iter() {
-                        { render_cll_inline(inline, pending_cukta_scroll, base_path) }
+                {
+                    let part_context = cll_kind_is_lojban(&part.kind);
+                    rsx! {
+                        li { class: "cll-lujvo-part cll-lujvo-part-{part.kind}",
+                            span { class: "cll-lujvo-part-kind", "{part.kind}" }
+                            for inline in part.body.iter() {
+                                { render_cll_inline(inline, pending_cukta_scroll, base_path, script, part_context) }
+                            }
+                        }
                     }
                 }
             }
@@ -5053,18 +5167,19 @@ fn render_cll_ebnf(
     entries: &[CllEbnfEntry],
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     rsx! {
         div { id: id.unwrap_or_default(), class: "cll-ebnf",
             for entry in entries.iter() {
                 section { id: "{entry.anchor_id}", class: "cll-ebnf-entry",
                     div { class: "cll-ebnf-head",
-                        { render_cll_ebnf_link("cll-ebnf-rule", &entry.rule_name, entry.rule_href.as_deref(), pending_cukta_scroll, base_path) }
+                        { render_cll_ebnf_link("cll-ebnf-rule", &entry.rule_name, entry.rule_href.as_deref(), pending_cukta_scroll, base_path, script) }
                         " "
                         span { class: "cll-ebnf-assign", "⩴" }
                     }
                     pre { class: "cll-ebnf-rhs",
-                        { render_cll_ebnf_rhs(&entry.rhs, pending_cukta_scroll, base_path) }
+                        { render_cll_ebnf_rhs(&entry.rhs, pending_cukta_scroll, base_path, script) }
                     }
                 }
             }
@@ -5078,13 +5193,14 @@ fn render_cll_ebnf_rhs(
     tokens: &[CllEbnfToken],
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let lines = wrap_ebnf_choice_lines(tokens);
     if lines.len() == 1 {
         let line = lines.into_iter().next().unwrap_or_default();
         return rsx! {
             for token in line.iter() {
-                { render_cll_ebnf_token(token, pending_cukta_scroll, base_path) }
+                { render_cll_ebnf_token(token, pending_cukta_scroll, base_path, script) }
             }
         };
     }
@@ -5092,7 +5208,7 @@ fn render_cll_ebnf_rhs(
         for line in lines.iter() {
             span { class: "cll-ebnf-choice-line",
                 for token in line.iter() {
-                    { render_cll_ebnf_token(token, pending_cukta_scroll, base_path) }
+                    { render_cll_ebnf_token(token, pending_cukta_scroll, base_path, script) }
                 }
             }
         }
@@ -5105,6 +5221,7 @@ fn render_cll_ebnf_token(
     token: &CllEbnfToken,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     match token {
         CllEbnfToken::Text { body } => rsx! { "{body}" },
@@ -5118,16 +5235,22 @@ fn render_cll_ebnf_token(
             href.as_deref(),
             pending_cukta_scroll,
             base_path,
+            script,
         ),
-        CllEbnfToken::ElidableTerminator { body, href } => {
-            render_cll_ebnf_elidable(body, href.as_deref(), pending_cukta_scroll, base_path)
-        }
+        CllEbnfToken::ElidableTerminator { body, href } => render_cll_ebnf_elidable(
+            body,
+            href.as_deref(),
+            pending_cukta_scroll,
+            base_path,
+            script,
+        ),
         CllEbnfToken::Nonterminal { body, href } => render_cll_ebnf_link(
             "cll-ebnf-nonterminal",
             body,
             href.as_deref(),
             pending_cukta_scroll,
             base_path,
+            script,
         ),
     }
 }
@@ -5139,6 +5262,7 @@ fn render_cll_ebnf_elidable(
     href: Option<&str>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let pieces = cll_ebnf_elidable_hash_pieces(body);
     if let Some(href) = href {
@@ -5183,7 +5307,7 @@ fn render_cll_ebnf_elidable(
                             }
                         }
                     }
-                    { render_dictionary_tooltip(card, false, base_path) }
+                    { render_dictionary_tooltip(card, false, base_path, script) }
                 }
             }
         } else {
@@ -5246,6 +5370,7 @@ fn render_cll_ebnf_link(
     href: Option<&str>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     if let Some(href) = href {
         let tooltip = cll_dictionary_tooltip_for_href(base_path, href);
@@ -5275,7 +5400,7 @@ fn render_cll_ebnf_link(
                     } else {
                         a { class: "{class_name}", href: "{href}", "{body}" }
                     }
-                    { render_dictionary_tooltip(card, false, base_path) }
+                    { render_dictionary_tooltip(card, false, base_path, script) }
                 }
             }
         } else {
@@ -5772,6 +5897,7 @@ fn render_vlacku_page(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     pending_vlacku_scroll_restore: Signal<Option<i32>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let committed_state = vlacku_committed_state.read().clone();
     let result_state = vlacku_result.read().clone();
@@ -5809,10 +5935,10 @@ fn render_vlacku_page(
                 }
                 div { class: "dictionary-layout",
                     div { class: "dictionary-main-column",
-                        { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, jvozba_available_value, pending_cukta_scroll, pending_vlacku_scroll_restore, base_path) }
+                        { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, jvozba_available_value, pending_cukta_scroll, pending_vlacku_scroll_restore, base_path, script) }
                     }
                     if jvozba_available_value {
-                        { render_vlacku_jvozba_pane(jvozba_pane, jvozba_drag) }
+                        { render_vlacku_jvozba_pane(jvozba_pane, jvozba_drag, script) }
                     }
                 }
             }
@@ -6026,13 +6152,14 @@ fn render_vlacku_body(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     mut pending_vlacku_scroll_restore: Signal<Option<i32>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     rsx! {
         div { class: "dictionary-results",
             if !result.cards.is_empty() {
                 div { class: "dictionary-results-grid", "data-jvozba-pane-anchor": "1",
                     for card in result.cards.iter() {
-                        { render_vlacku_card(card, jvozba_pane, jvozba_available, pending_cukta_scroll, base_path) }
+                        { render_vlacku_card(card, jvozba_pane, jvozba_available, pending_cukta_scroll, base_path, script) }
                     }
                 }
             }
@@ -6142,11 +6269,12 @@ fn render_vlacku_card(
     jvozba_available: bool,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     rsx! {
         section { class: "result-card",
             header { class: "result-header",
-                { render_vlacku_headword_line(card, jvozba_pane, jvozba_available, base_path) }
+                { render_vlacku_headword_line(card, jvozba_pane, jvozba_available, base_path, script) }
                 div { class: "tag-row",
                     if let Some(author) = &card.author {
                         { render_vlacku_author_credit(author) }
@@ -6156,7 +6284,7 @@ fn render_vlacku_card(
             }
             if !card.definition.is_empty() {
                 p { class: "dictionary-definition-copy",
-                    { render_inline_spans(&card.definition, jvozba_pane, jvozba_available, base_path) }
+                    { render_inline_spans(&card.definition, jvozba_pane, jvozba_available, base_path, script) }
                     {
                         let definition_source = card.definition_source.clone();
                         rsx! {
@@ -6181,13 +6309,13 @@ fn render_vlacku_card(
             }
             if !card.notes.is_empty() {
                 p { class: "dictionary-note-copy", "data-note-tooltip": "Dictionary notes",
-                    { render_inline_spans(&card.notes, jvozba_pane, jvozba_available, base_path) }
+                    { render_inline_spans(&card.notes, jvozba_pane, jvozba_available, base_path, script) }
                 }
             }
             if !card.etymology.is_empty() {
                 p { class: "dictionary-etymology-copy", title: "Etymology",
                     span { class: "dictionary-detail-label", "etymology: " }
-                    { render_inline_spans(&card.etymology, jvozba_pane, jvozba_available, base_path) }
+                    { render_inline_spans(&card.etymology, jvozba_pane, jvozba_available, base_path, script) }
                 }
             }
         }
@@ -6200,15 +6328,17 @@ fn render_dictionary_tooltip(
     card: &DictionaryTooltipCard,
     show_link: bool,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
+    let display_word = display_lojban_text(script, &card.display_word);
     rsx! {
         span { class: "rich-dictionary-tooltip", role: "tooltip",
             span { class: "tooltip-word-line",
                 span { class: "tooltip-headword",
                     if show_link {
-                        { render_text_route_link("tooltip-word", &card.href, base_path, &card.display_word) }
+                        { render_text_route_link("tooltip-word", &card.href, base_path, &display_word) }
                     } else {
-                        span { class: "tooltip-word", "{card.display_word}" }
+                        span { class: "tooltip-word", "{display_word}" }
                     }
                     if let Some(ipa) = &card.ipa {
                         span { class: "tooltip-ipa", "/{ipa}/" }
@@ -6228,17 +6358,19 @@ fn render_dictionary_tooltip(
                     span { class: "tooltip-label", "decomposition" }
                     span { class: "tooltip-decomposition-pieces",
                         for piece in card.decomposition.iter().filter(|piece| piece.kind != VlackuCompositionPieceKind::Hyphen) {
-                            if let Some(source) = &piece.source {
-                                if show_link {
-                                    {
+                            {
+                                let display_surface = display_lojban_text(script, &piece.display_surface);
+                                if let Some(source) = &piece.source {
+                                    let display_source = display_lojban_text(script, piece.display_source.as_deref().unwrap_or(source));
+                                    if show_link {
                                         let href = piece.source_href.as_deref().unwrap_or(&card.href);
                                         if let Some(route) = jbotci_route_from_href(base_path, href) {
                                             rsx! {
                                                 Link {
                                                     class: "tooltip-rafsi-piece",
                                                     to: route,
-                                                    span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
-                                                    span { class: "tooltip-rafsi-source", "{piece.display_source.as_deref().unwrap_or(source)}" }
+                                                    span { class: "tooltip-rafsi-surface", "{display_surface}" }
+                                                    span { class: "tooltip-rafsi-source", "{display_source}" }
                                                 }
                                             }
                                         } else {
@@ -6246,21 +6378,25 @@ fn render_dictionary_tooltip(
                                                 a {
                                                     class: "tooltip-rafsi-piece",
                                                     href: "{href}",
-                                                    span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
-                                                    span { class: "tooltip-rafsi-source", "{piece.display_source.as_deref().unwrap_or(source)}" }
+                                                    span { class: "tooltip-rafsi-surface", "{display_surface}" }
+                                                    span { class: "tooltip-rafsi-source", "{display_source}" }
                                                 }
+                                            }
+                                        }
+                                    } else {
+                                        rsx! {
+                                            span { class: "tooltip-rafsi-piece",
+                                                span { class: "tooltip-rafsi-surface", "{display_surface}" }
+                                                span { class: "tooltip-rafsi-source", "{display_source}" }
                                             }
                                         }
                                     }
                                 } else {
-                                    span { class: "tooltip-rafsi-piece",
-                                        span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
-                                        span { class: "tooltip-rafsi-source", "{piece.display_source.as_deref().unwrap_or(source)}" }
+                                    rsx! {
+                                        span { class: "tooltip-rafsi-piece",
+                                            span { class: "tooltip-rafsi-surface", "{display_surface}" }
+                                        }
                                     }
-                                }
-                            } else {
-                                span { class: "tooltip-rafsi-piece",
-                                    span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
                                 }
                             }
                         }
@@ -6269,7 +6405,7 @@ fn render_dictionary_tooltip(
             }
             if !card.definition.is_empty() {
                 span { class: "tooltip-copy",
-                    { render_tooltip_inline_spans(&card.definition, base_path, show_link) }
+                    { render_tooltip_inline_spans(&card.definition, base_path, show_link, script) }
                 }
             }
             if !card.glosses.is_empty() {
@@ -6281,7 +6417,7 @@ fn render_dictionary_tooltip(
             }
             if !card.notes.is_empty() {
                 span { class: "tooltip-notes",
-                    { render_tooltip_inline_spans(&card.notes, base_path, show_link) }
+                    { render_tooltip_inline_spans(&card.notes, base_path, show_link, script) }
                 }
             }
         }
@@ -6290,20 +6426,29 @@ fn render_dictionary_tooltip(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_reference_tooltip(tooltip: &ReferenceTooltip, base_path: &str) -> Element {
+fn render_reference_tooltip(
+    tooltip: &ReferenceTooltip,
+    base_path: &str,
+    script: GentufaScript,
+) -> Element {
     rsx! {
         span { class: "rich-reference-tooltip-stack", role: "tooltip",
             if let Some(card) = &tooltip.card {
-                { render_reference_dictionary_card(card, tooltip, base_path) }
+                { render_reference_dictionary_card(card, tooltip, base_path, script) }
             } else if let Some(word) = &tooltip.missing_word {
-                span { class: "rich-dictionary-tooltip reference-missing-card",
-                    span { class: "tooltip-word-line",
-                        span { class: "tooltip-headword",
-                            span { class: "tooltip-word", "{word}" }
+                {
+                    let display_word = display_lojban_text(script, word);
+                    rsx! {
+                        span { class: "rich-dictionary-tooltip reference-missing-card",
+                            span { class: "tooltip-word-line",
+                                span { class: "tooltip-headword",
+                                    span { class: "tooltip-word", "{display_word}" }
+                                }
+                            }
+                            span { class: "tooltip-copy",
+                                "No dictionary card available."
+                            }
                         }
-                    }
-                    span { class: "tooltip-copy",
-                        "No dictionary card available."
                     }
                 }
             }
@@ -6320,12 +6465,14 @@ fn render_reference_dictionary_card(
     card: &DictionaryTooltipCard,
     tooltip: &ReferenceTooltip,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
+    let display_word = display_lojban_text(script, &card.display_word);
     rsx! {
         span { class: "rich-dictionary-tooltip reference-definition-card",
             span { class: "tooltip-word-line",
                 span { class: "tooltip-headword",
-                    span { class: "tooltip-word", "{card.display_word}" }
+                    span { class: "tooltip-word", "{display_word}" }
                     if let Some(ipa) = &card.ipa {
                         span { class: "tooltip-ipa", "/{ipa}/" }
                     }
@@ -6344,14 +6491,22 @@ fn render_reference_dictionary_card(
                     span { class: "tooltip-label", "decomposition" }
                     span { class: "tooltip-decomposition-pieces",
                         for piece in card.decomposition.iter().filter(|piece| piece.kind != VlackuCompositionPieceKind::Hyphen) {
-                            if let Some(source) = &piece.source {
-                                span { class: "tooltip-rafsi-piece",
-                                    span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
-                                    span { class: "tooltip-rafsi-source", "{piece.display_source.as_deref().unwrap_or(source)}" }
-                                }
-                            } else {
-                                span { class: "tooltip-rafsi-piece",
-                                    span { class: "tooltip-rafsi-surface", "{piece.display_surface}" }
+                            {
+                                let display_surface = display_lojban_text(script, &piece.display_surface);
+                                if let Some(source) = &piece.source {
+                                    let display_source = display_lojban_text(script, piece.display_source.as_deref().unwrap_or(source));
+                                    rsx! {
+                                        span { class: "tooltip-rafsi-piece",
+                                            span { class: "tooltip-rafsi-surface", "{display_surface}" }
+                                            span { class: "tooltip-rafsi-source", "{display_source}" }
+                                        }
+                                    }
+                                } else {
+                                    rsx! {
+                                        span { class: "tooltip-rafsi-piece",
+                                            span { class: "tooltip-rafsi-surface", "{display_surface}" }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -6360,7 +6515,7 @@ fn render_reference_dictionary_card(
             }
             if !tooltip.definition.is_empty() {
                 span { class: "tooltip-copy",
-                    { render_reference_tooltip_inline_spans(&tooltip.definition, base_path) }
+                    { render_reference_tooltip_inline_spans(&tooltip.definition, base_path, script) }
                 }
             }
             if !card.glosses.is_empty() {
@@ -6372,7 +6527,7 @@ fn render_reference_dictionary_card(
             }
             if !tooltip.notes.is_empty() {
                 span { class: "tooltip-notes",
-                    { render_reference_tooltip_inline_spans(&tooltip.notes, base_path) }
+                    { render_reference_tooltip_inline_spans(&tooltip.notes, base_path, script) }
                 }
             }
         }
@@ -6384,6 +6539,7 @@ fn render_reference_dictionary_card(
 fn render_reference_tooltip_inline_spans(
     spans: &[ReferenceTooltipInline],
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     rsx! {
         for span in spans.iter() {
@@ -6393,8 +6549,9 @@ fn render_reference_tooltip_inline_spans(
                     data!(ReferenceTooltipInline::Math(math)) => render_vlacku_math(math),
                     data!(ReferenceTooltipInline::WordRef { label, href, .. }) => {
                         let resolved_href = resolved_href_with_base_path(base_path, href);
+                        let display_label = display_lojban_text(script, label);
                         rsx! {
-                            span { class: "tooltip-inline-link", "data-href": "{resolved_href}", "{label}" }
+                            span { class: "tooltip-inline-link", "data-href": "{resolved_href}", "{display_label}" }
                         }
                     }
                     data!(ReferenceTooltipInline::IndexedPlace { text, highlighted, .. }) => {
@@ -6475,6 +6632,7 @@ fn render_tooltip_inline_spans(
     spans: &[VlackuInline],
     base_path: &str,
     interactive_links: bool,
+    script: GentufaScript,
 ) -> Element {
     rsx! {
         for span in spans.iter() {
@@ -6484,13 +6642,14 @@ fn render_tooltip_inline_spans(
                     data!(VlackuInline::Math(math)) => render_vlacku_math(math),
                     data!(VlackuInline::WordRef { label, href, .. }) => {
                         let resolved_href = resolved_href_with_base_path(base_path, href);
+                        let display_label = display_lojban_text(script, label);
                         if interactive_links {
                             rsx! {
-                                { render_text_route_link("tooltip-inline-link", &resolved_href, base_path, label) }
+                                { render_text_route_link("tooltip-inline-link", &resolved_href, base_path, &display_label) }
                             }
                         } else {
                             rsx! {
-                                span { class: "tooltip-inline-link", "{label}" }
+                                span { class: "tooltip-inline-link", "{display_label}" }
                             }
                         }
                     }
@@ -6507,6 +6666,7 @@ fn render_vlacku_headword_line(
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_available: bool,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let word_href = vlacku_web_url(
         base_path,
@@ -6517,6 +6677,7 @@ fn render_vlacku_headword_line(
             word_types: Vec::new(),
         },
     );
+    let display_word = display_lojban_text(script, &card.display_word);
     rsx! {
         div { class: "dictionary-word-cluster",
             h2 { class: "word dictionary-headword-title",
@@ -6525,7 +6686,7 @@ fn render_vlacku_headword_line(
                     jvozba_available,
                     card.can_add_to_jvozba,
                     &card.word,
-                    &card.display_word,
+                    &display_word,
                     &word_href,
                     base_path,
                 ) }
@@ -6536,14 +6697,14 @@ fn render_vlacku_headword_line(
             if !card.decomposition.is_empty() {
                 span { class: "dictionary-word-composition-group dictionary-word-decomposition-group",
                     { render_vlacku_inline_separator("=") }
-                    { render_vlacku_decomposition_inline(card, jvozba_pane, jvozba_available, base_path) }
+                    { render_vlacku_decomposition_inline(card, jvozba_pane, jvozba_available, base_path, script) }
                 }
             } else if !card.rafsi.is_empty() {
                 span { class: "dictionary-word-composition-group dictionary-word-rafsi-group",
                     { render_vlacku_inline_separator("≘") }
                     span { class: "dictionary-inline-pill-row",
                         for rafsi in card.rafsi.iter() {
-                            { render_rafsi_pill(jvozba_pane, jvozba_available, &card.word, rafsi) }
+                            { render_rafsi_pill(jvozba_pane, jvozba_available, &card.word, rafsi, script) }
                         }
                     }
                 }
@@ -6591,6 +6752,7 @@ fn render_vlacku_decomposition_inline(
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_available: bool,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let visible_pieces = card
         .decomposition
@@ -6602,7 +6764,7 @@ fn render_vlacku_decomposition_inline(
             if index > 0 {
                 { render_vlacku_inline_separator("+") }
             }
-            { render_composition_piece(piece, jvozba_pane, jvozba_available, base_path) }
+            { render_composition_piece(piece, jvozba_pane, jvozba_available, base_path, script) }
         }
     }
 }
@@ -6767,6 +6929,7 @@ fn render_vlacku_word_action(
     href: &str,
     class_name: &str,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let pane_open = jvozba_available && jvozba_pane.read().open;
     let word_value = word.to_owned();
@@ -6790,7 +6953,7 @@ fn render_vlacku_word_action(
                         onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
                         "{display_word}"
                     }
-                    { render_dictionary_tooltip(card, false, base_path) }
+                    { render_dictionary_tooltip(card, false, base_path, script) }
                 }
             }
         } else {
@@ -6813,7 +6976,7 @@ fn render_vlacku_word_action(
             rsx! {
                 span { class: "dictionary-tooltip-host",
                     { render_text_route_link(&static_class_name, href, base_path, display_word) }
-                    { render_dictionary_tooltip(card, false, base_path) }
+                    { render_dictionary_tooltip(card, false, base_path, script) }
                 }
             }
         } else {
@@ -6843,13 +7006,20 @@ fn render_composition_piece(
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_available: bool,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     match piece.kind {
-        VlackuCompositionPieceKind::Hyphen => rsx! {
-            span { class: "dictionary-word-inline-separator", "{piece.display_surface}" }
-        },
+        VlackuCompositionPieceKind::Hyphen => {
+            let display_surface = display_lojban_text(script, &piece.display_surface);
+            rsx! {
+                span { class: "dictionary-word-inline-separator", "{display_surface}" }
+            }
+        }
         VlackuCompositionPieceKind::Rafsi => {
+            let display_surface = display_lojban_text(script, &piece.display_surface);
             if let Some(source) = &piece.source {
+                let display_source =
+                    display_lojban_text(script, piece.display_source.as_deref().unwrap_or(source));
                 let href = vlacku_web_url(
                     base_path,
                     &VlackuWebState {
@@ -6861,24 +7031,25 @@ fn render_composition_piece(
                 );
                 rsx! {
                     span { class: "rafsi-split-pill",
-                        { render_vlacku_rafsi_add_piece(jvozba_pane, jvozba_available, &piece.surface, source, &piece.display_surface) }
+                        { render_vlacku_rafsi_add_piece(jvozba_pane, jvozba_available, &piece.surface, source, &display_surface) }
                         span { class: "rafsi-split-right",
                             { render_vlacku_word_action(
                                 jvozba_pane,
                                 jvozba_available,
                                 true,
                                 source,
-                                piece.display_source.as_deref().unwrap_or(source),
+                                &display_source,
                                 &href,
                                 "dictionary-word-link rafsi-source-link dictionary-jvozba-add-link-hint",
                                 base_path,
+                                script,
                             ) }
                         }
                     }
                 }
             } else {
                 rsx! {
-                    span { class: "chip rafsi-chip", "{piece.display_surface}" }
+                    span { class: "chip rafsi-chip", "{display_surface}" }
                 }
             }
         }
@@ -6923,10 +7094,12 @@ fn render_rafsi_pill(
     jvozba_available: bool,
     source_word: &str,
     rafsi: &str,
+    script: GentufaScript,
 ) -> Element {
     let pane_open = jvozba_available && jvozba_pane.read().open;
     let rafsi_value = rafsi.to_owned();
     let source_value = source_word.to_owned();
+    let display_rafsi = display_lojban_text(script, rafsi);
     if pane_open {
         rsx! {
             button {
@@ -6938,11 +7111,11 @@ fn render_rafsi_pill(
                     rafsi_value.clone(),
                     Some(source_value.clone()),
                 ),
-                "{rafsi}"
+                "{display_rafsi}"
             }
         }
     } else {
-        rsx! { span { class: "chip rafsi-chip", "{rafsi}" } }
+        rsx! { span { class: "chip rafsi-chip", "{display_rafsi}" } }
     }
 }
 
@@ -6953,6 +7126,7 @@ fn render_inline_spans(
     jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_available: bool,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     rsx! {
         for span in spans.iter() {
@@ -6961,7 +7135,15 @@ fn render_inline_spans(
                     data!(VlackuInline::Text(text)) => rsx! { "{text}" },
                     data!(VlackuInline::Math(math)) => render_vlacku_math(math),
                     data!(VlackuInline::WordRef { label, href, can_add_to_jvozba }) => {
-                        render_vlacku_inline_word_ref(jvozba_pane, jvozba_available, *can_add_to_jvozba, label, href, base_path)
+                        render_vlacku_inline_word_ref(
+                            jvozba_pane,
+                            jvozba_available,
+                            *can_add_to_jvozba,
+                            label,
+                            href,
+                            base_path,
+                            script,
+                        )
                     }
                 }
             }
@@ -6978,11 +7160,13 @@ fn render_vlacku_inline_word_ref(
     label: &str,
     href: &str,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let pane_open = jvozba_available && jvozba_pane.read().open;
     let word_value = label.to_owned();
     let resolved_href = resolved_href_with_base_path(base_path, href);
     let tooltip = dictionary_tooltip_for_word(base_path, label);
+    let display_label = display_lojban_text(script, label);
     if pane_open && can_add_to_jvozba {
         if let Some(card) = &tooltip {
             rsx! {
@@ -6992,9 +7176,9 @@ fn render_vlacku_inline_word_ref(
                         r#type: "button",
                         title: "Add to jvozba",
                         onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
-                        "{label}"
+                        "{display_label}"
                     }
-                    { render_dictionary_tooltip(card, false, base_path) }
+                    { render_dictionary_tooltip(card, false, base_path, script) }
                 }
             }
         } else {
@@ -7004,24 +7188,29 @@ fn render_vlacku_inline_word_ref(
                     r#type: "button",
                     title: "Add to jvozba",
                     onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
-                    "{label}"
+                    "{display_label}"
                 }
             }
         }
     } else if pane_open {
         rsx! {
-            span { class: "dictionary-word-link", "{label}" }
+            span { class: "dictionary-word-link", "{display_label}" }
         }
     } else {
         if let Some(card) = &tooltip {
             rsx! {
                 span { class: "dictionary-tooltip-host",
-                    { render_text_route_link("dictionary-word-link", &resolved_href, base_path, label) }
-                    { render_dictionary_tooltip(card, false, base_path) }
+                    { render_text_route_link("dictionary-word-link", &resolved_href, base_path, &display_label) }
+                    { render_dictionary_tooltip(card, false, base_path, script) }
                 }
             }
         } else {
-            render_text_route_link("dictionary-word-link", &resolved_href, base_path, label)
+            render_text_route_link(
+                "dictionary-word-link",
+                &resolved_href,
+                base_path,
+                &display_label,
+            )
         }
     }
 }
@@ -7049,6 +7238,7 @@ fn render_vlacku_math(math: &VlackuMath) -> Element {
 fn render_vlacku_jvozba_pane(
     mut jvozba_pane: Signal<VlackuJvozbaPaneState>,
     jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
+    script: GentufaScript,
 ) -> Element {
     let pane = jvozba_pane.read().clone();
     let output = build_vlacku_jvozba_output(pane.mode, &pane.items);
@@ -7102,7 +7292,7 @@ fn render_vlacku_jvozba_pane(
                                 "Clear"
                             }
                         }
-                        { render_jvozba_output(&output) }
+                        { render_jvozba_output(&output, script) }
                     }
                 }
                 if pane.items.is_empty() {
@@ -7118,7 +7308,7 @@ fn render_vlacku_jvozba_pane(
                 } else {
                     ol { class: "dictionary-jvozba-list", "data-jvozba-list": "1",
                         for (index, item) in pane.items.iter().enumerate() {
-                            { render_jvozba_item(jvozba_pane, jvozba_drag, index, item) }
+                            { render_jvozba_item(jvozba_pane, jvozba_drag, index, item, script) }
                         }
                     }
                 }
@@ -7134,6 +7324,7 @@ fn render_jvozba_item(
     mut jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
     index: usize,
     item: &VlackuJvozbaItem,
+    script: GentufaScript,
 ) -> Element {
     let drag = *jvozba_drag.read();
     let is_dragging = drag.is_some_and(|state| state.preview_visible && state.start_index == index);
@@ -7216,7 +7407,7 @@ fn render_jvozba_item(
                         }
                     }
                 }
-                { render_jvozba_item_chip(item) }
+                { render_jvozba_item_chip(item, script) }
             }
             button {
                 class: "dictionary-jvozba-item-remove",
@@ -7231,26 +7422,31 @@ fn render_jvozba_item(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_jvozba_item_chip(item: &VlackuJvozbaItem) -> Element {
+fn render_jvozba_item_chip(item: &VlackuJvozbaItem, script: GentufaScript) -> Element {
     match item.kind {
         VlackuJvozbaItemKind::FixedRafsi => {
             let source_label = item.source.as_deref().unwrap_or("rafsi");
+            let display_value = display_lojban_text(script, &item.value);
+            let display_source_label = display_lojban_text(script, source_label);
             rsx! {
                 span { class: "rafsi-split-pill dictionary-jvozba-pane-rafsi-pill",
-                    span { class: "rafsi-split-left", "{item.value}" }
-                    span { class: "rafsi-split-right", "{source_label}" }
+                    span { class: "rafsi-split-left", "{display_value}" }
+                    span { class: "rafsi-split-right", "{display_source_label}" }
                 }
             }
         }
-        VlackuJvozbaItemKind::Word => rsx! {
-            span { class: "chip dictionary-jvozba-pane-word-chip", "{item.value}" }
-        },
+        VlackuJvozbaItemKind::Word => {
+            let display_value = display_lojban_text(script, &item.value);
+            rsx! {
+                span { class: "chip dictionary-jvozba-pane-word-chip", "{display_value}" }
+            }
+        }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_jvozba_output(output: &VlackuJvozbaOutput) -> Element {
+fn render_jvozba_output(output: &VlackuJvozbaOutput, script: GentufaScript) -> Element {
     match output {
         VlackuJvozbaOutput::Empty => rsx! {},
         VlackuJvozbaOutput::NeedsMore => rsx! {
@@ -7262,7 +7458,7 @@ fn render_jvozba_output(output: &VlackuJvozbaOutput) -> Element {
         VlackuJvozbaOutput::Success { word: _, segments } => rsx! {
             p { class: "dictionary-jvozba-output-line",
                 for segment in segments.iter() {
-                    span { class: jvozba_segment_class(segment.tone), "{segment.text}" }
+                    span { class: jvozba_segment_class(segment.tone), "{display_lojban_text(script, &segment.text)}" }
                 }
             }
         },
@@ -7553,6 +7749,7 @@ fn render_gentufa_input(
     diagnostic_tooltip_value: Option<DiagnosticInputTooltip>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let text = input_text.read().clone();
     let content_sizer_text = gentufa_textarea_content_sizer_text(&text);
@@ -7588,6 +7785,7 @@ fn render_gentufa_input(
                 active_diagnostic_signal,
                 pending_cukta_scroll,
                 base_path,
+                script,
             ) }
         }
     }
@@ -7706,6 +7904,7 @@ fn render_gentufa_diagnostic_input_tooltip(
     active_diagnostic: Signal<Option<usize>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let Some(tooltip) = tooltip else {
         return rsx! {};
@@ -7726,6 +7925,7 @@ fn render_gentufa_diagnostic_input_tooltip(
                 active_diagnostic,
                 pending_cukta_scroll,
                 base_path,
+                script,
             ) }
         }
     }
@@ -7895,6 +8095,7 @@ fn render_result(
             active_diagnostic,
             pending_cukta_scroll,
             base_path,
+            settings_value.script,
         ),
         GentufaWebResult::Success(success) => render_success(
             success,
@@ -7927,6 +8128,7 @@ fn render_error(
     active_diagnostic: Signal<Option<usize>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let source = gentufa_request_source(request);
     rsx! {
@@ -7940,6 +8142,7 @@ fn render_error(
                 active_diagnostic,
                 pending_cukta_scroll,
                 base_path,
+                script,
             ) }
         }
     }
@@ -7970,7 +8173,7 @@ fn render_success(
     rsx! {
         section { class: "result-section",
             { render_reference_overlay(&reference_hover_value) }
-            { render_surface_output(success) }
+            { render_surface_output(success, settings_value.script) }
             { render_diagnostics_pane(
                 &success.diagnostics,
                 source,
@@ -7980,6 +8183,7 @@ fn render_success(
                 active_diagnostic,
                 pending_cukta_scroll,
                 base_path,
+                settings_value.script,
             ) }
             div { class: "view-toolbar",
                 { render_view_tabs(view_mode, view_mode_value) }
@@ -7990,7 +8194,7 @@ fn render_success(
                     { render_blocks(success, display_value.show_glosses, settings_value.script, reference_hover, reference_tooltip_open, activity, export_task) }
                 },
                 GentufaWebViewMode::Tree => rsx! {
-                    { render_tree(success, reference_hover, reference_tooltip_open) }
+                    { render_tree(success, reference_hover, reference_tooltip_open, settings_value.script) }
                 },
                 GentufaWebViewMode::Ipa => rsx! {
                     { render_ipa_output(success) }
@@ -8002,14 +8206,14 @@ fn render_success(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_surface_output(success: &GentufaSuccess) -> Element {
+fn render_surface_output(success: &GentufaSuccess, script: GentufaScript) -> Element {
     rsx! {
         div { class: "brackets-section",
             div { class: "brackets-output-stack",
                 pre { class: "brackets-output compact-output",
                     span { class: "brackets-output-markup",
                         for fragment in success.bracket_fragments.iter() {
-                            { render_bracket_fragment(fragment) }
+                            { render_bracket_fragment(fragment, script) }
                         }
                     }
                 }
@@ -8020,7 +8224,7 @@ fn render_surface_output(success: &GentufaSuccess) -> Element {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_bracket_fragment(fragment: &GentufaBracketFragment) -> Element {
+fn render_bracket_fragment(fragment: &GentufaBracketFragment, script: GentufaScript) -> Element {
     match fragment {
         GentufaBracketFragment::Text { text, elided } => {
             if *elided {
@@ -8050,17 +8254,17 @@ fn render_bracket_fragment(fragment: &GentufaBracketFragment) -> Element {
                             if let Some(route) = route {
                                 Link { class: "bracket-word-link", to: route,
                                     for child in children.iter() {
-                                        { render_bracket_fragment(child) }
+                                        { render_bracket_fragment(child, script) }
                                     }
                                 }
                             } else {
                                 a { class: "bracket-word-link", href: "{href}",
                                     for child in children.iter() {
-                                        { render_bracket_fragment(child) }
+                                        { render_bracket_fragment(child, script) }
                                     }
                                 }
                             }
-                            { render_dictionary_tooltip(card, false, &base_path) }
+                            { render_dictionary_tooltip(card, false, &base_path, script) }
                         }
                     }
                 } else {
@@ -8071,7 +8275,7 @@ fn render_bracket_fragment(fragment: &GentufaBracketFragment) -> Element {
                                 style: "{style}",
                                 to: route,
                                 for child in children.iter() {
-                                    { render_bracket_fragment(child) }
+                                    { render_bracket_fragment(child, script) }
                                 }
                             }
                         }
@@ -8082,7 +8286,7 @@ fn render_bracket_fragment(fragment: &GentufaBracketFragment) -> Element {
                                 style: "{style}",
                                 href: "{href}",
                                 for child in children.iter() {
-                                    { render_bracket_fragment(child) }
+                                    { render_bracket_fragment(child, script) }
                                 }
                             }
                         }
@@ -8092,7 +8296,7 @@ fn render_bracket_fragment(fragment: &GentufaBracketFragment) -> Element {
                 rsx! {
                     span { class: "bracket-fragment", style: "{style}",
                         for child in children.iter() {
-                            { render_bracket_fragment(child) }
+                            { render_bracket_fragment(child, script) }
                         }
                     }
                 }
@@ -8112,6 +8316,7 @@ fn render_diagnostics_pane(
     active_diagnostic: Signal<Option<usize>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let fallback_error = fallback_error.filter(|message| !message.is_empty());
     if diagnostics.is_empty() && fallback_error.is_none() {
@@ -8152,6 +8357,7 @@ fn render_diagnostics_pane(
                                 active_diagnostic,
                                 pending_cukta_scroll,
                                 base_path,
+                                script,
                             ) }
                         }
                     }
@@ -8170,6 +8376,7 @@ fn render_diagnostic_card(
     active_diagnostic: Signal<Option<usize>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let mut enter_active = active_diagnostic;
     let mut leave_active = active_diagnostic;
@@ -8200,7 +8407,7 @@ fn render_diagnostic_card(
             if !primary_detail_segments.is_empty() {
                 div { class: "gentufa-diagnostic-primary-detail",
                     for segment in primary_detail_segments.iter() {
-                        { render_diagnostic_text_part(segment, pending_cukta_scroll, base_path) }
+                        { render_diagnostic_text_part(segment, pending_cukta_scroll, base_path, script) }
                     }
                 }
             }
@@ -8209,12 +8416,12 @@ fn render_diagnostic_card(
                     for note in plain_notes.iter() {
                         div { class: "gentufa-diagnostic-note",
                             for segment in diagnostic_plain_text_render_parts(note).iter() {
-                                { render_diagnostic_text_part(segment, pending_cukta_scroll, base_path) }
+                                { render_diagnostic_text_part(segment, pending_cukta_scroll, base_path, script) }
                             }
                         }
                     }
                     for note in styled_notes {
-                        { render_styled_diagnostic_note(note, pending_cukta_scroll, base_path) }
+                        { render_styled_diagnostic_note(note, pending_cukta_scroll, base_path, script) }
                     }
                 }
             }
@@ -8228,12 +8435,13 @@ fn render_styled_diagnostic_note(
     note: &DiagnosticStyledNote,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let class_name = diagnostic_styled_note_class(note);
     rsx! {
         div { class: "{class_name}",
             for segment in note.segments.iter() {
-                { render_diagnostic_note_segment(segment, pending_cukta_scroll, base_path) }
+                { render_diagnostic_note_segment(segment, pending_cukta_scroll, base_path, script) }
             }
         }
     }
@@ -8245,11 +8453,12 @@ fn render_diagnostic_note_segment(
     segment: &DiagnosticTextSegment,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let parts = diagnostic_text_segment_render_parts(segment);
     rsx! {
         for part in parts.iter() {
-            { render_diagnostic_text_part(part, pending_cukta_scroll, base_path) }
+            { render_diagnostic_text_part(part, pending_cukta_scroll, base_path, script) }
         }
     }
 }
@@ -8857,21 +9066,30 @@ fn render_diagnostic_text_part(
     part: &DiagnosticTextRenderPart,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    script: GentufaScript,
 ) -> Element {
     let class_name = diagnostic_text_role_class(part.role);
     let href = diagnostic_text_part_href(part, base_path);
+    let label = diagnostic_display_text_part_for_script(part, script);
     if let Some(href) = href {
-        render_diagnostic_text_link(
-            class_name,
-            &href,
-            base_path,
-            &part.text,
-            pending_cukta_scroll,
-        )
+        render_diagnostic_text_link(class_name, &href, base_path, &label, pending_cukta_scroll)
     } else {
         rsx! {
-            span { class: "{class_name}", "{part.text}" }
+            span { class: "{class_name}", "{label}" }
         }
+    }
+}
+
+#[requires(!part.text.is_empty())]
+#[ensures(!ret.is_empty())]
+fn diagnostic_display_text_part_for_script(
+    part: &DiagnosticTextRenderPart,
+    script: GentufaScript,
+) -> String {
+    if part.role == DiagnosticTextRole::SpecificWord {
+        display_lojban_text(script, &part.text)
+    } else {
+        part.text.clone()
     }
 }
 
@@ -10093,7 +10311,7 @@ fn render_block(
                 span { class: "{incoming_class}",
                     for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Referent) {
                         span { class: "ref-math ref-line",
-                            { render_ref_marker(marker, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state) }
+                            { render_ref_marker(marker, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state, export_script) }
                         }
                     }
                 }
@@ -10118,7 +10336,7 @@ fn render_block(
                                         }
                                     }
                                 }
-                                { render_dictionary_tooltip(card, false, &base_path) }
+                                { render_dictionary_tooltip(card, false, &base_path, export_script) }
                             }
                         }
                     }
@@ -10135,7 +10353,7 @@ fn render_block(
                     span { class: "ref-math",
                         for marker in block.ref_markers.iter().filter(|marker| marker.role == ReferenceMarkerRole::Reference) {
                             span { class: "ref-arrow", "→" }
-                            { render_ref_marker(marker, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state) }
+                            { render_ref_marker(marker, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state, export_script) }
                         }
                     }
                 }
@@ -10190,6 +10408,7 @@ fn render_ref_marker(
     reference_tooltip_open: Signal<Option<HoveredReference>>,
     hover_state: &ReferenceHoverState,
     tooltip_open_state: &Option<HoveredReference>,
+    script: GentufaScript,
 ) -> Element {
     let view = reference_marker_view_model(marker, hover_state).into_data();
     let class = view.class;
@@ -10225,7 +10444,7 @@ fn render_ref_marker(
                     "data-ref-base": "{base}",
                     { render_reference_label(&marker.label) }
                 }
-                { render_reference_tooltip(tooltip, &base_path) }
+                { render_reference_tooltip(tooltip, &base_path, script) }
             }
         }
     } else {
@@ -10465,17 +10684,18 @@ fn render_tree(
     success: &GentufaSuccess,
     reference_hover: Signal<ReferenceHoverState>,
     reference_tooltip_open: Signal<Option<HoveredReference>>,
+    script: GentufaScript,
 ) -> Element {
     rsx! {
         div { class: "table-view",
             div { class: "table-wrap",
                 svg { class: "tree-lines", "aria-hidden": "true" }
                 table { class: "parse-table spa-gentufa-table",
-                    tbody {
-                        for row in success.tree_rows.iter() {
-                            { render_tree_row(row, reference_hover, reference_tooltip_open) }
+                        tbody {
+                            for row in success.tree_rows.iter() {
+                            { render_tree_row(row, reference_hover, reference_tooltip_open, script) }
+                            }
                         }
-                    }
                 }
             }
         }
@@ -10488,6 +10708,7 @@ fn render_tree_row(
     row: &GentufaTreeRow,
     reference_hover: Signal<ReferenceHoverState>,
     reference_tooltip_open: Signal<Option<HoveredReference>>,
+    script: GentufaScript,
 ) -> Element {
     let row_class = class_names(
         "tree-row",
@@ -10547,13 +10768,13 @@ fn render_tree_row(
                     }
                 }
             }
-            { render_tree_edge_cell(incoming_markers, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state) }
+            { render_tree_edge_cell(incoming_markers, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state, script) }
             td { class: "col-text",
                 div { class: "cell-pad tree-text-cell",
                     for cell in row.cells.iter() {
                         { render_tree_cell(cell) }
                     }
-                    { render_tree_outgoing_edges(outgoing_markers, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state) }
+                    { render_tree_outgoing_edges(outgoing_markers, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state, script) }
                 }
             }
         }
@@ -10583,13 +10804,14 @@ fn render_tree_edge_cell(
     reference_tooltip_open: Signal<Option<HoveredReference>>,
     hover_state: &ReferenceHoverState,
     tooltip_open_state: &Option<HoveredReference>,
+    script: GentufaScript,
 ) -> Element {
     let has_markers = !markers.is_empty();
     rsx! {
         td { class: "col-edge col-edge-in",
             div { class: "cell-pad edge-cell",
                 for marker in markers {
-                    { render_ref_marker(marker, reference_hover, reference_tooltip_open, hover_state, tooltip_open_state) }
+                    { render_ref_marker(marker, reference_hover, reference_tooltip_open, hover_state, tooltip_open_state, script) }
                 }
                 if has_markers {
                     span { class: "ref-arrow edge-arrow", "→" }
@@ -10607,6 +10829,7 @@ fn render_tree_outgoing_edges(
     reference_tooltip_open: Signal<Option<HoveredReference>>,
     hover_state: &ReferenceHoverState,
     tooltip_open_state: &Option<HoveredReference>,
+    script: GentufaScript,
 ) -> Element {
     let has_markers = !markers.is_empty();
     rsx! {
@@ -10614,7 +10837,7 @@ fn render_tree_outgoing_edges(
             span { class: "tree-outgoing-edge edge-cell",
                 span { class: "ref-arrow edge-arrow", "→" }
                 for marker in markers {
-                    { render_ref_marker(marker, reference_hover, reference_tooltip_open, hover_state, tooltip_open_state) }
+                    { render_ref_marker(marker, reference_hover, reference_tooltip_open, hover_state, tooltip_open_state, script) }
                 }
             }
         }
@@ -15238,6 +15461,56 @@ mod tests {
                 part.role == DiagnosticTextRole::SpecificWord && part.text == "fe'e"
             })
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn selected_script_renders_visible_lojban_text_only() {
+        assert_eq!(
+            display_lojban_text(GentufaScript::Cyrillic, "mi klama le zarci"),
+            "ми клама ле зарши"
+        );
+        assert_eq!(
+            display_lojban_text_if(GentufaScript::Cyrillic, "mi klama", false),
+            "mi klama"
+        );
+        assert_eq!(
+            cll_display_text_for_kind(GentufaScript::Cyrillic, "jbo", "mi klama"),
+            "ми клама"
+        );
+        assert_eq!(
+            cll_display_text_for_kind(GentufaScript::Cyrillic, "natlang", "I go"),
+            "I go"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostic_specific_words_render_with_selected_script() {
+        let word = diagnostic_text_render_part(DiagnosticTextRole::SpecificWord, "fe'e".to_owned());
+        let selmaho = diagnostic_text_render_part(DiagnosticTextRole::Selmaho, "FAhA".to_owned());
+
+        let rendered_word = diagnostic_display_text_part_for_script(&word, GentufaScript::Cyrillic);
+
+        assert_ne!(rendered_word, "fe'e");
+        assert!(rendered_word.contains('ф'));
+        assert_eq!(
+            diagnostic_display_text_part_for_script(&selmaho, GentufaScript::Cyrillic),
+            "FAhA"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cll_link_kinds_identify_lojban_link_text() {
+        assert!(cll_link_text_is_lojban(CllLinkKind::Dictionary));
+        assert!(cll_link_text_is_lojban(CllLinkKind::Rafsi));
+        assert!(cll_link_text_is_lojban(CllLinkKind::Parse));
+        assert!(!cll_link_text_is_lojban(CllLinkKind::Section));
+        assert!(!cll_link_text_is_lojban(CllLinkKind::External));
     }
 
     #[test]

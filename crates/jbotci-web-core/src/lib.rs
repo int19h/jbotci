@@ -485,7 +485,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         &bare_blocks_layout,
     );
     let ipa_text = ipa_morphology_text(&words, source).unwrap_or_else(|error| error.to_string());
-    let brackets_text = pretty_brackets_with_options(
+    let latin_brackets_text = pretty_brackets_with_options(
         &parsed.parse_tree,
         source,
         BracketRenderOptions {
@@ -498,6 +498,10 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         },
     )
     .unwrap_or_else(|error| error.to_string());
+    let brackets_text = jbotci_gentufa::render_loose_latin_text_for_script(
+        request.options.script,
+        &latin_brackets_text,
+    );
     let bracket_fragments = pretty_bracket_source_fragments_with_options(
         &parsed.parse_tree,
         source,
@@ -523,6 +527,8 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
             elided: false,
         }]
     });
+    let bracket_fragments =
+        gentufa_bracket_fragments_for_script(bracket_fragments, request.options.script);
 
     let blocks_layout = attach_reference_tooltips_to_blocks_layout(
         bare_blocks_layout,
@@ -4332,6 +4338,43 @@ fn gentufa_bracket_fragments_from_source(
 
 #[requires(true)]
 #[ensures(true)]
+fn gentufa_bracket_fragments_for_script(
+    fragments: Vec<GentufaBracketFragment>,
+    script: GentufaScript,
+) -> Vec<GentufaBracketFragment> {
+    fragments
+        .into_iter()
+        .map(|fragment| gentufa_bracket_fragment_for_script(fragment, script))
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_bracket_fragment_for_script(
+    fragment: GentufaBracketFragment,
+    script: GentufaScript,
+) -> GentufaBracketFragment {
+    match fragment {
+        GentufaBracketFragment::Text { text, elided } => GentufaBracketFragment::Text {
+            text: jbotci_gentufa::render_loose_latin_text_for_script(script, &text),
+            elided,
+        },
+        GentufaBracketFragment::Span {
+            color,
+            href,
+            tooltip,
+            children,
+        } => GentufaBracketFragment::Span {
+            color,
+            href,
+            tooltip,
+            children: gentufa_bracket_fragments_for_script(children, script),
+        },
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn gentufa_bracket_fragment_from_source(
     fragment: &BracketSourceFragment,
     blocks_layout: &BareGentufaBlocksLayout,
@@ -6206,6 +6249,7 @@ mod tests {
             panic!("expected successful parse");
         };
         assert!(success.surface_text.contains("ми"));
+        assert!(success.brackets_text.contains("ми"));
     }
 
     #[test]
@@ -6226,6 +6270,12 @@ mod tests {
         assert!(
             success
                 .surface_text
+                .chars()
+                .any(|ch| ('\u{ed80}'..='\u{edff}').contains(&ch))
+        );
+        assert!(
+            success
+                .brackets_text
                 .chars()
                 .any(|ch| ('\u{ed80}'..='\u{edff}').contains(&ch))
         );
