@@ -1950,6 +1950,67 @@ pub fn canonicalize_text(text: &str) -> String {
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty() || input.is_empty()))]
+pub fn normalize_lojban_input_text(input: &str) -> Option<String> {
+    normalize_lojban_input_text_with_options(input, &MorphologyOptions::default())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty() || input.is_empty()))]
+pub fn normalize_lojban_input_text_with_options(
+    input: &str,
+    options: &MorphologyOptions,
+) -> Option<String> {
+    let mut output = String::new();
+    let mut chunk = String::new();
+    for value in input.chars() {
+        if segment::is_separator(value) {
+            append_normalized_lojban_input_chunk(&mut output, &chunk, options)?;
+            chunk.clear();
+            output.push(normalized_lojban_input_separator(value));
+        } else {
+            chunk.push(value);
+        }
+    }
+    append_normalized_lojban_input_chunk(&mut output, &chunk, options)?;
+    Some(output)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_normalized_lojban_input_chunk(
+    output: &mut String,
+    chunk: &str,
+    options: &MorphologyOptions,
+) -> Option<()> {
+    if chunk.is_empty() {
+        return Some(());
+    }
+    if chunk
+        .chars()
+        .any(|value| !segment::is_normalizable_word_char(value, options))
+    {
+        return None;
+    }
+    let normalized = segment::normalize_word_with_options(chunk, options);
+    if normalized.is_empty() {
+        return None;
+    }
+    output.push_str(&normalized);
+    Some(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalized_lojban_input_separator(value: char) -> char {
+    if segment::is_cyrillic_period(value) {
+        '.'
+    } else {
+        value
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub fn canonical_text_eq(left: &str, right: &str) -> bool {
     left.chars()
@@ -2382,6 +2443,102 @@ mod tests {
             base_word(&words[2]).map(|word| word.span().char_end),
             Some(11)
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn segments_cyrillic_cmavo_and_gismu() {
+        let words = segment_words_with_modifiers("ми клама до").expect("valid morphology");
+
+        assert_eq!(base_phoneme_texts(&words), vec!["mi", "kláma", "do"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn normalizes_cyrillic_aliases_and_implicit_apostrophe() {
+        let cases = [
+            ("шой", "coĭ"),
+            ("щой", "coĭ"),
+            ("шо'и", "co'i"),
+            ("шоһи", "co'i"),
+            ("шои", "co'i"),
+            ("мі", "mi"),
+            ("лэ", "le"),
+            ("лє", "le"),
+            ("ӏфіныксӏ", "finyks"),
+        ];
+
+        for (source, expected) in cases {
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            assert_eq!(
+                base_phonemes(&words[0]).as_deref(),
+                Some(expected),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn normalizes_cyrillic_stress_marks() {
+        let cases = [
+            ("ӏалисӏ", "alis"),
+            ("ӏалІсӏ", "alís"),
+            ("ӏалі\u{0301}сӏ", "alís"),
+            ("ӏалі\u{0300}сӏ", "alís"),
+        ];
+
+        for (source, expected) in cases {
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            assert_eq!(
+                base_phonemes(&words[0]).as_deref(),
+                Some(expected),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cyrillic_glide_letters_are_rejected_outside_glide_positions() {
+        let error = segment_words_with_modifiers("й").expect_err("glide must be rejected");
+
+        assert!(
+            matches!(
+                error,
+                MorphologyError::Invalid {
+                    kind: MorphologyErrorKind::BreveNotGlide,
+                    ..
+                }
+            ),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn normalizes_lojban_input_text_for_exact_lookups() {
+        assert_eq!(
+            normalize_lojban_input_text("ми клама").as_deref(),
+            Some("mi klama")
+        );
+        assert_eq!(normalize_lojban_input_text("шои").as_deref(), Some("co'i"));
+        assert_eq!(
+            normalize_lojban_input_text("ӏфіныксӏ").as_deref(),
+            Some(".finyks.")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zbalermorna_input_is_deferred_by_normalizer() {
+        assert_eq!(normalize_lojban_input_text("\u{ed87}\u{eda2}"), None);
     }
 
     #[test]

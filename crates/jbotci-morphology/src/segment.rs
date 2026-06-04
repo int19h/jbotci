@@ -19,6 +19,7 @@ use fast::{
 #[ensures(true)]
 pub(crate) fn is_separator(value: char) -> bool {
     value.is_whitespace()
+        || is_cyrillic_period(value)
         || matches!(
             value,
             '.' | '?'
@@ -60,15 +61,18 @@ pub(crate) fn is_separator(value: char) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn normalize_word_with_options(raw: &str, options: &MorphologyOptions) -> String {
-    raw.chars()
-        .filter_map(|value| normalize_char(value, options))
+    normalize_source_chars(raw.chars().enumerate(), options)
+        .into_iter()
+        .map(|value| value.value)
         .collect()
 }
 
+#[invariant(self.source_start <= self.source_end)]
 #[invariant(is_valid_normalized_char(self.value))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct NormalizedSourceChar {
-    pub source_index: usize,
+    pub source_start: usize,
+    pub source_end: usize,
     pub value: char,
 }
 
@@ -119,17 +123,37 @@ pub(crate) fn normalize_source_chars(
     chars: impl IntoIterator<Item = (usize, char)>,
     options: &MorphologyOptions,
 ) -> Vec<NormalizedSourceChar> {
-    chars
-        .into_iter()
-        .filter_map(|(source_index, value)| {
-            normalize_char(value, options).map(|normalized| {
-                new!(NormalizedSourceChar {
-                    source_index: source_index,
-                    value: normalized,
-                })
-            })
-        })
-        .collect()
+    let mut normalized = Vec::new();
+    let mut previous_cyrillic_full_vowel = false;
+    for (source_index, value) in chars {
+        match normalize_char_event(value, options) {
+            Some(NormalizedCharEvent::Emit {
+                value: normalized_value,
+                cyrillic_full_vowel,
+            }) => {
+                if previous_cyrillic_full_vowel && cyrillic_full_vowel {
+                    normalized.push(new!(NormalizedSourceChar {
+                        source_start: source_index,
+                        source_end: source_index,
+                        value: '\''
+                    }));
+                }
+                normalized.push(new!(NormalizedSourceChar {
+                    source_start: source_index,
+                    source_end: source_index + 1,
+                    value: normalized_value,
+                }));
+                previous_cyrillic_full_vowel = cyrillic_full_vowel;
+            }
+            Some(NormalizedCharEvent::StressPrevious) => {
+                stress_last_normalized_char(&mut normalized);
+            }
+            None => {
+                previous_cyrillic_full_vowel = false;
+            }
+        }
+    }
+    normalized
 }
 
 #[requires(true)]
@@ -217,15 +241,16 @@ fn source_range_from_normalized_range(
     chars: &[NormalizedSourceChar],
     range: Range<usize>,
 ) -> Option<SourceRange> {
-    let start = chars.get(range.start)?.source_index;
-    let end = chars.get(range.end - 1)?.source_index + 1;
+    let slice = chars.get(range)?;
+    let start = slice.iter().map(|value| value.source_start).min()?;
+    let end = slice.iter().map(|value| value.source_end).max()?;
     (start < end).then(|| SourceRange::new(start, end))
 }
 
 #[requires(true)]
-#[ensures(ret == normalize_char(value, options).is_some())]
+#[ensures(ret == normalize_char_event(value, options).is_some())]
 pub(crate) fn is_normalizable_word_char(value: char, options: &MorphologyOptions) -> bool {
-    normalize_char(value, options).is_some()
+    normalize_char_event(value, options).is_some()
 }
 
 #[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
@@ -488,12 +513,67 @@ pub(crate) fn pronunciation_syllable_texts(phonemes: &str) -> Option<Vec<String>
         .or_else(|| fallback_pronunciation_syllable_texts(&chars))
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(::Emit { .. } => true)]
+#[invariant(::StressPrevious => true)]
+enum NormalizedCharEvent {
+    Emit {
+        value: char,
+        cyrillic_full_vowel: bool,
+    },
+    StressPrevious,
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn normalize_char(value: char, options: &MorphologyOptions) -> Option<char> {
+    match normalize_char_event(value, options)? {
+        NormalizedCharEvent::Emit { value, .. } => Some(value),
+        NormalizedCharEvent::StressPrevious => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|event| matches!(event, NormalizedCharEvent::StressPrevious) || matches!(event, NormalizedCharEvent::Emit { value, .. } if is_valid_normalized_char(*value))))]
+fn normalize_char_event(value: char, options: &MorphologyOptions) -> Option<NormalizedCharEvent> {
+    if is_combining_stress_mark(value) {
+        return Some(NormalizedCharEvent::StressPrevious);
+    }
+    if options.accept_latin && is_latin_apostrophe(value) {
+        return Some(normalized_emit('\'', false));
+    }
+    if options.accept_cyrillic && is_cyrillic_apostrophe(value) {
+        return Some(normalized_emit('\'', false));
+    }
+    if value.is_ascii_digit() {
+        return Some(normalized_emit(value, false));
+    }
+    if options.accept_latin
+        && let Some(normalized) = normalize_latin_char(value, options)
+    {
+        return Some(normalized_emit(normalized, false));
+    }
+    if options.accept_cyrillic
+        && let Some((normalized, cyrillic_full_vowel)) = normalize_cyrillic_char(value, options)
+    {
+        return Some(normalized_emit(normalized, cyrillic_full_vowel));
+    }
+    None
+}
+
+#[requires(is_valid_normalized_char(value))]
+#[ensures(matches!(ret, NormalizedCharEvent::Emit { value: emitted, cyrillic_full_vowel } if emitted == value && cyrillic_full_vowel == cyrillic))]
+fn normalized_emit(value: char, cyrillic: bool) -> NormalizedCharEvent {
+    NormalizedCharEvent::Emit {
+        value,
+        cyrillic_full_vowel: cyrillic,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_latin_char(value: char, options: &MorphologyOptions) -> Option<char> {
     let normalized = match value {
-        '\'' | 'h' | 'H' | '\u{2019}' | '\u{a78b}' | '\u{a78c}' | '\u{02bb}' | '\u{02bf}'
-        | '\u{02b0}' | '\u{02d2}' => '\'',
         'A' => {
             return Some(if options.uppercase_marks_stress {
                 'á'
@@ -546,10 +626,119 @@ fn normalize_char(value: char, options: &MorphologyOptions) -> Option<char> {
         'Ŭ' => 'ŭ',
         _ => value.to_ascii_lowercase(),
     };
-    if is_valid_normalized_char(normalized) {
-        Some(normalized)
+    is_valid_normalized_char(normalized).then_some(normalized)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|(value, _)| is_valid_normalized_char(*value)))]
+fn normalize_cyrillic_char(value: char, options: &MorphologyOptions) -> Option<(char, bool)> {
+    match value {
+        'а' => Some(('a', true)),
+        'А' => Some((stressable_uppercase_vowel('a', options), true)),
+        'е' | 'э' | 'є' => Some(('e', true)),
+        'Е' | 'Э' | 'Є' => Some((stressable_uppercase_vowel('e', options), true)),
+        'и' | 'і' => Some(('i', true)),
+        'И' | 'І' => Some((stressable_uppercase_vowel('i', options), true)),
+        'о' => Some(('o', true)),
+        'О' => Some((stressable_uppercase_vowel('o', options), true)),
+        'у' => Some(('u', true)),
+        'У' => Some((stressable_uppercase_vowel('u', options), true)),
+        'ъ' | 'ы' | 'ә' => Some(('y', true)),
+        'Ъ' | 'Ы' | 'Ә' => Some((stressable_uppercase_vowel('y', options), true)),
+        'й' | 'Й' | 'ј' | 'Ј' => Some(('ĭ', false)),
+        'ў' | 'Ў' => Some(('ŭ', false)),
+        'б' | 'Б' => Some(('b', false)),
+        'ш' | 'Ш' | 'щ' | 'Щ' => Some(('c', false)),
+        'д' | 'Д' => Some(('d', false)),
+        'ф' | 'Ф' => Some(('f', false)),
+        'г' | 'Г' | 'ґ' | 'Ґ' => Some(('g', false)),
+        'ж' | 'Ж' => Some(('j', false)),
+        'к' | 'К' => Some(('k', false)),
+        'л' | 'Л' => Some(('l', false)),
+        'м' | 'М' => Some(('m', false)),
+        'н' | 'Н' => Some(('n', false)),
+        'п' | 'П' => Some(('p', false)),
+        'р' | 'Р' => Some(('r', false)),
+        'с' | 'С' => Some(('s', false)),
+        'т' | 'Т' => Some(('t', false)),
+        'в' | 'В' => Some(('v', false)),
+        'х' | 'Х' => Some(('x', false)),
+        'з' | 'З' => Some(('z', false)),
+        ',' => Some((',', false)),
+        _ => None,
+    }
+}
+
+#[requires(matches!(value, 'a' | 'e' | 'i' | 'o' | 'u' | 'y'))]
+#[ensures(true)]
+fn stressable_uppercase_vowel(value: char, options: &MorphologyOptions) -> char {
+    if options.uppercase_marks_stress {
+        stress_vowel(value).unwrap_or(value)
     } else {
-        None
+        value
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_latin_apostrophe(value: char) -> bool {
+    matches!(
+        value,
+        '\'' | 'h'
+            | 'H'
+            | '\u{2019}'
+            | '\u{a78b}'
+            | '\u{a78c}'
+            | '\u{02bb}'
+            | '\u{02bf}'
+            | '\u{02b0}'
+            | '\u{02d2}'
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_cyrillic_apostrophe(value: char) -> bool {
+    matches!(value, 'һ' | 'Һ')
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn is_cyrillic_period(value: char) -> bool {
+    matches!(value, 'ӏ' | 'Ӏ')
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_combining_stress_mark(value: char) -> bool {
+    matches!(value, '\u{0301}' | '\u{0300}')
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn stress_last_normalized_char(chars: &mut [NormalizedSourceChar]) {
+    if let Some(last) = chars.last_mut()
+        && let Some(stressed) = stress_vowel(last.value)
+    {
+        *last = new!(NormalizedSourceChar {
+            source_start: last.source_start,
+            source_end: last.source_end,
+            value: stressed,
+        });
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn stress_vowel(value: char) -> Option<char> {
+    match value {
+        'a' | 'á' => Some('á'),
+        'e' | 'é' => Some('é'),
+        'i' | 'í' => Some('í'),
+        'o' | 'ó' => Some('ó'),
+        'u' | 'ú' => Some('ú'),
+        'y' | 'ý' => Some('ý'),
+        _ => None,
     }
 }
 

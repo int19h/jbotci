@@ -35,7 +35,7 @@ use jbotci_jvozba::{
     build_best_jvozba_detailed,
 };
 use jbotci_morphology::{
-    MorphologyOptions, PhonemeRenderOptions, WordLike,
+    MorphologyOptions, PhonemeRenderOptions, WordLike, normalize_lojban_input_text,
     segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
@@ -3087,7 +3087,7 @@ pub fn normalize_cukta_state(state: &CuktaWebState) -> CuktaWebState {
         CuktaWebView::Search(search) => CuktaWebState {
             view: CuktaWebView::Search(CuktaWebSearchState {
                 mode: search.mode,
-                query: search.query.trim().to_owned(),
+                query: normalize_cukta_search_query(search.mode, &search.query),
                 count: search.count.clamp(1, CUKTA_WEB_MAX_COUNT),
                 targets: normalize_cukta_targets(&search.targets),
             }),
@@ -3447,6 +3447,31 @@ fn cukta_chunk_allowed(kind: CllSearchChunkKind, targets: CuktaTargetFilter) -> 
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn normalize_cukta_search_query(mode: CuktaWebMode, query: &str) -> String {
+    match mode {
+        CuktaWebMode::Meaning => query.trim().to_owned(),
+        CuktaWebMode::Word => normalize_lojban_exact_query(query),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_vlacku_search_query(mode: VlackuWebMode, query: &str) -> String {
+    match mode {
+        VlackuWebMode::Word | VlackuWebMode::Rafsi => normalize_lojban_exact_query(query),
+        VlackuWebMode::Sound | VlackuWebMode::Meaning => query.trim().to_owned(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_lojban_exact_query(query: &str) -> String {
+    let trimmed = query.trim();
+    normalize_lojban_input_text(trimmed).unwrap_or_else(|| trimmed.to_owned())
+}
+
+#[requires(true)]
 #[ensures(ret.count >= 1)]
 pub fn normalize_vlacku_state(state: &VlackuWebState) -> VlackuWebState {
     let mut word_types = Vec::new();
@@ -3466,7 +3491,7 @@ pub fn normalize_vlacku_state(state: &VlackuWebState) -> VlackuWebState {
     }
     VlackuWebState {
         mode: state.mode,
-        query: state.query.trim().to_owned(),
+        query: normalize_vlacku_search_query(state.mode, &state.query),
         count: state.count.clamp(1, VLACKU_WEB_MAX_COUNT),
         word_types,
     }
@@ -6319,6 +6344,11 @@ mod tests {
             vlacku_web_url("", &state),
             "/vlacku?mode=rafsi&q=kla&count=40&wordType=brivla"
         );
+
+        let cyrillic = parse_vlacku_web_route("/vlacku/клама", "");
+        assert_eq!(cyrillic.mode, VlackuWebMode::Word);
+        assert_eq!(cyrillic.query, "klama");
+        assert_eq!(vlacku_web_url("", &cyrillic), "/vlacku/klama");
     }
 
     #[test]
@@ -6354,6 +6384,13 @@ mod tests {
             search_state.targets,
             vec!["section".to_owned(), "example".to_owned()]
         );
+
+        let cyrillic = parse_cukta_web_route("/cukta/search", "?mode=valsi&q=ложбан");
+        let CuktaWebView::Search(search_state) = cyrillic.view else {
+            panic!("expected search state");
+        };
+        assert_eq!(search_state.mode, CuktaWebMode::Word);
+        assert_eq!(search_state.query, "lojban");
     }
 
     #[test]
@@ -6694,6 +6731,42 @@ mod tests {
             Some("4.3. brivla")
         );
 
+        let cyrillic_word_page = build_cukta_web_page(
+            "",
+            &CuktaWebState {
+                view: CuktaWebView::Search(CuktaWebSearchState {
+                    mode: CuktaWebMode::Word,
+                    query: "ложбан".to_owned(),
+                    count: 3,
+                    targets: default_cukta_target_values(),
+                }),
+            },
+        );
+        let CuktaPageKind::Search {
+            state,
+            results,
+            message,
+            ..
+        } = cyrillic_word_page.page_kind
+        else {
+            panic!("expected Cyrillic word search page");
+        };
+        assert_eq!(state.query, "lojban");
+        assert!(message.is_none(), "{message:?}");
+        assert_eq!(
+            results.first().map(|card| card.label.as_str()),
+            Some("4.3. brivla")
+        );
+        assert_eq!(
+            cukta_web_url(
+                "",
+                &CuktaWebState {
+                    view: CuktaWebView::Search(state)
+                }
+            ),
+            "/cukta/search?mode=valsi&q=lojban&count=3"
+        );
+
         let meaning_state = CuktaWebState {
             view: CuktaWebView::Search(CuktaWebSearchState {
                 mode: CuktaWebMode::Meaning,
@@ -6847,6 +6920,49 @@ mod tests {
                 .cards
                 .first()
                 .is_some_and(|card| matches!(card.votes, VlackuVoteDisplay::Known(_)))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_word_search_accepts_cyrillic_exact_query() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "клама".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(result.state.query, "klama");
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("klama")
+        );
+        assert_eq!(vlacku_web_url("", &result.state), "/vlacku/klama");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_rafsi_search_accepts_cyrillic_exact_query() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Rafsi,
+            query: "кла".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(result.state.query, "kla");
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("klama")
+        );
+        assert_eq!(
+            vlacku_web_url("", &result.state),
+            "/vlacku?mode=rafsi&q=kla"
         );
     }
 
