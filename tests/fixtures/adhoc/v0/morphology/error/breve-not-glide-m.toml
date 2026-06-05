@@ -3,5 +3,14 @@ lojban = "mĭ"
 tags = ["v0-adhoc", "morphology"]
 
 [expectations.morphology]
-status = "failure"
-diagnostics = [{ severity = "error", code = "morphology.breve-not-glide", byte-span = [1, 3], source-text = "ĭ", message = "breve-marked vowel is not in a glide position" }]
+status = "success"
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 2, start: None, end: None } })]'
+diagnostics = [{ severity = "warning", code = "morphology.warning.breve-not-glide", byte-span = [1, 3], source-text = "ĭ", message = "breve-marked vowel is not in a glide position" }]
+
+[expectations.output.vlasei]
+brackets = "mi"
+tree = """
+[
+  Cmavo @[0‥2) "mi",
+]"""
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}]'

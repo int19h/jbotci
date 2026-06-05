@@ -8,11 +8,11 @@ entry-id = "48"
 
 [expectations.morphology]
 status = "success"
-raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "la'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 22, char_start: 12, char_end: 22, start: None, end: None }, text: " jadenbane" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 26, char_start: 23, char_end: 26, start: None, end: None } } }]"""
+raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "la'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 22, char_start: 13, char_end: 22, start: None, end: None }, text: "jadenbane" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 26, char_start: 23, char_end: 26, start: None, end: None } } }]"""
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, sumti: Some(QuotedSumti(DelimitedNonLojbanQuote(WithFreeModifiers { value: Plain(DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "la'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 22, char_start: 12, char_end: 22, start: None, end: None }, text: " jadenbane" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 26, char_start: 23, char_end: 26, start: None, end: None } } }), free_modifiers: [] }))), dohu: None }], leading_connective: None, paragraphs: [] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, sumti: Some(QuotedSumti(DelimitedNonLojbanQuote(WithFreeModifiers { value: Plain(DelimitedNonLojbanQuote { zoi: Cmavo { phonemes: Phonemes { text: "la'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None } }, opening_delimiter: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } }, quoted_text: Verbatim { span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 22, char_start: 13, char_end: 22, start: None, end: None }, text: "jadenbane" }, closing_delimiter: Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 23, byte_end: 26, char_start: 23, char_end: 26, start: None, end: None } } }), free_modifiers: [] }))), dohu: None }], leading_connective: None, paragraphs: [] }"""
 
 [expectations.semantics.refs]
 status = "success"
@@ -26,11 +26,11 @@ tree = """
   DelimitedNonLojbanQuote @[4‥26) {
     zoi: Cmavo @[4‥8) "la'o",
     opening_delimiter: Cmavo @[9‥12) "zoĭ",
-    quoted_text: Verbatim @[12‥22) "jadenbane",
+    quoted_text: Verbatim @[13‥22) "jadenbane",
     closing_delimiter: Cmavo @[23‥26) "zoĭ",
   },
 ]"""
-json = """[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[4,8]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}},"quoted_text":{"span":[12,22],"text":" jadenbane"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[23,26]}}}}]"""
+json = """[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[4,8]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}},"quoted_text":{"span":[13,22],"text":"jadenbane"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[23,26]}}}}]"""
 
 [expectations.output.gentufa]
 tree = """
@@ -43,10 +43,10 @@ Text @[0‥26) {
       sumti: DelimitedNonLojbanQuote @[4‥26) {
         zoi: Cmavo @[4‥8) "la'o",
         opening_delimiter: Cmavo @[9‥12) "zoĭ",
-        quoted_text: Verbatim @[12‥22) "jadenbane",
+        quoted_text: Verbatim @[13‥22) "jadenbane",
         closing_delimiter: Cmavo @[23‥26) "zoĭ",
       },
     },
   ],
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[4,8]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}},"quoted_text":{"span":[12,22],"text":" jadenbane"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[23,26]}}}}}}}}}]}"""
+json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[4,8]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}},"quoted_text":{"span":[13,22],"text":"jadenbane"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[23,26]}}}}}}}}}]}"""
