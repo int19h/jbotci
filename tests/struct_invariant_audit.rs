@@ -68,6 +68,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding settings state is transient browser worker status parsed from JSON responses",
     ),
     (
+        "crates/jbotci-orthography/src/lib.rs:NormalizedLatinChar",
+        "orthography conversion helper stores a normalized character plus stress flag",
+    ),
+    (
         "apps/jbotci-web/src/main.rs:AsyncActivityTask",
         "activity tasks are internal guard tokens created only by AsyncActivityState::begin",
     ),
@@ -828,10 +832,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "gentufa reference labels are generated from the shared CLI reference display model",
     ),
     (
-        "crates/jbotci-gentufa/src/lib.rs:NormalizedLatinChar",
-        "normalized Latin character data is produced by normalization code paths",
-    ),
-    (
         "crates/jbotci-gentufa/src/lib.rs:ReferenceMarker",
         "reference markers are renderer annotations derived from semantic reference analysis",
     ),
@@ -1256,6 +1256,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture expectation payload is checked by fixture runner comparisons",
     ),
     (
+        "tests/support/fixtures/mod.rs:GentufaOutputExpectation",
+        "fixture expectation aggregate permits absent gentufa output formats",
+    ),
+    (
         "tests/support/fixtures/mod.rs:DiagnosticExpectation",
         "fixture diagnostic payload is validated by exact runner comparisons",
     ),
@@ -1304,6 +1308,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "semantic refs expectation payload is checked by fixture runner comparisons",
     ),
     (
+        "tests/support/fixtures/mod.rs:ScriptBracketExpectations",
+        "fixture expectation aggregate permits absent script-specific outputs",
+    ),
+    (
         "tests/support/fixtures/mod.rs:SemanticsExpectations",
         "fixture expectation aggregate permits absent semantic facets",
     ),
@@ -1318,6 +1326,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "tests/support/fixtures/mod.rs:TextExpectation",
         "fixture expectation payload is checked by fixture runner comparisons",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:VlaseiOutputExpectation",
+        "fixture expectation aggregate permits absent vlasei output formats",
     ),
     (
         "tests/support/fixtures/mod.rs:XfailExpectation",

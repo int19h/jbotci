@@ -4,12 +4,15 @@ mod render;
 
 use std::cmp::Reverse;
 use std::collections::HashMap;
-use std::fmt;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_morphology::{
     Cmavo, PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData,
+};
+pub use jbotci_orthography::{
+    LojbanScript as GentufaScript, render_latin_word_surface_for_script,
+    render_loose_latin_text_for_script,
 };
 pub use jbotci_output::{GlideMark, StressMark};
 use jbotci_output::{
@@ -29,28 +32,6 @@ pub use render::{
     DEFAULT_GENTUFA_PNG_SCALE, EmbeddedGentufaFonts, GentufaExportError, GentufaFontData,
     GentufaPngOptions, GentufaSvgOptions, render_gentufa_blocks_png, render_gentufa_blocks_svg,
 };
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-#[invariant(true)]
-pub enum GentufaScript {
-    #[default]
-    Latin,
-    Cyrillic,
-    Zbalermorna,
-}
-
-impl fmt::Display for GentufaScript {
-    #[requires(true)]
-    #[ensures(true)]
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::Latin => "latin",
-            Self::Cyrillic => "cyrillic",
-            Self::Zbalermorna => "zbalermorna",
-        })
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -650,7 +631,7 @@ fn render_elided_cmavo(cmavo: Cmavo, options: &GentufaBlockOptions) -> String {
     let text = Phonemes::from_canonical(cmavo.canonical_text().to_owned())
         .expect("cmavo canonical text is valid phoneme text")
         .render(options.phonemes);
-    render_latin_surface(options.script, WordKind::Cmavo, &text)
+    render_latin_word_surface_for_script(options.script, WordKind::Cmavo, &text)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1733,7 +1714,7 @@ fn render_word_like(word_like: &WordLike, source: &str, options: &GentufaBlockOp
 #[ensures(true)]
 fn render_word(word: &Word, options: &GentufaBlockOptions) -> String {
     let latin = visible_latin_word_surface(word, options.phonemes);
-    render_latin_surface(options.script, word.kind(), &latin)
+    render_latin_word_surface_for_script(options.script, word.kind(), &latin)
 }
 
 #[requires(true)]
@@ -1758,8 +1739,7 @@ fn needs_leading_pause(word: &Word) -> bool {
             .as_str()
             .chars()
             .next()
-            .map(normalized_latin_char)
-            .is_some_and(|ch| matches!(ch.base, 'a' | 'e' | 'i' | 'o' | 'u'))
+            .is_some_and(is_latin_vowel_surface_char)
 }
 
 #[requires(true)]
@@ -1770,202 +1750,13 @@ fn render_loose_latin_surface(text: String, options: &GentufaBlockOptions) -> St
 
 #[requires(true)]
 #[ensures(true)]
-pub fn render_loose_latin_text_for_script(script: GentufaScript, text: &str) -> String {
-    match script {
-        GentufaScript::Latin => text.to_owned(),
-        GentufaScript::Cyrillic => latin_surface_to_cyrillic(text),
-        GentufaScript::Zbalermorna => latin_surface_to_zbalermorna(WordKind::Gismu, text),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn render_latin_word_surface_for_script(
-    script: GentufaScript,
-    kind: WordKind,
-    latin: &str,
-) -> String {
-    render_latin_surface(script, kind, latin)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_latin_surface(script: GentufaScript, kind: WordKind, latin: &str) -> String {
-    match script {
-        GentufaScript::Latin => latin.to_owned(),
-        GentufaScript::Cyrillic => latin_surface_to_cyrillic(latin),
-        GentufaScript::Zbalermorna => latin_surface_to_zbalermorna(kind, latin),
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-struct NormalizedLatinChar {
-    base: char,
-    stressed: bool,
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn normalized_latin_char(ch: char) -> NormalizedLatinChar {
+fn is_latin_vowel_surface_char(ch: char) -> bool {
     match ch {
-        'á' | 'Á' => NormalizedLatinChar {
-            base: 'a',
-            stressed: true,
-        },
-        'é' | 'É' => NormalizedLatinChar {
-            base: 'e',
-            stressed: true,
-        },
-        'í' | 'Í' => NormalizedLatinChar {
-            base: 'i',
-            stressed: true,
-        },
-        'ó' | 'Ó' => NormalizedLatinChar {
-            base: 'o',
-            stressed: true,
-        },
-        'ú' | 'Ú' => NormalizedLatinChar {
-            base: 'u',
-            stressed: true,
-        },
-        'ý' | 'Ý' => NormalizedLatinChar {
-            base: 'y',
-            stressed: true,
-        },
-        'A' | 'E' | 'I' | 'O' | 'U' | 'Y' => NormalizedLatinChar {
-            base: ch.to_ascii_lowercase(),
-            stressed: true,
-        },
-        'ĭ' | 'Ĭ' => NormalizedLatinChar {
-            base: 'ĭ',
-            stressed: false,
-        },
-        'ŭ' | 'Ŭ' => NormalizedLatinChar {
-            base: 'ŭ',
-            stressed: false,
-        },
-        other => NormalizedLatinChar {
-            base: other.to_ascii_lowercase(),
-            stressed: false,
-        },
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn latin_surface_to_cyrillic(text: &str) -> String {
-    let mut output = String::new();
-    for ch in text.chars() {
-        let normalized = normalized_latin_char(ch);
-        match normalized.base {
-            '.' => output.push('.'),
-            ',' => output.push(','),
-            '\'' => {}
-            'a' => push_cyrillic_vowel(&mut output, 'а', normalized.stressed),
-            'e' => push_cyrillic_vowel(&mut output, 'е', normalized.stressed),
-            'i' => push_cyrillic_vowel(&mut output, 'и', normalized.stressed),
-            'o' => push_cyrillic_vowel(&mut output, 'о', normalized.stressed),
-            'u' => push_cyrillic_vowel(&mut output, 'у', normalized.stressed),
-            'y' => push_cyrillic_vowel(&mut output, 'ъ', normalized.stressed),
-            'ĭ' => output.push('й'),
-            'ŭ' => output.push('ў'),
-            'b' => output.push('б'),
-            'c' => output.push('ш'),
-            'd' => output.push('д'),
-            'f' => output.push('ф'),
-            'g' => output.push('г'),
-            'j' => output.push('ж'),
-            'k' => output.push('к'),
-            'l' => output.push('л'),
-            'm' => output.push('м'),
-            'n' => output.push('н'),
-            'p' => output.push('п'),
-            'r' => output.push('р'),
-            's' => output.push('с'),
-            't' => output.push('т'),
-            'v' => output.push('в'),
-            'x' => output.push('х'),
-            'z' => output.push('з'),
-            other => output.push(other),
-        }
-    }
-    output
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn push_cyrillic_vowel(output: &mut String, vowel: char, stressed: bool) {
-    output.push(vowel);
-    if stressed {
-        output.push('\u{0301}');
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn latin_surface_to_zbalermorna(kind: WordKind, text: &str) -> String {
-    let full_vowels = matches!(kind, WordKind::Fuhivla | WordKind::Cmevla);
-    let mut output = String::new();
-    for ch in text.chars() {
-        let normalized = normalized_latin_char(ch);
-        match normalized.base {
-            '.' => output.push('\u{ed89}'),
-            '\'' => output.push('\u{ed8a}'),
-            ',' if full_vowels => output.push('\u{ed9a}'),
-            ',' => {}
-            'a' => push_zbalermorna_vowel(&mut output, 'a', full_vowels, normalized.stressed),
-            'e' => push_zbalermorna_vowel(&mut output, 'e', full_vowels, normalized.stressed),
-            'i' => push_zbalermorna_vowel(&mut output, 'i', full_vowels, normalized.stressed),
-            'o' => push_zbalermorna_vowel(&mut output, 'o', full_vowels, normalized.stressed),
-            'u' => push_zbalermorna_vowel(&mut output, 'u', full_vowels, normalized.stressed),
-            'y' => push_zbalermorna_vowel(&mut output, 'y', full_vowels, normalized.stressed),
-            'ĭ' => output.push('\u{edaa}'),
-            'ŭ' => output.push('\u{edab}'),
-            'b' => output.push('\u{ed90}'),
-            'c' => output.push('\u{ed86}'),
-            'd' => output.push('\u{ed91}'),
-            'f' => output.push('\u{ed83}'),
-            'g' => output.push('\u{ed92}'),
-            'j' => output.push('\u{ed96}'),
-            'k' => output.push('\u{ed82}'),
-            'l' => output.push('\u{ed84}'),
-            'm' => output.push('\u{ed87}'),
-            'n' => output.push('\u{ed97}'),
-            'p' => output.push('\u{ed80}'),
-            'r' => output.push('\u{ed94}'),
-            's' => output.push('\u{ed85}'),
-            't' => output.push('\u{ed81}'),
-            'v' => output.push('\u{ed93}'),
-            'x' => output.push('\u{ed88}'),
-            'z' => output.push('\u{ed95}'),
-            other => output.push(other),
-        }
-    }
-    output
-}
-
-#[requires(matches!(vowel, 'a' | 'e' | 'i' | 'o' | 'u' | 'y'))]
-#[ensures(true)]
-fn push_zbalermorna_vowel(output: &mut String, vowel: char, full: bool, stressed: bool) {
-    let codepoint = match (full, vowel) {
-        (false, 'a') => '\u{eda0}',
-        (false, 'e') => '\u{eda1}',
-        (false, 'i') => '\u{eda2}',
-        (false, 'o') => '\u{eda3}',
-        (false, 'u') => '\u{eda4}',
-        (false, 'y') => '\u{eda5}',
-        (true, 'a') => '\u{edb0}',
-        (true, 'e') => '\u{edb1}',
-        (true, 'i') => '\u{edb2}',
-        (true, 'o') => '\u{edb3}',
-        (true, 'u') => '\u{edb4}',
-        (true, 'y') => '\u{edb5}',
-        _ => unreachable!("requires Lojban vowel"),
-    };
-    output.push(codepoint);
-    if stressed {
-        output.push('\u{ed98}');
+        'a' | 'e' | 'i' | 'o' | 'u' | 'á' | 'é' | 'í' | 'ó' | 'ú' => true,
+        other => matches!(
+            other,
+            'A' | 'E' | 'I' | 'O' | 'U' | 'Á' | 'É' | 'Í' | 'Ó' | 'Ú'
+        ),
     }
 }
 

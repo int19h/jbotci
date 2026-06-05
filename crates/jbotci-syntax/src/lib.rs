@@ -20,6 +20,7 @@ use jbotci_dialect::DialectDefinition;
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
 use jbotci_source::SourceId;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use thiserror::Error;
 
 pub mod ast {
@@ -1961,6 +1962,39 @@ pub fn parse_syntax_tree_with_source_and_options_attempt(
     grammar::parse_syntax_tree_with_source_attempt(words, Some(source), options)
 }
 
+#[requires(true)]
+#[ensures(true)]
+pub fn syntax_tree_eq_ignoring_spans(left: &TextSyntax, right: &TextSyntax) -> bool {
+    let Ok(mut left) = serde_json::to_value(left) else {
+        return false;
+    };
+    let Ok(mut right) = serde_json::to_value(right) else {
+        return false;
+    };
+    remove_source_span_fields(&mut left);
+    remove_source_span_fields(&mut right);
+    left == right
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn remove_source_span_fields(value: &mut Value) {
+    match value {
+        Value::Object(object) => {
+            object.remove("span");
+            for child in object.values_mut() {
+                remove_source_span_fields(child);
+            }
+        }
+        Value::Array(items) => {
+            for child in items {
+                remove_source_span_fields(child);
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[allow(unused_imports)]
@@ -2425,6 +2459,21 @@ mod tests {
         assert!(output.contains("QUOTE"));
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_tree_span_equality_ignores_source_offsets_only() {
+        let left = syntax_tree_for_source("mi klama");
+        let same_tree_different_spans = syntax_tree_for_source("mi  klama");
+        let different_tree = syntax_tree_for_source("mi tavla");
+
+        assert!(syntax_tree_eq_ignoring_spans(
+            &left,
+            &same_tree_different_spans
+        ));
+        assert!(!syntax_tree_eq_ignoring_spans(&left, &different_tree));
+    }
+
     #[cfg(feature = "grammar-debug")]
     #[test]
     #[requires(true)]
@@ -2498,6 +2547,17 @@ mod tests {
     fn syntax_error_for_source(source: &str) -> SyntaxError {
         let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
         parse_syntax_tree(&words).expect_err("source should have a syntax error")
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn syntax_tree_for_source(source: &str) -> TextSyntax {
+        let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
+        parse_syntax_tree_with_source_and_options(&words, source, &ParseOptions::default())
+            .expect("valid syntax")
+            .parse_tree
+            .as_ref()
+            .clone()
     }
 
     #[requires(!construct.is_empty())]

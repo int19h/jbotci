@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use bityzba::{ensures, invariant, requires};
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity, source_text_for_span};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
+use jbotci_orthography::LojbanScript;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use walkdir::WalkDir;
@@ -95,9 +96,26 @@ impl TestCase {
             if output
                 .vlasei
                 .as_ref()
-                .is_some_and(|vlasei| vlasei.brackets.is_some())
+                .and_then(|vlasei| vlasei.brackets.as_ref())
+                .is_some_and(|brackets| brackets.has_script(LojbanScript::Latin))
             {
                 facets.insert(Facet::VlaseiBrackets);
+            }
+            if output
+                .vlasei
+                .as_ref()
+                .and_then(|vlasei| vlasei.brackets.as_ref())
+                .is_some_and(|brackets| brackets.has_script(LojbanScript::Cyrillic))
+            {
+                facets.insert(Facet::VlaseiBracketsCyrillic);
+            }
+            if output
+                .vlasei
+                .as_ref()
+                .and_then(|vlasei| vlasei.brackets.as_ref())
+                .is_some_and(|brackets| brackets.has_script(LojbanScript::Zbalermorna))
+            {
+                facets.insert(Facet::VlaseiBracketsZbalermorna);
             }
             if output
                 .vlasei
@@ -133,6 +151,30 @@ impl TestCase {
                 .is_some_and(|gentufa| gentufa.json.is_some())
             {
                 facets.insert(Facet::GentufaJson);
+            }
+            if output
+                .gentufa
+                .as_ref()
+                .and_then(|gentufa| gentufa.show_elided.as_ref())
+                .is_some_and(|show_elided| show_elided.brackets.is_some())
+            {
+                facets.insert(Facet::GentufaBracketsShowElided);
+            }
+            if output
+                .gentufa
+                .as_ref()
+                .and_then(|gentufa| gentufa.show_elided.as_ref())
+                .is_some_and(|show_elided| show_elided.tree.is_some())
+            {
+                facets.insert(Facet::GentufaTreeShowElided);
+            }
+            if output
+                .gentufa
+                .as_ref()
+                .and_then(|gentufa| gentufa.show_elided.as_ref())
+                .is_some_and(|show_elided| show_elided.json.is_some())
+            {
+                facets.insert(Facet::GentufaJsonShowElided);
             }
         }
         facets
@@ -178,6 +220,23 @@ impl TestCase {
                 .as_ref()
                 .and_then(|output| output.vlasei.as_ref())
                 .and_then(|output| output.brackets.as_ref())
+                .and_then(|brackets| brackets.expectation_for_script(LojbanScript::Latin))
+                .map(|_| ExpectationStatus::Success),
+            Facet::VlaseiBracketsCyrillic => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.vlasei.as_ref())
+                .and_then(|output| output.brackets.as_ref())
+                .and_then(|brackets| brackets.expectation_for_script(LojbanScript::Cyrillic))
+                .map(|_| ExpectationStatus::Success),
+            Facet::VlaseiBracketsZbalermorna => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.vlasei.as_ref())
+                .and_then(|output| output.brackets.as_ref())
+                .and_then(|brackets| brackets.expectation_for_script(LojbanScript::Zbalermorna))
                 .map(|_| ExpectationStatus::Success),
             Facet::VlaseiTree => self
                 .expectations
@@ -212,6 +271,30 @@ impl TestCase {
                 .output
                 .as_ref()
                 .and_then(|output| output.gentufa.as_ref())
+                .and_then(|output| output.json.as_ref())
+                .map(|_| ExpectationStatus::Success),
+            Facet::GentufaBracketsShowElided => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.gentufa.as_ref())
+                .and_then(|output| output.show_elided.as_ref())
+                .and_then(|output| output.brackets.as_ref())
+                .map(|_| ExpectationStatus::Success),
+            Facet::GentufaTreeShowElided => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.gentufa.as_ref())
+                .and_then(|output| output.show_elided.as_ref())
+                .and_then(|output| output.tree.as_ref())
+                .map(|_| ExpectationStatus::Success),
+            Facet::GentufaJsonShowElided => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.gentufa.as_ref())
+                .and_then(|output| output.show_elided.as_ref())
                 .and_then(|output| output.json.as_ref())
                 .map(|_| ExpectationStatus::Success),
         }
@@ -335,9 +418,35 @@ pub struct Expectations {
 #[invariant(true)]
 pub struct OutputExpectations {
     #[serde(default)]
-    pub vlasei: Option<CommandOutputExpectation>,
+    pub vlasei: Option<VlaseiOutputExpectation>,
     #[serde(default)]
-    pub gentufa: Option<CommandOutputExpectation>,
+    pub gentufa: Option<GentufaOutputExpectation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[invariant(true)]
+pub struct VlaseiOutputExpectation {
+    #[serde(default)]
+    pub brackets: Option<BracketExpectations>,
+    #[serde(default)]
+    pub tree: Option<TextExpectation>,
+    #[serde(default)]
+    pub json: Option<TextExpectation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[invariant(true)]
+pub struct GentufaOutputExpectation {
+    #[serde(default)]
+    pub brackets: Option<TextExpectation>,
+    #[serde(default)]
+    pub tree: Option<TextExpectation>,
+    #[serde(default)]
+    pub json: Option<TextExpectation>,
+    #[serde(default, rename = "show-elided")]
+    pub show_elided: Option<CommandOutputExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -350,6 +459,89 @@ pub struct CommandOutputExpectation {
     pub tree: Option<TextExpectation>,
     #[serde(default)]
     pub json: Option<TextExpectation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+#[invariant(::Legacy(_) => true)]
+#[invariant(::Scripts(_) => true)]
+pub enum BracketExpectations {
+    Legacy(TextExpectation),
+    Scripts(ScriptBracketExpectations),
+}
+
+impl BracketExpectations {
+    #[requires(true)]
+    #[ensures(ret == self.expectation_for_script(script).is_some())]
+    pub fn has_script(&self, script: LojbanScript) -> bool {
+        self.expectation_for_script(script).is_some()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn expectation_for_script(&self, script: LojbanScript) -> Option<&TextExpectation> {
+        match self {
+            Self::Legacy(expectation) if script == LojbanScript::Latin => Some(expectation),
+            Self::Legacy(_) => None,
+            Self::Scripts(expectations) => expectations.expectation_for_script(script),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn expectation_for_script_mut(
+        &mut self,
+        script: LojbanScript,
+    ) -> Option<&mut TextExpectation> {
+        match self {
+            Self::Legacy(expectation) if script == LojbanScript::Latin => Some(expectation),
+            Self::Legacy(_) => None,
+            Self::Scripts(expectations) => expectations.expectation_for_script_mut(script),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret, Self::Legacy(_)))]
+    pub fn latin(expectation: TextExpectation) -> Self {
+        Self::Legacy(expectation)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[invariant(true)]
+pub struct ScriptBracketExpectations {
+    #[serde(default)]
+    pub latin: Option<TextExpectation>,
+    #[serde(default)]
+    pub cyrillic: Option<TextExpectation>,
+    #[serde(default)]
+    pub zbalermorna: Option<TextExpectation>,
+}
+
+impl ScriptBracketExpectations {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn expectation_for_script(&self, script: LojbanScript) -> Option<&TextExpectation> {
+        match script {
+            LojbanScript::Latin => self.latin.as_ref(),
+            LojbanScript::Cyrillic => self.cyrillic.as_ref(),
+            LojbanScript::Zbalermorna => self.zbalermorna.as_ref(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn expectation_for_script_mut(
+        &mut self,
+        script: LojbanScript,
+    ) -> Option<&mut TextExpectation> {
+        match script {
+            LojbanScript::Latin => self.latin.as_mut(),
+            LojbanScript::Cyrillic => self.cyrillic.as_mut(),
+            LojbanScript::Zbalermorna => self.zbalermorna.as_mut(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -498,11 +690,16 @@ pub enum Facet {
     Syntax,
     SemanticsRefs,
     VlaseiBrackets,
+    VlaseiBracketsCyrillic,
+    VlaseiBracketsZbalermorna,
     VlaseiTree,
     VlaseiJson,
     GentufaBrackets,
     GentufaTree,
     GentufaJson,
+    GentufaBracketsShowElided,
+    GentufaTreeShowElided,
+    GentufaJsonShowElided,
 }
 
 impl Facet {
@@ -514,11 +711,16 @@ impl Facet {
             Self::Syntax,
             Self::SemanticsRefs,
             Self::VlaseiBrackets,
+            Self::VlaseiBracketsCyrillic,
+            Self::VlaseiBracketsZbalermorna,
             Self::VlaseiTree,
             Self::VlaseiJson,
             Self::GentufaBrackets,
             Self::GentufaTree,
             Self::GentufaJson,
+            Self::GentufaBracketsShowElided,
+            Self::GentufaTreeShowElided,
+            Self::GentufaJsonShowElided,
         ]
     }
 }
@@ -532,11 +734,16 @@ impl fmt::Display for Facet {
             Self::Syntax => "syntax",
             Self::SemanticsRefs => "semantics-refs",
             Self::VlaseiBrackets => "vlasei-brackets",
+            Self::VlaseiBracketsCyrillic => "vlasei-brackets-cyrillic",
+            Self::VlaseiBracketsZbalermorna => "vlasei-brackets-zbalermorna",
             Self::VlaseiTree => "vlasei-tree",
             Self::VlaseiJson => "vlasei-json",
             Self::GentufaBrackets => "gentufa-brackets",
             Self::GentufaTree => "gentufa-tree",
             Self::GentufaJson => "gentufa-json",
+            Self::GentufaBracketsShowElided => "gentufa-brackets-show-elided",
+            Self::GentufaTreeShowElided => "gentufa-tree-show-elided",
+            Self::GentufaJsonShowElided => "gentufa-json-show-elided",
         };
         f.write_str(text)
     }
@@ -553,11 +760,16 @@ impl std::str::FromStr for Facet {
             "syntax" => Ok(Self::Syntax),
             "semantics-refs" => Ok(Self::SemanticsRefs),
             "vlasei-brackets" => Ok(Self::VlaseiBrackets),
+            "vlasei-brackets-cyrillic" => Ok(Self::VlaseiBracketsCyrillic),
+            "vlasei-brackets-zbalermorna" => Ok(Self::VlaseiBracketsZbalermorna),
             "vlasei-tree" => Ok(Self::VlaseiTree),
             "vlasei-json" => Ok(Self::VlaseiJson),
             "gentufa-brackets" => Ok(Self::GentufaBrackets),
             "gentufa-tree" => Ok(Self::GentufaTree),
             "gentufa-json" => Ok(Self::GentufaJson),
+            "gentufa-brackets-show-elided" => Ok(Self::GentufaBracketsShowElided),
+            "gentufa-tree-show-elided" => Ok(Self::GentufaTreeShowElided),
+            "gentufa-json-show-elided" => Ok(Self::GentufaJsonShowElided),
             other => Err(format!("unknown fixture facet `{other}`")),
         }
     }

@@ -1,0 +1,20 @@
+id = "adhoc.output.gentufa-show-elided"
+lojban = "mi klama"
+tags = ["output", "show-elided"]
+
+[[provenance]]
+kind = "adhoc"
+description = "Gentufa output profile with elided terminators rendered explicitly."
+
+[expectations.output.gentufa.show-elided]
+brackets = "(mi [kláma vau])"
+tree = """Bridi @[0‥8) {
+  leading_terms: [
+    Cmavo @[0‥2) "mi",
+  ],
+  SelbriBridiTail @[3‥8) {
+    Gismu @[3‥8) "kláma",
+    vau: Cmavo @[8‥8) "vau",
+  },
+}"""
+json = "{\"paragraphs\":[{\"statements\":[{\"statement\":{\"Bridi\":{\"leading_terms\":[{\"Sumti\":{\"ProSumti\":{\"Plain\":{\"PlainWord\":{\"Cmavo\":{\"phonemes\":\"mi\",\"span\":[0,2]}}}}}}],\"bridi_tail\":{\"first\":{\"first\":{\"first\":{\"SelbriBridiTail\":{\"selbri\":{\"SelbriWord\":{\"Plain\":{\"PlainWord\":{\"Gismu\":{\"phonemes\":\"kláma\",\"span\":[3,8]}}}}},\"vau\":{\"Plain\":{\"PlainWord\":{\"Cmavo\":{\"phonemes\":\"vau\",\"span\":[8,8],\"elided\":true}}}}}}}}}}}}]}]}"

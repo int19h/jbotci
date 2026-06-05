@@ -18,6 +18,7 @@ pub use diagnostics::{
 pub use jbotci_diagnostics::DiagnosticDetailMode;
 use jbotci_morphology::WordLike;
 pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
+pub use jbotci_orthography::LojbanScript;
 use jbotci_syntax::ast::TextSyntax;
 pub use places::{
     IndexedPlaceSpan, format_definition_or_notes_line_with_indexed_places,
@@ -221,6 +222,7 @@ fn subscript_digit(character: char) -> char {
 pub struct BracketRenderOptions {
     pub color: bool,
     pub phonemes: PhonemeRenderOptions,
+    pub script: LojbanScript,
     pub glyphs: GlyphStyle,
     pub decompose_lujvo: bool,
     pub insert_hair_space: bool,
@@ -992,6 +994,30 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn bracket_script_option_renders_word_leaves() {
+        assert_eq!(
+            render_morphology_brackets_with_script("mi klama", LojbanScript::Cyrillic),
+            "(ми кла\u{0301}ма)"
+        );
+        assert_eq!(
+            render_morphology_brackets_with_script("mi klama", LojbanScript::Zbalermorna),
+            "(\u{ed87}\u{eda2} \u{ed82}\u{ed84}\u{eda0}\u{ed98}\u{ed87}\u{eda0})"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bracket_script_option_leaves_quote_payload_text_verbatim() {
+        let cyrillic =
+            render_morphology_brackets_with_script("zoi gy raw_payload gy", LojbanScript::Cyrillic);
+        assert!(cyrillic.contains("raw_payload"), "{cyrillic}");
+        assert!(cyrillic.contains("зой"), "{cyrillic}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn json_renderer_marks_elided_terminators_with_zero_length_spans() {
         let parsed = parse("li pa");
         let json = compact_syntax_json_string_with_options(
@@ -1076,6 +1102,21 @@ mod tests {
             BracketRenderOptions {
                 color,
                 show_elided: true,
+                ..BracketRenderOptions::default()
+            },
+        )
+        .expect("brackets")
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn render_morphology_brackets_with_script(source: &str, script: LojbanScript) -> String {
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        pretty_morphology_brackets_with_options(
+            &words,
+            source,
+            BracketRenderOptions {
+                script,
                 ..BracketRenderOptions::default()
             },
         )

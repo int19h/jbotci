@@ -1,7 +1,7 @@
 use bityzba::requires;
 use serde::Serialize;
 
-use super::{Expectations, Provenance, TestCase};
+use super::{BracketExpectations, CommandOutputExpectation, Expectations, Provenance, TestCase};
 
 #[requires(test_case.is_valid_fixture_metadata())]
 #[bityzba::ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|text| !text.is_empty()))]
@@ -113,34 +113,66 @@ fn push_expectations_toml(
         push_optional_field(output, "raw", &refs.raw)?;
     }
     if let Some(output_expectation) = &expectations.output {
-        if let Some(vlasei) = &output_expectation.vlasei
-            && (vlasei.brackets.is_some() || vlasei.tree.is_some() || vlasei.json.is_some())
-        {
-            output.push_str("\n[expectations.output.vlasei]\n");
-            if let Some(brackets) = &vlasei.brackets {
-                push_field(output, "brackets", brackets)?;
+        if let Some(vlasei) = &output_expectation.vlasei {
+            let has_inline_brackets =
+                matches!(vlasei.brackets, Some(BracketExpectations::Legacy(_)));
+            if has_inline_brackets || vlasei.tree.is_some() || vlasei.json.is_some() {
+                output.push_str("\n[expectations.output.vlasei]\n");
+                if let Some(BracketExpectations::Legacy(brackets)) = &vlasei.brackets {
+                    push_field(output, "brackets", brackets)?;
+                }
+                if let Some(tree) = &vlasei.tree {
+                    push_field(output, "tree", tree)?;
+                }
+                if let Some(json) = &vlasei.json {
+                    push_field(output, "json", json)?;
+                }
             }
-            if let Some(tree) = &vlasei.tree {
-                push_field(output, "tree", tree)?;
-            }
-            if let Some(json) = &vlasei.json {
-                push_field(output, "json", json)?;
-            }
-        }
-        if let Some(gentufa) = &output_expectation.gentufa
-            && (gentufa.brackets.is_some() || gentufa.tree.is_some() || gentufa.json.is_some())
-        {
-            output.push_str("\n[expectations.output.gentufa]\n");
-            if let Some(brackets) = &gentufa.brackets {
-                push_field(output, "brackets", brackets)?;
-            }
-            if let Some(tree) = &gentufa.tree {
-                push_field(output, "tree", tree)?;
-            }
-            if let Some(json) = &gentufa.json {
-                push_field(output, "json", json)?;
+            if let Some(BracketExpectations::Scripts(brackets)) = &vlasei.brackets
+                && (brackets.latin.is_some()
+                    || brackets.cyrillic.is_some()
+                    || brackets.zbalermorna.is_some())
+            {
+                output.push_str("\n[expectations.output.vlasei.brackets]\n");
+                push_optional_field(output, "latin", &brackets.latin)?;
+                push_optional_field(output, "cyrillic", &brackets.cyrillic)?;
+                push_optional_field(output, "zbalermorna", &brackets.zbalermorna)?;
             }
         }
+        if let Some(gentufa) = &output_expectation.gentufa {
+            if gentufa.brackets.is_some() || gentufa.tree.is_some() || gentufa.json.is_some() {
+                output.push_str("\n[expectations.output.gentufa]\n");
+                push_optional_field(output, "brackets", &gentufa.brackets)?;
+                push_optional_field(output, "tree", &gentufa.tree)?;
+                push_optional_field(output, "json", &gentufa.json)?;
+            }
+            if let Some(show_elided) = &gentufa.show_elided
+                && (show_elided.brackets.is_some()
+                    || show_elided.tree.is_some()
+                    || show_elided.json.is_some())
+            {
+                output.push_str("\n[expectations.output.gentufa.show-elided]\n");
+                push_command_output_fields(output, show_elided)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[bityzba::ensures(true)]
+fn push_command_output_fields(
+    output: &mut String,
+    expectation: &CommandOutputExpectation,
+) -> Result<(), toml::ser::Error> {
+    if let Some(brackets) = &expectation.brackets {
+        push_field(output, "brackets", brackets)?;
+    }
+    if let Some(tree) = &expectation.tree {
+        push_field(output, "tree", tree)?;
+    }
+    if let Some(json) = &expectation.json {
+        push_field(output, "json", json)?;
     }
     Ok(())
 }

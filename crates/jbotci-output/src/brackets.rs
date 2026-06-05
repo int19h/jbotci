@@ -3,6 +3,9 @@ use bityzba::data;
 use bityzba::ensures;
 use bityzba::{invariant, requires};
 use jbotci_morphology::{Cmavo, Phonemes, Word, WordLike, WordLikeData};
+use jbotci_orthography::{
+    render_latin_word_surface_for_script, render_loose_latin_text_for_script,
+};
 use jbotci_syntax::ast::*;
 use jbotci_syntax::{Indicator, Token, WithIndicators};
 use jbotci_tree::TreeVisitor;
@@ -2554,8 +2557,14 @@ fn word(word: &Token, source: &BracketContext<'_>) -> sexpr::SExpr {
 #[requires(true)]
 #[ensures(true)]
 fn word_no_leading_pause(word: &Token, source: &BracketContext<'_>) -> sexpr::SExpr {
-    sexpr::leaf(normalize_attached_surface(
-        surface::format_with_indicators_with_options(word, source.source, source.options.phonemes),
+    let latin = normalize_attached_surface(surface::format_with_indicators_with_options(
+        word,
+        source.source,
+        source.options.phonemes,
+    ));
+    sexpr::leaf(render_loose_latin_text_for_script(
+        source.options.script,
+        &latin,
     ))
 }
 
@@ -2639,24 +2648,23 @@ fn word_like_brackets(word_like: &WordLike, source: &BracketContext<'_>) -> sexp
 #[requires(true)]
 #[ensures(true)]
 fn word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
-    if source.options.decompose_lujvo
+    let latin = if source.options.decompose_lujvo
         && let Some(parts) = word.lujvo_parts()
     {
-        return sexpr::leaf_with_range(
-            parts
-                .iter()
-                .map(|part| part.phonemes().render(source.options.phonemes))
-                .collect::<Vec<_>>()
-                .join(source.options.glyphs.lujvo_separator()),
-            Some(word_bracket_source_range(word)),
-        );
-    }
-    sexpr::leaf_with_range(
+        parts
+            .iter()
+            .map(|part| part.phonemes().render(source.options.phonemes))
+            .collect::<Vec<_>>()
+            .join(source.options.glyphs.lujvo_separator())
+    } else {
         surface::format_with_indicators_with_options(
             &Token::bare(WordLike::bare(word.clone())),
             source.source,
             source.options.phonemes,
-        ),
+        )
+    };
+    sexpr::leaf_with_range(
+        render_latin_word_surface_for_script(source.options.script, word.kind(), &latin),
         Some(word_bracket_source_range(word)),
     )
 }
@@ -2686,7 +2694,11 @@ fn elided_terminator_leaf(
     source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
     sexpr::elided_leaf_with_range(
-        elided_cmavo_text(cmavo, source.options.phonemes),
+        render_latin_word_surface_for_script(
+            source.options.script,
+            jbotci_morphology::WordKind::Cmavo,
+            &elided_cmavo_text(cmavo, source.options.phonemes),
+        ),
         last_child_end_range(previous_siblings),
     )
 }

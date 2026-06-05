@@ -8,10 +8,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use bityzba::{contract_trait, ensures, invariant, requires};
 use jbotci_source::SourceId;
 use support::fixtures::{
-    CllSelector, CommandOutputExpectation, ExpectationStatus, Expectations, Facet, FacetResult,
-    FixtureBackend, FixtureExport, FixtureSelector, LoadedTestCase, MorphologyExpectation,
-    MuplisForm, OutputExpectations, Provenance, ReferenceExpectation, SemanticsExpectations,
-    SyntaxExpectation, TestCase, TextExpectation, XfailExpectation, filter_fixtures,
+    BracketExpectations, CllSelector, CommandOutputExpectation, ExpectationStatus, Expectations,
+    Facet, FacetResult, FixtureBackend, FixtureExport, FixtureSelector, GentufaOutputExpectation,
+    LoadedTestCase, MorphologyExpectation, MuplisForm, OutputExpectations, Provenance,
+    ReferenceExpectation, ScriptBracketExpectations, SemanticsExpectations, SyntaxExpectation,
+    TestCase, TextExpectation, VlaseiOutputExpectation, XfailExpectation, filter_fixtures,
     import_export_file, load_fixture_file, load_fixture_tree, run_fixture_facets,
     run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
 };
@@ -345,14 +346,14 @@ fn writer_keeps_tree_and_output_values() {
         provenance: vec![],
         expectations: Expectations {
             output: Some(OutputExpectations {
-                vlasei: Some(CommandOutputExpectation {
+                vlasei: Some(VlaseiOutputExpectation {
                     json: Some(TextExpectation {
                         text: "[{\"PlainWord\":{\"Cmavo\":{\"phonemes\":\"coĭ\",\"span\":[0,3]}}}]"
                             .into(),
                     }),
-                    ..CommandOutputExpectation::default()
+                    ..VlaseiOutputExpectation::default()
                 }),
-                gentufa: Some(CommandOutputExpectation {
+                gentufa: Some(GentufaOutputExpectation {
                     brackets: Some(TextExpectation {
                         text: "[coi]".into(),
                     }),
@@ -362,6 +363,7 @@ fn writer_keeps_tree_and_output_values() {
                     json: Some(TextExpectation {
                         text: "{}".into(),
                     }),
+                    show_elided: None,
                 }),
             }),
             morphology: Some(MorphologyExpectation {
@@ -426,6 +428,66 @@ fn writer_keeps_tree_and_output_values() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn writer_round_trips_script_brackets_and_show_elided_profile() {
+    let temp_root = temp_root("jbotci-fixtures-script-writer-test");
+    fs::create_dir_all(&temp_root).expect("temp root");
+    let fixture_path = temp_root.join("fixture.toml");
+    let test_case = TestCase {
+        id: "adhoc.script-output".into(),
+        lojban: "mi klama".into(),
+        dialect: None,
+        translation_en: None,
+        gloss_en: None,
+        tags: vec![],
+        provenance: vec![],
+        expectations: Expectations {
+            output: Some(OutputExpectations {
+                vlasei: Some(VlaseiOutputExpectation {
+                    brackets: Some(BracketExpectations::Scripts(ScriptBracketExpectations {
+                        latin: Some(TextExpectation {
+                            text: "(mi kláma)".into(),
+                        }),
+                        cyrillic: Some(TextExpectation {
+                            text: "(ми кла́ма)".into(),
+                        }),
+                        zbalermorna: Some(TextExpectation {
+                            text: "zbal".into(),
+                        }),
+                    })),
+                    ..VlaseiOutputExpectation::default()
+                }),
+                gentufa: Some(GentufaOutputExpectation {
+                    show_elided: Some(CommandOutputExpectation {
+                        brackets: Some(TextExpectation {
+                            text: "(mi kláma vau)".into(),
+                        }),
+                        tree: Some(TextExpectation {
+                            text: "tree".into(),
+                        }),
+                        json: Some(TextExpectation { text: "{}".into() }),
+                    }),
+                    ..GentufaOutputExpectation::default()
+                }),
+            }),
+            ..Expectations::default()
+        },
+    };
+    write_fixture_file(&fixture_path, &test_case).expect("write fixture");
+    let text = fs::read_to_string(&fixture_path).expect("read fixture");
+    assert!(text.contains("[expectations.output.vlasei.brackets]\nlatin = "));
+    assert!(text.contains("cyrillic = "));
+    assert!(text.contains("zbalermorna = "));
+    assert!(text.contains("[expectations.output.gentufa.show-elided]\nbrackets = "));
+    assert_eq!(
+        load_fixture_file(&fixture_path).expect("load fixture"),
+        test_case
+    );
+    let _ = fs::remove_dir_all(temp_root);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn available_facets_include_tree_expectations() {
     let case = TestCase {
         id: "adhoc.tree".into(),
@@ -437,11 +499,11 @@ fn available_facets_include_tree_expectations() {
         provenance: vec![],
         expectations: Expectations {
             output: Some(OutputExpectations {
-                gentufa: Some(CommandOutputExpectation {
+                gentufa: Some(GentufaOutputExpectation {
                     tree: Some(TextExpectation {
                         text: "\"coi\"".into(),
                     }),
-                    ..CommandOutputExpectation::default()
+                    ..GentufaOutputExpectation::default()
                 }),
                 ..OutputExpectations::default()
             }),
@@ -454,6 +516,126 @@ fn available_facets_include_tree_expectations() {
     assert_eq!(
         "gentufa-tree".parse::<Facet>().expect("tree facet"),
         Facet::GentufaTree
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn legacy_vlasei_brackets_load_as_latin_facet() {
+    let source = r#"
+id = "adhoc.legacy-brackets"
+lojban = "mi klama"
+
+[expectations.output.vlasei]
+brackets = "(mi kláma)"
+"#;
+    let case: TestCase = toml::from_str(source).expect("legacy fixture");
+    let facets = case.available_facets();
+    assert!(facets.contains(&Facet::VlaseiBrackets));
+    assert!(!facets.contains(&Facet::VlaseiBracketsCyrillic));
+    let brackets = case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.vlasei.as_ref())
+        .and_then(|vlasei| vlasei.brackets.as_ref())
+        .expect("brackets expectation");
+    assert_eq!(
+        brackets
+            .expectation_for_script(jbotci_orthography::LojbanScript::Latin)
+            .map(|expectation| expectation.text.as_str()),
+        Some("(mi kláma)")
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn available_facets_include_script_bracket_expectations() {
+    let case = TestCase {
+        id: "adhoc.script-brackets".into(),
+        lojban: "mi klama".into(),
+        dialect: None,
+        translation_en: None,
+        gloss_en: None,
+        tags: vec![],
+        provenance: vec![],
+        expectations: Expectations {
+            output: Some(OutputExpectations {
+                vlasei: Some(VlaseiOutputExpectation {
+                    brackets: Some(BracketExpectations::Scripts(ScriptBracketExpectations {
+                        latin: Some(TextExpectation {
+                            text: "(mi kláma)".into(),
+                        }),
+                        cyrillic: Some(TextExpectation {
+                            text: "(ми кла́ма)".into(),
+                        }),
+                        zbalermorna: Some(TextExpectation {
+                            text: "zbal".into(),
+                        }),
+                    })),
+                    ..VlaseiOutputExpectation::default()
+                }),
+                ..OutputExpectations::default()
+            }),
+            ..Expectations::default()
+        },
+    };
+    let facets = case.available_facets();
+    assert!(facets.contains(&Facet::VlaseiBrackets));
+    assert!(facets.contains(&Facet::VlaseiBracketsCyrillic));
+    assert!(facets.contains(&Facet::VlaseiBracketsZbalermorna));
+    assert_eq!(
+        "vlasei-brackets-cyrillic"
+            .parse::<Facet>()
+            .expect("cyrillic facet"),
+        Facet::VlaseiBracketsCyrillic
+    );
+    assert_eq!(
+        Facet::VlaseiBracketsZbalermorna.to_string(),
+        "vlasei-brackets-zbalermorna"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn available_facets_include_gentufa_show_elided_expectations() {
+    let case = TestCase {
+        id: "adhoc.show-elided".into(),
+        lojban: "mi klama".into(),
+        dialect: None,
+        translation_en: None,
+        gloss_en: None,
+        tags: vec![],
+        provenance: vec![],
+        expectations: Expectations {
+            output: Some(OutputExpectations {
+                gentufa: Some(GentufaOutputExpectation {
+                    show_elided: Some(CommandOutputExpectation {
+                        brackets: Some(TextExpectation { text: "()".into() }),
+                        tree: Some(TextExpectation {
+                            text: "tree".into(),
+                        }),
+                        json: Some(TextExpectation { text: "{}".into() }),
+                    }),
+                    ..GentufaOutputExpectation::default()
+                }),
+                ..OutputExpectations::default()
+            }),
+            ..Expectations::default()
+        },
+    };
+    let facets = case.available_facets();
+    assert!(facets.contains(&Facet::GentufaBracketsShowElided));
+    assert!(facets.contains(&Facet::GentufaTreeShowElided));
+    assert!(facets.contains(&Facet::GentufaJsonShowElided));
+    assert_eq!(
+        "gentufa-json-show-elided"
+            .parse::<Facet>()
+            .expect("show-elided facet"),
+        Facet::GentufaJsonShowElided
     );
 }
 

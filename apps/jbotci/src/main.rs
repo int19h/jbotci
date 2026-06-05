@@ -41,10 +41,11 @@ use jbotci_morphology::{
 };
 use jbotci_output::{
     BracketRenderOptions, DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticDetailMode,
-    DiagnosticRenderOptions, GlideMark, GlyphStyle, JsonRenderOptions, PhonemeRenderOptions,
-    StressMark, TraceRenderOptions, TreeRenderOptions, compact_morphology_json_string_with_options,
-    compact_syntax_json_string_with_options, format_definition_or_notes_line_with_indexed_places,
-    ipa_morphology_text, pretty_brackets_with_options, pretty_morphology_brackets_with_options,
+    DiagnosticRenderOptions, GlideMark, GlyphStyle, JsonRenderOptions, LojbanScript,
+    PhonemeRenderOptions, StressMark, TraceRenderOptions, TreeRenderOptions,
+    compact_morphology_json_string_with_options, compact_syntax_json_string_with_options,
+    format_definition_or_notes_line_with_indexed_places, ipa_morphology_text,
+    pretty_brackets_with_options, pretty_morphology_brackets_with_options,
     pretty_morphology_tree_with_options, pretty_tree_with_options,
     reference_display_model_for_syntax_tree, render_diagnostics, render_trace_report,
 };
@@ -1201,6 +1202,7 @@ fn run_cli_command<WOut: Write, WErr: Write>(
                         BracketRenderOptions {
                             color: color_policy.stdout,
                             phonemes: phoneme_options,
+                            script: LojbanScript::Latin,
                             glyphs,
                             decompose_lujvo: input.decompose_lujvo,
                             insert_hair_space: false,
@@ -2635,6 +2637,7 @@ fn render_gentufa(
                 BracketRenderOptions {
                     color: color_policy.stdout,
                     phonemes: phoneme_options,
+                    script: LojbanScript::Latin,
                     glyphs,
                     decompose_lujvo: input.decompose_lujvo,
                     insert_hair_space: false,
