@@ -15513,6 +15513,30 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn zbalermorna_linked_lojban_css_uses_crisa() {
+        let css = include_str!("../assets/main.css");
+        let selectors = [
+            ".app-page.orthography-zbalermorna .parse-page .brackets-output",
+            ".app-page.orthography-zbalermorna .parse-page .diagnostic-text-specific-word",
+            ".app-page.orthography-zbalermorna .dictionary-page .dictionary-word-link",
+            ".app-page.orthography-zbalermorna .rich-dictionary-tooltip .tooltip-inline-link",
+            ".app-page.orthography-zbalermorna .cll-page .spa-cll-link-dictionary",
+            ".app-page.orthography-zbalermorna .cll-page .spa-cll-link-parse",
+            ".app-page.orthography-zbalermorna .cll-page .spa-cll-jbophrase",
+        ];
+
+        for selector in selectors {
+            let selector_start = css.find(selector).expect("zbalermorna selector");
+            let rule_tail = &css[selector_start..];
+            let rule_end = rule_tail.find('}').expect("zbalermorna rule end");
+            let rule = &rule_tail[..rule_end];
+            assert!(rule.contains("font-family: \"Crisa\""), "{selector}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn diagnostic_specific_words_render_with_selected_script() {
         let word = diagnostic_text_render_part(DiagnosticTextRole::SpecificWord, "fe'e".to_owned());
         let selmaho = diagnostic_text_render_part(DiagnosticTextRole::Selmaho, "FAhA".to_owned());
