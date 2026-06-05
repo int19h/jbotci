@@ -7,19 +7,9 @@ corpus = "camxes"
 entry-id = "110"
 
 [expectations.morphology]
-status = "success"
-raw = "[]"
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.unterminated-zoi-quote", byte-span = [35, 35], source-text = "", message = "unterminated ZOI quote" }]
 
 [expectations.syntax]
 status = "failure"
-raw = "TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }"
-xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
-
-[expectations.output.vlasei]
-brackets = ""
-tree = "[]"
-json = "[]"
-
-[expectations.output.gentufa]
-tree = "Text {}"
-json = "{}"
+diagnostics = [{ severity = "error", code = "morphology.unterminated-zoi-quote", byte-span = [35, 35], source-text = "", message = "unterminated ZOI quote" }]

@@ -7,18 +7,9 @@ corpus = "camxes"
 entry-id = "7901"
 
 [expectations.morphology]
-status = "success"
-raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "djet" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None } })]'
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.unterminated-zoi-quote", byte-span = [8, 8], source-text = "", message = "unterminated ZOI quote" }]
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [0, 3], source-text = "zoi", message = "syntax parse failed" }]
-
-[expectations.output.vlasei]
-brackets = "(zoĭ .djet.)"
-tree = """
-[
-  Cmavo @[0‥3) "zoĭ",
-  Cmevla @[4‥8) "djet",
-]"""
-json = '[{"PlainWord":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}}},{"PlainWord":{"Cmevla":{"phonemes":"djet","span":[4,8]}}}]'
+diagnostics = [{ severity = "error", code = "morphology.unterminated-zoi-quote", byte-span = [8, 8], source-text = "", message = "unterminated ZOI quote" }]

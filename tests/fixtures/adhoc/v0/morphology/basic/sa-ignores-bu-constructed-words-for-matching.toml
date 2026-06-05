@@ -4,14 +4,17 @@ tags = ["v0-adhoc", "morphology"]
 
 [expectations.morphology]
 status = "success"
-raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "by" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 45, char_start: 44, char_end: 45, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 46, byte_end: 48, char_start: 46, char_end: 48, start: None, end: None } })]'
+raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "víska" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 11, char_start: 6, char_end: 11, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "by" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 40, byte_end: 42, char_start: 40, char_end: 42, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 44, byte_end: 45, char_start: 44, char_end: 45, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "cy" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 46, byte_end: 48, char_start: 46, char_end: 48, start: None, end: None } })]'
 
 [expectations.output.vlasei]
-brackets = "(by .e cy)"
+brackets = "(mi pu víska by .e cy)"
 tree = """
 [
+  Cmavo @[0‥2) "mi",
+  Cmavo @[3‥5) "pu",
+  Gismu @[6‥11) "víska",
   Cmavo @[40‥42) "by",
   Cmavo @[44‥45) "e",
   Cmavo @[46‥48) "cy",
 ]"""
-json = '[{"PlainWord":{"Cmavo":{"phonemes":"by","span":[40,42]}}},{"PlainWord":{"Cmavo":{"phonemes":"e","span":[44,45]}}},{"PlainWord":{"Cmavo":{"phonemes":"cy","span":[46,48]}}}]'
+json = '[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[3,5]}}},{"PlainWord":{"Gismu":{"phonemes":"víska","span":[6,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"by","span":[40,42]}}},{"PlainWord":{"Cmavo":{"phonemes":"e","span":[44,45]}}},{"PlainWord":{"Cmavo":{"phonemes":"cy","span":[46,48]}}}]'

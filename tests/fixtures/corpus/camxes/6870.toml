@@ -7,20 +7,9 @@ corpus = "camxes"
 entry-id = "6870"
 
 [expectations.morphology]
-status = "success"
-raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "ma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "cméne" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 8, char_start: 3, char_end: 8, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "zoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 12, char_start: 9, char_end: 12, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "modules" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 20, char_start: 13, char_end: 20, start: None, end: None } })]'
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.unterminated-zoi-quote", byte-span = [20, 20], source-text = "", message = "unterminated ZOI quote" }]
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [9, 12], source-text = "zoi", message = "syntax parse failed" }]
-
-[expectations.output.vlasei]
-brackets = "(ma cméne zoĭ .modules.)"
-tree = """
-[
-  Cmavo @[0‥2) "ma",
-  Gismu @[3‥8) "cméne",
-  Cmavo @[9‥12) "zoĭ",
-  Cmevla @[13‥20) "modules",
-]"""
-json = '[{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[0,2]}}},{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[3,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}}},{"PlainWord":{"Cmevla":{"phonemes":"modules","span":[13,20]}}}]'
+diagnostics = [{ severity = "error", code = "morphology.unterminated-zoi-quote", byte-span = [20, 20], source-text = "", message = "unterminated ZOI quote" }]
