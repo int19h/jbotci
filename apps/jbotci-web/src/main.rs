@@ -10305,6 +10305,7 @@ fn render_block(
         "grid-row: {row} / span {}; grid-column: {col} / span {}; --block-color: {}; background-color: {};",
         block.row_span, block.col_span, block.color, block.color
     );
+    let native_title = block_native_title(block, export_script);
     let is_export_anchor = export_anchor_id == Some(block.block_id.as_str());
     let export_controls =
         is_export_anchor.then(|| (export_layout.clone(), export_show_glosses, export_script));
@@ -10338,7 +10339,7 @@ fn render_block(
                     rsx! {
                         span { class: "block-label",
                             span { class: "block-label-tooltip dictionary-tooltip-host",
-                                title: "{block.label}",
+                                title: "{native_title}",
                                 if let Some(route) = jbotci_route_from_href(&base_path, &card.href) {
                                     Link { class: "block-label-link", to: route,
                                         span { class: "block-label-text",
@@ -10358,7 +10359,7 @@ fn render_block(
                     }
                 }
             } else {
-                span { class: "block-label", title: "{block.label}",
+                span { class: "block-label", title: "{native_title}",
                     span { class: "block-label-text",
                         { render_elidable_text(&block.label, block.is_elided) }
                     }
@@ -10413,6 +10414,16 @@ fn render_block(
                 }
             }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(matches!(script, GentufaScript::Zbalermorna) -> ret.is_empty())]
+fn block_native_title(block: &GentufaBlock, script: GentufaScript) -> &str {
+    if matches!(script, GentufaScript::Zbalermorna) {
+        ""
+    } else {
+        &block.label
     }
 }
 
@@ -15519,6 +15530,7 @@ mod tests {
             ".app-page.orthography-zbalermorna .parse-page .brackets-output",
             ".app-page.orthography-zbalermorna .parse-page .diagnostic-text-specific-word",
             ".app-page.orthography-zbalermorna .dictionary-page .dictionary-word-link",
+            ".app-page.orthography-zbalermorna .reference-resolution-tooltip .reference-row-target",
             ".app-page.orthography-zbalermorna .rich-dictionary-tooltip .tooltip-inline-link",
             ".app-page.orthography-zbalermorna .cll-page .spa-cll-link-dictionary",
             ".app-page.orthography-zbalermorna .cll-page .spa-cll-link-parse",
@@ -15532,6 +15544,17 @@ mod tests {
             let rule = &rule_tail[..rule_end];
             assert!(rule.contains("font-family: \"Crisa\""), "{selector}");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zbalermorna_block_native_titles_are_suppressed() {
+        let block = test_gentufa_block(0, 1, &[]);
+
+        assert_eq!(block_native_title(&block, GentufaScript::Latin), "test");
+        assert_eq!(block_native_title(&block, GentufaScript::Cyrillic), "test");
+        assert_eq!(block_native_title(&block, GentufaScript::Zbalermorna), "");
     }
 
     #[test]
