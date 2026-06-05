@@ -63,6 +63,12 @@ Browser embedding packs are deployed separately to Cloudflare R2 with
 `https://assets.jbotci.app/embeddings/web/v1`; local static builds default to
 `/assets/embeddings/web/v1`.
 
+The mobile F2LLM browser path uses a custom WebGPU artifact instead of
+Transformers.js. Build its model artifact and `f16le` vector pack with the
+offline scripts in `tools/webgpu-embedding-runtime/`; publish the model artifact
+under `https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1` and the vector
+pack under the normal web embedding R2 prefix.
+
 The parser facets are scaffolded but intentionally return `NotImplemented` at
 this checkpoint. Use `cargo xtask fixture-test --profile all --facet morphology
 --facet syntax` when you want to exercise the intentionally red runner path.

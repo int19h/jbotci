@@ -8,6 +8,7 @@ const SUPPORTED_MODEL_KEYS = new Set([
 ]);
 
 let configuredWorkerUrl = null;
+let configuredF2LlmRuntimeUrl = null;
 let configuredRemoteBaseUrl = DEFAULT_REMOTE_BASE_URL;
 let configuredModelKey = null;
 let worker = null;
@@ -135,6 +136,21 @@ export function jbotciEmbeddingConfigureWorker(workerUrl) {
   }
 }
 
+export function jbotciEmbeddingConfigureF2LlmRuntime(runtimeUrl) {
+  if (typeof runtimeUrl !== "string" || runtimeUrl.length === 0) {
+    throw new Error("F2LLM WebGPU runtime URL is empty");
+  }
+  const nextRuntimeUrl = new URL(runtimeUrl, globalThis.location.href);
+  if (configuredF2LlmRuntimeUrl !== null && configuredF2LlmRuntimeUrl.href === nextRuntimeUrl.href) {
+    return;
+  }
+  configuredF2LlmRuntimeUrl = nextRuntimeUrl;
+  logInfo("configured F2LLM WebGPU runtime URL", { runtimeUrl: configuredF2LlmRuntimeUrl.href });
+  if (worker !== null) {
+    terminateWorker("F2LLM WebGPU runtime URL changed");
+  }
+}
+
 export function jbotciEmbeddingConfigureRemoteBase(remoteBaseUrl) {
   if (typeof remoteBaseUrl !== "string" || remoteBaseUrl.trim().length === 0) {
     throw new Error("embedding remote base URL is empty");
@@ -174,6 +190,7 @@ function sendRequest(type, payload = {}) {
     const remoteBaseUrl = payload.remoteBaseUrl || configuredRemoteBaseUrl;
     const requestForceWasm = payload.forceWasm === true || forceWasm;
     const modelKey = payload.modelKey || activeModelKey();
+    const f2llmRuntimeUrl = configuredF2LlmRuntimeUrl?.href || null;
     if (type === "setup") {
       logInfo("sending setup request", {
         id,
@@ -188,7 +205,13 @@ function sendRequest(type, payload = {}) {
       ensureWorker().postMessage({
         id,
         type,
-        payload: { ...payload, modelKey, remoteBaseUrl, forceWasm: requestForceWasm },
+        payload: {
+          ...payload,
+          modelKey,
+          remoteBaseUrl,
+          forceWasm: requestForceWasm,
+          f2llmRuntimeUrl,
+        },
       });
     } catch (error) {
       pending.delete(id);

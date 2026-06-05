@@ -1,18 +1,15 @@
-import {
-  AutoModel,
-  AutoTokenizer,
-  env,
-} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0";
-
 const EMBEDDING_GEMMA_MODEL_KEY = "embedding-gemma-300m-q4-768";
 const F2LLM_MODEL_KEY = "f2llm-v2-80m-q4-320";
 const MI_B = 1024 * 1024;
 const TRANSFORMERS_VERSION = "4.2.0";
-const DEFAULT_TRANSFORMERS_SOURCE = {
-  remoteHost: env.remoteHost,
-  remotePathTemplate: env.remotePathTemplate,
-  allowRemoteModels: env.allowRemoteModels,
-};
+const F2LLM_WEBGPU_RUNTIME = "jbotci-webgpu-f2llm";
+const F2LLM_WEBGPU_RUNTIME_VERSION = "0.1.0";
+const F2LLM_WEBGPU_ARTIFACT_BASE_URL =
+  "https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1";
+let transformersModulePromise = null;
+let defaultTransformersSource = null;
+let f2llmRuntimeUrl = null;
+let f2llmRuntimeModulePromise = null;
 const MODEL_SPECS = {
   [EMBEDDING_GEMMA_MODEL_KEY]: {
     modelKey: EMBEDDING_GEMMA_MODEL_KEY,
@@ -40,19 +37,23 @@ const MODEL_SPECS = {
   [F2LLM_MODEL_KEY]: {
     modelKey: F2LLM_MODEL_KEY,
     label: "F2LLM v2 80M",
-    modelId: "models/f2llm-v2-80m-q4-hqq32-transformersjs",
-    transformersSource: {
-      remoteHost: "https://assets.jbotci.app/",
-      remotePathTemplate: "{model}/",
+    modelId: "codefuse-ai/F2LLM-v2-80M",
+    customRuntime: {
+      runtime: F2LLM_WEBGPU_RUNTIME,
+      version: F2LLM_WEBGPU_RUNTIME_VERSION,
+      artifactBaseUrl: F2LLM_WEBGPU_ARTIFACT_BASE_URL,
+      dtype: "q4",
+      device: "webgpu",
     },
     preferredRuntime: { dtype: "q4", device: "webgpu" },
     fallbackRuntime: null,
     dimensions: 320,
-    maxSequenceLength: 2048,
+    maxSequenceLength: 512,
     queryPrefix: "Instruct: Given a question, retrieve passages that can help answer the question.\nQuery: ",
-    localVectorSpacePrefix: "browser-local",
-    remoteVectorPacks: false,
-    embedBatchSize: 4,
+    remoteVectorPacks: true,
+    browserLocalIndexing: false,
+    vectorElementType: "f16le",
+    embedBatchSize: 1,
     modelSizeEstimates: {
       q4: 68 * MI_B,
     },
@@ -82,10 +83,6 @@ let modelRuntime = null;
 let dbPromise = null;
 let setupInProgress = false;
 const vectorCache = new Map();
-
-if (isAppleMobileDevice()) {
-  env.useBrowserCache = false;
-}
 
 class RetryWithWasmError extends Error {
   constructor(webGpuErrorMessage) {
@@ -123,6 +120,7 @@ self.onmessage = async (event) => {
   const { id, type, payload } = event.data || {};
   const forceWasm = payload?.forceWasm === true;
   try {
+    setF2LlmRuntimeUrl(payload?.f2llmRuntimeUrl);
     setActiveModel(payload?.modelKey);
     let value;
     if (type === "status") {
@@ -198,6 +196,27 @@ function setActiveModel(modelKey) {
   return spec;
 }
 
+function setF2LlmRuntimeUrl(runtimeUrl) {
+  if (typeof runtimeUrl !== "string" || runtimeUrl.trim().length === 0) {
+    return;
+  }
+  const nextUrl = runtimeUrl.trim();
+  if (f2llmRuntimeUrl === nextUrl) {
+    return;
+  }
+  if (setupInProgress) {
+    throw new Error("cannot change F2LLM WebGPU runtime URL while setup is active");
+  }
+  f2llmRuntimeUrl = nextUrl;
+  f2llmRuntimeModulePromise = null;
+  if (activeModelKey === F2LLM_MODEL_KEY) {
+    modelLoadPromise = null;
+    modelRuntime = null;
+    vectorCache.clear();
+  }
+  logInfo("configured F2LLM WebGPU runtime module", { runtimeUrl: f2llmRuntimeUrl });
+}
+
 function normalizeRemoteBaseUrl(remoteBaseUrl) {
   if (typeof remoteBaseUrl !== "string" || remoteBaseUrl.trim().length === 0) {
     return DEFAULT_REMOTE_BASE_URL;
@@ -268,6 +287,11 @@ async function setup(corpusJson, remoteBaseUrl, forceWasm) {
     await updateStatus("checking", "Looking for a vector pack.");
     const remoteAttempt = await loadRemotePackIfAvailable(corpus, remoteBaseUrl);
     if (!remoteAttempt.loaded) {
+      if (spec.browserLocalIndexing === false) {
+        throw new Error(
+          `${spec.label} requires a compatible prebuilt remote vector pack; ${remoteAttempt.reason}.`,
+        );
+      }
       logWarn("remote vector pack unavailable; falling back to browser-local indexing", {
         reason: remoteAttempt.reason,
         detail: remoteAttempt.detail || null,
@@ -413,6 +437,17 @@ async function search(corpusId, query, limit, kindFiltersJson, forceWasm) {
     };
   }
   const queryEmbedding = await embedTexts([activeModelSpec().queryPrefix + trimmedQuery]);
+  if (isCustomWebGpuRuntime(runtime)) {
+    const loadedRuntime = await ensureModel(forceWasm);
+    const hits = await loadedRuntime.rankHits({
+      corpus,
+      query: queryEmbedding[0],
+      limit,
+      itemMatches: (item) => itemMatchesKindFilters(item, kindFilters),
+      readBinary: getBinary,
+    });
+    return { hits, message: hits.length === 0 ? "No matches found." : null };
+  }
   const vectors = await readCorpusVectors(corpus);
   const hits = rankHits(vectors, queryEmbedding[0], corpus.items, corpus.dimensions, limit, kindFilters);
   return { hits, message: hits.length === 0 ? "No matches found." : null };
@@ -427,12 +462,69 @@ async function ensureModel(forceWasm = false) {
 
 async function loadTokenizerAndModel(forceWasm = false) {
   const spec = activeModelSpec();
+  if (spec.customRuntime) {
+    return loadCustomRuntime(spec, forceWasm);
+  }
   return withTransformersSource(spec, async () => {
+    const { AutoModel, AutoTokenizer } = await transformersModule();
     const tokenizerPromise = AutoTokenizer.from_pretrained(spec.modelId);
     const modelPromise = loadModelWithFallback(forceWasm);
     const [tokenizer, model] = await Promise.all([tokenizerPromise, modelPromise]);
     return { tokenizer, model };
   });
+}
+
+async function loadCustomRuntime(spec, forceWasm = false) {
+  if (forceWasm) {
+    throw new Error(`${spec.label} does not provide a CPU/WASM fallback runtime.`);
+  }
+  const runtime = spec.customRuntime;
+  if (runtime.device !== "webgpu") {
+    throw new Error(`${spec.label} custom runtime has unsupported device: ${runtime.device}`);
+  }
+  if (!await hasUsableWebGpu()) {
+    throw new Error(`${spec.label} ${runtime.dtype}/webgpu requires WebGPU, but no WebGPU adapter is available.`);
+  }
+  await updateStatus(
+    "loading-model",
+    `Opening ${spec.label} ${runtime.dtype} with ${runtime.device}.`,
+    indeterminateProgress("model", `${spec.label} ${runtime.dtype}/${runtime.device}`),
+  );
+  const { F2LlmWebGpuRuntime } = await f2llmRuntimeModule();
+  const loaded = await F2LlmWebGpuRuntime.load({
+    baseUrl: runtime.artifactBaseUrl,
+    expectedModelKey: spec.modelKey,
+    expectedRuntime: runtime.runtime,
+    expectedVersion: runtime.version,
+    maxSequenceLength: spec.maxSequenceLength,
+    dimensions: spec.dimensions,
+    progress: async (progress) => {
+      await updateStatus(
+        progress.status || "downloading-model",
+        progress.detail || `Downloading ${spec.label} WebGPU artifact.`,
+        progress.progress || null,
+      );
+    },
+  });
+  modelRuntime = {
+    modelKey: spec.modelKey,
+    runtime: runtime.runtime,
+    version: runtime.version,
+    dtype: runtime.dtype,
+    device: runtime.device,
+  };
+  await putMeta("modelRuntime", modelRuntime);
+  return loaded;
+}
+
+async function f2llmRuntimeModule() {
+  if (typeof f2llmRuntimeUrl !== "string" || f2llmRuntimeUrl.length === 0) {
+    throw new Error("F2LLM WebGPU runtime module URL is not configured.");
+  }
+  if (f2llmRuntimeModulePromise === null) {
+    f2llmRuntimeModulePromise = import(f2llmRuntimeUrl);
+  }
+  return f2llmRuntimeModulePromise;
 }
 
 async function loadModelWithFallback(forceWasm = false) {
@@ -472,6 +564,7 @@ async function loadModelRuntime(spec, runtime) {
     "loading-model",
     `Opening ${spec.label} ${runtime.dtype} with ${runtime.deviceName || runtime.device}.`,
   );
+  const { AutoModel } = await transformersModule();
   const model = await AutoModel.from_pretrained(spec.modelId, {
     dtype: runtime.dtype,
     device: runtime.device,
@@ -483,6 +576,7 @@ async function loadModelRuntime(spec, runtime) {
 }
 
 async function withTransformersSource(spec, body) {
+  const { env } = await transformersModule();
   const previous = {
     remoteHost: env.remoteHost,
     remotePathTemplate: env.remotePathTemplate,
@@ -494,9 +588,9 @@ async function withTransformersSource(spec, body) {
     env.remotePathTemplate = source.remotePathTemplate;
     env.allowRemoteModels = true;
   } else {
-    env.remoteHost = DEFAULT_TRANSFORMERS_SOURCE.remoteHost;
-    env.remotePathTemplate = DEFAULT_TRANSFORMERS_SOURCE.remotePathTemplate;
-    env.allowRemoteModels = DEFAULT_TRANSFORMERS_SOURCE.allowRemoteModels;
+    env.remoteHost = defaultTransformersSource.remoteHost;
+    env.remotePathTemplate = defaultTransformersSource.remotePathTemplate;
+    env.allowRemoteModels = defaultTransformersSource.allowRemoteModels;
   }
   try {
     return await body();
@@ -505,6 +599,26 @@ async function withTransformersSource(spec, body) {
     env.remotePathTemplate = previous.remotePathTemplate;
     env.allowRemoteModels = previous.allowRemoteModels;
   }
+}
+
+async function transformersModule() {
+  if (transformersModulePromise === null) {
+    transformersModulePromise = import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0")
+      .then((module) => {
+        if (defaultTransformersSource === null) {
+          defaultTransformersSource = {
+            remoteHost: module.env.remoteHost,
+            remotePathTemplate: module.env.remotePathTemplate,
+            allowRemoteModels: module.env.allowRemoteModels,
+          };
+        }
+        if (isAppleMobileDevice()) {
+          module.env.useBrowserCache = false;
+        }
+        return module;
+      });
+  }
+  return transformersModulePromise;
 }
 
 async function hasUsableWebGpu() {
@@ -650,7 +764,40 @@ function normalizeRemoteItems(items, corpusId) {
 
 async function embedTexts(texts, progressContext = null) {
   const spec = activeModelSpec();
-  const { tokenizer, model } = await ensureModel();
+  const loaded = await ensureModel();
+  if (typeof loaded?.embedTexts === "function") {
+    if (progressContext !== null) {
+      await updateStatus(
+        "indexing",
+        `Embedding ${progressContext.label}: 0 of ${texts.length} rows.`,
+        progressValue("index", progressContext.label, 0, texts.length),
+      );
+    }
+    const output = [];
+    for (let start = 0; start < texts.length; start += spec.embedBatchSize) {
+      const batch = texts.slice(start, start + spec.embedBatchSize);
+      const rows = await loaded.embedTexts(batch);
+      for (const vector of rows) {
+        if (vector.length !== spec.dimensions) {
+          throw new Error(
+            `${spec.label} embedding dimension mismatch: expected ${spec.dimensions}, got ${vector.length}`,
+          );
+        }
+        normalize(vector);
+        output.push(vector);
+      }
+      if (progressContext !== null) {
+        const done = Math.min(start + batch.length, texts.length);
+        await updateStatus(
+          "indexing",
+          `Embedding ${progressContext.label}: ${done} of ${texts.length} rows.`,
+          progressValue("index", progressContext.label, done, texts.length),
+        );
+      }
+    }
+    return output;
+  }
+  const { tokenizer, model } = loaded;
   const output = [];
   if (progressContext !== null) {
     await updateStatus(
@@ -1003,7 +1150,8 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
       throw new Error(`remote vector file ${corpusManifest.vector_url} has the wrong size`);
     }
     await verifySha256(bytes, corpusManifest.vector_sha256, corpusManifest.vector_url);
-    const key = `remote/${spec.modelKey}/${manifest.vector_space_key}/${manifest.pack_id}/${corpusManifest.corpus_id}/vectors.f32`;
+    const vectorExtension = manifest.element_type === "f16le" ? "f16" : "f32";
+    const key = `remote/${spec.modelKey}/${manifest.vector_space_key}/${manifest.pack_id}/${corpusManifest.corpus_id}/vectors.${vectorExtension}`;
     await putBinary(key, bytes);
     logInfo("cached remote corpus vectors", {
       corpusId: corpusManifest.corpus_id,
@@ -1016,6 +1164,7 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
       inputHash: corpusManifest.input_hash,
       rowCount: corpusManifest.row_count,
       dimensions: corpusManifest.dimensions,
+      elementType: manifest.element_type,
       items: normalizeRemoteItems(items, corpusManifest.corpus_id),
       shards: [{ key, byteLen: bytes.byteLength }],
     };
@@ -1088,6 +1237,7 @@ function manifestSummary(manifest) {
     vectorSpaceKey: manifest?.vector_space_key || null,
     packId: manifest?.pack_id || null,
     dimensions: manifest?.dimensions || null,
+    elementType: manifest?.element_type || null,
     compatibleQueryRuntimes: manifest?.compatible_query_runtimes || [],
     corpora: (manifest?.corpora || []).map((corpus) => ({
       corpusId: corpus.corpus_id || null,
@@ -1101,13 +1251,14 @@ function manifestSummary(manifest) {
 
 function manifestCompatibilityIssue(manifest, corpus, runtime) {
   const spec = activeModelSpec();
+  const expectedElementType = spec.vectorElementType || "f32le";
   for (const [field, actual, expected] of [
     ["schema_version", manifest.schema_version, 1],
     ["model_key", manifest.model_key, spec.modelKey],
     ["input_hash", manifest.input_hash, corpus.inputHash],
     ["input_format_version", manifest.input_format_version, corpus.inputFormatVersion],
     ["dimensions", manifest.dimensions, spec.dimensions],
-    ["element_type", manifest.element_type, "f32le"],
+    ["element_type", manifest.element_type, expectedElementType],
     ["normalized", manifest.normalized, true],
     ["distance", manifest.distance, "dot"],
   ]) {
@@ -1139,6 +1290,7 @@ function manifestCompatibilityIssue(manifest, corpus, runtime) {
 
 function corpusManifestCompatibilityIssue(corpusManifest, corpus) {
   const spec = activeModelSpec();
+  const expectedElementSize = bytesPerVectorElement(spec.vectorElementType || "f32le");
   const expectedHash = corpusManifest.corpus_id === "vlacku-en"
     ? corpus.dictionaryHash
     : corpusManifest.corpus_id === "cukta-cll"
@@ -1156,7 +1308,7 @@ function corpusManifestCompatibilityIssue(corpusManifest, corpus) {
   for (const [field, actual, expected] of [
     ["input_hash", corpusManifest.input_hash, expectedHash],
     ["dimensions", corpusManifest.dimensions, spec.dimensions],
-    ["vector_byte_len", corpusManifest.vector_byte_len, corpusManifest.row_count * spec.dimensions * 4],
+    ["vector_byte_len", corpusManifest.vector_byte_len, corpusManifest.row_count * spec.dimensions * expectedElementSize],
   ]) {
     if (actual !== expected) {
       return {
@@ -1172,6 +1324,16 @@ function corpusManifestCompatibilityIssue(corpusManifest, corpus) {
   return null;
 }
 
+function bytesPerVectorElement(elementType) {
+  if (elementType === "f32le") {
+    return 4;
+  }
+  if (elementType === "f16le") {
+    return 2;
+  }
+  throw new Error(`unsupported vector element type: ${elementType}`);
+}
+
 function summarizeCompatibilityValue(value) {
   if (typeof value === "string" && value.length === 64) {
     return shortHash(value);
@@ -1180,6 +1342,12 @@ function summarizeCompatibilityValue(value) {
 }
 
 function runtimeMatches(candidate, runtime) {
+  if (runtime?.runtime === F2LLM_WEBGPU_RUNTIME) {
+    return candidate?.runtime === F2LLM_WEBGPU_RUNTIME
+      && candidate?.dtype === runtime.dtype
+      && (!candidate.device || candidate.device === runtime.device)
+      && (!candidate.version || candidate.version === runtime.version);
+  }
   return candidate?.runtime === "transformers.js"
     && candidate?.dtype === runtime.dtype
     && (!candidate.device || candidate.device === runtime.device)
@@ -1194,12 +1362,24 @@ function activeQueryRuntime() {
 }
 
 function queryRuntimeFromModelRuntime(runtime) {
+  if (runtime?.runtime === F2LLM_WEBGPU_RUNTIME) {
+    return {
+      runtime: runtime.runtime,
+      version: runtime.version || F2LLM_WEBGPU_RUNTIME_VERSION,
+      dtype: runtime.dtype,
+      device: runtime.device,
+    };
+  }
   return {
     runtime: "transformers.js",
     version: TRANSFORMERS_VERSION,
     dtype: runtime.dtype,
     device: runtime.device,
   };
+}
+
+function isCustomWebGpuRuntime(runtime) {
+  return runtime?.runtime === F2LLM_WEBGPU_RUNTIME && runtime?.device === "webgpu";
 }
 
 function activeModelPack(pack) {
@@ -1410,6 +1590,9 @@ function looksLikeHtmlResponse(response, text) {
 }
 
 async function readCorpusVectors(corpus) {
+  if ((corpus.elementType || "f32le") !== "f32le") {
+    throw new Error(`CPU vector reads require f32le vectors, got ${corpus.elementType}`);
+  }
   const cacheKey = corpusVectorCacheKey(corpus);
   const cached = vectorCache.get(cacheKey);
   if (cached) {
