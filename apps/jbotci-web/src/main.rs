@@ -15521,10 +15521,48 @@ mod tests {
         );
     }
 
+    #[requires(!selector.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn css_rule<'a>(css: &'a str, selector: &str) -> &'a str {
+        let selector_start = css.find(selector).expect("CSS selector");
+        let rule_tail = &css[selector_start..];
+        let rule_end = rule_tail.find('}').expect("CSS rule end");
+        &rule_tail[..rule_end]
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn zbalermorna_linked_lojban_css_uses_crisa() {
+    fn css_font_stacks_cover_ui_controls_and_lojban_fallbacks() {
+        let css = include_str!("../assets/main.css");
+        let root_rule = css_rule(css, ":root");
+        assert!(root_rule.contains(
+            "--ui-font: \"Noto Sans\", \"STIX Two Math\", \"Crisa\", Verdana, sans-serif;"
+        ));
+        assert!(root_rule.contains(
+            "--lojban-font: \"Crisa\", \"Noto Sans\", \"STIX Two Math\", Verdana, sans-serif;"
+        ));
+        assert!(root_rule.contains(
+            "--math-font: \"STIX Two Text\", \"STIX Two Math\", \"Noto Sans\", \"Crisa\", math, serif;"
+        ));
+        assert!(root_rule.contains(
+            "--math-symbol-font: \"STIX Two Math\", \"Noto Sans\", \"Crisa\", Verdana, sans-serif;"
+        ));
+        assert!(
+            root_rule
+                .contains("--code-font: \"Noto Sans\", \"STIX Two Math\", \"Crisa\", monospace;")
+        );
+        assert!(root_rule.contains("font-family: var(--ui-font);"));
+        assert!(css.contains("button,\ninput,\ntextarea {\n  font: inherit;\n}"));
+
+        let blocks_rule = css_rule(css, ".spa-shell.app-page");
+        assert!(blocks_rule.contains("--blocks-font: var(--ui-font);"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zbalermorna_linked_lojban_css_uses_lojban_font() {
         let css = include_str!("../assets/main.css");
         let selectors = [
             ".app-page.orthography-zbalermorna .parse-page .brackets-output",
@@ -15538,11 +15576,11 @@ mod tests {
         ];
 
         for selector in selectors {
-            let selector_start = css.find(selector).expect("zbalermorna selector");
-            let rule_tail = &css[selector_start..];
-            let rule_end = rule_tail.find('}').expect("zbalermorna rule end");
-            let rule = &rule_tail[..rule_end];
-            assert!(rule.contains("font-family: \"Crisa\""), "{selector}");
+            let rule = css_rule(css, selector);
+            assert!(
+                rule.contains("font-family: var(--lojban-font);"),
+                "{selector}"
+            );
         }
     }
 

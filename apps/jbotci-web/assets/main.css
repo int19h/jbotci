@@ -1,6 +1,10 @@
 :root {
-  --math-font: "STIX Two Text", "STIX Two Math", math, serif;
-  font-family: "Noto Sans", "STIX Two Math", Verdana, sans-serif;
+  --ui-font: "Noto Sans", "STIX Two Math", "Crisa", Verdana, sans-serif;
+  --lojban-font: "Crisa", "Noto Sans", "STIX Two Math", Verdana, sans-serif;
+  --math-font: "STIX Two Text", "STIX Two Math", "Noto Sans", "Crisa", math, serif;
+  --math-symbol-font: "STIX Two Math", "Noto Sans", "Crisa", Verdana, sans-serif;
+  --code-font: "Noto Sans", "STIX Two Math", "Crisa", monospace;
+  font-family: var(--ui-font);
   color-scheme: light;
   background: #f5efe6;
 }
@@ -134,7 +138,7 @@ input:disabled {
   --blocks-gap: 1px;
   --blocks-padding: 0.7rem;
   --blocks-compact-min-height: 2rem;
-  --blocks-font: "Noto Sans", "STIX Two Math", sans-serif;
+  --blocks-font: var(--ui-font);
   --blocks-place-size: 0.7rem;
   --blocks-gloss-size: 0.7rem;
   --blocks-gloss-color: var(--app-muted);
@@ -457,7 +461,7 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--theme-switch-bg);
   color: var(--dark-surface-link);
   cursor: pointer;
-  font-family: "Noto Sans", "STIX Two Math", sans-serif;
+  font-family: var(--ui-font);
   font-size: 0.9rem;
   line-height: 1;
   text-decoration: none;
@@ -503,7 +507,7 @@ body::-webkit-scrollbar-thumb:hover,
   display: inline;
   padding: 0;
   color: var(--dark-surface-link);
-  font-family: "Noto Sans", "STIX Two Math", sans-serif;
+  font-family: var(--ui-font);
   font-size: 0.7rem;
   font-weight: 400;
   font-stretch: normal;
@@ -559,13 +563,13 @@ body::-webkit-scrollbar-thumb:hover,
 .orthography-btn {
   width: 1.55rem;
   min-width: 1.55rem;
-  font-family: "Noto Sans", "STIX Two Math", sans-serif;
+  font-family: var(--ui-font);
   font-size: 0.82rem;
   font-weight: 400;
 }
 
 .orthography-btn.is-zbalermorna {
-  font-family: "Crisa", "Noto Sans", sans-serif;
+  font-family: var(--lojban-font);
   font-size: 0.94rem;
 }
 
@@ -577,7 +581,7 @@ body::-webkit-scrollbar-thumb:hover,
 .orthography-zbalermorna .token-raw,
 .orthography-zbalermorna .block-label,
 .orthography-zbalermorna .parse-table .node-label {
-  font-family: "Crisa", "Noto Sans", sans-serif;
+  font-family: var(--lojban-font);
 }
 
 .app-page .app-topbar .spa-nav {
@@ -597,7 +601,7 @@ body::-webkit-scrollbar-thumb:hover,
   margin-left: 1em;
   padding: 0.38rem 0;
   color: var(--topbar-muted);
-  font-family: "Noto Sans", "STIX Two Math", sans-serif;
+  font-family: var(--ui-font);
   font-size: 0.95rem;
   font-weight: 500;
   font-stretch: 87.5%;
@@ -733,7 +737,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .app-page .app-topbar .app-topbar-commit {
   color: var(--topbar-commit);
-  font-family: "STIX Two Math", "Noto Sans", monospace;
+  font-family: var(--code-font);
   font-size: 0.7rem;
   font-weight: 500;
   font-stretch: 87.5%;
@@ -1194,7 +1198,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .app-page.orthography-zbalermorna .parse-page .brackets-output {
-  font-family: "Crisa", "Noto Sans", "STIX Two Math", Verdana, sans-serif;
+  font-family: var(--lojban-font);
 }
 
 .parse-page .brackets-output-markup {
@@ -1369,7 +1373,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .app-page.orthography-zbalermorna .parse-page .diagnostic-text-specific-word {
-  font-family: "Crisa", "Noto Sans", Verdana, sans-serif;
+  font-family: var(--lojban-font);
   font-style: normal;
 }
 
@@ -2435,7 +2439,7 @@ body::-webkit-scrollbar-thumb:hover,
   color: var(--app-text);
   background: transparent;
   font: inherit;
-  font-family: "Crisa", "Noto Sans", sans-serif;
+  font-family: var(--lojban-font);
   font-size: 0.88rem;
   text-align: left;
   cursor: pointer;
@@ -2468,7 +2472,7 @@ body::-webkit-scrollbar-thumb:hover,
   border-radius: 6px;
   background: var(--app-surface-1);
   color: var(--app-text);
-  font-family: "Crisa", "Noto Sans", sans-serif;
+  font-family: var(--lojban-font);
   font-size: 0.88rem;
   line-height: 1;
   cursor: pointer;
@@ -2587,7 +2591,7 @@ body::-webkit-scrollbar-thumb:hover,
   min-height: 9rem;
   height: 100%;
   resize: vertical;
-  font-family: "Crisa", "Noto Sans", "Noto Sans Math", sans-serif;
+  font-family: var(--lojban-font);
   font-size: 0.95rem;
   font-weight: 400;
   line-height: 1.45;
@@ -2619,7 +2623,7 @@ body::-webkit-scrollbar-thumb:hover,
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   overflow: hidden;
-  font-family: "Crisa", "Noto Sans", "Noto Sans Math", sans-serif;
+  font-family: var(--lojban-font);
   font-size: 0.95rem;
   font-weight: 400;
   line-height: 1.45;
@@ -3178,7 +3182,7 @@ body::-webkit-scrollbar-thumb:hover,
   min-width: 0;
   margin: 0;
   font-size: 1.28rem;
-  font-family: "Crisa", "Noto Sans", Verdana, sans-serif;
+  font-family: var(--lojban-font);
   line-height: 1.18;
 }
 
@@ -3684,7 +3688,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .app-page.orthography-zbalermorna .dictionary-page .dictionary-word-link {
-  font-family: "Crisa", "Noto Sans", Verdana, sans-serif;
+  font-family: var(--lojban-font);
   font-style: normal;
 }
 
@@ -3729,7 +3733,7 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--dictionary-tooltip-bg);
   color: var(--app-text);
   box-shadow: 0 0.9rem 2rem rgb(0 0 0 / 0.28), 0 0.12rem 0.32rem rgb(0 0 0 / 0.18);
-  font-family: "Noto Sans", "STIX Two Math", Verdana, sans-serif;
+  font-family: var(--ui-font);
   font-size: 0.82rem;
   font-style: normal;
   font-weight: 400;
@@ -3806,7 +3810,7 @@ body::-webkit-scrollbar-thumb:hover,
   border-radius: 6px;
   background: var(--reference-row-bg);
   box-shadow: 0 0.42rem 1.1rem rgb(0 0 0 / 0.2), 0 0.08rem 0.22rem rgb(0 0 0 / 0.14);
-  font-family: "Noto Sans", "STIX Two Math", Verdana, sans-serif;
+  font-family: var(--ui-font);
   font-size: 0.82rem;
   font-style: normal;
   font-weight: 500;
@@ -3832,7 +3836,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .app-page.orthography-zbalermorna .reference-resolution-tooltip .reference-row-target {
-  font-family: "Crisa", "Noto Sans", Verdana, sans-serif;
+  font-family: var(--lojban-font);
   font-style: normal;
 }
 
@@ -3874,7 +3878,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .rich-dictionary-tooltip .tooltip-word {
   color: inherit;
-  font-family: "Crisa", "Noto Sans", Verdana, sans-serif;
+  font-family: var(--lojban-font);
   font-size: 1.12rem;
   font-weight: 700;
   text-decoration: none;
@@ -3991,7 +3995,7 @@ body::-webkit-scrollbar-thumb:hover,
 .app-page.orthography-zbalermorna .rich-dictionary-tooltip .tooltip-inline-link,
 .app-page.orthography-zbalermorna .rich-dictionary-tooltip .tooltip-rafsi-surface,
 .app-page.orthography-zbalermorna .rich-dictionary-tooltip .tooltip-rafsi-source {
-  font-family: "Crisa", "Noto Sans", Verdana, sans-serif;
+  font-family: var(--lojban-font);
   font-style: normal;
 }
 
@@ -5377,7 +5381,7 @@ body::-webkit-scrollbar-thumb:hover,
 .app-page.orthography-zbalermorna .cll-page .spa-cll-link-dictionary,
 .app-page.orthography-zbalermorna .cll-page .spa-cll-link-rafsi,
 .app-page.orthography-zbalermorna .cll-page .spa-cll-link-parse {
-  font-family: "Crisa", "Noto Sans", Verdana, sans-serif;
+  font-family: var(--lojban-font);
   font-style: normal;
 }
 
@@ -5387,7 +5391,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .app-page.orthography-zbalermorna .cll-page .spa-cll-jbophrase {
-  font-family: "Crisa", "Noto Sans", Verdana, sans-serif;
+  font-family: var(--lojban-font);
   font-style: normal;
 }
 
@@ -5404,7 +5408,7 @@ body::-webkit-scrollbar-thumb:hover,
 }
 
 .cll-page [lang="zlm"] {
-  font-family: "Crisa", "Noto Sans", Verdana, sans-serif;
+  font-family: var(--lojban-font);
   font-style: normal;
   font-size: 1.1em;
   font-weight: 400;
@@ -5753,7 +5757,7 @@ body::-webkit-scrollbar-thumb:hover,
 .cll-page .cll-ebnf-head {
   margin: 0;
   padding: 0.4rem 0.68rem 0;
-  font-family: "Crisa", "Noto Sans", Verdana, sans-serif;
+  font-family: var(--lojban-font);
   font-size: 0.94rem;
   line-height: 1.25;
 }
@@ -5761,7 +5765,7 @@ body::-webkit-scrollbar-thumb:hover,
 .cll-page .cll-ebnf-rhs {
   margin: 0;
   padding: 0.22rem 0.68rem 0.56rem calc(0.68rem + 1em);
-  font-family: "Crisa", "Noto Sans", Verdana, sans-serif;
+  font-family: var(--lojban-font);
   font-size: 0.9rem;
   line-height: 1.45;
   white-space: pre-wrap;
@@ -5783,7 +5787,7 @@ body::-webkit-scrollbar-thumb:hover,
 
 .cll-page .cll-ebnf-assign {
   color: var(--ebnf-operator);
-  font-family: "STIX Two Math", "Crisa", "Noto Sans", Verdana, sans-serif;
+  font-family: var(--math-symbol-font);
   font-weight: 400;
 }
 
