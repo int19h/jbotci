@@ -6292,6 +6292,19 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["mi", "kláma"]
         );
+
+        let strict_glide = parse_success("\u{ed86}\u{eda8}");
+        assert_eq!(strict_glide.surface_text, "coĭ");
+        assert_eq!(
+            strict_glide
+                .blocks_layout
+                .blocks
+                .iter()
+                .filter(|block| block.is_leaf)
+                .map(|block| block.display_text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["coĭ"]
+        );
     }
 
     #[test]
@@ -6337,6 +6350,25 @@ mod tests {
 
         assert!(success.surface_text.contains('й'));
         assert!(success.brackets_text.contains('й'));
+
+        let zbalermorna_request = GentufaWebRequest {
+            text: "coi".to_owned(),
+            options: GentufaWebOptions {
+                script: GentufaScript::Zbalermorna,
+                phonemes: PhonemeRenderOptions {
+                    mark_stress: StressMark::None,
+                    mark_glides: GlideMark::None,
+                },
+                ..GentufaWebOptions::default()
+            },
+        };
+        let zbalermorna_result = parse_gentufa_for_web(&zbalermorna_request);
+        let GentufaWebResult::Success(zbalermorna_success) = zbalermorna_result else {
+            panic!("expected successful parse");
+        };
+
+        assert!(zbalermorna_success.surface_text.contains('\u{eda8}'));
+        assert!(zbalermorna_success.brackets_text.contains('\u{eda8}'));
     }
 
     #[test]
@@ -6362,11 +6394,21 @@ mod tests {
         assert_eq!(cyrillic.query, "klama");
         assert_eq!(vlacku_web_url("", &cyrillic), "/vlacku/klama");
 
+        let cyrillic_glide = parse_vlacku_web_route("/vlacku/шой", "");
+        assert_eq!(cyrillic_glide.mode, VlackuWebMode::Word);
+        assert_eq!(cyrillic_glide.query, "coi");
+        assert_eq!(vlacku_web_url("", &cyrillic_glide), "/vlacku/coi");
+
         let zbalermorna =
             parse_vlacku_web_route("/vlacku/\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}", "");
         assert_eq!(zbalermorna.mode, VlackuWebMode::Word);
         assert_eq!(zbalermorna.query, "klama");
         assert_eq!(vlacku_web_url("", &zbalermorna), "/vlacku/klama");
+
+        let zbalermorna_glide = parse_vlacku_web_route("/vlacku/\u{ed86}\u{eda8}", "");
+        assert_eq!(zbalermorna_glide.mode, VlackuWebMode::Word);
+        assert_eq!(zbalermorna_glide.query, "coi");
+        assert_eq!(vlacku_web_url("", &zbalermorna_glide), "/vlacku/coi");
     }
 
     #[test]
@@ -6410,6 +6452,13 @@ mod tests {
         assert_eq!(search_state.mode, CuktaWebMode::Word);
         assert_eq!(search_state.query, "lojban");
 
+        let cyrillic_glide = parse_cukta_web_route("/cukta/search", "?mode=valsi&q=шой");
+        let CuktaWebView::Search(search_state) = cyrillic_glide.view else {
+            panic!("expected search state");
+        };
+        assert_eq!(search_state.mode, CuktaWebMode::Word);
+        assert_eq!(search_state.query, "coi");
+
         let zbalermorna = parse_cukta_web_route(
             "/cukta/search",
             "?mode=valsi&q=\u{ed84}\u{eda3}\u{ed96}\u{ed90}\u{eda0}\u{ed97}",
@@ -6419,6 +6468,14 @@ mod tests {
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
         assert_eq!(search_state.query, "lojban");
+
+        let zbalermorna_glide =
+            parse_cukta_web_route("/cukta/search", "?mode=valsi&q=\u{ed86}\u{eda8}");
+        let CuktaWebView::Search(search_state) = zbalermorna_glide.view else {
+            panic!("expected search state");
+        };
+        assert_eq!(search_state.mode, CuktaWebMode::Word);
+        assert_eq!(search_state.query, "coi");
     }
 
     #[test]
@@ -6996,6 +7053,21 @@ mod tests {
             Some("klama")
         );
         assert_eq!(vlacku_web_url("", &result.state), "/vlacku/klama");
+
+        let glide_result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "шой".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(glide_result.errors.is_empty(), "{:?}", glide_result.errors);
+        assert_eq!(glide_result.state.query, "coi");
+        assert_eq!(
+            glide_result.cards.first().map(|card| card.word.as_str()),
+            Some("coi")
+        );
+        assert_eq!(vlacku_web_url("", &glide_result.state), "/vlacku/coi");
     }
 
     #[test]
@@ -7016,6 +7088,21 @@ mod tests {
             Some("klama")
         );
         assert_eq!(vlacku_web_url("", &result.state), "/vlacku/klama");
+
+        let glide_result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "\u{ed86}\u{eda8}".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(glide_result.errors.is_empty(), "{:?}", glide_result.errors);
+        assert_eq!(glide_result.state.query, "coi");
+        assert_eq!(
+            glide_result.cards.first().map(|card| card.word.as_str()),
+            Some("coi")
+        );
+        assert_eq!(vlacku_web_url("", &glide_result.state), "/vlacku/coi");
     }
 
     #[test]

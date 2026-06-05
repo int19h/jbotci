@@ -820,7 +820,17 @@ mod tests {
             render_lojban_text_for_script("coi", LojbanScript::Zbalermorna, display_options())
                 .expect("valid Lojban text");
 
-        assert_eq!(rendered, "\u{ed86}\u{eda3}\u{edaa}");
+        assert_eq!(rendered, "\u{ed86}\u{eda8}");
+        assert_eq!(
+            render_lojban_text_for_script("kei", LojbanScript::Zbalermorna, display_options())
+                .expect("valid Lojban text"),
+            "\u{ed82}\u{eda7}"
+        );
+        assert_eq!(
+            render_lojban_text_for_script("co'i", LojbanScript::Zbalermorna, display_options())
+                .expect("valid Lojban text"),
+            "\u{ed86}\u{eda3}\u{ed8a}\u{eda2}"
+        );
     }
 
     #[test]

@@ -2032,17 +2032,11 @@ fn append_normalized_lojban_input_chunk(
     if chunk.is_empty() {
         return Some(());
     }
-    if chunk
-        .chars()
-        .any(|value| !segment::is_normalizable_word_char(value, options))
-    {
-        return None;
-    }
-    let normalized = segment::normalize_word_with_options(chunk, options);
+    let normalized = segment::normalize_word_checked_with_options(chunk, options)?;
     if normalized.is_empty() {
         return None;
     }
-    output.push_str(&normalized);
+    output.push_str(&canonicalize_text(&normalized));
     Some(())
 }
 
@@ -2668,8 +2662,14 @@ mod tests {
     fn normalizes_zbalermorna_glyphs() {
         let cases = [
             ("\u{ed87}\u{edb2}", "mi"),
+            ("\u{ed86}\u{eda6}", "caĭ"),
+            ("\u{ed82}\u{eda7}", "keĭ"),
+            ("\u{ed86}\u{eda8}", "coĭ"),
+            ("\u{ed86}\u{eda9}", "caŭ"),
             ("\u{ed86}\u{edb3}\u{edaa}", "coĭ"),
             ("\u{ed86}\u{edb3}\u{ed8a}\u{edb2}", "co'i"),
+            ("\u{ed8b}\u{eda0}\u{eda1}", "a'e"),
+            ("\u{ed86}\u{ed99}\u{ed9b}\u{ed8c}\u{eda8}", "coĭ"),
             (
                 "\u{ed89}\u{ed83}\u{edb2}\u{ed97}\u{eda5}\u{ed82}\u{ed85}\u{ed89}",
                 "finyks",
@@ -2688,6 +2688,26 @@ mod tests {
                 "{source}"
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zbalermorna_rejects_unsupported_private_use_glyphs() {
+        let error = segment_words_with_modifiers("\u{ed86}\u{edac}")
+            .expect_err("unsupported zbalermorna glyph must not be silently dropped");
+
+        assert!(
+            matches!(
+                error,
+                MorphologyError::Invalid {
+                    kind: MorphologyErrorKind::InvalidCharacter,
+                    char_start: 1,
+                    ..
+                }
+            ),
+            "{error:?}"
+        );
     }
 
     #[test]
@@ -2749,6 +2769,7 @@ mod tests {
             Some("mi klama")
         );
         assert_eq!(normalize_lojban_input_text("шои").as_deref(), Some("co'i"));
+        assert_eq!(normalize_lojban_input_text("шой").as_deref(), Some("coi"));
         assert_eq!(
             normalize_lojban_input_text("ӏфіныксӏ").as_deref(),
             Some(".finyks.")
@@ -2759,6 +2780,10 @@ mod tests {
             )
             .as_deref(),
             Some("mi klama")
+        );
+        assert_eq!(
+            normalize_lojban_input_text("\u{ed86}\u{eda8}").as_deref(),
+            Some("coi")
         );
         assert_eq!(
             normalize_lojban_input_text("\u{ed86}\u{edb3}\u{ed8a}\u{edb2}").as_deref(),

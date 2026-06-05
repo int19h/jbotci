@@ -7,6 +7,7 @@ use std::sync::OnceLock;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use bzip2::read::BzDecoder;
+use jbotci_morphology::normalize_lojban_input_text;
 use roxmltree::{Document, Node};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -2498,7 +2499,9 @@ fn inline_is_whitespace(inline: &CllInline) -> bool {
 #[requires(true)]
 #[ensures(ret.chars().all(|character| character.is_ascii_lowercase() || character.is_ascii_digit() || character == '\''))]
 fn normalize_valsis_query(text: &str) -> String {
-    text.trim()
+    let normalized = normalize_lojban_input_text(text).unwrap_or_else(|| text.to_owned());
+    normalized
+        .trim()
         .trim_matches('.')
         .to_ascii_lowercase()
         .replace('h', "'")
@@ -4409,7 +4412,8 @@ pub fn truncate_preview(text: &str, max_chars: usize) -> String {
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_word_search_terms(query: &str) -> BTreeSet<String> {
-    collect_tagged_words(query)
+    let normalized = normalize_lojban_input_text(query).unwrap_or_else(|| query.to_owned());
+    collect_tagged_words(&normalized)
 }
 
 #[requires(true)]
@@ -6597,6 +6601,17 @@ mod tests {
                 .as_deref(),
             Some("lojban'")
         );
+        assert_eq!(
+            parse_word_search_terms("шой")
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec!["coi"]
+        );
+        assert_eq!(normalize_valsis_query("\u{ed86}\u{eda8}"), "coi");
+
+        let non_latin_matches =
+            cukta_word_search_matches(site, "\u{ed86}\u{eda8}", 5, CuktaTargetFilter::default());
+        assert!(!non_latin_matches.is_empty());
     }
 
     #[requires(true)]

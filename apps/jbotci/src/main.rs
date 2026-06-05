@@ -4740,14 +4740,8 @@ mod tests {
         assert!(run.stderr.contains("morphology.invalid-zoi-delimiter"));
         assert!(run.stderr.contains("ZOI requires an"));
         let compact_stderr = run.stderr.split_whitespace().collect::<Vec<_>>().join(" ");
-        assert!(
-            compact_stderr
-                .contains("opening delimiter word after the quote marker")
-        );
-        assert!(
-            !compact_stderr
-                .contains("reason: ZOI delimiter must be a single non-y word")
-        );
+        assert!(compact_stderr.contains("opening delimiter word after the quote marker"));
+        assert!(!compact_stderr.contains("reason: ZOI delimiter must be a single non-y word"));
     }
 
     #[test]
@@ -5354,7 +5348,9 @@ mod tests {
             let selbri = compact_stderr
                 .find("continues selbri]")
                 .expect("selbri continuation group");
-            let end = compact_stderr.find("ends selbri, bridi").expect("end group");
+            let end = compact_stderr
+                .find("ends selbri, bridi")
+                .expect("end group");
             assert!(free_modifier < sumti);
             assert!(sumti < selbri);
             assert!(selbri < end);
@@ -5924,6 +5920,19 @@ mod tests {
         assert!(run.stdout.contains("  rafsi: "));
         assert!(run.stdout.contains("  glosses:"));
         assert!(run.stdout.contains("  definitions:"));
+
+        for query in ["шой", "\u{ed86}\u{eda8}"] {
+            let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", query], false);
+
+            assert_eq!(run.status, CliStatus::Success, "{query}");
+            assert!(run.stderr.is_empty(), "{}", run.stderr);
+            assert!(
+                run.stdout
+                    .contains("1. coi | by: officialdata | cmavo: COI | similarity: 100%"),
+                "{query}: {}",
+                run.stdout
+            );
+        }
     }
 
     #[test]
@@ -5957,6 +5966,23 @@ mod tests {
                 "### 3.",
             ],
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_exact_word_search_accepts_non_latin_query() {
+        for query in ["шой", "\u{ed86}\u{eda8}"] {
+            let run = run_cli_capture(&["jbotci", "cukta", "--valsi", query, "-n", "3"], false);
+
+            assert_eq!(run.status, CliStatus::Success, "{query}");
+            assert!(run.stderr.is_empty(), "{}", run.stderr);
+            assert!(
+                run.stdout.contains("the cmavo coi means hello"),
+                "{query}: {}",
+                run.stdout
+            );
+        }
     }
 
     #[test]

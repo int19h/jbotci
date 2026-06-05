@@ -15501,7 +15501,7 @@ mod tests {
         assert_eq!(display_lojban_text(GentufaScript::Cyrillic, "coi"), "шой");
         assert_eq!(
             display_lojban_text(GentufaScript::Zbalermorna, "coi"),
-            "\u{ed86}\u{eda3}\u{edaa}"
+            "\u{ed86}\u{eda8}"
         );
         assert_eq!(
             display_lojban_text(GentufaScript::Cyrillic, "hello!"),

@@ -568,7 +568,7 @@ impl<'a> Segmenter<'a> {
                 return None;
             }
             let raw = self.slice(start, end);
-            let normalized = crate::segment::normalize_word_with_options(raw, self.options);
+            let normalized = self.checked_normalized_slice(start, end)?;
             let (kind, phonemes) =
                 crate::segment::classify_word_with_options(raw, &normalized, self.options)?;
             if !matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla) {
@@ -588,8 +588,9 @@ impl<'a> Segmenter<'a> {
     #[requires(start < end && end <= candidate_end && candidate_end <= self.chars.len())]
     #[ensures(true)]
     fn post_word_ok_for_brivla(&self, start: usize, end: usize, candidate_end: usize) -> bool {
-        let normalized =
-            crate::segment::normalize_word_with_options(self.slice(start, end), self.options);
+        let Some(normalized) = self.checked_normalized_slice(start, end) else {
+            return false;
+        };
         if has_explicit_brivla_stress(&normalized) {
             explicit_brivla_stress_is_valid(&normalized)
                 && self.brivla_boundary_ok(start, end, candidate_end)
@@ -604,12 +605,12 @@ impl<'a> Segmenter<'a> {
         if self.pause_at(end) {
             return true;
         }
-        let prefix =
-            crate::segment::normalize_word_with_options(self.slice(start, end), self.options);
-        let remainder = crate::segment::normalize_word_with_options(
-            self.slice(end, candidate_end),
-            self.options,
-        );
+        let Some(prefix) = self.checked_normalized_slice(start, end) else {
+            return false;
+        };
+        let Some(remainder) = self.checked_normalized_slice(end, candidate_end) else {
+            return false;
+        };
         if boundary_repeats_diphthong_semivowel(&prefix, &remainder) {
             return false;
         }
@@ -627,8 +628,7 @@ impl<'a> Segmenter<'a> {
             if !self.pause_at(end) {
                 return None;
             }
-            let raw = self.slice(start, end);
-            let normalized = crate::segment::normalize_word_with_options(raw, self.options);
+            let normalized = self.checked_normalized_slice(start, end)?;
             if !crate::segment::is_cmevla_with_options(&normalized, self.options) {
                 return None;
             }
@@ -647,10 +647,7 @@ impl<'a> Segmenter<'a> {
         start: usize,
         candidate_end: usize,
     ) -> Option<StreamingWordCandidate> {
-        let full_candidate = crate::segment::normalize_word_with_options(
-            self.slice(start, candidate_end),
-            self.options,
-        );
+        let full_candidate = self.checked_normalized_slice(start, candidate_end)?;
         if full_candidate
             .chars()
             .all(|value| matches!(value, 'y' | 'ý'))
@@ -664,9 +661,8 @@ impl<'a> Segmenter<'a> {
         }
 
         ((start + 1)..=candidate_end).find_map(|end| {
-            let phonemes = crate::segment::parse_cmavo_form(
-                &crate::segment::normalize_word_with_options(self.slice(start, end), self.options),
-            )?;
+            let phonemes =
+                crate::segment::parse_cmavo_form(&self.checked_normalized_slice(start, end)?)?;
             if !self.cmavo_boundary_ok(start, end, candidate_end) {
                 return None;
             }
@@ -1274,31 +1270,31 @@ impl<'a> Segmenter<'a> {
     #[requires(start <= end && end <= self.chars.len())]
     #[ensures(ret.is_none_or(|(index, _)| index >= start && index < end))]
     fn first_invalid_word_char(&self, start: usize, end: usize) -> Option<(usize, char)> {
-        self.chars[start..end]
-            .iter()
-            .enumerate()
-            .find_map(|(offset, source_char)| {
-                (!crate::segment::is_normalizable_word_char(source_char.value, self.options))
-                    .then_some((start + offset, source_char.value))
-            })
+        crate::segment::first_unnormalizable_word_char(self.slice(start, end), self.options)
+            .map(|(offset, value)| (start + offset, value))
+    }
+
+    #[requires(start <= end && end <= self.chars.len())]
+    #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty() || start == end))]
+    fn checked_normalized_slice(&self, start: usize, end: usize) -> Option<String> {
+        crate::segment::normalize_word_checked_with_options(self.slice(start, end), self.options)
     }
 
     #[requires(start <= end && end <= self.chars.len())]
     #[ensures(true)]
     fn has_blocking_cmavo_prefix(&self, start: usize, end: usize) -> bool {
-        let whole_candidate =
-            crate::segment::normalize_word_with_options(self.slice(start, end), self.options);
+        let Some(whole_candidate) = self.checked_normalized_slice(start, end) else {
+            return true;
+        };
         if crate::segment::is_cmevla_with_options(&whole_candidate, self.options)
             || crate::segment::starts_with_cvcy_lujvo(&whole_candidate)
         {
             return false;
         }
         ((start + 1)..=end).any(|prefix_end| {
-            crate::segment::parse_cmavo_form(&crate::segment::normalize_word_with_options(
-                self.slice(start, prefix_end),
-                self.options,
-            ))
-            .is_some()
+            self.checked_normalized_slice(start, prefix_end)
+                .and_then(|prefix| crate::segment::parse_cmavo_form(&prefix))
+                .is_some()
                 && self.cmavo_boundary_ok(start, prefix_end, end)
         })
     }
@@ -1314,14 +1310,12 @@ impl<'a> Segmenter<'a> {
         if self.pause_at(prefix_end) {
             return true;
         }
-        let prefix = crate::segment::normalize_word_with_options(
-            self.slice(prefix_start, prefix_end),
-            self.options,
-        );
-        let remainder = crate::segment::normalize_word_with_options(
-            self.slice(prefix_end, candidate_end),
-            self.options,
-        );
+        let Some(prefix) = self.checked_normalized_slice(prefix_start, prefix_end) else {
+            return false;
+        };
+        let Some(remainder) = self.checked_normalized_slice(prefix_end, candidate_end) else {
+            return false;
+        };
         if boundary_repeats_diphthong_semivowel(&prefix, &remainder) {
             return false;
         }
@@ -1350,9 +1344,8 @@ impl<'a> Segmenter<'a> {
             return false;
         }
         let end = self.candidate_end(index);
-        let normalized =
-            crate::segment::normalize_word_with_options(self.slice(index, end), self.options);
-        starts_with_nucleus(&text_chars(&normalized), 0)
+        self.checked_normalized_slice(index, end)
+            .is_some_and(|normalized| starts_with_nucleus(&text_chars(&normalized), 0))
     }
 
     #[requires(index <= self.chars.len())]

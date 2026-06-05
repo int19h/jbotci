@@ -162,9 +162,19 @@ fn push_cyrillic_vowel(output: &mut String, vowel: char, stressed: bool) {
 #[ensures(true)]
 fn latin_surface_to_zbalermorna(kind: WordKind, text: &str) -> String {
     let full_vowels = matches!(kind, WordKind::Fuhivla | WordKind::Cmevla);
+    let chars = text.chars().map(normalized_latin_char).collect::<Vec<_>>();
     let mut output = String::new();
-    for ch in text.chars() {
-        let normalized = normalized_latin_char(ch);
+    let mut index = 0;
+    while index < chars.len() {
+        let normalized = chars[index];
+        if !full_vowels && let Some(diphthong) = zbalermorna_regular_diphthong(&chars, index) {
+            output.push(diphthong);
+            if normalized.stressed {
+                output.push('\u{ed98}');
+            }
+            index += 2;
+            continue;
+        }
         match normalized.base {
             '.' => output.push('\u{ed89}'),
             '\'' => output.push('\u{ed8a}'),
@@ -176,8 +186,18 @@ fn latin_surface_to_zbalermorna(kind: WordKind, text: &str) -> String {
             'o' => push_zbalermorna_vowel(&mut output, 'o', full_vowels, normalized.stressed),
             'u' => push_zbalermorna_vowel(&mut output, 'u', full_vowels, normalized.stressed),
             'y' => push_zbalermorna_vowel(&mut output, 'y', full_vowels, normalized.stressed),
-            'ĭ' => output.push('\u{edaa}'),
-            'ŭ' => output.push('\u{edab}'),
+            'ĭ' => push_zbalermorna_semivowel_or_full_vowel(
+                &mut output,
+                'ĭ',
+                full_vowels,
+                zbalermorna_next_is_vowel(&chars, index),
+            ),
+            'ŭ' => push_zbalermorna_semivowel_or_full_vowel(
+                &mut output,
+                'ŭ',
+                full_vowels,
+                zbalermorna_next_is_vowel(&chars, index),
+            ),
             'b' => output.push('\u{ed90}'),
             'c' => output.push('\u{ed86}'),
             'd' => output.push('\u{ed91}'),
@@ -197,8 +217,31 @@ fn latin_surface_to_zbalermorna(kind: WordKind, text: &str) -> String {
             'z' => output.push('\u{ed95}'),
             other => output.push(other),
         }
+        index += 1;
     }
     output
+}
+
+#[requires(index <= chars.len())]
+#[ensures(true)]
+fn zbalermorna_regular_diphthong(chars: &[NormalizedLatinChar], index: usize) -> Option<char> {
+    let first = chars.get(index)?;
+    let second = chars.get(index + 1)?;
+    match (first.base, second.base) {
+        ('a', 'ĭ') => Some('\u{eda6}'),
+        ('e', 'ĭ') => Some('\u{eda7}'),
+        ('o', 'ĭ') => Some('\u{eda8}'),
+        ('a', 'ŭ') => Some('\u{eda9}'),
+        _ => None,
+    }
+}
+
+#[requires(index <= chars.len())]
+#[ensures(true)]
+fn zbalermorna_next_is_vowel(chars: &[NormalizedLatinChar], index: usize) -> bool {
+    chars
+        .get(index + 1)
+        .is_some_and(|next| matches!(next.base, 'a' | 'e' | 'i' | 'o' | 'u' | 'y'))
 }
 
 #[requires(matches!(vowel, 'a' | 'e' | 'i' | 'o' | 'u' | 'y'))]
@@ -222,6 +265,34 @@ fn push_zbalermorna_vowel(output: &mut String, vowel: char, full: bool, stressed
     output.push(codepoint);
     if stressed {
         output.push('\u{ed98}');
+    }
+}
+
+#[requires(matches!(semivowel, 'ĭ' | 'ŭ'))]
+#[ensures(true)]
+fn push_zbalermorna_semivowel_or_full_vowel(
+    output: &mut String,
+    semivowel: char,
+    full: bool,
+    followed_by_vowel: bool,
+) {
+    if full && !followed_by_vowel {
+        push_zbalermorna_vowel(
+            output,
+            match semivowel {
+                'ĭ' => 'i',
+                'ŭ' => 'u',
+                _ => unreachable!("requires semivowel"),
+            },
+            true,
+            false,
+        );
+    } else {
+        output.push(match semivowel {
+            'ĭ' => '\u{edaa}',
+            'ŭ' => '\u{edab}',
+            _ => unreachable!("requires semivowel"),
+        });
     }
 }
 
@@ -254,6 +325,50 @@ mod tests {
                 "kláma"
             ),
             "\u{ed82}\u{ed84}\u{eda0}\u{ed98}\u{ed87}\u{eda0}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_zbalermorna_regular_diphthongs() {
+        assert_eq!(
+            render_latin_word_surface_for_script(LojbanScript::Zbalermorna, WordKind::Cmavo, "coĭ"),
+            "\u{ed86}\u{eda8}"
+        );
+        assert_eq!(
+            render_latin_word_surface_for_script(LojbanScript::Zbalermorna, WordKind::Cmavo, "keĭ"),
+            "\u{ed82}\u{eda7}"
+        );
+        assert_eq!(
+            render_latin_word_surface_for_script(
+                LojbanScript::Zbalermorna,
+                WordKind::Cmavo,
+                "co'i"
+            ),
+            "\u{ed86}\u{eda3}\u{ed8a}\u{eda2}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_zbalermorna_full_vowel_mode_glides_by_position() {
+        assert_eq!(
+            render_latin_word_surface_for_script(
+                LojbanScript::Zbalermorna,
+                WordKind::Cmevla,
+                "ĭan"
+            ),
+            "\u{edaa}\u{edb0}\u{ed97}"
+        );
+        assert_eq!(
+            render_latin_word_surface_for_script(
+                LojbanScript::Zbalermorna,
+                WordKind::Cmevla,
+                "coĭs"
+            ),
+            "\u{ed86}\u{edb3}\u{edb2}\u{ed85}"
         );
     }
 }

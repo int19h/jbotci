@@ -68,6 +68,32 @@ pub(crate) fn normalize_word_with_options(raw: &str, options: &MorphologyOptions
         .collect()
 }
 
+#[requires(true)]
+#[ensures(ret.as_ref().is_some_and(|text| text.chars().all(is_valid_normalized_char)) || ret.is_none())]
+pub(crate) fn normalize_word_checked_with_options(
+    raw: &str,
+    options: &MorphologyOptions,
+) -> Option<String> {
+    Some(
+        normalize_source_chars_checked(raw.chars().enumerate(), options)
+            .ok()?
+            .into_iter()
+            .map(|value| value.value)
+            .collect(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn first_unnormalizable_word_char(
+    raw: &str,
+    options: &MorphologyOptions,
+) -> Option<(usize, char)> {
+    normalize_source_chars_checked(raw.chars().enumerate(), options)
+        .err()
+        .map(|error| (error.source_index, error.source_value))
+}
+
 #[invariant(self.source_start <= self.source_end)]
 #[invariant(is_valid_normalized_char(self.value))]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,6 +102,13 @@ pub(crate) struct NormalizedSourceChar {
     pub source_end: usize,
     pub source_value: char,
     pub value: char,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct NormalizationError {
+    pub source_index: usize,
+    pub source_value: char,
 }
 
 #[invariant(self.start < self.end, "morphology violations must cover a non-empty source range")]
@@ -125,39 +158,169 @@ pub(crate) fn normalize_source_chars(
     chars: impl IntoIterator<Item = (usize, char)>,
     options: &MorphologyOptions,
 ) -> Vec<NormalizedSourceChar> {
+    normalize_source_chars_with_mode(chars, options, false)
+        .expect("unchecked normalization skips unnormalizable source characters")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|chars| chars.iter().all(|item| is_valid_normalized_char(item.value))) || ret.is_err())]
+pub(crate) fn normalize_source_chars_checked(
+    chars: impl IntoIterator<Item = (usize, char)>,
+    options: &MorphologyOptions,
+) -> Result<Vec<NormalizedSourceChar>, NormalizationError> {
+    normalize_source_chars_with_mode(chars, options, true)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|chars| chars.iter().all(|item| is_valid_normalized_char(item.value))) || ret.is_err())]
+fn normalize_source_chars_with_mode(
+    chars: impl IntoIterator<Item = (usize, char)>,
+    options: &MorphologyOptions,
+    checked: bool,
+) -> Result<Vec<NormalizedSourceChar>, NormalizationError> {
+    let source_chars = chars.into_iter().collect::<Vec<_>>();
     let mut normalized = Vec::new();
     let mut previous_implicit_apostrophe_vowel = false;
-    for (source_index, value) in chars {
+    let mut cursor = 0;
+    while cursor < source_chars.len() {
+        let (source_index, value) = source_chars[cursor];
+        if options.accept_zbalermorna && is_zbalermorna_attitudinal_shorthand(value) {
+            if let Some((payload_index, payload_value)) = source_chars.get(cursor + 1).copied()
+                && let Some(payload) = normalize_zbalermorna_shorthand_payload(payload_value)
+            {
+                push_normalized_text(
+                    &mut normalized,
+                    &mut previous_implicit_apostrophe_vowel,
+                    payload_index,
+                    payload_index + 1,
+                    payload_value,
+                    payload,
+                    false,
+                );
+                push_normalized_value(
+                    &mut normalized,
+                    &mut previous_implicit_apostrophe_vowel,
+                    source_index,
+                    payload_index + 1,
+                    value,
+                    '\'',
+                    false,
+                );
+                cursor += 2;
+                continue;
+            }
+            if checked {
+                return Err(NormalizationError {
+                    source_index,
+                    source_value: value,
+                });
+            }
+            previous_implicit_apostrophe_vowel = false;
+            cursor += 1;
+            continue;
+        }
         match normalize_char_event(value, options) {
             Some(NormalizedCharEvent::Emit {
                 value: normalized_value,
                 implicit_apostrophe_vowel,
             }) => {
-                if previous_implicit_apostrophe_vowel && implicit_apostrophe_vowel {
-                    normalized.push(new!(NormalizedSourceChar {
-                        source_start: source_index,
-                        source_end: source_index,
-                        source_value: '\'',
-                        value: '\''
-                    }));
-                }
-                normalized.push(new!(NormalizedSourceChar {
-                    source_start: source_index,
-                    source_end: source_index + 1,
-                    source_value: value,
-                    value: normalized_value,
-                }));
-                previous_implicit_apostrophe_vowel = implicit_apostrophe_vowel;
+                push_normalized_value(
+                    &mut normalized,
+                    &mut previous_implicit_apostrophe_vowel,
+                    source_index,
+                    source_index + 1,
+                    value,
+                    normalized_value,
+                    implicit_apostrophe_vowel,
+                );
+            }
+            Some(NormalizedCharEvent::EmitText { text }) => {
+                push_normalized_text(
+                    &mut normalized,
+                    &mut previous_implicit_apostrophe_vowel,
+                    source_index,
+                    source_index + 1,
+                    value,
+                    text,
+                    false,
+                );
             }
             Some(NormalizedCharEvent::StressPrevious) => {
                 stress_last_normalized_char(&mut normalized);
             }
+            Some(NormalizedCharEvent::StressPreviousVowel) => {
+                stress_last_normalized_vowel_char(&mut normalized);
+            }
+            Some(NormalizedCharEvent::Ignore) => {
+                previous_implicit_apostrophe_vowel = false;
+            }
             None => {
+                if checked {
+                    return Err(NormalizationError {
+                        source_index,
+                        source_value: value,
+                    });
+                }
                 previous_implicit_apostrophe_vowel = false;
             }
         }
+        cursor += 1;
     }
-    normalized
+    Ok(normalized)
+}
+
+#[requires(is_valid_normalized_char(value))]
+#[requires(source_start <= source_end)]
+#[ensures(true)]
+fn push_normalized_value(
+    normalized: &mut Vec<NormalizedSourceChar>,
+    previous_implicit_apostrophe_vowel: &mut bool,
+    source_start: usize,
+    source_end: usize,
+    source_value: char,
+    value: char,
+    implicit_apostrophe_vowel: bool,
+) {
+    if *previous_implicit_apostrophe_vowel && implicit_apostrophe_vowel {
+        normalized.push(new!(NormalizedSourceChar {
+            source_start: source_start,
+            source_end: source_start,
+            source_value: '\'',
+            value: '\''
+        }));
+    }
+    normalized.push(new!(NormalizedSourceChar {
+        source_start: source_start,
+        source_end: source_end,
+        source_value: source_value,
+        value: value,
+    }));
+    *previous_implicit_apostrophe_vowel = implicit_apostrophe_vowel;
+}
+
+#[requires(text.chars().all(is_valid_normalized_char))]
+#[requires(source_start <= source_end)]
+#[ensures(true)]
+fn push_normalized_text(
+    normalized: &mut Vec<NormalizedSourceChar>,
+    previous_implicit_apostrophe_vowel: &mut bool,
+    source_start: usize,
+    source_end: usize,
+    source_value: char,
+    text: &str,
+    implicit_apostrophe_vowel: bool,
+) {
+    for value in text.chars() {
+        push_normalized_value(
+            normalized,
+            previous_implicit_apostrophe_vowel,
+            source_start,
+            source_end,
+            source_value,
+            value,
+            implicit_apostrophe_vowel,
+        );
+    }
 }
 
 #[requires(true)]
@@ -268,12 +431,6 @@ fn source_range_from_normalized_range(
     let start = slice.iter().map(|value| value.source_start).min()?;
     let end = slice.iter().map(|value| value.source_end).max()?;
     (start < end).then(|| SourceRange::new(start, end))
-}
-
-#[requires(true)]
-#[ensures(ret == normalize_char_event(value, options).is_some())]
-pub(crate) fn is_normalizable_word_char(value: char, options: &MorphologyOptions) -> bool {
-    normalize_char_event(value, options).is_some()
 }
 
 #[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
@@ -560,31 +717,34 @@ pub(crate) fn pronunciation_syllable_texts(phonemes: &str) -> Option<Vec<String>
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(::Emit { .. } => true)]
+#[invariant(::EmitText { .. } => true)]
 #[invariant(::StressPrevious => true)]
+#[invariant(::StressPreviousVowel => true)]
+#[invariant(::Ignore => true)]
 enum NormalizedCharEvent {
     Emit {
         value: char,
         implicit_apostrophe_vowel: bool,
     },
+    EmitText {
+        text: &'static str,
+    },
     StressPrevious,
+    StressPreviousVowel,
+    Ignore,
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn normalize_char(value: char, options: &MorphologyOptions) -> Option<char> {
-    match normalize_char_event(value, options)? {
-        NormalizedCharEvent::Emit { value, .. } => Some(value),
-        NormalizedCharEvent::StressPrevious => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|event| matches!(event, NormalizedCharEvent::StressPrevious) || matches!(event, NormalizedCharEvent::Emit { value, .. } if is_valid_normalized_char(*value))))]
 fn normalize_char_event(value: char, options: &MorphologyOptions) -> Option<NormalizedCharEvent> {
-    if is_combining_stress_mark(value)
-        || (options.accept_zbalermorna && is_zbalermorna_stress_mark(value))
-    {
+    if is_combining_stress_mark(value) {
         return Some(NormalizedCharEvent::StressPrevious);
+    }
+    if options.accept_zbalermorna && is_zbalermorna_stress_mark(value) {
+        return Some(NormalizedCharEvent::StressPreviousVowel);
+    }
+    if options.accept_zbalermorna && is_zbalermorna_ignored_mark(value) {
+        return Some(NormalizedCharEvent::Ignore);
     }
     if options.accept_latin && is_latin_apostrophe(value) {
         return Some(normalized_emit('\'', false));
@@ -607,9 +767,9 @@ fn normalize_char_event(value: char, options: &MorphologyOptions) -> Option<Norm
         return Some(normalized_emit(normalized, implicit_apostrophe_vowel));
     }
     if options.accept_zbalermorna
-        && let Some(normalized) = normalize_zbalermorna_char(value)
+        && let Some(normalized) = normalize_zbalermorna_text(value)
     {
-        return Some(normalized_emit(normalized, false));
+        return Some(NormalizedCharEvent::EmitText { text: normalized });
     }
     None
 }
@@ -723,36 +883,49 @@ fn normalize_cyrillic_char(value: char, options: &MorphologyOptions) -> Option<(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|value| is_valid_normalized_char(*value)))]
-fn normalize_zbalermorna_char(value: char) -> Option<char> {
+#[ensures(ret.as_ref().is_none_or(|text| text.chars().all(is_valid_normalized_char)))]
+fn normalize_zbalermorna_text(value: char) -> Option<&'static str> {
     match value {
-        '\u{ed80}' => Some('p'),
-        '\u{ed81}' => Some('t'),
-        '\u{ed82}' => Some('k'),
-        '\u{ed83}' => Some('f'),
-        '\u{ed84}' => Some('l'),
-        '\u{ed85}' => Some('s'),
-        '\u{ed86}' => Some('c'),
-        '\u{ed87}' => Some('m'),
-        '\u{ed88}' => Some('x'),
-        '\u{ed8a}' => Some('\''),
-        '\u{ed90}' => Some('b'),
-        '\u{ed91}' => Some('d'),
-        '\u{ed92}' => Some('g'),
-        '\u{ed93}' => Some('v'),
-        '\u{ed94}' => Some('r'),
-        '\u{ed95}' => Some('z'),
-        '\u{ed96}' => Some('j'),
-        '\u{ed97}' => Some('n'),
-        '\u{ed9a}' => Some(','),
-        '\u{eda0}' | '\u{edb0}' => Some('a'),
-        '\u{eda1}' | '\u{edb1}' => Some('e'),
-        '\u{eda2}' | '\u{edb2}' => Some('i'),
-        '\u{eda3}' | '\u{edb3}' => Some('o'),
-        '\u{eda4}' | '\u{edb4}' => Some('u'),
-        '\u{eda5}' | '\u{edb5}' => Some('y'),
-        '\u{edaa}' => Some('ĭ'),
-        '\u{edab}' => Some('ŭ'),
+        '\u{ed80}' => Some("p"),
+        '\u{ed81}' => Some("t"),
+        '\u{ed82}' => Some("k"),
+        '\u{ed83}' => Some("f"),
+        '\u{ed84}' => Some("l"),
+        '\u{ed85}' => Some("s"),
+        '\u{ed86}' => Some("c"),
+        '\u{ed87}' => Some("m"),
+        '\u{ed88}' => Some("x"),
+        '\u{ed8a}' => Some("'"),
+        '\u{ed90}' => Some("b"),
+        '\u{ed91}' => Some("d"),
+        '\u{ed92}' => Some("g"),
+        '\u{ed93}' => Some("v"),
+        '\u{ed94}' => Some("r"),
+        '\u{ed95}' => Some("z"),
+        '\u{ed96}' => Some("j"),
+        '\u{ed97}' => Some("n"),
+        '\u{ed9a}' => Some(","),
+        '\u{eda0}' | '\u{edb0}' => Some("a"),
+        '\u{eda1}' | '\u{edb1}' => Some("e"),
+        '\u{eda2}' | '\u{edb2}' => Some("i"),
+        '\u{eda3}' | '\u{edb3}' => Some("o"),
+        '\u{eda4}' | '\u{edb4}' => Some("u"),
+        '\u{eda5}' | '\u{edb5}' => Some("y"),
+        '\u{eda6}' => Some("aĭ"),
+        '\u{eda7}' => Some("eĭ"),
+        '\u{eda8}' => Some("oĭ"),
+        '\u{eda9}' => Some("aŭ"),
+        '\u{edaa}' => Some("ĭ"),
+        '\u{edab}' => Some("ŭ"),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|text| text.chars().all(is_valid_normalized_char)))]
+fn normalize_zbalermorna_shorthand_payload(value: char) -> Option<&'static str> {
+    match value {
+        '\u{eda0}'..='\u{eda9}' | '\u{edb0}'..='\u{edb5}' => normalize_zbalermorna_text(value),
         _ => None,
     }
 }
@@ -803,6 +976,12 @@ pub(crate) fn is_zbalermorna_period(value: char) -> bool {
 }
 
 #[requires(true)]
+#[ensures(ret == (value == '\u{ed8b}'))]
+fn is_zbalermorna_attitudinal_shorthand(value: char) -> bool {
+    value == '\u{ed8b}'
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn is_combining_stress_mark(value: char) -> bool {
     matches!(value, '\u{0301}' | '\u{0300}')
@@ -816,8 +995,32 @@ fn is_zbalermorna_stress_mark(value: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+fn is_zbalermorna_ignored_mark(value: char) -> bool {
+    matches!(value, '\u{ed8c}' | '\u{ed99}' | '\u{ed9b}')
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn stress_last_normalized_char(chars: &mut [NormalizedSourceChar]) {
     if let Some(last) = chars.last_mut()
+        && let Some(stressed) = stress_vowel(last.value)
+    {
+        *last = new!(NormalizedSourceChar {
+            source_start: last.source_start,
+            source_end: last.source_end,
+            source_value: last.source_value,
+            value: stressed,
+        });
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn stress_last_normalized_vowel_char(chars: &mut [NormalizedSourceChar]) {
+    if let Some(last) = chars
+        .iter_mut()
+        .rev()
+        .find(|source_char| stress_vowel(source_char.value).is_some())
         && let Some(stressed) = stress_vowel(last.value)
     {
         *last = new!(NormalizedSourceChar {

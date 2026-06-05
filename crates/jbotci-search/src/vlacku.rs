@@ -3,7 +3,7 @@ use jbotci_dictionary::{Dictionary, DictionaryEntry, Keyword, WordType, normaliz
 use jbotci_jvozba::{LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
     LujvoPart, Verbatim, Word, WordKind, WordLike, WordLikeData, canonicalize_text,
-    segment_words_with_modifiers,
+    normalize_lojban_input_text, segment_words_with_modifiers,
 };
 
 use crate::phonetic::{
@@ -517,6 +517,8 @@ fn cards_for_valsi(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
+    let query = normalize_exact_lojban_query(query);
+    let query = query.as_str();
     let entries = dictionary.lookup_words(query).collect::<Vec<_>>();
     if !entries.is_empty() {
         return found_or_missing(cards_with_optional_lujvo_sources(
@@ -556,6 +558,8 @@ fn cards_for_rafsi(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
+    let query = normalize_exact_lojban_query(query);
+    let query = query.as_str();
     let cards = filter_and_limit(
         dictionary
             .lookup_rafsi(query)
@@ -581,6 +585,8 @@ fn cards_for_lujvo(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
+    let query = normalize_exact_lojban_query(query);
+    let query = query.as_str();
     let normalized = normalize_lookup_query(query);
     let decomposition = decompose_lujvo_like(dictionary, query);
     let exact_entries = dictionary.lookup_words(query).collect::<Vec<_>>();
@@ -706,6 +712,12 @@ fn found_or_missing(cards: Vec<VlackuCard>) -> VlackuSearchOutput {
         outcome,
         diagnostics: Vec::new(),
     }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty() || query.trim().is_empty())]
+fn normalize_exact_lojban_query(query: &str) -> String {
+    normalize_lookup_query(&normalize_lojban_input_text(query).unwrap_or_else(|| query.to_owned()))
 }
 
 #[requires(true)]
@@ -1461,6 +1473,27 @@ mod tests {
         );
         assert!(!cards.iter().any(|card| card.word == "lojbo"));
         assert!(!cards.iter().any(|card| card.word == "bangu"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_search_normalizes_non_latin_glide_words() {
+        for query in ["шой", "\u{ed86}\u{eda8}"] {
+            let result = run_vlacku_requests(
+                jbotci_dictionary_data::english(),
+                &[VlackuRequest::Valsi(query.to_owned())],
+                &VlackuSearchOptions::default(),
+            );
+
+            assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+            assert_eq!(result.outcome, VlackuOutcome::Found, "{query}");
+            assert_eq!(
+                result.cards.first().map(|card| card.word.as_str()),
+                Some("coi"),
+                "{query}"
+            );
+        }
     }
 
     #[test]
