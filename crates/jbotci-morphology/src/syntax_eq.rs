@@ -1,6 +1,6 @@
 use bityzba::{data, ensures, requires};
 
-use crate::{Word, WordLike, WordLikeData};
+use crate::{Verbatim, Word, WordLike, WordLikeData};
 
 #[requires(true)]
 #[ensures(true)]
@@ -35,7 +35,7 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
         ) => {
             word_syntax_eq(left_zoi, right_zoi)
                 && word_syntax_eq(left_opening, right_opening)
-                && left_quoted == right_quoted
+                && verbatim_syntax_eq(left_quoted, right_quoted)
                 && word_syntax_eq(left_closing, right_closing)
         }
         (
@@ -67,7 +67,10 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
                 marker: right_marker,
                 quoted_text: right_quoted,
             }),
-        ) => word_syntax_eq(left_marker, right_marker) && left_quoted == right_quoted,
+        ) => {
+            word_syntax_eq(left_marker, right_marker)
+                && verbatim_syntax_eq(left_quoted, right_quoted)
+        }
         (
             data!(WordLike::LerfuWord {
                 base: left_base,
@@ -96,6 +99,12 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
         }
         _ => false,
     }
+}
+
+#[requires(true)]
+#[ensures(ret == (left.text == right.text))]
+fn verbatim_syntax_eq(left: &Verbatim, right: &Verbatim) -> bool {
+    left.text == right.text
 }
 
 #[requires(true)]

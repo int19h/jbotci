@@ -74,6 +74,7 @@ pub(crate) fn normalize_word_with_options(raw: &str, options: &MorphologyOptions
 pub(crate) struct NormalizedSourceChar {
     pub source_start: usize,
     pub source_end: usize,
+    pub source_value: char,
     pub value: char,
 }
 
@@ -136,12 +137,14 @@ pub(crate) fn normalize_source_chars(
                     normalized.push(new!(NormalizedSourceChar {
                         source_start: source_index,
                         source_end: source_index,
+                        source_value: '\'',
                         value: '\''
                     }));
                 }
                 normalized.push(new!(NormalizedSourceChar {
                     source_start: source_index,
                     source_end: source_index + 1,
+                    source_value: value,
                     value: normalized_value,
                 }));
                 previous_implicit_apostrophe_vowel = implicit_apostrophe_vowel;
@@ -174,7 +177,8 @@ pub(crate) fn first_morphology_violation(
                 .map(|range| (MorphologyErrorKind::DigitVowel, range))
         })
         .or_else(|| {
-            breve_not_glide_range(&values).map(|range| (MorphologyErrorKind::BreveNotGlide, range))
+            hard_breve_not_glide_range(chars)
+                .map(|range| (MorphologyErrorKind::BreveNotGlide, range))
         })
         .or_else(|| {
             geminated_consonant_range(&values)
@@ -215,6 +219,24 @@ pub(crate) fn cgv_source_range(chars: &[NormalizedSourceChar]) -> Option<SourceR
 pub(crate) fn experimental_mz_source_range(chars: &[NormalizedSourceChar]) -> Option<SourceRange> {
     let values = normalized_values(chars);
     mz_pair_range(&values).and_then(|range| source_range_from_normalized_range(chars, range))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end))]
+pub(crate) fn latin_breve_not_glide_source_range(
+    chars: &[NormalizedSourceChar],
+) -> Option<SourceRange> {
+    latin_breve_not_glide_range(chars)
+        .and_then(|range| source_range_from_normalized_range(chars, range))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end))]
+pub(crate) fn required_breve_not_glide_source_range(
+    chars: &[NormalizedSourceChar],
+) -> Option<SourceRange> {
+    hard_breve_not_glide_range(chars)
+        .and_then(|range| source_range_from_normalized_range(chars, range))
 }
 
 #[requires(true)]
@@ -348,10 +370,7 @@ fn mark_predictable_stress(phonemes: &str) -> String {
     if has_explicit_stress(phonemes) {
         return phonemes.to_owned();
     }
-    let stressable = phonemes
-        .char_indices()
-        .filter_map(|(index, ch)| is_full_vowel(ch).then_some(index))
-        .collect::<Vec<_>>();
+    let stressable = stressable_nucleus_byte_starts(phonemes);
     let Some(&stress_index) = stressable.iter().rev().nth(1) else {
         return phonemes.to_owned();
     };
@@ -376,11 +395,36 @@ fn has_explicit_stress(phonemes: &str) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn is_full_vowel(ch: char) -> bool {
-    matches!(
-        ch,
-        'a' | 'e' | 'i' | 'o' | 'u' | 'á' | 'é' | 'í' | 'ó' | 'ú'
-    )
+fn stressable_nucleus_byte_starts(phonemes: &str) -> Vec<usize> {
+    let chars = text_chars(phonemes);
+    let byte_starts = phonemes
+        .char_indices()
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    let mut starts = Vec::new();
+    let mut index = 0;
+    while index < chars.len() {
+        if chars[index] == ',' {
+            index += 1;
+            continue;
+        }
+        if let Some((_, end)) = parse_diphthong(&chars, index) {
+            if let Some(byte_start) = byte_starts.get(index).copied() {
+                starts.push(byte_start);
+            }
+            index = end;
+        } else if let Some((_, end)) = parse_single_vowel(&chars, index) {
+            if !matches!(chars[index], 'y' | 'ý')
+                && let Some(byte_start) = byte_starts.get(index).copied()
+            {
+                starts.push(byte_start);
+            }
+            index = end;
+        } else {
+            index += 1;
+        }
+    }
+    starts
 }
 
 #[requires(true)]
@@ -779,6 +823,7 @@ fn stress_last_normalized_char(chars: &mut [NormalizedSourceChar]) {
         *last = new!(NormalizedSourceChar {
             source_start: last.source_start,
             source_end: last.source_end,
+            source_value: last.source_value,
             value: stressed,
         });
     }
@@ -955,7 +1000,7 @@ fn parse_single_vowel(chars: &[char], start: usize) -> Option<(String, usize)> {
         }
         return Some((value.to_string(), end));
     }
-    if !is_vowel(value) {
+    if !is_vowel(value) && !matches!(value, 'ĭ' | 'ŭ') {
         return None;
     }
     let end = start + 1;
@@ -1013,6 +1058,7 @@ pub(crate) fn is_cmevla_with_options(normalized: &str, _options: &MorphologyOpti
         && chars.iter().all(|value| {
             is_consonant(*value)
                 || is_vowel(*value)
+                || matches!(*value, 'ĭ' | 'ŭ')
                 || matches!(*value, 'y' | 'ý' | '\'' | ',' | '0'..='9')
         })
 }
@@ -1211,6 +1257,8 @@ fn normalize_vowel(value: char) -> char {
         'í' => 'í',
         'ó' => 'ó',
         'ú' => 'ú',
+        'ĭ' => 'i',
+        'ŭ' => 'u',
         _ => base_vowel(value).unwrap_or(value),
     }
 }
@@ -1339,6 +1387,34 @@ fn breve_not_glide_range(chars: &[char]) -> Option<Range<usize>> {
         };
         invalid.then_some(index..index + 1)
     })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn latin_breve_not_glide_range(chars: &[NormalizedSourceChar]) -> Option<Range<usize>> {
+    let values = normalized_values(chars);
+    breve_not_glide_range(&values).filter(|range| {
+        chars
+            .get(range.start)
+            .is_some_and(|source| is_latin_breve_source(source.source_value))
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
+fn hard_breve_not_glide_range(chars: &[NormalizedSourceChar]) -> Option<Range<usize>> {
+    let values = normalized_values(chars);
+    breve_not_glide_range(&values).filter(|range| {
+        chars
+            .get(range.start)
+            .is_some_and(|source| !is_latin_breve_source(source.source_value))
+    })
+}
+
+#[requires(true)]
+#[ensures(ret == matches!(value, 'ĭ' | 'Ĭ' | 'ŭ' | 'Ŭ'))]
+fn is_latin_breve_source(value: char) -> bool {
+    matches!(value, 'ĭ' | 'Ĭ' | 'ŭ' | 'Ŭ')
 }
 
 #[requires(true)]
@@ -1842,12 +1918,8 @@ fn is_fuhivla_shape_slice_with_y_policy(
 ) -> bool {
     if end <= start
         || end - start < 4
-        || !chars[end - 1..end].iter().all(|value| is_vowel(*value))
-        || chars[start..end]
-            .iter()
-            .filter(|value| is_vowel(**value))
-            .count()
-            < 2
+        || !ends_with_vocalic_nucleus(chars, start, end)
+        || count_vocalic_nuclei(chars, start, end) < 2
         || (!allows_y && chars[start..end].iter().any(|value| is_y(*value)))
         || has_vowel_hiatus(&chars[start..end])
     {
@@ -1867,6 +1939,38 @@ fn is_fuhivla_shape_slice_with_y_policy(
     slice.iter().any(|value| is_consonant(*value))
         && has_consonant_cluster(slice)
         && !is_cmavo_slice(chars, start, end)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn ends_with_vocalic_nucleus(chars: &[char], start: usize, end: usize) -> bool {
+    start < end
+        && chars
+            .get(end - 1)
+            .is_some_and(|value| is_vowel(*value) || matches!(*value, 'ĭ' | 'ŭ'))
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn count_vocalic_nuclei(chars: &[char], start: usize, end: usize) -> usize {
+    let mut count = 0;
+    let mut index = start;
+    while index < end {
+        if let Some((_, nucleus_end)) = parse_diphthong(chars, index)
+            && nucleus_end <= end
+        {
+            count += 1;
+            index = nucleus_end;
+        } else if let Some((_, nucleus_end)) = parse_single_vowel(chars, index)
+            && nucleus_end <= end
+        {
+            count += 1;
+            index = nucleus_end;
+        } else {
+            index += 1;
+        }
+    }
+    count
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -2359,7 +2463,7 @@ fn has_vowel_hiatus(chars: &[char]) -> bool {
 #[ensures(ret.as_ref().is_none_or(|range| range.start < range.end && range.end <= chars.len()))]
 fn vowel_hiatus_range(chars: &[char]) -> Option<Range<usize>> {
     for index in 0..chars.len() {
-        if !is_vowel(chars[index]) {
+        if !is_vowel(chars[index]) && !matches!(chars[index], 'ĭ' | 'ŭ') {
             continue;
         }
         if starts_repeated_glide_diphthong_sequence(chars, index) {

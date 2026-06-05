@@ -929,6 +929,7 @@ impl MorphologyErrorKind {
 pub enum MorphologyWarningKind {
     ExperimentalCgv,
     ExperimentalMz,
+    BreveNotGlide,
 }
 
 impl MorphologyWarningKind {
@@ -938,6 +939,7 @@ impl MorphologyWarningKind {
         match self {
             Self::ExperimentalCgv => "morphology.warning.experimental-cgv",
             Self::ExperimentalMz => "morphology.warning.experimental-mz",
+            Self::BreveNotGlide => "morphology.warning.breve-not-glide",
         }
     }
 
@@ -947,6 +949,7 @@ impl MorphologyWarningKind {
         match self {
             Self::ExperimentalCgv => "experimental morphology: consonant-glide-vowel sequence",
             Self::ExperimentalMz => "experimental morphology: MZ consonant pair",
+            Self::BreveNotGlide => "breve-marked vowel is not in a glide position",
         }
     }
 
@@ -958,6 +961,7 @@ impl MorphologyWarningKind {
                 "consonant-glide-vowel sequence accepted as experimental morphology"
             }
             Self::ExperimentalMz => "MZ consonant pair accepted as experimental morphology",
+            Self::BreveNotGlide => "breve-marked vowel parsed as a vowel",
         }
     }
 
@@ -969,6 +973,9 @@ impl MorphologyWarningKind {
                 "accepted by the experimental consonant-glide-vowel relaxation"
             }
             Self::ExperimentalMz => "accepted by the experimental MZ consonant-pair relaxation",
+            Self::BreveNotGlide => {
+                "Latin breve marks are optional glide hints and do not determine morphology"
+            }
         }
     }
 }
@@ -2225,6 +2232,125 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn latin_breve_cmevla_surfaces_parse_as_single_words() {
+        let cases = [
+            ("la .djeĭmz.", "djeĭmz"),
+            ("la .saĭmn.", "saĭmn"),
+            ("la .eĭvn.", "eĭvn"),
+            ("la .paŭlas.", "paŭlas"),
+            ("la .nu,ĭórk.", "nu,ĭórk"),
+        ];
+
+        for (source, expected) in cases {
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            assert_eq!(
+                base_phonemes(&words[1]).as_deref(),
+                Some(expected),
+                "{source}"
+            );
+            assert_eq!(
+                base_word(&words[1]).map(Word::kind),
+                Some(WordKind::Cmevla),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn latin_breve_is_warning_not_error_outside_glide_position() {
+        let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+            "mĭ pŭ",
+            &MorphologyOptions::default(),
+            None,
+        );
+        let data = attempt.into_data();
+        let words = data.result.expect("Latin breve marks should be optional");
+
+        assert_eq!(base_phoneme_texts(&words), vec!["mi", "pu"]);
+        assert_eq!(data.warnings.len(), 2);
+        assert_eq!(data.warnings[0].kind, MorphologyWarningKind::BreveNotGlide);
+        assert_eq!(data.warnings[0].char_start, 1);
+        assert_eq!(data.warnings[0].char_end, 2);
+        assert_eq!(data.warnings[0].text, "ĭ");
+        assert_eq!(data.warnings[1].kind, MorphologyWarningKind::BreveNotGlide);
+        assert_eq!(data.warnings[1].text, "ŭ");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn latin_breve_in_glide_position_does_not_warn() {
+        let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+            "faŭ la .saĭmn.",
+            &MorphologyOptions::default(),
+            None,
+        );
+        let data = attempt.into_data();
+        let words = data.result.expect("valid morphology");
+
+        assert_eq!(base_phonemes(&words[0]).as_deref(), Some("faŭ"));
+        assert_eq!(base_phonemes(&words[2]).as_deref(), Some("saĭmn"));
+        assert!(
+            data.warnings
+                .iter()
+                .all(|warning| warning.kind != MorphologyWarningKind::BreveNotGlide)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn latin_breve_final_diphthong_stays_with_stressed_brivla() {
+        let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+            "ko múvgaŭ ti",
+            &MorphologyOptions::default(),
+            None,
+        );
+        let data = attempt.into_data();
+        let words = data.result.expect("valid morphology");
+
+        assert_eq!(base_phoneme_texts(&words), vec!["ko", "múvgaŭ", "ti"]);
+        assert_eq!(base_word(&words[1]).map(Word::kind), Some(WordKind::Lujvo));
+        assert!(
+            data.warnings
+                .iter()
+                .all(|warning| warning.kind != MorphologyWarningKind::BreveNotGlide)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn latin_breve_final_diphthong_counts_as_one_stress_nucleus() {
+        for source in ["citkakei", "citkákeĭ"] {
+            let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            );
+            let data = attempt.into_data();
+            let words = data.result.expect("valid morphology");
+
+            assert_eq!(base_phoneme_texts(&words), vec!["citkákeĭ"], "{source}");
+            assert_eq!(
+                base_word(&words[0]).map(Word::kind),
+                Some(WordKind::Fuhivla),
+                "{source}"
+            );
+            assert!(
+                data.warnings
+                    .iter()
+                    .all(|warning| warning.kind != MorphologyWarningKind::BreveNotGlide),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn morphology_error_kind_codes_are_stable() {
         let cases = [
             (
@@ -2334,6 +2460,11 @@ mod tests {
                 MorphologyWarningKind::ExperimentalMz,
                 "morphology.warning.experimental-mz",
                 "experimental morphology: MZ consonant pair",
+            ),
+            (
+                MorphologyWarningKind::BreveNotGlide,
+                "morphology.warning.breve-not-glide",
+                "breve-marked vowel is not in a glide position",
             ),
         ];
 
@@ -2797,6 +2928,72 @@ mod tests {
         ));
 
         assert!(word_like_syntax_eq(&left.remove(0), &right.remove(0)));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_equivalence_ignores_zoi_verbatim_spans_not_text() {
+        let left = WordLike::zoi_quote(
+            test_word(WordKind::Cmavo, "zoĭ", 0),
+            test_word(WordKind::Cmavo, "gy", 4),
+            Verbatim::new(
+                SourceSpan::new(None, 7, 12, 7, 12).expect("valid span"),
+                "broda".to_owned(),
+            ),
+            test_word(WordKind::Cmavo, "gy", 13),
+        );
+        let right = WordLike::zoi_quote(
+            test_word(WordKind::Cmavo, "zoĭ", 20),
+            test_word(WordKind::Cmavo, "gy", 24),
+            Verbatim::new(
+                SourceSpan::new(None, 27, 32, 27, 32).expect("valid span"),
+                "broda".to_owned(),
+            ),
+            test_word(WordKind::Cmavo, "gy", 33),
+        );
+        let different_text = WordLike::zoi_quote(
+            test_word(WordKind::Cmavo, "zoĭ", 20),
+            test_word(WordKind::Cmavo, "gy", 24),
+            Verbatim::new(
+                SourceSpan::new(None, 27, 32, 27, 32).expect("valid span"),
+                "brode".to_owned(),
+            ),
+            test_word(WordKind::Cmavo, "gy", 33),
+        );
+
+        assert!(word_like_syntax_eq(&left, &right));
+        assert!(!word_like_syntax_eq(&left, &different_text));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_equivalence_ignores_single_word_quote_verbatim_spans_not_text() {
+        let left = WordLike::single_word_quote(
+            test_word(WordKind::Cmavo, "zo'oi", 0),
+            Verbatim::new(
+                SourceSpan::new(None, 6, 11, 6, 11).expect("valid span"),
+                "hello".to_owned(),
+            ),
+        );
+        let right = WordLike::single_word_quote(
+            test_word(WordKind::Cmavo, "zo'oi", 20),
+            Verbatim::new(
+                SourceSpan::new(None, 26, 31, 26, 31).expect("valid span"),
+                "hello".to_owned(),
+            ),
+        );
+        let different_text = WordLike::single_word_quote(
+            test_word(WordKind::Cmavo, "zo'oi", 20),
+            Verbatim::new(
+                SourceSpan::new(None, 26, 31, 26, 31).expect("valid span"),
+                "hullo".to_owned(),
+            ),
+        );
+
+        assert!(word_like_syntax_eq(&left, &right));
+        assert!(!word_like_syntax_eq(&left, &different_text));
     }
 
     #[test]

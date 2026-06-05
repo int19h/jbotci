@@ -432,7 +432,7 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
     ) -> Option<StreamingWordCandidate> {
         ((start + 1)..=candidate_end).find_map(|end| {
-            if !self.post_word_ok_for_brivla(start, end) {
+            if !self.post_word_ok_for_brivla(start, end, candidate_end) {
                 return None;
             }
             let raw = self.slice(start, end);
@@ -453,16 +453,35 @@ impl<'a> Segmenter<'a> {
         })
     }
 
-    #[requires(start < end && end <= self.chars.len())]
+    #[requires(start < end && end <= candidate_end && candidate_end <= self.chars.len())]
     #[ensures(true)]
-    fn post_word_ok_for_brivla(&self, start: usize, end: usize) -> bool {
+    fn post_word_ok_for_brivla(&self, start: usize, end: usize, candidate_end: usize) -> bool {
         let normalized =
             crate::segment::normalize_word_with_options(self.slice(start, end), self.options);
         if has_explicit_brivla_stress(&normalized) {
-            explicit_brivla_stress_is_valid(&normalized) && self.post_word_at(end)
+            explicit_brivla_stress_is_valid(&normalized)
+                && self.brivla_boundary_ok(start, end, candidate_end)
         } else {
             self.pause_at(end)
         }
+    }
+
+    #[requires(start <= end && end <= candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(true)]
+    fn brivla_boundary_ok(&self, start: usize, end: usize, candidate_end: usize) -> bool {
+        if self.pause_at(end) {
+            return true;
+        }
+        let prefix =
+            crate::segment::normalize_word_with_options(self.slice(start, end), self.options);
+        let remainder = crate::segment::normalize_word_with_options(
+            self.slice(end, candidate_end),
+            self.options,
+        );
+        if boundary_repeats_diphthong_semivowel(&prefix, &remainder) {
+            return false;
+        }
+        self.post_word_at(end)
     }
 
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
@@ -644,10 +663,10 @@ impl<'a> Segmenter<'a> {
             self.index = after_marker;
             return Ok(vec![zoi_word_with_modifiers]);
         }
-        self.consume_zoi_open_dots();
+        let consumed_open_separator = self.consume_zoi_open_separators();
         let quoted_start = self.index;
         let Some((quoted_end, closing_delimiter, close_start)) =
-            self.find_zoi_close(&opening_delimiter)?
+            self.find_zoi_close(&opening_delimiter, consumed_open_separator)?
         else {
             return Err(MorphologyError::UnterminatedZoiQuote {
                 char_offset: quoted_start,
@@ -968,9 +987,16 @@ impl<'a> Segmenter<'a> {
     fn find_zoi_close(
         &mut self,
         opening_delimiter: &Word,
+        consumed_open_separator: bool,
     ) -> Result<Option<(usize, Word, usize)>, MorphologyError> {
         let opening_delimiter_canonical = canonicalize_text(opening_delimiter.phonemes().as_str());
         let mut cursor = self.index;
+        if consumed_open_separator
+            && let Some(closing_word) =
+                self.zoi_closing_word_at(&opening_delimiter_canonical, cursor)
+        {
+            return Ok(Some((cursor, closing_word, cursor)));
+        }
         while cursor < self.chars.len() {
             let pause_start = cursor;
             let mut saw_separator = false;
@@ -979,19 +1005,8 @@ impl<'a> Segmenter<'a> {
                 cursor += 1;
             }
             if saw_separator && cursor < self.chars.len() {
-                let saved = self.index;
-                self.index = cursor;
-                let warning_count = self.warnings.len();
-                let maybe_word = self.next_plain_word();
-                let after_word = self.index;
-                self.warnings.truncate(warning_count);
-                self.index = saved;
-                if let Ok(word_with_modifiers) = maybe_word
-                    && let Some(closing_word) = extract_word(&word_with_modifiers)
-                    && canonical_text_eq(
-                        closing_word.phonemes().as_str(),
-                        &opening_delimiter_canonical,
-                    )
+                if let Some(closing_word) =
+                    self.zoi_closing_word_at(&opening_delimiter_canonical, cursor)
                 {
                     return Ok(Some((
                         trim_trailing_separator_indices(&self.chars, self.index, pause_start),
@@ -999,12 +1014,37 @@ impl<'a> Segmenter<'a> {
                         cursor,
                     )));
                 }
-                cursor = after_word.max(cursor + 1);
+                cursor += 1;
             } else {
                 cursor += 1;
             }
         }
         Ok(None)
+    }
+
+    #[requires(cursor <= self.chars.len())]
+    #[ensures(true)]
+    fn zoi_closing_word_at(
+        &mut self,
+        opening_delimiter_canonical: &str,
+        cursor: usize,
+    ) -> Option<Word> {
+        let saved = self.index;
+        self.index = cursor;
+        let warning_count = self.warnings.len();
+        let maybe_word = self.next_plain_word();
+        self.warnings.truncate(warning_count);
+        self.index = saved;
+        if let Ok(word_with_modifiers) = maybe_word
+            && let Some(closing_word) = extract_word(&word_with_modifiers)
+            && canonical_text_eq(
+                closing_word.phonemes().as_str(),
+                opening_delimiter_canonical,
+            )
+        {
+            return Some(closing_word);
+        }
+        None
     }
 
     #[requires(true)]
@@ -1224,6 +1264,16 @@ impl<'a> Segmenter<'a> {
         kind: WordKind,
         phonemes: String,
     ) -> Result<WordLike, MorphologyError> {
+        let normalized = self.normalized_source_chars(start, end);
+        if let Some(range) = crate::segment::required_breve_not_glide_source_range(&normalized) {
+            return Err(self.invalid_span_with_detail(
+                MorphologyErrorKind::BreveNotGlide,
+                range.start,
+                range.end,
+                self.context(word_context_kind(kind), start, end),
+                crate::phonotactic_error_detail(MorphologyErrorKind::BreveNotGlide),
+            ));
+        }
         let span = self.source_span(start, end)?;
         let phonemes = Phonemes::from_canonical(phonemes).map_err(|_| {
             self.invalid_span(
@@ -1247,31 +1297,44 @@ impl<'a> Segmenter<'a> {
         } else {
             Word::from_kind(kind, phonemes, span)
         };
-        self.warn_experimental_morphology_relaxations(start, end, kind);
+        self.warn_word_morphology(start, end, kind, &normalized);
         Ok(base_word_like(WordLike::bare(word)))
     }
 
     #[requires(start <= end && end <= self.chars.len())]
     #[ensures(true)]
-    fn warn_experimental_morphology_relaxations(
-        &mut self,
+    fn normalized_source_chars(
+        &self,
         start: usize,
         end: usize,
-        kind: WordKind,
-    ) {
-        let normalized = crate::segment::normalize_source_chars(
+    ) -> Vec<crate::segment::NormalizedSourceChar> {
+        crate::segment::normalize_source_chars(
             self.chars[start..end]
                 .iter()
                 .enumerate()
                 .map(|(offset, source_char)| (start + offset, source_char.value)),
             self.options,
-        );
+        )
+    }
+
+    #[requires(start <= end && end <= self.chars.len())]
+    #[ensures(true)]
+    fn warn_word_morphology(
+        &mut self,
+        start: usize,
+        end: usize,
+        kind: WordKind,
+        normalized: &[crate::segment::NormalizedSourceChar],
+    ) {
         let mut warnings = Vec::new();
-        if let Some(range) = crate::segment::cgv_source_range(&normalized) {
+        if let Some(range) = crate::segment::cgv_source_range(normalized) {
             warnings.push((MorphologyWarningKind::ExperimentalCgv, range));
         }
-        if let Some(range) = crate::segment::experimental_mz_source_range(&normalized) {
+        if let Some(range) = crate::segment::experimental_mz_source_range(normalized) {
             warnings.push((MorphologyWarningKind::ExperimentalMz, range));
+        }
+        if let Some(range) = crate::segment::latin_breve_not_glide_source_range(normalized) {
+            warnings.push((MorphologyWarningKind::BreveNotGlide, range));
         }
         warnings.sort_by_key(|(_, range)| (range.start, range.end));
         for (warning_kind, range) in warnings {
@@ -1363,16 +1426,21 @@ impl<'a> Segmenter<'a> {
 
     #[ensures(self.index <= self.chars.len())]
     #[requires(true)]
-    fn consume_zoi_open_dots(&mut self) {
-        if self.peek_char() != Some('.') {
-            return;
+    fn consume_zoi_open_separators(&mut self) -> bool {
+        let start = self.index;
+        if self.peek_char().is_some_and(|value| value == '.') {
+            while self.peek_char().is_some_and(|value| value == '.') {
+                self.index += 1;
+            }
+            while self.peek_char().is_some_and(char::is_whitespace) {
+                self.index += 1;
+            }
+        } else {
+            while self.peek_char().is_some_and(char::is_whitespace) {
+                self.index += 1;
+            }
         }
-        while self.peek_char() == Some('.') {
-            self.index += 1;
-        }
-        while self.peek_char().is_some_and(|value| value.is_whitespace()) {
-            self.index += 1;
-        }
+        self.index != start
     }
 
     #[requires(start <= end && end <= self.chars.len())]
@@ -1832,12 +1900,8 @@ fn has_explicit_brivla_stress(normalized_word: &str) -> bool {
 #[ensures(true)]
 fn explicit_brivla_stress_is_valid(normalized_word: &str) -> bool {
     let chars = text_chars(normalized_word);
-    let full_vowels = chars
-        .iter()
-        .enumerate()
-        .filter_map(|(index, value)| is_full_vowel(*value).then_some(index))
-        .collect::<Vec<_>>();
-    let stressed = full_vowels
+    let nuclei = stressable_nucleus_starts(&chars);
+    let stressed = nuclei
         .iter()
         .copied()
         .filter(|index| {
@@ -1846,7 +1910,7 @@ fn explicit_brivla_stress_is_valid(normalized_word: &str) -> bool {
                 .is_some_and(|value| matches!(value, 'á' | 'é' | 'í' | 'ó' | 'ú'))
         })
         .collect::<Vec<_>>();
-    full_vowels
+    nuclei
         .iter()
         .rev()
         .nth(1)
@@ -1855,11 +1919,27 @@ fn explicit_brivla_stress_is_valid(normalized_word: &str) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn is_full_vowel(value: char) -> bool {
-    matches!(
-        value,
-        'a' | 'e' | 'i' | 'o' | 'u' | 'á' | 'é' | 'í' | 'ó' | 'ú'
-    )
+fn stressable_nucleus_starts(chars: &[char]) -> Vec<usize> {
+    let mut starts = Vec::new();
+    let mut index = 0;
+    while index < chars.len() {
+        if chars[index] == ',' {
+            index += 1;
+            continue;
+        }
+        if let Some((_, end)) = parse_diphthong(chars, index) {
+            starts.push(index);
+            index = end;
+        } else if let Some((_, end)) = parse_single_vowel(chars, index) {
+            if !matches!(chars[index], 'y' | 'ý') {
+                starts.push(index);
+            }
+            index = end;
+        } else {
+            index += 1;
+        }
+    }
+    starts
 }
 
 #[requires(index <= chars.len())]
@@ -1939,7 +2019,7 @@ fn parse_single_vowel(chars: &[char], start: usize) -> Option<(String, usize)> {
         }
         return Some((value.to_string(), end));
     }
-    if !is_vowel(value) {
+    if !is_vowel(value) && !matches!(value, 'ĭ' | 'ŭ') {
         return None;
     }
     let end = start + 1;
@@ -1977,6 +2057,8 @@ fn normalize_vowel(value: char) -> char {
         'í' => 'í',
         'ó' => 'ó',
         'ú' => 'ú',
+        'ĭ' => 'i',
+        'ŭ' => 'u',
         _ => base_vowel(value).unwrap_or(value),
     }
 }
@@ -2363,11 +2445,57 @@ mod tests {
         assert_eq!(opening_delimiter.phonemes().as_str(), "gy");
         assert_eq!(opening_delimiter.span().byte_start, 4);
         assert_eq!(opening_delimiter.span().byte_end, 6);
-        assert_eq!(quoted_text.span.byte_start, 6);
+        assert_eq!(quoted_text.span.byte_start, 7);
         assert_eq!(quoted_text.span.byte_end, 12);
+        assert_eq!(quoted_text.text, "broda");
         assert_eq!(closing_delimiter.phonemes().as_str(), "gy");
         assert_eq!(closing_delimiter.span().byte_start, 13);
         assert_eq!(closing_delimiter.span().byte_end, 15);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zoi_quote_opening_separator_variants_do_not_enter_payload() {
+        for source in ["zoi gy Steve gy", "zoi gy.Steve.gy", "zoi gy. Steve gy"] {
+            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
+                .expect("valid morphology");
+            let data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) = words[0].as_data()
+            else {
+                panic!("expected ZOI quote for {source}");
+            };
+            assert_eq!(quoted_text.text, "Steve", "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zoi_quote_whitespace_separator_does_not_consume_payload_dot() {
+        let words =
+            segment_words_with_modifiers("la'o gy .sig gy", &MorphologyOptions::default(), None)
+                .expect("valid morphology");
+        let data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) = words[0].as_data()
+        else {
+            panic!("expected ZOI quote");
+        };
+        assert_eq!(quoted_text.text, ".sig");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zoi_quote_opening_separator_can_precede_immediate_close() {
+        for source in ["zoi ly ly", "zoi ly.ly"] {
+            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
+                .expect("valid morphology");
+            let data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) = words[0].as_data()
+            else {
+                panic!("expected ZOI quote for {source}");
+            };
+            assert_eq!(quoted_text.text, "", "{source}");
+            assert_eq!(quoted_text.span.byte_start, quoted_text.span.byte_end);
+        }
     }
 
     #[test]
