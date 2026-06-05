@@ -3368,6 +3368,10 @@ fn embedding_settings_from_json(json: &str, fallback_detail: &str) -> EmbeddingS
         Some(runtime) => runtime,
         None => model_size,
     };
+    let model_size = json_string(&value, "modelLabel")
+        .filter(|label| !label.is_empty())
+        .map(|label| format!("{label}, {model_size}"))
+        .unwrap_or(model_size);
     let index_size = value
         .get("indexBytes")
         .and_then(serde_json::Value::as_u64)

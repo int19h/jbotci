@@ -308,16 +308,23 @@ In all cases, when updating expectations, be VERY careful and do not blindly ass
 Prefer to run tests on release builds - the test suite is large and parser performance is degraded substantially in debug builds, so even with the cost of rebuild, release builds are still several times faster. Use debug builds only when it is necessary to debug test behavior.
 
 
-# CLL Errata: Commas and Glides
+# Lojban
+
+Your knowledge of Lojban is not perfect. When in doubt, read the CLL using jbotci cukta MCP. 
+
+Lojban morphology is highly non-trivial and many common assumptions don't hold. In particular, NEVER assume that spaces are a reliable way to detect word boundaries. The only way to reliably detect Lojban word boundaries in a text stream is to run the morphology parser on it! Similarly, determining whether a given vowel must be a glide requires going through morphology. Hacks that involve operating on raw string level circumventing the morphology parser are wrong and must be avoided.
+
+
+## CLL Errata: Commas and Glides
 
 BPFK morphology treats commas as syllable separators only; commas do not affect glide/hiatus detection.
 
-The CgV (consonant-glide-vowel) ban applies across commas, so names that rely on a comma to block a glide are invalid (e.g., `.an,iis.`, `.melxi,or.`).
+The CgV (consonant-glide-vowel) ban applies across commas, so names that rely on a comma to block a glide are invalid (e.g., `.an,iis.`, `.melxi,or.`). We still allow this with a warning.
 
 The semantics of `le` and `lo` and default quantification rules are different. If you have read CLL regarding either of these as part of your research, you must also check https://mw.lojban.org/papri/How_to_use_xorlo for an important clarification before using the information from CLL for any decisions pertaining to Lojban semantics.
 
 
-# Lojban EBNF Grammar
+## Lojban EBNF Grammar
 
 Explanation of notation: All rules have the form:
 ```

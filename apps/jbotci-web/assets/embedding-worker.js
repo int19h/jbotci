@@ -1,28 +1,73 @@
 import {
   AutoModel,
   AutoTokenizer,
+  env,
 } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0";
 
-const MODEL_KEY = "embedding-gemma-300m-q4-768";
-const MODEL_ID = "onnx-community/embeddinggemma-300m-ONNX";
-const PREFERRED_MODEL_DTYPE = "q4";
-const FALLBACK_MODEL_DTYPE = "q8";
-const DIMENSIONS = 768;
-const MAX_SEQUENCE_LENGTH = 2048;
-const QUERY_PREFIX = "task: search result | query: ";
+const EMBEDDING_GEMMA_MODEL_KEY = "embedding-gemma-300m-q4-768";
+const F2LLM_MODEL_KEY = "f2llm-v2-80m-q4-320";
+const MI_B = 1024 * 1024;
+const TRANSFORMERS_VERSION = "4.2.0";
+const DEFAULT_TRANSFORMERS_SOURCE = {
+  remoteHost: env.remoteHost,
+  remotePathTemplate: env.remotePathTemplate,
+  allowRemoteModels: env.allowRemoteModels,
+};
+const MODEL_SPECS = {
+  [EMBEDDING_GEMMA_MODEL_KEY]: {
+    modelKey: EMBEDDING_GEMMA_MODEL_KEY,
+    label: "EmbeddingGemma 300M",
+    modelId: "onnx-community/embeddinggemma-300m-ONNX",
+    preferredRuntime: { dtype: "q4", device: "webgpu" },
+    fallbackRuntime: { dtype: "q8", device: "wasm" },
+    dimensions: 768,
+    maxSequenceLength: 2048,
+    queryPrefix: "task: search result | query: ",
+    localVectorSpacePrefix: "browser-local",
+    remoteVectorPacks: true,
+    embedBatchSize: 8,
+    modelSizeEstimates: {
+      q4: 217 * MI_B,
+      q8: 330 * MI_B,
+    },
+    minFreeBytesByDtype: {
+      q4: 300 * MI_B,
+      q8: 500 * MI_B,
+    },
+    outputPooling: "sentence_embedding",
+    retryWebGpuWithFallbackWorker: true,
+  },
+  [F2LLM_MODEL_KEY]: {
+    modelKey: F2LLM_MODEL_KEY,
+    label: "F2LLM v2 80M",
+    modelId: "models/f2llm-v2-80m-q4-hqq32-transformersjs",
+    transformersSource: {
+      remoteHost: "https://assets.jbotci.app/",
+      remotePathTemplate: "{model}/",
+    },
+    preferredRuntime: { dtype: "q4", device: "webgpu" },
+    fallbackRuntime: null,
+    dimensions: 320,
+    maxSequenceLength: 2048,
+    queryPrefix: "Instruct: Given a question, retrieve passages that can help answer the question.\nQuery: ",
+    localVectorSpacePrefix: "browser-local",
+    remoteVectorPacks: false,
+    embedBatchSize: 4,
+    modelSizeEstimates: {
+      q4: 68 * MI_B,
+    },
+    minFreeBytesByDtype: {
+      q4: 180 * MI_B,
+    },
+    outputPooling: "last_token",
+    retryWebGpuWithFallbackWorker: false,
+  },
+};
 const DB_NAME = "jbotci-embeddings-v1";
 const META_STORE = "meta";
 const BLOB_STORE = "blobs";
-const TRANSFORMERS_VERSION = "4.2.0";
 const DEFAULT_REMOTE_BASE_URL = "/assets/embeddings/web/v1";
 const LOG_PREFIX = "[jbotci embeddings worker]";
-const LOCAL_VECTOR_SPACE_PREFIX = "browser-local";
-const Q4_MIN_FREE_BYTES = 300 * 1024 * 1024;
-const Q8_MIN_FREE_BYTES = 500 * 1024 * 1024;
-const MODEL_SIZE_ESTIMATES = {
-  q4: 217 * 1024 * 1024,
-  q8: 330 * 1024 * 1024,
-};
 const ACTIVE_SETUP_STATUSES = new Set([
   "checking",
   "downloading-index",
@@ -30,10 +75,9 @@ const ACTIVE_SETUP_STATUSES = new Set([
   "indexing",
   "loading-model",
 ]);
-const EMBED_BATCH_SIZE = 8;
 
-let tokenizerPromise = null;
-let modelPromise = null;
+let activeModelKey = EMBEDDING_GEMMA_MODEL_KEY;
+let modelLoadPromise = null;
 let modelRuntime = null;
 let dbPromise = null;
 let setupInProgress = false;
@@ -75,6 +119,7 @@ self.onmessage = async (event) => {
   const { id, type, payload } = event.data || {};
   const forceWasm = payload?.forceWasm === true;
   try {
+    setActiveModel(payload?.modelKey);
     let value;
     if (type === "status") {
       value = await status();
@@ -115,6 +160,40 @@ self.onmessage = async (event) => {
   }
 };
 
+function activeModelSpec() {
+  return MODEL_SPECS[activeModelKey];
+}
+
+function modelSpecForKey(modelKey) {
+  const key = typeof modelKey === "string" && modelKey.trim().length > 0
+    ? modelKey.trim()
+    : EMBEDDING_GEMMA_MODEL_KEY;
+  const spec = MODEL_SPECS[key];
+  if (!spec) {
+    throw new Error(`unsupported browser embedding model key: ${key}`);
+  }
+  return spec;
+}
+
+function setActiveModel(modelKey) {
+  const spec = modelSpecForKey(modelKey);
+  if (spec.modelKey === activeModelKey) {
+    return spec;
+  }
+  if (setupInProgress) {
+    throw new Error("cannot change browser embedding model while setup is active");
+  }
+  activeModelKey = spec.modelKey;
+  modelLoadPromise = null;
+  modelRuntime = null;
+  vectorCache.clear();
+  logInfo("selected embedding model changed", {
+    modelKey: spec.modelKey,
+    label: spec.label,
+  });
+  return spec;
+}
+
 function normalizeRemoteBaseUrl(remoteBaseUrl) {
   if (typeof remoteBaseUrl !== "string" || remoteBaseUrl.trim().length === 0) {
     return DEFAULT_REMOTE_BASE_URL;
@@ -130,6 +209,7 @@ function remotePackUrl(remoteBaseUrl, path) {
 function corpusSummary(corpus) {
   return {
     modelKey: corpus?.modelKey || null,
+    sourceModelKey: corpus?.sourceModelKey || null,
     inputFormatVersion: corpus?.inputFormatVersion || null,
     inputHash: shortHash(corpus?.inputHash),
     dictionaryHash: shortHash(corpus?.dictionaryHash),
@@ -161,6 +241,7 @@ function packSummary(pack) {
 }
 
 async function setup(corpusJson, remoteBaseUrl, forceWasm) {
+  const spec = activeModelSpec();
   if (setupInProgress) {
     logInfo("setup request ignored because setup is already active");
     return status();
@@ -169,12 +250,14 @@ async function setup(corpusJson, remoteBaseUrl, forceWasm) {
   try {
     const corpus = normalizeCorpus(JSON.parse(corpusJson));
     logInfo("setup started", {
+      modelKey: spec.modelKey,
+      modelLabel: spec.label,
       remoteBaseUrl,
       corpus: corpusSummary(corpus),
     });
     await requestPersistentStorage();
     await checkQuota(forceWasm);
-    await updateStatus("loading-model", "Downloading or opening EmbeddingGemma.");
+    await updateStatus("loading-model", `Downloading or opening ${spec.label}.`);
     await ensureModel(forceWasm);
     logInfo("query model ready", { runtime: activeQueryRuntime() });
     await checkQuota(forceWasm);
@@ -207,9 +290,10 @@ async function setup(corpusJson, remoteBaseUrl, forceWasm) {
 }
 
 async function status() {
-  const meta = await getMeta("status");
-  const pack = await getMeta("pack");
-  const storedModelRuntime = modelRuntime || await getMeta("modelRuntime");
+  const spec = activeModelSpec();
+  const meta = activeStatusMeta(await getMeta("status"));
+  const pack = activeModelPack(await getMeta("pack"));
+  const storedModelRuntime = activeStoredModelRuntime(modelRuntime || await getMeta("modelRuntime"));
   const indexBytes = await packIndexBytes(pack);
   const display = statusDisplay(meta, pack);
   if (display.rewriteStoredStatus) {
@@ -218,11 +302,10 @@ async function status() {
   return {
     status: display.status,
     detail: display.detail,
-    modelBytes: storedModelRuntime
-      ? (MODEL_SIZE_ESTIMATES[storedModelRuntime.dtype] || 0)
-      : 0,
+    modelBytes: modelBytesForRuntime(storedModelRuntime || spec.preferredRuntime),
     indexBytes,
-    modelKey: MODEL_KEY,
+    modelKey: spec.modelKey,
+    modelLabel: spec.label,
     modelDtype: storedModelRuntime?.dtype || null,
     modelDevice: storedModelRuntime?.device || null,
     packId: pack?.packId || null,
@@ -249,8 +332,16 @@ function statusDisplay(meta, pack) {
       rewriteStoredStatus: true,
     };
   }
+  if (!pack && meta?.status === "ready") {
+    return {
+      status: "not-installed",
+      detail: "No browser embedding index is installed for the selected model.",
+      progress: null,
+      rewriteStoredStatus: true,
+    };
+  }
   return {
-    status: pack ? (meta?.status || "ready") : (meta?.status || "not-installed"),
+    status: pack ? (meta?.status || "ready") : (meta?.status === "error" ? "error" : "not-installed"),
     detail: meta?.detail || (pack
       ? "Embedding index is cached in this browser."
       : "No browser embedding index is installed."),
@@ -282,7 +373,7 @@ async function search(corpusId, query, limit, kindFiltersJson, forceWasm) {
   const kindFilters = parseStringArray(kindFiltersJson)
     .map(normalizeWordTypeFilter)
     .filter((value) => value.length > 0);
-  const pack = await getMeta("pack");
+  const pack = activeModelPack(await getMeta("pack"));
   if (!pack) {
     return {
       hits: [],
@@ -302,7 +393,7 @@ async function search(corpusId, query, limit, kindFiltersJson, forceWasm) {
       message: "The cached embedding pack does not include word-type metadata. Remove and download embeddings again.",
     };
   }
-  const storedRuntime = modelRuntime || await getMeta("modelRuntime");
+  const storedRuntime = activeStoredModelRuntime(modelRuntime || await getMeta("modelRuntime"));
   if (storedRuntime && !packCompatibleWithRuntime(pack, queryRuntimeFromModelRuntime(storedRuntime))) {
     return {
       hits: [],
@@ -317,53 +408,99 @@ async function search(corpusId, query, limit, kindFiltersJson, forceWasm) {
       message: "The cached embedding pack was built for a different browser embedding runtime. Open Settings and update embeddings.",
     };
   }
-  const queryEmbedding = await embedTexts([QUERY_PREFIX + trimmedQuery]);
+  const queryEmbedding = await embedTexts([activeModelSpec().queryPrefix + trimmedQuery]);
   const vectors = await readCorpusVectors(corpus);
   const hits = rankHits(vectors, queryEmbedding[0], corpus.items, corpus.dimensions, limit, kindFilters);
   return { hits, message: hits.length === 0 ? "No matches found." : null };
 }
 
 async function ensureModel(forceWasm = false) {
-  if (tokenizerPromise === null) {
-    tokenizerPromise = AutoTokenizer.from_pretrained(MODEL_ID);
+  if (modelLoadPromise === null) {
+    modelLoadPromise = loadTokenizerAndModel(forceWasm);
   }
-  if (modelPromise === null) {
-    modelPromise = loadModelWithFallback(forceWasm);
-  }
-  const [tokenizer, model] = await Promise.all([tokenizerPromise, modelPromise]);
-  return { tokenizer, model };
+  return modelLoadPromise;
+}
+
+async function loadTokenizerAndModel(forceWasm = false) {
+  const spec = activeModelSpec();
+  return withTransformersSource(spec, async () => {
+    const tokenizerPromise = AutoTokenizer.from_pretrained(spec.modelId);
+    const modelPromise = loadModelWithFallback(forceWasm);
+    const [tokenizer, model] = await Promise.all([tokenizerPromise, modelPromise]);
+    return { tokenizer, model };
+  });
 }
 
 async function loadModelWithFallback(forceWasm = false) {
-  if (!forceWasm && await hasUsableWebGpu()) {
-    try {
-      await updateStatus("loading-model", "Opening EmbeddingGemma Q4 with WebGPU.");
-      const model = await AutoModel.from_pretrained(MODEL_ID, {
-        dtype: PREFERRED_MODEL_DTYPE,
-        device: "webgpu",
-        progress_callback: modelProgressCallback(PREFERRED_MODEL_DTYPE, "webgpu"),
-      });
-      modelRuntime = { dtype: PREFERRED_MODEL_DTYPE, device: "webgpu" };
-      await putMeta("modelRuntime", modelRuntime);
-      return model;
-    } catch (error) {
-      const webGpuErrorMessage = errorMessage(error);
-      await updateStatus(
-        "loading-model",
-        `WebGPU Q4 failed; restarting embedding worker for CPU/WASM Q8. ${webGpuErrorMessage}`,
-      );
-      throw new RetryWithWasmError(webGpuErrorMessage);
+  const spec = activeModelSpec();
+  const preferred = spec.preferredRuntime;
+  if (!forceWasm && preferred.device === "webgpu") {
+    if (!await hasUsableWebGpu()) {
+      if (!spec.fallbackRuntime) {
+        throw new Error(`${spec.label} ${preferred.dtype}/webgpu requires WebGPU, but no WebGPU adapter is available.`);
+      }
+    } else {
+      try {
+        return await loadModelRuntime(spec, preferred);
+      } catch (error) {
+        if (!spec.fallbackRuntime || !spec.retryWebGpuWithFallbackWorker) {
+          throw error;
+        }
+        const webGpuErrorMessage = errorMessage(error);
+        await updateStatus(
+          "loading-model",
+          `WebGPU ${preferred.dtype} failed; restarting embedding worker for CPU/WASM ${spec.fallbackRuntime.dtype}. ${webGpuErrorMessage}`,
+        );
+        throw new RetryWithWasmError(webGpuErrorMessage);
+      }
     }
+  } else if (!forceWasm) {
+    return loadModelRuntime(spec, preferred);
   }
-  await updateStatus("loading-model", "Opening EmbeddingGemma Q8 with CPU/WASM.");
-  const model = await AutoModel.from_pretrained(MODEL_ID, {
-    dtype: FALLBACK_MODEL_DTYPE,
-    device: "wasm",
-    progress_callback: modelProgressCallback(FALLBACK_MODEL_DTYPE, "wasm"),
+  if (!spec.fallbackRuntime) {
+    return loadModelRuntime(spec, preferred);
+  }
+  return loadModelRuntime(spec, spec.fallbackRuntime);
+}
+
+async function loadModelRuntime(spec, runtime) {
+  await updateStatus(
+    "loading-model",
+    `Opening ${spec.label} ${runtime.dtype} with ${runtime.deviceName || runtime.device}.`,
+  );
+  const model = await AutoModel.from_pretrained(spec.modelId, {
+    dtype: runtime.dtype,
+    device: runtime.device,
+    progress_callback: modelProgressCallback(spec, runtime),
   });
-  modelRuntime = { dtype: FALLBACK_MODEL_DTYPE, device: "wasm" };
+  modelRuntime = { modelKey: spec.modelKey, dtype: runtime.dtype, device: runtime.device };
   await putMeta("modelRuntime", modelRuntime);
   return model;
+}
+
+async function withTransformersSource(spec, body) {
+  const previous = {
+    remoteHost: env.remoteHost,
+    remotePathTemplate: env.remotePathTemplate,
+    allowRemoteModels: env.allowRemoteModels,
+  };
+  const source = spec.transformersSource;
+  if (source) {
+    env.remoteHost = source.remoteHost;
+    env.remotePathTemplate = source.remotePathTemplate;
+    env.allowRemoteModels = true;
+  } else {
+    env.remoteHost = DEFAULT_TRANSFORMERS_SOURCE.remoteHost;
+    env.remotePathTemplate = DEFAULT_TRANSFORMERS_SOURCE.remotePathTemplate;
+    env.allowRemoteModels = DEFAULT_TRANSFORMERS_SOURCE.allowRemoteModels;
+  }
+  try {
+    return await body();
+  } finally {
+    env.remoteHost = previous.remoteHost;
+    env.remotePathTemplate = previous.remotePathTemplate;
+    env.allowRemoteModels = previous.allowRemoteModels;
+  }
 }
 
 async function hasUsableWebGpu() {
@@ -378,30 +515,31 @@ async function hasUsableWebGpu() {
   }
 }
 
-function modelProgressCallback(dtype, device) {
+function modelProgressCallback(spec, runtime) {
   return (progress) => {
     if (!progress || typeof progress !== "object") {
       return;
     }
     const file = progress.file ? ` ${progress.file}` : "";
+    const runtimeLabel = `${spec.label} ${runtime.dtype}/${runtime.device}`;
     if (progress.status === "progress" && progress.total) {
       const percent = Math.round((progress.loaded / progress.total) * 100);
       void updateStatus(
         "downloading-model",
-        `Downloading EmbeddingGemma ${dtype}/${device}${file}: ${percent}%.`,
-        progressValue("model", `EmbeddingGemma ${dtype}/${device}`, progress.loaded, progress.total),
+        `Downloading ${runtimeLabel}${file}: ${percent}%.`,
+        progressValue("model", runtimeLabel, progress.loaded, progress.total),
       ).catch(() => {});
     } else if (progress.status === "download") {
       void updateStatus(
         "downloading-model",
-        `Downloading EmbeddingGemma ${dtype}/${device}${file}.`,
-        indeterminateProgress("model", `EmbeddingGemma ${dtype}/${device}`),
+        `Downloading ${runtimeLabel}${file}.`,
+        indeterminateProgress("model", runtimeLabel),
       ).catch(() => {});
     } else if (progress.status === "ready") {
       void updateStatus(
         "loading-model",
-        `EmbeddingGemma ${dtype}/${device} is ready.`,
-        progressValue("model", `EmbeddingGemma ${dtype}/${device}`, 1, 1),
+        `${runtimeLabel} is ready.`,
+        progressValue("model", runtimeLabel, 1, 1),
       ).catch(() => {});
     }
   };
@@ -416,8 +554,10 @@ function isRetryWithWasmError(error) {
 }
 
 function normalizeCorpus(raw) {
+  const spec = activeModelSpec();
   const corpus = {
     modelKey: raw?.modelKey || raw?.model_key || raw?.["model-key"] || "",
+    sourceModelKey: raw?.modelKey || raw?.model_key || raw?.["model-key"] || "",
     modelRevision: raw?.modelRevision || raw?.model_revision || "",
     inputFormatVersion: raw?.inputFormatVersion || raw?.input_format_version || "",
     inputHash: raw?.inputHash || raw?.input_hash || "",
@@ -426,8 +566,15 @@ function normalizeCorpus(raw) {
     dictionary: normalizeInputDocuments(raw?.dictionary || [], "dictionary"),
     cll: normalizeInputDocuments(raw?.cll || [], "cll"),
   };
-  if (corpus.modelKey !== MODEL_KEY) {
-    throw new Error(`unsupported browser corpus model key: ${corpus.modelKey || "missing"}`);
+  if (corpus.modelKey !== spec.modelKey) {
+    if (corpus.modelKey !== EMBEDDING_GEMMA_MODEL_KEY) {
+      throw new Error(`unsupported browser corpus model key: ${corpus.modelKey || "missing"}`);
+    }
+    logInfo("using exported embedding corpus text with selected browser model", {
+      corpusModelKey: corpus.modelKey,
+      selectedModelKey: spec.modelKey,
+    });
+    corpus.modelKey = spec.modelKey;
   }
   for (const [name, value] of [
     ["modelRevision", corpus.modelRevision],
@@ -489,6 +636,7 @@ function normalizeRemoteItems(items, corpusId) {
 }
 
 async function embedTexts(texts, progressContext = null) {
+  const spec = activeModelSpec();
   const { tokenizer, model } = await ensureModel();
   const output = [];
   if (progressContext !== null) {
@@ -498,17 +646,21 @@ async function embedTexts(texts, progressContext = null) {
       progressValue("index", progressContext.label, 0, texts.length),
     );
   }
-  for (let start = 0; start < texts.length; start += EMBED_BATCH_SIZE) {
-    const batch = texts.slice(start, start + EMBED_BATCH_SIZE);
+  for (let start = 0; start < texts.length; start += spec.embedBatchSize) {
+    const batch = texts.slice(start, start + spec.embedBatchSize);
     const inputs = await tokenizer(batch, {
       padding: true,
       truncation: true,
-      max_length: MAX_SEQUENCE_LENGTH,
+      max_length: spec.maxSequenceLength,
     });
     const result = await model(inputs);
-    const rows = await result.sentence_embedding.tolist();
-    for (const row of rows) {
-      const vector = Float32Array.from(row);
+    const rows = await vectorsFromModelOutput(spec, result, inputs);
+    for (const vector of rows) {
+      if (vector.length !== spec.dimensions) {
+        throw new Error(
+          `${spec.label} embedding dimension mismatch: expected ${spec.dimensions}, got ${vector.length}`,
+        );
+      }
       normalize(vector);
       output.push(vector);
     }
@@ -524,14 +676,67 @@ async function embedTexts(texts, progressContext = null) {
   return output;
 }
 
+async function vectorsFromModelOutput(spec, result, inputs) {
+  if (spec.outputPooling === "sentence_embedding") {
+    if (!result.sentence_embedding?.tolist) {
+      throw new Error(`${spec.label} did not return sentence_embedding`);
+    }
+    const rows = await result.sentence_embedding.tolist();
+    return rows.map((row) => Float32Array.from(row));
+  }
+  if (spec.outputPooling === "last_token") {
+    return lastTokenEmbeddings(spec, result, inputs);
+  }
+  throw new Error(`unsupported embedding pooling strategy: ${spec.outputPooling}`);
+}
+
+function lastTokenEmbeddings(spec, result, inputs) {
+  const hidden = result.last_hidden_state;
+  if (!hidden?.data || !Array.isArray(hidden.dims) || hidden.dims.length !== 3) {
+    throw new Error(`${spec.label} did not return a [batch, sequence, hidden] last_hidden_state`);
+  }
+  const [batchSize, sequenceLength, dimensions] = hidden.dims.map((value) => Number(value));
+  if (dimensions !== spec.dimensions) {
+    throw new Error(`${spec.label} hidden size mismatch: expected ${spec.dimensions}, got ${dimensions}`);
+  }
+  const mask = inputs.attention_mask;
+  if (!mask?.data || !Array.isArray(mask.dims) || mask.dims.length !== 2) {
+    throw new Error(`${spec.label} tokenizer did not return a [batch, sequence] attention mask`);
+  }
+  if (Number(mask.dims[0]) !== batchSize || Number(mask.dims[1]) !== sequenceLength) {
+    throw new Error(`${spec.label} attention mask shape does not match last_hidden_state`);
+  }
+  const hiddenData = hidden.data;
+  const maskData = mask.data;
+  const rows = [];
+  for (let batch = 0; batch < batchSize; batch += 1) {
+    let tokenCount = 0;
+    const maskBase = batch * sequenceLength;
+    for (let token = 0; token < sequenceLength; token += 1) {
+      if (Number(maskData[maskBase + token]) !== 0) {
+        tokenCount += 1;
+      }
+    }
+    const lastToken = Math.max(0, tokenCount - 1);
+    const hiddenBase = (batch * sequenceLength + lastToken) * dimensions;
+    const vector = new Float32Array(dimensions);
+    for (let dim = 0; dim < dimensions; dim += 1) {
+      vector[dim] = Number(hiddenData[hiddenBase + dim]);
+    }
+    rows.push(vector);
+  }
+  return rows;
+}
+
 async function buildLocalPack(corpus) {
-  if (corpus.modelKey !== MODEL_KEY) {
+  const spec = activeModelSpec();
+  if (corpus.modelKey !== spec.modelKey) {
     throw new Error(`unsupported browser corpus model key: ${corpus.modelKey || "missing"}`);
   }
   const runtime = activeQueryRuntime();
-  const vectorSpaceKey = `${LOCAL_VECTOR_SPACE_PREFIX}-${runtime.dtype}`;
+  const vectorSpaceKey = `${spec.localVectorSpacePrefix}-${runtime.dtype}`;
   const packId = `${vectorSpaceKey}-${shortHash(corpus.inputHash)}`;
-  const existing = await getMeta("pack");
+  const existing = activeModelPack(await getMeta("pack"));
   if (cachedPackMatchesCorpus(existing, corpus, runtime, vectorSpaceKey)) {
     logInfo("existing browser-local vector pack is already current", {
       pack: packSummary(existing),
@@ -565,7 +770,7 @@ async function buildLocalPack(corpus) {
   await putMeta("pack", {
     source: "browser",
     packId,
-    modelKey: MODEL_KEY,
+    modelKey: spec.modelKey,
     inputHash: corpus.inputHash,
     inputFormatVersion: corpus.inputFormatVersion,
     vectorSpaceKey,
@@ -582,6 +787,7 @@ async function buildLocalPack(corpus) {
 }
 
 async function buildLocalCorpus(corpusId, docs, inputHash, packId, reusableCorpus) {
+  const spec = activeModelSpec();
   await updateStatus(
     "indexing",
     `Preparing ${corpusId} embeddings in this browser.`,
@@ -594,7 +800,7 @@ async function buildLocalCorpus(corpusId, docs, inputHash, packId, reusableCorpu
     inputHash: shortHash(inputHash),
     reusableRows: reusableRows.size,
   });
-  const vectors = new Float32Array(docs.length * DIMENSIONS);
+  const vectors = new Float32Array(docs.length * spec.dimensions);
   const pendingDocs = [];
   const pendingRows = [];
   let reused = 0;
@@ -602,7 +808,7 @@ async function buildLocalCorpus(corpusId, docs, inputHash, packId, reusableCorpu
     const doc = docs[row];
     const reusedVector = reusableRows.get(doc.inputHash);
     if (reusedVector) {
-      vectors.set(reusedVector, row * DIMENSIONS);
+      vectors.set(reusedVector, row * spec.dimensions);
       reused += 1;
     } else {
       pendingDocs.push(doc);
@@ -620,10 +826,10 @@ async function buildLocalCorpus(corpusId, docs, inputHash, packId, reusableCorpu
       { label: corpusId },
     );
     for (let index = 0; index < embeddings.length; index += 1) {
-      vectors.set(embeddings[index], pendingRows[index] * DIMENSIONS);
+      vectors.set(embeddings[index], pendingRows[index] * spec.dimensions);
     }
   }
-  const vectorKey = `local/${MODEL_KEY}/${packId}/${corpusId}/vectors.f32`;
+  const vectorKey = `local/${spec.modelKey}/${packId}/${corpusId}/vectors.f32`;
   await putBinary(vectorKey, vectors.buffer);
   await updateStatus(
     "indexing",
@@ -634,7 +840,7 @@ async function buildLocalCorpus(corpusId, docs, inputHash, packId, reusableCorpu
     corpusId,
     inputHash,
     rowCount: docs.length,
-    dimensions: DIMENSIONS,
+    dimensions: spec.dimensions,
     items: docs.map((doc, row) => ({
       id: doc.id,
       row,
@@ -646,12 +852,13 @@ async function buildLocalCorpus(corpusId, docs, inputHash, packId, reusableCorpu
 }
 
 async function reusableRowsByInputHash(corpus) {
+  const spec = activeModelSpec();
   const rows = new Map();
-  if (!corpus || corpus.dimensions !== DIMENSIONS || !Array.isArray(corpus.items)) {
+  if (!corpus || corpus.dimensions !== spec.dimensions || !Array.isArray(corpus.items)) {
     return rows;
   }
   const vectors = await readCorpusVectors(corpus).catch(() => null);
-  if (!vectors || vectors.length < corpus.items.length * DIMENSIONS) {
+  if (!vectors || vectors.length < corpus.items.length * spec.dimensions) {
     return rows;
   }
   for (const item of corpus.items) {
@@ -662,13 +869,20 @@ async function reusableRowsByInputHash(corpus) {
     if (!Number.isInteger(row) || row < 0) {
       continue;
     }
-    rows.set(item.inputHash, vectors.slice(row * DIMENSIONS, (row + 1) * DIMENSIONS));
+    rows.set(item.inputHash, vectors.slice(row * spec.dimensions, (row + 1) * spec.dimensions));
   }
   return rows;
 }
 
 async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
+  const spec = activeModelSpec();
   const runtime = activeQueryRuntime();
+  if (!spec.remoteVectorPacks) {
+    return remoteMiss("model-has-no-remote-vector-packs", {
+      modelKey: spec.modelKey,
+      modelLabel: spec.label,
+    });
+  }
   logInfo("looking for remote vector pack", {
     remoteBaseUrl,
     runtime,
@@ -706,7 +920,7 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
   if (manifestIssue !== null) {
     return remoteMiss("manifest-incompatible", manifestIssue);
   }
-  const existing = await getMeta("pack");
+  const existing = activeModelPack(await getMeta("pack"));
   if (
     existing?.source === "remote"
     && existing.packId === manifest.pack_id
@@ -776,7 +990,7 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
       throw new Error(`remote vector file ${corpusManifest.vector_url} has the wrong size`);
     }
     await verifySha256(bytes, corpusManifest.vector_sha256, corpusManifest.vector_url);
-    const key = `remote/${MODEL_KEY}/${manifest.vector_space_key}/${manifest.pack_id}/${corpusManifest.corpus_id}/vectors.f32`;
+    const key = `remote/${spec.modelKey}/${manifest.vector_space_key}/${manifest.pack_id}/${corpusManifest.corpus_id}/vectors.f32`;
     await putBinary(key, bytes);
     logInfo("cached remote corpus vectors", {
       corpusId: corpusManifest.corpus_id,
@@ -796,7 +1010,7 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
   const pack = {
     source: "remote",
     packId: manifest.pack_id,
-    modelKey: MODEL_KEY,
+    modelKey: spec.modelKey,
     inputHash: manifest.input_hash,
     inputFormatVersion: manifest.input_format_version,
     vectorSpaceKey: manifest.vector_space_key,
@@ -812,7 +1026,8 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
 }
 
 function selectCatalogVectorSpace(catalog, runtime) {
-  const model = (catalog.models || []).find((item) => item.model_key === MODEL_KEY);
+  const modelKey = activeModelSpec().modelKey;
+  const model = (catalog.models || []).find((item) => item.model_key === modelKey);
   if (!model) {
     return null;
   }
@@ -872,12 +1087,13 @@ function manifestSummary(manifest) {
 }
 
 function manifestCompatibilityIssue(manifest, corpus, runtime) {
+  const spec = activeModelSpec();
   for (const [field, actual, expected] of [
     ["schema_version", manifest.schema_version, 1],
-    ["model_key", manifest.model_key, MODEL_KEY],
+    ["model_key", manifest.model_key, spec.modelKey],
     ["input_hash", manifest.input_hash, corpus.inputHash],
     ["input_format_version", manifest.input_format_version, corpus.inputFormatVersion],
-    ["dimensions", manifest.dimensions, DIMENSIONS],
+    ["dimensions", manifest.dimensions, spec.dimensions],
     ["element_type", manifest.element_type, "f32le"],
     ["normalized", manifest.normalized, true],
     ["distance", manifest.distance, "dot"],
@@ -909,6 +1125,7 @@ function manifestCompatibilityIssue(manifest, corpus, runtime) {
 }
 
 function corpusManifestCompatibilityIssue(corpusManifest, corpus) {
+  const spec = activeModelSpec();
   const expectedHash = corpusManifest.corpus_id === "vlacku-en"
     ? corpus.dictionaryHash
     : corpusManifest.corpus_id === "cukta-cll"
@@ -925,8 +1142,8 @@ function corpusManifestCompatibilityIssue(corpusManifest, corpus) {
   }
   for (const [field, actual, expected] of [
     ["input_hash", corpusManifest.input_hash, expectedHash],
-    ["dimensions", corpusManifest.dimensions, DIMENSIONS],
-    ["vector_byte_len", corpusManifest.vector_byte_len, corpusManifest.row_count * DIMENSIONS * 4],
+    ["dimensions", corpusManifest.dimensions, spec.dimensions],
+    ["vector_byte_len", corpusManifest.vector_byte_len, corpusManifest.row_count * spec.dimensions * 4],
   ]) {
     if (actual !== expected) {
       return {
@@ -952,12 +1169,13 @@ function summarizeCompatibilityValue(value) {
 function runtimeMatches(candidate, runtime) {
   return candidate?.runtime === "transformers.js"
     && candidate?.dtype === runtime.dtype
+    && (!candidate.device || candidate.device === runtime.device)
     && (!candidate.version || candidate.version === TRANSFORMERS_VERSION);
 }
 
 function activeQueryRuntime() {
   if (!modelRuntime) {
-    throw new Error("EmbeddingGemma query model is not loaded");
+    throw new Error(`${activeModelSpec().label} query model is not loaded`);
   }
   return queryRuntimeFromModelRuntime(modelRuntime);
 }
@@ -971,8 +1189,39 @@ function queryRuntimeFromModelRuntime(runtime) {
   };
 }
 
+function activeModelPack(pack) {
+  return pack?.modelKey === activeModelSpec().modelKey ? pack : null;
+}
+
+function activeStoredModelRuntime(runtime) {
+  if (!runtime) {
+    return null;
+  }
+  const spec = activeModelSpec();
+  if (runtime.modelKey) {
+    return runtime.modelKey === spec.modelKey ? runtime : null;
+  }
+  return spec.modelKey === EMBEDDING_GEMMA_MODEL_KEY ? runtime : null;
+}
+
+function activeStatusMeta(meta) {
+  if (!meta) {
+    return null;
+  }
+  const spec = activeModelSpec();
+  if (meta.modelKey) {
+    return meta.modelKey === spec.modelKey ? meta : null;
+  }
+  return spec.modelKey === EMBEDDING_GEMMA_MODEL_KEY ? meta : null;
+}
+
+function modelBytesForRuntime(runtime) {
+  const spec = activeModelSpec();
+  return spec.modelSizeEstimates[runtime?.dtype] || 0;
+}
+
 function packCompatibleWithRuntime(pack, runtime) {
-  if (!pack || pack.modelKey !== MODEL_KEY) {
+  if (!pack || pack.modelKey !== activeModelSpec().modelKey) {
     return false;
   }
   const runtimes = pack.compatibleQueryRuntimes || (pack.runtime ? [pack.runtime] : []);
@@ -981,6 +1230,7 @@ function packCompatibleWithRuntime(pack, runtime) {
 
 function cachedPackMatchesCorpus(pack, corpus, runtime, vectorSpaceKey) {
   return pack?.source === "browser"
+    && pack.modelKey === activeModelSpec().modelKey
     && pack.inputHash === corpus.inputHash
     && pack.inputFormatVersion === corpus.inputFormatVersion
     && pack.vectorSpaceKey === vectorSpaceKey
@@ -1340,16 +1590,16 @@ async function checkQuota(forceWasm = false) {
   if (!navigator.storage?.estimate) {
     return;
   }
+  const spec = activeModelSpec();
   const estimate = await navigator.storage.estimate();
   const usage = estimate.usage || 0;
   const quota = estimate.quota || 0;
-  const expectsPreferredModel = modelRuntime?.dtype === PREFERRED_MODEL_DTYPE
-    || (!modelRuntime && !forceWasm && await hasUsableWebGpu());
-  const minimum = expectsPreferredModel
-    ? Q4_MIN_FREE_BYTES
-    : Q8_MIN_FREE_BYTES;
+  const runtime = activeStoredModelRuntime(modelRuntime);
+  const expectedRuntime = runtime
+    || (forceWasm && spec.fallbackRuntime ? spec.fallbackRuntime : spec.preferredRuntime);
+  const minimum = spec.minFreeBytesByDtype[expectedRuntime.dtype] || 0;
   if (quota > 0 && quota - usage < minimum) {
-    throw new Error("not enough browser storage quota for the EmbeddingGemma model and vector index");
+    throw new Error(`not enough browser storage quota for the ${spec.label} model and vector index`);
   }
 }
 
@@ -1367,7 +1617,13 @@ async function packIndexBytes(pack) {
 }
 
 async function updateStatus(status, detail, progress = null) {
-  await putMeta("status", { status, detail, progress, updatedAt: Date.now() });
+  await putMeta("status", {
+    status,
+    detail,
+    progress,
+    modelKey: activeModelSpec().modelKey,
+    updatedAt: Date.now(),
+  });
 }
 
 function progressValue(kind, label, loaded, total) {

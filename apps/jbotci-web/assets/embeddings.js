@@ -1,8 +1,15 @@
 const DEFAULT_REMOTE_BASE_URL = "/assets/embeddings/web/v1";
 const LOG_PREFIX = "[jbotci embeddings]";
+const EMBEDDING_GEMMA_MODEL_KEY = "embedding-gemma-300m-q4-768";
+const F2LLM_MODEL_KEY = "f2llm-v2-80m-q4-320";
+const SUPPORTED_MODEL_KEYS = new Set([
+  EMBEDDING_GEMMA_MODEL_KEY,
+  F2LLM_MODEL_KEY,
+]);
 
 let configuredWorkerUrl = null;
 let configuredRemoteBaseUrl = DEFAULT_REMOTE_BASE_URL;
+let configuredModelKey = null;
 let worker = null;
 let forceWasm = false;
 let nextRequestId = 1;
@@ -96,6 +103,23 @@ function ensureWorker() {
   return worker;
 }
 
+function defaultModelKey() {
+  return isAppleMobileDevice() ? F2LLM_MODEL_KEY : EMBEDDING_GEMMA_MODEL_KEY;
+}
+
+function activeModelKey() {
+  return configuredModelKey || defaultModelKey();
+}
+
+function isAppleMobileDevice() {
+  const userAgent = globalThis.navigator?.userAgent || "";
+  const platform = globalThis.navigator?.userAgentData?.platform
+    || globalThis.navigator?.platform
+    || "";
+  return /\b(iPhone|iPad|iPod)\b/i.test(userAgent)
+    || (platform === "MacIntel" && Number(globalThis.navigator?.maxTouchPoints || 0) > 1);
+}
+
 export function jbotciEmbeddingConfigureWorker(workerUrl) {
   if (typeof workerUrl !== "string" || workerUrl.length === 0) {
     throw new Error("embedding worker URL is empty");
@@ -121,14 +145,39 @@ export function jbotciEmbeddingConfigureRemoteBase(remoteBaseUrl) {
   logInfo("configured remote base URL", { remoteBaseUrl: configuredRemoteBaseUrl });
 }
 
+export function jbotciEmbeddingConfigureModel(modelKey) {
+  if (typeof modelKey !== "string" || modelKey.trim().length === 0) {
+    throw new Error("embedding model key is empty");
+  }
+  const nextModelKey = modelKey.trim();
+  if (!SUPPORTED_MODEL_KEYS.has(nextModelKey)) {
+    throw new Error(`unsupported embedding model key: ${nextModelKey}`);
+  }
+  if (configuredModelKey === nextModelKey) {
+    return;
+  }
+  configuredModelKey = nextModelKey;
+  forceWasm = false;
+  logInfo("configured model", { modelKey: configuredModelKey });
+  if (worker !== null) {
+    terminateWorker("embedding model changed");
+  }
+}
+
+export function jbotciEmbeddingPreferredModelKey() {
+  return activeModelKey();
+}
+
 function sendRequest(type, payload = {}) {
   return new Promise((resolve, reject) => {
     const id = nextRequestId++;
     const remoteBaseUrl = payload.remoteBaseUrl || configuredRemoteBaseUrl;
     const requestForceWasm = payload.forceWasm === true || forceWasm;
+    const modelKey = payload.modelKey || activeModelKey();
     if (type === "setup") {
       logInfo("sending setup request", {
         id,
+        modelKey,
         remoteBaseUrl,
         forceWasm: requestForceWasm,
         corpusJsonBytes: typeof payload.corpusJson === "string" ? payload.corpusJson.length : 0,
@@ -139,7 +188,7 @@ function sendRequest(type, payload = {}) {
       ensureWorker().postMessage({
         id,
         type,
-        payload: { ...payload, remoteBaseUrl, forceWasm: requestForceWasm },
+        payload: { ...payload, modelKey, remoteBaseUrl, forceWasm: requestForceWasm },
       });
     } catch (error) {
       pending.delete(id);
