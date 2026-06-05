@@ -4739,12 +4739,13 @@ mod tests {
         assert!(run.stdout.is_empty());
         assert!(run.stderr.contains("morphology.invalid-zoi-delimiter"));
         assert!(run.stderr.contains("ZOI requires an"));
+        let compact_stderr = run.stderr.split_whitespace().collect::<Vec<_>>().join(" ");
         assert!(
-            run.stderr
+            compact_stderr
                 .contains("opening delimiter word after the quote marker")
         );
         assert!(
-            !run.stderr
+            !compact_stderr
                 .contains("reason: ZOI delimiter must be a single non-y word")
         );
     }
@@ -5343,17 +5344,17 @@ mod tests {
             assert!(stderr.contains("selbri"));
             assert!(stderr.contains("{be}"));
             assert!(stderr.contains("BRIVLA"));
-            assert!(stderr.contains("[ends selbri, statement, or text]"));
-            assert!(!stderr.contains("end of input (end of input)"));
             let compact_stderr = stderr.split_whitespace().collect::<Vec<_>>().join(" ");
+            assert!(compact_stderr.contains("[ends selbri, bridi, statement, or text]"));
+            assert!(!stderr.contains("end of input (end of input)"));
             let free_modifier = compact_stderr
                 .find("- metalinguistic comment")
                 .expect("free modifier subtype group");
             let sumti = compact_stderr.find("- sumti").expect("sumti group");
             let selbri = compact_stderr
-                .find("[continues selbri]")
+                .find("continues selbri]")
                 .expect("selbri continuation group");
-            let end = compact_stderr.find("[ends selbri").expect("end group");
+            let end = compact_stderr.find("ends selbri, bridi").expect("end group");
             assert!(free_modifier < sumti);
             assert!(sumti < selbri);
             assert!(selbri < end);

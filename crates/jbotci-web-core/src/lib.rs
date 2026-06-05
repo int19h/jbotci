@@ -145,8 +145,6 @@ pub struct GentufaWebRequest {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
-#[invariant(::Png => true)]
-#[invariant(::Svg => true)]
 pub enum GentufaExportFormat {
     Png,
     Svg,

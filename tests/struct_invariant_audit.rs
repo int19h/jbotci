@@ -12,10 +12,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "server state is assembled by ServerConfig and contains shared immutable assets",
     ),
     (
-        "apps/jbotci-server/src/lib.rs:Cli",
-        "server CLI root delegates input validation to clap",
-    ),
-    (
         "apps/jbotci-server/src/lib.rs:HealthResponse",
         "health payload is a fixed transport shape",
     ),
@@ -94,6 +90,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-web/src/main.rs:PendingLocalRouteWrites",
         "pending route writes are transient browser navigation synchronization state normalized by record and consume helpers",
+    ),
+    (
+        "apps/jbotci-web/src/main.rs:RouteLocationSyncAction",
+        "route sync action pairs parsed route state with a hydration flag derived by browser navigation handlers",
     ),
     (
         "apps/jbotci-web/src/main.rs:GentufaAsyncPageState",
@@ -644,6 +644,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "source character pairs one char with its byte position",
     ),
     (
+        "crates/jbotci-morphology/src/segment.rs:LujvoParseFailure",
+        "private lujvo parse failure records the furthest parse position with a closed expectation enum",
+    ),
+    (
         "crates/jbotci-morphology/src/lib.rs:PhonemeRenderOptions",
         "render options are independent booleans with no cross-field invariant",
     ),
@@ -798,6 +802,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-web-core/src/lib.rs:GentufaWebRequest",
         "web request is a serde transport envelope validated by the parser entry point",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaWebExport",
+        "web export is renderer transport data assembled only after SVG or PNG export succeeds",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaWebExportRequest",
+        "web export request combines validated route state with a closed script selector",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:DictionaryTooltipCard",
@@ -1180,6 +1192,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "parse options are independent caller-selected controls",
     ),
     (
+        "crates/jbotci-syntax/src/lib.rs:SyntaxConstructMetadata",
+        "syntax construct metadata is a static parser table consumed by trace formatting",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParsedStatementAttempt",
         "syntax attempt combines parser result with optional trace report without extra cross-field constraints",
     ),
@@ -1344,10 +1360,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "runner summary is derived reporting data",
     ),
     (
-        "xtask/src/main.rs:CachedExport",
-        "xtask cache entry mirrors fixture export metadata",
-    ),
-    (
         "crates/jbotci-dictionary-data/build.rs:DictionaryMetadata",
         "vendored Lensisku metadata is validated against dictionary contents and hashes in the build script",
     ),
@@ -1360,104 +1372,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask CLI root delegates input validation to clap",
     ),
     (
-        "xtask/src/main.rs:DebugMatchWriter",
-        "debug writer carries expected lines and write position state",
-    ),
-    (
-        "xtask/src/main.rs:DebugPrefixWriter",
-        "debug writer carries indentation state",
-    ),
-    (
-        "xtask/src/main.rs:DictionaryMetadata",
-        "dictionary metadata borrows Cargo-provided output paths",
-    ),
-    (
-        "xtask/src/main.rs:FieldLengths",
-        "field length counters are derived statistics",
-    ),
-    (
-        "xtask/src/main.rs:FixtureImportArgs",
-        "xtask command args delegate validation to clap and command code",
-    ),
-    (
-        "xtask/src/main.rs:FixtureRewriteArgs",
-        "xtask command args delegate validation to clap and command code",
-    ),
-    (
-        "xtask/src/main.rs:FixtureRunArgs",
-        "xtask command args delegate validation to clap and command code",
-    ),
-    (
         "xtask/src/main.rs:DistServerArgs",
         "xtask dist-server args delegate validation to clap defaults and command code",
     ),
     (
-        "xtask/src/main.rs:BuildWebReleaseArgs",
-        "xtask web release args delegate validation to clap defaults and command code",
+        "xtask/src/main.rs:RenderDockerBuildArgs",
+        "xtask render Docker build args delegate validation to clap defaults and command code",
     ),
     (
-        "xtask/src/main.rs:ExportWebEmbeddingCorpusArgs",
-        "xtask web embedding corpus export args delegate validation to clap defaults and command code",
-    ),
-    (
-        "xtask/src/main.rs:BuildWebEmbeddingsArgs",
-        "xtask web embedding build args delegate validation to clap defaults and command code",
-    ),
-    (
-        "xtask/src/main.rs:RefsV0ParityArgs",
-        "xtask command args delegate validation to clap and command code",
-    ),
-    (
-        "xtask/src/main.rs:FixtureVectorStatsArgs",
-        "xtask command args delegate validation to clap and command code",
-    ),
-    (
-        "xtask/src/main.rs:LengthSummary",
-        "length summary is derived reporting data",
-    ),
-    (
-        "xtask/src/main.rs:NotImplementedBackend",
-        "placeholder backend carries no state",
-    ),
-    (
-        "xtask/src/main.rs:ParityFailures",
-        "parity failure counter owns bounded sample collection for reporting",
-    ),
-    (
-        "xtask/src/main.rs:RewriteSummary",
-        "rewrite summary is derived reporting data",
-    ),
-    (
-        "xtask/src/main.rs:VectorStats",
-        "vector stats are derived reporting data",
-    ),
-    (
-        "xtask/src/main.rs:VendorDictionaryArgs",
-        "xtask command args delegate validation to clap and command code",
-    ),
-    (
-        "xtask/src/main.rs:V0SumtiAssignmentFact",
-        "v0 parity input mirrors generated v0 JSON and is checked during comparison",
-    ),
-    (
-        "xtask/src/main.rs:V0LabelledSpan",
-        "v0 parity input mirrors generated v0 JSON and is checked during comparison",
-    ),
-    (
-        "xtask/src/main.rs:V0RefsCase",
-        "v0 parity input mirrors generated v0 JSON and is checked during comparison",
-    ),
-    (
-        "xtask/src/main.rs:V0RefsExport",
-        "v0 parity input mirrors generated v0 JSON and is checked during comparison",
-    ),
-    (
-        "xtask/src/main.rs:V0SelbriPlaceFact",
-        "v0 parity input mirrors generated v0 JSON and is checked during comparison",
-    ),
-    (
-        "xtask/src/main.rs:V0SyntaxRefs",
-        "v0 parity input mirrors generated v0 JSON and is checked during comparison",
+        "xtask/src/main.rs:RenderDockerRunArgs",
+        "xtask render Docker run args delegate validation to clap defaults and command code",
     ),
 ];
 

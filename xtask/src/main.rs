@@ -30,9 +30,6 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 #[invariant(true)]
-#[invariant(::Check => true)]
-#[invariant(::Test => true)]
-#[invariant(::Clippy => true)]
 #[invariant(::Fmt => true)]
 #[invariant(::DistServer(..) => true)]
 #[invariant(::RenderDockerBuild(..) => true)]
@@ -103,9 +100,6 @@ struct RenderDockerRunArgs {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 #[invariant(true)]
-#[invariant(::Auto => true)]
-#[invariant(::Docker => true)]
-#[invariant(::Podman => true)]
 enum ContainerEngineArg {
     Auto,
     Docker,
@@ -114,8 +108,6 @@ enum ContainerEngineArg {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
-#[invariant(::Docker => true)]
-#[invariant(::Podman => true)]
 enum ContainerEngine {
     Docker,
     Podman,

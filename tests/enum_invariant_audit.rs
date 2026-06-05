@@ -108,14 +108,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding error variant carries only an already formatted backend diagnostic message",
     ),
     (
-        "xtask/src/main.rs:Command::ExportWebEmbeddingCorpus",
-        "xtask command variant delegates validation to clap and the typed argument struct",
-    ),
-    (
-        "xtask/src/main.rs:Command::BuildWebEmbeddings",
-        "xtask command variant delegates validation to clap and the typed argument struct",
-    ),
-    (
         "crates/jbotci-jvozba/src/lib.rs:RawLujvoSegment::Rafsi",
         "internal fallback lujvo parser validates segment text before converting to Phonemes",
     ),
@@ -824,6 +816,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "IPA text chunks preserve source-derived quote text and may be empty before filtering",
     ),
     (
+        "crates/jbotci-output/src/surface.rs:DisplaySpan::LojbanWord",
+        "display spans are private renderer ranges produced from validated word spans before source-bound clipping",
+    ),
+    (
+        "crates/jbotci-output/src/surface.rs:DisplaySpan::VerbatimText",
+        "verbatim display spans are private renderer ranges produced from validated quote spans before source-bound clipping",
+    ),
+    (
         "crates/jbotci-output/src/json.rs:JsonFrame::Node",
         "JSON builder frame validity is governed by traversal sequencing",
     ),
@@ -922,6 +922,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-morphology/src/tree.rs:WordLike::PlainWord",
         "bare word-like values delegate all validity to the wrapped Word",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::Emit",
+        "private normalization event payload is constrained by normalized_emit requires and normalize_char_event ensures",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::StressPrevious",
+        "private normalization event is a unit signal with no payload to constrain",
     ),
     (
         "crates/jbotci-syntax/src/tree.rs:WithIndicators::Plain",
@@ -1116,6 +1124,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture tree validation checks custom provenance names at import time",
     ),
     (
+        "tests/support/fixtures/mod.rs:BracketExpectations::Legacy",
+        "fixture bracket expectation wrapper delegates text validity to TextExpectation and restricts script selection through accessors",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:BracketExpectations::Scripts",
+        "fixture bracket expectation wrapper delegates per-script optionality to ScriptBracketExpectations",
+    ),
+    (
         "tests/support/fixtures/mod.rs:FixtureError::Read",
         "fixture error wrapper carries filesystem diagnostics",
     ),
@@ -1164,43 +1180,15 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask command enum delegates validation to clap and option structs",
     ),
     (
-        "xtask/src/main.rs:Command::FixtureCheck",
-        "xtask command enum delegates validation to clap and option structs",
-    ),
-    (
-        "xtask/src/main.rs:Command::FixtureImport",
-        "xtask command enum delegates validation to clap and option structs",
-    ),
-    (
-        "xtask/src/main.rs:Command::FixtureList",
-        "xtask command enum delegates validation to clap and option structs",
-    ),
-    (
-        "xtask/src/main.rs:Command::FixtureRewrite",
-        "xtask command enum delegates validation to clap and option structs",
-    ),
-    (
-        "xtask/src/main.rs:Command::RefsV0Parity",
-        "xtask command enum delegates validation to clap and option structs",
-    ),
-    (
-        "xtask/src/main.rs:Command::FixtureVectorStats",
-        "xtask command enum delegates validation to clap and option structs",
-    ),
-    (
-        "xtask/src/main.rs:Command::FixtureTest",
-        "xtask command enum delegates validation to clap and option structs",
-    ),
-    (
-        "xtask/src/main.rs:Command::VendorDictionary",
-        "xtask command enum delegates validation to clap and option structs",
-    ),
-    (
-        "xtask/src/main.rs:Command::BuildWebRelease",
-        "xtask command enum delegates validation to clap and option structs",
-    ),
-    (
         "xtask/src/main.rs:Command::DistServer",
+        "xtask command enum delegates validation to clap and option structs",
+    ),
+    (
+        "xtask/src/main.rs:Command::RenderDockerBuild",
+        "xtask command enum delegates validation to clap and option structs",
+    ),
+    (
+        "xtask/src/main.rs:Command::RenderDockerRun",
         "xtask command enum delegates validation to clap and option structs",
     ),
     (
