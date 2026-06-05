@@ -83,6 +83,10 @@ let dbPromise = null;
 let setupInProgress = false;
 const vectorCache = new Map();
 
+if (isAppleMobileDevice()) {
+  env.useBrowserCache = false;
+}
+
 class RetryWithWasmError extends Error {
   constructor(webGpuErrorMessage) {
     super(`WebGPU Q4 failed; retrying in a fresh worker with CPU/WASM Q8. ${webGpuErrorMessage}`);
@@ -513,6 +517,15 @@ async function hasUsableWebGpu() {
   } catch (_) {
     return false;
   }
+}
+
+function isAppleMobileDevice() {
+  const userAgent = globalThis.navigator?.userAgent || "";
+  const platform = globalThis.navigator?.userAgentData?.platform
+    || globalThis.navigator?.platform
+    || "";
+  return /\b(iPhone|iPad|iPod)\b/i.test(userAgent)
+    || (platform === "MacIntel" && Number(globalThis.navigator?.maxTouchPoints || 0) > 1);
 }
 
 function modelProgressCallback(spec, runtime) {
