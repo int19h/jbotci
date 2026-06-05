@@ -659,10 +659,6 @@ impl<'a> Segmenter<'a> {
                 })),
             ));
         }
-        if self.index == self.chars.len() {
-            self.index = after_marker;
-            return Ok(vec![zoi_word_with_modifiers]);
-        }
         let consumed_open_separator = self.consume_zoi_open_separators();
         let quoted_start = self.index;
         let Some((quoted_end, closing_delimiter, close_start)) =
@@ -856,10 +852,6 @@ impl<'a> Segmenter<'a> {
                 .and_then(|tag| find_nth_matching_word_index(self.options, sa_count, tag, acc))
                 .unwrap_or_default();
             acc.truncate(acc_after_erase);
-            if is_simple_cmavo_text(&replacement, "zei") {
-                acc.push(replacement);
-                return Ok(());
-            }
             return self.process_token(acc, replacement);
         }
     }
@@ -875,6 +867,9 @@ impl<'a> Segmenter<'a> {
             }
         }
         let word = self.next_plain_word()?;
+        if is_simple_cmavo_text(&word, "lo'u") {
+            return self.lohu_quote(word);
+        }
         if is_simple_cmavo_text(&word, "zoi")
             || is_simple_cmavo_text(&word, "la'o")
             || is_simple_cmavo_text(&word, "mu'oi")
@@ -1824,14 +1819,36 @@ fn su_boundary_index(acc: &[WordLike]) -> usize {
 #[requires(true)]
 #[ensures(true)]
 fn sa_match_tag<'a>(options: &MorphologyOptions, word: &'a WordLike) -> Option<SAMatchTag<'a>> {
-    match bare_word_ref(word) {
-        Some(word) => match word.kind() {
+    match word.as_data() {
+        data!(WordLike::PlainWord(word)) => match word.kind() {
             WordKind::Cmavo => word.selmaho().map(SAMatchTag::Selmaho),
             WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => Some(SAMatchTag::Brivla),
             WordKind::Cmevla if options.cmevla_as_relation_words => Some(SAMatchTag::Brivla),
             WordKind::Cmevla => Some(SAMatchTag::Cmevla),
         },
-        None => erasure_selmaho(word).map(SAMatchTag::Selmaho),
+        data!(WordLike::QuotedWord { .. }) => Some(SAMatchTag::Selmaho("ZO")),
+        data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => {
+            zoi.selmaho().map(SAMatchTag::Selmaho)
+        }
+        data!(WordLike::QuotedWords { .. }) => Some(SAMatchTag::Selmaho("LOhU")),
+        data!(WordLike::DelimitedWordQuote { marker, .. }) => {
+            single_word_quote_marker_sa_tag(marker)
+        }
+        data!(WordLike::LerfuWord { .. }) => Some(SAMatchTag::Selmaho("BY")),
+        data!(WordLike::ZeiCompound { .. }) => Some(SAMatchTag::Brivla),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn single_word_quote_marker_sa_tag(marker: &Word) -> Option<SAMatchTag<'static>> {
+    match marker.cmavo()? {
+        Cmavo::Zohoi => Some(SAMatchTag::Selmaho("ZOhOI")),
+        Cmavo::Lahoi => Some(SAMatchTag::Selmaho("LAhOI")),
+        Cmavo::Rahoi => Some(SAMatchTag::Selmaho("RAhOI")),
+        Cmavo::Mehoi => Some(SAMatchTag::Selmaho("MEhOI")),
+        Cmavo::Gohoi => Some(SAMatchTag::Selmaho("GOhOI")),
+        _ => None,
     }
 }
 
@@ -2512,6 +2529,24 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn reports_unclosed_zoi_quote_after_opening_delimiter_at_eof() {
+        for source in ["zoi gy", "la'o gy", "mu'oi gy"] {
+            assert_unterminated_zoi_quote(source, "gy");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reports_unclosed_zoi_quote_after_opening_delimiter_with_payload() {
+        for source in ["zoi gy foo", "la'o gy foo", "mu'oi gy foo"] {
+            assert_unterminated_zoi_quote(source, "gy");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn reports_expected_word_for_missing_zo_target() {
         let error = segment_words_with_modifiers("zo", &MorphologyOptions::default(), None)
             .expect_err("ZO requires a target");
@@ -2611,6 +2646,173 @@ mod tests {
             expected: ExpectedWordDetailKind::ZeiOperand,
         });
         assert_eq!(invalid_error_detail(&error), Some(&expected));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sa_treats_zei_compound_as_brivla_match() {
+        let words = segment_words_with_modifiers(
+            "lo brodi zei broda mi sa brode cu broda",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("SA should replace the previous ZEI compound as a brivla");
+
+        assert_eq!(bare_phonemes(&words), ["lo", "bróde", "cu", "bróda"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sa_zei_does_not_match_inside_zei_compound() {
+        let error = segment_words_with_modifiers(
+            "lo mi zei do mi do sa zei di cu broda",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect_err("SA ZEI should erase to the start and leave ZEI without a left operand");
+
+        assert_invalid_error(
+            &error,
+            MorphologyErrorKind::ExpectedWord,
+            22,
+            25,
+            Some(MorphologyContextKind::Zei),
+        );
+        let expected = new!(MorphologyErrorDetail::ExpectedWord {
+            expected: ExpectedWordDetailKind::ZeiOperand,
+        });
+        assert_eq!(invalid_error_detail(&error), Some(&expected));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sa_treats_bu_word_as_by_match() {
+        let words = segment_words_with_modifiers(
+            "lo broda bu mi sa by di cu broda",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("SA BY should replace the previous BU-created lerfu word");
+
+        assert_eq!(bare_phonemes(&words), ["lo", "by", "di", "cu", "bróda"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sa_bu_does_not_decompose_bu_word() {
+        let cases = [
+            ("lo broda bu mi sa bu di cu broda", 18, 20),
+            (".abu sa bu", 8, 10),
+        ];
+
+        for (source, start, end) in cases {
+            let error = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
+                .expect_err("SA BU should not decompose a BU-created lerfu word");
+            assert_invalid_error(
+                &error,
+                MorphologyErrorKind::ExpectedWord,
+                start,
+                end,
+                Some(MorphologyContextKind::Bu),
+            );
+            let expected = new!(MorphologyErrorDetail::ExpectedWord {
+                expected: ExpectedWordDetailKind::BuOperand,
+            });
+            assert_eq!(invalid_error_detail(&error), Some(&expected), "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sa_treats_quote_wordlikes_by_marker() {
+        let zo_words = segment_words_with_modifiers(
+            "lo zo broda mi sa zo da cu broda",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("SA ZO should replace the previous ZO quote");
+        assert_eq!(zo_words.len(), 4);
+        assert_eq!(
+            bare_word(&zo_words[0])
+                .expect("leading word should remain")
+                .phonemes()
+                .as_str(),
+            "lo"
+        );
+        let data!(WordLike::QuotedWord { word, .. }) = zo_words[1].as_data() else {
+            panic!("expected replacement ZO quote");
+        };
+        assert_eq!(word.phonemes().as_str(), "da");
+
+        let zoi_words = segment_words_with_modifiers(
+            "lo zoi gy foo gy mi sa zoi gy bar gy cu broda",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("SA ZOI should replace the previous ZOI quote");
+        assert_eq!(zoi_words.len(), 4);
+        assert_eq!(
+            bare_word(&zoi_words[0])
+                .expect("leading word should remain")
+                .phonemes()
+                .as_str(),
+            "lo"
+        );
+        let data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) = zoi_words[1].as_data()
+        else {
+            panic!("expected replacement ZOI quote");
+        };
+        assert_eq!(quoted_text.text, "bar");
+
+        let lohu_words = segment_words_with_modifiers(
+            "lo lo'u do cinki le'u mi sa lo'u do fenki le'u cu broda",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("SA LOhU should replace the previous LOhU quote");
+        assert_eq!(lohu_words.len(), 4);
+        assert_eq!(
+            bare_word(&lohu_words[0])
+                .expect("leading word should remain")
+                .phonemes()
+                .as_str(),
+            "lo"
+        );
+        let data!(WordLike::QuotedWords { quoted_words, .. }) = lohu_words[1].as_data() else {
+            panic!("expected replacement LOhU quote");
+        };
+        assert_eq!(
+            quoted_words
+                .iter()
+                .map(|word| word.phonemes().into_string())
+                .collect::<Vec<_>>(),
+            vec!["do".to_string(), "fénki".to_string()]
+        );
+
+        let delimited_words = segment_words_with_modifiers(
+            "lo zo'oi foo mi sa zo'oi bar cu broda",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("SA single-word quote marker should replace the previous quote");
+        assert_eq!(delimited_words.len(), 4);
+        assert_eq!(
+            bare_word(&delimited_words[0])
+                .expect("leading word should remain")
+                .phonemes()
+                .as_str(),
+            "lo"
+        );
+        let data!(WordLike::DelimitedWordQuote { quoted_text, .. }) = delimited_words[1].as_data()
+        else {
+            panic!("expected replacement delimited word quote");
+        };
+        assert_eq!(quoted_text.text, "bar");
     }
 
     #[test]
@@ -2760,6 +2962,17 @@ mod tests {
             context.as_ref().map(|context| context.kind),
             expected_context
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_unterminated_zoi_quote(source: &str, expected_delimiter: &str) {
+        let error = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
+            .expect_err("source should contain an unterminated ZOI-family quote");
+        let MorphologyError::UnterminatedZoiQuote { delimiter, .. } = error else {
+            panic!("expected unterminated ZOI quote for {source}");
+        };
+        assert_eq!(delimiter, expected_delimiter, "{source}");
     }
 
     #[requires(true)]
