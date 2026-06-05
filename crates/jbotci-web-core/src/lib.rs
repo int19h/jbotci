@@ -42,8 +42,9 @@ use jbotci_output::{
     BracketRenderOptions, BracketSourceFragment, BracketSourceRange, GlyphStyle,
     ReferenceDisplayModel, TreeRenderOptions, format_definition_or_notes_line_with_indexed_places,
     indexed_place_spans_for_definition_or_notes_line, ipa_morphology_text,
-    pretty_bracket_source_fragments_with_options, pretty_brackets_with_options,
-    reference_display_model_for_syntax_tree, reference_slot_name_for_place_slot,
+    phoneme_render_options_for_script, pretty_bracket_source_fragments_with_options,
+    pretty_brackets_with_options, reference_display_model_for_syntax_tree,
+    reference_slot_name_for_place_slot,
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
@@ -449,7 +450,8 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
             });
         }
     };
-    let block_options = gentufa_block_options(&request.options);
+    let render_options = gentufa_render_options(&request.options);
+    let block_options = gentufa_block_options(&render_options);
     let leaves = build_rendered_leaves(&parsed.parse_tree, source, &block_options);
     let elided_terminators =
         build_elided_terminators(&analysis, &parsed.parse_tree, &block_options);
@@ -463,7 +465,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         &analysis,
         &parsed.parse_tree,
         source,
-        tree_render_options(request.options.phonemes, request.options.show_elided),
+        tree_render_options(render_options.phonemes, render_options.show_elided),
     );
     let bare_blocks_layout = build_blocks_layout(
         &analysis,
@@ -490,12 +492,12 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         source,
         BracketRenderOptions {
             color: false,
-            phonemes: request.options.phonemes,
-            script: request.options.script,
+            phonemes: render_options.phonemes,
+            script: render_options.script,
             glyphs: GlyphStyle::Unicode,
             decompose_lujvo: false,
             insert_hair_space: true,
-            show_elided: request.options.show_elided,
+            show_elided: render_options.show_elided,
         },
     )
     .unwrap_or_else(|error| error.to_string());
@@ -504,12 +506,12 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         source,
         BracketRenderOptions {
             color: false,
-            phonemes: request.options.phonemes,
-            script: request.options.script,
+            phonemes: render_options.phonemes,
+            script: render_options.script,
             glyphs: GlyphStyle::Unicode,
             decompose_lujvo: false,
             insert_hair_space: true,
-            show_elided: request.options.show_elided,
+            show_elided: render_options.show_elided,
         },
     )
     .map(|fragments| {
@@ -577,6 +579,16 @@ fn tree_render_options(phonemes: PhonemeRenderOptions, show_elided: bool) -> Tre
         show_refs: true,
         decompose_lujvo: false,
         show_elided,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.script == options.script)]
+#[ensures(ret.phonemes == phoneme_render_options_for_script(options.script, options.phonemes))]
+fn gentufa_render_options(options: &GentufaWebOptions) -> GentufaWebOptions {
+    GentufaWebOptions {
+        phonemes: phoneme_render_options_for_script(options.script, options.phonemes),
+        ..options.clone()
     }
 }
 
@@ -6303,6 +6315,30 @@ mod tests {
             panic!("expected successful parse");
         };
         assert!(!success.surface_text.contains('ĭ'));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn non_latin_gentufa_output_forces_glide_marks() {
+        let request = GentufaWebRequest {
+            text: "coi".to_owned(),
+            options: GentufaWebOptions {
+                script: GentufaScript::Cyrillic,
+                phonemes: PhonemeRenderOptions {
+                    mark_stress: StressMark::None,
+                    mark_glides: GlideMark::None,
+                },
+                ..GentufaWebOptions::default()
+            },
+        };
+        let result = parse_gentufa_for_web(&request);
+        let GentufaWebResult::Success(success) = result else {
+            panic!("expected successful parse");
+        };
+
+        assert!(success.surface_text.contains('й'));
+        assert!(success.brackets_text.contains('й'));
     }
 
     #[test]

@@ -1618,6 +1618,45 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
         .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries))
 }
 
+#[requires(true)]
+#[ensures(true)]
+pub fn segment_words_for_display(input: &str) -> Result<Vec<WordLike>, MorphologyError> {
+    segment_words_for_display_with_options_and_source_id(input, &MorphologyOptions::default(), None)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn segment_words_for_display_with_source_id(
+    input: &str,
+    source_id: SourceId,
+) -> Result<Vec<WordLike>, MorphologyError> {
+    segment_words_for_display_with_options_and_source_id(
+        input,
+        &MorphologyOptions::default(),
+        Some(source_id),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn segment_words_for_display_with_options(
+    input: &str,
+    options: &MorphologyOptions,
+) -> Result<Vec<WordLike>, MorphologyError> {
+    segment_words_for_display_with_options_and_source_id(input, options, None)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn segment_words_for_display_with_options_and_source_id(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> Result<Vec<WordLike>, MorphologyError> {
+    grammar::segment_words_for_display(input, options, source_id)
+        .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries))
+}
+
 #[requires(!phonemes.as_str().is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|syllables| !syllables.is_empty() && syllables.iter().all(|syllable| !syllable.is_empty())) || ret.as_ref().err().is_some_and(|message| !message.is_empty()))]
 pub fn pronunciation_syllables(phonemes: &Phonemes) -> Result<Vec<String>, String> {
@@ -2688,6 +2727,17 @@ mod tests {
             ),
             "{error:?}"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn display_segmentation_keeps_magic_words_visible() {
+        let si_words = segment_words_for_display("mi si").expect("valid display morphology");
+        assert_eq!(base_phoneme_texts(&si_words), vec!["mi", "si"]);
+
+        let zei_words = segment_words_for_display("zei").expect("valid display morphology");
+        assert_eq!(base_phoneme_texts(&zei_words), vec!["zeĭ"]);
     }
 
     #[test]

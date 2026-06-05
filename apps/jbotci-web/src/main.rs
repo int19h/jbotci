@@ -20,6 +20,7 @@ use jbotci_dialect::{
 use jbotci_output::{
     GlideMark, PhonemeRenderOptions, StressMark,
     qr_code::{encode_qr_alphanumeric_h, qr_code_svg},
+    render_lojban_text_for_script,
 };
 #[cfg(test)]
 use jbotci_web_core::ReferenceSlotLabel;
@@ -4913,7 +4914,8 @@ fn render_cll_inline(
 #[requires(true)]
 #[ensures(true)]
 fn display_lojban_text(script: GentufaScript, text: &str) -> String {
-    jbotci_gentufa::render_loose_latin_text_for_script(script, text)
+    render_lojban_text_for_script(text, script, display_lojban_phoneme_options())
+        .unwrap_or_else(|_| text.to_owned())
 }
 
 #[requires(true)]
@@ -4923,6 +4925,16 @@ fn display_lojban_text_if(script: GentufaScript, text: &str, lojban_context: boo
         display_lojban_text(script, text)
     } else {
         text.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(!matches!(ret.mark_stress, StressMark::Acute | StressMark::Caps))]
+#[ensures(ret.mark_glides == GlideMark::Breve)]
+fn display_lojban_phoneme_options() -> PhonemeRenderOptions {
+    PhonemeRenderOptions {
+        mark_stress: StressMark::None,
+        mark_glides: GlideMark::Breve,
     }
 }
 
@@ -15474,6 +15486,15 @@ mod tests {
         assert_eq!(
             display_lojban_text(GentufaScript::Cyrillic, "mi klama le zarci"),
             "ми клама ле зарши"
+        );
+        assert_eq!(display_lojban_text(GentufaScript::Cyrillic, "coi"), "шой");
+        assert_eq!(
+            display_lojban_text(GentufaScript::Zbalermorna, "coi"),
+            "\u{ed86}\u{eda3}\u{edaa}"
+        );
+        assert_eq!(
+            display_lojban_text(GentufaScript::Cyrillic, "hello!"),
+            "hello!"
         );
         assert_eq!(
             display_lojban_text_if(GentufaScript::Cyrillic, "mi klama", false),

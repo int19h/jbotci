@@ -31,6 +31,10 @@ pub use references::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+pub use surface::{
+    phoneme_render_options_for_script, render_lojban_text_for_script,
+    render_lojban_text_for_script_with_options,
+};
 use thiserror::Error;
 pub use trace::{TraceRenderOptions, render_trace_report};
 pub use tree::reference_display_model_for_syntax_tree;
