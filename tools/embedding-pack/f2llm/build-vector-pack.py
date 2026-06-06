@@ -14,6 +14,7 @@ from transformers import AutoTokenizer
 
 
 SCHEMA_VERSION = 1
+ARTIFACT_VERSION = "f2llm-vector-pack-ca-v1"
 MODEL_KEY = "f2llm-v2-80m-q4-320"
 MODEL_ID = "codefuse-ai/F2LLM-v2-80M"
 RUNTIME = "jbotci-webgpu-f2llm"
@@ -52,6 +53,7 @@ def main() -> None:
 
     pack_id = "-".join([
         corpus["inputFormatVersion"],
+        ARTIFACT_VERSION,
         short_hash(q4_onnx_sha256),
         short_hash(corpus["inputHash"]),
         args.vector_space_key,
@@ -77,6 +79,7 @@ def main() -> None:
     manifest_url = f"models/{args.model_key}/spaces/{args.vector_space_key}/packs/{pack_id}/manifest.json"
     manifest = {
         "schema_version": SCHEMA_VERSION,
+        "artifact_version": ARTIFACT_VERSION,
         "model_key": args.model_key,
         "model_revision": args.revision or "",
         "web_model": args.model_id,
@@ -200,22 +203,25 @@ def write_corpus(
         }
         for row, doc in enumerate(docs)
     ]
-    items_path = corpus_dir / "items.json"
-    write_json(items_path, items)
+    items_bytes = json_bytes(items)
+    items_sha256 = sha256(items_bytes)
+    items_name = f"items.{items_sha256}.json"
+    (corpus_dir / items_name).write_bytes(items_bytes)
     vector_bytes = vectors.astype("<f2", copy=False).tobytes()
-    vector_path = corpus_dir / "vectors.f16"
-    vector_path.write_bytes(vector_bytes)
+    vector_sha256 = sha256(vector_bytes)
+    vector_name = f"vectors.{vector_sha256}.f16"
+    (corpus_dir / vector_name).write_bytes(vector_bytes)
     return {
         "corpus_id": corpus_id,
         "input_format_version": corpus["inputFormatVersion"],
         "input_hash": corpus["dictionaryHash"] if corpus_id == "vlacku-en" else corpus["cllHash"],
         "row_count": len(docs),
         "dimensions": dimensions,
-        "items_url": f"corpora/{corpus_id}/items.json",
-        "items_sha256": sha256(items_path.read_bytes()),
-        "vector_url": f"corpora/{corpus_id}/vectors.f16",
+        "items_url": f"corpora/{corpus_id}/{items_name}",
+        "items_sha256": items_sha256,
+        "vector_url": f"corpora/{corpus_id}/{vector_name}",
         "vector_byte_len": len(vector_bytes),
-        "vector_sha256": sha256(vector_bytes),
+        "vector_sha256": vector_sha256,
     }
 
 
@@ -286,7 +292,11 @@ def read_json(path: Path) -> object:
 
 def write_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    path.write_bytes(json_bytes(value))
+
+
+def json_bytes(value: object) -> bytes:
+    return (json.dumps(value, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
 
 
 def promote(stage: Path, output: Path) -> None:
