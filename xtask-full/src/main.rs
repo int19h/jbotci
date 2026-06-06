@@ -324,7 +324,10 @@ struct BuildF2LlmWebgpuModelArgs {
     model_id: String,
     #[arg(long)]
     model_root: Option<PathBuf>,
-    #[arg(long, default_value = ".jbotci-build/f2llm-webgpu-models/f2llm-v2-80m-webgpu/v1")]
+    #[arg(
+        long,
+        default_value = ".jbotci-build/f2llm-webgpu-models/f2llm-v2-80m-webgpu/v1"
+    )]
     out_dir: PathBuf,
     #[arg(long)]
     stage: Option<PathBuf>,
@@ -758,15 +761,17 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
     let onnx_objects = r2_upload_tree_objects(&onnx_fallback_dir, F2LLM_ONNX_FALLBACK_R2_PREFIX)?;
     put_r2_objects(&args.bucket, &onnx_objects)?;
 
-    let vector_objects = r2_upload_objects_without_catalog(&vector_out_dir, &args.embedding_prefix)?;
+    let vector_objects =
+        r2_upload_objects_without_catalog(&vector_out_dir, &args.embedding_prefix)?;
     put_r2_objects(&args.bucket, &vector_objects)?;
 
     let merged_catalog_dir = absolute_path(Path::new(".jbotci-build/r2-f2llm-merged-catalog"))?;
     fs::create_dir_all(&merged_catalog_dir)
         .with_context(|| format!("creating `{}`", merged_catalog_dir.display()))?;
     let remote_catalog = serde_json::from_str::<serde_json::Value>(
-        &fetch_text(&args.remote_catalog_url)
-            .with_context(|| format!("fetching remote catalog from `{}`", args.remote_catalog_url))?,
+        &fetch_text(&args.remote_catalog_url).with_context(|| {
+            format!("fetching remote catalog from `{}`", args.remote_catalog_url)
+        })?,
     )
     .with_context(|| format!("parsing remote catalog from `{}`", args.remote_catalog_url))?;
     let local_catalog = read_json_file(&vector_out_dir.join("catalog.json"))?;
@@ -774,11 +779,13 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
         .iter()
         .map(|spec| spec.model_key.to_owned())
         .collect::<BTreeSet<_>>();
-    let merged_catalog = merge_embedding_catalog_models(remote_catalog, local_catalog, &f2llm_model_keys)?;
+    let merged_catalog =
+        merge_embedding_catalog_models(remote_catalog, local_catalog, &f2llm_model_keys)?;
     let catalog_path = merged_catalog_dir.join("catalog.json");
     write_json_file(&catalog_path, &merged_catalog)?;
     let embedding_prefix = normalize_r2_prefix(&args.embedding_prefix)?;
-    let catalog_object = r2_upload_object_for_key(&merged_catalog_dir, &embedding_prefix, "catalog.json")?;
+    let catalog_object =
+        r2_upload_object_for_key(&merged_catalog_dir, &embedding_prefix, "catalog.json")?;
     put_r2_object(&args.bucket, &catalog_object)
 }
 
@@ -1880,7 +1887,10 @@ fn copy_dir_recursive(source: &Path, target: &Path, description: &str) -> Result
         let target_path = target.join(relative);
         if entry.file_type().is_dir() {
             fs::create_dir_all(&target_path).with_context(|| {
-                format!("creating {description} directory `{}`", target_path.display())
+                format!(
+                    "creating {description} directory `{}`",
+                    target_path.display()
+                )
             })?;
         } else if entry.file_type().is_file() {
             let parent = target_path
@@ -1947,8 +1957,8 @@ fn build_f2llm_onnx_fallback_asset(root: &Path) -> Result<()> {
             model_target.display()
         )
     })?;
-    let bytes = fs::read(&model_target)
-        .with_context(|| format!("reading `{}`", model_target.display()))?;
+    let bytes =
+        fs::read(&model_target).with_context(|| format!("reading `{}`", model_target.display()))?;
     write_json_file(
         &stage.join("manifest.json"),
         &serde_json::json!({
@@ -2015,7 +2025,9 @@ fn run_f2llm_vector_builder(
         command.arg("--include-wasm-runtime");
     }
     if let Some(tokenizer_dir) = tokenizer_dir {
-        command.arg("--tokenizer-dir").arg(absolute_path(tokenizer_dir)?);
+        command
+            .arg("--tokenizer-dir")
+            .arg(absolute_path(tokenizer_dir)?);
     }
     if let Some(stage) = stage {
         command.arg("--stage").arg(absolute_path(stage)?);
@@ -2075,7 +2087,9 @@ fn run_f2llm_vector_validator(
         command.arg("--include-wasm-runtime");
     }
     if let Some(tokenizer_dir) = tokenizer_dir {
-        command.arg("--tokenizer-dir").arg(absolute_path(tokenizer_dir)?);
+        command
+            .arg("--tokenizer-dir")
+            .arg(absolute_path(tokenizer_dir)?);
     }
     let status = command.status().with_context(|| {
         format!(
@@ -2106,7 +2120,10 @@ fn r2_upload_objects(build_root: &Path, prefix: &str) -> Result<Vec<R2UploadObje
 #[requires(build_root.is_dir())]
 #[requires(!prefix.trim().is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|objects| !objects.iter().any(|object| object.object_key.ends_with("/catalog.json"))) || ret.is_err())]
-fn r2_upload_objects_without_catalog(build_root: &Path, prefix: &str) -> Result<Vec<R2UploadObject>> {
+fn r2_upload_objects_without_catalog(
+    build_root: &Path,
+    prefix: &str,
+) -> Result<Vec<R2UploadObject>> {
     let prefix = normalize_r2_prefix(prefix)?;
     catalog_referenced_r2_object_keys(build_root)?
         .into_iter()
@@ -2133,7 +2150,11 @@ fn r2_upload_tree_objects(build_root: &Path, prefix: &str) -> Result<Vec<R2Uploa
             )
         })?;
         let relative_key = relative_path_to_object_key(relative)?;
-        objects.push(r2_upload_object_for_key(build_root, &prefix, &relative_key)?);
+        objects.push(r2_upload_object_for_key(
+            build_root,
+            &prefix,
+            &relative_key,
+        )?);
     }
     objects.sort_by(|left, right| {
         let left_manifest = left.object_key.ends_with("/manifest.json");
@@ -2225,7 +2246,11 @@ fn merge_embedding_catalog_models(
     replacement_catalog: serde_json::Value,
     model_keys: &BTreeSet<String>,
 ) -> Result<serde_json::Value> {
-    if remote_catalog.get("schema_version").and_then(serde_json::Value::as_u64) != Some(1) {
+    if remote_catalog
+        .get("schema_version")
+        .and_then(serde_json::Value::as_u64)
+        != Some(1)
+    {
         bail!("remote embedding catalog schema_version must be 1");
     }
     if replacement_catalog
@@ -2251,7 +2276,10 @@ fn merge_embedding_catalog_models(
         if !model_keys.contains(model_key) {
             continue;
         }
-        if replacements.insert(model_key.to_owned(), model.clone()).is_some() {
+        if replacements
+            .insert(model_key.to_owned(), model.clone())
+            .is_some()
+        {
             bail!("replacement embedding catalog contains multiple `{model_key}` entries");
         }
     }
@@ -6175,7 +6203,10 @@ mod tests {
             .map(|object| object.object_key.as_str())
             .collect::<Vec<_>>();
 
-        assert!(keys.iter().all(|key| key.starts_with(F2LLM_MODEL_SPECS[0].webgpu_r2_prefix)));
+        assert!(
+            keys.iter()
+                .all(|key| key.starts_with(F2LLM_MODEL_SPECS[0].webgpu_r2_prefix))
+        );
         assert_eq!(
             keys.last().copied(),
             Some("models/f2llm-v2-80m-webgpu/v1/manifest.json")

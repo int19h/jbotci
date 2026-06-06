@@ -2929,7 +2929,11 @@ async fn refresh_embedding_settings(mut settings: Signal<EmbeddingSettingsState>
         )),
         Err(error) => {
             let previous = settings.read().clone();
-            settings.set(embedding_settings_error_state(&previous, "unavailable", error));
+            settings.set(embedding_settings_error_state(
+                &previous,
+                "unavailable",
+                error,
+            ));
         }
     }
 }

@@ -3,16 +3,16 @@ use std::collections::{BTreeMap, HashMap};
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 use futures_channel::oneshot;
-use js_sys::{Array, Float32Array, Function, Object, Promise, Reflect, Uint32Array, Uint8Array};
+use js_sys::{Array, Float32Array, Function, Object, Promise, Reflect, Uint8Array, Uint32Array};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
 use crate::f2llm_runtime_core::{
-    mean_pool_normalized, normalize_in_place, pack_token_windows, QwenByteBpeTokenizer,
-    TokenWindow, DEFAULT_MAX_SEQUENCE_LENGTH,
+    DEFAULT_MAX_SEQUENCE_LENGTH, QwenByteBpeTokenizer, TokenWindow, mean_pool_normalized,
+    normalize_in_place, pack_token_windows,
 };
 
 const EXPECTED_SCHEMA_VERSION: u32 = 1;
@@ -490,7 +490,11 @@ impl JbotciF2LlmWebGpuRuntime {
         for index in 0..texts.length() {
             rust_texts.push(texts.get(index).as_string().unwrap_or_default());
         }
-        let vectors = self.inner.embed_texts(&rust_texts).await.map_err(js_error)?;
+        let vectors = self
+            .inner
+            .embed_texts(&rust_texts)
+            .await
+            .map_err(js_error)?;
         let output = Array::new();
         for vector in vectors {
             output.push(&Float32Array::from(vector.as_slice()));
@@ -550,7 +554,9 @@ impl RuntimeLoadOptions {
     #[ensures(ret.as_ref().is_ok() || ret.is_err())]
     fn from_js(value: &JsValue) -> Result<Self, JsValue> {
         Ok(Self {
-            base_url: required_string(value, "baseUrl")?.trim_end_matches('/').to_owned(),
+            base_url: required_string(value, "baseUrl")?
+                .trim_end_matches('/')
+                .to_owned(),
             expected_model_key: required_string(value, "expectedModelKey")?,
             expected_runtime: required_string(value, "expectedRuntime")?,
             expected_version: required_string(value, "expectedVersion")?,
@@ -612,12 +618,9 @@ impl WebGpuRuntime {
             .await
             .map_err(|error| format!("failed to request WebGPU device: {error}"))?;
 
-        let tokenizer_bytes = fetch_tokenizer_bytes(
-            &fetch_array_buffer,
-            &options.base_url,
-            &manifest.tokenizer,
-        )
-        .await?;
+        let tokenizer_bytes =
+            fetch_tokenizer_bytes(&fetch_array_buffer, &options.base_url, &manifest.tokenizer)
+                .await?;
         let tokenizer =
             QwenByteBpeTokenizer::from_compact_json(&tokenizer_bytes).map_err(|error| {
                 format!("failed to initialize F2LLM tokenizer from artifact: {error}")
@@ -625,9 +628,11 @@ impl WebGpuRuntime {
         let mut runtime = Self {
             device,
             queue,
-            max_sequence_length: options
-                .max_sequence_length
-                .max(manifest.max_sequence_length.unwrap_or(DEFAULT_MAX_SEQUENCE_LENGTH)),
+            max_sequence_length: options.max_sequence_length.max(
+                manifest
+                    .max_sequence_length
+                    .unwrap_or(DEFAULT_MAX_SEQUENCE_LENGTH),
+            ),
             dimensions: options.dimensions,
             manifest,
             tokenizer,
@@ -713,10 +718,20 @@ impl WebGpuRuntime {
                     .as_ref()
                     .ok_or_else(|| format!("{name} is missing zero_points"))?;
                 let q_buffer = self
-                    .load_chunked_buffer(base_url, fetch_array_buffer, &format!("{name}.qweight"), qweight)
+                    .load_chunked_buffer(
+                        base_url,
+                        fetch_array_buffer,
+                        &format!("{name}.qweight"),
+                        qweight,
+                    )
                     .await?;
                 let scale_buffer = self
-                    .load_chunked_buffer(base_url, fetch_array_buffer, &format!("{name}.scales"), scales)
+                    .load_chunked_buffer(
+                        base_url,
+                        fetch_array_buffer,
+                        &format!("{name}.scales"),
+                        scales,
+                    )
                     .await?;
                 let zero_point_buffer = self
                     .load_chunked_buffer(
@@ -789,7 +804,11 @@ impl WebGpuRuntime {
                     bytes.len()
                 ));
             }
-            verify_sha256(&bytes, &chunk.sha256, &format!("{label} chunk {}", chunk.url))?;
+            verify_sha256(
+                &bytes,
+                &chunk.sha256,
+                &format!("{label} chunk {}", chunk.url),
+            )?;
             self.queue
                 .write_buffer(&buffer, chunk.byte_offset as u64, &bytes);
         }
@@ -806,7 +825,10 @@ impl WebGpuRuntime {
         let mut windows = Vec::new();
         let mut window_counts = vec![0usize; texts.len()];
         for (text_index, text) in texts.iter().enumerate() {
-            for token_ids in self.tokenizer.token_windows(text, self.max_sequence_length)? {
+            for token_ids in self
+                .tokenizer
+                .token_windows(text, self.max_sequence_length)?
+            {
                 window_counts[text_index] += 1;
                 windows.push(TokenWindow {
                     text_index,
@@ -843,7 +865,10 @@ impl WebGpuRuntime {
     #[requires(!segments.is_empty())]
     #[requires(segments.iter().all(|segment| !segment.token_ids.is_empty()))]
     #[ensures(ret.as_ref().is_ok_and(|rows| rows.len() == segments.len()) || ret.is_err())]
-    async fn embed_packed_batch(&mut self, segments: &[TokenWindow]) -> Result<Vec<Vec<f32>>, String> {
+    async fn embed_packed_batch(
+        &mut self,
+        segments: &[TokenWindow],
+    ) -> Result<Vec<Vec<f32>>, String> {
         let total_tokens = segments
             .iter()
             .map(|segment| segment.token_ids.len())
@@ -873,11 +898,7 @@ impl WebGpuRuntime {
             .run_packed_model(&token_ids, &local_positions, &segment_starts)
             .await?;
         let hidden_values = self
-            .read_f32_buffer_slice(
-                &hidden,
-                0,
-                total_tokens * self.manifest.model.hidden_size,
-            )
+            .read_f32_buffer_slice(&hidden, 0, total_tokens * self.manifest.model.hidden_size)
             .await?;
         hidden.destroy();
         let mut rows = Vec::with_capacity(segments.len());
@@ -930,7 +951,13 @@ impl WebGpuRuntime {
                     label: Some("f2llm packed embedding"),
                 });
             let embed = self.q4_gather_tensor("model.embed_tokens.weight")?;
-            self.encode_embedding(&mut encoder, &token_buffer, &embed, &hidden, sequence_length)?;
+            self.encode_embedding(
+                &mut encoder,
+                &token_buffer,
+                &embed,
+                &hidden,
+                sequence_length,
+            )?;
             self.queue.submit([encoder.finish()]);
             self.submitted_work_done().await?;
             self.destroy_transient_buffers();
@@ -1294,10 +1321,8 @@ impl WebGpuRuntime {
                 offset += bytes.len();
             }
             self.queue.submit([]);
-            self.vector_buffers.insert(
-                cache_key.clone(),
-                VectorBuffer { buffer },
-            );
+            self.vector_buffers
+                .insert(cache_key.clone(), VectorBuffer { buffer });
         }
         self.vector_buffers
             .get(&cache_key)
@@ -1379,7 +1404,10 @@ impl WebGpuRuntime {
             ],
             (
                 div_ceil(sequence_length as u32, DEFAULT_WORKGROUP_WIDTH),
-                div_ceil(self.manifest.model.hidden_size as u32, DEFAULT_WORKGROUP_WIDTH),
+                div_ceil(
+                    self.manifest.model.hidden_size as u32,
+                    DEFAULT_WORKGROUP_WIDTH,
+                ),
                 1,
             ),
         )
@@ -1609,10 +1637,12 @@ impl WebGpuRuntime {
         workgroups: (u32, u32, u32),
     ) -> Result<(), String> {
         if !self.pipelines.contains_key(name) {
-            let module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some(name),
-                source: wgpu::ShaderSource::Wgsl(shader.into()),
-            });
+            let module = self
+                .device
+                .create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some(name),
+                    source: wgpu::ShaderSource::Wgsl(shader.into()),
+                });
             let pipeline = self
                 .device
                 .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
@@ -1824,16 +1854,31 @@ enum UniformValue {
 
 #[requires(!manifest.model_key.is_empty())]
 #[ensures(ret.is_ok() || ret.is_err())]
-fn validate_manifest(manifest: &ArtifactManifest, options: &RuntimeLoadOptions) -> Result<(), String> {
+fn validate_manifest(
+    manifest: &ArtifactManifest,
+    options: &RuntimeLoadOptions,
+) -> Result<(), String> {
     for (field, actual, expected) in [
-        ("schema_version", manifest.schema_version.to_string(), EXPECTED_SCHEMA_VERSION.to_string()),
-        ("runtime", manifest.runtime.clone(), options.expected_runtime.clone()),
+        (
+            "schema_version",
+            manifest.schema_version.to_string(),
+            EXPECTED_SCHEMA_VERSION.to_string(),
+        ),
+        (
+            "runtime",
+            manifest.runtime.clone(),
+            options.expected_runtime.clone(),
+        ),
         (
             "artifact_version",
             manifest.artifact_version.clone(),
             options.expected_version.clone(),
         ),
-        ("model_key", manifest.model_key.clone(), options.expected_model_key.clone()),
+        (
+            "model_key",
+            manifest.model_key.clone(),
+            options.expected_model_key.clone(),
+        ),
     ] {
         if actual != expected {
             return Err(format!(
@@ -1851,7 +1896,9 @@ fn validate_manifest(manifest: &ArtifactManifest, options: &RuntimeLoadOptions) 
         ("intermediate_size", manifest.model.intermediate_size),
     ] {
         if value == 0 {
-            return Err(format!("F2LLM WebGPU manifest model.{field} must be positive"));
+            return Err(format!(
+                "F2LLM WebGPU manifest model.{field} must be positive"
+            ));
         }
     }
     if manifest.model.hidden_size != options.dimensions {
@@ -1869,7 +1916,10 @@ fn validate_required_tensors(
     manifest: &ArtifactManifest,
     tensors: &HashMap<String, Tensor>,
 ) -> Result<(), String> {
-    let mut required = vec!["model.embed_tokens.weight".to_owned(), "model.norm.weight".to_owned()];
+    let mut required = vec![
+        "model.embed_tokens.weight".to_owned(),
+        "model.norm.weight".to_owned(),
+    ];
     for layer in 0..manifest.model.num_hidden_layers {
         let prefix = format!("model.layers.{layer}");
         required.extend([
@@ -1905,9 +1955,17 @@ fn validate_required_tensors(
 fn tensor_byte_length(spec: &TensorSpec) -> usize {
     match spec.kind.as_str() {
         "q4_onnx_gather" | "q4_onnx_matmul" => {
-            spec.qweight.as_ref().map_or(0, |chunked| chunked.byte_length)
-                + spec.scales.as_ref().map_or(0, |chunked| chunked.byte_length)
-                + spec.zero_points.as_ref().map_or(0, |chunked| chunked.byte_length)
+            spec.qweight
+                .as_ref()
+                .map_or(0, |chunked| chunked.byte_length)
+                + spec
+                    .scales
+                    .as_ref()
+                    .map_or(0, |chunked| chunked.byte_length)
+                + spec
+                    .zero_points
+                    .as_ref()
+                    .map_or(0, |chunked| chunked.byte_length)
         }
         "f32" => spec.data.as_ref().map_or(0, |chunked| chunked.byte_length),
         _ => 0,
@@ -1942,9 +2000,17 @@ async fn fetch_tokenizer_bytes(
 #[requires(!url.is_empty())]
 #[requires(!label.is_empty())]
 #[ensures(ret.as_ref().is_ok() || ret.is_err())]
-async fn fetch_bytes(fetch_array_buffer: &Function, url: &str, label: &str) -> Result<Vec<u8>, String> {
+async fn fetch_bytes(
+    fetch_array_buffer: &Function,
+    url: &str,
+    label: &str,
+) -> Result<Vec<u8>, String> {
     let value = fetch_array_buffer
-        .call2(&JsValue::NULL, &JsValue::from_str(url), &JsValue::from_str(label))
+        .call2(
+            &JsValue::NULL,
+            &JsValue::from_str(url),
+            &JsValue::from_str(label),
+        )
         .map_err(|error| js_value_message(&error))?;
     let promise = Promise::from(value);
     let value = JsFuture::from(promise)
@@ -2103,7 +2169,9 @@ fn optional_usize(value: &JsValue, key: &str) -> Result<Option<usize>, JsValue> 
         .as_f64()
         .ok_or_else(|| JsValue::from_str(&format!("{key} must be a number")))?;
     if !number.is_finite() || number <= 0.0 || number.fract() != 0.0 {
-        return Err(JsValue::from_str(&format!("{key} must be a positive integer")));
+        return Err(JsValue::from_str(&format!(
+            "{key} must be a positive integer"
+        )));
     }
     Ok(Some(number as usize))
 }
@@ -2141,10 +2209,18 @@ async fn call_progress(
         return Ok(());
     };
     let value = Object::new();
-    Reflect::set(&value, &JsValue::from_str("status"), &JsValue::from_str(status))
-        .map_err(|error| js_value_message(&error))?;
-    Reflect::set(&value, &JsValue::from_str("detail"), &JsValue::from_str(detail))
-        .map_err(|error| js_value_message(&error))?;
+    Reflect::set(
+        &value,
+        &JsValue::from_str("status"),
+        &JsValue::from_str(status),
+    )
+    .map_err(|error| js_value_message(&error))?;
+    Reflect::set(
+        &value,
+        &JsValue::from_str("detail"),
+        &JsValue::from_str(detail),
+    )
+    .map_err(|error| js_value_message(&error))?;
     let progress_value = Object::new();
     Reflect::set(
         &progress_value,
@@ -2180,9 +2256,7 @@ async fn call_progress(
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn js_value_message(value: &JsValue) -> String {
-    value
-        .as_string()
-        .unwrap_or_else(|| format!("{value:?}"))
+    value.as_string().unwrap_or_else(|| format!("{value:?}"))
 }
 
 #[requires(!message.is_empty())]

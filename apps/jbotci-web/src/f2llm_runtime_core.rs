@@ -100,8 +100,8 @@ impl QwenByteBpeTokenizer {
         let normalized = String::from(text).nfc().collect::<String>();
         let mut ids = Vec::new();
         for match_result in self.pattern.find_iter(&normalized) {
-            let token_match = match_result
-                .map_err(|error| format!("F2LLM tokenizer regex failed: {error}"))?;
+            let token_match =
+                match_result.map_err(|error| format!("F2LLM tokenizer regex failed: {error}"))?;
             let byte_level = self.byte_level_encode(token_match.as_str());
             ids.extend(self.bpe(&byte_level)?);
         }
@@ -113,10 +113,7 @@ impl QwenByteBpeTokenizer {
     #[ensures(ret.as_ref().is_ok_and(|windows| windows.iter().all(|window| !window.is_empty() && window.len() <= max_length)) || ret.is_err())]
     pub fn token_windows(&self, text: &str, max_length: usize) -> Result<Vec<Vec<u32>>, String> {
         let ids = self.encode_untruncated(text)?;
-        Ok(ids
-            .chunks(max_length)
-            .map(|chunk| chunk.to_vec())
-            .collect())
+        Ok(ids.chunks(max_length).map(|chunk| chunk.to_vec()).collect())
     }
 
     #[requires(true)]
@@ -363,7 +360,10 @@ mod tests {
     #[ensures(true)]
     fn tokenizer_matches_byte_bpe_goldens() {
         let tokenizer = tiny_tokenizer();
-        assert_eq!(tokenizer.encode_truncated("hello", 8).unwrap(), vec![8, 999]);
+        assert_eq!(
+            tokenizer.encode_truncated("hello", 8).unwrap(),
+            vec![8, 999]
+        );
         assert_eq!(
             tokenizer.encode_truncated("hello world", 8).unwrap(),
             vec![8, 9, 16, 999]
