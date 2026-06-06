@@ -71,12 +71,16 @@ use std::future::Future;
 use std::rc::Rc;
 use std::str::FromStr;
 
+#[cfg(any(target_arch = "wasm32", test))]
+mod f2llm_runtime_core;
+#[cfg(target_arch = "wasm32")]
+mod f2llm_webgpu_runtime;
+
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const COMPUTE_JS: Asset = asset!("/assets/compute.js");
 const COMPUTE_WORKER_JS: Asset = asset!("/assets/compute-worker.js");
 const EMBEDDINGS_JS: Asset = asset!("/assets/embeddings.js");
 const EMBEDDING_WORKER_JS: Asset = asset!("/assets/embedding-worker.js");
-const F2LLM_WEBGPU_RUNTIME_JS: Asset = asset!("/assets/f2llm-webgpu-runtime.js");
 // The embedding worker imports these dynamically, so keep explicit asset pins for Dioxus.
 #[allow(dead_code)]
 const ORT_WASM_MIN_MJS: Asset = asset!("/assets/ort/ort.wasm.min.mjs");
@@ -1236,7 +1240,6 @@ fn AppShell() -> Element {
     }));
     use_effect(move || {
         configure_embedding_worker_url(&format!("{EMBEDDING_WORKER_JS}"));
-        configure_embedding_f2llm_runtime_url(&format!("{F2LLM_WEBGPU_RUNTIME_JS}"));
         configure_embedding_ort_assets(
             &format!("{ORT_WASM_MIN_MJS}"),
             &format!("{ORT_WASM_SIMD_THREADED_MJS}"),
@@ -2756,9 +2759,6 @@ extern "C" {
     #[wasm_bindgen(js_name = jbotciEmbeddingConfigureWorker)]
     fn js_embedding_configure_worker(worker_url: &str);
 
-    #[wasm_bindgen(js_name = jbotciEmbeddingConfigureF2LlmRuntime)]
-    fn js_embedding_configure_f2llm_runtime(runtime_url: &str);
-
     #[wasm_bindgen(js_name = jbotciEmbeddingConfigureOrtAssets)]
     fn js_embedding_configure_ort_assets(module_url: &str, wasm_mjs_url: &str, wasm_url: &str);
 
@@ -2828,20 +2828,6 @@ fn configure_embedding_worker_url(worker_url: &str) {
 #[ensures(true)]
 fn configure_embedding_worker_url(worker_url: &str) {
     let _ = worker_url;
-}
-
-#[cfg(target_arch = "wasm32")]
-#[requires(!runtime_url.is_empty())]
-#[ensures(true)]
-fn configure_embedding_f2llm_runtime_url(runtime_url: &str) {
-    js_embedding_configure_f2llm_runtime(runtime_url);
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(!runtime_url.is_empty())]
-#[ensures(true)]
-fn configure_embedding_f2llm_runtime_url(runtime_url: &str) {
-    let _ = runtime_url;
 }
 
 #[cfg(target_arch = "wasm32")]

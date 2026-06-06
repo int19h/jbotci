@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { strict as assert } from "node:assert";
-import { readFileSync } from "node:fs";
 
 const EPS = 1e-6;
 const EXPECTED_EMBEDDING = [
@@ -100,7 +99,6 @@ const embedding = embed([0, 1, 2], MODEL, q4, F32);
 console.log("tiny CPU embedding", JSON.stringify(Array.from(embedding)));
 assertAlmostArray(Array.from(embedding), EXPECTED_EMBEDDING, 1e-6);
 assertAlmost(norm(embedding), 1.0, 1e-6);
-assertRopeDispatchCoversAllPairs();
 
 const vectors = new Float32Array([
   0.25, -0.50, 0.25, 0.75,
@@ -117,20 +115,6 @@ assert.deepEqual(hits.map((hit) => hit.id), [10, 12]);
 assertAlmost(hits[0].score, 0.475, 1e-4);
 
 console.log("f2llm CPU runtime reference tests passed");
-
-function assertRopeDispatchCoversAllPairs() {
-  const source = readFileSync(new URL("../../../apps/jbotci-web/assets/f2llm-webgpu-runtime.js", import.meta.url), "utf8");
-  assert.match(
-    source,
-    /Math\.ceil\(headDim \/ 2\)/,
-    "RoPE dispatch must launch one Z workgroup per rotary pair because the shader Z workgroup size is 1",
-  );
-  assert.doesNotMatch(
-    source,
-    /Math\.ceil\(\(headDim \/ 2\) \/ DEFAULT_WORKGROUP_WIDTH\)/,
-    "RoPE dispatch must not divide the rotary-pair dimension by the X/Y workgroup width",
-  );
-}
 
 function embed(tokens, model, q4Tensors, f32Tensors) {
   let hidden = tokens.map((token) => dequantizeRow(q4Tensors["model.embed_tokens.weight"], token));

@@ -4,16 +4,21 @@ const F2LLM_330M_MODEL_KEY = "f2llm-v2-330m-q4-896";
 const F2LLM_0_6B_MODEL_KEY = "f2llm-v2-0.6b-q4-1024";
 const MI_B = 1024 * 1024;
 const F2LLM_WEBGPU_RUNTIME = "jbotci-webgpu-f2llm";
-const F2LLM_WEBGPU_RUNTIME_VERSION = "0.1.0";
+const F2LLM_WEBGPU_RUNTIME_VERSION = "0.2.0";
 const F2LLM_WASM_RUNTIME = "jbotci-onnxruntime-web-f2llm";
-const F2LLM_WASM_RUNTIME_VERSION = "0.1.0";
+const F2LLM_WASM_RUNTIME_VERSION = "0.2.0";
 const F2LLM_QUERY_PREFIX = "Instruct: Given a question, retrieve passages that can help answer the question.\nQuery: ";
+const F2LLM_POOLING = "mean_normalized_windows";
+const F2LLM_MAX_WINDOW_TOKENS = 512;
+const F2LLM_VECTOR_SPACE_KEY = "jbotci-browser-f2llm-q4-f16-windowed-512-v1";
+const F2LLM_LOCAL_EMBED_BATCH_SIZE = 64;
 const MODEL_CACHE_NAME = "jbotci-f2llm-models-v1";
 const DEFAULT_ORT_MODULE_URL = new URL("./ort/ort.wasm.min.mjs", import.meta.url).href;
 const DEFAULT_ORT_WASM_MJS_URL = new URL("./ort/ort-wasm-simd-threaded.mjs", import.meta.url).href;
 const DEFAULT_ORT_WASM_URL = new URL("./ort/ort-wasm-simd-threaded.wasm", import.meta.url).href;
-let f2llmRuntimeUrl = null;
-let f2llmRuntimeModulePromise = null;
+const INIT_TIMEOUT_MS = 30000;
+let mainModuleUrl = null;
+let mainModulePromise = null;
 let ortModuleUrl = DEFAULT_ORT_MODULE_URL;
 let ortWasmMjsUrl = DEFAULT_ORT_WASM_MJS_URL;
 let ortWasmUrl = DEFAULT_ORT_WASM_URL;
@@ -43,16 +48,16 @@ const MODEL_SPECS = {
     queryPrefix: F2LLM_QUERY_PREFIX,
     remoteVectorPacks: true,
     browserLocalIndexing: true,
-    localVectorSpaceKey: "jbotci-browser-f2llm-q4-f16",
+    localVectorSpaceKey: F2LLM_VECTOR_SPACE_KEY,
     vectorElementType: "f16le",
-    embedBatchSize: 1,
+    embedBatchSize: F2LLM_LOCAL_EMBED_BATCH_SIZE,
     modelSizeEstimates: {
       q4: 68 * MI_B,
     },
     minFreeBytesByDtype: {
       q4: 180 * MI_B,
     },
-    outputPooling: "last_token",
+    outputPooling: F2LLM_POOLING,
   },
   [F2LLM_160M_MODEL_KEY]: {
     modelKey: F2LLM_160M_MODEL_KEY,
@@ -71,12 +76,12 @@ const MODEL_SPECS = {
     queryPrefix: F2LLM_QUERY_PREFIX,
     remoteVectorPacks: true,
     browserLocalIndexing: true,
-    localVectorSpaceKey: "jbotci-browser-f2llm-q4-f16",
+    localVectorSpaceKey: F2LLM_VECTOR_SPACE_KEY,
     vectorElementType: "f16le",
-    embedBatchSize: 1,
+    embedBatchSize: F2LLM_LOCAL_EMBED_BATCH_SIZE,
     modelSizeEstimates: { q4: 110 * MI_B },
     minFreeBytesByDtype: { q4: 260 * MI_B },
-    outputPooling: "last_token",
+    outputPooling: F2LLM_POOLING,
   },
   [F2LLM_330M_MODEL_KEY]: {
     modelKey: F2LLM_330M_MODEL_KEY,
@@ -95,12 +100,12 @@ const MODEL_SPECS = {
     queryPrefix: F2LLM_QUERY_PREFIX,
     remoteVectorPacks: true,
     browserLocalIndexing: true,
-    localVectorSpaceKey: "jbotci-browser-f2llm-q4-f16",
+    localVectorSpaceKey: F2LLM_VECTOR_SPACE_KEY,
     vectorElementType: "f16le",
-    embedBatchSize: 1,
+    embedBatchSize: F2LLM_LOCAL_EMBED_BATCH_SIZE,
     modelSizeEstimates: { q4: 231 * MI_B },
     minFreeBytesByDtype: { q4: 420 * MI_B },
-    outputPooling: "last_token",
+    outputPooling: F2LLM_POOLING,
   },
   [F2LLM_0_6B_MODEL_KEY]: {
     modelKey: F2LLM_0_6B_MODEL_KEY,
@@ -119,12 +124,12 @@ const MODEL_SPECS = {
     queryPrefix: F2LLM_QUERY_PREFIX,
     remoteVectorPacks: true,
     browserLocalIndexing: true,
-    localVectorSpaceKey: "jbotci-browser-f2llm-q4-f16",
+    localVectorSpaceKey: F2LLM_VECTOR_SPACE_KEY,
     vectorElementType: "f16le",
-    embedBatchSize: 1,
+    embedBatchSize: F2LLM_LOCAL_EMBED_BATCH_SIZE,
     modelSizeEstimates: { q4: 416 * MI_B },
     minFreeBytesByDtype: { q4: 700 * MI_B },
-    outputPooling: "last_token",
+    outputPooling: F2LLM_POOLING,
   },
 };
 const DB_NAME = "jbotci-embeddings-v1";
@@ -179,7 +184,7 @@ self.onmessage = async (event) => {
   const { id, type, payload } = event.data || {};
   const forceWasm = payload?.forceWasm === true;
   try {
-    setF2LlmRuntimeUrl(payload?.f2llmRuntimeUrl);
+    setMainModuleUrl(payload?.mainModuleUrl);
     setOrtAssets(payload?.ortModuleUrl, payload?.ortWasmMjsUrl, payload?.ortWasmUrl);
     setSelectedModel(payload?.modelKey);
     await resolveActiveModel(forceWasm);
@@ -277,23 +282,38 @@ async function resolveActiveModel(forceWasm = false) {
   return effective;
 }
 
-function setF2LlmRuntimeUrl(runtimeUrl) {
-  if (typeof runtimeUrl !== "string" || runtimeUrl.trim().length === 0) {
-    return;
+function setMainModuleUrl(moduleUrl) {
+  if (typeof moduleUrl !== "string" || moduleUrl.trim().length === 0) {
+    throw new Error("embedding worker did not receive the app module URL");
   }
-  const nextUrl = runtimeUrl.trim();
-  if (f2llmRuntimeUrl === nextUrl) {
+  const nextUrl = new URL(moduleUrl, self.location.href).href;
+  if (mainModuleUrl === nextUrl) {
     return;
   }
   if (setupInProgress) {
-    throw new Error("cannot change F2LLM WebGPU runtime URL while setup is active");
+    throw new Error("cannot change embedding app module URL while setup is active");
   }
-  f2llmRuntimeUrl = nextUrl;
-  f2llmRuntimeModulePromise = null;
+  mainModuleUrl = nextUrl;
+  mainModulePromise = null;
   modelLoadPromise = null;
   modelRuntime = null;
   vectorCache.clear();
-  logInfo("configured F2LLM WebGPU runtime module", { runtimeUrl: f2llmRuntimeUrl });
+  logInfo("configured embedding app module", { mainModuleUrl });
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForMainWasm(appModule) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < INIT_TIMEOUT_MS) {
+    if (appModule.__wasm !== undefined || globalThis.__dx_mainWasm !== undefined) {
+      return;
+    }
+    await sleep(10);
+  }
+  throw new Error("Dioxus app wasm initialization did not complete in the embedding worker");
 }
 
 function setOrtAssets(moduleUrl, wasmMjsUrl, wasmUrl) {
@@ -369,6 +389,8 @@ function packSummary(pack) {
     modelKey: pack.modelKey || null,
     inputHash: shortHash(pack.inputHash),
     vectorSpaceKey: pack.vectorSpaceKey || null,
+    pooling: pack.pooling || null,
+    maxWindowTokens: pack.maxWindowTokens || null,
     corpora: Object.fromEntries(Object.entries(pack.corpora || {}).map(([id, corpus]) => [
       id,
       {
@@ -587,13 +609,8 @@ async function search(corpusId, query, limit, kindFiltersJson, forceWasm) {
   const queryEmbedding = await embedTexts([activeModelSpec().queryPrefix + trimmedQuery]);
   if (isCustomWebGpuRuntime(runtime)) {
     const loadedRuntime = await ensureModel(forceWasm);
-    const hits = await loadedRuntime.rankHits({
-      corpus,
-      query: queryEmbedding[0],
-      limit,
-      itemMatches: (item) => itemMatchesKindFilters(item, kindFilters),
-      readBinary: getBinary,
-    });
+    const scores = await loadedRuntime.scoreF16Vectors(corpus, queryEmbedding[0], getBinary);
+    const hits = rankHitsFromScores(scores, corpus.items, limit, kindFilters);
     return { hits, message: hits.length === 0 ? "No matches found." : null };
   }
   const vectors = await readCorpusVectors(corpus);
@@ -632,22 +649,20 @@ async function loadCustomRuntime(spec, forceWasm = false) {
     `Opening ${spec.label} ${runtime.dtype} with ${runtime.device}.`,
     indeterminateProgress("model", `${spec.label} ${runtime.dtype}/${runtime.device}`),
   );
-  const { F2LlmWebGpuRuntime } = await f2llmRuntimeModule();
-  const loaded = await F2LlmWebGpuRuntime.load({
+  const appModule = await f2llmRuntimeModule();
+  const loaded = await appModule.jbotciF2LlmWebGpuRuntimeLoad({
     baseUrl: runtime.artifactBaseUrl,
     expectedModelKey: spec.modelKey,
     expectedRuntime: runtime.runtime,
     expectedVersion: runtime.version,
     maxSequenceLength: spec.maxSequenceLength,
     dimensions: spec.dimensions,
-    fetchArrayBuffer: cachedFetchArrayBufferForSpec(spec),
-    progress: async (progress) => {
+  }, cachedFetchArrayBufferForSpec(spec), async (progress) => {
       await updateStatus(
         progress.status || "downloading-model",
         progress.detail || `Downloading ${spec.label} WebGPU artifact.`,
         progress.progress || null,
       );
-    },
   });
   modelRuntime = {
     modelKey: spec.modelKey,
@@ -670,11 +685,11 @@ async function loadOnnxWasmRuntime(spec) {
     `Opening ${spec.label} ${runtime.dtype} with ${runtime.device}.`,
     indeterminateProgress("model", `${spec.label} ${runtime.dtype}/${runtime.device}`),
   );
-  const [{ QwenByteBpeTokenizer }, ort] = await Promise.all([
+  const [appModule, ort] = await Promise.all([
     f2llmRuntimeModule(),
     ortModule(),
   ]);
-  const tokenizer = await loadF2LlmTokenizer(spec, QwenByteBpeTokenizer);
+  const tokenizer = await loadF2LlmTokenizer(spec, appModule);
   const onnxBytes = await cachedFetchArrayBufferForSpec(spec)(runtime.onnxUrl, `${spec.label} ONNX q4 model`);
   const session = await ort.InferenceSession.create(new Uint8Array(onnxBytes), {
     executionProviders: ["wasm"],
@@ -704,13 +719,22 @@ async function loadOnnxWasmRuntime(spec) {
 }
 
 async function f2llmRuntimeModule() {
-  if (typeof f2llmRuntimeUrl !== "string" || f2llmRuntimeUrl.length === 0) {
-    throw new Error("F2LLM WebGPU runtime module URL is not configured.");
+  if (typeof mainModuleUrl !== "string" || mainModuleUrl.length === 0) {
+    throw new Error("embedding app module URL is not configured.");
   }
-  if (f2llmRuntimeModulePromise === null) {
-    f2llmRuntimeModulePromise = import(f2llmRuntimeUrl);
+  if (mainModulePromise === null) {
+    mainModulePromise = import(mainModuleUrl).then(async (appModule) => {
+      if (typeof appModule.jbotciF2LlmWebGpuRuntimeLoad !== "function") {
+        throw new Error("Dioxus app module does not export jbotciF2LlmWebGpuRuntimeLoad");
+      }
+      if (typeof appModule.jbotciF2LlmTokenizerLoad !== "function") {
+        throw new Error("Dioxus app module does not export jbotciF2LlmTokenizerLoad");
+      }
+      await waitForMainWasm(appModule);
+      return appModule;
+    });
   }
-  return f2llmRuntimeModulePromise;
+  return mainModulePromise;
 }
 
 async function ortModule() {
@@ -746,7 +770,15 @@ class F2LlmOnnxWasmRuntime {
   }
 
   async embedText(text) {
-    const tokenIds = this.tokenizer.encode(text, this.maxSequenceLength);
+    const windows = Array.from(this.tokenizer.tokenWindows(text, this.maxSequenceLength));
+    const windowVectors = [];
+    for (const tokenIds of windows) {
+      windowVectors.push(await this.embedTokenWindow(tokenIds));
+    }
+    return meanPoolNormalized(windowVectors, this.dimensions);
+  }
+
+  async embedTokenWindow(tokenIds) {
     const feeds = this.feeds(tokenIds);
     const outputs = await this.session.run(feeds);
     const outputName = selectOnnxOutputName(outputs);
@@ -761,7 +793,7 @@ class F2LlmOnnxWasmRuntime {
       if (inputName === "input_ids") {
         feeds[inputName] = new this.ort.Tensor(
           "int64",
-          BigInt64Array.from(tokenIds.map((token) => BigInt(token))),
+          tokenIdsToBigInt64(tokenIds),
           [1, tokenIds.length],
         );
       } else if (inputName === "attention_mask") {
@@ -771,7 +803,7 @@ class F2LlmOnnxWasmRuntime {
       } else if (inputName === "position_ids") {
         feeds[inputName] = new this.ort.Tensor(
           "int64",
-          BigInt64Array.from(tokenIds.map((_, index) => BigInt(index))),
+          positionIdsToBigInt64(tokenIds.length),
           [1, tokenIds.length],
         );
       } else {
@@ -782,7 +814,39 @@ class F2LlmOnnxWasmRuntime {
   }
 }
 
-async function loadF2LlmTokenizer(spec, QwenByteBpeTokenizer) {
+function tokenIdsToBigInt64(tokenIds) {
+  return BigInt64Array.from(Array.from(tokenIds, (token) => BigInt(token)));
+}
+
+function positionIdsToBigInt64(length) {
+  const ids = new BigInt64Array(length);
+  for (let index = 0; index < length; index += 1) {
+    ids[index] = BigInt(index);
+  }
+  return ids;
+}
+
+function meanPoolNormalized(vectors, dimensions) {
+  if (vectors.length === 0) {
+    throw new Error("F2LLM produced no token windows");
+  }
+  if (vectors.length === 1) {
+    return vectors[0];
+  }
+  const output = new Float32Array(dimensions);
+  for (const vector of vectors) {
+    if (vector.length !== dimensions) {
+      throw new Error(`F2LLM window vector dimension mismatch: expected ${dimensions}, got ${vector.length}`);
+    }
+    for (let dim = 0; dim < dimensions; dim += 1) {
+      output[dim] += vector[dim] / vectors.length;
+    }
+  }
+  normalize(output);
+  return output;
+}
+
+async function loadF2LlmTokenizer(spec, appModule) {
   const fetchModel = cachedFetchArrayBufferForSpec(spec);
   const manifest = await fetchJsonWith(fetchModel, `${spec.customRuntime.artifactBaseUrl}/manifest.json`, `${spec.label} WebGPU manifest`);
   const tokenizerSpec = manifest.tokenizer;
@@ -799,11 +863,7 @@ async function loadF2LlmTokenizer(spec, QwenByteBpeTokenizer) {
   if (tokenizer.schema_version !== 1) {
     throw new Error(`unsupported F2LLM tokenizer schema version: ${tokenizer.schema_version}`);
   }
-  return new QwenByteBpeTokenizer({
-    vocab: tokenizer.vocab,
-    merges: tokenizer.merges,
-    eosId: tokenizer.special_tokens?.eos_id,
-  });
+  return appModule.jbotciF2LlmTokenizerLoad(bytes);
 }
 
 function selectOnnxOutputName(outputs) {
@@ -838,7 +898,7 @@ async function hasUsableWebGpu() {
   }
   try {
     const adapter = await navigator.gpu.requestAdapter();
-    return adapter !== null;
+    return adapter !== null && adapter.features?.has?.("shader-f16") === true;
   } catch (_) {
     return false;
   }
@@ -1026,6 +1086,8 @@ async function buildLocalPack(corpus) {
     inputHash: corpus.inputHash,
     inputFormatVersion: corpus.inputFormatVersion,
     vectorSpaceKey,
+    pooling: F2LLM_POOLING,
+    maxWindowTokens: spec.maxSequenceLength,
     runtime,
     compatibleQueryRuntimes: [runtime],
     corpora,
@@ -1262,6 +1324,8 @@ function partialLocalBuildCompatible(build, context) {
     && build.inputHash === context.inputHash
     && build.inputFormatVersion === context.inputFormatVersion
     && build.vectorSpaceKey === context.vectorSpaceKey
+    && build.pooling === F2LLM_POOLING
+    && build.maxWindowTokens === activeModelSpec().maxSequenceLength
     && packCompatibleWithRuntime(build, context.runtime);
 }
 
@@ -1337,6 +1401,8 @@ async function putLocalBuildCheckpoint(context, corpus) {
     inputHash: context.inputHash,
     inputFormatVersion: context.inputFormatVersion,
     vectorSpaceKey: context.vectorSpaceKey,
+    pooling: F2LLM_POOLING,
+    maxWindowTokens: activeModelSpec().maxSequenceLength,
     runtime: context.runtime,
     compatibleQueryRuntimes: [context.runtime],
     corpora,
@@ -1509,6 +1575,8 @@ async function loadRemotePackIfAvailable(corpus, remoteBaseUrl) {
     inputHash: manifest.input_hash,
     inputFormatVersion: manifest.input_format_version,
     vectorSpaceKey: manifest.vector_space_key,
+    pooling: manifest.pooling,
+    maxWindowTokens: manifest.max_window_tokens,
     runtime,
     compatibleQueryRuntimes: manifest.compatible_query_runtimes || [],
     corpora,
@@ -1571,6 +1639,8 @@ function manifestSummary(manifest) {
     packId: manifest?.pack_id || null,
     dimensions: manifest?.dimensions || null,
     elementType: manifest?.element_type || null,
+    pooling: manifest?.pooling || null,
+    maxWindowTokens: manifest?.max_window_tokens || null,
     compatibleQueryRuntimes: manifest?.compatible_query_runtimes || [],
     corpora: (manifest?.corpora || []).map((corpus) => ({
       corpusId: corpus.corpus_id || null,
@@ -1594,6 +1664,8 @@ function manifestCompatibilityIssue(manifest, corpus, runtime) {
     ["element_type", manifest.element_type, expectedElementType],
     ["normalized", manifest.normalized, true],
     ["distance", manifest.distance, "dot"],
+    ["pooling", manifest.pooling, F2LLM_POOLING],
+    ["max_window_tokens", manifest.max_window_tokens, spec.maxSequenceLength],
   ]) {
     if (actual !== expected) {
       return {
@@ -1679,13 +1751,17 @@ function runtimeMatches(candidate, runtime) {
     return candidate?.runtime === F2LLM_WEBGPU_RUNTIME
       && candidate?.dtype === runtime.dtype
       && (!candidate.device || candidate.device === runtime.device)
-      && (!candidate.version || candidate.version === runtime.version);
+      && (!candidate.version || candidate.version === runtime.version)
+      && candidate?.pooling === F2LLM_POOLING
+      && candidate?.max_window_tokens === activeModelSpec().maxSequenceLength;
   }
   if (runtime?.runtime === F2LLM_WASM_RUNTIME) {
     return candidate?.runtime === F2LLM_WASM_RUNTIME
       && candidate?.dtype === runtime.dtype
       && (!candidate.device || candidate.device === runtime.device)
-      && (!candidate.version || candidate.version === runtime.version);
+      && (!candidate.version || candidate.version === runtime.version)
+      && candidate?.pooling === F2LLM_POOLING
+      && candidate?.max_window_tokens === activeModelSpec().maxSequenceLength;
   }
   return false;
 }
@@ -1697,6 +1773,8 @@ function f2llmRuntimeDescriptor(runtime) {
       version: runtime.version || F2LLM_WEBGPU_RUNTIME_VERSION,
       dtype: runtime.dtype,
       device: runtime.device,
+      pooling: F2LLM_POOLING,
+      max_window_tokens: activeModelSpec().maxSequenceLength,
     };
   }
   if (runtime?.runtime === F2LLM_WASM_RUNTIME) {
@@ -1705,6 +1783,8 @@ function f2llmRuntimeDescriptor(runtime) {
       version: runtime.version || F2LLM_WASM_RUNTIME_VERSION,
       dtype: runtime.dtype,
       device: runtime.device,
+      pooling: F2LLM_POOLING,
+      max_window_tokens: activeModelSpec().maxSequenceLength,
     };
   }
   throw new Error(`unsupported F2LLM runtime: ${runtime?.runtime || "missing"}`);
@@ -1764,6 +1844,8 @@ function cachedPackMatchesCorpus(pack, corpus, runtime, vectorSpaceKey) {
     && pack.inputHash === corpus.inputHash
     && pack.inputFormatVersion === corpus.inputFormatVersion
     && pack.vectorSpaceKey === vectorSpaceKey
+    && pack.pooling === F2LLM_POOLING
+    && pack.maxWindowTokens === activeModelSpec().maxSequenceLength
     && packCompatibleWithRuntime(pack, runtime);
 }
 
@@ -2126,6 +2208,31 @@ function rankHits(vectors, query, items, dimensions, limit, kindFilters) {
   return hits;
 }
 
+function rankHitsFromScores(scores, items, limit, kindFilters) {
+  const rowCount = Math.min(items.length, scores.length);
+  const limitCount = Math.trunc(Number(limit) || 0);
+  if (limitCount <= 0) {
+    return rankAllHitsFromScores(scores, items, rowCount, kindFilters);
+  }
+  const hits = [];
+  for (let row = 0; row < rowCount; row += 1) {
+    if (!itemMatchesKindFilters(items[row], kindFilters)) {
+      continue;
+    }
+    const candidate = { id: items[row].id, score: scores[row] };
+    if (hits.length < limitCount) {
+      hits.push(candidate);
+      continue;
+    }
+    const worstIndex = worstHitIndex(hits);
+    if (worstIndex !== -1 && compareHits(candidate, hits[worstIndex]) < 0) {
+      hits[worstIndex] = candidate;
+    }
+  }
+  hits.sort(compareHits);
+  return hits;
+}
+
 function rankAllHits(vectors, query, items, dimensions, rowCount, kindFilters) {
   const hits = [];
   for (let row = 0; row < rowCount; row += 1) {
@@ -2138,6 +2245,18 @@ function rankAllHits(vectors, query, items, dimensions, rowCount, kindFilters) {
       score += vectors[base + dim] * query[dim];
     }
     hits.push({ id: items[row].id, score });
+  }
+  hits.sort(compareHits);
+  return hits;
+}
+
+function rankAllHitsFromScores(scores, items, rowCount, kindFilters) {
+  const hits = [];
+  for (let row = 0; row < rowCount; row += 1) {
+    if (!itemMatchesKindFilters(items[row], kindFilters)) {
+      continue;
+    }
+    hits.push({ id: items[row].id, score: scores[row] });
   }
   hits.sort(compareHits);
   return hits;

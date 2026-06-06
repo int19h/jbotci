@@ -14,14 +14,15 @@ from transformers import AutoTokenizer
 
 
 SCHEMA_VERSION = 1
-ARTIFACT_VERSION = "f2llm-vector-pack-ca-v1"
+ARTIFACT_VERSION = "f2llm-vector-pack-windowed-ca-v1"
 MODEL_KEY = "f2llm-v2-80m-q4-320"
 MODEL_ID = "codefuse-ai/F2LLM-v2-80M"
 RUNTIME = "jbotci-webgpu-f2llm"
-RUNTIME_VERSION = "0.1.0"
+RUNTIME_VERSION = "0.2.0"
 WASM_RUNTIME = "jbotci-onnxruntime-web-f2llm"
-WASM_RUNTIME_VERSION = "0.1.0"
-VECTOR_SPACE_KEY = "jbotci-webgpu-f2llm-q4-f16"
+WASM_RUNTIME_VERSION = "0.2.0"
+POOLING = "mean_normalized_windows"
+VECTOR_SPACE_KEY = "jbotci-browser-f2llm-q4-f16-windowed-512-v1"
 MAX_SEQUENCE_LENGTH = 512
 DIMENSIONS = 320
 DEFAULT_Q4_ONNX = (
@@ -32,6 +33,7 @@ CORPORA = [
     ("vlacku-en", "dictionary", "entry_index"),
     ("cukta-cll", "cll", "chunk_index"),
 ]
+PROGRESS_WINDOW_INTERVAL = 512
 
 
 def main() -> None:
@@ -49,7 +51,7 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir, fix_mistral_regex=True)
     session = ort.InferenceSession(str(q4_onnx), providers=["CPUExecutionProvider"])
     q4_onnx_sha256 = file_sha256(q4_onnx)
-    compatible_query_runtimes = compatible_runtimes(args.include_wasm_runtime)
+    compatible_query_runtimes = compatible_runtimes(args.include_wasm_runtime, args.max_sequence_length)
 
     pack_id = "-".join([
         corpus["inputFormatVersion"],
@@ -89,6 +91,8 @@ def main() -> None:
         "input_format_version": corpus["inputFormatVersion"],
         "input_hash": corpus["inputHash"],
         "max_sequence_length": args.max_sequence_length,
+        "pooling": POOLING,
+        "max_window_tokens": args.max_sequence_length,
         "built_by": {
             "runtime": "onnxruntime",
             "provider": "CPUExecutionProvider",
@@ -113,6 +117,8 @@ def main() -> None:
                         "vector_space_key": args.vector_space_key,
                         "latest_pack_id": pack_id,
                         "manifest_url": manifest_url,
+                        "pooling": POOLING,
+                        "max_window_tokens": args.max_sequence_length,
                         "compatible_query_runtimes": compatible_query_runtimes,
                     },
                 ],
@@ -150,13 +156,15 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def compatible_runtimes(include_wasm_runtime: bool) -> list[dict[str, object]]:
+def compatible_runtimes(include_wasm_runtime: bool, max_sequence_length: int) -> list[dict[str, object]]:
     runtimes = [
         {
             "runtime": RUNTIME,
             "version": RUNTIME_VERSION,
             "dtype": "q4",
             "device": "webgpu",
+            "pooling": POOLING,
+            "max_window_tokens": max_sequence_length,
         },
     ]
     if include_wasm_runtime:
@@ -165,6 +173,8 @@ def compatible_runtimes(include_wasm_runtime: bool) -> list[dict[str, object]]:
             "version": WASM_RUNTIME_VERSION,
             "dtype": "q4",
             "device": "wasm",
+            "pooling": POOLING,
+            "max_window_tokens": max_sequence_length,
         })
     return runtimes
 
@@ -233,19 +243,20 @@ def embed_texts(
     dimensions: int,
     max_sequence_length: int,
 ) -> np.ndarray:
-    vectors = []
+    doc_windows = [token_windows(text, tokenizer, max_sequence_length) for text in texts]
+    window_refs = [
+        (doc_index, window)
+        for doc_index, windows in enumerate(doc_windows)
+        for window in windows
+    ]
+    vectors_by_doc: list[list[np.ndarray]] = [[] for _ in texts]
     input_names = {item.name for item in session.get_inputs()}
-    for start, batch in enumerate_batches(texts, batch_size):
-        encoded = tokenizer(
-            batch,
-            padding=True,
-            truncation=True,
-            max_length=max_sequence_length,
-            return_tensors="np",
-        )
-        attention_mask = encoded["attention_mask"].astype(np.int64)
+    for start, batch in enumerate_batches(window_refs, batch_size):
+        doc_indices = [doc_index for doc_index, _ in batch]
+        windows = [window for _, window in batch]
+        input_ids, attention_mask = padded_window_batch(windows, tokenizer)
         feeds = {
-            "input_ids": encoded["input_ids"].astype(np.int64),
+            "input_ids": input_ids,
             "attention_mask": attention_mask,
         }
         if "position_ids" in input_names:
@@ -255,14 +266,56 @@ def embed_texts(
         rows = normalize(rows)
         if rows.shape[1] != dimensions:
             raise ValueError(f"embedding dimension mismatch: expected {dimensions}, got {rows.shape[1]}")
-        vectors.append(rows)
-        print(f"embedded {min(start + len(batch), len(texts))} of {len(texts)}", flush=True)
-    if not vectors:
+        for doc_index, row in zip(doc_indices, rows, strict=True):
+            vectors_by_doc[doc_index].append(row)
+        done_windows = min(start + len(batch), len(window_refs))
+        if done_windows == len(window_refs) or done_windows % PROGRESS_WINDOW_INTERVAL == 0:
+            completed_docs = sum(1 for vectors in vectors_by_doc if vectors)
+            print(
+                f"embedded {done_windows} of {len(window_refs)} windows "
+                f"for {completed_docs} of {len(texts)} documents",
+                flush=True,
+            )
+    if not vectors_by_doc:
         return np.empty((0, dimensions), dtype=np.float32)
-    return np.concatenate(vectors, axis=0)
+    return np.stack([
+        mean_pool_normalized(window_vectors, dimensions)
+        for window_vectors in vectors_by_doc
+    ], axis=0)
 
 
-def enumerate_batches(items: list[str], batch_size: int) -> Iterable[tuple[int, list[str]]]:
+def token_windows(text: str, tokenizer, max_sequence_length: int) -> list[np.ndarray]:
+    token_ids = list(tokenizer(str(text), add_special_tokens=False, truncation=False)["input_ids"])
+    eos_token_id = tokenizer.eos_token_id
+    if eos_token_id is None:
+        raise ValueError("F2LLM tokenizer does not expose eos_token_id")
+    token_ids.append(int(eos_token_id))
+    return [
+        np.asarray(token_ids[start:start + max_sequence_length], dtype=np.int64)
+        for start in range(0, len(token_ids), max_sequence_length)
+    ]
+
+
+def padded_window_batch(windows: list[np.ndarray], tokenizer) -> tuple[np.ndarray, np.ndarray]:
+    if not windows:
+        raise ValueError("cannot embed an empty window batch")
+    max_len = max(len(window) for window in windows)
+    pad_token_id = tokenizer.pad_token_id
+    if pad_token_id is None:
+        pad_token_id = tokenizer.eos_token_id
+    if pad_token_id is None:
+        raise ValueError("F2LLM tokenizer does not expose pad_token_id or eos_token_id")
+    input_ids = np.full((len(windows), max_len), int(pad_token_id), dtype=np.int64)
+    attention_mask = np.zeros((len(windows), max_len), dtype=np.int64)
+    for row, window in enumerate(windows):
+        if len(window) == 0:
+            raise ValueError("token window cannot be empty")
+        input_ids[row, :len(window)] = window
+        attention_mask[row, :len(window)] = 1
+    return input_ids, attention_mask
+
+
+def enumerate_batches(items: list[object], batch_size: int) -> Iterable[tuple[int, list[object]]]:
     for index in range(0, len(items), batch_size):
         yield index, items[index:index + batch_size]
 
@@ -283,6 +336,16 @@ def normalize(values: np.ndarray) -> np.ndarray:
     norms = np.linalg.norm(values, axis=1, keepdims=True)
     norms[norms == 0] = 1.0
     return values / norms
+
+
+def mean_pool_normalized(window_vectors: list[np.ndarray], dimensions: int) -> np.ndarray:
+    if not window_vectors:
+        raise ValueError("document produced no token windows")
+    stacked = np.stack(window_vectors, axis=0).astype(np.float32)
+    if stacked.shape[1] != dimensions:
+        raise ValueError(f"embedding dimension mismatch: expected {dimensions}, got {stacked.shape[1]}")
+    mean = stacked.mean(axis=0, dtype=np.float32).reshape(1, dimensions)
+    return normalize(mean)[0]
 
 
 def read_json(path: Path) -> object:

@@ -47,7 +47,7 @@ const F2LLM_MODEL_ARTIFACT_ROOT_DIR: &str = ".jbotci-build/f2llm-webgpu-models";
 const F2LLM_ONNX_FALLBACK_R2_PREFIX: &str = "models/f2llm-v2-80m-onnx-q4/v1";
 const F2LLM_EMBEDDINGS_R2_PREFIX: &str = "embeddings/web/v1";
 const F2LLM_REMOTE_CATALOG_URL: &str = "https://assets.jbotci.app/embeddings/web/v1/catalog.json";
-const F2LLM_VECTOR_SPACE_KEY: &str = "jbotci-webgpu-f2llm-q4-f16";
+const F2LLM_VECTOR_SPACE_KEY: &str = "jbotci-browser-f2llm-q4-f16-windowed-512-v1";
 const F2LLM_MAX_SEQUENCE_LENGTH: usize = 512;
 const R2_UPLOAD_PARALLELISM: usize = 4;
 const F2LLM_80M_MODEL_KEY: &str = "f2llm-v2-80m-q4-320";
@@ -1954,7 +1954,7 @@ fn build_f2llm_onnx_fallback_asset(root: &Path) -> Result<()> {
         &serde_json::json!({
             "schema_version": 1,
             "runtime": "jbotci-onnxruntime-web-f2llm",
-            "artifact_version": "0.1.0",
+            "artifact_version": "0.2.0",
             "model_key": spec.model_key,
             "source_model": spec.model_id,
             "model_url": "model_q4.onnx",

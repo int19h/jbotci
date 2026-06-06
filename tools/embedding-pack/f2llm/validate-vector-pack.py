@@ -13,10 +13,11 @@ from transformers import AutoTokenizer
 
 MODEL_KEY = "f2llm-v2-80m-q4-320"
 RUNTIME = "jbotci-webgpu-f2llm"
-RUNTIME_VERSION = "0.1.0"
+RUNTIME_VERSION = "0.2.0"
 WASM_RUNTIME = "jbotci-onnxruntime-web-f2llm"
-WASM_RUNTIME_VERSION = "0.1.0"
-VECTOR_SPACE_KEY = "jbotci-webgpu-f2llm-q4-f16"
+WASM_RUNTIME_VERSION = "0.2.0"
+POOLING = "mean_normalized_windows"
+VECTOR_SPACE_KEY = "jbotci-browser-f2llm-q4-f16-windowed-512-v1"
 MAX_SEQUENCE_LENGTH = 512
 DIMENSIONS = 320
 DEFAULT_Q4_ONNX = (
@@ -126,6 +127,8 @@ def validate_manifest(manifest: dict[str, object], corpus: dict[str, object], ar
         "input_format_version": corpus["inputFormatVersion"],
         "input_hash": corpus["inputHash"],
         "max_sequence_length": args.max_sequence_length,
+        "pooling": POOLING,
+        "max_window_tokens": args.max_sequence_length,
         "dimensions": args.dimensions,
         "element_type": "f16le",
         "normalized": True,
@@ -140,6 +143,8 @@ def validate_manifest(manifest: dict[str, object], corpus: dict[str, object], ar
         "version": RUNTIME_VERSION,
         "dtype": "q4",
         "device": "webgpu",
+        "pooling": POOLING,
+        "max_window_tokens": args.max_sequence_length,
     }
     if expected_runtime not in compatible:
         raise AssertionError(f"manifest lacks compatible runtime {expected_runtime!r}")
@@ -148,6 +153,8 @@ def validate_manifest(manifest: dict[str, object], corpus: dict[str, object], ar
         "version": WASM_RUNTIME_VERSION,
         "dtype": "q4",
         "device": "wasm",
+        "pooling": POOLING,
+        "max_window_tokens": args.max_sequence_length,
     }
     if args.include_wasm_runtime and expected_wasm_runtime not in compatible:
         raise AssertionError(f"manifest lacks compatible runtime {expected_wasm_runtime!r}")
@@ -203,25 +210,53 @@ def embed_texts(
     max_sequence_length: int,
 ) -> np.ndarray:
     input_names = {item.name for item in session.get_inputs()}
-    encoded = tokenizer(
-        texts,
-        padding=True,
-        truncation=True,
-        max_length=max_sequence_length,
-        return_tensors="np",
-    )
-    attention_mask = encoded["attention_mask"].astype(np.int64)
-    feeds = {
-        "input_ids": encoded["input_ids"].astype(np.int64),
-        "attention_mask": attention_mask,
-    }
-    if "position_ids" in input_names:
-        feeds["position_ids"] = position_ids(attention_mask)
-    hidden = session.run(None, feeds)[0]
-    pooled = normalize(last_token_pool(hidden, attention_mask).astype(np.float32))
-    if pooled.shape[1] != dimensions:
-        raise AssertionError(f"embedding dimension mismatch: expected {dimensions}, got {pooled.shape[1]}")
-    return pooled
+    vectors = []
+    for text in texts:
+        windows = token_windows(text, tokenizer, max_sequence_length)
+        input_ids, attention_mask = padded_window_batch(windows, tokenizer)
+        feeds = {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+        }
+        if "position_ids" in input_names:
+            feeds["position_ids"] = position_ids(attention_mask)
+        hidden = session.run(None, feeds)[0]
+        pooled = normalize(last_token_pool(hidden, attention_mask).astype(np.float32))
+        if pooled.shape[1] != dimensions:
+            raise AssertionError(f"embedding dimension mismatch: expected {dimensions}, got {pooled.shape[1]}")
+        vectors.append(mean_pool_normalized([row for row in pooled], dimensions))
+    return np.stack(vectors, axis=0)
+
+
+def token_windows(text: str, tokenizer, max_sequence_length: int) -> list[np.ndarray]:
+    token_ids = list(tokenizer(str(text), add_special_tokens=False, truncation=False)["input_ids"])
+    eos_token_id = tokenizer.eos_token_id
+    if eos_token_id is None:
+        raise AssertionError("F2LLM tokenizer does not expose eos_token_id")
+    token_ids.append(int(eos_token_id))
+    return [
+        np.asarray(token_ids[start:start + max_sequence_length], dtype=np.int64)
+        for start in range(0, len(token_ids), max_sequence_length)
+    ]
+
+
+def padded_window_batch(windows: list[np.ndarray], tokenizer) -> tuple[np.ndarray, np.ndarray]:
+    if not windows:
+        raise AssertionError("cannot embed an empty window batch")
+    max_len = max(len(window) for window in windows)
+    pad_token_id = tokenizer.pad_token_id
+    if pad_token_id is None:
+        pad_token_id = tokenizer.eos_token_id
+    if pad_token_id is None:
+        raise AssertionError("F2LLM tokenizer does not expose pad_token_id or eos_token_id")
+    input_ids = np.full((len(windows), max_len), int(pad_token_id), dtype=np.int64)
+    attention_mask = np.zeros((len(windows), max_len), dtype=np.int64)
+    for row, window in enumerate(windows):
+        if len(window) == 0:
+            raise AssertionError("token window cannot be empty")
+        input_ids[row, :len(window)] = window
+        attention_mask[row, :len(window)] = 1
+    return input_ids, attention_mask
 
 
 def position_ids(attention_mask: np.ndarray) -> np.ndarray:
@@ -240,6 +275,16 @@ def normalize(values: np.ndarray) -> np.ndarray:
     norms = np.linalg.norm(values, axis=1, keepdims=True)
     norms[norms == 0] = 1.0
     return values / norms
+
+
+def mean_pool_normalized(window_vectors: list[np.ndarray], dimensions: int) -> np.ndarray:
+    if not window_vectors:
+        raise AssertionError("document produced no token windows")
+    stacked = np.stack(window_vectors, axis=0).astype(np.float32)
+    if stacked.shape[1] != dimensions:
+        raise AssertionError(f"embedding dimension mismatch: expected {dimensions}, got {stacked.shape[1]}")
+    mean = stacked.mean(axis=0, dtype=np.float32).reshape(1, dimensions)
+    return normalize(mean)[0]
 
 
 def sample_rows(row_count: int, count: int) -> list[int]:

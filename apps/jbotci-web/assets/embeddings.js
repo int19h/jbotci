@@ -10,7 +10,6 @@ const SUPPORTED_MODEL_KEYS = new Set([
 ]);
 
 let configuredWorkerUrl = null;
-let configuredF2LlmRuntimeUrl = null;
 let configuredOrtModuleUrl = null;
 let configuredOrtWasmMjsUrl = null;
 let configuredOrtWasmUrl = null;
@@ -106,6 +105,14 @@ function activeModelKey() {
   return configuredModelKey || defaultModelKey();
 }
 
+function appModuleUrl() {
+  const bootstrapUrl = globalThis.JBOTCI_WEB_BOOTSTRAP?.mainModuleUrl;
+  if (typeof bootstrapUrl !== "string" || bootstrapUrl.length === 0) {
+    throw new Error("embedding app module URL is not configured");
+  }
+  return new URL(bootstrapUrl, globalThis.location.href);
+}
+
 function isMobileDevice() {
   const userAgent = globalThis.navigator?.userAgent || "";
   const platform = globalThis.navigator?.userAgentData?.platform
@@ -127,21 +134,6 @@ export function jbotciEmbeddingConfigureWorker(workerUrl) {
   logInfo("configured worker URL", { workerUrl: configuredWorkerUrl.href });
   if (worker !== null) {
     terminateWorker("embedding worker URL changed");
-  }
-}
-
-export function jbotciEmbeddingConfigureF2LlmRuntime(runtimeUrl) {
-  if (typeof runtimeUrl !== "string" || runtimeUrl.length === 0) {
-    throw new Error("F2LLM WebGPU runtime URL is empty");
-  }
-  const nextRuntimeUrl = new URL(runtimeUrl, globalThis.location.href);
-  if (configuredF2LlmRuntimeUrl !== null && configuredF2LlmRuntimeUrl.href === nextRuntimeUrl.href) {
-    return;
-  }
-  configuredF2LlmRuntimeUrl = nextRuntimeUrl;
-  logInfo("configured F2LLM WebGPU runtime URL", { runtimeUrl: configuredF2LlmRuntimeUrl.href });
-  if (worker !== null) {
-    terminateWorker("F2LLM WebGPU runtime URL changed");
   }
 }
 
@@ -216,7 +208,7 @@ function sendRequest(type, payload = {}) {
     const id = nextRequestId++;
     const remoteBaseUrl = payload.remoteBaseUrl || configuredRemoteBaseUrl;
     const modelKey = payload.modelKey || activeModelKey();
-    const f2llmRuntimeUrl = configuredF2LlmRuntimeUrl?.href || null;
+    const mainModuleUrl = appModuleUrl().href;
     const ortModuleUrl = configuredOrtModuleUrl?.href || null;
     const ortWasmMjsUrl = configuredOrtWasmMjsUrl?.href || null;
     const ortWasmUrl = configuredOrtWasmUrl?.href || null;
@@ -237,7 +229,7 @@ function sendRequest(type, payload = {}) {
           ...payload,
           modelKey,
           remoteBaseUrl,
-          f2llmRuntimeUrl,
+          mainModuleUrl,
           ortModuleUrl,
           ortWasmMjsUrl,
           ortWasmUrl,

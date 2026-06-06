@@ -15,7 +15,7 @@ from onnx import TensorProto, helper, numpy_helper
 
 
 SCHEMA_VERSION = 1
-ARTIFACT_VERSION = "0.1.0"
+ARTIFACT_VERSION = "0.2.0"
 RUNTIME = "jbotci-webgpu-f2llm"
 DEFAULT_MODEL_KEY = "f2llm-v2-80m-q4-320"
 DEFAULT_SOURCE_MODEL = "codefuse-ai/F2LLM-v2-80M"
