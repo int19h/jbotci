@@ -160,12 +160,13 @@ def write_tokenizer(model_root: Path, out_root: Path) -> dict[str, object]:
         },
     }
     data = canonical_json(compact)
-    path = out_root / "tokenizer.compact.json"
+    digest = sha256(data)
+    path = out_root / f"tokenizer.{digest[:16]}.compact.json"
     path.write_bytes(data)
     return {
-        "url": "tokenizer.compact.json",
+        "url": path.name,
         "byte_length": len(data),
-        "canonical_json_sha256": sha256(data),
+        "canonical_json_sha256": digest,
     }
 
 
@@ -398,16 +399,17 @@ def write_chunked(out_root: Path, root: Path, basename: str, data: bytes, shard_
         raise ValueError(f"{root / basename} has no data")
     for index, offset in enumerate(range(0, len(data), shard_size)):
         chunk = data[offset:offset + shard_size]
+        digest = sha256(chunk)
         if len(data) <= shard_size:
-            rel = root / f"{basename}.bin"
+            rel = root / f"{basename}.{digest[:16]}.bin"
         else:
-            rel = root / f"{basename}.part{index:04d}.bin"
+            rel = root / f"{basename}.part{index:04d}.{digest[:16]}.bin"
         rel.write_bytes(chunk)
         chunks.append({
             "url": str(rel.relative_to(out_root)).replace("\\", "/"),
             "byte_offset": offset,
             "byte_length": len(chunk),
-            "sha256": sha256(chunk),
+            "sha256": digest,
         })
     return {
         "byte_length": len(data),

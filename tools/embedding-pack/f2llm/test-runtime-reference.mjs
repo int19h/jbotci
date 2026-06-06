@@ -119,7 +119,7 @@ assertAlmost(hits[0].score, 0.475, 1e-4);
 console.log("f2llm CPU runtime reference tests passed");
 
 function assertRopeDispatchCoversAllPairs() {
-  const source = readFileSync(new URL("../../apps/jbotci-web/assets/f2llm-webgpu-runtime.js", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../../../apps/jbotci-web/assets/f2llm-webgpu-runtime.js", import.meta.url), "utf8");
   assert.match(
     source,
     /Math\.ceil\(headDim \/ 2\)/,

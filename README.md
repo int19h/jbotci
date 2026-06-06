@@ -33,6 +33,9 @@ cargo xtask fixture-list --profile cargo
 cargo xtask build-web-release
 cargo xtask dist-server --out-dir .jbotci-build/jbotci-web --base-path /
 cargo xtask publish-web-embeddings-r2 --backend fixture --embedding-dtype q4
+cargo xtask build-f2llm-webgpu-model
+cargo xtask build-f2llm-webgpu-vectors
+cargo xtask publish-f2llm-webgpu-r2 --skip-build
 cargo xtask render-docker-build
 cargo xtask render-docker-run --engine podman
 ```
@@ -65,9 +68,12 @@ Browser embedding packs are deployed separately to Cloudflare R2 with
 
 The mobile F2LLM browser path uses a custom WebGPU artifact instead of
 Transformers.js. Build its model artifact and `f16le` vector pack with the
-offline scripts in `tools/webgpu-embedding-runtime/`; publish the model artifact
-under `https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1` and the vector
-pack under the normal web embedding R2 prefix.
+production scripts in `tools/embedding-pack/f2llm/`, or use
+`cargo xtask publish-f2llm-webgpu-r2`. The publisher uploads the model artifact
+under `https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1`, uploads the
+matching q4-generated `f16le` vector pack under the normal web embedding R2
+prefix, and merges only the F2LLM catalog entry so EmbeddingGemma entries are
+preserved.
 
 The parser facets are scaffolded but intentionally return `NotImplemented` at
 this checkpoint. Use `cargo xtask fixture-test --profile all --facet morphology

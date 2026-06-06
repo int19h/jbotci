@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { strict as assert } from "node:assert";
-import { QwenByteBpeTokenizer } from "../../apps/jbotci-web/assets/f2llm-webgpu-runtime.js";
+import { QwenByteBpeTokenizer } from "../../../apps/jbotci-web/assets/f2llm-webgpu-runtime.js";
 
 const tokenizer = new QwenByteBpeTokenizer({
   eosId: 999,
