@@ -76,6 +76,7 @@ const COMPUTE_JS: Asset = asset!("/assets/compute.js");
 const COMPUTE_WORKER_JS: Asset = asset!("/assets/compute-worker.js");
 const EMBEDDINGS_JS: Asset = asset!("/assets/embeddings.js");
 const EMBEDDING_WORKER_JS: Asset = asset!("/assets/embedding-worker.js");
+const F2LLM_WEBGPU_RUNTIME_JS: Asset = asset!("/assets/f2llm-webgpu-runtime.js");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
 const DEFAULT_WEB_EMBEDDINGS_BASE_URL: &str = "/assets/embeddings/web/v1";
 const BUILD_WEB_EMBEDDINGS_BASE_URL: Option<&str> = option_env!("JBOTCI_WEB_EMBEDDINGS_BASE_URL");
@@ -1155,6 +1156,7 @@ fn AppShell() -> Element {
     }));
     use_effect(move || {
         configure_embedding_worker_url(&format!("{EMBEDDING_WORKER_JS}"));
+        configure_embedding_f2llm_runtime_url(&format!("{F2LLM_WEBGPU_RUNTIME_JS}"));
         configure_embedding_remote_base_url(web_embeddings_base_url());
         configure_compute_worker_url(&format!("{COMPUTE_WORKER_JS}"));
     });
@@ -2635,6 +2637,9 @@ extern "C" {
     #[wasm_bindgen(js_name = jbotciEmbeddingConfigureWorker)]
     fn js_embedding_configure_worker(worker_url: &str);
 
+    #[wasm_bindgen(js_name = jbotciEmbeddingConfigureF2LlmRuntime)]
+    fn js_embedding_configure_f2llm_runtime(runtime_url: &str);
+
     #[wasm_bindgen(js_name = jbotciEmbeddingConfigureRemoteBase)]
     fn js_embedding_configure_remote_base(remote_base_url: &str);
 
@@ -2695,6 +2700,20 @@ fn configure_embedding_worker_url(worker_url: &str) {
 #[ensures(true)]
 fn configure_embedding_worker_url(worker_url: &str) {
     let _ = worker_url;
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(!runtime_url.is_empty())]
+#[ensures(true)]
+fn configure_embedding_f2llm_runtime_url(runtime_url: &str) {
+    js_embedding_configure_f2llm_runtime(runtime_url);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(!runtime_url.is_empty())]
+#[ensures(true)]
+fn configure_embedding_f2llm_runtime_url(runtime_url: &str) {
+    let _ = runtime_url;
 }
 
 #[requires(true)]
