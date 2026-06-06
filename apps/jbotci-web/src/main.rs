@@ -408,16 +408,17 @@ struct PendingLocalRouteWrites {
 
 impl PendingLocalRouteWrites {
     #[requires(true)]
-    #[ensures(self.routes.iter().any(|pending| pending == route))]
+    #[ensures(self.routes.iter().any(|pending| pending == &canonical_local_route(route)))]
     fn record(&mut self, route: &JbotciRoute) {
-        self.routes.push(route.clone());
+        self.routes.push(canonical_local_route(route));
     }
 
     #[requires(true)]
-    #[ensures(ret -> !self.routes.iter().any(|pending| pending == route))]
+    #[ensures(ret -> !self.routes.iter().any(|pending| pending == &canonical_local_route(route)))]
     fn consume(&mut self, route: &JbotciRoute) -> bool {
+        let route = canonical_local_route(route);
         let initial_len = self.routes.len();
-        self.routes.retain(|pending| pending != route);
+        self.routes.retain(|pending| pending != &route);
         self.routes.len() != initial_len
     }
 }
@@ -1661,6 +1662,7 @@ fn AppShell() -> Element {
                                                         class: "btn-parse",
                                                         r#type: "button",
                                                         onclick: move |_| {
+                                                            clear_gentufa_url_timer();
                                                             let mut next_text = input_text.read().clone();
                                                             let next_dialect = dialect.read().clone();
                                                             if next_text.trim().is_empty() {
@@ -2461,7 +2463,10 @@ fn render_dialect_control(
                         placeholder: "baseline (CLL + xorlo + LTR-magic)",
                         spellcheck: "false",
                         aria_label: "Dialect formula",
-                        oninput: move |event| dialect.set(event.value()),
+                        oninput: move |event| {
+                            clear_gentufa_url_timer();
+                            dialect.set(event.value());
+                        },
                     }
                 }
                 if picker_is_open {
@@ -2482,6 +2487,7 @@ fn render_dialect_control(
                                                 } else {
                                                     add_dialect_formula_reference(&item_name, &current)
                                                 };
+                                                clear_gentufa_url_timer();
                                                 dialect.set(next);
                                             },
                                         }
@@ -7806,6 +7812,7 @@ fn render_gentufa_input(
                 value: "{text}",
                 spellcheck: "false",
                 oninput: move |event| {
+                    clear_gentufa_url_timer();
                     input_text.set(event.value());
                     gentufa_text_explicit.set(true);
                     active_diagnostic_signal.set(None);
@@ -10049,21 +10056,30 @@ fn render_view_tabs(
                 class: view_tab_class(current == GentufaWebViewMode::Blocks),
                 r#type: "button",
                 aria_current: if current == GentufaWebViewMode::Blocks { "page" } else { "false" },
-                onclick: move |_| view_mode.set(GentufaWebViewMode::Blocks),
+                onclick: move |_| {
+                    clear_gentufa_url_timer();
+                    view_mode.set(GentufaWebViewMode::Blocks);
+                },
                 "Blocks"
             }
             button {
                 class: view_tab_class(current == GentufaWebViewMode::Tree),
                 r#type: "button",
                 aria_current: if current == GentufaWebViewMode::Tree { "page" } else { "false" },
-                onclick: move |_| view_mode.set(GentufaWebViewMode::Tree),
+                onclick: move |_| {
+                    clear_gentufa_url_timer();
+                    view_mode.set(GentufaWebViewMode::Tree);
+                },
                 "Tree"
             }
             button {
                 class: view_tab_class(current == GentufaWebViewMode::Ipa),
                 r#type: "button",
                 aria_current: if current == GentufaWebViewMode::Ipa { "page" } else { "false" },
-                onclick: move |_| view_mode.set(GentufaWebViewMode::Ipa),
+                onclick: move |_| {
+                    clear_gentufa_url_timer();
+                    view_mode.set(GentufaWebViewMode::Ipa);
+                },
                 "IPA"
             }
         }
@@ -12181,6 +12197,7 @@ fn set_glide_mark(settings: &mut Signal<UserSettings>, glides: GlideMark) {
 #[requires(true)]
 #[ensures(true)]
 fn toggle_elided(display: &mut Signal<GentufaDisplayState>) {
+    clear_gentufa_url_timer();
     let mut next = *display.read();
     next.show_elided = !next.show_elided;
     display.set(next);
@@ -12189,6 +12206,7 @@ fn toggle_elided(display: &mut Signal<GentufaDisplayState>) {
 #[requires(true)]
 #[ensures(true)]
 fn toggle_glosses(display: &mut Signal<GentufaDisplayState>) {
+    clear_gentufa_url_timer();
     let mut next = *display.read();
     next.show_glosses = !next.show_glosses;
     display.set(next);
@@ -14242,6 +14260,12 @@ fn route_path_for_route(route: &JbotciRoute) -> String {
 }
 
 #[requires(true)]
+#[ensures(route_path_for_route(&ret).starts_with('/'))]
+fn canonical_local_route(route: &JbotciRoute) -> JbotciRoute {
+    jbotci_route_from_dioxus_route(&route_path_for_route(route)).unwrap_or_else(|| route.clone())
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn push_cukta_url(
     history: Rc<dyn History>,
@@ -15791,6 +15815,28 @@ mod tests {
 
         assert!(pending.consume(&route));
         assert!(!pending.consume(&route));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn pending_local_gentufa_writes_match_router_normalized_routes() {
+        let target = JbotciRoute::from_web_route(
+            WebRoute::Gentufa(GentufaWebState {
+                text: " coi ".to_owned(),
+                dialect: Some(" (cbm) ".to_owned()),
+                view_mode: GentufaWebViewMode::Blocks,
+                show_elided: false,
+                show_glosses: false,
+            }),
+            true,
+        );
+        let reported = parse_test_route("", "/gentufa?text=coi&dialect=%28cbm%29");
+        let mut pending = PendingLocalRouteWrites::default();
+
+        pending.record(&target);
+
+        assert!(pending.consume(&reported));
     }
 
     #[test]
