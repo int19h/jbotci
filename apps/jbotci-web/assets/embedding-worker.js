@@ -130,8 +130,9 @@ const MODEL_SPECS = {
 const DB_NAME = "jbotci-embeddings-v1";
 const META_STORE = "meta";
 const BLOB_STORE = "blobs";
-const DEFAULT_REMOTE_BASE_URL = "/assets/embeddings/web/v1";
+const DEFAULT_REMOTE_BASE_URL = "https://assets.jbotci.app/embeddings/web/v1";
 const LOG_PREFIX = "[jbotci embeddings worker]";
+const LOCAL_VECTOR_CHUNK_ROWS = 256;
 const ACTIVE_SETUP_STATUSES = new Set([
   "checking",
   "downloading-index",
@@ -507,6 +508,7 @@ async function removeSelectedModel() {
     meta.delete(modelMetaKey("status", spec.modelKey));
     meta.delete(modelMetaKey("pack", spec.modelKey));
     meta.delete(modelMetaKey("modelRuntime", spec.modelKey));
+    meta.delete(modelMetaKey("localBuild", spec.modelKey));
     const blobs = tx.objectStore(BLOB_STORE);
     const prefixes = modelBlobPrefixes(spec.modelKey);
     const cursor = blobs.openKeyCursor();
@@ -972,6 +974,14 @@ async function buildLocalPack(corpus) {
   const elementType = localVectorElementType(spec);
   const vectorSpaceKey = spec.localVectorSpaceKey || `jbotci-browser-f2llm-${runtime.dtype}-${elementType}`;
   const packId = `${vectorSpaceKey}-${shortHash(corpus.inputHash)}`;
+  const buildContext = {
+    packId,
+    inputHash: corpus.inputHash,
+    inputFormatVersion: corpus.inputFormatVersion,
+    vectorSpaceKey,
+    runtime,
+    elementType,
+  };
   const existing = activeModelPack(await getModelMeta("pack"));
   if (cachedPackMatchesCorpus(existing, corpus, runtime, vectorSpaceKey)) {
     logInfo("existing browser-local vector pack is already current", {
@@ -988,22 +998,26 @@ async function buildLocalPack(corpus) {
   });
   vectorCache.clear();
   const reusablePack = packCompatibleWithRuntime(existing, runtime) ? existing : null;
+  const storedPartialBuild = await getModelMeta("localBuild");
+  const partialBuild = partialLocalBuildCompatible(storedPartialBuild, buildContext)
+    ? storedPartialBuild
+    : null;
   const corpora = {};
   corpora["vlacku-en"] = await buildLocalCorpus(
     "vlacku-en",
     corpus.dictionary,
     corpus.dictionaryHash,
-    packId,
-    elementType,
+    buildContext,
     reusablePack?.corpora?.["vlacku-en"] || null,
+    partialBuild?.corpora?.["vlacku-en"] || null,
   );
   corpora["cukta-cll"] = await buildLocalCorpus(
     "cukta-cll",
     corpus.cll,
     corpus.cllHash,
-    packId,
-    elementType,
+    buildContext,
     reusablePack?.corpora?.["cukta-cll"] || null,
+    partialBuild?.corpora?.["cukta-cll"] || null,
   );
   await putModelMeta("pack", {
     source: "browser",
@@ -1021,59 +1035,116 @@ async function buildLocalPack(corpus) {
     vectorSpaceKey,
     corpusIds: Object.keys(corpora),
   });
+  await deleteModelMeta("localBuild");
   vectorCache.clear();
 }
 
-async function buildLocalCorpus(corpusId, docs, inputHash, packId, elementType, reusableCorpus) {
+async function buildLocalCorpus(corpusId, docs, inputHash, buildContext, reusableCorpus, partialCorpus) {
   const spec = activeModelSpec();
+  const elementType = buildContext.elementType;
+  const chunkRows = localVectorChunkRows(spec);
   await updateStatus(
     "indexing",
     `Preparing ${corpusId} embeddings in this browser.`,
     progressValue("index", corpusId, 0, docs.length),
   );
   const reusableRows = await reusableRowsByInputHash(reusableCorpus);
+  const reusablePartialShards = reusablePartialShardsByStart(
+    partialCorpus,
+    inputHash,
+    docs.length,
+    spec.dimensions,
+    elementType,
+    chunkRows,
+  );
   logInfo("building browser-local corpus", {
     corpusId,
     rows: docs.length,
     inputHash: shortHash(inputHash),
     reusableRows: reusableRows.size,
+    reusableChunks: reusablePartialShards.size,
   });
-  const vectors = createLocalVectorStore(docs.length, spec.dimensions, elementType);
-  const pendingDocs = [];
-  const pendingRows = [];
+  const shards = [];
   let reused = 0;
-  for (let row = 0; row < docs.length; row += 1) {
-    const doc = docs[row];
-    const reusedVector = reusableRows.get(doc.inputHash);
-    if (reusedVector) {
-      writeLocalVector(vectors, row, reusedVector, spec.dimensions, elementType);
-      reused += 1;
-    } else {
-      pendingDocs.push(doc);
-      pendingRows.push(row);
+  for (let rowStart = 0, chunkIndex = 0; rowStart < docs.length; rowStart += chunkRows, chunkIndex += 1) {
+    const rowCount = Math.min(chunkRows, docs.length - rowStart);
+    const reusableShard = reusablePartialShards.get(rowStart);
+    if (reusableShard && reusableShard.rowCount === rowCount) {
+      shards.push(reusableShard);
+      reused += rowCount;
+      await updateStatus(
+        "indexing",
+        `Embedding ${corpusId}: ${reused} of ${docs.length} rows ready.`,
+        progressValue("index", corpusId, reused, docs.length),
+      );
+      continue;
     }
-  }
-  await updateStatus(
-    "indexing",
-    `Embedding ${corpusId}: ${reused} rows reused, ${pendingDocs.length} rows to compute.`,
-    progressValue("index", corpusId, reused, docs.length),
-  );
-  if (pendingDocs.length > 0) {
-    await embedLocalRows(
-      pendingDocs,
-      pendingRows,
-      vectors,
+
+    const vectors = createLocalVectorStore(rowCount, spec.dimensions, elementType);
+    const pendingDocs = [];
+    const pendingRows = [];
+    let reusedInChunk = 0;
+    for (let localRow = 0; localRow < rowCount; localRow += 1) {
+      const doc = docs[rowStart + localRow];
+      const reusedVector = reusableRows.get(doc.inputHash);
+      if (reusedVector) {
+        writeLocalVector(vectors, localRow, reusedVector, spec.dimensions, elementType);
+        reusedInChunk += 1;
+      } else {
+        pendingDocs.push(doc);
+        pendingRows.push(localRow);
+      }
+    }
+    await updateStatus(
+      "indexing",
+      `Embedding ${corpusId}: ${reused + reusedInChunk} rows ready, ${pendingDocs.length} rows to compute in the current chunk.`,
+      progressValue("index", corpusId, reused + reusedInChunk, docs.length),
+    );
+    if (pendingDocs.length > 0) {
+      await embedLocalRows(
+        pendingDocs,
+        pendingRows,
+        vectors,
+        elementType,
+        {
+          label: corpusId,
+          completedRows: reused + reusedInChunk,
+          totalRows: docs.length,
+        },
+      );
+    }
+    const vectorKey = localVectorChunkKey(
+      spec.modelKey,
+      buildContext.packId,
+      corpusId,
+      chunkIndex,
       elementType,
-      {
-        label: corpusId,
-        completedRows: reused,
-        totalRows: docs.length,
-      },
+    );
+    const vectorBuffer = localVectorStoreBuffer(vectors);
+    await putBinary(vectorKey, vectorBuffer);
+    const shard = {
+      key: vectorKey,
+      byteLen: vectorBuffer.byteLength,
+      rowStart,
+      rowCount,
+    };
+    shards.push(shard);
+    reused += rowCount;
+    await putLocalBuildCheckpoint(buildContext, {
+      corpusId,
+      inputHash,
+      rowCount: docs.length,
+      dimensions: spec.dimensions,
+      elementType,
+      chunkRows,
+      shards,
+    });
+    await updateStatus(
+      "indexing",
+      `Embedding ${corpusId}: ${reused} of ${docs.length} rows ready.`,
+      progressValue("index", corpusId, reused, docs.length),
     );
   }
-  const vectorKey = `local/${spec.modelKey}/${packId}/${corpusId}/vectors.${localVectorFileExtension(elementType)}`;
-  const vectorBuffer = localVectorStoreBuffer(vectors);
-  await putBinary(vectorKey, vectorBuffer);
   await updateStatus(
     "indexing",
     `Embedded ${corpusId}: ${docs.length} of ${docs.length} rows.`,
@@ -1091,7 +1162,7 @@ async function buildLocalCorpus(corpusId, docs, inputHash, packId, elementType, 
       kind: normalizeWordTypeFilter(doc.kind || "") || null,
       inputHash: doc.inputHash,
     })),
-    shards: [{ key: vectorKey, byteLen: vectorBuffer.byteLength }],
+    shards,
   };
 }
 
@@ -1128,6 +1199,15 @@ async function embedLocalRows(docs, rows, vectors, elementType, progressContext)
 
 function localVectorElementType(spec) {
   return spec.localVectorElementType || spec.vectorElementType || "f32le";
+}
+
+function localVectorChunkRows(spec) {
+  return spec.localVectorChunkRows || LOCAL_VECTOR_CHUNK_ROWS;
+}
+
+function localVectorChunkKey(modelKey, packId, corpusId, chunkIndex, elementType) {
+  const extension = localVectorFileExtension(elementType);
+  return `local/${modelKey}/${packId}/${corpusId}/vectors-${String(chunkIndex).padStart(6, "0")}.${extension}`;
 }
 
 function createLocalVectorStore(rowCount, dimensions, elementType) {
@@ -1171,6 +1251,97 @@ function localVectorFileExtension(elementType) {
     return "f32";
   }
   throw new Error(`unsupported browser-local vector element type: ${elementType}`);
+}
+
+function partialLocalBuildCompatible(build, context) {
+  if (!build || build.source !== "browser-partial") {
+    return false;
+  }
+  return build.modelKey === activeModelSpec().modelKey
+    && build.packId === context.packId
+    && build.inputHash === context.inputHash
+    && build.inputFormatVersion === context.inputFormatVersion
+    && build.vectorSpaceKey === context.vectorSpaceKey
+    && packCompatibleWithRuntime(build, context.runtime);
+}
+
+function reusablePartialShardsByStart(
+  corpus,
+  inputHash,
+  rowCount,
+  dimensions,
+  elementType,
+  chunkRows,
+) {
+  const shards = new Map();
+  if (
+    !corpus
+    || corpus.inputHash !== inputHash
+    || corpus.rowCount !== rowCount
+    || corpus.dimensions !== dimensions
+    || corpus.elementType !== elementType
+    || corpus.chunkRows !== chunkRows
+  ) {
+    return shards;
+  }
+  const elementBytes = bytesPerVectorElement(elementType);
+  for (const shard of corpus.shards || []) {
+    const rowStart = Number(shard.rowStart);
+    const shardRowCount = Number(shard.rowCount);
+    if (!Number.isInteger(rowStart) || rowStart < 0 || rowStart >= rowCount) {
+      continue;
+    }
+    if (!Number.isInteger(shardRowCount) || shardRowCount <= 0 || rowStart + shardRowCount > rowCount) {
+      continue;
+    }
+    if (shard.byteLen !== shardRowCount * dimensions * elementBytes) {
+      continue;
+    }
+    if (typeof shard.key !== "string" || shard.key.length === 0) {
+      continue;
+    }
+    shards.set(rowStart, {
+      key: shard.key,
+      byteLen: shard.byteLen,
+      rowStart,
+      rowCount: shardRowCount,
+    });
+  }
+  return shards;
+}
+
+async function putLocalBuildCheckpoint(context, corpus) {
+  const storedBuild = await getModelMeta("localBuild");
+  const existing = partialLocalBuildCompatible(storedBuild, context) ? storedBuild : null;
+  const corpora = {
+    ...(existing?.corpora || {}),
+    [corpus.corpusId]: {
+      corpusId: corpus.corpusId,
+      inputHash: corpus.inputHash,
+      rowCount: corpus.rowCount,
+      dimensions: corpus.dimensions,
+      elementType: corpus.elementType,
+      chunkRows: corpus.chunkRows,
+      shards: corpus.shards.map((shard) => ({
+        key: shard.key,
+        byteLen: shard.byteLen,
+        rowStart: shard.rowStart,
+        rowCount: shard.rowCount,
+      })),
+    },
+  };
+  await putModelMeta("localBuild", {
+    source: "browser-partial",
+    packId: context.packId,
+    modelKey: activeModelSpec().modelKey,
+    inputHash: context.inputHash,
+    inputFormatVersion: context.inputFormatVersion,
+    vectorSpaceKey: context.vectorSpaceKey,
+    runtime: context.runtime,
+    compatibleQueryRuntimes: [context.runtime],
+    corpora,
+    updatedAt: Date.now(),
+  });
 }
 
 async function reusableRowsByInputHash(corpus) {
@@ -2213,10 +2384,21 @@ async function putModelMeta(kind, value, modelKey = activeModelSpec().modelKey) 
   });
 }
 
+async function deleteModelMeta(kind, modelKey = activeModelSpec().modelKey) {
+  await deleteMeta(modelMetaKey(kind, modelKey));
+}
+
 async function putMeta(key, value) {
   const db = await openDb();
   await transaction(db, META_STORE, "readwrite", (tx) => {
     tx.objectStore(META_STORE).put(value, key);
+  });
+}
+
+async function deleteMeta(key) {
+  const db = await openDb();
+  await transaction(db, META_STORE, "readwrite", (tx) => {
+    tx.objectStore(META_STORE).delete(key);
   });
 }
 

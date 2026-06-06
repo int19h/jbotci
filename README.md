@@ -61,19 +61,18 @@ builder, the cargo-chef layers still provide dependency reuse through normal
 Docker layer caching.
 
 Browser embedding packs are deployed separately to Cloudflare R2 with
-`cargo xtask publish-web-embeddings-r2`. Production builds set
-`JBOTCI_WEB_EMBEDDINGS_BASE_URL` to
-`https://assets.jbotci.app/embeddings/web/v1`; local static builds default to
-`/assets/embeddings/web/v1`.
+`cargo xtask publish-web-embeddings-r2`. Browser builds default to
+`https://assets.jbotci.app/embeddings/web/v1`; set
+`JBOTCI_WEB_EMBEDDINGS_BASE_URL` explicitly only when a deployment serves
+embedding packs from a different origin or from `/assets/embeddings/web/v1`.
 
-The mobile F2LLM browser path uses a custom WebGPU artifact instead of
-Transformers.js. Build its model artifact and `f16le` vector pack with the
-production scripts in `tools/embedding-pack/f2llm/`, or use
-`cargo xtask publish-f2llm-webgpu-r2`. The publisher uploads the model artifact
-under `https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1`, uploads the
-matching q4-generated `f16le` vector pack under the normal web embedding R2
-prefix, and merges only the F2LLM catalog entry so EmbeddingGemma entries are
-preserved.
+The F2LLM browser path uses custom WebGPU artifacts instead of Transformers.js.
+Build its model artifacts and `f16le` vector packs with the production scripts
+in `tools/embedding-pack/f2llm/`, or use `cargo xtask publish-f2llm-webgpu-r2`.
+The publisher uploads model artifacts under `https://assets.jbotci.app/models/`,
+uploads matching q4-generated `f16le` vector packs under the normal web
+embedding R2 prefix, and merges only the F2LLM catalog entries so inactive
+EmbeddingGemma entries are preserved.
 
 The parser facets are scaffolded but intentionally return `NotImplemented` at
 this checkpoint. Use `cargo xtask fixture-test --profile all --facet morphology

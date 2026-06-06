@@ -1,4 +1,4 @@
-const DEFAULT_REMOTE_BASE_URL = "/assets/embeddings/web/v1";
+const DEFAULT_REMOTE_BASE_URL = "https://assets.jbotci.app/embeddings/web/v1";
 const LOG_PREFIX = "[jbotci embeddings]";
 const F2LLM_80M_MODEL_KEY = "f2llm-v2-80m-q4-320";
 const F2LLM_330M_MODEL_KEY = "f2llm-v2-330m-q4-896";
