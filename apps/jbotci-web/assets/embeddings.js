@@ -1,18 +1,22 @@
 const DEFAULT_REMOTE_BASE_URL = "/assets/embeddings/web/v1";
 const LOG_PREFIX = "[jbotci embeddings]";
-const EMBEDDING_GEMMA_MODEL_KEY = "embedding-gemma-300m-q4-768";
-const F2LLM_MODEL_KEY = "f2llm-v2-80m-q4-320";
+const F2LLM_80M_MODEL_KEY = "f2llm-v2-80m-q4-320";
+const F2LLM_330M_MODEL_KEY = "f2llm-v2-330m-q4-896";
 const SUPPORTED_MODEL_KEYS = new Set([
-  EMBEDDING_GEMMA_MODEL_KEY,
-  F2LLM_MODEL_KEY,
+  F2LLM_80M_MODEL_KEY,
+  "f2llm-v2-160m-q4-640",
+  F2LLM_330M_MODEL_KEY,
+  "f2llm-v2-0.6b-q4-1024",
 ]);
 
 let configuredWorkerUrl = null;
 let configuredF2LlmRuntimeUrl = null;
+let configuredOrtModuleUrl = null;
+let configuredOrtWasmMjsUrl = null;
+let configuredOrtWasmUrl = null;
 let configuredRemoteBaseUrl = DEFAULT_REMOTE_BASE_URL;
 let configuredModelKey = null;
 let worker = null;
-let forceWasm = false;
 let nextRequestId = 1;
 const pending = new Map();
 
@@ -47,16 +51,6 @@ function terminateWorker(error) {
   rejectPending(error);
 }
 
-function retryWithWasmError(message) {
-  const error = new Error(message);
-  error.retryWithWasm = true;
-  return error;
-}
-
-function shouldRetryWithWasm(error) {
-  return typeof error === "object" && error !== null && error.retryWithWasm === true;
-}
-
 function ensureWorker() {
   if (worker !== null) {
     return worker;
@@ -84,7 +78,7 @@ function ensureWorker() {
         id: message.id,
         error,
       });
-      request.reject(message.retryWithWasm ? retryWithWasmError(error) : error);
+      request.reject(error);
     }
   };
   worker.onerror = (event) => {
@@ -105,19 +99,19 @@ function ensureWorker() {
 }
 
 function defaultModelKey() {
-  return isAppleMobileDevice() ? F2LLM_MODEL_KEY : EMBEDDING_GEMMA_MODEL_KEY;
+  return isMobileDevice() ? F2LLM_80M_MODEL_KEY : F2LLM_330M_MODEL_KEY;
 }
 
 function activeModelKey() {
   return configuredModelKey || defaultModelKey();
 }
 
-function isAppleMobileDevice() {
+function isMobileDevice() {
   const userAgent = globalThis.navigator?.userAgent || "";
   const platform = globalThis.navigator?.userAgentData?.platform
     || globalThis.navigator?.platform
     || "";
-  return /\b(iPhone|iPad|iPod)\b/i.test(userAgent)
+  return /\b(Android|iPhone|iPad|iPod|Mobile)\b/i.test(userAgent)
     || (platform === "MacIntel" && Number(globalThis.navigator?.maxTouchPoints || 0) > 1);
 }
 
@@ -151,6 +145,40 @@ export function jbotciEmbeddingConfigureF2LlmRuntime(runtimeUrl) {
   }
 }
 
+export function jbotciEmbeddingConfigureOrtAssets(moduleUrl, wasmMjsUrl, wasmUrl) {
+  if (typeof moduleUrl !== "string" || moduleUrl.length === 0) {
+    throw new Error("ONNX Runtime Web module URL is empty");
+  }
+  if (typeof wasmMjsUrl !== "string" || wasmMjsUrl.length === 0) {
+    throw new Error("ONNX Runtime Web wasm loader URL is empty");
+  }
+  if (typeof wasmUrl !== "string" || wasmUrl.length === 0) {
+    throw new Error("ONNX Runtime Web wasm URL is empty");
+  }
+  const nextModuleUrl = new URL(moduleUrl, globalThis.location.href);
+  const nextWasmMjsUrl = new URL(wasmMjsUrl, globalThis.location.href);
+  const nextWasmUrl = new URL(wasmUrl, globalThis.location.href);
+  if (
+    configuredOrtModuleUrl !== null
+    && configuredOrtModuleUrl.href === nextModuleUrl.href
+    && configuredOrtWasmMjsUrl.href === nextWasmMjsUrl.href
+    && configuredOrtWasmUrl.href === nextWasmUrl.href
+  ) {
+    return;
+  }
+  configuredOrtModuleUrl = nextModuleUrl;
+  configuredOrtWasmMjsUrl = nextWasmMjsUrl;
+  configuredOrtWasmUrl = nextWasmUrl;
+  logInfo("configured ONNX Runtime Web assets", {
+    moduleUrl: configuredOrtModuleUrl.href,
+    wasmMjsUrl: configuredOrtWasmMjsUrl.href,
+    wasmUrl: configuredOrtWasmUrl.href,
+  });
+  if (worker !== null) {
+    terminateWorker("ONNX Runtime Web assets changed");
+  }
+}
+
 export function jbotciEmbeddingConfigureRemoteBase(remoteBaseUrl) {
   if (typeof remoteBaseUrl !== "string" || remoteBaseUrl.trim().length === 0) {
     throw new Error("embedding remote base URL is empty");
@@ -173,7 +201,6 @@ export function jbotciEmbeddingConfigureModel(modelKey) {
     return;
   }
   configuredModelKey = nextModelKey;
-  forceWasm = false;
   logInfo("configured model", { modelKey: configuredModelKey });
   if (worker !== null) {
     terminateWorker("embedding model changed");
@@ -188,15 +215,16 @@ function sendRequest(type, payload = {}) {
   return new Promise((resolve, reject) => {
     const id = nextRequestId++;
     const remoteBaseUrl = payload.remoteBaseUrl || configuredRemoteBaseUrl;
-    const requestForceWasm = payload.forceWasm === true || forceWasm;
     const modelKey = payload.modelKey || activeModelKey();
     const f2llmRuntimeUrl = configuredF2LlmRuntimeUrl?.href || null;
+    const ortModuleUrl = configuredOrtModuleUrl?.href || null;
+    const ortWasmMjsUrl = configuredOrtWasmMjsUrl?.href || null;
+    const ortWasmUrl = configuredOrtWasmUrl?.href || null;
     if (type === "setup") {
       logInfo("sending setup request", {
         id,
         modelKey,
         remoteBaseUrl,
-        forceWasm: requestForceWasm,
         corpusJsonBytes: typeof payload.corpusJson === "string" ? payload.corpusJson.length : 0,
       });
     }
@@ -209,8 +237,10 @@ function sendRequest(type, payload = {}) {
           ...payload,
           modelKey,
           remoteBaseUrl,
-          forceWasm: requestForceWasm,
           f2llmRuntimeUrl,
+          ortModuleUrl,
+          ortWasmMjsUrl,
+          ortWasmUrl,
         },
       });
     } catch (error) {
@@ -220,20 +250,8 @@ function sendRequest(type, payload = {}) {
   });
 }
 
-async function request(type, payload = {}, allowWasmRetry = true) {
-  try {
-    return await sendRequest(type, payload);
-  } catch (error) {
-    if (!allowWasmRetry || !shouldRetryWithWasm(error)) {
-      throw error;
-    }
-    forceWasm = true;
-    logWarn("restarting embedding worker for CPU/WASM fallback", {
-      reason: error.message,
-    });
-    terminateWorker("embedding worker restarting for CPU/WASM fallback");
-    return request(type, payload, false);
-  }
+async function request(type, payload = {}) {
+  return sendRequest(type, payload);
 }
 
 export function jbotciEmbeddingStatus() {

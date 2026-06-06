@@ -14,6 +14,8 @@ from transformers import AutoTokenizer
 MODEL_KEY = "f2llm-v2-80m-q4-320"
 RUNTIME = "jbotci-webgpu-f2llm"
 RUNTIME_VERSION = "0.1.0"
+WASM_RUNTIME = "jbotci-onnxruntime-web-f2llm"
+WASM_RUNTIME_VERSION = "0.1.0"
 VECTOR_SPACE_KEY = "jbotci-webgpu-f2llm-q4-f16"
 MAX_SEQUENCE_LENGTH = 512
 DIMENSIONS = 320
@@ -32,10 +34,10 @@ def main() -> None:
     pack = Path(args.pack)
     corpus = read_json(Path(args.corpus))
     catalog = read_json(pack / "catalog.json")
-    vector_space = catalog_vector_space(catalog)
+    vector_space = catalog_vector_space(catalog, args.model_key, args.vector_space_key)
     manifest_path = pack / vector_space["manifest_url"]
     manifest = read_json(manifest_path)
-    validate_manifest(manifest, corpus)
+    validate_manifest(manifest, corpus, args)
     pack_root = manifest_path.parent
 
     tokenizer_dir = Path(args.tokenizer_dir) if args.tokenizer_dir else Path(args.q4_onnx).parent.parent
@@ -52,10 +54,10 @@ def main() -> None:
         verify_file_sha256(items_path, corpus_manifest["items_sha256"])
         verify_file_sha256(vector_path, corpus_manifest["vector_sha256"])
         items = read_json(items_path)
-        vectors = read_vectors(vector_path, corpus_manifest["row_count"])
-        validate_corpus_manifest(corpus_manifest, docs, items, vectors, corpus[hash_field], id_field)
+        vectors = read_vectors(vector_path, corpus_manifest["row_count"], args.dimensions)
+        validate_corpus_manifest(corpus_manifest, docs, items, vectors, corpus[hash_field], id_field, args.dimensions)
         for row in sample_rows(corpus_manifest["row_count"], args.sample_rows):
-            expected = embed_texts([docs[row]["input"]], tokenizer, session)[0]
+            expected = embed_texts([docs[row]["input"]], tokenizer, session, args.dimensions, args.max_sequence_length)[0]
             actual = vectors[row].astype(np.float32)
             actual = normalize(actual.reshape(1, -1))[0]
             cosine = float(np.dot(expected, actual))
@@ -83,6 +85,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--corpus", default=".jbotci-build/web-embedding-corpus.json", type=Path)
     parser.add_argument("--q4-onnx", default=DEFAULT_Q4_ONNX, type=Path)
     parser.add_argument("--tokenizer-dir", default=None)
+    parser.add_argument("--model-key", default=MODEL_KEY)
+    parser.add_argument("--dimensions", type=int, default=DIMENSIONS)
+    parser.add_argument("--vector-space-key", default=VECTOR_SPACE_KEY)
+    parser.add_argument("--max-sequence-length", type=int, default=MAX_SEQUENCE_LENGTH)
+    parser.add_argument("--include-wasm-runtime", action="store_true")
     parser.add_argument("--sample-rows", type=int, default=3)
     parser.add_argument("--threshold", type=float, default=0.999)
     args = parser.parse_args()
@@ -90,32 +97,36 @@ def parse_args() -> argparse.Namespace:
         raise ValueError("--sample-rows must be positive")
     if not 0.0 < args.threshold <= 1.0:
         raise ValueError("--threshold must be in (0, 1]")
+    if args.dimensions <= 0:
+        raise ValueError("--dimensions must be positive")
+    if args.max_sequence_length <= 1:
+        raise ValueError("--max-sequence-length must be greater than 1")
     return args
 
 
-def catalog_vector_space(catalog: dict[str, object]) -> dict[str, object]:
+def catalog_vector_space(catalog: dict[str, object], model_key: str, vector_space_key: str) -> dict[str, object]:
     assert catalog.get("schema_version") == 1
-    models = [model for model in catalog.get("models", []) if model.get("model_key") == MODEL_KEY]
+    models = [model for model in catalog.get("models", []) if model.get("model_key") == model_key]
     if len(models) != 1:
-        raise AssertionError(f"catalog must contain exactly one {MODEL_KEY} model entry")
+        raise AssertionError(f"catalog must contain exactly one {model_key} model entry")
     spaces = [
         space
         for space in models[0].get("vector_spaces", [])
-        if space.get("vector_space_key") == VECTOR_SPACE_KEY
+        if space.get("vector_space_key") == vector_space_key
     ]
     if len(spaces) != 1:
-        raise AssertionError(f"catalog must contain exactly one {VECTOR_SPACE_KEY} vector space")
+        raise AssertionError(f"catalog must contain exactly one {vector_space_key} vector space")
     return spaces[0]
 
 
-def validate_manifest(manifest: dict[str, object], corpus: dict[str, object]) -> None:
+def validate_manifest(manifest: dict[str, object], corpus: dict[str, object], args: argparse.Namespace) -> None:
     expected = {
         "schema_version": 1,
-        "model_key": MODEL_KEY,
+        "model_key": args.model_key,
         "input_format_version": corpus["inputFormatVersion"],
         "input_hash": corpus["inputHash"],
-        "max_sequence_length": MAX_SEQUENCE_LENGTH,
-        "dimensions": DIMENSIONS,
+        "max_sequence_length": args.max_sequence_length,
+        "dimensions": args.dimensions,
         "element_type": "f16le",
         "normalized": True,
         "distance": "dot",
@@ -132,6 +143,14 @@ def validate_manifest(manifest: dict[str, object], corpus: dict[str, object]) ->
     }
     if expected_runtime not in compatible:
         raise AssertionError(f"manifest lacks compatible runtime {expected_runtime!r}")
+    expected_wasm_runtime = {
+        "runtime": WASM_RUNTIME,
+        "version": WASM_RUNTIME_VERSION,
+        "dtype": "q4",
+        "device": "wasm",
+    }
+    if args.include_wasm_runtime and expected_wasm_runtime not in compatible:
+        raise AssertionError(f"manifest lacks compatible runtime {expected_wasm_runtime!r}")
     corpus_ids = {item.get("corpus_id") for item in manifest.get("corpora", [])}
     if corpus_ids != set(CORPORA):
         raise AssertionError(f"manifest corpora mismatch: {corpus_ids!r}")
@@ -144,19 +163,20 @@ def validate_corpus_manifest(
     vectors: np.ndarray,
     input_hash: str,
     id_field: str,
+    dimensions: int,
 ) -> None:
     row_count = len(docs)
     if manifest.get("input_hash") != input_hash:
         raise AssertionError(f"{manifest['corpus_id']} input hash mismatch")
     if manifest.get("row_count") != row_count:
         raise AssertionError(f"{manifest['corpus_id']} row count mismatch")
-    if manifest.get("dimensions") != DIMENSIONS:
+    if manifest.get("dimensions") != dimensions:
         raise AssertionError(f"{manifest['corpus_id']} dimensions mismatch")
-    if manifest.get("vector_byte_len") != row_count * DIMENSIONS * 2:
+    if manifest.get("vector_byte_len") != row_count * dimensions * 2:
         raise AssertionError(f"{manifest['corpus_id']} vector byte length mismatch")
     if len(items) != row_count:
         raise AssertionError(f"{manifest['corpus_id']} items row count mismatch")
-    if vectors.shape != (row_count, DIMENSIONS):
+    if vectors.shape != (row_count, dimensions):
         raise AssertionError(f"{manifest['corpus_id']} vector shape mismatch: {vectors.shape}")
     for row, (item, doc) in enumerate(zip(items, docs, strict=True)):
         if item.get("row") != row:
@@ -167,21 +187,27 @@ def validate_corpus_manifest(
             raise AssertionError(f"{manifest['corpus_id']} item row {row} has wrong input hash")
 
 
-def read_vectors(path: Path, row_count: int) -> np.ndarray:
+def read_vectors(path: Path, row_count: int, dimensions: int) -> np.ndarray:
     data = path.read_bytes()
-    expected = row_count * DIMENSIONS * 2
+    expected = row_count * dimensions * 2
     if len(data) != expected:
         raise AssertionError(f"{path} byte length mismatch: expected {expected}, got {len(data)}")
-    return np.frombuffer(data, dtype="<f2").reshape(row_count, DIMENSIONS)
+    return np.frombuffer(data, dtype="<f2").reshape(row_count, dimensions)
 
 
-def embed_texts(texts: list[str], tokenizer, session: ort.InferenceSession) -> np.ndarray:
+def embed_texts(
+    texts: list[str],
+    tokenizer,
+    session: ort.InferenceSession,
+    dimensions: int,
+    max_sequence_length: int,
+) -> np.ndarray:
     input_names = {item.name for item in session.get_inputs()}
     encoded = tokenizer(
         texts,
         padding=True,
         truncation=True,
-        max_length=MAX_SEQUENCE_LENGTH,
+        max_length=max_sequence_length,
         return_tensors="np",
     )
     attention_mask = encoded["attention_mask"].astype(np.int64)
@@ -192,7 +218,10 @@ def embed_texts(texts: list[str], tokenizer, session: ort.InferenceSession) -> n
     if "position_ids" in input_names:
         feeds["position_ids"] = position_ids(attention_mask)
     hidden = session.run(None, feeds)[0]
-    return normalize(last_token_pool(hidden, attention_mask).astype(np.float32))
+    pooled = normalize(last_token_pool(hidden, attention_mask).astype(np.float32))
+    if pooled.shape[1] != dimensions:
+        raise AssertionError(f"embedding dimension mismatch: expected {dimensions}, got {pooled.shape[1]}")
+    return pooled
 
 
 def position_ids(attention_mask: np.ndarray) -> np.ndarray:

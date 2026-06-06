@@ -2819,6 +2819,32 @@ body::-webkit-scrollbar-thumb:hover,
   line-height: 1.3;
 }
 
+.settings-model-select-row {
+  display: grid;
+  gap: 0.3rem;
+  margin-bottom: 0.65rem;
+}
+
+.settings-model-select-label {
+  color: var(--app-muted);
+  font-weight: 700;
+}
+
+.settings-select {
+  min-height: 2rem;
+  width: min(100%, 18rem);
+  padding: 0.32rem 0.5rem;
+  border: 1px solid var(--app-border-strong);
+  border-radius: 0.35rem;
+  background: var(--app-surface-1);
+  color: var(--app-text);
+  font: inherit;
+}
+
+.settings-select:disabled {
+  opacity: 0.58;
+}
+
 .settings-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2841,6 +2867,51 @@ body::-webkit-scrollbar-thumb:hover,
 
 .settings-action-button:disabled {
   opacity: 0.58;
+}
+
+.settings-action-button.danger {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.settings-action-button.danger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--danger-text) 55%, var(--danger-border));
+  background: color-mix(in srgb, var(--danger-text) 11%, var(--danger-bg));
+}
+
+.settings-confirmation-popout {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.settings-confirmation-card {
+  display: grid;
+  gap: 0.65rem;
+  width: min(24rem, 100%);
+  padding: 0.9rem;
+  border: 1px solid var(--app-border-strong);
+  border-radius: 0.45rem;
+  background: var(--app-surface-0);
+  color: var(--app-text);
+  box-shadow: 0 0.6rem 1.8rem rgb(0 0 0 / 0.22);
+}
+
+.settings-confirmation-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.settings-confirmation-card p {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
 }
 
 .dictionary-page {

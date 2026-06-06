@@ -17,7 +17,8 @@ from onnx import TensorProto, helper, numpy_helper
 SCHEMA_VERSION = 1
 ARTIFACT_VERSION = "0.1.0"
 RUNTIME = "jbotci-webgpu-f2llm"
-MODEL_KEY = "f2llm-v2-80m-q4-320"
+DEFAULT_MODEL_KEY = "f2llm-v2-80m-q4-320"
+DEFAULT_SOURCE_MODEL = "codefuse-ai/F2LLM-v2-80M"
 DEFAULT_MAX_SEQUENCE_LENGTH = 512
 DEFAULT_SHARD_SIZE = 4 * 1024 * 1024
 DEFAULT_ONNX_MODEL = (
@@ -99,6 +100,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--onnx-model", default=DEFAULT_ONNX_MODEL)
     parser.add_argument("--model-root", default=None)
+    parser.add_argument("--model-key", default=DEFAULT_MODEL_KEY)
+    parser.add_argument("--source-model", default=DEFAULT_SOURCE_MODEL)
+    parser.add_argument("--source-revision", default=None)
     parser.add_argument("--out", required=True)
     parser.add_argument("--stage", default=None)
     parser.add_argument("--shard-size", type=int, default=DEFAULT_SHARD_SIZE)
@@ -116,9 +120,9 @@ def build_manifest(config: dict[str, object], args: argparse.Namespace, onnx_mod
         "schema_version": SCHEMA_VERSION,
         "runtime": RUNTIME,
         "artifact_version": ARTIFACT_VERSION,
-        "model_key": MODEL_KEY,
-        "source_model": "codefuse-ai/F2LLM-v2-80M",
-        "source_revision": None,
+        "model_key": args.model_key,
+        "source_model": args.source_model,
+        "source_revision": args.source_revision,
         "source_quantized_onnx": str(onnx_model_path),
         "max_sequence_length": args.max_sequence_length,
         "quantization": {

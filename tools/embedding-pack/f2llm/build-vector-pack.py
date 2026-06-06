@@ -18,6 +18,8 @@ MODEL_KEY = "f2llm-v2-80m-q4-320"
 MODEL_ID = "codefuse-ai/F2LLM-v2-80M"
 RUNTIME = "jbotci-webgpu-f2llm"
 RUNTIME_VERSION = "0.1.0"
+WASM_RUNTIME = "jbotci-onnxruntime-web-f2llm"
+WASM_RUNTIME_VERSION = "0.1.0"
 VECTOR_SPACE_KEY = "jbotci-webgpu-f2llm-q4-f16"
 MAX_SEQUENCE_LENGTH = 512
 DIMENSIONS = 320
@@ -46,14 +48,15 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir, fix_mistral_regex=True)
     session = ort.InferenceSession(str(q4_onnx), providers=["CPUExecutionProvider"])
     q4_onnx_sha256 = file_sha256(q4_onnx)
+    compatible_query_runtimes = compatible_runtimes(args.include_wasm_runtime)
 
     pack_id = "-".join([
         corpus["inputFormatVersion"],
         short_hash(q4_onnx_sha256),
         short_hash(corpus["inputHash"]),
-        VECTOR_SPACE_KEY,
+        args.vector_space_key,
     ])
-    pack_root = stage / "models" / MODEL_KEY / "spaces" / VECTOR_SPACE_KEY / "packs" / pack_id
+    pack_root = stage / "models" / args.model_key / "spaces" / args.vector_space_key / "packs" / pack_id
     pack_root.mkdir(parents=True)
 
     corpora = []
@@ -67,38 +70,33 @@ def main() -> None:
             tokenizer=tokenizer,
             session=session,
             batch_size=args.batch_size,
+            dimensions=args.dimensions,
+            max_sequence_length=args.max_sequence_length,
         ))
 
-    manifest_url = f"models/{MODEL_KEY}/spaces/{VECTOR_SPACE_KEY}/packs/{pack_id}/manifest.json"
+    manifest_url = f"models/{args.model_key}/spaces/{args.vector_space_key}/packs/{pack_id}/manifest.json"
     manifest = {
         "schema_version": SCHEMA_VERSION,
-        "model_key": MODEL_KEY,
+        "model_key": args.model_key,
         "model_revision": args.revision or "",
-        "web_model": MODEL_ID,
+        "web_model": args.model_id,
         "q4_onnx_sha256": q4_onnx_sha256,
-        "vector_space_key": VECTOR_SPACE_KEY,
+        "vector_space_key": args.vector_space_key,
         "pack_id": pack_id,
         "input_format_version": corpus["inputFormatVersion"],
         "input_hash": corpus["inputHash"],
-        "max_sequence_length": MAX_SEQUENCE_LENGTH,
+        "max_sequence_length": args.max_sequence_length,
         "built_by": {
             "runtime": "onnxruntime",
             "provider": "CPUExecutionProvider",
             "dtype": "q4",
             "source": "com.microsoft MatMulNBits/GatherBlockQuantized",
         },
-        "dimensions": DIMENSIONS,
+        "dimensions": args.dimensions,
         "element_type": "f16le",
         "normalized": True,
         "distance": "dot",
-        "compatible_query_runtimes": [
-            {
-                "runtime": RUNTIME,
-                "version": RUNTIME_VERSION,
-                "dtype": "q4",
-                "device": "webgpu",
-            },
-        ],
+        "compatible_query_runtimes": compatible_query_runtimes,
         "corpora": corpora,
     }
     write_json(pack_root / "manifest.json", manifest)
@@ -106,13 +104,13 @@ def main() -> None:
         "schema_version": SCHEMA_VERSION,
         "models": [
             {
-                "model_key": MODEL_KEY,
+                "model_key": args.model_key,
                 "vector_spaces": [
                     {
-                        "vector_space_key": VECTOR_SPACE_KEY,
+                        "vector_space_key": args.vector_space_key,
                         "latest_pack_id": pack_id,
                         "manifest_url": manifest_url,
-                        "compatible_query_runtimes": manifest["compatible_query_runtimes"],
+                        "compatible_query_runtimes": compatible_query_runtimes,
                     },
                 ],
             },
@@ -131,12 +129,41 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--stage", default=None)
     parser.add_argument("--q4-onnx", default=DEFAULT_Q4_ONNX)
     parser.add_argument("--tokenizer-dir", default=None)
+    parser.add_argument("--model-key", default=MODEL_KEY)
+    parser.add_argument("--model-id", default=MODEL_ID)
+    parser.add_argument("--dimensions", type=int, default=DIMENSIONS)
+    parser.add_argument("--vector-space-key", default=VECTOR_SPACE_KEY)
+    parser.add_argument("--max-sequence-length", type=int, default=MAX_SEQUENCE_LENGTH)
     parser.add_argument("--revision", default=None)
     parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--include-wasm-runtime", action="store_true")
     args = parser.parse_args()
     if args.batch_size <= 0:
         raise ValueError("--batch-size must be positive")
+    if args.dimensions <= 0:
+        raise ValueError("--dimensions must be positive")
+    if args.max_sequence_length <= 1:
+        raise ValueError("--max-sequence-length must be greater than 1")
     return args
+
+
+def compatible_runtimes(include_wasm_runtime: bool) -> list[dict[str, object]]:
+    runtimes = [
+        {
+            "runtime": RUNTIME,
+            "version": RUNTIME_VERSION,
+            "dtype": "q4",
+            "device": "webgpu",
+        },
+    ]
+    if include_wasm_runtime:
+        runtimes.append({
+            "runtime": WASM_RUNTIME,
+            "version": WASM_RUNTIME_VERSION,
+            "dtype": "q4",
+            "device": "wasm",
+        })
+    return runtimes
 
 
 def write_corpus(
@@ -148,6 +175,8 @@ def write_corpus(
     tokenizer,
     session: ort.InferenceSession,
     batch_size: int,
+    dimensions: int,
+    max_sequence_length: int,
 ) -> dict[str, object]:
     docs = corpus.get(source_key, [])
     if not isinstance(docs, list):
@@ -157,6 +186,8 @@ def write_corpus(
         tokenizer,
         session,
         batch_size,
+        dimensions,
+        max_sequence_length,
     )
     corpus_dir = pack_root / "corpora" / corpus_id
     corpus_dir.mkdir(parents=True)
@@ -179,7 +210,7 @@ def write_corpus(
         "input_format_version": corpus["inputFormatVersion"],
         "input_hash": corpus["dictionaryHash"] if corpus_id == "vlacku-en" else corpus["cllHash"],
         "row_count": len(docs),
-        "dimensions": DIMENSIONS,
+        "dimensions": dimensions,
         "items_url": f"corpora/{corpus_id}/items.json",
         "items_sha256": sha256(items_path.read_bytes()),
         "vector_url": f"corpora/{corpus_id}/vectors.f16",
@@ -188,7 +219,14 @@ def write_corpus(
     }
 
 
-def embed_texts(texts: list[str], tokenizer, session: ort.InferenceSession, batch_size: int) -> np.ndarray:
+def embed_texts(
+    texts: list[str],
+    tokenizer,
+    session: ort.InferenceSession,
+    batch_size: int,
+    dimensions: int,
+    max_sequence_length: int,
+) -> np.ndarray:
     vectors = []
     input_names = {item.name for item in session.get_inputs()}
     for start, batch in enumerate_batches(texts, batch_size):
@@ -196,7 +234,7 @@ def embed_texts(texts: list[str], tokenizer, session: ort.InferenceSession, batc
             batch,
             padding=True,
             truncation=True,
-            max_length=MAX_SEQUENCE_LENGTH,
+            max_length=max_sequence_length,
             return_tensors="np",
         )
         attention_mask = encoded["attention_mask"].astype(np.int64)
@@ -209,12 +247,12 @@ def embed_texts(texts: list[str], tokenizer, session: ort.InferenceSession, batc
         hidden = session.run(None, feeds)[0]
         rows = last_token_pool(hidden, attention_mask).astype(np.float32)
         rows = normalize(rows)
-        if rows.shape[1] != DIMENSIONS:
-            raise ValueError(f"embedding dimension mismatch: expected {DIMENSIONS}, got {rows.shape[1]}")
+        if rows.shape[1] != dimensions:
+            raise ValueError(f"embedding dimension mismatch: expected {dimensions}, got {rows.shape[1]}")
         vectors.append(rows)
         print(f"embedded {min(start + len(batch), len(texts))} of {len(texts)}", flush=True)
     if not vectors:
-        return np.empty((0, DIMENSIONS), dtype=np.float32)
+        return np.empty((0, dimensions), dtype=np.float32)
     return np.concatenate(vectors, axis=0)
 
 

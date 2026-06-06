@@ -42,13 +42,63 @@ const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
 const R2_CATALOG_CACHE_CONTROL: &str = "public, max-age=300";
 const R2_IMMUTABLE_CACHE_CONTROL: &str = "public, max-age=31536000, immutable";
-const F2LLM_Q4_ONNX_DEFAULT: &str = "/home/int19h.linux/git/jbotci-f2llm-quant/artifacts/f2llm-v2-80m-q4-hqq32-transformersjs/onnx/model_q4.onnx";
-const F2LLM_MODEL_ARTIFACT_OUT_DIR: &str = ".jbotci-build/f2llm-v2-80m-webgpu/v1";
 const F2LLM_VECTOR_PACK_OUT_DIR: &str = ".jbotci-build/r2-web-embeddings-f2llm";
-const F2LLM_MODEL_R2_PREFIX: &str = "models/f2llm-v2-80m-webgpu/v1";
+const F2LLM_MODEL_ARTIFACT_ROOT_DIR: &str = ".jbotci-build/f2llm-webgpu-models";
+const F2LLM_ONNX_FALLBACK_R2_PREFIX: &str = "models/f2llm-v2-80m-onnx-q4/v1";
 const F2LLM_EMBEDDINGS_R2_PREFIX: &str = "embeddings/web/v1";
 const F2LLM_REMOTE_CATALOG_URL: &str = "https://assets.jbotci.app/embeddings/web/v1/catalog.json";
-const F2LLM_MODEL_KEY: &str = "f2llm-v2-80m-q4-320";
+const F2LLM_VECTOR_SPACE_KEY: &str = "jbotci-webgpu-f2llm-q4-f16";
+const F2LLM_MAX_SEQUENCE_LENGTH: usize = 512;
+const R2_UPLOAD_PARALLELISM: usize = 4;
+const F2LLM_80M_MODEL_KEY: &str = "f2llm-v2-80m-q4-320";
+const F2LLM_160M_MODEL_KEY: &str = "f2llm-v2-160m-q4-640";
+const F2LLM_330M_MODEL_KEY: &str = "f2llm-v2-330m-q4-896";
+const F2LLM_0_6B_MODEL_KEY: &str = "f2llm-v2-0.6b-q4-1024";
+const F2LLM_80M_MODEL_ID: &str = "codefuse-ai/F2LLM-v2-80M";
+const F2LLM_80M_Q4_ONNX: &str = "/home/int19h.linux/git/jbotci-f2llm-quant/artifacts/f2llm-v2-80m-q4-hqq32-transformersjs/onnx/model_q4.onnx";
+const F2LLM_80M_DIMENSIONS: usize = 320;
+const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
+    F2LlmAssetSpec {
+        id: "80m",
+        model_key: F2LLM_80M_MODEL_KEY,
+        model_id: F2LLM_80M_MODEL_ID,
+        q4_onnx: F2LLM_80M_Q4_ONNX,
+        dimensions: F2LLM_80M_DIMENSIONS,
+        webgpu_artifact_dir_name: "f2llm-v2-80m-webgpu",
+        webgpu_r2_prefix: "models/f2llm-v2-80m-webgpu/v1",
+        include_wasm_runtime: true,
+    },
+    F2LlmAssetSpec {
+        id: "160m",
+        model_key: F2LLM_160M_MODEL_KEY,
+        model_id: "codefuse-ai/F2LLM-v2-160M",
+        q4_onnx: "/home/int19h.linux/git/jbotci-f2llm-quant/artifacts/f2llm-v2-160m-q4-640-q4-hqq32-transformersjs/onnx/model_q4.onnx",
+        dimensions: 640,
+        webgpu_artifact_dir_name: "f2llm-v2-160m-webgpu",
+        webgpu_r2_prefix: "models/f2llm-v2-160m-webgpu/v1",
+        include_wasm_runtime: false,
+    },
+    F2LlmAssetSpec {
+        id: "330m",
+        model_key: F2LLM_330M_MODEL_KEY,
+        model_id: "codefuse-ai/F2LLM-v2-330M",
+        q4_onnx: "/home/int19h.linux/git/jbotci-f2llm-quant/artifacts/f2llm-v2-330m-q4-896-q4-hqq32-transformersjs/onnx/model_q4.onnx",
+        dimensions: 896,
+        webgpu_artifact_dir_name: "f2llm-v2-330m-webgpu",
+        webgpu_r2_prefix: "models/f2llm-v2-330m-webgpu/v1",
+        include_wasm_runtime: false,
+    },
+    F2LlmAssetSpec {
+        id: "0.6b",
+        model_key: F2LLM_0_6B_MODEL_KEY,
+        model_id: "codefuse-ai/F2LLM-v2-0.6B",
+        q4_onnx: "/home/int19h.linux/git/jbotci-f2llm-quant/artifacts/f2llm-v2-0_6b-q4-1024-q4-hqq32-transformersjs/onnx/model_q4.onnx",
+        dimensions: 1024,
+        webgpu_artifact_dir_name: "f2llm-v2-0.6b-webgpu",
+        webgpu_r2_prefix: "models/f2llm-v2-0.6b-webgpu/v1",
+        include_wasm_runtime: false,
+    },
+];
 static WEB_ASSET_COPY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[path = "../../tests/support/fixtures/mod.rs"]
@@ -60,6 +110,19 @@ use fixtures::{
     import_export_file, load_fixture_path, load_profile, validate_fixture_tree, visit_fixture_tree,
     write_fixture_file,
 };
+
+#[derive(Debug, Clone, Copy)]
+#[invariant(true)]
+struct F2LlmAssetSpec {
+    id: &'static str,
+    model_key: &'static str,
+    model_id: &'static str,
+    q4_onnx: &'static str,
+    dimensions: usize,
+    webgpu_artifact_dir_name: &'static str,
+    webgpu_r2_prefix: &'static str,
+    include_wasm_runtime: bool,
+}
 
 #[derive(Debug, Parser)]
 #[command(name = "xtask")]
@@ -253,11 +316,15 @@ struct BuildWebEmbeddingsArgs {
 #[derive(Debug, Args)]
 #[invariant(true)]
 struct BuildF2LlmWebgpuModelArgs {
-    #[arg(long, default_value = F2LLM_Q4_ONNX_DEFAULT)]
+    #[arg(long, default_value = F2LLM_80M_Q4_ONNX)]
     q4_onnx: PathBuf,
+    #[arg(long, default_value = F2LLM_80M_MODEL_KEY)]
+    model_key: String,
+    #[arg(long, default_value = F2LLM_80M_MODEL_ID)]
+    model_id: String,
     #[arg(long)]
     model_root: Option<PathBuf>,
-    #[arg(long, default_value = F2LLM_MODEL_ARTIFACT_OUT_DIR)]
+    #[arg(long, default_value = ".jbotci-build/f2llm-webgpu-models/f2llm-v2-80m-webgpu/v1")]
     out_dir: PathBuf,
     #[arg(long)]
     stage: Option<PathBuf>,
@@ -270,8 +337,16 @@ struct BuildF2LlmWebgpuModelArgs {
 #[derive(Debug, Args)]
 #[invariant(true)]
 struct BuildF2LlmWebgpuVectorsArgs {
-    #[arg(long, default_value = F2LLM_Q4_ONNX_DEFAULT)]
+    #[arg(long, default_value = F2LLM_80M_Q4_ONNX)]
     q4_onnx: PathBuf,
+    #[arg(long, default_value = F2LLM_80M_MODEL_KEY)]
+    model_key: String,
+    #[arg(long, default_value = F2LLM_80M_MODEL_ID)]
+    model_id: String,
+    #[arg(long, default_value_t = F2LLM_80M_DIMENSIONS)]
+    dimensions: usize,
+    #[arg(long)]
+    include_wasm_runtime: bool,
     #[arg(long)]
     tokenizer_dir: Option<PathBuf>,
     #[arg(long, default_value = F2LLM_VECTOR_PACK_OUT_DIR)]
@@ -325,18 +400,14 @@ struct PublishWebEmbeddingsR2Args {
 struct PublishF2LlmWebgpuR2Args {
     #[arg(long, default_value = "jbotci-web-assets")]
     bucket: String,
-    #[arg(long, default_value = F2LLM_MODEL_R2_PREFIX)]
-    model_prefix: String,
     #[arg(long, default_value = F2LLM_EMBEDDINGS_R2_PREFIX)]
     embedding_prefix: String,
-    #[arg(long, default_value = F2LLM_MODEL_ARTIFACT_OUT_DIR)]
-    model_out_dir: PathBuf,
+    #[arg(long, default_value = F2LLM_MODEL_ARTIFACT_ROOT_DIR)]
+    model_out_root: PathBuf,
     #[arg(long, default_value = F2LLM_VECTOR_PACK_OUT_DIR)]
     vector_out_dir: PathBuf,
     #[arg(long)]
     corpus: Option<PathBuf>,
-    #[arg(long, default_value = F2LLM_Q4_ONNX_DEFAULT)]
-    q4_onnx: PathBuf,
     #[arg(long)]
     tokenizer_dir: Option<PathBuf>,
     #[arg(long, default_value_t = 8)]
@@ -590,6 +661,10 @@ fn build_f2llm_webgpu_model(args: BuildF2LlmWebgpuModelArgs) -> Result<()> {
         .arg("tools/embedding-pack/f2llm/export-webgpu-from-onnx-q4.py")
         .arg("--onnx-model")
         .arg(&q4_onnx)
+        .arg("--model-key")
+        .arg(&args.model_key)
+        .arg("--source-model")
+        .arg(&args.model_id)
         .arg("--out")
         .arg(&out_dir)
         .arg("--shard-size")
@@ -627,6 +702,10 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
         args.stage.as_deref(),
         &corpus,
         args.batch_size,
+        &args.model_key,
+        &args.model_id,
+        args.dimensions,
+        args.include_wasm_runtime,
     )?;
     run_f2llm_vector_validator(
         &args.python,
@@ -634,65 +713,53 @@ fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
         args.tokenizer_dir.as_deref(),
         &out_dir,
         &corpus,
+        &args.model_key,
+        args.dimensions,
+        args.include_wasm_runtime,
     )
 }
 
 #[requires(!args.bucket.trim().is_empty())]
-#[requires(!args.model_prefix.trim().is_empty())]
 #[requires(!args.embedding_prefix.trim().is_empty())]
 #[requires(!args.python.trim().is_empty())]
 #[requires(args.batch_size > 0)]
 #[requires(!args.remote_catalog_url.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
-    let q4_onnx = absolute_path(&args.q4_onnx)?;
-    let model_out_dir = absolute_path(&args.model_out_dir)?;
+    let model_out_root = absolute_path(&args.model_out_root)?;
     let vector_out_dir = absolute_path(&args.vector_out_dir)?;
     let corpus = ensure_web_embedding_corpus(args.corpus.as_deref())?;
     if !args.skip_build {
-        build_f2llm_webgpu_model(BuildF2LlmWebgpuModelArgs {
-            q4_onnx: q4_onnx.clone(),
-            model_root: None,
-            out_dir: model_out_dir.clone(),
-            stage: None,
-            shard_size: 4 * 1024 * 1024,
-            python: args.python.clone(),
-        })?;
-        run_f2llm_vector_builder(
+        build_all_f2llm_webgpu_assets(
             &args.python,
-            &q4_onnx,
-            args.tokenizer_dir.as_deref(),
+            &model_out_root,
             &vector_out_dir,
-            None,
             &corpus,
+            args.tokenizer_dir.as_deref(),
             args.batch_size,
         )?;
-        run_f2llm_vector_validator(
-            &args.python,
-            &q4_onnx,
-            args.tokenizer_dir.as_deref(),
-            &vector_out_dir,
-            &corpus,
-        )?;
+        build_f2llm_onnx_fallback_asset(&model_out_root)?;
     } else {
-        run_f2llm_vector_validator(
+        validate_all_f2llm_vector_packs(
             &args.python,
-            &q4_onnx,
-            args.tokenizer_dir.as_deref(),
             &vector_out_dir,
             &corpus,
+            args.tokenizer_dir.as_deref(),
         )?;
     }
 
-    let model_objects = r2_upload_tree_objects(&model_out_dir, &args.model_prefix)?;
-    for object in model_objects {
-        put_r2_object(&args.bucket, &object)?;
+    for spec in F2LLM_MODEL_SPECS {
+        let model_dir = f2llm_model_artifact_out_dir(&model_out_root, spec);
+        let model_objects = r2_upload_tree_objects(&model_dir, spec.webgpu_r2_prefix)?;
+        put_r2_objects(&args.bucket, &model_objects)?;
     }
+
+    let onnx_fallback_dir = f2llm_onnx_fallback_out_dir(&model_out_root);
+    let onnx_objects = r2_upload_tree_objects(&onnx_fallback_dir, F2LLM_ONNX_FALLBACK_R2_PREFIX)?;
+    put_r2_objects(&args.bucket, &onnx_objects)?;
 
     let vector_objects = r2_upload_objects_without_catalog(&vector_out_dir, &args.embedding_prefix)?;
-    for object in vector_objects {
-        put_r2_object(&args.bucket, &object)?;
-    }
+    put_r2_objects(&args.bucket, &vector_objects)?;
 
     let merged_catalog_dir = absolute_path(Path::new(".jbotci-build/r2-f2llm-merged-catalog"))?;
     fs::create_dir_all(&merged_catalog_dir)
@@ -703,7 +770,11 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
     )
     .with_context(|| format!("parsing remote catalog from `{}`", args.remote_catalog_url))?;
     let local_catalog = read_json_file(&vector_out_dir.join("catalog.json"))?;
-    let merged_catalog = merge_embedding_catalog(remote_catalog, local_catalog, F2LLM_MODEL_KEY)?;
+    let f2llm_model_keys = F2LLM_MODEL_SPECS
+        .iter()
+        .map(|spec| spec.model_key.to_owned())
+        .collect::<BTreeSet<_>>();
+    let merged_catalog = merge_embedding_catalog_models(remote_catalog, local_catalog, &f2llm_model_keys)?;
     let catalog_path = merged_catalog_dir.join("catalog.json");
     write_json_file(&catalog_path, &merged_catalog)?;
     let embedding_prefix = normalize_r2_prefix(&args.embedding_prefix)?;
@@ -728,9 +799,7 @@ fn publish_web_embeddings_r2(args: PublishWebEmbeddingsR2Args) -> Result<()> {
     };
     build_web_embedding_assets_to(&output, &corpus, &args.embedding_dtypes, &args.backend)?;
     let objects = r2_upload_objects(&output, &args.prefix)?;
-    for object in objects {
-        put_r2_object(&args.bucket, &object)?;
-    }
+    put_r2_objects(&args.bucket, &objects)?;
     Ok(())
 }
 
@@ -1623,26 +1692,15 @@ fn build_web_embedding_assets_to(
     dtypes: &[String],
     backend: &str,
 ) -> Result<()> {
-    ensure_node_embedding_dependencies()?;
-    let mut command = ProcessCommand::new("node");
-    command
-        .arg("tools/embedding-pack/build-web-embeddings.mjs")
-        .arg("--input")
-        .arg(corpus)
-        .arg("--out")
-        .arg(&output)
-        .arg("--backend")
-        .arg(backend);
-    for dtype in dtypes {
-        command.arg("--dtype").arg(dtype);
-    }
-    let status = command.status().with_context(|| {
-        format!(
-            "failed to run web embedding builder for `{}`",
-            output.display()
-        )
-    })?;
-    check_status(status, "node tools/embedding-pack/build-web-embeddings.mjs")
+    let _ = (dtypes, backend);
+    build_all_f2llm_webgpu_assets(
+        "python3",
+        Path::new(F2LLM_MODEL_ARTIFACT_ROOT_DIR),
+        output,
+        corpus,
+        None,
+        8,
+    )
 }
 
 #[requires(true)]
@@ -1664,6 +1722,251 @@ fn ensure_web_embedding_corpus(corpus: Option<&Path>) -> Result<PathBuf> {
     }
 }
 
+#[requires(root.components().next().is_some())]
+#[requires(!spec.webgpu_artifact_dir_name.is_empty())]
+#[ensures(ret.ends_with("v1"))]
+fn f2llm_model_artifact_out_dir(root: &Path, spec: &F2LlmAssetSpec) -> PathBuf {
+    root.join(spec.webgpu_artifact_dir_name).join("v1")
+}
+
+#[requires(root.components().next().is_some())]
+#[ensures(ret.ends_with("v1"))]
+fn f2llm_onnx_fallback_out_dir(root: &Path) -> PathBuf {
+    root.join("f2llm-v2-80m-onnx-q4").join("v1")
+}
+
+#[requires(!python.trim().is_empty())]
+#[requires(batch_size > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_all_f2llm_webgpu_assets(
+    python: &str,
+    model_out_root: &Path,
+    vector_out_dir: &Path,
+    corpus: &Path,
+    tokenizer_dir: Option<&Path>,
+    batch_size: usize,
+) -> Result<()> {
+    let vector_parts_root = vector_out_dir.with_file_name(format!(
+        "{}.parts",
+        vector_out_dir
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("r2-web-embeddings-f2llm")
+    ));
+    fs::remove_dir_all(&vector_parts_root).ok();
+    fs::create_dir_all(&vector_parts_root)
+        .with_context(|| format!("creating `{}`", vector_parts_root.display()))?;
+    let mut part_dirs = Vec::new();
+    for spec in F2LLM_MODEL_SPECS {
+        let q4_onnx = absolute_path(Path::new(spec.q4_onnx))?;
+        build_f2llm_webgpu_model(BuildF2LlmWebgpuModelArgs {
+            q4_onnx: q4_onnx.clone(),
+            model_key: spec.model_key.to_owned(),
+            model_id: spec.model_id.to_owned(),
+            model_root: None,
+            out_dir: f2llm_model_artifact_out_dir(model_out_root, spec),
+            stage: None,
+            shard_size: 4 * 1024 * 1024,
+            python: python.to_owned(),
+        })?;
+        let part_dir = vector_parts_root.join(spec.id);
+        run_f2llm_vector_builder(
+            python,
+            &q4_onnx,
+            tokenizer_dir,
+            &part_dir,
+            None,
+            corpus,
+            batch_size,
+            spec.model_key,
+            spec.model_id,
+            spec.dimensions,
+            spec.include_wasm_runtime,
+        )?;
+        run_f2llm_vector_validator(
+            python,
+            &q4_onnx,
+            tokenizer_dir,
+            &part_dir,
+            corpus,
+            spec.model_key,
+            spec.dimensions,
+            spec.include_wasm_runtime,
+        )?;
+        part_dirs.push(part_dir);
+    }
+    merge_f2llm_vector_pack_parts(&part_dirs, vector_out_dir)
+}
+
+#[requires(!python.trim().is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_all_f2llm_vector_packs(
+    python: &str,
+    vector_out_dir: &Path,
+    corpus: &Path,
+    tokenizer_dir: Option<&Path>,
+) -> Result<()> {
+    for spec in F2LLM_MODEL_SPECS {
+        let q4_onnx = absolute_path(Path::new(spec.q4_onnx))?;
+        run_f2llm_vector_validator(
+            python,
+            &q4_onnx,
+            tokenizer_dir,
+            vector_out_dir,
+            corpus,
+            spec.model_key,
+            spec.dimensions,
+            spec.include_wasm_runtime,
+        )?;
+    }
+    Ok(())
+}
+
+#[requires(!part_dirs.is_empty())]
+#[requires(part_dirs.iter().all(|path| path.is_dir()))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn merge_f2llm_vector_pack_parts(part_dirs: &[PathBuf], out_dir: &Path) -> Result<()> {
+    let stage = out_dir.with_file_name(format!(
+        "{}.staging",
+        out_dir
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("r2-web-embeddings-f2llm")
+    ));
+    fs::remove_dir_all(&stage).ok();
+    fs::create_dir_all(stage.join("models"))
+        .with_context(|| format!("creating `{}`", stage.display()))?;
+    let mut models = Vec::new();
+    for part_dir in part_dirs {
+        let catalog = read_json_file(&part_dir.join("catalog.json"))?;
+        let part_models = catalog
+            .get("models")
+            .and_then(serde_json::Value::as_array)
+            .context("F2LLM vector part catalog `models` must be an array")?;
+        for model in part_models {
+            let model_key = json_string_field(model, "model_key")?;
+            copy_dir_recursive(
+                &part_dir.join("models").join(model_key),
+                &stage.join("models").join(model_key),
+                "F2LLM vector pack model",
+            )?;
+            models.push(model.clone());
+        }
+    }
+    write_json_file(
+        &stage.join("catalog.json"),
+        &serde_json::json!({
+            "schema_version": 1,
+            "models": models,
+        }),
+    )?;
+    promote_directory(&stage, out_dir)
+}
+
+#[requires(source.is_dir())]
+#[requires(!description.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_dir_recursive(source: &Path, target: &Path, description: &str) -> Result<()> {
+    fs::remove_dir_all(target).ok();
+    for entry in WalkDir::new(source) {
+        let entry = entry.with_context(|| format!("walking `{}`", source.display()))?;
+        let relative = entry.path().strip_prefix(source).with_context(|| {
+            format!(
+                "making `{}` relative to `{}`",
+                entry.path().display(),
+                source.display()
+            )
+        })?;
+        let target_path = target.join(relative);
+        if entry.file_type().is_dir() {
+            fs::create_dir_all(&target_path).with_context(|| {
+                format!("creating {description} directory `{}`", target_path.display())
+            })?;
+        } else if entry.file_type().is_file() {
+            let parent = target_path
+                .parent()
+                .with_context(|| format!("target `{}` has no parent", target_path.display()))?;
+            fs::create_dir_all(parent).with_context(|| {
+                format!("creating {description} directory `{}`", parent.display())
+            })?;
+            fs::copy(entry.path(), &target_path).with_context(|| {
+                format!(
+                    "copying {description} `{}` to `{}`",
+                    entry.path().display(),
+                    target_path.display()
+                )
+            })?;
+        }
+    }
+    Ok(())
+}
+
+#[requires(stage.is_dir())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn promote_directory(stage: &Path, output: &Path) -> Result<()> {
+    let backup = output.with_file_name(format!(
+        "{}.previous",
+        output
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("output")
+    ));
+    fs::remove_dir_all(&backup).ok();
+    if output.exists() {
+        fs::rename(output, &backup).with_context(|| {
+            format!(
+                "moving previous output `{}` to `{}`",
+                output.display(),
+                backup.display()
+            )
+        })?;
+    }
+    fs::rename(stage, output)
+        .with_context(|| format!("promoting `{}` to `{}`", stage.display(), output.display()))?;
+    fs::remove_dir_all(&backup).ok();
+    Ok(())
+}
+
+#[requires(root.components().next().is_some())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_f2llm_onnx_fallback_asset(root: &Path) -> Result<()> {
+    let spec = F2LLM_MODEL_SPECS
+        .iter()
+        .find(|spec| spec.include_wasm_runtime)
+        .context("F2LLM model table must contain a WASM fallback model")?;
+    let source = absolute_path(Path::new(spec.q4_onnx))?;
+    let output = f2llm_onnx_fallback_out_dir(root);
+    let stage = output.with_file_name("v1.staging");
+    fs::remove_dir_all(&stage).ok();
+    fs::create_dir_all(&stage).with_context(|| format!("creating `{}`", stage.display()))?;
+    let model_target = stage.join("model_q4.onnx");
+    fs::copy(&source, &model_target).with_context(|| {
+        format!(
+            "copying F2LLM ONNX fallback `{}` to `{}`",
+            source.display(),
+            model_target.display()
+        )
+    })?;
+    let bytes = fs::read(&model_target)
+        .with_context(|| format!("reading `{}`", model_target.display()))?;
+    write_json_file(
+        &stage.join("manifest.json"),
+        &serde_json::json!({
+            "schema_version": 1,
+            "runtime": "jbotci-onnxruntime-web-f2llm",
+            "artifact_version": "0.1.0",
+            "model_key": spec.model_key,
+            "source_model": spec.model_id,
+            "model_url": "model_q4.onnx",
+            "model_byte_length": bytes.len(),
+            "model_sha256": sha256_hex(&bytes),
+            "max_sequence_length": F2LLM_MAX_SEQUENCE_LENGTH,
+            "dimensions": spec.dimensions,
+        }),
+    )?;
+    promote_directory(&stage, &output)
+}
+
 #[requires(!python.trim().is_empty())]
 #[requires(true)]
 #[requires(batch_size > 0)]
@@ -1676,6 +1979,10 @@ fn run_f2llm_vector_builder(
     stage: Option<&Path>,
     corpus: &Path,
     batch_size: usize,
+    model_key: &str,
+    model_id: &str,
+    dimensions: usize,
+    include_wasm_runtime: bool,
 ) -> Result<()> {
     if !q4_onnx.is_file() {
         bail!("F2LLM q4 ONNX model `{}` does not exist", q4_onnx.display());
@@ -1692,8 +1999,21 @@ fn run_f2llm_vector_builder(
         .arg(out_dir)
         .arg("--q4-onnx")
         .arg(q4_onnx)
+        .arg("--model-key")
+        .arg(model_key)
+        .arg("--model-id")
+        .arg(model_id)
+        .arg("--dimensions")
+        .arg(dimensions.to_string())
+        .arg("--vector-space-key")
+        .arg(F2LLM_VECTOR_SPACE_KEY)
+        .arg("--max-sequence-length")
+        .arg(F2LLM_MAX_SEQUENCE_LENGTH.to_string())
         .arg("--batch-size")
         .arg(batch_size.to_string());
+    if include_wasm_runtime {
+        command.arg("--include-wasm-runtime");
+    }
     if let Some(tokenizer_dir) = tokenizer_dir {
         command.arg("--tokenizer-dir").arg(absolute_path(tokenizer_dir)?);
     }
@@ -1721,6 +2041,9 @@ fn run_f2llm_vector_validator(
     tokenizer_dir: Option<&Path>,
     out_dir: &Path,
     corpus: &Path,
+    model_key: &str,
+    dimensions: usize,
+    include_wasm_runtime: bool,
 ) -> Result<()> {
     if !q4_onnx.is_file() {
         bail!("F2LLM q4 ONNX model `{}` does not exist", q4_onnx.display());
@@ -1739,7 +2062,18 @@ fn run_f2llm_vector_validator(
         .arg("--corpus")
         .arg(corpus)
         .arg("--q4-onnx")
-        .arg(q4_onnx);
+        .arg(q4_onnx)
+        .arg("--model-key")
+        .arg(model_key)
+        .arg("--dimensions")
+        .arg(dimensions.to_string())
+        .arg("--vector-space-key")
+        .arg(F2LLM_VECTOR_SPACE_KEY)
+        .arg("--max-sequence-length")
+        .arg(F2LLM_MAX_SEQUENCE_LENGTH.to_string());
+    if include_wasm_runtime {
+        command.arg("--include-wasm-runtime");
+    }
     if let Some(tokenizer_dir) = tokenizer_dir {
         command.arg("--tokenizer-dir").arg(absolute_path(tokenizer_dir)?);
     }
@@ -1877,6 +2211,20 @@ fn merge_embedding_catalog(
     replacement_catalog: serde_json::Value,
     model_key: &str,
 ) -> Result<serde_json::Value> {
+    merge_embedding_catalog_models(
+        remote_catalog,
+        replacement_catalog,
+        &BTreeSet::from([model_key.to_owned()]),
+    )
+}
+
+#[requires(!model_keys.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|value| value.get("models").and_then(serde_json::Value::as_array).is_some()) || ret.is_err())]
+fn merge_embedding_catalog_models(
+    remote_catalog: serde_json::Value,
+    replacement_catalog: serde_json::Value,
+    model_keys: &BTreeSet<String>,
+) -> Result<serde_json::Value> {
     if remote_catalog.get("schema_version").and_then(serde_json::Value::as_u64) != Some(1) {
         bail!("remote embedding catalog schema_version must be 1");
     }
@@ -1895,31 +2243,40 @@ fn merge_embedding_catalog(
         .get("models")
         .and_then(serde_json::Value::as_array)
         .context("replacement embedding catalog `models` must be an array")?;
-    let replacement = replacement_models
-        .iter()
-        .filter(|model| model.get("model_key").and_then(serde_json::Value::as_str) == Some(model_key))
-        .cloned()
-        .collect::<Vec<_>>();
-    if replacement.is_empty() {
-        bail!("replacement embedding catalog does not contain `{model_key}`");
-    }
-    if replacement.len() > 1 {
-        bail!("replacement embedding catalog contains multiple `{model_key}` entries");
-    }
-    let mut merged = Vec::new();
-    let mut inserted = false;
-    for model in remote_models {
-        if model.get("model_key").and_then(serde_json::Value::as_str) == Some(model_key) {
-            if !inserted {
-                merged.push(replacement[0].clone());
-                inserted = true;
-            }
-        } else {
-            merged.push(model.clone());
+    let mut replacements = BTreeMap::new();
+    for model in replacement_models {
+        let Some(model_key) = model.get("model_key").and_then(serde_json::Value::as_str) else {
+            continue;
+        };
+        if !model_keys.contains(model_key) {
+            continue;
+        }
+        if replacements.insert(model_key.to_owned(), model.clone()).is_some() {
+            bail!("replacement embedding catalog contains multiple `{model_key}` entries");
         }
     }
-    if !inserted {
-        merged.push(replacement[0].clone());
+    for model_key in model_keys {
+        if !replacements.contains_key(model_key) {
+            bail!("replacement embedding catalog does not contain `{model_key}`");
+        }
+    }
+    let mut merged = Vec::new();
+    let mut inserted = BTreeSet::new();
+    for model in remote_models {
+        if let Some(model_key) = model.get("model_key").and_then(serde_json::Value::as_str) {
+            if model_keys.contains(model_key) {
+                if inserted.insert(model_key.to_owned()) {
+                    merged.push(replacements[model_key].clone());
+                }
+                continue;
+            }
+        }
+        merged.push(model.clone());
+    }
+    for model_key in model_keys {
+        if !inserted.contains(model_key) {
+            merged.push(replacements[model_key].clone());
+        }
     }
     Ok(serde_json::json!({
         "schema_version": 1,
@@ -2091,6 +2448,37 @@ fn path_has_extension(path: &Path, extension: &str) -> bool {
 }
 
 #[requires(!bucket.trim().is_empty())]
+#[requires(!objects.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn put_r2_objects(bucket: &str, objects: &[R2UploadObject]) -> Result<()> {
+    let (boundary_objects, data_objects): (Vec<_>, Vec<_>) = objects
+        .iter()
+        .partition(|object| r2_upload_boundary_object(&object.object_key));
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(R2_UPLOAD_PARALLELISM)
+        .build()
+        .context("creating R2 upload thread pool")?;
+    pool.install(|| {
+        data_objects
+            .par_iter()
+            .try_for_each(|object| put_r2_object(bucket, object))
+    })?;
+    for object in boundary_objects {
+        put_r2_object(bucket, object)?;
+    }
+    Ok(())
+}
+
+#[requires(!object_key.trim().is_empty())]
+#[ensures(true)]
+fn r2_upload_boundary_object(object_key: &str) -> bool {
+    object_key == "catalog.json"
+        || object_key.ends_with("/catalog.json")
+        || object_key == "manifest.json"
+        || object_key.ends_with("/manifest.json")
+}
+
+#[requires(!bucket.trim().is_empty())]
 #[requires(!object.object_key.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn put_r2_object(bucket: &str, object: &R2UploadObject) -> Result<()> {
@@ -2135,23 +2523,6 @@ fn write_web_embedding_corpus(output: &Path) -> Result<()> {
         jbotci_embedding_inputs::embedding_input_corpus_json(),
     )
     .with_context(|| format!("writing web embedding corpus `{}`", output.display()))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn ensure_node_embedding_dependencies() -> Result<()> {
-    let dependency =
-        Path::new("tools/embedding-pack/node_modules/@huggingface/transformers/package.json");
-    if dependency.is_file() {
-        return Ok(());
-    }
-    let status = ProcessCommand::new("npm")
-        .arg("ci")
-        .arg("--prefix")
-        .arg("tools/embedding-pack")
-        .status()
-        .context("failed to run `npm ci --prefix tools/embedding-pack`")?;
-    check_status(status, "npm ci --prefix tools/embedding-pack")
 }
 
 #[requires(true)]
@@ -5716,7 +6087,7 @@ mod tests {
                     "vector_spaces": [{"vector_space_key": "gemma-q4"}]
                 },
                 {
-                    "model_key": F2LLM_MODEL_KEY,
+                    "model_key": F2LLM_80M_MODEL_KEY,
                     "vector_spaces": [{"vector_space_key": "old"}]
                 }
             ]
@@ -5725,19 +6096,59 @@ mod tests {
             "schema_version": 1,
             "models": [
                 {
-                    "model_key": F2LLM_MODEL_KEY,
+                    "model_key": F2LLM_80M_MODEL_KEY,
                     "vector_spaces": [{"vector_space_key": "new"}]
                 }
             ]
         });
 
-        let merged = merge_embedding_catalog(remote, replacement, F2LLM_MODEL_KEY).unwrap();
+        let merged = merge_embedding_catalog(remote, replacement, F2LLM_80M_MODEL_KEY).unwrap();
         let models = merged["models"].as_array().unwrap();
 
         assert_eq!(models.len(), 2);
         assert_eq!(models[0]["model_key"], "embedding-gemma-300m-q4-768");
-        assert_eq!(models[1]["model_key"], F2LLM_MODEL_KEY);
+        assert_eq!(models[1]["model_key"], F2LLM_80M_MODEL_KEY);
         assert_eq!(models[1]["vector_spaces"][0]["vector_space_key"], "new");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn embedding_catalog_merge_replaces_all_f2llm_models() {
+        let remote = serde_json::json!({
+            "schema_version": 1,
+            "models": [
+                {"model_key": "embedding-gemma-300m-q4-768"},
+                {"model_key": F2LLM_80M_MODEL_KEY, "vector_spaces": [{"vector_space_key": "old-80m"}]},
+                {"model_key": F2LLM_330M_MODEL_KEY, "vector_spaces": [{"vector_space_key": "old-330m"}]}
+            ]
+        });
+        let replacement = serde_json::json!({
+            "schema_version": 1,
+            "models": [
+                {"model_key": F2LLM_80M_MODEL_KEY, "vector_spaces": [{"vector_space_key": "new-80m"}]},
+                {"model_key": F2LLM_160M_MODEL_KEY, "vector_spaces": [{"vector_space_key": "new-160m"}]},
+                {"model_key": F2LLM_330M_MODEL_KEY, "vector_spaces": [{"vector_space_key": "new-330m"}]},
+                {"model_key": F2LLM_0_6B_MODEL_KEY, "vector_spaces": [{"vector_space_key": "new-0.6b"}]}
+            ]
+        });
+        let model_keys = F2LLM_MODEL_SPECS
+            .iter()
+            .map(|spec| spec.model_key.to_owned())
+            .collect::<BTreeSet<_>>();
+
+        let merged = merge_embedding_catalog_models(remote, replacement, &model_keys).unwrap();
+        let models = merged["models"].as_array().unwrap();
+        let merged_keys = models
+            .iter()
+            .map(|model| model["model_key"].as_str().unwrap())
+            .collect::<Vec<_>>();
+
+        assert_eq!(merged_keys[0], "embedding-gemma-300m-q4-768");
+        assert_eq!(merged_keys[1], F2LLM_80M_MODEL_KEY);
+        assert_eq!(merged_keys[2], F2LLM_330M_MODEL_KEY);
+        assert!(merged_keys.contains(&F2LLM_160M_MODEL_KEY));
+        assert!(merged_keys.contains(&F2LLM_0_6B_MODEL_KEY));
     }
 
     #[test]
@@ -5758,13 +6169,13 @@ mod tests {
         fs::write(root.join("tokenizer.abc.compact.json"), "{}").unwrap();
         fs::write(root.join("tensors/layer/data.abc.bin"), [1_u8, 2, 3]).unwrap();
 
-        let objects = r2_upload_tree_objects(&root, F2LLM_MODEL_R2_PREFIX).unwrap();
+        let objects = r2_upload_tree_objects(&root, F2LLM_MODEL_SPECS[0].webgpu_r2_prefix).unwrap();
         let keys = objects
             .iter()
             .map(|object| object.object_key.as_str())
             .collect::<Vec<_>>();
 
-        assert!(keys.iter().all(|key| key.starts_with(F2LLM_MODEL_R2_PREFIX)));
+        assert!(keys.iter().all(|key| key.starts_with(F2LLM_MODEL_SPECS[0].webgpu_r2_prefix)));
         assert_eq!(
             keys.last().copied(),
             Some("models/f2llm-v2-80m-webgpu/v1/manifest.json")

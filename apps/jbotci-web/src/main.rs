@@ -77,6 +77,13 @@ const COMPUTE_WORKER_JS: Asset = asset!("/assets/compute-worker.js");
 const EMBEDDINGS_JS: Asset = asset!("/assets/embeddings.js");
 const EMBEDDING_WORKER_JS: Asset = asset!("/assets/embedding-worker.js");
 const F2LLM_WEBGPU_RUNTIME_JS: Asset = asset!("/assets/f2llm-webgpu-runtime.js");
+// The embedding worker imports these dynamically, so keep explicit asset pins for Dioxus.
+#[allow(dead_code)]
+const ORT_WASM_MIN_MJS: Asset = asset!("/assets/ort/ort.wasm.min.mjs");
+#[allow(dead_code)]
+const ORT_WASM_SIMD_THREADED_MJS: Asset = asset!("/assets/ort/ort-wasm-simd-threaded.mjs");
+#[allow(dead_code)]
+const ORT_WASM_SIMD_THREADED_WASM: Asset = asset!("/assets/ort/ort-wasm-simd-threaded.wasm");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
 const DEFAULT_WEB_EMBEDDINGS_BASE_URL: &str = "/assets/embeddings/web/v1";
 const BUILD_WEB_EMBEDDINGS_BASE_URL: Option<&str> = option_env!("JBOTCI_WEB_EMBEDDINGS_BASE_URL");
@@ -151,6 +158,29 @@ const BLOCK_REFERENCE_LABEL_GAP_PX: f64 = 8.0;
 #[allow(dead_code)]
 const BLOCK_REFERENCE_CONTAINMENT_GAP_PX: f64 = 1.0;
 const DIALECT_SETTINGS_STORAGE_KEY: &str = "jbotci.dialect-settings.v1";
+const EMBEDDING_MODEL_STORAGE_KEY: &str = "jbotci.embedding-model.v1";
+const F2LLM_80M_MODEL_KEY: &str = "f2llm-v2-80m-q4-320";
+const F2LLM_160M_MODEL_KEY: &str = "f2llm-v2-160m-q4-640";
+const F2LLM_330M_MODEL_KEY: &str = "f2llm-v2-330m-q4-896";
+const F2LLM_0_6B_MODEL_KEY: &str = "f2llm-v2-0.6b-q4-1024";
+const EMBEDDING_MODEL_OPTIONS: &[EmbeddingModelOption] = &[
+    EmbeddingModelOption {
+        key: F2LLM_80M_MODEL_KEY,
+        label: "F2LLM v2 80M",
+    },
+    EmbeddingModelOption {
+        key: F2LLM_160M_MODEL_KEY,
+        label: "F2LLM v2 160M",
+    },
+    EmbeddingModelOption {
+        key: F2LLM_330M_MODEL_KEY,
+        label: "F2LLM v2 330M",
+    },
+    EmbeddingModelOption {
+        key: F2LLM_0_6B_MODEL_KEY,
+        label: "F2LLM v2 0.6B",
+    },
+];
 
 #[cfg(target_arch = "wasm32")]
 thread_local! {
@@ -441,9 +471,20 @@ struct UserSettings {
     glides: GlideMark,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct EmbeddingModelOption {
+    key: &'static str,
+    label: &'static str,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 struct EmbeddingSettingsState {
+    selected_model_key: String,
+    selected_model_label: String,
+    effective_model_key: String,
+    webgpu_available: Option<bool>,
     status: String,
     detail: String,
     model_size: String,
@@ -451,6 +492,7 @@ struct EmbeddingSettingsState {
     progress_label: Option<String>,
     progress_percent: Option<u8>,
     busy: bool,
+    remove_confirmation_open: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -835,7 +877,13 @@ impl Default for EmbeddingSettingsState {
     #[requires(true)]
     #[ensures(!ret.busy)]
     fn default() -> Self {
+        let selected_model_key = load_embedding_model_key();
+        let selected_model_label = embedding_model_label(&selected_model_key).to_owned();
         Self {
+            effective_model_key: selected_model_key.clone(),
+            selected_model_key,
+            selected_model_label,
+            webgpu_available: None,
             status: "unknown".to_owned(),
             detail: "Checking browser embedding storage.".to_owned(),
             model_size: "unknown".to_owned(),
@@ -843,6 +891,7 @@ impl Default for EmbeddingSettingsState {
             progress_label: None,
             progress_percent: None,
             busy: false,
+            remove_confirmation_open: false,
         }
     }
 }
@@ -1188,7 +1237,13 @@ fn AppShell() -> Element {
     use_effect(move || {
         configure_embedding_worker_url(&format!("{EMBEDDING_WORKER_JS}"));
         configure_embedding_f2llm_runtime_url(&format!("{F2LLM_WEBGPU_RUNTIME_JS}"));
+        configure_embedding_ort_assets(
+            &format!("{ORT_WASM_MIN_MJS}"),
+            &format!("{ORT_WASM_SIMD_THREADED_MJS}"),
+            &format!("{ORT_WASM_SIMD_THREADED_WASM}"),
+        );
         configure_embedding_remote_base_url(web_embeddings_base_url());
+        configure_embedding_model_key(&embedding_settings.read().selected_model_key);
         configure_compute_worker_url(&format!("{COMPUTE_WORKER_JS}"));
     });
     use_effect(move || {
@@ -2704,8 +2759,17 @@ extern "C" {
     #[wasm_bindgen(js_name = jbotciEmbeddingConfigureF2LlmRuntime)]
     fn js_embedding_configure_f2llm_runtime(runtime_url: &str);
 
+    #[wasm_bindgen(js_name = jbotciEmbeddingConfigureOrtAssets)]
+    fn js_embedding_configure_ort_assets(module_url: &str, wasm_mjs_url: &str, wasm_url: &str);
+
     #[wasm_bindgen(js_name = jbotciEmbeddingConfigureRemoteBase)]
     fn js_embedding_configure_remote_base(remote_base_url: &str);
+
+    #[wasm_bindgen(js_name = jbotciEmbeddingConfigureModel)]
+    fn js_embedding_configure_model(model_key: &str);
+
+    #[wasm_bindgen(js_name = jbotciEmbeddingPreferredModelKey)]
+    fn js_embedding_preferred_model_key() -> String;
 
     #[wasm_bindgen(js_name = jbotciEmbeddingStatus)]
     fn js_embedding_status() -> js_sys::Promise;
@@ -2780,6 +2844,24 @@ fn configure_embedding_f2llm_runtime_url(runtime_url: &str) {
     let _ = runtime_url;
 }
 
+#[cfg(target_arch = "wasm32")]
+#[requires(!module_url.is_empty())]
+#[requires(!wasm_mjs_url.is_empty())]
+#[requires(!wasm_url.is_empty())]
+#[ensures(true)]
+fn configure_embedding_ort_assets(module_url: &str, wasm_mjs_url: &str, wasm_url: &str) {
+    js_embedding_configure_ort_assets(module_url, wasm_mjs_url, wasm_url);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(!module_url.is_empty())]
+#[requires(!wasm_mjs_url.is_empty())]
+#[requires(!wasm_url.is_empty())]
+#[ensures(true)]
+fn configure_embedding_ort_assets(module_url: &str, wasm_mjs_url: &str, wasm_url: &str) {
+    let _ = (module_url, wasm_mjs_url, wasm_url);
+}
+
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn web_embeddings_base_url() -> &'static str {
@@ -2804,6 +2886,39 @@ fn configure_embedding_remote_base_url(remote_base_url: &str) {
 }
 
 #[cfg(target_arch = "wasm32")]
+#[requires(is_supported_embedding_model_key(model_key))]
+#[ensures(true)]
+fn configure_embedding_model_key(model_key: &str) {
+    js_embedding_configure_model(model_key);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(is_supported_embedding_model_key(model_key))]
+#[ensures(true)]
+fn configure_embedding_model_key(model_key: &str) {
+    let _ = model_key;
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(is_supported_embedding_model_key(&ret))]
+fn preferred_embedding_model_key() -> String {
+    let key = js_embedding_preferred_model_key();
+    if is_supported_embedding_model_key(&key) {
+        key
+    } else {
+        F2LLM_330M_MODEL_KEY.to_owned()
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(is_supported_embedding_model_key(&ret))]
+fn preferred_embedding_model_key() -> String {
+    F2LLM_330M_MODEL_KEY.to_owned()
+}
+
+#[cfg(target_arch = "wasm32")]
 #[requires(!worker_url.is_empty())]
 #[ensures(true)]
 fn configure_compute_worker_url(worker_url: &str) {
@@ -2820,38 +2935,28 @@ fn configure_compute_worker_url(worker_url: &str) {
 #[requires(true)]
 #[ensures(true)]
 async fn refresh_embedding_settings(mut settings: Signal<EmbeddingSettingsState>) {
+    configure_embedding_model_key(&settings.read().selected_model_key);
     match embedding_status_json().await {
         Ok(json) => settings.set(embedding_settings_from_json(
             &json,
             "Browser embeddings are ready.",
         )),
-        Err(error) => settings.set(EmbeddingSettingsState {
-            status: "unavailable".to_owned(),
-            detail: error,
-            model_size: "unknown".to_owned(),
-            index_size: "unknown".to_owned(),
-            progress_label: None,
-            progress_percent: None,
-            busy: false,
-        }),
+        Err(error) => {
+            let previous = settings.read().clone();
+            settings.set(embedding_settings_error_state(&previous, "unavailable", error));
+        }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 async fn setup_browser_embeddings(mut settings: Signal<EmbeddingSettingsState>) {
+    configure_embedding_model_key(&settings.read().selected_model_key);
     let corpus_json = match embedding_corpus_json_from_compute_worker().await {
         Ok(json) => json,
         Err(error) => {
-            settings.set(EmbeddingSettingsState {
-                status: "error".to_owned(),
-                detail: error,
-                model_size: "unknown".to_owned(),
-                index_size: "unknown".to_owned(),
-                progress_label: None,
-                progress_percent: None,
-                busy: false,
-            });
+            let previous = settings.read().clone();
+            settings.set(embedding_settings_error_state(&previous, "error", error));
             return;
         }
     };
@@ -2860,15 +2965,10 @@ async fn setup_browser_embeddings(mut settings: Signal<EmbeddingSettingsState>) 
             &json,
             "Browser embeddings are ready.",
         )),
-        Err(error) => settings.set(EmbeddingSettingsState {
-            status: "error".to_owned(),
-            detail: error,
-            model_size: "unknown".to_owned(),
-            index_size: "unknown".to_owned(),
-            progress_label: None,
-            progress_percent: None,
-            busy: false,
-        }),
+        Err(error) => {
+            let previous = settings.read().clone();
+            settings.set(embedding_settings_error_state(&previous, "error", error));
+        }
     }
 }
 
@@ -2906,20 +3006,16 @@ async fn poll_embedding_settings_while_busy(mut settings: Signal<EmbeddingSettin
 #[requires(true)]
 #[ensures(true)]
 async fn remove_browser_embeddings(mut settings: Signal<EmbeddingSettingsState>) {
+    configure_embedding_model_key(&settings.read().selected_model_key);
     match embedding_remove_json().await {
         Ok(json) => settings.set(embedding_settings_from_json(
             &json,
             "Browser embeddings were removed.",
         )),
-        Err(error) => settings.set(EmbeddingSettingsState {
-            status: "error".to_owned(),
-            detail: error,
-            model_size: "unknown".to_owned(),
-            index_size: "unknown".to_owned(),
-            progress_label: None,
-            progress_percent: None,
-            busy: false,
-        }),
+        Err(error) => {
+            let previous = settings.read().clone();
+            settings.set(embedding_settings_error_state(&previous, "error", error));
+        }
     }
 }
 
@@ -3303,6 +3399,7 @@ async fn embedding_search_json(
     limit: usize,
     kind_filters: &[String],
 ) -> Result<String, String> {
+    configure_embedding_model_key(&load_embedding_model_key());
     let kind_filters_json = serde_json::to_string(kind_filters).unwrap_or_else(|_| "[]".to_owned());
     promise_to_string(js_embedding_search(
         corpus_id,
@@ -3430,6 +3527,22 @@ fn js_value_to_string(value: JsValue) -> String {
 #[ensures(!ret.status.is_empty())]
 fn embedding_settings_from_json(json: &str, fallback_detail: &str) -> EmbeddingSettingsState {
     let value = serde_json::from_str::<serde_json::Value>(json).unwrap_or(serde_json::Value::Null);
+    let mut selected_model_key = json_string(&value, "selectedModelKey")
+        .filter(|key| is_supported_embedding_model_key(key))
+        .unwrap_or_else(load_embedding_model_key);
+    let effective_model_key = json_string(&value, "effectiveModelKey")
+        .or_else(|| json_string(&value, "modelKey"))
+        .filter(|key| is_supported_embedding_model_key(key))
+        .unwrap_or_else(|| selected_model_key.clone());
+    let webgpu_available = value
+        .get("webGpuAvailable")
+        .and_then(serde_json::Value::as_bool);
+    if webgpu_available == Some(false) && selected_model_key != F2LLM_80M_MODEL_KEY {
+        selected_model_key = F2LLM_80M_MODEL_KEY.to_owned();
+        save_embedding_model_key(&selected_model_key);
+        configure_embedding_model_key(&selected_model_key);
+    }
+    let selected_model_label = embedding_model_label(&selected_model_key).to_owned();
     let status = json_string(&value, "status").unwrap_or_else(|| "unknown".to_owned());
     let detail = json_string(&value, "detail")
         .or_else(|| json_string(&value, "message"))
@@ -3470,6 +3583,10 @@ fn embedding_settings_from_json(json: &str, fallback_detail: &str) -> EmbeddingS
         .and_then(serde_json::Value::as_u64)
         .map(|percent| percent.min(100) as u8);
     EmbeddingSettingsState {
+        selected_model_key,
+        selected_model_label,
+        effective_model_key,
+        webgpu_available,
         status,
         detail,
         model_size,
@@ -3477,6 +3594,68 @@ fn embedding_settings_from_json(json: &str, fallback_detail: &str) -> EmbeddingS
         progress_label,
         progress_percent,
         busy: false,
+        remove_confirmation_open: false,
+    }
+}
+
+#[requires(true)]
+#[ensures(is_supported_embedding_model_key(&ret))]
+fn load_embedding_model_key() -> String {
+    storage_get(EMBEDDING_MODEL_STORAGE_KEY)
+        .filter(|key| is_supported_embedding_model_key(key))
+        .unwrap_or_else(preferred_embedding_model_key)
+}
+
+#[requires(is_supported_embedding_model_key(model_key))]
+#[ensures(true)]
+fn save_embedding_model_key(model_key: &str) {
+    storage_set(EMBEDDING_MODEL_STORAGE_KEY, model_key);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_supported_embedding_model_key(model_key: &str) -> bool {
+    EMBEDDING_MODEL_OPTIONS
+        .iter()
+        .any(|option| option.key == model_key)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn embedding_model_label(model_key: &str) -> &'static str {
+    EMBEDDING_MODEL_OPTIONS
+        .iter()
+        .find(|option| option.key == model_key)
+        .map(|option| option.label)
+        .unwrap_or("F2LLM v2 330M")
+}
+
+#[requires(!status.is_empty())]
+#[requires(true)]
+#[ensures(!ret.status.is_empty())]
+fn embedding_settings_error_state(
+    previous: &EmbeddingSettingsState,
+    status: &str,
+    detail: String,
+) -> EmbeddingSettingsState {
+    let detail = if detail.is_empty() {
+        "Browser embedding request failed.".to_owned()
+    } else {
+        detail
+    };
+    EmbeddingSettingsState {
+        selected_model_key: previous.selected_model_key.clone(),
+        selected_model_label: previous.selected_model_label.clone(),
+        effective_model_key: previous.effective_model_key.clone(),
+        webgpu_available: previous.webgpu_available,
+        status: status.to_owned(),
+        detail,
+        model_size: "unknown".to_owned(),
+        index_size: "unknown".to_owned(),
+        progress_label: None,
+        progress_percent: None,
+        busy: false,
+        remove_confirmation_open: false,
     }
 }
 
@@ -12245,9 +12424,54 @@ fn render_embedding_settings(
     activity: Signal<AsyncActivityState>,
 ) -> Element {
     let busy = state.busy;
+    let webgpu_unavailable = state.webgpu_available == Some(false);
+    let selected_model_key = state.selected_model_key.clone();
     rsx! {
         section { class: "settings-section embeddings-settings",
             h2 { "Embeddings" }
+            label { class: "settings-model-select-row",
+                span { class: "settings-model-select-label", "Model size" }
+                select {
+                    class: "settings-select",
+                    value: "{state.selected_model_key}",
+                    disabled: busy,
+                    onchange: move |event| {
+                        let next_key = event.value();
+                        if !is_supported_embedding_model_key(&next_key) {
+                            return;
+                        }
+                        save_embedding_model_key(&next_key);
+                        configure_embedding_model_key(&next_key);
+                        let mut next = embedding_settings.read().clone();
+                        next.selected_model_key = next_key.clone();
+                        next.selected_model_label = embedding_model_label(&next_key).to_owned();
+                        next.effective_model_key = next_key;
+                        next.status = "unknown".to_owned();
+                        next.detail = "Checking browser embedding storage.".to_owned();
+                        next.model_size = "unknown".to_owned();
+                        next.index_size = "unknown".to_owned();
+                        next.progress_label = None;
+                        next.progress_percent = None;
+                        next.remove_confirmation_open = false;
+                        embedding_settings.set(next);
+                        spawn_tracked(activity, AsyncTaskKind::Settings, async move {
+                            refresh_embedding_settings(embedding_settings).await;
+                        });
+                    },
+                    for option in EMBEDDING_MODEL_OPTIONS.iter() {
+                        {
+                            let disabled = webgpu_unavailable && option.key != F2LLM_80M_MODEL_KEY;
+                            rsx! {
+                                option {
+                                    value: "{option.key}",
+                                    disabled,
+                                    "{option.label}"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             div { class: "settings-kv-grid",
                 span { class: "settings-kv-label", "Status" }
                 span { class: "settings-kv-value", "{state.status}" }
@@ -12305,16 +12529,54 @@ fn render_embedding_settings(
                     disabled: busy,
                     onclick: move |_| {
                         let mut next = embedding_settings.read().clone();
-                        next.busy = true;
-                        next.detail = "Removing browser embedding storage.".to_owned();
-                        next.progress_label = None;
-                        next.progress_percent = None;
+                        next.remove_confirmation_open = true;
                         embedding_settings.set(next);
-                        spawn_tracked(activity, AsyncTaskKind::Settings, async move {
-                            remove_browser_embeddings(embedding_settings).await;
-                        });
                     },
                     "Remove"
+                }
+            }
+            if state.remove_confirmation_open {
+                div {
+                    class: "settings-confirmation-popout",
+                    role: "dialog",
+                    aria_modal: "true",
+                    aria_label: "Remove embedding model",
+                    div { class: "settings-confirmation-card",
+                        h3 { "Remove {state.selected_model_label}" }
+                        p {
+                            "This will remove the selected model files and vector index from this browser."
+                        }
+                        div { class: "settings-actions",
+                            button {
+                                class: "settings-action-button",
+                                r#type: "button",
+                                onclick: move |_| {
+                                    let mut next = embedding_settings.read().clone();
+                                    next.remove_confirmation_open = false;
+                                    embedding_settings.set(next);
+                                },
+                                "Cancel"
+                            }
+                            button {
+                                class: "settings-action-button danger",
+                                r#type: "button",
+                                onclick: move |_| {
+                                    configure_embedding_model_key(&selected_model_key);
+                                    let mut next = embedding_settings.read().clone();
+                                    next.busy = true;
+                                    next.remove_confirmation_open = false;
+                                    next.detail = "Removing selected embedding model and index.".to_owned();
+                                    next.progress_label = None;
+                                    next.progress_percent = None;
+                                    embedding_settings.set(next);
+                                    spawn_tracked(activity, AsyncTaskKind::Settings, async move {
+                                        remove_browser_embeddings(embedding_settings).await;
+                                    });
+                                },
+                                "Remove"
+                            }
+                        }
+                    }
                 }
             }
         }

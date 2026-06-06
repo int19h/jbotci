@@ -398,13 +398,14 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 };
 
 export class F2LlmWebGpuRuntime {
-  constructor({ device, manifest, tokenizer, tensors, maxSequenceLength, dimensions }) {
+  constructor({ device, manifest, tokenizer, tensors, maxSequenceLength, dimensions, fetchArrayBuffer }) {
     this.device = device;
     this.manifest = manifest;
     this.tokenizer = tokenizer;
     this.tensors = tensors;
     this.maxSequenceLength = maxSequenceLength;
     this.dimensions = dimensions;
+    this.fetchArrayBuffer = fetchArrayBuffer;
     this.pipelines = new Map();
     this.vectorBuffers = new Map();
     this.transientBuffers = [];
@@ -413,14 +414,15 @@ export class F2LlmWebGpuRuntime {
 
   static async load(options) {
     const baseUrl = normalizeBaseUrl(options.baseUrl);
-    const manifest = await fetchJson(`${baseUrl}/manifest.json`, "F2LLM WebGPU manifest");
+    const fetchArrayBuffer = options.fetchArrayBuffer || defaultFetchArrayBuffer;
+    const manifest = await fetchJsonWith(fetchArrayBuffer, `${baseUrl}/manifest.json`, "F2LLM WebGPU manifest");
     validateManifest(manifest, options);
     const adapter = await navigator.gpu.requestAdapter();
     if (adapter === null) {
       throw new Error("WebGPU adapter is unavailable.");
     }
     const device = await adapter.requestDevice();
-    const tokenizer = await loadTokenizer(baseUrl, manifest);
+    const tokenizer = await loadTokenizer(baseUrl, manifest, fetchArrayBuffer);
     const tensors = new Map();
     const runtime = new F2LlmWebGpuRuntime({
       device,
@@ -429,6 +431,7 @@ export class F2LlmWebGpuRuntime {
       tensors,
       maxSequenceLength: options.maxSequenceLength || manifest.max_sequence_length || DEFAULT_MAX_SEQUENCE_LENGTH,
       dimensions: options.dimensions || manifest.model.hidden_size,
+      fetchArrayBuffer,
     });
     await runtime.loadTensors(baseUrl, options.progress || null);
     return runtime;
@@ -507,7 +510,7 @@ export class F2LlmWebGpuRuntime {
     });
     for (const chunk of chunked.chunks || []) {
       const chunkOffset = checkedNonNegativeInteger(chunk.byte_offset, `${label}.byte_offset`);
-      const bytes = await fetchArrayBuffer(`${baseUrl}/${chunk.url}`, label);
+      const bytes = await this.fetchArrayBuffer(`${baseUrl}/${chunk.url}`, label);
       if (bytes.byteLength !== checkedPositiveInteger(chunk.byte_length, `${label}.chunk.byte_length`)) {
         throw new Error(`${label} chunk ${chunk.url} has the wrong byte length`);
       }
@@ -1075,7 +1078,7 @@ export class QwenByteBpeTokenizer {
   }
 }
 
-async function loadTokenizer(baseUrl, manifest) {
+async function loadTokenizer(baseUrl, manifest, fetchArrayBuffer) {
   const tokenizerSpec = manifest.tokenizer;
   const bytes = await fetchArrayBuffer(`${baseUrl}/${tokenizerSpec.url}`, "F2LLM tokenizer");
   await verifySha256(
@@ -1248,12 +1251,16 @@ function normalize(vector) {
   }
 }
 
-async function fetchJson(url, label) {
+async function fetchJsonWith(fetchArrayBuffer, url, label) {
   const bytes = await fetchArrayBuffer(url, label);
   return JSON.parse(TEXT_DECODER.decode(bytes));
 }
 
-async function fetchArrayBuffer(url, label) {
+async function fetchJson(url, label) {
+  return fetchJsonWith(defaultFetchArrayBuffer, url, label);
+}
+
+async function defaultFetchArrayBuffer(url, label) {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`failed to fetch ${label} from ${url}: ${response.status}`);
