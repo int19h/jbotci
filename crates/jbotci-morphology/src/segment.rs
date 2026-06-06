@@ -8,11 +8,9 @@ use crate::{
     MorphologyErrorKind, MorphologyOptions, Phonemes, WordKind,
 };
 
-mod fast;
-pub(crate) use fast::classify_fast_simple_word;
-use fast::{
-    is_fast_experimental_permissible_consonant_pair, is_fast_initial_pair_chars,
-    is_fast_permissible_consonant_pair,
+mod phonotactics;
+use phonotactics::{
+    experimental_permissible_consonant_pair, initial_pair_chars, permissible_consonant_pair,
 };
 
 #[requires(true)]
@@ -436,14 +434,9 @@ fn source_range_from_normalized_range(
 #[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
 #[requires(true)]
 pub(crate) fn classify_word_with_options(
-    raw_word: &str,
     normalized_word: &str,
     options: &MorphologyOptions,
 ) -> Option<(WordKind, String)> {
-    if let Some(kind) = classify_fast_simple_word(raw_word, normalized_word) {
-        return Some((kind, canonicalize_brivla_phonemes(normalized_word)));
-    }
-
     let stripped = normalized_word.replace(',', "");
     if stripped.is_empty() {
         return None;
@@ -1135,7 +1128,7 @@ fn parse_initial(chars: &[char], start: usize, end: usize) -> Option<String> {
     let valid_shape = match end - start {
         0 => true,
         1 => is_consonant(chars[start]),
-        2 => is_fast_initial_pair_chars(chars[start], chars[start + 1]),
+        2 => initial_pair_chars(chars[start], chars[start + 1]),
         _ => false,
     };
     if !valid_shape {
@@ -1372,7 +1365,7 @@ fn forbidden_consonant_pair_range(chars: &[char]) -> Option<Range<usize>> {
         let next = next_non_comma_index(chars, index + 1)?;
         (is_consonant(chars[next])
             && !mz_pair(*value, chars[next])
-            && !is_fast_permissible_consonant_pair(*value, chars[next]))
+            && !permissible_consonant_pair(*value, chars[next]))
         .then_some(index..next + 1)
     })
 }
@@ -1669,11 +1662,8 @@ fn is_gismu(word: &str) -> bool {
                 && is_consonant(*c)
                 && is_consonant(*d)
                 && is_vowel(*e)
-                && is_fast_experimental_permissible_consonant_pair(*c, *d))
-                || (is_fast_initial_pair_chars(*a, *b)
-                    && is_vowel(*c)
-                    && is_consonant(*d)
-                    && is_vowel(*e))
+                && experimental_permissible_consonant_pair(*c, *d))
+                || (initial_pair_chars(*a, *b) && is_vowel(*c) && is_consonant(*d) && is_vowel(*e))
         }
         _ => false,
     }
@@ -1796,6 +1786,7 @@ fn is_lujvo_core(chars: &[char], index: usize) -> bool {
     is_gismu_slice(chars, index, chars.len())
         || is_short_final_rafsi_slice(chars, index, chars.len())
         || is_cvv_final_rafsi_slice(chars, index, chars.len())
+        || is_fuhivla_shape_slice(chars, index, chars.len())
 }
 
 #[requires(index <= chars.len())]
@@ -1978,7 +1969,7 @@ fn hy_rafsi_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
 fn long_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
     if index + 4 <= chars.len()
-        && is_fast_initial_pair_chars(chars[index], chars[index + 1])
+        && initial_pair_chars(chars[index], chars[index + 1])
         && is_vowel(chars[index + 2])
         && is_consonant(chars[index + 3])
     {
@@ -2009,7 +2000,7 @@ fn cvc_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
 #[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
 fn ccv_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
     (index + 3 <= chars.len()
-        && is_fast_initial_pair_chars(chars[index], chars[index + 1])
+        && initial_pair_chars(chars[index], chars[index + 1])
         && is_vowel(chars[index + 2]))
     .then_some(index + 3)
 }
@@ -2067,7 +2058,7 @@ fn is_short_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool 
         return true;
     }
     if end == start + 3
-        && is_fast_initial_pair_chars(chars[start], chars[start + 1])
+        && initial_pair_chars(chars[start], chars[start + 1])
         && is_vowel(chars[start + 2])
     {
         return true;
@@ -2208,7 +2199,7 @@ fn starts_forbidden_initial_pair(chars: &[char], index: usize, end: usize) -> bo
     index + 1 < end
         && is_consonant(chars[index])
         && is_consonant(chars[index + 1])
-        && !is_fast_initial_pair_chars(chars[index], chars[index + 1])
+        && !initial_pair_chars(chars[index], chars[index + 1])
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -2778,7 +2769,7 @@ fn starts_with_valid_word_onset(chars: &[char], index: usize) -> bool {
                 .get(index + 3)
                 .is_some_and(|value| is_consonant(*value))
     } else {
-        is_fast_initial_pair_chars(first, second)
+        initial_pair_chars(first, second)
     }
 }
 

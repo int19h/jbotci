@@ -567,10 +567,9 @@ impl<'a> Segmenter<'a> {
             if !self.post_word_ok_for_brivla(start, end, candidate_end) {
                 return None;
             }
-            let raw = self.slice(start, end);
             let normalized = self.checked_normalized_slice(start, end)?;
             let (kind, phonemes) =
-                crate::segment::classify_word_with_options(raw, &normalized, self.options)?;
+                crate::segment::classify_word_with_options(&normalized, self.options)?;
             if !matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla) {
                 return None;
             }
@@ -2348,12 +2347,8 @@ mod tests {
     #[ensures(true)]
     fn mz_relaxation_does_not_make_mz_an_initial_pair() {
         assert!(
-            crate::segment::classify_word_with_options(
-                "mzai",
-                "mzai",
-                &MorphologyOptions::default()
-            )
-            .is_none()
+            crate::segment::classify_word_with_options("mzai", &MorphologyOptions::default())
+                .is_none()
         );
     }
 
@@ -2413,6 +2408,48 @@ mod tests {
             bare_word(&laglymlu[0]).expect("bare word").kind(),
             WordKind::Lujvo
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lujvo_can_end_with_fuhivla_core_after_y_hyphen() {
+        let words = segment_words_with_modifiers(
+            "pirytorveki jetcybolxada",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("lujvo may end with a fu'ivla core");
+
+        assert_eq!(bare_phonemes(&words), ["pirytorvéki", "jetcybolxáda"]);
+        assert_eq!(words.len(), 2);
+        assert_eq!(
+            bare_word(&words[0]).expect("bare word").kind(),
+            WordKind::Lujvo
+        );
+        assert_eq!(
+            bare_word(&words[1]).expect("bare word").kind(),
+            WordKind::Lujvo
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn final_fuhivla_lujvo_core_is_decomposed_as_rafsi_part() {
+        let words =
+            segment_words_with_modifiers("jetcybolxada", &MorphologyOptions::default(), None)
+                .expect("lujvo may end with a fu'ivla core");
+        let parts = bare_word(&words[0])
+            .expect("bare word")
+            .lujvo_parts()
+            .expect("lujvo parts");
+        let part_texts = parts
+            .iter()
+            .map(|part| part.phonemes().as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(part_texts, ["jetc", "y", "bolxáda"]);
     }
 
     #[test]
