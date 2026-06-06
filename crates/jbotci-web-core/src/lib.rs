@@ -6056,24 +6056,21 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn reference_tooltips_scope_tanru_modifier_to_shared_x1() {
+    fn reference_tooltips_do_not_assign_tanru_modifier_x1() {
         let success = parse_success("mi sutra klama do");
 
-        let modifier = outgoing_tooltip_for_block(&success, "sutra");
-        assert_eq!(
-            modifier.card.as_ref().map(|card| card.word.as_str()),
-            Some("sutra")
+        let modifier = success
+            .blocks_layout
+            .blocks
+            .iter()
+            .find(|block| block.raw_text == "sutra" || block.display_text == "sutra")
+            .expect("sutra block is present");
+        assert!(
+            modifier
+                .ref_markers
+                .iter()
+                .all(|marker| marker.role != ReferenceMarkerRole::Reference)
         );
-        assert_eq!(
-            row_label_keys(modifier),
-            BTreeSet::from(["s<1>".to_owned()])
-        );
-        assert_eq!(
-            row_target_texts(modifier),
-            BTreeSet::from(["mi".to_owned()])
-        );
-        assert!(tooltip_highlights_place(modifier, 1));
-        assert!(!tooltip_highlights_place(modifier, 2));
 
         let head = outgoing_tooltip_for_block(&success, "klama");
         assert_eq!(

@@ -7,27 +7,8 @@ corpus = "camxes"
 entry-id = "18386"
 
 [expectations.syntax]
-status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, sumti: Some(NameWords(WithFreeModifiers { value: [WithIndicator { base: Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "grayyvern" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 14, char_start: 4, char_end: 14, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ga'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 19, char_start: 15, char_end: 19, start: None, end: None } }, nai: Some(Cmavo { phonemes: Phonemes { text: "naĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 22, char_start: 19, char_end: 22, start: None, end: None } }) }], free_modifiers: [] })), dohu: None }], leading_connective: None, paragraphs: [] }"""
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [8, 9], source-text = "w", message = "invalid character in Lojban word" }]
 
 [expectations.semantics.refs]
-status = "success"
-raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
-
-[expectations.output.gentufa]
-tree = """
-Text @[0‥22) {
-  leading_free_modifiers: [
-    Vocative @[0‥22) {
-      vocative_markers: [
-        Cmavo @[0‥3) "doĭ",
-      ],
-      sumti: WithIndicator @[4‥22) {
-        Cmevla @[4‥14) "grayyvern",
-        indicator: Cmavo @[15‥19) "ga'i",
-        nai: Cmavo @[19‥22) "naĭ",
-      },
-    },
-  ],
-}"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}],"sumti":{"NameWords":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"grayyvern","span":[4,14]}}}},"indicator":{"Cmavo":{"phonemes":"ga'i","span":[15,19]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[19,22]}}}}]}}}]}"""
+status = "not-applicable"

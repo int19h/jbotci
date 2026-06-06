@@ -648,6 +648,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private lujvo parse failure records the furthest parse position with a closed expectation enum",
     ),
     (
+        "crates/jbotci-morphology/src/segment.rs:NormalizationError",
+        "normalization error records an arbitrary rejected source character and its source index",
+    ),
+    (
         "crates/jbotci-morphology/src/lib.rs:PhonemeRenderOptions",
         "render options are independent booleans with no cross-field invariant",
     ),

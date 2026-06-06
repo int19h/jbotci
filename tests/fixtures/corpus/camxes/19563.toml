@@ -7,42 +7,8 @@ corpus = "camxes"
 entry-id = "19563"
 
 [expectations.syntax]
-status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [Vocative { vocative_markers: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }))], free_modifiers: [] }, sumti: Some(SumtiWithRelativeClauses { base_sumti: NameWords(WithFreeModifiers { value: [Plain(PlainWord(Cmevla { phonemes: Phonemes { text: "og" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None } }))], free_modifiers: [] }), vuho: None, relative_clauses: [IncidentalRelativeBridi { noi: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "noĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None } })), free_modifiers: [] }, subbridi: Bridi(BridiSyntax { leading_terms: [Sumti(ProSumti(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ke'a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 16, char_start: 12, char_end: 16, start: None, end: None } })), free_modifiers: [] }))], cu: None, bridi_tail: BridiTailSyntax { first: AfterthoughtBridiTailSyntax { first: BoGroupedBridiTailSyntax { first: SelbriBridiTail { selbri: TaggedSelbri { tense_modal: Composite { parts: WithFreeModifiers { value: [Cmavo(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "pu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None } }))), Cmavo(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "zi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } })))], free_modifiers: [] } }, inner_selbri: SelbriWord(Plain(PlainWord(Gismu { phonemes: Phonemes { text: "xrúti" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 27, char_start: 22, char_end: 27, start: None, end: None } }))) }, terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), kuho: None }] }), dohu: None }], leading_connective: None, paragraphs: [] }"""
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [4, 5], source-text = "w", message = "invalid character in Lojban word" }]
 
 [expectations.semantics.refs]
-status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":22,"length":5},"kind":"base-selbri","selbri":{"offset":22,"length":5},"tanru-unit":null,"propagation":{"kind":"none"}},{"index":1,"node":{"offset":17,"length":10},"kind":"forwarding","selbri":{"offset":17,"length":10},"tanru-unit":null,"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":17,"length":10},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"forward","inner":1}},{"index":3,"node":{"offset":17,"length":10},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[2]}},{"index":4,"node":{"offset":17,"length":10},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[3]}},{"index":5,"node":{"offset":17,"length":10},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[4]}},{"index":6,"node":{"offset":12,"length":15},"kind":"bridi","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[5]}}],"assignments":[{"frame":0,"frame-node":{"offset":22,"length":5},"selbri":{"offset":22,"length":5},"tanru-unit":null,"slot":{"kind":"numbered","place":1},"sumti":{"offset":12,"length":4},"term":{"offset":12,"length":4},"source":"propagated"},{"frame":1,"frame-node":{"offset":17,"length":10},"selbri":{"offset":17,"length":10},"tanru-unit":null,"slot":{"kind":"numbered","place":1},"sumti":{"offset":12,"length":4},"term":{"offset":12,"length":4},"source":"propagated"},{"frame":2,"frame-node":{"offset":17,"length":10},"selbri":null,"tanru-unit":null,"slot":{"kind":"numbered","place":1},"sumti":{"offset":12,"length":4},"term":{"offset":12,"length":4},"source":"propagated"},{"frame":3,"frame-node":{"offset":17,"length":10},"selbri":null,"tanru-unit":null,"slot":{"kind":"numbered","place":1},"sumti":{"offset":12,"length":4},"term":{"offset":12,"length":4},"source":"propagated"},{"frame":4,"frame-node":{"offset":17,"length":10},"selbri":null,"tanru-unit":null,"slot":{"kind":"numbered","place":1},"sumti":{"offset":12,"length":4},"term":{"offset":12,"length":4},"source":"propagated"},{"frame":5,"frame-node":{"offset":17,"length":10},"selbri":null,"tanru-unit":null,"slot":{"kind":"numbered","place":1},"sumti":{"offset":12,"length":4},"term":{"offset":12,"length":4},"source":"propagated"},{"frame":6,"frame-node":{"offset":12,"length":15},"selbri":null,"tanru-unit":null,"slot":{"kind":"numbered","place":1},"sumti":{"offset":12,"length":4},"term":{"offset":12,"length":4},"source":"sequential-term"}],"selbri-places":[{"frame":0,"selbri":{"offset":22,"length":5},"place":1,"sumti":{"offset":12,"length":4}},{"frame":1,"selbri":{"offset":17,"length":10},"place":1,"sumti":{"offset":12,"length":4}},{"frame":2,"selbri":{"offset":17,"length":10},"place":1,"sumti":{"offset":12,"length":4}},{"frame":3,"selbri":{"offset":17,"length":10},"place":1,"sumti":{"offset":12,"length":4}},{"frame":4,"selbri":{"offset":17,"length":10},"place":1,"sumti":{"offset":12,"length":4}},{"frame":5,"selbri":{"offset":17,"length":10},"place":1,"sumti":{"offset":12,"length":4}},{"frame":6,"selbri":{"offset":12,"length":15},"place":1,"sumti":{"offset":12,"length":4}}],"references":[{"kind":"keha","source":{"offset":12,"length":4},"target":{"kind":"resolved-node","node":{"offset":4,"length":3}}}]}'
-
-[expectations.output.gentufa]
-tree = """
-Text @[0‥27) {
-  leading_free_modifiers: [
-    Vocative @[0‥27) {
-      vocative_markers: [
-        Cmavo @[0‥3) "coĭ",
-      ],
-      sumti: SumtiWithRelativeClauses @[4‥27) {
-        base_sumti: Cmevla @[4‥7) "og",
-        relative_clauses: [
-          IncidentalRelativeBridi @[8‥27) {
-            noi: Cmavo @[8‥11) "noĭ",
-            Bridi @[12‥27) {
-              leading_terms: [
-                Cmavo @[12‥16) "ke'a",
-              ],
-              TaggedSelbri @[17‥27) {
-                tense_modal: Composite @[17‥21) {
-                  Cmavo @[17‥19) "pu",
-                  Cmavo @[19‥21) "zi",
-                },
-                Gismu @[22‥27) "xrúti",
-              },
-            },
-          },
-        ],
-      },
-    },
-  ],
-}"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"og","span":[4,7]}}}}]},"relative_clauses":[{"IncidentalRelativeBridi":{"noi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"noĭ","span":[8,11]}}}},"subbridi":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'a","span":[12,16]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[17,19]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[19,21]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xrúti","span":[22,27]}}}}}}}}}}}}}}}}]}}}}]}"""
+status = "not-applicable"

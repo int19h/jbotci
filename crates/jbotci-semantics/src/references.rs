@@ -303,9 +303,9 @@ pub enum AssignmentSource {
     FaTerm,
     ModalTerm,
     LinkedSumti,
+    CoSeltauTerm,
     TermsetBranch,
     Propagated,
-    CompoundSharedX1,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1315,20 +1315,11 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     self.frame_slot_has_existing_assignment_recursive(*branch, slot, visited)
                 })
             }
-            PlaceFramePropagation::Compound { head, modifiers } => {
+            PlaceFramePropagation::Compound { head, .. } => {
                 self.frame_slot_has_existing_assignment_recursive(*head, slot, visited)
-                    || (slot.numbered_index() == Some(1)
-                        && modifiers.iter().any(|modifier| {
-                            self.frame_slot_has_existing_assignment_recursive(
-                                *modifier, slot, visited,
-                            )
-                        }))
             }
-            PlaceFramePropagation::Co { leading, trailing } => {
-                self.frame_slot_has_existing_assignment_recursive(*trailing, slot, visited)
-                    || (slot.numbered_index() == Some(1)
-                        && self
-                            .frame_slot_has_existing_assignment_recursive(*leading, slot, visited))
+            PlaceFramePropagation::Co { leading, .. } => {
+                self.frame_slot_has_existing_assignment_recursive(*leading, slot, visited)
             }
         }
     }
@@ -1539,6 +1530,12 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 ..
             }) => {
                 let relation_frame = self.analyze_relation(selbri);
+                let mut terms = terms.iter().collect::<Vec<_>>();
+                if let Some(seltau_frame) = self.co_seltau_term_frame(relation_frame) {
+                    let mut cursors = vec![self.cursor_with_existing_assignments(seltau_frame, 2)];
+                    self.assign_term_refs(&mut cursors, &terms, AssignmentSource::CoSeltauTerm);
+                    terms.clear();
+                }
                 self.analyze_free_modifiers_nested(free_modifiers);
                 let raw = self.raw_for(bridi_tail3_node_ref(tail));
                 let frame = self.add_frame(
@@ -1550,7 +1547,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 );
                 BridiTailAnalysis {
                     frames: vec![frame],
-                    terms: terms.iter().collect(),
+                    terms,
                     branch_cursors: None,
                 }
             }
@@ -3004,7 +3001,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     );
                 }
             }
-            PlaceFramePropagation::Compound { head, modifiers } => {
+            PlaceFramePropagation::Compound { head, .. } => {
                 self.add_assignment_recursive(
                     head,
                     slot,
@@ -3013,41 +3010,34 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     AssignmentSource::Propagated,
                     visited,
                 );
-                if slot.numbered_index() == Some(1) {
-                    for modifier in modifiers {
-                        self.add_assignment_recursive(
-                            modifier,
-                            slot,
-                            sumti,
-                            term,
-                            AssignmentSource::CompoundSharedX1,
-                            visited,
-                        );
-                    }
-                }
             }
-            PlaceFramePropagation::Co { leading, trailing } => {
+            PlaceFramePropagation::Co { leading, .. } => {
                 self.add_assignment_recursive(
-                    trailing,
+                    leading,
                     slot,
                     sumti,
                     term,
                     AssignmentSource::Propagated,
                     visited,
                 );
-                if slot.numbered_index() == Some(1) {
-                    self.add_assignment_recursive(
-                        leading,
-                        slot,
-                        sumti,
-                        term,
-                        AssignmentSource::CompoundSharedX1,
-                        visited,
-                    );
-                }
             }
         }
         let _ = source;
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn co_seltau_term_frame(&self, frame: SelbriPlaceFrameId) -> Option<SelbriPlaceFrameId> {
+        let frame_data = self.frames.get(frame.0)?;
+        match &frame_data.propagation {
+            PlaceFramePropagation::Co { trailing, .. } => Some(*trailing),
+            PlaceFramePropagation::Forward { inner } => self.co_seltau_term_frame(*inner),
+            PlaceFramePropagation::None
+            | PlaceFramePropagation::Conversion { .. }
+            | PlaceFramePropagation::Jai { .. }
+            | PlaceFramePropagation::ConnectiveBranches { .. }
+            | PlaceFramePropagation::Compound { .. } => None,
+        }
     }
 
     #[requires(true)]
@@ -6593,15 +6583,47 @@ mod tests {
             .iter()
             .find(|frame| {
                 frame.kind == kind
-                    && frame.selbri.is_some_and(|selbri| {
+                    && (frame.selbri.is_some_and(|selbri| {
                         analysis
                             .syntax_index
                             .selbri(selbri)
                             .and_then(relation_label)
                             .is_some_and(|actual| actual == label)
-                    })
+                    }) || frame.tanru_unit.is_some_and(|tanru_unit| {
+                        analysis
+                            .syntax_index
+                            .tanru_unit(tanru_unit)
+                            .and_then(relation_unit_label)
+                            .is_some_and(|actual| actual == label)
+                    }))
             })
             .map(|frame| frame.id)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn frame_for_kind(
+        analysis: &ReferenceAnalysis<'_>,
+        kind: PlaceFrameKind,
+    ) -> Option<SelbriPlaceFrameId> {
+        analysis
+            .place_analysis
+            .frames()
+            .iter()
+            .find(|frame| frame.kind == kind)
+            .map(|frame| frame.id)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn frame_for_label_in_kinds(
+        analysis: &ReferenceAnalysis<'_>,
+        label: &str,
+        kinds: &[PlaceFrameKind],
+    ) -> Option<SelbriPlaceFrameId> {
+        kinds
+            .iter()
+            .find_map(|kind| frame_for_selbri_label(analysis, label, *kind))
     }
 
     #[test]
@@ -6679,6 +6701,143 @@ mod tests {
                 first_assignment_label(&analysis, base, 2).as_deref(),
                 Some("mi")
             );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn co_post_terms_fill_seltau_not_current_bridi_places() {
+        run_reference_test(|| {
+            let syntax = parse_syntax("mi troci co klama le zarci le zdani");
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+            let bridi =
+                frame_for_kind(&analysis, PlaceFrameKind::Bridi).expect("bridi frame exists");
+            let troci = frame_for_selbri_label(&analysis, "troci", PlaceFrameKind::BaseSelbri)
+                .expect("troci frame exists");
+            let klama = frame_for_selbri_label(&analysis, "klama", PlaceFrameKind::BaseSelbri)
+                .expect("klama frame exists");
+
+            assert_eq!(
+                first_assignment_label(&analysis, bridi, 1).as_deref(),
+                Some("mi")
+            );
+            assert_eq!(first_assignment_label(&analysis, bridi, 2), None);
+            assert_eq!(first_assignment_label(&analysis, bridi, 3), None);
+            assert_eq!(
+                first_assignment_label(&analysis, troci, 1).as_deref(),
+                Some("mi")
+            );
+            assert_eq!(first_assignment_label(&analysis, troci, 2), None);
+            assert_eq!(
+                first_assignment_label(&analysis, klama, 2).as_deref(),
+                Some("zarci")
+            );
+            assert_eq!(
+                first_assignment_label(&analysis, klama, 3).as_deref(),
+                Some("zdani")
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn co_post_terms_match_equivalent_explicit_be_linked_seltau_places() {
+        run_reference_test(|| {
+            let co_syntax = parse_syntax("mi troci co klama le zarci le zdani");
+            let co_analysis = analyze_references(&co_syntax).expect("co analysis succeeds");
+            let be_syntax = parse_syntax("mi klama be le zarci bei le zdani be'o troci");
+            let be_analysis = analyze_references(&be_syntax).expect("be analysis succeeds");
+
+            for analysis in [&co_analysis, &be_analysis] {
+                let bridi =
+                    frame_for_kind(analysis, PlaceFrameKind::Bridi).expect("bridi frame exists");
+                let troci = frame_for_label_in_kinds(
+                    analysis,
+                    "troci",
+                    &[PlaceFrameKind::BaseSelbri, PlaceFrameKind::TanruUnit],
+                )
+                .expect("troci frame exists");
+                let klama = frame_for_label_in_kinds(
+                    analysis,
+                    "klama",
+                    &[PlaceFrameKind::BaseSelbri, PlaceFrameKind::TanruUnit],
+                )
+                .expect("klama frame exists");
+
+                assert_eq!(
+                    first_assignment_label(analysis, bridi, 1).as_deref(),
+                    Some("mi")
+                );
+                assert_eq!(first_assignment_label(analysis, bridi, 2), None);
+                assert_eq!(
+                    first_assignment_label(analysis, troci, 1).as_deref(),
+                    Some("mi")
+                );
+                assert_eq!(
+                    first_assignment_label(analysis, klama, 2).as_deref(),
+                    Some("zarci")
+                );
+                assert_eq!(
+                    first_assignment_label(analysis, klama, 3).as_deref(),
+                    Some("zdani")
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn be_before_co_still_fills_tertau_places() {
+        run_reference_test(|| {
+            let syntax = parse_syntax("mi klama be le zarci be'o co sutra");
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+            let bridi =
+                frame_for_kind(&analysis, PlaceFrameKind::Bridi).expect("bridi frame exists");
+            let klama = frame_for_selbri_label(&analysis, "klama", PlaceFrameKind::TanruUnit)
+                .expect("klama tanru-unit frame exists");
+            let sutra = frame_for_selbri_label(&analysis, "sutra", PlaceFrameKind::BaseSelbri)
+                .expect("sutra frame exists");
+
+            assert_eq!(
+                first_assignment_label(&analysis, bridi, 1).as_deref(),
+                Some("mi")
+            );
+            assert_eq!(first_assignment_label(&analysis, bridi, 2), None);
+            assert_eq!(
+                first_assignment_label(&analysis, klama, 1).as_deref(),
+                Some("mi")
+            );
+            assert_eq!(
+                first_assignment_label(&analysis, klama, 2).as_deref(),
+                Some("zarci")
+            );
+            assert_eq!(first_assignment_label(&analysis, sutra, 1), None);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn voha_series_does_not_see_co_seltau_terms_as_current_bridi_places() {
+        run_reference_test(|| {
+            let syntax = parse_syntax("mi troci co klama le zarci le zdani vo'e");
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+
+            let vohe_edges = analysis
+                .discourse_references
+                .edges()
+                .iter()
+                .filter(|edge| edge.kind == ReferenceKind::VohaSeries)
+                .collect::<Vec<_>>();
+
+            assert_eq!(vohe_edges.len(), 1);
+            assert!(matches!(
+                vohe_edges[0].target,
+                ReferenceTarget::Unresolved(_)
+            ));
         });
     }
 

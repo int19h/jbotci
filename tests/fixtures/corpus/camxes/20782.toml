@@ -7,20 +7,8 @@ corpus = "camxes"
 entry-id = "20782"
 
 [expectations.syntax]
-status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Bridi(BridiSyntax { leading_terms: [], cu: None, bridi_tail: BridiTailSyntax { first: AfterthoughtBridiTailSyntax { first: BoGroupedBridiTailSyntax { first: SelbriBridiTail { selbri: Tanru([TanruUnitWord(WithFreeModifiers { value: Plain(PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "cma" }), Rafsi(Phonemes { text: "fí'e" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 8, char_start: 0, char_end: 8, start: None, end: None } })), free_modifiers: [] }), ConvertedTanruUnit { se: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "se" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } })), free_modifiers: [] }, inner_unit: TanruUnitWord(WithFreeModifiers { value: Plain(PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "sám" }), Rafsi(Phonemes { text: "pla" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 18, char_start: 12, char_end: 18, start: None, end: None } })), free_modifiers: [] }) }]), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [0, 1], source-text = "@", message = "invalid character in Lojban word" }]
 
 [expectations.semantics.refs]
-status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":0,"length":8},"kind":"tanru-unit","selbri":null,"tanru-unit":{"offset":0,"length":8},"propagation":{"kind":"none"}},{"index":1,"node":{"offset":12,"length":6},"kind":"tanru-unit","selbri":null,"tanru-unit":{"offset":12,"length":6},"propagation":{"kind":"none"}},{"index":2,"node":{"offset":9,"length":9},"kind":"converted","selbri":null,"tanru-unit":{"offset":9,"length":9},"propagation":{"kind":"conversion","inner":1,"converted_place":2}},{"index":3,"node":{"offset":0,"length":18},"kind":"compound","selbri":{"offset":0,"length":18},"tanru-unit":null,"propagation":{"kind":"compound","head":2,"modifiers":[0]}},{"index":4,"node":{"offset":0,"length":18},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"forward","inner":3}},{"index":5,"node":{"offset":0,"length":18},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[4]}},{"index":6,"node":{"offset":0,"length":18},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[5]}},{"index":7,"node":{"offset":0,"length":18},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[6]}},{"index":8,"node":{"offset":0,"length":18},"kind":"bridi","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[7]}}],"assignments":[],"selbri-places":[],"references":[]}'
-
-[expectations.output.gentufa]
-tree = """
-Tanru @[0‥18) {
-  Lujvo @[0‥8) "cmafí'e",
-  ConvertedTanruUnit @[9‥18) {
-    se: Cmavo @[9‥11) "se",
-    Lujvo @[12‥18) "sámpla",
-  },
-}"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cma"},{"Rafsi":"fí'e"}],"span":[0,8]}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[9,11]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sám"},{"Rafsi":"pla"}],"span":[12,18]}}}}}}}]}}}}}}}}}]}]}"""
+status = "not-applicable"

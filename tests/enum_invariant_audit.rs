@@ -928,7 +928,19 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private normalization event payload is constrained by normalized_emit requires and normalize_char_event ensures",
     ),
     (
+        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::EmitText",
+        "private normalization event payload comes from the static zbalermorna normalization table",
+    ),
+    (
         "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::StressPrevious",
+        "private normalization event is a unit signal with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::StressPreviousVowel",
+        "private normalization event is a unit signal with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::Ignore",
         "private normalization event is a unit signal with no payload to constrain",
     ),
     (
