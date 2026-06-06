@@ -1,4 +1,4 @@
-const HARNESS_BUILD = "runtime-onnx-q4-artifact-2026-06-05-1";
+const HARNESS_BUILD = "runtime-onnx-q4-rope-dispatch-2026-06-05-1";
 const DEFAULT_RUNTIME_URL = withQueryParam(
   new URL("../../../apps/jbotci-web/assets/f2llm-webgpu-runtime.js", import.meta.url),
   "v",

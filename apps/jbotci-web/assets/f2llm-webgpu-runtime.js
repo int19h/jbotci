@@ -838,7 +838,7 @@ export class F2LlmWebGpuRuntime {
     ], [
       Math.ceil(sequenceLength / DEFAULT_WORKGROUP_WIDTH),
       Math.ceil(heads / DEFAULT_WORKGROUP_WIDTH),
-      Math.ceil((headDim / 2) / DEFAULT_WORKGROUP_WIDTH),
+      Math.ceil(headDim / 2),
     ]);
   }
 
