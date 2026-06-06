@@ -133,6 +133,8 @@ const SEMANTIC_SEARCH_SETUP_LINK_SUFFIX: &str = " model and embeddings to use se
 #[cfg(target_arch = "wasm32")]
 const VLACKU_JVOZBA_MIN_WIDTH_PX: f64 = 981.0;
 #[cfg(target_arch = "wasm32")]
+const CUKTA_TOC_FORCED_AUTOHIDE_WIDTH_PX: f64 = 1100.0;
+#[cfg(target_arch = "wasm32")]
 const VLACKU_JVOZBA_HEIGHT_SCALE: f64 = 0.5;
 #[cfg(target_arch = "wasm32")]
 const VLACKU_JVOZBA_LAYOUT_FRAME_PASSES: u8 = 2;
@@ -747,6 +749,31 @@ struct CuktaTocExpansionState {
     collapsed: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct CuktaTocInteractionState {
+    pinned: bool,
+    overlay_visible: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum CuktaTocButtonState {
+    Hidden,
+    ForcedAutoHideVisible,
+    PinnedVisible,
+    UnpinnedVisible,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum CuktaTocButtonAction {
+    ShowOverlay,
+    HideOverlay,
+    Pin,
+    Unpin,
+}
+
 impl Default for UserSettings {
     #[requires(true)]
     #[ensures(ret.theme == ThemeMode::Auto)]
@@ -1043,6 +1070,8 @@ fn AppShell() -> Element {
     let cukta_toc_expansion = use_signal(load_cukta_toc_expansion);
     let cukta_toc_width = use_signal(load_cukta_toc_width);
     let cukta_toc_resize = use_signal(|| None::<CuktaTocResizeState>);
+    let cukta_toc_overlay_visible = use_signal(|| false);
+    let cukta_toc_forced_autohide = use_signal(cukta_toc_forced_autohide_active);
     let initial_vlacku = initial_vlacku_state(&current_route_location);
     let vlacku_draft_state = use_signal(|| initial_vlacku.clone());
     let vlacku_committed_state = use_signal(|| initial_vlacku);
@@ -1112,6 +1141,7 @@ fn AppShell() -> Element {
         jvozba_available,
         topbar_settings_layout,
         topbar_settings_open,
+        cukta_toc_forced_autohide,
     );
     let scroll_base_path = base_path.clone();
     let scroll_route_location = current_route_location.clone();
@@ -1722,6 +1752,8 @@ fn AppShell() -> Element {
                                     cukta_toc_expansion,
                                     cukta_toc_width,
                                     cukta_toc_resize,
+                                    cukta_toc_overlay_visible,
+                                    cukta_toc_forced_autohide,
                                     pending_cukta_scroll,
                                     &base_path,
                                     settings_value.script,
@@ -2173,6 +2205,32 @@ fn update_vlacku_jvozba_availability(mut available: Signal<bool>) {
     let next = vlacku_jvozba_available();
     if *available.read() != next {
         available.set(next);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_toc_forced_autohide_active() -> bool {
+    web_sys::window()
+        .and_then(|window| window.inner_width().ok())
+        .and_then(|width| width.as_f64())
+        .map_or(false, |width| width <= CUKTA_TOC_FORCED_AUTOHIDE_WIDTH_PX)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(!ret)]
+fn cukta_toc_forced_autohide_active() -> bool {
+    false
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn update_cukta_toc_forced_autohide(mut forced_autohide: Signal<bool>) {
+    let next = cukta_toc_forced_autohide_active();
+    if *forced_autohide.read() != next {
+        forced_autohide.set(next);
     }
 }
 
@@ -3493,17 +3551,37 @@ fn render_cukta_page(
     toc_expansion: Signal<CuktaTocExpansionState>,
     toc_width: Signal<f64>,
     mut toc_resize: Signal<Option<CuktaTocResizeState>>,
+    mut toc_overlay_visible: Signal<bool>,
+    toc_forced_autohide: Signal<bool>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
 ) -> Element {
     let page = cukta_page.read().page.clone();
     let toc_is_pinned = *toc_pinned.read();
+    let toc_is_forced_autohide = *toc_forced_autohide.read();
+    let toc_overlay_is_visible = *toc_overlay_visible.read();
+    let toc_is_visible = cukta_toc_panel_visible(
+        toc_is_pinned,
+        toc_is_forced_autohide,
+        toc_overlay_is_visible,
+    );
+    let toc_uses_autohide = toc_is_forced_autohide || !toc_is_pinned;
+    let toc_button_state = cukta_toc_button_state(
+        toc_is_pinned,
+        toc_is_forced_autohide,
+        toc_overlay_is_visible,
+    );
+    let toc_button_action = cukta_toc_button_action(toc_button_state);
+    let toc_button_title = cukta_toc_button_title(toc_button_state);
+    let toc_hides_on_leave =
+        cukta_toc_hides_overlay_on_pointer_leave(toc_is_pinned, toc_is_forced_autohide);
     let is_resizing = toc_resize.read().is_some();
     let shell_class = class_names(
         "cll-shell",
         &[
-            ("cll-toc-autohide", !toc_is_pinned),
+            ("cll-toc-autohide", toc_uses_autohide),
+            ("cll-toc-visible", toc_is_visible),
             ("cll-is-resizing", is_resizing),
         ],
     );
@@ -3535,26 +3613,40 @@ fn render_cukta_page(
                 },
                 onmouseup: move |_| toc_resize.set(None),
                 onmouseleave: move |_| toc_resize.set(None),
-                aside { class: "cll-sidebar",
+                aside {
+                    class: "cll-sidebar",
+                    onmouseleave: move |_| {
+                        if toc_hides_on_leave {
+                            toc_overlay_visible.set(false);
+                        }
+                    },
                     button {
                         class: "cll-sidebar-toggle",
                         r#type: "button",
-                        title: "Table of contents",
-                        aria_pressed: pressed_attr(toc_is_pinned),
-                        onclick: move |_| set_cukta_toc_pinned(&mut toc_pinned, !toc_is_pinned),
-                        svg {
-                            class: "cll-sidebar-toggle-icon",
-                            view_box: "0 0 24 24",
-                            path {
-                                d: "M4.5 5.5H19.5 M4.5 11.5H7.5 M9.75 11.5H19.5 M7.5 17.5H10.5 M12.75 17.5H19.5",
-                                fill: "none",
-                                stroke: "currentColor",
-                                stroke_width: "2",
-                                stroke_linecap: "round",
+                        title: "{toc_button_title}",
+                        aria_label: "{toc_button_title}",
+                        aria_pressed: pressed_attr(toc_button_state == CuktaTocButtonState::PinnedVisible),
+                        onmouseenter: move |_| {
+                            if toc_button_state == CuktaTocButtonState::Hidden {
+                                toc_overlay_visible.set(true);
                             }
-                        }
+                        },
+                        onclick: move |_| {
+                            apply_cukta_toc_button_action(
+                                &mut toc_pinned,
+                                &mut toc_overlay_visible,
+                                toc_button_action,
+                            );
+                        },
+                        { render_cukta_toc_button_icon(toc_button_state) }
                     }
-                    div { class: "cll-toc-popup",
+                    div {
+                        class: "cll-toc-popup",
+                        onmouseenter: move |_| {
+                            if toc_button_state == CuktaTocButtonState::Hidden {
+                                toc_overlay_visible.set(true);
+                            }
+                        },
                         div { class: "cll-toc-head",
                             label { class: "cll-toc-search",
                                 input {
@@ -3614,7 +3706,7 @@ fn render_cukta_page(
                     aria_label: "Resize table of contents",
                     onmousedown: move |event| {
                         event.prevent_default();
-                        if toc_is_pinned {
+                        if !toc_uses_autohide {
                             let x = event.data().client_coordinates().x;
                             toc_resize.set(Some(new!(CuktaTocResizeState {
                                 start_x: x,
@@ -3624,7 +3716,14 @@ fn render_cukta_page(
                     },
                     span { class: "cll-splitter-grip", aria_hidden: "true" }
                 }
-                main { class: "cll-main", "data-cukta-scroll": "main",
+                main {
+                    class: "cll-main",
+                    "data-cukta-scroll": "main",
+                    onclick: move |_| {
+                        if toc_hides_on_leave {
+                            toc_overlay_visible.set(false);
+                        }
+                    },
                     {
                         match &page.page_kind {
                             CuktaPageKind::Section {
@@ -3785,6 +3884,180 @@ fn set_cukta_toc_width(width: &mut Signal<f64>, next_width: f64) {
 fn set_cukta_toc_pinned(pinned: &mut Signal<bool>, value: bool) {
     storage_set("jbotci.cukta.toc.pinned.v1", if value { "1" } else { "0" });
     pinned.set(value);
+}
+
+#[requires(true)]
+#[ensures(ret == ((!forced_autohide && pinned) || overlay_visible))]
+fn cukta_toc_panel_visible(pinned: bool, forced_autohide: bool, overlay_visible: bool) -> bool {
+    (!forced_autohide && pinned) || overlay_visible
+}
+
+#[requires(true)]
+#[ensures(cukta_toc_panel_visible(pinned, forced_autohide, overlay_visible) || ret == CuktaTocButtonState::Hidden)]
+fn cukta_toc_button_state(
+    pinned: bool,
+    forced_autohide: bool,
+    overlay_visible: bool,
+) -> CuktaTocButtonState {
+    if !cukta_toc_panel_visible(pinned, forced_autohide, overlay_visible) {
+        CuktaTocButtonState::Hidden
+    } else if forced_autohide {
+        CuktaTocButtonState::ForcedAutoHideVisible
+    } else if pinned {
+        CuktaTocButtonState::PinnedVisible
+    } else {
+        CuktaTocButtonState::UnpinnedVisible
+    }
+}
+
+#[requires(true)]
+#[ensures(state == CuktaTocButtonState::Hidden -> ret == CuktaTocButtonAction::ShowOverlay)]
+#[ensures(state == CuktaTocButtonState::ForcedAutoHideVisible -> ret == CuktaTocButtonAction::HideOverlay)]
+#[ensures(state == CuktaTocButtonState::PinnedVisible -> ret == CuktaTocButtonAction::Unpin)]
+#[ensures(state == CuktaTocButtonState::UnpinnedVisible -> ret == CuktaTocButtonAction::Pin)]
+fn cukta_toc_button_action(state: CuktaTocButtonState) -> CuktaTocButtonAction {
+    match state {
+        CuktaTocButtonState::Hidden => CuktaTocButtonAction::ShowOverlay,
+        CuktaTocButtonState::ForcedAutoHideVisible => CuktaTocButtonAction::HideOverlay,
+        CuktaTocButtonState::PinnedVisible => CuktaTocButtonAction::Unpin,
+        CuktaTocButtonState::UnpinnedVisible => CuktaTocButtonAction::Pin,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn cukta_toc_button_title(state: CuktaTocButtonState) -> &'static str {
+    match state {
+        CuktaTocButtonState::Hidden => "Show table of contents",
+        CuktaTocButtonState::ForcedAutoHideVisible => "Hide table of contents",
+        CuktaTocButtonState::PinnedVisible => "Unpin table of contents",
+        CuktaTocButtonState::UnpinnedVisible => "Pin table of contents",
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == (forced_autohide || !pinned))]
+fn cukta_toc_hides_overlay_on_pointer_leave(pinned: bool, forced_autohide: bool) -> bool {
+    forced_autohide || !pinned
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_toc_interaction_after_button_action(
+    state: CuktaTocInteractionState,
+    action: CuktaTocButtonAction,
+) -> CuktaTocInteractionState {
+    match action {
+        CuktaTocButtonAction::ShowOverlay => CuktaTocInteractionState {
+            pinned: state.pinned,
+            overlay_visible: true,
+        },
+        CuktaTocButtonAction::HideOverlay => CuktaTocInteractionState {
+            pinned: state.pinned,
+            overlay_visible: false,
+        },
+        CuktaTocButtonAction::Pin => CuktaTocInteractionState {
+            pinned: true,
+            overlay_visible: false,
+        },
+        CuktaTocButtonAction::Unpin => CuktaTocInteractionState {
+            pinned: false,
+            overlay_visible: true,
+        },
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn apply_cukta_toc_button_action(
+    pinned: &mut Signal<bool>,
+    overlay_visible: &mut Signal<bool>,
+    action: CuktaTocButtonAction,
+) {
+    let current = CuktaTocInteractionState {
+        pinned: *pinned.read(),
+        overlay_visible: *overlay_visible.read(),
+    };
+    let next = cukta_toc_interaction_after_button_action(current, action);
+    if current.pinned != next.pinned {
+        set_cukta_toc_pinned(pinned, next.pinned);
+    }
+    if current.overlay_visible != next.overlay_visible {
+        overlay_visible.set(next.overlay_visible);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cukta_toc_button_icon(state: CuktaTocButtonState) -> Element {
+    match state {
+        CuktaTocButtonState::Hidden => rsx! {
+            svg {
+                class: "cll-sidebar-toggle-icon",
+                view_box: "0 0 24 24",
+                path {
+                    d: "M4.5 5.5H19.5 M4.5 11.5H7.5 M9.75 11.5H19.5 M7.5 17.5H10.5 M12.75 17.5H19.5",
+                    fill: "none",
+                    stroke: "currentColor",
+                    stroke_width: "2",
+                    stroke_linecap: "round",
+                }
+            }
+        },
+        CuktaTocButtonState::ForcedAutoHideVisible => rsx! {
+            svg {
+                class: "cll-sidebar-toggle-icon",
+                view_box: "0 0 24 24",
+                path {
+                    d: "M7 7L17 17M17 7L7 17",
+                    fill: "none",
+                    stroke: "currentColor",
+                    stroke_width: "2.2",
+                    stroke_linecap: "round",
+                }
+            }
+        },
+        CuktaTocButtonState::PinnedVisible => rsx! {
+            svg {
+                class: "cll-sidebar-toggle-icon",
+                view_box: "0 0 24 24",
+                path {
+                    d: "M8 4.5H16L14.75 10L18 13.25V15H12.7L12 20H10.8L11.3 15H6V13.25L9.25 10L8 4.5Z",
+                    fill: "none",
+                    stroke: "currentColor",
+                    stroke_width: "1.7",
+                    stroke_linejoin: "round",
+                }
+                path {
+                    d: "M5 5L19 19",
+                    fill: "none",
+                    stroke: "currentColor",
+                    stroke_width: "2",
+                    stroke_linecap: "round",
+                }
+            }
+        },
+        CuktaTocButtonState::UnpinnedVisible => rsx! {
+            svg {
+                class: "cll-sidebar-toggle-icon",
+                view_box: "0 0 24 24",
+                path {
+                    d: "M8 4.5H16L14.75 10L18 13.25V15H12.7L12 20H10.8L11.3 15H6V13.25L9.25 10L8 4.5Z",
+                    fill: "none",
+                    stroke: "currentColor",
+                    stroke_width: "1.7",
+                    stroke_linejoin: "round",
+                }
+                path {
+                    d: "M9.25 10H14.75",
+                    fill: "none",
+                    stroke: "currentColor",
+                    stroke_width: "1.5",
+                    stroke_linecap: "round",
+                }
+            }
+        },
+    }
 }
 
 #[requires(true)]
@@ -12409,6 +12682,7 @@ fn install_browser_dom_handlers(
     jvozba_available: Signal<bool>,
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
+    cukta_toc_forced_autohide: Signal<bool>,
 ) {
     let should_install = BROWSER_STATE_HANDLERS_INSTALLED.with(|installed| {
         if installed.get() {
@@ -12448,11 +12722,13 @@ fn install_browser_dom_handlers(
     let resize_layout = topbar_settings_layout;
     let resize_open = topbar_settings_open;
     let resize_jvozba_available = jvozba_available;
+    let resize_cukta_toc_forced_autohide = cukta_toc_forced_autohide;
     let resize_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
         schedule_gentufa_tree_layout();
         schedule_topbar_settings_layout_measure(resize_layout, resize_open);
         update_vlacku_jvozba_availability(resize_jvozba_available);
+        update_cukta_toc_forced_autohide(resize_cukta_toc_forced_autohide);
         schedule_vlacku_jvozba_pane_metrics_sync();
     }) as Box<dyn FnMut(_)>);
     let _ =
@@ -12462,11 +12738,13 @@ fn install_browser_dom_handlers(
     let load_layout = topbar_settings_layout;
     let load_open = topbar_settings_open;
     let load_jvozba_available = jvozba_available;
+    let load_cukta_toc_forced_autohide = cukta_toc_forced_autohide;
     let window_load_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
         schedule_gentufa_tree_layout();
         schedule_topbar_settings_layout_measure(load_layout, load_open);
         update_vlacku_jvozba_availability(load_jvozba_available);
+        update_cukta_toc_forced_autohide(load_cukta_toc_forced_autohide);
         schedule_vlacku_jvozba_pane_metrics_sync();
     }) as Box<dyn FnMut(_)>);
     let _ = window
@@ -12524,11 +12802,13 @@ fn install_browser_dom_handlers(
     jvozba_available: Signal<bool>,
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
+    cukta_toc_forced_autohide: Signal<bool>,
 ) {
     let _ = (
         jvozba_available,
         topbar_settings_layout,
         topbar_settings_open,
+        cukta_toc_forced_autohide,
     );
 }
 
@@ -16575,6 +16855,102 @@ mod tests {
     #[ensures(true)]
     fn parse_test_route(base_path: &str, href: &str) -> JbotciRoute {
         jbotci_route_from_href(base_path, href).expect("test route should parse")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_toc_hidden_button_opens_overlay_without_pinning() {
+        let state = CuktaTocInteractionState {
+            pinned: false,
+            overlay_visible: false,
+        };
+        let button_state = cukta_toc_button_state(state.pinned, false, state.overlay_visible);
+
+        assert_eq!(button_state, CuktaTocButtonState::Hidden);
+        assert_eq!(
+            cukta_toc_button_action(button_state),
+            CuktaTocButtonAction::ShowOverlay
+        );
+        assert_eq!(
+            cukta_toc_interaction_after_button_action(state, cukta_toc_button_action(button_state)),
+            CuktaTocInteractionState {
+                pinned: false,
+                overlay_visible: true,
+            }
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_toc_forced_visible_button_hides_overlay_without_changing_pin() {
+        let state = CuktaTocInteractionState {
+            pinned: true,
+            overlay_visible: true,
+        };
+        let button_state = cukta_toc_button_state(state.pinned, true, state.overlay_visible);
+
+        assert_eq!(button_state, CuktaTocButtonState::ForcedAutoHideVisible);
+        assert_eq!(
+            cukta_toc_button_action(button_state),
+            CuktaTocButtonAction::HideOverlay
+        );
+        assert_eq!(
+            cukta_toc_interaction_after_button_action(state, cukta_toc_button_action(button_state)),
+            CuktaTocInteractionState {
+                pinned: true,
+                overlay_visible: false,
+            }
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_toc_pinned_visible_button_unpins_and_keeps_overlay_visible() {
+        let state = CuktaTocInteractionState {
+            pinned: true,
+            overlay_visible: false,
+        };
+        let button_state = cukta_toc_button_state(state.pinned, false, state.overlay_visible);
+
+        assert_eq!(button_state, CuktaTocButtonState::PinnedVisible);
+        assert_eq!(
+            cukta_toc_button_action(button_state),
+            CuktaTocButtonAction::Unpin
+        );
+        assert_eq!(
+            cukta_toc_interaction_after_button_action(state, cukta_toc_button_action(button_state)),
+            CuktaTocInteractionState {
+                pinned: false,
+                overlay_visible: true,
+            }
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cukta_toc_unpinned_visible_button_pins_and_returns_to_pinned_layout() {
+        let state = CuktaTocInteractionState {
+            pinned: false,
+            overlay_visible: true,
+        };
+        let button_state = cukta_toc_button_state(state.pinned, false, state.overlay_visible);
+
+        assert_eq!(button_state, CuktaTocButtonState::UnpinnedVisible);
+        assert_eq!(
+            cukta_toc_button_action(button_state),
+            CuktaTocButtonAction::Pin
+        );
+        assert_eq!(
+            cukta_toc_interaction_after_button_action(state, cukta_toc_button_action(button_state)),
+            CuktaTocInteractionState {
+                pinned: true,
+                overlay_visible: false,
+            }
+        );
     }
 
     #[test]

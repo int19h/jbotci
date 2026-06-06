@@ -4877,7 +4877,7 @@ body::-webkit-scrollbar-thumb:hover,
     position: fixed;
     top: 3.95rem;
     left: 0;
-    width: min(350px, calc(100vw - 0.75rem));
+    width: min(20rem, calc(100vw - 3.5rem));
     height: calc(100vh - 3.95rem);
     background: var(--app-surface-2);
     border-right: 1px solid var(--app-border);
@@ -4891,8 +4891,7 @@ body::-webkit-scrollbar-thumb:hover,
     transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
   }
 
-  .cll-page .cll-sidebar:focus-within .cll-toc-popup,
-  .cll-page .cll-sidebar:hover .cll-toc-popup {
+  .cll-page .cll-shell.cll-toc-visible .cll-toc-popup {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
@@ -5067,7 +5066,7 @@ body::-webkit-scrollbar-thumb:hover,
   position: absolute;
   top: 0;
   left: 0;
-  width: min(var(--cll-sidebar-width), calc(100vw - 0.75rem));
+  width: min(var(--cll-sidebar-width), 24rem, calc(100vw - 3.5rem));
   height: 100%;
   max-height: 100%;
   background: var(--app-surface-2);
@@ -5082,8 +5081,7 @@ body::-webkit-scrollbar-thumb:hover,
   transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
 }
 
-.cll-page .cll-shell.cll-toc-autohide .cll-sidebar:hover .cll-toc-popup,
-.cll-page .cll-shell.cll-toc-autohide .cll-sidebar:focus-within .cll-toc-popup {
+.cll-page .cll-shell.cll-toc-autohide.cll-toc-visible .cll-toc-popup {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -5965,7 +5963,7 @@ body::-webkit-scrollbar-thumb:hover,
     position: fixed;
     top: 3.95rem;
     left: 0;
-    width: min(var(--cll-sidebar-width), calc(100vw - 0.75rem));
+    width: min(20rem, calc(100vw - 3.5rem));
     height: calc(100vh - 3.95rem);
   }
 
@@ -6018,7 +6016,7 @@ body::-webkit-scrollbar-thumb:hover,
     position: absolute;
     top: 0;
     left: 0;
-    width: min(var(--cll-sidebar-width), calc(100vw - 0.75rem));
+    width: min(var(--cll-sidebar-width), 24rem, calc(100vw - 3.5rem));
     height: 100%;
     max-height: 100%;
     background: var(--app-surface-2);
@@ -6033,10 +6031,8 @@ body::-webkit-scrollbar-thumb:hover,
     transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
   }
 
-  .cll-page .cll-sidebar:hover .cll-toc-popup,
-  .cll-page .cll-sidebar:focus-within .cll-toc-popup,
-  .cll-page .cll-shell.cll-toc-autohide .cll-sidebar:hover .cll-toc-popup,
-  .cll-page .cll-shell.cll-toc-autohide .cll-sidebar:focus-within .cll-toc-popup {
+  .cll-page .cll-shell.cll-toc-visible .cll-toc-popup,
+  .cll-page .cll-shell.cll-toc-autohide.cll-toc-visible .cll-toc-popup {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
@@ -6051,6 +6047,18 @@ body::-webkit-scrollbar-thumb:hover,
   .cll-page .cll-main {
     grid-column: 1;
     padding: 0.8rem 0.75rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .cll-page .cll-toc-popup,
+  .cll-page .cll-shell.cll-toc-autohide .cll-toc-popup {
+    position: fixed;
+    top: 3.95rem;
+    left: 0;
+    width: min(20rem, calc(100vw - 3.5rem));
+    height: calc(100vh - 3.95rem);
+    max-height: calc(100vh - 3.95rem);
   }
 }
 
