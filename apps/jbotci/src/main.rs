@@ -550,8 +550,6 @@ impl GernaInput {
 struct CuktaInput {
     #[arg(short = 'n', long = "count")]
     count: Option<usize>,
-    #[arg(long = "index")]
-    index: bool,
     #[arg(long = "toc")]
     toc: bool,
     #[arg(long = "section", value_name = "REF")]
@@ -622,7 +620,6 @@ impl CliSumtiPlaces {
 #[invariant(true)]
 struct VlackuInput {
     count: Option<usize>,
-    index: bool,
     ascii: bool,
     word_types: Vec<String>,
     min_votes: Option<i32>,
@@ -692,7 +689,6 @@ fn augment_vlacku_args(command: ClapCommand) -> ClapCommand {
                 .value_name("N")
                 .value_parser(value_parser!(usize)),
         )
-        .arg(Arg::new("index").long("index").action(ArgAction::SetTrue))
         .arg(Arg::new("ascii").long("ascii").action(ArgAction::SetTrue))
         .arg(
             Arg::new("word_type")
@@ -794,7 +790,6 @@ fn parse_vlacku_matches(matches: &ArgMatches) -> VlackuInput {
 
     VlackuInput {
         count: matches.get_one::<usize>("count").copied(),
-        index: matches.get_flag("index"),
         ascii: matches.get_flag("ascii"),
         word_types: matches
             .get_many::<String>("word_type")
@@ -1762,12 +1757,6 @@ fn validate_cukta_input(input: &CuktaInput) -> Result<()> {
             "Choose only one cukta mode: --toc, --section, --example, --valsi, or a positional query."
         );
     }
-    if input.index {
-        if request_mode_count > 0 || cukta_target_flags_present(input) {
-            bail!("`cukta --index` does not accept fetch/search modes or target filters.");
-        }
-        bail!("`cukta --index` is reserved for future semantic embeddings.");
-    }
     if !input.targets.is_empty()
         || input.target_sections
         || input.target_paragraphs
@@ -1945,9 +1934,6 @@ fn render_jvozba_result(result: &JvozbaBuildResult, color: bool) -> String {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn validate_vlacku_input(input: &VlackuInput) -> Result<()> {
-    if input.index {
-        bail!("`vlacku --index` is reserved for future semantic embeddings");
-    }
     if input.count == Some(0) {
         bail!("`--count` must be greater than 0");
     }
@@ -4037,22 +4023,25 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn rejects_reserved_vlacku_index_and_accepts_semantic_query_path() {
-        let index_cli = Cli::try_parse_from(["jbotci", "vlacku", "--index", "--valsi", "klama"])
-            .expect("index flag parses");
-        let index_error = run_cli(index_cli, &mut Vec::new(), &mut Vec::new(), false)
-            .expect_err("index is not implemented");
-        assert!(
-            index_error
-                .to_string()
-                .contains("future semantic embeddings")
-        );
+    fn rejects_removed_embedding_index_switches() {
+        let vlacku_error = Cli::try_parse_from(["jbotci", "vlacku", "--index", "--valsi", "klama"])
+            .expect_err("vlacku index is no longer accepted");
+        assert_eq!(vlacku_error.kind(), ErrorKind::UnknownArgument);
 
+        let cukta_error = Cli::try_parse_from(["jbotci", "cukta", "--index"])
+            .expect_err("cukta index is no longer accepted");
+        assert_eq!(cukta_error.kind(), ErrorKind::UnknownArgument);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_positional_query_uses_semantic_search() {
         let run = run_cli_capture_with_embedding_dirs(
             &["jbotci", "vlacku", "going somewhere"],
             false,
-            &unique_embedding_test_path("reserved-vlacku-model-missing"),
-            &unique_embedding_test_path("reserved-vlacku-index-missing"),
+            &unique_embedding_test_path("vlacku-query-model-missing"),
+            &unique_embedding_test_path("vlacku-query-index-missing"),
         );
         assert_eq!(run.status, CliStatus::InvalidInput);
         assert!(run.stderr.contains("jbotci setup --embedding"));
