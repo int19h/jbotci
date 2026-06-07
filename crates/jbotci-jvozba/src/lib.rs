@@ -4,10 +4,9 @@
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, RafsiSource, WordType};
 use jbotci_morphology::{
-    LujvoBuildMode, LujvoPart, Phonemes, WordKind, WordLike, bond_rafsis,
-    can_appear_as_final_lujvo_rafsi, canonicalize_text, choose_best_lujvo_candidate,
-    ends_with_consonant, ensure_cmevla_word, is_bonding_hyphen, segment_words_with_modifiers,
-    syllables_pattern,
+    LujvoBuildMode, LujvoPart, Phonemes, WordKind, WordLike, bond_rafsis, canonicalize_text,
+    choose_best_lujvo_candidate, ends_with_consonant, ensure_cmevla_word, is_bonding_hyphen,
+    segment_words_with_modifiers, syllables_pattern,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -274,15 +273,6 @@ fn candidate_list_for_input(
                     offending: rafsi_text.clone(),
                 });
             }
-            if mode == JvozbaMode::Lujvo
-                && is_last_input
-                && !can_appear_as_final_lujvo_rafsi(rafsi_text)
-            {
-                return Err(JvozbaError::FinalConsonant {
-                    offending: rafsi_text.clone(),
-                    is_fixed_rafsi: true,
-                });
-            }
             Ok(vec![rafsi_text.clone()])
         }
         JvozbaInput::Word(word_text) => {
@@ -301,9 +291,11 @@ fn candidate_list_for_word(
 ) -> Result<Vec<String>, JvozbaError> {
     let canonical_word = canonicalize_text(word_text);
     let Some(entry) = dictionary.lookup_word(&canonical_word) else {
-        return Err(JvozbaError::NoDictionaryEntry {
-            offending: canonical_word,
-        });
+        return non_dictionary_word_candidates(mode, is_last_input, &canonical_word).ok_or(
+            JvozbaError::NoDictionaryEntry {
+                offending: canonical_word,
+            },
+        );
     };
     let listed_rafsi = entry
         .rafsi
@@ -319,18 +311,19 @@ fn candidate_list_for_word(
     } else {
         Vec::new()
     };
+    let final_word_core = (mode == JvozbaMode::Lujvo && is_last_input)
+        .then_some(canonical_word.clone())
+        .into_iter();
     let all_candidates = unique_texts(
         listed_rafsi
             .into_iter()
             .chain(gismu_extras)
+            .chain(final_word_core)
             .filter(|candidate| !candidate.is_empty())
             .collect(),
     );
     let candidates = match (mode, is_last_input) {
-        (JvozbaMode::Lujvo, true) => all_candidates
-            .into_iter()
-            .filter(|candidate| can_appear_as_final_lujvo_rafsi(candidate))
-            .collect::<Vec<_>>(),
+        (JvozbaMode::Lujvo, true) => all_candidates,
         (JvozbaMode::Cmevla, true) => {
             let consonant_final_candidates = all_candidates
                 .iter()
@@ -359,6 +352,30 @@ fn candidate_list_for_word(
     } else {
         Ok(candidates)
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|candidates| !candidates.is_empty()))]
+fn non_dictionary_word_candidates(
+    mode: JvozbaMode,
+    is_last_input: bool,
+    canonical_word: &str,
+) -> Option<Vec<String>> {
+    if mode != JvozbaMode::Lujvo || !is_last_input {
+        return None;
+    }
+    let words = segment_words_with_modifiers(canonical_word).ok()?;
+    let [word_like] = words.as_slice() else {
+        return None;
+    };
+    let word = word_like.bare_word()?;
+    if !matches!(
+        word.kind(),
+        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla
+    ) {
+        return None;
+    }
+    Some(vec![canonicalize_text(word.phonemes().as_str())])
 }
 
 #[requires(true)]
@@ -806,6 +823,79 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn lujvo_mode_accepts_final_vowel_initial_word_core() {
+        let result = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            jbotci_dictionary_data::english(),
+            &[
+                JvozbaInput::Word("fulta".to_owned()),
+                JvozbaInput::Word("ismu".to_owned()),
+            ],
+        )
+        .expect("jvozba result");
+
+        assert_eq!(result.word, "fuly'ismu");
+        assert_segment_texts(&result, &["ful", "y'", "ismu"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lujvo_mode_accepts_final_vowel_initial_fuhivla_core() {
+        let result = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            jbotci_dictionary_data::english(),
+            &[
+                JvozbaInput::FixedRafsi("akt".to_owned()),
+                JvozbaInput::Word("iismu".to_owned()),
+            ],
+        )
+        .expect("jvozba result");
+
+        assert_eq!(result.word, "aktyiismu");
+        assert_segment_texts(&result, &["akt", "y", "iismu"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lujvo_mode_accepts_dictionary_rafsi_before_vowel_initial_fuhivla_core() {
+        let result = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            jbotci_dictionary_data::english(),
+            &[
+                JvozbaInput::Word("gismu".to_owned()),
+                JvozbaInput::Word("iismu".to_owned()),
+            ],
+        )
+        .expect("jvozba result");
+
+        assert_eq!(result.word, "gimyiismu");
+        assert_segment_texts(&result, &["gim", "y", "iismu"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lujvo_mode_accepts_compound_before_vowel_initial_fuhivla_core() {
+        let result = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            jbotci_dictionary_data::english(),
+            &[
+                JvozbaInput::Word("mutce".to_owned()),
+                JvozbaInput::Word("nelci".to_owned()),
+                JvozbaInput::Word("iismu".to_owned()),
+            ],
+        )
+        .expect("jvozba result");
+
+        assert_eq!(result.word, "tcenelyiismu");
+        assert_segment_texts(&result, &["tce", "nel", "y", "iismu"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn reports_missing_dictionary_entries() {
         let error = build_best_jvozba_detailed(
             JvozbaMode::Lujvo,
@@ -843,5 +933,16 @@ mod tests {
                 .any(|segment| segment.segment.phonemes().as_str() == "bolxáda"
                     && segment.source.is_none())
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_segment_texts(result: &JvozbaBuildResult, expected: &[&str]) {
+        let actual = result
+            .segments
+            .iter()
+            .map(|segment| segment.text.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected);
     }
 }

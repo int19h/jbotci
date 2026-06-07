@@ -25,10 +25,9 @@ use vec1::Vec1;
 
 pub use cmavo::{Cmavo, Selmaho};
 pub use lujvo::{
-    LujvoBuildMode, LujvoCandidate, bond_rafsis, can_appear_as_final_lujvo_rafsi,
-    choose_best_lujvo_candidate, ends_with_consonant, ends_with_vowel, ensure_cmevla_word,
-    is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
-    permissible_consonant_pair, syllables_pattern,
+    LujvoBuildMode, LujvoCandidate, bond_rafsis, choose_best_lujvo_candidate, ends_with_consonant,
+    ends_with_vowel, ensure_cmevla_word, is_bonding_hyphen, is_cmevla, is_consonant,
+    is_valid_lujvo_candidate_word, is_vowel, permissible_consonant_pair, syllables_pattern,
 };
 pub use syntax_eq::{strip_diacritics, word_like_syntax_eq, word_syntax_eq};
 pub use tree::{

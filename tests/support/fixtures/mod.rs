@@ -81,6 +81,9 @@ impl TestCase {
         if self.expectations.morphology.is_some() {
             facets.insert(Facet::Morphology);
         }
+        if self.expectations.jvozba.is_some() {
+            facets.insert(Facet::Jvozba);
+        }
         if self.expectations.syntax.is_some() {
             facets.insert(Facet::Syntax);
         }
@@ -207,6 +210,7 @@ impl TestCase {
                 .morphology
                 .as_ref()
                 .map(|value| value.status),
+            Facet::Jvozba => self.expectations.jvozba.as_ref().map(|value| value.status),
             Facet::Syntax => self.expectations.syntax.as_ref().map(|value| value.status),
             Facet::SemanticsRefs => self
                 .expectations
@@ -408,6 +412,8 @@ pub struct Expectations {
     #[serde(default)]
     pub morphology: Option<MorphologyExpectation>,
     #[serde(default)]
+    pub jvozba: Option<JvozbaExpectation>,
+    #[serde(default)]
     pub syntax: Option<SyntaxExpectation>,
     #[serde(default)]
     pub semantics: Option<SemanticsExpectations>,
@@ -566,6 +572,65 @@ pub struct MorphologyExpectation {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[invariant(true)]
+pub struct JvozbaExpectation {
+    pub status: ExpectationStatus,
+    pub mode: JvozbaFixtureMode,
+    pub inputs: Vec<JvozbaFixtureInput>,
+    #[serde(default)]
+    pub output: Option<JvozbaOutputExpectation>,
+    #[serde(default)]
+    pub error: Option<TextExpectation>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+#[invariant(::Lujvo => true)]
+#[invariant(::Cmevla => true)]
+pub enum JvozbaFixtureMode {
+    Lujvo,
+    Cmevla,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+#[invariant(true)]
+#[invariant(::Word { .. } => true)]
+#[invariant(::FixedRafsi { .. } => true)]
+pub enum JvozbaFixtureInput {
+    Word { text: String },
+    FixedRafsi { text: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[invariant(true)]
+pub struct JvozbaOutputExpectation {
+    pub word: String,
+    pub segments: Vec<JvozbaSegmentExpectation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[invariant(true)]
+pub struct JvozbaSegmentExpectation {
+    pub kind: JvozbaSegmentKindExpectation,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+#[invariant(::Rafsi => true)]
+#[invariant(::Hyphen => true)]
+pub enum JvozbaSegmentKindExpectation {
+    Rafsi,
+    Hyphen,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[invariant(true)]
 pub struct SyntaxExpectation {
     pub status: ExpectationStatus,
     #[serde(default)]
@@ -687,6 +752,7 @@ pub enum ExpectationStatus {
 #[serde(rename_all = "kebab-case")]
 pub enum Facet {
     Morphology,
+    Jvozba,
     Syntax,
     SemanticsRefs,
     VlaseiBrackets,
@@ -708,6 +774,7 @@ impl Facet {
     pub const fn all() -> &'static [Self] {
         &[
             Self::Morphology,
+            Self::Jvozba,
             Self::Syntax,
             Self::SemanticsRefs,
             Self::VlaseiBrackets,
@@ -731,6 +798,7 @@ impl fmt::Display for Facet {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let text = match self {
             Self::Morphology => "morphology",
+            Self::Jvozba => "jvozba",
             Self::Syntax => "syntax",
             Self::SemanticsRefs => "semantics-refs",
             Self::VlaseiBrackets => "vlasei-brackets",
@@ -757,6 +825,7 @@ impl std::str::FromStr for Facet {
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         match text {
             "morphology" => Ok(Self::Morphology),
+            "jvozba" => Ok(Self::Jvozba),
             "syntax" => Ok(Self::Syntax),
             "semantics-refs" => Ok(Self::SemanticsRefs),
             "vlasei-brackets" => Ok(Self::VlaseiBrackets),

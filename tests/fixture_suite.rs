@@ -8,13 +8,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use bityzba::{contract_trait, ensures, invariant, requires};
 use jbotci_source::SourceId;
 use support::fixtures::{
-    BracketExpectations, CllSelector, CommandOutputExpectation, ExpectationStatus, Expectations,
-    Facet, FacetResult, FixtureBackend, FixtureExport, FixtureSelector, GentufaOutputExpectation,
-    LoadedTestCase, MorphologyExpectation, MuplisForm, OutputExpectations, Provenance,
-    ReferenceExpectation, ScriptBracketExpectations, SemanticsExpectations, SyntaxExpectation,
-    TestCase, TextExpectation, VlaseiOutputExpectation, XfailExpectation, filter_fixtures,
-    import_export_file, load_fixture_file, load_fixture_tree, run_fixture_facets,
-    run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
+    BracketExpectations, CllSelector, CommandOutputExpectation, DiagnosticExpectation,
+    ExpectationStatus, Expectations, Facet, FacetResult, FixtureBackend, FixtureExport,
+    FixtureSelector, GentufaOutputExpectation, JvozbaExpectation, JvozbaFixtureInput,
+    JvozbaFixtureMode, JvozbaOutputExpectation, JvozbaSegmentExpectation,
+    JvozbaSegmentKindExpectation, LoadedTestCase, MorphologyExpectation, MuplisForm,
+    OutputExpectations, Provenance, ReferenceExpectation, ScriptBracketExpectations,
+    SemanticsExpectations, SyntaxExpectation, TestCase, TextExpectation, VlaseiOutputExpectation,
+    XfailExpectation, filter_fixtures, import_export_file, load_fixture_file, load_fixture_tree,
+    run_fixture_facets, run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
 };
 
 #[test]
@@ -262,6 +264,38 @@ fn morphology_raw_matches_simple_cll_fixture() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn camxes_compatible_morphology_fixtures_match() {
+    let fixture_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/adhoc/morphology/camxes-compatible");
+    let fixtures = load_fixture_tree(&fixture_root).expect("camxes-compatible morphology fixtures");
+    assert!(!fixtures.is_empty());
+    for fixture in fixtures {
+        let Some(expectation) = fixture.test_case.expectations.morphology.as_ref() else {
+            continue;
+        };
+        assert_morphology_expectation(&fixture.test_case, expectation);
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn jvozba_fixtures_validate_output_and_parse_back() {
+    let fixture_root =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/adhoc/jvozba");
+    let fixtures = load_fixture_tree(&fixture_root).expect("jvozba fixtures");
+    assert!(!fixtures.is_empty());
+    for fixture in fixtures {
+        let Some(expectation) = fixture.test_case.expectations.jvozba.as_ref() else {
+            continue;
+        };
+        assert_jvozba_expectation(&fixture.test_case.id, expectation);
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn import_writes_toml_fixture() {
     let temp_root = temp_root("jbotci-fixtures-import-test");
     fs::create_dir_all(&temp_root).expect("temp root");
@@ -373,6 +407,7 @@ fn writer_keeps_tree_and_output_values() {
                 }),
                 diagnostics: vec![],
             }),
+            jvozba: None,
             syntax: Some(SyntaxExpectation {
                 status: ExpectationStatus::Success,
                 raw: Some(TextExpectation {
@@ -478,6 +513,67 @@ fn writer_round_trips_script_brackets_and_show_elided_profile() {
     assert!(text.contains("cyrillic = "));
     assert!(text.contains("zbalermorna = "));
     assert!(text.contains("[expectations.output.gentufa.show-elided]\nbrackets = "));
+    assert_eq!(
+        load_fixture_file(&fixture_path).expect("load fixture"),
+        test_case
+    );
+    let _ = fs::remove_dir_all(temp_root);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn writer_round_trips_jvozba_expectation() {
+    let temp_root = temp_root("jbotci-fixtures-jvozba-writer-test");
+    fs::create_dir_all(&temp_root).expect("temp root");
+    let fixture_path = temp_root.join("fixture.toml");
+    let test_case = TestCase {
+        id: "adhoc.jvozba.writer".into(),
+        lojban: "fulta ismu".into(),
+        dialect: None,
+        translation_en: None,
+        gloss_en: None,
+        tags: vec!["jvozba".into()],
+        provenance: vec![],
+        expectations: Expectations {
+            jvozba: Some(JvozbaExpectation {
+                status: ExpectationStatus::Success,
+                mode: JvozbaFixtureMode::Lujvo,
+                inputs: vec![
+                    JvozbaFixtureInput::Word {
+                        text: "fulta".into(),
+                    },
+                    JvozbaFixtureInput::Word {
+                        text: "ismu".into(),
+                    },
+                ],
+                output: Some(JvozbaOutputExpectation {
+                    word: "fuly'ismu".into(),
+                    segments: vec![
+                        JvozbaSegmentExpectation {
+                            kind: JvozbaSegmentKindExpectation::Rafsi,
+                            text: "ful".into(),
+                        },
+                        JvozbaSegmentExpectation {
+                            kind: JvozbaSegmentKindExpectation::Hyphen,
+                            text: "y'".into(),
+                        },
+                        JvozbaSegmentExpectation {
+                            kind: JvozbaSegmentKindExpectation::Rafsi,
+                            text: "ismu".into(),
+                        },
+                    ],
+                }),
+                error: None,
+            }),
+            ..Expectations::default()
+        },
+    };
+    write_fixture_file(&fixture_path, &test_case).expect("write fixture");
+    let text = fs::read_to_string(&fixture_path).expect("read fixture");
+    assert!(text.contains("[expectations.jvozba]\nstatus = \"success\""));
+    assert!(text.contains("mode = \"lujvo\""));
+    assert!(text.contains("kind = \"fixed-rafsi\"") || text.contains("kind = \"word\""));
     assert_eq!(
         load_fixture_file(&fixture_path).expect("load fixture"),
         test_case
@@ -670,6 +766,48 @@ fn available_facets_include_semantics_refs_expectations() {
 }
 
 #[test]
+#[requires(true)]
+#[ensures(true)]
+fn available_facets_include_jvozba_expectations() {
+    let case = TestCase {
+        id: "adhoc.jvozba".into(),
+        lojban: "fulta ismu".into(),
+        dialect: None,
+        translation_en: None,
+        gloss_en: None,
+        tags: vec![],
+        provenance: vec![],
+        expectations: Expectations {
+            jvozba: Some(JvozbaExpectation {
+                status: ExpectationStatus::Failure,
+                mode: JvozbaFixtureMode::Lujvo,
+                inputs: vec![
+                    JvozbaFixtureInput::FixedRafsi {
+                        text: "kerl".into(),
+                    },
+                    JvozbaFixtureInput::FixedRafsi { text: "u'u".into() },
+                    JvozbaFixtureInput::Word {
+                        text: "kerlo".into(),
+                    },
+                ],
+                output: None,
+                error: Some(TextExpectation {
+                    text: "Could not build a valid lujvo from the supplied inputs.".into(),
+                }),
+            }),
+            ..Expectations::default()
+        },
+    };
+    let facets = case.available_facets();
+    assert!(facets.contains(&Facet::Jvozba));
+    assert_eq!(
+        "jvozba".parse::<Facet>().expect("jvozba facet"),
+        Facet::Jvozba
+    );
+    assert_eq!(Facet::Jvozba.to_string(), "jvozba");
+}
+
+#[test]
 #[should_panic]
 #[requires(true)]
 #[ensures(true)]
@@ -686,6 +824,177 @@ fn write_fixture_rejects_invalid_metadata_by_contract() {
     };
     let fixture_path = temp_root("jbotci-invalid-fixture-contract").join("invalid.toml");
     let _ = write_fixture_file(fixture_path, &test_case);
+}
+
+#[requires(!test_case.id.is_empty())]
+#[ensures(true)]
+fn assert_morphology_expectation(test_case: &TestCase, expectation: &MorphologyExpectation) {
+    let attempt =
+        jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id_attempt(
+            &test_case.lojban,
+            &jbotci_morphology::MorphologyOptions::default(),
+            Some(SourceId("<fixture>".to_owned())),
+        );
+    let data = attempt.into_data();
+    let mut diagnostics = data
+        .warnings
+        .iter()
+        .map(|warning| {
+            DiagnosticExpectation::from_diagnostic(
+                &test_case.lojban,
+                &warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+            )
+        })
+        .collect::<Vec<_>>();
+    match (expectation.status, data.result) {
+        (ExpectationStatus::Success, Ok(words)) => {
+            if let Some(raw) = &expectation.raw {
+                assert_eq!(format!("{words:?}"), raw.text, "{}", test_case.id);
+            }
+        }
+        (ExpectationStatus::Failure, Err(error)) => {
+            diagnostics.push(DiagnosticExpectation::from_diagnostic(
+                &test_case.lojban,
+                &error.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+            ));
+        }
+        (ExpectationStatus::Success, Err(error)) => {
+            panic!("{} should parse, got {error}", test_case.id);
+        }
+        (ExpectationStatus::Failure, Ok(words)) => {
+            panic!("{} should fail, got {words:?}", test_case.id);
+        }
+        (ExpectationStatus::Pending | ExpectationStatus::NotApplicable, _) => {
+            panic!("{} has unsupported morphology status", test_case.id);
+        }
+    }
+    assert_eq!(diagnostics, expectation.diagnostics, "{}", test_case.id);
+}
+
+#[requires(!id.is_empty())]
+#[requires(true)]
+#[ensures(true)]
+fn assert_jvozba_expectation(id: &str, expectation: &JvozbaExpectation) {
+    let inputs = expectation
+        .inputs
+        .iter()
+        .map(to_jvozba_input)
+        .collect::<Vec<_>>();
+    let result = jbotci_jvozba::build_best_jvozba_detailed(
+        to_jvozba_mode(expectation.mode),
+        jbotci_dictionary_data::english(),
+        &inputs,
+    );
+    match expectation.status {
+        ExpectationStatus::Success => {
+            let actual = result
+                .unwrap_or_else(|error| panic!("jvozba fixture {id} should succeed, got {error}"));
+            let expected = expectation
+                .output
+                .as_ref()
+                .unwrap_or_else(|| panic!("jvozba fixture {id} missing output expectation"));
+            assert_eq!(actual.word, expected.word, "{id}");
+            assert_segments_match(id, &actual.segments, &expected.segments);
+            assert_jvozba_output_parses_back(id, expectation.mode, expected);
+        }
+        ExpectationStatus::Failure => {
+            let error = result.expect_err("jvozba fixture should fail").to_string();
+            let expected = expectation
+                .error
+                .as_ref()
+                .unwrap_or_else(|| panic!("jvozba fixture {id} missing error expectation"));
+            assert_eq!(error, expected.text, "{id}");
+        }
+        ExpectationStatus::Pending | ExpectationStatus::NotApplicable => {
+            panic!("jvozba fixture {id} has unsupported status");
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn to_jvozba_mode(mode: JvozbaFixtureMode) -> jbotci_jvozba::JvozbaMode {
+    match mode {
+        JvozbaFixtureMode::Lujvo => jbotci_jvozba::JvozbaMode::Lujvo,
+        JvozbaFixtureMode::Cmevla => jbotci_jvozba::JvozbaMode::Cmevla,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn to_jvozba_input(input: &JvozbaFixtureInput) -> jbotci_jvozba::JvozbaInput {
+    match input {
+        JvozbaFixtureInput::Word { text } => jbotci_jvozba::JvozbaInput::Word(text.clone()),
+        JvozbaFixtureInput::FixedRafsi { text } => {
+            jbotci_jvozba::JvozbaInput::FixedRafsi(text.clone())
+        }
+    }
+}
+
+#[requires(!id.is_empty())]
+#[requires(true)]
+#[ensures(true)]
+fn assert_segments_match(
+    id: &str,
+    actual: &[jbotci_jvozba::JvozbaSegment],
+    expected: &[JvozbaSegmentExpectation],
+) {
+    assert_eq!(actual.len(), expected.len(), "{id}: segment count");
+    for (actual, expected) in actual.iter().zip(expected) {
+        assert_eq!(
+            to_fixture_segment_kind(actual.kind),
+            expected.kind,
+            "{id}: segment kind for {}",
+            expected.text
+        );
+        assert_eq!(actual.text, expected.text, "{id}: segment text");
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn to_fixture_segment_kind(kind: jbotci_jvozba::JvozbaSegmentKind) -> JvozbaSegmentKindExpectation {
+    match kind {
+        jbotci_jvozba::JvozbaSegmentKind::Rafsi => JvozbaSegmentKindExpectation::Rafsi,
+        jbotci_jvozba::JvozbaSegmentKind::Hyphen => JvozbaSegmentKindExpectation::Hyphen,
+    }
+}
+
+#[requires(!id.is_empty())]
+#[ensures(true)]
+fn assert_jvozba_output_parses_back(
+    id: &str,
+    mode: JvozbaFixtureMode,
+    expected: &JvozbaOutputExpectation,
+) {
+    let words = jbotci_morphology::segment_words_with_modifiers(&expected.word)
+        .unwrap_or_else(|error| panic!("jvozba fixture {id} output did not parse: {error}"));
+    let [word_like] = words.as_slice() else {
+        panic!("jvozba fixture {id} output did not parse as one word");
+    };
+    let word = word_like
+        .bare_word()
+        .unwrap_or_else(|| panic!("jvozba fixture {id} output was not a bare word"));
+    match mode {
+        JvozbaFixtureMode::Lujvo => {
+            assert_eq!(word.kind(), jbotci_morphology::WordKind::Lujvo, "{id}");
+            let parts = word
+                .lujvo_parts()
+                .unwrap_or_else(|| panic!("jvozba fixture {id} output lacks lujvo parts"));
+            assert_eq!(parts.len(), expected.segments.len(), "{id}");
+            for (part, segment) in parts.iter().zip(&expected.segments) {
+                assert!(
+                    jbotci_morphology::canonical_text_eq(part.phonemes().as_str(), &segment.text),
+                    "{id}: parsed part `{}` did not match expected `{}`",
+                    part.phonemes().as_str(),
+                    segment.text
+                );
+            }
+        }
+        JvozbaFixtureMode::Cmevla => {
+            assert_eq!(word.kind(), jbotci_morphology::WordKind::Cmevla, "{id}");
+        }
+    }
 }
 
 #[requires(true)]

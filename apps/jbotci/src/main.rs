@@ -351,8 +351,6 @@ struct VlaseiInput {
     dialect: Option<String>,
     #[arg(long = "no-postproc", alias = "na-velruhe")]
     no_postproc: bool,
-    #[arg(long = "camxes")]
-    camxes: bool,
     #[arg(long = "indent")]
     indent: Option<usize>,
     #[arg(long = "mark-stress", value_enum)]
@@ -404,8 +402,6 @@ struct TextInput {
     dialect: Option<String>,
     #[arg(long = "no-postproc", alias = "na-velruhe")]
     no_postproc: bool,
-    #[arg(long = "camxes")]
-    camxes: bool,
     #[arg(long = "indent")]
     indent: Option<usize>,
     #[arg()]
@@ -466,8 +462,6 @@ struct GentufaInput {
     dialect: Option<String>,
     #[arg(long = "no-postproc", alias = "na-velruhe")]
     no_postproc: bool,
-    #[arg(long = "camxes")]
-    camxes: bool,
     #[arg(long = "show-defs")]
     show_defs: bool,
     #[arg(long = "indent")]
@@ -4036,6 +4030,22 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn rejects_removed_camxes_switches() {
+        for args in [
+            ["jbotci", "vlasei", "--camxes", "coi"],
+            ["jbotci", "gentufa", "--camxes", "coi"],
+            ["jbotci", "mulgau", "--camxes", "coi"],
+            ["jbotci", "tersmu", "--camxes", "coi"],
+            ["jbotci", "zbasu", "--camxes", "coi"],
+        ] {
+            let error = Cli::try_parse_from(args).expect_err("camxes flag is no longer accepted");
+            assert_eq!(error.kind(), ErrorKind::UnknownArgument);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_positional_query_uses_semantic_search() {
         let run = run_cli_capture_with_embedding_dirs(
             &["jbotci", "vlacku", "going somewhere"],
@@ -4889,7 +4899,7 @@ mod tests {
         assert!(run.stdout.is_empty());
         assert!(run.stderr.contains("morphology.invalid-lujvo"));
         assert!(run.stderr.contains("after parsing"));
-        assert!(run.stderr.contains("`xla`"));
+        assert!(run.stderr.contains("`xlá`"));
         assert!(!run.stderr.contains("morphology.slinkuhi"));
         assert!(
             !run.stderr
@@ -6845,7 +6855,6 @@ mod tests {
             trace: None,
             dialect: None,
             no_postproc: false,
-            camxes: false,
             indent: None,
             text: vec!["coi".into(), "rodo".into()],
         };

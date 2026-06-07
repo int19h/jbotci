@@ -44,7 +44,7 @@ fn choose_best_candidate_from(
             parts: bonded,
             word,
         });
-        if mode == LujvoBuildMode::Lujvo && !is_valid_lujvo_candidate_word(&candidate.word) {
+        if mode == LujvoBuildMode::Lujvo && !is_valid_lujvo_candidate(&candidate) {
             return best;
         }
         return Some(select_better_candidate(best, candidate));
@@ -96,8 +96,8 @@ pub fn bond_rafsis(rafsis: &[String]) -> Option<Vec<String>> {
     for pair in rafsis.windows(2) {
         let previous = &pair[0];
         let next = &pair[1];
-        if needs_y_hyphen(previous, next) {
-            bonded.push("y".to_owned());
+        if let Some(hyphen) = y_hyphen_for_pair(previous, next) {
+            bonded.push(hyphen.to_owned());
         }
         bonded.push(next.clone());
     }
@@ -105,15 +105,6 @@ pub fn bond_rafsis(rafsis: &[String]) -> Option<Vec<String>> {
         bonded.insert(1, "y".to_owned());
     }
     Some(bonded)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn can_appear_as_final_lujvo_rafsi(rafsi_text: &str) -> bool {
-    matches!(
-        syllables_pattern(rafsi_text).as_deref(),
-        Some("CVV" | "CV'V" | "CCV" | "CVCCV" | "CCVCV")
-    )
 }
 
 #[requires(true)]
@@ -128,6 +119,35 @@ pub fn is_valid_lujvo_candidate_word(word_text: &str) -> bool {
     word_like
         .bare_word()
         .is_some_and(|word| word.kind() == crate::WordKind::Lujvo)
+}
+
+#[requires(!candidate.word.is_empty())]
+#[ensures(ret -> !candidate.parts.is_empty())]
+fn is_valid_lujvo_candidate(candidate: &LujvoCandidate) -> bool {
+    let Ok(words) = crate::segment_words_with_modifiers(&candidate.word) else {
+        return false;
+    };
+    let [word_like] = words.as_slice() else {
+        return false;
+    };
+    let Some(word) = word_like.bare_word() else {
+        return false;
+    };
+    if word.kind() != crate::WordKind::Lujvo {
+        return false;
+    }
+    word.lujvo_parts()
+        .is_some_and(|parts| lujvo_parts_match(parts.as_slice(), &candidate.parts))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn lujvo_parts_match(actual: &[crate::LujvoPart], expected: &[String]) -> bool {
+    actual.len() == expected.len()
+        && actual
+            .iter()
+            .zip(expected)
+            .all(|(part, expected)| crate::canonical_text_eq(part.phonemes().as_str(), expected))
 }
 
 #[requires(true)]
@@ -155,7 +175,7 @@ pub fn ends_with_vowel(word_text: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub fn is_bonding_hyphen(part: &str) -> bool {
-    matches!(part, "y" | "r" | "n")
+    matches!(part, "y" | "y'" | "r" | "n")
 }
 
 #[requires(true)]
@@ -252,6 +272,40 @@ fn needs_y_hyphen(previous: &str, next: &str) -> bool {
 }
 
 #[requires(true)]
+#[ensures(ret.is_none_or(|hyphen| is_bonding_hyphen(hyphen)))]
+fn y_hyphen_for_pair(previous: &str, next: &str) -> Option<&'static str> {
+    let previous_tail = previous.chars().last();
+    let needs_hyphen = needs_y_hyphen(previous, next)
+        || previous_tail.is_some_and(is_consonant) && starts_with_vowel_or_glide(next);
+    needs_hyphen.then(|| {
+        if starts_with_vowel_nucleus_after_y(next) {
+            "y'"
+        } else {
+            "y"
+        }
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn starts_with_vowel_or_glide(text: &str) -> bool {
+    text.chars().next().is_some_and(is_vowel)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn starts_with_vowel_nucleus_after_y(text: &str) -> bool {
+    let mut chars = text.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !is_vowel(first) {
+        return false;
+    }
+    !matches!(first, 'i' | 'u') || !chars.next().is_some_and(is_vowel)
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn should_insert_cvv_hyphen(first_rafsi: &str, second: &str, rafsi_count: usize) -> bool {
     matches!(
@@ -319,8 +373,7 @@ fn lujvo_score(rafsi_sequence: &[String]) -> i32 {
     let apostrophe_count = lujvo_text.chars().filter(|value| *value == '\'').count() as i32;
     let hyphen_count = rafsi_sequence
         .iter()
-        .filter_map(|part| syllables_pattern(part))
-        .filter(|pattern| matches!(pattern.as_str(), "C" | "Y"))
+        .filter(|part| is_bonding_hyphen(part))
         .count() as i32;
     let rafsi_shape_score = rafsi_sequence
         .iter()

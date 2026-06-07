@@ -1,0 +1,11 @@
+id = "adhoc.morphology.camxes-compatible.cgv-warning-accepts-atkuila"
+lojban = "atkuila"
+tags = ["morphology", "camxes-compatible", "cgv-warning"]
+
+[expectations.morphology]
+status = "success"
+raw = '[PlainWord(Fuhivla { phonemes: Phonemes { text: "atkŭíla" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 7, char_start: 0, char_end: 7, start: None, end: None } })]'
+diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-cgv", byte-span = [2, 5], source-text = "kui", message = "experimental morphology: consonant-glide-vowel sequence" }]
+
+[expectations.output.vlasei]
+json = '[{"PlainWord":{"Fuhivla":{"phonemes":"atkŭíla","span":[0,7]}}}]'

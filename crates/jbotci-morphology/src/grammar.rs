@@ -1318,14 +1318,16 @@ impl<'a> Segmenter<'a> {
         if boundary_repeats_diphthong_semivowel(&prefix, &remainder) {
             return false;
         }
-        !self.starts_with_nucleus_at(prefix_end) && self.lojban_word_starts_at(prefix_end)
+        !self.starts_with_pause_required_nucleus_at(prefix_end)
+            && self.lojban_word_starts_at(prefix_end)
     }
 
     #[requires(index <= self.chars.len())]
     #[ensures(true)]
     fn post_word_at(&self, index: usize) -> bool {
         self.pause_at(index)
-            || (!self.starts_with_nucleus_at(index) && self.lojban_word_starts_at(index))
+            || (!self.starts_with_pause_required_nucleus_at(index)
+                && self.lojban_word_starts_at(index))
     }
 
     #[requires(index <= self.chars.len())]
@@ -1337,14 +1339,14 @@ impl<'a> Segmenter<'a> {
 
     #[requires(index <= self.chars.len())]
     #[ensures(true)]
-    fn starts_with_nucleus_at(&self, index: usize) -> bool {
+    fn starts_with_pause_required_nucleus_at(&self, index: usize) -> bool {
         let index = self.skip_commas_index(index);
         if index >= self.chars.len() || self.is_word_separator_at(index) {
             return false;
         }
         let end = self.candidate_end(index);
         self.checked_normalized_slice(index, end)
-            .is_some_and(|normalized| starts_with_nucleus(&text_chars(&normalized), 0))
+            .is_some_and(|normalized| starts_with_pause_required_nucleus(&text_chars(&normalized)))
     }
 
     #[requires(index <= self.chars.len())]
@@ -2108,6 +2110,18 @@ fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
     parse_diphthong(chars, start).is_some() || parse_single_vowel(chars, start).is_some()
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn starts_with_pause_required_nucleus(chars: &[char]) -> bool {
+    let mut start = 0;
+    while chars.get(start) == Some(&',') {
+        start += 1;
+    }
+    chars
+        .get(start)
+        .is_some_and(|value| is_vowel(*value) || matches!(*value, 'y' | 'ý' | 'ĭ' | 'ŭ'))
+}
+
 #[requires(start <= chars.len())]
 #[ensures(ret.as_ref().is_none_or(|(_, end)| *end > start && *end <= chars.len()))]
 fn parse_diphthong(chars: &[char], start: usize) -> Option<(String, usize)> {
@@ -2385,7 +2399,7 @@ mod tests {
         else {
             panic!("expected invalid lujvo detail, got {error:?}");
         };
-        assert_eq!(parsed_prefix.as_deref(), Some("xla"));
+        assert_eq!(parsed_prefix.as_deref(), Some("xlá"));
         assert_eq!(*expected, LujvoParseExpectation::FinalOrInitialRafsi);
     }
 
@@ -2455,6 +2469,61 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vowel_initial_words_require_pause_at_word_boundary() {
+        let error =
+            segment_words_with_modifiers("mi leia klama", &MorphologyOptions::default(), None)
+                .expect_err("vowel-initial word without pause should fail");
+        assert_invalid_error(&error, MorphologyErrorKind::UnrecognizedWord, 3, 7, None);
+
+        let words =
+            segment_words_with_modifiers("mi le .ia klama", &MorphologyOptions::default(), None)
+                .expect("pause before vowel-initial word should parse");
+        assert_eq!(bare_phonemes(&words), ["mi", "le", "ĭa", "kláma"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn extended_final_lujvo_rafsi_cores_parse_as_lujvo() {
+        let cases = [
+            ("aktyiismu", &["akt", "y", "iismu"][..]),
+            ("gimyiismu", &["gim", "y", "iismu"][..]),
+            ("gismyiismu", &["gism", "y", "iismu"][..]),
+            ("fuly'ismu", &["ful", "y'", "ismu"][..]),
+            ("tcenelyiismu", &["tce", "nel", "y", "iismu"][..]),
+        ];
+
+        for (word, expected_parts) in cases {
+            let words = segment_words_with_modifiers(word, &MorphologyOptions::default(), None)
+                .unwrap_or_else(|error| panic!("{word} should parse as lujvo: {error}"));
+            assert_lujvo_part_texts(word, &words, expected_parts);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn jvot3_extension_only_lujvo_forms_remain_invalid() {
+        for word in [
+            "kerly'u'u'ykerlo",
+            "rly'u'u'ykerlo",
+            "kerlyfa'u'ukerlo",
+            "xlastmlu",
+            "xlastymlu",
+            "sincyrboua",
+            "le'yia",
+            "fa'u'yiismu",
+        ] {
+            assert!(
+                segment_words_with_modifiers(word, &MorphologyOptions::default(), None).is_err(),
+                "{word} should remain invalid"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn slinkuhi_reports_fuhivla_context() {
         let error = segment_words_with_modifiers("xlamkai", &MorphologyOptions::default(), None)
             .expect_err("slinku'i form should fail");
@@ -2477,15 +2546,8 @@ mod tests {
         let error = segment_words_with_modifiers("jgruyta", &MorphologyOptions::default(), None)
             .expect_err("fu'ivla candidate with y should fail");
 
-        assert_invalid_error(
-            &error,
-            MorphologyErrorKind::UnrecognizedWord,
-            0,
-            7,
-            Some(MorphologyContextKind::Fuhivla),
-        );
-        let expected = new!(MorphologyErrorDetail::FuhivlaContainsY);
-        assert_eq!(invalid_error_detail(&error), Some(&expected));
+        assert_invalid_error(&error, MorphologyErrorKind::UnrecognizedWord, 0, 7, None);
+        assert_eq!(invalid_error_detail(&error), None);
     }
 
     #[test]
@@ -3095,6 +3157,28 @@ mod tests {
         match word.as_data() {
             data!(WordLike::PlainWord(word)) => Some(word),
             _ => None,
+        }
+    }
+
+    #[requires(!source.is_empty())]
+    #[requires(!expected_parts.is_empty())]
+    #[ensures(true)]
+    fn assert_lujvo_part_texts(source: &str, words: &[WordLike], expected_parts: &[&str]) {
+        let [word_like] = words else {
+            panic!("{source} should parse as one word");
+        };
+        let word = bare_word(word_like).unwrap_or_else(|| panic!("{source} should be a bare word"));
+        assert_eq!(word.kind(), WordKind::Lujvo, "{source}");
+        let actual_parts = word
+            .lujvo_parts()
+            .unwrap_or_else(|| panic!("{source} should expose lujvo parts"));
+        assert_eq!(actual_parts.len(), expected_parts.len(), "{source}");
+        for (actual, expected) in actual_parts.iter().zip(expected_parts) {
+            assert!(
+                crate::canonical_text_eq(actual.phonemes().as_str(), expected),
+                "{source}: parsed part `{}` did not match `{expected}`",
+                actual.phonemes().as_str()
+            );
         }
     }
 

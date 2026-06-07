@@ -1129,6 +1129,7 @@ fn parse_initial(chars: &[char], start: usize, end: usize) -> Option<String> {
         0 => true,
         1 => is_consonant(chars[start]),
         2 => initial_pair_chars(chars[start], chars[start + 1]),
+        3 => valid_three_consonant_initial(chars, start),
         _ => false,
     };
     if !valid_shape {
@@ -1811,18 +1812,56 @@ fn initial_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
 #[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
 fn extended_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
-    for head_end in brivla_head_ends(chars, index) {
-        if chars.get(head_end) == Some(&'\'')
-            && chars.get(head_end + 1).is_some_and(|value| is_y(*value))
-        {
-            let mut end = head_end + 2;
-            if chars.get(end) == Some(&'\'') {
-                end += 1;
-            }
+    for base_end in fuhivla_rafsi_base_ends(chars, index) {
+        if let Some(end) = rafsi_hyphen_end(chars, base_end) {
+            ends.push(end);
+        }
+    }
+    for base_end in brivla_head_ends(chars, index) {
+        if chars[index..base_end].iter().any(|value| is_y(*value)) {
+            continue;
+        }
+        if let Some(end) = hy_rafsi_hyphen_end(chars, base_end) {
             ends.push(end);
         }
     }
     ends
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end < chars.len()))]
+fn fuhivla_rafsi_base_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends = Vec::new();
+    for base_end in (index + 1)..chars.len() {
+        if rafsi_hyphen_end(chars, base_end).is_some()
+            && fuhivla_rafsi_base_slice(chars, index, base_end)
+        {
+            ends.push(base_end);
+        }
+    }
+    ends
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn fuhivla_rafsi_base_slice(chars: &[char], start: usize, end: usize) -> bool {
+    if start >= end
+        || chars[start..end].iter().any(|value| is_y(*value))
+        || unstressed_syllable_ends_for_fuhivla(chars, start, end).is_empty()
+    {
+        return false;
+    }
+    brivla_head_ends(chars, start)
+        .into_iter()
+        .filter(|head_end| *head_end < end)
+        .any(|head_end| {
+            !rafsi_string_slice(chars, start, head_end)
+                && !slinkuhi_slice(chars, start, head_end)
+                && !unstressed_syllable_ends_for_fuhivla(chars, start, head_end).is_empty()
+                && parse_onsets(chars, head_end)
+                    .into_iter()
+                    .any(|(_, onset_end)| onset_end == end)
+        })
 }
 
 #[requires(index <= chars.len())]
@@ -2116,11 +2155,13 @@ fn is_fuhivla_shape_slice_with_y_policy(
         || count_vocalic_nuclei(chars, start, end) < 2
         || (!allows_y && chars[start..end].iter().any(|value| is_y(*value)))
         || has_vowel_hiatus(&chars[start..end])
+        || !parse_fuhivla_shape(chars, start, end)
     {
         return false;
     }
     if rafsi_string_slice(chars, start, end)
         || slinkuhi_slice(chars, start, end)
+        || has_blocking_cmavo_prefix_slice(chars, start, end)
         || invalid_initial_rafsi_continuation(chars, start, end)
         || invalid_vowel_initial_fuhivla_shape(chars, start, end)
     {
@@ -2133,6 +2174,68 @@ fn is_fuhivla_shape_slice_with_y_policy(
     slice.iter().any(|value| is_consonant(*value))
         && has_consonant_cluster(slice)
         && !is_cmavo_slice(chars, start, end)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn has_blocking_cmavo_prefix_slice(chars: &[char], start: usize, end: usize) -> bool {
+    if start >= end {
+        return false;
+    }
+    ((start + 1)..end).any(|prefix_end| {
+        is_cmavo_slice(chars, start, prefix_end) && cmavo_post_word_slice(chars, prefix_end, end)
+    })
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn cmavo_post_word_slice(chars: &[char], index: usize, end: usize) -> bool {
+    let Some(index) = next_non_comma_index(chars, index) else {
+        return true;
+    };
+    index >= end
+        || (!starts_with_pause_required_nucleus(chars, index)
+            && lojban_word_slice(chars, index, end))
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn lojban_word_slice(chars: &[char], start: usize, end: usize) -> bool {
+    if start >= end {
+        return false;
+    }
+    is_cmavo_slice(chars, start, end)
+        || is_gismu_slice(chars, start, end)
+        || is_lujvo_slice(chars, start, end)
+        || is_fuhivla_shape_slice(chars, start, end)
+        || is_cmevla_slice(chars, start, end)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn is_lujvo_slice(chars: &[char], start: usize, end: usize) -> bool {
+    let slice = &chars[start..end];
+    slice.iter().all(|value| is_lujvo_char(*value)) && lujvo_from(slice, 0, false)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn is_cmevla_slice(chars: &[char], start: usize, end: usize) -> bool {
+    start < end
+        && chars[end - 1].is_ascii_lowercase()
+        && is_consonant(chars[end - 1])
+        && !blocks_word_shape(&chars[start..end])
+}
+
+#[requires(start <= chars.len())]
+#[ensures(true)]
+fn starts_with_pause_required_nucleus(chars: &[char], start: usize) -> bool {
+    let Some(start) = next_non_comma_index(chars, start) else {
+        return false;
+    };
+    chars
+        .get(start)
+        .is_some_and(|value| is_vowel(*value) || is_y(*value) || matches!(*value, 'ĭ' | 'ŭ'))
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -2300,7 +2403,7 @@ fn unstressed_syllable_ends_for_fuhivla(chars: &[char], index: usize, end: usize
         .into_iter()
         .filter(|syllable_end| {
             !syllable_has_explicit_stress(chars, index, *syllable_end)
-                && !consonantal_chain_then_final(chars, *syllable_end, end)
+                && !stressed_syllable_has_implicit_stress(chars, index, *syllable_end, end)
         })
         .collect();
     ends.extend(consonantal_syllable_ends(chars, index, end));
@@ -2316,9 +2419,39 @@ fn stressed_syllable_ends_for_fuhivla(chars: &[char], index: usize, end: usize) 
         .into_iter()
         .filter(|syllable_end| {
             syllable_has_explicit_stress(chars, index, *syllable_end)
-                || consonantal_chain_then_final(chars, *syllable_end, end)
+                || stressed_syllable_has_implicit_stress(chars, index, *syllable_end, end)
         })
         .collect()
+}
+
+#[requires(start <= syllable_end && syllable_end <= end && end <= chars.len())]
+#[ensures(true)]
+fn stressed_syllable_has_implicit_stress(
+    chars: &[char],
+    start: usize,
+    syllable_end: usize,
+    end: usize,
+) -> bool {
+    if final_syllable_slice(chars, syllable_end, end) {
+        return true;
+    }
+    syllable_can_end_without_coda(chars, start, syllable_end)
+        && consonantal_syllable_ends(chars, syllable_end, end)
+            .into_iter()
+            .any(|next| next > syllable_end && consonantal_chain_then_final(chars, next, end))
+}
+
+#[requires(start <= syllable_end && syllable_end <= chars.len())]
+#[ensures(true)]
+fn syllable_can_end_without_coda(chars: &[char], start: usize, syllable_end: usize) -> bool {
+    brivla_onset_ends(chars, start)
+        .into_iter()
+        .filter(|onset_end| !chars.get(*onset_end).is_some_and(|value| is_y(*value)))
+        .any(|onset_end| {
+            parse_nuclei(chars, onset_end)
+                .into_iter()
+                .any(|(_, nucleus_end)| nucleus_end == syllable_end)
+        })
 }
 
 #[requires(index <= end && end <= chars.len())]

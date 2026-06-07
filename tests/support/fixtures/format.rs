@@ -96,6 +96,14 @@ fn push_expectations_toml(
             push_field(output, "diagnostics", &morphology.diagnostics)?;
         }
     }
+    if let Some(jvozba) = &expectations.jvozba {
+        output.push_str("\n[expectations.jvozba]\n");
+        push_field(output, "status", &jvozba.status)?;
+        push_field(output, "mode", &jvozba.mode)?;
+        push_field(output, "inputs", &jvozba.inputs)?;
+        push_optional_field(output, "output", &jvozba.output)?;
+        push_optional_field(output, "error", &jvozba.error)?;
+    }
     if let Some(syntax) = &expectations.syntax {
         output.push_str("\n[expectations.syntax]\n");
         push_field(output, "status", &syntax.status)?;
