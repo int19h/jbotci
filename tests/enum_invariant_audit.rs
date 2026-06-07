@@ -108,6 +108,42 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding error variant carries only an already formatted backend diagnostic message",
     ),
     (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::ResolvingPaths",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::ValidatingModel",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::DownloadingModel",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::LoadingModel",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::Indexing",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::WritingIndex",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::ReusingIndex",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::Complete",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::Error",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
         "crates/jbotci-jvozba/src/lib.rs:RawLujvoSegment::Rafsi",
         "internal fallback lujvo parser validates segment text before converting to Phonemes",
     ),
@@ -1188,8 +1224,40 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture error wrapper carries legacy-format diagnostics",
     ),
     (
+        "tests/support/fixtures/mod.rs:JvozbaFixtureMode::Lujvo",
+        "fixture jvozba mode is a closed serialization selector",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:JvozbaFixtureMode::Cmevla",
+        "fixture jvozba mode is a closed serialization selector",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:JvozbaFixtureInput::Word",
+        "fixture jvozba input preserves fixture text so failure cases can exercise downstream validation",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:JvozbaFixtureInput::FixedRafsi",
+        "fixture jvozba input preserves fixture text so failure cases can exercise downstream validation",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:JvozbaSegmentKindExpectation::Rafsi",
+        "fixture jvozba segment kind is a closed expected-output selector",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:JvozbaSegmentKindExpectation::Hyphen",
+        "fixture jvozba segment kind is a closed expected-output selector",
+    ),
+    (
         "xtask/src/main.rs:Command::Fmt",
         "xtask command enum delegates validation to clap and option structs",
+    ),
+    (
+        "xtask/src/main.rs:Command::DesktopBuild",
+        "xtask desktop build command delegates validation to clap and option structs",
+    ),
+    (
+        "xtask/src/main.rs:Command::DesktopServe",
+        "xtask desktop serve command delegates validation to clap and option structs",
     ),
     (
         "xtask/src/main.rs:Command::DistServer",
@@ -1272,24 +1340,68 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "typed SVG DOM text is escaped during serialization before parser handoff",
     ),
     (
-        "apps/jbotci-web/src/main.rs:AsyncTaskKind::Gentufa",
+        "crates/jbotci-ui/src/f2llm_runtime_core.rs:MergeSpec::Text",
+        "tokenizer merge specs are external artifact projections normalized by merge_pair before ranking",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_runtime_core.rs:MergeSpec::Pair",
+        "tokenizer merge specs are external artifact projections normalized by merge_pair before ranking",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Tensor::Q4OnnxMatmul",
+        "WebGPU tensor variant validity is checked while loading the manifest and constructing buffers",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Tensor::Q4OnnxGather",
+        "WebGPU tensor variant validity is checked while loading the manifest and constructing buffers",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Tensor::F32",
+        "WebGPU tensor variant validity is checked while loading the manifest and constructing buffers",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:UniformValue::U32",
+        "shader uniform variant is a typed scalar slot whose valid range is shader-specific",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:UniformValue::F32",
+        "shader uniform variant is a typed scalar slot whose valid range is shader-specific",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Gentufa",
         "activity task kind is a unit discriminant with no payload to constrain",
     ),
     (
-        "apps/jbotci-web/src/main.rs:AsyncTaskKind::Cukta",
+        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Cukta",
         "activity task kind is a unit discriminant with no payload to constrain",
     ),
     (
-        "apps/jbotci-web/src/main.rs:AsyncTaskKind::Vlacku",
+        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Vlacku",
         "activity task kind is a unit discriminant with no payload to constrain",
     ),
     (
-        "apps/jbotci-web/src/main.rs:AsyncTaskKind::Settings",
+        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Settings",
         "activity task kind is a unit discriminant with no payload to constrain",
     ),
     (
-        "apps/jbotci-web/src/main.rs:AsyncTaskKind::Export",
+        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Export",
         "activity task kind is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:NativeEmbeddingSearchCommand::Search",
+        "native embedding search command validity is enforced by worker-handle preconditions before sending",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:NativeEmbeddingSearchCommand::Clear",
+        "native embedding clear command carries only a typed response channel",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:PlatformAvailability::Available",
+        "platform availability success state is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:PlatformAvailability::Unavailable",
+        "platform unavailability reason is produced by platform service implementations and serialized as display text",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::EmbeddingCorpusJson",

@@ -20,107 +20,267 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "server config is normalized by ServerConfig::from_cli",
     ),
     (
-        "apps/jbotci-web/src/main.rs:UserSettings",
+        "crates/jbotci-ui/src/lib.rs:UserSettings",
         "browser settings are persisted transport state constrained by closed enum fields",
     ),
     (
-        "apps/jbotci-web/src/main.rs:GentufaDisplayState",
+        "crates/jbotci-ui/src/lib.rs:GentufaDisplayState",
         "gentufa display toggles are two independent boolean URL controls with no invalid combination",
     ),
     (
-        "apps/jbotci-web/src/main.rs:ReferenceHoverState",
+        "crates/jbotci-ui/src/lib.rs:ReferenceHoverState",
         "browser hover state is transient UI state derived from reference label DOM nodes",
     ),
     (
-        "apps/jbotci-web/src/main.rs:HoveredReference",
+        "crates/jbotci-ui/src/lib.rs:HoveredReference",
         "hovered reference state is copied from validated web-core reference markers",
     ),
     (
-        "apps/jbotci-web/src/main.rs:ArrowOverlay",
+        "crates/jbotci-ui/src/lib.rs:ArrowOverlay",
         "arrow overlay geometry is measured from the browser DOM and rendered transiently",
     ),
     (
-        "apps/jbotci-web/src/main.rs:ReferenceRect",
+        "crates/jbotci-ui/src/lib.rs:ReferenceRect",
         "reference rectangles are direct browser DOM measurements used only during hover rendering",
     ),
     (
-        "apps/jbotci-web/src/main.rs:ReferenceBottoms",
+        "crates/jbotci-ui/src/lib.rs:ReferenceBottoms",
         "reference bottoms are transient browser DOM measurements checked by reference height sizer tests",
     ),
     (
-        "apps/jbotci-web/src/main.rs:DiagnosticOverlayMark",
+        "crates/jbotci-ui/src/lib.rs:DiagnosticOverlayMark",
         "diagnostic overlay marks are transient render annotations whose index is validated against the paired diagnostics slice at render time",
     ),
     (
-        "apps/jbotci-web/src/main.rs:VlackuJvozbaPaneState",
+        "crates/jbotci-ui/src/lib.rs:VlackuJvozbaPaneState",
         "vlacku jvozba pane state is transient persisted UI state normalized by load/save helpers",
     ),
     (
-        "apps/jbotci-web/src/main.rs:VlackuJvozbaDragState",
+        "crates/jbotci-ui/src/lib.rs:VlackuJvozbaDragState",
         "vlacku jvozba drag state is transient browser pointer state constrained by drag handlers",
     ),
     (
-        "apps/jbotci-web/src/main.rs:EmbeddingSettingsState",
+        "crates/jbotci-ui/src/lib.rs:EmbeddingSettingsState",
         "embedding settings state is transient browser worker status parsed from JSON responses",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:EmbeddingModelOption",
+        "embedding model options are fixed presentation rows projected from the embedding model catalog",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:ElementSize",
+        "element sizes are direct layout measurements used transiently by render effects",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:ViewportSize",
+        "viewport sizes are direct platform measurements used transiently by layout code",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:PositionedPoint",
+        "positioned points are direct layout measurements used transiently by render effects",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:TopbarLayoutMetrics",
+        "topbar metrics are direct layout measurements used by platform layout commands",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:JvozbaPaneMetrics",
+        "jvozba pane metrics are direct layout measurements used to derive pane placement",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:JvozbaPaneLayout",
+        "jvozba pane layout is a transient placement result derived from measured viewport state",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:BlockReferenceHeightMetrics",
+        "block reference height metrics are measured renderer geometry consumed by sizing effects",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:BlockReferenceHeightLayoutMetrics",
+        "block reference height layout metrics are measured renderer geometry consumed by sizing effects",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:BlockReferenceHeightUpdates",
+        "block reference height updates are transient DOM measurement results applied immediately",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:BlockReferenceFitMetrics",
+        "block reference fit metrics are measured renderer geometry consumed by fitting effects",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:BlockReferenceFitUpdate",
+        "block reference fit updates are transient DOM measurement results applied immediately",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:DesktopGentufaTreeAnchorMetrics",
+        "desktop tree anchor metrics are direct layout measurements used to derive overlay geometry",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:DesktopGentufaTreeMetrics",
+        "desktop tree metrics are direct layout measurements used to derive overlay geometry",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:DesktopGentufaTreeLayout",
+        "desktop tree layout is a transient overlay geometry result derived from measured rows",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:DesktopReferenceMarkerMetrics",
+        "desktop reference marker metrics are direct layout measurements used by overlay placement",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:DesktopReferenceOverlayMetrics",
+        "desktop reference overlay metrics are direct layout measurements used by overlay placement",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:DesktopTooltipMeasure",
+        "desktop tooltip measurement is direct platform geometry consumed by placement code",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:DesktopTooltipPlacement",
+        "desktop tooltip placement is derived transient UI geometry used immediately for rendering",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:CuktaTocInteractionState",
+        "cukta TOC interaction state is transient UI state normalized by event handlers",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:NativeEmbeddingSearchWorkerHandle",
+        "native embedding worker handle owns channels whose lifecycle is managed by setup and shutdown code",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:PlatformServiceError",
+        "platform service errors carry display diagnostics produced by service implementations",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:EmbeddingStatus",
+        "embedding status is platform transport state produced by embedding setup and search services",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:EmbeddingSetupProgress",
+        "embedding setup progress is a platform transport projection of SetupProgress",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:EmbeddingSearchRequest",
+        "embedding search requests are platform DTOs checked by service preconditions before execution",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:EmbeddingSearchResponse",
+        "embedding search responses are platform DTOs produced from validated search hits",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:ExportRequest",
+        "export requests combine renderer payloads and dimensions already validated by export callers",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:Size",
+        "platform size is a direct geometry DTO supplied by browser or desktop layout measurements",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:Rect",
+        "platform rectangles are direct geometry DTOs supplied by browser or desktop layout measurements",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:Viewport",
+        "platform viewport is a direct geometry DTO supplied by browser or desktop layout measurements",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:TooltipPlacement",
+        "platform tooltip placement is transient geometry produced by platform layout services",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:TopbarLayoutMetrics",
+        "platform topbar metrics are direct layout measurements used by shared placement code",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:JvozbaPaneLayout",
+        "platform jvozba pane layout is a transient placement result derived from measured viewport state",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:TreeLineAnchor",
+        "platform tree line anchors are renderer geometry derived from measured syntax rows",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:TreeLine",
+        "platform tree lines are renderer geometry derived from measured syntax rows",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:MemorySettingsStore",
+        "memory settings store is fallback platform state constrained by typed settings values",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:UnsupportedClipboardService",
+        "unsupported clipboard service is a zero-sized platform fallback",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:UnsupportedExportService",
+        "unsupported export service is a zero-sized platform fallback",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:UnsupportedEmbeddingService",
+        "unsupported embedding service is a zero-sized platform fallback",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:NativeComputeService",
+        "native compute service is a zero-sized desktop service facade",
     ),
     (
         "crates/jbotci-orthography/src/lib.rs:NormalizedLatinChar",
         "orthography conversion helper stores a normalized character plus stress flag",
     ),
     (
-        "apps/jbotci-web/src/main.rs:AsyncActivityTask",
+        "crates/jbotci-ui/src/lib.rs:AsyncActivityTask",
         "activity tasks are internal guard tokens created only by AsyncActivityState::begin",
     ),
     (
-        "apps/jbotci-web/src/main.rs:AsyncActivityState",
+        "crates/jbotci-ui/src/lib.rs:AsyncActivityState",
         "activity state is mutated through begin and finish helpers that preserve task-token ownership",
     ),
     (
-        "apps/jbotci-web/src/main.rs:AsyncActivityGuard",
+        "crates/jbotci-ui/src/lib.rs:AsyncActivityGuard",
         "activity guard is an RAII token whose cleanup invariant is enforced by finish and Drop",
     ),
     (
-        "apps/jbotci-web/src/main.rs:LatestAsyncTask",
+        "crates/jbotci-ui/src/lib.rs:LatestAsyncTask",
         "latest-task state couples Dioxus task handles with activity ids returned by the activity state",
     ),
     (
-        "apps/jbotci-web/src/main.rs:CuktaPendingScroll",
+        "crates/jbotci-ui/src/lib.rs:CuktaPendingScroll",
         "pending scroll state is transient browser navigation state normalized by the cukta scroll handlers",
     ),
     (
-        "apps/jbotci-web/src/main.rs:PendingLocalRouteWrites",
+        "crates/jbotci-ui/src/lib.rs:PendingLocalRouteWrites",
         "pending route writes are transient browser navigation synchronization state normalized by record and consume helpers",
     ),
     (
-        "apps/jbotci-web/src/main.rs:RouteLocationSyncAction",
+        "crates/jbotci-ui/src/lib.rs:RouteLocationSyncAction",
         "route sync action pairs parsed route state with a hydration flag derived by browser navigation handlers",
     ),
     (
-        "apps/jbotci-web/src/main.rs:GentufaAsyncPageState",
+        "crates/jbotci-ui/src/lib.rs:GentufaAsyncPageState",
         "async page state is transient UI cache data keyed and replaced by latest-wins worker tasks",
     ),
     (
-        "apps/jbotci-web/src/main.rs:DialectHighlightToken",
+        "crates/jbotci-ui/src/lib.rs:DialectHighlightToken",
         "dialect highlight tokens are transient lexer spans consumed only by the browser highlighter",
     ),
     (
-        "apps/jbotci-web/src/main.rs:GentufaTreeLineAnchor",
+        "crates/jbotci-ui/src/lib.rs:GentufaTreeLineAnchor",
         "tree line anchors are derived from rendered row positions and are validated by layout tests",
     ),
     (
-        "apps/jbotci-web/src/main.rs:CuktaAsyncPageState",
+        "crates/jbotci-ui/src/lib.rs:CuktaAsyncPageState",
         "async page state is transient UI cache data keyed and replaced by latest-wins worker tasks",
     ),
     (
-        "apps/jbotci-web/src/main.rs:VlackuAsyncResultState",
+        "crates/jbotci-ui/src/lib.rs:VlackuAsyncResultState",
         "async result state is transient UI cache data keyed and replaced by latest-wins worker tasks",
     ),
     (
-        "apps/jbotci-web/src/main.rs:VlackuSemanticResultState",
+        "crates/jbotci-ui/src/lib.rs:VlackuSemanticResultState",
         "vlacku semantic result state mirrors browser worker hits and is keyed by the committed search state",
     ),
     (
-        "apps/jbotci-web/src/main.rs:CuktaSemanticResultState",
+        "crates/jbotci-ui/src/lib.rs:CuktaSemanticResultState",
         "cukta semantic result state mirrors browser worker hits and is keyed by the committed search state",
     ),
     (
@@ -154,6 +314,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci/src/main.rs:SetupInput",
         "setup CLI input delegates model and directory validation to setup command execution",
+    ),
+    (
+        "apps/jbotci/src/main.rs:CliProgressPolicy",
+        "CLI progress policy is derived from terminal capability and caller-selected verbosity",
+    ),
+    (
+        "apps/jbotci/src/main.rs:CliSetupProgressReporter",
+        "CLI setup progress reporter owns rendering state derived from the selected progress policy",
     ),
     (
         "apps/jbotci/src/main.rs:VlaseiInput",
@@ -416,6 +584,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding setup reports are returned only after pack construction or validated reuse",
     ),
     (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgress",
+        "embedding setup progress is transport state produced by setup phases and consumed for display",
+    ),
+    (
         "crates/jbotci-embeddings/src/lib.rs:FakeBackend",
         "test fake backend is constrained by test construction and used only for fixture packs",
     ),
@@ -428,8 +600,92 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "native incremental rebuild cache is loaded only from a compatible previously validated pack",
     ),
     (
-        "crates/jbotci-embeddings/src/native.rs:NativeGemmaEmbeddingBackend",
+        "crates/jbotci-embeddings/src/native.rs:NativeLlamaEmbeddingBackend",
         "native backend fields are produced by llama.cpp model/context initialization",
+    ),
+    (
+        "crates/jbotci-embeddings/src/native.rs:NativeEmbeddingSearchService",
+        "native embedding search service owns validated manifest and backend state from setup",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_runtime_core.rs:TokenizerArtifact",
+        "F2LLM tokenizer artifacts are external manifest DTOs validated while loading the runtime",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_runtime_core.rs:SpecialTokens",
+        "F2LLM special token ids are external tokenizer metadata interpreted by the tokenizer",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_runtime_core.rs:QwenByteBpeTokenizer",
+        "Qwen tokenizer state is assembled from external artifacts and exercised through tokenizer tests",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_runtime_core.rs:TokenWindow",
+        "token windows are generated by tokenizer helpers from bounded prompt and history inputs",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_runtime_core.rs:PackedTokenBatch",
+        "packed token batches are generated by runtime helpers immediately before model execution",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:RuntimeLoadOptions",
+        "WebGPU runtime load options are caller-selected controls checked by runtime loading code",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:ArtifactManifest",
+        "WebGPU artifact manifests are external DTOs validated while loading model artifacts",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:TokenizerSpec",
+        "WebGPU tokenizer specs are external manifest DTOs validated while loading artifacts",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:ModelConfig",
+        "WebGPU model config is external manifest metadata validated during runtime construction",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:TensorSpec",
+        "WebGPU tensor specs are external manifest DTOs validated while binding tensors",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:ChunkedSpec",
+        "WebGPU chunked tensor specs are external manifest DTOs validated while loading chunks",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:ChunkSpec",
+        "WebGPU chunk specs are external manifest DTOs validated while loading tensor chunks",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Q4Tensor",
+        "Q4 tensor buffers are built only after tensor manifest and byte-size validation",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:F32Tensor",
+        "F32 tensor buffers are built only after tensor manifest and byte-size validation",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:VectorBuffer",
+        "WebGPU vector buffers are constructed by runtime buffer allocation helpers",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:WebGpuRuntime",
+        "WebGPU runtime state is assembled through the fallible runtime loader before use",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:CorpusVectorSpec",
+        "corpus vector specs are external manifest DTOs validated while loading semantic search shards",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:CorpusShard",
+        "corpus shards are external artifact DTOs validated while loading semantic search data",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:JbotciF2LlmTokenizer",
+        "F2LLM tokenizer facade wraps tokenizer state already validated during artifact loading",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:JbotciF2LlmWebGpuRuntime",
+        "F2LLM WebGPU runtime facade wraps runtime state already validated during artifact loading",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:CuktaIndexEntry",
@@ -1278,6 +1534,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "tests/support/fixtures/mod.rs:GentufaOutputExpectation",
         "fixture expectation aggregate permits absent gentufa output formats",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:JvozbaExpectation",
+        "jvozba fixture expectations are checked by exact fixture runner comparisons",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:JvozbaOutputExpectation",
+        "jvozba output fixture expectations are checked by exact fixture runner comparisons",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:JvozbaSegmentExpectation",
+        "jvozba segment fixture expectations are checked by exact fixture runner comparisons",
     ),
     (
         "tests/support/fixtures/mod.rs:DiagnosticExpectation",
