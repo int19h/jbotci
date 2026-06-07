@@ -40,6 +40,10 @@ pub const INDEX_SCHEMA_VERSION: u32 = 1;
 pub const INDEX_BASE_VERSION: &str = "v1";
 pub const DEFAULT_VECTOR_SHARD_TARGET_BYTES: usize = 8 * 1024 * 1024;
 
+const NATIVE_PARTIAL_BUILD_SCHEMA_VERSION: u32 = 1;
+const NATIVE_PARTIAL_BUILD_SOURCE: &str = "native-partial";
+const NATIVE_PARTIAL_BUILD_FILE: &str = "native-local-build.json";
+const NATIVE_VECTOR_CHUNK_ROWS: usize = 256;
 const DEFAULT_HF_ENDPOINT: &str = "https://huggingface.co";
 const DEFAULT_GGUF_REPO: &str = "mradermacher/F2LLM-v2-330M-GGUF";
 const DEFAULT_GGUF_REVISION: &str = "03158c3a78ea1c7a7eea2d6829c49e3f1d63f85f";
@@ -219,6 +223,59 @@ pub struct DictionaryEmbeddingItem {
 pub struct CllEmbeddingItem {
     pub chunk_index: usize,
     pub input_hash: String,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct EmbeddingBuildRow<T> {
+    item: T,
+    input: String,
+    input_hash: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[invariant(true)]
+struct NativePartialBuildCheckpoint {
+    schema_version: u32,
+    source: String,
+    pack_id: String,
+    model_key: String,
+    model_revision: String,
+    input_format_version: String,
+    built_by: EmbeddingRuntime,
+    dimensions: usize,
+    element_type: String,
+    normalized: bool,
+    distance: String,
+    chunk_rows: usize,
+    dictionary_fingerprint: String,
+    dictionary_rows: usize,
+    cll_fingerprint: String,
+    cll_rows: usize,
+    corpora: Vec<NativePartialCorpus>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[invariant(true)]
+struct NativePartialCorpus {
+    corpus_id: String,
+    input_format_version: String,
+    fingerprint: String,
+    row_count: usize,
+    dimensions: usize,
+    items_url: String,
+    items_sha256: String,
+    shards: Vec<NativePartialShard>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[invariant(true)]
+struct NativePartialShard {
+    url: String,
+    byte_len: u64,
+    sha256: String,
+    row_start: usize,
+    row_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -723,6 +780,41 @@ pub fn write_json_file<T: Serialize>(path: &Path, value: &T) -> Result<(), Embed
 }
 
 #[requires(!path.as_os_str().is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn write_json_file_atomically<T: Serialize>(path: &Path, value: &T) -> Result<(), EmbeddingError> {
+    ensure_parent_dir(path)?;
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| EmbeddingError::Io {
+            context: format!("failed to create temporary name for `{}`", path.display()),
+            source: std::io::Error::new(std::io::ErrorKind::InvalidInput, "path has no file name"),
+        })?;
+    let temp_path = path.with_file_name(format!("{file_name}.tmp"));
+    let file = File::create(&temp_path).map_err(|source| EmbeddingError::Io {
+        context: format!("failed to create `{}`", temp_path.display()),
+        source,
+    })?;
+    let mut writer = BufWriter::new(file);
+    serde_json::to_writer_pretty(&mut writer, value).map_err(|source| EmbeddingError::Json {
+        context: format!("failed to serialize `{}`", temp_path.display()),
+        source,
+    })?;
+    writer
+        .write_all(b"\n")
+        .map_err(|source| EmbeddingError::Io {
+            context: format!("failed to write `{}`", temp_path.display()),
+            source,
+        })?;
+    writer.flush().map_err(|source| EmbeddingError::Io {
+        context: format!("failed to flush `{}`", temp_path.display()),
+        source,
+    })?;
+    rename_replacing(&temp_path, path)?;
+    Ok(())
+}
+
+#[requires(!path.as_os_str().is_empty())]
 #[ensures(true)]
 pub fn read_json_file<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, EmbeddingError> {
     let file = File::open(path).map_err(|source| EmbeddingError::Io {
@@ -815,6 +907,68 @@ pub fn write_vector_shards(
 }
 
 #[requires(dimensions > 0)]
+#[requires(values.len() % dimensions == 0)]
+#[requires(!file_name.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|shard| shard.byte_len > 0 || values.is_empty()) || ret.is_err())]
+fn write_vector_chunk_file(
+    corpus_dir: &Path,
+    url_prefix: &str,
+    file_name: &str,
+    values: &[f32],
+    dimensions: usize,
+) -> Result<VectorShardManifest, EmbeddingError> {
+    fs::create_dir_all(corpus_dir).map_err(|source| EmbeddingError::Io {
+        context: format!("failed to create `{}`", corpus_dir.display()),
+        source,
+    })?;
+    let path = corpus_dir.join(file_name);
+    let temp_path = corpus_dir.join(format!("{file_name}.tmp"));
+    let mut file =
+        BufWriter::new(
+            File::create(&temp_path).map_err(|source| EmbeddingError::Io {
+                context: format!("failed to create `{}`", temp_path.display()),
+                source,
+            })?,
+        );
+    for value in values {
+        file.write_all(&value.to_le_bytes())
+            .map_err(|source| EmbeddingError::Io {
+                context: format!("failed to write `{}`", temp_path.display()),
+                source,
+            })?;
+    }
+    file.flush().map_err(|source| EmbeddingError::Io {
+        context: format!("failed to flush `{}`", temp_path.display()),
+        source,
+    })?;
+    rename_replacing(&temp_path, &path)?;
+    let byte_len = fs::metadata(&path)
+        .map_err(|source| EmbeddingError::Io {
+            context: format!("failed to inspect `{}`", path.display()),
+            source,
+        })?
+        .len();
+    let expected_byte_len = values.len() * std::mem::size_of::<f32>();
+    if byte_len != expected_byte_len as u64 {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "vector shard `{}` is {} bytes, expected {}",
+                path.display(),
+                byte_len,
+                expected_byte_len
+            ),
+        });
+    }
+    let sha256 = sha256_hex_file(&path)?;
+    write_brotli_sibling(&path)?;
+    Ok(VectorShardManifest {
+        url: format!("{}/{}", url_prefix.trim_end_matches('/'), file_name),
+        byte_len,
+        sha256,
+    })
+}
+
+#[requires(dimensions > 0)]
 #[ensures(true)]
 pub fn read_vector_shards(
     pack_dir: &Path,
@@ -868,6 +1022,50 @@ pub fn read_vector_shards(
     Ok(values)
 }
 
+#[requires(dimensions > 0)]
+#[ensures(ret.as_ref().is_ok_and(|values| values.len() == shard.row_count * dimensions) || ret.is_err())]
+fn read_native_partial_vector_shard(
+    pack_dir: &Path,
+    shard: &NativePartialShard,
+    dimensions: usize,
+) -> Result<Vec<f32>, EmbeddingError> {
+    let path = pack_dir.join(shard.url.trim_start_matches('/'));
+    let shard_bytes = fs::read(&path).map_err(|source| EmbeddingError::Io {
+        context: format!("failed to read `{}`", path.display()),
+        source,
+    })?;
+    if shard_bytes.len() as u64 != shard.byte_len {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!("vector shard `{}` size mismatch", path.display()),
+        });
+    }
+    if sha256_hex_bytes(&shard_bytes) != shard.sha256 {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!("vector shard `{}` SHA-256 mismatch", path.display()),
+        });
+    }
+    if shard_bytes.len() % std::mem::size_of::<f32>() != 0 {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "partial vector bytes are not aligned to f32".to_owned(),
+        });
+    }
+    let values = shard_bytes
+        .chunks_exact(4)
+        .map(|bytes| f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+        .collect::<Vec<_>>();
+    if values.len() != shard.row_count * dimensions {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "partial vector shard `{}` has {} f32 values, expected {}",
+                path.display(),
+                values.len(),
+                shard.row_count * dimensions
+            ),
+        });
+    }
+    Ok(values)
+}
+
 #[requires(!path.as_os_str().is_empty())]
 #[requires(!description.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|_| path.is_file()) || ret.is_err())]
@@ -892,6 +1090,37 @@ fn ensure_parent_dir(path: &Path) -> Result<(), EmbeddingError> {
     Ok(())
 }
 
+#[requires(!source.as_os_str().is_empty())]
+#[requires(!destination.as_os_str().is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn rename_replacing(source: &Path, destination: &Path) -> Result<(), EmbeddingError> {
+    match fs::rename(source, destination) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+            fs::remove_file(destination).map_err(|error| EmbeddingError::Io {
+                context: format!("failed to remove `{}`", destination.display()),
+                source: error,
+            })?;
+            fs::rename(source, destination).map_err(|error| EmbeddingError::Io {
+                context: format!(
+                    "failed to move `{}` to `{}`",
+                    source.display(),
+                    destination.display()
+                ),
+                source: error,
+            })
+        }
+        Err(error) => Err(EmbeddingError::Io {
+            context: format!(
+                "failed to move `{}` to `{}`",
+                source.display(),
+                destination.display()
+            ),
+            source: error,
+        }),
+    }
+}
+
 #[requires(!input_format_version.is_empty())]
 #[ensures(!ret.is_empty())]
 pub fn deterministic_pack_id(
@@ -913,6 +1142,330 @@ pub fn deterministic_pack_id(
 #[ensures(ret.len() <= 12)]
 fn short_fingerprint(value: &str) -> String {
     value.chars().take(12).collect()
+}
+
+#[requires(true)]
+#[ensures(ret.runtime == "llama-cpp-4")]
+fn native_embedding_runtime() -> EmbeddingRuntime {
+    EmbeddingRuntime {
+        runtime: "llama-cpp-4".to_owned(),
+        version: LLAMA_CPP_4_RUNTIME_VERSION.to_owned(),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.as_os_str().is_empty())]
+fn native_work_pack_root(work_root: &Path) -> PathBuf {
+    work_root.join("pack")
+}
+
+#[requires(true)]
+#[ensures(!ret.as_os_str().is_empty())]
+fn native_partial_checkpoint_path(work_root: &Path) -> PathBuf {
+    work_root.join(NATIVE_PARTIAL_BUILD_FILE)
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn remove_dir_all_if_exists(path: &Path) -> Result<(), EmbeddingError> {
+    if !path.exists() {
+        return Ok(());
+    }
+    fs::remove_dir_all(path).map_err(|source| EmbeddingError::Io {
+        context: format!("failed to remove `{}`", path.display()),
+        source,
+    })
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn native_vector_chunk_file_name(chunk_index: usize) -> String {
+    format!("vectors-{chunk_index:04}.f32")
+}
+
+#[requires(!corpus_id.is_empty())]
+#[ensures(!ret.is_empty())]
+fn native_vector_chunk_url(corpus_id: &str, chunk_index: usize) -> String {
+    format!(
+        "corpora/{corpus_id}/{}",
+        native_vector_chunk_file_name(chunk_index)
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(dimensions > 0)]
+#[ensures(ret.schema_version == NATIVE_PARTIAL_BUILD_SCHEMA_VERSION)]
+fn initial_native_partial_checkpoint(
+    spec: &EmbeddingModelSpec,
+    pack_id: &str,
+    dimensions: usize,
+    dictionary_fingerprint: &str,
+    dictionary_rows: usize,
+    cll_fingerprint: &str,
+    cll_rows: usize,
+) -> NativePartialBuildCheckpoint {
+    NativePartialBuildCheckpoint {
+        schema_version: NATIVE_PARTIAL_BUILD_SCHEMA_VERSION,
+        source: NATIVE_PARTIAL_BUILD_SOURCE.to_owned(),
+        pack_id: pack_id.to_owned(),
+        model_key: spec.model_key.clone(),
+        model_revision: spec.model_revision.clone(),
+        input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
+        built_by: native_embedding_runtime(),
+        dimensions,
+        element_type: "f32le".to_owned(),
+        normalized: true,
+        distance: "dot".to_owned(),
+        chunk_rows: NATIVE_VECTOR_CHUNK_ROWS,
+        dictionary_fingerprint: dictionary_fingerprint.to_owned(),
+        dictionary_rows,
+        cll_fingerprint: cll_fingerprint.to_owned(),
+        cll_rows,
+        corpora: Vec::new(),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(dimensions > 0)]
+#[ensures(true)]
+fn load_compatible_native_partial_checkpoint(
+    work_root: &Path,
+    pack_root: &Path,
+    spec: &EmbeddingModelSpec,
+    pack_id: &str,
+    dimensions: usize,
+    dictionary_fingerprint: &str,
+    dictionary_rows: usize,
+    cll_fingerprint: &str,
+    cll_rows: usize,
+) -> Option<NativePartialBuildCheckpoint> {
+    let path = native_partial_checkpoint_path(work_root);
+    if !path.is_file() {
+        return None;
+    }
+    let checkpoint: NativePartialBuildCheckpoint = read_json_file(&path).ok()?;
+    if !native_partial_header_matches(
+        &checkpoint,
+        spec,
+        pack_id,
+        dimensions,
+        dictionary_fingerprint,
+        dictionary_rows,
+        cll_fingerprint,
+        cll_rows,
+    ) {
+        return None;
+    }
+    let mut seen_corpora = HashMap::new();
+    for corpus in &checkpoint.corpora {
+        if seen_corpora.insert(corpus.corpus_id.clone(), ()).is_some()
+            || !native_partial_corpus_is_compatible(pack_root, &checkpoint, corpus, dimensions)
+        {
+            return None;
+        }
+    }
+    Some(checkpoint)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(dimensions > 0)]
+#[ensures(true)]
+fn native_partial_header_matches(
+    checkpoint: &NativePartialBuildCheckpoint,
+    spec: &EmbeddingModelSpec,
+    pack_id: &str,
+    dimensions: usize,
+    dictionary_fingerprint: &str,
+    dictionary_rows: usize,
+    cll_fingerprint: &str,
+    cll_rows: usize,
+) -> bool {
+    checkpoint.schema_version == NATIVE_PARTIAL_BUILD_SCHEMA_VERSION
+        && checkpoint.source == NATIVE_PARTIAL_BUILD_SOURCE
+        && checkpoint.pack_id == pack_id
+        && checkpoint.model_key == spec.model_key
+        && checkpoint.model_revision == spec.model_revision
+        && checkpoint.input_format_version == DEFAULT_INPUT_FORMAT_VERSION
+        && checkpoint.built_by == native_embedding_runtime()
+        && checkpoint.dimensions == dimensions
+        && checkpoint.element_type == "f32le"
+        && checkpoint.normalized
+        && checkpoint.distance == "dot"
+        && checkpoint.chunk_rows == NATIVE_VECTOR_CHUNK_ROWS
+        && checkpoint.dictionary_fingerprint == dictionary_fingerprint
+        && checkpoint.dictionary_rows == dictionary_rows
+        && checkpoint.cll_fingerprint == cll_fingerprint
+        && checkpoint.cll_rows == cll_rows
+}
+
+#[requires(dimensions > 0)]
+#[ensures(true)]
+fn native_partial_corpus_is_compatible(
+    pack_root: &Path,
+    checkpoint: &NativePartialBuildCheckpoint,
+    corpus: &NativePartialCorpus,
+    dimensions: usize,
+) -> bool {
+    let (expected_fingerprint, expected_rows) = match corpus.corpus_id.as_str() {
+        VLACKU_CORPUS_ID => (
+            checkpoint.dictionary_fingerprint.as_str(),
+            checkpoint.dictionary_rows,
+        ),
+        CUKTA_CORPUS_ID => (checkpoint.cll_fingerprint.as_str(), checkpoint.cll_rows),
+        _ => return false,
+    };
+    if corpus.input_format_version != DEFAULT_INPUT_FORMAT_VERSION
+        || corpus.fingerprint != expected_fingerprint
+        || corpus.dimensions != dimensions
+        || corpus.items_url != format!("corpora/{}/items.json", corpus.corpus_id)
+        || corpus.row_count != expected_rows
+    {
+        return false;
+    }
+    let items_path = pack_root.join(&corpus.items_url);
+    if !items_path.is_file() {
+        return false;
+    }
+    if sha256_hex_file(&items_path)
+        .ok()
+        .is_none_or(|sha256| sha256 != corpus.items_sha256)
+    {
+        return false;
+    }
+    let mut seen_starts = HashMap::new();
+    for shard in &corpus.shards {
+        if seen_starts.insert(shard.row_start, ()).is_some() {
+            return false;
+        }
+        if !native_partial_shard_is_compatible(pack_root, corpus, shard, dimensions) {
+            return false;
+        }
+    }
+    true
+}
+
+#[requires(dimensions > 0)]
+#[ensures(true)]
+fn native_partial_shard_is_compatible(
+    pack_root: &Path,
+    corpus: &NativePartialCorpus,
+    shard: &NativePartialShard,
+    dimensions: usize,
+) -> bool {
+    if shard.row_count == 0
+        || shard.row_start >= corpus.row_count
+        || shard.row_start % NATIVE_VECTOR_CHUNK_ROWS != 0
+    {
+        return false;
+    }
+    let chunk_index = shard.row_start / NATIVE_VECTOR_CHUNK_ROWS;
+    let expected_row_count =
+        NATIVE_VECTOR_CHUNK_ROWS.min(corpus.row_count.saturating_sub(shard.row_start));
+    let expected_byte_len = expected_row_count * dimensions * std::mem::size_of::<f32>();
+    shard.row_count == expected_row_count
+        && shard.byte_len == expected_byte_len as u64
+        && shard.url == native_vector_chunk_url(&corpus.corpus_id, chunk_index)
+        && read_native_partial_vector_shard(pack_root, shard, dimensions).is_ok()
+}
+
+#[requires(!checkpoint_path.as_os_str().is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn write_native_partial_checkpoint(
+    checkpoint_path: &Path,
+    checkpoint: &NativePartialBuildCheckpoint,
+) -> Result<(), EmbeddingError> {
+    write_json_file_atomically(checkpoint_path, checkpoint)
+}
+
+#[requires(!corpus_id.is_empty())]
+#[ensures(true)]
+fn native_partial_shards_by_row_start(
+    checkpoint: &NativePartialBuildCheckpoint,
+    corpus_id: &str,
+) -> HashMap<usize, NativePartialShard> {
+    checkpoint
+        .corpora
+        .iter()
+        .find(|corpus| corpus.corpus_id == corpus_id)
+        .map(|corpus| {
+            corpus
+                .shards
+                .iter()
+                .map(|shard| (shard.row_start, shard.clone()))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[requires(!corpus_id.is_empty())]
+#[ensures(ret.corpus_id == corpus_id)]
+fn native_partial_corpus_from_shards(
+    corpus_id: &str,
+    fingerprint: &str,
+    row_count: usize,
+    dimensions: usize,
+    items_url: &str,
+    items_sha256: &str,
+    shards_by_start: &HashMap<usize, NativePartialShard>,
+) -> NativePartialCorpus {
+    let mut shards = shards_by_start.values().cloned().collect::<Vec<_>>();
+    shards.sort_by_key(|shard| shard.row_start);
+    NativePartialCorpus {
+        corpus_id: corpus_id.to_owned(),
+        input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
+        fingerprint: fingerprint.to_owned(),
+        row_count,
+        dimensions,
+        items_url: items_url.to_owned(),
+        items_sha256: items_sha256.to_owned(),
+        shards,
+    }
+}
+
+#[requires(!corpus.corpus_id.is_empty())]
+#[ensures(true)]
+fn upsert_native_partial_corpus(
+    checkpoint: &mut NativePartialBuildCheckpoint,
+    corpus: NativePartialCorpus,
+) {
+    if let Some(existing) = checkpoint
+        .corpora
+        .iter_mut()
+        .find(|existing| existing.corpus_id == corpus.corpus_id)
+    {
+        *existing = corpus;
+    } else {
+        checkpoint.corpora.push(corpus);
+    }
+    checkpoint
+        .corpora
+        .sort_by(|left, right| left.corpus_id.cmp(&right.corpus_id));
+}
+
+#[requires(true)]
+#[ensures(ret.url == shard.url)]
+fn vector_shard_from_native_partial(shard: &NativePartialShard) -> VectorShardManifest {
+    VectorShardManifest {
+        url: shard.url.clone(),
+        byte_len: shard.byte_len,
+        sha256: shard.sha256.clone(),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.url == shard.url)]
+fn native_partial_shard_from_vector_shard(
+    shard: &VectorShardManifest,
+    row_start: usize,
+    row_count: usize,
+) -> NativePartialShard {
+    NativePartialShard {
+        url: shard.url.clone(),
+        byte_len: shard.byte_len,
+        sha256: shard.sha256.clone(),
+        row_start,
+        row_count,
+    }
 }
 
 #[requires(!path.as_os_str().is_empty())]
@@ -1167,17 +1720,38 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
             cll_rows,
         });
     }
-    let temp_pack_root = final_pack_root.with_extension("tmp");
-    if temp_pack_root.exists() {
-        fs::remove_dir_all(&temp_pack_root).map_err(|source| EmbeddingError::Io {
-            context: format!("failed to remove `{}`", temp_pack_root.display()),
-            source,
-        })?;
+    let work_root = final_pack_root.with_extension("tmp");
+    let work_pack_root = native_work_pack_root(&work_root);
+    let checkpoint_path = native_partial_checkpoint_path(&work_root);
+    let mut checkpoint = load_compatible_native_partial_checkpoint(
+        &work_root,
+        &work_pack_root,
+        spec,
+        &pack_id,
+        dimensions,
+        &dictionary_fingerprint,
+        dictionary_rows,
+        &cll_fingerprint,
+        cll_rows,
+    );
+    if checkpoint.is_none() {
+        remove_dir_all_if_exists(&work_root)?;
+        checkpoint = Some(initial_native_partial_checkpoint(
+            spec,
+            &pack_id,
+            dimensions,
+            &dictionary_fingerprint,
+            dictionary_rows,
+            &cll_fingerprint,
+            cll_rows,
+        ));
     }
-    fs::create_dir_all(&temp_pack_root).map_err(|source| EmbeddingError::Io {
-        context: format!("failed to create `{}`", temp_pack_root.display()),
+    fs::create_dir_all(&work_pack_root).map_err(|source| EmbeddingError::Io {
+        context: format!("failed to create `{}`", work_pack_root.display()),
         source,
     })?;
+    let mut checkpoint = checkpoint.expect("checkpoint was initialized");
+    write_native_partial_checkpoint(&checkpoint_path, &checkpoint)?;
     let reusable_rows = load_reusable_native_rows(index_root, &spec.model_key, dimensions);
     let mut completed_rows = 0u64;
     emit_indexing_progress("Indexing dictionary", completed_rows, total_rows, progress);
@@ -1185,7 +1759,9 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
     let dictionary_corpus = write_dictionary_corpus(
         backend,
         dictionary,
-        &temp_pack_root,
+        &work_pack_root,
+        &checkpoint_path,
+        &mut checkpoint,
         &pack_id,
         dimensions,
         &dictionary_fingerprint,
@@ -1198,7 +1774,9 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
     let cll_corpus = write_cll_corpus(
         backend,
         cll_chunks,
-        &temp_pack_root,
+        &work_pack_root,
+        &checkpoint_path,
+        &mut checkpoint,
         &pack_id,
         dimensions,
         &cll_fingerprint,
@@ -1219,22 +1797,16 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
         model_revision: spec.model_revision.clone(),
         pack_id: pack_id.clone(),
         input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
-        built_by: EmbeddingRuntime {
-            runtime: "llama-cpp-4".to_owned(),
-            version: LLAMA_CPP_4_RUNTIME_VERSION.to_owned(),
-        },
+        built_by: native_embedding_runtime(),
         dimensions,
         element_type: "f32le".to_owned(),
         normalized: true,
         distance: "dot".to_owned(),
-        compatible_query_runtimes: vec![EmbeddingRuntime {
-            runtime: "llama-cpp-4".to_owned(),
-            version: LLAMA_CPP_4_RUNTIME_VERSION.to_owned(),
-        }],
+        compatible_query_runtimes: vec![native_embedding_runtime()],
         corpora: vec![dictionary_corpus, cll_corpus],
     };
-    write_json_file(&temp_pack_root.join("manifest.json"), &manifest)?;
-    validate_pack_dir(&temp_pack_root)?;
+    write_json_file(&work_pack_root.join("manifest.json"), &manifest)?;
+    validate_pack_dir(&work_pack_root)?;
     if final_pack_root.exists() {
         fs::remove_dir_all(&final_pack_root).map_err(|source| EmbeddingError::Io {
             context: format!("failed to remove `{}`", final_pack_root.display()),
@@ -1242,15 +1814,16 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
         })?;
     }
     ensure_parent_dir(&final_pack_root)?;
-    fs::rename(&temp_pack_root, &final_pack_root).map_err(|source| EmbeddingError::Io {
+    fs::rename(&work_pack_root, &final_pack_root).map_err(|source| EmbeddingError::Io {
         context: format!(
             "failed to publish `{}` as `{}`",
-            temp_pack_root.display(),
+            work_pack_root.display(),
             final_pack_root.display()
         ),
         source,
     })?;
     write_catalog(index_root, spec, &pack_id)?;
+    let _ = fs::remove_dir_all(&work_root);
     progress(SetupProgress::determinate(
         SetupProgressPhase::Complete,
         "complete",
@@ -1302,6 +1875,8 @@ fn write_dictionary_corpus<B: EmbeddingBackend>(
     backend: &mut B,
     dictionary: &Dictionary<'_>,
     pack_dir: &Path,
+    checkpoint_path: &Path,
+    checkpoint: &mut NativePartialBuildCheckpoint,
     pack_id: &str,
     dimensions: usize,
     fingerprint: &str,
@@ -1310,51 +1885,42 @@ fn write_dictionary_corpus<B: EmbeddingBackend>(
     total_rows: u64,
     progress: &mut SetupProgressCallback<'_>,
 ) -> Result<CorpusManifest, EmbeddingError> {
-    let corpus_dir = pack_dir.join("corpora").join(VLACKU_CORPUS_ID);
-    let items = dictionary
+    let rows = dictionary
         .entries()
         .iter()
         .enumerate()
         .map(|(entry_index, entry)| {
             let input = dictionary_embedding_input(entry);
-            DictionaryEmbeddingItem {
+            let input_hash = sha256_hex_bytes(input.as_bytes());
+            let item = DictionaryEmbeddingItem {
                 entry_index,
                 word: entry.word.to_owned(),
                 definition_id: entry.definition_id.0,
-                input_hash: sha256_hex_bytes(input.as_bytes()),
+                input_hash: input_hash.clone(),
                 kind: dictionary_embedding_kind(entry),
+            };
+            EmbeddingBuildRow {
+                item,
+                input,
+                input_hash,
             }
         })
         .collect::<Vec<_>>();
-    let mut values = Vec::with_capacity(items.len() * dimensions);
-    for (entry, item) in dictionary.entries().iter().zip(items.iter()) {
-        if let Some(row) = reusable_rows.and_then(|rows| rows.row(&item.input_hash, dimensions)) {
-            values.extend_from_slice(row);
-            *completed_rows = completed_rows.saturating_add(1);
-            emit_indexing_progress("Indexing dictionary", *completed_rows, total_rows, progress);
-            continue;
-        }
-        let mut embedding = backend.embed(&dictionary_embedding_input(entry))?.values;
-        if embedding.len() != dimensions {
-            return Err(EmbeddingError::DimensionMismatch {
-                expected: dimensions,
-                actual: embedding.len(),
-            });
-        }
-        normalize_vector(&mut embedding);
-        values.extend_from_slice(&embedding);
-        *completed_rows = completed_rows.saturating_add(1);
-        emit_indexing_progress("Indexing dictionary", *completed_rows, total_rows, progress);
-    }
-    write_corpus_files(
-        &corpus_dir,
-        &format!("corpora/{VLACKU_CORPUS_ID}"),
-        &items,
-        values.as_slice(),
-        dimensions,
+    write_chunked_corpus(
+        backend,
+        &rows,
+        pack_dir,
+        checkpoint_path,
+        checkpoint,
         VLACKU_CORPUS_ID,
+        "Indexing dictionary",
+        dimensions,
         pack_id,
         fingerprint,
+        reusable_rows,
+        completed_rows,
+        total_rows,
+        progress,
     )
 }
 
@@ -1364,6 +1930,8 @@ fn write_cll_corpus<B: EmbeddingBackend>(
     backend: &mut B,
     chunks: &[CllSearchChunk],
     pack_dir: &Path,
+    checkpoint_path: &Path,
+    checkpoint: &mut NativePartialBuildCheckpoint,
     pack_id: &str,
     dimensions: usize,
     fingerprint: &str,
@@ -1372,80 +1940,148 @@ fn write_cll_corpus<B: EmbeddingBackend>(
     total_rows: u64,
     progress: &mut SetupProgressCallback<'_>,
 ) -> Result<CorpusManifest, EmbeddingError> {
-    let corpus_dir = pack_dir.join("corpora").join(CUKTA_CORPUS_ID);
-    let items = chunks
+    let rows = chunks
         .iter()
         .enumerate()
         .map(|(chunk_index, chunk)| {
             let input = cll_embedding_input(chunk);
-            CllEmbeddingItem {
+            let input_hash = sha256_hex_bytes(input.as_bytes());
+            let item = CllEmbeddingItem {
                 chunk_index,
-                input_hash: sha256_hex_bytes(input.as_bytes()),
+                input_hash: input_hash.clone(),
+            };
+            EmbeddingBuildRow {
+                item,
+                input,
+                input_hash,
             }
         })
         .collect::<Vec<_>>();
-    let mut values = Vec::with_capacity(items.len() * dimensions);
-    for (chunk, item) in chunks.iter().zip(items.iter()) {
-        if let Some(row) = reusable_rows.and_then(|rows| rows.row(&item.input_hash, dimensions)) {
-            values.extend_from_slice(row);
-            *completed_rows = completed_rows.saturating_add(1);
-            emit_indexing_progress("Indexing CLL", *completed_rows, total_rows, progress);
-            continue;
-        }
-        let mut embedding = backend.embed(&cll_embedding_input(chunk))?.values;
-        if embedding.len() != dimensions {
-            return Err(EmbeddingError::DimensionMismatch {
-                expected: dimensions,
-                actual: embedding.len(),
-            });
-        }
-        normalize_vector(&mut embedding);
-        values.extend_from_slice(&embedding);
-        *completed_rows = completed_rows.saturating_add(1);
-        emit_indexing_progress("Indexing CLL", *completed_rows, total_rows, progress);
-    }
-    write_corpus_files(
-        &corpus_dir,
-        &format!("corpora/{CUKTA_CORPUS_ID}"),
-        &items,
-        values.as_slice(),
-        dimensions,
+    write_chunked_corpus(
+        backend,
+        &rows,
+        pack_dir,
+        checkpoint_path,
+        checkpoint,
         CUKTA_CORPUS_ID,
+        "Indexing CLL",
+        dimensions,
         pack_id,
         fingerprint,
+        reusable_rows,
+        completed_rows,
+        total_rows,
+        progress,
     )
 }
 
 #[allow(clippy::too_many_arguments)]
 #[requires(dimensions > 0)]
-#[ensures(ret.as_ref().is_ok_and(|corpus| corpus.row_count > 0) || ret.is_err())]
-fn write_corpus_files<T: Serialize>(
-    corpus_dir: &Path,
-    url_prefix: &str,
-    items: &[T],
-    values: &[f32],
-    dimensions: usize,
+#[ensures(ret.as_ref().is_ok_and(|corpus| corpus.row_count == rows.len()) || ret.is_err())]
+fn write_chunked_corpus<B, T>(
+    backend: &mut B,
+    rows: &[EmbeddingBuildRow<T>],
+    pack_dir: &Path,
+    checkpoint_path: &Path,
+    checkpoint: &mut NativePartialBuildCheckpoint,
     corpus_id: &str,
+    progress_label: &str,
+    dimensions: usize,
     _pack_id: &str,
     fingerprint: &str,
-) -> Result<CorpusManifest, EmbeddingError> {
+    reusable_rows: Option<&ReusableVectorRows>,
+    completed_rows: &mut u64,
+    total_rows: u64,
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<CorpusManifest, EmbeddingError>
+where
+    B: EmbeddingBackend,
+    T: Clone + Serialize,
+{
+    let corpus_dir = pack_dir.join("corpora").join(corpus_id);
+    let url_prefix = format!("corpora/{corpus_id}");
     let items_path = corpus_dir.join("items.json");
+    let items = rows.iter().map(|row| row.item.clone()).collect::<Vec<_>>();
     write_json_file(&items_path, &items)?;
     let items_sha256 = sha256_hex_file(&items_path)?;
-    let shards = write_vector_shards(
-        corpus_dir,
-        url_prefix,
-        values,
+    let items_url = format!("{url_prefix}/items.json");
+    let mut partial_shards = native_partial_shards_by_row_start(checkpoint, corpus_id);
+    let initial_corpus = native_partial_corpus_from_shards(
+        corpus_id,
+        fingerprint,
+        rows.len(),
         dimensions,
-        NonZeroUsize::new(DEFAULT_VECTOR_SHARD_TARGET_BYTES).expect("shard size is nonzero"),
-    )?;
+        &items_url,
+        &items_sha256,
+        &partial_shards,
+    );
+    upsert_native_partial_corpus(checkpoint, initial_corpus);
+    write_native_partial_checkpoint(checkpoint_path, checkpoint)?;
+
+    let mut shards = Vec::new();
+    for (chunk_index, chunk_rows) in rows.chunks(NATIVE_VECTOR_CHUNK_ROWS).enumerate() {
+        let row_start = chunk_index * NATIVE_VECTOR_CHUNK_ROWS;
+        let row_count = chunk_rows.len();
+        if let Some(partial_shard) = partial_shards.get(&row_start)
+            && partial_shard.row_count == row_count
+        {
+            let _ = read_native_partial_vector_shard(pack_dir, partial_shard, dimensions)?;
+            shards.push(vector_shard_from_native_partial(partial_shard));
+            *completed_rows = completed_rows.saturating_add(row_count as u64);
+            emit_indexing_progress(progress_label, *completed_rows, total_rows, progress);
+            continue;
+        }
+
+        let mut values = Vec::with_capacity(row_count * dimensions);
+        for row in chunk_rows {
+            if let Some(reusable) =
+                reusable_rows.and_then(|rows| rows.row(&row.input_hash, dimensions))
+            {
+                values.extend_from_slice(reusable);
+            } else {
+                let mut embedding = backend.embed(&row.input)?.values;
+                if embedding.len() != dimensions {
+                    return Err(EmbeddingError::DimensionMismatch {
+                        expected: dimensions,
+                        actual: embedding.len(),
+                    });
+                }
+                normalize_vector(&mut embedding);
+                values.extend_from_slice(&embedding);
+            }
+            *completed_rows = completed_rows.saturating_add(1);
+            emit_indexing_progress(progress_label, *completed_rows, total_rows, progress);
+        }
+        let file_name = native_vector_chunk_file_name(chunk_index);
+        let shard = write_vector_chunk_file(
+            &corpus_dir,
+            &url_prefix,
+            &file_name,
+            values.as_slice(),
+            dimensions,
+        )?;
+        let partial_shard = native_partial_shard_from_vector_shard(&shard, row_start, row_count);
+        partial_shards.insert(row_start, partial_shard);
+        shards.push(shard);
+        let partial_corpus = native_partial_corpus_from_shards(
+            corpus_id,
+            fingerprint,
+            rows.len(),
+            dimensions,
+            &items_url,
+            &items_sha256,
+            &partial_shards,
+        );
+        upsert_native_partial_corpus(checkpoint, partial_corpus);
+        write_native_partial_checkpoint(checkpoint_path, checkpoint)?;
+    }
     Ok(CorpusManifest {
         corpus_id: corpus_id.to_owned(),
         input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
         fingerprint: fingerprint.to_owned(),
-        row_count: items.len(),
+        row_count: rows.len(),
         dimensions,
-        items_url: format!("{}/items.json", url_prefix.trim_end_matches('/')),
+        items_url,
         items_sha256,
         shards,
     })
@@ -1952,6 +2588,28 @@ mod tests {
         calls: usize,
     }
 
+    #[derive(Debug)]
+    #[invariant(true)]
+    struct FailingBackend {
+        dimensions: usize,
+        calls: usize,
+        fail_after: usize,
+    }
+
+    #[requires(dimensions > 0)]
+    #[requires(!input.is_empty())]
+    #[ensures(ret.len() == dimensions)]
+    fn fake_embedding_values(input: &str, dimensions: usize) -> Vec<f32> {
+        let mut values = (0..dimensions)
+            .map(|index| {
+                let byte = input.as_bytes()[index % input.len()];
+                f32::from(byte) + index as f32
+            })
+            .collect::<Vec<_>>();
+        normalize_vector(&mut values);
+        values
+    }
+
     #[contract_trait]
     impl EmbeddingBackend for FakeBackend {
         #[requires(true)]
@@ -1964,15 +2622,67 @@ mod tests {
         #[ensures(ret.as_ref().is_ok_and(|embedding| embedding.values.len() == self.dimensions) || ret.is_err())]
         fn embed(&mut self, input: &str) -> Result<QueryEmbedding, EmbeddingError> {
             self.calls += 1;
-            let mut values = (0..self.dimensions)
-                .map(|index| {
-                    let byte = input.as_bytes()[index % input.len()];
-                    f32::from(byte) + index as f32
-                })
-                .collect::<Vec<_>>();
-            normalize_vector(&mut values);
+            let values = fake_embedding_values(input, self.dimensions);
             Ok(QueryEmbedding { values })
         }
+    }
+
+    #[contract_trait]
+    impl EmbeddingBackend for FailingBackend {
+        #[requires(true)]
+        #[ensures(ret.as_ref().is_ok_and(|dimensions| *dimensions > 0) || ret.is_err())]
+        fn dimensions(&self) -> Result<usize, EmbeddingError> {
+            Ok(self.dimensions)
+        }
+
+        #[requires(!input.is_empty())]
+        #[ensures(ret.as_ref().is_ok_and(|embedding| embedding.values.len() == self.dimensions) || ret.is_err())]
+        fn embed(&mut self, input: &str) -> Result<QueryEmbedding, EmbeddingError> {
+            if self.calls >= self.fail_after {
+                return Err(EmbeddingError::Backend {
+                    message: format!("intentional embedding failure after {}", self.fail_after),
+                });
+            }
+            self.calls += 1;
+            let values = fake_embedding_values(input, self.dimensions);
+            Ok(QueryEmbedding { values })
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.dimensions == 4)]
+    fn test_embedding_spec() -> EmbeddingModelSpec {
+        EmbeddingModelSpec {
+            dimensions: 4,
+            ..EmbeddingModelSpec::default_f2llm()
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|path| !path.as_os_str().is_empty()) || ret.is_err())]
+    fn test_work_root(
+        index_root: &Path,
+        spec: &EmbeddingModelSpec,
+        dictionary: &Dictionary<'_>,
+        cll_chunks: &[CllSearchChunk],
+    ) -> Result<PathBuf, EmbeddingError> {
+        let pack_id = deterministic_pack_id(
+            DEFAULT_INPUT_FORMAT_VERSION,
+            &spec.model_revision,
+            &dictionary_fingerprint(dictionary),
+            &cll_fingerprint(cll_chunks),
+        );
+        Ok(pack_root(index_root, &spec.model_key, &pack_id).with_extension("tmp"))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn first_positive_index_progress(progress: &[SetupProgress]) -> Option<u64> {
+        progress
+            .iter()
+            .filter(|progress| progress.phase == SetupProgressPhase::Indexing)
+            .filter_map(|progress| progress.loaded)
+            .find(|loaded| *loaded > 0)
     }
 
     #[test]
@@ -2346,6 +3056,205 @@ mod tests {
                 && progress.loaded == Some(total_rows as u64)
                 && progress.total == Some(total_rows as u64)
         }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_setup_resumes_completed_dictionary_chunks_after_failure() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dictionary = jbotci_dictionary_data::english();
+        let cll_site = jbotci_cll::embedded_cll_site().expect("embedded CLL");
+        let cll_chunks = &cll_site.search_chunks[..3];
+        let spec = test_embedding_spec();
+        let fail_after = NATIVE_VECTOR_CHUNK_ROWS + 17;
+        let mut failing = FailingBackend {
+            dimensions: 4,
+            calls: 0,
+            fail_after,
+        };
+        let mut failed_progress = Vec::new();
+        {
+            let mut progress = |progress| failed_progress.push(progress);
+            let error = build_embedding_pack_with_progress(
+                &mut failing,
+                dictionary,
+                cll_chunks,
+                dir.path(),
+                &spec,
+                false,
+                &mut progress,
+            )
+            .expect_err("interrupted build");
+            assert!(matches!(error, EmbeddingError::Backend { .. }));
+        }
+        assert_eq!(failing.calls, fail_after);
+        let work_root =
+            test_work_root(dir.path(), &spec, dictionary, cll_chunks).expect("work root");
+        assert!(
+            native_partial_checkpoint_path(&work_root).is_file(),
+            "interrupted build should leave a checkpoint"
+        );
+
+        let total_rows = dictionary.entries().len() + cll_chunks.len();
+        let mut retry = FakeBackend {
+            dimensions: 4,
+            calls: 0,
+        };
+        let mut retry_progress = Vec::new();
+        {
+            let mut progress = |progress| retry_progress.push(progress);
+            build_embedding_pack_with_progress(
+                &mut retry,
+                dictionary,
+                cll_chunks,
+                dir.path(),
+                &spec,
+                false,
+                &mut progress,
+            )
+            .expect("resumed build");
+        }
+        assert_eq!(retry.calls, total_rows - NATIVE_VECTOR_CHUNK_ROWS);
+        assert_eq!(
+            first_positive_index_progress(&retry_progress),
+            Some(NATIVE_VECTOR_CHUNK_ROWS as u64)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_setup_resumes_dictionary_and_cll_chunks_after_failure() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dictionary = jbotci_dictionary_data::english();
+        let cll_site = jbotci_cll::embedded_cll_site().expect("embedded CLL");
+        assert!(cll_site.search_chunks.len() > NATIVE_VECTOR_CHUNK_ROWS + 17);
+        let cll_chunks = &cll_site.search_chunks[..NATIVE_VECTOR_CHUNK_ROWS + 17];
+        let spec = test_embedding_spec();
+        let dictionary_rows = dictionary.entries().len();
+        let fail_after = dictionary_rows + NATIVE_VECTOR_CHUNK_ROWS + 9;
+        let mut failing = FailingBackend {
+            dimensions: 4,
+            calls: 0,
+            fail_after,
+        };
+        {
+            let mut progress = |_| {};
+            let error = build_embedding_pack_with_progress(
+                &mut failing,
+                dictionary,
+                cll_chunks,
+                dir.path(),
+                &spec,
+                false,
+                &mut progress,
+            )
+            .expect_err("interrupted CLL build");
+            assert!(matches!(error, EmbeddingError::Backend { .. }));
+        }
+        assert_eq!(failing.calls, fail_after);
+
+        let total_rows = dictionary_rows + cll_chunks.len();
+        let reusable_rows = dictionary_rows + NATIVE_VECTOR_CHUNK_ROWS;
+        let mut retry = FakeBackend {
+            dimensions: 4,
+            calls: 0,
+        };
+        build_embedding_pack(&mut retry, dictionary, cll_chunks, dir.path(), &spec, false)
+            .expect("resumed CLL build");
+        assert_eq!(retry.calls, total_rows - reusable_rows);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_setup_ignores_incompatible_partial_checkpoint() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dictionary = jbotci_dictionary_data::english();
+        let cll_site = jbotci_cll::embedded_cll_site().expect("embedded CLL");
+        let cll_chunks = &cll_site.search_chunks[..3];
+        let spec = test_embedding_spec();
+        let mut failing = FailingBackend {
+            dimensions: 4,
+            calls: 0,
+            fail_after: NATIVE_VECTOR_CHUNK_ROWS + 1,
+        };
+        {
+            let mut progress = |_| {};
+            build_embedding_pack_with_progress(
+                &mut failing,
+                dictionary,
+                cll_chunks,
+                dir.path(),
+                &spec,
+                false,
+                &mut progress,
+            )
+            .expect_err("interrupted build");
+        }
+        let work_root =
+            test_work_root(dir.path(), &spec, dictionary, cll_chunks).expect("work root");
+        let checkpoint_path = native_partial_checkpoint_path(&work_root);
+        let mut checkpoint: NativePartialBuildCheckpoint =
+            read_json_file(&checkpoint_path).expect("checkpoint");
+        checkpoint.model_revision.push_str("-stale");
+        write_native_partial_checkpoint(&checkpoint_path, &checkpoint).expect("corrupt checkpoint");
+
+        let total_rows = dictionary.entries().len() + cll_chunks.len();
+        let mut retry = FakeBackend {
+            dimensions: 4,
+            calls: 0,
+        };
+        build_embedding_pack(&mut retry, dictionary, cll_chunks, dir.path(), &spec, false)
+            .expect("rebuilt after incompatible checkpoint");
+        assert_eq!(retry.calls, total_rows);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_chunked_pack_vectors_match_direct_row_embeddings() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dictionary = jbotci_dictionary_data::english();
+        let cll_site = jbotci_cll::embedded_cll_site().expect("embedded CLL");
+        let cll_chunks = &cll_site.search_chunks[..NATIVE_VECTOR_CHUNK_ROWS + 3];
+        let spec = test_embedding_spec();
+        let report = build_embedding_pack(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            dictionary,
+            cll_chunks,
+            dir.path(),
+            &spec,
+            false,
+        )
+        .expect("chunked pack");
+
+        let pack_dir = pack_root(dir.path(), &spec.model_key, &report.pack_id);
+        let manifest: EmbeddingPackManifest =
+            read_json_file(&pack_dir.join("manifest.json")).expect("manifest");
+        let dictionary_corpus =
+            manifest_corpus(&manifest, VLACKU_CORPUS_ID).expect("dictionary corpus");
+        let cll_corpus = manifest_corpus(&manifest, CUKTA_CORPUS_ID).expect("CLL corpus");
+
+        let actual_dictionary =
+            read_vector_shards(&pack_dir, dictionary_corpus, spec.dimensions).expect("dictionary");
+        let expected_dictionary = dictionary
+            .entries()
+            .iter()
+            .flat_map(|entry| fake_embedding_values(&dictionary_embedding_input(entry), 4))
+            .collect::<Vec<_>>();
+        assert_eq!(actual_dictionary, expected_dictionary);
+
+        let actual_cll = read_vector_shards(&pack_dir, cll_corpus, spec.dimensions).expect("CLL");
+        let expected_cll = cll_chunks
+            .iter()
+            .flat_map(|chunk| fake_embedding_values(&cll_embedding_input(chunk), 4))
+            .collect::<Vec<_>>();
+        assert_eq!(actual_cll, expected_cll);
     }
 
     #[test]
