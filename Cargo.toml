@@ -24,7 +24,9 @@ members = [
     "crates/jbotci-syntax",
     "crates/jbotci-tree",
     "crates/jbotci-tree-macros",
+    "crates/jbotci-ui",
     "crates/jbotci-web-core",
+    "apps/jbotci-desktop",
     "xtask",
     "xtask-full",
 ]
@@ -53,7 +55,9 @@ default-members = [
     "crates/jbotci-syntax",
     "crates/jbotci-tree",
     "crates/jbotci-tree-macros",
+    "crates/jbotci-ui",
     "crates/jbotci-web-core",
+    "apps/jbotci-desktop",
     "xtask",
 ]
 resolver = "3"
@@ -86,6 +90,7 @@ jbotci-diagnostics.workspace = true
 
 [workspace.dependencies]
 anyhow = "1"
+arboard = "3.6.1"
 base64 = "0.22.1"
 bytemuck = "1"
 chumsky = { version = "0.13", features = ["memoization"] }
@@ -96,6 +101,7 @@ annotate-snippets = "0.12"
 fancy-regex = "0.16"
 futures-channel = "0.3"
 owo-colors = "4"
+openssl = { version = "0.10.80", features = ["vendored"] }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = { version = "1", features = ["preserve_order", "unbounded_depth"] }
 serde_stacker = "0.1"
@@ -106,6 +112,7 @@ proc-macro2 = "1"
 prettyplease = "0.2"
 quote = "1"
 rayon = "1"
+rfd = "0.15.4"
 syn = { version = "2", features = ["full", "extra-traits"] }
 thiserror = "2"
 toml = { version = "0.9", features = ["unbounded"] }
@@ -117,7 +124,7 @@ walkdir = "2"
 axum = "0.8"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "fs", "signal"] }
 tower = "0.5"
-dioxus = "0.7"
+dioxus = { version = "0.7", default-features = false }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
@@ -158,7 +165,11 @@ jbotci-source = { path = "crates/jbotci-source" }
 jbotci-syntax = { path = "crates/jbotci-syntax" }
 jbotci-tree = { path = "crates/jbotci-tree" }
 jbotci-tree-macros = { path = "crates/jbotci-tree-macros" }
+jbotci-ui = { path = "crates/jbotci-ui" }
 jbotci-web-core = { path = "crates/jbotci-web-core" }
+
+[patch.crates-io]
+llama-cpp-sys-4 = { path = "crates/vendor/llama-cpp-sys-4" }
 
 [dev-dependencies]
 bityzba.workspace = true
@@ -178,6 +189,9 @@ walkdir.workspace = true
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }
+
+[profile.desktop-dev]
+inherits = "dev"
 
 [lints]
 workspace = true

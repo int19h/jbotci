@@ -8,13 +8,14 @@ use jbotci_search::vlacku::{grouped_word_type_filter_key, normalize_word_type_fi
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-pub const DEFAULT_MODEL_KEY: &str = "embedding-gemma-300m-q4-768";
-pub const DEFAULT_MODEL_REVISION: &str = "8dd0ca2a66a8f14470acb0e2a71f801afbc5fb73";
-pub const DEFAULT_MODEL_DIMENSIONS: usize = 768;
-pub const DEFAULT_INPUT_FORMAT_VERSION: &str = "egemma-v0-parity-2";
+pub const DEFAULT_MODEL_KEY: &str = "f2llm-v2-330m-q4-k-m-896";
+pub const DEFAULT_MODEL_REVISION: &str = "e76f54804b54782f5bed93c09f63201e38a1a99b";
+pub const DEFAULT_MODEL_DIMENSIONS: usize = 896;
+pub const DEFAULT_INPUT_FORMAT_VERSION: &str = "f2llm-v2-330m-q4-k-m-v0";
 pub const VLACKU_CORPUS_ID: &str = "vlacku-en";
 pub const CUKTA_CORPUS_ID: &str = "cukta-cll";
-pub const RETRIEVAL_QUERY_PREFIX: &str = "task: search result | query: ";
+pub const RETRIEVAL_QUERY_PREFIX: &str =
+    "Instruct: Given a question, retrieve passages that can help answer the question.\nQuery: ";
 pub const RETRIEVAL_DOCUMENT_PREFIX: &str = "title: {title} | text: {text}";
 
 const PLACE_PLACEHOLDER: char = '\u{2423}';
@@ -353,10 +354,10 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn retrieval_prefixes_match_v0() {
+    fn retrieval_prefixes_match_f2llm() {
         assert_eq!(
             build_retrieval_query_input("klama"),
-            "task: search result | query: klama"
+            "Instruct: Given a question, retrieve passages that can help answer the question.\nQuery: klama"
         );
         assert_eq!(
             build_retrieval_document_input("goer", "klama"),
@@ -469,7 +470,7 @@ mod tests {
         assert_eq!(corpus.model_key, DEFAULT_MODEL_KEY);
         assert_eq!(
             corpus.input_hash,
-            "87e2f6f75a310b77f4ade8e0923b60ec126b40969530ca159db0c450cc0f8685"
+            "f6bcb6c55027144dec1f9c53fc337745b431ed08d062e64782be2bb7abfe1839"
         );
         assert_eq!(
             corpus.dictionary_hash,

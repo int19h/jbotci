@@ -1,4 +1,4 @@
-//! EmbeddingGemma model and vector-pack support.
+//! Native and web embedding model, vector-pack, and semantic search support.
 
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -41,12 +41,12 @@ pub const INDEX_BASE_VERSION: &str = "v1";
 pub const DEFAULT_VECTOR_SHARD_TARGET_BYTES: usize = 8 * 1024 * 1024;
 
 const DEFAULT_HF_ENDPOINT: &str = "https://huggingface.co";
-const DEFAULT_GGUF_REPO: &str = "ggml-org/embeddinggemma-300M-qat-q4_0-GGUF";
-const DEFAULT_GGUF_FILE: &str = "embeddinggemma-300M-qat-Q4_0.gguf";
-const DEFAULT_GGUF_SIZE: u64 = 277_852_192;
+const DEFAULT_GGUF_REPO: &str = "mradermacher/F2LLM-v2-330M-GGUF";
+const DEFAULT_GGUF_FILE: &str = "F2LLM-v2-330M.Q4_K_M.gguf";
+const DEFAULT_GGUF_SIZE: u64 = 286_198_400;
 const DEFAULT_GGUF_SHA256: &str =
-    "50d28e22432a148f6f8a86eab3700f92add5d1f54baf7790675a2a4dadbccf26";
-const DEFAULT_WEB_MODEL: &str = "onnx-community/embeddinggemma-300m-ONNX";
+    "7f3c03769de1436ad1f9014cb2872d2f7b5d8aa5f2322796c5070867c84dc254";
+const DEFAULT_WEB_MODEL: &str = "codefuse-ai/F2LLM-v2-330M";
 const DEFAULT_WEB_DTYPE: &str = "q4";
 const LLAMA_CPP_4_RUNTIME_VERSION: &str = "0.3.0";
 
@@ -119,7 +119,7 @@ pub struct EmbeddingModelSpec {
 impl EmbeddingModelSpec {
     #[requires(true)]
     #[ensures(ret.model_key == DEFAULT_MODEL_KEY)]
-    pub fn default_embedding_gemma() -> Self {
+    pub fn default_f2llm() -> Self {
         Self {
             model_key: DEFAULT_MODEL_KEY.to_owned(),
             model_revision: DEFAULT_MODEL_REVISION.to_owned(),
@@ -137,7 +137,7 @@ impl EmbeddingModelSpec {
 #[requires(true)]
 #[ensures(ret.as_ref().is_some_and(|spec| spec.model_key == model_key) || ret.is_none())]
 pub fn model_spec(model_key: &str) -> Option<EmbeddingModelSpec> {
-    (model_key == DEFAULT_MODEL_KEY).then(EmbeddingModelSpec::default_embedding_gemma)
+    (model_key == DEFAULT_MODEL_KEY).then(EmbeddingModelSpec::default_f2llm)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1613,10 +1613,10 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn retrieval_prefixes_match_v0() {
+    fn retrieval_prefixes_match_f2llm() {
         assert_eq!(
             build_retrieval_query_input("klama"),
-            "task: search result | query: klama"
+            "Instruct: Given a question, retrieve passages that can help answer the question.\nQuery: klama"
         );
         assert_eq!(
             build_retrieval_document_input("goer", "klama"),
@@ -1784,7 +1784,7 @@ mod tests {
         };
         let spec = EmbeddingModelSpec {
             dimensions: 4,
-            ..EmbeddingModelSpec::default_embedding_gemma()
+            ..EmbeddingModelSpec::default_f2llm()
         };
         let report =
             build_embedding_pack(&mut backend, entries, cll_chunks, dir.path(), &spec, false)
@@ -1816,7 +1816,7 @@ mod tests {
         let cll_chunks = &cll_site.search_chunks[..3];
         let spec = EmbeddingModelSpec {
             dimensions: 4,
-            ..EmbeddingModelSpec::default_embedding_gemma()
+            ..EmbeddingModelSpec::default_f2llm()
         };
         let mut first = FakeBackend {
             dimensions: 4,
@@ -1852,7 +1852,7 @@ mod tests {
         );
         let spec = EmbeddingModelSpec {
             dimensions: 4,
-            ..EmbeddingModelSpec::default_embedding_gemma()
+            ..EmbeddingModelSpec::default_f2llm()
         };
         build_embedding_pack(
             &mut FakeBackend {
@@ -1937,7 +1937,7 @@ mod tests {
         let spec = EmbeddingModelSpec {
             dimensions: 4,
             model_revision: "cache-reuse-test-revision".to_owned(),
-            ..EmbeddingModelSpec::default_embedding_gemma()
+            ..EmbeddingModelSpec::default_f2llm()
         };
         build_embedding_pack(
             &mut FakeBackend {

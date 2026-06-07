@@ -1,4 +1,4 @@
-//! Native EmbeddingGemma backend built on llama-cpp-4.
+//! Native llama.cpp embedding backend.
 
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
@@ -16,7 +16,7 @@ use llama_cpp_4::model::{AddBos, LlamaModel};
 use crate::{
     EmbeddingBackend, EmbeddingError, EmbeddingModelSpec, QueryEmbedding, SetupOptions,
     SetupReport, build_embedding_pack, default_index_root, default_model_root, ensure_model_file,
-    model_file_path, model_spec, normalize_vector,
+    model_file_path, model_spec, normalize_vector, semantic_cukta_output, semantic_vlacku_hits,
 };
 
 const N_BATCH: u32 = 2048;
@@ -26,16 +26,18 @@ const N_PARALLEL: usize = 32;
 
 static BACKEND: OnceLock<Result<LlamaBackend, String>> = OnceLock::new();
 
+pub type NativeGemmaEmbeddingBackend = NativeLlamaEmbeddingBackend;
+
 #[derive(Debug)]
 #[invariant(true)]
-pub struct NativeGemmaEmbeddingBackend {
+pub struct NativeLlamaEmbeddingBackend {
     model: &'static LlamaModel,
     context: LlamaContext<'static>,
     dimensions: usize,
     max_tokens_per_call: usize,
 }
 
-impl NativeGemmaEmbeddingBackend {
+impl NativeLlamaEmbeddingBackend {
     #[requires(path.is_file())]
     #[ensures(ret.as_ref().is_ok_and(|backend| backend.dimensions == spec.dimensions) || ret.is_err())]
     pub fn load(spec: &EmbeddingModelSpec, path: &Path) -> Result<Self, EmbeddingError> {
@@ -145,7 +147,7 @@ impl NativeGemmaEmbeddingBackend {
 }
 
 #[contract_trait]
-impl EmbeddingBackend for NativeGemmaEmbeddingBackend {
+impl EmbeddingBackend for NativeLlamaEmbeddingBackend {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|dimensions| *dimensions == self.dimensions) || ret.is_err())]
     fn dimensions(&self) -> Result<usize, EmbeddingError> {
@@ -212,7 +214,7 @@ pub fn setup_embeddings(options: &SetupOptions) -> Result<SetupReport, Embedding
         .unwrap_or_else(default_index_root)?;
     let model_path = model_file_path(&model_root, &spec);
     ensure_model_file(&spec, &model_path, options.force)?;
-    let mut backend = NativeGemmaEmbeddingBackend::load(&spec, &model_path)?;
+    let mut backend = NativeLlamaEmbeddingBackend::load(&spec, &model_path)?;
     let dictionary = jbotci_dictionary_data::english();
     let cll_site =
         jbotci_cll::embedded_cll_site().map_err(|error| EmbeddingError::InvalidIndex {
@@ -235,7 +237,7 @@ pub fn setup_embeddings(options: &SetupOptions) -> Result<SetupReport, Embedding
 pub fn load_backend_for_search(
     model_key: &str,
     model_dir: Option<PathBuf>,
-) -> Result<NativeGemmaEmbeddingBackend, EmbeddingError> {
+) -> Result<NativeLlamaEmbeddingBackend, EmbeddingError> {
     let spec = model_spec(model_key).ok_or_else(|| EmbeddingError::UnsupportedModel {
         model_key: model_key.to_owned(),
     })?;
@@ -249,7 +251,83 @@ pub fn load_backend_for_search(
             ),
         });
     }
-    NativeGemmaEmbeddingBackend::load(&spec, &model_path)
+    NativeLlamaEmbeddingBackend::load(&spec, &model_path)
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+pub struct NativeEmbeddingSearchService {
+    model_key: String,
+    index_root: PathBuf,
+    backend: NativeLlamaEmbeddingBackend,
+}
+
+impl NativeEmbeddingSearchService {
+    #[requires(!model_key.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|service| service.model_key == model_key) || ret.is_err())]
+    pub fn load(
+        model_key: &str,
+        model_dir: Option<PathBuf>,
+        index_dir: Option<PathBuf>,
+    ) -> Result<Self, EmbeddingError> {
+        let index_root = index_dir.map(Ok).unwrap_or_else(default_index_root)?;
+        let backend = load_backend_for_search(model_key, model_dir)?;
+        Ok(Self {
+            model_key: model_key.to_owned(),
+            index_root,
+            backend,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn model_key(&self) -> &str {
+        &self.model_key
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.index_root)]
+    pub fn index_root(&self) -> &Path {
+        &self.index_root
+    }
+
+    #[requires(!query.trim().is_empty())]
+    #[requires(count > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count) || ret.is_err())]
+    pub fn semantic_vlacku_hits(
+        &mut self,
+        query: &str,
+        count: usize,
+    ) -> Result<Vec<crate::DictionarySemanticHit>, EmbeddingError> {
+        semantic_vlacku_hits(
+            &mut self.backend,
+            query,
+            count,
+            &self.index_root,
+            &self.model_key,
+        )
+    }
+
+    #[requires(!query.trim().is_empty())]
+    #[requires(count > 0)]
+    #[ensures(ret.as_ref().is_ok() || ret.is_err())]
+    pub fn semantic_cukta_output(
+        &mut self,
+        chunks: &[jbotci_cll::CllSearchChunk],
+        query: &str,
+        count: usize,
+        targets: jbotci_cll::CuktaTargetFilter,
+    ) -> Result<jbotci_cll::CuktaSearchOutput, EmbeddingError> {
+        semantic_cukta_output(
+            &mut self.backend,
+            chunks,
+            query,
+            count,
+            targets,
+            &self.index_root,
+            &self.model_key,
+        )
+    }
 }
 
 #[requires(true)]

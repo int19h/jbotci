@@ -15,6 +15,8 @@ use walkdir::WalkDir;
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
 const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-web/release/web";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
+const DIOXUS_DESKTOP_DEV_PROFILE: &str = "desktop-dev";
+const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
 static WEB_ASSET_COPY_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -31,6 +33,8 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 #[invariant(true)]
 #[invariant(::Fmt => true)]
+#[invariant(::DesktopBuild => true)]
+#[invariant(::DesktopServe => true)]
 #[invariant(::DistServer(..) => true)]
 #[invariant(::RenderDockerBuild(..) => true)]
 #[invariant(::RenderDockerRun(..) => true)]
@@ -42,6 +46,8 @@ enum Command {
         #[arg(long)]
         check: bool,
     },
+    DesktopBuild,
+    DesktopServe,
     DistServer(DistServerArgs),
     RenderDockerBuild(RenderDockerBuildArgs),
     RenderDockerRun(RenderDockerRunArgs),
@@ -159,9 +165,16 @@ fn main() -> Result<()> {
 #[ensures(true)]
 fn should_run_light_command(args: &[OsString]) -> bool {
     match first_subcommand(args) {
-        Some("check" | "test" | "clippy" | "fmt" | "render-docker-build" | "render-docker-run") => {
-            true
-        }
+        Some(
+            "check"
+            | "test"
+            | "clippy"
+            | "fmt"
+            | "desktop-build"
+            | "desktop-serve"
+            | "render-docker-build"
+            | "render-docker-run",
+        ) => true,
         Some("dist-server") => dist_server_args_request_light_path(args),
         _ => false,
     }
@@ -231,10 +244,48 @@ fn run_light_command(args: Vec<OsString>) -> Result<()> {
                 cargo(&["fmt", "--all"])
             }
         }
+        Command::DesktopBuild => dx_desktop_build(),
+        Command::DesktopServe => dx_desktop_serve(),
         Command::DistServer(args) => dist_server(args),
         Command::RenderDockerBuild(args) => render_docker_build(args),
         Command::RenderDockerRun(args) => render_docker_run(args),
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn dx_desktop_build() -> Result<()> {
+    let status = ProcessCommand::new("dx")
+        .arg("build")
+        .arg("--desktop")
+        .arg("-p")
+        .arg("jbotci-desktop")
+        .arg("--profile")
+        .arg(DIOXUS_DESKTOP_DEV_PROFILE)
+        .status()
+        .context("failed to run `dx build --desktop -p jbotci-desktop --profile desktop-dev`")?;
+    check_status(
+        status,
+        "dx build --desktop -p jbotci-desktop --profile desktop-dev",
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn dx_desktop_serve() -> Result<()> {
+    let status = ProcessCommand::new("dx")
+        .arg("serve")
+        .arg("--desktop")
+        .arg("-p")
+        .arg("jbotci-desktop")
+        .arg("--profile")
+        .arg(DIOXUS_DESKTOP_DEV_PROFILE)
+        .status()
+        .context("failed to run `dx serve --desktop -p jbotci-desktop --profile desktop-dev`")?;
+    check_status(
+        status,
+        "dx serve --desktop -p jbotci-desktop --profile desktop-dev",
+    )
 }
 
 #[requires(!args.is_empty())]
@@ -410,7 +461,7 @@ fn copy_stable_web_assets_to_public(public_dir: &Path) -> Result<()> {
     copy_stable_web_asset_file(
         public_dir,
         Path::new("manifest.webmanifest"),
-        Path::new("manifest.webmanifest"),
+        Path::new("assets/manifest.webmanifest"),
     )?;
     copy_stable_web_asset_dir(public_dir, Path::new("icons"), Path::new("assets/icons"))?;
     copy_stable_web_asset_dir(
@@ -427,7 +478,7 @@ fn copy_stable_web_asset_file(
     source_relative: &Path,
     target_relative: &Path,
 ) -> Result<()> {
-    let source = Path::new("apps/jbotci-web/assets").join(source_relative);
+    let source = Path::new(SHARED_UI_ASSET_DIR).join(source_relative);
     let target = public_dir.join(target_relative);
     copy_web_asset_file_atomically(&source, &target, "stable web asset")
 }
@@ -439,7 +490,7 @@ fn copy_stable_web_asset_dir(
     source_relative: &Path,
     target_relative: &Path,
 ) -> Result<()> {
-    let source_dir = Path::new("apps/jbotci-web/assets").join(source_relative);
+    let source_dir = Path::new(SHARED_UI_ASSET_DIR).join(source_relative);
     let target_dir = public_dir.join(target_relative);
     copy_flat_web_asset_dir(&source_dir, &target_dir, "stable web asset")
 }

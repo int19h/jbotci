@@ -69,22 +69,22 @@ impl EmbeddedGentufaFonts {
     pub fn get() -> GentufaFontData<'static> {
         GentufaFontData {
             noto_sans: include_bytes!(
-                "../../../apps/jbotci-web/assets/fonts/noto-sans-variable.ttf"
+                "../../../crates/jbotci-ui/assets/fonts/noto-sans-variable.ttf"
             ),
             noto_sans_italic: include_bytes!(
-                "../../../apps/jbotci-web/assets/fonts/noto-sans-italic-variable.ttf"
+                "../../../crates/jbotci-ui/assets/fonts/noto-sans-italic-variable.ttf"
             ),
             stix_two_math: include_bytes!(
-                "../../../apps/jbotci-web/assets/fonts/stix-two-math-regular.ttf"
+                "../../../crates/jbotci-ui/assets/fonts/stix-two-math-regular.ttf"
             ),
             stix_two_text: include_bytes!(
-                "../../../apps/jbotci-web/assets/fonts/stix-two-text-regular.ttf"
+                "../../../crates/jbotci-ui/assets/fonts/stix-two-text-regular.ttf"
             ),
             stix_two_text_bold: include_bytes!(
-                "../../../apps/jbotci-web/assets/fonts/stix-two-text-bold.ttf"
+                "../../../crates/jbotci-ui/assets/fonts/stix-two-text-bold.ttf"
             ),
             crisa: Some(include_bytes!(
-                "../../../apps/jbotci-web/assets/fonts/crisa-regular.otf"
+                "../../../crates/jbotci-ui/assets/fonts/crisa-regular.otf"
             )),
         }
     }

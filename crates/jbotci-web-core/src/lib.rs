@@ -1382,7 +1382,7 @@ pub struct PageHead {
 
 pub const FAVICON_ASSET_PATH: &str = "/assets/icons/jbotci-icon-192.png";
 pub const APPLE_TOUCH_ICON_ASSET_PATH: &str = "/assets/icons/apple-touch-icon.png";
-pub const MANIFEST_ASSET_PATH: &str = "/manifest.webmanifest";
+pub const MANIFEST_ASSET_PATH: &str = "/assets/manifest.webmanifest";
 pub const META_BLOCK_START: &str = "<!-- jbotci-meta-start -->";
 pub const META_BLOCK_END: &str = "<!-- jbotci-meta-end -->";
 
@@ -6615,7 +6615,7 @@ mod tests {
 
         assert_eq!(head.title, "klama - jbotci vlacku");
         assert_eq!(head.canonical_url, "/jbotci/vlacku/klama");
-        assert_eq!(head.manifest_href, "/jbotci/manifest.webmanifest");
+        assert_eq!(head.manifest_href, "/jbotci/assets/manifest.webmanifest");
         assert_eq!(head.icon_href, "/jbotci/assets/icons/jbotci-icon-192.png");
         assert_eq!(
             head.apple_touch_icon_href,

@@ -17,50 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 bityzba.workspace = true
-dioxus = { workspace = true, features = ["web", "router"] }
-fancy-regex.workspace = true
-jbotci-cll.workspace = true
-jbotci-dialect.workspace = true
-jbotci-diagnostics.workspace = true
-jbotci-gentufa.workspace = true
-jbotci-output.workspace = true
-jbotci-web-core.workspace = true
-js-sys.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-sha2.workspace = true
-unicode-normalization.workspace = true
-wasm-bindgen.workspace = true
-wasm-bindgen-futures.workspace = true
-web-sys = { workspace = true, features = [
-    "Blob",
-    "BlobPropertyBag",
-    "CssStyleDeclaration",
-    "Document",
-    "DomRect",
-    "DragEvent",
-    "Event",
-    "EventTarget",
-    "Element",
-    "History",
-    "HtmlElement",
-    "HtmlAnchorElement",
-    "HtmlInputElement",
-    "HtmlTextAreaElement",
-    "Location",
-    "MouseEvent",
-    "Node",
-    "NodeList",
-    "Response",
-    "Storage",
-    "Url",
-    "Window",
-] }
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-bytemuck.workspace = true
-futures-channel.workspace = true
-wgpu.workspace = true
+jbotci-ui = { workspace = true, features = ["web"] }
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }

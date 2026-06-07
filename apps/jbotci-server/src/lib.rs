@@ -739,8 +739,8 @@ mod tests {
             Some("/assets/app.js")
         );
         assert_eq!(
-            asset_path_for_request("/jbotci/manifest.webmanifest", "/jbotci").as_deref(),
-            Some("/manifest.webmanifest")
+            asset_path_for_request("/jbotci/assets/manifest.webmanifest", "/jbotci").as_deref(),
+            Some("/assets/manifest.webmanifest")
         );
         assert_eq!(
             asset_path_for_request("/jbotci/service-worker.js", "/jbotci").as_deref(),
@@ -760,7 +760,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn pwa_root_assets_are_not_cached_as_immutable() {
-        assert_eq!(cache_control_for_path("/manifest.webmanifest"), "no-cache");
+        assert_eq!(
+            cache_control_for_path("/assets/manifest.webmanifest"),
+            "no-cache"
+        );
         assert_eq!(cache_control_for_path("/service-worker.js"), "no-cache");
         assert_eq!(
             cache_control_for_path("/assets/icons/jbotci-icon-192.png"),
@@ -1119,7 +1122,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     async fn root_favicon_serves_v0_png_icon() {
-        let static_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../jbotci-web");
+        let static_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../crates/jbotci-ui");
         let app = router(test_config(static_dir));
         let response = app
             .oneshot(
@@ -1231,7 +1234,9 @@ mod tests {
 
         assert!(body.contains("<title>mi klama - jbotci gentufa</title>"));
         assert!(body.contains("name=\"description\""));
-        assert!(body.contains("<link rel=\"manifest\" href=\"/jbotci/manifest.webmanifest\">"));
+        assert!(
+            body.contains("<link rel=\"manifest\" href=\"/jbotci/assets/manifest.webmanifest\">")
+        );
         assert!(body.contains(
             "<link rel=\"apple-touch-icon\" href=\"/jbotci/assets/icons/apple-touch-icon.png\">"
         ));
