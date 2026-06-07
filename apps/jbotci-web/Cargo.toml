@@ -10,15 +10,17 @@ repository.workspace = true
 
 [features]
 expensive_contracts = []
+web = ["dioxus/web", "jbotci-ui/web"]
 
 [[bin]]
 name = "jbotci-web"
 path = "src/main.rs"
+required-features = ["web"]
 
 [dependencies]
 bityzba.workspace = true
-dioxus = { workspace = true, default-features = false, features = ["web"] }
-jbotci-ui = { workspace = true, features = ["web"] }
+dioxus = { workspace = true, default-features = false }
+jbotci-ui.workspace = true
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }
