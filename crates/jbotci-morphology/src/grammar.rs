@@ -281,12 +281,7 @@ impl<'a> Segmenter<'a> {
             });
             return self.zoi_quote(word);
         }
-        if is_simple_cmavo_text(&word, "zo'oi")
-            || is_simple_cmavo_text(&word, "la'oi")
-            || is_simple_cmavo_text(&word, "ra'oi")
-            || is_simple_cmavo_text(&word, "me'oi")
-            || is_simple_cmavo_text(&word, "go'oi")
-        {
+        if is_single_word_quote_marker_text(&word) {
             self.trace_step(
                 TraceLevel::Detailed,
                 "single-word quote",
@@ -368,12 +363,7 @@ impl<'a> Segmenter<'a> {
             });
             return self.zoi_quote(word);
         }
-        if is_simple_cmavo_text(&word, "zo'oi")
-            || is_simple_cmavo_text(&word, "la'oi")
-            || is_simple_cmavo_text(&word, "ra'oi")
-            || is_simple_cmavo_text(&word, "me'oi")
-            || is_simple_cmavo_text(&word, "go'oi")
-        {
+        if is_single_word_quote_marker_text(&word) {
             self.trace_step(
                 TraceLevel::Detailed,
                 "single-word quote",
@@ -1003,12 +993,7 @@ impl<'a> Segmenter<'a> {
         {
             return self.zoi_quote(word);
         }
-        if is_simple_cmavo_text(&word, "zo'oi")
-            || is_simple_cmavo_text(&word, "la'oi")
-            || is_simple_cmavo_text(&word, "ra'oi")
-            || is_simple_cmavo_text(&word, "me'oi")
-            || is_simple_cmavo_text(&word, "go'oi")
-        {
+        if is_single_word_quote_marker_text(&word) {
             return self.single_word_quote(word);
         }
         if is_simple_cmavo_text(&word, "zo") || is_simple_cmavo_text(&word, "ma'oi") {
@@ -1927,6 +1912,24 @@ fn is_simple_cmavo_text(word: &WordLike, text: &str) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+fn is_single_word_quote_marker_text(word: &WordLike) -> bool {
+    word.cmavo().is_some_and(|cmavo| {
+        matches!(
+            cmavo,
+            Cmavo::Zohoi
+                | Cmavo::Lahoi
+                | Cmavo::Rahoi
+                | Cmavo::Mehoi
+                | Cmavo::Gohoi
+                | Cmavo::Zehoi
+                | Cmavo::Tahai
+                | Cmavo::Bohei
+        )
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn is_y_word(word: &WordLike) -> bool {
     bare_word_ref(word).is_some_and(|word| {
         word.kind() == WordKind::Cmavo && is_y_word_text(word.phonemes().as_str())
@@ -2019,7 +2022,9 @@ fn single_word_quote_marker_sa_tag(marker: &Word) -> Option<SAMatchTag<'static>>
         Cmavo::Lahoi => Some(SAMatchTag::Selmaho("LAhOI")),
         Cmavo::Rahoi => Some(SAMatchTag::Selmaho("RAhOI")),
         Cmavo::Mehoi => Some(SAMatchTag::Selmaho("MEhOI")),
-        Cmavo::Gohoi => Some(SAMatchTag::Selmaho("GOhOI")),
+        Cmavo::Gohoi | Cmavo::Zehoi | Cmavo::Tahai | Cmavo::Bohei => {
+            Some(SAMatchTag::Selmaho("GOhOI"))
+        }
         _ => None,
     }
 }

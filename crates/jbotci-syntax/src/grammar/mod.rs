@@ -727,6 +727,24 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn mehoi_quote_warning_is_distinct_from_selbri_unit_warning() {
+        run_on_normal_stack(|| {
+            let parsed = parse_source("mi me'oi broda", &ParseOptions::default());
+
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalMehOiQuote
+            ));
+            assert!(!has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalMehOiSelbriUnit
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn non_lu_quotes_do_not_warn_for_quoted_experimental_cmavo() {
         run_on_normal_stack(|| {
             for source in [
@@ -797,17 +815,13 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gates_zantufa_quote_relation_units() {
+    fn accepts_additive_zantufa_quote_relation_units_by_default() {
         run_on_normal_stack(|| {
             let words =
                 segment_words_with_modifiers("lu'ei mi klama li'au").expect("valid morphology");
 
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let dialect =
-                parse_dialect_definition("(+ZANTUFA-QUOTES)").expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed = parse_syntax_tree(&words, &options).expect("valid zantufa quote syntax");
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default())
+                .expect("valid zantufa quote syntax");
 
             assert!(parsed.warnings.iter().any(|warning| {
                 warning.kind == ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit
@@ -816,9 +830,8 @@ mod tests {
             let words =
                 segment_words_with_modifiers("mi cu mu'oi gy foo gy").expect("valid morphology");
 
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let parsed = parse_syntax_tree(&words, &options).expect("valid zantufa MUhOI syntax");
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default())
+                .expect("valid zantufa MUhOI syntax");
 
             assert!(parsed.warnings.iter().any(|warning| {
                 warning.kind == ExperimentalConstruct::ExperimentalZantufaMuhoiSelbriUnit
@@ -850,17 +863,13 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gates_zantufa_poiha_brigahi_ku() {
+    fn accepts_additive_zantufa_poiha_brigahi_ku_by_default() {
         run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("noi'a klama ku mi cu broda")
                 .expect("valid morphology");
 
-            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
-
-            let dialect = parse_dialect_definition("(+ZANTUFA-ADVERBIALS)")
-                .expect("valid dialect definition");
-            let options = ParseOptions::default().with_dialect_definition(&dialect);
-            let parsed = parse_syntax_tree(&words, &options).expect("valid Zantufa POIhA briga'i");
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default())
+                .expect("valid Zantufa POIhA briga'i");
 
             assert!(parsed.warnings.iter().any(|warning| {
                 warning.kind == ExperimentalConstruct::ExperimentalZantufaPoihaBrigahi
@@ -873,7 +882,7 @@ mod tests {
     #[ensures(true)]
     fn accepts_zantufa_cmavo_table_entries_with_warning() {
         run_on_normal_stack(|| {
-            let words = segment_words_with_modifiers("mi bo'ei do").expect("valid morphology");
+            let words = segment_words_with_modifiers("mi cu xe'u").expect("valid morphology");
 
             let parsed = parse_syntax_tree(&words, &ParseOptions::default())
                 .expect("valid Zantufa cmavo syntax");
@@ -881,6 +890,92 @@ mod tests {
             assert!(parsed.warnings.iter().any(|warning| {
                 warning.kind == ExperimentalConstruct::ExperimentalZantufaCmavo
             }));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_zantufa_1_17_gohoi_markers_as_word_quotes() {
+        run_on_normal_stack(|| {
+            for marker in ["go'oi", "ze'oi", "ta'ai", "bo'ei"] {
+                let source = format!("mi cu {marker} coi");
+                let words = segment_words_with_modifiers(&source).expect("valid morphology");
+                let parsed = parse_syntax_tree(&words, &ParseOptions::default())
+                    .expect("valid GOhOI word quote selbri");
+                let debug_tree = format!("{:?}", parsed.parse_tree);
+
+                assert!(debug_tree.contains("QuotedBridiSelbri"));
+                assert!(parsed.warnings.iter().any(|warning| {
+                    warning.kind == ExperimentalConstruct::ExperimentalGohoiSelbriUnit
+                }));
+                assert!(!parsed.warnings.iter().any(|warning| {
+                    warning.kind == ExperimentalConstruct::ExperimentalZantufaCmavo
+                }));
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_zantufa_1_17_lohoi_bridi_descriptions() {
+        run_on_normal_stack(|| {
+            for lohoi in ["lo'oi", "xu'u", "xau'a", "mau'a"] {
+                let source = format!("{lohoi} mi cu broda ku'au");
+                let parsed = parse_source(&source, &ParseOptions::default());
+
+                assert!(format!("{:?}", parsed.parse_tree).contains("BridiDescription"));
+                assert!(has_warning_kind(
+                    &parsed,
+                    ExperimentalConstruct::ExperimentalLohOiBridiDescription
+                ));
+            }
+
+            let ui_parse = parse_source("xau'a mi cu broda", &ParseOptions::default());
+            assert!(!format!("{:?}", ui_parse.parse_tree).contains("BridiDescription"));
+            assert!(!has_warning_kind(
+                &ui_parse,
+                ExperimentalConstruct::ExperimentalLohOiBridiDescription
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_zantufa_1_17_rahoi_quote_warning() {
+        run_on_normal_stack(|| {
+            let parsed = parse_source("ra'oi broda cu brode", &ParseOptions::default());
+
+            assert!(format!("{:?}", parsed.parse_tree).contains("DelimitedWordQuote"));
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalZantufaRahoiQuote
+            ));
+            assert!(!has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalZohOiQuote
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_zantufa_1_17_xoi_as_adverbial_term() {
+        run_on_normal_stack(|| {
+            let parsed = parse_source("xoi mi broda", &ParseOptions::default());
+
+            assert!(format!("{:?}", parsed.parse_tree).contains("ReciprocalBridiAdverbialTerm"));
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalSoiAdverbial
+            ));
+            assert!(!has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalDictionarySeiFreeModifier
+            ));
         });
     }
 
@@ -1043,11 +1138,11 @@ mod tests {
             let xoi = parse_source("mi klama xoi mutce", &ParseOptions::default());
             assert!(has_warning_kind(
                 &xoi,
-                ExperimentalConstruct::ExperimentalDictionarySeiFreeModifier
+                ExperimentalConstruct::ExperimentalSoiAdverbial
             ));
             assert!(!has_warning_kind(
                 &xoi,
-                ExperimentalConstruct::ExperimentalSoiAdverbial
+                ExperimentalConstruct::ExperimentalDictionarySeiFreeModifier
             ));
         });
     }

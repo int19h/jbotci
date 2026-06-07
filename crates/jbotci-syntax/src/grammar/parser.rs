@@ -103,10 +103,10 @@ impl ParserDialectConfig {
         Self {
             term_hierarchy_enabled: false,
             cbm_enabled: false,
-            soi_adverbials_enabled: false,
-            zantufa_adverbials_enabled: false,
+            soi_adverbials_enabled: true,
+            zantufa_adverbials_enabled: true,
             zantufa_connectives_enabled: false,
-            zantufa_quotes_enabled: false,
+            zantufa_quotes_enabled: true,
             zantufa_tags_enabled: false,
         }
     }
@@ -118,10 +118,10 @@ impl ParserDialectConfig {
         Self {
             term_hierarchy_enabled: features.contains(&DialectFeature::TermHierarchy),
             cbm_enabled: features.contains(&DialectFeature::Cbm),
-            soi_adverbials_enabled: features.contains(&DialectFeature::SoiAdverbials),
-            zantufa_adverbials_enabled: features.contains(&DialectFeature::ZantufaAdverbials),
+            soi_adverbials_enabled: true,
+            zantufa_adverbials_enabled: true,
             zantufa_connectives_enabled: features.contains(&DialectFeature::ZantufaConnectives),
-            zantufa_quotes_enabled: features.contains(&DialectFeature::ZantufaQuotes),
+            zantufa_quotes_enabled: true,
             zantufa_tags_enabled: features.contains(&DialectFeature::ZantufaTags),
         }
     }
@@ -159,6 +159,46 @@ impl Drop for ParserDialectConfigScope {
 #[ensures(true)]
 fn parser_dialect_config() -> ParserDialectConfig {
     PARSER_DIALECT_CONFIG.with(Cell::get)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn explicit_xauha_lohoi_lookahead<'tokens>() -> BoxedParser<'tokens, ()> {
+    custom(|input| {
+        let checkpoint = input.save();
+        let first_cursor = input.cursor();
+        let Some(first): Option<Token> = input.next() else {
+            let span = input.span_since(&first_cursor);
+            return Err(SyntaxParseError::expected(
+                span,
+                vec![new!(SyntaxExpectedToken::Cmavo(Cmavo::Xauha))],
+            ));
+        };
+        let first_span = input.span_since(&first_cursor);
+        if !first.is_cmavo(Cmavo::Xauha) {
+            input.rewind(checkpoint);
+            return Err(SyntaxParseError::expected(
+                first_span,
+                vec![new!(SyntaxExpectedToken::Cmavo(Cmavo::Xauha))],
+            ));
+        }
+
+        loop {
+            let cursor = input.cursor();
+            let Some(word): Option<Token> = input.next() else {
+                input.rewind(checkpoint);
+                return Err(SyntaxParseError::expected(
+                    input.span_since(&cursor),
+                    vec![new!(SyntaxExpectedToken::Cmavo(Cmavo::Kuhau))],
+                ));
+            };
+            if word.is_cmavo(Cmavo::Kuhau) {
+                input.rewind(checkpoint);
+                return Ok(());
+            }
+        }
+    })
+    .boxed()
 }
 
 #[requires(true)]
@@ -1952,6 +1992,7 @@ fn statement_parser<'tokens>(
             .then(paragraph_with_niho.clone().repeated().collect::<Vec<_>>())
             .map(|(first, rest)| std::iter::once(first).chain(rest).collect::<Vec<_>>()),
         paragraph_with_niho
+            .clone()
             .repeated()
             .at_least(1)
             .collect::<Vec<_>>(),
@@ -1964,7 +2005,20 @@ fn statement_parser<'tokens>(
     } else {
         cmevla_word().repeated().collect::<Vec<_>>().boxed()
     };
-    let text_body = cmavo(Cmavo::Nai)
+    let explicit_xauha_lohoi_text = explicit_xauha_lohoi_lookahead()
+        .ignore_then(paragraph.clone())
+        .then(paragraph_with_niho.clone().repeated().collect::<Vec<_>>())
+        .map(|(first, rest)| {
+            new!(TextSyntax {
+                leading_nai: Vec::new(),
+                leading_cmevla: Vec::new(),
+                leading_indicators: Vec::new(),
+                leading_free_modifiers: Vec::new(),
+                leading_connective: None,
+                paragraphs: std::iter::once(first).chain(rest).collect(),
+            })
+        });
+    let regular_text_body = cmavo(Cmavo::Nai)
         .repeated()
         .collect::<Vec<_>>()
         .then(leading_cmevla)
@@ -2009,6 +2063,7 @@ fn statement_parser<'tokens>(
                     })
             },
         );
+    let text_body = choice((explicit_xauha_lohoi_text, regular_text_body));
 
     text.define(syntax_context("text", text_body));
     text.then_ignore(end()).boxed()
@@ -4347,9 +4402,21 @@ where
     .map_with(
         |quote, extra: &mut MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
             if let data!(QuoteSyntax::DelimitedWordQuote(zohoi)) = quote.as_data() {
-                extra
-                    .state()
-                    .warn(ExperimentalConstruct::ExperimentalZohOiQuote, &zohoi.value);
+                if let Some(construct) = match zohoi.value.quote_marker_cmavo() {
+                    Some(Cmavo::Rahoi) => {
+                        Some(ExperimentalConstruct::ExperimentalZantufaRahoiQuote)
+                    }
+                    Some(Cmavo::Mehoi) => Some(ExperimentalConstruct::ExperimentalMehOiQuote),
+                    Some(Cmavo::Gohoi | Cmavo::Zehoi | Cmavo::Tahai | Cmavo::Bohei) => {
+                        Some(ExperimentalConstruct::ExperimentalGohoiSelbriUnit)
+                    }
+                    Some(Cmavo::Zohoi | Cmavo::Lahoi) => {
+                        Some(ExperimentalConstruct::ExperimentalZohOiQuote)
+                    }
+                    _ => None,
+                } {
+                    extra.state().warn(construct, &zohoi.value);
+                }
             }
             quote
         },
@@ -5869,10 +5936,39 @@ where
 
 #[requires(true)]
 #[ensures(true)]
+fn zantufa_gohoi_relation_unit<'tokens, F>(
+    free_modifier: F,
+) -> BoxedParser<'tokens, TanruUnitSyntax>
+where
+    F: Parser<'tokens, ParserInput<'tokens>, FreeModifierSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
+    choice((
+        single_word_quoted_relation_unit(Cmavo::Gohoi, free_modifier.clone(), |word| {
+            new!(TanruUnitSyntax::QuotedBridiSelbri(word))
+        }),
+        single_word_quoted_relation_unit(Cmavo::Zehoi, free_modifier.clone(), |word| {
+            new!(TanruUnitSyntax::QuotedBridiSelbri(word))
+        }),
+        single_word_quoted_relation_unit(Cmavo::Tahai, free_modifier.clone(), |word| {
+            new!(TanruUnitSyntax::QuotedBridiSelbri(word))
+        }),
+        single_word_quoted_relation_unit(Cmavo::Bohei, free_modifier, |word| {
+            new!(TanruUnitSyntax::QuotedBridiSelbri(word))
+        }),
+    ))
+    .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn quoted_relation_unit_warning(marker_cmavo: Cmavo) -> Option<ExperimentalConstruct> {
     match marker_cmavo {
         Cmavo::Mehoi => Some(ExperimentalConstruct::ExperimentalMehOiSelbriUnit),
-        Cmavo::Gohoi => Some(ExperimentalConstruct::ExperimentalGohoiSelbriUnit),
+        Cmavo::Gohoi | Cmavo::Zehoi | Cmavo::Tahai | Cmavo::Bohei => {
+            Some(ExperimentalConstruct::ExperimentalGohoiSelbriUnit)
+        }
         Cmavo::Muhoi => Some(ExperimentalConstruct::ExperimentalZantufaMuhoiSelbriUnit),
         _ => None,
     }
@@ -5940,10 +6036,7 @@ where
         single_word_quoted_relation_unit(Cmavo::Mehoi, free_modifier.clone(), |word| {
             new!(TanruUnitSyntax::QuotedWordSelbri(word))
         });
-    let gohoi_unit =
-        single_word_quoted_relation_unit(Cmavo::Gohoi, free_modifier.clone(), |word| {
-            new!(TanruUnitSyntax::QuotedBridiSelbri(word))
-        });
+    let gohoi_unit = zantufa_gohoi_relation_unit(free_modifier.clone());
     let muhoi_unit = delimited_quoted_relation_unit(Cmavo::Muhoi, free_modifier.clone(), |word| {
         new!(TanruUnitSyntax::QuotedTextSelbri(word))
     });
@@ -6772,10 +6865,7 @@ where
             single_word_quoted_relation_unit(Cmavo::Mehoi, free_modifier.clone(), |word| {
                 new!(TanruUnitSyntax::QuotedWordSelbri(word))
             });
-        let gohoi_unit =
-            single_word_quoted_relation_unit(Cmavo::Gohoi, free_modifier.clone(), |word| {
-                new!(TanruUnitSyntax::QuotedBridiSelbri(word))
-            });
+        let gohoi_unit = zantufa_gohoi_relation_unit(free_modifier.clone());
         let muhoi_unit =
             delimited_quoted_relation_unit(Cmavo::Muhoi, free_modifier.clone(), |word| {
                 new!(TanruUnitSyntax::QuotedTextSelbri(word))

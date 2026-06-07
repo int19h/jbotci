@@ -281,14 +281,13 @@ fn experimental_construct_for_cmavo(label: &str, cmavo: Cmavo) -> Option<Experim
         ("PA", Cmavo::Suhai | Cmavo::Xehe) => {
             Some(ExperimentalConstruct::ExperimentalDictionaryPaNumber)
         }
-        ("SEI", Cmavo::Xoi) => Some(ExperimentalConstruct::ExperimentalDictionarySeiFreeModifier),
         ("UI" | "UI3a", Cmavo::Lihoi) => {
             Some(ExperimentalConstruct::ExperimentalDictionaryUiIndicator)
         }
         ("NOIhA", Cmavo::Noihoha) => Some(ExperimentalConstruct::ExperimentalZantufaCmavo),
         ("NOIhA", _) => Some(ExperimentalConstruct::ExperimentalNoihaAdverbial),
         ("SOI", _) => Some(ExperimentalConstruct::ExperimentalSoiAdverbial),
-        ("LOhOI", Cmavo::Lohoi) => Some(ExperimentalConstruct::ExperimentalLohOiBridiDescription),
+        ("LOhOI", _) => Some(ExperimentalConstruct::ExperimentalLohOiBridiDescription),
         ("cmavo", Cmavo::Fihoi) => Some(ExperimentalConstruct::ExperimentalFihoiAdverbial),
         ("cmavo", Cmavo::Lohai | Cmavo::Sahai | Cmavo::Lehai) => {
             Some(ExperimentalConstruct::ExperimentalLohAiReplacementFree)
@@ -296,7 +295,9 @@ fn experimental_construct_for_cmavo(label: &str, cmavo: Cmavo) -> Option<Experim
         ("cmavo", Cmavo::Nohoi) => {
             Some(ExperimentalConstruct::ExperimentalNohoiSelbriRelativeClause)
         }
-        ("cmavo", Cmavo::Gohoi) => Some(ExperimentalConstruct::ExperimentalGohoiSelbriUnit),
+        ("cmavo", Cmavo::Bohei | Cmavo::Gohoi | Cmavo::Tahai | Cmavo::Zehoi) => {
+            Some(ExperimentalConstruct::ExperimentalGohoiSelbriUnit)
+        }
         ("LIhAU" | "LUhEI", _) => Some(ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit),
         ("cmavo", Cmavo::Luhei) => Some(ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit),
         ("cmavo", Cmavo::Muhoi) => Some(ExperimentalConstruct::ExperimentalZantufaMuhoiSelbriUnit),
@@ -599,10 +600,7 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
         "DOI" => matches!(cmavo, Cmavo::Dahei),
         "FAhA" => matches!(cmavo, Cmavo::Duhoi | Cmavo::Zuhau),
         "GOI" => matches!(cmavo, Cmavo::Voihe),
-        "GOhA" => matches!(
-            cmavo,
-            Cmavo::Bohei | Cmavo::Ceihi | Cmavo::Gaiho | Cmavo::Tahai | Cmavo::Xehu | Cmavo::Zehoi
-        ),
+        "GOhA" => matches!(cmavo, Cmavo::Ceihi | Cmavo::Gaiho | Cmavo::Xehu),
         "JAI" => matches!(cmavo, Cmavo::Jahei | Cmavo::Johai),
         "JOI" => matches!(
             cmavo,
@@ -666,7 +664,10 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
             cmavo,
             Cmavo::Bohai | Cmavo::Lihai | Cmavo::Lihei | Cmavo::Maiho
         ),
-        "LOhOI" => matches!(cmavo, Cmavo::Mauha | Cmavo::Xauha),
+        "LOhOI" => matches!(
+            cmavo,
+            Cmavo::Lohoi | Cmavo::Mauha | Cmavo::Xauha | Cmavo::Xuhu
+        ),
         "LU" => matches!(cmavo, Cmavo::Lahau | Cmavo::Tuhai),
         "ME" => matches!(cmavo, Cmavo::Xohi),
         "MOI" => matches!(cmavo, Cmavo::Moiho),

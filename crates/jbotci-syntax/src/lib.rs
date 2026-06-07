@@ -1399,6 +1399,7 @@ pub struct SyntaxParse {
 pub enum ExperimentalConstruct {
     ExperimentalCmavo,
     ExperimentalZohOiQuote,
+    ExperimentalMehOiQuote,
     ExperimentalMehOiSelbriUnit,
     ExperimentalLohOiBridiDescription,
     ExperimentalLohAiReplacementFree,
@@ -1454,6 +1455,7 @@ pub enum ExperimentalConstruct {
     ExperimentalZantufaPoihaBrigahi,
     ExperimentalZantufaJaiTagTerm,
     ExperimentalZantufaRecursiveTag,
+    ExperimentalZantufaRahoiQuote,
     ExperimentalZantufaMuhoiSelbriUnit,
     ExperimentalZantufaLuheiSelbriUnit,
     CllProhibitedFreeModifierPlacement,
@@ -1466,6 +1468,7 @@ impl ExperimentalConstruct {
         match self {
             Self::ExperimentalCmavo => "syntax.warning.experimental-cmavo",
             Self::ExperimentalZohOiQuote => "syntax.warning.experimental-zoh-oi-quote",
+            Self::ExperimentalMehOiQuote => "syntax.warning.experimental-meh-oi-quote",
             Self::ExperimentalMehOiSelbriUnit => "syntax.warning.experimental-meh-oi-selbri-unit",
             Self::ExperimentalLohOiBridiDescription => {
                 "syntax.warning.experimental-loh-oi-bridi-description"
@@ -1587,6 +1590,9 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaRecursiveTag => {
                 "syntax.warning.experimental-zantufa-recursive-tag"
             }
+            Self::ExperimentalZantufaRahoiQuote => {
+                "syntax.warning.experimental-zantufa-rahoi-quote"
+            }
             Self::ExperimentalZantufaMuhoiSelbriUnit => {
                 "syntax.warning.experimental-zantufa-muhoi-selbri-unit"
             }
@@ -1605,6 +1611,7 @@ impl ExperimentalConstruct {
         match self {
             Self::ExperimentalCmavo => "experimental cmavo",
             Self::ExperimentalZohOiQuote => "ZOhOI single-word foreign quote",
+            Self::ExperimentalMehOiQuote => "MEhOI single-word quote",
             Self::ExperimentalMehOiSelbriUnit => "MEhOI stage-0 fu'ivla selbri unit",
             Self::ExperimentalLohOiBridiDescription => "LOhOI/KUhAU bridi description sumti",
             Self::ExperimentalLohAiReplacementFree => "LOhAI/LEhAI replacement free modifier",
@@ -1696,6 +1703,7 @@ impl ExperimentalConstruct {
             }
             Self::ExperimentalZantufaJaiTagTerm => "Zantufa JAI tag term",
             Self::ExperimentalZantufaRecursiveTag => "Zantufa recursive SE/NAhE tag prefix",
+            Self::ExperimentalZantufaRahoiQuote => "Zantufa RAhOI rafsi quote",
             Self::ExperimentalZantufaMuhoiSelbriUnit => {
                 "Zantufa MUhOI delimited foreign selbri unit"
             }

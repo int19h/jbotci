@@ -1757,6 +1757,9 @@ fn is_single_word_quote_marker(word: &Word) -> bool {
         Cmavo::Rahoi,
         Cmavo::Mehoi,
         Cmavo::Gohoi,
+        Cmavo::Zehoi,
+        Cmavo::Tahai,
+        Cmavo::Bohei,
     ])
 }
 
@@ -3206,6 +3209,36 @@ mod tests {
         assert!(Selmaho::Bai.contains(Cmavo::Lahei));
         assert!(Selmaho::Le.contains(Cmavo::Lahei));
         assert!(Selmaho::Ui.contains(Cmavo::Lahei));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_1_17_terminal_reference_for_gohoi_and_lohoi() {
+        let gohoi = [
+            (Cmavo::Gohoi, "go'oi"),
+            (Cmavo::Zehoi, "ze'oi"),
+            (Cmavo::Tahai, "ta'ai"),
+            (Cmavo::Bohei, "bo'ei"),
+        ];
+        for (cmavo, text) in gohoi {
+            assert_eq!(Cmavo::from_text(text), Some(cmavo));
+            assert!(!Selmaho::Goha.contains(cmavo));
+        }
+
+        let lohoi = [
+            (Cmavo::Lohoi, "lo'oi"),
+            (Cmavo::Xuhu, "xu'u"),
+            (Cmavo::Xauha, "xau'a"),
+            (Cmavo::Mauha, "mau'a"),
+        ];
+        for (cmavo, text) in lohoi {
+            assert_eq!(Cmavo::from_text(text), Some(cmavo));
+            assert!(Selmaho::Lohoi.contains(cmavo));
+        }
+
+        assert!(Selmaho::Soi.contains(Cmavo::Xoi));
+        assert!(!Selmaho::Sei.contains(Cmavo::Xoi));
     }
 
     #[test]

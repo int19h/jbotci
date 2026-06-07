@@ -11,12 +11,8 @@ status = "success"
 raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "za'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "xoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "távla" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ŭi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None } })]"""
 
 [expectations.syntax]
-status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Mekso(NumberMekso(NumberQuantifier { number: WithFreeModifiers { value: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "za'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 4, char_start: 0, char_end: 4, start: None, end: None } }))], free_modifiers: [MetalinguisticBridi { sei: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "xoĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None } })), free_modifiers: [] }, terms: [], cu: None, selbri: SelbriWord(WithIndicator { base: Plain(PlainWord(Gismu { phonemes: Phonemes { text: "távla" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 13, char_start: 8, char_end: 13, start: None, end: None } })), indicator: Cmavo { phonemes: Phonemes { text: "ŭi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 17, char_start: 15, char_end: 17, start: None, end: None } }, nai: None }), sehu: None }] }, boi: None })))) }] }] }"""
-
-[expectations.semantics.refs]
-status = "success"
-raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [4, 7], source-text = "xoi", message = "syntax parse failed" }]
 
 [expectations.output.vlasei]
 brackets = "(za'u xoĭ távla .ŭi)"
@@ -28,19 +24,3 @@ tree = """
   Cmavo @[15‥17) "ŭi",
 ]"""
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"za'u","span":[0,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"xoĭ","span":[4,7]}}},{"PlainWord":{"Gismu":{"phonemes":"távla","span":[8,13]}}},{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[15,17]}}}]"""
-
-[expectations.output.gentufa]
-tree = """
-NumberQuantifier @[0‥17) {
-  Cmavo @[0‥4) "za'u",
-  free_modifiers: [
-    MetalinguisticBridi @[4‥17) {
-      sei: Cmavo @[4‥7) "xoĭ",
-      selbri: WithIndicator @[8‥17) {
-        Gismu @[8‥13) "távla",
-        indicator: Cmavo @[15‥17) "ŭi",
-      },
-    },
-  ],
-}"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Mekso":{"NumberMekso":{"NumberQuantifier":{"number":[[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za'u","span":[0,4]}}}}],{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xoĭ","span":[4,7]}}}},"selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"távla","span":[8,13]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[15,17]}}}}}}}]}}}}}}]}]}"""

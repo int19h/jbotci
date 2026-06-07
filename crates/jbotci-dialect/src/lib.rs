@@ -1433,7 +1433,7 @@ fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
         ("term-hierarchy", "(+TERM-HIERARCHY)"),
         (
             "zantufa",
-            "(cbm soi-adverbials term-hierarchy +ZANTUFA-CONNECTIVES +ZANTUFA-TERMS +ZANTUFA-TAGS +ZANTUFA-ADVERBIALS +ZANTUFA-QUOTES +ZANTUFA-MORPHOLOGY)",
+            "(cbm soi-adverbials term-hierarchy +ZANTUFA-CONNECTIVES +ZANTUFA-TERMS +ZANTUFA-TAGS +ZANTUFA-ADVERBIALS +ZANTUFA-QUOTES +ZANTUFA-MEX +ZANTUFA-MORPHOLOGY)",
         ),
         ("jboponei", "((po ↦ lo su'u) (nei ↦ kei))"),
         (
@@ -2011,7 +2011,7 @@ mod tests {
                 .features
                 .contains(&DialectFeature::ZantufaMorphology)
         );
-        assert!(!zantufa.features.contains(&DialectFeature::ZantufaMex));
+        assert!(zantufa.features.contains(&DialectFeature::ZantufaMex));
         assert!(
             !builtin_dialect_names()
                 .into_iter()

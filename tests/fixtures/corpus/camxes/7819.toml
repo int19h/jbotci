@@ -11,8 +11,9 @@ status = "success"
 raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "soĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "cráno" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None } })]'
 
 [expectations.syntax]
-status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.parse", byte-span = [4, 9], source-text = "crano", message = "syntax parse failed" }]
+status = "success"
+raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Fragment(Terms { terms: [ReciprocalBridiAdverbialTerm { soi: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "soĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), free_modifiers: [] }, subbridi: Bridi(BridiSyntax { leading_terms: [], cu: None, bridi_tail: BridiTailSyntax { first: AfterthoughtBridiTailSyntax { first: BoGroupedBridiTailSyntax { first: SelbriBridiTail { selbri: SelbriWord(Plain(PlainWord(Gismu { phonemes: Phonemes { text: "cráno" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 9, char_start: 4, char_end: 9, start: None, end: None } }))), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] }), sehu: None }], vau: None })) }] }] }'
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-soi-adverbial", byte-span = [0, 3], source-text = "soi", message = "experimental syntax: SOI/XOI bridi/subbridi adverbial term", word-index = 0 }]
 
 [expectations.output.vlasei]
 brackets = "(soĭ cráno)"
@@ -22,3 +23,15 @@ tree = """
   Gismu @[4‥9) "cráno",
 ]"""
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"soĭ","span":[0,3]}}},{"PlainWord":{"Gismu":{"phonemes":"cráno","span":[4,9]}}}]'
+
+[expectations.output.gentufa]
+tree = """
+Terms @[0‥9) {
+  terms: [
+    ReciprocalBridiAdverbialTerm @[0‥9) {
+      soi: Cmavo @[0‥3) "soĭ",
+      Gismu @[4‥9) "cráno",
+    },
+  ],
+}"""
+json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"ReciprocalBridiAdverbialTerm":{"soi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"soĭ","span":[0,3]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cráno","span":[4,9]}}}}}}}}}}}}}}]}}}}]}]}'

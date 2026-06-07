@@ -907,6 +907,7 @@ pub enum Cmavo {
     Xuhai,
     Xuhau,
     Xuhei,
+    Xuhu,
     Xy,
     Y,
     Yhy,
@@ -1866,6 +1867,7 @@ impl Cmavo {
             "xu'ai" => Self::Xuhai,
             "xu'au" => Self::Xuhau,
             "xu'ei" => Self::Xuhei,
+            "xu'u" => Self::Xuhu,
             "xy" => Self::Xy,
             "y" => Self::Y,
             "y'y" => Self::Yhy,
@@ -2826,6 +2828,7 @@ impl Cmavo {
             Self::Xuhai => "xu'ai",
             Self::Xuhau => "xu'au",
             Self::Xuhei => "xu'ei",
+            Self::Xuhu => "xu'u",
             Self::Xy => "xy",
             Self::Y => "y",
             Self::Yhy => "y'y",
@@ -3535,8 +3538,7 @@ impl Selmaho {
             Self::Gihi => matches!(cmavo, Cmavo::Gihi),
             Self::Goha => matches!(
                 cmavo,
-                Cmavo::Bohei
-                    | Cmavo::Buha
+                Cmavo::Buha
                     | Cmavo::Buhe
                     | Cmavo::Buhi
                     | Cmavo::Ceihi
@@ -3551,9 +3553,7 @@ impl Selmaho {
                     | Cmavo::Mo
                     | Cmavo::Nei
                     | Cmavo::Noha
-                    | Cmavo::Tahai
                     | Cmavo::Xehu
-                    | Cmavo::Zehoi
             ),
             Self::Goi => matches!(
                 cmavo,
@@ -3731,7 +3731,10 @@ impl Selmaho {
             Self::Lihau => matches!(cmavo, Cmavo::Lihau),
             Self::Lihu => matches!(cmavo, Cmavo::Lihu),
             Self::Loho => matches!(cmavo, Cmavo::Loho),
-            Self::Lohoi => matches!(cmavo, Cmavo::Lohoi | Cmavo::Mauha | Cmavo::Xauha),
+            Self::Lohoi => matches!(
+                cmavo,
+                Cmavo::Lohoi | Cmavo::Mauha | Cmavo::Xauha | Cmavo::Xuhu
+            ),
             Self::Lohu => matches!(cmavo, Cmavo::Lohu),
             Self::Lu => matches!(cmavo, Cmavo::Lahau | Cmavo::Lu | Cmavo::Tuhai),
             Self::Luhei => matches!(cmavo, Cmavo::Luhei),
@@ -3906,7 +3909,6 @@ impl Selmaho {
                     | Cmavo::Soihe
                     | Cmavo::Suhoi
                     | Cmavo::Tiho
-                    | Cmavo::Xoi
             ),
             Self::Si => matches!(cmavo, Cmavo::Si),
             Self::Soi => matches!(cmavo, Cmavo::Soi | Cmavo::Xoi),
