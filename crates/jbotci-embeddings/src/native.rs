@@ -15,8 +15,10 @@ use llama_cpp_4::model::{AddBos, LlamaModel};
 
 use crate::{
     EmbeddingBackend, EmbeddingError, EmbeddingModelSpec, QueryEmbedding, SetupOptions,
-    SetupReport, build_embedding_pack, default_index_root, default_model_root, ensure_model_file,
-    model_file_path, model_spec, normalize_vector, semantic_cukta_output, semantic_vlacku_hits,
+    SetupProgress, SetupProgressCallback, SetupProgressPhase, SetupReport,
+    build_embedding_pack_with_progress, default_index_root, default_model_root,
+    ensure_model_file_with_progress, model_file_path, model_spec, normalize_vector,
+    semantic_cukta_output, semantic_vlacku_hits,
 };
 
 const N_BATCH: u32 = 2048;
@@ -199,6 +201,40 @@ impl EmbeddingBackend for NativeLlamaEmbeddingBackend {
 #[requires(true)]
 #[ensures(true)]
 pub fn setup_embeddings(options: &SetupOptions) -> Result<SetupReport, EmbeddingError> {
+    let mut progress = |_| {};
+    setup_embeddings_with_progress(options, &mut progress)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn setup_embeddings_with_progress(
+    options: &SetupOptions,
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<SetupReport, EmbeddingError> {
+    let result = setup_embeddings_with_progress_inner(options, progress);
+    if let Err(error) = &result {
+        progress(SetupProgress::indeterminate(
+            SetupProgressPhase::Error,
+            "error",
+            "Embedding setup failed",
+            &error.to_string(),
+        ));
+    }
+    result
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn setup_embeddings_with_progress_inner(
+    options: &SetupOptions,
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<SetupReport, EmbeddingError> {
+    progress(SetupProgress::indeterminate(
+        SetupProgressPhase::ResolvingPaths,
+        "setup",
+        "Preparing setup",
+        "Resolving embedding model and index paths.",
+    ));
     let spec = model_spec(&options.model_key).ok_or_else(|| EmbeddingError::UnsupportedModel {
         model_key: options.model_key.clone(),
     })?;
@@ -213,20 +249,27 @@ pub fn setup_embeddings(options: &SetupOptions) -> Result<SetupReport, Embedding
         .map(Ok)
         .unwrap_or_else(default_index_root)?;
     let model_path = model_file_path(&model_root, &spec);
-    ensure_model_file(&spec, &model_path, options.force)?;
+    ensure_model_file_with_progress(&spec, &model_path, options.force, progress)?;
+    progress(SetupProgress::indeterminate(
+        SetupProgressPhase::LoadingModel,
+        "load",
+        "Loading model",
+        "Loading embedding model with llama.cpp.",
+    ));
     let mut backend = NativeLlamaEmbeddingBackend::load(&spec, &model_path)?;
     let dictionary = jbotci_dictionary_data::english();
     let cll_site =
         jbotci_cll::embedded_cll_site().map_err(|error| EmbeddingError::InvalidIndex {
             message: error.to_string(),
         })?;
-    let mut report = build_embedding_pack(
+    let mut report = build_embedding_pack_with_progress(
         &mut backend,
         dictionary,
         jbotci_cll::cll_search_all_chunks(cll_site),
         &index_root,
         &spec,
         options.force,
+        progress,
     )?;
     report.model_path = model_path;
     Ok(report)

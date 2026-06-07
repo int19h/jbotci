@@ -27,6 +27,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM chef-base AS cacher
 
 COPY --from=planner /src/recipe.json recipe.json
+COPY --from=planner /src/crates/vendor/llama-cpp-sys-4 crates/vendor/llama-cpp-sys-4
 
 RUN --mount=type=cache,id=jbotci-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,id=jbotci-cargo-git,target=/usr/local/cargo/git/db,sharing=locked \
@@ -38,7 +39,7 @@ RUN --mount=type=cache,id=jbotci-cargo-registry,target=/usr/local/cargo/registry
 
 RUN --mount=type=cache,id=jbotci-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,id=jbotci-cargo-git,target=/usr/local/cargo/git/db,sharing=locked \
-    cargo chef cook --locked --release --target wasm32-unknown-unknown --recipe-path recipe.json -p jbotci-web --bin jbotci-web
+    cargo chef cook --locked --release --target wasm32-unknown-unknown --recipe-path recipe.json -p jbotci-web --bin jbotci-web --features web
 
 FROM cacher AS build
 

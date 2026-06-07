@@ -3813,8 +3813,8 @@ body::-webkit-scrollbar-thumb:hover,
   transition: visibility 0s linear 520ms;
 }
 
-.dictionary-tooltip-host:hover > .rich-dictionary-tooltip,
-.dictionary-tooltip-host:focus-within > .rich-dictionary-tooltip {
+.dictionary-tooltip-host:hover > .rich-dictionary-tooltip[data-jbotci-position-ready="true"],
+.dictionary-tooltip-host:focus-within > .rich-dictionary-tooltip[data-jbotci-position-ready="true"] {
   visibility: visible;
   pointer-events: auto;
   transition-delay: 0s;
@@ -3835,7 +3835,7 @@ body::-webkit-scrollbar-thumb:hover,
   transition: none;
 }
 
-.reference-tooltip-host.is-open:hover > .rich-reference-tooltip-stack {
+.reference-tooltip-host.is-open:hover > .rich-reference-tooltip-stack[data-jbotci-position-ready="true"] {
   visibility: visible;
   pointer-events: none;
   transition-delay: 0s;
@@ -3850,7 +3850,7 @@ body::-webkit-scrollbar-thumb:hover,
   max-height: min(58vh, 24rem);
 }
 
-.reference-tooltip-host.is-open:hover > .rich-reference-tooltip-stack > .rich-dictionary-tooltip {
+.reference-tooltip-host.is-open:hover > .rich-reference-tooltip-stack[data-jbotci-position-ready="true"] > .rich-dictionary-tooltip {
   visibility: visible;
 }
 

@@ -306,6 +306,94 @@ pub struct SetupReport {
     pub cll_rows: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[invariant(::ResolvingPaths => true)]
+#[invariant(::DownloadingModel => true)]
+#[invariant(::ValidatingModel => true)]
+#[invariant(::LoadingModel => true)]
+#[invariant(::Indexing => true)]
+#[invariant(::WritingIndex => true)]
+#[invariant(::ReusingIndex => true)]
+#[invariant(::Complete => true)]
+#[invariant(::Error => true)]
+pub enum SetupProgressPhase {
+    ResolvingPaths,
+    DownloadingModel,
+    ValidatingModel,
+    LoadingModel,
+    Indexing,
+    WritingIndex,
+    ReusingIndex,
+    Complete,
+    Error,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[invariant(true)]
+pub struct SetupProgress {
+    pub phase: SetupProgressPhase,
+    pub kind: String,
+    pub label: String,
+    pub detail: String,
+    pub loaded: Option<u64>,
+    pub total: Option<u64>,
+    pub percent: Option<u8>,
+}
+
+impl SetupProgress {
+    #[requires(!kind.is_empty())]
+    #[requires(!label.is_empty())]
+    #[requires(!detail.is_empty())]
+    #[ensures(ret.kind == kind)]
+    pub fn indeterminate(phase: SetupProgressPhase, kind: &str, label: &str, detail: &str) -> Self {
+        Self {
+            phase,
+            kind: kind.to_owned(),
+            label: label.to_owned(),
+            detail: detail.to_owned(),
+            loaded: None,
+            total: None,
+            percent: None,
+        }
+    }
+
+    #[requires(!kind.is_empty())]
+    #[requires(!label.is_empty())]
+    #[requires(!detail.is_empty())]
+    #[requires(loaded <= total)]
+    #[ensures(ret.loaded == Some(loaded))]
+    #[ensures(ret.total == Some(total))]
+    pub fn determinate(
+        phase: SetupProgressPhase,
+        kind: &str,
+        label: &str,
+        detail: &str,
+        loaded: u64,
+        total: u64,
+    ) -> Self {
+        Self {
+            phase,
+            kind: kind.to_owned(),
+            label: label.to_owned(),
+            detail: detail.to_owned(),
+            loaded: Some(loaded),
+            total: Some(total),
+            percent: progress_percent(loaded, total),
+        }
+    }
+}
+
+#[requires(loaded <= total)]
+#[ensures(ret.is_none_or(|percent| percent <= 100))]
+pub fn progress_percent(loaded: u64, total: u64) -> Option<u8> {
+    if total == 0 {
+        return None;
+    }
+    Some(((loaded.saturating_mul(100)) / total).min(100) as u8)
+}
+
+pub type SetupProgressCallback<'a> = dyn FnMut(SetupProgress) + 'a;
+
 #[derive(Debug, Clone, Default)]
 #[invariant(true)]
 struct ReusableVectorRows {
@@ -419,15 +507,48 @@ pub fn model_download_url(spec: &EmbeddingModelSpec) -> String {
     )
 }
 
-#[requires(path.is_file())]
+#[requires(!path.as_os_str().is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|value| value.len() == 64) || ret.is_err())]
 pub fn sha256_hex_file(path: &Path) -> Result<String, EmbeddingError> {
+    let mut progress = |_| {};
+    sha256_hex_file_with_progress(
+        path,
+        SetupProgressPhase::ValidatingModel,
+        "validate",
+        "Validating file",
+        "Checking file SHA-256.",
+        None,
+        &mut progress,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(!path.as_os_str().is_empty())]
+#[requires(!kind.is_empty())]
+#[requires(!label.is_empty())]
+#[requires(!detail.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|value| value.len() == 64) || ret.is_err())]
+fn sha256_hex_file_with_progress(
+    path: &Path,
+    phase: SetupProgressPhase,
+    kind: &str,
+    label: &str,
+    detail: &str,
+    total: Option<u64>,
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<String, EmbeddingError> {
     let mut file = File::open(path).map_err(|source| EmbeddingError::Io {
         context: format!("failed to open `{}`", path.display()),
         source,
     })?;
     let mut hasher = Sha256::new();
     let mut buf = [0u8; 64 * 1024];
+    let mut loaded = 0u64;
+    if let Some(total) = total {
+        progress(SetupProgress::determinate(
+            phase, kind, label, detail, 0, total,
+        ));
+    }
     loop {
         let read = file.read(&mut buf).map_err(|source| EmbeddingError::Io {
             context: format!("failed to read `{}`", path.display()),
@@ -437,6 +558,17 @@ pub fn sha256_hex_file(path: &Path) -> Result<String, EmbeddingError> {
             break;
         }
         hasher.update(&buf[..read]);
+        if let Some(total) = total {
+            loaded = loaded.saturating_add(read as u64);
+            progress(SetupProgress::determinate(
+                phase,
+                kind,
+                label,
+                detail,
+                loaded.min(total),
+                total,
+            ));
+        }
     }
     Ok(hex_digest(hasher.finalize()))
 }
@@ -590,7 +722,7 @@ pub fn write_json_file<T: Serialize>(path: &Path, value: &T) -> Result<(), Embed
     Ok(())
 }
 
-#[requires(path.is_file())]
+#[requires(!path.as_os_str().is_empty())]
 #[ensures(true)]
 pub fn read_json_file<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, EmbeddingError> {
     let file = File::open(path).map_err(|source| EmbeddingError::Io {
@@ -736,6 +868,18 @@ pub fn read_vector_shards(
     Ok(values)
 }
 
+#[requires(!path.as_os_str().is_empty())]
+#[requires(!description.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|_| path.is_file()) || ret.is_err())]
+fn require_index_file(path: &Path, description: &str) -> Result<(), EmbeddingError> {
+    if path.is_file() {
+        return Ok(());
+    }
+    Err(EmbeddingError::InvalidIndex {
+        message: format!("{description} `{}` is missing", path.display()),
+    })
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn ensure_parent_dir(path: &Path) -> Result<(), EmbeddingError> {
@@ -778,17 +922,40 @@ pub fn ensure_model_file(
     path: &Path,
     force: bool,
 ) -> Result<(), EmbeddingError> {
+    let mut progress = |_| {};
+    ensure_model_file_with_progress(spec, path, force, &mut progress)
+}
+
+#[requires(!path.as_os_str().is_empty())]
+#[ensures(true)]
+pub fn ensure_model_file_with_progress(
+    spec: &EmbeddingModelSpec,
+    path: &Path,
+    force: bool,
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<(), EmbeddingError> {
     if path.is_file() && !force {
-        validate_model_file(spec, path)?;
+        validate_model_file_with_progress(spec, path, progress)?;
         return Ok(());
     }
-    download_model_file(spec, path)?;
-    validate_model_file(spec, path)
+    download_model_file_with_progress(spec, path, progress)?;
+    validate_model_file_with_progress(spec, path, progress)
 }
 
 #[requires(path.is_file())]
 #[ensures(true)]
 pub fn validate_model_file(spec: &EmbeddingModelSpec, path: &Path) -> Result<(), EmbeddingError> {
+    let mut progress = |_| {};
+    validate_model_file_with_progress(spec, path, &mut progress)
+}
+
+#[requires(path.is_file())]
+#[ensures(true)]
+pub fn validate_model_file_with_progress(
+    spec: &EmbeddingModelSpec,
+    path: &Path,
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<(), EmbeddingError> {
     let metadata = fs::metadata(path).map_err(|source| EmbeddingError::Io {
         context: format!("failed to inspect `{}`", path.display()),
         source,
@@ -803,7 +970,15 @@ pub fn validate_model_file(spec: &EmbeddingModelSpec, path: &Path) -> Result<(),
             ),
         });
     }
-    let sha256 = sha256_hex_file(path)?;
+    let sha256 = sha256_hex_file_with_progress(
+        path,
+        SetupProgressPhase::ValidatingModel,
+        "validate",
+        "Validating model",
+        "Checking embedding model SHA-256.",
+        Some(metadata.len()),
+        progress,
+    )?;
     if sha256 != spec.native_sha256 {
         return Err(EmbeddingError::InvalidModel {
             message: format!(
@@ -819,8 +994,25 @@ pub fn validate_model_file(spec: &EmbeddingModelSpec, path: &Path) -> Result<(),
 #[requires(!spec.native_hf_repo.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|_| path.is_file()) || ret.is_err())]
 pub fn download_model_file(spec: &EmbeddingModelSpec, path: &Path) -> Result<(), EmbeddingError> {
+    let mut progress = |_| {};
+    download_model_file_with_progress(spec, path, &mut progress)
+}
+
+#[requires(!spec.native_hf_repo.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|_| path.is_file()) || ret.is_err())]
+pub fn download_model_file_with_progress(
+    spec: &EmbeddingModelSpec,
+    path: &Path,
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<(), EmbeddingError> {
     ensure_parent_dir(path)?;
     let url = model_download_url(spec);
+    progress(SetupProgress::indeterminate(
+        SetupProgressPhase::DownloadingModel,
+        "download",
+        "Downloading model",
+        "Downloading embedding model.",
+    ));
     let partial_path = path.with_extension("downloadInProgress");
     let mut request = ureq::get(&url);
     if let Ok(token) = env::var(HF_TOKEN_ENV)
@@ -831,6 +1023,11 @@ pub fn download_model_file(spec: &EmbeddingModelSpec, path: &Path) -> Result<(),
     let response = request.call().map_err(|source| EmbeddingError::Http {
         message: format!("failed to download `{url}`: {source}"),
     })?;
+    let total = response
+        .headers()
+        .get("content-length")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok());
     let mut reader = response.into_body().into_reader();
     let mut writer =
         BufWriter::new(
@@ -839,10 +1036,44 @@ pub fn download_model_file(spec: &EmbeddingModelSpec, path: &Path) -> Result<(),
                 source,
             })?,
         );
-    std::io::copy(&mut reader, &mut writer).map_err(|source| EmbeddingError::Io {
-        context: format!("failed to write `{}`", partial_path.display()),
-        source,
-    })?;
+    let mut loaded = 0u64;
+    if let Some(total) = total {
+        progress(SetupProgress::determinate(
+            SetupProgressPhase::DownloadingModel,
+            "download",
+            "Downloading model",
+            "Downloading embedding model.",
+            0,
+            total,
+        ));
+    }
+    let mut buf = [0u8; 1024 * 1024];
+    loop {
+        let read = reader.read(&mut buf).map_err(|source| EmbeddingError::Io {
+            context: format!("failed to read `{url}`"),
+            source,
+        })?;
+        if read == 0 {
+            break;
+        }
+        writer
+            .write_all(&buf[..read])
+            .map_err(|source| EmbeddingError::Io {
+                context: format!("failed to write `{}`", partial_path.display()),
+                source,
+            })?;
+        if let Some(total) = total {
+            loaded = loaded.saturating_add(read as u64);
+            progress(SetupProgress::determinate(
+                SetupProgressPhase::DownloadingModel,
+                "download",
+                "Downloading model",
+                "Downloading embedding model.",
+                loaded.min(total),
+                total,
+            ));
+        }
+    }
     writer.flush().map_err(|source| EmbeddingError::Io {
         context: format!("failed to flush `{}`", partial_path.display()),
         source,
@@ -868,6 +1099,29 @@ pub fn build_embedding_pack<B: EmbeddingBackend>(
     spec: &EmbeddingModelSpec,
     force: bool,
 ) -> Result<SetupReport, EmbeddingError> {
+    let mut progress = |_| {};
+    build_embedding_pack_with_progress(
+        backend,
+        dictionary,
+        cll_chunks,
+        index_root,
+        spec,
+        force,
+        &mut progress,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
+    backend: &mut B,
+    dictionary: &Dictionary<'_>,
+    cll_chunks: &[CllSearchChunk],
+    index_root: &Path,
+    spec: &EmbeddingModelSpec,
+    force: bool,
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<SetupReport, EmbeddingError> {
     let dimensions = backend.dimensions()?;
     if dimensions != spec.dimensions {
         return Err(EmbeddingError::DimensionMismatch {
@@ -884,14 +1138,33 @@ pub fn build_embedding_pack<B: EmbeddingBackend>(
         &cll_fingerprint,
     );
     let final_pack_root = pack_root(index_root, &spec.model_key, &pack_id);
+    let dictionary_rows = dictionary.entries().len();
+    let cll_rows = cll_chunks.len();
+    let total_rows = (dictionary_rows + cll_rows) as u64;
     if final_pack_root.join("manifest.json").is_file() && !force {
+        progress(SetupProgress::determinate(
+            SetupProgressPhase::ReusingIndex,
+            "index",
+            "Reusing embedding index",
+            "Using an existing compatible embedding vector pack.",
+            total_rows,
+            total_rows,
+        ));
         write_catalog(index_root, spec, &pack_id)?;
+        progress(SetupProgress::determinate(
+            SetupProgressPhase::Complete,
+            "complete",
+            "Embedding setup complete",
+            "Native embeddings are ready for semantic search.",
+            total_rows,
+            total_rows,
+        ));
         return Ok(SetupReport {
             index_root: index_root.to_owned(),
             model_path: PathBuf::new(),
             pack_id,
-            dictionary_rows: dictionary.entries().len(),
-            cll_rows: cll_chunks.len(),
+            dictionary_rows,
+            cll_rows,
         });
     }
     let temp_pack_root = final_pack_root.with_extension("tmp");
@@ -906,6 +1179,8 @@ pub fn build_embedding_pack<B: EmbeddingBackend>(
         source,
     })?;
     let reusable_rows = load_reusable_native_rows(index_root, &spec.model_key, dimensions);
+    let mut completed_rows = 0u64;
+    emit_indexing_progress("Indexing dictionary", completed_rows, total_rows, progress);
 
     let dictionary_corpus = write_dictionary_corpus(
         backend,
@@ -915,7 +1190,11 @@ pub fn build_embedding_pack<B: EmbeddingBackend>(
         dimensions,
         &dictionary_fingerprint,
         reusable_rows.as_ref().map(|rows| &rows.dictionary),
+        &mut completed_rows,
+        total_rows,
+        progress,
     )?;
+    emit_indexing_progress("Indexing CLL", completed_rows, total_rows, progress);
     let cll_corpus = write_cll_corpus(
         backend,
         cll_chunks,
@@ -924,7 +1203,16 @@ pub fn build_embedding_pack<B: EmbeddingBackend>(
         dimensions,
         &cll_fingerprint,
         reusable_rows.as_ref().map(|rows| &rows.cll),
+        &mut completed_rows,
+        total_rows,
+        progress,
     )?;
+    progress(SetupProgress::indeterminate(
+        SetupProgressPhase::WritingIndex,
+        "write",
+        "Writing embedding index",
+        "Writing embedding vector pack metadata.",
+    ));
     let manifest = EmbeddingPackManifest {
         schema_version: INDEX_SCHEMA_VERSION,
         model_key: spec.model_key.clone(),
@@ -963,13 +1251,49 @@ pub fn build_embedding_pack<B: EmbeddingBackend>(
         source,
     })?;
     write_catalog(index_root, spec, &pack_id)?;
+    progress(SetupProgress::determinate(
+        SetupProgressPhase::Complete,
+        "complete",
+        "Embedding setup complete",
+        "Native embeddings are ready for semantic search.",
+        total_rows,
+        total_rows,
+    ));
     Ok(SetupReport {
         index_root: index_root.to_owned(),
         model_path: PathBuf::new(),
         pack_id,
-        dictionary_rows: dictionary.entries().len(),
-        cll_rows: cll_chunks.len(),
+        dictionary_rows,
+        cll_rows,
     })
+}
+
+#[requires(!label.is_empty())]
+#[requires(completed_rows <= total_rows)]
+#[ensures(true)]
+fn emit_indexing_progress(
+    label: &str,
+    completed_rows: u64,
+    total_rows: u64,
+    progress: &mut SetupProgressCallback<'_>,
+) {
+    if total_rows == 0 {
+        progress(SetupProgress::indeterminate(
+            SetupProgressPhase::Indexing,
+            "index",
+            label,
+            "Preparing embedding index.",
+        ));
+        return;
+    }
+    progress(SetupProgress::determinate(
+        SetupProgressPhase::Indexing,
+        "index",
+        label,
+        &format!("{label}: {completed_rows}/{total_rows} rows."),
+        completed_rows,
+        total_rows,
+    ));
 }
 
 #[requires(true)]
@@ -982,6 +1306,9 @@ fn write_dictionary_corpus<B: EmbeddingBackend>(
     dimensions: usize,
     fingerprint: &str,
     reusable_rows: Option<&ReusableVectorRows>,
+    completed_rows: &mut u64,
+    total_rows: u64,
+    progress: &mut SetupProgressCallback<'_>,
 ) -> Result<CorpusManifest, EmbeddingError> {
     let corpus_dir = pack_dir.join("corpora").join(VLACKU_CORPUS_ID);
     let items = dictionary
@@ -1003,6 +1330,8 @@ fn write_dictionary_corpus<B: EmbeddingBackend>(
     for (entry, item) in dictionary.entries().iter().zip(items.iter()) {
         if let Some(row) = reusable_rows.and_then(|rows| rows.row(&item.input_hash, dimensions)) {
             values.extend_from_slice(row);
+            *completed_rows = completed_rows.saturating_add(1);
+            emit_indexing_progress("Indexing dictionary", *completed_rows, total_rows, progress);
             continue;
         }
         let mut embedding = backend.embed(&dictionary_embedding_input(entry))?.values;
@@ -1014,6 +1343,8 @@ fn write_dictionary_corpus<B: EmbeddingBackend>(
         }
         normalize_vector(&mut embedding);
         values.extend_from_slice(&embedding);
+        *completed_rows = completed_rows.saturating_add(1);
+        emit_indexing_progress("Indexing dictionary", *completed_rows, total_rows, progress);
     }
     write_corpus_files(
         &corpus_dir,
@@ -1037,6 +1368,9 @@ fn write_cll_corpus<B: EmbeddingBackend>(
     dimensions: usize,
     fingerprint: &str,
     reusable_rows: Option<&ReusableVectorRows>,
+    completed_rows: &mut u64,
+    total_rows: u64,
+    progress: &mut SetupProgressCallback<'_>,
 ) -> Result<CorpusManifest, EmbeddingError> {
     let corpus_dir = pack_dir.join("corpora").join(CUKTA_CORPUS_ID);
     let items = chunks
@@ -1054,6 +1388,8 @@ fn write_cll_corpus<B: EmbeddingBackend>(
     for (chunk, item) in chunks.iter().zip(items.iter()) {
         if let Some(row) = reusable_rows.and_then(|rows| rows.row(&item.input_hash, dimensions)) {
             values.extend_from_slice(row);
+            *completed_rows = completed_rows.saturating_add(1);
+            emit_indexing_progress("Indexing CLL", *completed_rows, total_rows, progress);
             continue;
         }
         let mut embedding = backend.embed(&cll_embedding_input(chunk))?.values;
@@ -1065,6 +1401,8 @@ fn write_cll_corpus<B: EmbeddingBackend>(
         }
         normalize_vector(&mut embedding);
         values.extend_from_slice(&embedding);
+        *completed_rows = completed_rows.saturating_add(1);
+        emit_indexing_progress("Indexing CLL", *completed_rows, total_rows, progress);
     }
     write_corpus_files(
         &corpus_dir,
@@ -1151,6 +1489,7 @@ fn write_catalog(
 #[ensures(true)]
 pub fn validate_pack_dir(path: &Path) -> Result<(), EmbeddingError> {
     let manifest_path = path.join("manifest.json");
+    require_index_file(&manifest_path, "embedding pack manifest")?;
     let manifest: EmbeddingPackManifest = read_json_file(&manifest_path)?;
     if manifest.schema_version != INDEX_SCHEMA_VERSION {
         return Err(EmbeddingError::InvalidIndex {
@@ -1162,6 +1501,7 @@ pub fn validate_pack_dir(path: &Path) -> Result<(), EmbeddingError> {
     }
     for corpus in &manifest.corpora {
         let items_path = path.join(&corpus.items_url);
+        require_index_file(&items_path, "embedding corpus items file")?;
         let items_sha256 = sha256_hex_file(&items_path)?;
         if items_sha256 != corpus.items_sha256 {
             return Err(EmbeddingError::InvalidIndex {
@@ -1179,7 +1519,13 @@ pub fn load_latest_pack(
     index_root: &Path,
     model_key: &str,
 ) -> Result<(PathBuf, EmbeddingPackManifest), EmbeddingError> {
-    let catalog: EmbeddingCatalog = read_json_file(&catalog_path(index_root)?)?;
+    let catalog_path = catalog_path(index_root)?;
+    if !catalog_path.is_file() {
+        return Err(EmbeddingError::MissingCompatiblePack {
+            model_key: model_key.to_owned(),
+        });
+    }
+    let catalog: EmbeddingCatalog = read_json_file(&catalog_path)?;
     let model = catalog
         .models
         .iter()
@@ -1195,7 +1541,9 @@ pub fn load_latest_pack(
         .ok_or_else(|| EmbeddingError::InvalidIndex {
             message: format!("manifest URL `{}` has no parent", model.manifest_url),
         })?;
-    let manifest: EmbeddingPackManifest = read_json_file(&pack_dir.join("manifest.json"))?;
+    let manifest_path = pack_dir.join("manifest.json");
+    require_index_file(&manifest_path, "embedding pack manifest")?;
+    let manifest: EmbeddingPackManifest = read_json_file(&manifest_path)?;
     if !manifest
         .compatible_query_runtimes
         .iter()
@@ -1391,6 +1739,7 @@ where
     T: DeserializeOwned,
 {
     let items_path = pack_dir.join(&corpus.items_url);
+    require_index_file(&items_path, "embedding corpus items file")?;
     let items: Vec<T> = read_json_file(&items_path)?;
     if sha256_hex_file(&items_path)? != corpus.items_sha256 {
         return Err(EmbeddingError::InvalidIndex {
@@ -1555,6 +1904,17 @@ pub fn setup_embeddings_with_backend<B: EmbeddingBackend>(
     backend: &mut B,
     options: &SetupOptions,
 ) -> Result<SetupReport, EmbeddingError> {
+    let mut progress = |_| {};
+    setup_embeddings_with_backend_and_progress(backend, options, &mut progress)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn setup_embeddings_with_backend_and_progress<B: EmbeddingBackend>(
+    backend: &mut B,
+    options: &SetupOptions,
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<SetupReport, EmbeddingError> {
     let spec = model_spec(&options.model_key).ok_or_else(|| EmbeddingError::UnsupportedModel {
         model_key: options.model_key.clone(),
     })?;
@@ -1568,13 +1928,14 @@ pub fn setup_embeddings_with_backend<B: EmbeddingBackend>(
         jbotci_cll::embedded_cll_site().map_err(|error| EmbeddingError::InvalidIndex {
             message: error.to_string(),
         })?;
-    build_embedding_pack(
+    build_embedding_pack_with_progress(
         backend,
         dictionary,
         cll_search_all_chunks(cll_site),
         &index_root,
         &spec,
         options.force,
+        progress,
     )
 }
 
@@ -1643,6 +2004,106 @@ mod tests {
             model_download_url(&spec),
             "https://huggingface.co/mradermacher/F2LLM-v2-330M-GGUF/resolve/03158c3a78ea1c7a7eea2d6829c49e3f1d63f85f/F2LLM-v2-330M.Q4_K_M.gguf"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn progress_percent_handles_empty_and_complete_totals() {
+        assert_eq!(progress_percent(0, 0), None);
+        assert_eq!(progress_percent(25, 100), Some(25));
+        assert_eq!(progress_percent(100, 100), Some(100));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_catalog_returns_missing_compatible_pack() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let error = load_latest_pack(dir.path(), DEFAULT_MODEL_KEY).expect_err("missing catalog");
+        assert!(matches!(
+            error,
+            EmbeddingError::MissingCompatiblePack { .. }
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn catalog_pointing_to_missing_manifest_returns_invalid_index() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let spec = EmbeddingModelSpec::default_f2llm();
+        write_catalog(dir.path(), &spec, "missing-pack").expect("catalog");
+
+        let error = load_latest_pack(dir.path(), &spec.model_key).expect_err("missing manifest");
+        assert!(matches!(error, EmbeddingError::InvalidIndex { .. }));
+        assert!(error.to_string().contains("manifest"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_pack_missing_items_or_shards_returns_pathful_error() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let pack_dir = dir.path().join("pack");
+        std::fs::create_dir_all(&pack_dir).expect("pack dir");
+        let missing_items_manifest = EmbeddingPackManifest {
+            schema_version: INDEX_SCHEMA_VERSION,
+            model_key: DEFAULT_MODEL_KEY.to_owned(),
+            model_revision: DEFAULT_MODEL_REVISION.to_owned(),
+            pack_id: "pack".to_owned(),
+            input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
+            built_by: EmbeddingRuntime {
+                runtime: "test".to_owned(),
+                version: "test".to_owned(),
+            },
+            dimensions: 4,
+            element_type: "f32le".to_owned(),
+            normalized: true,
+            distance: "dot".to_owned(),
+            compatible_query_runtimes: vec![EmbeddingRuntime {
+                runtime: "llama-cpp-4".to_owned(),
+                version: LLAMA_CPP_4_RUNTIME_VERSION.to_owned(),
+            }],
+            corpora: vec![CorpusManifest {
+                corpus_id: VLACKU_CORPUS_ID.to_owned(),
+                input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
+                fingerprint: "f".repeat(64),
+                row_count: 0,
+                dimensions: 4,
+                items_url: "corpora/vlacku-en/items.json".to_owned(),
+                items_sha256: "0".repeat(64),
+                shards: Vec::new(),
+            }],
+        };
+        write_json_file(&pack_dir.join("manifest.json"), &missing_items_manifest)
+            .expect("missing items manifest");
+        let error = validate_pack_dir(&pack_dir).expect_err("missing items");
+        assert!(matches!(error, EmbeddingError::InvalidIndex { .. }));
+        assert!(error.to_string().contains("items.json"));
+
+        let items_dir = pack_dir.join("corpora").join(VLACKU_CORPUS_ID);
+        std::fs::create_dir_all(&items_dir).expect("items dir");
+        let items: Vec<DictionaryEmbeddingItem> = Vec::new();
+        let items_path = items_dir.join("items.json");
+        write_json_file(&items_path, &items).expect("items");
+        let items_sha256 = sha256_hex_file(&items_path).expect("items sha");
+        let missing_shard_manifest = EmbeddingPackManifest {
+            corpora: vec![CorpusManifest {
+                items_sha256,
+                shards: vec![VectorShardManifest {
+                    url: format!("corpora/{VLACKU_CORPUS_ID}/vectors-0000.f32"),
+                    byte_len: 0,
+                    sha256: "0".repeat(64),
+                }],
+                ..missing_items_manifest.corpora[0].clone()
+            }],
+            ..missing_items_manifest
+        };
+        write_json_file(&pack_dir.join("manifest.json"), &missing_shard_manifest)
+            .expect("missing shard manifest");
+        let error = validate_pack_dir(&pack_dir).expect_err("missing shard");
+        assert!(error.to_string().contains("vectors-0000.f32"));
     }
 
     #[test]
@@ -1839,17 +2300,52 @@ mod tests {
             dimensions: 4,
             calls: 0,
         };
-        build_embedding_pack(&mut first, dictionary, cll_chunks, dir.path(), &spec, false)
+        let total_rows = dictionary.entries().len() + cll_chunks.len();
+        let mut first_progress = Vec::new();
+        {
+            let mut progress = |progress| first_progress.push(progress);
+            build_embedding_pack_with_progress(
+                &mut first,
+                dictionary,
+                cll_chunks,
+                dir.path(),
+                &spec,
+                false,
+                &mut progress,
+            )
             .expect("initial pack");
-        assert_eq!(first.calls, dictionary.entries().len() + cll_chunks.len());
+        }
+        assert_eq!(first.calls, total_rows);
+        assert!(first_progress.iter().any(|progress| {
+            progress.phase == SetupProgressPhase::Indexing
+                && progress.loaded == Some(total_rows as u64)
+                && progress.total == Some(total_rows as u64)
+        }));
 
         let mut second = FakeBackend {
             dimensions: 4,
             calls: 0,
         };
-        build_embedding_pack(&mut second, dictionary, cll_chunks, dir.path(), &spec, true)
+        let mut second_progress = Vec::new();
+        {
+            let mut progress = |progress| second_progress.push(progress);
+            build_embedding_pack_with_progress(
+                &mut second,
+                dictionary,
+                cll_chunks,
+                dir.path(),
+                &spec,
+                true,
+                &mut progress,
+            )
             .expect("force rebuild");
+        }
         assert_eq!(second.calls, 0);
+        assert!(second_progress.iter().any(|progress| {
+            progress.phase == SetupProgressPhase::Indexing
+                && progress.loaded == Some(total_rows as u64)
+                && progress.total == Some(total_rows as u64)
+        }));
     }
 
     #[test]

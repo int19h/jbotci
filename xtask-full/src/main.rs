@@ -38,6 +38,7 @@ use walkdir::WalkDir;
 
 const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-web/release/web";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
+const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
 const R2_CATALOG_CACHE_CONTROL: &str = "public, max-age=300";
@@ -938,7 +939,7 @@ fn copy_stable_web_asset_file(
     source_relative: &Path,
     target_relative: &Path,
 ) -> Result<()> {
-    let source = Path::new("apps/jbotci-web/assets").join(source_relative);
+    let source = Path::new(SHARED_UI_ASSET_DIR).join(source_relative);
     let target = public_dir.join(target_relative);
     copy_web_asset_file_atomically(&source, &target, "stable web asset")
 }
@@ -950,7 +951,7 @@ fn copy_stable_web_asset_dir(
     source_relative: &Path,
     target_relative: &Path,
 ) -> Result<()> {
-    let source_dir = Path::new("apps/jbotci-web/assets").join(source_relative);
+    let source_dir = Path::new(SHARED_UI_ASSET_DIR).join(source_relative);
     let target_dir = public_dir.join(target_relative);
     copy_flat_web_asset_dir(&source_dir, &target_dir, "stable web asset")
 }

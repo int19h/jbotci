@@ -13,6 +13,7 @@ use clap::{
     Arg, ArgAction, ArgMatches, Args, Command as ClapCommand, FromArgMatches, Parser, Subcommand,
     ValueEnum, value_parser,
 };
+use clx::progress::{ProgressJobBuilder, ProgressStatus};
 use jbotci_cll::{
     CllError, CllRenderFormat, CuktaRequest, CuktaSearchMode, CuktaTargetFilter,
     DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site, render_cukta_request, render_search_output,
@@ -21,9 +22,9 @@ use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport,
 };
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
-use jbotci_embeddings::native::{load_backend_for_search, setup_embeddings};
+use jbotci_embeddings::native::{load_backend_for_search, setup_embeddings_with_progress};
 use jbotci_embeddings::{
-    DEFAULT_MODEL_KEY, SetupOptions, default_index_root, semantic_cukta_output,
+    DEFAULT_MODEL_KEY, SetupOptions, SetupProgress, default_index_root, semantic_cukta_output,
     semantic_vlacku_hits,
 };
 use jbotci_gentufa::{
@@ -172,6 +173,30 @@ impl CliColorPolicy {
             concolor_clap::ColorChoice::Auto => self,
             concolor_clap::ColorChoice::Always => Self::same(true),
             concolor_clap::ColorChoice::Never => Self::never(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct CliProgressPolicy {
+    embedding_setup: bool,
+}
+
+impl CliProgressPolicy {
+    #[requires(true)]
+    #[ensures(!ret.embedding_setup)]
+    fn disabled() -> Self {
+        Self {
+            embedding_setup: false,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.embedding_setup == enabled)]
+    fn embedding_setup(enabled: bool) -> Self {
+        Self {
+            embedding_setup: enabled,
         }
     }
 }
@@ -949,13 +974,15 @@ fn run() -> Result<CliStatus> {
     let diagnostic_terminal_width = stderr_terminal_width();
     let mut stdout = std::io::stdout();
     let mut stderr = std::io::stderr();
-    run_cli_with_color_policy_and_terminal_widths(
+    let progress_policy = CliProgressPolicy::embedding_setup(stderr.is_terminal());
+    run_cli_with_color_policy_and_terminal_widths_and_progress(
         cli,
         &mut stdout,
         &mut stderr,
         color_policy,
         diagnostic_terminal_width,
         output_terminal_width,
+        progress_policy,
     )
 }
 
@@ -1017,6 +1044,30 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
     diagnostic_terminal_width: usize,
     output_terminal_width: Option<usize>,
 ) -> Result<CliStatus> {
+    run_cli_with_color_policy_and_terminal_widths_and_progress(
+        cli,
+        stdout,
+        stderr,
+        color_policy,
+        diagnostic_terminal_width,
+        output_terminal_width,
+        CliProgressPolicy::disabled(),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(diagnostic_terminal_width > 0)]
+#[requires(output_terminal_width.is_none_or(|width| width > 0))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_cli_with_color_policy_and_terminal_widths_and_progress<WOut: Write, WErr: Write>(
+    cli: Cli,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color_policy: CliColorPolicy,
+    diagnostic_terminal_width: usize,
+    output_terminal_width: Option<usize>,
+    progress_policy: CliProgressPolicy,
+) -> Result<CliStatus> {
     let color_policy = color_policy.with_choice(cli.color);
     if let Some(iterations) = cli.benchmark {
         return run_cli_benchmark(
@@ -1036,6 +1087,7 @@ fn run_cli_with_color_policy_and_terminal_widths<WOut: Write, WErr: Write>(
         color_policy,
         diagnostic_terminal_width,
         output_terminal_width,
+        progress_policy,
         None,
     )
 }
@@ -1065,6 +1117,7 @@ fn run_cli_benchmark<WOut: Write, WErr: Write>(
             color_policy,
             diagnostic_terminal_width,
             output_terminal_width,
+            CliProgressPolicy::disabled(),
             stdin_text.as_deref(),
         )?;
         measurement.record_iteration(iteration_start.elapsed(), status);
@@ -1085,6 +1138,7 @@ fn run_cli_command<WOut: Write, WErr: Write>(
     color_policy: CliColorPolicy,
     diagnostic_terminal_width: usize,
     output_terminal_width: Option<usize>,
+    progress_policy: CliProgressPolicy,
     stdin_text: Option<&str>,
 ) -> Result<CliStatus> {
     match command {
@@ -1330,7 +1384,7 @@ fn run_cli_command<WOut: Write, WErr: Write>(
             command_not_implemented("zbasu")?;
             Ok(CliStatus::Success)
         }
-        Command::Setup(input) => run_setup(input, stdout),
+        Command::Setup(input) => run_setup(input, stdout, progress_policy),
         #[cfg(feature = "grammar-debug")]
         Command::Gerna(input) => run_gerna(input, stdout),
     }
@@ -1408,17 +1462,36 @@ fn trace_text_input_reads_stdin(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn run_setup<WOut: Write>(input: SetupInput, stdout: &mut WOut) -> Result<CliStatus> {
+fn run_setup<WOut: Write>(
+    input: SetupInput,
+    stdout: &mut WOut,
+    progress_policy: CliProgressPolicy,
+) -> Result<CliStatus> {
     if !input.embedding {
         bail!("Choose at least one setup task, e.g. `jbotci setup --embedding`.");
     }
-    let report = setup_embeddings(&SetupOptions {
-        model_key: input.model,
-        force: input.force,
-        index_dir: input.index_dir,
-        model_dir: input.model_dir,
-    })
-    .map_err(|error| anyhow!(error.to_string()))?;
+    let mut reporter = CliSetupProgressReporter::new(progress_policy.embedding_setup);
+    let mut progress = |progress: SetupProgress| {
+        reporter.update(&progress);
+    };
+    let report = match setup_embeddings_with_progress(
+        &SetupOptions {
+            model_key: input.model,
+            force: input.force,
+            index_dir: input.index_dir,
+            model_dir: input.model_dir,
+        },
+        &mut progress,
+    ) {
+        Ok(report) => {
+            reporter.finish();
+            report
+        }
+        Err(error) => {
+            reporter.fail();
+            return Err(anyhow!(error.to_string()));
+        }
+    };
     writeln!(
         stdout,
         "Embedding setup complete.\nmodel: {}\nindex: {}\npack: {}\ndictionary rows: {}\nCLL rows: {}",
@@ -1429,6 +1502,109 @@ fn run_setup<WOut: Write>(input: SetupInput, stdout: &mut WOut) -> Result<CliSta
         report.cll_rows
     )?;
     Ok(CliStatus::Success)
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct CliSetupProgressReporter {
+    job: Option<std::sync::Arc<clx::progress::ProgressJob>>,
+    determinate: bool,
+}
+
+impl CliSetupProgressReporter {
+    #[requires(true)]
+    #[ensures(enabled -> ret.job.is_some() || clx::progress::is_disabled())]
+    fn new(enabled: bool) -> Self {
+        if !enabled || clx::progress::is_disabled() {
+            return Self {
+                job: None,
+                determinate: false,
+            };
+        }
+        let job = ProgressJobBuilder::new()
+            .body("{{ spinner() }} {{ message }} {{ detail | flex }}")
+            .prop("message", "Embedding setup")
+            .prop("detail", "")
+            .start();
+        Self {
+            job: Some(job),
+            determinate: false,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn update(&mut self, progress: &SetupProgress) {
+        let Some(job) = &self.job else {
+            return;
+        };
+        let detail = cli_setup_progress_detail(progress);
+        if let (Some(loaded), Some(total)) = (progress.loaded, progress.total) {
+            if !self.determinate {
+                job.set_body("{{ spinner() }} {{ message }} {{ detail | flex }} {{ progress_bar(width=20) }}");
+                self.determinate = true;
+            }
+            job.progress_total(usize::try_from(total).unwrap_or(usize::MAX));
+            job.progress_current(usize::try_from(loaded).unwrap_or(usize::MAX));
+        } else if self.determinate {
+            job.set_body("{{ spinner() }} {{ message }} {{ detail | flex }}");
+            self.determinate = false;
+        }
+        job.message(&progress.label);
+        job.prop("detail", &detail);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn finish(&mut self) {
+        if let Some(job) = &self.job {
+            job.set_status(ProgressStatus::Done);
+            clx::progress::stop_clear();
+        }
+        self.job = None;
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn fail(&mut self) {
+        if let Some(job) = &self.job {
+            job.set_status(ProgressStatus::Failed);
+            clx::progress::stop_clear();
+        }
+        self.job = None;
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn cli_setup_progress_detail(progress: &SetupProgress) -> String {
+    if let (Some(loaded), Some(total)) = (progress.loaded, progress.total) {
+        return match progress.kind.as_str() {
+            "download" | "validate" => format!("{} / {}", human_bytes(loaded), human_bytes(total)),
+            _ => format!("{loaded}/{total} rows"),
+        };
+    }
+    if progress.detail.is_empty() {
+        return progress.label.clone();
+    }
+    progress.detail.clone()
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn human_bytes(bytes: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let mut value = bytes as f64;
+    let mut unit = 0usize;
+    while value >= 1024.0 && unit + 1 < UNITS.len() {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{bytes} {}", UNITS[unit])
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
+    }
 }
 
 #[requires(true)]

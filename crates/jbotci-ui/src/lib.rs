@@ -151,6 +151,7 @@ const GENTUFA_URL_DEBOUNCE_MS: i32 = 650;
 const COMPUTE_CHANNEL_GENTUFA: &str = "gentufa-page";
 const COMPUTE_CHANNEL_CUKTA: &str = "cukta-page";
 const COMPUTE_CHANNEL_VLACKU: &str = "vlacku-page";
+#[cfg(target_arch = "wasm32")]
 const COMPUTE_CHANNEL_EMBEDDINGS: &str = "embedding-corpus";
 const COMPUTE_CHANNEL_EXPORT: &str = "gentufa-export";
 const ASYNC_ACTIVITY_INDICATOR_DELAY_MS: i32 = 100;
@@ -249,6 +250,7 @@ enum TopbarSettingsLayout {
 struct ReferenceHoverState {
     hovered: Option<HoveredReference>,
     overlay: Option<ArrowOverlay>,
+    measurement_id: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -544,7 +546,10 @@ struct EmbeddingSettingsState {
     detail: String,
     model_size: String,
     index_size: String,
+    progress_kind: Option<String>,
     progress_label: Option<String>,
+    progress_loaded: Option<u64>,
+    progress_total: Option<u64>,
     progress_percent: Option<u8>,
     busy: bool,
     remove_confirmation_open: bool,
@@ -943,7 +948,10 @@ impl Default for EmbeddingSettingsState {
             detail: "Checking embedding storage.".to_owned(),
             model_size: "unknown".to_owned(),
             index_size: "unknown".to_owned(),
+            progress_kind: None,
             progress_label: None,
+            progress_loaded: None,
+            progress_total: None,
             progress_percent: None,
             busy: false,
             remove_confirmation_open: false,
@@ -3100,7 +3108,7 @@ async fn refresh_embedding_settings(mut settings: Signal<EmbeddingSettingsState>
 #[ensures(true)]
 async fn setup_embeddings(mut settings: Signal<EmbeddingSettingsState>) {
     configure_embedding_model_key(&settings.read().selected_model_key);
-    let corpus_json = match embedding_corpus_json_from_compute_worker().await {
+    let corpus_json = match embedding_setup_corpus_json().await {
         Ok(json) => json,
         Err(error) => {
             let previous = settings.read().clone();
@@ -3117,6 +3125,21 @@ async fn setup_embeddings(mut settings: Signal<EmbeddingSettingsState>) {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn embedding_setup_corpus_json() -> Result<String, String> {
+    embedding_corpus_json_from_compute_worker().await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|json| json.is_empty()) || ret.is_err())]
+async fn embedding_setup_corpus_json() -> Result<String, String> {
+    Ok(String::new())
+}
+
+#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
 async fn embedding_corpus_json_from_compute_worker() -> Result<String, String> {
@@ -3614,6 +3637,45 @@ static NATIVE_EMBEDDING_SEARCH_WORKER: OnceLock<Mutex<Option<NativeEmbeddingSear
     OnceLock::new();
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+static NATIVE_EMBEDDING_SETUP_PROGRESS: OnceLock<Mutex<Option<jbotci_embeddings::SetupProgress>>> =
+    OnceLock::new();
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|progress| !progress.kind.is_empty()))]
+fn native_embedding_setup_progress() -> Option<jbotci_embeddings::SetupProgress> {
+    NATIVE_EMBEDDING_SETUP_PROGRESS
+        .get_or_init(|| Mutex::new(None))
+        .lock()
+        .ok()
+        .and_then(|progress| progress.clone())
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(!progress.kind.is_empty())]
+#[ensures(true)]
+fn set_native_embedding_setup_progress(progress: jbotci_embeddings::SetupProgress) {
+    if let Ok(mut stored) = NATIVE_EMBEDDING_SETUP_PROGRESS
+        .get_or_init(|| Mutex::new(None))
+        .lock()
+    {
+        *stored = Some(progress);
+    }
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn clear_native_embedding_setup_progress() {
+    if let Ok(mut stored) = NATIVE_EMBEDDING_SETUP_PROGRESS
+        .get_or_init(|| Mutex::new(None))
+        .lock()
+    {
+        *stored = None;
+    }
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[derive(Debug, Clone)]
 #[invariant(true)]
 struct NativeEmbeddingSearchWorkerHandle {
@@ -3701,7 +3763,10 @@ fn native_embedding_status_json_result() -> Result<String, String> {
         .ok()
         .and_then(|(pack_dir, _)| directory_size(pack_dir).ok())
         .unwrap_or(0);
-    let (status, detail) = if !model_path.is_file() {
+    let setup_progress = native_embedding_setup_progress();
+    let (status, detail) = if let Some(progress) = &setup_progress {
+        ("preparing", progress.detail.clone())
+    } else if !model_path.is_file() {
         (
             "missing-model",
             format!(
@@ -3725,7 +3790,7 @@ fn native_embedding_status_json_result() -> Result<String, String> {
             "Native embeddings are ready for semantic search.".to_owned(),
         )
     };
-    let json = serde_json::json!({
+    let mut json = serde_json::json!({
         "selectedModelKey": model_key,
         "effectiveModelKey": spec.model_key,
         "modelKey": spec.model_key,
@@ -3737,6 +3802,11 @@ fn native_embedding_status_json_result() -> Result<String, String> {
         "status": status,
         "detail": detail,
     });
+    if let Some(progress) = setup_progress
+        && let Ok(progress_value) = serde_json::to_value(progress)
+    {
+        json["progress"] = progress_value;
+    }
     Ok(json.to_string())
 }
 
@@ -3750,7 +3820,14 @@ fn native_embedding_setup_json_result(model_key: String) -> Result<String, Strin
         index_dir: None,
         model_dir: None,
     };
-    jbotci_embeddings::native::setup_embeddings(&options).map_err(|error| error.to_string())?;
+    clear_native_embedding_setup_progress();
+    let mut progress = |progress| {
+        set_native_embedding_setup_progress(progress);
+    };
+    let setup_result =
+        jbotci_embeddings::native::setup_embeddings_with_progress(&options, &mut progress);
+    clear_native_embedding_setup_progress();
+    setup_result.map_err(|error| error.to_string())?;
     native_clear_embedding_search_service()?;
     native_embedding_status_json_result()
 }
@@ -4258,9 +4335,18 @@ fn embedding_settings_from_json(json: &str, fallback_detail: &str) -> EmbeddingS
         .map(human_bytes)
         .unwrap_or_else(|| "unknown".to_owned());
     let progress = value.get("progress");
+    let progress_kind = progress
+        .and_then(|progress| json_string(progress, "kind"))
+        .filter(|kind| !kind.is_empty());
     let progress_label = progress
         .and_then(|progress| json_string(progress, "label"))
         .filter(|label| !label.is_empty());
+    let progress_loaded = progress
+        .and_then(|progress| progress.get("loaded"))
+        .and_then(serde_json::Value::as_u64);
+    let progress_total = progress
+        .and_then(|progress| progress.get("total"))
+        .and_then(serde_json::Value::as_u64);
     let progress_percent = progress
         .and_then(|progress| progress.get("percent"))
         .and_then(serde_json::Value::as_u64)
@@ -4274,7 +4360,10 @@ fn embedding_settings_from_json(json: &str, fallback_detail: &str) -> EmbeddingS
         detail,
         model_size,
         index_size,
+        progress_kind,
         progress_label,
+        progress_loaded,
+        progress_total,
         progress_percent,
         busy: false,
         remove_confirmation_open: false,
@@ -4349,7 +4438,10 @@ fn embedding_settings_error_state(
         detail,
         model_size: "unknown".to_owned(),
         index_size: "unknown".to_owned(),
+        progress_kind: None,
         progress_label: None,
+        progress_loaded: None,
+        progress_total: None,
         progress_percent: None,
         busy: false,
         remove_confirmation_open: false,
@@ -12337,17 +12429,24 @@ fn set_reference_hover(
 ) {
     let hovered = HoveredReference { role, label };
     let overlay = measure_reference_overlay(&hovered);
+    let measurement_id = next_reference_hover_measurement_id(&reference_hover.read());
     reference_hover.set(ReferenceHoverState {
         hovered: Some(hovered.clone()),
         overlay,
+        measurement_id,
     });
-    schedule_reference_overlay_measure(reference_hover, hovered);
+    schedule_reference_overlay_measure(reference_hover, hovered, measurement_id);
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn clear_reference_hover(mut reference_hover: Signal<ReferenceHoverState>) {
-    reference_hover.set(ReferenceHoverState::default());
+    let measurement_id = next_reference_hover_measurement_id(&reference_hover.read());
+    reference_hover.set(ReferenceHoverState {
+        hovered: None,
+        overlay: None,
+        measurement_id,
+    });
 }
 
 #[requires(true)]
@@ -12373,11 +12472,19 @@ fn refresh_reference_hover(mut reference_hover: Signal<ReferenceHoverState>) {
         return;
     };
     let overlay = measure_reference_overlay(&hovered);
+    let measurement_id = next_reference_hover_measurement_id(&reference_hover.read());
     reference_hover.set(ReferenceHoverState {
         hovered: Some(hovered.clone()),
         overlay,
+        measurement_id,
     });
-    schedule_reference_overlay_measure(reference_hover, hovered);
+    schedule_reference_overlay_measure(reference_hover, hovered, measurement_id);
+}
+
+#[requires(true)]
+#[ensures(ret >= state.measurement_id)]
+fn next_reference_hover_measurement_id(state: &ReferenceHoverState) -> u64 {
+    state.measurement_id.saturating_add(1)
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
@@ -12386,11 +12493,12 @@ fn refresh_reference_hover(mut reference_hover: Signal<ReferenceHoverState>) {
 fn schedule_reference_overlay_measure(
     mut reference_hover: Signal<ReferenceHoverState>,
     hovered: HoveredReference,
+    measurement_id: u64,
 ) {
     spawn(async move {
         let overlay = measure_reference_overlay_desktop(&hovered).await;
         reference_hover.with_mut(|state| {
-            if state.hovered.as_ref() == Some(&hovered) {
+            if state.measurement_id == measurement_id && state.hovered.as_ref() == Some(&hovered) {
                 state.overlay = overlay;
             }
         });
@@ -12406,6 +12514,7 @@ fn schedule_reference_overlay_measure(
 fn schedule_reference_overlay_measure(
     _reference_hover: Signal<ReferenceHoverState>,
     _hovered: HoveredReference,
+    _measurement_id: u64,
 ) {
 }
 
@@ -13372,7 +13481,10 @@ fn render_embedding_settings(
                         next.detail = "Checking embedding storage.".to_owned();
                         next.model_size = "unknown".to_owned();
                         next.index_size = "unknown".to_owned();
+                        next.progress_kind = None;
                         next.progress_label = None;
+                        next.progress_loaded = None;
+                        next.progress_total = None;
                         next.progress_percent = None;
                         next.remove_confirmation_open = false;
                         embedding_settings.set(next);
@@ -13413,7 +13525,10 @@ fn render_embedding_settings(
                         let mut next = embedding_settings.read().clone();
                         next.busy = true;
                         next.detail = "Downloading model and preparing the embedding index.".to_owned();
+                        next.progress_kind = Some("setup".to_owned());
                         next.progress_label = Some("Embedding setup".to_owned());
+                        next.progress_loaded = None;
+                        next.progress_total = None;
                         next.progress_percent = None;
                         embedding_settings.set(next);
                         spawn_tracked(activity, AsyncTaskKind::Settings, async move {
@@ -13433,7 +13548,10 @@ fn render_embedding_settings(
                         let mut next = embedding_settings.read().clone();
                         next.busy = true;
                         next.detail = "Checking for a compatible vector pack.".to_owned();
+                        next.progress_kind = Some("setup".to_owned());
                         next.progress_label = Some("Embedding setup".to_owned());
+                        next.progress_loaded = None;
+                        next.progress_total = None;
                         next.progress_percent = None;
                         embedding_settings.set(next);
                         spawn_tracked(activity, AsyncTaskKind::Settings, async move {
@@ -13488,7 +13606,10 @@ fn render_embedding_settings(
                                     next.busy = true;
                                     next.remove_confirmation_open = false;
                                     next.detail = "Removing selected embedding model and index.".to_owned();
+                                    next.progress_kind = None;
                                     next.progress_label = None;
+                                    next.progress_loaded = None;
+                                    next.progress_total = None;
                                     next.progress_percent = None;
                                     embedding_settings.set(next);
                                     spawn_tracked(activity, AsyncTaskKind::Settings, async move {
@@ -13511,7 +13632,7 @@ fn render_embedding_progress(state: &EmbeddingSettingsState) -> Element {
     if !state.busy && state.progress_percent.is_none() {
         return rsx! {};
     }
-    let label = state.progress_label.as_deref().unwrap_or("Embedding setup");
+    let label = embedding_progress_display_label(state);
     if let Some(percent) = state.progress_percent {
         rsx! {
             div { class: "settings-progress-row",
@@ -13521,7 +13642,7 @@ fn render_embedding_progress(state: &EmbeddingSettingsState) -> Element {
                     value: "{percent}",
                     aria_label: "{label}",
                 }
-                span { class: "settings-progress-label", "{label} {percent}%" }
+                span { class: "settings-progress-label", "{label}" }
             }
         }
     } else {
@@ -13534,6 +13655,35 @@ fn render_embedding_progress(state: &EmbeddingSettingsState) -> Element {
                 span { class: "settings-progress-label", "{label}" }
             }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn embedding_progress_display_label(state: &EmbeddingSettingsState) -> String {
+    let label = state.progress_label.as_deref().unwrap_or("Embedding setup");
+    let Some(loaded) = state.progress_loaded else {
+        return state
+            .progress_percent
+            .map(|percent| format!("{label} {percent}%"))
+            .unwrap_or_else(|| label.to_owned());
+    };
+    let Some(total) = state.progress_total else {
+        return label.to_owned();
+    };
+    let progress_suffix = state
+        .progress_percent
+        .map(|percent| format!(" ({percent}%)"))
+        .unwrap_or_default();
+    match state.progress_kind.as_deref() {
+        Some("download") | Some("validate") => {
+            format!(
+                "{label} {} / {}{progress_suffix}",
+                human_bytes(loaded),
+                human_bytes(total)
+            )
+        }
+        _ => format!("{label} {loaded}/{total} rows{progress_suffix}"),
     }
 }
 
@@ -15418,6 +15568,7 @@ fn hide_dictionary_tooltip_immediately(host: &web_sys::Element) {
         return;
     };
     let style = tooltip.style();
+    let _ = tooltip.remove_attribute("data-jbotci-position-ready");
     let _ = style.set_property("visibility", "hidden");
     let _ = style.set_property("pointer-events", "none");
     let _ = style.set_property("transition", "none");
@@ -15432,6 +15583,7 @@ fn clear_dictionary_tooltip_immediate_hide(host: &web_sys::Element) {
         return;
     };
     let style = tooltip.style();
+    let _ = tooltip.remove_attribute("data-jbotci-position-ready");
     let _ = style.remove_property("visibility");
     let _ = style.remove_property("pointer-events");
     let _ = style.remove_property("transform");
@@ -15463,6 +15615,7 @@ fn position_dictionary_tooltip(host: &web_sys::Element) {
     let Some(window) = web_sys::window() else {
         return;
     };
+    let _ = tooltip_html.remove_attribute("data-jbotci-position-ready");
     let host_rect = host.get_bounding_client_rect();
     let tooltip_rect = tooltip_html.get_bounding_client_rect();
     let viewport_width = window
@@ -15502,6 +15655,7 @@ fn position_dictionary_tooltip(host: &web_sys::Element) {
     );
     let _ = style.set_property("left", &format!("{:.2}px", position.left));
     let _ = style.set_property("top", &format!("{:.2}px", position.top));
+    let _ = tooltip_html.set_attribute("data-jbotci-position-ready", "true");
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
@@ -15558,6 +15712,7 @@ fn install_desktop_tooltip_bridge() {
                 if (!tooltip) {
                     return;
                 }
+                tooltip.removeAttribute("data-jbotci-position-ready");
                 tooltip.style.setProperty("visibility", "hidden");
                 tooltip.style.setProperty("pointer-events", "none");
                 tooltip.style.setProperty("transition", "none");
@@ -15570,6 +15725,7 @@ fn install_desktop_tooltip_bridge() {
                         continue;
                     }
                     if (host === activeHost) {
+                        tooltip.removeAttribute("data-jbotci-position-ready");
                         tooltip.style.removeProperty("visibility");
                         tooltip.style.removeProperty("pointer-events");
                         tooltip.style.removeProperty("transform");
@@ -15634,6 +15790,7 @@ fn install_desktop_tooltip_bridge() {
                     tooltip.style.setProperty("--dictionary-tooltip-top", top);
                     tooltip.style.setProperty("left", left);
                     tooltip.style.setProperty("top", top);
+                    tooltip.setAttribute("data-jbotci-position-ready", "true");
                 }
             })();
             await new Promise(() => {});
@@ -17595,6 +17752,67 @@ mod tests {
         assert!(!activity.finish(task_id));
         assert!(!activity.finish(task_id + 1));
         assert!(!activity.is_active());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn embedding_settings_parse_native_progress_payload() {
+        let json = serde_json::json!({
+            "selectedModelKey": F2LLM_NATIVE_330M_MODEL_KEY,
+            "effectiveModelKey": F2LLM_NATIVE_330M_MODEL_KEY,
+            "status": "preparing",
+            "detail": "Indexing dictionary.",
+            "progress": {
+                "kind": "index",
+                "label": "Indexing dictionary",
+                "loaded": 3,
+                "total": 10,
+                "percent": 30
+            }
+        });
+
+        let state = embedding_settings_from_json(&json.to_string(), "fallback");
+
+        assert_eq!(state.progress_kind.as_deref(), Some("index"));
+        assert_eq!(state.progress_loaded, Some(3));
+        assert_eq!(state.progress_total, Some(10));
+        assert_eq!(state.progress_percent, Some(30));
+        assert_eq!(
+            embedding_progress_display_label(&state),
+            "Indexing dictionary 3/10 rows (30%)"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn embedding_progress_display_formats_byte_progress() {
+        let state = EmbeddingSettingsState {
+            progress_kind: Some("download".to_owned()),
+            progress_label: Some("Downloading model".to_owned()),
+            progress_loaded: Some(1024),
+            progress_total: Some(2048),
+            progress_percent: Some(50),
+            ..EmbeddingSettingsState::default()
+        };
+
+        assert_eq!(
+            embedding_progress_display_label(&state),
+            "Downloading model 1024 B / 2048 B (50%)"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_hover_measurement_id_is_monotonic_and_saturating() {
+        let mut state = ReferenceHoverState::default();
+        assert_eq!(next_reference_hover_measurement_id(&state), 1);
+        state.measurement_id = 41;
+        assert_eq!(next_reference_hover_measurement_id(&state), 42);
+        state.measurement_id = u64::MAX;
+        assert_eq!(next_reference_hover_measurement_id(&state), u64::MAX);
     }
 
     #[test]
