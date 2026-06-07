@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM rust:1-bookworm AS chef-base
+FROM rust:1-bookworm AS build
 
 WORKDIR /src
 
@@ -14,34 +14,7 @@ RUN --mount=type=cache,id=jbotci-cargo-registry,target=/usr/local/cargo/registry
     --mount=type=cache,id=jbotci-cargo-git,target=/usr/local/cargo/git/db,sharing=locked \
     --mount=type=cache,id=jbotci-cargo-install-target,target=/tmp/cargo-install-target,sharing=locked \
     CARGO_TARGET_DIR=/tmp/cargo-install-target \
-    cargo install dioxus-cli --version 0.7.9 --locked \
-    && CARGO_TARGET_DIR=/tmp/cargo-install-target \
-    cargo install cargo-chef --version 0.1.77 --locked
-
-FROM chef-base AS planner
-
-COPY . .
-
-RUN cargo chef prepare --recipe-path recipe.json
-
-FROM chef-base AS cacher
-
-COPY --from=planner /src/recipe.json recipe.json
-COPY --from=planner /src/crates/vendor/llama-cpp-sys-4 crates/vendor/llama-cpp-sys-4
-
-RUN --mount=type=cache,id=jbotci-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
-    --mount=type=cache,id=jbotci-cargo-git,target=/usr/local/cargo/git/db,sharing=locked \
-    cargo chef cook --locked --recipe-path recipe.json -p xtask --bin xtask
-
-RUN --mount=type=cache,id=jbotci-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
-    --mount=type=cache,id=jbotci-cargo-git,target=/usr/local/cargo/git/db,sharing=locked \
-    cargo chef cook --locked --release --recipe-path recipe.json -p jbotci-server --bin jbotci-server
-
-RUN --mount=type=cache,id=jbotci-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
-    --mount=type=cache,id=jbotci-cargo-git,target=/usr/local/cargo/git/db,sharing=locked \
-    cargo chef cook --locked --release --target wasm32-unknown-unknown --recipe-path recipe.json -p jbotci-web --bin jbotci-web --features web
-
-FROM cacher AS build
+    cargo install dioxus-cli --version 0.7.9 --locked
 
 COPY . .
 
@@ -52,6 +25,7 @@ ARG JBOTCI_GIT_COMMIT=
 
 RUN --mount=type=cache,id=jbotci-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,id=jbotci-cargo-git,target=/usr/local/cargo/git/db,sharing=locked \
+    --mount=type=cache,id=jbotci-cargo-target,target=/src/target,sharing=locked \
     set -eux; \
     build_commit="${JBOTCI_GIT_COMMIT:-${RENDER_GIT_COMMIT:-}}"; \
     if ! printf '%s' "${build_commit}" | grep -Eq '^[0-9a-fA-F]{40}$'; then \
@@ -63,8 +37,7 @@ RUN --mount=type=cache,id=jbotci-cargo-registry,target=/usr/local/cargo/registry
     cargo run -p xtask -- dist-server \
         --out-dir /opt/jbotci \
         --base-path "${BASE_PATH}" \
-        --skip-web-embeddings; \
-    rm -rf /src/target
+        --skip-web-embeddings
 
 FROM debian:bookworm-slim AS runtime
 
