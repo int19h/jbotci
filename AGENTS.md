@@ -298,10 +298,14 @@ For the web app, all processing should happen on the client in the browser and s
 
 # Build
 
-If you have made any changes, always build the `jbotci` debug binary and do a debug `dx build` before you wrap up your work.
+If you have made any product changes, always build the `jbotci` debug binary and do a debug `dx build` before you wrap up your work.
 
 
 # Test suite
+
+If you've made any product changes, always run at least `cargo test -r`.
+
+If you've changed morphology or syntax parsing logic or output formats, always run the fixture tests with `--profile all`. 
 
 In all cases, when updating expectations, be VERY careful and do not blindly assume that new output is correct. Ideally expectations need to be updated manually rather than taking the output of the parser. When that is infeasible (e.g. you have more than a few hundred expectations that need updating), you need to definitively ascertain that the change is purely surface representation before doing any kind of automatic expectation update whatsoever. That is, if the change is predictable and mechanical, write a script that validates this while comparing the old and the new expectations, and only for those entries where such a script confirms that it is indeed only that mechanical change that is the difference, it is okay to update with new output; any cases that get flagged as more than that need careful *manual* review individually, one by one.
 
@@ -310,7 +314,7 @@ Prefer to run tests on release builds - the test suite is large and parser perfo
 
 # Lojban
 
-Your knowledge of Lojban is not perfect. When in doubt, read the CLL using jbotci cukta MCP. 
+Your knowledge of Lojban is not perfect. When making decisions that require correct understanding of Lojban morphology, syntax, or semantics, you must *always* read the relevant CLL sections using jbotci cukta MCP.
 
 Lojban morphology is highly non-trivial and many common assumptions don't hold. In particular, NEVER assume that spaces are a reliable way to detect word boundaries. The only way to reliably detect Lojban word boundaries in a text stream is to run the morphology parser on it! Similarly, determining whether a given vowel must be a glide requires going through morphology. Hacks that involve operating on raw string level circumventing the morphology parser are wrong and must be avoided.
 

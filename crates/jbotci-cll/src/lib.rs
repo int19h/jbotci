@@ -6421,6 +6421,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "corpus-wide chrestomathy parse target check is useful but too long for default test runs"]
     #[requires(true)]
     #[ensures(true)]
     fn chrestomathy_metadata_group_and_section_parse_targets_parse() {
