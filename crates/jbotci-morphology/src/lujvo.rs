@@ -117,9 +117,17 @@ pub fn can_appear_as_final_lujvo_rafsi(rafsi_text: &str) -> bool {
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret -> !word_text.is_empty())]
 pub fn is_valid_lujvo_candidate_word(word_text: &str) -> bool {
-    ends_with_vowel(word_text) && has_consonant_cluster_in_first_five(word_text)
+    let Ok(words) = crate::segment_words_with_modifiers(word_text) else {
+        return false;
+    };
+    let [word_like] = words.as_slice() else {
+        return false;
+    };
+    word_like
+        .bare_word()
+        .is_some_and(|word| word.kind() == crate::WordKind::Lujvo)
 }
 
 #[requires(true)]
@@ -305,21 +313,6 @@ fn consonant_pair_is_rank_two(left: &str, right: &str) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn has_consonant_cluster_in_first_five(word_text: &str) -> bool {
-    let no_break_chars = word_text
-        .chars()
-        .filter(|value| *value != '\'' && *value != 'y')
-        .take(5)
-        .collect::<Vec<_>>();
-    no_break_chars.windows(2).any(|pair| {
-        is_consonant(pair[0])
-            && is_consonant(pair[1])
-            && permissible_consonant_pair(pair[0], pair[1]).is_some_and(|rank| rank != 0)
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn lujvo_score(rafsi_sequence: &[String]) -> i32 {
     let lujvo_text = rafsi_sequence.concat();
     let total_length = lujvo_text.chars().count() as i32;
@@ -411,6 +404,13 @@ mod tests {
     #[ensures(true)]
     fn strict_lujvo_candidates_need_valid_lujvo_shape() {
         assert!(is_valid_lujvo_candidate_word("jbogri"));
+        assert!(is_valid_lujvo_candidate_word("soirsai"));
+        assert!(is_valid_lujvo_candidate_word("ro'inre'o"));
+        assert!(is_valid_lujvo_candidate_word("jetcybolxada"));
         assert!(!is_valid_lujvo_candidate_word("babau"));
+        assert!(!is_valid_lujvo_candidate_word("soisai"));
+        assert!(!is_valid_lujvo_candidate_word("xlamkai"));
+        assert!(!is_valid_lujvo_candidate_word("xlaglymlu"));
+        assert!(!is_valid_lujvo_candidate_word("kerlyu'ukerlo"));
     }
 }

@@ -788,6 +788,24 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn lujvo_mode_rejects_candidates_rejected_by_morphology() {
+        let error = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            jbotci_dictionary_data::english(),
+            &[
+                JvozbaInput::FixedRafsi("kerl".to_owned()),
+                JvozbaInput::FixedRafsi("u'u".to_owned()),
+                JvozbaInput::Word("kerlo".to_owned()),
+            ],
+        )
+        .expect_err("candidate must be rejected by full morphology validation");
+
+        assert_eq!(error, JvozbaError::CouldNotBuildLujvo);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn reports_missing_dictionary_entries() {
         let error = build_best_jvozba_detailed(
             JvozbaMode::Lujvo,
