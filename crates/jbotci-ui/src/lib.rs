@@ -52,6 +52,7 @@ use jbotci_web_core::build_page_head;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
+use serde::{Deserialize, Serialize};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
@@ -63,8 +64,6 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use std::cell::Cell;
 use std::collections::BTreeSet;
-#[cfg(target_arch = "wasm32")]
-use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
 use std::future::Future;
@@ -163,17 +162,17 @@ const SEMANTIC_SEARCH_SETUP_LINK_SUFFIX: &str = " model and embeddings to use se
 const VLACKU_JVOZBA_MIN_WIDTH_PX: f64 = 981.0;
 #[cfg(target_arch = "wasm32")]
 const CUKTA_TOC_FORCED_AUTOHIDE_WIDTH_PX: f64 = 1100.0;
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 const VLACKU_JVOZBA_HEIGHT_SCALE: f64 = 0.5;
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 const VLACKU_JVOZBA_LAYOUT_FRAME_PASSES: u8 = 2;
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS: i32 = 30;
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_FRAME_PASSES: u8 = 2;
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 const GENTUFA_TREE_LAYOUT_DELAY_MS: i32 = 30;
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 const GENTUFA_TREE_LAYOUT_FRAME_PASSES: u8 = 2;
 #[allow(dead_code)]
 const BLOCK_REFERENCE_LABEL_GAP_PX: f64 = 8.0;
@@ -224,6 +223,9 @@ thread_local! {
     static BROWSER_STATE_HANDLERS_INSTALLED: Cell<bool> = const { Cell::new(false) };
 }
 
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+static DESKTOP_DOM_HANDLERS_INSTALLED: OnceLock<()> = OnceLock::new();
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 enum ThemeMode {
@@ -264,14 +266,34 @@ struct ArrowOverlay {
     paths: Vec<String>,
 }
 
-#[cfg(target_arch = "wasm32")]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[invariant(true)]
 struct ReferenceRect {
     left: f64,
     top: f64,
     right: f64,
     bottom: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[invariant(true)]
+struct ElementSize {
+    width: f64,
+    height: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[invariant(true)]
+struct ViewportSize {
+    width: f64,
+    height: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[invariant(true)]
+struct PositionedPoint {
+    left: f64,
+    top: f64,
 }
 
 #[invariant(self.line > 0)]
@@ -1723,11 +1745,13 @@ fn AppShell() -> Element {
     rsx! {
         style { "{font_face_css()}" }
         document::Stylesheet { href: MAIN_CSS }
-        document::Link { rel: "modulepreload", href: COMPUTE_JS }
-        document::Link { rel: "modulepreload", href: COMPUTE_WORKER_JS }
-        document::Link { rel: "modulepreload", href: EMBEDDINGS_JS }
-        document::Link { rel: "modulepreload", href: EMBEDDING_WORKER_JS }
-        document::Link { rel: "manifest", href: "{manifest_href}" }
+        if cfg!(target_arch = "wasm32") {
+            document::Link { rel: "modulepreload", href: COMPUTE_JS }
+            document::Link { rel: "modulepreload", href: COMPUTE_WORKER_JS }
+            document::Link { rel: "modulepreload", href: EMBEDDINGS_JS }
+            document::Link { rel: "modulepreload", href: EMBEDDING_WORKER_JS }
+            document::Link { rel: "manifest", href: "{manifest_href}" }
+        }
         document::Link { rel: "icon", r#type: "image/png", href: "{favicon_href}" }
         document::Link { rel: "shortcut icon", r#type: "image/png", href: "{favicon_href}" }
         document::Link { rel: "apple-touch-icon", href: "{apple_touch_icon_href}" }
@@ -2358,7 +2382,23 @@ fn schedule_topbar_settings_layout_measure(
     closure.forget();
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_topbar_settings_layout_measure(
+    settings_layout: Signal<TopbarSettingsLayout>,
+    settings_open: Signal<bool>,
+) {
+    spawn(async move {
+        sleep_ms(0).await;
+        let layout = measure_topbar_settings_layout_desktop()
+            .await
+            .unwrap_or(TopbarSettingsLayout::BothInline);
+        update_topbar_settings_layout(settings_layout, settings_open, layout);
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
 #[requires(true)]
 #[ensures(true)]
 fn schedule_topbar_settings_layout_measure(
@@ -2402,6 +2442,98 @@ fn measure_topbar_settings_layout() -> TopbarSettingsLayout {
     if topbar_probe_fits(".app-topbar-fit-probe-both") {
         TopbarSettingsLayout::BothInline
     } else if topbar_probe_fits(".app-topbar-fit-probe-theme") {
+        TopbarSettingsLayout::ThemeInline
+    } else {
+        TopbarSettingsLayout::NoneInline
+    }
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[invariant(true)]
+struct TopbarLayoutMetrics {
+    available_width: f64,
+    both_required_width: f64,
+    theme_required_width: f64,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn measure_topbar_settings_layout_desktop() -> Option<TopbarSettingsLayout> {
+    let metrics: TopbarLayoutMetrics = document::eval(
+        r#"
+        const inner = document.querySelector(".app-topbar-inner");
+        const widthFor = (parent, selector) => {
+            const element = parent && parent.querySelector(selector);
+            if (!element) {
+                return 0;
+            }
+            const style = window.getComputedStyle(element);
+            if (style.display === "none" || style.visibility === "hidden") {
+                return 0;
+            }
+            const rect = element.getBoundingClientRect();
+            return Math.max(Number(element.scrollWidth || 0), rect.width);
+        };
+        const centerWidthFor = (parent) => {
+            const center = parent && parent.querySelector(".app-topbar-center");
+            if (!center) {
+                return 0;
+            }
+            const style = window.getComputedStyle(center);
+            if (style.display === "none" || style.visibility === "hidden") {
+                return 0;
+            }
+            const dots = center.querySelector(".app-topbar-activity-dots");
+            if (!dots) {
+                return 0;
+            }
+            const rect = dots.getBoundingClientRect();
+            return Math.max(Number(dots.scrollWidth || 0), rect.width);
+        };
+        const columnGapFor = (element) => {
+            if (!element) {
+                return 0;
+            }
+            const value = Number.parseFloat(window.getComputedStyle(element).columnGap || "0");
+            return Number.isFinite(value) && value >= 0 ? value : 0;
+        };
+        const requiredFor = (selector) => {
+            if (!inner) {
+                return 0;
+            }
+            const probe = document.querySelector(selector);
+            if (!probe) {
+                return 0;
+            }
+            const probeRect = probe.getBoundingClientRect();
+            const probeWidth = Math.max(Number(probe.scrollWidth || 0), probeRect.width);
+            const centerWidth = centerWidthFor(inner);
+            const rightWidth = widthFor(inner, ".app-topbar-right");
+            const visibleColumns = 1 + (centerWidth > 0 ? 1 : 0) + (rightWidth > 0 ? 1 : 0);
+            return probeWidth + centerWidth + rightWidth + (visibleColumns - 1) * columnGapFor(inner);
+        };
+        return {
+            available_width: inner ? inner.getBoundingClientRect().width : 0,
+            both_required_width: requiredFor(".app-topbar-fit-probe-both"),
+            theme_required_width: requiredFor(".app-topbar-fit-probe-theme"),
+        };
+        "#,
+    )
+    .join()
+    .await
+    .ok()?;
+    Some(topbar_settings_layout_from_metrics(metrics))
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn topbar_settings_layout_from_metrics(metrics: TopbarLayoutMetrics) -> TopbarSettingsLayout {
+    if metrics.both_required_width <= metrics.available_width + 1.0 {
+        TopbarSettingsLayout::BothInline
+    } else if metrics.theme_required_width <= metrics.available_width + 1.0 {
         TopbarSettingsLayout::ThemeInline
     } else {
         TopbarSettingsLayout::NoneInline
@@ -11287,6 +11419,38 @@ fn horizontal_ranges_overlap(
 }
 
 #[requires(true)]
+#[ensures(ret >= 0.0)]
+fn reference_rect_width(rect: ReferenceRect) -> f64 {
+    (rect.right - rect.left).max(0.0)
+}
+
+#[requires(true)]
+#[ensures(ret.left.is_finite())]
+#[ensures(ret.top.is_finite())]
+fn dictionary_tooltip_position(
+    host_rect: ReferenceRect,
+    tooltip_size: ElementSize,
+    viewport_size: ViewportSize,
+) -> PositionedPoint {
+    let margin = 8.0;
+    let gap = 8.0;
+    let tooltip_width = tooltip_size.width.max(1.0);
+    let tooltip_height = tooltip_size.height.max(1.0);
+    let host_width = reference_rect_width(host_rect);
+    let max_left = (viewport_size.width - tooltip_width - margin).max(margin);
+    let centered_left = host_rect.left + host_width / 2.0 - tooltip_width / 2.0;
+    let left = centered_left.clamp(margin, max_left);
+    let preferred_top = host_rect.top - tooltip_height - gap;
+    let max_top = (viewport_size.height - tooltip_height - margin).max(margin);
+    let top = if preferred_top >= margin {
+        preferred_top.min(max_top)
+    } else {
+        (host_rect.bottom + gap).clamp(margin, max_top)
+    };
+    PositionedPoint { left, top }
+}
+
+#[requires(true)]
 #[ensures(!ret.is_empty())]
 fn blocks_grid_row_template(row_count: usize, show_glosses: bool) -> String {
     let mut tracks = Vec::with_capacity(row_count + usize::from(show_glosses));
@@ -12174,9 +12338,10 @@ fn set_reference_hover(
     let hovered = HoveredReference { role, label };
     let overlay = measure_reference_overlay(&hovered);
     reference_hover.set(ReferenceHoverState {
-        hovered: Some(hovered),
+        hovered: Some(hovered.clone()),
         overlay,
     });
+    schedule_reference_overlay_measure(reference_hover, hovered);
 }
 
 #[requires(true)]
@@ -12209,9 +12374,39 @@ fn refresh_reference_hover(mut reference_hover: Signal<ReferenceHoverState>) {
     };
     let overlay = measure_reference_overlay(&hovered);
     reference_hover.set(ReferenceHoverState {
-        hovered: Some(hovered),
+        hovered: Some(hovered.clone()),
         overlay,
     });
+    schedule_reference_overlay_measure(reference_hover, hovered);
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_reference_overlay_measure(
+    mut reference_hover: Signal<ReferenceHoverState>,
+    hovered: HoveredReference,
+) {
+    spawn(async move {
+        let overlay = measure_reference_overlay_desktop(&hovered).await;
+        reference_hover.with_mut(|state| {
+            if state.hovered.as_ref() == Some(&hovered) {
+                state.overlay = overlay;
+            }
+        });
+    });
+}
+
+#[cfg(any(
+    target_arch = "wasm32",
+    all(not(target_arch = "wasm32"), not(feature = "desktop"))
+))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_reference_overlay_measure(
+    _reference_hover: Signal<ReferenceHoverState>,
+    _hovered: HoveredReference,
+) {
 }
 
 #[requires(true)]
@@ -12333,6 +12528,95 @@ fn measure_reference_overlay(_hovered: &HoveredReference) -> Option<ArrowOverlay
     None
 }
 
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[invariant(true)]
+struct DesktopReferenceOverlayMetrics {
+    width: f64,
+    height: f64,
+    markers: Vec<DesktopReferenceMarkerMetrics>,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[invariant(true)]
+struct DesktopReferenceMarkerMetrics {
+    role: String,
+    base: String,
+    label: String,
+    rect: ReferenceRect,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn measure_reference_overlay_desktop(hovered: &HoveredReference) -> Option<ArrowOverlay> {
+    let metrics: DesktopReferenceOverlayMetrics = document::eval(
+        r#"
+        const rectFor = (element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+                left: rect.left,
+                top: rect.top,
+                right: rect.right,
+                bottom: rect.bottom,
+            };
+        };
+        return {
+            width: Number(window.innerWidth || 1),
+            height: Number(window.innerHeight || 1),
+            markers: Array.from(document.querySelectorAll(".parse-page .ref-var[data-ref-role]")).map((element) => ({
+                role: element.getAttribute("data-ref-role") || "",
+                base: element.getAttribute("data-ref-base") || "",
+                label: element.getAttribute("data-ref-label") || "",
+                rect: rectFor(element),
+            })),
+        };
+        "#,
+    )
+    .join()
+    .await
+    .ok()?;
+    reference_overlay_from_marker_metrics(hovered, metrics)
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn reference_overlay_from_marker_metrics(
+    hovered: &HoveredReference,
+    metrics: DesktopReferenceOverlayMetrics,
+) -> Option<ArrowOverlay> {
+    let base_key = hovered.label.base_key();
+    let full_key = hovered.label.full_key();
+    let mut sources = Vec::new();
+    let mut targets = Vec::new();
+    for marker in metrics.markers {
+        if marker.base != base_key {
+            continue;
+        }
+        if marker.role == "reference" {
+            sources.push(marker.rect);
+        } else if marker.role == "referent"
+            && (hovered.role == ReferenceMarkerRole::Reference || marker.label == full_key)
+        {
+            targets.push(marker.rect);
+        }
+    }
+    let mut paths = reference_arrow_paths(&sources, &targets);
+    paths.sort();
+    paths.dedup();
+    if paths.is_empty() {
+        None
+    } else {
+        Some(ArrowOverlay {
+            width: metrics.width.max(1.0),
+            height: metrics.height.max(1.0),
+            paths,
+        })
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
@@ -12346,7 +12630,6 @@ fn reference_rect_from_element(element: &web_sys::Element) -> ReferenceRect {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 fn reference_arrow_paths(sources: &[ReferenceRect], targets: &[ReferenceRect]) -> Vec<String> {
@@ -12359,7 +12642,6 @@ fn reference_arrow_paths(sources: &[ReferenceRect], targets: &[ReferenceRect]) -
     paths
 }
 
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn reference_arrow_path(source: ReferenceRect, target: ReferenceRect) -> String {
@@ -12379,7 +12661,6 @@ fn reference_arrow_path(source: ReferenceRect, target: ReferenceRect) -> String 
     format!("M {sx:.2} {sy:.2} Q {cx:.2} {cy:.2} {tx:.2} {ty:.2}")
 }
 
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 fn rect_anchor_toward(from: ReferenceRect, to: ReferenceRect) -> (f64, f64) {
@@ -13698,7 +13979,49 @@ fn install_browser_dom_handlers(
     restore_scroll_for_current_url();
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn install_browser_dom_handlers(
+    jvozba_available: Signal<bool>,
+    topbar_settings_layout: Signal<TopbarSettingsLayout>,
+    topbar_settings_open: Signal<bool>,
+    cukta_toc_forced_autohide: Signal<bool>,
+) {
+    if DESKTOP_DOM_HANDLERS_INSTALLED.set(()).is_err() {
+        return;
+    }
+    install_desktop_tooltip_bridge();
+    spawn(async move {
+        let mut eval = document::eval(
+            r#"
+            const sendLayout = () => {
+                try {
+                    dioxus.send("layout");
+                } catch (_error) {
+                }
+            };
+            window.addEventListener("resize", () => requestAnimationFrame(sendLayout));
+            window.addEventListener("load", sendLayout);
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(sendLayout).catch(() => {});
+            }
+            requestAnimationFrame(sendLayout);
+            await new Promise(() => {});
+            "#,
+        );
+        while eval.recv::<String>().await.is_ok() {
+            schedule_gentufa_block_reference_layout();
+            schedule_gentufa_tree_layout();
+            schedule_topbar_settings_layout_measure(topbar_settings_layout, topbar_settings_open);
+            update_vlacku_jvozba_availability(jvozba_available);
+            update_cukta_toc_forced_autohide(cukta_toc_forced_autohide);
+            schedule_vlacku_jvozba_pane_metrics_sync();
+        }
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
 #[requires(true)]
 #[ensures(true)]
 fn install_browser_dom_handlers(
@@ -13771,7 +14094,21 @@ fn schedule_gentufa_block_reference_layout() {
     closure.forget();
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_gentufa_block_reference_layout() {
+    spawn(async move {
+        sleep_ms(GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS).await;
+        adjust_gentufa_block_reference_layout_desktop().await;
+        for _ in 0..GENTUFA_BLOCK_REFERENCE_LAYOUT_FRAME_PASSES {
+            sleep_ms(16).await;
+            adjust_gentufa_block_reference_layout_desktop().await;
+        }
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
 #[requires(true)]
 #[ensures(true)]
 fn schedule_gentufa_block_reference_layout() {}
@@ -13794,7 +14131,21 @@ fn schedule_gentufa_tree_layout() {
     closure.forget();
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_gentufa_tree_layout() {
+    spawn(async move {
+        sleep_ms(GENTUFA_TREE_LAYOUT_DELAY_MS).await;
+        layout_gentufa_tree_lines_desktop().await;
+        for _ in 0..GENTUFA_TREE_LAYOUT_FRAME_PASSES {
+            sleep_ms(16).await;
+            layout_gentufa_tree_lines_desktop().await;
+        }
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
 #[requires(true)]
 #[ensures(true)]
 fn schedule_gentufa_tree_layout() {}
@@ -13880,8 +14231,7 @@ fn schedule_gentufa_tree_layout_after_fonts_ready(document: &()) {
     let _ = document;
 }
 
-#[cfg(target_arch = "wasm32")]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
 #[invariant(true)]
 struct GentufaTreeLineAnchor {
     parent_id: Option<usize>,
@@ -13890,6 +14240,48 @@ struct GentufaTreeLineAnchor {
     label_center_y: f64,
     row_top: f64,
     row_bottom: f64,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_tree_line_paths(
+    ordered_anchors: &[(usize, GentufaTreeLineAnchor)],
+    table_bottom: f64,
+) -> Vec<String> {
+    let mut parents_with_children = BTreeSet::new();
+    for (_, anchor) in ordered_anchors {
+        if let Some(parent_id) = anchor.parent_id {
+            parents_with_children.insert(parent_id);
+        }
+    }
+    let mut paths = Vec::new();
+    for (index, (node_id, anchor)) in ordered_anchors.iter().enumerate() {
+        if !parents_with_children.contains(node_id) {
+            continue;
+        }
+        let end_y = ordered_anchors
+            .iter()
+            .skip(index + 1)
+            .find_map(|(_, candidate)| {
+                (candidate.depth <= anchor.depth).then_some(candidate.row_top)
+            })
+            .unwrap_or(table_bottom.max(anchor.row_bottom));
+        if end_y <= anchor.label_center_y {
+            continue;
+        }
+        paths.push(gentufa_tree_line_path_data(
+            anchor.label_left,
+            anchor.label_center_y,
+            end_y,
+        ));
+    }
+    paths
+}
+
+#[requires(end_y >= start_y)]
+#[ensures(!ret.is_empty())]
+fn gentufa_tree_line_path_data(x: f64, start_y: f64, end_y: f64) -> String {
+    format!("M {x:.3} {start_y:.3} V {end_y:.3}")
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -13936,7 +14328,6 @@ fn layout_gentufa_tree_lines() {
         return;
     };
     let mut ordered_anchors = Vec::new();
-    let mut parents_with_children = HashSet::new();
     for index in 0..row_nodes.length() {
         let Some(node) = row_nodes.item(index) else {
             continue;
@@ -13950,34 +14341,193 @@ fn layout_gentufa_tree_lines() {
         let Some(anchor) = tree_line_anchor_for_row(&row, &wrap, wrap_html) else {
             continue;
         };
-        if let Some(parent_id) = anchor.parent_id {
-            parents_with_children.insert(parent_id);
-        }
         ordered_anchors.push((node_id, anchor));
     }
     let table_bottom = table_rect.bottom() - wrap_rect.top() + scroll_top;
-    for (index, (node_id, anchor)) in ordered_anchors.iter().enumerate() {
-        if !parents_with_children.contains(node_id) {
-            continue;
-        }
-        let end_y = ordered_anchors
-            .iter()
-            .skip(index + 1)
-            .find_map(|(_, candidate)| {
-                (candidate.depth <= anchor.depth).then_some(candidate.row_top)
-            })
-            .unwrap_or(table_bottom.max(anchor.row_bottom));
-        if end_y <= anchor.label_center_y {
-            continue;
-        }
-        append_gentufa_tree_line_path(
-            &document,
-            &svg,
-            anchor.label_left,
-            anchor.label_center_y,
-            end_y,
-        );
+    for path_data in gentufa_tree_line_paths(&ordered_anchors, table_bottom) {
+        append_gentufa_tree_line_path(&document, &svg, &path_data);
     }
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[invariant(true)]
+struct DesktopGentufaTreeMetrics {
+    width: f64,
+    height: f64,
+    table_bottom: f64,
+    anchors: Vec<DesktopGentufaTreeAnchorMetrics>,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[invariant(true)]
+struct DesktopGentufaTreeAnchorMetrics {
+    node_id: usize,
+    parent_id: Option<usize>,
+    depth: usize,
+    label_left: f64,
+    label_center_y: f64,
+    row_top: f64,
+    row_bottom: f64,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[invariant(true)]
+struct DesktopGentufaTreeLayout {
+    width: f64,
+    height: f64,
+    paths: Vec<String>,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn layout_gentufa_tree_lines_desktop() {
+    let Some(metrics) = measure_gentufa_tree_layout_desktop().await else {
+        return;
+    };
+    let layout = gentufa_tree_layout_from_metrics(metrics);
+    apply_gentufa_tree_layout_desktop(layout).await;
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_tree_layout_from_metrics(
+    metrics: DesktopGentufaTreeMetrics,
+) -> DesktopGentufaTreeLayout {
+    let ordered_anchors = metrics
+        .anchors
+        .into_iter()
+        .map(|anchor| {
+            (
+                anchor.node_id,
+                GentufaTreeLineAnchor {
+                    parent_id: anchor.parent_id,
+                    depth: anchor.depth,
+                    label_left: anchor.label_left,
+                    label_center_y: anchor.label_center_y,
+                    row_top: anchor.row_top,
+                    row_bottom: anchor.row_bottom,
+                },
+            )
+        })
+        .collect::<Vec<_>>();
+    DesktopGentufaTreeLayout {
+        width: metrics.width,
+        height: metrics.height,
+        paths: gentufa_tree_line_paths(&ordered_anchors, metrics.table_bottom),
+    }
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn measure_gentufa_tree_layout_desktop() -> Option<DesktopGentufaTreeMetrics> {
+    document::eval(
+        r#"
+        const wrap = document.querySelector(".parse-page .table-wrap");
+        const svg = wrap && wrap.querySelector(".tree-lines");
+        if (!wrap || !svg) {
+            return null;
+        }
+        const table = wrap.querySelector(".parse-table");
+        if (!table) {
+            return {
+                width: 0,
+                height: 0,
+                table_bottom: 0,
+                anchors: [],
+            };
+        }
+        const wrapRect = wrap.getBoundingClientRect();
+        const tableRect = table.getBoundingClientRect();
+        const scrollLeft = Number(wrap.scrollLeft || 0);
+        const scrollTop = Number(wrap.scrollTop || 0);
+        const width = Math.max(
+            Number(wrap.scrollWidth || 0),
+            Number(table.scrollWidth || 0),
+            tableRect.right - wrapRect.left + scrollLeft,
+        );
+        const height = Math.max(
+            Number(wrap.scrollHeight || 0),
+            Number(table.scrollHeight || 0),
+            tableRect.bottom - wrapRect.top + scrollTop,
+        );
+        const parseOptionalInt = (value) => {
+            if (value === null || value === undefined || value === "") {
+                return null;
+            }
+            const parsed = Number.parseInt(value, 10);
+            return Number.isFinite(parsed) ? parsed : null;
+        };
+        const anchors = [];
+        for (const row of Array.from(table.querySelectorAll("tbody tr.tree-row"))) {
+            const nodeId = parseOptionalInt(row.getAttribute("data-node-id"));
+            const depth = parseOptionalInt(row.getAttribute("data-depth"));
+            const label = row.querySelector(".node-label");
+            if (nodeId === null || depth === null || !label) {
+                continue;
+            }
+            const labelRect = label.getBoundingClientRect();
+            const rowRect = row.getBoundingClientRect();
+            anchors.push({
+                node_id: nodeId,
+                parent_id: parseOptionalInt(row.getAttribute("data-parent-id")),
+                depth,
+                label_left: labelRect.left - wrapRect.left + scrollLeft,
+                label_center_y: labelRect.top - wrapRect.top + scrollTop + labelRect.height / 2,
+                row_top: rowRect.top - wrapRect.top + scrollTop,
+                row_bottom: rowRect.bottom - wrapRect.top + scrollTop,
+            });
+        }
+        return {
+            width,
+            height,
+            table_bottom: tableRect.bottom - wrapRect.top + scrollTop,
+            anchors,
+        };
+        "#,
+    )
+    .join()
+    .await
+    .ok()
+    .flatten()
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn apply_gentufa_tree_layout_desktop(layout: DesktopGentufaTreeLayout) {
+    let Ok(layout_json) = serde_json::to_string(&layout) else {
+        return;
+    };
+    let script = format!(
+        r#"
+        const layout = {layout_json};
+        const svg = document.querySelector(".parse-page .table-wrap .tree-lines");
+        if (svg) {{
+            while (svg.firstChild) {{
+                svg.removeChild(svg.firstChild);
+            }}
+            if (Number(layout.width) > 0 && Number(layout.height) > 0) {{
+                svg.setAttribute("width", Number(layout.width).toFixed(3));
+                svg.setAttribute("height", Number(layout.height).toFixed(3));
+                svg.setAttribute("viewBox", `0 0 ${{Number(layout.width).toFixed(3)}} ${{Number(layout.height).toFixed(3)}}`);
+                for (const d of layout.paths) {{
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    path.setAttribute("class", "tree-line");
+                    path.setAttribute("d", d);
+                    svg.appendChild(path);
+                }}
+            }}
+        }}
+        return null;
+        "#
+    );
+    let _ = document::eval(&script).await;
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -14014,21 +14564,14 @@ fn tree_line_anchor_for_row(
 }
 
 #[cfg(target_arch = "wasm32")]
-#[requires(end_y >= start_y)]
+#[requires(!d.is_empty())]
 #[ensures(true)]
-fn append_gentufa_tree_line_path(
-    document: &web_sys::Document,
-    svg: &web_sys::Element,
-    x: f64,
-    start_y: f64,
-    end_y: f64,
-) {
+fn append_gentufa_tree_line_path(document: &web_sys::Document, svg: &web_sys::Element, d: &str) {
     let Ok(path) = document.create_element_ns(Some("http://www.w3.org/2000/svg"), "path") else {
         return;
     };
-    let d = format!("M {x:.3} {start_y:.3} V {end_y:.3}");
     let _ = path.set_attribute("class", "tree-line");
-    let _ = path.set_attribute("d", &d);
+    let _ = path.set_attribute("d", d);
     let _ = svg.append_child(&path);
 }
 
@@ -14098,6 +14641,215 @@ fn adjust_gentufa_block_reference_layout() {
         }
     }
     apply_block_reference_height_sizers(&document, &row_heights, &row_growths);
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn adjust_gentufa_block_reference_layout_desktop() {
+    let Some(fit_metrics) = measure_block_reference_fit_metrics_desktop().await else {
+        return;
+    };
+    let fit_updates = block_reference_fit_updates(fit_metrics);
+    apply_block_reference_fit_updates_desktop(&fit_updates).await;
+    let Some(height_metrics) = measure_block_reference_height_metrics_desktop().await else {
+        return;
+    };
+    if height_metrics.row_heights.is_empty() {
+        return;
+    }
+    let row_growths = block_reference_row_growths(&height_metrics);
+    apply_block_reference_height_updates_desktop(BlockReferenceHeightUpdates {
+        row_heights: height_metrics.row_heights,
+        row_growths,
+    })
+    .await;
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn measure_block_reference_fit_metrics_desktop() -> Option<Vec<BlockReferenceFitMetrics>> {
+    document::eval(
+        r#"
+        const parseMetrics = [];
+        const rectFor = (element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+                left: rect.left,
+                top: rect.top,
+                right: rect.right,
+                bottom: rect.bottom,
+            };
+        };
+        for (const block of Array.from(document.querySelectorAll(".parse-page .block"))) {
+            block.style.removeProperty("--block-reference-fit-width");
+        }
+        for (const sizer of Array.from(document.querySelectorAll(".parse-page .block-row-height-sizer"))) {
+            sizer.style.removeProperty("height");
+            sizer.style.removeProperty("min-height");
+        }
+        for (const block of Array.from(document.querySelectorAll(".parse-page .block"))) {
+            const blockId = block.getAttribute("data-block-id") || "";
+            const label = block.querySelector(".block-label-text");
+            const referenceTarget = block.querySelector(".block-ref-target");
+            if (!blockId || !label || !referenceTarget) {
+                continue;
+            }
+            const blockRect = block.getBoundingClientRect();
+            const labelRect = label.getBoundingClientRect();
+            let referenceRight = null;
+            let referenceBottom = null;
+            for (const element of Array.from(referenceTarget.querySelectorAll(".ref-var, .ref-var *"))) {
+                const rect = element.getBoundingClientRect();
+                referenceRight = referenceRight === null ? rect.right : Math.max(referenceRight, rect.right);
+                referenceBottom = referenceBottom === null ? rect.bottom : Math.max(referenceBottom, rect.bottom);
+            }
+            parseMetrics.push({
+                block_id: blockId,
+                current_width: blockRect.width,
+                block_left: blockRect.left,
+                label_left: labelRect.left,
+                label_top: labelRect.top,
+                label_width: labelRect.width,
+                reference_right: referenceRight,
+                reference_bottom: referenceBottom,
+            });
+        }
+        return parseMetrics;
+        "#,
+    )
+    .join()
+    .await
+    .ok()
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn apply_block_reference_fit_updates_desktop(updates: &[BlockReferenceFitUpdate]) {
+    if updates.is_empty() {
+        return;
+    }
+    let Ok(updates_json) = serde_json::to_string(updates) else {
+        return;
+    };
+    let script = format!(
+        r#"
+        const updates = {updates_json};
+        const blocks = new Map(Array.from(document.querySelectorAll(".parse-page .block")).map(
+            (block) => [block.getAttribute("data-block-id") || "", block],
+        ));
+        for (const update of updates) {{
+            const block = blocks.get(String(update.block_id));
+            if (!block) {{
+                continue;
+            }}
+            block.style.setProperty("--block-reference-fit-width", `${{Number(update.fit_width).toFixed(2)}}px`);
+        }}
+        return null;
+        "#
+    );
+    let _ = document::eval(&script).await;
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn measure_block_reference_height_metrics_desktop()
+-> Option<BlockReferenceHeightLayoutMetrics> {
+    document::eval(
+        r#"
+        const rectFor = (element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+                left: rect.left,
+                top: rect.top,
+                right: rect.right,
+                bottom: rect.bottom,
+            };
+        };
+        const parseRequiredInt = (value) => {
+            const parsed = Number.parseInt(value || "", 10);
+            return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+        };
+        const rowHeights = [];
+        for (const probe of Array.from(document.querySelectorAll(".parse-page .block-row-height-probe"))) {
+            const row = parseRequiredInt(probe.getAttribute("data-block-row"));
+            if (row === null) {
+                continue;
+            }
+            while (rowHeights.length <= row) {
+                rowHeights.push(0);
+            }
+            rowHeights[row] = probe.getBoundingClientRect().height;
+        }
+        const blocks = [];
+        for (const block of Array.from(document.querySelectorAll(".parse-page .block"))) {
+            const blockId = block.getAttribute("data-block-id") || "";
+            const row = parseRequiredInt(block.getAttribute("data-row"));
+            const rowSpanRaw = parseRequiredInt(block.getAttribute("data-rowspan"));
+            const label = block.querySelector(".block-label-text");
+            const referenceTarget = block.querySelector(".block-ref-target");
+            if (!blockId || row === null || !label || !referenceTarget) {
+                continue;
+            }
+            const rowSpan = Math.max(1, rowSpanRaw === null ? 1 : rowSpanRaw);
+            const blockRect = block.getBoundingClientRect();
+            const labelRect = label.getBoundingClientRect();
+            blocks.push({
+                block_id: blockId,
+                row,
+                row_span: rowSpan,
+                block_top: blockRect.top,
+                block_height: blockRect.height,
+                label_top: labelRect.top,
+                label_left: labelRect.left,
+                label_right: labelRect.right,
+                reference_target_rect: rectFor(referenceTarget),
+                reference_line_rects: Array.from(referenceTarget.querySelectorAll(".ref-line")).map(rectFor),
+            });
+        }
+        return {
+            row_heights: rowHeights,
+            blocks,
+        };
+        "#,
+    )
+    .join()
+    .await
+    .ok()
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn apply_block_reference_height_updates_desktop(updates: BlockReferenceHeightUpdates) {
+    let Ok(updates_json) = serde_json::to_string(&updates) else {
+        return;
+    };
+    let script = format!(
+        r#"
+        const updates = {updates_json};
+        for (const sizer of Array.from(document.querySelectorAll(".parse-page .block-row-height-sizer"))) {{
+            const row = Number.parseInt(sizer.getAttribute("data-block-row") || "", 10);
+            if (!Number.isFinite(row)) {{
+                continue;
+            }}
+            const growth = Number(updates.row_growths[row] || 0);
+            const baseHeight = Number(updates.row_heights[row] || 0);
+            if (!(growth > 0) || !(baseHeight >= 0)) {{
+                continue;
+            }}
+            const targetHeight = baseHeight + growth;
+            const value = `${{targetHeight.toFixed(2)}}px`;
+            sizer.style.setProperty("height", value);
+            sizer.style.setProperty("min-height", value);
+        }}
+        return null;
+        "#
+    );
+    let _ = document::eval(&script).await;
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -14216,12 +14968,217 @@ fn block_reference_height_growth(
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[invariant(true)]
 struct ReferenceBottoms {
     stack_bottom: f64,
     overlapping_label_bottom: Option<f64>,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[invariant(true)]
+struct BlockReferenceFitMetrics {
+    block_id: String,
+    current_width: f64,
+    block_left: f64,
+    label_left: f64,
+    label_top: f64,
+    label_width: f64,
+    reference_right: Option<f64>,
+    reference_bottom: Option<f64>,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[invariant(true)]
+struct BlockReferenceFitUpdate {
+    block_id: String,
+    fit_width: f64,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[invariant(true)]
+struct BlockReferenceHeightLayoutMetrics {
+    row_heights: Vec<f64>,
+    blocks: Vec<BlockReferenceHeightMetrics>,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[invariant(true)]
+struct BlockReferenceHeightMetrics {
+    block_id: String,
+    row: usize,
+    row_span: usize,
+    block_top: f64,
+    block_height: f64,
+    label_top: f64,
+    label_left: f64,
+    label_right: f64,
+    reference_target_rect: Option<ReferenceRect>,
+    reference_line_rects: Vec<ReferenceRect>,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[invariant(true)]
+struct BlockReferenceHeightUpdates {
+    row_heights: Vec<f64>,
+    row_growths: Vec<f64>,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn block_reference_fit_updates(
+    metrics: Vec<BlockReferenceFitMetrics>,
+) -> Vec<BlockReferenceFitUpdate> {
+    metrics
+        .into_iter()
+        .filter_map(|metric| {
+            block_reference_fit_width_from_metrics(&metric).map(|fit_width| {
+                BlockReferenceFitUpdate {
+                    block_id: metric.block_id,
+                    fit_width,
+                }
+            })
+        })
+        .collect()
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(ret.is_none_or(|width| width.is_finite() && width > metric.current_width))]
+fn block_reference_fit_width_from_metrics(metric: &BlockReferenceFitMetrics) -> Option<f64> {
+    let reference_right = metric.reference_right?;
+    let reference_bottom = metric.reference_bottom?;
+    let reference_right_in_block = reference_right - metric.block_left;
+    if reference_right_in_block <= 0.0 {
+        return None;
+    }
+    let reference_fit_width = reference_right_in_block + BLOCK_REFERENCE_LABEL_GAP_PX;
+    let overlap_fit_width = if reference_bottom > metric.label_top {
+        let desired_text_left = reference_right + BLOCK_REFERENCE_LABEL_GAP_PX;
+        if desired_text_left > metric.label_left {
+            (reference_right_in_block + BLOCK_REFERENCE_LABEL_GAP_PX) * 2.0 + metric.label_width
+        } else {
+            0.0
+        }
+    } else {
+        0.0
+    };
+    let fit_width = metric
+        .current_width
+        .max(reference_fit_width)
+        .max(overlap_fit_width);
+    (fit_width.is_finite() && fit_width > metric.current_width).then_some(fit_width)
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(ret.len() == metrics.row_heights.len())]
+#[ensures(ret.iter().all(|growth| growth.is_finite() && *growth >= 0.0))]
+fn block_reference_row_growths(metrics: &BlockReferenceHeightLayoutMetrics) -> Vec<f64> {
+    let mut row_growths = vec![0.0; metrics.row_heights.len()];
+    let mut indexed_blocks = metrics
+        .blocks
+        .iter()
+        .filter_map(|block| {
+            let bottom_row = block.row + block.row_span.saturating_sub(1);
+            Some((bottom_row, block.row, block.row_span, block))
+        })
+        .collect::<Vec<_>>();
+    indexed_blocks.sort_by_key(|(bottom_row, row, _, _)| (*bottom_row, *row));
+    for (_, _, _, block) in indexed_blocks {
+        if let Some((bottom_row, deficit)) =
+            block_reference_height_growth_from_metrics(block, &row_growths)
+            && bottom_row < row_growths.len()
+        {
+            row_growths[bottom_row] += deficit;
+        }
+    }
+    row_growths
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn block_reference_height_growth_from_metrics(
+    block: &BlockReferenceHeightMetrics,
+    row_growths: &[f64],
+) -> Option<(usize, f64)> {
+    let bottom_row = block.row + block.row_span.saturating_sub(1);
+    if bottom_row >= row_growths.len() {
+        return None;
+    }
+    let reference_bottoms = reference_bottoms_for_block_metrics(block)?;
+    let existing_growth = row_growths[block.row..=bottom_row].iter().sum::<f64>();
+    let containment_deficit = reference_containment_deficit(
+        reference_bottoms.stack_bottom,
+        block.block_height,
+        existing_growth,
+    );
+    let label_deficit = reference_bottoms
+        .overlapping_label_bottom
+        .map(|reference_bottom| {
+            reference_clearance_deficit(
+                reference_bottom,
+                block.label_top - block.block_top,
+                existing_growth,
+            )
+        })
+        .unwrap_or(0.0);
+    let deficit = containment_deficit.max(label_deficit);
+    (deficit > 0.0).then_some((bottom_row, deficit))
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn reference_bottoms_for_block_metrics(
+    block: &BlockReferenceHeightMetrics,
+) -> Option<ReferenceBottoms> {
+    if block.reference_line_rects.is_empty() {
+        return block
+            .reference_target_rect
+            .map(|rect| reference_bottoms_for_rect(rect, block));
+    }
+    let mut stack_bottom = None;
+    let mut overlapping_label_bottom = None;
+    for rect in &block.reference_line_rects {
+        let line_bottom = rect.bottom - block.block_top;
+        stack_bottom = Some(stack_bottom.unwrap_or(f64::NEG_INFINITY).max(line_bottom));
+        if horizontal_ranges_overlap(rect.left, rect.right, block.label_left, block.label_right) {
+            overlapping_label_bottom = Some(
+                overlapping_label_bottom
+                    .unwrap_or(f64::NEG_INFINITY)
+                    .max(line_bottom),
+            );
+        }
+    }
+    stack_bottom.map(|stack_bottom| ReferenceBottoms {
+        stack_bottom,
+        overlapping_label_bottom,
+    })
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn reference_bottoms_for_rect(
+    rect: ReferenceRect,
+    block: &BlockReferenceHeightMetrics,
+) -> ReferenceBottoms {
+    let stack_bottom = rect.bottom - block.block_top;
+    let overlapping_label_bottom =
+        horizontal_ranges_overlap(rect.left, rect.right, block.label_left, block.label_right)
+            .then_some(stack_bottom);
+    ReferenceBottoms {
+        stack_bottom,
+        overlapping_label_bottom,
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -14518,25 +15475,183 @@ fn position_dictionary_tooltip(host: &web_sys::Element) {
         .ok()
         .and_then(|height| height.as_f64())
         .unwrap_or(1.0);
-    let margin = 8.0;
-    let gap = 8.0;
-    let tooltip_width = tooltip_rect.width().max(1.0);
-    let tooltip_height = tooltip_rect.height().max(1.0);
-    let max_left = (viewport_width - tooltip_width - margin).max(margin);
-    let centered_left = host_rect.left() + host_rect.width() / 2.0 - tooltip_width / 2.0;
-    let left = centered_left.clamp(margin, max_left);
-    let preferred_top = host_rect.top() - tooltip_height - gap;
-    let max_top = (viewport_height - tooltip_height - margin).max(margin);
-    let top = if preferred_top >= margin {
-        preferred_top.min(max_top)
-    } else {
-        (host_rect.bottom() + gap).clamp(margin, max_top)
-    };
+    let position = dictionary_tooltip_position(
+        ReferenceRect {
+            left: host_rect.left(),
+            top: host_rect.top(),
+            right: host_rect.right(),
+            bottom: host_rect.bottom(),
+        },
+        ElementSize {
+            width: tooltip_rect.width(),
+            height: tooltip_rect.height(),
+        },
+        ViewportSize {
+            width: viewport_width,
+            height: viewport_height,
+        },
+    );
     let style = tooltip_html.style();
-    let _ = style.set_property("--dictionary-tooltip-left", &format!("{left:.2}px"));
-    let _ = style.set_property("--dictionary-tooltip-top", &format!("{top:.2}px"));
-    let _ = style.set_property("left", &format!("{left:.2}px"));
-    let _ = style.set_property("top", &format!("{top:.2}px"));
+    let _ = style.set_property(
+        "--dictionary-tooltip-left",
+        &format!("{:.2}px", position.left),
+    );
+    let _ = style.set_property(
+        "--dictionary-tooltip-top",
+        &format!("{:.2}px", position.top),
+    );
+    let _ = style.set_property("left", &format!("{:.2}px", position.left));
+    let _ = style.set_property("top", &format!("{:.2}px", position.top));
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[invariant(true)]
+struct DesktopTooltipMeasure {
+    id: String,
+    host_rect: ReferenceRect,
+    tooltip_size: ElementSize,
+    viewport_size: ViewportSize,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[invariant(true)]
+struct DesktopTooltipPlacement {
+    id: String,
+    left: f64,
+    top: f64,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn install_desktop_tooltip_bridge() {
+    spawn(async move {
+        let mut eval = document::eval(
+            r#"
+            let nextTooltipId = 1;
+            const hostSelector = ".dictionary-tooltip-host, .reference-tooltip-host";
+            const tooltipForHost = (host) => {
+                for (const child of Array.from(host.children)) {
+                    if (
+                        child.classList &&
+                        (child.classList.contains("rich-reference-tooltip-stack") ||
+                            child.classList.contains("rich-dictionary-tooltip"))
+                    ) {
+                        return child;
+                    }
+                }
+                return host.querySelector(".rich-reference-tooltip-stack, .rich-dictionary-tooltip");
+            };
+            const rectFor = (element) => {
+                const rect = element.getBoundingClientRect();
+                return {
+                    left: rect.left,
+                    top: rect.top,
+                    right: rect.right,
+                    bottom: rect.bottom,
+                };
+            };
+            const hideInactiveTooltip = (host) => {
+                const tooltip = tooltipForHost(host);
+                if (!tooltip) {
+                    return;
+                }
+                tooltip.style.setProperty("visibility", "hidden");
+                tooltip.style.setProperty("pointer-events", "none");
+                tooltip.style.setProperty("transition", "none");
+                tooltip.style.removeProperty("transform");
+            };
+            const activateHost = (activeHost) => {
+                for (const host of Array.from(document.querySelectorAll(hostSelector))) {
+                    const tooltip = tooltipForHost(host);
+                    if (!tooltip) {
+                        continue;
+                    }
+                    if (host === activeHost) {
+                        tooltip.style.removeProperty("visibility");
+                        tooltip.style.removeProperty("pointer-events");
+                        tooltip.style.removeProperty("transform");
+                        tooltip.style.removeProperty("transition");
+                    } else {
+                        hideInactiveTooltip(host);
+                    }
+                }
+            };
+            const hostForId = (id) => Array.from(document.querySelectorAll(hostSelector)).find(
+                (host) => host.dataset.jbotciTooltipId === String(id),
+            );
+            const measureHost = (target) => {
+                const element = target instanceof Element ? target : target && target.parentElement;
+                const host = element && element.closest ? element.closest(hostSelector) : null;
+                if (!host) {
+                    return;
+                }
+                if (!host.dataset.jbotciTooltipId) {
+                    host.dataset.jbotciTooltipId = String(nextTooltipId++);
+                }
+                const tooltip = tooltipForHost(host);
+                if (!tooltip) {
+                    return;
+                }
+                activateHost(host);
+                const tooltipRect = tooltip.getBoundingClientRect();
+                dioxus.send({
+                    id: host.dataset.jbotciTooltipId,
+                    host_rect: rectFor(host),
+                    tooltip_size: {
+                        width: tooltipRect.width,
+                        height: tooltipRect.height,
+                    },
+                    viewport_size: {
+                        width: Number(window.innerWidth || 1),
+                        height: Number(window.innerHeight || 1),
+                    },
+                });
+            };
+            const scheduleMeasure = (event) => {
+                const target = event.target;
+                requestAnimationFrame(() => requestAnimationFrame(() => measureHost(target)));
+            };
+            document.addEventListener("mouseover", scheduleMeasure, true);
+            document.addEventListener("focusin", scheduleMeasure, true);
+            document.addEventListener("click", scheduleMeasure, true);
+            (async () => {
+                while (true) {
+                    const placement = await dioxus.recv();
+                    const host = hostForId(placement.id);
+                    if (!host) {
+                        continue;
+                    }
+                    const tooltip = tooltipForHost(host);
+                    if (!tooltip) {
+                        continue;
+                    }
+                    const left = `${Number(placement.left).toFixed(2)}px`;
+                    const top = `${Number(placement.top).toFixed(2)}px`;
+                    tooltip.style.setProperty("--dictionary-tooltip-left", left);
+                    tooltip.style.setProperty("--dictionary-tooltip-top", top);
+                    tooltip.style.setProperty("left", left);
+                    tooltip.style.setProperty("top", top);
+                }
+            })();
+            await new Promise(() => {});
+            "#,
+        );
+        while let Ok(measure) = eval.recv::<DesktopTooltipMeasure>().await {
+            let position = dictionary_tooltip_position(
+                measure.host_rect,
+                measure.tooltip_size,
+                measure.viewport_size,
+            );
+            let _ = eval.send(DesktopTooltipPlacement {
+                id: measure.id,
+                left: position.left,
+                top: position.top,
+            });
+        }
+    });
 }
 
 #[requires(true)]
@@ -15683,7 +16798,21 @@ fn schedule_vlacku_jvozba_pane_metrics_sync() {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_vlacku_jvozba_pane_metrics_sync() {
+    spawn(async move {
+        sleep_ms(0).await;
+        sync_vlacku_jvozba_pane_metrics_desktop().await;
+        for _ in 0..VLACKU_JVOZBA_LAYOUT_FRAME_PASSES {
+            sleep_ms(16).await;
+            sync_vlacku_jvozba_pane_metrics_desktop().await;
+        }
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
 #[requires(true)]
 #[ensures(true)]
 fn schedule_vlacku_jvozba_pane_metrics_sync() {}
@@ -15795,10 +16924,134 @@ fn sync_vlacku_jvozba_pane_metrics() {
     );
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn sync_vlacku_jvozba_pane_metrics() {
+    spawn(async move {
+        sync_vlacku_jvozba_pane_metrics_desktop().await;
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
 #[requires(true)]
 #[ensures(true)]
 fn sync_vlacku_jvozba_pane_metrics() {}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[invariant(true)]
+struct JvozbaPaneMetrics {
+    topbar_bottom: f64,
+    form_bottom: Option<f64>,
+    anchor_top: Option<f64>,
+    viewport_height: f64,
+    app_scroll_top: i32,
+    app_scrollbar_gutter_width: i32,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[invariant(true)]
+struct JvozbaPaneLayout {
+    top: f64,
+    bottom: f64,
+    height: f64,
+    app_scrollbar_gutter_width: i32,
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(ret.top >= metrics.topbar_bottom)]
+fn jvozba_pane_layout_from_metrics(metrics: JvozbaPaneMetrics) -> JvozbaPaneLayout {
+    let fallback_top = metrics
+        .form_bottom
+        .unwrap_or(metrics.topbar_bottom)
+        .max(metrics.topbar_bottom)
+        + 12.0;
+    let top = stable_jvozba_pane_top(
+        metrics.anchor_top,
+        metrics.app_scroll_top,
+        fallback_top,
+        metrics.topbar_bottom,
+    );
+    let bottom = 12.0;
+    let height = (metrics.viewport_height - top - bottom).max(280.0) * VLACKU_JVOZBA_HEIGHT_SCALE;
+    JvozbaPaneLayout {
+        top,
+        bottom,
+        height,
+        app_scrollbar_gutter_width: metrics.app_scrollbar_gutter_width,
+    }
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn sync_vlacku_jvozba_pane_metrics_desktop() {
+    let Some(metrics) = measure_vlacku_jvozba_pane_metrics_desktop().await else {
+        return;
+    };
+    let layout = jvozba_pane_layout_from_metrics(metrics);
+    apply_vlacku_jvozba_pane_layout_desktop(layout).await;
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn measure_vlacku_jvozba_pane_metrics_desktop() -> Option<JvozbaPaneMetrics> {
+    document::eval(
+        r#"
+        if (!document.querySelector("[data-jvozba-pane='1']")) {
+            return null;
+        }
+        const rectBottom = (selector) => {
+            const element = document.querySelector(selector);
+            return element ? element.getBoundingClientRect().bottom : null;
+        };
+        const rectTop = (selector) => {
+            const element = document.querySelector(selector);
+            return element ? element.getBoundingClientRect().top : null;
+        };
+        const appScroll = document.querySelector("[data-app-scroll='main']");
+        return {
+            topbar_bottom: rectBottom(".app-topbar") ?? 0,
+            form_bottom: rectBottom(".vlacku-page .dictionary-form .dictionary-query-row"),
+            anchor_top: rectTop("[data-jvozba-pane-anchor='1']"),
+            viewport_height: Number(window.innerHeight || 720),
+            app_scroll_top: appScroll ? Math.max(0, Number(appScroll.scrollTop || 0)) : 0,
+            app_scrollbar_gutter_width: appScroll ? Math.max(0, Number(appScroll.offsetWidth || 0) - Number(appScroll.clientWidth || 0)) : 0,
+        };
+        "#,
+    )
+    .join()
+    .await
+    .ok()
+    .flatten()
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn apply_vlacku_jvozba_pane_layout_desktop(layout: JvozbaPaneLayout) {
+    let Ok(layout_json) = serde_json::to_string(&layout) else {
+        return;
+    };
+    let script = format!(
+        r#"
+        const layout = {layout_json};
+        const pane = document.querySelector("[data-jvozba-pane='1']");
+        if (pane) {{
+            pane.style.setProperty("--jvozba-pane-top", `${{Number(layout.top).toFixed(2)}}px`);
+            pane.style.setProperty("--jvozba-pane-bottom", `${{Number(layout.bottom).toFixed(2)}}px`);
+            pane.style.setProperty("--jvozba-pane-height", `${{Number(layout.height).toFixed(2)}}px`);
+            pane.style.setProperty("--app-scrollbar-gutter-width", `${{Number(layout.app_scrollbar_gutter_width)}}px`);
+        }}
+        return null;
+        "#
+    );
+    let _ = document::eval(&script).await;
+}
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]

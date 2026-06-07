@@ -42,6 +42,7 @@ pub const DEFAULT_VECTOR_SHARD_TARGET_BYTES: usize = 8 * 1024 * 1024;
 
 const DEFAULT_HF_ENDPOINT: &str = "https://huggingface.co";
 const DEFAULT_GGUF_REPO: &str = "mradermacher/F2LLM-v2-330M-GGUF";
+const DEFAULT_GGUF_REVISION: &str = "03158c3a78ea1c7a7eea2d6829c49e3f1d63f85f";
 const DEFAULT_GGUF_FILE: &str = "F2LLM-v2-330M.Q4_K_M.gguf";
 const DEFAULT_GGUF_SIZE: u64 = 286_198_400;
 const DEFAULT_GGUF_SHA256: &str =
@@ -108,6 +109,7 @@ pub struct EmbeddingModelSpec {
     pub model_key: String,
     pub model_revision: String,
     pub native_hf_repo: String,
+    pub native_hf_revision: String,
     pub native_hf_file: String,
     pub native_size_bytes: u64,
     pub native_sha256: String,
@@ -124,6 +126,7 @@ impl EmbeddingModelSpec {
             model_key: DEFAULT_MODEL_KEY.to_owned(),
             model_revision: DEFAULT_MODEL_REVISION.to_owned(),
             native_hf_repo: DEFAULT_GGUF_REPO.to_owned(),
+            native_hf_revision: DEFAULT_GGUF_REVISION.to_owned(),
             native_hf_file: DEFAULT_GGUF_FILE.to_owned(),
             native_size_bytes: DEFAULT_GGUF_SIZE,
             native_sha256: DEFAULT_GGUF_SHA256.to_owned(),
@@ -399,6 +402,7 @@ pub fn catalog_path(index_root: &Path) -> Result<PathBuf, EmbeddingError> {
 }
 
 #[requires(!spec.native_hf_repo.is_empty())]
+#[requires(!spec.native_hf_revision.is_empty())]
 #[requires(!spec.native_hf_file.is_empty())]
 #[ensures(ret.contains(&spec.native_hf_repo))]
 pub fn model_download_url(spec: &EmbeddingModelSpec) -> String {
@@ -410,7 +414,7 @@ pub fn model_download_url(spec: &EmbeddingModelSpec) -> String {
         "{}/{}/resolve/{}/{}",
         endpoint.trim_end_matches('/'),
         spec.native_hf_repo,
-        spec.model_revision,
+        spec.native_hf_revision,
         spec.native_hf_file
     )
 }
@@ -1625,6 +1629,19 @@ mod tests {
         assert_eq!(
             build_retrieval_document_input("goer", " "),
             "title: none | text: goer"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn default_native_model_url_uses_pinned_gguf_revision() {
+        let spec = EmbeddingModelSpec::default_f2llm();
+        assert_eq!(spec.model_revision, DEFAULT_MODEL_REVISION);
+        assert_ne!(spec.native_hf_revision, spec.model_revision);
+        assert_eq!(
+            model_download_url(&spec),
+            "https://huggingface.co/mradermacher/F2LLM-v2-330M-GGUF/resolve/03158c3a78ea1c7a7eea2d6829c49e3f1d63f85f/F2LLM-v2-330M.Q4_K_M.gguf"
         );
     }
 
