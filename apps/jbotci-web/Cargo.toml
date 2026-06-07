@@ -9,18 +9,24 @@ authors.workspace = true
 repository.workspace = true
 
 [features]
+app = []
 expensive_contracts = []
-web = ["dioxus/web", "jbotci-ui/web"]
+# Dioxus chooses the first default-member binary before applying platform flags.
+# Keep `web` as the only renderer-named feature so bare `dx build` infers web;
+# explicit desktop/mobile flags can still select features that enable those Dioxus renderers.
+web = ["app", "dioxus/web", "jbotci-ui/web"]
+native-desktop = ["app", "dioxus/desktop", "jbotci-ui/desktop", "dep:openssl"]
 
 [[bin]]
 name = "jbotci-web"
 path = "src/main.rs"
-required-features = ["web"]
+required-features = ["app"]
 
 [dependencies]
 bityzba.workspace = true
 dioxus = { workspace = true, default-features = false }
 jbotci-ui.workspace = true
+openssl = { workspace = true, optional = true }
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }
