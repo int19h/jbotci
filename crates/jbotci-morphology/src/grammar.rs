@@ -5,8 +5,8 @@ use jbotci_source::{SourceId, SourceSpan};
 use crate::{
     Cmavo, ExpectedWordDetailKind, MorphologyContext, MorphologyContextKind, MorphologyError,
     MorphologyErrorDetail, MorphologyErrorDetailData, MorphologyErrorKind, MorphologyOptions,
-    MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind, Phonemes, Verbatim, Word,
-    WordKind, WordLike, WordLikeData, ZoiDelimiterDetailKind, canonical_text_eq,
+    MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind, Phonemes, Selmaho,
+    Verbatim, Word, WordKind, WordLike, WordLikeData, ZoiDelimiterDetailKind, canonical_text_eq,
     canonical_text_is_all, canonicalize_text, erasure_selmaho,
 };
 
@@ -1318,8 +1318,54 @@ impl<'a> Segmenter<'a> {
         if boundary_repeats_diphthong_semivowel(&prefix, &remainder) {
             return false;
         }
-        !self.starts_with_pause_required_nucleus_at(prefix_end)
-            && self.lojban_word_starts_at(prefix_end)
+        let pause_required = self.starts_with_pause_required_nucleus_at(prefix_end);
+        if pause_required
+            && !self.indicator_cmavo_boundary_ok(prefix.as_str(), prefix_end, candidate_end)
+        {
+            return false;
+        }
+        self.lojban_word_starts_at(prefix_end)
+    }
+
+    #[requires(prefix_end <= candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(true)]
+    fn indicator_cmavo_boundary_ok(
+        &self,
+        prefix: &str,
+        prefix_end: usize,
+        candidate_end: usize,
+    ) -> bool {
+        is_indicator_cmavo_text(prefix)
+            && self.camxes_non_nucleus_word_start_at(prefix_end, candidate_end)
+            && self.indicator_cmavo_starts_at(prefix_end, candidate_end)
+    }
+
+    #[requires(index <= candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(true)]
+    fn camxes_non_nucleus_word_start_at(&self, index: usize, candidate_end: usize) -> bool {
+        let index = self.skip_commas_index(index);
+        if index >= candidate_end || self.is_word_separator_at(index) {
+            return false;
+        }
+        self.checked_normalized_slice(index, candidate_end)
+            .is_some_and(|normalized| !starts_with_nucleus(&text_chars(&normalized), 0))
+    }
+
+    #[requires(index <= candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(true)]
+    fn indicator_cmavo_starts_at(&self, index: usize, candidate_end: usize) -> bool {
+        if index >= candidate_end {
+            return false;
+        }
+        ((index + 1)..=candidate_end).any(|end| {
+            let Some(normalized) = self.checked_normalized_slice(index, end) else {
+                return false;
+            };
+            let Some(phonemes) = crate::segment::parse_cmavo_form(&normalized) else {
+                return false;
+            };
+            is_indicator_cmavo_text(&phonemes) && self.cmavo_boundary_ok(index, end, candidate_end)
+        })
     }
 
     #[requires(index <= self.chars.len())]
@@ -2122,6 +2168,13 @@ fn starts_with_pause_required_nucleus(chars: &[char]) -> bool {
         .is_some_and(|value| is_vowel(*value) || matches!(*value, 'y' | 'ý' | 'ĭ' | 'ŭ'))
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn is_indicator_cmavo_text(text: &str) -> bool {
+    Cmavo::from_text(text)
+        .is_some_and(|cmavo| cmavo.is_selmaho(Selmaho::Ui) || cmavo.is_selmaho(Selmaho::Cai))
+}
+
 #[requires(start <= chars.len())]
 #[ensures(ret.as_ref().is_none_or(|(_, end)| *end > start && *end <= chars.len()))]
 fn parse_diphthong(chars: &[char], start: usize) -> Option<(String, usize)> {
@@ -2469,6 +2522,25 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn standard_rafsi_string_is_not_swallowed_as_extended_initial_rafsi() {
+        let cases = [
+            ("malkalcykelci", &["mal", "kalc", "y", "kélci"][..]),
+            (
+                "bacyselfancykanji",
+                &["bac", "y", "sel", "fanc", "y", "kánji"][..],
+            ),
+        ];
+
+        for (word, expected_parts) in cases {
+            let words = segment_words_with_modifiers(word, &MorphologyOptions::default(), None)
+                .unwrap_or_else(|error| panic!("{word} should parse as lujvo: {error}"));
+            assert_lujvo_part_texts(word, &words, expected_parts);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vowel_initial_words_require_pause_at_word_boundary() {
         let error =
             segment_words_with_modifiers("mi leia klama", &MorphologyOptions::default(), None)
@@ -2479,6 +2551,41 @@ mod tests {
             segment_words_with_modifiers("mi le .ia klama", &MorphologyOptions::default(), None)
                 .expect("pause before vowel-initial word should parse");
         assert_eq!(bare_phonemes(&words), ["mi", "le", "ĭa", "kláma"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn glide_onset_cmavo_chains_do_not_require_pause() {
+        let cases = [
+            ("ueui", &["ŭe", "ŭi"][..]),
+            ("uiii", &["ŭi", "ĭi"][..]),
+            ("u'eui", &["u'e", "ŭi"][..]),
+            ("oiuinai", &["oĭ", "ŭi", "naĭ"][..]),
+        ];
+
+        for (source, expected) in cases {
+            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
+                .unwrap_or_else(|error| panic!("{source} should parse as cmavo chain: {error}"));
+            assert_eq!(bare_phonemes(&words), expected, "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn indicator_chains_still_require_pause_before_vowel_nucleus() {
+        let error =
+            segment_words_with_modifiers("ju'ou'i mi zasti", &MorphologyOptions::default(), None)
+                .expect_err("UI followed by vowel-nucleus UI should require a pause");
+
+        assert_invalid_error(
+            &error,
+            MorphologyErrorKind::InvalidApostrophe,
+            2,
+            3,
+            Some(MorphologyContextKind::Fuhivla),
+        );
     }
 
     #[test]
@@ -2600,6 +2707,32 @@ mod tests {
         assert_eq!(data.warnings[0].char_start, 2);
         assert_eq!(data.warnings[0].char_end, 6);
         assert_eq!(data.warnings[0].text, "ku,i");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cgv_relaxation_accepts_initial_cluster_glide_onset_with_warning() {
+        let attempt =
+            segment_words_with_modifiers_attempt("zgiaca'a", &MorphologyOptions::default(), None);
+        let data = attempt.into_data();
+        let words = data
+            .result
+            .expect("CgV relaxation should permit cluster plus glide onset");
+
+        assert_eq!(bare_phonemes(&words), ["zgĭacá'a"]);
+        assert_eq!(
+            bare_word(&words[0]).expect("bare word").kind(),
+            WordKind::Fuhivla
+        );
+        assert_eq!(data.warnings.len(), 1);
+        assert_eq!(
+            data.warnings[0].kind,
+            MorphologyWarningKind::ExperimentalCgv
+        );
+        assert_eq!(data.warnings[0].char_start, 1);
+        assert_eq!(data.warnings[0].char_end, 4);
+        assert_eq!(data.warnings[0].text, "gia");
     }
 
     #[test]

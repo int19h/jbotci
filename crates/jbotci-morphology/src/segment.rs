@@ -4,8 +4,8 @@ use bityzba::{ensures, invariant, new, requires};
 use vec1::Vec1;
 
 use crate::{
-    LujvoParseExpectation, LujvoPart, MorphologyErrorDetail, MorphologyErrorDetailData,
-    MorphologyErrorKind, MorphologyOptions, Phonemes, WordKind,
+    Cmavo, LujvoParseExpectation, LujvoPart, MorphologyErrorDetail, MorphologyErrorDetailData,
+    MorphologyErrorKind, MorphologyOptions, Phonemes, Selmaho, WordKind,
 };
 
 mod phonotactics;
@@ -1125,20 +1125,25 @@ fn parse_onsets(chars: &[char], start: usize) -> Vec<(String, usize)> {
 #[ensures(ret.as_ref().is_none_or(|value| value.chars().count() == end - start))]
 fn parse_initial(chars: &[char], start: usize, end: usize) -> Option<String> {
     let initial: String = chars.get(start..end)?.iter().collect();
-    let valid_shape = match end - start {
-        0 => true,
-        1 => is_consonant(chars[start]),
-        2 => initial_pair_chars(chars[start], chars[start + 1]),
-        3 => valid_three_consonant_initial(chars, start),
-        _ => false,
-    };
-    if !valid_shape {
+    if !valid_initial_shape(chars, start, end) {
         return None;
     }
     if end < chars.len() && (is_consonant(chars[end]) || parse_glide(chars, end).is_some()) {
         return None;
     }
     Some(initial)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn valid_initial_shape(chars: &[char], start: usize, end: usize) -> bool {
+    match end - start {
+        0 => true,
+        1 => is_consonant(chars[start]),
+        2 => initial_pair_chars(chars[start], chars[start + 1]),
+        3 => valid_three_consonant_initial(chars, start),
+        _ => false,
+    }
 }
 
 #[requires(start <= chars.len())]
@@ -1800,12 +1805,17 @@ fn is_lujvo_final_rafsi_alone(chars: &[char], index: usize) -> bool {
 #[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
 fn initial_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
-    ends.extend(extended_rafsi_ends(chars, index));
     ends.extend(y_rafsi_ends(chars, index));
     ends.extend(y_less_rafsi_ends(chars, index));
-    ends.sort_unstable_by(|left, right| right.cmp(left));
-    ends.dedup();
-    ends
+    ends.extend(extended_rafsi_ends(chars, index));
+
+    let mut preferred_ends = Vec::new();
+    for end in ends {
+        if !preferred_ends.contains(&end) {
+            preferred_ends.push(end);
+        }
+    }
+    preferred_ends
 }
 
 #[requires(index <= chars.len())]
@@ -1847,6 +1857,7 @@ fn fuhivla_rafsi_base_ends(chars: &[char], index: usize) -> Vec<usize> {
 fn fuhivla_rafsi_base_slice(chars: &[char], start: usize, end: usize) -> bool {
     if start >= end
         || chars[start..end].iter().any(|value| is_y(*value))
+        || rafsi_string_slice(chars, start, end)
         || unstressed_syllable_ends_for_fuhivla(chars, start, end).is_empty()
     {
         return false;
@@ -2183,19 +2194,68 @@ fn has_blocking_cmavo_prefix_slice(chars: &[char], start: usize, end: usize) -> 
         return false;
     }
     ((start + 1)..end).any(|prefix_end| {
-        is_cmavo_slice(chars, start, prefix_end) && cmavo_post_word_slice(chars, prefix_end, end)
+        is_cmavo_slice(chars, start, prefix_end)
+            && cmavo_post_word_slice(chars, start, prefix_end, end)
     })
 }
 
-#[requires(index <= end && end <= chars.len())]
+#[requires(prefix_start <= prefix_end && prefix_end <= end && end <= chars.len())]
 #[ensures(true)]
-fn cmavo_post_word_slice(chars: &[char], index: usize, end: usize) -> bool {
-    let Some(index) = next_non_comma_index(chars, index) else {
+fn cmavo_post_word_slice(
+    chars: &[char],
+    prefix_start: usize,
+    prefix_end: usize,
+    end: usize,
+) -> bool {
+    let Some(index) = next_non_comma_index(chars, prefix_end) else {
         return true;
     };
-    index >= end
-        || (!starts_with_pause_required_nucleus(chars, index)
-            && lojban_word_slice(chars, index, end))
+    if index >= end {
+        return true;
+    }
+    if starts_with_pause_required_nucleus(chars, index)
+        && !indicator_cmavo_boundary_slice(chars, prefix_start, prefix_end, index, end)
+    {
+        return false;
+    }
+    lojban_word_slice(chars, index, end)
+}
+
+#[requires(prefix_start <= prefix_end && prefix_end <= index && index <= end && end <= chars.len())]
+#[ensures(true)]
+fn indicator_cmavo_boundary_slice(
+    chars: &[char],
+    prefix_start: usize,
+    prefix_end: usize,
+    index: usize,
+    end: usize,
+) -> bool {
+    is_indicator_cmavo_slice(chars, prefix_start, prefix_end)
+        && !starts_with_nucleus(chars, index)
+        && indicator_cmavo_starts_slice(chars, index, end)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn indicator_cmavo_starts_slice(chars: &[char], start: usize, end: usize) -> bool {
+    if start >= end {
+        return false;
+    }
+    ((start + 1)..=end).any(|word_end| {
+        is_indicator_cmavo_slice(chars, start, word_end)
+            && cmavo_post_word_slice(chars, start, word_end, end)
+    })
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn is_indicator_cmavo_slice(chars: &[char], start: usize, end: usize) -> bool {
+    if start >= end {
+        return false;
+    }
+    parse_cmavo_form(&chars[start..end].iter().collect::<String>())
+        .and_then(|phonemes| Cmavo::from_text(&phonemes))
+        .is_some_and(|cmavo| cmavo.is_selmaho(Selmaho::Ui) || cmavo.is_selmaho(Selmaho::Cai))
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -2748,11 +2808,12 @@ fn brivla_onset_ends(chars: &[char], index: usize) -> Vec<usize> {
 #[requires(index <= chars.len())]
 #[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
 fn experimental_cgv_brivla_onset_end(chars: &[char], index: usize) -> Option<usize> {
-    chars
-        .get(index)
-        .is_some_and(|value| is_consonant(*value) && starts_glide(chars, index + 1))
-        .then(|| next_non_comma_index(chars, index + 2))
-        .flatten()
+    let max_initial_end = (index + 3).min(chars.len());
+    (index + 1..=max_initial_end).rev().find_map(|initial_end| {
+        (valid_initial_shape(chars, index, initial_end) && starts_glide(chars, initial_end))
+            .then(|| next_non_comma_index(chars, initial_end + 1))
+            .flatten()
+    })
 }
 
 #[requires(start <= end && end <= chars.len())]

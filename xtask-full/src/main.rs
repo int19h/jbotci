@@ -4826,6 +4826,7 @@ impl FixtureBackend for NotImplementedBackend {
         }
         match facet {
             Facet::Morphology => run_morphology_fixture(fixture),
+            Facet::Jvozba => run_jvozba_fixture(fixture),
             Facet::Syntax => run_syntax_fixture(fixture),
             Facet::SemanticsRefs => run_semantics_refs_fixture(fixture),
             Facet::VlaseiBrackets => {
@@ -5445,6 +5446,204 @@ fn run_semantics_refs_fixture(fixture: &LoadedTestCase) -> FacetResult {
     }
 }
 
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_jvozba_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let Some(expectation) = &fixture.test_case.expectations.jvozba else {
+        return FacetResult::skipped("fixture has no jvozba expectation");
+    };
+    let inputs = expectation
+        .inputs
+        .iter()
+        .map(jvozba_input_from_fixture)
+        .collect::<Vec<_>>();
+    let result = jbotci_jvozba::build_best_jvozba_detailed(
+        jvozba_mode_from_fixture(expectation.mode),
+        jbotci_dictionary_data::english(),
+        &inputs,
+    );
+    match expectation.status {
+        ExpectationStatus::Success => {
+            let actual = match result {
+                Ok(actual) => actual,
+                Err(error) => {
+                    return FacetResult::failed(format!(
+                        "jvozba should succeed, got error: {error}"
+                    ));
+                }
+            };
+            let Some(expected) = expectation.output.as_ref() else {
+                return FacetResult::failed("jvozba success expectation has no output");
+            };
+            if actual.word != expected.word {
+                return FacetResult::failed(format_text_mismatch(
+                    "jvozba word",
+                    &expected.word,
+                    &actual.word,
+                ));
+            }
+            if let Some(message) = jvozba_segments_mismatch(&actual.segments, &expected.segments) {
+                return FacetResult::failed(message);
+            }
+            if let Some(message) = jvozba_parse_back_mismatch(expectation.mode, expected) {
+                return FacetResult::failed(message);
+            }
+            FacetResult::passed()
+        }
+        ExpectationStatus::Failure => match result {
+            Ok(actual) => FacetResult::failed(format!(
+                "expected jvozba failure, got `{}`",
+                truncate_for_mismatch(&actual.word)
+            )),
+            Err(error) => {
+                if let Some(expected) = expectation.error.as_ref() {
+                    let actual = error.to_string();
+                    if actual == expected.text {
+                        FacetResult::passed()
+                    } else {
+                        FacetResult::failed(format_text_mismatch(
+                            "jvozba error",
+                            &expected.text,
+                            &actual,
+                        ))
+                    }
+                } else {
+                    FacetResult::passed()
+                }
+            }
+        },
+        ExpectationStatus::Pending | ExpectationStatus::NotApplicable => {
+            FacetResult::skipped(format!("jvozba expectation is {:?}", expectation.status))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn jvozba_mode_from_fixture(mode: fixtures::JvozbaFixtureMode) -> jbotci_jvozba::JvozbaMode {
+    match mode {
+        fixtures::JvozbaFixtureMode::Lujvo => jbotci_jvozba::JvozbaMode::Lujvo,
+        fixtures::JvozbaFixtureMode::Cmevla => jbotci_jvozba::JvozbaMode::Cmevla,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn jvozba_input_from_fixture(input: &fixtures::JvozbaFixtureInput) -> jbotci_jvozba::JvozbaInput {
+    match input {
+        fixtures::JvozbaFixtureInput::Word { text } => {
+            jbotci_jvozba::JvozbaInput::Word(text.clone())
+        }
+        fixtures::JvozbaFixtureInput::FixedRafsi { text } => {
+            jbotci_jvozba::JvozbaInput::FixedRafsi(text.clone())
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn jvozba_segments_mismatch(
+    actual: &[jbotci_jvozba::JvozbaSegment],
+    expected: &[fixtures::JvozbaSegmentExpectation],
+) -> Option<String> {
+    if actual.len() != expected.len() {
+        return Some(format!(
+            "jvozba segment count mismatch: expected {}, got {}",
+            expected.len(),
+            actual.len()
+        ));
+    }
+    for (index, (actual, expected)) in actual.iter().zip(expected).enumerate() {
+        let actual_kind = jvozba_segment_kind_to_fixture(actual.kind);
+        if actual_kind != expected.kind {
+            return Some(format!(
+                "jvozba segment {index} kind mismatch for `{}`: expected {:?}, got {:?}",
+                expected.text, expected.kind, actual_kind
+            ));
+        }
+        if actual.text != expected.text {
+            return Some(format!(
+                "jvozba segment {index} text mismatch: expected `{}`, got `{}`",
+                truncate_for_mismatch(&expected.text),
+                truncate_for_mismatch(&actual.text)
+            ));
+        }
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn jvozba_segment_kind_to_fixture(
+    kind: jbotci_jvozba::JvozbaSegmentKind,
+) -> fixtures::JvozbaSegmentKindExpectation {
+    match kind {
+        jbotci_jvozba::JvozbaSegmentKind::Rafsi => fixtures::JvozbaSegmentKindExpectation::Rafsi,
+        jbotci_jvozba::JvozbaSegmentKind::Hyphen => fixtures::JvozbaSegmentKindExpectation::Hyphen,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn jvozba_parse_back_mismatch(
+    mode: fixtures::JvozbaFixtureMode,
+    expected: &fixtures::JvozbaOutputExpectation,
+) -> Option<String> {
+    let words = match jbotci_morphology::segment_words_with_modifiers(&expected.word) {
+        Ok(words) => words,
+        Err(error) => return Some(format!("jvozba output did not parse back: {error}")),
+    };
+    let [word_like] = words.as_slice() else {
+        return Some(format!(
+            "jvozba output parsed back as {} word(s), expected one",
+            words.len()
+        ));
+    };
+    let Some(word) = word_like.bare_word() else {
+        return Some("jvozba output parsed back as a non-bare word".to_owned());
+    };
+    match mode {
+        fixtures::JvozbaFixtureMode::Lujvo => {
+            if word.kind() != jbotci_morphology::WordKind::Lujvo {
+                return Some(format!(
+                    "jvozba output parsed back as {}, expected lujvo",
+                    word.kind()
+                ));
+            }
+            let Some(parts) = word.lujvo_parts() else {
+                return Some("jvozba output parsed back without lujvo parts".to_owned());
+            };
+            if parts.len() != expected.segments.len() {
+                return Some(format!(
+                    "jvozba parse-back part count mismatch: expected {}, got {}",
+                    expected.segments.len(),
+                    parts.len()
+                ));
+            }
+            for (index, (part, segment)) in parts.iter().zip(&expected.segments).enumerate() {
+                if !jbotci_morphology::canonical_text_eq(part.phonemes().as_str(), &segment.text) {
+                    return Some(format!(
+                        "jvozba parse-back part {index} mismatch: expected `{}`, got `{}`",
+                        truncate_for_mismatch(&segment.text),
+                        truncate_for_mismatch(part.phonemes().as_str())
+                    ));
+                }
+            }
+            None
+        }
+        fixtures::JvozbaFixtureMode::Cmevla => {
+            if word.kind() == jbotci_morphology::WordKind::Cmevla {
+                None
+            } else {
+                Some(format!(
+                    "jvozba output parsed back as {}, expected cmevla",
+                    word.kind()
+                ))
+            }
+        }
+    }
+}
+
 #[requires(!label.is_empty())]
 #[ensures(!ret.is_empty())]
 fn format_text_mismatch(label: &str, expected: &str, actual: &str) -> String {
@@ -5837,6 +6036,7 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
     let expectations = &fixture.test_case.expectations;
     match facet {
         Facet::Morphology => expectations.morphology.as_ref().map(|value| value.status),
+        Facet::Jvozba => expectations.jvozba.as_ref().map(|value| value.status),
         Facet::Syntax => expectations.syntax.as_ref().map(|value| value.status),
         Facet::SemanticsRefs => expectations
             .semantics
