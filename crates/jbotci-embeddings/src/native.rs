@@ -2,7 +2,7 @@
 
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Once, OnceLock};
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, requires};
@@ -27,6 +27,7 @@ const N_CTX: u32 = 2048 * 32;
 const N_PARALLEL: usize = 32;
 
 static BACKEND: OnceLock<Result<LlamaBackend, String>> = OnceLock::new();
+static SUPPRESS_LLAMA_LOGS: Once = Once::new();
 
 pub type NativeGemmaEmbeddingBackend = NativeLlamaEmbeddingBackend;
 
@@ -146,6 +147,27 @@ impl NativeLlamaEmbeddingBackend {
         normalize_vector(&mut values);
         Ok(values)
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn suppress_llama_logs_for_cli() {
+    SUPPRESS_LLAMA_LOGS.call_once(|| {
+        // llama.cpp's default logger writes to stderr. The CLI owns stderr for
+        // user-facing diagnostics, so install an explicit silent logger there.
+        unsafe {
+            llama_cpp_4::log_set(Some(silent_llama_log), std::ptr::null_mut());
+        }
+    });
+}
+
+#[requires(true)]
+#[ensures(true)]
+unsafe extern "C" fn silent_llama_log(
+    _level: core::ffi::c_uint,
+    _text: *const core::ffi::c_char,
+    _user_data: *mut core::ffi::c_void,
+) {
 }
 
 #[contract_trait]

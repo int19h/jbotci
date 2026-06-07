@@ -22,7 +22,9 @@ use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport,
 };
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
-use jbotci_embeddings::native::{load_backend_for_search, setup_embeddings_with_progress};
+use jbotci_embeddings::native::{
+    load_backend_for_search, setup_embeddings_with_progress, suppress_llama_logs_for_cli,
+};
 use jbotci_embeddings::{
     DEFAULT_MODEL_KEY, SetupOptions, SetupProgress, default_index_root, semantic_cukta_output,
     semantic_vlacku_hits,
@@ -966,6 +968,7 @@ fn main() -> ExitCode {
 #[ensures(true)]
 fn run() -> Result<CliStatus> {
     let cli = Cli::parse();
+    suppress_llama_logs_for_cli();
     let color_policy = CliColorPolicy {
         stdout: stream_supports_ansi_color(concolor::Stream::Stdout),
         stderr: stream_supports_ansi_color(concolor::Stream::Stderr),
