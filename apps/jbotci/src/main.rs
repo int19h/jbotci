@@ -6268,6 +6268,52 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlacku_lujvo_outputs_unresolved_final_part_and_exact_word_card() {
+        let run = run_cli_capture(
+            &["jbotci", "vlacku", "--ascii", "--lujvo", "jetcybolxada"],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::ValidMissing);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(run.stdout.contains("1. jetcybolxada | lujvo"));
+        assert!(run.stdout.contains("  decomposition: jetc~y~bolxada"));
+        assert_in_order(
+            &run.stdout,
+            &[
+                "1. jetcybolxada | lujvo",
+                "2. jetce | by: officialdata | gismu",
+                "3. bolxada | by: Ilmen | fu'ivla",
+            ],
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_lujvo_outputs_unknown_final_full_word_card() {
+        let run = run_cli_capture(
+            &["jbotci", "vlacku", "--ascii", "--lujvo", "jetcyblorvuku"],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::ValidMissing);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        assert!(run.stdout.contains("1. jetcyblorvuku | lujvo"));
+        assert!(run.stdout.contains("  decomposition: jetc~y~blorvuku"));
+        assert_in_order(
+            &run.stdout,
+            &[
+                "1. jetcyblorvuku | lujvo",
+                "2. jetce | by: officialdata | gismu",
+                "3. blorvuku | fu'ivla",
+            ],
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_decompose_lujvo_adds_decomposition_to_exact_lujvo_cards() {
         let run = run_cli_capture(
             &[

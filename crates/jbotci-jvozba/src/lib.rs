@@ -4,9 +4,10 @@
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, RafsiSource, WordType};
 use jbotci_morphology::{
-    LujvoBuildMode, LujvoPart, Phonemes, WordLike, bond_rafsis, can_appear_as_final_lujvo_rafsi,
-    canonicalize_text, choose_best_lujvo_candidate, ends_with_consonant, ensure_cmevla_word,
-    is_bonding_hyphen, segment_words_with_modifiers, syllables_pattern,
+    LujvoBuildMode, LujvoPart, Phonemes, WordKind, WordLike, bond_rafsis,
+    can_appear_as_final_lujvo_rafsi, canonicalize_text, choose_best_lujvo_candidate,
+    ends_with_consonant, ensure_cmevla_word, is_bonding_hyphen, segment_words_with_modifiers,
+    syllables_pattern,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -194,32 +195,16 @@ pub fn decompose_lujvo_like<'a>(
         return None;
     }
 
-    let parts =
-        morphology_lujvo_parts(&normalized).or_else(|| fallback_lujvo_parts(&normalized))?;
-    let segments = parts
-        .into_iter()
-        .map(|segment| segment_with_source(dictionary, segment))
-        .collect::<Vec<_>>();
-    let source_words = segments
-        .iter()
-        .filter_map(|segment| match &segment.segment {
-            LujvoPart::Rafsi(_) => segment.source,
-            LujvoPart::Hyphen(_) => None,
-        })
-        .collect::<Vec<_>>();
-    let rafsi_count = segments
-        .iter()
-        .filter(|segment| matches!(segment.segment, LujvoPart::Rafsi(_)))
-        .count();
-
-    if rafsi_count >= 2 && source_words.len() == rafsi_count {
-        Some(LujvoDecomposition {
-            segments,
-            source_words,
-        })
-    } else {
-        None
+    if let Some(parts) = morphology_lujvo_parts(&normalized) {
+        return decomposition_from_parts(dictionary, parts);
     }
+
+    if !is_cmevla_word(&normalized) {
+        return None;
+    }
+
+    let decomposition = decomposition_from_parts(dictionary, fallback_lujvo_parts(&normalized)?)?;
+    all_rafsi_segments_have_sources(&decomposition).then_some(decomposition)
 }
 
 #[invariant(true)]
@@ -524,6 +509,62 @@ fn morphology_lujvo_parts(normalized: &str) -> Option<Vec<LujvoPart>> {
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|decomposition| decomposition.segments.iter().filter(|segment| matches!(segment.segment, LujvoPart::Rafsi(_))).count() >= 2))]
+fn decomposition_from_parts<'a>(
+    dictionary: &Dictionary<'a>,
+    parts: Vec<LujvoPart>,
+) -> Option<LujvoDecomposition<'a>> {
+    let segments = parts
+        .into_iter()
+        .map(|segment| segment_with_source(dictionary, segment))
+        .collect::<Vec<_>>();
+    let rafsi_count = segments
+        .iter()
+        .filter(|segment| matches!(segment.segment, LujvoPart::Rafsi(_)))
+        .count();
+    if rafsi_count < 2 {
+        return None;
+    }
+
+    let source_words = segments
+        .iter()
+        .filter_map(|segment| match &segment.segment {
+            LujvoPart::Rafsi(_) => segment.source,
+            LujvoPart::Hyphen(_) => None,
+        })
+        .collect::<Vec<_>>();
+    Some(LujvoDecomposition {
+        segments,
+        source_words,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn all_rafsi_segments_have_sources(decomposition: &LujvoDecomposition<'_>) -> bool {
+    decomposition
+        .segments
+        .iter()
+        .filter(|segment| matches!(segment.segment, LujvoPart::Rafsi(_)))
+        .all(|segment| segment.source.is_some())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_cmevla_word(normalized: &str) -> bool {
+    let Ok(words) = segment_words_with_modifiers(normalized) else {
+        return false;
+    };
+    let [word_like] = words.as_slice() else {
+        return false;
+    };
+    let Some(word) = word_like.bare_word() else {
+        return false;
+    };
+    word.kind() == WordKind::Cmevla
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn segment_with_source<'a>(
     dictionary: &Dictionary<'a>,
@@ -760,6 +801,29 @@ mod tests {
         assert_eq!(
             render_jvozba_error(&error),
             "No dictionary entry for `notlojban`."
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn decomposes_lujvo_even_when_final_part_has_no_rafsi_source() {
+        let decomposition = decompose_lujvo_like(jbotci_dictionary_data::english(), "jetcybolxada")
+            .expect("morphology-backed lujvo decomposition");
+        let surfaces = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.segment.phonemes().as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(surfaces, ["jetc", "y", "bolxáda"]);
+        assert_eq!(decomposition.source_words, ["jetce"]);
+        assert!(
+            decomposition
+                .segments
+                .iter()
+                .any(|segment| segment.segment.phonemes().as_str() == "bolxáda"
+                    && segment.source.is_none())
         );
     }
 }

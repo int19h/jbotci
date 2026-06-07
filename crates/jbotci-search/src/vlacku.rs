@@ -606,11 +606,10 @@ fn cards_for_lujvo(
     };
 
     if let Some(decomposition) = &decomposition {
-        cards.extend(decomposition.source_words.iter().filter_map(|source_word| {
-            dictionary.lookup_word(source_word).map(|entry| {
-                dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
-            })
-        }));
+        extend_unique_cards(
+            &mut cards,
+            cards_for_lujvo_decomposition(dictionary, decomposition, options),
+        );
     }
 
     let cards = filter_and_limit(cards, options, false);
@@ -771,13 +770,83 @@ fn cards_with_optional_lujvo_sources(
     if options.decompose_lujvo
         && let Some(decomposition) = decompose_lujvo_like(dictionary, query)
     {
-        cards.extend(decomposition.source_words.iter().filter_map(|source_word| {
-            dictionary.lookup_word(source_word).map(|entry| {
-                dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
-            })
-        }));
+        extend_unique_cards(
+            &mut cards,
+            cards_for_lujvo_decomposition(dictionary, &decomposition, options),
+        );
     }
     filter_and_limit(cards, options, false)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cards_for_lujvo_decomposition(
+    dictionary: &Dictionary<'_>,
+    decomposition: &LujvoDecomposition<'_>,
+    options: &VlackuSearchOptions,
+) -> Vec<VlackuCard> {
+    let mut cards = Vec::new();
+    for source_word in &decomposition.source_words {
+        if let Some(entry) = dictionary.lookup_word(source_word) {
+            extend_unique_cards(
+                &mut cards,
+                vec![dictionary_entry_card(
+                    dictionary,
+                    entry,
+                    Some(1.0),
+                    options.decompose_lujvo,
+                )],
+            );
+        }
+    }
+    if let Some(surface) = final_rafsi_surface(decomposition) {
+        extend_unique_cards(
+            &mut cards,
+            exact_word_cards_for_lujvo_final_segment(dictionary, surface, options),
+        );
+    }
+    cards
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|surface| !surface.is_empty()))]
+fn final_rafsi_surface<'a>(decomposition: &'a LujvoDecomposition<'_>) -> Option<&'a str> {
+    decomposition
+        .segments
+        .iter()
+        .rev()
+        .find_map(|segment| match &segment.segment {
+            LujvoPart::Rafsi(phonemes) => Some(phonemes.as_str()),
+            LujvoPart::Hyphen(_) => None,
+        })
+}
+
+#[requires(!surface.is_empty())]
+#[ensures(true)]
+fn exact_word_cards_for_lujvo_final_segment(
+    dictionary: &Dictionary<'_>,
+    surface: &str,
+    options: &VlackuSearchOptions,
+) -> Vec<VlackuCard> {
+    let normalized = normalize_lookup_query(surface);
+    let Some(classification) = classify_exact_word(surface, &normalized) else {
+        return Vec::new();
+    };
+    if !is_brivla_like(&normalize_word_type_filter(&classification.word_type)) {
+        return Vec::new();
+    }
+
+    let entries = dictionary.lookup_words(&normalized).collect::<Vec<_>>();
+    if entries.is_empty() {
+        vec![unknown_card(classification, None)]
+    } else {
+        entries
+            .into_iter()
+            .map(|entry| {
+                dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
+            })
+            .collect()
+    }
 }
 
 #[requires(true)]
