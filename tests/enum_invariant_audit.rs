@@ -120,7 +120,15 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
     ),
     (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::DownloadingIndex",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
         "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::LoadingModel",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::ValidatingIndex",
         "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
     ),
     (
@@ -142,6 +150,30 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::Error",
         "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:UsePrecomputed::Auto",
+        "embedding setup precomputed-pack policy is a closed CLI/API selector with no payload",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:UsePrecomputed::Always",
+        "embedding setup precomputed-pack policy is a closed CLI/API selector with no payload",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:UsePrecomputed::Never",
+        "embedding setup precomputed-pack policy is a closed CLI/API selector with no payload",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupIndexSource::Reused",
+        "embedding setup index source is a closed status selector reported to users",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupIndexSource::DownloadedPrecomputed",
+        "embedding setup index source is a closed status selector reported to users",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupIndexSource::BuiltLocal",
+        "embedding setup index source is a closed status selector reported to users",
     ),
     (
         "crates/jbotci-jvozba/src/lib.rs:RawLujvoSegment::Rafsi",
@@ -1150,6 +1182,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci/src/main.rs:Command::Setup",
         "CLI enum delegates validation to clap and setup option handling",
+    ),
+    (
+        "apps/jbotci/src/main.rs:CliUsePrecomputed::Auto",
+        "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
+    ),
+    (
+        "apps/jbotci/src/main.rs:CliUsePrecomputed::Always",
+        "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
+    ),
+    (
+        "apps/jbotci/src/main.rs:CliUsePrecomputed::Never",
+        "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
     ),
     (
         "tests/support/fixtures/mod.rs:Provenance::Cll",

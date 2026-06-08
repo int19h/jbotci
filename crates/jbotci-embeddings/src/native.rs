@@ -15,9 +15,10 @@ use llama_cpp_4::model::{AddBos, LlamaModel};
 
 use crate::{
     EmbeddingBackend, EmbeddingError, EmbeddingModelSpec, QueryEmbedding, SetupOptions,
-    SetupProgress, SetupProgressCallback, SetupProgressPhase, SetupReport,
+    SetupProgress, SetupProgressCallback, SetupProgressPhase, SetupReport, UsePrecomputed,
     build_embedding_pack_with_progress, default_index_root, default_model_root,
-    ensure_model_file_with_progress, model_file_path, model_spec, normalize_vector,
+    download_precomputed_embedding_pack_with_progress, ensure_model_file_with_progress,
+    model_file_path, model_spec, normalize_vector, reuse_existing_embedding_pack_with_progress,
     semantic_cukta_output, semantic_vlacku_hits,
 };
 
@@ -271,7 +272,78 @@ fn setup_embeddings_with_progress_inner(
         .map(Ok)
         .unwrap_or_else(default_index_root)?;
     let model_path = model_file_path(&model_root, &spec);
-    ensure_model_file_with_progress(&spec, &model_path, options.force, progress)?;
+    let dictionary = jbotci_dictionary_data::english();
+    let cll_site =
+        jbotci_cll::embedded_cll_site().map_err(|error| EmbeddingError::InvalidIndex {
+            message: error.to_string(),
+        })?;
+    let cll_chunks = jbotci_cll::cll_search_all_chunks(cll_site);
+
+    if !options.force
+        && let Some(mut report) = reuse_existing_embedding_pack_with_progress(
+            dictionary,
+            cll_chunks,
+            &index_root,
+            &spec,
+            progress,
+        )?
+    {
+        ensure_model_file_with_progress(
+            &spec,
+            &model_path,
+            false,
+            options.skip_validation,
+            progress,
+        )?;
+        report.model_path = model_path;
+        return Ok(report);
+    }
+
+    ensure_model_file_with_progress(
+        &spec,
+        &model_path,
+        options.force,
+        options.skip_validation,
+        progress,
+    )?;
+    match options.use_precomputed {
+        UsePrecomputed::Always => {
+            let mut report = download_precomputed_embedding_pack_with_progress(
+                dictionary,
+                cll_chunks,
+                &index_root,
+                &spec,
+                &options.precomputed_base_url,
+                progress,
+            )?;
+            report.model_path = model_path;
+            return Ok(report);
+        }
+        UsePrecomputed::Auto => {
+            match download_precomputed_embedding_pack_with_progress(
+                dictionary,
+                cll_chunks,
+                &index_root,
+                &spec,
+                &options.precomputed_base_url,
+                progress,
+            ) {
+                Ok(mut report) => {
+                    report.model_path = model_path;
+                    return Ok(report);
+                }
+                Err(error) => {
+                    progress(SetupProgress::indeterminate(
+                        SetupProgressPhase::Indexing,
+                        "index",
+                        "Indexing locally",
+                        &format!("Precomputed embedding index unavailable: {error}"),
+                    ));
+                }
+            }
+        }
+        UsePrecomputed::Never => {}
+    }
     progress(SetupProgress::indeterminate(
         SetupProgressPhase::LoadingModel,
         "load",
@@ -279,15 +351,10 @@ fn setup_embeddings_with_progress_inner(
         "Loading embedding model with llama.cpp.",
     ));
     let mut backend = NativeLlamaEmbeddingBackend::load(&spec, &model_path)?;
-    let dictionary = jbotci_dictionary_data::english();
-    let cll_site =
-        jbotci_cll::embedded_cll_site().map_err(|error| EmbeddingError::InvalidIndex {
-            message: error.to_string(),
-        })?;
     let mut report = build_embedding_pack_with_progress(
         &mut backend,
         dictionary,
-        jbotci_cll::cll_search_all_chunks(cll_site),
+        cll_chunks,
         &index_root,
         &spec,
         options.force,

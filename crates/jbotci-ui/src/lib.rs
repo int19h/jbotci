@@ -3826,6 +3826,7 @@ fn native_embedding_setup_json_result(model_key: String) -> Result<String, Strin
         force: false,
         index_dir: None,
         model_dir: None,
+        ..jbotci_embeddings::SetupOptions::default()
     };
     clear_native_embedding_setup_progress();
     let mut progress = |progress| {

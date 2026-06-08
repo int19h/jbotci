@@ -1,7 +1,7 @@
 //! Native and web embedding model, vector-pack, and semantic search support.
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::env;
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -39,6 +39,7 @@ pub const HF_TOKEN_ENV: &str = "HF_TOKEN";
 pub const INDEX_SCHEMA_VERSION: u32 = 1;
 pub const INDEX_BASE_VERSION: &str = "v1";
 pub const DEFAULT_VECTOR_SHARD_TARGET_BYTES: usize = 8 * 1024 * 1024;
+pub const DEFAULT_GGUF_EMBEDDINGS_BASE_URL: &str = "https://assets.jbotci.app/embeddings/gguf/v1";
 
 const NATIVE_PARTIAL_BUILD_SCHEMA_VERSION: u32 = 1;
 const NATIVE_PARTIAL_BUILD_SOURCE: &str = "native-partial";
@@ -336,8 +337,11 @@ pub trait EmbeddingBackend {
 pub struct SetupOptions {
     pub model_key: String,
     pub force: bool,
+    pub use_precomputed: UsePrecomputed,
+    pub skip_validation: bool,
     pub index_dir: Option<PathBuf>,
     pub model_dir: Option<PathBuf>,
+    pub precomputed_base_url: String,
 }
 
 impl Default for SetupOptions {
@@ -347,8 +351,43 @@ impl Default for SetupOptions {
         Self {
             model_key: DEFAULT_MODEL_KEY.to_owned(),
             force: false,
+            use_precomputed: UsePrecomputed::Auto,
+            skip_validation: false,
             index_dir: None,
             model_dir: None,
+            precomputed_base_url: DEFAULT_GGUF_EMBEDDINGS_BASE_URL.to_owned(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[invariant(::Auto => true)]
+#[invariant(::Always => true)]
+#[invariant(::Never => true)]
+pub enum UsePrecomputed {
+    Auto,
+    Always,
+    Never,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[invariant(::Reused => true)]
+#[invariant(::DownloadedPrecomputed => true)]
+#[invariant(::BuiltLocal => true)]
+pub enum SetupIndexSource {
+    Reused,
+    DownloadedPrecomputed,
+    BuiltLocal,
+}
+
+impl SetupIndexSource {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Reused => "reused",
+            Self::DownloadedPrecomputed => "downloaded-precomputed",
+            Self::BuiltLocal => "built-local",
         }
     }
 }
@@ -361,12 +400,15 @@ pub struct SetupReport {
     pub pack_id: String,
     pub dictionary_rows: usize,
     pub cll_rows: usize,
+    pub index_source: SetupIndexSource,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(::ResolvingPaths => true)]
 #[invariant(::DownloadingModel => true)]
+#[invariant(::DownloadingIndex => true)]
 #[invariant(::ValidatingModel => true)]
+#[invariant(::ValidatingIndex => true)]
 #[invariant(::LoadingModel => true)]
 #[invariant(::Indexing => true)]
 #[invariant(::WritingIndex => true)]
@@ -376,7 +418,9 @@ pub struct SetupReport {
 pub enum SetupProgressPhase {
     ResolvingPaths,
     DownloadingModel,
+    DownloadingIndex,
     ValidatingModel,
+    ValidatingIndex,
     LoadingModel,
     Indexing,
     WritingIndex,
@@ -1476,7 +1520,7 @@ pub fn ensure_model_file(
     force: bool,
 ) -> Result<(), EmbeddingError> {
     let mut progress = |_| {};
-    ensure_model_file_with_progress(spec, path, force, &mut progress)
+    ensure_model_file_with_progress(spec, path, force, false, &mut progress)
 }
 
 #[requires(!path.as_os_str().is_empty())]
@@ -1485,21 +1529,22 @@ pub fn ensure_model_file_with_progress(
     spec: &EmbeddingModelSpec,
     path: &Path,
     force: bool,
+    skip_hash_validation: bool,
     progress: &mut SetupProgressCallback<'_>,
 ) -> Result<(), EmbeddingError> {
     if path.is_file() && !force {
-        validate_model_file_with_progress(spec, path, progress)?;
+        validate_model_file_with_progress(spec, path, skip_hash_validation, progress)?;
         return Ok(());
     }
     download_model_file_with_progress(spec, path, progress)?;
-    validate_model_file_with_progress(spec, path, progress)
+    validate_model_file_with_progress(spec, path, skip_hash_validation, progress)
 }
 
 #[requires(path.is_file())]
 #[ensures(true)]
 pub fn validate_model_file(spec: &EmbeddingModelSpec, path: &Path) -> Result<(), EmbeddingError> {
     let mut progress = |_| {};
-    validate_model_file_with_progress(spec, path, &mut progress)
+    validate_model_file_with_progress(spec, path, false, &mut progress)
 }
 
 #[requires(path.is_file())]
@@ -1507,6 +1552,7 @@ pub fn validate_model_file(spec: &EmbeddingModelSpec, path: &Path) -> Result<(),
 pub fn validate_model_file_with_progress(
     spec: &EmbeddingModelSpec,
     path: &Path,
+    skip_hash_validation: bool,
     progress: &mut SetupProgressCallback<'_>,
 ) -> Result<(), EmbeddingError> {
     let metadata = fs::metadata(path).map_err(|source| EmbeddingError::Io {
@@ -1522,6 +1568,17 @@ pub fn validate_model_file_with_progress(
                 spec.native_size_bytes
             ),
         });
+    }
+    if skip_hash_validation {
+        progress(SetupProgress::determinate(
+            SetupProgressPhase::ValidatingModel,
+            "validate",
+            "Validating model",
+            "Checked embedding model file size; SHA-256 validation was skipped.",
+            metadata.len(),
+            metadata.len(),
+        ));
+        return Ok(());
     }
     let sha256 = sha256_hex_file_with_progress(
         path,
@@ -1718,6 +1775,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
             pack_id,
             dictionary_rows,
             cll_rows,
+            index_source: SetupIndexSource::Reused,
         });
     }
     let work_root = final_pack_root.with_extension("tmp");
@@ -1838,6 +1896,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
         pack_id,
         dictionary_rows,
         cll_rows,
+        index_source: SetupIndexSource::BuiltLocal,
     })
 }
 
@@ -2085,6 +2144,484 @@ where
         items_sha256,
         shards,
     })
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn reuse_existing_embedding_pack_with_progress(
+    dictionary: &Dictionary<'_>,
+    cll_chunks: &[CllSearchChunk],
+    index_root: &Path,
+    spec: &EmbeddingModelSpec,
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<Option<SetupReport>, EmbeddingError> {
+    let dictionary_fingerprint = dictionary_fingerprint(dictionary);
+    let cll_fingerprint = cll_fingerprint(cll_chunks);
+    let pack_id = deterministic_pack_id(
+        DEFAULT_INPUT_FORMAT_VERSION,
+        &spec.model_revision,
+        &dictionary_fingerprint,
+        &cll_fingerprint,
+    );
+    let pack_dir = pack_root(index_root, &spec.model_key, &pack_id);
+    if !pack_dir.join("manifest.json").is_file() {
+        return Ok(None);
+    }
+    progress(SetupProgress::indeterminate(
+        SetupProgressPhase::ValidatingIndex,
+        "validate",
+        "Validating embedding index",
+        "Checking existing embedding vector pack.",
+    ));
+    validate_pack_dir(&pack_dir)?;
+    let manifest: EmbeddingPackManifest = read_json_file(&pack_dir.join("manifest.json"))?;
+    validate_native_pack_manifest(
+        &manifest,
+        spec,
+        &pack_id,
+        &dictionary_fingerprint,
+        dictionary.entries().len(),
+        &cll_fingerprint,
+        cll_chunks.len(),
+    )?;
+    write_catalog(index_root, spec, &pack_id)?;
+    let total_rows = (dictionary.entries().len() + cll_chunks.len()) as u64;
+    progress(SetupProgress::determinate(
+        SetupProgressPhase::ReusingIndex,
+        "index",
+        "Reusing embedding index",
+        "Using an existing compatible embedding vector pack.",
+        total_rows,
+        total_rows,
+    ));
+    progress(SetupProgress::determinate(
+        SetupProgressPhase::Complete,
+        "complete",
+        "Embedding setup complete",
+        "Native embeddings are ready for semantic search.",
+        total_rows,
+        total_rows,
+    ));
+    Ok(Some(SetupReport {
+        index_root: index_root.to_owned(),
+        model_path: PathBuf::new(),
+        pack_id,
+        dictionary_rows: dictionary.entries().len(),
+        cll_rows: cll_chunks.len(),
+        index_source: SetupIndexSource::Reused,
+    }))
+}
+
+#[requires(!base_url.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|report| report.index_source == SetupIndexSource::DownloadedPrecomputed) || ret.is_err())]
+pub fn download_precomputed_embedding_pack_with_progress(
+    dictionary: &Dictionary<'_>,
+    cll_chunks: &[CllSearchChunk],
+    index_root: &Path,
+    spec: &EmbeddingModelSpec,
+    base_url: &str,
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<SetupReport, EmbeddingError> {
+    let dictionary_fingerprint = dictionary_fingerprint(dictionary);
+    let cll_fingerprint = cll_fingerprint(cll_chunks);
+    let expected_pack_id = deterministic_pack_id(
+        DEFAULT_INPUT_FORMAT_VERSION,
+        &spec.model_revision,
+        &dictionary_fingerprint,
+        &cll_fingerprint,
+    );
+    let catalog_url = remote_pack_url(base_url, "catalog.json")?;
+    progress(SetupProgress::indeterminate(
+        SetupProgressPhase::DownloadingIndex,
+        "download",
+        "Downloading precomputed index",
+        "Fetching native embedding catalog.",
+    ));
+    let catalog: EmbeddingCatalog = fetch_json_url(&catalog_url)?;
+    if catalog.schema_version != INDEX_SCHEMA_VERSION {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "remote embedding catalog schema version {} is unsupported",
+                catalog.schema_version
+            ),
+        });
+    }
+    let model = catalog
+        .models
+        .iter()
+        .find(|model| model.model_key == spec.model_key)
+        .ok_or_else(|| EmbeddingError::MissingCompatiblePack {
+            model_key: spec.model_key.clone(),
+        })?;
+    let manifest_url = remote_pack_url(base_url, &model.manifest_url)?;
+    progress(SetupProgress::indeterminate(
+        SetupProgressPhase::DownloadingIndex,
+        "download",
+        "Downloading precomputed index",
+        "Fetching native embedding vector pack manifest.",
+    ));
+    let manifest: EmbeddingPackManifest = fetch_json_url(&manifest_url)?;
+    validate_native_pack_manifest(
+        &manifest,
+        spec,
+        &expected_pack_id,
+        &dictionary_fingerprint,
+        dictionary.entries().len(),
+        &cll_fingerprint,
+        cll_chunks.len(),
+    )?;
+    if model.latest_pack_id != manifest.pack_id {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "remote catalog points to pack `{}`, but manifest has pack `{}`",
+                model.latest_pack_id, manifest.pack_id
+            ),
+        });
+    }
+
+    let final_pack_root = pack_root(index_root, &spec.model_key, &manifest.pack_id);
+    let work_pack_root = final_pack_root.with_extension("downloadInProgress");
+    remove_dir_all_if_exists(&work_pack_root)?;
+    fs::create_dir_all(&work_pack_root).map_err(|source| EmbeddingError::Io {
+        context: format!("failed to create `{}`", work_pack_root.display()),
+        source,
+    })?;
+    write_json_file(&work_pack_root.join("manifest.json"), &manifest)?;
+    let remote_paths = native_pack_remote_paths(&manifest)?;
+    for relative_path in remote_paths {
+        let url = remote_pack_child_url(base_url, &model.manifest_url, &relative_path)?;
+        let destination = work_pack_root.join(&relative_path);
+        download_url_to_file_with_progress(
+            &url,
+            &destination,
+            SetupProgressPhase::DownloadingIndex,
+            "Downloading precomputed index",
+            &format!("Downloading {relative_path}."),
+            progress,
+        )?;
+    }
+    progress(SetupProgress::indeterminate(
+        SetupProgressPhase::ValidatingIndex,
+        "validate",
+        "Validating embedding index",
+        "Checking downloaded embedding vector pack.",
+    ));
+    validate_pack_dir(&work_pack_root)?;
+    if final_pack_root.exists() {
+        remove_dir_all_if_exists(&final_pack_root)?;
+    }
+    ensure_parent_dir(&final_pack_root)?;
+    fs::rename(&work_pack_root, &final_pack_root).map_err(|source| EmbeddingError::Io {
+        context: format!(
+            "failed to publish `{}` as `{}`",
+            work_pack_root.display(),
+            final_pack_root.display()
+        ),
+        source,
+    })?;
+    write_catalog(index_root, spec, &manifest.pack_id)?;
+    let total_rows = (dictionary.entries().len() + cll_chunks.len()) as u64;
+    progress(SetupProgress::determinate(
+        SetupProgressPhase::Complete,
+        "complete",
+        "Embedding setup complete",
+        "Native embeddings are ready for semantic search.",
+        total_rows,
+        total_rows,
+    ));
+    Ok(SetupReport {
+        index_root: index_root.to_owned(),
+        model_path: PathBuf::new(),
+        pack_id: manifest.pack_id,
+        dictionary_rows: dictionary.entries().len(),
+        cll_rows: cll_chunks.len(),
+        index_source: SetupIndexSource::DownloadedPrecomputed,
+    })
+}
+
+#[requires(!base_url.trim().is_empty())]
+#[requires(!relative_path.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|url| url.starts_with(base_url.trim().trim_end_matches('/'))) || ret.is_err())]
+fn remote_pack_url(base_url: &str, relative_path: &str) -> Result<String, EmbeddingError> {
+    let _ = safe_pack_relative_path(relative_path)?;
+    Ok(format!(
+        "{}/{}",
+        base_url.trim().trim_end_matches('/'),
+        relative_path.trim_start_matches('/')
+    ))
+}
+
+#[requires(!base_url.trim().is_empty())]
+#[requires(!manifest_relative_path.is_empty())]
+#[requires(!child_relative_path.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|url| url.starts_with(base_url.trim().trim_end_matches('/'))) || ret.is_err())]
+fn remote_pack_child_url(
+    base_url: &str,
+    manifest_relative_path: &str,
+    child_relative_path: &str,
+) -> Result<String, EmbeddingError> {
+    let _ = safe_pack_relative_path(manifest_relative_path)?;
+    let _ = safe_pack_relative_path(child_relative_path)?;
+    let child_relative_path = child_relative_path.trim_start_matches('/');
+    let relative_path = if let Some((manifest_parent, _)) = manifest_relative_path.rsplit_once('/')
+    {
+        if manifest_parent.is_empty() {
+            child_relative_path.to_owned()
+        } else {
+            format!("{manifest_parent}/{child_relative_path}")
+        }
+    } else {
+        child_relative_path.to_owned()
+    };
+    remote_pack_url(base_url, &relative_path)
+}
+
+#[requires(!value.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|path| !path.as_os_str().is_empty()) || ret.is_err())]
+fn safe_pack_relative_path(value: &str) -> Result<PathBuf, EmbeddingError> {
+    let path = Path::new(value);
+    if path.is_absolute() {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!("remote pack path `{value}` must be relative"),
+        });
+    }
+    if path
+        .components()
+        .any(|component| !matches!(component, std::path::Component::Normal(_)))
+    {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!("remote pack path `{value}` is not a normalized relative path"),
+        });
+    }
+    Ok(path.to_owned())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|paths| !paths.contains(&"manifest.json".to_owned())) || ret.is_err())]
+fn native_pack_remote_paths(
+    manifest: &EmbeddingPackManifest,
+) -> Result<Vec<String>, EmbeddingError> {
+    let mut paths = BTreeSet::new();
+    for corpus in &manifest.corpora {
+        let items_path = safe_pack_relative_path(&corpus.items_url)?;
+        paths.insert(items_path.to_string_lossy().into_owned());
+        for shard in &corpus.shards {
+            let shard_path = safe_pack_relative_path(&shard.url)?;
+            paths.insert(shard_path.to_string_lossy().into_owned());
+        }
+    }
+    Ok(paths.into_iter().collect())
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(!expected_pack_id.is_empty())]
+#[requires(spec.dimensions > 0)]
+#[ensures(true)]
+fn validate_native_pack_manifest(
+    manifest: &EmbeddingPackManifest,
+    spec: &EmbeddingModelSpec,
+    expected_pack_id: &str,
+    dictionary_fingerprint: &str,
+    dictionary_rows: usize,
+    cll_fingerprint: &str,
+    cll_rows: usize,
+) -> Result<(), EmbeddingError> {
+    if manifest.schema_version != INDEX_SCHEMA_VERSION {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "embedding pack schema version {} is unsupported",
+                manifest.schema_version
+            ),
+        });
+    }
+    if manifest.model_key != spec.model_key || manifest.model_revision != spec.model_revision {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "embedding pack is for `{}` revision `{}`, expected `{}` revision `{}`",
+                manifest.model_key, manifest.model_revision, spec.model_key, spec.model_revision
+            ),
+        });
+    }
+    if manifest.pack_id != expected_pack_id {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "embedding pack id `{}` does not match expected `{expected_pack_id}`",
+                manifest.pack_id
+            ),
+        });
+    }
+    if manifest.input_format_version != DEFAULT_INPUT_FORMAT_VERSION {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "embedding pack input format `{}` is unsupported",
+                manifest.input_format_version
+            ),
+        });
+    }
+    if manifest.dimensions != spec.dimensions {
+        return Err(EmbeddingError::DimensionMismatch {
+            expected: spec.dimensions,
+            actual: manifest.dimensions,
+        });
+    }
+    if manifest.element_type != "f32le" || !manifest.normalized || manifest.distance != "dot" {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "embedding pack must contain normalized f32le dot-product vectors".to_owned(),
+        });
+    }
+    if !manifest
+        .compatible_query_runtimes
+        .iter()
+        .any(|runtime| runtime == &native_embedding_runtime())
+    {
+        return Err(EmbeddingError::MissingCompatiblePack {
+            model_key: spec.model_key.clone(),
+        });
+    }
+    let dictionary = manifest_corpus(manifest, VLACKU_CORPUS_ID)?;
+    validate_native_corpus_manifest(
+        dictionary,
+        dictionary_fingerprint,
+        dictionary_rows,
+        spec.dimensions,
+    )?;
+    let cll = manifest_corpus(manifest, CUKTA_CORPUS_ID)?;
+    validate_native_corpus_manifest(cll, cll_fingerprint, cll_rows, spec.dimensions)?;
+    Ok(())
+}
+
+#[requires(dimensions > 0)]
+#[ensures(true)]
+fn validate_native_corpus_manifest(
+    corpus: &CorpusManifest,
+    fingerprint: &str,
+    rows: usize,
+    dimensions: usize,
+) -> Result<(), EmbeddingError> {
+    if corpus.input_format_version != DEFAULT_INPUT_FORMAT_VERSION {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "corpus `{}` input format `{}` is unsupported",
+                corpus.corpus_id, corpus.input_format_version
+            ),
+        });
+    }
+    if corpus.fingerprint != fingerprint {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!("corpus `{}` fingerprint mismatch", corpus.corpus_id),
+        });
+    }
+    if corpus.row_count != rows {
+        return Err(EmbeddingError::InvalidIndex {
+            message: format!(
+                "corpus `{}` has {} rows, expected {rows}",
+                corpus.corpus_id, corpus.row_count
+            ),
+        });
+    }
+    if corpus.dimensions != dimensions {
+        return Err(EmbeddingError::DimensionMismatch {
+            expected: dimensions,
+            actual: corpus.dimensions,
+        });
+    }
+    let _ = safe_pack_relative_path(&corpus.items_url)?;
+    for shard in &corpus.shards {
+        let _ = safe_pack_relative_path(&shard.url)?;
+    }
+    Ok(())
+}
+
+#[requires(!url.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn fetch_json_url<T: DeserializeOwned>(url: &str) -> Result<T, EmbeddingError> {
+    let response = ureq::get(url)
+        .call()
+        .map_err(|source| EmbeddingError::Http {
+            message: format!("failed to fetch `{url}`: {source}"),
+        })?;
+    serde_json::from_reader(response.into_body().into_reader()).map_err(|source| {
+        EmbeddingError::Json {
+            context: format!("failed to parse `{url}`"),
+            source,
+        }
+    })
+}
+
+#[requires(!url.is_empty())]
+#[requires(!destination.as_os_str().is_empty())]
+#[requires(!label.is_empty())]
+#[requires(!detail.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|_| destination.is_file()) || ret.is_err())]
+fn download_url_to_file_with_progress(
+    url: &str,
+    destination: &Path,
+    phase: SetupProgressPhase,
+    label: &str,
+    detail: &str,
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<(), EmbeddingError> {
+    ensure_parent_dir(destination)?;
+    progress(SetupProgress::indeterminate(
+        phase, "download", label, detail,
+    ));
+    let response = ureq::get(url)
+        .call()
+        .map_err(|source| EmbeddingError::Http {
+            message: format!("failed to download `{url}`: {source}"),
+        })?;
+    let total = response
+        .headers()
+        .get("content-length")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok());
+    let temp_path = destination.with_extension("downloadInProgress");
+    let mut reader = response.into_body().into_reader();
+    let mut writer =
+        BufWriter::new(
+            File::create(&temp_path).map_err(|source| EmbeddingError::Io {
+                context: format!("failed to create `{}`", temp_path.display()),
+                source,
+            })?,
+        );
+    let mut loaded = 0u64;
+    if let Some(total) = total {
+        progress(SetupProgress::determinate(
+            phase, "download", label, detail, 0, total,
+        ));
+    }
+    let mut buf = [0u8; 1024 * 1024];
+    loop {
+        let read = reader.read(&mut buf).map_err(|source| EmbeddingError::Io {
+            context: format!("failed to read `{url}`"),
+            source,
+        })?;
+        if read == 0 {
+            break;
+        }
+        writer
+            .write_all(&buf[..read])
+            .map_err(|source| EmbeddingError::Io {
+                context: format!("failed to write `{}`", temp_path.display()),
+                source,
+            })?;
+        if let Some(total) = total {
+            loaded = loaded.saturating_add(read as u64);
+            progress(SetupProgress::determinate(
+                phase,
+                "download",
+                label,
+                detail,
+                loaded.min(total),
+                total,
+            ));
+        }
+    }
+    writer.flush().map_err(|source| EmbeddingError::Io {
+        context: format!("failed to flush `{}`", temp_path.display()),
+        source,
+    })?;
+    rename_replacing(&temp_path, destination)
 }
 
 #[requires(true)]
@@ -2977,6 +3514,7 @@ mod tests {
         let report =
             build_embedding_pack(&mut backend, entries, cll_chunks, dir.path(), &spec, false)
                 .expect("build pack");
+        assert_eq!(report.index_source, SetupIndexSource::BuiltLocal);
         let manifest_path =
             pack_root(dir.path(), &spec.model_key, &report.pack_id).join("manifest.json");
         let manifest: EmbeddingPackManifest = read_json_file(&manifest_path).expect("manifest");
@@ -2992,6 +3530,65 @@ mod tests {
         let items: Vec<DictionaryEmbeddingItem> =
             read_json_file(&items_path).expect("dictionary items");
         assert!(items.iter().any(|item| item.kind == "gismu"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn existing_pack_reuse_reports_reused_source() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dictionary = jbotci_dictionary_data::english();
+        let cll_site = jbotci_cll::embedded_cll_site().expect("embedded CLL");
+        let cll_chunks = &cll_site.search_chunks[..2];
+        let spec = test_embedding_spec();
+        build_embedding_pack(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            dictionary,
+            cll_chunks,
+            dir.path(),
+            &spec,
+            false,
+        )
+        .expect("build pack");
+
+        let mut progress = |_| {};
+        let report = reuse_existing_embedding_pack_with_progress(
+            dictionary,
+            cll_chunks,
+            dir.path(),
+            &spec,
+            &mut progress,
+        )
+        .expect("reuse check")
+        .expect("existing pack");
+        assert_eq!(report.index_source, SetupIndexSource::Reused);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn remote_pack_child_urls_are_manifest_relative() {
+        let url = remote_pack_child_url(
+            "https://assets.example/embeddings/gguf/v1",
+            "models/f2llm/packs/pack-a/manifest.json",
+            "corpora/vlacku-en/items.json",
+        )
+        .expect("child URL");
+        assert_eq!(
+            url,
+            "https://assets.example/embeddings/gguf/v1/models/f2llm/packs/pack-a/corpora/vlacku-en/items.json"
+        );
+
+        let error = remote_pack_child_url(
+            "https://assets.example/embeddings/gguf/v1",
+            "models/f2llm/packs/pack-a/manifest.json",
+            "../items.json",
+        )
+        .expect_err("reject parent traversal");
+        assert!(matches!(error, EmbeddingError::InvalidIndex { .. }));
     }
 
     #[test]

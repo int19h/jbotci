@@ -26,8 +26,8 @@ use jbotci_embeddings::native::{
     load_backend_for_search, setup_embeddings_with_progress, suppress_llama_logs_for_cli,
 };
 use jbotci_embeddings::{
-    DEFAULT_MODEL_KEY, SetupOptions, SetupProgress, default_index_root, semantic_cukta_output,
-    semantic_vlacku_hits,
+    DEFAULT_MODEL_KEY, SetupOptions, SetupProgress, UsePrecomputed, default_index_root,
+    semantic_cukta_output, semantic_vlacku_hits,
 };
 use jbotci_gentufa::{
     ElidedTerminator, EmbeddedGentufaFonts, GentufaBlockAnnotation, GentufaBlockOptions,
@@ -632,12 +632,42 @@ struct SetupInput {
     embedding: bool,
     #[arg(long = "force")]
     force: bool,
+    #[arg(
+        long = "use-precomputed",
+        value_enum,
+        default_value_t = CliUsePrecomputed::Auto
+    )]
+    use_precomputed: CliUsePrecomputed,
+    #[arg(long = "skip-validation")]
+    skip_validation: bool,
     #[arg(long = "model", default_value = DEFAULT_MODEL_KEY)]
     model: String,
     #[arg(long = "index-dir")]
     index_dir: Option<PathBuf>,
     #[arg(long = "model-dir")]
     model_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[invariant(::Auto => true)]
+#[invariant(::Always => true)]
+#[invariant(::Never => true)]
+enum CliUsePrecomputed {
+    Auto,
+    Always,
+    Never,
+}
+
+impl From<CliUsePrecomputed> for UsePrecomputed {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(value: CliUsePrecomputed) -> Self {
+        match value {
+            CliUsePrecomputed::Auto => Self::Auto,
+            CliUsePrecomputed::Always => Self::Always,
+            CliUsePrecomputed::Never => Self::Never,
+        }
+    }
 }
 
 impl Args for VlackuInput {
@@ -1470,8 +1500,11 @@ fn run_setup<WOut: Write>(
         &SetupOptions {
             model_key: input.model,
             force: input.force,
+            use_precomputed: input.use_precomputed.into(),
+            skip_validation: input.skip_validation,
             index_dir: input.index_dir,
             model_dir: input.model_dir,
+            ..SetupOptions::default()
         },
         &mut progress,
     ) {
@@ -1486,10 +1519,11 @@ fn run_setup<WOut: Write>(
     };
     writeln!(
         stdout,
-        "Embedding setup complete.\nmodel: {}\nindex: {}\npack: {}\ndictionary rows: {}\nCLL rows: {}",
+        "Embedding setup complete.\nmodel: {}\nindex: {}\npack: {}\nsource: {}\ndictionary rows: {}\nCLL rows: {}",
         report.model_path.display(),
         report.index_root.display(),
         report.pack_id,
+        report.index_source.as_str(),
         report.dictionary_rows,
         report.cll_rows
     )?;
@@ -1533,7 +1567,7 @@ impl CliSetupProgressReporter {
         let detail = cli_setup_progress_detail(progress);
         if let (Some(loaded), Some(total)) = (progress.loaded, progress.total) {
             if !self.determinate {
-                job.set_body("{{ spinner() }} {{ message }} {{ detail | flex }} {{ progress_bar(width=20) }}");
+                job.set_body("{{ spinner() }} {{ message }} {{ detail | flex }} {{ progress_bar(flex=true) }}");
                 self.determinate = true;
             }
             job.progress_total(usize::try_from(total).unwrap_or(usize::MAX));
@@ -4002,6 +4036,28 @@ mod tests {
                 VlackuRequest::Lujvo("mivyselbai".to_owned()),
             ]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_embedding_setup_precomputed_policy_and_validation_skip() {
+        let Command::Setup(input) = Cli::try_parse_from([
+            "jbotci",
+            "setup",
+            "--embedding",
+            "--use-precomputed",
+            "always",
+            "--skip-validation",
+        ])
+        .expect("setup command")
+        .command
+        else {
+            panic!("expected setup command");
+        };
+
+        assert_eq!(input.use_precomputed, CliUsePrecomputed::Always);
+        assert!(input.skip_validation);
     }
 
     #[test]

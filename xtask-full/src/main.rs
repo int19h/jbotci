@@ -51,6 +51,11 @@ const F2LLM_MODEL_ARTIFACT_ROOT_DIR: &str = ".jbotci-build/f2llm-webgpu-models";
 const F2LLM_ONNX_FALLBACK_R2_PREFIX: &str = "models/f2llm-v2-80m-onnx-q4/v1";
 const F2LLM_EMBEDDINGS_R2_PREFIX: &str = "embeddings/web/v1";
 const F2LLM_REMOTE_CATALOG_URL: &str = "https://assets.jbotci.app/embeddings/web/v1/catalog.json";
+const GGUF_VECTOR_PACK_OUT_DIR: &str = ".jbotci-build/r2-gguf-embeddings";
+const GGUF_INDEX_STAGE_DIR: &str = ".jbotci-build/native-gguf-index";
+const GGUF_EMBEDDINGS_R2_PREFIX: &str = "embeddings/gguf/v1";
+const GGUF_REMOTE_CATALOG_URL: &str = "https://assets.jbotci.app/embeddings/gguf/v1/catalog.json";
+const GGUF_DEFAULT_MODEL_KEY: &str = "f2llm-v2-330m-q4-k-m-896";
 const F2LLM_VECTOR_SPACE_KEY: &str = "jbotci-browser-f2llm-q4-f16-windowed-512-v1";
 const F2LLM_MAX_SEQUENCE_LENGTH: usize = 512;
 const R2_UPLOAD_PARALLELISM: usize = 4;
@@ -163,9 +168,11 @@ struct Cli {
 #[invariant(::BuildWebEmbeddings(..) => true)]
 #[invariant(::BuildF2LlmWebgpuModel(..) => true)]
 #[invariant(::BuildF2LlmWebgpuVectors(..) => true)]
+#[invariant(::BuildGgufEmbeddings(..) => true)]
 #[invariant(::DistServer(..) => true)]
 #[invariant(::PublishWebEmbeddingsR2(..) => true)]
 #[invariant(::PublishF2LlmWebgpuR2(..) => true)]
+#[invariant(::PublishGgufEmbeddingsR2(..) => true)]
 #[invariant(::RenderDockerBuild(..) => true)]
 #[invariant(::RenderDockerRun(..) => true)]
 enum Command {
@@ -195,10 +202,14 @@ enum Command {
     BuildF2LlmWebgpuModel(BuildF2LlmWebgpuModelArgs),
     #[command(name = "build-f2llm-webgpu-vectors")]
     BuildF2LlmWebgpuVectors(BuildF2LlmWebgpuVectorsArgs),
+    #[command(name = "build-gguf-embeddings")]
+    BuildGgufEmbeddings(BuildGgufEmbeddingsArgs),
     DistServer(DistServerArgs),
     PublishWebEmbeddingsR2(PublishWebEmbeddingsR2Args),
     #[command(name = "publish-f2llm-webgpu-r2")]
     PublishF2LlmWebgpuR2(PublishF2LlmWebgpuR2Args),
+    #[command(name = "publish-gguf-embeddings-r2")]
+    PublishGgufEmbeddingsR2(PublishGgufEmbeddingsR2Args),
     RenderDockerBuild(RenderDockerBuildArgs),
     RenderDockerRun(RenderDockerRunArgs),
 }
@@ -410,6 +421,21 @@ struct BuildF2LlmWebgpuVectorsArgs {
 
 #[derive(Debug, Args)]
 #[invariant(true)]
+struct BuildGgufEmbeddingsArgs {
+    #[arg(long, default_value = GGUF_VECTOR_PACK_OUT_DIR)]
+    out_dir: PathBuf,
+    #[arg(long, default_value = GGUF_INDEX_STAGE_DIR)]
+    index_dir: PathBuf,
+    #[arg(long)]
+    model_dir: Option<PathBuf>,
+    #[arg(long, default_value = GGUF_DEFAULT_MODEL_KEY)]
+    model: String,
+    #[arg(long)]
+    skip_validation: bool,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
 struct DistServerArgs {
     #[arg(long, default_value = ".jbotci-build/jbotci-web")]
     out_dir: PathBuf,
@@ -465,6 +491,29 @@ struct PublishF2LlmWebgpuR2Args {
     remote_catalog_url: String,
     #[arg(long)]
     skip_build: bool,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct PublishGgufEmbeddingsR2Args {
+    #[arg(long, default_value = "jbotci-web-assets")]
+    bucket: String,
+    #[arg(long, default_value = GGUF_EMBEDDINGS_R2_PREFIX)]
+    prefix: String,
+    #[arg(long, default_value = GGUF_VECTOR_PACK_OUT_DIR)]
+    out_dir: PathBuf,
+    #[arg(long, default_value = GGUF_INDEX_STAGE_DIR)]
+    index_dir: PathBuf,
+    #[arg(long)]
+    model_dir: Option<PathBuf>,
+    #[arg(long, default_value = GGUF_DEFAULT_MODEL_KEY)]
+    model: String,
+    #[arg(long, default_value = GGUF_REMOTE_CATALOG_URL)]
+    remote_catalog_url: String,
+    #[arg(long)]
+    skip_build: bool,
+    #[arg(long)]
+    skip_validation: bool,
 }
 
 #[derive(Debug, Args)]
@@ -925,9 +974,11 @@ fn main() -> Result<()> {
         Command::BuildWebEmbeddings(args) => build_web_embeddings(args),
         Command::BuildF2LlmWebgpuModel(args) => build_f2llm_webgpu_model(args),
         Command::BuildF2LlmWebgpuVectors(args) => build_f2llm_webgpu_vectors(args),
+        Command::BuildGgufEmbeddings(args) => build_gguf_embeddings(args),
         Command::DistServer(args) => dist_server(args),
         Command::PublishWebEmbeddingsR2(args) => publish_web_embeddings_r2(args),
         Command::PublishF2LlmWebgpuR2(args) => publish_f2llm_webgpu_r2(args),
+        Command::PublishGgufEmbeddingsR2(args) => publish_gguf_embeddings_r2(args),
         Command::RenderDockerBuild(args) => render_docker_build(args),
         Command::RenderDockerRun(args) => render_docker_run(args),
     }
@@ -1109,6 +1160,99 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
     let embedding_prefix = normalize_r2_prefix(&args.embedding_prefix)?;
     let catalog_object =
         r2_upload_object_for_key(&merged_catalog_dir, &embedding_prefix, "catalog.json")?;
+    put_r2_object(&args.bucket, &catalog_object)
+}
+
+#[requires(!args.model.trim().is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
+    let out_dir = absolute_path(&args.out_dir)?;
+    let index_dir = absolute_path(&args.index_dir)?;
+    remove_path_if_exists(&index_dir)?;
+    fs::create_dir_all(&index_dir)
+        .with_context(|| format!("creating `{}`", index_dir.display()))?;
+    let mut command = ProcessCommand::new("cargo");
+    command
+        .arg("run")
+        .arg("--release")
+        .arg("-p")
+        .arg("jbotci")
+        .arg("--")
+        .arg("setup")
+        .arg("--embedding")
+        .arg("--force")
+        .arg("--use-precomputed")
+        .arg("never")
+        .arg("--model")
+        .arg(&args.model)
+        .arg("--index-dir")
+        .arg(&index_dir);
+    if let Some(model_dir) = args.model_dir {
+        command.arg("--model-dir").arg(absolute_path(&model_dir)?);
+    }
+    if args.skip_validation {
+        command.arg("--skip-validation");
+    }
+    let status = command
+        .status()
+        .context("failed to run `cargo run --release -p jbotci -- setup --embedding`")?;
+    check_status(
+        status,
+        "cargo run --release -p jbotci -- setup --embedding --use-precomputed never",
+    )?;
+    let index_version_dir = index_dir.join("v1");
+    if !index_version_dir.is_dir() {
+        bail!(
+            "native embedding setup did not create `{}`",
+            index_version_dir.display()
+        );
+    }
+    remove_path_if_exists(&out_dir)?;
+    copy_dir_recursive(&index_version_dir, &out_dir, "GGUF embedding R2 tree")?;
+    validate_native_gguf_r2_tree(&out_dir)
+}
+
+#[requires(!args.bucket.trim().is_empty())]
+#[requires(!args.prefix.trim().is_empty())]
+#[requires(!args.model.trim().is_empty())]
+#[requires(!args.remote_catalog_url.trim().is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
+    let out_dir = absolute_path(&args.out_dir)?;
+    if !args.skip_build {
+        build_gguf_embeddings(BuildGgufEmbeddingsArgs {
+            out_dir: args.out_dir.clone(),
+            index_dir: args.index_dir,
+            model_dir: args.model_dir,
+            model: args.model.clone(),
+            skip_validation: args.skip_validation,
+        })?;
+    } else {
+        validate_native_gguf_r2_tree(&out_dir)?;
+    }
+    let pack_objects = r2_upload_native_objects_without_catalog(&out_dir, &args.prefix)?;
+    put_r2_objects(&args.bucket, &pack_objects)?;
+
+    let remote_catalog =
+        fetch_optional_json_catalog(&args.remote_catalog_url).with_context(|| {
+            format!(
+                "fetching remote native embedding catalog from `{}`",
+                args.remote_catalog_url
+            )
+        })?;
+    let local_catalog = read_json_file(&out_dir.join("catalog.json"))?;
+    let merged_catalog = merge_embedding_catalog_models(
+        remote_catalog,
+        local_catalog,
+        &BTreeSet::from([args.model.clone()]),
+    )?;
+    let merged_catalog_dir = absolute_path(Path::new(".jbotci-build/r2-gguf-merged-catalog"))?;
+    fs::create_dir_all(&merged_catalog_dir)
+        .with_context(|| format!("creating `{}`", merged_catalog_dir.display()))?;
+    let catalog_path = merged_catalog_dir.join("catalog.json");
+    write_json_file(&catalog_path, &merged_catalog)?;
+    let prefix = normalize_r2_prefix(&args.prefix)?;
+    let catalog_object = r2_upload_object_for_key(&merged_catalog_dir, &prefix, "catalog.json")?;
     put_r2_object(&args.bucket, &catalog_object)
 }
 
@@ -2458,6 +2602,20 @@ fn r2_upload_objects_without_catalog(
 
 #[requires(build_root.is_dir())]
 #[requires(!prefix.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|objects| !objects.iter().any(|object| object.object_key.ends_with("/catalog.json"))) || ret.is_err())]
+fn r2_upload_native_objects_without_catalog(
+    build_root: &Path,
+    prefix: &str,
+) -> Result<Vec<R2UploadObject>> {
+    let prefix = normalize_r2_prefix(prefix)?;
+    native_catalog_referenced_r2_object_keys(build_root)?
+        .into_iter()
+        .map(|relative_key| r2_upload_object_for_key(build_root, &prefix, &relative_key))
+        .collect()
+}
+
+#[requires(build_root.is_dir())]
+#[requires(!prefix.trim().is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|objects| objects.iter().all(|object| object.object_key.starts_with(prefix.trim().trim_matches('/')))) || ret.is_err())]
 fn r2_upload_tree_objects(build_root: &Path, prefix: &str) -> Result<Vec<R2UploadObject>> {
     let prefix = normalize_r2_prefix(prefix)?;
@@ -2531,6 +2689,63 @@ fn catalog_referenced_r2_object_keys(build_root: &Path) -> Result<Vec<String>> {
         }
     }
     Ok(keys.into_iter().collect())
+}
+
+#[requires(build_root.is_dir())]
+#[ensures(ret.as_ref().is_ok_and(|keys| !keys.is_empty() && !keys.contains(&"catalog.json".to_owned())) || ret.is_err())]
+fn native_catalog_referenced_r2_object_keys(build_root: &Path) -> Result<Vec<String>> {
+    let catalog = read_json_file(&build_root.join("catalog.json"))?;
+    let mut keys = BTreeSet::new();
+    let models = catalog
+        .get("models")
+        .and_then(serde_json::Value::as_array)
+        .context("native embedding catalog `models` must be an array")?;
+    for model in models {
+        let manifest_key = json_string_field(model, "manifest_url")?;
+        let manifest_dir_key = manifest_key
+            .strip_suffix("/manifest.json")
+            .context("native embedding manifest_url must end with `/manifest.json`")?;
+        keys.insert(manifest_key.to_owned());
+        let manifest = read_json_file(&object_key_local_path(build_root, manifest_key)?)?;
+        let corpora = manifest
+            .get("corpora")
+            .and_then(serde_json::Value::as_array)
+            .context("native embedding manifest `corpora` must be an array")?;
+        for corpus in corpora {
+            let items_key = join_relative_object_key(
+                manifest_dir_key,
+                json_string_field(corpus, "items_url")?,
+            )?;
+            keys.insert(items_key);
+            let shards = corpus
+                .get("shards")
+                .and_then(serde_json::Value::as_array)
+                .context("native embedding corpus `shards` must be an array")?;
+            for shard in shards {
+                let shard_key =
+                    join_relative_object_key(manifest_dir_key, json_string_field(shard, "url")?)?;
+                keys.insert(shard_key);
+            }
+        }
+    }
+    Ok(keys.into_iter().collect())
+}
+
+#[requires(build_root.is_dir())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_native_gguf_r2_tree(build_root: &Path) -> Result<()> {
+    let keys = native_catalog_referenced_r2_object_keys(build_root)?;
+    for key in keys {
+        let path = object_key_local_path(build_root, &key)?;
+        if !path.is_file() {
+            bail!(
+                "native GGUF embedding object `{}` is missing under `{}`",
+                key,
+                build_root.display()
+            );
+        }
+    }
+    Ok(())
 }
 
 #[requires(path.components().next().is_some())]
@@ -2635,6 +2850,36 @@ fn merge_embedding_catalog_models(
         "schema_version": 1,
         "models": merged,
     }))
+}
+
+#[requires(!url.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|value| value.get("models").and_then(serde_json::Value::as_array).is_some()) || ret.is_err())]
+fn fetch_optional_json_catalog(url: &str) -> Result<serde_json::Value> {
+    match ureq::get(url).call() {
+        Ok(mut response) => {
+            let text = response
+                .body_mut()
+                .with_config()
+                .limit(64 * 1024 * 1024)
+                .read_to_string()
+                .with_context(|| format!("reading response body from `{url}`"))?;
+            let value: serde_json::Value = serde_json::from_str(&text)
+                .with_context(|| format!("parsing JSON from `{url}`"))?;
+            if value
+                .get("models")
+                .and_then(serde_json::Value::as_array)
+                .is_none()
+            {
+                bail!("remote catalog from `{url}` must contain a `models` array");
+            }
+            Ok(value)
+        }
+        Err(ureq::Error::StatusCode(404)) => Ok(serde_json::json!({
+            "schema_version": 1,
+            "models": [],
+        })),
+        Err(error) => Err(error).with_context(|| format!("GET `{url}`")),
+    }
 }
 
 #[requires(true)]
@@ -3746,15 +3991,18 @@ fn fetch_wiki_page_metadata_by_pageids(
     Ok(pages)
 }
 
-#[requires(value.get("query").is_some())]
+#[requires(value.is_object())]
 #[ensures(ret.as_ref().is_ok_and(|pages| pages.iter().all(|page| page.pageid > 0)) || ret.is_err())]
 fn parse_wiki_api_pages(value: &serde_json::Value) -> Result<Vec<WikiPageRemoteMetadata>> {
-    let pages = value
-        .get("query")
-        .and_then(|query| query.get("pages"))
-        .and_then(serde_json::Value::as_array)
-        .map(Vec::as_slice)
-        .unwrap_or(&[]);
+    let Some(query) = value.get("query") else {
+        return Ok(Vec::new());
+    };
+    let Some(pages) = query.get("pages") else {
+        return Ok(Vec::new());
+    };
+    let pages = pages
+        .as_array()
+        .context("MediaWiki query.pages must be an array")?;
     pages
         .iter()
         .filter(|page| page.get("missing").is_none())
@@ -8537,6 +8785,18 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn wiki_page_metadata_parser_accepts_empty_generator_response() {
+        let pages = parse_wiki_api_pages(&serde_json::json!({
+            "batchcomplete": true
+        }))
+        .unwrap();
+
+        assert!(pages.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn wiki_recentchanges_window_is_safe_only_when_snapshot_is_retained() {
         assert!(recentchanges_covers_snapshot(
             "2026-06-07T12:00:00Z",
@@ -8854,6 +9114,90 @@ mod tests {
         assert_eq!(vectors.content_encoding, Some("br"));
         assert_eq!(vectors.cache_control, R2_IMMUTABLE_CACHE_CONTROL);
         assert!(vectors.local_path.ends_with("vectors.f32.br"));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_r2_upload_plan_follows_manifest_items_and_shards() {
+        let root = std::env::temp_dir().join(format!(
+            "jbotci-xtask-native-r2-plan-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let pack = root.join("models/model/packs/pack/corpora/vlacku-en");
+        fs::create_dir_all(&pack).unwrap();
+        fs::write(
+            root.join("catalog.json"),
+            r#"{
+  "schema_version": 1,
+  "models": [
+    {
+      "model_key": "model",
+      "latest_pack_id": "pack",
+      "manifest_url": "models/model/packs/pack/manifest.json"
+    }
+  ]
+}
+"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("models/model/packs/pack/manifest.json"),
+            r#"{
+  "schema_version": 1,
+  "corpora": [
+    {
+      "corpus_id": "vlacku-en",
+      "items_url": "corpora/vlacku-en/items.json",
+      "shards": [
+        {
+          "url": "corpora/vlacku-en/vectors-0000.f32",
+          "byte_len": 4,
+          "sha256": "unused"
+        }
+      ]
+    }
+  ]
+}
+"#,
+        )
+        .unwrap();
+        fs::write(pack.join("items.json"), "[]").unwrap();
+        fs::write(pack.join("items.json.br"), "compressed items").unwrap();
+        fs::write(pack.join("vectors-0000.f32"), [0_u8, 1, 2, 3]).unwrap();
+        fs::write(pack.join("vectors-0000.f32.br"), "compressed vectors").unwrap();
+        fs::write(root.join("stale.json"), "{}").unwrap();
+
+        let objects = r2_upload_native_objects_without_catalog(&root, GGUF_EMBEDDINGS_R2_PREFIX)
+            .expect("native R2 plan");
+        let keys = objects
+            .iter()
+            .map(|object| object.object_key.as_str())
+            .collect::<Vec<_>>();
+
+        assert!(
+            keys.iter()
+                .all(|key| key.starts_with("embeddings/gguf/v1/"))
+        );
+        assert!(!keys.iter().any(|key| key.ends_with("catalog.json")));
+        assert!(!keys.iter().any(|key| key.ends_with("stale.json")));
+        assert!(keys.iter().any(|key| key.ends_with("/manifest.json")));
+        assert!(keys.iter().any(|key| key.ends_with("/items.json")));
+        assert!(keys.iter().any(|key| key.ends_with("/vectors-0000.f32")));
+
+        let vectors = objects
+            .iter()
+            .find(|object| object.object_key.ends_with("/vectors-0000.f32"))
+            .unwrap();
+        assert_eq!(vectors.content_type, "application/octet-stream");
+        assert_eq!(vectors.content_encoding, Some("br"));
+        assert_eq!(vectors.cache_control, R2_IMMUTABLE_CACHE_CONTROL);
 
         fs::remove_dir_all(root).unwrap();
     }
