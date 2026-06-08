@@ -36,7 +36,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
 
-const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-web/release/web";
+const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-app/release/web";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
 const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
@@ -820,7 +820,7 @@ fn dx_web_release_command(subcommand: &str) -> ProcessCommand {
         .arg("--web")
         .arg("--release")
         .arg("-p")
-        .arg("jbotci-web")
+        .arg("jbotci-app")
         // Dioxus 0.7.x can emit DWARF that makes wasm-opt abort during release web builds.
         .arg("--debug-symbols=false")
         .arg("--inject-loading-scripts=false");
@@ -1220,7 +1220,7 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
         .arg("@client")
         .arg("--web")
         .arg("-p")
-        .arg("jbotci-web")
+        .arg("jbotci-app")
         .arg("--release")
         .arg("--debug-symbols=false")
         .arg("--inject-loading-scripts=false")
@@ -1234,7 +1234,7 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
     let status = command.status().context("failed to run `dx bundle`")?;
     check_status(
         status,
-        "dx bundle @client --web -p jbotci-web --release @server --server -p jbotci-server --release",
+        "dx bundle @client --web -p jbotci-app --release @server --server -p jbotci-server --release",
     )?;
     let web_dist = web_dist_dir(out_dir)?;
     write_release_service_worker(&web_dist)?;

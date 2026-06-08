@@ -148,6 +148,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "native embedding worker handle owns channels whose lifecycle is managed by setup and shutdown code",
     ),
     (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingBuildRow",
+        "embedding build rows are constructed immediately from hashed corpus inputs and consumed within one pack build",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:NativePartialBuildCheckpoint",
+        "native partial checkpoint compatibility is validated against model and corpus metadata before reuse",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:NativePartialCorpus",
+        "native partial corpus state is a resumable checkpoint DTO validated with its checkpoint before reuse",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:NativePartialShard",
+        "native partial shard metadata is validated against shard files and expected row ranges before reuse",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:FailingBackend",
+        "failing backend is a test-only fixture whose fields are controlled by individual tests",
+    ),
+    (
         "crates/jbotci-ui/src/platform.rs:PlatformServiceError",
         "platform service errors carry display diagnostics produced by service implementations",
     ),

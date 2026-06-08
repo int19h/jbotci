@@ -8,6 +8,7 @@ command-line tools first, then the Dioxus web/server and GUI surfaces.
 ## Workspace
 
 - `apps/jbotci`: CLI binary.
+- `apps/jbotci-app`: shared Dioxus app launcher for web, desktop, and future mobile builds.
 - `apps/jbotci-server`: server binary for the Dioxus web app and HTTP-facing integrations.
 - `crates/jbotci-morphology`: morphology object model and parser.
 - `crates/jbotci-syntax`: syntax object model and parser.

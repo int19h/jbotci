@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
 
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
-const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-web/release/web";
+const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-app/release/web";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
 const DIOXUS_DESKTOP_DEV_PROFILE: &str = "desktop-dev";
 const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
@@ -259,14 +259,14 @@ fn dx_desktop_build() -> Result<()> {
         .arg("build")
         .arg("--desktop")
         .arg("-p")
-        .arg("jbotci-desktop")
+        .arg("jbotci-app")
         .arg("--profile")
         .arg(DIOXUS_DESKTOP_DEV_PROFILE)
         .status()
-        .context("failed to run `dx build --desktop -p jbotci-desktop --profile desktop-dev`")?;
+        .context("failed to run `dx build --desktop -p jbotci-app --profile desktop-dev`")?;
     check_status(
         status,
-        "dx build --desktop -p jbotci-desktop --profile desktop-dev",
+        "dx build --desktop -p jbotci-app --profile desktop-dev",
     )
 }
 
@@ -277,14 +277,14 @@ fn dx_desktop_serve() -> Result<()> {
         .arg("serve")
         .arg("--desktop")
         .arg("-p")
-        .arg("jbotci-desktop")
+        .arg("jbotci-app")
         .arg("--profile")
         .arg(DIOXUS_DESKTOP_DEV_PROFILE)
         .status()
-        .context("failed to run `dx serve --desktop -p jbotci-desktop --profile desktop-dev`")?;
+        .context("failed to run `dx serve --desktop -p jbotci-app --profile desktop-dev`")?;
     check_status(
         status,
-        "dx serve --desktop -p jbotci-desktop --profile desktop-dev",
+        "dx serve --desktop -p jbotci-app --profile desktop-dev",
     )
 }
 
@@ -344,7 +344,7 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
         .arg("@client")
         .arg("--web")
         .arg("-p")
-        .arg("jbotci-web")
+        .arg("jbotci-app")
         .arg("--release")
         .arg("--debug-symbols=false")
         .arg("--inject-loading-scripts=false")
@@ -358,7 +358,7 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
     let status = command.status().context("failed to run `dx bundle`")?;
     check_status(
         status,
-        "dx bundle @client --web -p jbotci-web --release @server --server -p jbotci-server --release",
+        "dx bundle @client --web -p jbotci-app --release @server --server -p jbotci-server --release",
     )?;
     let web_dist = web_dist_dir(out_dir)?;
     write_release_service_worker(&web_dist)?;

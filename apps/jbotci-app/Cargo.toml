@@ -1,12 +1,13 @@
 [package]
-name = "jbotci-web"
-description = "Dioxus web client for jbotci."
+name = "jbotci-app"
+description = "Dioxus app launcher for jbotci."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
+publish = false
 
 [features]
 app = []
@@ -16,9 +17,10 @@ expensive_contracts = []
 # explicit desktop/mobile flags can still select features that enable those Dioxus renderers.
 web = ["app", "dioxus/web", "jbotci-ui/web"]
 native-desktop = ["app", "dioxus/desktop", "jbotci-ui/desktop", "dep:openssl"]
+native-mobile = ["app", "dioxus/mobile", "jbotci-ui/mobile", "dep:openssl"]
 
 [[bin]]
-name = "jbotci-web"
+name = "jbotci-app"
 path = "src/main.rs"
 required-features = ["app"]
 
