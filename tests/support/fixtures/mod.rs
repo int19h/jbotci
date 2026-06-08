@@ -1450,8 +1450,18 @@ fn matches_muplis_selector(provenance: &Provenance, selector: &MuplisSelector) -
 #[requires(true)]
 #[ensures(true)]
 fn read_text(path: &Path) -> Result<String, FixtureError> {
-    fs::read_to_string(path).map_err(|source| FixtureError::Read {
+    let text = fs::read_to_string(path).map_err(|source| FixtureError::Read {
         path: path.to_path_buf(),
         source,
-    })
+    })?;
+    Ok(normalize_fixture_storage_newlines(text))
+}
+
+#[requires(true)]
+#[ensures(!ret.contains('\r'))]
+fn normalize_fixture_storage_newlines(text: String) -> String {
+    if !text.contains('\r') {
+        return text;
+    }
+    text.replace("\r\n", "\n").replace('\r', "\n")
 }

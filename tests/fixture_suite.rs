@@ -49,6 +49,26 @@ fn loads_smoke_fixture() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn load_fixture_normalizes_crlf_storage_newlines() {
+    let temp_root = temp_root("jbotci-fixture-crlf-load-test");
+    fs::create_dir_all(&temp_root).expect("temp root");
+    let fixture_path = temp_root.join("fixture.toml");
+    fs::write(
+        &fixture_path,
+        "id = \"adhoc.crlf-load\"\r\nlojban = \"\"\"\r\ncoi\r\n.i do klama\"\"\"\r\n",
+    )
+    .expect("write fixture");
+
+    let test_case = load_fixture_file(&fixture_path).expect("fixture should load");
+
+    assert_eq!(test_case.id, "adhoc.crlf-load");
+    assert_eq!(test_case.lojban, "coi\n.i do klama");
+    let _ = fs::remove_dir_all(temp_root);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn profile_filters_cll_chapter_and_muplis_form() {
     let root = Path::new("tests/fixtures");
     let cll = loaded_case(
