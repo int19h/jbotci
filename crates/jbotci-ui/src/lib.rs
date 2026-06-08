@@ -253,6 +253,13 @@ struct ReferenceHoverState {
     measurement_id: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum ReferenceHoverRefreshReason {
+    PointerMove,
+    ViewportShift,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 struct HoveredReference {
@@ -1786,8 +1793,8 @@ fn AppShell() -> Element {
                             AppRoute::Gentufa => rsx! {
                                 section {
                                     class: "spa-page parse-page spa-gentufa-page",
-                                    onmousemove: move |_| refresh_reference_hover(reference_hover),
-                                    onwheel: move |_| refresh_reference_hover(reference_hover),
+                                    onmousemove: move |_| refresh_reference_hover(reference_hover, ReferenceHoverRefreshReason::PointerMove),
+                                    onwheel: move |_| refresh_reference_hover(reference_hover, ReferenceHoverRefreshReason::ViewportShift),
                                     h1 { class: "sr-only", "jbotci gentufa" }
                                     div { class: "page-container",
                                         div { class: "input-form",
@@ -12428,8 +12435,15 @@ fn set_reference_hover(
     label: ReferenceLabel,
 ) {
     let hovered = HoveredReference { role, label };
-    let overlay = measure_reference_overlay(&hovered);
-    let measurement_id = next_reference_hover_measurement_id(&reference_hover.read());
+    let current = reference_hover.read().clone();
+    let measured_overlay = measure_reference_overlay(&hovered);
+    let overlay = reference_overlay_for_measurement_request(
+        &current,
+        &hovered,
+        &measured_overlay,
+        reference_overlay_measurement_is_async(),
+    );
+    let measurement_id = next_reference_hover_measurement_id(&current);
     reference_hover.set(ReferenceHoverState {
         hovered: Some(hovered.clone()),
         overlay,
@@ -12467,12 +12481,26 @@ fn clear_reference_tooltip_open(mut reference_tooltip_open: Signal<Option<Hovere
 
 #[requires(true)]
 #[ensures(true)]
-fn refresh_reference_hover(mut reference_hover: Signal<ReferenceHoverState>) {
-    let Some(hovered) = reference_hover.read().hovered.clone() else {
+fn refresh_reference_hover(
+    mut reference_hover: Signal<ReferenceHoverState>,
+    reason: ReferenceHoverRefreshReason,
+) {
+    let async_measurement = reference_overlay_measurement_is_async();
+    if !reference_hover_refresh_requires_measurement(reason, async_measurement) {
+        return;
+    }
+    let current = reference_hover.read().clone();
+    let Some(hovered) = current.hovered.clone() else {
         return;
     };
-    let overlay = measure_reference_overlay(&hovered);
-    let measurement_id = next_reference_hover_measurement_id(&reference_hover.read());
+    let measured_overlay = measure_reference_overlay(&hovered);
+    let overlay = reference_overlay_for_measurement_request(
+        &current,
+        &hovered,
+        &measured_overlay,
+        async_measurement,
+    );
+    let measurement_id = next_reference_hover_measurement_id(&current);
     reference_hover.set(ReferenceHoverState {
         hovered: Some(hovered.clone()),
         overlay,
@@ -12485,6 +12513,51 @@ fn refresh_reference_hover(mut reference_hover: Signal<ReferenceHoverState>) {
 #[ensures(ret >= state.measurement_id)]
 fn next_reference_hover_measurement_id(state: &ReferenceHoverState) -> u64 {
     state.measurement_id.saturating_add(1)
+}
+
+#[requires(true)]
+#[ensures(!async_measurement || !matches!(reason, ReferenceHoverRefreshReason::PointerMove) || !ret)]
+fn reference_hover_refresh_requires_measurement(
+    reason: ReferenceHoverRefreshReason,
+    async_measurement: bool,
+) -> bool {
+    !(async_measurement && matches!(reason, ReferenceHoverRefreshReason::PointerMove))
+}
+
+#[requires(true)]
+#[ensures(measured_overlay.is_some() -> ret.as_ref() == measured_overlay.as_ref())]
+#[ensures(!async_measurement && measured_overlay.is_none() -> ret.is_none())]
+fn reference_overlay_for_measurement_request(
+    current: &ReferenceHoverState,
+    hovered: &HoveredReference,
+    measured_overlay: &Option<ArrowOverlay>,
+    async_measurement: bool,
+) -> Option<ArrowOverlay> {
+    if let Some(overlay) = measured_overlay {
+        return Some(overlay.clone());
+    }
+    if async_measurement && current.hovered.as_ref() == Some(hovered) {
+        current.overlay.clone()
+    } else {
+        None
+    }
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(ret)]
+fn reference_overlay_measurement_is_async() -> bool {
+    true
+}
+
+#[cfg(any(
+    target_arch = "wasm32",
+    all(not(target_arch = "wasm32"), not(feature = "desktop"))
+))]
+#[requires(true)]
+#[ensures(!ret)]
+fn reference_overlay_measurement_is_async() -> bool {
+    false
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
@@ -17813,6 +17886,71 @@ mod tests {
         assert_eq!(next_reference_hover_measurement_id(&state), 42);
         state.measurement_id = u64::MAX;
         assert_eq!(next_reference_hover_measurement_id(&state), u64::MAX);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_hover_pointer_moves_do_not_request_async_measurement() {
+        assert!(!reference_hover_refresh_requires_measurement(
+            ReferenceHoverRefreshReason::PointerMove,
+            true
+        ));
+        assert!(reference_hover_refresh_requires_measurement(
+            ReferenceHoverRefreshReason::ViewportShift,
+            true
+        ));
+        assert!(reference_hover_refresh_requires_measurement(
+            ReferenceHoverRefreshReason::PointerMove,
+            false
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_hover_keeps_overlay_during_same_target_async_measurement() {
+        let hovered = HoveredReference {
+            role: ReferenceMarkerRole::Reference,
+            label: ReferenceLabel::new("b", Some(1), None),
+        };
+        let overlay = ArrowOverlay {
+            width: 100.0,
+            height: 80.0,
+            paths: vec!["M 1.00 2.00 L 3.00 4.00".to_owned()],
+        };
+        let state = ReferenceHoverState {
+            hovered: Some(hovered.clone()),
+            overlay: Some(overlay.clone()),
+            measurement_id: 7,
+        };
+        assert_eq!(
+            reference_overlay_for_measurement_request(&state, &hovered, &None, true),
+            Some(overlay.clone())
+        );
+
+        let other_hovered = HoveredReference {
+            role: ReferenceMarkerRole::Referent,
+            label: hovered.label.clone(),
+        };
+        assert_eq!(
+            reference_overlay_for_measurement_request(&state, &other_hovered, &None, true),
+            None
+        );
+
+        let measured_overlay = Some(ArrowOverlay {
+            width: 120.0,
+            height: 90.0,
+            paths: vec!["M 5.00 6.00 L 7.00 8.00".to_owned()],
+        });
+        assert_eq!(
+            reference_overlay_for_measurement_request(&state, &hovered, &measured_overlay, true),
+            measured_overlay
+        );
+        assert_eq!(
+            reference_overlay_for_measurement_request(&state, &hovered, &None, false),
+            None
+        );
     }
 
     #[test]
