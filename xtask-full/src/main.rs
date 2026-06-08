@@ -5,10 +5,13 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::process::{Command as ProcessCommand, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::thread;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
 use bityzba::{contract_trait, ensures, invariant, requires};
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use clx::progress::{ProgressJobBuilder, ProgressStatus};
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity};
 use jbotci_dictionary::import::parse_lensisku_json;
 use jbotci_morphology::{
@@ -51,6 +54,15 @@ const F2LLM_REMOTE_CATALOG_URL: &str = "https://assets.jbotci.app/embeddings/web
 const F2LLM_VECTOR_SPACE_KEY: &str = "jbotci-browser-f2llm-q4-f16-windowed-512-v1";
 const F2LLM_MAX_SEQUENCE_LENGTH: usize = 512;
 const R2_UPLOAD_PARALLELISM: usize = 4;
+const DEFAULT_WIKI_SOURCE_URL: &str = "https://mw.lojban.org";
+const DEFAULT_WIKI_OUTPUT_DIR: &str = "vendor/lojban-wiki";
+const DEFAULT_WIKI_BATCH_SIZE: usize = 50;
+const DEFAULT_WIKI_DELAY_MS: u64 = 1000;
+const DEFAULT_WIKI_TIMEOUT_MS: u64 = 120_000;
+const DEFAULT_WIKI_RETRIES: usize = 8;
+const DEFAULT_WIKI_MAXLAG: usize = 5;
+const WIKI_USER_AGENT: &str = "jbotci-wiki-vendor/0.1 (https://codeberg.org/int_19h/jbotci)";
+const WIKI_HTTP_BODY_LIMIT_BYTES: u64 = 256 * 1024 * 1024;
 const F2LLM_80M_MODEL_KEY: &str = "f2llm-v2-80m-q4-320";
 const F2LLM_160M_MODEL_KEY: &str = "f2llm-v2-160m-q4-640";
 const F2LLM_330M_MODEL_KEY: &str = "f2llm-v2-330m-q4-896";
@@ -145,6 +157,7 @@ struct Cli {
 #[invariant(::FixtureVectorStats(..) => true)]
 #[invariant(::FixtureTest(..) => true)]
 #[invariant(::VendorDictionary(..) => true)]
+#[invariant(::VendorWiki(..) => true)]
 #[invariant(::BuildWebRelease(..) => true)]
 #[invariant(::ExportWebEmbeddingCorpus(..) => true)]
 #[invariant(::BuildWebEmbeddings(..) => true)]
@@ -174,6 +187,7 @@ enum Command {
     FixtureVectorStats(FixtureVectorStatsArgs),
     FixtureTest(FixtureRunArgs),
     VendorDictionary(VendorDictionaryArgs),
+    VendorWiki(VendorWikiArgs),
     BuildWebRelease(BuildWebReleaseArgs),
     ExportWebEmbeddingCorpus(ExportWebEmbeddingCorpusArgs),
     BuildWebEmbeddings(BuildWebEmbeddingsArgs),
@@ -285,6 +299,35 @@ struct VendorDictionaryArgs {
     output: PathBuf,
     #[arg(long)]
     check: bool,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct VendorWikiArgs {
+    #[arg(long, default_value = DEFAULT_WIKI_SOURCE_URL)]
+    source_url: String,
+    #[arg(long)]
+    api_url: Option<String>,
+    #[arg(long)]
+    rest_url: Option<String>,
+    #[arg(long, visible_alias = "output-dir", default_value = DEFAULT_WIKI_OUTPUT_DIR)]
+    output: PathBuf,
+    #[arg(long, default_value_t = DEFAULT_WIKI_BATCH_SIZE, value_name = "N")]
+    batch_size: usize,
+    #[arg(long, default_value_t = DEFAULT_WIKI_DELAY_MS, value_name = "MS")]
+    delay_ms: u64,
+    #[arg(long, default_value_t = DEFAULT_WIKI_TIMEOUT_MS, value_name = "MS")]
+    timeout_ms: u64,
+    #[arg(long, default_value_t = DEFAULT_WIKI_RETRIES, value_name = "N")]
+    retries: usize,
+    #[arg(long, default_value_t = DEFAULT_WIKI_MAXLAG, value_name = "SECONDS")]
+    maxlag: usize,
+    #[arg(long, default_value = WIKI_USER_AGENT)]
+    user_agent: String,
+    #[arg(long)]
+    check: bool,
+    #[arg(long, hide = true, value_name = "N")]
+    limit_pages: Option<usize>,
 }
 
 #[derive(Debug, Args)]
@@ -543,6 +586,284 @@ struct DictionaryMetadata<'a> {
     entry_count: usize,
 }
 
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct WikiVendorConfig {
+    source_url: String,
+    api_url: String,
+    rest_url: String,
+    output: PathBuf,
+    batch_size: usize,
+    delay: Duration,
+    timeout: Duration,
+    retries: usize,
+    maxlag: usize,
+    user_agent: String,
+    check: bool,
+    limit_pages: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[invariant(true)]
+struct WikiNamespace {
+    id: i64,
+    name: String,
+    canonical: Option<String>,
+    content: bool,
+    case: Option<String>,
+    subpages: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[invariant(true)]
+struct WikiRevisionMetadata {
+    revid: u64,
+    parentid: Option<u64>,
+    timestamp: String,
+    user: Option<String>,
+    userid: Option<u64>,
+    comment: String,
+    size: Option<u64>,
+    sha1: Option<String>,
+    contentmodel: String,
+    contentformat: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[invariant(true)]
+struct WikiPageMetadataFile {
+    pageid: u64,
+    ns: i64,
+    title: String,
+    touched: Option<String>,
+    lastrevid: Option<u64>,
+    length: Option<u64>,
+    redirect: bool,
+    protection: serde_json::Value,
+    revision: Option<WikiRevisionMetadata>,
+    source_sha256: String,
+    parsoid_html_sha256: String,
+    source_path: String,
+    parsoid_html_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[invariant(true)]
+struct WikiPageRemoteMetadata {
+    pageid: u64,
+    ns: i64,
+    title: String,
+    touched: Option<String>,
+    lastrevid: Option<u64>,
+    length: Option<u64>,
+    redirect: bool,
+    protection: serde_json::Value,
+    revision: Option<WikiRevisionMetadata>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[invariant(true)]
+struct WikiPageIndexEntry {
+    pageid: u64,
+    ns: i64,
+    title: String,
+    redirect: bool,
+    revid: Option<u64>,
+    timestamp: Option<String>,
+    model: String,
+    bytes: usize,
+    #[serde(default)]
+    source_sha256: String,
+    #[serde(default)]
+    parsoid_html_sha256: String,
+    meta: String,
+    source: String,
+    #[serde(default)]
+    parsoid_html: String,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct WikiFetchedPage {
+    pageid: u64,
+    ns: i64,
+    title: String,
+    redirect: bool,
+    touched: Option<String>,
+    lastrevid: Option<u64>,
+    length: Option<u64>,
+    protection: serde_json::Value,
+    revision: WikiRevisionMetadata,
+    source: String,
+    parsoid_html: String,
+    source_sha256: String,
+    parsoid_html_sha256: String,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct WikiFetchedSourceRevision {
+    pageid: u64,
+    ns: i64,
+    title: String,
+    touched: Option<String>,
+    lastrevid: Option<u64>,
+    length: Option<u64>,
+    redirect: bool,
+    protection: serde_json::Value,
+    revision: WikiRevisionMetadata,
+    source: String,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct WikiParsoidHtml {
+    revid: u64,
+    html: String,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct WikiRecentChangesSummary {
+    changed_pageids: BTreeSet<u64>,
+    needs_full_reconcile: bool,
+    change_count: usize,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct WikiVendorReport {
+    checked: bool,
+    output: PathBuf,
+    pages: usize,
+    fetched: usize,
+    kept: usize,
+    removed: usize,
+    media_files: usize,
+    source_bytes: usize,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct WikiPageWriteReport {
+    entry: WikiPageIndexEntry,
+    source_bytes: usize,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct WikiPagePaths {
+    base: PathBuf,
+    meta: PathBuf,
+    source: PathBuf,
+    parsoid_html: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct DirectoryDigestRow {
+    digest: String,
+    path: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct UtcDate {
+    year: i64,
+    month: u32,
+    day: u32,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[invariant(true)]
+struct WikiSnapshotMetadataRenderArgs<'a> {
+    config: &'a WikiVendorConfig,
+    siteinfo: &'a serde_json::Value,
+    started_at: &'a str,
+    finished_at: &'a str,
+    plan: &'a WikiSnapshotPlan,
+    page_count: usize,
+    source_bytes: usize,
+    media_manifest: &'a serde_json::Value,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct WikiExistingSnapshot {
+    fetched_at: String,
+    pages: Vec<WikiPageIndexEntry>,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct WikiSnapshotPlan {
+    keep: Vec<WikiPageIndexEntry>,
+    fetch: Vec<WikiPageRemoteMetadata>,
+    removed: Vec<WikiPageIndexEntry>,
+    source: WikiSnapshotPlanSource,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+#[invariant(::RecentChanges => true)]
+#[invariant(::FullReconcile => true)]
+enum WikiSnapshotPlanSource {
+    RecentChanges,
+    FullReconcile,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum WikiProgressPhase {
+    Siteinfo,
+    Check,
+    Planning,
+    RecentChanges,
+    Metadata,
+    Pages,
+    Media,
+    Writing,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct WikiProgressUpdate {
+    phase: WikiProgressPhase,
+    current: usize,
+    total: usize,
+    detail: String,
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct WikiProgressReporter {
+    job: Option<std::sync::Arc<clx::progress::ProgressJob>>,
+    determinate: bool,
+    last_log: Instant,
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct WikiHttpClient {
+    agent: ureq::Agent,
+    api_url: String,
+    rest_url: String,
+    delay: Duration,
+    retries: usize,
+    maxlag: usize,
+    next_request_at: Option<Instant>,
+    retry_count: usize,
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct WikiHttpResponse {
+    status: u16,
+    retry_after: Option<String>,
+    body: String,
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn main() -> Result<()> {
@@ -598,6 +919,7 @@ fn main() -> Result<()> {
         Command::FixtureVectorStats(args) => fixture_vector_stats(args),
         Command::FixtureTest(args) => fixture_test(args),
         Command::VendorDictionary(args) => vendor_dictionary(args),
+        Command::VendorWiki(args) => vendor_wiki(args),
         Command::BuildWebRelease(args) => build_web_release(args),
         Command::ExportWebEmbeddingCorpus(args) => export_web_embedding_corpus(args),
         Command::BuildWebEmbeddings(args) => build_web_embeddings(args),
@@ -960,14 +1282,14 @@ fn copy_stable_web_asset_dir(
 #[requires(!description.is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn copy_flat_web_asset_dir(source_dir: &Path, target_dir: &Path, description: &str) -> Result<()> {
-    fs::create_dir_all(&target_dir).with_context(|| {
+    fs::create_dir_all(target_dir).with_context(|| {
         format!(
             "creating {description} directory `{}`",
             target_dir.display()
         )
     })?;
     let mut source_file_names = BTreeSet::new();
-    for entry in fs::read_dir(&source_dir)
+    for entry in fs::read_dir(source_dir)
         .with_context(|| format!("reading {description}s from `{}`", source_dir.display()))?
     {
         let entry = entry
@@ -984,7 +1306,7 @@ fn copy_flat_web_asset_dir(source_dir: &Path, target_dir: &Path, description: &s
         let target = target_dir.join(file_name);
         copy_web_asset_file_atomically(&entry.path(), &target, description)?;
     }
-    remove_obsolete_flat_web_asset_files(&target_dir, &source_file_names, description)
+    remove_obsolete_flat_web_asset_files(target_dir, &source_file_names, description)
 }
 
 #[requires(source.is_file())]
@@ -1212,7 +1534,7 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
     clean_dioxus_web_release_output()?;
     prepare_dioxus_web_public_input()?;
     let mut command = ProcessCommand::new("dx");
-    set_dioxus_base_path_env(&mut command, &base_path);
+    set_dioxus_base_path_env(&mut command, base_path);
     command
         .arg("bundle")
         .arg("--out-dir")
@@ -1982,6 +2304,7 @@ fn build_f2llm_onnx_fallback_asset(root: &Path) -> Result<()> {
 #[requires(true)]
 #[requires(batch_size > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+#[allow(clippy::too_many_arguments)]
 fn run_f2llm_vector_builder(
     python: &str,
     q4_onnx: &Path,
@@ -2048,6 +2371,7 @@ fn run_f2llm_vector_builder(
 #[requires(!python.trim().is_empty())]
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+#[allow(clippy::too_many_arguments)]
 fn run_f2llm_vector_validator(
     python: &str,
     q4_onnx: &Path,
@@ -2292,13 +2616,13 @@ fn merge_embedding_catalog_models(
     let mut merged = Vec::new();
     let mut inserted = BTreeSet::new();
     for model in remote_models {
-        if let Some(model_key) = model.get("model_key").and_then(serde_json::Value::as_str) {
-            if model_keys.contains(model_key) {
-                if inserted.insert(model_key.to_owned()) {
-                    merged.push(replacements[model_key].clone());
-                }
-                continue;
+        if let Some(model_key) = model.get("model_key").and_then(serde_json::Value::as_str)
+            && model_keys.contains(model_key)
+        {
+            if inserted.insert(model_key.to_owned()) {
+                merged.push(replacements[model_key].clone());
             }
+            continue;
         }
         merged.push(model.clone());
     }
@@ -2641,6 +2965,2046 @@ fn vendor_dictionary(args: VendorDictionaryArgs) -> Result<()> {
         dictionary_path.display()
     );
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn vendor_wiki(args: VendorWikiArgs) -> Result<()> {
+    let mut progress = WikiProgressReporter::new(true);
+    let result = vendor_wiki_inner(args, &mut progress);
+    match result {
+        Ok(report) => {
+            progress.finish();
+            if report.checked {
+                return Ok(());
+            }
+            println!(
+                "vendored {} wiki page(s) into `{}` ({} fetched, {} kept, {} removed, {}, {} media records)",
+                report.pages,
+                report.output.display(),
+                report.fetched,
+                report.kept,
+                report.removed,
+                human_bytes(report.source_bytes as u64),
+                report.media_files
+            );
+            Ok(())
+        }
+        Err(error) => {
+            progress.fail();
+            Err(error)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn vendor_wiki_inner(
+    args: VendorWikiArgs,
+    progress: &mut WikiProgressReporter,
+) -> Result<WikiVendorReport> {
+    let config = wiki_vendor_config(args)?;
+    let output = absolute_path(&config.output)?;
+    let mut client = WikiHttpClient::new(&config);
+
+    progress.update(&WikiProgressUpdate {
+        phase: WikiProgressPhase::Siteinfo,
+        current: 0,
+        total: 0,
+        detail: format!("GET {}", config.api_url),
+    });
+    let siteinfo = fetch_wiki_siteinfo(&mut client).context("fetching wiki siteinfo")?;
+    let namespaces = wiki_namespaces_from_siteinfo(&siteinfo).context("parsing wiki namespaces")?;
+
+    if config.check {
+        progress.update(&WikiProgressUpdate {
+            phase: WikiProgressPhase::Check,
+            current: 0,
+            total: 0,
+            detail: format!("validating {}", output.display()),
+        });
+        let existing = validate_existing_wiki_snapshot(&output)?;
+        println!(
+            "validated wiki snapshot at `{}` with {} page(s); remote {} is reachable",
+            output.display(),
+            existing.pages.len(),
+            config.api_url
+        );
+        return Ok(WikiVendorReport {
+            checked: true,
+            output,
+            pages: existing.pages.len(),
+            fetched: 0,
+            kept: existing.pages.len(),
+            removed: 0,
+            media_files: 0,
+            source_bytes: existing.pages.iter().map(|page| page.bytes).sum(),
+        });
+    }
+
+    let started_at = rfc3339_now()?;
+    let existing = load_existing_wiki_snapshot(&output)?;
+    let plan = build_wiki_snapshot_plan(
+        &mut client,
+        &config,
+        &namespaces,
+        existing.as_ref(),
+        &output,
+        progress,
+    )?;
+
+    progress.update(&WikiProgressUpdate {
+        phase: WikiProgressPhase::Writing,
+        current: 0,
+        total: 0,
+        detail: "preparing temporary snapshot directory".to_owned(),
+    });
+    let stage = wiki_stage_dir(&output)?;
+    let backup = wiki_backup_dir(&output)?;
+    remove_path_if_exists(&stage)?;
+    remove_path_if_exists(&backup)?;
+    fs::create_dir_all(&stage).with_context(|| format!("creating `{}`", stage.display()))?;
+    fs::create_dir_all(stage.join("pages"))
+        .with_context(|| format!("creating `{}`", stage.join("pages").display()))?;
+    fs::create_dir_all(stage.join("media"))
+        .with_context(|| format!("creating `{}`", stage.join("media").display()))?;
+
+    write_json_file(&stage.join("siteinfo.json"), &siteinfo)?;
+    write_json_file(
+        &stage.join("namespaces.json"),
+        &serde_json::to_value(&namespaces).context("serializing wiki namespaces")?,
+    )?;
+
+    let mut page_entries = Vec::new();
+    let mut source_bytes = 0usize;
+    let page_total = plan.keep.len() + plan.fetch.len();
+    for (index, entry) in plan.keep.iter().enumerate() {
+        copy_wiki_page_entry(&output, &stage, entry)?;
+        source_bytes += entry.bytes;
+        page_entries.push(entry.clone());
+        progress.update(&WikiProgressUpdate {
+            phase: WikiProgressPhase::Pages,
+            current: index + 1,
+            total: page_total,
+            detail: wiki_page_progress_detail(
+                plan.keep.len(),
+                0,
+                plan.removed.len(),
+                client.retry_count,
+                &entry.title,
+            ),
+        });
+    }
+
+    let mut fetched = 0usize;
+    for (offset, metadata) in plan.fetch.iter().enumerate() {
+        let fetched_page = fetch_wiki_page(&mut client, metadata).with_context(|| {
+            format!(
+                "fetching Parsoid HTML and source for page `{}` ({})",
+                metadata.title, metadata.pageid
+            )
+        })?;
+        let report = write_wiki_page(&stage, &fetched_page)?;
+        source_bytes += report.source_bytes;
+        page_entries.push(report.entry);
+        fetched += 1;
+        progress.update(&WikiProgressUpdate {
+            phase: WikiProgressPhase::Pages,
+            current: plan.keep.len() + offset + 1,
+            total: page_total,
+            detail: wiki_page_progress_detail(
+                plan.keep.len(),
+                fetched,
+                plan.removed.len(),
+                client.retry_count,
+                &metadata.title,
+            ),
+        });
+    }
+    page_entries.sort_by(compare_wiki_page_index_entries);
+    write_json_file(
+        &stage.join("pages").join("index.json"),
+        &serde_json::to_value(&page_entries).context("serializing wiki page index")?,
+    )?;
+
+    progress.update(&WikiProgressUpdate {
+        phase: WikiProgressPhase::Media,
+        current: 0,
+        total: 0,
+        detail: "fetching upload metadata".to_owned(),
+    });
+    let media_manifest = fetch_wiki_media_manifest(&mut client, progress)?;
+    write_json_file(&stage.join("media").join("manifest.json"), &media_manifest)?;
+
+    let finished_at = rfc3339_now()?;
+    let media_files = media_manifest
+        .get("files")
+        .and_then(serde_json::Value::as_array)
+        .map_or(0, Vec::len);
+    let snapshot = render_wiki_snapshot_metadata(&WikiSnapshotMetadataRenderArgs {
+        config: &config,
+        siteinfo: &siteinfo,
+        started_at: &started_at,
+        finished_at: &finished_at,
+        plan: &plan,
+        page_count: page_entries.len(),
+        source_bytes,
+        media_manifest: &media_manifest,
+    });
+    write_json_file(&stage.join("snapshot.json"), &snapshot)?;
+    fs::write(
+        stage.join("README.md"),
+        render_wiki_snapshot_readme(&config, page_entries.len(), source_bytes, &media_manifest),
+    )
+    .with_context(|| format!("writing `{}`", stage.join("README.md").display()))?;
+
+    progress.update(&WikiProgressUpdate {
+        phase: WikiProgressPhase::Writing,
+        current: 0,
+        total: 0,
+        detail: "computing digests".to_owned(),
+    });
+    let digest_rows = directory_digest_rows(&stage)?;
+    fs::write(
+        stage.join("DIGESTS.sha256"),
+        render_directory_digests(&digest_rows),
+    )
+    .with_context(|| format!("writing `{}`", stage.join("DIGESTS.sha256").display()))?;
+    replace_wiki_snapshot_directory(&output, &stage, &backup)?;
+
+    Ok(WikiVendorReport {
+        checked: false,
+        output,
+        pages: page_entries.len(),
+        fetched,
+        kept: plan.keep.len(),
+        removed: plan.removed.len(),
+        media_files,
+        source_bytes,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|config| !config.source_url.is_empty()) || ret.is_err())]
+fn wiki_vendor_config(args: VendorWikiArgs) -> Result<WikiVendorConfig> {
+    if args.batch_size == 0 || args.batch_size > 500 {
+        bail!("--batch-size must be in the range 1..=500");
+    }
+    if args.delay_ms < 250 {
+        bail!("--delay-ms must be at least 250");
+    }
+    if args.timeout_ms == 0 {
+        bail!("--timeout-ms must be positive");
+    }
+    if args.retries == 0 {
+        bail!("--retries must be positive");
+    }
+    let source_url = normalize_wiki_base_url(&args.source_url)?;
+    let api_url = args
+        .api_url
+        .map(|url| normalize_wiki_base_url(&url))
+        .transpose()?
+        .unwrap_or_else(|| format!("{source_url}/api.php"));
+    let rest_url = args
+        .rest_url
+        .map(|url| normalize_wiki_base_url(&url))
+        .transpose()?
+        .unwrap_or_else(|| format!("{source_url}/rest.php/v1"));
+    Ok(WikiVendorConfig {
+        source_url,
+        api_url,
+        rest_url,
+        output: args.output,
+        batch_size: args.batch_size,
+        delay: Duration::from_millis(args.delay_ms),
+        timeout: Duration::from_millis(args.timeout_ms),
+        retries: args.retries,
+        maxlag: args.maxlag,
+        user_agent: args.user_agent,
+        check: args.check,
+        limit_pages: args.limit_pages,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|url| !url.ends_with('/')) || ret.is_err())]
+fn normalize_wiki_base_url(url: &str) -> Result<String> {
+    let trimmed = url.trim().trim_end_matches('/').to_owned();
+    if trimmed.is_empty() {
+        bail!("wiki URL must not be empty");
+    }
+    if !(trimmed.starts_with("http://") || trimmed.starts_with("https://")) {
+        bail!("wiki URL `{trimmed}` must start with http:// or https://");
+    }
+    Ok(trimmed)
+}
+
+impl WikiProgressReporter {
+    #[requires(true)]
+    #[ensures(enabled -> ret.job.is_some() || clx::progress::is_disabled())]
+    fn new(enabled: bool) -> Self {
+        if !enabled || clx::progress::is_disabled() {
+            return Self {
+                job: None,
+                determinate: false,
+                last_log: Instant::now(),
+            };
+        }
+        let job = ProgressJobBuilder::new()
+            .body("{{ spinner() }} {{ message }} {{ detail | flex }}")
+            .prop("message", "Wiki snapshot")
+            .prop("detail", "")
+            .start();
+        Self {
+            job: Some(job),
+            determinate: false,
+            last_log: Instant::now(),
+        }
+    }
+
+    #[requires(update.total == 0 || update.current <= update.total)]
+    #[ensures(true)]
+    fn update(&mut self, update: &WikiProgressUpdate) {
+        if let Some(job) = &self.job {
+            if update.total > 0 {
+                if !self.determinate {
+                    job.set_body("{{ spinner() }} {{ message }} {{ detail | flex }} {{ progress_bar(width=20) }}");
+                    self.determinate = true;
+                }
+                job.progress_total(update.total);
+                job.progress_current(update.current);
+            } else if self.determinate {
+                job.set_body("{{ spinner() }} {{ message }} {{ detail | flex }}");
+                self.determinate = false;
+            }
+            job.message(wiki_progress_phase_label(update.phase));
+            job.prop("detail", &update.detail);
+            return;
+        }
+
+        let now = Instant::now();
+        if update.total == 0
+            || update.current == update.total
+            || now.duration_since(self.last_log) >= Duration::from_secs(30)
+        {
+            eprintln!(
+                "[wiki] {}: {}",
+                wiki_progress_phase_label(update.phase),
+                update.detail
+            );
+            self.last_log = now;
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn finish(&mut self) {
+        if let Some(job) = &self.job {
+            job.set_status(ProgressStatus::Done);
+            clx::progress::stop_clear();
+        }
+        self.job = None;
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn fail(&mut self) {
+        if let Some(job) = &self.job {
+            job.set_status(ProgressStatus::Failed);
+            clx::progress::stop_clear();
+        }
+        self.job = None;
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn wiki_progress_phase_label(phase: WikiProgressPhase) -> &'static str {
+    match phase {
+        WikiProgressPhase::Siteinfo => "Wiki siteinfo",
+        WikiProgressPhase::Check => "Wiki check",
+        WikiProgressPhase::Planning => "Wiki planning",
+        WikiProgressPhase::RecentChanges => "Wiki recentchanges",
+        WikiProgressPhase::Metadata => "Wiki metadata",
+        WikiProgressPhase::Pages => "Wiki pages",
+        WikiProgressPhase::Media => "Wiki media",
+        WikiProgressPhase::Writing => "Wiki writing",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn wiki_page_progress_detail(
+    kept: usize,
+    fetched: usize,
+    removed: usize,
+    retries: usize,
+    current_title: &str,
+) -> String {
+    let title = truncate_progress_text(current_title, 80);
+    format!("kept {kept}, fetched {fetched}, removed {removed}, retries {retries}, {title}")
+}
+
+#[requires(max_chars > 0)]
+#[ensures(ret.chars().count() <= max_chars)]
+fn truncate_progress_text(text: &str, max_chars: usize) -> String {
+    let mut result = String::new();
+    for (index, ch) in text.chars().enumerate() {
+        if index + 1 >= max_chars {
+            result.push('~');
+            return result;
+        }
+        result.push(ch);
+    }
+    result
+}
+
+impl WikiHttpClient {
+    #[requires(!config.api_url.trim().is_empty())]
+    #[requires(!config.rest_url.trim().is_empty())]
+    #[ensures(ret.retries == config.retries)]
+    fn new(config: &WikiVendorConfig) -> Self {
+        let agent_config = ureq::Agent::config_builder()
+            .timeout_global(Some(config.timeout))
+            .http_status_as_error(false)
+            .user_agent(config.user_agent.clone())
+            .build();
+        Self {
+            agent: ureq::Agent::new_with_config(agent_config),
+            api_url: config.api_url.clone(),
+            rest_url: config.rest_url.clone(),
+            delay: config.delay,
+            retries: config.retries,
+            maxlag: config.maxlag,
+            next_request_at: None,
+            retry_count: 0,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|value| value.is_object()) || ret.is_err())]
+    fn api_json(&mut self, params: &[(&str, String)]) -> Result<serde_json::Value> {
+        let mut full_params = Vec::with_capacity(params.len() + 4);
+        full_params.push(("format", "json".to_owned()));
+        full_params.push(("formatversion", "2".to_owned()));
+        full_params.push(("utf8", "1".to_owned()));
+        if self.maxlag > 0 {
+            full_params.push(("maxlag", self.maxlag.to_string()));
+        }
+        full_params.extend(params.iter().map(|(key, value)| (*key, value.clone())));
+
+        for attempt in 1..=self.retries {
+            let response = self.get_with_query(&self.api_url.clone(), &full_params);
+            let response = match response {
+                Ok(response) => response,
+                Err(error) if attempt < self.retries => {
+                    self.backoff(attempt, None);
+                    self.retry_count += 1;
+                    eprintln!("[wiki] API request failed: {error}; retrying");
+                    continue;
+                }
+                Err(error) => return Err(error),
+            };
+            if !is_success_status(response.status) {
+                if attempt < self.retries && is_transient_status(response.status) {
+                    self.backoff(attempt, response.retry_after.as_deref());
+                    self.retry_count += 1;
+                    continue;
+                }
+                bail!(
+                    "HTTP {} from MediaWiki API: {}",
+                    response.status,
+                    truncate_progress_text(&response.body, 500)
+                );
+            }
+            let value = serde_json::from_str::<serde_json::Value>(&response.body)
+                .context("parsing MediaWiki API JSON response")?;
+            if let Some(error) = value.get("error") {
+                let code = error
+                    .get("code")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("unknown");
+                let info = error
+                    .get("info")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("MediaWiki API error");
+                if attempt < self.retries && is_transient_mediawiki_error(code) {
+                    let retry_after = error
+                        .get("lag")
+                        .and_then(serde_json::Value::as_f64)
+                        .map(|lag| lag.max(1.0));
+                    self.backoff_seconds(attempt, retry_after);
+                    self.retry_count += 1;
+                    continue;
+                }
+                bail!("MediaWiki API error {code}: {info}");
+            }
+            return Ok(value);
+        }
+        bail!("MediaWiki API retry loop exhausted")
+    }
+
+    #[requires(!path.trim().is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+    fn rest_text(&mut self, path: &str) -> Result<String> {
+        let url = format!("{}/{}", self.rest_url, path.trim_start_matches('/'));
+        for attempt in 1..=self.retries {
+            let response = self.get_with_query(&url, &[]);
+            let response = match response {
+                Ok(response) => response,
+                Err(error) if attempt < self.retries => {
+                    self.backoff(attempt, None);
+                    self.retry_count += 1;
+                    eprintln!("[wiki] REST request failed: {error}; retrying");
+                    continue;
+                }
+                Err(error) => return Err(error),
+            };
+            if is_success_status(response.status) {
+                return Ok(response.body);
+            }
+            if attempt < self.retries && is_transient_status(response.status) {
+                self.backoff(attempt, response.retry_after.as_deref());
+                self.retry_count += 1;
+                continue;
+            }
+            bail!(
+                "HTTP {} from MediaWiki REST endpoint `{url}`: {}",
+                response.status,
+                truncate_progress_text(&response.body, 500)
+            );
+        }
+        bail!("MediaWiki REST retry loop exhausted")
+    }
+
+    #[requires(!url.trim().is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|response| response.status > 0) || ret.is_err())]
+    fn get_with_query(&mut self, url: &str, params: &[(&str, String)]) -> Result<WikiHttpResponse> {
+        self.wait_for_rate_limit();
+        let mut request = self.agent.get(url);
+        for (key, value) in params {
+            request = request.query(*key, value);
+        }
+        let mut response = request.call().with_context(|| format!("GET `{url}`"))?;
+        let status = response.status().as_u16();
+        let retry_after = response
+            .headers()
+            .get("retry-after")
+            .and_then(|value| value.to_str().ok())
+            .map(ToOwned::to_owned);
+        let body = response
+            .body_mut()
+            .with_config()
+            .limit(WIKI_HTTP_BODY_LIMIT_BYTES)
+            .read_to_string()
+            .with_context(|| format!("reading response body from `{url}`"))?;
+        Ok(WikiHttpResponse {
+            status,
+            retry_after,
+            body,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn wait_for_rate_limit(&mut self) {
+        if let Some(next_request_at) = self.next_request_at {
+            let now = Instant::now();
+            if next_request_at > now {
+                thread::sleep(next_request_at.duration_since(now));
+            }
+        }
+        self.next_request_at = Some(Instant::now() + self.delay);
+    }
+
+    #[requires(attempt > 0)]
+    #[ensures(true)]
+    fn backoff(&self, attempt: usize, retry_after: Option<&str>) {
+        let retry_after = retry_after
+            .and_then(retry_after_header_duration)
+            .unwrap_or(Duration::ZERO);
+        thread::sleep(retry_after.max(exponential_backoff_duration(attempt)));
+    }
+
+    #[requires(attempt > 0)]
+    #[ensures(true)]
+    fn backoff_seconds(&self, attempt: usize, retry_after_seconds: Option<f64>) {
+        let retry_after = retry_after_seconds
+            .filter(|seconds| seconds.is_finite() && *seconds > 0.0)
+            .map(Duration::from_secs_f64)
+            .unwrap_or(Duration::ZERO);
+        thread::sleep(retry_after.max(exponential_backoff_duration(attempt)));
+    }
+}
+
+#[requires(status > 0)]
+#[ensures(true)]
+fn is_success_status(status: u16) -> bool {
+    (200..300).contains(&status)
+}
+
+#[requires(status > 0)]
+#[ensures(true)]
+fn is_transient_status(status: u16) -> bool {
+    matches!(
+        status,
+        408 | 425 | 429 | 500 | 502 | 503 | 504 | 520 | 521 | 522 | 523 | 524
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_transient_mediawiki_error(code: &str) -> bool {
+    matches!(
+        code,
+        "maxlag" | "readonly" | "internal_api_error_DBQueryError" | "ratelimited"
+    )
+}
+
+#[requires(attempt > 0)]
+#[ensures(ret >= Duration::from_secs(1))]
+fn exponential_backoff_duration(attempt: usize) -> Duration {
+    let seconds = attempt.saturating_mul(attempt).min(120) as u64;
+    Duration::from_secs(seconds.max(1))
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|duration| duration >= Duration::ZERO))]
+fn retry_after_header_duration(value: &str) -> Option<Duration> {
+    value.trim().parse::<u64>().ok().map(Duration::from_secs)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| value.get("query").is_some()) || ret.is_err())]
+fn fetch_wiki_siteinfo(client: &mut WikiHttpClient) -> Result<serde_json::Value> {
+    client.api_json(&[
+        ("action", "query".to_owned()),
+        ("meta", "siteinfo".to_owned()),
+        (
+            "siprop",
+            "general|namespaces|namespacealiases|statistics|extensions|libraries|extensiontags|functionhooks|variables|magicwords"
+                .to_owned(),
+        ),
+    ])
+}
+
+#[requires(siteinfo.get("query").is_some())]
+#[ensures(ret.as_ref().is_ok_and(|namespaces| namespaces.windows(2).all(|pair| pair[0].id <= pair[1].id)) || ret.is_err())]
+fn wiki_namespaces_from_siteinfo(siteinfo: &serde_json::Value) -> Result<Vec<WikiNamespace>> {
+    let namespaces = siteinfo
+        .get("query")
+        .and_then(|query| query.get("namespaces"))
+        .and_then(serde_json::Value::as_object)
+        .context("siteinfo query.namespaces must be an object")?;
+    let mut result = namespaces
+        .values()
+        .map(wiki_namespace_from_value)
+        .collect::<Result<Vec<_>>>()?;
+    result.sort_by_key(|namespace| namespace.id);
+    Ok(result)
+}
+
+#[requires(value.is_object())]
+#[ensures(ret.as_ref().is_ok_and(|namespace| namespace.id >= -2) || ret.is_err())]
+fn wiki_namespace_from_value(value: &serde_json::Value) -> Result<WikiNamespace> {
+    let id = wiki_json_i64(value, "id")?;
+    Ok(WikiNamespace {
+        id,
+        name: wiki_json_optional_string(value, "name").unwrap_or_default(),
+        canonical: wiki_json_optional_string(value, "canonical"),
+        content: value
+            .get("content")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false),
+        case: wiki_json_optional_string(value, "case"),
+        subpages: value
+            .get("subpages")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false),
+    })
+}
+
+#[requires(config.batch_size > 0)]
+#[ensures(ret.as_ref().is_ok_and(|pages| pages.windows(2).all(|pair| compare_wiki_remote_metadata(&pair[0], &pair[1]) != std::cmp::Ordering::Greater)) || ret.is_err())]
+fn fetch_all_wiki_page_metadata(
+    client: &mut WikiHttpClient,
+    config: &WikiVendorConfig,
+    namespaces: &[WikiNamespace],
+    progress: &mut WikiProgressReporter,
+) -> Result<Vec<WikiPageRemoteMetadata>> {
+    let mut pages = Vec::new();
+    let content_namespaces = namespaces
+        .iter()
+        .filter(|namespace| namespace.id >= 0)
+        .collect::<Vec<_>>();
+    for namespace in content_namespaces {
+        fetch_namespace_wiki_page_metadata(client, config, namespace, &mut pages, progress)?;
+        if config
+            .limit_pages
+            .is_some_and(|limit_pages| pages.len() >= limit_pages)
+        {
+            pages.truncate(config.limit_pages.unwrap_or(pages.len()));
+            break;
+        }
+    }
+    pages.sort_by(compare_wiki_remote_metadata);
+    Ok(pages)
+}
+
+#[requires(config.batch_size > 0)]
+#[requires(namespace.id >= 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn fetch_namespace_wiki_page_metadata(
+    client: &mut WikiHttpClient,
+    config: &WikiVendorConfig,
+    namespace: &WikiNamespace,
+    pages: &mut Vec<WikiPageRemoteMetadata>,
+    progress: &mut WikiProgressReporter,
+) -> Result<()> {
+    let start_count = pages.len();
+    let mut api_continue = BTreeMap::<String, String>::new();
+    loop {
+        let mut params = vec![
+            ("action", "query".to_owned()),
+            ("generator", "allpages".to_owned()),
+            ("gapnamespace", namespace.id.to_string()),
+            ("gaplimit", config.batch_size.to_string()),
+            ("gapfilterredir", "all".to_owned()),
+            ("prop", "revisions|info".to_owned()),
+            (
+                "rvprop",
+                "ids|timestamp|user|userid|comment|size|sha1|contentmodel".to_owned(),
+            ),
+            ("rvslots", "main".to_owned()),
+            ("inprop", "protection".to_owned()),
+        ];
+        params.extend(
+            api_continue
+                .iter()
+                .map(|(key, value)| (key.as_str(), value.clone())),
+        );
+        let payload = client.api_json(&params).with_context(|| {
+            format!(
+                "fetching metadata for namespace {} `{}`",
+                namespace.id, namespace.name
+            )
+        })?;
+        pages.extend(parse_wiki_api_pages(&payload)?);
+        progress.update(&WikiProgressUpdate {
+            phase: WikiProgressPhase::Metadata,
+            current: pages.len(),
+            total: 0,
+            detail: format!(
+                "namespace {} `{}`: {} page metadata records",
+                namespace.id,
+                namespace.name,
+                pages.len() - start_count
+            ),
+        });
+        if config
+            .limit_pages
+            .is_some_and(|limit_pages| pages.len() >= limit_pages)
+        {
+            break;
+        }
+        api_continue = wiki_continue_map(&payload)?;
+        if api_continue.is_empty() {
+            break;
+        }
+    }
+    Ok(())
+}
+
+#[requires(!pageids.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|pages| pages.len() <= pageids.len()) || ret.is_err())]
+fn fetch_wiki_page_metadata_by_pageids(
+    client: &mut WikiHttpClient,
+    pageids: &BTreeSet<u64>,
+) -> Result<Vec<WikiPageRemoteMetadata>> {
+    let pageids = pageids.iter().copied().collect::<Vec<_>>();
+    let mut pages = Vec::new();
+    for chunk in pageids.chunks(50) {
+        let pageids_text = chunk
+            .iter()
+            .map(u64::to_string)
+            .collect::<Vec<_>>()
+            .join("|");
+        let payload = client.api_json(&[
+            ("action", "query".to_owned()),
+            ("pageids", pageids_text),
+            ("prop", "revisions|info".to_owned()),
+            (
+                "rvprop",
+                "ids|timestamp|user|userid|comment|size|sha1|contentmodel".to_owned(),
+            ),
+            ("rvslots", "main".to_owned()),
+            ("inprop", "protection".to_owned()),
+        ])?;
+        pages.extend(parse_wiki_api_pages(&payload)?);
+    }
+    pages.sort_by(compare_wiki_remote_metadata);
+    Ok(pages)
+}
+
+#[requires(value.get("query").is_some())]
+#[ensures(ret.as_ref().is_ok_and(|pages| pages.iter().all(|page| page.pageid > 0)) || ret.is_err())]
+fn parse_wiki_api_pages(value: &serde_json::Value) -> Result<Vec<WikiPageRemoteMetadata>> {
+    let pages = value
+        .get("query")
+        .and_then(|query| query.get("pages"))
+        .and_then(serde_json::Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+    pages
+        .iter()
+        .filter(|page| page.get("missing").is_none())
+        .map(wiki_page_remote_metadata_from_value)
+        .collect()
+}
+
+#[requires(value.is_object())]
+#[ensures(ret.as_ref().is_ok_and(|page| page.pageid > 0) || ret.is_err())]
+fn wiki_page_remote_metadata_from_value(
+    value: &serde_json::Value,
+) -> Result<WikiPageRemoteMetadata> {
+    let revision = value
+        .get("revisions")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|revisions| revisions.first())
+        .map(wiki_revision_metadata_from_value)
+        .transpose()?;
+    Ok(WikiPageRemoteMetadata {
+        pageid: wiki_json_u64(value, "pageid")?,
+        ns: wiki_json_i64(value, "ns")?,
+        title: wiki_json_string(value, "title")?.to_owned(),
+        touched: wiki_json_optional_string(value, "touched"),
+        lastrevid: wiki_json_optional_u64(value, "lastrevid"),
+        length: wiki_json_optional_u64(value, "length"),
+        redirect: value.get("redirect").is_some(),
+        protection: value
+            .get("protection")
+            .cloned()
+            .unwrap_or_else(|| serde_json::Value::Array(Vec::new())),
+        revision,
+    })
+}
+
+#[requires(value.is_object())]
+#[ensures(ret.as_ref().is_ok_and(|revision| revision.revid > 0) || ret.is_err())]
+fn wiki_revision_metadata_from_value(value: &serde_json::Value) -> Result<WikiRevisionMetadata> {
+    let slot = value
+        .get("slots")
+        .and_then(|slots| slots.get("main"))
+        .unwrap_or(value);
+    Ok(WikiRevisionMetadata {
+        revid: wiki_json_u64(value, "revid")?,
+        parentid: wiki_json_optional_u64(value, "parentid"),
+        timestamp: wiki_json_string(value, "timestamp")?.to_owned(),
+        user: wiki_json_optional_string(value, "user"),
+        userid: wiki_json_optional_u64(value, "userid"),
+        comment: wiki_json_optional_string(value, "comment").unwrap_or_default(),
+        size: wiki_json_optional_u64(value, "size"),
+        sha1: wiki_json_optional_string(value, "sha1"),
+        contentmodel: wiki_json_optional_string(slot, "contentmodel")
+            .or_else(|| wiki_json_optional_string(value, "contentmodel"))
+            .unwrap_or_else(|| "unknown".to_owned()),
+        contentformat: wiki_json_optional_string(slot, "contentformat"),
+    })
+}
+
+#[requires(!metadata.title.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|page| page.revision.revid > 0) || ret.is_err())]
+fn fetch_wiki_page(
+    client: &mut WikiHttpClient,
+    metadata: &WikiPageRemoteMetadata,
+) -> Result<WikiFetchedPage> {
+    let parsoid = fetch_wiki_parsoid_html(client, &metadata.title)?;
+    let source = fetch_wiki_source_revision(client, parsoid.revid)?;
+    if !wiki_parsoid_source_pair_is_valid(&parsoid, &source) {
+        bail!(
+            "source revision {} is not a valid pair for Parsoid revision {} on `{}`",
+            source.revision.revid,
+            parsoid.revid,
+            metadata.title
+        );
+    }
+    let source_sha256 = sha256_hex(source.source.as_bytes());
+    let parsoid_html_sha256 = sha256_hex(parsoid.html.as_bytes());
+    Ok(WikiFetchedPage {
+        pageid: source.pageid,
+        ns: source.ns,
+        title: source.title,
+        redirect: source.redirect,
+        touched: source.touched,
+        lastrevid: source.lastrevid,
+        length: source.length,
+        protection: source.protection,
+        revision: source.revision,
+        source: source.source,
+        parsoid_html: parsoid.html,
+        source_sha256,
+        parsoid_html_sha256,
+    })
+}
+
+#[requires(!title.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|parsoid| parsoid.revid > 0 && !parsoid.html.is_empty()) || ret.is_err())]
+fn fetch_wiki_parsoid_html(client: &mut WikiHttpClient, title: &str) -> Result<WikiParsoidHtml> {
+    let path = format!("page/{}/with_html", wiki_rest_title_segment(title));
+    let text = client.rest_text(&path)?;
+    let value = serde_json::from_str::<serde_json::Value>(&text)
+        .with_context(|| format!("parsing Parsoid with_html response for `{title}`"))?;
+    let revid = value
+        .get("latest")
+        .and_then(|latest| latest.get("id"))
+        .and_then(serde_json::Value::as_u64)
+        .or_else(|| value.get("id").and_then(serde_json::Value::as_u64))
+        .with_context(|| format!("Parsoid with_html response for `{title}` has no latest.id"))?;
+    let html = wiki_json_string(&value, "html")?.to_owned();
+    Ok(WikiParsoidHtml { revid, html })
+}
+
+#[requires(revid > 0)]
+#[ensures(ret.as_ref().is_ok_and(|source| source.revision.revid == revid) || ret.is_err())]
+fn fetch_wiki_source_revision(
+    client: &mut WikiHttpClient,
+    revid: u64,
+) -> Result<WikiFetchedSourceRevision> {
+    let payload = client.api_json(&[
+        ("action", "query".to_owned()),
+        ("revids", revid.to_string()),
+        ("prop", "revisions|info".to_owned()),
+        (
+            "rvprop",
+            "ids|timestamp|user|userid|comment|size|sha1|content|contentmodel".to_owned(),
+        ),
+        ("rvslots", "main".to_owned()),
+        ("inprop", "protection".to_owned()),
+    ])?;
+    let page = payload
+        .get("query")
+        .and_then(|query| query.get("pages"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|pages| pages.first())
+        .context("source revision query returned no page")?;
+    let mut metadata = wiki_page_remote_metadata_from_value(page)?;
+    let revision_value = page
+        .get("revisions")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|revisions| revisions.first())
+        .context("source revision query returned no revision")?;
+    let source = wiki_revision_source_text(revision_value)?;
+    let revision = metadata
+        .revision
+        .take()
+        .context("source revision query returned no revision metadata")?;
+    if revision.revid != revid {
+        bail!(
+            "source revision query requested {revid} but returned {}",
+            revision.revid
+        );
+    }
+    Ok(WikiFetchedSourceRevision {
+        pageid: metadata.pageid,
+        ns: metadata.ns,
+        title: metadata.title,
+        touched: metadata.touched,
+        lastrevid: metadata.lastrevid,
+        length: metadata.length,
+        redirect: metadata.redirect,
+        protection: metadata.protection,
+        revision,
+        source,
+    })
+}
+
+#[requires(value.is_object())]
+#[ensures(ret.as_ref().is_ok() || ret.is_err())]
+fn wiki_revision_source_text(value: &serde_json::Value) -> Result<String> {
+    let slot = value
+        .get("slots")
+        .and_then(|slots| slots.get("main"))
+        .unwrap_or(value);
+    slot.get("content")
+        .or_else(|| slot.get("*"))
+        .and_then(serde_json::Value::as_str)
+        .map(ToOwned::to_owned)
+        .context("revision source content is missing")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_parsoid_html_metadata(html: &str) -> bool {
+    html.contains("mw:htmlVersion") || html.contains("mw:html:version")
+}
+
+#[requires(parsoid.revid > 0)]
+#[requires(source.revision.revid > 0)]
+#[ensures(true)]
+fn wiki_parsoid_source_pair_is_valid(
+    parsoid: &WikiParsoidHtml,
+    source: &WikiFetchedSourceRevision,
+) -> bool {
+    source.revision.revid == parsoid.revid && has_parsoid_html_metadata(&parsoid.html)
+}
+
+#[requires(!title.is_empty())]
+#[ensures(!ret.is_empty())]
+fn wiki_rest_title_segment(title: &str) -> String {
+    percent_encode_path_segment(&title.replace(' ', "_"))
+}
+
+#[requires(true)]
+#[ensures(!ret.contains('/'))]
+fn percent_encode_path_segment(value: &str) -> String {
+    let mut output = String::new();
+    for byte in value.as_bytes() {
+        if path_segment_byte_is_unreserved(*byte) {
+            output.push(char::from(*byte));
+        } else {
+            output.push('%');
+            output.push(hex_digit(byte >> 4));
+            output.push(hex_digit(byte & 0x0f));
+        }
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn path_segment_byte_is_unreserved(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~')
+}
+
+#[requires(value < 16)]
+#[ensures(ret.is_ascii_hexdigit())]
+fn hex_digit(value: u8) -> char {
+    match value {
+        0..=9 => char::from(b'0' + value),
+        10..=15 => char::from(b'A' + (value - 10)),
+        _ => unreachable!("hex digit contract requires value < 16"),
+    }
+}
+
+#[requires(value.is_object())]
+#[requires(!field.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn wiki_json_string<'a>(value: &'a serde_json::Value, field: &str) -> Result<&'a str> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .filter(|text| !text.is_empty())
+        .with_context(|| format!("MediaWiki JSON field `{field}` must be a non-empty string"))
+}
+
+#[requires(value.is_object())]
+#[requires(!field.is_empty())]
+#[ensures(true)]
+fn wiki_json_optional_string(value: &serde_json::Value, field: &str) -> Option<String> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .map(ToOwned::to_owned)
+}
+
+#[requires(value.is_object())]
+#[requires(!field.is_empty())]
+#[ensures(ret.as_ref().is_ok() || ret.is_err())]
+fn wiki_json_u64(value: &serde_json::Value, field: &str) -> Result<u64> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_u64)
+        .with_context(|| format!("MediaWiki JSON field `{field}` must be an unsigned integer"))
+}
+
+#[requires(value.is_object())]
+#[requires(!field.is_empty())]
+#[ensures(true)]
+fn wiki_json_optional_u64(value: &serde_json::Value, field: &str) -> Option<u64> {
+    value.get(field).and_then(serde_json::Value::as_u64)
+}
+
+#[requires(value.is_object())]
+#[requires(!field.is_empty())]
+#[ensures(ret.as_ref().is_ok() || ret.is_err())]
+fn wiki_json_i64(value: &serde_json::Value, field: &str) -> Result<i64> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_i64)
+        .with_context(|| format!("MediaWiki JSON field `{field}` must be an integer"))
+}
+
+#[requires(value.is_object())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn wiki_continue_map(value: &serde_json::Value) -> Result<BTreeMap<String, String>> {
+    let Some(continue_value) = value.get("continue") else {
+        return Ok(BTreeMap::new());
+    };
+    let object = continue_value
+        .as_object()
+        .context("MediaWiki continue value must be an object")?;
+    let mut result = BTreeMap::new();
+    for (key, value) in object {
+        if let Some(value) = value.as_str() {
+            result.insert(key.clone(), value.to_owned());
+        } else if let Some(value) = value.as_i64() {
+            result.insert(key.clone(), value.to_string());
+        }
+    }
+    Ok(result)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compare_wiki_remote_metadata(
+    left: &WikiPageRemoteMetadata,
+    right: &WikiPageRemoteMetadata,
+) -> std::cmp::Ordering {
+    left.ns
+        .cmp(&right.ns)
+        .then_with(|| left.title.cmp(&right.title))
+        .then_with(|| left.pageid.cmp(&right.pageid))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compare_wiki_page_index_entries(
+    left: &WikiPageIndexEntry,
+    right: &WikiPageIndexEntry,
+) -> std::cmp::Ordering {
+    left.ns
+        .cmp(&right.ns)
+        .then_with(|| left.title.cmp(&right.title))
+        .then_with(|| left.pageid.cmp(&right.pageid))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|manifest| manifest.get("files").and_then(serde_json::Value::as_array).is_some()) || ret.is_err())]
+fn fetch_wiki_media_manifest(
+    client: &mut WikiHttpClient,
+    progress: &mut WikiProgressReporter,
+) -> Result<serde_json::Value> {
+    let mut files = Vec::new();
+    let mut api_continue = BTreeMap::<String, String>::new();
+    loop {
+        let mut params = vec![
+            ("action", "query".to_owned()),
+            ("list", "allimages".to_owned()),
+            ("ailimit", "500".to_owned()),
+            (
+                "aiprop",
+                "timestamp|user|userid|url|size|sha1|mime|mediatype|metadata|commonmetadata|extmetadata"
+                    .to_owned(),
+            ),
+        ];
+        params.extend(
+            api_continue
+                .iter()
+                .map(|(key, value)| (key.as_str(), value.clone())),
+        );
+        let payload = client
+            .api_json(&params)
+            .context("fetching upload metadata")?;
+        let batch = payload
+            .get("query")
+            .and_then(|query| query.get("allimages"))
+            .and_then(serde_json::Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        files.extend(batch);
+        progress.update(&WikiProgressUpdate {
+            phase: WikiProgressPhase::Media,
+            current: files.len(),
+            total: 0,
+            detail: format!("{} upload metadata records", files.len()),
+        });
+        api_continue = wiki_continue_map(&payload)?;
+        if api_continue.is_empty() {
+            break;
+        }
+    }
+    files.sort_by(compare_wiki_media_files);
+    let summary = summarize_wiki_media_files(&files);
+    Ok(serde_json::json!({
+        "fetchedAt": rfc3339_now()?,
+        "note": "Upload binaries are not vendored here; this manifest preserves MediaWiki file metadata and canonical URLs.",
+        "summary": summary,
+        "files": files,
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compare_wiki_media_files(
+    left: &serde_json::Value,
+    right: &serde_json::Value,
+) -> std::cmp::Ordering {
+    let left_name = left
+        .get("name")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    let right_name = right
+        .get("name")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    left_name.cmp(right_name)
+}
+
+#[requires(true)]
+#[ensures(ret.is_object())]
+fn summarize_wiki_media_files(files: &[serde_json::Value]) -> serde_json::Value {
+    let total_bytes = files.iter().map(wiki_media_file_size).sum::<u64>();
+    let image_files = files
+        .iter()
+        .filter(|file| {
+            file.get("mime")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|mime| mime.starts_with("image/"))
+        })
+        .collect::<Vec<_>>();
+    let image_bytes = image_files
+        .iter()
+        .map(|file| wiki_media_file_size(file))
+        .sum::<u64>();
+    serde_json::json!({
+        "count": files.len(),
+        "totalBytes": total_bytes,
+        "imageCount": image_files.len(),
+        "imageBytes": image_bytes,
+        "byMime": summarize_wiki_media_by(files, "mime"),
+        "byMediaType": summarize_wiki_media_by(files, "mediatype"),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn wiki_media_file_size(file: &serde_json::Value) -> u64 {
+    file.get("size")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0)
+}
+
+#[requires(!field.is_empty())]
+#[ensures(ret.is_array())]
+fn summarize_wiki_media_by(files: &[serde_json::Value], field: &str) -> serde_json::Value {
+    let mut rows = BTreeMap::<String, (usize, u64)>::new();
+    for file in files {
+        let key = file
+            .get(field)
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("unknown")
+            .to_owned();
+        let entry = rows.entry(key).or_insert((0, 0));
+        entry.0 += 1;
+        entry.1 += wiki_media_file_size(file);
+    }
+    let mut rows = rows
+        .into_iter()
+        .map(|(key, (count, bytes))| {
+            serde_json::json!({
+                "key": key,
+                "count": count,
+                "bytes": bytes,
+            })
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by(|left, right| {
+        let left_bytes = left
+            .get("bytes")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
+        let right_bytes = right
+            .get("bytes")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
+        right_bytes.cmp(&left_bytes).then_with(|| {
+            left.get("key")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("")
+                .cmp(
+                    right
+                        .get("key")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or(""),
+                )
+        })
+    });
+    serde_json::Value::Array(rows)
+}
+
+#[requires(config.batch_size > 0)]
+#[ensures(ret.as_ref().is_ok_and(|plan| plan.keep.iter().all(|page| page.pageid > 0) && plan.fetch.iter().all(|page| page.pageid > 0)) || ret.is_err())]
+fn build_wiki_snapshot_plan(
+    client: &mut WikiHttpClient,
+    config: &WikiVendorConfig,
+    namespaces: &[WikiNamespace],
+    existing: Option<&WikiExistingSnapshot>,
+    output: &Path,
+    progress: &mut WikiProgressReporter,
+) -> Result<WikiSnapshotPlan> {
+    progress.update(&WikiProgressUpdate {
+        phase: WikiProgressPhase::Planning,
+        current: 0,
+        total: 0,
+        detail: "choosing update strategy".to_owned(),
+    });
+
+    if let Some(existing) = existing
+        && config.limit_pages.is_none()
+        && existing_wiki_snapshot_supports_parsoid(output, existing)
+        && let Some(oldest_recentchange) = fetch_oldest_recentchange_timestamp(client)?
+        && recentchanges_covers_snapshot(&existing.fetched_at, &oldest_recentchange)
+    {
+        progress.update(&WikiProgressUpdate {
+            phase: WikiProgressPhase::RecentChanges,
+            current: 0,
+            total: 0,
+            detail: format!("fetching changes since {}", existing.fetched_at),
+        });
+        let recentchanges = fetch_wiki_recentchanges_since(client, &existing.fetched_at)?;
+        if !recentchanges.needs_full_reconcile {
+            let changed_metadata = if recentchanges.changed_pageids.is_empty() {
+                Vec::new()
+            } else {
+                fetch_wiki_page_metadata_by_pageids(client, &recentchanges.changed_pageids)?
+            };
+            if changed_metadata.len() == recentchanges.changed_pageids.len() {
+                return Ok(build_recentchanges_wiki_snapshot_plan(
+                    existing,
+                    &changed_metadata,
+                    recentchanges.change_count,
+                ));
+            }
+        }
+    }
+
+    progress.update(&WikiProgressUpdate {
+        phase: WikiProgressPhase::Metadata,
+        current: 0,
+        total: 0,
+        detail: "running full page metadata reconciliation".to_owned(),
+    });
+    let remote_pages = fetch_all_wiki_page_metadata(client, config, namespaces, progress)?;
+    Ok(build_full_wiki_snapshot_plan(
+        existing,
+        output,
+        &remote_pages,
+        config.limit_pages.is_some(),
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn existing_wiki_snapshot_supports_parsoid(output: &Path, existing: &WikiExistingSnapshot) -> bool {
+    existing.pages.iter().all(|entry| {
+        !entry.parsoid_html.is_empty()
+            && !entry.source_sha256.is_empty()
+            && !entry.parsoid_html_sha256.is_empty()
+            && output.join(&entry.meta).is_file()
+            && output.join(&entry.source).is_file()
+            && output.join(&entry.parsoid_html).is_file()
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recentchanges_covers_snapshot(snapshot_fetched_at: &str, oldest_recentchange_at: &str) -> bool {
+    !snapshot_fetched_at.trim().is_empty()
+        && !oldest_recentchange_at.trim().is_empty()
+        && snapshot_fetched_at >= oldest_recentchange_at
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn fetch_oldest_recentchange_timestamp(client: &mut WikiHttpClient) -> Result<Option<String>> {
+    let payload = client.api_json(&[
+        ("action", "query".to_owned()),
+        ("list", "recentchanges".to_owned()),
+        ("rcdir", "newer".to_owned()),
+        ("rclimit", "1".to_owned()),
+        ("rcprop", "timestamp".to_owned()),
+    ])?;
+    Ok(payload
+        .get("query")
+        .and_then(|query| query.get("recentchanges"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|changes| changes.first())
+        .and_then(|change| change.get("timestamp"))
+        .and_then(serde_json::Value::as_str)
+        .map(ToOwned::to_owned))
+}
+
+#[requires(!since.trim().is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn fetch_wiki_recentchanges_since(
+    client: &mut WikiHttpClient,
+    since: &str,
+) -> Result<WikiRecentChangesSummary> {
+    let mut changed_pageids = BTreeSet::new();
+    let mut needs_full_reconcile = false;
+    let mut change_count = 0usize;
+    let mut api_continue = BTreeMap::<String, String>::new();
+    loop {
+        let mut params = vec![
+            ("action", "query".to_owned()),
+            ("list", "recentchanges".to_owned()),
+            ("rcstart", since.to_owned()),
+            ("rcdir", "newer".to_owned()),
+            ("rclimit", "500".to_owned()),
+            (
+                "rcprop",
+                "title|ids|timestamp|type|loginfo|flags|sizes|sha1".to_owned(),
+            ),
+        ];
+        params.extend(
+            api_continue
+                .iter()
+                .map(|(key, value)| (key.as_str(), value.clone())),
+        );
+        let payload = client
+            .api_json(&params)
+            .context("fetching MediaWiki recentchanges")?;
+        let changes = payload
+            .get("query")
+            .and_then(|query| query.get("recentchanges"))
+            .and_then(serde_json::Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        for change in changes {
+            change_count += 1;
+            if wiki_recentchange_requires_full_reconcile(change) {
+                needs_full_reconcile = true;
+            }
+            if let Some(pageid) = change.get("pageid").and_then(serde_json::Value::as_u64) {
+                if pageid > 0 {
+                    changed_pageids.insert(pageid);
+                }
+            } else if !wiki_recentchange_is_media_only(change) {
+                needs_full_reconcile = true;
+            }
+        }
+        api_continue = wiki_continue_map(&payload)?;
+        if api_continue.is_empty() {
+            break;
+        }
+    }
+    Ok(WikiRecentChangesSummary {
+        changed_pageids,
+        needs_full_reconcile,
+        change_count,
+    })
+}
+
+#[requires(change.is_object())]
+#[ensures(true)]
+fn wiki_recentchange_requires_full_reconcile(change: &serde_json::Value) -> bool {
+    let change_type = change
+        .get("type")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    if change_type != "log" {
+        return false;
+    }
+    let log_type = change
+        .get("logtype")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    matches!(log_type, "delete" | "move" | "import" | "merge")
+}
+
+#[requires(change.is_object())]
+#[ensures(true)]
+fn wiki_recentchange_is_media_only(change: &serde_json::Value) -> bool {
+    change
+        .get("logtype")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|log_type| matches!(log_type, "upload"))
+}
+
+#[requires(true)]
+#[ensures(ret.source == WikiSnapshotPlanSource::RecentChanges)]
+fn build_recentchanges_wiki_snapshot_plan(
+    existing: &WikiExistingSnapshot,
+    changed_metadata: &[WikiPageRemoteMetadata],
+    change_count: usize,
+) -> WikiSnapshotPlan {
+    let changed = changed_metadata
+        .iter()
+        .map(|metadata| (metadata.pageid, metadata))
+        .collect::<BTreeMap<_, _>>();
+    let mut keep = Vec::new();
+    let mut fetch = Vec::new();
+    for entry in &existing.pages {
+        if let Some(metadata) = changed.get(&entry.pageid) {
+            if wiki_page_entry_matches_remote_metadata(entry, metadata) {
+                keep.push(entry.clone());
+            } else {
+                fetch.push((*metadata).clone());
+            }
+        } else {
+            keep.push(entry.clone());
+        }
+    }
+    let existing_pageids = existing
+        .pages
+        .iter()
+        .map(|entry| entry.pageid)
+        .collect::<BTreeSet<_>>();
+    for metadata in changed_metadata {
+        if !existing_pageids.contains(&metadata.pageid) {
+            fetch.push(metadata.clone());
+        }
+    }
+    eprintln!(
+        "[wiki] recentchanges fast path: {change_count} change(s), {} page(s) to fetch",
+        fetch.len()
+    );
+    WikiSnapshotPlan {
+        keep,
+        fetch,
+        removed: Vec::new(),
+        source: WikiSnapshotPlanSource::RecentChanges,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.source == WikiSnapshotPlanSource::FullReconcile)]
+fn build_full_wiki_snapshot_plan(
+    existing: Option<&WikiExistingSnapshot>,
+    output: &Path,
+    remote_pages: &[WikiPageRemoteMetadata],
+    limited: bool,
+) -> WikiSnapshotPlan {
+    let existing_by_pageid = existing
+        .map(|snapshot| {
+            snapshot
+                .pages
+                .iter()
+                .map(|entry| (entry.pageid, entry))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .unwrap_or_default();
+    let remote_pageids = remote_pages
+        .iter()
+        .map(|metadata| metadata.pageid)
+        .collect::<BTreeSet<_>>();
+    let mut keep = Vec::new();
+    let mut fetch = Vec::new();
+    for metadata in remote_pages {
+        if let Some(entry) = existing_by_pageid.get(&metadata.pageid)
+            && wiki_existing_entry_complete(output, entry)
+            && wiki_page_entry_matches_remote_metadata(entry, metadata)
+        {
+            keep.push((*entry).clone());
+            continue;
+        }
+        fetch.push(metadata.clone());
+    }
+    let removed = if limited {
+        Vec::new()
+    } else {
+        existing
+            .map(|snapshot| {
+                snapshot
+                    .pages
+                    .iter()
+                    .filter(|entry| !remote_pageids.contains(&entry.pageid))
+                    .cloned()
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    };
+    WikiSnapshotPlan {
+        keep,
+        fetch,
+        removed,
+        source: WikiSnapshotPlanSource::FullReconcile,
+    }
+}
+
+#[requires(entry.pageid > 0)]
+#[ensures(true)]
+fn wiki_existing_entry_complete(output: &Path, entry: &WikiPageIndexEntry) -> bool {
+    !entry.parsoid_html.is_empty()
+        && !entry.source_sha256.is_empty()
+        && !entry.parsoid_html_sha256.is_empty()
+        && output.join(&entry.meta).is_file()
+        && output.join(&entry.source).is_file()
+        && output.join(&entry.parsoid_html).is_file()
+}
+
+#[requires(entry.pageid > 0)]
+#[requires(metadata.pageid > 0)]
+#[ensures(true)]
+fn wiki_page_entry_matches_remote_metadata(
+    entry: &WikiPageIndexEntry,
+    metadata: &WikiPageRemoteMetadata,
+) -> bool {
+    entry.pageid == metadata.pageid
+        && entry.ns == metadata.ns
+        && entry.title == metadata.title
+        && entry.redirect == metadata.redirect
+        && entry.revid == metadata.revision.as_ref().map(|revision| revision.revid)
+        && entry.timestamp
+            == metadata
+                .revision
+                .as_ref()
+                .map(|revision| revision.timestamp.clone())
+        && entry.model == wiki_remote_metadata_model(metadata)
+        && entry.bytes == wiki_remote_metadata_bytes(metadata)
+}
+
+#[requires(metadata.pageid > 0)]
+#[ensures(!ret.is_empty())]
+fn wiki_remote_metadata_model(metadata: &WikiPageRemoteMetadata) -> String {
+    metadata
+        .revision
+        .as_ref()
+        .map(|revision| revision.contentmodel.clone())
+        .unwrap_or_else(|| "unknown".to_owned())
+}
+
+#[requires(metadata.pageid > 0)]
+#[ensures(true)]
+fn wiki_remote_metadata_bytes(metadata: &WikiPageRemoteMetadata) -> usize {
+    metadata
+        .revision
+        .as_ref()
+        .and_then(|revision| revision.size)
+        .or(metadata.length)
+        .and_then(|bytes| usize::try_from(bytes).ok())
+        .unwrap_or(0)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn load_existing_wiki_snapshot(output: &Path) -> Result<Option<WikiExistingSnapshot>> {
+    if !output.exists() {
+        return Ok(None);
+    }
+    if !output.is_dir() {
+        bail!(
+            "wiki output `{}` exists but is not a directory",
+            output.display()
+        );
+    }
+    Ok(Some(read_existing_wiki_snapshot(output)?))
+}
+
+#[requires(output.is_dir())]
+#[ensures(ret.as_ref().is_ok_and(|snapshot| !snapshot.fetched_at.is_empty()) || ret.is_err())]
+fn read_existing_wiki_snapshot(output: &Path) -> Result<WikiExistingSnapshot> {
+    let snapshot_value = read_json_file(&output.join("snapshot.json"))
+        .with_context(|| format!("reading wiki snapshot metadata from `{}`", output.display()))?;
+    let fetched_at = snapshot_value
+        .get("fetchedAt")
+        .and_then(serde_json::Value::as_str)
+        .map(ToOwned::to_owned)
+        .context("wiki snapshot.json must contain fetchedAt")?;
+    let index_value = read_json_file(&output.join("pages").join("index.json"))
+        .with_context(|| format!("reading wiki page index from `{}`", output.display()))?;
+    let pages = serde_json::from_value::<Vec<WikiPageIndexEntry>>(index_value)
+        .context("parsing wiki page index")?;
+    Ok(WikiExistingSnapshot { fetched_at, pages })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|snapshot| !snapshot.fetched_at.is_empty()) || ret.is_err())]
+fn validate_existing_wiki_snapshot(output: &Path) -> Result<WikiExistingSnapshot> {
+    if !output.is_dir() {
+        bail!(
+            "wiki snapshot directory `{}` does not exist",
+            output.display()
+        );
+    }
+    let snapshot = read_existing_wiki_snapshot(output)?;
+    for entry in &snapshot.pages {
+        if !wiki_existing_entry_complete(output, entry) {
+            bail!(
+                "wiki page {} `{}` is missing required source, Parsoid HTML, metadata, or digest fields",
+                entry.pageid,
+                entry.title
+            );
+        }
+    }
+    validate_directory_digests(output)?;
+    Ok(snapshot)
+}
+
+#[requires(stage.is_dir())]
+#[requires(page.pageid > 0)]
+#[ensures(ret.as_ref().is_ok_and(|report| report.entry.pageid == page.pageid) || ret.is_err())]
+fn write_wiki_page(stage: &Path, page: &WikiFetchedPage) -> Result<WikiPageWriteReport> {
+    let paths = wiki_page_paths(page.pageid);
+    let absolute_base = stage.join(&paths.base);
+    fs::create_dir_all(&absolute_base)
+        .with_context(|| format!("creating `{}`", absolute_base.display()))?;
+    let source_path = stage.join(&paths.source);
+    let html_path = stage.join(&paths.parsoid_html);
+    let meta_path = stage.join(&paths.meta);
+    fs::write(&source_path, &page.source)
+        .with_context(|| format!("writing `{}`", source_path.display()))?;
+    fs::write(&html_path, &page.parsoid_html)
+        .with_context(|| format!("writing `{}`", html_path.display()))?;
+    let source_relative = relative_path_string(&paths.source);
+    let html_relative = relative_path_string(&paths.parsoid_html);
+    let meta = WikiPageMetadataFile {
+        pageid: page.pageid,
+        ns: page.ns,
+        title: page.title.clone(),
+        touched: page.touched.clone(),
+        lastrevid: page.lastrevid,
+        length: page.length,
+        redirect: page.redirect,
+        protection: page.protection.clone(),
+        revision: Some(page.revision.clone()),
+        source_sha256: page.source_sha256.clone(),
+        parsoid_html_sha256: page.parsoid_html_sha256.clone(),
+        source_path: source_relative.clone(),
+        parsoid_html_path: html_relative.clone(),
+    };
+    write_json_file(
+        &meta_path,
+        &serde_json::to_value(&meta).context("serializing wiki page metadata")?,
+    )?;
+    let source_bytes = page.source.len();
+    let entry = WikiPageIndexEntry {
+        pageid: page.pageid,
+        ns: page.ns,
+        title: page.title.clone(),
+        redirect: page.redirect,
+        revid: Some(page.revision.revid),
+        timestamp: Some(page.revision.timestamp.clone()),
+        model: page.revision.contentmodel.clone(),
+        bytes: source_bytes,
+        source_sha256: page.source_sha256.clone(),
+        parsoid_html_sha256: page.parsoid_html_sha256.clone(),
+        meta: relative_path_string(&paths.meta),
+        source: source_relative,
+        parsoid_html: html_relative,
+    };
+    Ok(WikiPageWriteReport {
+        entry,
+        source_bytes,
+    })
+}
+
+#[requires(source_root.is_dir())]
+#[requires(entry.pageid > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_wiki_page_entry(
+    source_root: &Path,
+    target_root: &Path,
+    entry: &WikiPageIndexEntry,
+) -> Result<()> {
+    copy_wiki_snapshot_file(source_root, target_root, &entry.meta)?;
+    copy_wiki_snapshot_file(source_root, target_root, &entry.source)?;
+    copy_wiki_snapshot_file(source_root, target_root, &entry.parsoid_html)
+}
+
+#[requires(source_root.is_dir())]
+#[requires(!relative.trim().is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_wiki_snapshot_file(source_root: &Path, target_root: &Path, relative: &str) -> Result<()> {
+    let source = source_root.join(relative);
+    let target = target_root.join(relative);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).with_context(|| format!("creating `{}`", parent.display()))?;
+    }
+    fs::copy(&source, &target)
+        .with_context(|| format!("copying `{}` to `{}`", source.display(), target.display()))?;
+    Ok(())
+}
+
+#[requires(pageid > 0)]
+#[ensures(!ret.base.as_os_str().is_empty())]
+fn wiki_page_paths(pageid: u64) -> WikiPagePaths {
+    let base = PathBuf::from(format!("pages/by-id/{pageid:08}"));
+    WikiPagePaths {
+        meta: base.join("meta.json"),
+        source: base.join("source.wiki"),
+        parsoid_html: base.join("parsoid.html"),
+        base,
+    }
+}
+
+#[requires(path.components().next().is_some())]
+#[ensures(!ret.contains('\\'))]
+fn relative_path_string(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.parent().is_some()) || ret.is_err())]
+fn wiki_stage_dir(output: &Path) -> Result<PathBuf> {
+    Ok(wiki_sibling_work_dir(output, "tmp")?)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.parent().is_some()) || ret.is_err())]
+fn wiki_backup_dir(output: &Path) -> Result<PathBuf> {
+    Ok(wiki_sibling_work_dir(output, "previous")?)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.parent().is_some()) || ret.is_err())]
+fn wiki_sibling_work_dir(output: &Path, suffix: &str) -> Result<PathBuf> {
+    let parent = output.parent().unwrap_or_else(|| Path::new("."));
+    let name = output
+        .file_name()
+        .and_then(|name| name.to_str())
+        .context("wiki output path must have a final path component")?;
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .context("system clock is before Unix epoch")?
+        .as_nanos();
+    Ok(parent.join(format!(".{name}.{suffix}-{}-{nonce}", std::process::id())))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn remove_path_if_exists(path: &Path) -> Result<()> {
+    match fs::remove_dir_all(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error).with_context(|| format!("removing `{}`", path.display())),
+    }
+}
+
+#[requires(stage.is_dir())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn replace_wiki_snapshot_directory(output: &Path, stage: &Path, backup: &Path) -> Result<()> {
+    remove_path_if_exists(backup)?;
+    if output.exists() {
+        fs::rename(output, backup).with_context(|| {
+            format!(
+                "moving previous wiki snapshot `{}` to `{}`",
+                output.display(),
+                backup.display()
+            )
+        })?;
+    }
+    match fs::rename(stage, output) {
+        Ok(()) => {
+            remove_path_if_exists(backup)?;
+            Ok(())
+        }
+        Err(error) => {
+            if backup.exists() {
+                let _ = fs::rename(backup, output);
+            }
+            Err(error).with_context(|| {
+                format!(
+                    "promoting wiki snapshot `{}` to `{}`",
+                    stage.display(),
+                    output.display()
+                )
+            })
+        }
+    }
+}
+
+#[requires(root.is_dir())]
+#[ensures(ret.as_ref().is_ok_and(|rows| rows.windows(2).all(|pair| pair[0].path <= pair[1].path)) || ret.is_err())]
+fn directory_digest_rows(root: &Path) -> Result<Vec<DirectoryDigestRow>> {
+    let mut rows = Vec::new();
+    for entry in WalkDir::new(root).sort_by_file_name() {
+        let entry = entry.with_context(|| format!("walking `{}`", root.display()))?;
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let relative = entry
+            .path()
+            .strip_prefix(root)
+            .with_context(|| format!("computing relative path under `{}`", root.display()))?;
+        let path = relative_path_string(relative);
+        if path == "DIGESTS.sha256" {
+            continue;
+        }
+        let bytes = fs::read(entry.path())
+            .with_context(|| format!("reading `{}` for digest", entry.path().display()))?;
+        rows.push(DirectoryDigestRow {
+            digest: sha256_hex(&bytes),
+            path,
+        });
+    }
+    rows.sort_by(|left, right| left.path.cmp(&right.path));
+    Ok(rows)
+}
+
+#[requires(true)]
+#[ensures(ret.ends_with('\n'))]
+fn render_directory_digests(rows: &[DirectoryDigestRow]) -> String {
+    let mut text = String::new();
+    for row in rows {
+        text.push_str(&row.digest);
+        text.push_str("  ");
+        text.push_str(&row.path);
+        text.push('\n');
+    }
+    text
+}
+
+#[requires(root.is_dir())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_directory_digests(root: &Path) -> Result<()> {
+    let digest_path = root.join("DIGESTS.sha256");
+    let expected = fs::read_to_string(&digest_path)
+        .with_context(|| format!("reading `{}`", digest_path.display()))?;
+    let actual = render_directory_digests(&directory_digest_rows(root)?);
+    if expected != actual {
+        bail!(
+            "wiki snapshot digest manifest `{}` is stale",
+            digest_path.display()
+        );
+    }
+    Ok(())
+}
+
+#[requires(!args.started_at.trim().is_empty())]
+#[requires(!args.finished_at.trim().is_empty())]
+#[ensures(ret.is_object())]
+fn render_wiki_snapshot_metadata(args: &WikiSnapshotMetadataRenderArgs<'_>) -> serde_json::Value {
+    serde_json::json!({
+        "sourceUrl": args.config.source_url,
+        "apiUrl": args.config.api_url,
+        "restUrl": args.config.rest_url,
+        "startedAt": args.started_at,
+        "fetchedAt": args.finished_at,
+        "mediaWikiGenerator": args.siteinfo
+            .get("query")
+            .and_then(|query| query.get("general"))
+            .and_then(|general| general.get("generator"))
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("unknown"),
+        "requestPolicy": {
+            "batchSize": args.config.batch_size,
+            "delayMs": args.config.delay.as_millis(),
+            "timeoutMs": args.config.timeout.as_millis(),
+            "retries": args.config.retries,
+            "maxlag": args.config.maxlag,
+            "limitPages": args.config.limit_pages,
+        },
+        "incremental": {
+            "source": match args.plan.source {
+                WikiSnapshotPlanSource::RecentChanges => "recentchanges",
+                WikiSnapshotPlanSource::FullReconcile => "full-reconcile",
+            },
+            "kept": args.plan.keep.len(),
+            "fetched": args.plan.fetch.len(),
+            "removed": args.plan.removed.len(),
+        },
+        "pages": {
+            "count": args.page_count,
+            "currentRevisionContentBytes": args.source_bytes,
+        },
+        "media": args.media_manifest.get("summary").cloned().unwrap_or(serde_json::Value::Null),
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.ends_with('\n'))]
+fn render_wiki_snapshot_readme(
+    config: &WikiVendorConfig,
+    page_count: usize,
+    source_bytes: usize,
+    media_manifest: &serde_json::Value,
+) -> String {
+    let media_summary = media_manifest
+        .get("summary")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let media_count = media_summary
+        .get("count")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
+    let media_bytes = media_summary
+        .get("totalBytes")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
+    format!(
+        "# Lojban Wiki Snapshot\n\n\
+This directory is a vendored current-revision Parsoid/source snapshot of {}.\n\n\
+The snapshot is generated by `cargo xtask vendor-wiki`. Uploaded media binaries are not included.\n\n\
+## Contents\n\n\
+- `siteinfo.json`: MediaWiki site metadata.\n\
+- `namespaces.json`: normalized namespace metadata.\n\
+- `pages/index.json`: page manifest with stable page-id paths.\n\
+- `pages/by-id/*/source.wiki`: exact raw source for the stored revision.\n\
+- `pages/by-id/*/parsoid.html`: annotated Parsoid HTML for the same revision.\n\
+- `pages/by-id/*/meta.json`: page and revision metadata.\n\
+- `media/manifest.json`: upload metadata and canonical URLs, without binaries.\n\
+- `DIGESTS.sha256`: SHA-256 manifest for all other snapshot files.\n\n\
+The current snapshot contains {} page(s), {}, and {} media record(s) totaling {}.\n",
+        config.source_url,
+        page_count,
+        human_bytes(source_bytes as u64),
+        media_count,
+        human_bytes(media_bytes)
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.ends_with('Z')) || ret.is_err())]
+fn rfc3339_now() -> Result<String> {
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .context("system clock is before Unix epoch")?
+        .as_secs();
+    Ok(unix_seconds_to_rfc3339(seconds))
+}
+
+#[requires(true)]
+#[ensures(ret.ends_with('Z'))]
+fn unix_seconds_to_rfc3339(seconds: u64) -> String {
+    let days = seconds / 86_400;
+    let second_of_day = seconds % 86_400;
+    let date = civil_from_days(days as i64);
+    let hour = second_of_day / 3_600;
+    let minute = (second_of_day % 3_600) / 60;
+    let second = second_of_day % 60;
+    format!(
+        "{:04}-{:02}-{:02}T{hour:02}:{minute:02}:{second:02}Z",
+        date.year, date.month, date.day
+    )
+}
+
+#[requires(true)]
+#[ensures((1..=12).contains(&ret.month))]
+#[ensures((1..=31).contains(&ret.day))]
+fn civil_from_days(days_since_unix_epoch: i64) -> UtcDate {
+    let z = days_since_unix_epoch + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = mp + if mp < 10 { 3 } else { -9 };
+    let year = y + if month <= 2 { 1 } else { 0 };
+    UtcDate {
+        year,
+        month: month as u32,
+        day: day as u32,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn human_bytes(bytes: u64) -> String {
+    const UNITS: &[&str] = &["B", "KiB", "MiB", "GiB", "TiB"];
+    let mut value = bytes as f64;
+    let mut unit = 0usize;
+    while value >= 1024.0 && unit + 1 < UNITS.len() {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{bytes} B")
+    } else {
+        format!("{value:.2} {}", UNITS[unit])
+    }
 }
 
 #[requires(!url.is_empty())]
@@ -6150,6 +8514,223 @@ mod tests {
         assert_eq!(dioxus_runtime_asset_root(""), "/");
         assert_eq!(dioxus_runtime_asset_root("/jbotci"), "/jbotci");
         assert_eq!(dioxus_runtime_asset_root("jbotci/"), "/jbotci");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wiki_rest_title_encoding_uses_single_path_segment() {
+        assert_eq!(
+            wiki_rest_title_segment("The Complete Lojban Language"),
+            "The_Complete_Lojban_Language"
+        );
+        assert_eq!(
+            wiki_rest_title_segment("\"Sixteen Rules\" issue"),
+            "%22Sixteen_Rules%22_issue"
+        );
+        assert_eq!(
+            wiki_rest_title_segment("¡Bienvenido!/Español"),
+            "%C2%A1Bienvenido%21%2FEspa%C3%B1ol"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wiki_recentchanges_window_is_safe_only_when_snapshot_is_retained() {
+        assert!(recentchanges_covers_snapshot(
+            "2026-06-07T12:00:00Z",
+            "2025-11-17T15:08:48Z"
+        ));
+        assert!(recentchanges_covers_snapshot(
+            "2026-06-07T12:00:00Z",
+            "2026-06-07T12:00:00Z"
+        ));
+        assert!(!recentchanges_covers_snapshot(
+            "2025-01-01T00:00:00Z",
+            "2025-11-17T15:08:48Z"
+        ));
+        assert!(!recentchanges_covers_snapshot("", "2025-11-17T15:08:48Z"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wiki_full_reconcile_plan_keeps_fetches_and_removes_by_metadata() {
+        let root = std::env::temp_dir().join(format!(
+            "jbotci-xtask-wiki-plan-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let kept = test_wiki_page_entry(1, 10, "Kept");
+        let changed = test_wiki_page_entry(2, 20, "Changed");
+        let removed = test_wiki_page_entry(3, 30, "Removed");
+        write_test_wiki_entry_files(&root, &kept);
+        write_test_wiki_entry_files(&root, &changed);
+        write_test_wiki_entry_files(&root, &removed);
+        let existing = WikiExistingSnapshot {
+            fetched_at: "2026-06-07T12:00:00Z".to_owned(),
+            pages: vec![kept.clone(), changed.clone(), removed.clone()],
+        };
+        let remote = vec![
+            test_wiki_remote_metadata(1, 10, "Kept"),
+            test_wiki_remote_metadata(2, 21, "Changed"),
+            test_wiki_remote_metadata(4, 40, "New"),
+        ];
+
+        let plan = build_full_wiki_snapshot_plan(Some(&existing), &root, &remote, false);
+
+        assert_eq!(plan.source, WikiSnapshotPlanSource::FullReconcile);
+        assert_eq!(
+            plan.keep
+                .iter()
+                .map(|entry| entry.pageid)
+                .collect::<Vec<_>>(),
+            vec![1]
+        );
+        assert_eq!(
+            plan.fetch
+                .iter()
+                .map(|metadata| metadata.pageid)
+                .collect::<Vec<_>>(),
+            vec![2, 4]
+        );
+        assert_eq!(
+            plan.removed
+                .iter()
+                .map(|entry| entry.pageid)
+                .collect::<Vec<_>>(),
+            vec![3]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wiki_parsoid_pair_validation_requires_matching_revision_and_metadata() {
+        let source = test_wiki_source_revision(122741);
+        let valid = WikiParsoidHtml {
+            revid: 122741,
+            html: r#"<html about="x" mw:htmlVersion="2.4.0"></html>"#.to_owned(),
+        };
+        let wrong_revision = WikiParsoidHtml {
+            revid: 122742,
+            html: valid.html.clone(),
+        };
+        let missing_metadata = WikiParsoidHtml {
+            revid: 122741,
+            html: "<html></html>".to_owned(),
+        };
+
+        assert!(wiki_parsoid_source_pair_is_valid(&valid, &source));
+        assert!(!wiki_parsoid_source_pair_is_valid(&wrong_revision, &source));
+        assert!(!wiki_parsoid_source_pair_is_valid(
+            &missing_metadata,
+            &source
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wiki_progress_detail_reports_counts_retries_and_current_title() {
+        let detail = wiki_page_progress_detail(12, 3, 1, 2, "The Complete Lojban Language");
+        assert!(detail.contains("kept 12"));
+        assert!(detail.contains("fetched 3"));
+        assert!(detail.contains("removed 1"));
+        assert!(detail.contains("retries 2"));
+        assert!(detail.contains("The Complete Lojban Language"));
+    }
+
+    #[requires(pageid > 0)]
+    #[requires(revid > 0)]
+    #[requires(!title.is_empty())]
+    #[ensures(ret.pageid == pageid)]
+    fn test_wiki_page_entry(pageid: u64, revid: u64, title: &str) -> WikiPageIndexEntry {
+        let paths = wiki_page_paths(pageid);
+        WikiPageIndexEntry {
+            pageid,
+            ns: 0,
+            title: title.to_owned(),
+            redirect: false,
+            revid: Some(revid),
+            timestamp: Some("2026-06-07T12:00:00Z".to_owned()),
+            model: "wikitext".to_owned(),
+            bytes: 42,
+            source_sha256: "a".repeat(64),
+            parsoid_html_sha256: "b".repeat(64),
+            meta: relative_path_string(&paths.meta),
+            source: relative_path_string(&paths.source),
+            parsoid_html: relative_path_string(&paths.parsoid_html),
+        }
+    }
+
+    #[requires(pageid > 0)]
+    #[requires(revid > 0)]
+    #[requires(!title.is_empty())]
+    #[ensures(ret.pageid == pageid)]
+    fn test_wiki_remote_metadata(pageid: u64, revid: u64, title: &str) -> WikiPageRemoteMetadata {
+        WikiPageRemoteMetadata {
+            pageid,
+            ns: 0,
+            title: title.to_owned(),
+            touched: Some("2026-06-07T12:00:00Z".to_owned()),
+            lastrevid: Some(revid),
+            length: Some(42),
+            redirect: false,
+            protection: serde_json::Value::Array(Vec::new()),
+            revision: Some(test_wiki_revision(revid)),
+        }
+    }
+
+    #[requires(revid > 0)]
+    #[ensures(ret.revid == revid)]
+    fn test_wiki_revision(revid: u64) -> WikiRevisionMetadata {
+        WikiRevisionMetadata {
+            revid,
+            parentid: Some(revid - 1),
+            timestamp: "2026-06-07T12:00:00Z".to_owned(),
+            user: Some("Test".to_owned()),
+            userid: Some(1),
+            comment: "test".to_owned(),
+            size: Some(42),
+            sha1: Some("sha1".to_owned()),
+            contentmodel: "wikitext".to_owned(),
+            contentformat: Some("text/x-wiki".to_owned()),
+        }
+    }
+
+    #[requires(revid > 0)]
+    #[ensures(ret.revision.revid == revid)]
+    fn test_wiki_source_revision(revid: u64) -> WikiFetchedSourceRevision {
+        WikiFetchedSourceRevision {
+            pageid: 1,
+            ns: 0,
+            title: "Test".to_owned(),
+            touched: Some("2026-06-07T12:00:00Z".to_owned()),
+            lastrevid: Some(revid),
+            length: Some(42),
+            redirect: false,
+            protection: serde_json::Value::Array(Vec::new()),
+            revision: test_wiki_revision(revid),
+            source: "test source".to_owned(),
+        }
+    }
+
+    #[requires(root.components().next().is_some())]
+    #[requires(entry.pageid > 0)]
+    #[ensures(true)]
+    fn write_test_wiki_entry_files(root: &Path, entry: &WikiPageIndexEntry) {
+        for relative in [&entry.meta, &entry.source, &entry.parsoid_html] {
+            let path = root.join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, "test").unwrap();
+        }
     }
 
     #[test]
