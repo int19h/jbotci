@@ -5495,8 +5495,8 @@ mod tests {
             assert_eq!(status, CliStatus::Failure);
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
-            assert!(stderr.contains("syntax.parse"), "{stderr}");
-            assert!(stderr.contains("syntax parse failed"));
+            assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
+            assert!(stderr.contains("unexpected cmavo"));
             assert!(stderr.contains("expected: free modifier, statement, or end of input"));
             assert!(!stderr.contains("expected one of:"));
             assert!(!stderr.contains("needs one of:"));
@@ -5542,6 +5542,38 @@ mod tests {
             assert!(!stderr.contains("expected one of:"));
             assert!(stderr.contains("\n            "));
             assert!(!stderr.contains("\x1b["));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_detailed_syntax_errors_use_specific_codes() {
+        run_on_normal_stack(|| {
+            for (source, code, message) in [
+                (&["ku"][..], "syntax.unexpected-cmavo", "unexpected cmavo"),
+                (&["lo"][..], "syntax.incomplete-sumti", "incomplete sumti"),
+                (
+                    &["ga", "lo", "mlatu", "gi"][..],
+                    "syntax.incomplete-forethought-connection",
+                    "incomplete forethought connection",
+                ),
+            ] {
+                let mut args = vec!["jbotci", "gentufa", "--detailed-errors"];
+                args.extend_from_slice(source);
+                let cli = Cli::try_parse_from(args).expect("gentufa detailed parses");
+                let mut output = Vec::new();
+                let mut error = Vec::new();
+                let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
+
+                assert_eq!(status, CliStatus::Failure);
+                assert!(output.is_empty());
+                let stderr = String::from_utf8(error).expect("stderr utf8");
+                assert!(stderr.contains(code), "{stderr}");
+                assert!(stderr.contains(message), "{stderr}");
+                assert!(!stderr.contains("syntax.parse"), "{stderr}");
+                assert!(!stderr.contains("syntax parse failed"), "{stderr}");
+            }
         });
     }
 
@@ -5702,7 +5734,7 @@ mod tests {
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("trace[syntax]"), "{stderr}");
-            assert!(stderr.contains("syntax.parse"), "{stderr}");
+            assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
             assert!(!stderr.contains("syntax worker panicked"), "{stderr}");
         });
     }

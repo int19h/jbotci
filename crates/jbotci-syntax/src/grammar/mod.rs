@@ -24,7 +24,7 @@ mod parse_error;
 mod parser;
 mod tense;
 pub(crate) mod tokens;
-use parse_error::SyntaxParseError;
+use parse_error::{SyntaxFound, SyntaxFoundData, SyntaxParseCustomKind, SyntaxParseError};
 
 type Span = SimpleSpan;
 type SpannedToken = Spanned<Token, Span>;

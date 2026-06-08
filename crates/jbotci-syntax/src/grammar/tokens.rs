@@ -12,10 +12,14 @@ use jbotci_diagnostics::{
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordKind, WordLike, WordLikeData};
 use jbotci_source::SourceSpan;
 
-use super::{BoxedParser, ParseExtra, ParserInput, ParserState, SpannedToken, SyntaxParseError};
+use super::{
+    BoxedParser, ParseExtra, ParserInput, ParserState, SpannedToken, SyntaxFound, SyntaxFoundData,
+    SyntaxParseCustomKind, SyntaxParseError,
+};
 use crate::{
-    SyntaxConstructContext, SyntaxError, SyntaxExpectedToken, SyntaxExpectedTokenData,
-    SyntaxWordCategory, syntax_expectation_summary_message,
+    SyntaxConstructContext, SyntaxError, SyntaxErrorKind, SyntaxExpectation, SyntaxExpectedToken,
+    SyntaxExpectedTokenData, SyntaxWordCategory, syntax_construct_is_descendant_of,
+    syntax_expectation_summary_message,
 };
 
 #[requires(true)]
@@ -223,7 +227,7 @@ pub(super) fn token_matching<'tokens>(
                 );
                 Ok(word)
             }
-            _ => {
+            Some(word) => {
                 let span = input.span_since(&cursor);
                 input.rewind(checkpoint);
                 let byte_start = span.start.min(span.end);
@@ -236,7 +240,30 @@ pub(super) fn token_matching<'tokens>(
                     byte_end,
                     || Some(expected_token_detail(&expected)),
                 );
-                Err(SyntaxParseError::expected(span, expected.clone()))
+                Err(SyntaxParseError::expected_found(
+                    span,
+                    expected.clone(),
+                    new!(SyntaxFound::Token(word)),
+                ))
+            }
+            None => {
+                let span = input.span_since(&cursor);
+                input.rewind(checkpoint);
+                let byte_start = span.start.min(span.end);
+                let byte_end = span.start.max(span.end);
+                input.state().trace_event(
+                    TraceLevel::Primitives,
+                    TraceEventKind::TerminalFailure,
+                    debug_label,
+                    byte_start,
+                    byte_end,
+                    || Some(expected_token_detail(&expected)),
+                );
+                Err(SyntaxParseError::expected_found(
+                    span,
+                    expected.clone(),
+                    new!(SyntaxFound::EndOfInput),
+                ))
             }
         }
     })
@@ -1062,6 +1089,7 @@ fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
 pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
     let Some(error) = merge_farthest_errors(errors) else {
         return SyntaxError::Parse {
+            kind: SyntaxErrorKind::InvalidConstruct,
             byte_start: 0,
             byte_end: 0,
             reason: "unknown Chumsky syntax error".to_owned(),
@@ -1074,6 +1102,8 @@ pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
     let expectations = error.expectations();
     let expected = error.expected_strings();
     let summary_context = error.summary_context();
+    let current_context = error.current_context();
+    let kind = syntax_error_kind(&error, &expectations, current_context.as_ref());
     let reason = syntax_error_reason(
         error.reason(),
         &expected,
@@ -1086,13 +1116,212 @@ pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
     let byte_start = error.span().start.min(error.span().end);
     let byte_end = error.span().start.max(error.span().end);
     SyntaxError::Parse {
+        kind,
         byte_start,
         byte_end,
         reason,
         expected,
         expectations,
-        context: error.current_context(),
+        context: current_context,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_error_kind(
+    error: &SyntaxParseError<'_>,
+    expectations: &[SyntaxExpectation],
+    context: Option<&SyntaxConstructContext>,
+) -> SyntaxErrorKind {
+    if let Some(found) = error.found() {
+        if let data!(SyntaxFound::Token(token)) = found.as_data() {
+            return syntax_error_kind_for_token(token);
+        }
+    }
+    if error.custom_kind() == Some(SyntaxParseCustomKind::BridiTailKeContinuationConflict) {
+        return SyntaxErrorKind::InvalidBridiTailConnection;
+    }
+    if error
+        .found()
+        .is_some_and(|found| matches!(found.as_data(), data!(SyntaxFound::EndOfInput)))
+        || error.span().start == error.span().end
+    {
+        return syntax_incomplete_kind(context, expectations);
+    }
+    match error.reason() {
+        RichReason::Custom(_) => SyntaxErrorKind::InvalidConstruct,
+        RichReason::ExpectedFound { .. } => SyntaxErrorKind::UnexpectedWord,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_error_kind_for_token(token: &Token) -> SyntaxErrorKind {
+    syntax_error_kind_for_word_like(token.core_word())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_error_kind_for_word_like(word_like: &WordLike) -> SyntaxErrorKind {
+    match word_like.as_data() {
+        data!(WordLike::PlainWord(word)) => match word.kind() {
+            WordKind::Cmavo => SyntaxErrorKind::UnexpectedCmavo,
+            WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => {
+                SyntaxErrorKind::UnexpectedBrivla
+            }
+            WordKind::Cmevla => SyntaxErrorKind::UnexpectedCmevla,
+        },
+        data!(WordLike::QuotedWord { .. })
+        | data!(WordLike::DelimitedNonLojbanQuote { .. })
+        | data!(WordLike::QuotedWords { .. })
+        | data!(WordLike::DelimitedWordQuote { .. }) => SyntaxErrorKind::UnexpectedQuote,
+        data!(WordLike::LerfuWord { .. }) => SyntaxErrorKind::UnexpectedLerfu,
+        data!(WordLike::ZeiCompound { .. }) => SyntaxErrorKind::UnexpectedZeiCompound,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_incomplete_kind(
+    context: Option<&SyntaxConstructContext>,
+    expectations: &[SyntaxExpectation],
+) -> SyntaxErrorKind {
+    if let Some(context) = context
+        && let Some(kind) = syntax_incomplete_kind_for_construct(&context.construct)
+    {
+        return kind;
+    }
+    syntax_incomplete_kind_from_expectations(expectations).unwrap_or(SyntaxErrorKind::UnexpectedEnd)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_incomplete_kind_from_expectations(
+    expectations: &[SyntaxExpectation],
+) -> Option<SyntaxErrorKind> {
+    let mut shared_kind = None;
+    for expectation in expectations {
+        let reason_kind = syntax_incomplete_kind_for_expectation_reason(&expectation.reason)?;
+        if is_high_priority_incomplete_kind(reason_kind) {
+            return Some(reason_kind);
+        }
+        match shared_kind {
+            None => shared_kind = Some(reason_kind),
+            Some(kind) if kind == reason_kind => {}
+            Some(_) => return None,
+        }
+    }
+    shared_kind
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_incomplete_kind_for_expectation_reason(
+    reason: &crate::SyntaxExpectationReason,
+) -> Option<SyntaxErrorKind> {
+    match reason.as_data() {
+        data!(crate::SyntaxExpectationReason::ContinueCurrent { construct })
+        | data!(crate::SyntaxExpectationReason::StartNested { construct }) => {
+            syntax_incomplete_kind_for_construct(construct)
+        }
+        data!(crate::SyntaxExpectationReason::EndThenStart { starts, ends }) => {
+            if starts == "end of input" {
+                syntax_incomplete_kind_for_constructs(ends.iter().map(String::as_str))
+            } else {
+                syntax_incomplete_kind_for_construct(starts)
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_incomplete_kind_for_constructs<'a>(
+    constructs: impl Iterator<Item = &'a str>,
+) -> Option<SyntaxErrorKind> {
+    let mut shared_kind = None;
+    for construct in constructs {
+        let kind = syntax_incomplete_kind_for_construct(construct)?;
+        if is_high_priority_incomplete_kind(kind) {
+            return Some(kind);
+        }
+        match shared_kind {
+            None => shared_kind = Some(kind),
+            Some(shared) if shared == kind => {}
+            Some(_) => return None,
+        }
+    }
+    shared_kind
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(true)]
+fn syntax_incomplete_kind_for_construct(construct: &str) -> Option<SyntaxErrorKind> {
+    if is_forethought_connection_construct(construct) {
+        Some(SyntaxErrorKind::IncompleteForethoughtConnection)
+    } else if construct == "mex"
+        || construct == "number sumti"
+        || syntax_construct_is_descendant_of("mex", construct)
+        || syntax_construct_is_descendant_of("number sumti", construct)
+    {
+        Some(SyntaxErrorKind::IncompleteMekso)
+    } else if construct == "quote" || syntax_construct_is_descendant_of("quote", construct) {
+        Some(SyntaxErrorKind::IncompleteQuote)
+    } else if construct == "free modifier"
+        || syntax_construct_is_descendant_of("free modifier", construct)
+    {
+        Some(SyntaxErrorKind::IncompleteFreeModifier)
+    } else if construct == "sumti" || syntax_construct_is_descendant_of("sumti", construct) {
+        Some(SyntaxErrorKind::IncompleteSumti)
+    } else if construct == "selbri"
+        || construct == "tanru"
+        || construct == "tanru unit"
+        || syntax_construct_is_descendant_of("selbri", construct)
+    {
+        Some(SyntaxErrorKind::IncompleteSelbri)
+    } else if construct == "bridi" || construct == "subbridi" {
+        Some(SyntaxErrorKind::IncompleteBridi)
+    } else if construct == "term"
+        || construct == "terms"
+        || construct == "tail terms"
+        || construct == "termset"
+        || construct == "tag"
+        || construct == "place tag"
+        || construct == "NA KU term"
+        || syntax_construct_is_descendant_of("term", construct)
+        || syntax_construct_is_descendant_of("terms", construct)
+    {
+        Some(SyntaxErrorKind::IncompleteTerm)
+    } else if construct == "statement"
+        || construct == "fragment"
+        || construct == "prenex"
+        || construct == "text group"
+        || syntax_construct_is_descendant_of("statement", construct)
+    {
+        Some(SyntaxErrorKind::IncompleteStatement)
+    } else if construct == "text" {
+        Some(SyntaxErrorKind::IncompleteText)
+    } else {
+        None
+    }
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(true)]
+fn is_forethought_connection_construct(construct: &str) -> bool {
+    construct == "forethought mex"
+        || (construct.starts_with("forethought ") && construct.ends_with(" connection"))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_high_priority_incomplete_kind(kind: SyntaxErrorKind) -> bool {
+    matches!(
+        kind,
+        SyntaxErrorKind::IncompleteForethoughtConnection
+            | SyntaxErrorKind::IncompleteMekso
+            | SyntaxErrorKind::IncompleteQuote
+    )
 }
 
 #[requires(true)]

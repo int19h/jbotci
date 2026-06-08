@@ -18015,8 +18015,8 @@ mod tests {
         let diagnostic = test_diagnostic(
             source,
             DiagnosticSeverity::Error,
-            "syntax.parse",
-            "syntax parse failed",
+            "syntax.unexpected-cmavo",
+            "unexpected cmavo",
             4,
             6,
             "expected selbri",
@@ -18058,8 +18058,8 @@ mod tests {
             test_diagnostic(
                 source,
                 DiagnosticSeverity::Error,
-                "syntax.parse",
-                "syntax parse failed",
+                "syntax.unexpected-cmavo",
+                "unexpected cmavo",
                 0,
                 1,
                 "expected text",
@@ -18097,8 +18097,8 @@ mod tests {
         let diagnostic = test_diagnostic(
             source,
             DiagnosticSeverity::Error,
-            "syntax.parse",
-            "syntax parse failed",
+            "syntax.unexpected-cmavo",
+            "unexpected cmavo",
             0,
             1,
             "expected text",
@@ -18109,7 +18109,7 @@ mod tests {
         };
         let result = GentufaWebResult::Error(GentufaError {
             phase: None,
-            message: "syntax parse failed".to_owned(),
+            message: "unexpected cmavo".to_owned(),
             diagnostics: vec![diagnostic],
         });
 
@@ -18128,8 +18128,8 @@ mod tests {
         let diagnostic = test_diagnostic(
             source,
             DiagnosticSeverity::Error,
-            "syntax.parse",
-            "syntax parse failed",
+            "syntax.unexpected-cmavo",
+            "unexpected cmavo",
             3,
             8,
             "expected selbri",
@@ -18192,8 +18192,8 @@ mod tests {
         let diagnostic = test_diagnostic(
             source,
             DiagnosticSeverity::Error,
-            "syntax.parse",
-            "syntax parse failed",
+            "syntax.unexpected-cmavo",
+            "unexpected cmavo",
             4,
             9,
             "expected selbri",
@@ -18229,8 +18229,8 @@ mod tests {
         let diagnostic = test_diagnostic(
             source,
             DiagnosticSeverity::Error,
-            "syntax.parse",
-            "syntax parse failed",
+            "syntax.unexpected-cmavo",
+            "unexpected cmavo",
             0,
             1,
             "expected text",
@@ -18266,8 +18266,8 @@ mod tests {
         let diagnostic = test_diagnostic(
             source,
             DiagnosticSeverity::Error,
-            "syntax.parse",
-            "syntax parse failed",
+            "syntax.unexpected-cmavo",
+            "unexpected cmavo",
             0,
             1,
             "expected free modifier, SE",
@@ -18275,7 +18275,7 @@ mod tests {
 
         assert_eq!(
             diagnostic_tooltip_text(&diagnostic),
-            "syntax.parse: expected free modifier, SE"
+            "syntax.unexpected-cmavo: expected free modifier, SE"
         );
     }
 
@@ -18287,8 +18287,8 @@ mod tests {
         let diagnostic = test_diagnostic(
             source,
             DiagnosticSeverity::Error,
-            "syntax.parse",
-            "syntax parse failed",
+            "syntax.unexpected-cmavo",
+            "unexpected cmavo",
             3,
             5,
             "expected: free modifier or mex",
@@ -18315,7 +18315,7 @@ mod tests {
 
         assert_eq!(
             diagnostic_tooltip_text(&diagnostic),
-            "syntax.parse: expected: free modifier or mex"
+            "syntax.unexpected-cmavo: expected: free modifier or mex"
         );
     }
 
@@ -18327,8 +18327,8 @@ mod tests {
         let diagnostic = test_diagnostic(
             source,
             DiagnosticSeverity::Error,
-            "syntax.parse",
-            "syntax parse failed",
+            "syntax.unexpected-cmavo",
+            "unexpected cmavo",
             0,
             1,
             "expected SE, free modifier, LERFU",
@@ -18361,7 +18361,7 @@ mod tests {
 
         assert_eq!(
             diagnostic_tooltip_text(&diagnostic),
-            "syntax.parse: expected free modifier (LERFU or COI), BRIVLA or SE [continues sumti]"
+            "syntax.unexpected-cmavo: expected free modifier (LERFU or COI), BRIVLA or SE [continues sumti]"
         );
     }
 
@@ -18373,8 +18373,8 @@ mod tests {
         let diagnostic = test_diagnostic(
             source,
             DiagnosticSeverity::Error,
-            "syntax.parse",
-            "syntax parse failed",
+            "syntax.unexpected-cmavo",
+            "unexpected cmavo",
             0,
             1,
             "expected text",

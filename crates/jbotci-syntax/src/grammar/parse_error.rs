@@ -18,6 +18,22 @@ pub(super) struct SyntaxParseError<'tokens> {
     inner: Rich<'tokens, Token, Span>,
     expected_groups: Vec<ExpectedTokenGroup>,
     context_paths: Vec<Vec<SyntaxConstructContext>>,
+    found: Option<SyntaxFound>,
+    custom_kind: Option<SyntaxParseCustomKind>,
+}
+
+#[invariant(true)]
+#[invariant(::Token(token) => token.core_word().byte_range().is_some(), "found syntax token must cover source bytes")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum SyntaxFound {
+    Token(Token),
+    EndOfInput,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+pub(super) enum SyntaxParseCustomKind {
+    BridiTailKeContinuationConflict,
 }
 
 #[invariant(!tokens.is_empty())]
@@ -55,6 +71,24 @@ impl<'tokens> SyntaxParseError<'tokens> {
             inner: Rich::custom(span, message),
             expected_groups: Vec::new(),
             context_paths: empty_context_paths(),
+            found: None,
+            custom_kind: None,
+        }
+    }
+
+    #[requires(!message.is_empty())]
+    #[ensures(ret.expected_groups.is_empty())]
+    pub(super) fn custom_with_kind(
+        span: Span,
+        message: String,
+        custom_kind: SyntaxParseCustomKind,
+    ) -> Self {
+        Self {
+            inner: Rich::custom(span, message),
+            expected_groups: Vec::new(),
+            context_paths: empty_context_paths(),
+            found: None,
+            custom_kind: Some(custom_kind),
         }
     }
 
@@ -65,6 +99,24 @@ impl<'tokens> SyntaxParseError<'tokens> {
             inner: Rich::custom(span, "unexpected input".to_owned()),
             expected_groups: vec![ExpectedTokenGroup::new(tokens)],
             context_paths: empty_context_paths(),
+            found: None,
+            custom_kind: None,
+        }
+    }
+
+    #[requires(!tokens.is_empty())]
+    #[ensures(ret.expected_groups.len() == 1)]
+    pub(super) fn expected_found(
+        span: Span,
+        tokens: Vec<SyntaxExpectedToken>,
+        found: SyntaxFound,
+    ) -> Self {
+        Self {
+            inner: Rich::custom(span, "unexpected input".to_owned()),
+            expected_groups: vec![ExpectedTokenGroup::new(tokens)],
+            context_paths: empty_context_paths(),
+            found: Some(found),
+            custom_kind: None,
         }
     }
 
@@ -146,9 +198,23 @@ impl<'tokens> SyntaxParseError<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
+    pub(super) fn found(&self) -> Option<&SyntaxFound> {
+        self.found.as_ref()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn custom_kind(&self) -> Option<SyntaxParseCustomKind> {
+        self.custom_kind
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     pub(super) fn merge_for_report(mut self, other: Self) -> Self {
         append_unique_groups(&mut self.expected_groups, other.expected_groups);
         append_unique_context_paths(&mut self.context_paths, other.context_paths);
+        self.found = merge_optional_equal(self.found, other.found);
+        self.custom_kind = merge_optional_equal(self.custom_kind, other.custom_kind);
         self
     }
 }
@@ -166,6 +232,8 @@ where
             <Rich<'tokens, Token, Span> as Error<'tokens, I>>::merge(merged.inner, other.inner);
         append_unique_groups(&mut merged.expected_groups, other.expected_groups);
         append_unique_context_paths(&mut merged.context_paths, other.context_paths);
+        merged.found = merge_optional_equal(merged.found, other.found);
+        merged.custom_kind = merge_optional_equal(merged.custom_kind, other.custom_kind);
         merged
     }
 }
@@ -184,6 +252,7 @@ where
         span: I::Span,
     ) -> Self {
         let expected = expected.into_iter().collect::<Vec<_>>();
+        let syntax_found = syntax_found_from_maybe(found.clone());
         let inner = <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::expected_found(
             expected.clone(),
             found,
@@ -194,6 +263,8 @@ where
             inner,
             expected_groups,
             context_paths: empty_context_paths(),
+            found: Some(syntax_found),
+            custom_kind: None,
         }
     }
 
@@ -213,10 +284,13 @@ where
             &mut self.expected_groups,
             expected_token_groups_from_labels(expected.clone()),
         );
+        let syntax_found = syntax_found_from_maybe(found.clone());
         self.inner =
             <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::merge_expected_found(
                 self.inner, expected, found, span,
             );
+        self.found = merge_optional_equal(self.found, Some(syntax_found));
+        self.custom_kind = None;
         self
     }
 
@@ -230,11 +304,14 @@ where
     ) -> Self {
         let expected = expected.into_iter().collect::<Vec<_>>();
         self.expected_groups = expected_token_groups_from_labels(expected.clone());
+        let syntax_found = syntax_found_from_maybe(found.clone());
         self.inner =
             <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::replace_expected_found(
                 self.inner, expected, found, span,
             );
         self.context_paths = empty_context_paths();
+        self.found = Some(syntax_found);
+        self.custom_kind = None;
         self
     }
 
@@ -642,6 +719,25 @@ fn append_unique_groups(target: &mut Vec<ExpectedTokenGroup>, source: Vec<Expect
         if !group.tokens.is_empty() && !target.contains(&group) {
             target.push(group);
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_found_from_maybe(found: Option<MaybeRef<'_, Token>>) -> SyntaxFound {
+    found
+        .map(|found| new!(SyntaxFound::Token(found.into_inner())))
+        .unwrap_or_else(|| new!(SyntaxFound::EndOfInput))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn merge_optional_equal<T: PartialEq>(left: Option<T>, right: Option<T>) -> Option<T> {
+    match (left, right) {
+        (Some(left), Some(right)) if left == right => Some(left),
+        (Some(_), Some(_)) => None,
+        (Some(value), None) | (None, Some(value)) => Some(value),
+        (None, None) => None,
     }
 }
 
