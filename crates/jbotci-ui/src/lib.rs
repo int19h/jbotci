@@ -184,7 +184,13 @@ const BLOCK_REFERENCE_CONTAINMENT_GAP_PX: f64 = 1.0;
 const DIALECT_SETTINGS_STORAGE_KEY: &str = "jbotci.dialect-settings.v1";
 const EMBEDDING_MODEL_STORAGE_KEY: &str = "jbotci.embedding-model.v1";
 #[cfg(not(target_arch = "wasm32"))]
+const F2LLM_NATIVE_80M_MODEL_KEY: &str = "f2llm-v2-80m-q4-k-m-320";
+#[cfg(not(target_arch = "wasm32"))]
+const F2LLM_NATIVE_160M_MODEL_KEY: &str = "f2llm-v2-160m-q4-k-m-640";
+#[cfg(not(target_arch = "wasm32"))]
 const F2LLM_NATIVE_330M_MODEL_KEY: &str = "f2llm-v2-330m-q4-k-m-896";
+#[cfg(not(target_arch = "wasm32"))]
+const F2LLM_NATIVE_0_6B_MODEL_KEY: &str = "f2llm-v2-0.6b-q4-k-m-1024";
 const F2LLM_80M_MODEL_KEY: &str = "f2llm-v2-80m-q4-320";
 #[cfg(target_arch = "wasm32")]
 const F2LLM_160M_MODEL_KEY: &str = "f2llm-v2-160m-q4-640";
@@ -212,10 +218,24 @@ const WEB_EMBEDDING_MODEL_OPTIONS: &[EmbeddingModelOption] = &[
     },
 ];
 #[cfg(not(target_arch = "wasm32"))]
-const NATIVE_EMBEDDING_MODEL_OPTIONS: &[EmbeddingModelOption] = &[EmbeddingModelOption {
-    key: F2LLM_NATIVE_330M_MODEL_KEY,
-    label: "F2LLM v2 330M Q4_K_M",
-}];
+const NATIVE_EMBEDDING_MODEL_OPTIONS: &[EmbeddingModelOption] = &[
+    EmbeddingModelOption {
+        key: F2LLM_NATIVE_80M_MODEL_KEY,
+        label: "F2LLM v2 80M",
+    },
+    EmbeddingModelOption {
+        key: F2LLM_NATIVE_160M_MODEL_KEY,
+        label: "F2LLM v2 160M",
+    },
+    EmbeddingModelOption {
+        key: F2LLM_NATIVE_330M_MODEL_KEY,
+        label: "F2LLM v2 330M",
+    },
+    EmbeddingModelOption {
+        key: F2LLM_NATIVE_0_6B_MODEL_KEY,
+        label: "F2LLM v2 0.6B",
+    },
+];
 
 #[cfg(target_arch = "wasm32")]
 thread_local! {
@@ -1051,9 +1071,10 @@ pub fn launch_app() {
 #[ensures(true)]
 pub fn launch_app() {
     dioxus::LaunchBuilder::new()
-        .with_cfg(dioxus::desktop::Config::new().with_window(
-            dioxus::desktop::WindowBuilder::new().with_title(APP_DISPLAY_NAME),
-        ))
+        .with_cfg(
+            dioxus::desktop::Config::new()
+                .with_window(dioxus::desktop::WindowBuilder::new().with_title(APP_DISPLAY_NAME)),
+        )
         .launch(App);
 }
 
@@ -3814,7 +3835,7 @@ fn native_embedding_status_json_result() -> Result<String, String> {
         "selectedModelKey": model_key,
         "effectiveModelKey": spec.model_key,
         "modelKey": spec.model_key,
-        "modelLabel": "F2LLM v2 330M Q4_K_M",
+        "modelLabel": embedding_model_label(&model_key),
         "modelBytes": model_bytes,
         "modelDtype": "Q4_K_M",
         "modelDevice": "llama.cpp",
@@ -17868,6 +17889,25 @@ mod tests {
         assert_eq!(
             embedding_progress_display_label(&state),
             "Indexing dictionary 3/10 rows (30%)"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_embedding_model_options_cover_f2llm_size_family() {
+        let keys = NATIVE_EMBEDDING_MODEL_OPTIONS
+            .iter()
+            .map(|option| option.key)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            keys,
+            vec![
+                F2LLM_NATIVE_80M_MODEL_KEY,
+                F2LLM_NATIVE_160M_MODEL_KEY,
+                F2LLM_NATIVE_330M_MODEL_KEY,
+                F2LLM_NATIVE_0_6B_MODEL_KEY,
+            ]
         );
     }
 

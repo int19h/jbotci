@@ -46,15 +46,74 @@ const NATIVE_PARTIAL_BUILD_SOURCE: &str = "native-partial";
 const NATIVE_PARTIAL_BUILD_FILE: &str = "native-local-build.json";
 const NATIVE_VECTOR_CHUNK_ROWS: usize = 256;
 const DEFAULT_HF_ENDPOINT: &str = "https://huggingface.co";
-const DEFAULT_GGUF_REPO: &str = "mradermacher/F2LLM-v2-330M-GGUF";
-const DEFAULT_GGUF_REVISION: &str = "03158c3a78ea1c7a7eea2d6829c49e3f1d63f85f";
-const DEFAULT_GGUF_FILE: &str = "F2LLM-v2-330M.Q4_K_M.gguf";
-const DEFAULT_GGUF_SIZE: u64 = 286_198_400;
-const DEFAULT_GGUF_SHA256: &str =
-    "7f3c03769de1436ad1f9014cb2872d2f7b5d8aa5f2322796c5070867c84dc254";
-const DEFAULT_WEB_MODEL: &str = "codefuse-ai/F2LLM-v2-330M";
 const DEFAULT_WEB_DTYPE: &str = "q4";
 const LLAMA_CPP_4_RUNTIME_VERSION: &str = "0.3.0";
+
+#[derive(Debug, Clone, Copy)]
+#[invariant(true)]
+struct NativeF2LlmModel {
+    model_key: &'static str,
+    model_revision: &'static str,
+    input_format_version: &'static str,
+    native_hf_repo: &'static str,
+    native_hf_revision: &'static str,
+    native_hf_file: &'static str,
+    native_size_bytes: u64,
+    native_sha256: &'static str,
+    web_model: &'static str,
+    dimensions: usize,
+}
+
+const NATIVE_F2LLM_MODELS: &[NativeF2LlmModel] = &[
+    NativeF2LlmModel {
+        model_key: "f2llm-v2-80m-q4-k-m-320",
+        model_revision: "f4a16a11c9f5c8c7e22694653de6ce75430f4538",
+        input_format_version: "f2llm-v2-80m-q4-k-m-v0",
+        native_hf_repo: "mradermacher/F2LLM-v2-80M-GGUF",
+        native_hf_revision: "f39be191bbbd6d6f13894d53d63c8291d7b31182",
+        native_hf_file: "F2LLM-v2-80M.Q4_K_M.gguf",
+        native_size_bytes: 79_111_968,
+        native_sha256: "46e6279206856868adf680ce25f23f6d4846610d0f54f6c527647ab48478a813",
+        web_model: "codefuse-ai/F2LLM-v2-80M",
+        dimensions: 320,
+    },
+    NativeF2LlmModel {
+        model_key: "f2llm-v2-160m-q4-k-m-640",
+        model_revision: "60229594f9498ae44c553f1f8cebf32559bc8577",
+        input_format_version: "f2llm-v2-160m-q4-k-m-v0",
+        native_hf_repo: "mradermacher/F2LLM-v2-160M-GGUF",
+        native_hf_revision: "a1f45469b2b9b3a2d0df7150fad56f65a37b8937",
+        native_hf_file: "F2LLM-v2-160M.Q4_K_M.gguf",
+        native_size_bytes: 151_808_704,
+        native_sha256: "19db6aebaacc6d4f496cfa6226c31fca84e8f72935ee6444a3e25dc1dcc90645",
+        web_model: "codefuse-ai/F2LLM-v2-160M",
+        dimensions: 640,
+    },
+    NativeF2LlmModel {
+        model_key: DEFAULT_MODEL_KEY,
+        model_revision: DEFAULT_MODEL_REVISION,
+        input_format_version: DEFAULT_INPUT_FORMAT_VERSION,
+        native_hf_repo: "mradermacher/F2LLM-v2-330M-GGUF",
+        native_hf_revision: "03158c3a78ea1c7a7eea2d6829c49e3f1d63f85f",
+        native_hf_file: "F2LLM-v2-330M.Q4_K_M.gguf",
+        native_size_bytes: 286_198_400,
+        native_sha256: "7f3c03769de1436ad1f9014cb2872d2f7b5d8aa5f2322796c5070867c84dc254",
+        web_model: "codefuse-ai/F2LLM-v2-330M",
+        dimensions: DEFAULT_MODEL_DIMENSIONS,
+    },
+    NativeF2LlmModel {
+        model_key: "f2llm-v2-0.6b-q4-k-m-1024",
+        model_revision: "2b4159091278275a3b00d2c39095754d59d7d7de",
+        input_format_version: "f2llm-v2-0.6b-q4-k-m-v0",
+        native_hf_repo: "mradermacher/F2LLM-v2-0.6B-GGUF",
+        native_hf_revision: "641cb8859b59035469cb7d93fbd96f61cd5be4a7",
+        native_hf_file: "F2LLM-v2-0.6B.Q4_K_M.gguf",
+        native_size_bytes: 396_706_560,
+        native_sha256: "6f106cf54671f2aadf32c5f0da600c5a7ac430404b6ccda097cb7c7a45021f4b",
+        web_model: "codefuse-ai/F2LLM-v2-0.6B",
+        dimensions: 1024,
+    },
+];
 
 static DICTIONARY_CORPUS_CACHE: OnceLock<
     Mutex<HashMap<LoadedCorpusCacheKey, Arc<LoadedCorpus<DictionaryEmbeddingItem>>>>,
@@ -113,6 +172,7 @@ pub enum EmbeddingError {
 pub struct EmbeddingModelSpec {
     pub model_key: String,
     pub model_revision: String,
+    pub input_format_version: String,
     pub native_hf_repo: String,
     pub native_hf_revision: String,
     pub native_hf_file: String,
@@ -127,25 +187,40 @@ impl EmbeddingModelSpec {
     #[requires(true)]
     #[ensures(ret.model_key == DEFAULT_MODEL_KEY)]
     pub fn default_f2llm() -> Self {
-        Self {
-            model_key: DEFAULT_MODEL_KEY.to_owned(),
-            model_revision: DEFAULT_MODEL_REVISION.to_owned(),
-            native_hf_repo: DEFAULT_GGUF_REPO.to_owned(),
-            native_hf_revision: DEFAULT_GGUF_REVISION.to_owned(),
-            native_hf_file: DEFAULT_GGUF_FILE.to_owned(),
-            native_size_bytes: DEFAULT_GGUF_SIZE,
-            native_sha256: DEFAULT_GGUF_SHA256.to_owned(),
-            web_model: DEFAULT_WEB_MODEL.to_owned(),
-            web_dtype: DEFAULT_WEB_DTYPE.to_owned(),
-            dimensions: DEFAULT_MODEL_DIMENSIONS,
-        }
+        native_f2llm_model_spec(
+            NATIVE_F2LLM_MODELS
+                .iter()
+                .find(|model| model.model_key == DEFAULT_MODEL_KEY)
+                .expect("native F2LLM model table includes the default model"),
+        )
+    }
+}
+
+#[requires(!model.model_key.is_empty())]
+#[ensures(ret.model_key == model.model_key)]
+fn native_f2llm_model_spec(model: &NativeF2LlmModel) -> EmbeddingModelSpec {
+    EmbeddingModelSpec {
+        model_key: model.model_key.to_owned(),
+        model_revision: model.model_revision.to_owned(),
+        input_format_version: model.input_format_version.to_owned(),
+        native_hf_repo: model.native_hf_repo.to_owned(),
+        native_hf_revision: model.native_hf_revision.to_owned(),
+        native_hf_file: model.native_hf_file.to_owned(),
+        native_size_bytes: model.native_size_bytes,
+        native_sha256: model.native_sha256.to_owned(),
+        web_model: model.web_model.to_owned(),
+        web_dtype: DEFAULT_WEB_DTYPE.to_owned(),
+        dimensions: model.dimensions,
     }
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_some_and(|spec| spec.model_key == model_key) || ret.is_none())]
 pub fn model_spec(model_key: &str) -> Option<EmbeddingModelSpec> {
-    (model_key == DEFAULT_MODEL_KEY).then(EmbeddingModelSpec::default_f2llm)
+    NATIVE_F2LLM_MODELS
+        .iter()
+        .find(|model| model.model_key == model_key)
+        .map(native_f2llm_model_spec)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1254,7 +1329,7 @@ fn initial_native_partial_checkpoint(
         pack_id: pack_id.to_owned(),
         model_key: spec.model_key.clone(),
         model_revision: spec.model_revision.clone(),
-        input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
+        input_format_version: spec.input_format_version.clone(),
         built_by: native_embedding_runtime(),
         dimensions,
         element_type: "f32le".to_owned(),
@@ -1329,7 +1404,7 @@ fn native_partial_header_matches(
         && checkpoint.pack_id == pack_id
         && checkpoint.model_key == spec.model_key
         && checkpoint.model_revision == spec.model_revision
-        && checkpoint.input_format_version == DEFAULT_INPUT_FORMAT_VERSION
+        && checkpoint.input_format_version == spec.input_format_version
         && checkpoint.built_by == native_embedding_runtime()
         && checkpoint.dimensions == dimensions
         && checkpoint.element_type == "f32le"
@@ -1358,7 +1433,7 @@ fn native_partial_corpus_is_compatible(
         CUKTA_CORPUS_ID => (checkpoint.cll_fingerprint.as_str(), checkpoint.cll_rows),
         _ => return false,
     };
-    if corpus.input_format_version != DEFAULT_INPUT_FORMAT_VERSION
+    if corpus.input_format_version != checkpoint.input_format_version
         || corpus.fingerprint != expected_fingerprint
         || corpus.dimensions != dimensions
         || corpus.items_url != format!("corpora/{}/items.json", corpus.corpus_id)
@@ -1445,6 +1520,7 @@ fn native_partial_shards_by_row_start(
 #[ensures(ret.corpus_id == corpus_id)]
 fn native_partial_corpus_from_shards(
     corpus_id: &str,
+    input_format_version: &str,
     fingerprint: &str,
     row_count: usize,
     dimensions: usize,
@@ -1456,7 +1532,7 @@ fn native_partial_corpus_from_shards(
     shards.sort_by_key(|shard| shard.row_start);
     NativePartialCorpus {
         corpus_id: corpus_id.to_owned(),
-        input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
+        input_format_version: input_format_version.to_owned(),
         fingerprint: fingerprint.to_owned(),
         row_count,
         dimensions,
@@ -1742,7 +1818,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
     let dictionary_fingerprint = dictionary_fingerprint(dictionary);
     let cll_fingerprint = cll_fingerprint(cll_chunks);
     let pack_id = deterministic_pack_id(
-        DEFAULT_INPUT_FORMAT_VERSION,
+        &spec.input_format_version,
         &spec.model_revision,
         &dictionary_fingerprint,
         &cll_fingerprint,
@@ -1854,7 +1930,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
         model_key: spec.model_key.clone(),
         model_revision: spec.model_revision.clone(),
         pack_id: pack_id.clone(),
-        input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
+        input_format_version: spec.input_format_version.clone(),
         built_by: native_embedding_runtime(),
         dimensions,
         element_type: "f32le".to_owned(),
@@ -2067,6 +2143,7 @@ where
     let mut partial_shards = native_partial_shards_by_row_start(checkpoint, corpus_id);
     let initial_corpus = native_partial_corpus_from_shards(
         corpus_id,
+        &checkpoint.input_format_version,
         fingerprint,
         rows.len(),
         dimensions,
@@ -2124,6 +2201,7 @@ where
         shards.push(shard);
         let partial_corpus = native_partial_corpus_from_shards(
             corpus_id,
+            &checkpoint.input_format_version,
             fingerprint,
             rows.len(),
             dimensions,
@@ -2136,7 +2214,7 @@ where
     }
     Ok(CorpusManifest {
         corpus_id: corpus_id.to_owned(),
-        input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
+        input_format_version: checkpoint.input_format_version.clone(),
         fingerprint: fingerprint.to_owned(),
         row_count: rows.len(),
         dimensions,
@@ -2158,7 +2236,7 @@ pub fn reuse_existing_embedding_pack_with_progress(
     let dictionary_fingerprint = dictionary_fingerprint(dictionary);
     let cll_fingerprint = cll_fingerprint(cll_chunks);
     let pack_id = deterministic_pack_id(
-        DEFAULT_INPUT_FORMAT_VERSION,
+        &spec.input_format_version,
         &spec.model_revision,
         &dictionary_fingerprint,
         &cll_fingerprint,
@@ -2225,7 +2303,7 @@ pub fn download_precomputed_embedding_pack_with_progress(
     let dictionary_fingerprint = dictionary_fingerprint(dictionary);
     let cll_fingerprint = cll_fingerprint(cll_chunks);
     let expected_pack_id = deterministic_pack_id(
-        DEFAULT_INPUT_FORMAT_VERSION,
+        &spec.input_format_version,
         &spec.model_revision,
         &dictionary_fingerprint,
         &cll_fingerprint,
@@ -2450,11 +2528,11 @@ fn validate_native_pack_manifest(
             ),
         });
     }
-    if manifest.input_format_version != DEFAULT_INPUT_FORMAT_VERSION {
+    if manifest.input_format_version != spec.input_format_version {
         return Err(EmbeddingError::InvalidIndex {
             message: format!(
-                "embedding pack input format `{}` is unsupported",
-                manifest.input_format_version
+                "embedding pack input format `{}` is unsupported for `{}`",
+                manifest.input_format_version, spec.model_key
             ),
         });
     }
@@ -2484,21 +2562,30 @@ fn validate_native_pack_manifest(
         dictionary_fingerprint,
         dictionary_rows,
         spec.dimensions,
+        &spec.input_format_version,
     )?;
     let cll = manifest_corpus(manifest, CUKTA_CORPUS_ID)?;
-    validate_native_corpus_manifest(cll, cll_fingerprint, cll_rows, spec.dimensions)?;
+    validate_native_corpus_manifest(
+        cll,
+        cll_fingerprint,
+        cll_rows,
+        spec.dimensions,
+        &spec.input_format_version,
+    )?;
     Ok(())
 }
 
 #[requires(dimensions > 0)]
+#[requires(!input_format_version.is_empty())]
 #[ensures(true)]
 fn validate_native_corpus_manifest(
     corpus: &CorpusManifest,
     fingerprint: &str,
     rows: usize,
     dimensions: usize,
+    input_format_version: &str,
 ) -> Result<(), EmbeddingError> {
-    if corpus.input_format_version != DEFAULT_INPUT_FORMAT_VERSION {
+    if corpus.input_format_version != input_format_version {
         return Err(EmbeddingError::InvalidIndex {
             message: format!(
                 "corpus `{}` input format `{}` is unsupported",
@@ -3246,11 +3333,32 @@ mod tests {
     fn default_native_model_url_uses_pinned_gguf_revision() {
         let spec = EmbeddingModelSpec::default_f2llm();
         assert_eq!(spec.model_revision, DEFAULT_MODEL_REVISION);
+        assert_eq!(spec.input_format_version, DEFAULT_INPUT_FORMAT_VERSION);
         assert_ne!(spec.native_hf_revision, spec.model_revision);
         assert_eq!(
             model_download_url(&spec),
             "https://huggingface.co/mradermacher/F2LLM-v2-330M-GGUF/resolve/03158c3a78ea1c7a7eea2d6829c49e3f1d63f85f/F2LLM-v2-330M.Q4_K_M.gguf"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_model_table_supports_web_size_family() {
+        let cases = [
+            ("f2llm-v2-80m-q4-k-m-320", 320, 79_111_968),
+            ("f2llm-v2-160m-q4-k-m-640", 640, 151_808_704),
+            (DEFAULT_MODEL_KEY, DEFAULT_MODEL_DIMENSIONS, 286_198_400),
+            ("f2llm-v2-0.6b-q4-k-m-1024", 1024, 396_706_560),
+        ];
+        for (model_key, dimensions, size_bytes) in cases {
+            let spec = model_spec(model_key).expect("native model spec");
+            assert_eq!(spec.model_key, model_key);
+            assert_eq!(spec.dimensions, dimensions);
+            assert_eq!(spec.native_size_bytes, size_bytes);
+            assert!(spec.input_format_version.contains("q4-k-m"));
+            assert_eq!(spec.web_dtype, "q4");
+        }
     }
 
     #[test]

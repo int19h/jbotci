@@ -152,6 +152,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding build rows are constructed immediately from hashed corpus inputs and consumed within one pack build",
     ),
     (
+        "crates/jbotci-embeddings/src/lib.rs:NativeF2LlmModel",
+        "native F2LLM model rows are fixed catalog entries projected into EmbeddingModelSpec",
+    ),
+    (
         "crates/jbotci-embeddings/src/lib.rs:NativePartialBuildCheckpoint",
         "native partial checkpoint compatibility is validated against model and corpus metadata before reuse",
     ),

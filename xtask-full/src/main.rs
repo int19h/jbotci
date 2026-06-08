@@ -55,7 +55,16 @@ const GGUF_VECTOR_PACK_OUT_DIR: &str = ".jbotci-build/r2-gguf-embeddings";
 const GGUF_INDEX_STAGE_DIR: &str = ".jbotci-build/native-gguf-index";
 const GGUF_EMBEDDINGS_R2_PREFIX: &str = "embeddings/gguf/v1";
 const GGUF_REMOTE_CATALOG_URL: &str = "https://assets.jbotci.app/embeddings/gguf/v1/catalog.json";
+const GGUF_80M_MODEL_KEY: &str = "f2llm-v2-80m-q4-k-m-320";
+const GGUF_160M_MODEL_KEY: &str = "f2llm-v2-160m-q4-k-m-640";
 const GGUF_DEFAULT_MODEL_KEY: &str = "f2llm-v2-330m-q4-k-m-896";
+const GGUF_0_6B_MODEL_KEY: &str = "f2llm-v2-0.6b-q4-k-m-1024";
+const GGUF_MODEL_KEYS: &[&str] = &[
+    GGUF_80M_MODEL_KEY,
+    GGUF_160M_MODEL_KEY,
+    GGUF_DEFAULT_MODEL_KEY,
+    GGUF_0_6B_MODEL_KEY,
+];
 const F2LLM_VECTOR_SPACE_KEY: &str = "jbotci-browser-f2llm-q4-f16-windowed-512-v1";
 const F2LLM_MAX_SEQUENCE_LENGTH: usize = 512;
 const R2_UPLOAD_PARALLELISM: usize = 4;
@@ -428,8 +437,8 @@ struct BuildGgufEmbeddingsArgs {
     index_dir: PathBuf,
     #[arg(long)]
     model_dir: Option<PathBuf>,
-    #[arg(long, default_value = GGUF_DEFAULT_MODEL_KEY)]
-    model: String,
+    #[arg(long = "model")]
+    models: Vec<String>,
     #[arg(long)]
     skip_validation: bool,
 }
@@ -506,8 +515,8 @@ struct PublishGgufEmbeddingsR2Args {
     index_dir: PathBuf,
     #[arg(long)]
     model_dir: Option<PathBuf>,
-    #[arg(long, default_value = GGUF_DEFAULT_MODEL_KEY)]
-    model: String,
+    #[arg(long = "model")]
+    models: Vec<String>,
     #[arg(long, default_value = GGUF_REMOTE_CATALOG_URL)]
     remote_catalog_url: String,
     #[arg(long)]
@@ -732,6 +741,16 @@ struct WikiPageIndexEntry {
     parsoid_html: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[invariant(true)]
+struct WikiPageFetchError {
+    pageid: u64,
+    ns: i64,
+    title: String,
+    lastrevid: Option<u64>,
+    error: String,
+}
+
 #[derive(Debug, Clone)]
 #[invariant(true)]
 struct WikiFetchedPage {
@@ -788,6 +807,7 @@ struct WikiVendorReport {
     pages: usize,
     fetched: usize,
     kept: usize,
+    failed: usize,
     removed: usize,
     media_files: usize,
     source_bytes: usize,
@@ -833,6 +853,7 @@ struct WikiSnapshotMetadataRenderArgs<'a> {
     finished_at: &'a str,
     plan: &'a WikiSnapshotPlan,
     page_count: usize,
+    failed_pages: &'a [WikiPageFetchError],
     source_bytes: usize,
     media_manifest: &'a serde_json::Value,
 }
@@ -1163,68 +1184,103 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
     put_r2_object(&args.bucket, &catalog_object)
 }
 
-#[requires(!args.model.trim().is_empty())]
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn build_gguf_embeddings(args: BuildGgufEmbeddingsArgs) -> Result<()> {
     let out_dir = absolute_path(&args.out_dir)?;
     let index_dir = absolute_path(&args.index_dir)?;
-    remove_path_if_exists(&index_dir)?;
-    fs::create_dir_all(&index_dir)
-        .with_context(|| format!("creating `{}`", index_dir.display()))?;
-    let mut command = ProcessCommand::new("cargo");
-    command
-        .arg("run")
-        .arg("--release")
-        .arg("-p")
-        .arg("jbotci")
-        .arg("--")
-        .arg("setup")
-        .arg("--embedding")
-        .arg("--force")
-        .arg("--use-precomputed")
-        .arg("never")
-        .arg("--model")
-        .arg(&args.model)
-        .arg("--index-dir")
-        .arg(&index_dir);
-    if let Some(model_dir) = args.model_dir {
-        command.arg("--model-dir").arg(absolute_path(&model_dir)?);
-    }
-    if args.skip_validation {
-        command.arg("--skip-validation");
-    }
-    let status = command
-        .status()
-        .context("failed to run `cargo run --release -p jbotci -- setup --embedding`")?;
-    check_status(
-        status,
-        "cargo run --release -p jbotci -- setup --embedding --use-precomputed never",
-    )?;
-    let index_version_dir = index_dir.join("v1");
-    if !index_version_dir.is_dir() {
-        bail!(
-            "native embedding setup did not create `{}`",
-            index_version_dir.display()
-        );
-    }
+    let models = selected_gguf_model_keys(&args.models)?;
     remove_path_if_exists(&out_dir)?;
-    copy_dir_recursive(&index_version_dir, &out_dir, "GGUF embedding R2 tree")?;
+    fs::create_dir_all(out_dir.join("models"))
+        .with_context(|| format!("creating `{}`", out_dir.join("models").display()))?;
+    let mut catalog_models = Vec::new();
+    for model in &models {
+        let model_index_dir = index_dir.join(model);
+        remove_path_if_exists(&model_index_dir)?;
+        fs::create_dir_all(&model_index_dir)
+            .with_context(|| format!("creating `{}`", model_index_dir.display()))?;
+        let mut command = ProcessCommand::new("cargo");
+        command
+            .arg("run")
+            .arg("--release")
+            .arg("-p")
+            .arg("jbotci")
+            .arg("--")
+            .arg("setup")
+            .arg("--embedding")
+            .arg("--force")
+            .arg("--use-precomputed")
+            .arg("never")
+            .arg("--model")
+            .arg(model)
+            .arg("--index-dir")
+            .arg(&model_index_dir);
+        if let Some(model_dir) = &args.model_dir {
+            command.arg("--model-dir").arg(absolute_path(model_dir)?);
+        }
+        if args.skip_validation {
+            command.arg("--skip-validation");
+        }
+        let status = command
+            .status()
+            .context("failed to run `cargo run --release -p jbotci -- setup --embedding`")?;
+        check_status(
+            status,
+            "cargo run --release -p jbotci -- setup --embedding --use-precomputed never",
+        )?;
+        let index_version_dir = model_index_dir.join("v1");
+        if !index_version_dir.is_dir() {
+            bail!(
+                "native embedding setup did not create `{}`",
+                index_version_dir.display()
+            );
+        }
+        copy_dir_recursive(
+            &index_version_dir.join("models").join(model),
+            &out_dir.join("models").join(model),
+            "GGUF embedding R2 model tree",
+        )?;
+        let catalog = read_json_file(&index_version_dir.join("catalog.json"))?;
+        let catalog_model = catalog
+            .get("models")
+            .and_then(serde_json::Value::as_array)
+            .and_then(|models| {
+                models
+                    .iter()
+                    .find(|catalog_model| {
+                        catalog_model
+                            .get("model_key")
+                            .and_then(serde_json::Value::as_str)
+                            == Some(model.as_str())
+                    })
+                    .cloned()
+            })
+            .with_context(|| format!("native embedding catalog is missing model `{model}`"))?;
+        catalog_models.push(catalog_model);
+    }
+    write_json_file(
+        &out_dir.join("catalog.json"),
+        &serde_json::json!({
+            "schema_version": 1,
+            "models": catalog_models,
+        }),
+    )?;
     validate_native_gguf_r2_tree(&out_dir)
 }
 
 #[requires(!args.bucket.trim().is_empty())]
 #[requires(!args.prefix.trim().is_empty())]
-#[requires(!args.model.trim().is_empty())]
 #[requires(!args.remote_catalog_url.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
     let out_dir = absolute_path(&args.out_dir)?;
+    let selected_models = selected_gguf_model_keys(&args.models)?;
     if !args.skip_build {
         build_gguf_embeddings(BuildGgufEmbeddingsArgs {
             out_dir: args.out_dir.clone(),
             index_dir: args.index_dir,
             model_dir: args.model_dir,
-            model: args.model.clone(),
+            models: selected_models.to_vec(),
             skip_validation: args.skip_validation,
         })?;
     } else {
@@ -1241,11 +1297,14 @@ fn publish_gguf_embeddings_r2(args: PublishGgufEmbeddingsR2Args) -> Result<()> {
             )
         })?;
     let local_catalog = read_json_file(&out_dir.join("catalog.json"))?;
-    let merged_catalog = merge_embedding_catalog_models(
-        remote_catalog,
-        local_catalog,
-        &BTreeSet::from([args.model.clone()]),
-    )?;
+    let local_model_keys = embedding_catalog_model_keys(&local_catalog)?;
+    let replacement_keys = if args.models.is_empty() {
+        local_model_keys
+    } else {
+        selected_models.into_iter().collect()
+    };
+    let merged_catalog =
+        merge_embedding_catalog_models(remote_catalog, local_catalog, &replacement_keys)?;
     let merged_catalog_dir = absolute_path(Path::new(".jbotci-build/r2-gguf-merged-catalog"))?;
     fs::create_dir_all(&merged_catalog_dir)
         .with_context(|| format!("creating `{}`", merged_catalog_dir.display()))?;
@@ -2614,6 +2673,52 @@ fn r2_upload_native_objects_without_catalog(
         .collect()
 }
 
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|keys| !keys.is_empty()) || ret.is_err())]
+fn selected_gguf_model_keys(models: &[String]) -> Result<Vec<String>> {
+    let allowed = GGUF_MODEL_KEYS.iter().copied().collect::<BTreeSet<_>>();
+    let selected = if models.is_empty() {
+        GGUF_MODEL_KEYS
+            .iter()
+            .map(|model| (*model).to_owned())
+            .collect::<Vec<_>>()
+    } else {
+        let mut seen = BTreeSet::new();
+        let mut selected = Vec::new();
+        for model in models {
+            if !allowed.contains(model.as_str()) {
+                bail!(
+                    "unsupported native GGUF embedding model `{}`; supported models are: {}",
+                    model,
+                    GGUF_MODEL_KEYS.join(", ")
+                );
+            }
+            if seen.insert(model.as_str()) {
+                selected.push(model.clone());
+            }
+        }
+        selected
+    };
+    Ok(selected)
+}
+
+#[requires(catalog.get("models").is_some())]
+#[ensures(ret.as_ref().is_ok_and(|keys| !keys.is_empty()) || ret.is_err())]
+fn embedding_catalog_model_keys(catalog: &serde_json::Value) -> Result<BTreeSet<String>> {
+    let models = catalog
+        .get("models")
+        .and_then(serde_json::Value::as_array)
+        .context("embedding catalog `models` must be an array")?;
+    let mut keys = BTreeSet::new();
+    for model in models {
+        keys.insert(json_string_field(model, "model_key")?.to_owned());
+    }
+    if keys.is_empty() {
+        bail!("embedding catalog must contain at least one model");
+    }
+    Ok(keys)
+}
+
 #[requires(build_root.is_dir())]
 #[requires(!prefix.trim().is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|objects| objects.iter().all(|object| object.object_key.starts_with(prefix.trim().trim_matches('/')))) || ret.is_err())]
@@ -3224,11 +3329,12 @@ fn vendor_wiki(args: VendorWikiArgs) -> Result<()> {
                 return Ok(());
             }
             println!(
-                "vendored {} wiki page(s) into `{}` ({} fetched, {} kept, {} removed, {}, {} media records)",
+                "vendored {} wiki page(s) into `{}` ({} fetched, {} kept, {} failed, {} removed, {}, {} media records)",
                 report.pages,
                 report.output.display(),
                 report.fetched,
                 report.kept,
+                report.failed,
                 report.removed,
                 human_bytes(report.source_bytes as u64),
                 report.media_files
@@ -3281,6 +3387,7 @@ fn vendor_wiki_inner(
             pages: existing.pages.len(),
             fetched: 0,
             kept: existing.pages.len(),
+            failed: 0,
             removed: 0,
             media_files: 0,
             source_bytes: existing.pages.iter().map(|page| page.bytes).sum(),
@@ -3334,6 +3441,7 @@ fn vendor_wiki_inner(
             detail: wiki_page_progress_detail(
                 plan.keep.len(),
                 0,
+                0,
                 plan.removed.len(),
                 client.retry_count,
                 &entry.title,
@@ -3342,17 +3450,28 @@ fn vendor_wiki_inner(
     }
 
     let mut fetched = 0usize;
+    let mut failed_pages = Vec::new();
     for (offset, metadata) in plan.fetch.iter().enumerate() {
-        let fetched_page = fetch_wiki_page(&mut client, metadata).with_context(|| {
+        match fetch_wiki_page(&mut client, metadata).with_context(|| {
             format!(
                 "fetching Parsoid HTML and source for page `{}` ({})",
                 metadata.title, metadata.pageid
             )
-        })?;
-        let report = write_wiki_page(&stage, &fetched_page)?;
-        source_bytes += report.source_bytes;
-        page_entries.push(report.entry);
-        fetched += 1;
+        }) {
+            Ok(fetched_page) => {
+                let report = write_wiki_page(&stage, &fetched_page)?;
+                source_bytes += report.source_bytes;
+                page_entries.push(report.entry);
+                fetched += 1;
+            }
+            Err(error) => {
+                eprintln!(
+                    "[wiki] skipped page {} `{}` because the wiki did not return a source/Parsoid pair: {error:#}",
+                    metadata.pageid, metadata.title
+                );
+                failed_pages.push(wiki_page_fetch_error(metadata, &error));
+            }
+        }
         progress.update(&WikiProgressUpdate {
             phase: WikiProgressPhase::Pages,
             current: plan.keep.len() + offset + 1,
@@ -3360,6 +3479,7 @@ fn vendor_wiki_inner(
             detail: wiki_page_progress_detail(
                 plan.keep.len(),
                 fetched,
+                failed_pages.len(),
                 plan.removed.len(),
                 client.retry_count,
                 &metadata.title,
@@ -3370,6 +3490,10 @@ fn vendor_wiki_inner(
     write_json_file(
         &stage.join("pages").join("index.json"),
         &serde_json::to_value(&page_entries).context("serializing wiki page index")?,
+    )?;
+    write_json_file(
+        &stage.join("pages").join("errors.json"),
+        &serde_json::to_value(&failed_pages).context("serializing wiki page fetch errors")?,
     )?;
 
     progress.update(&WikiProgressUpdate {
@@ -3393,13 +3517,20 @@ fn vendor_wiki_inner(
         finished_at: &finished_at,
         plan: &plan,
         page_count: page_entries.len(),
+        failed_pages: &failed_pages,
         source_bytes,
         media_manifest: &media_manifest,
     });
     write_json_file(&stage.join("snapshot.json"), &snapshot)?;
     fs::write(
         stage.join("README.md"),
-        render_wiki_snapshot_readme(&config, page_entries.len(), source_bytes, &media_manifest),
+        render_wiki_snapshot_readme(
+            &config,
+            page_entries.len(),
+            failed_pages.len(),
+            source_bytes,
+            &media_manifest,
+        ),
     )
     .with_context(|| format!("writing `{}`", stage.join("README.md").display()))?;
 
@@ -3423,6 +3554,7 @@ fn vendor_wiki_inner(
         pages: page_entries.len(),
         fetched,
         kept: plan.keep.len(),
+        failed: failed_pages.len(),
         removed: plan.removed.len(),
         media_files,
         source_bytes,
@@ -3582,12 +3714,15 @@ fn wiki_progress_phase_label(phase: WikiProgressPhase) -> &'static str {
 fn wiki_page_progress_detail(
     kept: usize,
     fetched: usize,
+    failed: usize,
     removed: usize,
     retries: usize,
     current_title: &str,
 ) -> String {
     let title = truncate_progress_text(current_title, 80);
-    format!("kept {kept}, fetched {fetched}, removed {removed}, retries {retries}, {title}")
+    format!(
+        "kept {kept}, fetched {fetched}, failed {failed}, removed {removed}, retries {retries}, {title}"
+    )
 }
 
 #[requires(max_chars > 0)]
@@ -3708,7 +3843,7 @@ impl WikiHttpClient {
             if is_success_status(response.status) {
                 return Ok(response.body);
             }
-            if attempt < self.retries && is_transient_status(response.status) {
+            if attempt < self.retries && is_transient_rest_status(response.status) {
                 self.backoff(attempt, response.retry_after.as_deref());
                 self.retry_count += 1;
                 continue;
@@ -3794,6 +3929,15 @@ fn is_transient_status(status: u16) -> bool {
     matches!(
         status,
         408 | 425 | 429 | 500 | 502 | 503 | 504 | 520 | 521 | 522 | 523 | 524
+    )
+}
+
+#[requires(status > 0)]
+#[ensures(true)]
+fn is_transient_rest_status(status: u16) -> bool {
+    matches!(
+        status,
+        408 | 425 | 429 | 502 | 503 | 504 | 520 | 521 | 522 | 523 | 524
     )
 }
 
@@ -4035,6 +4179,21 @@ fn wiki_page_remote_metadata_from_value(
             .unwrap_or_else(|| serde_json::Value::Array(Vec::new())),
         revision,
     })
+}
+
+#[requires(metadata.pageid > 0)]
+#[ensures(ret.pageid == metadata.pageid)]
+fn wiki_page_fetch_error(
+    metadata: &WikiPageRemoteMetadata,
+    error: &anyhow::Error,
+) -> WikiPageFetchError {
+    WikiPageFetchError {
+        pageid: metadata.pageid,
+        ns: metadata.ns,
+        title: metadata.title.clone(),
+        lastrevid: metadata.lastrevid,
+        error: truncate_progress_text(&format!("{error:#}"), 2000),
+    }
 }
 
 #[requires(value.is_object())]
@@ -4544,14 +4703,29 @@ fn build_wiki_snapshot_plan(
 #[requires(true)]
 #[ensures(true)]
 fn existing_wiki_snapshot_supports_parsoid(output: &Path, existing: &WikiExistingSnapshot) -> bool {
-    existing.pages.iter().all(|entry| {
-        !entry.parsoid_html.is_empty()
-            && !entry.source_sha256.is_empty()
-            && !entry.parsoid_html_sha256.is_empty()
-            && output.join(&entry.meta).is_file()
-            && output.join(&entry.source).is_file()
-            && output.join(&entry.parsoid_html).is_file()
-    })
+    existing_wiki_snapshot_has_no_page_errors(output)
+        && existing.pages.iter().all(|entry| {
+            !entry.parsoid_html.is_empty()
+                && !entry.source_sha256.is_empty()
+                && !entry.parsoid_html_sha256.is_empty()
+                && output.join(&entry.meta).is_file()
+                && output.join(&entry.source).is_file()
+                && output.join(&entry.parsoid_html).is_file()
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn existing_wiki_snapshot_has_no_page_errors(output: &Path) -> bool {
+    let errors_path = output.join("pages").join("errors.json");
+    if !errors_path.exists() {
+        return true;
+    }
+    fs::read_to_string(&errors_path)
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .and_then(|value| value.as_array().map(Vec::is_empty))
+        .unwrap_or(false)
 }
 
 #[requires(true)]
@@ -5144,8 +5318,10 @@ fn render_wiki_snapshot_metadata(args: &WikiSnapshotMetadataRenderArgs<'_>) -> s
         },
         "pages": {
             "count": args.page_count,
+            "failed": args.failed_pages.len(),
             "currentRevisionContentBytes": args.source_bytes,
         },
+        "failedPages": args.failed_pages,
         "media": args.media_manifest.get("summary").cloned().unwrap_or(serde_json::Value::Null),
     })
 }
@@ -5155,6 +5331,7 @@ fn render_wiki_snapshot_metadata(args: &WikiSnapshotMetadataRenderArgs<'_>) -> s
 fn render_wiki_snapshot_readme(
     config: &WikiVendorConfig,
     page_count: usize,
+    failed_page_count: usize,
     source_bytes: usize,
     media_manifest: &serde_json::Value,
 ) -> String {
@@ -5178,14 +5355,16 @@ The snapshot is generated by `cargo xtask vendor-wiki`. Uploaded media binaries 
 - `siteinfo.json`: MediaWiki site metadata.\n\
 - `namespaces.json`: normalized namespace metadata.\n\
 - `pages/index.json`: page manifest with stable page-id paths.\n\
+- `pages/errors.json`: pages that the wiki listed but could not return as a source/Parsoid pair.\n\
 - `pages/by-id/*/source.wiki`: exact raw source for the stored revision.\n\
 - `pages/by-id/*/parsoid.html`: annotated Parsoid HTML for the same revision.\n\
 - `pages/by-id/*/meta.json`: page and revision metadata.\n\
 - `media/manifest.json`: upload metadata and canonical URLs, without binaries.\n\
 - `DIGESTS.sha256`: SHA-256 manifest for all other snapshot files.\n\n\
-The current snapshot contains {} page(s), {}, and {} media record(s) totaling {}.\n",
+The current snapshot contains {} stored page(s), {} page fetch failure(s), {}, and {} media record(s) totaling {}.\n",
         config.source_url,
         page_count,
+        failed_page_count,
         human_bytes(source_bytes as u64),
         media_count,
         human_bytes(media_bytes)
@@ -8899,12 +9078,39 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn wiki_progress_detail_reports_counts_retries_and_current_title() {
-        let detail = wiki_page_progress_detail(12, 3, 1, 2, "The Complete Lojban Language");
+        let detail = wiki_page_progress_detail(12, 3, 1, 1, 2, "The Complete Lojban Language");
         assert!(detail.contains("kept 12"));
         assert!(detail.contains("fetched 3"));
+        assert!(detail.contains("failed 1"));
         assert!(detail.contains("removed 1"));
         assert!(detail.contains("retries 2"));
         assert!(detail.contains("The Complete Lojban Language"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wiki_page_fetch_error_records_metadata_and_message() {
+        let metadata = test_wiki_remote_metadata(104, 74046, "cipra/jbo");
+        let error = anyhow::anyhow!("missing content for page ID 104");
+
+        let record = wiki_page_fetch_error(&metadata, &error);
+
+        assert_eq!(record.pageid, 104);
+        assert_eq!(record.ns, 0);
+        assert_eq!(record.title, "cipra/jbo");
+        assert_eq!(record.lastrevid, Some(74046));
+        assert!(record.error.contains("missing content"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wiki_rest_retry_policy_does_not_retry_page_render_500() {
+        assert!(is_transient_status(500));
+        assert!(!is_transient_rest_status(500));
+        assert!(is_transient_rest_status(503));
+        assert!(is_transient_rest_status(429));
     }
 
     #[requires(pageid > 0)]
