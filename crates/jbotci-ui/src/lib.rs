@@ -18528,7 +18528,10 @@ mod tests {
                 .contains("--code-font: \"Noto Sans\", \"STIX Two Math\", \"Crisa\", monospace;")
         );
         assert!(root_rule.contains("font-family: var(--ui-font);"));
-        assert!(css.contains("button,\ninput,\ntextarea {\n  font: inherit;\n}"));
+        let form_controls_rule = css_rule(css, "button,");
+        assert!(form_controls_rule.contains("input,"));
+        assert!(form_controls_rule.contains("textarea"));
+        assert!(form_controls_rule.contains("font: inherit;"));
 
         let blocks_rule = css_rule(css, ".spa-shell.app-page");
         assert!(blocks_rule.contains("--blocks-font: var(--ui-font);"));

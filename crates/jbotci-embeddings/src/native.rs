@@ -165,7 +165,7 @@ pub fn suppress_llama_logs_for_cli() {
 #[requires(true)]
 #[ensures(true)]
 unsafe extern "C" fn silent_llama_log(
-    _level: core::ffi::c_uint,
+    _level: core::ffi::c_int,
     _text: *const core::ffi::c_char,
     _user_data: *mut core::ffi::c_void,
 ) {
