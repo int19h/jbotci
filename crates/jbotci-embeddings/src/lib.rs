@@ -1240,6 +1240,19 @@ fn rename_replacing(source: &Path, destination: &Path) -> Result<(), EmbeddingEr
     }
 }
 
+#[requires(!path.as_os_str().is_empty())]
+#[requires(!suffix.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|sibling| sibling.parent() == path.parent()) || ret.is_err())]
+fn sibling_path_with_suffix(path: &Path, suffix: &str) -> Result<PathBuf, EmbeddingError> {
+    let file_name = path.file_name().ok_or_else(|| EmbeddingError::Io {
+        context: format!("failed to create sibling path for `{}`", path.display()),
+        source: std::io::Error::new(std::io::ErrorKind::InvalidInput, "path has no file name"),
+    })?;
+    let mut sibling_name = file_name.to_os_string();
+    sibling_name.push(format!(".{suffix}"));
+    Ok(path.with_file_name(sibling_name))
+}
+
 #[requires(!input_format_version.is_empty())]
 #[ensures(!ret.is_empty())]
 pub fn deterministic_pack_id(
@@ -1699,7 +1712,7 @@ pub fn download_model_file_with_progress(
         "Downloading model",
         "Downloading embedding model.",
     ));
-    let partial_path = path.with_extension("downloadInProgress");
+    let partial_path = sibling_path_with_suffix(path, "downloadInProgress")?;
     let mut request = ureq::get(&url);
     if let Ok(token) = env::var(HF_TOKEN_ENV)
         && !token.trim().is_empty()
@@ -1854,7 +1867,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
             index_source: SetupIndexSource::Reused,
         });
     }
-    let work_root = final_pack_root.with_extension("tmp");
+    let work_root = sibling_path_with_suffix(&final_pack_root, "tmp")?;
     let work_pack_root = native_work_pack_root(&work_root);
     let checkpoint_path = native_partial_checkpoint_path(&work_root);
     let mut checkpoint = load_compatible_native_partial_checkpoint(
@@ -2358,7 +2371,7 @@ pub fn download_precomputed_embedding_pack_with_progress(
     }
 
     let final_pack_root = pack_root(index_root, &spec.model_key, &manifest.pack_id);
-    let work_pack_root = final_pack_root.with_extension("downloadInProgress");
+    let work_pack_root = sibling_path_with_suffix(&final_pack_root, "downloadInProgress")?;
     remove_dir_all_if_exists(&work_pack_root)?;
     fs::create_dir_all(&work_pack_root).map_err(|source| EmbeddingError::Io {
         context: format!("failed to create `{}`", work_pack_root.display()),
@@ -2662,7 +2675,7 @@ fn download_url_to_file_with_progress(
         .get("content-length")
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<u64>().ok());
-    let temp_path = destination.with_extension("downloadInProgress");
+    let temp_path = sibling_path_with_suffix(destination, "downloadInProgress")?;
     let mut reader = response.into_body().into_reader();
     let mut writer =
         BufWriter::new(
@@ -3291,12 +3304,12 @@ mod tests {
         cll_chunks: &[CllSearchChunk],
     ) -> Result<PathBuf, EmbeddingError> {
         let pack_id = deterministic_pack_id(
-            DEFAULT_INPUT_FORMAT_VERSION,
+            &spec.input_format_version,
             &spec.model_revision,
             &dictionary_fingerprint(dictionary),
             &cll_fingerprint(cll_chunks),
         );
-        Ok(pack_root(index_root, &spec.model_key, &pack_id).with_extension("tmp"))
+        sibling_path_with_suffix(&pack_root(index_root, &spec.model_key, &pack_id), "tmp")
     }
 
     #[requires(true)]
@@ -3359,6 +3372,18 @@ mod tests {
             assert!(spec.input_format_version.contains("q4-k-m"));
             assert_eq!(spec.web_dtype, "q4");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn temporary_sibling_paths_preserve_dotted_pack_ids() {
+        let path = Path::new("models/f2llm-v2-0.6b-q4-k-m-1024/packs/f2llm-v2-0.6b-pack");
+        let sibling = sibling_path_with_suffix(path, "tmp").expect("sibling path");
+        assert_eq!(
+            sibling,
+            PathBuf::from("models/f2llm-v2-0.6b-q4-k-m-1024/packs/f2llm-v2-0.6b-pack.tmp")
+        );
     }
 
     #[test]
