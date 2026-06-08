@@ -95,6 +95,14 @@ fn push_expectations_toml(
         if !morphology.diagnostics.is_empty() {
             push_field(output, "diagnostics", &morphology.diagnostics)?;
         }
+        if let Some(recovered) = &morphology.recovered {
+            output.push_str("\n[expectations.morphology.recovered]\n");
+            push_field(output, "status", &recovered.status)?;
+            push_optional_field(output, "raw", &recovered.raw)?;
+            if !recovered.diagnostics.is_empty() {
+                push_field(output, "diagnostics", &recovered.diagnostics)?;
+            }
+        }
     }
     if let Some(jvozba) = &expectations.jvozba {
         output.push_str("\n[expectations.jvozba]\n");
@@ -110,6 +118,14 @@ fn push_expectations_toml(
         push_optional_field(output, "raw", &syntax.raw)?;
         if !syntax.diagnostics.is_empty() {
             push_field(output, "diagnostics", &syntax.diagnostics)?;
+        }
+        if let Some(recovered) = &syntax.recovered {
+            output.push_str("\n[expectations.syntax.recovered]\n");
+            push_field(output, "status", &recovered.status)?;
+            push_optional_field(output, "raw", &recovered.raw)?;
+            if !recovered.diagnostics.is_empty() {
+                push_field(output, "diagnostics", &recovered.diagnostics)?;
+            }
         }
         push_optional_field(output, "xfail", &syntax.xfail)?;
     }

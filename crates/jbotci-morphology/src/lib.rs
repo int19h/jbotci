@@ -35,6 +35,8 @@ pub use tree::{
     WordLikeData,
 };
 
+type RecoveredMorphology<T> = tree::recovered::Recovered<T>;
+
 pub const MORPHOLOGY_TRACE_FILTERS: &[&str] = &[
     "morphology",
     "segment",
@@ -116,6 +118,15 @@ impl MorphologyOptions {
 #[derive(Debug, Clone)]
 pub struct MorphologySegmentAttempt {
     pub result: Result<Vec<WordLike>, MorphologyError>,
+    pub warnings: Vec<MorphologyWarning>,
+    pub trace: Option<TraceReport>,
+}
+
+#[invariant(warnings.iter().all(|warning| warning.char_start < warning.char_end))]
+#[derive(Debug, Clone)]
+pub struct RecoveredMorphologySegmentAttempt {
+    pub result: Vec<tree::recovered::WordLike>,
+    pub diagnostics: Vec<MorphologyError>,
     pub warnings: Vec<MorphologyWarning>,
     pub trace: Option<TraceReport>,
 }
@@ -1574,6 +1585,76 @@ pub fn segment_words_with_modifiers_with_options_and_source_id_attempt(
 
 #[requires(true)]
 #[ensures(true)]
+pub fn segment_words_with_modifiers_recovered(input: &str) -> RecoveredMorphologySegmentAttempt {
+    segment_words_with_modifiers_recovered_with_options_and_source_id(
+        input,
+        &MorphologyOptions::default(),
+        None,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn segment_words_with_modifiers_recovered_with_options(
+    input: &str,
+    options: &MorphologyOptions,
+) -> RecoveredMorphologySegmentAttempt {
+    segment_words_with_modifiers_recovered_with_options_and_source_id(input, options, None)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn segment_words_with_modifiers_recovered_with_source_id(
+    input: &str,
+    source_id: SourceId,
+) -> RecoveredMorphologySegmentAttempt {
+    segment_words_with_modifiers_recovered_with_options_and_source_id(
+        input,
+        &MorphologyOptions::default(),
+        Some(source_id),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn segment_words_with_modifiers_recovered_with_options_and_source_id(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> RecoveredMorphologySegmentAttempt {
+    let strict = grammar::segment_words_with_modifiers_attempt(input, options, source_id.clone());
+    let strict_data = strict.into_data();
+    match strict_data.result {
+        Ok(words) => {
+            let words = apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries)
+                .into_iter()
+                .map(recovered_word_like_from_valid)
+                .collect();
+            new!(RecoveredMorphologySegmentAttempt {
+                result: words,
+                diagnostics: Vec::new(),
+                warnings: strict_data.warnings,
+                trace: strict_data.trace,
+            })
+        }
+        Err(_) => {
+            let attempt =
+                grammar::segment_words_with_modifiers_recovered_attempt(input, options, source_id);
+            let data = attempt.into_data();
+            let result =
+                apply_recovered_cmavo_dialect_entries(data.result, &options.cmavo_dialect_entries);
+            new!(RecoveredMorphologySegmentAttempt {
+                result,
+                diagnostics: data.diagnostics,
+                warnings: data.warnings,
+                trace: data.trace,
+            })
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub fn segment_words_with_modifiers_raw(input: &str) -> Result<Vec<WordLike>, MorphologyError> {
     segment_words_with_modifiers_raw_with_options_and_source_id(
         input,
@@ -1675,6 +1756,55 @@ fn apply_cmavo_dialect_entries(
     words
 }
 
+#[requires(entries.iter().all(CmavoDialectEntry::is_valid))]
+#[ensures(true)]
+fn apply_recovered_cmavo_dialect_entries(
+    mut words: Vec<tree::recovered::WordLike>,
+    entries: &[CmavoDialectEntry],
+) -> Vec<tree::recovered::WordLike> {
+    for entry in entries {
+        words = apply_recovered_cmavo_dialect_entry(words, entry);
+    }
+    words
+}
+
+#[requires(entry.is_valid())]
+#[ensures(true)]
+fn apply_recovered_cmavo_dialect_entry(
+    words: Vec<tree::recovered::WordLike>,
+    entry: &CmavoDialectEntry,
+) -> Vec<tree::recovered::WordLike> {
+    words
+        .into_iter()
+        .flat_map(|word_like| apply_recovered_cmavo_dialect_entry_to_word_like(word_like, entry))
+        .collect()
+}
+
+#[requires(entry.is_valid())]
+#[ensures(!ret.is_empty())]
+fn apply_recovered_cmavo_dialect_entry_to_word_like(
+    word_like: tree::recovered::WordLike,
+    entry: &CmavoDialectEntry,
+) -> Vec<tree::recovered::WordLike> {
+    let tree::recovered::WordLike::PlainWord(RecoveredMorphology::Valid(word)) = &word_like else {
+        return vec![word_like];
+    };
+    let Ok(valid_word) = RecoveredMorphology::valid(word.clone())
+        .try_into_valid_with(&mut jbotci_tree::TreePath::new(), |word, path| {
+            word.try_into_valid_at_path(path)
+        })
+    else {
+        return vec![word_like];
+    };
+    let Some(replacement) = cmavo_dialect_replacement(&valid_word, entry) else {
+        return vec![word_like];
+    };
+    replacement
+        .into_iter()
+        .map(recovered_word_like_from_valid)
+        .collect()
+}
+
 #[requires(entry.is_valid())]
 #[ensures(true)]
 fn apply_cmavo_dialect_entry(words: Vec<WordLike>, entry: &CmavoDialectEntry) -> Vec<WordLike> {
@@ -1746,6 +1876,135 @@ fn replacement_cmavo(phonemes: &str, span: &SourceSpan) -> WordLike {
         Phonemes::from_canonical(normalized).expect("dialect cmavo entry is normalized"),
         span.clone(),
     ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn recovered_word_like_from_valid(word_like: WordLike) -> tree::recovered::WordLike {
+    match word_like.into_data() {
+        data!(WordLike::PlainWord(word)) => tree::recovered::WordLike::PlainWord(
+            RecoveredMorphology::valid(recovered_word_from_valid(word)),
+        ),
+        data!(WordLike::QuotedWord { zo, word }) => tree::recovered::WordLike::QuotedWord {
+            zo: Box::new(RecoveredMorphology::valid(recovered_word_from_valid(*zo))),
+            word: Box::new(RecoveredMorphology::valid(recovered_word_from_valid(*word))),
+        },
+        data!(WordLike::DelimitedNonLojbanQuote {
+            zoi,
+            opening_delimiter,
+            quoted_text,
+            closing_delimiter,
+        }) => tree::recovered::WordLike::DelimitedNonLojbanQuote {
+            zoi: Box::new(RecoveredMorphology::valid(recovered_word_from_valid(*zoi))),
+            opening_delimiter: Box::new(RecoveredMorphology::valid(recovered_word_from_valid(
+                *opening_delimiter,
+            ))),
+            quoted_text: Box::new(RecoveredMorphology::valid(recovered_verbatim_from_valid(
+                *quoted_text,
+            ))),
+            closing_delimiter: Box::new(RecoveredMorphology::valid(recovered_word_from_valid(
+                *closing_delimiter,
+            ))),
+        },
+        data!(WordLike::QuotedWords {
+            lohu,
+            quoted_words,
+            lehu,
+        }) => tree::recovered::WordLike::QuotedWords {
+            lohu: Box::new(RecoveredMorphology::valid(recovered_word_from_valid(*lohu))),
+            quoted_words: quoted_words
+                .into_iter()
+                .map(recovered_word_from_valid)
+                .map(RecoveredMorphology::valid)
+                .collect(),
+            lehu: Box::new(RecoveredMorphology::valid(recovered_word_from_valid(*lehu))),
+        },
+        data!(WordLike::DelimitedWordQuote {
+            marker,
+            quoted_text,
+        }) => tree::recovered::WordLike::DelimitedWordQuote {
+            marker: Box::new(RecoveredMorphology::valid(recovered_word_from_valid(
+                *marker,
+            ))),
+            quoted_text: Box::new(RecoveredMorphology::valid(recovered_verbatim_from_valid(
+                *quoted_text,
+            ))),
+        },
+        data!(WordLike::LerfuWord { base, bu }) => tree::recovered::WordLike::LerfuWord {
+            base: Box::new(RecoveredMorphology::valid(recovered_word_like_from_valid(
+                *base,
+            ))),
+            bu: Box::new(RecoveredMorphology::valid(recovered_word_from_valid(*bu))),
+        },
+        data!(WordLike::ZeiCompound { left, zei, right }) => {
+            tree::recovered::WordLike::ZeiCompound {
+                left: Box::new(RecoveredMorphology::valid(recovered_word_like_from_valid(
+                    *left,
+                ))),
+                zei: Box::new(RecoveredMorphology::valid(recovered_word_from_valid(*zei))),
+                right: Box::new(RecoveredMorphology::valid(recovered_word_from_valid(
+                    *right,
+                ))),
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn recovered_word_from_valid(word: Word) -> tree::recovered::Word {
+    match word.into_data() {
+        data!(Word::Cmavo { phonemes, span }) => tree::recovered::Word::Cmavo {
+            phonemes: RecoveredMorphology::valid(phonemes),
+            span: Arc::new(RecoveredMorphology::valid((*span).clone())),
+        },
+        data!(Word::Gismu { phonemes, span }) => tree::recovered::Word::Gismu {
+            phonemes: RecoveredMorphology::valid(phonemes),
+            span: Arc::new(RecoveredMorphology::valid((*span).clone())),
+        },
+        data!(Word::Lujvo { parts, span }) => tree::recovered::Word::Lujvo {
+            parts: Vec1::try_from_vec(
+                parts
+                    .into_iter()
+                    .map(recovered_lujvo_part_from_valid)
+                    .map(RecoveredMorphology::valid)
+                    .collect(),
+            )
+            .expect("valid lujvo parts remain non-empty"),
+            span: Arc::new(RecoveredMorphology::valid((*span).clone())),
+        },
+        data!(Word::Fuhivla { phonemes, span }) => tree::recovered::Word::Fuhivla {
+            phonemes: RecoveredMorphology::valid(phonemes),
+            span: Arc::new(RecoveredMorphology::valid((*span).clone())),
+        },
+        data!(Word::Cmevla { phonemes, span }) => tree::recovered::Word::Cmevla {
+            phonemes: RecoveredMorphology::valid(phonemes),
+            span: Arc::new(RecoveredMorphology::valid((*span).clone())),
+        },
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_lujvo_part_from_valid(part: LujvoPart) -> tree::recovered::LujvoPart {
+    match part {
+        LujvoPart::Rafsi(phonemes) => {
+            tree::recovered::LujvoPart::Rafsi(RecoveredMorphology::valid(phonemes))
+        }
+        LujvoPart::Hyphen(phonemes) => {
+            tree::recovered::LujvoPart::Hyphen(RecoveredMorphology::valid(phonemes))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn recovered_verbatim_from_valid(verbatim: Verbatim) -> tree::recovered::Verbatim {
+    let data = verbatim.into_data();
+    tree::recovered::Verbatim {
+        span: Arc::new(RecoveredMorphology::valid((*data.span).clone())),
+        text: RecoveredMorphology::valid(data.text),
+    }
 }
 
 #[requires(true)]
@@ -2507,6 +2766,127 @@ mod tests {
             assert_eq!(kind.code(), code);
             assert_eq!(kind.message(), message);
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_successful_morphology_round_trips_to_strict_tree() {
+        let strict = segment_words_with_modifiers("mi klama do").expect("valid morphology");
+        let recovered = segment_words_with_modifiers_recovered("mi klama do").into_data();
+
+        assert!(recovered.diagnostics.is_empty());
+        let converted = recovered
+            .result
+            .into_iter()
+            .map(|word_like| word_like.try_into_valid().expect("recovered tree is valid"))
+            .collect::<Vec<_>>();
+        assert_eq!(converted, strict);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_morphology_preserves_invalid_standalone_word() {
+        let recovered = segment_words_with_modifiers_recovered("mi @@@ do").into_data();
+
+        assert_eq!(recovered.result.len(), 3);
+        assert!(matches!(
+            recovered.diagnostics.first(),
+            Some(MorphologyError::Invalid {
+                kind: MorphologyErrorKind::InvalidCharacter,
+                ..
+            })
+        ));
+        assert_recovered_plain_invalid(&recovered.result[1], "@@@");
+        assert_eq!(
+            recovered.result[0]
+                .clone()
+                .try_into_valid()
+                .expect("first word is valid")
+                .bare_word()
+                .map(Word::canonical_phonemes)
+                .as_deref(),
+            Some("mi")
+        );
+        assert_eq!(
+            recovered.result[2]
+                .clone()
+                .try_into_valid()
+                .expect("third word is valid")
+                .bare_word()
+                .map(Word::canonical_phonemes)
+                .as_deref(),
+            Some("do")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_morphology_keeps_invalid_word_inside_lohu_quote() {
+        let recovered = segment_words_with_modifiers_recovered("lo'u broda @@@ le'u").into_data();
+
+        assert_eq!(recovered.result.len(), 1);
+        let tree::recovered::WordLike::QuotedWords { quoted_words, .. } = &recovered.result[0]
+        else {
+            panic!("expected recovered LOhU quote");
+        };
+        assert_eq!(quoted_words.len(), 2);
+        assert_recovered_word_invalid(&quoted_words[1], "@@@");
+        assert!(recovered.result[0].clone().try_into_valid().is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_morphology_keeps_invalid_zoi_delimiter_in_quote() {
+        let recovered = segment_words_with_modifiers_recovered("zoi @@@ foo @@@").into_data();
+
+        assert_eq!(recovered.result.len(), 1);
+        let tree::recovered::WordLike::DelimitedNonLojbanQuote {
+            opening_delimiter,
+            quoted_text,
+            closing_delimiter,
+            ..
+        } = &recovered.result[0]
+        else {
+            panic!("expected recovered ZOI quote");
+        };
+        assert_recovered_word_invalid(opening_delimiter, "@@@");
+        assert_eq!(recovered_verbatim_text(quoted_text).as_deref(), Some("foo"));
+        assert_recovered_word_invalid(closing_delimiter, "@@@");
+        assert!(recovered.result[0].clone().try_into_valid().is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_morphology_unclosed_zoi_spans_to_eof() {
+        let recovered = segment_words_with_modifiers_recovered("zoi gy foo bar").into_data();
+
+        assert_eq!(recovered.result.len(), 1);
+        assert!(matches!(
+            recovered.diagnostics.first(),
+            Some(MorphologyError::UnterminatedZoiQuote { .. })
+        ));
+        let tree::recovered::WordLike::DelimitedNonLojbanQuote {
+            quoted_text,
+            closing_delimiter,
+            ..
+        } = &recovered.result[0]
+        else {
+            panic!("expected recovered ZOI quote");
+        };
+        assert_eq!(
+            recovered_verbatim_text(quoted_text).as_deref(),
+            Some("foo bar")
+        );
+        assert!(matches!(
+            closing_delimiter.as_ref(),
+            tree::recovered::Recovered::Missing(_)
+        ));
+        assert!(recovered.result[0].clone().try_into_valid().is_err());
     }
 
     #[test]
@@ -3357,6 +3737,41 @@ mod tests {
             .iter()
             .map(|word| base_phonemes(word).expect("base word"))
             .collect()
+    }
+
+    #[requires(!expected.is_empty())]
+    #[ensures(true)]
+    fn assert_recovered_plain_invalid(word_like: &tree::recovered::WordLike, expected: &str) {
+        let tree::recovered::WordLike::PlainWord(word) = word_like else {
+            panic!("expected recovered invalid plain word");
+        };
+        assert_recovered_word_invalid(word, expected);
+    }
+
+    #[requires(!expected.is_empty())]
+    #[ensures(true)]
+    fn assert_recovered_word_invalid(
+        word: &tree::recovered::Recovered<tree::recovered::Word>,
+        expected: &str,
+    ) {
+        let tree::recovered::Recovered::Invalid(item) = word else {
+            panic!("expected recovered invalid word");
+        };
+        assert_eq!(item.text, expected);
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
+    fn recovered_verbatim_text(
+        verbatim: &tree::recovered::Recovered<tree::recovered::Verbatim>,
+    ) -> Option<String> {
+        let tree::recovered::Recovered::Valid(verbatim) = verbatim else {
+            return None;
+        };
+        let tree::recovered::Recovered::Valid(text) = &verbatim.text else {
+            return None;
+        };
+        Some(text.clone())
     }
 
     #[requires(!source.is_empty())]

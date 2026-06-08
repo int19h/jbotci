@@ -1548,6 +1548,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture test backend stores scripted outputs and captured invocations",
     ),
     (
+        "crates/jbotci-syntax/src/lib.rs:RecoveredSyntaxParse",
+        "recovered syntax parse wrapper delegates semantic validity to try_into_valid and field-level diagnostics",
+    ),
+    (
+        "crates/jbotci-syntax/src/lib.rs:RecoveredSyntaxParseAttempt",
+        "recovered syntax parse attempt combines recovered parse output with optional trace data",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:InvalidTreeItem",
+        "generic fallback invalid recovery payload preserves parser-provided message shape",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:MissingTreeItem",
+        "generic fallback missing recovery payload preserves parser-provided expected-item shape",
+    ),
+    (
         "tests/support/fixtures/mod.rs:CllSelector",
         "fixture selector validity is checked by fixture profile loading",
     ),
@@ -1618,6 +1634,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "tests/support/fixtures/mod.rs:ReferenceExpectation",
         "semantic refs expectation payload is checked by fixture runner comparisons",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:RecoveredExpectation",
+        "recovered fixture expectation payload is checked by exact fixture runner comparisons",
     ),
     (
         "tests/support/fixtures/mod.rs:ScriptBracketExpectations",

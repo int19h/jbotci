@@ -13,6 +13,21 @@ use jbotci_tree::FieldRef;
 use serde::{Deserialize, Serialize};
 use vec1::Vec1;
 
+#[invariant(!text.is_empty(), "invalid syntax items must preserve source text")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InvalidTreeItem {
+    pub span: Arc<jbotci_source::SourceSpan>,
+    pub text: String,
+    pub diagnostic_code: String,
+}
+
+#[invariant(!expected.is_empty(), "missing syntax items must record what was expected")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MissingTreeItem {
+    pub span: Arc<jbotci_source::SourceSpan>,
+    pub expected: Vec<String>,
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WithFreeModifiers<T> {

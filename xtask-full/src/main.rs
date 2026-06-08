@@ -16,6 +16,7 @@ use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity};
 use jbotci_dictionary::import::parse_lensisku_json;
 use jbotci_morphology::{
     MorphologyError, MorphologyOptions, MorphologyWarning,
+    segment_words_with_modifiers_recovered_with_options_and_source_id,
     segment_words_with_modifiers_with_options_and_source_id,
     segment_words_with_modifiers_with_options_and_source_id_attempt, word_like_syntax_eq,
 };
@@ -31,8 +32,8 @@ use jbotci_semantics::references::{
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
-    ParseOptions, SyntaxError, SyntaxWarning, parse_syntax_tree_with_source_and_options,
-    syntax_tree_eq_ignoring_spans,
+    ParseOptions, SyntaxError, SyntaxWarning, parse_syntax_tree_recovered_with_source_and_options,
+    parse_syntax_tree_with_source_and_options, syntax_tree_eq_ignoring_spans,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -6857,6 +6858,263 @@ fn morphology_warning_diagnostic_expectation_items(
 }
 
 #[requires(true)]
+#[ensures(ret.len() == warnings.len() + errors.len())]
+fn recovered_morphology_diagnostic_expectation_items(
+    source: &str,
+    warnings: &[MorphologyWarning],
+    errors: &[MorphologyError],
+) -> Vec<fixtures::DiagnosticExpectation> {
+    let mut diagnostics = morphology_warning_diagnostic_expectation_items(source, warnings);
+    diagnostics.extend(errors.iter().flat_map(|error| {
+        morphology_error_diagnostic_expectation_items(source, error).into_iter()
+    }));
+    diagnostics
+}
+
+#[requires(true)]
+#[ensures(ret.len() == prefix.len() + parse.warnings.len() + parse.diagnostics.len())]
+fn recovered_syntax_diagnostic_expectation_items(
+    source: &str,
+    prefix: &[fixtures::DiagnosticExpectation],
+    parse: &jbotci_syntax::RecoveredSyntaxParse,
+) -> Vec<fixtures::DiagnosticExpectation> {
+    let mut diagnostics = prefix.to_vec();
+    diagnostics.extend(syntax_warning_diagnostic_expectation_items(
+        source,
+        &parse.warnings,
+    ));
+    diagnostics.extend(
+        parse
+            .diagnostics
+            .iter()
+            .flat_map(|error| syntax_error_diagnostic_expectation_items(source, error).into_iter()),
+    );
+    diagnostics
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().is_none_or(FacetResult::is_valid))]
+fn check_recovered_morphology_success_matches_strict(
+    fixture: &LoadedTestCase,
+    options: &MorphologyOptions,
+    strict_words: &[jbotci_morphology::WordLike],
+    strict_diagnostics: &[fixtures::DiagnosticExpectation],
+) -> Option<FacetResult> {
+    let attempt = segment_words_with_modifiers_recovered_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        options,
+        Some(SourceId("<fixture>".to_owned())),
+    )
+    .into_data();
+    let recovered_diagnostics = recovered_morphology_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &attempt.warnings,
+        &attempt.diagnostics,
+    );
+    if recovered_diagnostics != strict_diagnostics {
+        return Some(FacetResult::failed(format!(
+            "recovered morphology diagnostics differ from strict diagnostics: strict {:?}, recovered {recovered_diagnostics:?}",
+            strict_diagnostics
+        )));
+    }
+    let recovered_words = match attempt
+        .result
+        .into_iter()
+        .map(jbotci_morphology::tree::recovered::WordLike::try_into_valid)
+        .collect::<Result<Vec<_>, _>>()
+    {
+        Ok(words) => words,
+        Err(error) => {
+            return Some(FacetResult::failed(format!(
+                "recovered morphology did not convert to valid tree: {error:?}"
+            )));
+        }
+    };
+    if recovered_words != strict_words {
+        return Some(FacetResult::failed(format!(
+            "recovered morphology valid tree differs from strict tree: strict {}, recovered {}",
+            format_debug_prefix(strict_words),
+            format_debug_prefix(&recovered_words)
+        )));
+    }
+    None
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().is_none_or(FacetResult::is_valid))]
+fn check_recovered_morphology_expectation(
+    fixture: &LoadedTestCase,
+    options: &MorphologyOptions,
+    expectation: &fixtures::RecoveredExpectation,
+) -> Option<FacetResult> {
+    let attempt = segment_words_with_modifiers_recovered_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        options,
+        Some(SourceId("<fixture>".to_owned())),
+    )
+    .into_data();
+    let diagnostics = recovered_morphology_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &attempt.warnings,
+        &attempt.diagnostics,
+    );
+    if diagnostics != expectation.diagnostics {
+        return Some(FacetResult::failed(format!(
+            "recovered morphology diagnostics mismatch: expected {:?}, got {diagnostics:?}",
+            expectation.diagnostics
+        )));
+    }
+    if let Some(raw) = &expectation.raw
+        && !debug_value_matches(&attempt.result, &raw.text)
+    {
+        return Some(FacetResult::failed(format_text_mismatch(
+            "recovered morphology raw",
+            &raw.text,
+            &format_debug_prefix(&attempt.result),
+        )));
+    }
+    let valid_result = attempt
+        .result
+        .into_iter()
+        .map(jbotci_morphology::tree::recovered::WordLike::try_into_valid)
+        .collect::<Result<Vec<_>, _>>();
+    match (expectation.status, valid_result) {
+        (ExpectationStatus::Success, Ok(_)) | (ExpectationStatus::Failure, Err(_)) => None,
+        (ExpectationStatus::Success, Err(error)) => Some(FacetResult::failed(format!(
+            "recovered morphology expected valid conversion, got {error:?}"
+        ))),
+        (ExpectationStatus::Failure, Ok(words)) => Some(FacetResult::failed(format!(
+            "recovered morphology expected invalid conversion, got {} word(s)",
+            words.len()
+        ))),
+        (ExpectationStatus::Pending | ExpectationStatus::NotApplicable, _) => {
+            Some(FacetResult::skipped(format!(
+                "recovered morphology expectation is {:?}",
+                expectation.status
+            )))
+        }
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().is_none_or(FacetResult::is_valid))]
+fn check_recovered_syntax_success_matches_strict(
+    fixture: &LoadedTestCase,
+    morphology_options: &MorphologyOptions,
+    syntax_options: &ParseOptions,
+    strict_parse_tree: &jbotci_syntax::TextSyntax,
+    strict_diagnostics: &[fixtures::DiagnosticExpectation],
+) -> Option<FacetResult> {
+    let morphology = segment_words_with_modifiers_recovered_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    )
+    .into_data();
+    let morphology_diagnostics = recovered_morphology_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &morphology.warnings,
+        &morphology.diagnostics,
+    );
+    let recovered = parse_syntax_tree_recovered_with_source_and_options(
+        &morphology.result,
+        Some(&fixture.test_case.lojban),
+        syntax_options,
+    );
+    let diagnostics = recovered_syntax_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &morphology_diagnostics,
+        &recovered.result,
+    );
+    if diagnostics != strict_diagnostics {
+        return Some(FacetResult::failed(format!(
+            "recovered syntax diagnostics differ from strict diagnostics: strict {:?}, recovered {diagnostics:?}",
+            strict_diagnostics
+        )));
+    }
+    let recovered_tree = *recovered.result.parse_tree;
+    let valid_tree = match recovered_tree.try_into_valid() {
+        Ok(tree) => tree,
+        Err(error) => {
+            return Some(FacetResult::failed(format!(
+                "recovered syntax did not convert to valid tree: {error:?}"
+            )));
+        }
+    };
+    if valid_tree != *strict_parse_tree {
+        return Some(FacetResult::failed(format!(
+            "recovered syntax valid tree differs from strict tree: strict {}, recovered {}",
+            format_debug_prefix(strict_parse_tree),
+            format_debug_prefix(&valid_tree)
+        )));
+    }
+    None
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().is_none_or(FacetResult::is_valid))]
+fn check_recovered_syntax_expectation(
+    fixture: &LoadedTestCase,
+    morphology_options: &MorphologyOptions,
+    syntax_options: &ParseOptions,
+    expectation: &fixtures::RecoveredExpectation,
+) -> Option<FacetResult> {
+    let morphology = segment_words_with_modifiers_recovered_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    )
+    .into_data();
+    let morphology_diagnostics = recovered_morphology_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &morphology.warnings,
+        &morphology.diagnostics,
+    );
+    let recovered = parse_syntax_tree_recovered_with_source_and_options(
+        &morphology.result,
+        Some(&fixture.test_case.lojban),
+        syntax_options,
+    );
+    let diagnostics = recovered_syntax_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &morphology_diagnostics,
+        &recovered.result,
+    );
+    if diagnostics != expectation.diagnostics {
+        return Some(FacetResult::failed(format!(
+            "recovered syntax diagnostics mismatch: expected {:?}, got {diagnostics:?}",
+            expectation.diagnostics
+        )));
+    }
+    if let Some(raw) = &expectation.raw
+        && !debug_value_matches(&recovered.result.parse_tree, &raw.text)
+    {
+        return Some(FacetResult::failed(format_text_mismatch(
+            "recovered syntax raw",
+            &raw.text,
+            &format_debug_prefix(&recovered.result.parse_tree),
+        )));
+    }
+    let recovered_tree = *recovered.result.parse_tree;
+    match (expectation.status, recovered_tree.try_into_valid()) {
+        (ExpectationStatus::Success, Ok(_)) | (ExpectationStatus::Failure, Err(_)) => None,
+        (ExpectationStatus::Success, Err(error)) => Some(FacetResult::failed(format!(
+            "recovered syntax expected valid conversion, got {error:?}"
+        ))),
+        (ExpectationStatus::Failure, Ok(tree)) => Some(FacetResult::failed(format!(
+            "recovered syntax expected invalid conversion, got {}",
+            format_debug_prefix(&tree)
+        ))),
+        (ExpectationStatus::Pending | ExpectationStatus::NotApplicable, _) => {
+            Some(FacetResult::skipped(format!(
+                "recovered syntax expectation is {:?}",
+                expectation.status
+            )))
+        }
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn format_debug_value<T: std::fmt::Debug + ?Sized>(value: &T) -> String {
     format!("{value:?}")
@@ -6898,7 +7156,7 @@ impl fmt::Write for DebugMatchWriter<'_> {
 
 #[requires(true)]
 #[ensures(true)]
-fn format_debug_prefix<T: std::fmt::Debug>(value: &T) -> String {
+fn format_debug_prefix<T: std::fmt::Debug + ?Sized>(value: &T) -> String {
     let mut writer = DebugPrefixWriter {
         output: String::new(),
         truncated: false,
@@ -6969,6 +7227,7 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
     for chunk in paths.chunks(FIXTURE_TEST_CHUNK_SIZE) {
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(jobs)
+            .stack_size(FIXTURE_TEST_WORKER_STACK_SIZE)
             .build()
             .context("creating fixture-test thread pool")?;
         let chunk_summary = pool
@@ -7485,6 +7744,7 @@ fn default_fixture_jobs() -> usize {
 const FIXTURE_TEST_CHUNK_SIZE: usize = 8;
 const FIXTURE_TEST_SUBPROCESS_CHUNK_SIZE: usize = 64;
 const FIXTURE_REWRITE_SUBPROCESS_CHUNK_SIZE: usize = 64;
+const FIXTURE_TEST_WORKER_STACK_SIZE: usize = 16 * 1024 * 1024;
 const DEFAULT_TEST_JOBS: usize = 16;
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
 
@@ -8529,7 +8789,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
     let words = match attempt.result {
         Ok(words) => words,
         Err(error) => {
-            return match expectation.status {
+            let strict_result = match expectation.status {
                 ExpectationStatus::Failure => {
                     if !expectation.diagnostics.is_empty() {
                         let mut actual = morphology_warning_diagnostics.clone();
@@ -8563,6 +8823,20 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     FacetResult::skipped(format!("syntax expectation is {:?}", expectation.status))
                 }
             };
+            if matches!(
+                strict_result.status,
+                fixtures::FacetStatus::Passed | fixtures::FacetStatus::Xfailed
+            ) && let Some(recovered) = &expectation.recovered
+                && let Some(result) = check_recovered_syntax_expectation(
+                    fixture,
+                    &options,
+                    &syntax_options,
+                    recovered,
+                )
+            {
+                return result;
+            }
+            return strict_result;
         }
     };
 
@@ -8573,18 +8847,37 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
     ) {
         Ok(parsed) => match expectation.status {
             ExpectationStatus::Success => {
+                let mut strict_diagnostics = morphology_warning_diagnostics.clone();
+                strict_diagnostics.extend(syntax_warning_diagnostic_expectation_items(
+                    &fixture.test_case.lojban,
+                    &parsed.warnings,
+                ));
                 if !expectation.diagnostics.is_empty() {
-                    let mut actual = morphology_warning_diagnostics.clone();
-                    actual.extend(syntax_warning_diagnostic_expectation_items(
-                        &fixture.test_case.lojban,
-                        &parsed.warnings,
-                    ));
-                    if expectation.diagnostics != actual {
+                    if expectation.diagnostics != strict_diagnostics {
                         return FacetResult::failed(format!(
-                            "syntax diagnostics mismatch: expected {:?}, got {actual:?}",
+                            "syntax diagnostics mismatch: expected {:?}, got {strict_diagnostics:?}",
                             expectation.diagnostics
                         ));
                     }
+                }
+                if let Some(result) = check_recovered_syntax_success_matches_strict(
+                    fixture,
+                    &options,
+                    &syntax_options,
+                    parsed.parse_tree.as_ref(),
+                    &strict_diagnostics,
+                ) {
+                    return result;
+                }
+                if let Some(recovered) = &expectation.recovered
+                    && let Some(result) = check_recovered_syntax_expectation(
+                        fixture,
+                        &options,
+                        &syntax_options,
+                        recovered,
+                    )
+                {
+                    return result;
                 }
                 if expectation.raw.is_none() && !expectation.diagnostics.is_empty() {
                     syntax_xfail_result(expectation, ExpectationStatus::Success, true)
@@ -8623,12 +8916,30 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                         return FacetResult::failed("syntax success xfail has no raw tree");
                     };
                     if debug_value_matches(&parsed.parse_tree, &expected_raw.text) {
-                        syntax_xfail_result(expectation, ExpectationStatus::Success, true)
-                            .unwrap_or_else(|| {
-                                FacetResult::failed(
-                                    "syntax xfail unexpectedly missing accepted success metadata",
-                                )
-                            })
+                        let strict_result = syntax_xfail_result(
+                            expectation,
+                            ExpectationStatus::Success,
+                            true,
+                        )
+                        .unwrap_or_else(|| {
+                            FacetResult::failed(
+                                "syntax xfail unexpectedly missing accepted success metadata",
+                            )
+                        });
+                        if matches!(
+                            strict_result.status,
+                            fixtures::FacetStatus::Passed | fixtures::FacetStatus::Xfailed
+                        ) && let Some(recovered) = &expectation.recovered
+                            && let Some(result) = check_recovered_syntax_expectation(
+                                fixture,
+                                &options,
+                                &syntax_options,
+                                recovered,
+                            )
+                        {
+                            return result;
+                        }
+                        strict_result
                     } else {
                         FacetResult::failed(format!(
                             "syntax xfail accepted success, but {}",
@@ -8663,8 +8974,23 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                         &error,
                     ));
                     if expectation.diagnostics == actual {
-                        syntax_xfail_result(expectation, ExpectationStatus::Failure, true)
-                            .unwrap_or_else(FacetResult::passed)
+                        let strict_result =
+                            syntax_xfail_result(expectation, ExpectationStatus::Failure, true)
+                                .unwrap_or_else(FacetResult::passed);
+                        if matches!(
+                            strict_result.status,
+                            fixtures::FacetStatus::Passed | fixtures::FacetStatus::Xfailed
+                        ) && let Some(recovered) = &expectation.recovered
+                            && let Some(result) = check_recovered_syntax_expectation(
+                                fixture,
+                                &options,
+                                &syntax_options,
+                                recovered,
+                            )
+                        {
+                            return result;
+                        }
+                        strict_result
                     } else {
                         FacetResult::failed(format!(
                             "syntax diagnostics mismatch: expected {:?}, got {actual:?}",
@@ -8672,8 +8998,23 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                         ))
                     }
                 } else {
-                    syntax_xfail_result(expectation, ExpectationStatus::Failure, true)
-                        .unwrap_or_else(FacetResult::passed)
+                    let strict_result =
+                        syntax_xfail_result(expectation, ExpectationStatus::Failure, true)
+                            .unwrap_or_else(FacetResult::passed);
+                    if matches!(
+                        strict_result.status,
+                        fixtures::FacetStatus::Passed | fixtures::FacetStatus::Xfailed
+                    ) && let Some(recovered) = &expectation.recovered
+                        && let Some(result) = check_recovered_syntax_expectation(
+                            fixture,
+                            &options,
+                            &syntax_options,
+                            recovered,
+                        )
+                    {
+                        return result;
+                    }
+                    strict_result
                 }
             }
             ExpectationStatus::Pending | ExpectationStatus::NotApplicable => {
@@ -8729,17 +9070,31 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
             let attempt = attempt.into_data();
             match attempt.result {
                 Ok(actual) => {
+                    let strict_diagnostics = morphology_warning_diagnostic_expectation_items(
+                        &fixture.test_case.lojban,
+                        &attempt.warnings,
+                    );
                     if !expectation.diagnostics.is_empty() {
-                        let diagnostics = morphology_warning_diagnostic_expectation_items(
-                            &fixture.test_case.lojban,
-                            &attempt.warnings,
-                        );
-                        if expectation.diagnostics != diagnostics {
+                        if expectation.diagnostics != strict_diagnostics {
                             return FacetResult::failed(format!(
-                                "morphology diagnostics mismatch: expected {:?}, got {diagnostics:?}",
+                                "morphology diagnostics mismatch: expected {:?}, got {strict_diagnostics:?}",
                                 expectation.diagnostics
                             ));
                         }
+                    }
+                    if let Some(result) = check_recovered_morphology_success_matches_strict(
+                        fixture,
+                        &options,
+                        &actual,
+                        &strict_diagnostics,
+                    ) {
+                        return result;
+                    }
+                    if let Some(recovered) = &expectation.recovered
+                        && let Some(result) =
+                            check_recovered_morphology_expectation(fixture, &options, recovered)
+                    {
+                        return result;
                     }
                     if expectation.raw.is_none() && !expectation.diagnostics.is_empty() {
                         return FacetResult::passed();
@@ -8777,7 +9132,14 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
                             ))
                         }
                     } else {
-                        FacetResult::failed(format!("morphology error: {error}"))
+                        let result = FacetResult::failed(format!("morphology error: {error}"));
+                        if let Some(recovered) = &expectation.recovered
+                            && let Some(recovered_result) =
+                                check_recovered_morphology_expectation(fixture, &options, recovered)
+                        {
+                            return recovered_result;
+                        }
+                        result
                     }
                 }
             }
@@ -8803,13 +9165,27 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
                             &error,
                         );
                         return if expectation.diagnostics == actual {
-                            FacetResult::passed()
+                            if let Some(recovered) = &expectation.recovered
+                                && let Some(result) = check_recovered_morphology_expectation(
+                                    fixture, &options, recovered,
+                                )
+                            {
+                                result
+                            } else {
+                                FacetResult::passed()
+                            }
                         } else {
                             FacetResult::failed(format!(
                                 "morphology diagnostics mismatch: expected {:?}, got {actual:?}",
                                 expectation.diagnostics
                             ))
                         };
+                    }
+                    if let Some(recovered) = &expectation.recovered
+                        && let Some(result) =
+                            check_recovered_morphology_expectation(fixture, &options, recovered)
+                    {
+                        return result;
                     }
                     FacetResult::passed()
                 }

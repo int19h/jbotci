@@ -359,7 +359,7 @@ pub(crate) fn syntax_grammar_svg(options: &ParseOptions) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn syntax_tokens(words: &[WordLike]) -> Vec<Token> {
+pub(crate) fn syntax_tokens(words: &[WordLike]) -> Vec<Token> {
     attach_indicators(attach_bahe(
         words.iter().cloned().map(Token::bare).collect(),
     ))

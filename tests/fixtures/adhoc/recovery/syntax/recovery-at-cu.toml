@@ -1,0 +1,11 @@
+id = "adhoc.recovery.syntax.recovery-at-cu"
+lojban = "mi cu ku"
+tags = ["adhoc", "recovery", "syntax"]
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "ku", message = "unexpected cmavo" }]

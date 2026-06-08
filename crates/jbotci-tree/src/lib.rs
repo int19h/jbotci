@@ -11,6 +11,113 @@ use serde::{Deserialize, Serialize};
 pub use jbotci_tree_macros::tree_model;
 
 #[invariant(true)]
+#[invariant(::Valid(_) => true)]
+#[invariant(::Invalid(_) => true)]
+#[invariant(::Missing(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "kebab-case")]
+pub enum Recovered<T, I, M> {
+    Valid(T),
+    Invalid(I),
+    Missing(M),
+}
+
+impl<T, I, M> Recovered<T, I, M> {
+    #[requires(true)]
+    #[ensures(matches!(ret, Self::Valid(_)))]
+    pub fn valid(value: T) -> Self {
+        Self::Valid(value)
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret, Self::Invalid(_)))]
+    pub fn invalid(item: I) -> Self {
+        Self::Invalid(item)
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret, Self::Missing(_)))]
+    pub fn missing(item: M) -> Self {
+        Self::Missing(item)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn try_into_valid_with<V>(
+        self,
+        path: &mut TreePath,
+        convert: impl FnOnce(T, &mut TreePath) -> Result<V, RecoveryError<I, M>>,
+    ) -> Result<V, RecoveryError<I, M>> {
+        match self {
+            Self::Valid(value) => convert(value, path),
+            Self::Invalid(item) => Err(RecoveryError::invalid(path.clone(), item)),
+            Self::Missing(item) => Err(RecoveryError::missing(path.clone(), item)),
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InvalidTreeItem {
+    pub message: String,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MissingTreeItem {
+    pub expected: Vec<String>,
+}
+
+#[invariant(true)]
+#[invariant(::Invalid { .. } => true)]
+#[invariant(::Missing { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum RecoveryError<I, M> {
+    Invalid { path: TreePath, item: I },
+    Missing { path: TreePath, item: M },
+}
+
+impl<I, M> RecoveryError<I, M> {
+    #[requires(true)]
+    #[ensures(matches!(ret, Self::Invalid { .. }))]
+    pub fn invalid(path: TreePath, item: I) -> Self {
+        Self::Invalid { path, item }
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret, Self::Missing { .. }))]
+    pub fn missing(path: TreePath, item: M) -> Self {
+        Self::Missing { path, item }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn path(&self) -> &TreePath {
+        match self {
+            Self::Invalid { path, .. } | Self::Missing { path, .. } => path,
+        }
+    }
+}
+
+impl<I, M> fmt::Display for RecoveryError<I, M> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Invalid { path, .. } => {
+                write!(formatter, "invalid recovered tree item at {path}")
+            }
+            Self::Missing { path, .. } => {
+                write!(formatter, "missing recovered tree item at {path}")
+            }
+        }
+    }
+}
+
+impl<I: fmt::Debug, M: fmt::Debug> std::error::Error for RecoveryError<I, M> {}
+
+#[invariant(true)]
 #[invariant(::Field => name.as_ref().is_none_or(|name| !name.is_empty()))]
 #[invariant(::SequenceIndex(_) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -330,6 +437,54 @@ mod tests {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_leaf_node(text: &str) -> recovered::LeafNode {
+        recovered::LeafNode {
+            text: recovered::Recovered::valid(text.to_owned()),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret, recovered::Recovered::Valid(_)))]
+    fn recovered_leaf(text: &str) -> recovered::Recovered<recovered::LeafNode> {
+        recovered::Recovered::valid(recovered_leaf_node(text))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.rest.is_none())]
+    #[ensures(ret.many.len() == 1)]
+    #[ensures(ret.aliases.len() == 1)]
+    #[ensures(!ret.small.is_empty())]
+    fn sample_recovered_pair_node() -> recovered::PairNode {
+        recovered::PairNode {
+            first: recovered_leaf("first"),
+            ignored: recovered::Recovered::valid("ignored".to_owned()),
+            rest: None,
+            many: vec![recovered_leaf("many")],
+            aliases: vec![recovered_leaf("aliases")],
+            alias: Some(recovered_leaf("alias")),
+            vec1: Vec1::new(recovered_leaf("vec1")),
+            small: SmallVec::from_vec(vec![recovered_leaf("small")]),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.message.is_empty())]
+    fn invalid_item(message: &str) -> InvalidTreeItem {
+        InvalidTreeItem {
+            message: message.to_owned(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.expected.is_empty())]
+    fn missing_item(expected: &str) -> MissingTreeItem {
+        MissingTreeItem {
+            expected: vec![expected.to_owned()],
+        }
+    }
+
     #[derive(Debug, Default)]
     #[invariant(true)]
     struct NodeKindVisitor {
@@ -508,6 +663,89 @@ mod tests {
         set.insert(repeated_first_ref);
         set.insert(second_ref);
         assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_tree_round_trips_to_valid_tree() {
+        let recovered = sample_recovered_pair_node();
+        let valid = recovered.try_into_valid().expect("all slots are valid");
+
+        assert_eq!(
+            valid,
+            PairNode {
+                first: LeafNode {
+                    text: "first".to_owned(),
+                },
+                ignored: "ignored".to_owned(),
+                rest: None,
+                many: vec![LeafNode {
+                    text: "many".to_owned(),
+                }],
+                aliases: vec![LeafNode {
+                    text: "aliases".to_owned(),
+                }],
+                alias: Some(LeafNode {
+                    text: "alias".to_owned(),
+                }),
+                vec1: Vec1::new(LeafNode {
+                    text: "vec1".to_owned(),
+                }),
+                small: SmallVec::from_vec(vec![LeafNode {
+                    text: "small".to_owned(),
+                }]),
+            }
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_invalid_sequence_slot_reports_tree_path() {
+        let mut recovered = sample_recovered_pair_node();
+        recovered.many = vec![recovered::Recovered::invalid(invalid_item("bad leaf"))];
+
+        let error = recovered
+            .try_into_valid()
+            .expect_err("invalid slot rejects");
+        assert_eq!(
+            error.path(),
+            &TreePath::from_steps(vec![
+                TreePathStep::field(Some("many"), 3),
+                TreePathStep::sequence_index(0),
+            ])
+        );
+        assert!(matches!(
+            error,
+            RecoveryError::Invalid {
+                item: InvalidTreeItem { message },
+                ..
+            } if message == "bad leaf"
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_missing_optional_inner_reports_present_field_path() {
+        let mut recovered = sample_recovered_pair_node();
+        recovered.alias = Some(recovered::Recovered::missing(missing_item("leaf")));
+
+        let error = recovered
+            .try_into_valid()
+            .expect_err("missing slot rejects");
+        assert_eq!(
+            error.path(),
+            &TreePath::from_steps(vec![TreePathStep::field(Some("alias"), 5)])
+        );
+        assert!(matches!(
+            error,
+            RecoveryError::Missing {
+                item: MissingTreeItem { expected },
+                ..
+            } if expected == vec!["leaf".to_owned()]
+        ));
     }
 
     #[test]

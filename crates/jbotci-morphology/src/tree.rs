@@ -10,6 +10,21 @@ use vec1::Vec1;
 
 use crate::{Cmavo, Phonemes, Selmaho};
 
+#[invariant(!text.is_empty(), "invalid morphology items must preserve source text")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InvalidTreeItem {
+    pub span: Arc<SourceSpan>,
+    pub text: String,
+    pub diagnostic_code: String,
+}
+
+#[invariant(!expected.is_empty(), "missing morphology items must record what was expected")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MissingTreeItem {
+    pub span: Arc<SourceSpan>,
+    pub expected: Vec<String>,
+}
+
 tree_model! {
     #[invariant(::Cmavo => span.char_len() > 0)]
     #[invariant(::Gismu => span.char_len() > 0)]

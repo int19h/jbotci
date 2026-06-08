@@ -36,6 +36,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "trybuild failure fixture intentionally uses placeholder syntax",
     ),
     (
+        "crates/jbotci-tree/src/lib.rs:Recovered::Valid",
+        "generic recovery slot validity is determined by the wrapped tree value",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:Recovered::Invalid",
+        "generic recovery slot carries parser-owned invalid payload without shared semantic invariant",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:Recovered::Missing",
+        "generic recovery slot carries parser-owned missing payload without shared semantic invariant",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:RecoveryError::Invalid",
+        "generic recovery error records a path plus parser-owned invalid payload",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:RecoveryError::Missing",
+        "generic recovery error records a path plus parser-owned missing payload",
+    ),
+    (
         "crates/jbotci-output/src/sexpr.rs:SExpr::Leaf",
         "render tree leaf text is normalized by constructors and empty leaves collapse to nodes",
     ),

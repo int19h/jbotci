@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel, TracePhase, TraceRecorder};
 use jbotci_source::{SourceId, SourceSpan};
@@ -5,9 +7,11 @@ use jbotci_source::{SourceId, SourceSpan};
 use crate::{
     Cmavo, ExpectedWordDetailKind, MorphologyContext, MorphologyContextKind, MorphologyError,
     MorphologyErrorDetail, MorphologyErrorDetailData, MorphologyErrorKind, MorphologyOptions,
-    MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind, Phonemes, Selmaho,
-    Verbatim, Word, WordKind, WordLike, WordLikeData, ZoiDelimiterDetailKind, canonical_text_eq,
-    canonical_text_is_all, canonicalize_text, erasure_selmaho,
+    MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind, Phonemes,
+    RecoveredMorphologySegmentAttempt, Selmaho, Verbatim, Word, WordKind, WordLike, WordLikeData,
+    ZoiDelimiterDetailKind, canonical_text_eq, canonical_text_is_all, canonicalize_text,
+    erasure_selmaho,
+    tree::{self, InvalidTreeItem, MissingTreeItem},
 };
 
 #[requires(true)]
@@ -53,6 +57,17 @@ pub(crate) fn segment_words_with_modifiers_raw_attempt(
 ) -> MorphologySegmentAttempt {
     let segmenter = Segmenter::new(input, options, source_id);
     segmenter.segment_raw_attempt()
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn segment_words_with_modifiers_recovered_attempt(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> RecoveredMorphologySegmentAttempt {
+    let segmenter = Segmenter::new(input, options, source_id);
+    segmenter.segment_recovered_attempt()
 }
 
 #[requires(true)]
@@ -144,6 +159,21 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn segment_recovered_attempt(mut self) -> RecoveredMorphologySegmentAttempt {
+        self.trace_step(TraceLevel::Top, "morphology recovered", 0, 0, || None);
+        let mut diagnostics = Vec::new();
+        let result = self.segment_recovered(&mut diagnostics);
+        let trace = self.trace.finish();
+        new!(RecoveredMorphologySegmentAttempt {
+            result,
+            diagnostics,
+            warnings: self.warnings,
+            trace,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn segment_raw(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
         let mut acc = Vec::new();
         while self.skip_magic_noise(true)? {
@@ -154,6 +184,24 @@ impl<'a> Segmenter<'a> {
             self.process_segment(&mut acc, segment)?;
         }
         Ok(acc)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn segment_recovered(
+        &mut self,
+        diagnostics: &mut Vec<MorphologyError>,
+    ) -> Vec<tree::recovered::WordLike> {
+        let mut acc = Vec::new();
+        loop {
+            self.skip_separators();
+            if self.index == self.chars.len() {
+                break;
+            }
+            let segment = self.next_recovered_segment(diagnostics);
+            acc.extend(segment);
+        }
+        acc
     }
 
     #[requires(true)]
@@ -386,6 +434,78 @@ impl<'a> Segmenter<'a> {
             ));
         }
         Ok(vec![word])
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn next_recovered_segment(
+        &mut self,
+        diagnostics: &mut Vec<MorphologyError>,
+    ) -> Vec<tree::recovered::WordLike> {
+        self.skip_separators();
+        if self.index == self.chars.len() {
+            return Vec::new();
+        }
+        if self.peek_char().is_some_and(|value| value.is_ascii_digit()) {
+            let candidate_end = self.candidate_end(self.index);
+            if self.is_digit_sequence_candidate(self.index, candidate_end) {
+                return match self.digit_sequence() {
+                    Ok(words) => words
+                        .into_iter()
+                        .map(crate::recovered_word_like_from_valid)
+                        .collect(),
+                    Err(error) => self.recover_invalid_word(error, self.index, diagnostics),
+                };
+            }
+        }
+
+        let start = self.index;
+        let word = match self.next_plain_word() {
+            Ok(word) => word,
+            Err(error) => return self.recover_invalid_word(error, start, diagnostics),
+        };
+
+        if is_simple_cmavo_text(&word, "lo'u") {
+            return self.recovered_lohu_quote(word, diagnostics);
+        }
+        if is_simple_cmavo_text(&word, "zoi")
+            || is_simple_cmavo_text(&word, "la'o")
+            || is_simple_cmavo_text(&word, "mu'oi")
+        {
+            return vec![self.recovered_zoi_quote(word, diagnostics)];
+        }
+        if is_single_word_quote_marker_text(&word) {
+            let saved = self.index;
+            return match self.single_word_quote(word.clone()) {
+                Ok(words) => words
+                    .into_iter()
+                    .map(crate::recovered_word_like_from_valid)
+                    .collect(),
+                Err(error) => {
+                    diagnostics.push(error);
+                    self.index = saved;
+                    vec![crate::recovered_word_like_from_valid(word)]
+                }
+            };
+        }
+        if is_simple_cmavo_text(&word, "zo") || is_simple_cmavo_text(&word, "ma'oi") {
+            let saved = self.index;
+            return match self.zo_quote(word.clone()) {
+                Ok(words) => words
+                    .into_iter()
+                    .map(crate::recovered_word_like_from_valid)
+                    .collect(),
+                Err(error) => {
+                    diagnostics.push(error);
+                    self.index = saved;
+                    vec![crate::recovered_word_like_from_valid(word)]
+                }
+            };
+        }
+        if is_simple_cmavo_text(&word, "fa'o") {
+            self.index = self.chars.len();
+        }
+        vec![crate::recovered_word_like_from_valid(word)]
     }
 
     #[requires(true)]
@@ -806,6 +926,246 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn recovered_zoi_quote(
+        &mut self,
+        zoi_word_with_modifiers: WordLike,
+        diagnostics: &mut Vec<MorphologyError>,
+    ) -> tree::recovered::WordLike {
+        let after_marker = self.index;
+        self.skip_separators();
+        let quote_context = word_like_context(
+            &zoi_word_with_modifiers,
+            MorphologyContextKind::DelimitedNonLojbanQuote,
+        );
+        let zoi = into_bare_word(zoi_word_with_modifiers.clone()).ok_or_else(|| {
+            self.invalid_span(
+                MorphologyErrorKind::InvalidQuoteMarker,
+                after_marker,
+                after_marker,
+                quote_context.clone(),
+            )
+        });
+        let zoi = match zoi {
+            Ok(zoi) => zoi,
+            Err(error) => {
+                diagnostics.push(error);
+                return crate::recovered_word_like_from_valid(zoi_word_with_modifiers);
+            }
+        };
+
+        let delimiter_start = self.index;
+        let opening_word_with_modifiers = match self.next_plain_word() {
+            Ok(opening_word_with_modifiers) => opening_word_with_modifiers,
+            Err(error) => {
+                diagnostics.push(error.clone());
+                return self.recovered_zoi_quote_with_invalid_opening(
+                    zoi,
+                    error,
+                    delimiter_start,
+                    after_marker,
+                    diagnostics,
+                );
+            }
+        };
+        let delimiter_context = word_like_context(
+            &opening_word_with_modifiers,
+            MorphologyContextKind::DelimitedNonLojbanQuote,
+        );
+        let opening_delimiter = into_bare_word(opening_word_with_modifiers.clone());
+        let Some(opening_delimiter) = opening_delimiter else {
+            let error = self.invalid_span_with_detail(
+                MorphologyErrorKind::InvalidZoiDelimiter,
+                delimiter_start,
+                self.index,
+                delimiter_context,
+                Some(new!(MorphologyErrorDetail::InvalidZoiDelimiter {
+                    reason: ZoiDelimiterDetailKind::NotSingleWord,
+                })),
+            );
+            diagnostics.push(error.clone());
+            return self.recovered_zoi_quote_with_invalid_opening(
+                zoi,
+                error,
+                delimiter_start,
+                after_marker,
+                diagnostics,
+            );
+        };
+        if is_y_word_text(opening_delimiter.phonemes().as_str()) {
+            let error = self.invalid_span_with_detail(
+                MorphologyErrorKind::InvalidZoiDelimiter,
+                opening_delimiter.span().char_start,
+                opening_delimiter.span().char_end,
+                self.context(
+                    MorphologyContextKind::DelimitedNonLojbanQuote,
+                    after_marker,
+                    self.index,
+                ),
+                Some(new!(MorphologyErrorDetail::InvalidZoiDelimiter {
+                    reason: ZoiDelimiterDetailKind::YWord,
+                })),
+            );
+            diagnostics.push(error.clone());
+            return self.recovered_zoi_quote_with_invalid_opening(
+                zoi,
+                error,
+                opening_delimiter.span().char_start,
+                after_marker,
+                diagnostics,
+            );
+        }
+
+        let consumed_open_separator = self.consume_zoi_open_separators();
+        let quoted_start = self.index;
+        match self.find_zoi_close(&opening_delimiter, consumed_open_separator) {
+            Ok(Some((quoted_end, closing_delimiter, close_start))) => {
+                self.index = close_start;
+                let closing = self.next_plain_word();
+                let closing_delimiter = closing
+                    .ok()
+                    .and_then(into_bare_word)
+                    .unwrap_or(closing_delimiter);
+                tree::recovered::WordLike::DelimitedNonLojbanQuote {
+                    zoi: Box::new(tree::recovered::Recovered::valid(
+                        crate::recovered_word_from_valid(zoi),
+                    )),
+                    opening_delimiter: Box::new(tree::recovered::Recovered::valid(
+                        crate::recovered_word_from_valid(opening_delimiter),
+                    )),
+                    quoted_text: Box::new(tree::recovered::Recovered::valid(
+                        self.recovered_verbatim(quoted_start, quoted_end),
+                    )),
+                    closing_delimiter: Box::new(tree::recovered::Recovered::valid(
+                        crate::recovered_word_from_valid(closing_delimiter),
+                    )),
+                }
+            }
+            Ok(None) => {
+                diagnostics.push(MorphologyError::UnterminatedZoiQuote {
+                    char_offset: quoted_start,
+                    delimiter: opening_delimiter.phonemes().into_string(),
+                    context: self.context(
+                        MorphologyContextKind::DelimitedNonLojbanQuote,
+                        after_marker,
+                        self.index,
+                    ),
+                });
+                let quoted_end = self.chars.len();
+                self.index = quoted_end;
+                tree::recovered::WordLike::DelimitedNonLojbanQuote {
+                    zoi: Box::new(tree::recovered::Recovered::valid(
+                        crate::recovered_word_from_valid(zoi),
+                    )),
+                    opening_delimiter: Box::new(tree::recovered::Recovered::valid(
+                        crate::recovered_word_from_valid(opening_delimiter),
+                    )),
+                    quoted_text: Box::new(tree::recovered::Recovered::valid(
+                        self.recovered_verbatim(quoted_start, quoted_end),
+                    )),
+                    closing_delimiter: Box::new(tree::recovered::Recovered::missing(
+                        self.missing_item_at(quoted_end, "ZOI closing delimiter"),
+                    )),
+                }
+            }
+            Err(error) => {
+                diagnostics.push(error);
+                let quoted_end = self.chars.len();
+                self.index = quoted_end;
+                tree::recovered::WordLike::DelimitedNonLojbanQuote {
+                    zoi: Box::new(tree::recovered::Recovered::valid(
+                        crate::recovered_word_from_valid(zoi),
+                    )),
+                    opening_delimiter: Box::new(tree::recovered::Recovered::valid(
+                        crate::recovered_word_from_valid(opening_delimiter),
+                    )),
+                    quoted_text: Box::new(tree::recovered::Recovered::valid(
+                        self.recovered_verbatim(quoted_start, quoted_end),
+                    )),
+                    closing_delimiter: Box::new(tree::recovered::Recovered::missing(
+                        self.missing_item_at(quoted_end, "ZOI closing delimiter"),
+                    )),
+                }
+            }
+        }
+    }
+
+    #[requires(opening_start <= self.chars.len())]
+    #[ensures(true)]
+    fn recovered_zoi_quote_with_invalid_opening(
+        &mut self,
+        zoi: Word,
+        error: MorphologyError,
+        opening_start: usize,
+        after_marker: usize,
+        diagnostics: &mut Vec<MorphologyError>,
+    ) -> tree::recovered::WordLike {
+        let opening_end = self.recovery_boundary(opening_start);
+        let opening = if opening_start < opening_end {
+            self.index = opening_end;
+            tree::recovered::Recovered::invalid(self.invalid_item(
+                opening_start,
+                opening_end,
+                morphology_error_code(&error),
+            ))
+        } else {
+            tree::recovered::Recovered::missing(
+                self.missing_item_at(opening_start, "ZOI opening delimiter"),
+            )
+        };
+        let delimiter_text = (opening_start < opening_end)
+            .then(|| self.slice(opening_start, opening_end).to_owned());
+        let consumed_open_separator = self.consume_zoi_open_separators();
+        let quoted_start = self.index;
+        if let Some(delimiter_text) = delimiter_text.as_deref()
+            && let Some((quoted_end, close_start, close_end)) =
+                self.find_raw_zoi_close(delimiter_text, consumed_open_separator)
+        {
+            self.index = close_end;
+            return tree::recovered::WordLike::DelimitedNonLojbanQuote {
+                zoi: Box::new(tree::recovered::Recovered::valid(
+                    crate::recovered_word_from_valid(zoi),
+                )),
+                opening_delimiter: Box::new(opening),
+                quoted_text: Box::new(tree::recovered::Recovered::valid(
+                    self.recovered_verbatim(quoted_start, quoted_end),
+                )),
+                closing_delimiter: Box::new(tree::recovered::Recovered::invalid(
+                    self.invalid_item(
+                        close_start,
+                        close_end,
+                        MorphologyErrorKind::InvalidZoiDelimiter.code(),
+                    ),
+                )),
+            };
+        }
+
+        let quoted_end = self.chars.len();
+        self.index = quoted_end;
+        diagnostics.push(MorphologyError::UnterminatedZoiQuote {
+            char_offset: quoted_start,
+            delimiter: delimiter_text.unwrap_or_else(|| "<missing>".to_owned()),
+            context: self.context(
+                MorphologyContextKind::DelimitedNonLojbanQuote,
+                after_marker,
+                quoted_end,
+            ),
+        });
+        tree::recovered::WordLike::DelimitedNonLojbanQuote {
+            zoi: Box::new(tree::recovered::Recovered::valid(
+                crate::recovered_word_from_valid(zoi),
+            )),
+            opening_delimiter: Box::new(opening),
+            quoted_text: Box::new(tree::recovered::Recovered::valid(
+                self.recovered_verbatim(quoted_start, quoted_end),
+            )),
+            closing_delimiter: Box::new(tree::recovered::Recovered::missing(
+                self.missing_item_at(quoted_end, "ZOI closing delimiter"),
+            )),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn single_word_quote(
         &mut self,
         marker_word_with_modifiers: WordLike,
@@ -892,6 +1252,84 @@ impl<'a> Segmenter<'a> {
             }
             if let Some(inner) = into_bare_word(word) {
                 quoted_words.push(inner);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_lohu_quote(
+        &mut self,
+        lohu_word_with_modifiers: WordLike,
+        diagnostics: &mut Vec<MorphologyError>,
+    ) -> Vec<tree::recovered::WordLike> {
+        let Some(lohu) = into_bare_word(lohu_word_with_modifiers.clone()) else {
+            diagnostics.push(self.invalid_span(
+                MorphologyErrorKind::InvalidQuoteMarker,
+                self.index,
+                self.index,
+                word_like_context(
+                    &lohu_word_with_modifiers,
+                    MorphologyContextKind::QuotedWords,
+                ),
+            ));
+            return vec![crate::recovered_word_like_from_valid(
+                lohu_word_with_modifiers,
+            )];
+        };
+        let mut quoted_words = Vec::new();
+        loop {
+            self.skip_separators();
+            if self.index == self.chars.len() {
+                let missing = self.missing_item_at(self.index, "LEhU closing delimiter");
+                diagnostics.push(self.invalid_span_with_detail(
+                    MorphologyErrorKind::ExpectedWord,
+                    self.index,
+                    self.index,
+                    self.context(
+                        MorphologyContextKind::QuotedWords,
+                        lohu.span().char_start,
+                        self.index,
+                    ),
+                    Some(new!(MorphologyErrorDetail::ExpectedWord {
+                        expected: ExpectedWordDetailKind::PlainWord,
+                    })),
+                ));
+                return vec![tree::recovered::WordLike::QuotedWords {
+                    lohu: Box::new(tree::recovered::Recovered::valid(
+                        crate::recovered_word_from_valid(lohu),
+                    )),
+                    quoted_words,
+                    lehu: Box::new(tree::recovered::Recovered::missing(missing)),
+                }];
+            }
+            let word_start = self.index;
+            match self.next_plain_word() {
+                Ok(word) if is_simple_cmavo_text(&word, "le'u") => {
+                    let lehu = into_bare_word(word).expect("LEhU is a bare cmavo word");
+                    return vec![tree::recovered::WordLike::QuotedWords {
+                        lohu: Box::new(tree::recovered::Recovered::valid(
+                            crate::recovered_word_from_valid(lohu),
+                        )),
+                        quoted_words,
+                        lehu: Box::new(tree::recovered::Recovered::valid(
+                            crate::recovered_word_from_valid(lehu),
+                        )),
+                    }];
+                }
+                Ok(word) => {
+                    if let Some(word) = into_bare_word(word) {
+                        quoted_words.push(tree::recovered::Recovered::valid(
+                            crate::recovered_word_from_valid(word),
+                        ));
+                    }
+                }
+                Err(error) => {
+                    diagnostics.push(error.clone());
+                    if let Some(item) = self.invalid_item_for_recovery(error, word_start) {
+                        quoted_words.push(tree::recovered::Recovered::invalid(item));
+                    }
+                }
             }
         }
     }
@@ -1619,6 +2057,15 @@ impl<'a> Segmenter<'a> {
 
     #[requires(start <= end && end <= self.chars.len())]
     #[ensures(true)]
+    fn recovered_verbatim(&self, start: usize, end: usize) -> tree::recovered::Verbatim {
+        crate::recovered_verbatim_from_valid(
+            self.verbatim(start, end)
+                .expect("recovered verbatim ranges are derived from source boundaries"),
+        )
+    }
+
+    #[requires(start <= end && end <= self.chars.len())]
+    #[ensures(true)]
     fn slice(&self, start: usize, end: usize) -> &'a str {
         &self.input[self.byte_offset(start)..self.byte_offset(end)]
     }
@@ -1704,6 +2151,124 @@ impl<'a> Segmenter<'a> {
         self.invalid_span(MorphologyErrorKind::UnrecognizedWord, start, end, None)
     }
 
+    #[requires(fallback_start <= self.chars.len())]
+    #[ensures(true)]
+    fn recover_invalid_word(
+        &mut self,
+        error: MorphologyError,
+        fallback_start: usize,
+        diagnostics: &mut Vec<MorphologyError>,
+    ) -> Vec<tree::recovered::WordLike> {
+        diagnostics.push(error.clone());
+        let Some(item) = self.invalid_item_for_recovery(error, fallback_start) else {
+            return Vec::new();
+        };
+        vec![tree::recovered::WordLike::PlainWord(
+            tree::recovered::Recovered::invalid(item),
+        )]
+    }
+
+    #[requires(fallback_start <= self.chars.len())]
+    #[ensures(ret.as_ref().is_none_or(|item| !item.text.is_empty()))]
+    fn invalid_item_for_recovery(
+        &mut self,
+        error: MorphologyError,
+        fallback_start: usize,
+    ) -> Option<InvalidTreeItem> {
+        let start = fallback_start.min(self.chars.len());
+        let end = self.recovery_boundary(start);
+        if start == end {
+            return None;
+        }
+        self.index = end;
+        Some(self.invalid_item(start, end, morphology_error_code(&error)))
+    }
+
+    #[requires(start <= self.chars.len())]
+    #[ensures(ret >= start && ret <= self.chars.len())]
+    fn recovery_boundary(&self, start: usize) -> usize {
+        let mut end = start;
+        while end < self.chars.len()
+            && !self.chars[end].value.is_whitespace()
+            && self.chars[end].value != '.'
+        {
+            end += 1;
+        }
+        if end == start && start < self.chars.len() {
+            start + 1
+        } else {
+            end
+        }
+    }
+
+    #[requires(start < end && end <= self.chars.len())]
+    #[ensures(!ret.text.is_empty())]
+    fn invalid_item(&self, start: usize, end: usize, diagnostic_code: &str) -> InvalidTreeItem {
+        new!(InvalidTreeItem {
+            span: Arc::new(
+                self.source_span(start, end)
+                    .expect("invalid recovery ranges are derived from source boundaries")
+            ),
+            text: self.slice(start, end).to_owned(),
+            diagnostic_code: diagnostic_code.to_owned(),
+        })
+    }
+
+    #[requires(index <= self.chars.len())]
+    #[requires(!expected.is_empty())]
+    #[ensures(!ret.expected.is_empty())]
+    fn missing_item_at(&self, index: usize, expected: &str) -> MissingTreeItem {
+        new!(MissingTreeItem {
+            span: Arc::new(
+                self.source_span(index, index)
+                    .expect("missing recovery ranges are derived from source boundaries")
+            ),
+            expected: vec![expected.to_owned()],
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|(_, start, end)| *start <= *end))]
+    fn find_raw_zoi_close(
+        &self,
+        delimiter: &str,
+        consumed_open_separator: bool,
+    ) -> Option<(usize, usize, usize)> {
+        let mut cursor = self.index;
+        if consumed_open_separator && let Some(close_end) = self.raw_token_at(cursor, delimiter) {
+            return Some((cursor, cursor, close_end));
+        }
+        while cursor < self.chars.len() {
+            let pause_start = cursor;
+            let mut saw_separator = false;
+            while cursor < self.chars.len() && self.is_word_separator_at(cursor) {
+                saw_separator = true;
+                cursor += 1;
+            }
+            if saw_separator && cursor < self.chars.len() {
+                if let Some(close_end) = self.raw_token_at(cursor, delimiter) {
+                    return Some((
+                        trim_trailing_separator_indices(&self.chars, self.index, pause_start),
+                        cursor,
+                        close_end,
+                    ));
+                }
+                cursor += 1;
+            } else {
+                cursor += 1;
+            }
+        }
+        None
+    }
+
+    #[requires(start <= self.chars.len())]
+    #[requires(!delimiter.is_empty())]
+    #[ensures(ret.is_none_or(|end| end >= start && end <= self.chars.len()))]
+    fn raw_token_at(&self, start: usize, delimiter: &str) -> Option<usize> {
+        let end = self.recovery_boundary(start);
+        (start < end && self.slice(start, end) == delimiter).then_some(end)
+    }
+
     #[requires(start <= end && end <= self.chars.len())]
     #[ensures(true)]
     fn invalid_span(
@@ -1764,6 +2329,16 @@ fn word_kind_trace_label(kind: WordKind) -> &'static str {
 #[ensures(!ret.is_empty())]
 fn error_message(error: &MorphologyError) -> String {
     error.to_string()
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn morphology_error_code(error: &MorphologyError) -> &'static str {
+    match error {
+        MorphologyError::Invalid { kind, .. } => kind.code(),
+        MorphologyError::UnterminatedZoiQuote { .. } => "morphology.unterminated-zoi-quote",
+        MorphologyError::SourceSpan(_) => "morphology.source-span",
+    }
 }
 
 #[requires(true)]

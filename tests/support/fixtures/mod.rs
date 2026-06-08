@@ -567,6 +567,8 @@ pub struct MorphologyExpectation {
     pub raw: Option<TextExpectation>,
     #[serde(default)]
     pub diagnostics: Vec<DiagnosticExpectation>,
+    #[serde(default)]
+    pub recovered: Option<RecoveredExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -638,7 +640,20 @@ pub struct SyntaxExpectation {
     #[serde(default)]
     pub diagnostics: Vec<DiagnosticExpectation>,
     #[serde(default)]
+    pub recovered: Option<RecoveredExpectation>,
+    #[serde(default)]
     pub xfail: Option<XfailExpectation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[invariant(true)]
+pub struct RecoveredExpectation {
+    pub status: ExpectationStatus,
+    #[serde(default)]
+    pub raw: Option<TextExpectation>,
+    #[serde(default)]
+    pub diagnostics: Vec<DiagnosticExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

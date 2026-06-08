@@ -1,0 +1,11 @@
+id = "adhoc.recovery.morphology.invalid-zoi-delimiter"
+lojban = "zoi @@@ foo @@@"
+tags = ["adhoc", "recovery", "morphology"]
+
+[expectations.morphology]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [4, 5], source-text = "@", message = "invalid character in Lojban word" }]
+
+[expectations.morphology.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [4, 5], source-text = "@", message = "invalid character in Lojban word" }]

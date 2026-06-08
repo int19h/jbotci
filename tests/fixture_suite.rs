@@ -13,10 +13,11 @@ use support::fixtures::{
     FixtureSelector, GentufaOutputExpectation, JvozbaExpectation, JvozbaFixtureInput,
     JvozbaFixtureMode, JvozbaOutputExpectation, JvozbaSegmentExpectation,
     JvozbaSegmentKindExpectation, LoadedTestCase, MorphologyExpectation, MuplisForm,
-    OutputExpectations, Provenance, ReferenceExpectation, ScriptBracketExpectations,
-    SemanticsExpectations, SyntaxExpectation, TestCase, TextExpectation, VlaseiOutputExpectation,
-    XfailExpectation, filter_fixtures, import_export_file, load_fixture_file, load_fixture_tree,
-    run_fixture_facets, run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
+    OutputExpectations, Provenance, RecoveredExpectation, ReferenceExpectation,
+    ScriptBracketExpectations, SemanticsExpectations, SyntaxExpectation, TestCase, TextExpectation,
+    VlaseiOutputExpectation, XfailExpectation, filter_fixtures, import_export_file,
+    load_fixture_file, load_fixture_tree, run_fixture_facets, run_fixture_facets_parallel,
+    validate_fixture_tree, write_fixture_file,
 };
 
 #[test]
@@ -406,6 +407,7 @@ fn writer_keeps_tree_and_output_values() {
                     text: "[WordLike(PlainWord(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: \"coĭ\" }), span: SourceSpan(SourceSpanData { source_id: None, byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))]".into(),
                 }),
                 diagnostics: vec![],
+                recovered: None,
             }),
             jvozba: None,
             syntax: Some(SyntaxExpectation {
@@ -414,6 +416,7 @@ fn writer_keeps_tree_and_output_values() {
                     text: "TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }".into(),
                 }),
                 diagnostics: vec![],
+                recovered: None,
                 xfail: Some(XfailExpectation {
                     source: "test".into(),
                     reason: "intentional writer coverage".into(),
@@ -846,17 +849,19 @@ fn assert_morphology_expectation(test_case: &TestCase, expectation: &MorphologyE
             )
         })
         .collect::<Vec<_>>();
-    match (expectation.status, data.result) {
+    let strict_words = match (expectation.status, data.result) {
         (ExpectationStatus::Success, Ok(words)) => {
             if let Some(raw) = &expectation.raw {
                 assert_eq!(format!("{words:?}"), raw.text, "{}", test_case.id);
             }
+            Some(words)
         }
         (ExpectationStatus::Failure, Err(error)) => {
             diagnostics.push(DiagnosticExpectation::from_diagnostic(
                 &test_case.lojban,
                 &error.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
             ));
+            None
         }
         (ExpectationStatus::Success, Err(error)) => {
             panic!("{} should parse, got {error}", test_case.id);
@@ -867,8 +872,129 @@ fn assert_morphology_expectation(test_case: &TestCase, expectation: &MorphologyE
         (ExpectationStatus::Pending | ExpectationStatus::NotApplicable, _) => {
             panic!("{} has unsupported morphology status", test_case.id);
         }
-    }
+    };
     assert_eq!(diagnostics, expectation.diagnostics, "{}", test_case.id);
+    if let Some(words) = &strict_words {
+        assert_recovered_morphology_matches_strict_success(test_case, words, &diagnostics);
+    }
+    if let Some(recovered) = &expectation.recovered {
+        assert_recovered_morphology_expectation(test_case, recovered);
+    }
+}
+
+#[requires(!test_case.id.is_empty())]
+#[ensures(true)]
+fn assert_recovered_morphology_matches_strict_success(
+    test_case: &TestCase,
+    strict_words: &[jbotci_morphology::WordLike],
+    strict_diagnostics: &[DiagnosticExpectation],
+) {
+    let attempt =
+        jbotci_morphology::segment_words_with_modifiers_recovered_with_options_and_source_id(
+            &test_case.lojban,
+            &jbotci_morphology::MorphologyOptions::default(),
+            Some(SourceId("<fixture>".to_owned())),
+        );
+    let data = attempt.into_data();
+    let recovered_diagnostics =
+        recovered_morphology_diagnostic_expectations(test_case, &data.warnings, &data.diagnostics);
+    assert_eq!(
+        recovered_diagnostics, strict_diagnostics,
+        "{} recovered morphology diagnostics differ from strict diagnostics",
+        test_case.id
+    );
+    let recovered_words = data
+        .result
+        .into_iter()
+        .map(jbotci_morphology::tree::recovered::WordLike::try_into_valid)
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap_or_else(|error| {
+            panic!(
+                "{} recovered morphology did not convert to a valid tree: {error:?}",
+                test_case.id
+            )
+        });
+    assert_eq!(
+        recovered_words, strict_words,
+        "{} recovered morphology valid tree differs from strict tree",
+        test_case.id
+    );
+}
+
+#[requires(!test_case.id.is_empty())]
+#[ensures(true)]
+fn assert_recovered_morphology_expectation(
+    test_case: &TestCase,
+    expectation: &RecoveredExpectation,
+) {
+    let attempt =
+        jbotci_morphology::segment_words_with_modifiers_recovered_with_options_and_source_id(
+            &test_case.lojban,
+            &jbotci_morphology::MorphologyOptions::default(),
+            Some(SourceId("<fixture>".to_owned())),
+        );
+    let data = attempt.into_data();
+    let diagnostics =
+        recovered_morphology_diagnostic_expectations(test_case, &data.warnings, &data.diagnostics);
+    assert_eq!(
+        diagnostics, expectation.diagnostics,
+        "{} recovered morphology diagnostics differ from expectation",
+        test_case.id
+    );
+    if let Some(raw) = &expectation.raw {
+        assert_eq!(format!("{:?}", data.result), raw.text, "{}", test_case.id);
+    }
+    let valid_result = data
+        .result
+        .into_iter()
+        .map(jbotci_morphology::tree::recovered::WordLike::try_into_valid)
+        .collect::<Result<Vec<_>, _>>();
+    match (expectation.status, valid_result) {
+        (ExpectationStatus::Success, Ok(_)) | (ExpectationStatus::Failure, Err(_)) => {}
+        (ExpectationStatus::Success, Err(error)) => {
+            panic!(
+                "{} recovered morphology should convert to valid tree, got {error:?}",
+                test_case.id
+            );
+        }
+        (ExpectationStatus::Failure, Ok(words)) => {
+            panic!(
+                "{} recovered morphology should remain invalid, got {words:?}",
+                test_case.id
+            );
+        }
+        (ExpectationStatus::Pending | ExpectationStatus::NotApplicable, _) => {
+            panic!(
+                "{} has unsupported recovered morphology status",
+                test_case.id
+            );
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_morphology_diagnostic_expectations(
+    test_case: &TestCase,
+    warnings: &[jbotci_morphology::MorphologyWarning],
+    errors: &[jbotci_morphology::MorphologyError],
+) -> Vec<DiagnosticExpectation> {
+    let mut diagnostics = warnings
+        .iter()
+        .map(|warning| {
+            DiagnosticExpectation::from_diagnostic(
+                &test_case.lojban,
+                &warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+            )
+        })
+        .collect::<Vec<_>>();
+    diagnostics.extend(errors.iter().map(|error| {
+        DiagnosticExpectation::from_diagnostic(
+            &test_case.lojban,
+            &error.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+        )
+    }));
+    diagnostics
 }
 
 #[requires(!id.is_empty())]
