@@ -106,6 +106,8 @@ const ICON_512: Asset = asset!("/assets/icons/jbotci-icon-512.png");
 #[allow(dead_code)]
 const ICON_SVG: Asset = asset!("/assets/icons/jbotci-icon.svg");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+const APP_DISPLAY_NAME: &str = "jbotci";
 const DEFAULT_WEB_EMBEDDINGS_BASE_URL: &str = "https://assets.jbotci.app/embeddings/web/v1";
 const BUILD_WEB_EMBEDDINGS_BASE_URL: Option<&str> = option_env!("JBOTCI_WEB_EMBEDDINGS_BASE_URL");
 const BUILD_GIT_COMMIT: Option<&str> = option_env!("JBOTCI_GIT_COMMIT");
@@ -1037,11 +1039,22 @@ pub fn launch_app() {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
 #[requires(true)]
 #[ensures(true)]
 pub fn launch_app() {
     dioxus::launch(App);
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+pub fn launch_app() {
+    dioxus::LaunchBuilder::new()
+        .with_cfg(dioxus::desktop::Config::new().with_window(
+            dioxus::desktop::WindowBuilder::new().with_title(APP_DISPLAY_NAME),
+        ))
+        .launch(App);
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -13533,9 +13546,9 @@ fn render_embedding_settings(
     let selected_model_key = state.selected_model_key.clone();
     rsx! {
         section { class: "settings-section embeddings-settings",
-            h2 { "Embeddings" }
+            h2 { "Semantic search" }
             label { class: "settings-model-select-row",
-                span { class: "settings-model-select-label", "Model size" }
+                span { class: "settings-model-select-label", "Embedding model" }
                 select {
                     class: "settings-select",
                     value: "{state.selected_model_key}",

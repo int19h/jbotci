@@ -1,9 +1,19 @@
 [application]
-name = "jbotci-app"
+name = "jbotci"
 default_platform = "web"
 asset_dir = "../../crates/jbotci-ui/assets"
 public_dir = "../../target/jbotci-web-public"
-out_dir = "dist"
+out_dir = "../../dist"
+
+[bundle]
+identifier = "org.int19h.jbotci"
+publisher = "int19h"
+category = "Reference"
+short_description = "Lojban tool"
+icon = [
+    "../../crates/jbotci-ui/assets/icons/jbotci-icon.icns",
+    "../../crates/jbotci-ui/assets/icons/jbotci-icon-512.png",
+]
 
 [web.app]
 title = "jbotci"
