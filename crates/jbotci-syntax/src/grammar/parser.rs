@@ -169,17 +169,19 @@ fn explicit_xauha_lohoi_lookahead<'tokens>() -> BoxedParser<'tokens, ()> {
         let first_cursor = input.cursor();
         let Some(first): Option<Token> = input.next() else {
             let span = input.span_since(&first_cursor);
-            return Err(SyntaxParseError::expected(
+            return Err(SyntaxParseError::expected_found(
                 span,
                 vec![new!(SyntaxExpectedToken::Cmavo(Cmavo::Xauha))],
+                new!(SyntaxFound::EndOfInput),
             ));
         };
         let first_span = input.span_since(&first_cursor);
         if !first.is_cmavo(Cmavo::Xauha) {
             input.rewind(checkpoint);
-            return Err(SyntaxParseError::expected(
+            return Err(SyntaxParseError::expected_found(
                 first_span,
                 vec![new!(SyntaxExpectedToken::Cmavo(Cmavo::Xauha))],
+                new!(SyntaxFound::Token(first)),
             ));
         }
 
@@ -187,9 +189,10 @@ fn explicit_xauha_lohoi_lookahead<'tokens>() -> BoxedParser<'tokens, ()> {
             let cursor = input.cursor();
             let Some(word): Option<Token> = input.next() else {
                 input.rewind(checkpoint);
-                return Err(SyntaxParseError::expected(
+                return Err(SyntaxParseError::expected_found(
                     input.span_since(&cursor),
                     vec![new!(SyntaxExpectedToken::Cmavo(Cmavo::Kuhau))],
+                    new!(SyntaxFound::EndOfInput),
                 ));
             };
             if word.is_cmavo(Cmavo::Kuhau) {
@@ -1242,10 +1245,11 @@ fn statement_parser<'tokens>(
                     if ke_continuation.as_ref().is_some_and(|ke_continuation| {
                         !predicate_tail_ke_continuation_allowed(&first, ke_continuation)
                     }) {
-                        return Err(SyntaxParseError::custom(
+                        return Err(SyntaxParseError::custom_with_kind(
                             span,
                             "bridi-tail KE continuation conflicts with trailing sumti connection"
                                 .to_owned(),
+                            SyntaxParseCustomKind::BridiTailKeContinuationConflict,
                         ));
                     }
                     Ok(BridiTailSyntax {
@@ -4328,11 +4332,12 @@ where
                 data!(WordLike::QuotedWord { .. }) => Ok(Box::new(new!(QuoteSyntax::WordQuote(
                     WithFreeModifiers::new(word.clone(), Vec::new()),
                 )))),
-                _ => Err(SyntaxParseError::expected(
+                _ => Err(SyntaxParseError::expected_found(
                     span,
                     vec![new!(SyntaxExpectedToken::WordCategory(
                         SyntaxWordCategory::Quote
                     ))],
+                    new!(SyntaxFound::Token(word.clone())),
                 )),
             })
             .labelled("QUOTE")
@@ -4347,11 +4352,12 @@ where
                         WithFreeModifiers::new(word.clone(), Vec::new()),
                     ))))
                 }
-                _ => Err(SyntaxParseError::expected(
+                _ => Err(SyntaxParseError::expected_found(
                     span,
                     vec![new!(SyntaxExpectedToken::WordCategory(
                         SyntaxWordCategory::Quote
                     ))],
+                    new!(SyntaxFound::Token(word.clone())),
                 )),
             })
             .labelled("QUOTE")
@@ -4364,11 +4370,12 @@ where
                 data!(WordLike::QuotedWords { .. }) => Ok(Box::new(new!(QuoteSyntax::WordsQuote(
                     WithFreeModifiers::new(word.clone(), Vec::new()),
                 )))),
-                _ => Err(SyntaxParseError::expected(
+                _ => Err(SyntaxParseError::expected_found(
                     span,
                     vec![new!(SyntaxExpectedToken::WordCategory(
                         SyntaxWordCategory::Quote
                     ))],
+                    new!(SyntaxFound::Token(word.clone())),
                 )),
             })
             .labelled("QUOTE")
@@ -4383,11 +4390,12 @@ where
                         WithFreeModifiers::new(word.clone(), Vec::new())
                     ))))
                 }
-                _ => Err(SyntaxParseError::expected(
+                _ => Err(SyntaxParseError::expected_found(
                     span,
                     vec![new!(SyntaxExpectedToken::WordCategory(
                         SyntaxWordCategory::Quote
                     ))],
+                    new!(SyntaxFound::Token(word.clone())),
                 )),
             })
             .labelled("QUOTE")
@@ -5847,17 +5855,19 @@ where
                 ..
             }) = word.core_word().as_data()
             else {
-                return Err(SyntaxParseError::expected(
+                return Err(SyntaxParseError::expected_found(
                     span,
                     vec![new!(SyntaxExpectedToken::Cmavo(marker_cmavo))],
+                    new!(SyntaxFound::Token(word.clone())),
                 ));
             };
             if marker.is_cmavo(marker_cmavo) {
                 Ok(word.clone())
             } else {
-                Err(SyntaxParseError::expected(
+                Err(SyntaxParseError::expected_found(
                     span,
                     vec![new!(SyntaxExpectedToken::Cmavo(marker_cmavo))],
+                    new!(SyntaxFound::Token(word.clone())),
                 ))
             }
         })
@@ -5900,25 +5910,28 @@ where
         let cursor = input.cursor();
         let Some(word): Option<Token> = input.next() else {
             let span = input.span_since(&cursor);
-            return Err(SyntaxParseError::expected(
+            return Err(SyntaxParseError::expected_found(
                 span,
                 vec![new!(SyntaxExpectedToken::Cmavo(marker_cmavo))],
+                new!(SyntaxFound::EndOfInput),
             ));
         };
         let span = input.span_since(&cursor);
         let data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) = word.core_word().as_data()
         else {
             input.rewind(checkpoint);
-            return Err(SyntaxParseError::expected(
+            return Err(SyntaxParseError::expected_found(
                 span,
                 vec![new!(SyntaxExpectedToken::Cmavo(marker_cmavo))],
+                new!(SyntaxFound::Token(word)),
             ));
         };
         if !zoi.is_cmavo(marker_cmavo) {
             input.rewind(checkpoint);
-            return Err(SyntaxParseError::expected(
+            return Err(SyntaxParseError::expected_found(
                 span,
                 vec![new!(SyntaxExpectedToken::Cmavo(marker_cmavo))],
+                new!(SyntaxFound::Token(word)),
             ));
         }
         let state: &mut ParserState = input.state();

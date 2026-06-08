@@ -118,8 +118,9 @@ impl ParseOptions {
 pub enum SyntaxError {
     #[error("syntax parsing is not implemented yet")]
     NotImplemented,
-    #[error("syntax parse failed at byte {byte_start}: {reason}")]
+    #[error("syntax error at byte {byte_start}: {reason}")]
     Parse {
+        kind: SyntaxErrorKind,
         byte_start: usize,
         byte_end: usize,
         reason: String,
@@ -127,6 +128,87 @@ pub enum SyntaxError {
         expectations: Vec<SyntaxExpectation>,
         context: Option<SyntaxConstructContext>,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[invariant(true)]
+pub enum SyntaxErrorKind {
+    UnexpectedEnd,
+    UnexpectedCmavo,
+    UnexpectedBrivla,
+    UnexpectedCmevla,
+    UnexpectedQuote,
+    UnexpectedLerfu,
+    UnexpectedZeiCompound,
+    UnexpectedWord,
+    IncompleteText,
+    IncompleteStatement,
+    IncompleteBridi,
+    IncompleteTerm,
+    IncompleteSumti,
+    IncompleteSelbri,
+    IncompleteFreeModifier,
+    IncompleteMekso,
+    IncompleteQuote,
+    IncompleteForethoughtConnection,
+    InvalidBridiTailConnection,
+    InvalidConstruct,
+}
+
+impl SyntaxErrorKind {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::UnexpectedEnd => "syntax.unexpected-end",
+            Self::UnexpectedCmavo => "syntax.unexpected-cmavo",
+            Self::UnexpectedBrivla => "syntax.unexpected-brivla",
+            Self::UnexpectedCmevla => "syntax.unexpected-cmevla",
+            Self::UnexpectedQuote => "syntax.unexpected-quote",
+            Self::UnexpectedLerfu => "syntax.unexpected-lerfu",
+            Self::UnexpectedZeiCompound => "syntax.unexpected-zei-compound",
+            Self::UnexpectedWord => "syntax.unexpected-word",
+            Self::IncompleteText => "syntax.incomplete-text",
+            Self::IncompleteStatement => "syntax.incomplete-statement",
+            Self::IncompleteBridi => "syntax.incomplete-bridi",
+            Self::IncompleteTerm => "syntax.incomplete-term",
+            Self::IncompleteSumti => "syntax.incomplete-sumti",
+            Self::IncompleteSelbri => "syntax.incomplete-selbri",
+            Self::IncompleteFreeModifier => "syntax.incomplete-free-modifier",
+            Self::IncompleteMekso => "syntax.incomplete-mekso",
+            Self::IncompleteQuote => "syntax.incomplete-quote",
+            Self::IncompleteForethoughtConnection => "syntax.incomplete-forethought-connection",
+            Self::InvalidBridiTailConnection => "syntax.invalid-bridi-tail-connection",
+            Self::InvalidConstruct => "syntax.invalid-construct",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::UnexpectedEnd => "unexpected end of input",
+            Self::UnexpectedCmavo => "unexpected cmavo",
+            Self::UnexpectedBrivla => "unexpected brivla",
+            Self::UnexpectedCmevla => "unexpected cmevla",
+            Self::UnexpectedQuote => "unexpected quote",
+            Self::UnexpectedLerfu => "unexpected lerfu word",
+            Self::UnexpectedZeiCompound => "unexpected ZEI compound",
+            Self::UnexpectedWord => "unexpected word",
+            Self::IncompleteText => "incomplete text",
+            Self::IncompleteStatement => "incomplete statement",
+            Self::IncompleteBridi => "incomplete bridi",
+            Self::IncompleteTerm => "incomplete term",
+            Self::IncompleteSumti => "incomplete sumti",
+            Self::IncompleteSelbri => "incomplete selbri",
+            Self::IncompleteFreeModifier => "incomplete free modifier",
+            Self::IncompleteMekso => "incomplete mekso expression",
+            Self::IncompleteQuote => "incomplete quote",
+            Self::IncompleteForethoughtConnection => "incomplete forethought connection",
+            Self::InvalidBridiTailConnection => "invalid bridi-tail connection",
+            Self::InvalidConstruct => "invalid syntax construct",
+        }
+    }
 }
 
 #[invariant(::Cmavo(cmavo) => !cmavo.canonical_text().is_empty())]
@@ -785,6 +867,7 @@ impl SyntaxError {
                 )
             }
             Self::Parse {
+                kind,
                 byte_start,
                 byte_end,
                 reason,
@@ -817,8 +900,8 @@ impl SyntaxError {
                 Diagnostic::new(
                     DiagnosticSeverity::Error,
                     DiagnosticPhase::Syntax,
-                    "syntax.parse".to_owned(),
-                    "syntax parse failed".to_owned(),
+                    kind.code().to_owned(),
+                    kind.message().to_owned(),
                     labels,
                     Vec::new(),
                     None,
@@ -2430,6 +2513,28 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn syntax_error_kinds_use_found_word_categories() {
+        assert_error_kind("ku", SyntaxErrorKind::UnexpectedCmavo);
+        assert_error_kind("mi djan.", SyntaxErrorKind::UnexpectedCmevla);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_error_kinds_use_incomplete_parser_contexts() {
+        assert_error_kind("lo", SyntaxErrorKind::IncompleteSumti);
+        assert_error_kind("mi cu", SyntaxErrorKind::IncompleteBridi);
+        assert_error_kind("mi sei", SyntaxErrorKind::IncompleteFreeModifier);
+        assert_error_kind("li vei pa su'i", SyntaxErrorKind::IncompleteMekso);
+        assert_error_kind(
+            "ga lo mlatu gi",
+            SyntaxErrorKind::IncompleteForethoughtConnection,
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn representative_constructs_appear_in_structured_expectations() {
         assert_error_mentions_construct("nu'i", "termset");
         assert_error_mentions_construct("lo pa", "quantifier");
@@ -2548,6 +2653,20 @@ mod tests {
             syntax_error_mentions_construct(&error, construct),
             "syntax error for {source:?} did not mention construct {construct:?}: {error:?}",
         );
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn assert_error_kind(source: &str, expected_kind: SyntaxErrorKind) {
+        let error = syntax_error_for_source(source);
+        let SyntaxError::Parse { kind, .. } = &error else {
+            panic!("expected syntax parse error for {source:?}");
+        };
+        assert_eq!(*kind, expected_kind, "unexpected kind for {source:?}");
+
+        let diagnostic = error.to_diagnostic(None, source);
+        assert_eq!(diagnostic.code, expected_kind.code(), "{source:?}");
+        assert_eq!(diagnostic.message, expected_kind.message(), "{source:?}");
     }
 
     #[requires(!source.is_empty())]
