@@ -1016,10 +1016,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private syllable policy selector is a unit variant whose validity is exhausted by the closed enum",
     ),
     (
-        "crates/jbotci-morphology/src/segment.rs:SyllablePolicy::Pronunciation",
-        "private syllable policy selector is a unit variant whose validity is exhausted by the closed enum",
-    ),
-    (
         "crates/jbotci-syntax/src/tree.rs:WithIndicators::Plain",
         "generic wrapper delegates word validity to the payload type",
     ),

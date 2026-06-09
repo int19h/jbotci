@@ -2358,6 +2358,48 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn morphology_rejects_invalid_three_consonant_onsets() {
+        segment_words_with_modifiers("actla").expect_err("ctl is not a valid syllable onset");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn morphology_does_not_insert_implicit_y() {
+        segment_words_with_modifiers("refgau").expect_err("fg must not be repaired with y");
+        segment_words_with_modifiers("refygau").expect("explicit y hyphen remains valid");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn pronunciation_syllables_match_updated_jvot3_clusters() {
+        let cases = [
+            (
+                "arnonkrtcerimola",
+                vec!["ar", "non", "kr", "tce", "ri", "mo", "la"],
+            ),
+            ("bangrtcosena", vec!["ban", "gr", "tco", "se", "na"]),
+            ("dansrdja'aza", vec!["dan", "sr", "dja", "'a", "za"]),
+            ("nanbrtcuro", vec!["nan", "br", "tcu", "ro"]),
+            ("mutcmle", vec!["mut", "cmle"]),
+        ];
+
+        for (source, expected) in cases {
+            segment_words_with_modifiers(source).unwrap_or_else(|error| {
+                panic!("{source} should parse after updated onset rules: {error:?}")
+            });
+            assert_eq!(
+                pronunciation_syllables_for_test(source),
+                expected,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn latin_breve_in_glide_position_does_not_warn() {
         let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
             "faŭ la .saĭmn.",

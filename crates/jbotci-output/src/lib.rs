@@ -855,11 +855,22 @@ pub fn pretty_morphology_brackets_with_options(
 
 #[cfg(test)]
 mod tests {
-    use bityzba::requires;
-    use jbotci_morphology::segment_words_with_modifiers;
+    use bityzba::{data, requires};
+    use jbotci_dictionary::WordType;
+    use jbotci_morphology::{
+        Word, WordKind, WordLike, WordLikeData, pronunciation_syllables,
+        segment_words_with_modifiers,
+    };
     use jbotci_syntax::parse_syntax_tree;
 
     use super::*;
+
+    const DICTIONARY_PARSE_XFAILS: &str = include_str!("../tests/dictionary_parse_xfails.tsv");
+    const DICTIONARY_CATEGORY_EXCEPTIONS: &str =
+        include_str!("../tests/dictionary_category_exceptions.tsv");
+    const DICTIONARY_UNSYLLABIFIABLE_CMEVLA: &str =
+        include_str!("../tests/dictionary_unsyllabifiable_cmevla.tsv");
+    const DICTIONARY_IPA_XFAILS: &str = include_str!("../tests/dictionary_ipa_xfails.tsv");
 
     #[test]
     #[requires(true)]
@@ -888,20 +899,20 @@ mod tests {
             ("klama", "ˈkla.ma"),
             ("tavla", "ˈta.vla"),
             ("coi", "ʃoj"),
-            ("i", "ʔi"),
-            ("oi", "ʔoj"),
-            ("ui", "ʔwi"),
-            ("ie", "ʔje"),
+            ("i", "i"),
+            ("oi", "oj"),
+            ("ui", "wi"),
+            ("ie", "je"),
             ("ba'e", "ˈba.he"),
-            ("e'u bridi", "ˈʔe.hu ˈbri.di"),
+            ("e'u bridi", "ˈe.hu ˈbri.di"),
             ("la alis", "la ˈʔa.lis"),
-            (".alis.", "ˈʔa.lisʔ"),
-            ("i la diskord", "ʔi la ˈʔdi.skord"),
-            (".armstrong.", "ˈʔa.rm.strongʔ"),
-            ("bastn.", "ʔbas.tnʔ"),
-            (".finyks.", "ʔfi.nəksʔ"),
-            ("i la diskord jdice", "ʔi la ˈʔdi.skord ˈʔʒdi.ʃe"),
-            ("diskord i", "ˈʔdi.skord ʔi"),
+            (".alis.", "ˈa.lis"),
+            ("i la diskord", "i la ʔdiskord"),
+            (".armstrong.", "armstrong"),
+            ("bastn.", "bas.tn"),
+            (".finyks.", "finəks"),
+            ("i la diskord jdice", "i la ʔdiskord ˈʔʒdi.ʃe"),
+            ("diskord i", "diskord ʔi"),
             (
                 "nicte je xekri je blanu .i oi lo ca skari cu slabu",
                 "ˈni.ʃte ʒe ˈxe.kri ʒe ˈbla.nu ʔi ʔoj lo ʃa ˈska.ri ʃu ˈsla.bu",
@@ -927,6 +938,337 @@ mod tests {
         for (source, expected) in cases {
             assert_eq!(render_ipa(source), expected, "{source}");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_cmevla_ipa_boundaries_conservatively() {
+        let cases = [
+            ("t", "t"),
+            (".t", "t"),
+            ("t.", "t"),
+            (".t.", "t"),
+            ("la t.", "la ʔt"),
+            (".alis.", "ˈa.lis"),
+            ("la .alis.", "la ˈʔa.lis"),
+            ("deLEZ.", "delˈez"),
+            ("nu,IORK.", "nu.ˈjork"),
+            ("diskord i", "diskord ʔi"),
+            ("i la diskord", "i la ʔdiskord"),
+        ];
+
+        for (source, expected) in cases {
+            let rendered = render_ipa(source);
+            assert_eq!(rendered, expected, "{source}");
+            assert!(!rendered.contains("ʔʔ"), "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_entries_parse_match_categories_and_render_ipa() {
+        let mut failures = Vec::new();
+        for entry in jbotci_dictionary_data::english().entries() {
+            let parsed = match segment_words_with_modifiers(entry.word) {
+                Ok(words) => words,
+                Err(error) => {
+                    if dictionary_parse_xfail_reason(entry.word, entry.word_type).is_none() {
+                        failures.push(format!(
+                            "{} [{}] failed morphology without xfail: {error:?}",
+                            entry.word,
+                            entry.word_type.as_str()
+                        ));
+                    }
+                    continue;
+                }
+            };
+
+            if let Some(reason) = dictionary_parse_xfail_reason(entry.word, entry.word_type) {
+                failures.push(format!(
+                    "{} [{}] parsed despite parse xfail: {reason}",
+                    entry.word,
+                    entry.word_type.as_str()
+                ));
+            }
+
+            match (
+                dictionary_category_exception_reason(entry.word, entry.word_type),
+                dictionary_category_matches(entry.word_type, &parsed),
+            ) {
+                (Some(reason), true) => failures.push(format!(
+                    "{} [{}] still has stale category exception: {reason}",
+                    entry.word,
+                    entry.word_type.as_str()
+                )),
+                (None, false) => failures.push(format!(
+                    "{} [{}] parsed with unexpected morphology structure",
+                    entry.word,
+                    entry.word_type.as_str()
+                )),
+                _ => {}
+            }
+
+            match ipa_morphology_text(&parsed, entry.word) {
+                Ok(ipa)
+                    if !ipa.is_empty()
+                        && dictionary_ipa_xfail_reason(entry.word, entry.word_type).is_none() => {}
+                Ok(ipa) if !ipa.is_empty() => failures.push(format!(
+                    "{} [{}] rendered IPA despite IPA xfail: {}",
+                    entry.word,
+                    entry.word_type.as_str(),
+                    dictionary_ipa_xfail_reason(entry.word, entry.word_type)
+                        .expect("IPA xfail exists")
+                )),
+                Ok(_) => failures.push(format!(
+                    "{} [{}] rendered empty IPA",
+                    entry.word,
+                    entry.word_type.as_str()
+                )),
+                Err(error) => {
+                    if dictionary_ipa_xfail_reason(entry.word, entry.word_type).is_none() {
+                        failures.push(format!(
+                            "{} [{}] failed IPA rendering: {error}",
+                            entry.word,
+                            entry.word_type.as_str()
+                        ));
+                    }
+                }
+            }
+
+            assert_dictionary_words_syllabify(entry.word, entry.word_type, &parsed, &mut failures);
+        }
+
+        assert!(
+            failures.is_empty(),
+            "{} dictionary failures:\n{}",
+            failures.len(),
+            failures
+                .iter()
+                .take(100)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_dictionary_words_syllabify(
+        entry_word: &str,
+        word_type: WordType,
+        parsed: &[WordLike],
+        failures: &mut Vec<String>,
+    ) {
+        let mut unsyllabifiable_cmevla_found = false;
+        let mut unsyllabifiable_non_cmevla_found = false;
+        for word in plain_words(parsed) {
+            match word.kind() {
+                WordKind::Cmevla => {
+                    if pronunciation_syllables(&word.phonemes()).is_err() {
+                        unsyllabifiable_cmevla_found = true;
+                        if dictionary_unsyllabifiable_cmevla_reason(entry_word, word_type).is_none()
+                        {
+                            failures.push(format!(
+                                "{entry_word} [{}] contains unsyllabifiable cmevla `{}` without allowlist reason",
+                                word_type.as_str(),
+                                word.phonemes().as_str()
+                            ));
+                        }
+                    }
+                }
+                _ => {
+                    if let Err(error) = pronunciation_syllables(&word.phonemes()) {
+                        unsyllabifiable_non_cmevla_found = true;
+                        if dictionary_ipa_xfail_reason(entry_word, word_type).is_none() {
+                            failures.push(format!(
+                                "{entry_word} [{}] contains non-cmevla `{}` that failed strict syllabification: {error}",
+                                word_type.as_str(),
+                                word.phonemes().as_str()
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        if dictionary_unsyllabifiable_cmevla_reason(entry_word, word_type).is_some()
+            && !unsyllabifiable_cmevla_found
+        {
+            failures.push(format!(
+                "{entry_word} [{}] still has stale unsyllabifiable-cmevla exception",
+                word_type.as_str()
+            ));
+        }
+        if dictionary_ipa_xfail_reason(entry_word, word_type).is_some()
+            && !unsyllabifiable_non_cmevla_found
+            && !matches!(word_type, WordType::Cmavo | WordType::ExperimentalCmavo)
+        {
+            failures.push(format!(
+                "{entry_word} [{}] still has stale non-cmevla syllable exception",
+                word_type.as_str()
+            ));
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_category_matches(word_type: WordType, words: &[WordLike]) -> bool {
+        match word_type {
+            WordType::Gismu | WordType::ExperimentalGismu => {
+                single_plain_word_kind(words) == Some(WordKind::Gismu)
+            }
+            WordType::Lujvo => single_plain_word_kind(words) == Some(WordKind::Lujvo),
+            WordType::Fuivla | WordType::ObsoleteFuivla => {
+                single_plain_word_kind(words) == Some(WordKind::Fuhivla)
+            }
+            WordType::Cmevla | WordType::ObsoleteCmevla => {
+                single_plain_word_kind(words) == Some(WordKind::Cmevla)
+            }
+            WordType::Cmavo | WordType::ExperimentalCmavo | WordType::ObsoleteCmavo => {
+                single_plain_word_kind(words) == Some(WordKind::Cmavo)
+            }
+            WordType::CmavoCompound => {
+                words.len() >= 2
+                    && words.iter().all(|word| {
+                        single_plain_word_kind(std::slice::from_ref(word)) == Some(WordKind::Cmavo)
+                    })
+            }
+            WordType::BuLetteral => words.len() == 1 && contains_lerfu_word(&words[0]),
+            WordType::ZeiLujvo | WordType::ObsoleteZeiLujvo => {
+                words.len() == 1 && contains_zei_compound(&words[0])
+            }
+            WordType::Phrase => true,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn single_plain_word_kind(words: &[WordLike]) -> Option<WordKind> {
+        let [word] = words else {
+            return None;
+        };
+        match word.as_data() {
+            data!(WordLike::PlainWord(word)) => Some(word.kind()),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn contains_lerfu_word(word: &WordLike) -> bool {
+        match word.as_data() {
+            data!(WordLike::LerfuWord { .. }) => true,
+            data!(WordLike::ZeiCompound { left, .. }) => contains_lerfu_word(left),
+            _ => false,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn contains_zei_compound(word: &WordLike) -> bool {
+        match word.as_data() {
+            data!(WordLike::ZeiCompound { .. }) => true,
+            data!(WordLike::LerfuWord { base, .. }) => contains_zei_compound(base),
+            _ => false,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_words(words: &[WordLike]) -> Vec<&Word> {
+        let mut plain = Vec::new();
+        for word in words {
+            append_plain_words(word, &mut plain);
+        }
+        plain
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn append_plain_words<'word>(word: &'word WordLike, plain: &mut Vec<&'word Word>) {
+        match word.as_data() {
+            data!(WordLike::PlainWord(word)) => plain.push(word),
+            data!(WordLike::QuotedWord { zo, word }) => {
+                plain.push(zo);
+                plain.push(word);
+            }
+            data!(WordLike::DelimitedNonLojbanQuote {
+                zoi,
+                opening_delimiter,
+                closing_delimiter,
+                ..
+            }) => {
+                plain.push(zoi);
+                plain.push(opening_delimiter);
+                plain.push(closing_delimiter);
+            }
+            data!(WordLike::QuotedWords {
+                lohu,
+                quoted_words,
+                lehu,
+            }) => {
+                plain.push(lohu);
+                plain.extend(quoted_words.iter());
+                plain.push(lehu);
+            }
+            data!(WordLike::DelimitedWordQuote { marker, .. }) => plain.push(marker),
+            data!(WordLike::LerfuWord { base, bu }) => {
+                append_plain_words(base, plain);
+                plain.push(bu);
+            }
+            data!(WordLike::ZeiCompound { left, zei, right }) => {
+                append_plain_words(left, plain);
+                plain.push(zei);
+                plain.push(right);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_parse_xfail_reason(_word: &str, _word_type: WordType) -> Option<&'static str> {
+        dictionary_exception_reason(DICTIONARY_PARSE_XFAILS, _word, _word_type)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_category_exception_reason(
+        _word: &str,
+        _word_type: WordType,
+    ) -> Option<&'static str> {
+        dictionary_exception_reason(DICTIONARY_CATEGORY_EXCEPTIONS, _word, _word_type)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_unsyllabifiable_cmevla_reason(
+        word: &str,
+        word_type: WordType,
+    ) -> Option<&'static str> {
+        dictionary_exception_reason(DICTIONARY_UNSYLLABIFIABLE_CMEVLA, word, word_type)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_ipa_xfail_reason(word: &str, word_type: WordType) -> Option<&'static str> {
+        dictionary_exception_reason(DICTIONARY_IPA_XFAILS, word, word_type)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_exception_reason(
+        exceptions: &'static str,
+        word: &str,
+        word_type: WordType,
+    ) -> Option<&'static str> {
+        exceptions.lines().find_map(|line| {
+            let mut fields = line.splitn(3, '\t');
+            let exception_word = fields.next()?;
+            let exception_type = fields.next()?;
+            let reason = fields.next()?;
+            (exception_word == word && exception_type == word_type.as_str()).then_some(reason)
+        })
     }
 
     #[test]

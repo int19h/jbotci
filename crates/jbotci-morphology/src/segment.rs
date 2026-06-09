@@ -483,12 +483,7 @@ pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
     let mut out = String::new();
     for (index, value) in chars.iter().copied().enumerate() {
         if value == ',' {
-            if chars
-                .get(index + 1)
-                .is_some_and(|_| starts_glide(&chars, index + 1))
-            {
-                out.push(value);
-            }
+            out.push(value);
             continue;
         }
         let output = if is_i_semivowel(&chars, index) {
@@ -697,15 +692,393 @@ fn record_lujvo_failure(
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|syllables| syllables.iter().all(|syllable| !syllable.is_empty())))]
 pub(crate) fn pronunciation_syllable_texts(phonemes: &str) -> Option<Vec<String>> {
-    let chars = phonemes
-        .chars()
-        .filter(|value| *value != ',')
-        .collect::<Vec<_>>();
+    let chars = pronunciation_chars(phonemes)?;
     if chars.is_empty() {
         return None;
     }
-    pronunciation_syllable_texts_from(&chars, 0, chars.len())
-        .or_else(|| fallback_pronunciation_syllable_texts(&chars))
+    strict_pronunciation_syllable_texts(&chars)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct PronunciationChar {
+    original: char,
+    annotated: char,
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|chars| {
+    chars.iter().all(|value| value.original != ',' && value.annotated != ',')
+}))]
+fn pronunciation_chars(phonemes: &str) -> Option<Vec<PronunciationChar>> {
+    let mut chars = phonemes
+        .chars()
+        .filter(|value| *value != ',')
+        .map(|original| {
+            pronunciation_base_char(original).map(|annotated| PronunciationChar {
+                original,
+                annotated,
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    mark_pronunciation_glides(&mut chars)?;
+    Some(chars)
+}
+
+#[requires(chars.iter().all(|value| value.annotated != ','))]
+#[ensures(ret.as_ref().is_some_and(|syllables| syllables.iter().all(|syllable| !syllable.is_empty())) || ret.is_none())]
+fn strict_pronunciation_syllable_texts(chars: &[PronunciationChar]) -> Option<Vec<String>> {
+    if !chars
+        .iter()
+        .any(|value| is_pronunciation_vowel(value.annotated))
+    {
+        return None;
+    }
+    let ranges = split_pronunciation_after_nuclei(chars);
+    let mut syllables = Vec::new();
+    for (index, range) in ranges.iter().enumerate() {
+        let piece = &chars[range.clone()];
+        if index == ranges.len() - 1
+            && !piece
+                .iter()
+                .any(|value| is_pronunciation_vowel(value.annotated))
+        {
+            apply_pronunciation_coda(&mut syllables, piece, None)?;
+            continue;
+        }
+        if piece
+            .last()
+            .is_some_and(|value| is_pronunciation_offglide(value.annotated))
+            && (piece.len() < 2 || !is_pronunciation_vowel(piece[piece.len() - 2].annotated))
+        {
+            return None;
+        }
+        let nucleus_len = if piece
+            .last()
+            .is_some_and(|value| is_pronunciation_offglide(value.annotated))
+        {
+            2
+        } else {
+            1
+        };
+        let onset = &piece[..piece.len().checked_sub(nucleus_len)?];
+        let nucleus = pronunciation_original_text(&piece[piece.len() - nucleus_len..]);
+        if onset.is_empty() {
+            if index != 0 {
+                return None;
+            }
+            syllables.push(nucleus);
+            continue;
+        }
+        if onset.len() == 1 && onset[0].annotated == '\'' {
+            if index == 0 {
+                return None;
+            }
+            syllables.push(format!("'{}", nucleus));
+            continue;
+        }
+        if onset.len() == 1 && is_pronunciation_onglide(onset[0].annotated) {
+            let mut syllable = String::with_capacity(onset[0].original.len_utf8() + nucleus.len());
+            syllable.push(onset[0].original);
+            syllable.push_str(&nucleus);
+            syllables.push(syllable);
+            continue;
+        }
+        if pronunciation_hard_onset(onset) {
+            let mut syllable = pronunciation_original_text(onset);
+            syllable.push_str(&nucleus);
+            syllables.push(syllable);
+            continue;
+        }
+        if onset.iter().any(|value| value.annotated == '\'') {
+            return None;
+        }
+        split_pronunciation_onset(&mut syllables, onset, &nucleus)?;
+    }
+    Some(syllables)
+}
+
+#[requires(chars.iter().all(|value| value.annotated != ','))]
+#[ensures(ret.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
+fn split_pronunciation_after_nuclei(chars: &[PronunciationChar]) -> Vec<Range<usize>> {
+    let mut pieces = Vec::new();
+    let mut start = 0;
+    for index in 0..chars.len() {
+        let current = chars[index].annotated;
+        let next = chars.get(index + 1).map(|value| value.annotated);
+        if (is_pronunciation_vowel(current) && !next.is_some_and(is_pronunciation_offglide))
+            || is_pronunciation_offglide(current)
+        {
+            pieces.push(start..index + 1);
+            start = index + 1;
+        }
+    }
+    if start < chars.len() {
+        pieces.push(start..chars.len());
+    }
+    pieces
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|_| {
+    chars.iter().all(|value| {
+        is_consonant(value.annotated)
+            || is_pronunciation_vowel(value.annotated)
+            || matches!(value.annotated, 'q' | 'w' | 'ĭ' | 'ŭ' | '\'')
+    })
+}))]
+fn mark_pronunciation_glides(chars: &mut [PronunciationChar]) -> Option<()> {
+    for index in (0..chars.len()).rev() {
+        let value = chars[index].annotated;
+        if !matches!(value, 'i' | 'u') {
+            continue;
+        }
+        let (onglide, offglide) = if value == 'i' {
+            ('q', 'ĭ')
+        } else {
+            ('w', 'ŭ')
+        };
+        if chars
+            .get(index + 1)
+            .is_some_and(|next| is_pronunciation_vowel(next.annotated))
+        {
+            chars[index].annotated = onglide;
+            continue;
+        }
+        if index == 0 {
+            continue;
+        }
+        let previous = chars[index - 1].annotated;
+        if !matches!(previous, 'a' | 'e' | 'o' | 'y') {
+            continue;
+        }
+        if !pronunciation_diphthong(previous, value) {
+            return None;
+        }
+        chars[index].annotated = offglide;
+        if chars
+            .get(index + 1)
+            .is_some_and(|next| next.annotated == onglide)
+        {
+            return None;
+        }
+    }
+    Some(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn pronunciation_diphthong(first: char, second: char) -> bool {
+    matches!((first, second), ('a' | 'e' | 'o', 'i') | ('a', 'u'))
+}
+
+#[requires(chars.iter().all(|value| value.original != ','))]
+#[ensures(!ret.is_empty() || chars.is_empty())]
+fn pronunciation_original_text(chars: &[PronunciationChar]) -> String {
+    chars.iter().map(|value| value.original).collect()
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() == (is_consonant(value) || pronunciation_base_vowel(value).is_some() || matches!(value, 'ĭ' | 'ŭ' | '\'')))]
+fn pronunciation_base_char(value: char) -> Option<char> {
+    pronunciation_base_vowel(value)
+        .or_else(|| is_consonant(value).then_some(value))
+        .or_else(|| matches!(value, 'ĭ').then_some('i'))
+        .or_else(|| matches!(value, 'ŭ').then_some('u'))
+        .or_else(|| matches!(value, '\'').then_some('\''))
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|value| matches!(value, 'a' | 'e' | 'i' | 'o' | 'u' | 'y')))]
+fn pronunciation_base_vowel(value: char) -> Option<char> {
+    match value {
+        'a' | 'á' => Some('a'),
+        'e' | 'é' => Some('e'),
+        'i' | 'í' => Some('i'),
+        'o' | 'ó' => Some('o'),
+        'u' | 'ú' => Some('u'),
+        'y' | 'ý' => Some('y'),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == matches!(value, 'a' | 'e' | 'i' | 'o' | 'u' | 'y'))]
+fn is_pronunciation_vowel(value: char) -> bool {
+    matches!(value, 'a' | 'e' | 'i' | 'o' | 'u' | 'y')
+}
+
+#[requires(true)]
+#[ensures(ret == matches!(value, 'q' | 'w'))]
+fn is_pronunciation_onglide(value: char) -> bool {
+    matches!(value, 'q' | 'w')
+}
+
+#[requires(true)]
+#[ensures(ret == matches!(value, 'ĭ' | 'ŭ'))]
+fn is_pronunciation_offglide(value: char) -> bool {
+    matches!(value, 'ĭ' | 'ŭ')
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn pronunciation_hard_onset(chars: &[PronunciationChar]) -> bool {
+    match chars {
+        [] => true,
+        [value] => is_consonant(value.annotated),
+        [first, second] => {
+            initial_pair_chars(first.annotated, second.annotated)
+                || (is_consonant(first.annotated) && is_pronunciation_onglide(second.annotated))
+        }
+        [first, second, third] => {
+            is_sibilant(first.annotated)
+                && initial_pair_chars(first.annotated, second.annotated)
+                && initial_pair_chars(second.annotated, third.annotated)
+                && is_liquid(third.annotated)
+        }
+        _ => false,
+    }
+}
+
+#[requires(chars.iter().all(|value| is_consonant(value.annotated)))]
+#[ensures(ret.as_ref().is_none_or(|(_, syllables)| syllables.iter().all(|syllable| !syllable.is_empty())))]
+fn parse_previous_pronunciation_coda(
+    chars: &[PronunciationChar],
+) -> Option<(Option<PronunciationChar>, Vec<String>)> {
+    if chars.is_empty() {
+        return Some((None, Vec::new()));
+    }
+    if (chars.len() - 1).is_multiple_of(2)
+        && is_consonant(chars[0].annotated)
+        && let Some(syllables) = pronunciation_consonantal_syllables(&chars[1..])
+    {
+        return Some((Some(chars[0]), syllables));
+    }
+    if chars.len().is_multiple_of(2)
+        && let Some(syllables) = pronunciation_consonantal_syllables(chars)
+    {
+        return Some((None, syllables));
+    }
+    None
+}
+
+#[requires(chars.len().is_multiple_of(2))]
+#[ensures(ret.as_ref().is_none_or(|syllables| syllables.iter().all(|syllable| !syllable.is_empty())))]
+fn pronunciation_consonantal_syllables(chars: &[PronunciationChar]) -> Option<Vec<String>> {
+    let mut syllables = Vec::new();
+    for chunk in chars.chunks(2) {
+        let [first, second] = chunk else {
+            return None;
+        };
+        if is_consonant(first.annotated)
+            && is_syllabic(second.annotated)
+            && first.annotated != second.annotated
+        {
+            syllables.push(pronunciation_original_text(chunk));
+        } else {
+            return None;
+        }
+    }
+    Some(syllables)
+}
+
+#[requires(chars.iter().all(|value| is_consonant(value.annotated) || is_pronunciation_onglide(value.annotated) || value.annotated == '\''))]
+#[ensures(true)]
+fn apply_pronunciation_coda(
+    syllables: &mut Vec<String>,
+    chars: &[PronunciationChar],
+    next_consonant: Option<PronunciationChar>,
+) -> Option<()> {
+    if next_consonant.is_none()
+        && chars
+            .iter()
+            .any(|value| is_pronunciation_onglide(value.annotated) || value.annotated == '\'')
+    {
+        return None;
+    }
+    let (coda, consonantal_syllables) = parse_previous_pronunciation_coda(chars)?;
+    if let Some(coda) = coda {
+        let next = consonantal_syllables
+            .first()
+            .and_then(|syllable| syllable.chars().next())
+            .or(next_consonant.map(|value| value.annotated));
+        if let Some(next) = next
+            && !pronunciation_pair_permissible(coda.annotated, next)
+        {
+            return None;
+        }
+        let previous = syllables.last_mut()?;
+        previous.push(coda.original);
+    }
+    syllables.extend(consonantal_syllables);
+    Some(())
+}
+
+#[requires(!onset.is_empty())]
+#[requires(nucleus.chars().count() <= 2)]
+#[ensures(true)]
+fn split_pronunciation_onset(
+    syllables: &mut Vec<String>,
+    onset: &[PronunciationChar],
+    nucleus: &str,
+) -> Option<()> {
+    let (suffix_len, hard_onset) = (1..=onset.len().min(3)).rev().find_map(|suffix_len| {
+        let hard_onset = &onset[onset.len() - suffix_len..];
+        if !pronunciation_hard_onset(hard_onset) {
+            return None;
+        }
+        let prefix = &onset[..onset.len() - suffix_len];
+        let (coda, consonantal_syllables) = parse_previous_pronunciation_coda(prefix)?;
+        if consonantal_syllables.is_empty()
+            && let (Some(coda), Some(first)) = (coda, hard_onset.first())
+            && !pronunciation_pair_permissible(coda.annotated, first.annotated)
+        {
+            return None;
+        }
+        if !consonantal_syllables.is_empty()
+            && let (Some(previous), Some(first)) = (prefix.last(), hard_onset.first())
+            && !pronunciation_pair_permissible(previous.annotated, first.annotated)
+        {
+            return None;
+        }
+        let triple_prefix = if consonantal_syllables.is_empty() {
+            coda
+        } else {
+            prefix.last().copied()
+        };
+        if let Some(previous) = triple_prefix
+            && hard_onset.len() >= 2
+            && forbidden_consonant_triple_chars(
+                previous.annotated,
+                hard_onset[0].annotated,
+                hard_onset[1].annotated,
+            )
+        {
+            return None;
+        }
+        Some((suffix_len, hard_onset))
+    })?;
+    let prefix = &onset[..onset.len() - suffix_len];
+    apply_pronunciation_coda(syllables, prefix, hard_onset.first().copied())?;
+    let mut syllable = pronunciation_original_text(hard_onset);
+    syllable.push_str(nucleus);
+    syllables.push(syllable);
+    Some(())
+}
+
+#[requires(true)]
+#[ensures(ret == experimental_permissible_consonant_pair(first, second))]
+fn pronunciation_pair_permissible(first: char, second: char) -> bool {
+    experimental_permissible_consonant_pair(first, second)
+}
+
+#[requires(true)]
+#[ensures(ret == matches!((first, second, third), ('n', 'd', 'j' | 'z') | ('n', 't', 'c' | 's')))]
+fn forbidden_consonant_triple_chars(first: char, second: char, third: char) -> bool {
+    matches!(
+        (first, second, third),
+        ('n', 'd', 'j' | 'z') | ('n', 't', 'c' | 's')
+    )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2547,18 +2920,8 @@ fn final_syllable_slice(chars: &[char], start: usize, end: usize) -> bool {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(::Brivla => true)]
-#[invariant(::Pronunciation => true)]
 enum SyllablePolicy {
     Brivla,
-    Pronunciation,
-}
-
-impl SyllablePolicy {
-    #[requires(true)]
-    #[ensures(ret == matches!(self, SyllablePolicy::Pronunciation))]
-    fn allows_y_nucleus(self) -> bool {
-        matches!(self, SyllablePolicy::Pronunciation)
-    }
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -2566,7 +2929,7 @@ impl SyllablePolicy {
 fn syllable_ends(chars: &[char], index: usize, end: usize, policy: SyllablePolicy) -> Vec<usize> {
     let mut ends = Vec::new();
     for onset_end in brivla_onset_ends(chars, index) {
-        if !policy.allows_y_nucleus() && chars.get(onset_end).is_some_and(|value| is_y(*value)) {
+        if chars.get(onset_end).is_some_and(|value| is_y(*value)) {
             continue;
         }
         for (_, nucleus_end) in parse_nuclei(chars, onset_end) {
@@ -2579,301 +2942,6 @@ fn syllable_ends(chars: &[char], index: usize, end: usize, policy: SyllablePolic
     ends.sort_unstable();
     ends.dedup();
     ends
-}
-
-#[requires(index <= end && end <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|syllables| syllables.iter().all(|syllable| !syllable.is_empty())))]
-fn pronunciation_syllable_texts_from(
-    chars: &[char],
-    index: usize,
-    end: usize,
-) -> Option<Vec<String>> {
-    if index == end {
-        return Some(Vec::new());
-    }
-    let mut candidate_ends = syllable_ends(chars, index, end, SyllablePolicy::Pronunciation);
-    candidate_ends.extend(consonantal_syllable_ends(
-        chars,
-        index,
-        end,
-        SyllablePolicy::Pronunciation,
-    ));
-    candidate_ends.sort_unstable();
-    candidate_ends.dedup();
-    for candidate_end in candidate_ends {
-        let candidate_end = if candidate_end == end {
-            final_consonantal_syllable_start(chars, index)
-                .filter(|split| *split > index)
-                .unwrap_or(candidate_end)
-        } else {
-            candidate_end
-        };
-        if candidate_end <= index || candidate_end > end {
-            continue;
-        }
-        let Some(mut rest) = pronunciation_syllable_texts_from(chars, candidate_end, end) else {
-            continue;
-        };
-        rest.insert(0, chars[index..candidate_end].iter().collect());
-        return Some(rest);
-    }
-    None
-}
-
-#[requires(!chars.is_empty())]
-#[ensures(ret.as_ref().is_none_or(|syllables| syllables.iter().all(|syllable| !syllable.is_empty())))]
-fn fallback_pronunciation_syllable_texts(chars: &[char]) -> Option<Vec<String>> {
-    let mut syllables: Vec<String> = Vec::new();
-    let mut index = 0;
-    while index < chars.len() {
-        if let Some(end) = best_fallback_syllable_end(chars, index) {
-            syllables.push(chars[index..end].iter().collect());
-            index = end;
-        } else if let Some(last) = syllables.last_mut() {
-            last.extend(chars[index..].iter().copied());
-            break;
-        } else {
-            return None;
-        }
-    }
-    (!syllables.is_empty()).then_some(syllables)
-}
-
-#[requires(index < chars.len())]
-#[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
-fn best_fallback_syllable_end(chars: &[char], index: usize) -> Option<usize> {
-    if consonantal_pronunciation_syllable_slice(chars, index, chars.len()) {
-        return Some(chars.len());
-    }
-    for end in consonantal_syllable_ends(chars, index, chars.len(), SyllablePolicy::Pronunciation) {
-        if has_later_pronunciation_nucleus(chars, end) {
-            return Some(end);
-        }
-    }
-    let next_nucleus = next_pronunciation_nucleus_start(chars, index)?;
-    let nucleus_end = pronunciation_nucleus_end(chars, next_nucleus)?;
-    for onset_start in fallback_onset_starts_before_nucleus(chars, index, next_nucleus) {
-        if onset_start > index
-            && consonantal_pronunciation_syllable_slice(chars, index, onset_start)
-        {
-            return Some(onset_start);
-        }
-    }
-    if !has_later_pronunciation_nucleus(chars, nucleus_end) {
-        if let Some(final_start) = final_consonantal_syllable_start(chars, nucleus_end)
-            && final_start > index
-        {
-            return Some(final_start);
-        }
-        return Some(chars.len());
-    }
-    let next_start = next_pronunciation_syllable_start(chars, nucleus_end);
-    (next_start > index).then_some(next_start)
-}
-
-#[requires(index <= nucleus_start && nucleus_start < chars.len())]
-#[ensures(ret.iter().all(|start| *start >= index && *start <= nucleus_start))]
-fn fallback_onset_starts_before_nucleus(
-    chars: &[char],
-    index: usize,
-    nucleus_start: usize,
-) -> Vec<usize> {
-    (index..=nucleus_start)
-        .filter(|start| valid_pronunciation_onset_slice(chars, *start, nucleus_start))
-        .collect()
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn consonantal_pronunciation_syllable_slice(chars: &[char], start: usize, end: usize) -> bool {
-    end > start + 1
-        && is_consonant(chars[start])
-        && chars[start + 1..end]
-            .iter()
-            .all(|value| is_syllabic(*value))
-}
-
-#[requires(index <= chars.len())]
-#[ensures(ret.is_none_or(|start| start >= index && start < chars.len()))]
-fn final_consonantal_syllable_start(chars: &[char], index: usize) -> Option<usize> {
-    (index..chars.len())
-        .find(|start| consonantal_pronunciation_syllable_slice(chars, *start, chars.len()))
-}
-
-#[requires(index <= chars.len())]
-#[ensures(ret.is_none_or(|found| found >= index && found < chars.len()))]
-fn next_pronunciation_nucleus_start(chars: &[char], index: usize) -> Option<usize> {
-    (index..chars.len()).find(|candidate| is_pronunciation_nucleus_start(chars, *candidate))
-}
-
-#[requires(index <= chars.len())]
-#[ensures(true)]
-fn has_later_pronunciation_nucleus(chars: &[char], index: usize) -> bool {
-    next_pronunciation_nucleus_start(chars, index).is_some()
-}
-
-#[requires(index < chars.len())]
-#[ensures(ret.is_none_or(|end| end > index && end <= chars.len()))]
-fn pronunciation_nucleus_end(chars: &[char], index: usize) -> Option<usize> {
-    if let Some((_, end)) = raw_diphthong_end(chars, index) {
-        return Some(end);
-    }
-    is_pronunciation_nucleus_start(chars, index).then_some(index + 1)
-}
-
-#[requires(index < chars.len())]
-#[ensures(true)]
-fn is_pronunciation_nucleus_start(chars: &[char], index: usize) -> bool {
-    matches!(
-        chars.get(index).copied(),
-        Some('a' | 'á' | 'e' | 'é' | 'i' | 'í' | 'o' | 'ó' | 'u' | 'ú' | 'y' | 'ý')
-    ) || raw_diphthong_end(chars, index).is_some()
-}
-
-#[requires(nucleus_end <= chars.len())]
-#[ensures(ret >= nucleus_end && ret <= chars.len())]
-fn next_pronunciation_syllable_start(chars: &[char], nucleus_end: usize) -> usize {
-    let Some(next_nucleus) = next_pronunciation_nucleus_start(chars, nucleus_end) else {
-        return chars.len();
-    };
-    if let Some(start) = preferred_fallback_consonant_onset_start(chars, nucleus_end, next_nucleus)
-    {
-        return start;
-    }
-    for start in nucleus_end..next_nucleus {
-        if valid_pronunciation_onset_slice(chars, start, next_nucleus) {
-            return start;
-        }
-    }
-    next_nucleus
-}
-
-#[requires(cluster_start <= next_nucleus && next_nucleus <= chars.len())]
-#[ensures(ret.is_none_or(|start| start >= cluster_start && start <= next_nucleus))]
-fn preferred_fallback_consonant_onset_start(
-    chars: &[char],
-    cluster_start: usize,
-    next_nucleus: usize,
-) -> Option<usize> {
-    let cluster = chars.get(cluster_start..next_nucleus)?;
-    if cluster.is_empty() {
-        return Some(next_nucleus);
-    }
-    if !cluster.iter().all(|value| is_consonant(*value)) {
-        return None;
-    }
-    match cluster.len() {
-        1 => Some(cluster_start),
-        2 => {
-            if initial_pair_chars(cluster[0], cluster[1]) {
-                Some(cluster_start)
-            } else {
-                Some(cluster_start + 1)
-            }
-        }
-        3 => Some(preferred_three_consonant_fallback_onset_start(
-            chars,
-            cluster_start,
-        )),
-        _ => Some(preferred_long_consonant_fallback_onset_start(
-            chars,
-            cluster_start,
-            next_nucleus,
-        )),
-    }
-}
-
-#[requires(start + 3 <= chars.len())]
-#[ensures(ret >= start + 1 && ret <= start + 2)]
-fn preferred_three_consonant_fallback_onset_start(chars: &[char], start: usize) -> usize {
-    if permissible_consonant_pair(chars[start], chars[start + 1])
-        && initial_pair_chars(chars[start + 1], chars[start + 2])
-    {
-        return start + 1;
-    }
-    if permissible_consonant_pair(chars[start], chars[start + 1])
-        && permissible_consonant_pair(chars[start + 1], chars[start + 2])
-    {
-        return start + 2;
-    }
-    start + 1
-}
-
-#[requires(cluster_start < next_nucleus && next_nucleus <= chars.len())]
-#[ensures(ret >= cluster_start && ret <= next_nucleus)]
-fn preferred_long_consonant_fallback_onset_start(
-    chars: &[char],
-    cluster_start: usize,
-    next_nucleus: usize,
-) -> usize {
-    if initial_consonantal_syllable_before_native_onset(chars, cluster_start, next_nucleus) {
-        return cluster_start;
-    }
-    for start in (cluster_start + 1)..next_nucleus {
-        if native_consonant_cluster_split(chars, cluster_start, start, next_nucleus) {
-            return start;
-        }
-    }
-    if next_nucleus >= cluster_start + 2
-        && initial_pair_chars(chars[next_nucleus - 2], chars[next_nucleus - 1])
-    {
-        return next_nucleus - 2;
-    }
-    next_nucleus - 1
-}
-
-#[requires(cluster_start < next_nucleus && next_nucleus <= chars.len())]
-#[ensures(true)]
-fn initial_consonantal_syllable_before_native_onset(
-    chars: &[char],
-    cluster_start: usize,
-    next_nucleus: usize,
-) -> bool {
-    if !consonant_cluster_pairs_are_permissible(chars, cluster_start, next_nucleus) {
-        return false;
-    }
-    (cluster_start + 2..next_nucleus).any(|split| {
-        consonantal_pronunciation_syllable_slice(chars, cluster_start, split)
-            && valid_pronunciation_onset_slice(chars, split, next_nucleus)
-    })
-}
-
-#[requires(cluster_start < split && split < next_nucleus && next_nucleus <= chars.len())]
-#[ensures(true)]
-fn native_consonant_cluster_split(
-    chars: &[char],
-    cluster_start: usize,
-    split: usize,
-    next_nucleus: usize,
-) -> bool {
-    consonant_cluster_pairs_are_permissible(chars, cluster_start, next_nucleus)
-        && valid_pronunciation_onset_slice(chars, split, next_nucleus)
-}
-
-#[requires(start < end && end <= chars.len())]
-#[ensures(true)]
-fn consonant_cluster_pairs_are_permissible(chars: &[char], start: usize, end: usize) -> bool {
-    chars[start..end]
-        .windows(2)
-        .all(|pair| permissible_consonant_pair(pair[0], pair[1]))
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn valid_pronunciation_onset_slice(chars: &[char], start: usize, end: usize) -> bool {
-    if start == end {
-        return true;
-    }
-    if end == start + 1 {
-        return is_consonant(chars[start]) || chars[start] == '\'';
-    }
-    if end == start + 2 {
-        return initial_pair_chars(chars[start], chars[start + 1]);
-    }
-    if end == start + 3 {
-        return valid_three_consonant_initial(chars, start);
-    }
-    false
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -2923,9 +2991,7 @@ fn starts_any_syllable(chars: &[char], index: usize, end: usize, policy: Syllabl
     }
     brivla_onset_ends(chars, index)
         .into_iter()
-        .filter(|onset_end| {
-            policy.allows_y_nucleus() || !chars.get(*onset_end).is_some_and(|value| is_y(*value))
-        })
+        .filter(|onset_end| !chars.get(*onset_end).is_some_and(|value| is_y(*value)))
         .any(|onset_end| {
             parse_nuclei(chars, onset_end)
                 .into_iter()
@@ -3123,22 +3189,16 @@ fn valid_three_consonant_initial(chars: &[char], index: usize) -> bool {
     ) else {
         return false;
     };
-    is_sibilant(first) && is_other_consonant(second) && is_liquid(third)
+    is_sibilant(first)
+        && initial_pair_chars(first, second)
+        && initial_pair_chars(second, third)
+        && is_liquid(third)
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn is_sibilant(value: char) -> bool {
     matches!(value, 'c' | 's' | 'j' | 'z')
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_other_consonant(value: char) -> bool {
-    matches!(
-        value,
-        'p' | 't' | 'k' | 'f' | 'x' | 'b' | 'd' | 'g' | 'v' | 'm' | 'n'
-    )
 }
 
 #[requires(true)]

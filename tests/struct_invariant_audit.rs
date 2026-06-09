@@ -916,6 +916,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "trace renderer options are caller-selected presentation controls",
     ),
     (
+        "crates/jbotci-output/src/surface.rs:IpaRenderedWord",
+        "IPA word rendering metadata is produced by render_word_ipa and consumed immediately for boundary merging",
+    ),
+    (
         "crates/jbotci-dictionary/src/lib.rs:SelmahoIndexEntry",
         "borrowed index entry is generated from owned validated buckets",
     ),
@@ -938,6 +942,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-morphology/src/segment.rs:NormalizationError",
         "normalization error records an arbitrary rejected source character and its source index",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:PronunciationChar",
+        "pronunciation annotation pairs original and derived chars inside the strict syllabifier; constructors enforce valid annotated values",
     ),
     (
         "crates/jbotci-morphology/src/lib.rs:PhonemeRenderOptions",
