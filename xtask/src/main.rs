@@ -420,6 +420,7 @@ fn dioxus_web_public_input_dir() -> PathBuf {
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn remove_obsolete_web_public_assets(public_dir: &Path) -> Result<()> {
     remove_obsolete_web_public_dir(public_dir, Path::new("assets/generated"))?;
+    remove_obsolete_web_public_file(public_dir, Path::new("manifest.webmanifest"))?;
     remove_obsolete_web_public_file(public_dir, Path::new("assets/manifest.webmanifest"))
 }
 

@@ -2316,6 +2316,48 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn pronunciation_syllables_allow_y_nuclei_and_native_clusters() {
+        let cases = [
+            ("jetcybolxáda", vec!["je", "tcy", "bol", "xá", "da"]),
+            ("bolxáda", vec!["bol", "xá", "da"]),
+            ("dikyjvo", vec!["di", "ky", "jvo"]),
+            ("díkyjvo", vec!["dí", "ky", "jvo"]),
+            ("cidjrspageti", vec!["cid", "jr", "spa", "ge", "ti"]),
+        ];
+
+        for (source, expected) in cases {
+            assert_eq!(
+                pronunciation_syllables_for_test(source),
+                expected,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn pronunciation_syllables_cover_long_dictionary_clusters() {
+        let cases = [
+            ("cipnrstrígi", vec!["cip", "nr", "strí", "gi"]),
+            ("cabrspréso", vec!["ca", "br", "spré", "so"]),
+            ("bolstropfédo", vec!["bol", "strop", "fé", "do"]),
+            ("ciskrpeŭédji", vec!["cis", "kr", "pe", "ŭé", "dji"]),
+            ("bangrsfe'énska", vec!["ban", "gr", "sfe", "'én", "ska"]),
+        ];
+
+        for (source, expected) in cases {
+            assert_eq!(
+                pronunciation_syllables_for_test(source),
+                expected,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn latin_breve_in_glide_position_does_not_warn() {
         let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
             "faŭ la .saĭmn.",
@@ -3378,6 +3420,13 @@ mod tests {
             LujvoPart::Rafsi(phonemes) => format!("rafsi:{}", render_unstressed(phonemes)),
             LujvoPart::Hyphen(phonemes) => format!("hyphen:{}", render_unstressed(phonemes)),
         }
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(ret.iter().all(|syllable| !syllable.is_empty()))]
+    fn pronunciation_syllables_for_test(source: &str) -> Vec<String> {
+        let phonemes = Phonemes::from_canonical(source.to_owned()).expect("valid phonemes");
+        pronunciation_syllables(&phonemes).expect("syllabified phonemes")
     }
 
     #[requires(!phonemes.as_str().is_empty())]

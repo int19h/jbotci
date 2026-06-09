@@ -1406,6 +1406,7 @@ fn dioxus_web_public_input_dir() -> PathBuf {
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn remove_obsolete_web_public_assets(public_dir: &Path) -> Result<()> {
     remove_obsolete_web_public_dir(public_dir, Path::new("assets/generated"))?;
+    remove_obsolete_web_public_file(public_dir, Path::new("manifest.webmanifest"))?;
     remove_obsolete_web_public_file(public_dir, Path::new("assets/manifest.webmanifest"))
 }
 
@@ -1447,7 +1448,7 @@ fn copy_stable_web_assets_to_public(public_dir: &Path) -> Result<()> {
     copy_stable_web_asset_file(
         public_dir,
         Path::new("manifest.webmanifest"),
-        Path::new("manifest.webmanifest"),
+        Path::new("assets/manifest.webmanifest"),
     )?;
     copy_stable_web_asset_dir(public_dir, Path::new("icons"), Path::new("assets/icons"))?;
     copy_stable_web_asset_dir(
@@ -9603,7 +9604,7 @@ mod tests {
         fs::create_dir_all(public.join("assets/embeddings/web/v1")).unwrap();
         fs::create_dir_all(public.join("assets/icons")).unwrap();
         fs::write(public.join("index.html"), "<!doctype html>").unwrap();
-        fs::write(public.join("manifest.webmanifest"), "{}").unwrap();
+        fs::write(public.join("assets/manifest.webmanifest"), "{}").unwrap();
         fs::write(public.join("service-worker.js"), "old").unwrap();
         fs::write(public.join("assets/app.js"), "app").unwrap();
         fs::write(public.join("assets/app.js.br"), "compressed").unwrap();
@@ -9622,8 +9623,8 @@ mod tests {
             vec![
                 "assets/app.js".to_owned(),
                 "assets/icons/jbotci-icon-512.png".to_owned(),
+                "assets/manifest.webmanifest".to_owned(),
                 "index.html".to_owned(),
-                "manifest.webmanifest".to_owned(),
             ]
         );
         fs::remove_dir_all(root).unwrap();
@@ -9633,12 +9634,15 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn release_service_worker_script_uses_network_first_and_jbotci_cache_prefix() {
-        let paths = vec!["index.html".to_owned(), "manifest.webmanifest".to_owned()];
+        let paths = vec![
+            "assets/manifest.webmanifest".to_owned(),
+            "index.html".to_owned(),
+        ];
         let script = render_release_service_worker("abc123", &paths).unwrap();
 
         assert!(script.contains("const CACHE_VERSION = \"abc123\";"));
         assert!(script.contains("networkFirst(request, RUNTIME_CACHE_NAME, APP_SHELL_URL)"));
         assert!(script.contains("name.startsWith(\"jbotci-\")"));
-        assert!(script.contains("\"manifest.webmanifest\""));
+        assert!(script.contains("\"assets/manifest.webmanifest\""));
     }
 }

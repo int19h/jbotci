@@ -1,3 +1,5 @@
+import { createWorkerClient } from "./worker-client.js";
+
 const DEFAULT_REMOTE_BASE_URL = "https://assets.jbotci.app/embeddings/web/v1";
 const LOG_PREFIX = "[jbotci embeddings]";
 const F2LLM_80M_MODEL_KEY = "f2llm-v2-80m-q4-320";
@@ -9,15 +11,15 @@ const SUPPORTED_MODEL_KEYS = new Set([
   "f2llm-v2-0.6b-q4-1024",
 ]);
 
-let configuredWorkerUrl = null;
+const CHANNEL_STATUS = "embedding-status";
+const CHANNEL_SETUP = "embedding-setup";
+const CHANNEL_REMOVE = "embedding-remove";
+
 let configuredOrtModuleUrl = null;
 let configuredOrtWasmMjsUrl = null;
 let configuredOrtWasmUrl = null;
 let configuredRemoteBaseUrl = DEFAULT_REMOTE_BASE_URL;
 let configuredModelKey = null;
-let worker = null;
-let nextRequestId = 1;
-const pending = new Map();
 
 function logInfo(message, detail = null) {
   if (detail === null) {
@@ -27,90 +29,12 @@ function logInfo(message, detail = null) {
   }
 }
 
-function logWarn(message, detail = null) {
-  if (detail === null) {
-    console.warn(`${LOG_PREFIX} ${message}`);
-  } else {
-    console.warn(`${LOG_PREFIX} ${message}`, detail);
-  }
-}
-
-function rejectPending(error) {
-  for (const request of pending.values()) {
-    request.reject(error);
-  }
-  pending.clear();
-}
-
-function terminateWorker(error) {
-  if (worker !== null) {
-    worker.terminate();
-    worker = null;
-  }
-  rejectPending(error);
-}
-
-function ensureWorker() {
-  if (worker !== null) {
-    return worker;
-  }
-  const workerUrl =
-    configuredWorkerUrl ?? new URL("./embedding-worker.js", import.meta.url);
-  try {
-    worker = new Worker(workerUrl, { type: "module" });
-  } catch (error) {
-    worker = null;
-    throw new Error(error instanceof Error ? error.message : String(error));
-  }
-  worker.onmessage = (event) => {
-    const message = event.data || {};
-    const request = pending.get(message.id);
-    if (!request) {
-      return;
-    }
-    pending.delete(message.id);
-    if (message.ok) {
-      request.resolve(JSON.stringify(message.value));
-    } else {
-      const error = message.error || "embedding worker request failed";
-      logWarn("worker request failed", {
-        id: message.id,
-        error,
-      });
-      request.reject(error);
-    }
-  };
-  worker.onerror = (event) => {
-    const location = event.filename
-      ? ` at ${event.filename}${event.lineno ? `:${event.lineno}` : ""}`
-      : "";
-    const error = event.message
-      ? `embedding worker failed${location}: ${event.message}`
-      : `embedding worker failed${location}`;
-    rejectPending(error);
-    worker = null;
-  };
-  worker.onmessageerror = () => {
-    rejectPending("embedding worker returned an unreadable message");
-    worker = null;
-  };
-  return worker;
-}
-
-function defaultModelKey() {
-  return isMobileDevice() ? F2LLM_80M_MODEL_KEY : F2LLM_330M_MODEL_KEY;
-}
-
 function activeModelKey() {
   return configuredModelKey || defaultModelKey();
 }
 
-function appModuleUrl() {
-  const bootstrapUrl = globalThis.JBOTCI_WEB_BOOTSTRAP?.mainModuleUrl;
-  if (typeof bootstrapUrl !== "string" || bootstrapUrl.length === 0) {
-    throw new Error("embedding app module URL is not configured");
-  }
-  return new URL(bootstrapUrl, globalThis.location.href);
+function defaultModelKey() {
+  return isMobileDevice() ? F2LLM_80M_MODEL_KEY : F2LLM_330M_MODEL_KEY;
 }
 
 function isMobileDevice() {
@@ -122,19 +46,61 @@ function isMobileDevice() {
     || (platform === "MacIntel" && Number(globalThis.navigator?.maxTouchPoints || 0) > 1);
 }
 
+function workerConfig() {
+  return {
+    modelKey: activeModelKey(),
+    remoteBaseUrl: configuredRemoteBaseUrl,
+    ortModuleUrl: configuredOrtModuleUrl?.href || null,
+    ortWasmMjsUrl: configuredOrtWasmMjsUrl?.href || null,
+    ortWasmUrl: configuredOrtWasmUrl?.href || null,
+    minIdleWorkers: 0,
+    maxIdleWorkers: 1,
+  };
+}
+
+const client = createWorkerClient({
+  label: "embedding",
+  defaultWorkerUrl: () => new URL("./embedding-worker.js", import.meta.url),
+  minIdleWorkers: 0,
+  maxIdleWorkers: 1,
+  workerConfig,
+  contextKey: (config) => [
+    config.modelKey,
+    config.ortModuleUrl,
+    config.ortWasmMjsUrl,
+    config.ortWasmUrl,
+  ],
+  responseValue: (value) => JSON.stringify(value),
+  warmMessage: (context) => ({
+    kind: "warm",
+    mainModuleUrl: context.mainModuleUrl,
+    payload: {
+      modelKey: context.config.modelKey,
+      remoteBaseUrl: context.config.remoteBaseUrl,
+      ortModuleUrl: context.config.ortModuleUrl,
+      ortWasmMjsUrl: context.config.ortWasmMjsUrl,
+      ortWasmUrl: context.config.ortWasmUrl,
+    },
+  }),
+  requestMessage: ({ id, payload, workerEntry }) => ({
+    id,
+    type: payload.type,
+    payload: {
+      ...payload.payload,
+      modelKey: workerEntry.config.modelKey,
+      mainModuleUrl: workerEntry.mainModuleUrl,
+      ortModuleUrl: workerEntry.config.ortModuleUrl,
+      ortWasmMjsUrl: workerEntry.config.ortWasmMjsUrl,
+      ortWasmUrl: workerEntry.config.ortWasmUrl,
+    },
+  }),
+});
+
 export function jbotciEmbeddingConfigureWorker(workerUrl) {
-  if (typeof workerUrl !== "string" || workerUrl.length === 0) {
-    throw new Error("embedding worker URL is empty");
-  }
-  const nextWorkerUrl = new URL(workerUrl, globalThis.location.href);
-  if (configuredWorkerUrl !== null && configuredWorkerUrl.href === nextWorkerUrl.href) {
-    return;
-  }
-  configuredWorkerUrl = nextWorkerUrl;
-  logInfo("configured worker URL", { workerUrl: configuredWorkerUrl.href });
-  if (worker !== null) {
-    terminateWorker("embedding worker URL changed");
-  }
+  client.configureWorker(workerUrl);
+  logInfo("configured worker URL", {
+    workerUrl: new URL(workerUrl, globalThis.location.href).href,
+  });
 }
 
 export function jbotciEmbeddingConfigureOrtAssets(moduleUrl, wasmMjsUrl, wasmUrl) {
@@ -161,14 +127,12 @@ export function jbotciEmbeddingConfigureOrtAssets(moduleUrl, wasmMjsUrl, wasmUrl
   configuredOrtModuleUrl = nextModuleUrl;
   configuredOrtWasmMjsUrl = nextWasmMjsUrl;
   configuredOrtWasmUrl = nextWasmUrl;
+  client.terminateAllWorkers("embedding ONNX Runtime Web assets changed");
   logInfo("configured ONNX Runtime Web assets", {
     moduleUrl: configuredOrtModuleUrl.href,
     wasmMjsUrl: configuredOrtWasmMjsUrl.href,
     wasmUrl: configuredOrtWasmUrl.href,
   });
-  if (worker !== null) {
-    terminateWorker("ONNX Runtime Web assets changed");
-  }
 }
 
 export function jbotciEmbeddingConfigureRemoteBase(remoteBaseUrl) {
@@ -193,71 +157,49 @@ export function jbotciEmbeddingConfigureModel(modelKey) {
     return;
   }
   configuredModelKey = nextModelKey;
+  client.terminateAllWorkers("embedding model changed");
   logInfo("configured model", { modelKey: configuredModelKey });
-  if (worker !== null) {
-    terminateWorker("embedding model changed");
-  }
 }
 
 export function jbotciEmbeddingPreferredModelKey() {
   return activeModelKey();
 }
 
-function sendRequest(type, payload = {}) {
-  return new Promise((resolve, reject) => {
-    const id = nextRequestId++;
-    const remoteBaseUrl = payload.remoteBaseUrl || configuredRemoteBaseUrl;
-    const modelKey = payload.modelKey || activeModelKey();
-    const mainModuleUrl = appModuleUrl().href;
-    const ortModuleUrl = configuredOrtModuleUrl?.href || null;
-    const ortWasmMjsUrl = configuredOrtWasmMjsUrl?.href || null;
-    const ortWasmUrl = configuredOrtWasmUrl?.href || null;
-    if (type === "setup") {
-      logInfo("sending setup request", {
-        id,
-        modelKey,
-        remoteBaseUrl,
-        corpusJsonBytes: typeof payload.corpusJson === "string" ? payload.corpusJson.length : 0,
-      });
-    }
-    pending.set(id, { resolve, reject });
-    try {
-      ensureWorker().postMessage({
-        id,
-        type,
-        payload: {
-          ...payload,
-          modelKey,
-          remoteBaseUrl,
-          mainModuleUrl,
-          ortModuleUrl,
-          ortWasmMjsUrl,
-          ortWasmUrl,
-        },
-      });
-    } catch (error) {
-      pending.delete(id);
-      reject(error instanceof Error ? error.message : String(error));
-    }
-  });
+export function jbotciEmbeddingCancel(channel) {
+  client.cancel(channel);
 }
 
-async function request(type, payload = {}) {
-  return sendRequest(type, payload);
+function request(channel, type, payload = {}) {
+  const requestPayload = {
+    ...payload,
+    remoteBaseUrl: payload.remoteBaseUrl || configuredRemoteBaseUrl,
+  };
+  if (type === "setup") {
+    logInfo("sending setup request", {
+      modelKey: activeModelKey(),
+      remoteBaseUrl: requestPayload.remoteBaseUrl,
+      corpusJsonBytes: typeof requestPayload.corpusJson === "string"
+        ? requestPayload.corpusJson.length
+        : 0,
+    });
+  }
+  return client.request(channel, { type, payload: requestPayload });
 }
 
 export function jbotciEmbeddingStatus() {
-  return request("status");
+  return request(CHANNEL_STATUS, "status", {
+    setupActive: client.hasPending(CHANNEL_SETUP),
+  });
 }
 
 export function jbotciEmbeddingSetup(corpusJson, remoteBaseUrl = configuredRemoteBaseUrl) {
-  return request("setup", { corpusJson, remoteBaseUrl });
+  return request(CHANNEL_SETUP, "setup", { corpusJson, remoteBaseUrl });
 }
 
 export function jbotciEmbeddingRemove() {
-  return request("remove");
+  return request(CHANNEL_REMOVE, "remove");
 }
 
-export function jbotciEmbeddingSearch(corpusId, query, limit, kindFiltersJson = "[]") {
-  return request("search", { corpusId, query, limit, kindFiltersJson });
+export function jbotciEmbeddingSearch(channel, corpusId, query, limit, kindFiltersJson = "[]") {
+  return request(channel, "search", { corpusId, query, limit, kindFiltersJson });
 }

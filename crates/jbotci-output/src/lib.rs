@@ -912,6 +912,16 @@ mod tests {
             ("mi bu", "mi bu"),
             ("mi zei do", "mi zej do"),
             ("zoi gy raw_payload gy", "zoj gə raw_payload gə"),
+            ("bolxada", "bol.ˈxa.da"),
+            ("dikyjvo", "ˈdi.kə.ʒvo"),
+            ("bisydja", "ˈbi.sə.dʒa"),
+            ("cidjrspageti", "ʃid.ʒr.spa.ˈge.ti"),
+            ("jetcybolxada", "ʒe.tʃə.bol.ˈxa.da"),
+            ("cipnrstrigi", "ʃip.nr.ˈstri.gi"),
+            ("cabrspreso", "ʃa.br.ˈspre.so"),
+            ("bolstropfedo", "bol.strop.ˈfe.do"),
+            ("ciskrpeuedji", "ʃis.kr.pe.ˈwe.dʒi"),
+            ("bangrsfe'enska", "ban.gr.sfe.ˈhen.ska"),
         ];
 
         for (source, expected) in cases {

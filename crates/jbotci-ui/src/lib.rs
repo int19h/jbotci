@@ -82,9 +82,7 @@ mod f2llm_runtime_core;
 mod f2llm_webgpu_runtime;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
-const COMPUTE_JS: Asset = asset!("/assets/compute.js");
 const COMPUTE_WORKER_JS: Asset = asset!("/assets/compute-worker.js");
-const EMBEDDINGS_JS: Asset = asset!("/assets/embeddings.js");
 const EMBEDDING_WORKER_JS: Asset = asset!("/assets/embedding-worker.js");
 // The embedding worker imports these dynamically, so keep explicit asset pins for Dioxus.
 #[allow(dead_code)]
@@ -156,6 +154,8 @@ const COMPUTE_CHANNEL_VLACKU: &str = "vlacku-page";
 #[cfg(target_arch = "wasm32")]
 const COMPUTE_CHANNEL_EMBEDDINGS: &str = "embedding-corpus";
 const COMPUTE_CHANNEL_EXPORT: &str = "gentufa-export";
+const EMBEDDING_CHANNEL_VLACKU_SEMANTIC: &str = "embedding-vlacku-semantic";
+const EMBEDDING_CHANNEL_CUKTA_SEMANTIC: &str = "embedding-cukta-semantic";
 const ASYNC_ACTIVITY_INDICATOR_DELAY_MS: i32 = 100;
 const SEMANTIC_LOADING_MESSAGE_DELAY_MS: i32 = 100;
 const SEMANTIC_SEARCH_SETUP_MESSAGE: &str = "Download model and embeddings to use semantic search";
@@ -555,6 +555,29 @@ struct UserSettings {
     script: GentufaScript,
     stress: StressMark,
     glides: GlideMark,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct GentufaComputeInputs {
+    route: AppRoute,
+    settings: UserSettings,
+    dialect_settings: DialectSettings,
+    display: GentufaDisplayState,
+    view_mode: GentufaWebViewMode,
+    text: String,
+    dialect_text: String,
+    text_explicit: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct GentufaLayoutInputs {
+    route: AppRoute,
+    parsed_text_len: usize,
+    parsed_dialect_len: usize,
+    display: GentufaDisplayState,
+    view_mode: GentufaWebViewMode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1215,6 +1238,7 @@ fn AppShell() -> Element {
     let view_mode = use_signal(move || initial_gentufa_view_mode);
     let gentufa_display = use_signal(move || initial_gentufa_display);
     let mut gentufa_text_explicit = use_signal(move || initial_gentufa_has_text);
+    let mut parsed_text_explicit = use_signal(move || initial_gentufa_has_text);
     let initial_cukta = initial_cukta_state(&current_route_location);
     let cukta_draft_state = use_signal(|| initial_cukta.clone());
     let cukta_committed_state = use_signal(|| initial_cukta);
@@ -1269,16 +1293,39 @@ fn AppShell() -> Element {
     let route_value = *route.read();
     let view_mode_value = *view_mode.read();
     let gentufa_display_value = *gentufa_display.read();
+    let gentufa_text_explicit_value = *gentufa_text_explicit.read();
+    let input_text_value = input_text.read().clone();
+    let dialect_value = dialect.read().clone();
+    let parsed_text_value = parsed_text.read().clone();
+    let parsed_dialect_value = parsed_dialect.read().clone();
+    let parsed_text_explicit_value = *parsed_text_explicit.read();
     let gentufa_page_value = gentufa_page.read().clone();
     let result = gentufa_page_value.result.clone();
     let gentufa_request = gentufa_page_value.request.clone();
     let nav_gentufa_state = gentufa_state_from_parts(
-        &input_text.read(),
-        &dialect.read(),
+        &input_text_value,
+        &dialect_value,
         view_mode_value,
         gentufa_display_value,
-        *gentufa_text_explicit.read(),
+        gentufa_text_explicit_value,
     );
+    let gentufa_compute_inputs = GentufaComputeInputs {
+        route: route_value,
+        settings: settings_value,
+        dialect_settings: dialect_settings_value.clone(),
+        display: gentufa_display_value,
+        view_mode: view_mode_value,
+        text: parsed_text_value.clone(),
+        dialect_text: parsed_dialect_value.clone(),
+        text_explicit: parsed_text_explicit_value,
+    };
+    let gentufa_layout_inputs = GentufaLayoutInputs {
+        route: route_value,
+        parsed_text_len: parsed_text_value.len(),
+        parsed_dialect_len: parsed_dialect_value.len(),
+        display: gentufa_display_value,
+        view_mode: view_mode_value,
+    };
     let topbar_cukta_route =
         JbotciRoute::from_web_route(WebRoute::Cukta(cukta_committed_state.read().clone()), false);
     let topbar_vlacku_route = JbotciRoute::from_web_route(
@@ -1287,7 +1334,7 @@ fn AppShell() -> Element {
     );
     let topbar_gentufa_route = JbotciRoute::from_web_route(
         WebRoute::Gentufa(nav_gentufa_state),
-        *gentufa_text_explicit.read(),
+        gentufa_text_explicit_value,
     );
     let topbar_settings_route = JbotciRoute::from_web_route(WebRoute::Settings, false);
     install_browser_dom_handlers(
@@ -1331,6 +1378,7 @@ fn AppShell() -> Element {
             vlacku_committed_state,
             input_text,
             parsed_text,
+            parsed_text_explicit,
             dialect,
             parsed_dialect,
             view_mode,
@@ -1339,6 +1387,7 @@ fn AppShell() -> Element {
         );
     }));
     use_effect(move || {
+        pin_worker_client_asset();
         configure_embedding_worker_url(&format!("{EMBEDDING_WORKER_JS}"));
         configure_embedding_ort_assets(
             &format!("{ORT_WASM_MIN_MJS}"),
@@ -1410,34 +1459,27 @@ fn AppShell() -> Element {
         },
     ));
     let gentufa_base_path = base_path.clone();
-    use_effect(move || {
-        if *route.read() != AppRoute::Gentufa {
+    use_effect(use_reactive((&gentufa_compute_inputs,), move |(inputs,)| {
+        if inputs.route != AppRoute::Gentufa {
             cancel_compute_channel(COMPUTE_CHANNEL_GENTUFA);
             cancel_latest_task(gentufa_page_task);
             return;
         }
-        let settings_value = *settings.read();
-        let dialect_settings_value = dialect_settings.read().clone();
-        let display_value = *gentufa_display.read();
-        let view_mode_value = *view_mode.read();
-        let text = parsed_text.read().clone();
-        let dialect_text = parsed_dialect.read().clone();
-        let text_explicit = *gentufa_text_explicit.read();
         let state = gentufa_state_from_parts(
-            &text,
-            &dialect_text,
-            view_mode_value,
-            display_value,
-            text_explicit,
+            &inputs.text,
+            &inputs.dialect_text,
+            inputs.view_mode,
+            inputs.display,
+            inputs.text_explicit,
         );
         let request = GentufaWebRequest {
-            text,
+            text: inputs.text.clone(),
             options: web_options(
-                settings_value,
-                display_value,
-                view_mode_value,
-                dialect_text,
-                &dialect_settings_value,
+                inputs.settings,
+                inputs.display,
+                inputs.view_mode,
+                inputs.dialect_text.clone(),
+                &inputs.dialect_settings,
             ),
         };
         let mut page_signal = gentufa_page;
@@ -1491,7 +1533,7 @@ fn AppShell() -> Element {
                 }
             },
         );
-    });
+    }));
     use_effect(move || {
         let state = vlacku_committed_state.read().clone();
         let mut result_signal = vlacku_semantic_result;
@@ -1499,6 +1541,7 @@ fn AppShell() -> Element {
             || state.mode != VlackuWebMode::Meaning
             || state.query.trim().is_empty()
         {
+            cancel_embedding_channel(EMBEDDING_CHANNEL_VLACKU_SEMANTIC);
             cancel_latest_task(vlacku_semantic_task);
             result_signal.set(VlackuSemanticResultState::default());
             return;
@@ -1509,6 +1552,7 @@ fn AppShell() -> Element {
             message: None,
             loading: true,
         });
+        cancel_embedding_channel(EMBEDDING_CHANNEL_VLACKU_SEMANTIC);
         spawn_latest_tracked(
             vlacku_semantic_task,
             activity,
@@ -1589,12 +1633,14 @@ fn AppShell() -> Element {
                 search_state
             }
             _ => {
+                cancel_embedding_channel(EMBEDDING_CHANNEL_CUKTA_SEMANTIC);
                 cancel_latest_task(cukta_semantic_task);
                 result_signal.set(CuktaSemanticResultState::default());
                 return;
             }
         };
         if *route.read() != AppRoute::Cukta {
+            cancel_embedding_channel(EMBEDDING_CHANNEL_CUKTA_SEMANTIC);
             cancel_latest_task(cukta_semantic_task);
             result_signal.set(CuktaSemanticResultState::default());
             return;
@@ -1605,6 +1651,7 @@ fn AppShell() -> Element {
             message: None,
             loading: true,
         });
+        cancel_embedding_channel(EMBEDDING_CHANNEL_CUKTA_SEMANTIC);
         spawn_latest_tracked(
             cukta_semantic_task,
             activity,
@@ -1763,18 +1810,12 @@ fn AppShell() -> Element {
             schedule_vlacku_jvozba_pane_metrics_sync();
         }
     });
-    use_effect(move || {
-        if *route.read() == AppRoute::Gentufa {
-            let _ = (
-                parsed_text.read().len(),
-                parsed_dialect.read().len(),
-                *view_mode.read(),
-                *gentufa_display.read(),
-            );
+    use_effect(use_reactive((&gentufa_layout_inputs,), move |(inputs,)| {
+        if inputs.route == AppRoute::Gentufa {
             schedule_gentufa_block_reference_layout();
             schedule_gentufa_tree_layout();
         }
-    });
+    }));
     use_effect(move || {
         if *route.read() == AppRoute::Gentufa {
             let _ = input_text.read().len();
@@ -1795,9 +1836,7 @@ fn AppShell() -> Element {
         style { "{font_face_css()}" }
         document::Stylesheet { href: MAIN_CSS }
         if cfg!(target_arch = "wasm32") {
-            document::Link { rel: "modulepreload", href: COMPUTE_JS }
             document::Link { rel: "modulepreload", href: COMPUTE_WORKER_JS }
-            document::Link { rel: "modulepreload", href: EMBEDDINGS_JS }
             document::Link { rel: "modulepreload", href: EMBEDDING_WORKER_JS }
             document::Link { rel: "manifest", href: "{manifest_href}" }
         }
@@ -1861,6 +1900,7 @@ fn AppShell() -> Element {
                                                                 schedule_gentufa_textarea_resize();
                                                             }
                                                             gentufa_text_explicit.set(true);
+                                                            parsed_text_explicit.set(true);
                                                             parsed_text.set(next_text);
                                                             parsed_dialect.set(next_dialect);
                                                         },
@@ -2990,13 +3030,24 @@ extern "C" {
     #[wasm_bindgen(js_name = jbotciEmbeddingRemove)]
     fn js_embedding_remove() -> js_sys::Promise;
 
+    #[wasm_bindgen(js_name = jbotciEmbeddingCancel)]
+    fn js_embedding_cancel(channel: &str);
+
     #[wasm_bindgen(js_name = jbotciEmbeddingSearch)]
     fn js_embedding_search(
+        channel: &str,
         corpus_id: &str,
         query: &str,
         limit: usize,
         kind_filters_json: &str,
     ) -> js_sys::Promise;
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(module = "/assets/worker-client.js")]
+extern "C" {
+    #[wasm_bindgen(js_name = jbotciWorkerClientAssetPin)]
+    fn js_worker_client_asset_pin();
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -3094,6 +3145,18 @@ fn configure_embedding_model_key(model_key: &str) {
 fn configure_embedding_model_key(model_key: &str) {
     let _ = model_key;
 }
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn pin_worker_client_asset() {
+    js_worker_client_asset_pin();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn pin_worker_client_asset() {}
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
@@ -3233,6 +3296,7 @@ async fn load_vlacku_semantic_result(state: VlackuWebState) -> VlackuSemanticRes
     let limit = vlacku_semantic_worker_limit(&state);
     let normalized_state = normalize_vlacku_state(&state);
     match embedding_search_json(
+        EMBEDDING_CHANNEL_VLACKU_SEMANTIC,
         "vlacku-en",
         &state.query,
         limit,
@@ -3291,7 +3355,15 @@ fn vlacku_semantic_worker_limit(state: &VlackuWebState) -> usize {
 async fn load_cukta_semantic_result(state: CuktaWebSearchState) -> CuktaSemanticResultState {
     let limit = cukta_semantic_worker_limit(&state);
     let kind_filters = cukta_semantic_worker_kind_filters(&state);
-    match embedding_search_json("cukta-cll", &state.query, limit, &kind_filters).await {
+    match embedding_search_json(
+        EMBEDDING_CHANNEL_CUKTA_SEMANTIC,
+        "cukta-cll",
+        &state.query,
+        limit,
+        &kind_filters,
+    )
+    .await
+    {
         Ok(json) => {
             let (hits, message) = parse_cukta_semantic_search_json(&json);
             CuktaSemanticResultState {
@@ -3626,6 +3698,7 @@ async fn embedding_remove_json() -> Result<String, String> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
 async fn embedding_search_json(
+    channel: &str,
     corpus_id: &str,
     query: &str,
     limit: usize,
@@ -3634,6 +3707,7 @@ async fn embedding_search_json(
     configure_embedding_model_key(&load_embedding_model_key());
     let kind_filters_json = serde_json::to_string(kind_filters).unwrap_or_else(|_| "[]".to_owned());
     promise_to_string(js_embedding_search(
+        channel,
         corpus_id,
         query,
         limit,
@@ -3646,11 +3720,13 @@ async fn embedding_search_json(
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
 async fn embedding_search_json(
+    channel: &str,
     corpus_id: &str,
     query: &str,
     limit: usize,
     kind_filters: &[String],
 ) -> Result<String, String> {
+    let _ = channel;
     let model_key = load_embedding_model_key();
     let corpus_id = corpus_id.to_owned();
     let query = query.to_owned();
@@ -3665,6 +3741,7 @@ async fn embedding_search_json(
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_some())]
 async fn embedding_search_json(
+    _channel: &str,
     _corpus_id: &str,
     _query: &str,
     _limit: usize,
@@ -4229,6 +4306,20 @@ fn cancel_compute_channel(channel: &str) {
 #[requires(!channel.is_empty())]
 #[ensures(true)]
 fn cancel_compute_channel(channel: &str) {
+    let _ = channel;
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(!channel.is_empty())]
+#[ensures(true)]
+fn cancel_embedding_channel(channel: &str) {
+    js_embedding_cancel(channel);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(!channel.is_empty())]
+#[ensures(true)]
+fn cancel_embedding_channel(channel: &str) {
     let _ = channel;
 }
 
@@ -16063,6 +16154,7 @@ fn apply_web_route_to_client_state(
     mut vlacku_committed_state: Signal<VlackuWebState>,
     mut input_text: Signal<String>,
     mut parsed_text: Signal<String>,
+    mut parsed_text_explicit: Signal<bool>,
     mut dialect: Signal<String>,
     mut parsed_dialect: Signal<String>,
     mut view_mode: Signal<GentufaWebViewMode>,
@@ -16071,7 +16163,7 @@ fn apply_web_route_to_client_state(
 ) {
     let web_route = &location.web_route;
     let action = route_location_sync_action(location, is_local_route_write);
-    route.set(action.app_route);
+    set_app_route_if_changed(&mut route, action.app_route);
     if !action.hydrate_route_bound_state {
         return;
     }
@@ -16087,6 +16179,7 @@ fn apply_web_route_to_client_state(
             let dialect_text = state.dialect.clone().unwrap_or_default();
             input_text.set(input);
             parsed_text.set(parsed);
+            parsed_text_explicit.set(location.gentufa_text_explicit);
             dialect.set(dialect_text.clone());
             parsed_dialect.set(dialect_text);
             view_mode.set(state.view_mode);
@@ -16121,6 +16214,21 @@ fn route_location_sync_action(
     RouteLocationSyncAction {
         app_route: location.app_route(),
         hydrate_route_bound_state: !is_local_route_write,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == (current != next))]
+fn app_route_update_needed(current: AppRoute, next: AppRoute) -> bool {
+    current != next
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_app_route_if_changed(route: &mut Signal<AppRoute>, next: AppRoute) {
+    let current = *route.read();
+    if app_route_update_needed(current, next) {
+        route.set(next);
     }
 }
 
@@ -18781,6 +18889,17 @@ mod tests {
 
         assert_eq!(action.app_route, AppRoute::Gentufa);
         assert!(!action.hydrate_route_bound_state);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn same_app_route_does_not_need_signal_update() {
+        assert!(!app_route_update_needed(
+            AppRoute::Gentufa,
+            AppRoute::Gentufa
+        ));
+        assert!(app_route_update_needed(AppRoute::Gentufa, AppRoute::Vlacku));
     }
 
     #[test]

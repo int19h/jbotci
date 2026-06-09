@@ -181,16 +181,18 @@ function logError(message, detail = null) {
 }
 
 self.onmessage = async (event) => {
-  const { id, type, payload } = event.data || {};
+  const { kind, id, type, payload, mainModuleUrl: warmMainModuleUrl } = event.data || {};
   const forceWasm = payload?.forceWasm === true;
   try {
-    setMainModuleUrl(payload?.mainModuleUrl);
-    setOrtAssets(payload?.ortModuleUrl, payload?.ortWasmMjsUrl, payload?.ortWasmUrl);
-    setSelectedModel(payload?.modelKey);
+    configureWorkerContext(payload, warmMainModuleUrl);
+    if (kind === "warm") {
+      self.postMessage({ kind: "ready", ok: true });
+      return;
+    }
     await resolveActiveModel(forceWasm);
     let value;
     if (type === "status") {
-      value = await status();
+      value = await status(payload?.setupActive === true);
     } else if (type === "setup") {
       value = await setup(
         payload?.corpusJson || "{}",
@@ -216,6 +218,14 @@ self.onmessage = async (event) => {
       type,
       error: errorMessage(error),
     });
+    if (kind === "warm") {
+      self.postMessage({
+        kind: "ready",
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    }
     self.postMessage({
       id,
       ok: false,
@@ -224,6 +234,12 @@ self.onmessage = async (event) => {
     });
   }
 };
+
+function configureWorkerContext(payload, fallbackMainModuleUrl = null) {
+  setMainModuleUrl(payload?.mainModuleUrl || fallbackMainModuleUrl);
+  setOrtAssets(payload?.ortModuleUrl, payload?.ortWasmMjsUrl, payload?.ortWasmUrl);
+  setSelectedModel(payload?.modelKey);
+}
 
 function activeModelSpec() {
   return MODEL_SPECS[activeModelKey];
@@ -453,13 +469,13 @@ async function setup(corpusJson, remoteBaseUrl, forceWasm) {
   }
 }
 
-async function status() {
+async function status(setupActive = false) {
   const spec = activeModelSpec();
   const meta = activeStatusMeta(await getModelMeta("status"));
   const pack = activeModelPack(await getModelMeta("pack"));
   const storedModelRuntime = activeStoredModelRuntime(modelRuntime || await getModelMeta("modelRuntime"));
   const indexBytes = await packIndexBytes(pack);
-  const display = statusDisplay(meta, pack);
+  const display = statusDisplay(meta, pack, setupActive);
   if (display.rewriteStoredStatus) {
     await updateStatus(display.status, display.detail, display.progress);
   }
@@ -484,8 +500,16 @@ async function status() {
   };
 }
 
-function statusDisplay(meta, pack) {
-  if (!setupInProgress && ACTIVE_SETUP_STATUSES.has(meta?.status)) {
+function statusDisplay(meta, pack, setupActive = false) {
+  if ((setupInProgress || setupActive) && ACTIVE_SETUP_STATUSES.has(meta?.status)) {
+    return {
+      status: meta.status,
+      detail: meta.detail || "Embeddings are being prepared.",
+      progress: meta.progress || null,
+      rewriteStoredStatus: false,
+    };
+  }
+  if (ACTIVE_SETUP_STATUSES.has(meta?.status)) {
     if (pack) {
       return {
         status: "ready",
@@ -1917,6 +1941,9 @@ async function cachedFetchArrayBuffer(spec, url, label) {
     label,
     url: normalizedUrl,
   });
+  if (isModelManifestUrl(normalizedUrl)) {
+    return fetchArrayBufferFresh(normalizedUrl, label);
+  }
   if (typeof caches === "undefined") {
     return fetchArrayBuffer(normalizedUrl, label);
   }
@@ -1942,6 +1969,35 @@ async function cachedFetchArrayBuffer(spec, url, label) {
     label,
     url: normalizedUrl,
     contentLength: response.headers.get("content-length"),
+  });
+  return response.arrayBuffer();
+}
+
+function isModelManifestUrl(url) {
+  return new URL(url, globalThis.location.href).pathname.endsWith("/manifest.json");
+}
+
+async function fetchArrayBufferFresh(url, label = "binary") {
+  logInfo("fetching fresh binary", { label, url });
+  const request = new Request(url, {
+    method: "GET",
+    cache: "reload",
+  });
+  const response = await fetch(request);
+  if (!response.ok) {
+    logWarn("fresh binary fetch returned non-OK response", {
+      label,
+      url,
+      status: response.status,
+      statusText: response.statusText,
+    });
+    throw new Error(`failed to fetch ${url}: ${response.status}`);
+  }
+  logInfo("fresh binary fetch response ready", {
+    label,
+    url,
+    contentLength: response.headers.get("content-length"),
+    contentEncoding: response.headers.get("content-encoding"),
   });
   return response.arrayBuffer();
 }

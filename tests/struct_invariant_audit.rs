@@ -28,6 +28,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "gentufa display toggles are two independent boolean URL controls with no invalid combination",
     ),
     (
+        "crates/jbotci-ui/src/lib.rs:GentufaComputeInputs",
+        "gentufa compute inputs are a Dioxus reactive dependency bundle constrained by field types and downstream request construction",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:GentufaLayoutInputs",
+        "gentufa layout inputs are a Dioxus reactive dependency bundle of render state and measured lengths",
+    ),
+    (
         "crates/jbotci-ui/src/lib.rs:ReferenceHoverState",
         "browser hover state is transient UI state derived from reference label DOM nodes",
     ),
