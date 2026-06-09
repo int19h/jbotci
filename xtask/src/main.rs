@@ -14,8 +14,14 @@ use walkdir::WalkDir;
 
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
 const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-app/release/web";
+const DIOXUS_DESKTOP_BUNDLE_DIR: &str = "target/dx/jbotci-app/bundle";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
 const DIOXUS_DESKTOP_DEV_PROFILE: &str = "desktop-dev";
+const DESKTOP_BUNDLE_OUT_DIR: &str = "target/jbotci-desktop-bundles";
+const DESKTOP_BUNDLE_RAW_DIR_NAME: &str = "raw";
+const DESKTOP_BUNDLE_MACOS_ARTIFACT: &str = "jbotci.app";
+const DESKTOP_BUNDLE_LINUX_ARTIFACT: &str = "jbotci.appimage";
+const DESKTOP_BUNDLE_WINDOWS_ARTIFACT: &str = "jbotci.msi";
 const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
@@ -35,6 +41,9 @@ struct Cli {
 #[invariant(::Fmt => true)]
 #[invariant(::DesktopBuild => true)]
 #[invariant(::DesktopServe => true)]
+#[invariant(::DesktopBundleMacos => true)]
+#[invariant(::DesktopBundleLinux => true)]
+#[invariant(::DesktopBundleWindows => true)]
 #[invariant(::DistServer(..) => true)]
 #[invariant(::RenderDockerBuild(..) => true)]
 #[invariant(::RenderDockerRun(..) => true)]
@@ -48,6 +57,9 @@ enum Command {
     },
     DesktopBuild,
     DesktopServe,
+    DesktopBundleMacos,
+    DesktopBundleLinux,
+    DesktopBundleWindows,
     DistServer(DistServerArgs),
     RenderDockerBuild(RenderDockerBuildArgs),
     RenderDockerRun(RenderDockerRunArgs),
@@ -119,6 +131,14 @@ enum ContainerEngine {
     Podman,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum DesktopBundleTarget {
+    Macos,
+    Linux,
+    Windows,
+}
+
 impl ContainerEngineArg {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
@@ -150,6 +170,75 @@ impl ContainerEngine {
     }
 }
 
+impl DesktopBundleTarget {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn dx_platform_flag(self) -> &'static str {
+        match self {
+            Self::Macos => "--macos",
+            Self::Linux => "--linux",
+            Self::Windows => "--windows",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn dx_package_type(self) -> &'static str {
+        match self {
+            Self::Macos => "macos",
+            Self::Linux => "appimage",
+            Self::Windows => "msi",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn platform_dir_name(self) -> &'static str {
+        match self {
+            Self::Macos => "macos",
+            Self::Linux => "linux",
+            Self::Windows => "windows",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn public_artifact_name(self) -> &'static str {
+        match self {
+            Self::Macos => DESKTOP_BUNDLE_MACOS_ARTIFACT,
+            Self::Linux => DESKTOP_BUNDLE_LINUX_ARTIFACT,
+            Self::Windows => DESKTOP_BUNDLE_WINDOWS_ARTIFACT,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn raw_artifact_suffix(self) -> &'static str {
+        match self {
+            Self::Macos => ".app",
+            Self::Linux => ".appimage",
+            Self::Windows => ".msi",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn raw_artifact_is_directory(self) -> bool {
+        matches!(self, Self::Macos)
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn dx_command_description(self, raw_dir: &Path) -> String {
+        format!(
+            "dx bundle {} -p jbotci-app --release --package-types {} --out-dir {}",
+            self.dx_platform_flag(),
+            self.dx_package_type(),
+            raw_dir.display()
+        )
+    }
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn main() -> Result<()> {
@@ -172,6 +261,9 @@ fn should_run_light_command(args: &[OsString]) -> bool {
             | "fmt"
             | "desktop-build"
             | "desktop-serve"
+            | "desktop-bundle-macos"
+            | "desktop-bundle-linux"
+            | "desktop-bundle-windows"
             | "render-docker-build"
             | "render-docker-run",
         ) => true,
@@ -246,6 +338,9 @@ fn run_light_command(args: Vec<OsString>) -> Result<()> {
         }
         Command::DesktopBuild => dx_desktop_build(),
         Command::DesktopServe => dx_desktop_serve(),
+        Command::DesktopBundleMacos => dx_desktop_bundle(DesktopBundleTarget::Macos),
+        Command::DesktopBundleLinux => dx_desktop_bundle(DesktopBundleTarget::Linux),
+        Command::DesktopBundleWindows => dx_desktop_bundle(DesktopBundleTarget::Windows),
         Command::DistServer(args) => dist_server(args),
         Command::RenderDockerBuild(args) => render_docker_build(args),
         Command::RenderDockerRun(args) => render_docker_run(args),
@@ -286,6 +381,275 @@ fn dx_desktop_serve() -> Result<()> {
         status,
         "dx serve --desktop -p jbotci-app --profile desktop-dev",
     )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn dx_desktop_bundle(target: DesktopBundleTarget) -> Result<()> {
+    let output_dir = desktop_bundle_output_dir(target)?;
+    let raw_dir = output_dir.join(DESKTOP_BUNDLE_RAW_DIR_NAME);
+    clean_dioxus_desktop_bundle_staging(target)?;
+    if raw_dir.exists() {
+        fs::remove_dir_all(&raw_dir).with_context(|| {
+            format!(
+                "removing old desktop bundle raw dir `{}`",
+                raw_dir.display()
+            )
+        })?;
+    }
+    fs::create_dir_all(&raw_dir)
+        .with_context(|| format!("creating desktop bundle raw dir `{}`", raw_dir.display()))?;
+    let command_text = target.dx_command_description(&raw_dir);
+    let status = ProcessCommand::new("dx")
+        .arg("bundle")
+        .arg(target.dx_platform_flag())
+        .arg("-p")
+        .arg("jbotci-app")
+        .arg("--release")
+        .arg("--package-types")
+        .arg(target.dx_package_type())
+        .arg("--out-dir")
+        .arg(&raw_dir)
+        .status()
+        .with_context(|| format!("failed to run `{command_text}`"))?;
+    check_status(status, &command_text)?;
+    let published = publish_desktop_bundle_artifact(target, &raw_dir, &output_dir)?;
+    println!("published desktop bundle `{}`", published.display());
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn clean_dioxus_desktop_bundle_staging(target: DesktopBundleTarget) -> Result<()> {
+    let staging_dir = Path::new(DIOXUS_DESKTOP_BUNDLE_DIR).join(target.platform_dir_name());
+    match fs::remove_dir_all(&staging_dir) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error).with_context(|| {
+            format!(
+                "removing Dioxus desktop bundle staging dir `{}`",
+                staging_dir.display()
+            )
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.ends_with(target.platform_dir_name())) || ret.is_err())]
+fn desktop_bundle_output_dir(target: DesktopBundleTarget) -> Result<PathBuf> {
+    absolute_path(&Path::new(DESKTOP_BUNDLE_OUT_DIR).join(target.platform_dir_name()))
+}
+
+#[requires(raw_dir.is_dir())]
+#[requires(output_dir.is_dir())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.file_name().is_some_and(|name| name == OsStr::new(target.public_artifact_name()))) || ret.is_err())]
+fn publish_desktop_bundle_artifact(
+    target: DesktopBundleTarget,
+    raw_dir: &Path,
+    output_dir: &Path,
+) -> Result<PathBuf> {
+    let raw_artifact = find_desktop_bundle_raw_artifact(target, raw_dir)?;
+    let public_artifact = desktop_bundle_public_path(target, output_dir);
+    copy_desktop_bundle_artifact(target, &raw_artifact, &public_artifact)?;
+    Ok(public_artifact)
+}
+
+#[requires(true)]
+#[ensures(ret.file_name().is_some_and(|name| name == OsStr::new(target.public_artifact_name())))]
+fn desktop_bundle_public_path(target: DesktopBundleTarget, output_dir: &Path) -> PathBuf {
+    output_dir.join(target.public_artifact_name())
+}
+
+#[requires(raw_dir.is_dir())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.exists()) || ret.is_err())]
+fn find_desktop_bundle_raw_artifact(
+    target: DesktopBundleTarget,
+    raw_dir: &Path,
+) -> Result<PathBuf> {
+    let mut matches = Vec::new();
+    for entry in WalkDir::new(raw_dir).min_depth(1) {
+        let entry = entry
+            .with_context(|| format!("walking desktop bundle raw dir `{}`", raw_dir.display()))?;
+        if desktop_bundle_entry_matches(target, &entry) {
+            matches.push(entry.path().to_path_buf());
+        }
+    }
+    match matches.len() {
+        1 => Ok(matches.remove(0)),
+        0 => bail!(
+            "could not find a {} artifact under `{}`",
+            target.raw_artifact_suffix(),
+            raw_dir.display()
+        ),
+        count => bail!(
+            "found {count} {} artifacts under `{}`, expected exactly one",
+            target.raw_artifact_suffix(),
+            raw_dir.display()
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn desktop_bundle_entry_matches(target: DesktopBundleTarget, entry: &walkdir::DirEntry) -> bool {
+    let file_type = entry.file_type();
+    if target.raw_artifact_is_directory() {
+        if !file_type.is_dir() {
+            return false;
+        }
+    } else if !file_type.is_file() {
+        return false;
+    }
+    entry.file_name().to_str().is_some_and(|name| {
+        name.to_ascii_lowercase()
+            .ends_with(target.raw_artifact_suffix())
+    })
+}
+
+#[requires(source.exists())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_desktop_bundle_artifact(
+    target: DesktopBundleTarget,
+    source: &Path,
+    destination: &Path,
+) -> Result<()> {
+    remove_existing_path(destination)?;
+    if target.raw_artifact_is_directory() {
+        copy_directory_recursively(source, destination)
+    } else {
+        copy_file_artifact(source, destination)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn remove_existing_path(path: &Path) -> Result<()> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(error) => {
+            return Err(error)
+                .with_context(|| format!("reading existing path `{}`", path.display()));
+        }
+    };
+    if metadata.file_type().is_dir() && !metadata.file_type().is_symlink() {
+        fs::remove_dir_all(path)
+            .with_context(|| format!("removing existing directory `{}`", path.display()))
+    } else {
+        fs::remove_file(path)
+            .with_context(|| format!("removing existing file `{}`", path.display()))
+    }
+}
+
+#[requires(source.is_file())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_file_artifact(source: &Path, destination: &Path) -> Result<()> {
+    let parent = destination.parent().with_context(|| {
+        format!(
+            "desktop bundle output `{}` has no parent",
+            destination.display()
+        )
+    })?;
+    fs::create_dir_all(parent)
+        .with_context(|| format!("creating desktop bundle output dir `{}`", parent.display()))?;
+    fs::copy(source, destination).with_context(|| {
+        format!(
+            "copying desktop bundle artifact `{}` to `{}`",
+            source.display(),
+            destination.display()
+        )
+    })?;
+    let permissions = fs::metadata(source)
+        .with_context(|| format!("reading permissions for `{}`", source.display()))?
+        .permissions();
+    fs::set_permissions(destination, permissions)
+        .with_context(|| format!("setting permissions on `{}`", destination.display()))
+}
+
+#[requires(source.is_dir())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_directory_recursively(source: &Path, destination: &Path) -> Result<()> {
+    fs::create_dir_all(destination).with_context(|| {
+        format!(
+            "creating desktop bundle directory `{}`",
+            destination.display()
+        )
+    })?;
+    for entry in WalkDir::new(source).min_depth(1) {
+        let entry = entry
+            .with_context(|| format!("walking desktop bundle directory `{}`", source.display()))?;
+        let relative = entry.path().strip_prefix(source).with_context(|| {
+            format!(
+                "making `{}` relative to `{}`",
+                entry.path().display(),
+                source.display()
+            )
+        })?;
+        let target = destination.join(relative);
+        if entry.file_type().is_dir() {
+            fs::create_dir_all(&target).with_context(|| {
+                format!("creating desktop bundle directory `{}`", target.display())
+            })?;
+        } else if entry.file_type().is_file() {
+            copy_file_artifact(entry.path(), &target)?;
+        } else if entry.file_type().is_symlink() {
+            copy_symlink(entry.path(), &target)?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+#[requires(source.exists())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_symlink(source: &Path, destination: &Path) -> Result<()> {
+    let parent = destination.parent().with_context(|| {
+        format!(
+            "desktop bundle symlink `{}` has no parent",
+            destination.display()
+        )
+    })?;
+    fs::create_dir_all(parent)
+        .with_context(|| format!("creating desktop bundle symlink dir `{}`", parent.display()))?;
+    let link_target =
+        fs::read_link(source).with_context(|| format!("reading symlink `{}`", source.display()))?;
+    std::os::unix::fs::symlink(&link_target, destination).with_context(|| {
+        format!(
+            "copying symlink `{}` to `{}`",
+            source.display(),
+            destination.display()
+        )
+    })
+}
+
+#[cfg(windows)]
+#[requires(source.exists())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn copy_symlink(source: &Path, destination: &Path) -> Result<()> {
+    let parent = destination.parent().with_context(|| {
+        format!(
+            "desktop bundle symlink `{}` has no parent",
+            destination.display()
+        )
+    })?;
+    fs::create_dir_all(parent)
+        .with_context(|| format!("creating desktop bundle symlink dir `{}`", parent.display()))?;
+    let link_target =
+        fs::read_link(source).with_context(|| format!("reading symlink `{}`", source.display()))?;
+    let metadata = fs::metadata(source)
+        .with_context(|| format!("reading symlink target metadata `{}`", source.display()))?;
+    if metadata.is_dir() {
+        std::os::windows::fs::symlink_dir(&link_target, destination)
+    } else {
+        std::os::windows::fs::symlink_file(&link_target, destination)
+    }
+    .with_context(|| {
+        format!(
+            "copying symlink `{}` to `{}`",
+            source.display(),
+            destination.display()
+        )
+    })
 }
 
 #[requires(!args.is_empty())]
@@ -1017,6 +1381,154 @@ fn check_status(status: ExitStatus, command: &str) -> Result<()> {
         Ok(())
     } else {
         bail!("`{command}` failed with status {status}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    const LINUX_DESKTOP_TEMPLATE: &str =
+        include_str!("../../apps/jbotci-app/bundle/linux/jbotci.desktop.hbs");
+    const WINDOWS_WIX_TEMPLATE: &str =
+        include_str!("../../apps/jbotci-app/bundle/windows/jbotci.wxs.hbs");
+    const DIOXUS_CONFIG: &str = include_str!("../../apps/jbotci-app/Dioxus.toml");
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn render_test_template(template: &str, replacements: &[(&str, &str)]) -> String {
+        let mut rendered = template.to_owned();
+        for (key, value) in replacements {
+            rendered = rendered.replace(&format!("{{{{{key}}}}}"), value);
+        }
+        rendered
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn desktop_bundle_normalization_writes_exact_linux_name() {
+        let temp = tempdir().expect("temp dir should be created");
+        let raw_dir = temp.path().join("raw");
+        let output_dir = temp.path().join("out");
+        fs::create_dir_all(&raw_dir).expect("raw dir should be created");
+        fs::create_dir_all(&output_dir).expect("output dir should be created");
+        fs::write(raw_dir.join("jbotci-app_0.1.0_x86_64.AppImage"), b"bundle")
+            .expect("raw appimage should be written");
+
+        let published =
+            publish_desktop_bundle_artifact(DesktopBundleTarget::Linux, &raw_dir, &output_dir)
+                .expect("artifact should publish");
+
+        assert_eq!(
+            published.file_name(),
+            Some(OsStr::new(DESKTOP_BUNDLE_LINUX_ARTIFACT))
+        );
+        assert_eq!(
+            fs::read(published).expect("published appimage should be readable"),
+            b"bundle"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn desktop_bundle_normalization_copies_macos_app_directory() {
+        let temp = tempdir().expect("temp dir should be created");
+        let raw_dir = temp.path().join("raw");
+        let output_dir = temp.path().join("out");
+        let app_contents = raw_dir.join("JbotciApp.app").join("Contents");
+        fs::create_dir_all(&app_contents).expect("raw app contents should be created");
+        fs::create_dir_all(&output_dir).expect("output dir should be created");
+        fs::write(app_contents.join("Info.plist"), b"plist").expect("plist should be written");
+
+        let published =
+            publish_desktop_bundle_artifact(DesktopBundleTarget::Macos, &raw_dir, &output_dir)
+                .expect("artifact should publish");
+
+        assert_eq!(
+            published.file_name(),
+            Some(OsStr::new(DESKTOP_BUNDLE_MACOS_ARTIFACT))
+        );
+        assert_eq!(
+            fs::read(published.join("Contents").join("Info.plist"))
+                .expect("published plist should be readable"),
+            b"plist"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn desktop_bundle_raw_artifact_errors_when_missing() {
+        let temp = tempdir().expect("temp dir should be created");
+
+        let error = find_desktop_bundle_raw_artifact(DesktopBundleTarget::Windows, temp.path())
+            .expect_err("missing artifact should fail");
+
+        assert!(error.to_string().contains("could not find"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn desktop_bundle_raw_artifact_errors_when_ambiguous() {
+        let temp = tempdir().expect("temp dir should be created");
+        fs::write(temp.path().join("first.msi"), b"one").expect("first msi should be written");
+        fs::write(temp.path().join("second.msi"), b"two").expect("second msi should be written");
+
+        let error = find_desktop_bundle_raw_artifact(DesktopBundleTarget::Windows, temp.path())
+            .expect_err("multiple artifacts should fail");
+
+        assert!(error.to_string().contains("expected exactly one"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn linux_desktop_template_uses_jbotci_name_and_launcher_exec() {
+        let rendered = render_test_template(
+            LINUX_DESKTOP_TEMPLATE,
+            &[
+                ("categories", "Reference"),
+                ("exec", "jbotci-app"),
+                ("icon", "jbotci"),
+            ],
+        );
+
+        assert!(rendered.contains("Name=jbotci"));
+        assert!(rendered.contains("Exec=jbotci-app"));
+        assert!(!rendered.contains("Name={{name}}"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn windows_wix_template_keeps_jbotci_app_executable_variable() {
+        let rendered = render_test_template(
+            WINDOWS_WIX_TEMPLATE,
+            &[("main_binary_name", "jbotci-app.exe")],
+        );
+
+        assert!(rendered.contains(r#"Name="jbotci""#));
+        assert!(rendered.contains(r#"Name="jbotci-app.exe""#));
+        assert!(rendered.contains(r#"Target="[INSTALLDIR]jbotci-app.exe""#));
+        assert!(!rendered.contains(r#"Name="{{product_name}}""#));
+        assert!(!rendered.contains(r#"Title="{{product_name}}""#));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dioxus_config_pins_public_desktop_bundle_names() {
+        assert!(DIOXUS_CONFIG.contains("bundle_name = \"jbotci\""));
+        assert!(DIOXUS_CONFIG.contains("upgrade_code = \"5fc2c34f-0231-53b4-af97-bd710d8abad2\""));
+        assert!(
+            DIOXUS_CONFIG
+                .contains("desktop_template = \"apps/jbotci-app/bundle/linux/jbotci.desktop.hbs\"")
+        );
+        assert!(DIOXUS_CONFIG.contains("template = \"bundle/windows/jbotci.wxs.hbs\""));
     }
 }
 

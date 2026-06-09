@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product
+        Id="*"
+        Name="jbotci"
+        UpgradeCode="{{upgrade_code}}"
+        Language="1033"
+        Codepage="1252"
+        Version="{{version}}"
+        Manufacturer="{{publisher}}">
+
+        <Package
+            Id="*"
+            Keywords="Installer"
+            {{#if short_description}}
+            Description="{{short_description}}"
+            {{/if}}
+            Manufacturer="{{publisher}}"
+            InstallScope="perMachine"
+            Languages="1033"
+            Compressed="yes"
+            SummaryCodepage="1252" />
+
+        <MajorUpgrade
+            Schedule="afterInstallInitialize"
+            {{#if allow_downgrades}}
+            AllowDowngrades="yes"
+            {{else}}
+            DowngradeErrorMessage="A newer version of [ProductName] is already installed. Setup will now exit."
+            AllowSameVersionUpgrades="yes"
+            {{/if}} />
+
+        <MediaTemplate EmbedCab="yes" {{#if fips_compliant}}CompressionLevel="none"{{/if}} />
+
+        {{#if icon_path}}
+        <Icon Id="ProductIcon" SourceFile="{{icon_path}}" />
+        <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
+        {{/if}}
+
+        {{#if license}}
+        <WixVariable Id="WixUILicenseRtf" Value="{{license}}" />
+        {{/if}}
+
+        {{#if banner_path}}
+        <WixVariable Id="WixUIBannerBmp" Value="{{banner_path}}" />
+        {{/if}}
+        {{#if dialog_image_path}}
+        <WixVariable Id="WixUIDialogBmp" Value="{{dialog_image_path}}" />
+        {{/if}}
+
+        {{#if license}}
+        <UIRef Id="WixUI_InstallDir" />
+        {{else}}
+        <UI>
+            <UIRef Id="WixUI_InstallDir" />
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="2">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2">1</Publish>
+        </UI>
+        {{/if}}
+        <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="{{wix_program_files_folder}}">
+                <Directory Id="INSTALLDIR" Name="jbotci">
+                    <Component Id="MainExecutable" Guid="*">
+                        <File
+                            Id="MainExe"
+                            Name="{{main_binary_name}}"
+                            Source="{{main_binary_path}}"
+                            KeyPath="yes" />
+                    </Component>
+{{{install_tree}}}
+                </Directory>
+            </Directory>
+
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ProgramMenuSubfolder" Name="jbotci">
+                    <Component Id="StartMenuShortcut" Guid="*">
+                        <Shortcut
+                            Id="ApplicationShortcut"
+                            Name="jbotci"
+                            {{#if short_description}}
+                            Description="{{short_description}}"
+                            {{/if}}
+                            Target="[INSTALLDIR]{{main_binary_name}}"
+                            WorkingDirectory="INSTALLDIR" />
+                        <RemoveFolder Id="RemoveProgramMenuSubfolder" On="uninstall" />
+                        <RegistryValue
+                            Root="HKCU"
+                            Key="Software\{{publisher}}\jbotci"
+                            Name="installed"
+                            Type="integer"
+                            Value="1"
+                            KeyPath="yes" />
+                    </Component>
+                </Directory>
+            </Directory>
+
+            <Directory Id="DesktopFolder">
+                <Component Id="DesktopShortcut" Guid="*">
+                    <Shortcut
+                        Id="DesktopShortcut"
+                        Name="jbotci"
+                        {{#if short_description}}
+                        Description="{{short_description}}"
+                        {{/if}}
+                        Target="[INSTALLDIR]{{main_binary_name}}"
+                        WorkingDirectory="INSTALLDIR" />
+                    <RegistryValue
+                        Root="HKCU"
+                        Key="Software\{{publisher}}\jbotci"
+                        Name="desktop_shortcut"
+                        Type="integer"
+                        Value="1"
+                        KeyPath="yes" />
+                </Component>
+            </Directory>
+        </Directory>
+
+        <Feature Id="MainFeature" Title="jbotci" Level="1">
+            <ComponentRef Id="MainExecutable" />
+            <ComponentRef Id="StartMenuShortcut" />
+            <ComponentRef Id="DesktopShortcut" />
+{{{component_refs_xml}}}
+            {{#each component_group_refs}}
+            <ComponentGroupRef Id="{{this}}" />
+            {{/each}}
+            {{#each component_refs}}
+            <ComponentRef Id="{{this}}" />
+            {{/each}}
+            {{#each feature_group_refs}}
+            <FeatureGroupRef Id="{{this}}" />
+            {{/each}}
+        </Feature>
+    </Product>
+</Wix>

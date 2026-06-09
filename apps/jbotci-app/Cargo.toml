@@ -29,6 +29,9 @@ bityzba.workspace = true
 dioxus = { workspace = true, default-features = false }
 jbotci-ui.workspace = true
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc = "0.2.7"
+
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }
 

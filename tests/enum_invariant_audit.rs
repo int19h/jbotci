@@ -1308,6 +1308,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask desktop serve command delegates validation to clap and option structs",
     ),
     (
+        "xtask/src/main.rs:Command::DesktopBundleMacos",
+        "xtask desktop bundle command delegates validation to typed bundle target helpers",
+    ),
+    (
+        "xtask/src/main.rs:Command::DesktopBundleLinux",
+        "xtask desktop bundle command delegates validation to typed bundle target helpers",
+    ),
+    (
+        "xtask/src/main.rs:Command::DesktopBundleWindows",
+        "xtask desktop bundle command delegates validation to typed bundle target helpers",
+    ),
+    (
         "xtask/src/main.rs:Command::DistServer",
         "xtask command enum delegates validation to clap and option structs",
     ),

@@ -15,6 +15,16 @@ icon = [
     "../../crates/jbotci-ui/assets/icons/jbotci-icon-512.png",
 ]
 
+[bundle.macos]
+bundle_name = "jbotci"
+
+[bundle.deb]
+desktop_template = "apps/jbotci-app/bundle/linux/jbotci.desktop.hbs"
+
+[bundle.windows.wix]
+template = "bundle/windows/jbotci.wxs.hbs"
+upgrade_code = "5fc2c34f-0231-53b4-af97-bd710d8abad2"
+
 [web.app]
 title = "jbotci"
 

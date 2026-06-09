@@ -104,8 +104,7 @@ const ICON_512: Asset = asset!("/assets/icons/jbotci-icon-512.png");
 #[allow(dead_code)]
 const ICON_SVG: Asset = asset!("/assets/icons/jbotci-icon.svg");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
-#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
-const APP_DISPLAY_NAME: &str = "jbotci";
+pub const APP_DISPLAY_NAME: &str = "jbotci";
 const DEFAULT_WEB_EMBEDDINGS_BASE_URL: &str = "https://assets.jbotci.app/embeddings/web/v1";
 const BUILD_WEB_EMBEDDINGS_BASE_URL: Option<&str> = option_env!("JBOTCI_WEB_EMBEDDINGS_BASE_URL");
 const BUILD_GIT_COMMIT: Option<&str> = option_env!("JBOTCI_GIT_COMMIT");
@@ -1151,6 +1150,25 @@ fn App() -> Element {
 }
 
 #[requires(true)]
+#[ensures(!ret.title.is_empty())]
+fn route_document_meta(base_path: &str, route: &JbotciRoute) -> PageMeta {
+    build_page_meta(base_path, &route.web_route)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn document_title_from_meta(meta: &PageMeta) -> String {
+    meta.title.clone()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn apply_document_meta(mut document_meta: Signal<PageMeta>, meta: PageMeta) {
+    sync_document_head(&meta);
+    document_meta.set(meta);
+}
+
+#[requires(true)]
 #[ensures(ret.contains("STIX Two Math"))]
 #[ensures(ret.contains("STIX Two Text"))]
 fn font_face_css() -> String {
@@ -1222,6 +1240,8 @@ fn AppShell() -> Element {
     let current_route_location = use_route::<JbotciRoute>();
     let route = use_signal(|| current_route_location.app_route());
     let base_path = router_base_path();
+    let initial_document_meta = route_document_meta(&base_path, &current_route_location);
+    let document_meta = use_signal(move || initial_document_meta.clone());
     let app_history = history();
     let settings = use_signal(load_settings);
     let initial_dialect_settings = load_dialect_settings();
@@ -1321,6 +1341,8 @@ fn AppShell() -> Element {
     let parsed_text_explicit_value = *parsed_text_explicit.read();
     let gentufa_url_write_intent_value = *gentufa_url_write_intent.read();
     let gentufa_page_value = gentufa_page.read().clone();
+    let document_meta_value = document_meta.read().clone();
+    let document_title = document_title_from_meta(&document_meta_value);
     let result = gentufa_page_value.result.clone();
     let gentufa_request = gentufa_page_value.request.clone();
     let committed_gentufa_state = gentufa_state_from_parts(
@@ -1390,6 +1412,15 @@ fn AppShell() -> Element {
             last_route_for_scroll.set(location);
         },
     ));
+    let document_meta_route_location = current_route_location.clone();
+    let document_meta_base_path = base_path.clone();
+    use_effect(use_reactive(
+        (&document_meta_route_location,),
+        move |(location,)| {
+            let meta = route_document_meta(&document_meta_base_path, &location);
+            apply_document_meta(document_meta, meta);
+        },
+    ));
     let sync_route_location = current_route_location.clone();
     use_effect(use_reactive((&sync_route_location,), move |(location,)| {
         let is_local_route_write =
@@ -1449,11 +1480,8 @@ fn AppShell() -> Element {
         });
         delay_task.set(Some(task));
     });
-    let settings_meta_base_path = base_path.clone();
     use_effect(move || {
         if *route.read() == AppRoute::Settings {
-            let meta = build_page_meta(&settings_meta_base_path, &WebRoute::Settings);
-            sync_document_head(&meta);
             spawn_tracked(activity, AsyncTaskKind::Settings, async move {
                 refresh_embedding_settings(embedding_settings).await;
             });
@@ -1541,7 +1569,7 @@ fn AppShell() -> Element {
                             loading: false,
                             error: None,
                         });
-                        sync_document_head(&meta);
+                        apply_document_meta(document_meta, meta);
                         schedule_gentufa_block_reference_layout();
                         schedule_gentufa_tree_layout();
                     }
@@ -1605,7 +1633,7 @@ fn AppShell() -> Element {
             let meta = page_signal.with_mut(|page| {
                 apply_vlacku_semantic_pending_page(page, &vlacku_page_base_path, &state, &semantic)
             });
-            sync_document_head(&meta);
+            apply_document_meta(document_meta, meta);
             return;
         }
         let request = vlacku_compute_request(&vlacku_page_base_path, &state, &semantic);
@@ -1631,7 +1659,7 @@ fn AppShell() -> Element {
                             loading: false,
                             error: None,
                         });
-                        sync_document_head(&meta);
+                        apply_document_meta(document_meta, meta);
                     }
                     Ok(_) => {
                         result_signal.set(vlacku_async_error_state(
@@ -1721,7 +1749,7 @@ fn AppShell() -> Element {
                             loading: false,
                             error: None,
                         });
-                        sync_document_head(&meta);
+                        apply_document_meta(document_meta, meta);
                     }
                     Ok(_) => {
                         result_signal.set(cukta_async_error_state(
@@ -1860,6 +1888,7 @@ fn AppShell() -> Element {
         static_asset_href_with_base_path(&base_path, APPLE_TOUCH_ICON_ASSET_PATH);
 
     rsx! {
+        document::Title { "{document_title}" }
         style { "{font_face_css()}" }
         document::Stylesheet { href: MAIN_CSS }
         if cfg!(target_arch = "wasm32") {
@@ -16982,7 +17011,6 @@ fn sync_document_head(meta: &PageMeta) {
         return;
     };
     let head_model = build_page_head(meta);
-    document.set_title(&head_model.title);
     if let Ok(nodes) = document.query_selector_all("[data-jbotci-meta='1']") {
         for index in 0..nodes.length() {
             if let Some(node) = nodes.item(index)
@@ -18898,6 +18926,30 @@ mod tests {
         pending.record(&target);
 
         assert!(pending.consume(&reported));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn document_title_uses_route_default_meta() {
+        let route = parse_test_route("", "/settings");
+        let meta = route_document_meta("", &route);
+
+        assert_eq!(document_title_from_meta(&meta), "Settings");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn document_title_uses_result_meta_when_available() {
+        let meta = new!(PageMeta {
+            title: "coi - jbotci gentufa".to_owned(),
+            description: "Gentufa parse result.".to_owned(),
+            canonical_url: "/gentufa?text=coi".to_owned(),
+            image: None,
+        });
+
+        assert_eq!(document_title_from_meta(&meta), "coi - jbotci gentufa");
     }
 
     #[test]
