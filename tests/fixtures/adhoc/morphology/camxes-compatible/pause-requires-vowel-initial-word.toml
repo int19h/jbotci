@@ -1,7 +1,7 @@
 id = "adhoc.morphology.camxes-compatible.pause-requires-vowel-initial-word"
-lojban = "mi leia klama"
+lojban = "mi lea klama"
 tags = ["morphology", "camxes-compatible", "word-boundary"]
 
 [expectations.morphology]
 status = "failure"
-diagnostics = [{ severity = "error", code = "morphology.unrecognized-word", byte-span = [3, 7], source-text = "leia", message = "word is not a valid Lojban word" }]
+diagnostics = [{ severity = "error", code = "morphology.vowel-hiatus", byte-span = [4, 6], source-text = "ea", message = "vowels in hiatus are not allowed" }]

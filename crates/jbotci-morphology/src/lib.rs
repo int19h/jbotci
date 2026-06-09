@@ -2108,6 +2108,14 @@ fn strip_diacritic(value: char) -> Option<char> {
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|phonemes| !phonemes.as_str().is_empty()))]
+pub fn cmavo_phonemes(text: &str) -> Option<Phonemes> {
+    let normalized = segment::parse_cmavo_form(text)?;
+    Cmavo::from_text(&normalized)?;
+    Phonemes::from_canonical(normalized).ok()
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub fn selmaho(cmavo: &str) -> Option<&'static str> {
     match canonicalize_text(cmavo).as_str() {
@@ -2323,6 +2331,8 @@ mod tests {
             ("dikyjvo", vec!["di", "ky", "jvo"]),
             ("díkyjvo", vec!["dí", "ky", "jvo"]),
             ("cidjrspageti", vec!["cid", "jr", "spa", "ge", "ti"]),
+            ("krĭófla", vec!["krĭó", "fla"]),
+            ("trĭárko", vec!["trĭár", "ko"]),
         ];
 
         for (source, expected) in cases {
@@ -2368,6 +2378,17 @@ mod tests {
     fn morphology_does_not_insert_implicit_y() {
         segment_words_with_modifiers("refgau").expect_err("fg must not be repaired with y");
         segment_words_with_modifiers("refygau").expect("explicit y hyphen remains valid");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn morphology_accepts_fuhivla_rafsi_inside_lujvo() {
+        let words = segment_words_with_modifiers("tci'ilykemcantutra")
+            .expect("camxes-std accepts fuhivla rafsi before ordinary lujvo rafsi");
+
+        assert_eq!(base_phoneme_texts(&words), vec!["tci'ilykemcantútra"]);
+        assert_eq!(base_word(&words[0]).map(Word::kind), Some(WordKind::Lujvo));
     }
 
     #[test]

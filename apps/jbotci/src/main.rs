@@ -4953,10 +4953,10 @@ mod tests {
 
         assert_eq!(run.status, CliStatus::Failure);
         assert!(run.stdout.is_empty());
-        assert!(run.stderr.contains("morphology.invalid-lujvo"));
-        assert!(run.stderr.contains("after parsing"));
-        assert!(run.stderr.contains("`xlá`"));
-        assert!(!run.stderr.contains("morphology.slinkuhi"));
+        assert!(run.stderr.contains("morphology.slinkuhi"));
+        assert!(run.stderr.contains("slinku'i"));
+        assert!(run.stderr.contains("{xlaglymlu}"));
+        assert!(run.stderr.contains("while parsing fu'ivla"));
         assert!(
             !run.stderr
                 .contains("reason: word is not a valid Lojban word")

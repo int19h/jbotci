@@ -541,9 +541,9 @@ impl<'a> Segmenter<'a> {
         start: usize,
         candidate_end: usize,
     ) -> Option<StreamingWordCandidate> {
-        self.streaming_brivla_candidate(start, candidate_end)
-            .or_else(|| self.streaming_cmevla_candidate(start, candidate_end))
+        self.streaming_cmevla_candidate(start, candidate_end)
             .or_else(|| self.streaming_cmavo_candidate(start, candidate_end))
+            .or_else(|| self.streaming_brivla_candidate(start, candidate_end))
     }
 
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
@@ -561,9 +561,6 @@ impl<'a> Segmenter<'a> {
             let (kind, phonemes) =
                 crate::segment::classify_word_with_options(&normalized, self.options)?;
             if !matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla) {
-                return None;
-            }
-            if self.has_blocking_cmavo_prefix(start, end) {
                 return None;
             }
             Some(new!(StreamingWordCandidate {
@@ -637,6 +634,15 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
     ) -> Option<StreamingWordCandidate> {
         let full_candidate = self.checked_normalized_slice(start, candidate_end)?;
+        if crate::segment::is_cmevla_with_options(&full_candidate, self.options)
+            || crate::segment::starts_with_cvcy_lujvo(&full_candidate)
+            || crate::segment::classify_word_with_options(&full_candidate, self.options)
+                .is_some_and(|(kind, _)| {
+                    matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla)
+                })
+        {
+            return None;
+        }
         if full_candidate
             .chars()
             .all(|value| matches!(value, 'y' | 'ý'))
@@ -1264,25 +1270,6 @@ impl<'a> Segmenter<'a> {
         crate::segment::normalize_word_checked_with_options(self.slice(start, end), self.options)
     }
 
-    #[requires(start <= end && end <= self.chars.len())]
-    #[ensures(true)]
-    fn has_blocking_cmavo_prefix(&self, start: usize, end: usize) -> bool {
-        let Some(whole_candidate) = self.checked_normalized_slice(start, end) else {
-            return true;
-        };
-        if crate::segment::is_cmevla_with_options(&whole_candidate, self.options)
-            || crate::segment::starts_with_cvcy_lujvo(&whole_candidate)
-        {
-            return false;
-        }
-        ((start + 1)..=end).any(|prefix_end| {
-            self.checked_normalized_slice(start, prefix_end)
-                .and_then(|prefix| crate::segment::parse_cmavo_form(&prefix))
-                .is_some()
-                && self.cmavo_boundary_ok(start, prefix_end, end)
-        })
-    }
-
     #[requires(prefix_start <= prefix_end && prefix_end <= candidate_end && candidate_end <= self.chars.len())]
     #[ensures(true)]
     fn cmavo_boundary_ok(
@@ -1436,13 +1423,22 @@ impl<'a> Segmenter<'a> {
             )
         })?;
         let word = if kind == WordKind::Lujvo {
-            let parts = crate::segment::parse_lujvo_parts(phonemes.as_str()).ok_or_else(|| {
+            let shape = normalized
+                .iter()
+                .map(|source_char| source_char.value)
+                .collect::<String>()
+                .replace(',', "");
+            let parts = crate::segment::parse_lujvo_parts_with_canonical_phonemes(
+                &shape,
+                phonemes.as_str(),
+            )
+            .ok_or_else(|| {
                 self.invalid_span_with_detail(
                     MorphologyErrorKind::InvalidLujvo,
                     start,
                     end,
                     self.context(MorphologyContextKind::Lujvo, start, end),
-                    crate::segment::invalid_lujvo_error_detail(phonemes.as_str()),
+                    crate::segment::invalid_lujvo_error_detail(&shape),
                 )
             })?;
             Word::lujvo(parts, span)
@@ -2168,9 +2164,7 @@ fn starts_with_pause_required_nucleus(chars: &[char]) -> bool {
     while chars.get(start) == Some(&',') {
         start += 1;
     }
-    chars
-        .get(start)
-        .is_some_and(|value| is_vowel(*value) || matches!(*value, 'y' | 'ý' | 'ĭ' | 'ŭ'))
+    starts_with_nucleus(chars, start)
 }
 
 #[requires(true)]
@@ -2297,7 +2291,7 @@ fn digit_to_cmavo(value: char) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{LujvoParseExpectation, PhonotacticDetailKind};
+    use crate::PhonotacticDetailKind;
     use bityzba::requires;
 
     #[test]
@@ -2437,28 +2431,19 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn invalid_lujvo_reports_parser_progress_for_xlaglymlu() {
+    fn xlaglymlu_reports_slinkuhi_before_lujvo_progress() {
         let error = segment_words_with_modifiers("xlaglymlu", &MorphologyOptions::default(), None)
-            .expect_err("invalid lujvo-like word should fail");
+            .expect_err("slinku'i form should fail");
 
         assert_invalid_error(
             &error,
-            MorphologyErrorKind::InvalidLujvo,
+            MorphologyErrorKind::Slinkuhi,
             0,
             9,
-            Some(MorphologyContextKind::Lujvo),
+            Some(MorphologyContextKind::Fuhivla),
         );
-        let data!(MorphologyErrorDetail::InvalidLujvo {
-            parsed_prefix,
-            expected,
-        }) = invalid_error_detail(&error)
-            .expect("invalid lujvo detail")
-            .as_data()
-        else {
-            panic!("expected invalid lujvo detail, got {error:?}");
-        };
-        assert_eq!(parsed_prefix.as_deref(), Some("xlá"));
-        assert_eq!(*expected, LujvoParseExpectation::FinalOrInitialRafsi);
+        let expected = new!(MorphologyErrorDetail::Slinkuhi);
+        assert_eq!(invalid_error_detail(&error), Some(&expected));
     }
 
     #[test]
@@ -2534,6 +2519,23 @@ mod tests {
                 "bacyselfancykanji",
                 &["bac", "y", "sel", "fanc", "y", "kánji"][..],
             ),
+            (
+                "nalselmorjyvalsi",
+                &["nal", "sel", "morj", "y", "válsi"][..],
+            ),
+            ("li'orklirysilna", &["li'or", "klir", "y", "sílna"][..]),
+            ("cavgauri'i", &["cav", "gaŭ", "rí'i"][..]),
+            ("selgu'era'a", &["sel", "gu'e", "rá'a"][..]),
+            ("sornairauci'e", &["sor", "naĭ", "raŭ", "cí'e"][..]),
+            ("tcevlimaurempre", &["tce", "vli", "maŭ", "rém", "pre"][..]),
+            ("xanjairinsa", &["xan", "jaĭ", "rínsa"][..]),
+            (
+                "kalca'osrumu'askakemsloskajavburjoiri'o",
+                &[
+                    "kal", "ca'o", "sru", "mu'a", "ska", "kem", "slo", "ska", "jav", "bur", "joĭ",
+                    "rí'o",
+                ][..],
+            ),
         ];
 
         for (word, expected_parts) in cases {
@@ -2548,14 +2550,20 @@ mod tests {
     #[ensures(true)]
     fn vowel_initial_words_require_pause_at_word_boundary() {
         let error =
-            segment_words_with_modifiers("mi leia klama", &MorphologyOptions::default(), None)
+            segment_words_with_modifiers("mi lea klama", &MorphologyOptions::default(), None)
                 .expect_err("vowel-initial word without pause should fail");
-        assert_invalid_error(&error, MorphologyErrorKind::UnrecognizedWord, 3, 7, None);
+        assert_invalid_error(
+            &error,
+            MorphologyErrorKind::VowelHiatus,
+            4,
+            6,
+            Some(MorphologyContextKind::Fuhivla),
+        );
 
         let words =
-            segment_words_with_modifiers("mi le .ia klama", &MorphologyOptions::default(), None)
+            segment_words_with_modifiers("mi le .a klama", &MorphologyOptions::default(), None)
                 .expect("pause before vowel-initial word should parse");
-        assert_eq!(bare_phonemes(&words), ["mi", "le", "ĭa", "kláma"]);
+        assert_eq!(bare_phonemes(&words), ["mi", "le", "a", "kláma"]);
     }
 
     #[test]
@@ -2603,6 +2611,11 @@ mod tests {
             ("gismyiismu", &["gism", "y", "iismu"][..]),
             ("fuly'ismu", &["ful", "y'", "ismu"][..]),
             ("tcenelyiismu", &["tce", "nel", "y", "iismu"][..]),
+            ("itku'ilybau", &["itku'il", "y", "baŭ"][..]),
+            ("jinrcaibyca'u", &["jinrcaib", "y", "ca'u"][..]),
+            ("sezborsigmysmi", &["sez", "bor", "sigm", "y", "smi"][..]),
+            ("splurtakni'yxau", &["splurtakni", "'y", "xaŭ"][..]),
+            ("terkraunydze", &["terkraun", "y", "dze"][..]),
         ];
 
         for (word, expected_parts) in cases {
@@ -2623,13 +2636,244 @@ mod tests {
             "xlastmlu",
             "xlastymlu",
             "sincyrboua",
-            "le'yia",
-            "fa'u'yiismu",
         ] {
             assert!(
                 segment_words_with_modifiers(word, &MorphologyOptions::default(), None).is_err(),
                 "{word} should remain invalid"
             );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn camxes_std_prefers_cmavo_when_cvc_y_guard_does_not_apply() {
+        let cases = [
+            (
+                "fa'u'yiismu",
+                &["fa'u'y", "ĭísmu"][..],
+                &[WordKind::Cmavo, WordKind::Fuhivla][..],
+            ),
+            (
+                "le'yia",
+                &["le'y", "ĭa"][..],
+                &[WordKind::Cmavo, WordKind::Cmavo][..],
+            ),
+        ];
+
+        for (source, expected_phonemes, expected_kinds) in cases {
+            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
+                .unwrap_or_else(|error| {
+                    panic!("camxes-std parses {source} as adjacent words: {error}")
+                });
+
+            assert_eq!(bare_phonemes(&words), expected_phonemes, "{source}");
+            assert_eq!(words.len(), expected_kinds.len(), "{source}");
+            for (word, expected_kind) in words.iter().zip(expected_kinds.iter()) {
+                assert_eq!(
+                    bare_word(word).expect("bare word").kind(),
+                    *expected_kind,
+                    "{source}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn camxes_std_keeps_rafsi_string_lujvo_before_cmavo_prefixes() {
+        let cases = [
+            ("jbagri", &["jba", "gri"][..]),
+            ("lojbaugri", &["loj", "bau", "gri"][..]),
+            ("lojbauske", &["loj", "bau", "ske"][..]),
+            ("leismu", &["lei", "smu"][..]),
+            ("pacraistu", &["pac", "rai", "stu"][..]),
+            ("pavroipli", &["pav", "roi", "pli"][..]),
+            ("pazvaufli", &["paz", "vau", "fli"][..]),
+            ("ricfoiske", &["ric", "foi", "ske"][..]),
+            ("soigri", &["soi", "gri"][..]),
+            ("cmali'i", &["cma", "lí'i"][..]),
+            ("nelcu'a", &["nel", "cú'a"][..]),
+            ("reirsisku", &["reĭr", "sísku"][..]),
+            ("befti'e", &["bef", "tí'e"][..]),
+            (
+                "jimtu'uci'eselri'u",
+                &["jim", "tu'u", "ci'e", "sel", "rí'u"][..],
+            ),
+        ];
+
+        for (word, expected_parts) in cases {
+            let words = segment_words_with_modifiers(word, &MorphologyOptions::default(), None)
+                .unwrap_or_else(|error| panic!("{word} should parse as one lujvo: {error}"));
+            assert_lujvo_part_texts(word, &words, expected_parts);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn garden_path_words_parse_as_fuhivla_not_lujvo() {
+        let cases = [
+            ("pudlu'avalsi'ipo'ato", "pudlu'avalsi'ipo'áto"),
+            ("pudlu'avalsipatlu", "pudlu'avalsipátlu"),
+            ("pudlu'avalsi'ipo", "pudlu'avalsi'ípo"),
+            ("pudlu'ipo'ato", "pudlu'ipo'áto"),
+            ("pudlu'avalsi'apo'ato", "pudlu'avalsi'apo'áto"),
+            ("le'i'ismu", "le'i'ísmu"),
+        ];
+
+        for (word, expected_phonemes) in cases {
+            let words = segment_words_with_modifiers(word, &MorphologyOptions::default(), None)
+                .unwrap_or_else(|error| panic!("{word} should parse as fu'ivla: {error}"));
+            assert_eq!(bare_phonemes(&words), [expected_phonemes], "{word}");
+            assert_eq!(
+                bare_word(&words[0]).expect("bare word").kind(),
+                WordKind::Fuhivla,
+                "{word}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rafsi_string_lookahead_keeps_stress_context_for_fuhivla() {
+        let cases = [
+            ("traduko", "tradúko"),
+            ("nargile", "nargíle"),
+            ("spitaki", "spitáki"),
+            ("krokodilo", "krokodílo"),
+            ("slakabu", "slakábu"),
+            ("citkakei", "citkákeĭ"),
+            ("jbomriluliste", "jbomrilulíste"),
+        ];
+
+        for (word, expected_phonemes) in cases {
+            let words = segment_words_with_modifiers(word, &MorphologyOptions::default(), None)
+                .unwrap_or_else(|error| panic!("{word} should parse as fu'ivla: {error}"));
+            assert_eq!(bare_phonemes(&words), [expected_phonemes], "{word}");
+            assert_eq!(
+                bare_word(&words[0]).expect("bare word").kind(),
+                WordKind::Fuhivla,
+                "{word}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn garden_path_contrasts_keep_camxes_word_boundaries() {
+        let pudlu_avalsi =
+            segment_words_with_modifiers("pudlu'avalsi", &MorphologyOptions::default(), None)
+                .expect("prefix contrast should remain a lujvo");
+        assert_lujvo_part_texts("pudlu'avalsi", &pudlu_avalsi, &["pud", "lu'a", "válsi"]);
+
+        let piryto = segment_words_with_modifiers("piryto", &MorphologyOptions::default(), None)
+            .expect("shorter form should split as cmavo");
+        assert_eq!(bare_phonemes(&piryto), ["pi", "ry", "to"]);
+        assert!(
+            piryto
+                .iter()
+                .all(|word| { bare_word(word).is_some_and(|word| word.kind() == WordKind::Cmavo) })
+        );
+
+        let pirytoi = segment_words_with_modifiers("pirytoi", &MorphologyOptions::default(), None)
+            .expect("final rafsi should force lujvo recognition");
+        assert_lujvo_part_texts("pirytoi", &pirytoi, &["pír", "y", "toĭ"]);
+
+        let leiismu = segment_words_with_modifiers("leiismu", &MorphologyOptions::default(), None)
+            .expect("glide-initial fu'ivla after cmavo should not require a pause");
+        assert_eq!(bare_phonemes(&leiismu), ["le", "ĭísmu"]);
+        assert_eq!(
+            bare_word(&leiismu[0]).expect("bare word").kind(),
+            WordKind::Cmavo
+        );
+        assert_eq!(
+            bare_word(&leiismu[1]).expect("bare word").kind(),
+            WordKind::Fuhivla
+        );
+
+        let split_cases = [
+            (
+                "coicai",
+                &["coĭ", "caĭ"][..],
+                &[WordKind::Cmavo, WordKind::Cmavo][..],
+            ),
+            (
+                "soisai",
+                &["soĭ", "saĭ"][..],
+                &[WordKind::Cmavo, WordKind::Cmavo][..],
+            ),
+            (
+                "bausai",
+                &["baŭ", "saĭ"][..],
+                &[WordKind::Cmavo, WordKind::Cmavo][..],
+            ),
+            (
+                "bauismu",
+                &["ba", "ŭísmu"][..],
+                &[WordKind::Cmavo, WordKind::Fuhivla][..],
+            ),
+            (
+                "soibroda",
+                &["soĭ", "bróda"][..],
+                &[WordKind::Cmavo, WordKind::Gismu][..],
+            ),
+        ];
+        for (source, expected_phonemes, expected_kinds) in split_cases {
+            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
+                .unwrap_or_else(|error| panic!("{source} should split: {error}"));
+            assert_eq!(bare_phonemes(&words), expected_phonemes, "{source}");
+            for (word, expected_kind) in words.iter().zip(expected_kinds) {
+                assert_eq!(
+                    bare_word(word).expect("bare word").kind(),
+                    *expected_kind,
+                    "{source}"
+                );
+            }
+        }
+
+        let error = segment_words_with_modifiers("jbaugri", &MorphologyOptions::default(), None)
+            .expect_err("suffix-only fu'ivla garden path should reject");
+        assert_invalid_error(
+            &error,
+            MorphologyErrorKind::Slinkuhi,
+            0,
+            7,
+            Some(MorphologyContextKind::Fuhivla),
+        );
+
+        let error = segment_words_with_modifiers("xlastymlu", &MorphologyOptions::default(), None)
+            .expect_err("slinku'i form should not be repaired into a fu'ivla rafsi lujvo");
+        assert_invalid_error(
+            &error,
+            MorphologyErrorKind::Slinkuhi,
+            0,
+            9,
+            Some(MorphologyContextKind::Fuhivla),
+        );
+
+        assert!(
+            segment_words_with_modifiers("le'iismu", &MorphologyOptions::default(), None).is_err(),
+            "missing apostrophe must not be repaired into either neighboring garden-path shape"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn stressed_canonical_lujvo_parts_use_unstressed_shape_ranges() {
+        let cases = [
+            ("toltcusatydja", &["tol", "tcu", "sát", "y", "dja"][..]),
+            ("tercipygau", &["ter", "cíp", "y", "gaŭ"][..]),
+        ];
+
+        for (word, expected_parts) in cases {
+            let words = segment_words_with_modifiers(word, &MorphologyOptions::default(), None)
+                .unwrap_or_else(|error| panic!("{word} should parse as lujvo: {error}"));
+            assert_lujvo_part_texts(word, &words, expected_parts);
         }
     }
 
@@ -2718,16 +2962,56 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn cgv_relaxation_accepts_initial_cluster_glide_onset_with_warning() {
+        let cases = [
+            ("zgiaca'a", "zgĭacá'a", 1, 4, "gia"),
+            ("skamruebe", "skamrŭébe", 4, 7, "rue"),
+            ("samxruebe", "samxrŭébe", 4, 7, "rue"),
+        ];
+
+        for (source, expected_phonemes, expected_start, expected_end, expected_text) in cases {
+            let attempt =
+                segment_words_with_modifiers_attempt(source, &MorphologyOptions::default(), None);
+            let data = attempt.into_data();
+            let words = data.result.unwrap_or_else(|error| {
+                panic!("{source} should permit cluster plus glide onset: {error:?}")
+            });
+
+            assert_eq!(bare_phonemes(&words), [expected_phonemes], "{source}");
+            assert_eq!(
+                bare_word(&words[0]).expect("bare word").kind(),
+                WordKind::Fuhivla,
+                "{source}"
+            );
+            assert_eq!(data.warnings.len(), 1, "{source}");
+            assert_eq!(
+                data.warnings[0].kind,
+                MorphologyWarningKind::ExperimentalCgv,
+                "{source}"
+            );
+            assert_eq!(data.warnings[0].char_start, expected_start, "{source}");
+            assert_eq!(data.warnings[0].char_end, expected_end, "{source}");
+            assert_eq!(data.warnings[0].text, expected_text, "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cgv_relaxation_after_cmavo_prefix_keeps_word_scan_order() {
         let attempt =
-            segment_words_with_modifiers_attempt("zgiaca'a", &MorphologyOptions::default(), None);
+            segment_words_with_modifiers_attempt("patriarko", &MorphologyOptions::default(), None);
         let data = attempt.into_data();
         let words = data
             .result
-            .expect("CgV relaxation should permit cluster plus glide onset");
+            .expect("CGV relaxation should permit the post-cmavo fu'ivla");
 
-        assert_eq!(bare_phonemes(&words), ["zgĭacá'a"]);
+        assert_eq!(bare_phonemes(&words), ["pa", "trĭárko"]);
         assert_eq!(
             bare_word(&words[0]).expect("bare word").kind(),
+            WordKind::Cmavo
+        );
+        assert_eq!(
+            bare_word(&words[1]).expect("bare word").kind(),
             WordKind::Fuhivla
         );
         assert_eq!(data.warnings.len(), 1);
@@ -2735,9 +3019,9 @@ mod tests {
             data.warnings[0].kind,
             MorphologyWarningKind::ExperimentalCgv
         );
-        assert_eq!(data.warnings[0].char_start, 1);
-        assert_eq!(data.warnings[0].char_end, 4);
-        assert_eq!(data.warnings[0].text, "gia");
+        assert_eq!(data.warnings[0].char_start, 3);
+        assert_eq!(data.warnings[0].char_end, 6);
+        assert_eq!(data.warnings[0].text, "ria");
     }
 
     #[test]

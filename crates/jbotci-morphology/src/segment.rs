@@ -595,6 +595,22 @@ pub(crate) fn parse_lujvo_parts(word: &str) -> Option<Vec1<LujvoPart>> {
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
+pub(crate) fn parse_lujvo_parts_with_canonical_phonemes(
+    shape_word: &str,
+    canonical_word: &str,
+) -> Option<Vec1<LujvoPart>> {
+    let shape_chars = text_chars(shape_word);
+    let canonical_chars = text_chars(canonical_word);
+    if shape_chars.len() != canonical_chars.len() {
+        return None;
+    }
+    let ranges = analyze_lujvo_part_ranges_chars(&shape_chars).ok()?;
+    let parts = lujvo_ranges_to_parts(&canonical_chars, ranges.into_iter().collect())?;
+    Vec1::try_from_vec(parts).ok()
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub(crate) fn invalid_lujvo_error_detail(word: &str) -> Option<MorphologyErrorDetail> {
     let chars = text_chars(word);
@@ -656,15 +672,29 @@ fn analyze_lujvo_parts(word: &str) -> Result<Vec1<LujvoPart>, LujvoParseFailure>
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|parts| !parts.is_empty()) || ret.as_ref().is_err())]
 fn analyze_lujvo_parts_chars(chars: &[char]) -> Result<Vec1<LujvoPart>, LujvoParseFailure> {
+    let ranges = analyze_lujvo_part_ranges_chars(chars)?;
+    let parts = lujvo_ranges_to_parts(chars, ranges.into_iter().collect()).ok_or_else(|| {
+        LujvoParseFailure::new(0, LujvoParseExpectation::InitialOrStandaloneFinalRafsi)
+    })?;
+    Vec1::try_from_vec(parts).map_err(|_| {
+        LujvoParseFailure::new(0, LujvoParseExpectation::InitialOrStandaloneFinalRafsi)
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|ranges| !ranges.is_empty()) || ret.as_ref().is_err())]
+fn analyze_lujvo_part_ranges_chars(
+    chars: &[char],
+) -> Result<Vec1<Range<usize>>, LujvoParseFailure> {
     let mut failure = None;
     if chars.len() <= 3 || !chars.iter().all(|value| is_lujvo_char(*value)) {
         record_lujvo_failure(&mut failure, 0, false);
         return Err(failure.expect("initial lujvo failure was recorded"));
     }
-    if let Some(parts) = lujvo_parts_from(chars, 0, false, &mut failure)
-        && let Ok(parts) = Vec1::try_from_vec(parts)
+    if let Some(ranges) = lujvo_part_ranges_from(chars, 0, false, &mut failure)
+        && let Ok(ranges) = Vec1::try_from_vec(ranges)
     {
-        return Ok(parts);
+        return Ok(ranges);
     }
     Err(failure.unwrap_or_else(|| {
         LujvoParseFailure::new(0, LujvoParseExpectation::InitialOrStandaloneFinalRafsi)
@@ -931,10 +961,16 @@ fn pronunciation_hard_onset(chars: &[PronunciationChar]) -> bool {
                 || (is_consonant(first.annotated) && is_pronunciation_onglide(second.annotated))
         }
         [first, second, third] => {
-            is_sibilant(first.annotated)
-                && initial_pair_chars(first.annotated, second.annotated)
-                && initial_pair_chars(second.annotated, third.annotated)
-                && is_liquid(third.annotated)
+            (initial_pair_chars(first.annotated, second.annotated)
+                && is_pronunciation_onglide(third.annotated))
+                || is_sibilant(first.annotated)
+                    && initial_pair_chars(first.annotated, second.annotated)
+                    && initial_pair_chars(second.annotated, third.annotated)
+                    && is_liquid(third.annotated)
+        }
+        [first, second, third, fourth] => {
+            valid_three_consonant_initial(&[first.annotated, second.annotated, third.annotated], 0)
+                && is_pronunciation_onglide(fourth.annotated)
         }
         _ => false,
     }
@@ -1022,7 +1058,7 @@ fn split_pronunciation_onset(
     onset: &[PronunciationChar],
     nucleus: &str,
 ) -> Option<()> {
-    let (suffix_len, hard_onset) = (1..=onset.len().min(3)).rev().find_map(|suffix_len| {
+    let (suffix_len, hard_onset) = (1..=onset.len().min(4)).rev().find_map(|suffix_len| {
         let hard_onset = &onset[onset.len() - suffix_len..];
         if !pronunciation_hard_onset(hard_onset) {
             return None;
@@ -2051,7 +2087,10 @@ fn is_gismu(word: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_lujvo(word: &str) -> bool {
-    parse_lujvo_parts(word).is_some()
+    let chars = text_chars(word);
+    !cmavo_word_slice(&chars, 0, chars.len())
+        && !is_fuhivla_shape_slice(&chars, 0, chars.len())
+        && parse_lujvo_parts(word).is_some()
 }
 
 #[requires(index <= chars.len())]
@@ -2060,7 +2099,12 @@ fn lujvo_from(chars: &[char], index: usize, has_initial_rafsi: bool) -> bool {
     if index >= chars.len() {
         return false;
     }
-    if has_initial_rafsi && is_lujvo_core(chars, index) {
+    if has_initial_rafsi && lujvo_core_part_ranges(chars, index).is_some() {
+        return true;
+    }
+    if !has_initial_rafsi
+        && lujvo_core_part_ranges(chars, index).is_some_and(|ranges| ranges.len() > 1)
+    {
         return true;
     }
     if !has_initial_rafsi && is_lujvo_final_rafsi_alone(chars, index) {
@@ -2072,49 +2116,70 @@ fn lujvo_from(chars: &[char], index: usize, has_initial_rafsi: bool) -> bool {
 }
 
 #[requires(index <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
-fn lujvo_parts_from(
+#[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
+#[ensures(ret.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= chars.len())))]
+fn lujvo_part_ranges_from(
     chars: &[char],
     index: usize,
     has_initial_rafsi: bool,
     failure: &mut Option<LujvoParseFailure>,
-) -> Option<Vec<LujvoPart>> {
+) -> Option<Vec<Range<usize>>> {
     if index >= chars.len() {
         record_lujvo_failure(failure, index, has_initial_rafsi);
         return None;
     }
-    if has_initial_rafsi && is_lujvo_core(chars, index) {
-        return Some(vec![rafsi_part(chars, index, chars.len())?]);
+    if has_initial_rafsi && let Some(ranges) = lujvo_core_part_ranges(chars, index) {
+        return Some(ranges);
+    }
+    if !has_initial_rafsi
+        && let Some(ranges) = lujvo_core_part_ranges(chars, index)
+        && ranges.len() > 1
+    {
+        return Some(ranges);
     }
     if !has_initial_rafsi && is_lujvo_final_rafsi_alone(chars, index) {
-        return Some(vec![rafsi_part(chars, index, chars.len())?]);
+        return Some(vec![index..chars.len()]);
     }
     for end in initial_rafsi_ends(chars, index) {
         if end <= index {
             continue;
         }
-        let Some(mut rest) = lujvo_parts_from(chars, end, true, failure) else {
+        let Some(mut rest) = lujvo_part_ranges_from(chars, end, true, failure) else {
             continue;
         };
-        let mut parts = initial_rafsi_parts(chars, index, end)?;
-        parts.append(&mut rest);
-        return Some(parts);
+        let mut ranges = initial_rafsi_ranges(chars, index, end)?;
+        ranges.append(&mut rest);
+        return Some(ranges);
     }
     record_lujvo_failure(failure, index, has_initial_rafsi);
     None
 }
 
-#[requires(start < end && end <= chars.len())]
+#[requires(!ranges.is_empty())]
+#[requires(ranges.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
 #[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
-fn initial_rafsi_parts(chars: &[char], start: usize, end: usize) -> Option<Vec<LujvoPart>> {
+fn lujvo_ranges_to_parts(chars: &[char], ranges: Vec<Range<usize>>) -> Option<Vec<LujvoPart>> {
+    ranges
+        .into_iter()
+        .map(|range| {
+            if is_rafsi_hyphen_start(chars, range.start) {
+                hyphen_part(chars, range.start, range.end)
+            } else {
+                rafsi_part(chars, range.start, range.end)
+            }
+        })
+        .collect()
+}
+
+#[requires(start < end && end <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
+#[ensures(ret.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= end)))]
+fn initial_rafsi_ranges(chars: &[char], start: usize, end: usize) -> Option<Vec<Range<usize>>> {
     if let Some(hyphen_start) = (start + 1..end).find(|index| is_rafsi_hyphen_start(chars, *index))
     {
-        return Some(vec![
-            rafsi_part(chars, start, hyphen_start)?,
-            hyphen_part(chars, hyphen_start, end)?,
-        ]);
+        return Some(vec![start..hyphen_start, hyphen_start..end]);
     }
-    Some(vec![rafsi_part(chars, start, end)?])
+    Some(vec![start..end])
 }
 
 #[requires(index < chars.len())]
@@ -2162,10 +2227,24 @@ fn starts_with_cvcy_lujvo_chars(chars: &[char], index: usize) -> bool {
 #[requires(index <= chars.len())]
 #[ensures(true)]
 fn is_lujvo_core(chars: &[char], index: usize) -> bool {
-    is_gismu_slice(chars, index, chars.len())
+    lujvo_core_part_ranges(chars, index).is_some()
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
+#[ensures(ret.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= chars.len())))]
+fn lujvo_core_part_ranges(chars: &[char], index: usize) -> Option<Vec<Range<usize>>> {
+    if is_gismu_slice(chars, index, chars.len())
         || is_short_final_rafsi_slice(chars, index, chars.len())
         || is_cvv_final_rafsi_slice(chars, index, chars.len())
         || is_fuhivla_shape_slice(chars, index, chars.len())
+    {
+        return Some(vec![index..chars.len()]);
+    }
+    let split = stressed_initial_rafsi_short_final_split(chars, index, chars.len())?;
+    let mut ranges = initial_rafsi_ranges(chars, index, split)?;
+    ranges.push(split..chars.len());
+    Some(ranges)
 }
 
 #[requires(index <= chars.len())]
@@ -2178,9 +2257,16 @@ fn is_lujvo_final_rafsi_alone(chars: &[char], index: usize) -> bool {
 #[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
 fn initial_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
+    let extended = extended_rafsi_ends(chars, index);
+    ends.extend(extended.iter().copied());
     ends.extend(y_rafsi_ends(chars, index));
-    ends.extend(y_less_rafsi_ends(chars, index));
-    ends.extend(extended_rafsi_ends(chars, index));
+    if !any_extended_rafsi_starts(chars, index) {
+        ends.extend(
+            y_less_rafsi_ends(chars, index)
+                .into_iter()
+                .filter(|end| !any_extended_rafsi_starts(chars, *end)),
+        );
+    }
 
     let mut preferred_ends = Vec::new();
     for end in ends {
@@ -2189,6 +2275,23 @@ fn initial_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
         }
     }
     preferred_ends
+}
+
+#[requires(index <= chars.len())]
+#[ensures(true)]
+fn any_extended_rafsi_starts(chars: &[char], index: usize) -> bool {
+    index < chars.len()
+        && (is_fuhivla_shape_slice(chars, index, chars.len())
+            || !extended_rafsi_ends(chars, index).is_empty()
+            || !stressed_extended_rafsi_ends(chars, index).is_empty())
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
+fn stressed_extended_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+    ((index + 1)..=chars.len())
+        .filter(|end| stressed_extended_rafsi_slice(chars, index, *end))
+        .collect()
 }
 
 #[requires(index <= chars.len())]
@@ -2211,13 +2314,107 @@ fn extended_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     ends
 }
 
+#[requires(start <= end && end <= chars.len())]
+#[ensures(ret.is_none_or(|split| split > start && split < end))]
+fn stressed_initial_rafsi_short_final_split(
+    chars: &[char],
+    start: usize,
+    end: usize,
+) -> Option<usize> {
+    (start + 1..end).rev().find(|split| {
+        is_short_final_rafsi_slice(chars, *split, end)
+            && stressed_initial_rafsi_slice(chars, start, *split)
+    })
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn stressed_initial_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+    stressed_extended_rafsi_slice(chars, start, end)
+        || stressed_y_rafsi_slice(chars, start, end)
+        || stressed_y_less_rafsi_slice(chars, start, end)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn stressed_extended_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+    stressed_brivla_rafsi_slice(chars, start, end)
+        || stressed_fuhivla_rafsi_slice(chars, start, end)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn stressed_y_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+    y_rafsi_slice(chars, start, end)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn stressed_y_less_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+    y_less_rafsi_ends(chars, start)
+        .into_iter()
+        .any(|rafsi_end| rafsi_end == end)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn stressed_brivla_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+    if end < start + 3
+        || chars.get(end - 2) != Some(&'\'')
+        || !chars.get(end - 1).is_some_and(|value| is_y(*value))
+    {
+        return false;
+    }
+    let stress_end = end - 2;
+    brivla_head_ends_until(chars, start, stress_end)
+        .into_iter()
+        .filter(|head_end| *head_end < stress_end)
+        .any(|head_end| {
+            stressed_syllable_ends_for_fuhivla(chars, head_end, stress_end)
+                .into_iter()
+                .any(|syllable_end| syllable_end == stress_end)
+        })
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn stressed_fuhivla_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+    if end < start + 2 || !chars.get(end - 1).is_some_and(|value| is_y(*value)) {
+        return false;
+    }
+    let base_end = end - 1;
+    fuhivla_head_ends_until(chars, start, base_end)
+        .into_iter()
+        .filter(|head_end| *head_end < base_end)
+        .any(|head_end| {
+            stressed_syllable_ends_for_fuhivla(chars, head_end, base_end)
+                .into_iter()
+                .any(|stressed_end| consonantal_chain_then_onset(chars, stressed_end, base_end))
+        })
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn consonantal_chain_then_onset(chars: &[char], index: usize, end: usize) -> bool {
+    if chars.get(index) != Some(&'\'')
+        && parse_onsets(chars, index)
+            .into_iter()
+            .any(|(_, onset_end)| onset_end == end)
+    {
+        return true;
+    }
+    consonantal_syllable_ends(chars, index, end, SyllablePolicy::Brivla)
+        .into_iter()
+        .any(|next| next > index && consonantal_chain_then_onset(chars, next, end))
+}
+
 #[requires(index <= chars.len())]
 #[ensures(ret.iter().all(|end| *end > index && *end < chars.len()))]
 fn fuhivla_rafsi_base_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
     for base_end in (index + 1)..chars.len() {
         if rafsi_hyphen_end(chars, base_end).is_some()
-            && fuhivla_rafsi_base_slice(chars, index, base_end)
+            && fuhivla_rafsi_base_slice(chars, index, base_end, chars.len())
         {
             ends.push(base_end);
         }
@@ -2225,23 +2422,25 @@ fn fuhivla_rafsi_base_ends(chars: &[char], index: usize) -> Vec<usize> {
     ends
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
 #[ensures(true)]
-fn fuhivla_rafsi_base_slice(chars: &[char], start: usize, end: usize) -> bool {
+fn fuhivla_rafsi_base_slice(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    lookahead_end: usize,
+) -> bool {
     if start >= end
         || chars[start..end].iter().any(|value| is_y(*value))
-        || rafsi_string_slice(chars, start, end)
         || unstressed_syllable_ends_for_fuhivla(chars, start, end).is_empty()
     {
         return false;
     }
-    brivla_head_ends(chars, start)
+    fuhivla_head_ends_until(chars, start, lookahead_end)
         .into_iter()
-        .filter(|head_end| *head_end < end)
+        .filter(|head_end| *head_end > start && *head_end < end)
         .any(|head_end| {
-            !rafsi_string_slice(chars, start, head_end)
-                && !slinkuhi_slice(chars, start, head_end)
-                && !unstressed_syllable_ends_for_fuhivla(chars, start, head_end).is_empty()
+            chars.get(head_end) != Some(&'\'')
                 && parse_onsets(chars, head_end)
                     .into_iter()
                     .any(|(_, onset_end)| onset_end == end)
@@ -2249,60 +2448,334 @@ fn fuhivla_rafsi_base_slice(chars: &[char], start: usize, end: usize) -> bool {
 }
 
 #[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end < chars.len()))]
+#[ensures(ret.iter().all(|end| *end >= index && *end <= chars.len()))]
 fn brivla_head_ends(chars: &[char], index: usize) -> Vec<usize> {
-    let mut ends = Vec::new();
-    for end in (index + 1)..chars.len() {
-        if starts_with_onset(chars, index)
-            && end > index
-            && chars[index..end]
-                .iter()
-                .any(|value| is_vowel(*value) || is_y(*value))
-            && !is_cmavo_slice(chars, index, end)
-            && !slinkuhi_slice(chars, index, end)
-        {
-            ends.push(end);
+    brivla_head_ends_until(chars, index, chars.len())
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= end))]
+fn brivla_head_ends_until(chars: &[char], index: usize, end: usize) -> Vec<usize> {
+    if index > end
+        || chars.get(index) == Some(&'\'')
+        || !starts_with_onset(chars, index)
+        || cmavo_word_slice(chars, index, end)
+        || slinkuhi_slice(chars, index, end)
+    {
+        return Vec::new();
+    }
+
+    brivla_head_ends_without_lookahead(chars, index, end)
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= end))]
+fn fuhivla_head_ends_until(chars: &[char], index: usize, end: usize) -> Vec<usize> {
+    if rafsi_string_starts_slice(chars, index, end) {
+        return Vec::new();
+    }
+    brivla_head_ends_until(chars, index, end)
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= end))]
+fn brivla_head_ends_without_lookahead(chars: &[char], index: usize, end: usize) -> Vec<usize> {
+    let mut ends = vec![index];
+    let mut stack = vec![index];
+    while let Some(start) = stack.pop() {
+        for syllable_end in unstressed_syllable_ends_for_fuhivla(chars, start, end) {
+            if syllable_end > start && !ends.contains(&syllable_end) {
+                ends.push(syllable_end);
+                stack.push(syllable_end);
+            }
         }
     }
+    ends.sort_unstable();
     ends
 }
 
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn slinkuhi_slice(chars: &[char], start: usize, end: usize) -> bool {
-    start < end && is_consonant(chars[start]) && rafsi_string_slice(chars, start + 1, end)
+    start < end
+        && !rafsi_string_starts_slice(chars, start, end)
+        && is_consonant(chars[start])
+        && rafsi_string_starts_slice(chars, start + 1, end)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn rafsi_string_starts_slice(chars: &[char], start: usize, end: usize) -> bool {
+    start < end
+        && ((start + 1)..=end)
+            .any(|word_end| rafsi_string_slice_for_lookahead(chars, start, word_end, end))
 }
 
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn rafsi_string_slice(chars: &[char], start: usize, end: usize) -> bool {
-    rafsi_string_from(chars, start, end)
+    rafsi_string_slice_for_lookahead(chars, start, end, end)
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
 #[ensures(true)]
-fn rafsi_string_from(chars: &[char], start: usize, end: usize) -> bool {
+fn rafsi_string_slice_for_lookahead(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    lookahead_end: usize,
+) -> bool {
+    rafsi_string_from(chars, start, end, lookahead_end)
+}
+
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(true)]
+fn rafsi_string_from(chars: &[char], start: usize, end: usize, lookahead_end: usize) -> bool {
     if start >= end {
         return false;
     }
-    if rafsi_string_ending(chars, start, end) {
-        return true;
+    let mut cursor = start;
+    while cursor < end {
+        let Some(next) = greedy_y_less_rafsi_end(chars, cursor, end, lookahead_end) else {
+            break;
+        };
+        cursor = next;
     }
-    y_less_rafsi_ends(chars, start)
-        .into_iter()
-        .any(|next| next > start && next <= end && rafsi_string_from(chars, next, end))
+    rafsi_string_ending(chars, cursor, end, lookahead_end)
 }
 
-#[requires(start <= end && end <= chars.len())]
+#[requires(index <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(ret.is_none_or(|next| next > index && next <= end))]
+fn greedy_y_less_rafsi_end(
+    chars: &[char],
+    index: usize,
+    end: usize,
+    lookahead_end: usize,
+) -> Option<usize> {
+    y_less_rafsi_ends(chars, index).into_iter().find(|next| {
+        *next <= end && y_less_rafsi_is_unstressed_in_context(chars, index, *next, lookahead_end)
+    })
+}
+
+#[requires(start <= end && end <= context_end && context_end <= chars.len())]
 #[ensures(true)]
-fn rafsi_string_ending(chars: &[char], start: usize, end: usize) -> bool {
-    is_gismu_slice(chars, start, end)
-        || is_cvv_final_rafsi_slice(chars, start, end)
-        || y_less_rafsi_ends(chars, start)
-            .into_iter()
-            .any(|mid| mid > start && mid < end && is_short_final_rafsi_slice(chars, mid, end))
+fn y_less_rafsi_is_unstressed_in_context(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    context_end: usize,
+) -> bool {
+    if cvc_rafsi_end(chars, start) == Some(end) {
+        return !nucleus_is_stressed_in_context(chars, start + 1, start + 2, context_end);
+    }
+    if ccv_rafsi_end(chars, start) == Some(end) {
+        return !nucleus_is_stressed_in_context(chars, start + 2, start + 3, context_end);
+    }
+    cvv_rafsi_is_unstressed_in_context(chars, start, end, context_end)
+}
+
+#[requires(start <= end && end <= context_end && context_end <= chars.len())]
+#[ensures(true)]
+fn cvv_rafsi_is_unstressed_in_context(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    context_end: usize,
+) -> bool {
+    if start >= end || !is_consonant(chars[start]) {
+        return false;
+    }
+    for vowel_end in vowel_pair_ends(chars, start + 1) {
+        let rafsi_end = if end == vowel_end {
+            Some(vowel_end)
+        } else if r_hyphen_end(chars, vowel_end) == Some(end) {
+            Some(end)
+        } else if n_hyphen_end(chars, vowel_end) == Some(end) {
+            Some(end)
+        } else {
+            None
+        };
+        if rafsi_end.is_none() {
+            continue;
+        }
+        if chars.get(start + 2) == Some(&'\'') && vowel_end == start + 4 {
+            return !nucleus_is_stressed_in_context(chars, start + 1, start + 2, context_end)
+                && !nucleus_is_stressed_in_context(chars, start + 3, start + 4, context_end);
+        }
+        if vowel_end == start + 3 {
+            return !nucleus_is_stressed_in_context(chars, start + 1, vowel_end, context_end);
+        }
+    }
+    false
+}
+
+#[requires(start < end && end <= context_end && context_end <= chars.len())]
+#[ensures(true)]
+fn nucleus_is_stressed_in_context(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    context_end: usize,
+) -> bool {
+    syllable_has_explicit_stress(chars, start, end)
+        || nucleus_has_implicit_stress(chars, end, context_end)
+}
+
+#[requires(index <= context_end && context_end <= chars.len())]
+#[ensures(true)]
+fn nucleus_has_implicit_stress(chars: &[char], index: usize, context_end: usize) -> bool {
+    let mut stack = vec![index];
+    let mut after_consonants_or_glides = Vec::new();
+    while let Some(cursor) = stack.pop() {
+        if after_consonants_or_glides.contains(&cursor) {
+            continue;
+        }
+        after_consonants_or_glides.push(cursor);
+        if cursor < context_end && is_consonant(chars[cursor]) {
+            stack.push(cursor + 1);
+        }
+        if let Some((_, glide_end)) = parse_glide(chars, cursor)
+            && glide_end <= context_end
+        {
+            stack.push(glide_end);
+        }
+    }
+
+    after_consonants_or_glides
+        .into_iter()
+        .any(|cursor| stress_tail_reaches_boundary(chars, cursor, context_end))
+}
+
+#[requires(index <= context_end && context_end <= chars.len())]
+#[ensures(true)]
+fn stress_tail_reaches_boundary(chars: &[char], index: usize, context_end: usize) -> bool {
+    let mut after_h = vec![index];
+    if index < context_end && chars.get(index) == Some(&'\'') {
+        after_h.push(index + 1);
+    }
+    after_h.into_iter().any(|cursor| {
+        let mut after_y = vec![cursor];
+        if cursor < context_end && chars.get(cursor).is_some_and(|value| is_y(*value)) {
+            after_y.push(cursor + 1);
+        }
+        after_y.into_iter().any(|syllable_start| {
+            syllable_ends(chars, syllable_start, context_end, SyllablePolicy::Brivla)
+                .into_iter()
+                .any(|syllable_end| syllable_end == context_end)
+        })
+    })
+}
+
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(true)]
+fn rafsi_string_ending(chars: &[char], start: usize, end: usize, lookahead_end: usize) -> bool {
+    (is_gismu_slice_for_rafsi_string(chars, start, end, lookahead_end)
+        && post_word_slice(chars, end, lookahead_end))
+        || (is_cvv_final_rafsi_slice_for_rafsi_string(chars, start, end, lookahead_end)
+            && post_word_slice(chars, end, lookahead_end))
+        || y_less_rafsi_ends(chars, start).into_iter().any(|mid| {
+            mid > start
+                && mid < end
+                && is_short_final_rafsi_slice_for_rafsi_string(chars, mid, end, lookahead_end)
+                && post_word_slice(chars, end, lookahead_end)
+        })
         || y_rafsi_slice(chars, start, end)
         || hy_rafsi_slice(chars, start, end)
+}
+
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(true)]
+fn is_gismu_slice_for_rafsi_string(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    lookahead_end: usize,
+) -> bool {
+    if end != start + 5 {
+        return false;
+    }
+    let final_start = if initial_pair_chars(chars[start], chars[start + 1])
+        && is_vowel(chars[start + 2])
+        && is_consonant(chars[start + 3])
+        && is_vowel(chars[start + 4])
+    {
+        start + 3
+    } else if is_consonant(chars[start])
+        && is_vowel(chars[start + 1])
+        && is_consonant(chars[start + 2])
+        && is_consonant(chars[start + 3])
+        && is_vowel(chars[start + 4])
+        && experimental_permissible_consonant_pair(chars[start + 2], chars[start + 3])
+    {
+        start + 3
+    } else {
+        return false;
+    };
+    syllable_is_stressed_in_context(chars, start, final_start, lookahead_end)
+        && final_syllable_slice_in_context(chars, final_start, end, lookahead_end)
+}
+
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(true)]
+fn is_cvv_final_rafsi_slice_for_rafsi_string(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    lookahead_end: usize,
+) -> bool {
+    end == start + 4
+        && is_consonant(chars[start])
+        && is_vowel(chars[start + 1])
+        && chars[start + 2] == '\''
+        && is_vowel(chars[start + 3])
+        && syllable_is_stressed_in_context(chars, start, start + 2, lookahead_end)
+        && final_syllable_slice_in_context(chars, start + 3, end, lookahead_end)
+}
+
+#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
+#[ensures(true)]
+fn is_short_final_rafsi_slice_for_rafsi_string(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    lookahead_end: usize,
+) -> bool {
+    is_short_final_rafsi_slice(chars, start, end)
+        && final_syllable_slice_in_context(chars, start, end, lookahead_end)
+}
+
+#[requires(start <= syllable_end && syllable_end <= context_end && context_end <= chars.len())]
+#[ensures(true)]
+fn syllable_is_stressed_in_context(
+    chars: &[char],
+    start: usize,
+    syllable_end: usize,
+    context_end: usize,
+) -> bool {
+    syllable_has_explicit_stress(chars, start, syllable_end)
+        || stressed_syllable_has_implicit_stress(chars, start, syllable_end, context_end)
+}
+
+#[requires(start <= end && end <= context_end && context_end <= chars.len())]
+#[ensures(true)]
+fn final_syllable_slice_in_context(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    context_end: usize,
+) -> bool {
+    final_syllable_slice(chars, start, end)
+        && !stressed_syllable_has_implicit_stress(chars, start, end, context_end)
+}
+
+#[requires(index <= end && end <= chars.len())]
+#[ensures(true)]
+fn post_word_slice(chars: &[char], index: usize, end: usize) -> bool {
+    let Some(next) = next_non_comma_index(chars, index) else {
+        return true;
+    };
+    next >= end
+        || (!starts_with_pause_required_nucleus(chars, next) && lojban_word_slice(chars, next, end))
 }
 
 #[requires(index <= chars.len())]
@@ -2336,6 +2809,10 @@ fn y_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
 #[requires(index <= chars.len())]
 #[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
 fn y_less_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+    if !y_rafsi_ends(chars, index).is_empty() || !hy_rafsi_ends(chars, index).is_empty() {
+        return Vec::new();
+    }
+
     let mut ends = Vec::new();
     if let Some(end) = cvc_rafsi_end(chars, index) {
         ends.push(end);
@@ -2344,19 +2821,38 @@ fn y_less_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
         ends.push(end);
     }
     ends.extend(cvv_rafsi_ends(chars, index));
+    ends.retain(|end| chars.get(*end) != Some(&'\''));
     ends
 }
 
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn hy_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
-    long_rafsi_ends(chars, start).into_iter().any(|base_end| {
-        chars.get(base_end).is_some_and(|value| is_vowel(*value))
-            && hy_rafsi_hyphen_end(chars, base_end + 1) == Some(end)
-    }) || ccv_rafsi_end(chars, start)
+    hy_rafsi_ends(chars, start)
         .into_iter()
-        .chain(cvv_rafsi_ends(chars, start))
-        .any(|base_end| hy_rafsi_hyphen_end(chars, base_end) == Some(end))
+        .any(|hy_rafsi_end| hy_rafsi_end == end)
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
+fn hy_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends = Vec::new();
+    for base_end in long_rafsi_ends(chars, index) {
+        if chars.get(base_end).is_some_and(|value| is_vowel(*value))
+            && let Some(end) = hy_rafsi_hyphen_end(chars, base_end + 1)
+        {
+            ends.push(end);
+        }
+    }
+    for base_end in ccv_rafsi_end(chars, index)
+        .into_iter()
+        .chain(cvv_rafsi_ends(chars, index))
+    {
+        if let Some(end) = hy_rafsi_hyphen_end(chars, base_end) {
+            ends.push(end);
+        }
+    }
+    ends
 }
 
 #[requires(index <= chars.len())]
@@ -2434,15 +2930,31 @@ fn cvv_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
     if index < chars.len() && is_consonant(chars[index]) {
         for vowel_end in vowel_pair_ends(chars, index + 1) {
-            ends.push(vowel_end);
-            if chars.get(vowel_end) == Some(&'r')
-                || (chars.get(vowel_end) == Some(&'n') && chars.get(vowel_end + 1) == Some(&'r'))
+            if let Some(end) =
+                r_hyphen_end(chars, vowel_end).or_else(|| n_hyphen_end(chars, vowel_end))
             {
-                ends.push(vowel_end + 1);
+                ends.push(end);
             }
+            ends.push(vowel_end);
         }
     }
     ends
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.is_none_or(|end| end == index + 1 && end <= chars.len()))]
+fn r_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
+    (chars.get(index) == Some(&'r')
+        && chars
+            .get(index + 1)
+            .is_some_and(|value| is_consonant(*value)))
+    .then_some(index + 1)
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.is_none_or(|end| end == index + 1 && end <= chars.len()))]
+fn n_hyphen_end(chars: &[char], index: usize) -> Option<usize> {
+    (chars.get(index) == Some(&'n') && chars.get(index + 1) == Some(&'r')).then_some(index + 1)
 }
 
 #[requires(index <= chars.len())]
@@ -2566,10 +3078,7 @@ fn has_blocking_cmavo_prefix_slice(chars: &[char], start: usize, end: usize) -> 
     if start >= end {
         return false;
     }
-    ((start + 1)..end).any(|prefix_end| {
-        is_cmavo_slice(chars, start, prefix_end)
-            && cmavo_post_word_slice(chars, start, prefix_end, end)
-    })
+    cmavo_word_slice(chars, start, end)
 }
 
 #[requires(prefix_start <= prefix_end && prefix_end <= end && end <= chars.len())]
@@ -2637,18 +3146,42 @@ fn lojban_word_slice(chars: &[char], start: usize, end: usize) -> bool {
     if start >= end {
         return false;
     }
-    is_cmavo_slice(chars, start, end)
-        || is_gismu_slice(chars, start, end)
-        || is_lujvo_slice(chars, start, end)
-        || is_fuhivla_shape_slice(chars, start, end)
+    is_cmevla_slice(chars, start, end)
+        || cmavo_word_slice(chars, start, end)
+        || brivla_word_slice(chars, start, end)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn cmavo_word_slice(chars: &[char], start: usize, end: usize) -> bool {
+    if start >= end
         || is_cmevla_slice(chars, start, end)
+        || starts_with_cvcy_lujvo_chars(chars, start)
+    {
+        return false;
+    }
+    ((start + 1)..=end).any(|word_end| {
+        is_cmavo_slice(chars, start, word_end) && cmavo_post_word_slice(chars, start, word_end, end)
+    })
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn brivla_word_slice(chars: &[char], start: usize, end: usize) -> bool {
+    !cmavo_word_slice(chars, start, end)
+        && (is_gismu_slice(chars, start, end)
+            || is_lujvo_slice(chars, start, end)
+            || is_fuhivla_shape_slice(chars, start, end))
 }
 
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn is_lujvo_slice(chars: &[char], start: usize, end: usize) -> bool {
     let slice = &chars[start..end];
-    slice.iter().all(|value| is_lujvo_char(*value)) && lujvo_from(slice, 0, false)
+    slice.iter().all(|value| is_lujvo_char(*value))
+        && !cmavo_word_slice(chars, start, end)
+        && !is_fuhivla_shape_slice(chars, start, end)
+        && lujvo_from(slice, 0, false)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -2666,9 +3199,7 @@ fn starts_with_pause_required_nucleus(chars: &[char], start: usize) -> bool {
     let Some(start) = next_non_comma_index(chars, start) else {
         return false;
     };
-    chars
-        .get(start)
-        .is_some_and(|value| is_vowel(*value) || is_y(*value) || matches!(*value, 'ĭ' | 'ŭ'))
+    starts_with_nucleus(chars, start)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -2800,7 +3331,37 @@ fn invalid_vowel_initial_fuhivla_shape(chars: &[char], start: usize, end: usize)
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn parse_fuhivla_shape(chars: &[char], start: usize, end: usize) -> bool {
-    brivla_head_ends_for_fuhivla(chars, start, end)
+    parse_fuhivla_shape_with_head_policy(chars, start, end, FuhivlaHeadPolicy::Standard)
+        || parse_experimental_cgv_fuhivla_shape(chars, start, end)
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn parse_experimental_cgv_fuhivla_shape(chars: &[char], start: usize, end: usize) -> bool {
+    has_cgv_sequence_slice(chars, start, end)
+        && parse_fuhivla_shape_with_head_policy(
+            chars,
+            start,
+            end,
+            FuhivlaHeadPolicy::ExperimentalCgv,
+        )
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn has_cgv_sequence_slice(chars: &[char], start: usize, end: usize) -> bool {
+    cgv_range(&chars[start..end]).is_some()
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn parse_fuhivla_shape_with_head_policy(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    head_policy: FuhivlaHeadPolicy,
+) -> bool {
+    fuhivla_head_ends_for_fuhivla(chars, start, end, head_policy)
         .into_iter()
         .any(|head_end| {
             stressed_syllable_ends_for_fuhivla(chars, head_end, end)
@@ -2809,24 +3370,26 @@ fn parse_fuhivla_shape(chars: &[char], start: usize, end: usize) -> bool {
         })
 }
 
+#[invariant(::Standard => true)]
+#[invariant(::ExperimentalCgv => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FuhivlaHeadPolicy {
+    Standard,
+    ExperimentalCgv,
+}
+
 #[requires(start <= end && end <= chars.len())]
 #[ensures(ret.iter().all(|head_end| *head_end >= start && *head_end <= end))]
-fn brivla_head_ends_for_fuhivla(chars: &[char], start: usize, end: usize) -> Vec<usize> {
-    if chars.get(start) == Some(&'\'') || !starts_with_onset(chars, start) {
-        return Vec::new();
+fn fuhivla_head_ends_for_fuhivla(
+    chars: &[char],
+    start: usize,
+    end: usize,
+    head_policy: FuhivlaHeadPolicy,
+) -> Vec<usize> {
+    match head_policy {
+        FuhivlaHeadPolicy::Standard => fuhivla_head_ends_until(chars, start, end),
+        FuhivlaHeadPolicy::ExperimentalCgv => brivla_head_ends_until(chars, start, end),
     }
-    let mut ends = vec![start];
-    let mut stack = vec![start];
-    while let Some(index) = stack.pop() {
-        for syllable_end in unstressed_syllable_ends_for_fuhivla(chars, index, end) {
-            if syllable_end > index && !ends.contains(&syllable_end) {
-                ends.push(syllable_end);
-                stack.push(syllable_end);
-            }
-        }
-    }
-    ends.sort_unstable();
-    ends
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -2991,7 +3554,6 @@ fn starts_any_syllable(chars: &[char], index: usize, end: usize, policy: Syllabl
     }
     brivla_onset_ends(chars, index)
         .into_iter()
-        .filter(|onset_end| !chars.get(*onset_end).is_some_and(|value| is_y(*value)))
         .any(|onset_end| {
             parse_nuclei(chars, onset_end)
                 .into_iter()
@@ -3141,11 +3703,8 @@ fn is_cmavo_slice(chars: &[char], start: usize, end: usize) -> bool {
 #[ensures(true)]
 fn starts_with_onset(chars: &[char], index: usize) -> bool {
     index <= chars.len()
-        && (index == chars.len()
-            || is_vowel(chars[index])
-            || is_y(chars[index])
-            || is_consonant(chars[index])
-            || matches!(chars[index], '\'' | 'ĭ' | 'ŭ'))
+        && (!parse_onsets(chars, index).is_empty()
+            || experimental_cgv_brivla_onset_end(chars, index).is_some())
 }
 
 #[requires(index <= chars.len())]

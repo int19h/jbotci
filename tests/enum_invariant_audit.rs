@@ -1012,6 +1012,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private normalization event is a unit signal with no payload to constrain",
     ),
     (
+        "crates/jbotci-morphology/src/segment.rs:FuhivlaHeadPolicy::Standard",
+        "private fu'ivla head policy selector is a unit variant whose validity is exhausted by the closed enum",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:FuhivlaHeadPolicy::ExperimentalCgv",
+        "private fu'ivla head policy selector is a unit variant whose validity is exhausted by the closed enum",
+    ),
+    (
         "crates/jbotci-morphology/src/segment.rs:SyllablePolicy::Brivla",
         "private syllable policy selector is a unit variant whose validity is exhausted by the closed enum",
     ),

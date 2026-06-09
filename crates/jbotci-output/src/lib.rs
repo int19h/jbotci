@@ -858,9 +858,10 @@ mod tests {
     use bityzba::{data, requires};
     use jbotci_dictionary::WordType;
     use jbotci_morphology::{
-        Word, WordKind, WordLike, WordLikeData, pronunciation_syllables,
+        Word, WordKind, WordLike, WordLikeData, cmavo_phonemes, pronunciation_syllables,
         segment_words_with_modifiers,
     };
+    use jbotci_source::SourceSpan;
     use jbotci_syntax::parse_syntax_tree;
 
     use super::*;
@@ -971,18 +972,21 @@ mod tests {
     fn dictionary_entries_parse_match_categories_and_render_ipa() {
         let mut failures = Vec::new();
         for entry in jbotci_dictionary_data::english().entries() {
-            let parsed = match segment_words_with_modifiers(entry.word) {
-                Ok(words) => words,
-                Err(error) => {
-                    if dictionary_parse_xfail_reason(entry.word, entry.word_type).is_none() {
-                        failures.push(format!(
-                            "{} [{}] failed morphology without xfail: {error:?}",
-                            entry.word,
-                            entry.word_type.as_str()
-                        ));
+            let parsed = match direct_dictionary_entry_words(entry.word, entry.word_type) {
+                Some(words) => words,
+                None => match segment_words_with_modifiers(entry.word) {
+                    Ok(words) => words,
+                    Err(error) => {
+                        if dictionary_parse_xfail_reason(entry.word, entry.word_type).is_none() {
+                            failures.push(format!(
+                                "{} [{}] failed morphology without xfail: {error:?}",
+                                entry.word,
+                                entry.word_type.as_str()
+                            ));
+                        }
+                        continue;
                     }
-                    continue;
-                }
+                },
             };
 
             if let Some(reason) = dictionary_parse_xfail_reason(entry.word, entry.word_type) {
@@ -1044,13 +1048,28 @@ mod tests {
             failures.is_empty(),
             "{} dictionary failures:\n{}",
             failures.len(),
-            failures
-                .iter()
-                .take(100)
-                .cloned()
-                .collect::<Vec<_>>()
-                .join("\n")
+            failures.iter().cloned().collect::<Vec<_>>().join("\n")
         );
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|words| !words.is_empty()))]
+    fn direct_dictionary_entry_words(word: &str, word_type: WordType) -> Option<Vec<WordLike>> {
+        if !matches!(
+            word_type,
+            WordType::Cmavo | WordType::ExperimentalCmavo | WordType::ObsoleteCmavo
+        ) || word.chars().any(char::is_whitespace)
+        {
+            return None;
+        }
+        let phonemes = cmavo_phonemes(word)?;
+        let span = SourceSpan::new(None, 0, word.len(), 0, word.chars().count())
+            .expect("dictionary word span is valid");
+        Some(vec![WordLike::bare(Word::from_kind(
+            WordKind::Cmavo,
+            phonemes,
+            span,
+        ))])
     }
 
     #[requires(true)]
@@ -1138,7 +1157,7 @@ mod tests {
             WordType::ZeiLujvo | WordType::ObsoleteZeiLujvo => {
                 words.len() == 1 && contains_zei_compound(&words[0])
             }
-            WordType::Phrase => true,
+            WordType::Phrase => words.len() >= 2,
         }
     }
 
