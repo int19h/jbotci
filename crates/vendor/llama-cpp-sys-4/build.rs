@@ -49,9 +49,10 @@ fn configure_libclang_path(target: &str) {
         PathBuf::from("C:\\Program Files\\LLVM\\bin"),
     ]);
 
-    if let Some(libclang_dir) = candidates.into_iter().find(|dir| {
-        dir.join("libclang.dll").is_file() || dir.join("clang.dll").is_file()
-    }) {
+    if let Some(libclang_dir) = candidates
+        .into_iter()
+        .find(|dir| dir.join("libclang.dll").is_file() || dir.join("clang.dll").is_file())
+    {
         let current_path = env::var_os("PATH").unwrap_or_default();
         let mut path_entries = env::split_paths(&current_path).collect::<Vec<_>>();
         if !path_entries.iter().any(|path| path == &libclang_dir) {
@@ -2134,10 +2135,7 @@ fn main() {
             // work without a system spirv-headers package.
             let spirv_headers_dir = vulkan_path.join("SPIRV-Headers");
             if spirv_headers_dir.join("SPIRV-HeadersConfig.cmake").exists() {
-                config.define(
-                    "SPIRV-Headers_DIR",
-                    spirv_headers_dir.to_str().unwrap(),
-                );
+                config.define("SPIRV-Headers_DIR", spirv_headers_dir.to_str().unwrap());
             }
             config.define("CMAKE_PREFIX_PATH", vulkan_path.to_str().unwrap());
         }
