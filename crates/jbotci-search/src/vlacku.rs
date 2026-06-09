@@ -1584,6 +1584,60 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn exact_lujvo_search_includes_dictionary_backed_fuhivla_component_card() {
+        let result = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Valsi("jenjigu'ydi'e".to_owned())],
+            &VlackuSearchOptions {
+                decompose_lujvo: true,
+                ..VlackuSearchOptions::default()
+            },
+        );
+
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("jenjigu'ydi'e")
+        );
+        assert!(result.cards.iter().any(|card| card.word == "jenjigu"));
+        assert!(result.cards.iter().any(|card| card.word == "dirce"));
+        let headword = result.cards.first().expect("headword card");
+        assert!(headword.decomposition.iter().any(|piece| {
+            piece.surface == "jenjigu" && piece.source.as_deref() == Some("jenjigu")
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_garden_path_fuhivla_search_does_not_add_lujvo_source_cards() {
+        let result = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Valsi("pudlu'avalsi'ipo'ato".to_owned())],
+            &VlackuSearchOptions {
+                decompose_lujvo: true,
+                ..VlackuSearchOptions::default()
+            },
+        );
+
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("pudlu'avalsi'ipo'ato")
+        );
+        assert!(
+            result
+                .cards
+                .first()
+                .is_some_and(|card| card.decomposition.is_empty())
+        );
+        assert!(!result.cards.iter().any(|card| card.word == "purdi"));
+        assert!(!result.cards.iter().any(|card| card.word == "valsi"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn parsed_word_dictionary_cards_lookup_letterals() {
         let words = segment_words_with_modifiers("a bu c bu").expect("morphology");
         let matches = dictionary_matches_for_word_likes(jbotci_dictionary_data::english(), &words);

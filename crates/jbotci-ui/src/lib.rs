@@ -8515,21 +8515,37 @@ fn render_composition_piece(
                         word_types: Vec::new(),
                     },
                 );
-                rsx! {
-                    span { class: "rafsi-split-pill",
-                        { render_vlacku_rafsi_add_piece(jvozba_pane, jvozba_available, &piece.surface, source, &display_surface) }
-                        span { class: "rafsi-split-right",
-                            { render_vlacku_word_action(
-                                jvozba_pane,
-                                jvozba_available,
-                                true,
-                                source,
-                                &display_source,
-                                &href,
-                                "dictionary-word-link rafsi-source-link dictionary-jvozba-add-link-hint",
-                                base_path,
-                                script,
-                            ) }
+                if piece.source_is_surface {
+                    rsx! {
+                        { render_vlacku_word_action(
+                            jvozba_pane,
+                            jvozba_available,
+                            true,
+                            source,
+                            &display_surface,
+                            &href,
+                            "chip rafsi-chip dictionary-word-link rafsi-source-link dictionary-jvozba-add-link-hint",
+                            base_path,
+                            script,
+                        ) }
+                    }
+                } else {
+                    rsx! {
+                        span { class: "rafsi-split-pill",
+                            { render_vlacku_rafsi_add_piece(jvozba_pane, jvozba_available, &piece.surface, source, &display_surface) }
+                            span { class: "rafsi-split-right",
+                                { render_vlacku_word_action(
+                                    jvozba_pane,
+                                    jvozba_available,
+                                    true,
+                                    source,
+                                    &display_source,
+                                    &href,
+                                    "dictionary-word-link rafsi-source-link dictionary-jvozba-add-link-hint",
+                                    base_path,
+                                    script,
+                                ) }
+                            }
                         }
                     }
                 }

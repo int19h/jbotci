@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 
 #[invariant(true)]
 #[invariant(::Lujvo => true)]
@@ -19,25 +19,69 @@ pub struct LujvoCandidate {
     pub score: i32,
 }
 
+#[invariant(true)]
+#[invariant(::Rafsi(text) => !text.is_empty())]
+#[invariant(::BrivlaCore(text) => !text.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LujvoBuildPart {
+    Rafsi(String),
+    BrivlaCore(String),
+}
+
+impl LujvoBuildPart {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn as_text(&self) -> &str {
+        match self.as_data() {
+            data!(LujvoBuildPart::Rafsi(text)) | data!(LujvoBuildPart::BrivlaCore(text)) => text,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_brivla_core(&self) -> bool {
+        matches!(self.as_data(), data!(LujvoBuildPart::BrivlaCore(_)))
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub fn choose_best_lujvo_candidate(
     mode: LujvoBuildMode,
     choices: &[Vec<String>],
 ) -> Option<LujvoCandidate> {
-    choose_best_candidate_from(mode, choices, &mut Vec::new(), None)
+    let typed_choices = choices
+        .iter()
+        .map(|choice| {
+            choice
+                .iter()
+                .cloned()
+                .map(|text| new!(LujvoBuildPart::Rafsi(text)))
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    choose_best_lujvo_candidate_from_parts(mode, &typed_choices)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn choose_best_candidate_from(
+pub fn choose_best_lujvo_candidate_from_parts(
     mode: LujvoBuildMode,
-    choices: &[Vec<String>],
-    selected: &mut Vec<String>,
+    choices: &[Vec<LujvoBuildPart>],
+) -> Option<LujvoCandidate> {
+    choose_best_candidate_from_parts(mode, choices, &mut Vec::new(), None)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn choose_best_candidate_from_parts(
+    mode: LujvoBuildMode,
+    choices: &[Vec<LujvoBuildPart>],
+    selected: &mut Vec<LujvoBuildPart>,
     best: Option<LujvoCandidate>,
 ) -> Option<LujvoCandidate> {
     let Some((next_choices, rest)) = choices.split_first() else {
-        let bonded = bond_rafsis(selected)?;
+        let bonded = bond_lujvo_build_parts(selected)?;
         let word = bonded.concat();
         let candidate = new!(LujvoCandidate {
             score: lujvo_score(&bonded),
@@ -53,7 +97,7 @@ fn choose_best_candidate_from(
     let mut current_best = best;
     for choice in next_choices {
         selected.push(choice.clone());
-        current_best = choose_best_candidate_from(mode, rest, selected, current_best);
+        current_best = choose_best_candidate_from_parts(mode, rest, selected, current_best);
         selected.pop();
     }
     current_best
@@ -80,26 +124,38 @@ fn select_better_candidate(
 #[requires(true)]
 #[ensures(true)]
 pub fn bond_rafsis(rafsis: &[String]) -> Option<Vec<String>> {
-    if rafsis.len() < 2 {
+    let parts = rafsis
+        .iter()
+        .cloned()
+        .map(|text| new!(LujvoBuildPart::Rafsi(text)))
+        .collect::<Vec<_>>();
+    bond_lujvo_build_parts(&parts)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|parts| parts.len() >= 2))]
+fn bond_lujvo_build_parts(parts: &[LujvoBuildPart]) -> Option<Vec<String>> {
+    if parts.len() < 2 {
         return None;
     }
-    let first = rafsis.first()?.clone();
-    let second = rafsis.get(1)?;
+    let first_part = parts.first()?;
+    let first = first_part.as_text().to_owned();
+    let second = parts.get(1)?.as_text();
     let mut bonded = vec![first.clone()];
-    if should_insert_cvv_hyphen(&first, second, rafsis.len()) {
+    if !first_part.is_brivla_core() && should_insert_cvv_hyphen(&first, second, parts.len()) {
         bonded.push(if second.starts_with('r') {
             "n".to_owned()
         } else {
             "r".to_owned()
         });
     }
-    for pair in rafsis.windows(2) {
+    for pair in parts.windows(2) {
         let previous = &pair[0];
         let next = &pair[1];
-        if let Some(hyphen) = y_hyphen_for_pair(previous, next) {
+        if let Some(hyphen) = hyphen_for_build_part_pair(previous, next) {
             bonded.push(hyphen.to_owned());
         }
-        bonded.push(next.clone());
+        bonded.push(next.as_text().to_owned());
     }
     if tosmabru(&bonded) {
         bonded.insert(1, "y".to_owned());
@@ -175,7 +231,7 @@ pub fn ends_with_vowel(word_text: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub fn is_bonding_hyphen(part: &str) -> bool {
-    matches!(part, "y" | "y'" | "r" | "n")
+    matches!(part, "y" | "y'" | "'y" | "r" | "n")
 }
 
 #[requires(true)]
@@ -284,6 +340,19 @@ fn y_hyphen_for_pair(previous: &str, next: &str) -> Option<&'static str> {
             "y"
         }
     })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|hyphen| is_bonding_hyphen(hyphen)))]
+fn hyphen_for_build_part_pair(
+    previous: &LujvoBuildPart,
+    next: &LujvoBuildPart,
+) -> Option<&'static str> {
+    if previous.is_brivla_core() && previous.as_text().chars().last().is_some_and(is_vowel) {
+        Some("'y")
+    } else {
+        y_hyphen_for_pair(previous.as_text(), next.as_text())
+    }
 }
 
 #[requires(true)]

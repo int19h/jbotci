@@ -2738,6 +2738,42 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn xazdmru_term_is_valid_but_named_shape_rejects() {
+        assert!(
+            segment_words_with_modifiers("xazdmru", &MorphologyOptions::default(), None).is_err(),
+            "the named xazdmru shape should reject"
+        );
+
+        let filled_lujvo =
+            segment_words_with_modifiers("xazdymru", &MorphologyOptions::default(), None)
+                .expect("y-filled xazdmru form should parse");
+        assert_eq!(
+            bare_word(&filled_lujvo[0]).expect("bare word").kind(),
+            WordKind::Lujvo
+        );
+
+        let term_words =
+            segment_words_with_modifiers("valrxazdomru", &MorphologyOptions::default(), None)
+                .expect("term for xazdmru words should remain valid");
+        assert_eq!(
+            bare_word(&term_words[0]).expect("bare word").kind(),
+            WordKind::Fuhivla
+        );
+
+        let camxes_accepted_control =
+            segment_words_with_modifiers("cidjmru", &MorphologyOptions::default(), None)
+                .expect("camxes-std accepts this missing-y-looking fu'ivla");
+        assert_eq!(
+            bare_word(&camxes_accepted_control[0])
+                .expect("bare word")
+                .kind(),
+            WordKind::Fuhivla
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn rafsi_string_lookahead_keeps_stress_context_for_fuhivla() {
         let cases = [
             ("traduko", "tradúko"),

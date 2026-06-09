@@ -4,9 +4,9 @@
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, RafsiSource, WordType};
 use jbotci_morphology::{
-    LujvoBuildMode, LujvoPart, Phonemes, WordKind, WordLike, bond_rafsis, canonicalize_text,
-    choose_best_lujvo_candidate, ends_with_consonant, ensure_cmevla_word, is_bonding_hyphen,
-    segment_words_with_modifiers, syllables_pattern,
+    LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoPart, Phonemes, WordKind, WordLike,
+    bond_rafsis, canonicalize_text, choose_best_lujvo_candidate_from_parts, ends_with_consonant,
+    ensure_cmevla_word, is_bonding_hyphen, segment_words_with_modifiers, syllables_pattern,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -164,7 +164,8 @@ pub fn build_best_jvozba_detailed(
         return Err(JvozbaError::RequiresAtLeastTwoInputs);
     }
     let candidate_lists = build_candidate_lists(mode, dictionary, &expanded_inputs)?;
-    let Some(candidate) = choose_best_lujvo_candidate(mode.into(), &candidate_lists) else {
+    let Some(candidate) = choose_best_lujvo_candidate_from_parts(mode.into(), &candidate_lists)
+    else {
         return Err(match mode {
             JvozbaMode::Lujvo => JvozbaError::CouldNotBuildLujvo,
             JvozbaMode::Cmevla => JvozbaError::CouldNotBuildCompound,
@@ -181,6 +182,14 @@ pub fn build_best_jvozba_detailed(
 #[ensures(!ret.is_empty())]
 pub fn render_jvozba_error(error: &JvozbaError) -> String {
     error.to_string()
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn word_can_enter_jvozba_pane(dictionary: &Dictionary<'_>, word_text: &str) -> bool {
+    let canonical_word = canonicalize_text(word_text);
+    candidate_list_for_word(JvozbaMode::Lujvo, dictionary, false, &canonical_word).is_ok()
+        || candidate_list_for_word(JvozbaMode::Lujvo, dictionary, true, &canonical_word).is_ok()
 }
 
 #[requires(true)]
@@ -244,7 +253,7 @@ fn build_candidate_lists(
     mode: JvozbaMode,
     dictionary: &Dictionary<'_>,
     inputs: &[JvozbaInput],
-) -> Result<Vec<Vec<String>>, JvozbaError> {
+) -> Result<Vec<Vec<LujvoBuildPart>>, JvozbaError> {
     let total_count = inputs.len();
     inputs
         .iter()
@@ -262,7 +271,7 @@ fn candidate_list_for_input(
     dictionary: &Dictionary<'_>,
     is_last_input: bool,
     input: &JvozbaInput,
-) -> Result<Vec<String>, JvozbaError> {
+) -> Result<Vec<LujvoBuildPart>, JvozbaError> {
     match input {
         JvozbaInput::FixedRafsi(rafsi_text) => {
             if rafsi_text.is_empty() {
@@ -273,7 +282,7 @@ fn candidate_list_for_input(
                     offending: rafsi_text.clone(),
                 });
             }
-            Ok(vec![rafsi_text.clone()])
+            Ok(vec![new!(LujvoBuildPart::Rafsi(rafsi_text.clone()))])
         }
         JvozbaInput::Word(word_text) => {
             candidate_list_for_word(mode, dictionary, is_last_input, word_text)
@@ -288,7 +297,7 @@ fn candidate_list_for_word(
     dictionary: &Dictionary<'_>,
     is_last_input: bool,
     word_text: &str,
-) -> Result<Vec<String>, JvozbaError> {
+) -> Result<Vec<LujvoBuildPart>, JvozbaError> {
     let canonical_word = canonicalize_text(word_text);
     let Some(entry) = dictionary.lookup_word(&canonical_word) else {
         return non_dictionary_word_candidates(mode, is_last_input, &canonical_word).ok_or(
@@ -311,23 +320,32 @@ fn candidate_list_for_word(
     } else {
         Vec::new()
     };
-    let final_word_core = (mode == JvozbaMode::Lujvo && is_last_input)
-        .then_some(canonical_word.clone())
-        .into_iter();
-    let all_candidates = unique_texts(
-        listed_rafsi
-            .into_iter()
-            .chain(gismu_extras)
-            .chain(final_word_core)
-            .filter(|candidate| !candidate.is_empty())
-            .collect(),
-    );
+    let mut all_candidates = listed_rafsi
+        .into_iter()
+        .chain(gismu_extras)
+        .filter(|candidate| !candidate.is_empty())
+        .map(|candidate| new!(LujvoBuildPart::Rafsi(candidate)))
+        .collect::<Vec<_>>();
+    if mode == JvozbaMode::Lujvo
+        && is_last_input
+        && word_type_allows_final_brivla_core(entry.word_type)
+    {
+        all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
+    }
+    if mode == JvozbaMode::Lujvo
+        && !is_last_input
+        && all_candidates.is_empty()
+        && word_type_allows_nonfinal_brivla_core(entry.word_type)
+    {
+        all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
+    }
+    let all_candidates = unique_candidate_parts(all_candidates);
     let candidates = match (mode, is_last_input) {
         (JvozbaMode::Lujvo, true) => all_candidates,
         (JvozbaMode::Cmevla, true) => {
             let consonant_final_candidates = all_candidates
                 .iter()
-                .filter(|candidate| ends_with_consonant(candidate))
+                .filter(|candidate| ends_with_consonant(candidate.as_text()))
                 .cloned()
                 .collect::<Vec<_>>();
             if consonant_final_candidates.is_empty() {
@@ -360,7 +378,7 @@ fn non_dictionary_word_candidates(
     mode: JvozbaMode,
     is_last_input: bool,
     canonical_word: &str,
-) -> Option<Vec<String>> {
+) -> Option<Vec<LujvoBuildPart>> {
     if mode != JvozbaMode::Lujvo || !is_last_input {
         return None;
     }
@@ -375,12 +393,14 @@ fn non_dictionary_word_candidates(
     ) {
         return None;
     }
-    Some(vec![canonicalize_text(word.phonemes().as_str())])
+    Some(vec![new!(LujvoBuildPart::BrivlaCore(canonicalize_text(
+        word.phonemes().as_str(),
+    )))])
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn unique_texts(values: Vec<String>) -> Vec<String> {
+fn unique_candidate_parts(values: Vec<LujvoBuildPart>) -> Vec<LujvoBuildPart> {
     let mut unique = Vec::new();
     for value in values {
         if !unique.contains(&value) {
@@ -388,6 +408,43 @@ fn unique_texts(values: Vec<String>) -> Vec<String> {
         }
     }
     unique
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn unique_source_words<'a>(values: Vec<&'a str>) -> Vec<&'a str> {
+    let mut unique = Vec::new();
+    for value in values {
+        if !unique.contains(&value) {
+            unique.push(value);
+        }
+    }
+    unique
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_type_is_direct_brivla(word_type: WordType) -> bool {
+    matches!(
+        word_type,
+        WordType::Gismu
+            | WordType::ExperimentalGismu
+            | WordType::Lujvo
+            | WordType::Fuivla
+            | WordType::ObsoleteFuivla
+    )
+}
+
+#[requires(true)]
+#[ensures(ret -> word_type_is_direct_brivla(word_type))]
+fn word_type_allows_final_brivla_core(word_type: WordType) -> bool {
+    word_type_is_direct_brivla(word_type)
+}
+
+#[requires(true)]
+#[ensures(ret -> word_type_is_direct_brivla(word_type))]
+fn word_type_allows_nonfinal_brivla_core(word_type: WordType) -> bool {
+    matches!(word_type, WordType::Fuivla | WordType::ObsoleteFuivla)
 }
 
 #[requires(true)]
@@ -543,13 +600,15 @@ fn decomposition_from_parts<'a>(
         return None;
     }
 
-    let source_words = segments
-        .iter()
-        .filter_map(|segment| match &segment.segment {
-            LujvoPart::Rafsi(_) => segment.source,
-            LujvoPart::Hyphen(_) => None,
-        })
-        .collect::<Vec<_>>();
+    let source_words = unique_source_words(
+        segments
+            .iter()
+            .filter_map(|segment| match &segment.segment {
+                LujvoPart::Rafsi(_) => segment.source,
+                LujvoPart::Hyphen(_) => None,
+            })
+            .collect::<Vec<_>>(),
+    );
     Some(LujvoDecomposition {
         segments,
         source_words,
@@ -588,13 +647,33 @@ fn segment_with_source<'a>(
     segment: LujvoPart,
 ) -> LujvoSegmentInfo<'a> {
     let source = match &segment {
-        LujvoPart::Rafsi(phonemes) => dictionary
-            .lookup_rafsi(phonemes.as_str())
-            .next()
-            .map(|matched| matched.entry.word),
+        LujvoPart::Rafsi(phonemes) => source_word_for_rafsi_segment(dictionary, phonemes),
         LujvoPart::Hyphen(_) => None,
     };
     LujvoSegmentInfo { segment, source }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn source_word_for_rafsi_segment<'a>(
+    dictionary: &Dictionary<'a>,
+    phonemes: &Phonemes,
+) -> Option<&'a str> {
+    dictionary
+        .lookup_rafsi(phonemes.as_str())
+        .next()
+        .map(|matched| matched.entry.word)
+        .or_else(|| exact_brivla_source_word(dictionary, phonemes.as_str()))
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|word| !word.is_empty()))]
+fn exact_brivla_source_word<'a>(dictionary: &Dictionary<'a>, surface: &str) -> Option<&'a str> {
+    let canonical_surface = canonicalize_text(surface);
+    dictionary
+        .lookup_word(&canonical_surface)
+        .filter(|entry| word_type_is_direct_brivla(entry.word_type))
+        .map(|entry| entry.word)
 }
 
 #[requires(true)]
@@ -896,6 +975,39 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn lujvo_mode_accepts_nonfinal_fuhivla_self_core() {
+        let result = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            jbotci_dictionary_data::english(),
+            &[
+                JvozbaInput::Word("jenjigu".to_owned()),
+                JvozbaInput::Word("dirce".to_owned()),
+            ],
+        )
+        .expect("jvozba result");
+
+        assert_eq!(result.word, "jenjigu'ydi'e");
+        assert_segment_texts(&result, &["jenjigu", "'y", "di'e"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lujvo_mode_expands_dictionary_lujvo_with_fuhivla_self_core_source() {
+        let result = build_best_jvozba_detailed(
+            JvozbaMode::Lujvo,
+            jbotci_dictionary_data::english(),
+            &[JvozbaInput::Word("jenjigu'ydi'e".to_owned())],
+        )
+        .expect("expanded lujvo should provide at least two source inputs");
+
+        assert_eq!(result.word, "jenjigu'ydi'e");
+        assert_segment_texts(&result, &["jenjigu", "'y", "di'e"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn reports_missing_dictionary_entries() {
         let error = build_best_jvozba_detailed(
             JvozbaMode::Lujvo,
@@ -915,7 +1027,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn decomposes_lujvo_even_when_final_part_has_no_rafsi_source() {
+    fn decomposes_lujvo_with_exact_dictionary_final_component_source() {
         let decomposition = decompose_lujvo_like(jbotci_dictionary_data::english(), "jetcybolxada")
             .expect("morphology-backed lujvo decomposition");
         let surfaces = decomposition
@@ -925,14 +1037,37 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(surfaces, ["jetc", "y", "bolxáda"]);
-        assert_eq!(decomposition.source_words, ["jetce"]);
+        assert_eq!(decomposition.source_words, ["jetce", "bolxada"]);
         assert!(
             decomposition
                 .segments
                 .iter()
                 .any(|segment| segment.segment.phonemes().as_str() == "bolxáda"
-                    && segment.source.is_none())
+                    && segment.source == Some("bolxada"))
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn decomposes_lujvo_with_dictionary_backed_fuhivla_self_core_source() {
+        let decomposition =
+            decompose_lujvo_like(jbotci_dictionary_data::english(), "jenjigu'ydi'e")
+                .expect("morphology-backed lujvo decomposition");
+        let surfaces = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.segment.phonemes().as_str())
+            .collect::<Vec<_>>();
+        let sources = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.source)
+            .collect::<Vec<_>>();
+
+        assert_eq!(surfaces, ["jenjigu", "'y", "dí'e"]);
+        assert_eq!(sources, [Some("jenjigu"), None, Some("dirce")]);
+        assert_eq!(decomposition.source_words, ["jenjigu", "dirce"]);
     }
 
     #[requires(true)]

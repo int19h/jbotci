@@ -32,11 +32,11 @@ use jbotci_gentufa::{
 };
 use jbotci_jvozba::{
     JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegment, JvozbaSegmentKind,
-    build_best_jvozba_detailed,
+    build_best_jvozba_detailed, word_can_enter_jvozba_pane,
 };
 use jbotci_morphology::{
-    MorphologyOptions, PhonemeRenderOptions, WordLike, normalize_lojban_input_text,
-    segment_words_with_modifiers_with_options_and_source_id_attempt,
+    MorphologyOptions, PhonemeRenderOptions, WordLike, canonical_text_eq,
+    normalize_lojban_input_text, segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
     BracketRenderOptions, BracketSourceFragment, BracketSourceRange, GlyphStyle,
@@ -1576,6 +1576,7 @@ pub struct VlackuCompositionPiece {
     pub source: Option<String>,
     pub display_source: Option<String>,
     pub source_href: Option<String>,
+    pub source_is_surface: bool,
 }
 
 #[invariant(true)]
@@ -3963,6 +3964,10 @@ fn dictionary_tooltip_card_from_search_card(
                         },
                     )
                 });
+                let source_is_surface = piece
+                    .source
+                    .as_ref()
+                    .is_some_and(|source| canonical_text_eq(&piece.surface, source));
                 VlackuCompositionPiece {
                     kind: match piece.kind {
                         VlackuCompositionKind::Rafsi => VlackuCompositionPieceKind::Rafsi,
@@ -3973,10 +3978,14 @@ fn dictionary_tooltip_card_from_search_card(
                     display_source: piece.source.clone(),
                     source: piece.source,
                     source_href,
+                    source_is_surface,
                 }
             })
             .collect(),
-        can_add_to_jvozba: word_type_allows_jvozba(&card.word_type),
+        can_add_to_jvozba: dictionary_word_allows_jvozba(
+            jbotci_dictionary_data::english(),
+            &card.word,
+        ),
     }
 }
 
@@ -4576,6 +4585,10 @@ fn web_card_from_search_card(
                         },
                     )
                 });
+                let source_is_surface = piece
+                    .source
+                    .as_ref()
+                    .is_some_and(|source| canonical_text_eq(&piece.surface, source));
                 VlackuCompositionPiece {
                     kind: match piece.kind {
                         VlackuCompositionKind::Rafsi => VlackuCompositionPieceKind::Rafsi,
@@ -4586,10 +4599,14 @@ fn web_card_from_search_card(
                     display_source: piece.source.clone(),
                     source: piece.source,
                     source_href,
+                    source_is_surface,
                 }
             })
             .collect(),
-        can_add_to_jvozba: word_type_allows_jvozba(&card.word_type),
+        can_add_to_jvozba: dictionary_word_allows_jvozba(
+            jbotci_dictionary_data::english(),
+            &card.word,
+        ),
     }
 }
 
@@ -4605,13 +4622,6 @@ fn web_author_from_search_author(author: jbotci_search::vlacku::VlackuAuthor) ->
 fn dictionary_word_ipa(word: &str) -> Option<String> {
     let words = jbotci_morphology::segment_words_with_modifiers(word).ok()?;
     ipa_morphology_text(&words, word).ok()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn word_type_allows_jvozba(word_type: &str) -> bool {
-    let normalized = normalize_word_type_filter(word_type);
-    !normalized.contains("fu'ivla") && !normalized.contains("fuivla")
 }
 
 #[requires(true)]
@@ -5189,10 +5199,7 @@ fn is_vlacku_word_link(value: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn dictionary_word_allows_jvozba(dictionary: &Dictionary<'_>, word: &str) -> bool {
-    dictionary
-        .lookup_word(word)
-        .map(|entry| word_type_allows_jvozba(entry.word_type.as_str()))
-        .unwrap_or(true)
+    word_can_enter_jvozba_pane(dictionary, word)
 }
 
 #[requires(true)]
@@ -7035,6 +7042,63 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlacku_word_search_source_backs_fuhivla_lujvo_component() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "jenjigu'ydi'e".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("jenjigu'ydi'e")
+        );
+        assert!(result.cards.iter().any(|card| card.word == "jenjigu"));
+        assert!(result.cards.iter().any(|card| card.word == "dirce"));
+
+        let headword = result.cards.first().expect("headword card");
+        let jenjigu_piece = headword
+            .decomposition
+            .iter()
+            .find(|piece| piece.surface == "jenjigu")
+            .expect("jenjigu component");
+        assert_eq!(jenjigu_piece.source.as_deref(), Some("jenjigu"));
+        assert!(jenjigu_piece.source_href.is_some());
+        assert!(jenjigu_piece.source_is_surface);
+
+        let dirce_piece = headword
+            .decomposition
+            .iter()
+            .find(|piece| piece.source.as_deref() == Some("dirce"))
+            .expect("dirce component");
+        assert!(!dirce_piece.source_is_surface);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_word_search_allows_fuhivla_self_core_for_jvozba() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "jenjigu".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert!(
+            result
+                .cards
+                .first()
+                .is_some_and(|card| card.word == "jenjigu" && card.can_add_to_jvozba)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_word_search_accepts_cyrillic_exact_query() {
         let result = build_vlacku_web_result(&VlackuWebState {
             mode: VlackuWebMode::Word,
@@ -7724,8 +7788,8 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn vlacku_rich_text_marks_fuivla_links_non_addable() {
-        let spans = parse_vlacku_inline_text(jbotci_dictionary_data::english(), "{a'anmo}");
+    fn vlacku_rich_text_marks_fuivla_links_by_jvozba_capability() {
+        let spans = parse_vlacku_inline_text(jbotci_dictionary_data::english(), "{jenjigu}");
 
         let [span] = spans.as_slice() else {
             panic!("expected one word reference span, got {spans:?}");
@@ -7733,7 +7797,7 @@ mod tests {
         assert!(matches!(
             span.as_data(),
             data!(VlackuInline::WordRef { label, can_add_to_jvozba, .. })
-                if label == "a'anmo" && !*can_add_to_jvozba
+                if label == "jenjigu" && *can_add_to_jvozba
         ));
     }
 
@@ -7762,6 +7826,34 @@ mod tests {
         assert!(matches!(
             output,
             VlackuJvozbaOutput::Success { ref word, .. } if word == "jbobau"
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_jvozba_builds_fuhivla_self_core_in_browser_model() {
+        let output = build_vlacku_jvozba_output(
+            VlackuJvozbaMode::Lujvo,
+            &[
+                VlackuJvozbaItem {
+                    kind: VlackuJvozbaItemKind::Word,
+                    value: "jenjigu".to_owned(),
+                    source: None,
+                    indent_level: 0,
+                },
+                VlackuJvozbaItem {
+                    kind: VlackuJvozbaItemKind::Word,
+                    value: "dirce".to_owned(),
+                    source: None,
+                    indent_level: 0,
+                },
+            ],
+        );
+
+        assert!(matches!(
+            output,
+            VlackuJvozbaOutput::Success { ref word, .. } if word == "jenjigu'ydi'e"
         ));
     }
 
