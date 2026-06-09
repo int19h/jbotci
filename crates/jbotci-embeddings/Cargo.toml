@@ -11,7 +11,7 @@ repository.workspace = true
 [features]
 default = []
 expensive_contracts = []
-native-llama = ["dep:llama-cpp-4"]
+native-llama = ["dep:llama-cpp-4", "dep:llama-cpp-sys-4"]
 
 [dependencies]
 anyhow.workspace = true
@@ -24,6 +24,7 @@ jbotci-dictionary-data.workspace = true
 jbotci-embedding-inputs.workspace = true
 jbotci-search.workspace = true
 llama-cpp-4 = { workspace = true, optional = true }
+llama-cpp-sys-4 = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
