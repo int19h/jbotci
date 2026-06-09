@@ -78,10 +78,16 @@ Keep contracts in mind whenever writing or touching code. Capture preconditions,
 
 Prefer correctness by construction over downstream validity checks: if a public model type has an invariant, put `#[invariant]` on the type and construct it through generated validation APIs instead of exposing public `is_valid()`. On data types, `#[invariant(true)]` and `#[expensive_invariant(true)]` are explicit audited no-op markers and do not generate wrapper/data APIs.
 
+Contracts are required on all types for a reason. It doesn't matter which layer a type belongs to - if it carries data that has clear well-defined constraints on it that program logic in some layer is or may need to rely on, it should have an invariant. Contracts are not just for "important" types, they are universally applicable to enforce explicit reasoning about shape of data and how it affects code flow. When writing code that works with some data type in one of our crates, always check that type's contract to ensure that you can make full use of its guarantees.
+
+On invariant-bearing structs and enums, put `#[invariant]` and `#[expensive_invariant]` before `#[derive]`, `#[serde(...)]`, `#[cfg_attr(...)]`, and other item attributes that should apply to the generated data/wrapper machinery. Doc comments may stay above the contract attributes. Attribute order matters: putting `#[derive]` before `#[invariant]` can make derive macros see the post-rewrite wrapper shape and produce confusing "no field named ..." errors. Named-field struct invariant expressions bind fields by reference, so write expressions in terms of field names such as `byte_start <= byte_end` or `*text_explicit || state.text.is_empty()`, not `self.byte_start <= self.byte_end`.
+
 ```rust
+use serde::{Deserialize, Serialize};
+
 use bityzba::{
-    contract_trait, data, ensures, expensive_ensures, expensive_requires, invariant, new,
-    requires, try_new,
+    contract_trait, data, ensures, expensive_ensures, expensive_invariant, expensive_requires,
+    invariant, new, requires, try_new,
 };
 
 #[contract_trait]
@@ -125,16 +131,20 @@ fn greeting(person_name: Option<&str>) -> String {
     s
 }
 
-#[invariant(self.byte_start <= self.byte_end, "byte range must be ordered")]
-#[invariant(self.char_start <= self.char_end, "character range must be ordered")]
+#[invariant(byte_start <= byte_end, "byte range must be ordered")]
+#[invariant(char_start <= char_end, "character range must be ordered")]
+#[expensive_invariant(start.is_some() == end.is_some(), "line/column endpoints must be paired")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct SourceSpan {
     pub source_id: Option<SourceId>,
     pub byte_start: usize,
     pub byte_end: usize,
     pub char_start: usize,
     pub char_end: usize,
+    #[serde(default)]
     pub start: Option<LineColumn>,
+    #[serde(default)]
     pub end: Option<LineColumn>,
 }
 

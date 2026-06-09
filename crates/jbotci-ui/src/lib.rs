@@ -147,7 +147,6 @@ const DEFAULT_GENTUFA_TEXT: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci 
 const VLACKU_SEARCH_DEBOUNCE_MS: i32 = 900;
 const CUKTA_SEARCH_DEBOUNCE_MS: i32 = VLACKU_SEARCH_DEBOUNCE_MS;
 const VLACKU_URL_DEBOUNCE_MS: i32 = 450;
-const GENTUFA_URL_DEBOUNCE_MS: i32 = 650;
 const COMPUTE_CHANNEL_GENTUFA: &str = "gentufa-page";
 const COMPUTE_CHANNEL_CUKTA: &str = "cukta-page";
 const COMPUTE_CHANNEL_VLACKU: &str = "vlacku-page";
@@ -242,7 +241,6 @@ thread_local! {
     static VLACKU_URL_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
     static VLACKU_SEARCH_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
     static CUKTA_SEARCH_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
-    static GENTUFA_URL_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
     static BROWSER_STATE_HANDLERS_INSTALLED: Cell<bool> = const { Cell::new(false) };
 }
 
@@ -546,6 +544,31 @@ impl PendingLocalRouteWrites {
 struct RouteLocationSyncAction {
     app_route: AppRoute,
     hydrate_route_bound_state: bool,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GentufaUrlWriteIntent {
+    ReplaceCurrent,
+    PushParse,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GentufaUrlHistoryAction {
+    NoWrite,
+    ReplaceCurrent,
+    PushParse,
+}
+
+#[invariant(*text_explicit || state.text.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GentufaUrlInputs {
+    active_route: AppRoute,
+    current_route: JbotciRoute,
+    state: GentufaWebState,
+    text_explicit: bool,
+    intent: GentufaUrlWriteIntent,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1237,8 +1260,8 @@ fn AppShell() -> Element {
     };
     let view_mode = use_signal(move || initial_gentufa_view_mode);
     let gentufa_display = use_signal(move || initial_gentufa_display);
-    let mut gentufa_text_explicit = use_signal(move || initial_gentufa_has_text);
     let mut parsed_text_explicit = use_signal(move || initial_gentufa_has_text);
+    let mut gentufa_url_write_intent = use_signal(|| GentufaUrlWriteIntent::ReplaceCurrent);
     let initial_cukta = initial_cukta_state(&current_route_location);
     let cukta_draft_state = use_signal(|| initial_cukta.clone());
     let cukta_committed_state = use_signal(|| initial_cukta);
@@ -1293,22 +1316,27 @@ fn AppShell() -> Element {
     let route_value = *route.read();
     let view_mode_value = *view_mode.read();
     let gentufa_display_value = *gentufa_display.read();
-    let gentufa_text_explicit_value = *gentufa_text_explicit.read();
-    let input_text_value = input_text.read().clone();
-    let dialect_value = dialect.read().clone();
     let parsed_text_value = parsed_text.read().clone();
     let parsed_dialect_value = parsed_dialect.read().clone();
     let parsed_text_explicit_value = *parsed_text_explicit.read();
+    let gentufa_url_write_intent_value = *gentufa_url_write_intent.read();
     let gentufa_page_value = gentufa_page.read().clone();
     let result = gentufa_page_value.result.clone();
     let gentufa_request = gentufa_page_value.request.clone();
-    let nav_gentufa_state = gentufa_state_from_parts(
-        &input_text_value,
-        &dialect_value,
+    let committed_gentufa_state = gentufa_state_from_parts(
+        &parsed_text_value,
+        &parsed_dialect_value,
         view_mode_value,
         gentufa_display_value,
-        gentufa_text_explicit_value,
+        parsed_text_explicit_value,
     );
+    let gentufa_url_inputs = new!(GentufaUrlInputs {
+        active_route: route_value,
+        current_route: current_route_location.clone(),
+        state: committed_gentufa_state.clone(),
+        text_explicit: parsed_text_explicit_value,
+        intent: gentufa_url_write_intent_value,
+    });
     let gentufa_compute_inputs = GentufaComputeInputs {
         route: route_value,
         settings: settings_value,
@@ -1332,10 +1360,8 @@ fn AppShell() -> Element {
         WebRoute::Vlacku(vlacku_committed_state.read().clone()),
         false,
     );
-    let topbar_gentufa_route = JbotciRoute::from_web_route(
-        WebRoute::Gentufa(nav_gentufa_state),
-        gentufa_text_explicit_value,
-    );
+    let topbar_gentufa_route =
+        gentufa_route_for_committed_state(&committed_gentufa_state, parsed_text_explicit_value);
     let topbar_settings_route = JbotciRoute::from_web_route(WebRoute::Settings, false);
     install_browser_dom_handlers(
         jvozba_available,
@@ -1383,7 +1409,6 @@ fn AppShell() -> Element {
             parsed_dialect,
             view_mode,
             gentufa_display,
-            gentufa_text_explicit,
         );
     }));
     use_effect(move || {
@@ -1764,24 +1789,26 @@ fn AppShell() -> Element {
         }
     });
     let gentufa_url_history = app_history.clone();
-    let gentufa_url_route_location = current_route_location.clone();
-    use_effect(move || {
-        if *route.read() == AppRoute::Gentufa {
-            let state = gentufa_state_from_parts(
-                &input_text.read(),
-                &dialect.read(),
-                *view_mode.read(),
-                *gentufa_display.read(),
-                *gentufa_text_explicit.read(),
+    let mut gentufa_url_intent_for_effect = gentufa_url_write_intent;
+    use_effect(use_reactive((&gentufa_url_inputs,), move |(inputs,)| {
+        if !gentufa_url_sync_allowed(inputs.active_route, &inputs.current_route) {
+            set_gentufa_url_write_intent_if_changed(
+                &mut gentufa_url_intent_for_effect,
+                inputs.intent,
+                GentufaUrlWriteIntent::ReplaceCurrent,
             );
-            schedule_gentufa_url_replace(
-                gentufa_url_history.clone(),
-                pending_local_route_writes,
-                &gentufa_url_route_location,
-                &state,
-            );
+            return;
         }
-    });
+        sync_gentufa_committed_url(
+            gentufa_url_history.clone(),
+            pending_local_route_writes,
+            &inputs.current_route,
+            &inputs.state,
+            inputs.text_explicit,
+            inputs.intent,
+            gentufa_url_intent_for_effect,
+        );
+    }));
     use_effect(move || {
         if *route.read() == AppRoute::Vlacku {
             let state = vlacku_draft_state.read().clone();
@@ -1874,7 +1901,6 @@ fn AppShell() -> Element {
                                             div { class: "form-group",
                                                 { render_gentufa_input(
                                                     input_text,
-                                                    gentufa_text_explicit,
                                                     &result,
                                                     gentufa_request.as_ref(),
                                                     *gentufa_active_diagnostic.read(),
@@ -1891,7 +1917,6 @@ fn AppShell() -> Element {
                                                         class: "btn-parse",
                                                         r#type: "button",
                                                         onclick: move |_| {
-                                                            clear_gentufa_url_timer();
                                                             let mut next_text = input_text.read().clone();
                                                             let next_dialect = dialect.read().clone();
                                                             if next_text.trim().is_empty() {
@@ -1899,10 +1924,10 @@ fn AppShell() -> Element {
                                                                 input_text.set(next_text.clone());
                                                                 schedule_gentufa_textarea_resize();
                                                             }
-                                                            gentufa_text_explicit.set(true);
                                                             parsed_text_explicit.set(true);
                                                             parsed_text.set(next_text);
                                                             parsed_dialect.set(next_dialect);
+                                                            gentufa_url_write_intent.set(GentufaUrlWriteIntent::PushParse);
                                                         },
                                                         "Parse"
                                                     }
@@ -2830,7 +2855,6 @@ fn render_dialect_control(
                         spellcheck: "false",
                         aria_label: "Dialect formula",
                         oninput: move |event| {
-                            clear_gentufa_url_timer();
                             dialect.set(event.value());
                         },
                     }
@@ -2853,7 +2877,6 @@ fn render_dialect_control(
                                                 } else {
                                                     add_dialect_formula_reference(&item_name, &current)
                                                 };
-                                                clear_gentufa_url_timer();
                                                 dialect.set(next);
                                             },
                                         }
@@ -9174,7 +9197,6 @@ fn set_vlacku_jvozba_pane(
 #[ensures(true)]
 fn render_gentufa_input(
     mut input_text: Signal<String>,
-    mut gentufa_text_explicit: Signal<bool>,
     result: &GentufaWebResult,
     request: Option<&GentufaWebRequest>,
     active_diagnostic: Option<usize>,
@@ -9205,9 +9227,7 @@ fn render_gentufa_input(
                 value: "{text}",
                 spellcheck: "false",
                 oninput: move |event| {
-                    clear_gentufa_url_timer();
                     input_text.set(event.value());
-                    gentufa_text_explicit.set(true);
                     active_diagnostic_signal.set(None);
                     diagnostic_tooltip.set(None);
                     schedule_gentufa_textarea_resize();
@@ -11450,7 +11470,6 @@ fn render_view_tabs(
                 r#type: "button",
                 aria_current: if current == GentufaWebViewMode::Blocks { "page" } else { "false" },
                 onclick: move |_| {
-                    clear_gentufa_url_timer();
                     view_mode.set(GentufaWebViewMode::Blocks);
                 },
                 "Blocks"
@@ -11460,7 +11479,6 @@ fn render_view_tabs(
                 r#type: "button",
                 aria_current: if current == GentufaWebViewMode::Tree { "page" } else { "false" },
                 onclick: move |_| {
-                    clear_gentufa_url_timer();
                     view_mode.set(GentufaWebViewMode::Tree);
                 },
                 "Tree"
@@ -11470,7 +11488,6 @@ fn render_view_tabs(
                 r#type: "button",
                 aria_current: if current == GentufaWebViewMode::Ipa { "page" } else { "false" },
                 onclick: move |_| {
-                    clear_gentufa_url_timer();
                     view_mode.set(GentufaWebViewMode::Ipa);
                 },
                 "IPA"
@@ -14003,7 +14020,6 @@ fn set_glide_mark(settings: &mut Signal<UserSettings>, glides: GlideMark) {
 #[requires(true)]
 #[ensures(true)]
 fn toggle_elided(display: &mut Signal<GentufaDisplayState>) {
-    clear_gentufa_url_timer();
     let mut next = *display.read();
     next.show_elided = !next.show_elided;
     display.set(next);
@@ -14012,7 +14028,6 @@ fn toggle_elided(display: &mut Signal<GentufaDisplayState>) {
 #[requires(true)]
 #[ensures(true)]
 fn toggle_glosses(display: &mut Signal<GentufaDisplayState>) {
-    clear_gentufa_url_timer();
     let mut next = *display.read();
     next.show_glosses = !next.show_glosses;
     display.set(next);
@@ -16159,7 +16174,6 @@ fn apply_web_route_to_client_state(
     mut parsed_dialect: Signal<String>,
     mut view_mode: Signal<GentufaWebViewMode>,
     mut gentufa_display: Signal<GentufaDisplayState>,
-    mut gentufa_text_explicit: Signal<bool>,
 ) {
     let web_route = &location.web_route;
     let action = route_location_sync_action(location, is_local_route_write);
@@ -16187,7 +16201,6 @@ fn apply_web_route_to_client_state(
                 show_elided: state.show_elided,
                 show_glosses: state.show_glosses,
             });
-            gentufa_text_explicit.set(location.gentufa_text_explicit);
         }
         WebRoute::Cukta(state) => {
             clear_cukta_search_timer();
@@ -16771,32 +16784,12 @@ fn clear_vlacku_url_timer() {
 #[ensures(true)]
 fn clear_vlacku_url_timer() {}
 
-#[cfg(target_arch = "wasm32")]
-#[requires(true)]
-#[ensures(true)]
-fn clear_gentufa_url_timer() {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    GENTUFA_URL_TIMER.with(|timer| {
-        if let Some(handle) = timer.replace(None) {
-            window.clear_timeout_with_handle(handle);
-        }
-    });
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(true)]
-fn clear_gentufa_url_timer() {}
-
 #[requires(true)]
 #[ensures(true)]
 fn clear_route_bound_input_timers() {
     clear_vlacku_url_timer();
     clear_vlacku_search_timer();
     clear_cukta_search_timer();
-    clear_gentufa_url_timer();
 }
 
 #[requires(true)]
@@ -16868,60 +16861,86 @@ fn schedule_route_push(
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn schedule_gentufa_url_replace(
-    history: Rc<dyn History>,
-    pending_writes: Signal<PendingLocalRouteWrites>,
+#[ensures(ret.app_route() == AppRoute::Gentufa)]
+#[ensures(ret.gentufa_text_explicit == text_explicit)]
+fn gentufa_route_for_committed_state(state: &GentufaWebState, text_explicit: bool) -> JbotciRoute {
+    JbotciRoute::from_web_route(WebRoute::Gentufa(state.clone()), text_explicit)
+}
+
+#[requires(true)]
+#[ensures(ret == (active_route == AppRoute::Gentufa && current_route.app_route() == AppRoute::Gentufa))]
+fn gentufa_url_sync_allowed(active_route: AppRoute, current_route: &JbotciRoute) -> bool {
+    active_route == AppRoute::Gentufa && current_route.app_route() == AppRoute::Gentufa
+}
+
+#[requires(true)]
+#[ensures((current.without_hash() == *target) == (ret == GentufaUrlHistoryAction::NoWrite))]
+fn gentufa_url_history_action(
     current: &JbotciRoute,
-    state: &GentufaWebState,
-) {
-    let target =
-        JbotciRoute::from_web_route(WebRoute::Gentufa(state.clone()), !state.text.is_empty());
-    if current.without_hash() == target {
-        return;
-    }
-    schedule_route_replace(history, pending_writes, target, GENTUFA_URL_DEBOUNCE_MS);
-}
-
-#[cfg(target_arch = "wasm32")]
-#[requires(true)]
-#[ensures(true)]
-fn schedule_route_replace(
-    history: Rc<dyn History>,
-    pending_writes: Signal<PendingLocalRouteWrites>,
-    target: JbotciRoute,
-    delay_ms: i32,
-) {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    clear_gentufa_url_timer();
-    let closure = Closure::once(move || {
-        let mut pending_writes = pending_writes;
-        pending_writes.with_mut(|pending| pending.record(&target));
-        history.replace(route_path_for_route(&target));
-    });
-    if let Ok(handle) = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        closure.as_ref().unchecked_ref(),
-        delay_ms,
-    ) {
-        GENTUFA_URL_TIMER.with(|timer| timer.set(Some(handle)));
-        closure.forget();
+    target: &JbotciRoute,
+    intent: GentufaUrlWriteIntent,
+) -> GentufaUrlHistoryAction {
+    if current.without_hash() == *target {
+        GentufaUrlHistoryAction::NoWrite
+    } else {
+        match intent {
+            GentufaUrlWriteIntent::ReplaceCurrent => GentufaUrlHistoryAction::ReplaceCurrent,
+            GentufaUrlWriteIntent::PushParse => GentufaUrlHistoryAction::PushParse,
+        }
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(action == GentufaUrlHistoryAction::NoWrite -> ret == GentufaUrlWriteIntent::ReplaceCurrent)]
+#[ensures(action != GentufaUrlHistoryAction::NoWrite -> ret == intent)]
+fn gentufa_url_intent_after_sync_action(
+    intent: GentufaUrlWriteIntent,
+    action: GentufaUrlHistoryAction,
+) -> GentufaUrlWriteIntent {
+    match action {
+        GentufaUrlHistoryAction::NoWrite => GentufaUrlWriteIntent::ReplaceCurrent,
+        GentufaUrlHistoryAction::ReplaceCurrent | GentufaUrlHistoryAction::PushParse => intent,
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
-fn schedule_route_replace(
+fn set_gentufa_url_write_intent_if_changed(
+    intent: &mut Signal<GentufaUrlWriteIntent>,
+    current: GentufaUrlWriteIntent,
+    next: GentufaUrlWriteIntent,
+) {
+    if current != next {
+        intent.set(next);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sync_gentufa_committed_url(
     history: Rc<dyn History>,
     mut pending_writes: Signal<PendingLocalRouteWrites>,
-    target: JbotciRoute,
-    delay_ms: i32,
+    current: &JbotciRoute,
+    state: &GentufaWebState,
+    text_explicit: bool,
+    write_intent: GentufaUrlWriteIntent,
+    mut intent_signal: Signal<GentufaUrlWriteIntent>,
 ) {
-    let _ = delay_ms;
-    pending_writes.with_mut(|pending| pending.record(&target));
-    history.replace(route_path_for_route(&target));
+    let target = gentufa_route_for_committed_state(state, text_explicit);
+    let action = gentufa_url_history_action(current, &target, write_intent);
+    match action {
+        GentufaUrlHistoryAction::NoWrite => {}
+        GentufaUrlHistoryAction::ReplaceCurrent => {
+            pending_writes.with_mut(|pending| pending.record(&target));
+            history.replace(route_path_for_route(&target));
+        }
+        GentufaUrlHistoryAction::PushParse => {
+            pending_writes.with_mut(|pending| pending.record(&target));
+            history.push(route_path_for_route(&target));
+        }
+    }
+    let next_intent = gentufa_url_intent_after_sync_action(write_intent, action);
+    set_gentufa_url_write_intent_if_changed(&mut intent_signal, write_intent, next_intent);
 }
 
 #[requires(true)]
@@ -18813,7 +18832,6 @@ mod tests {
         assert_eq!(VLACKU_SEARCH_DEBOUNCE_MS, 900);
         assert_eq!(CUKTA_SEARCH_DEBOUNCE_MS, VLACKU_SEARCH_DEBOUNCE_MS);
         assert!(VLACKU_SEARCH_DEBOUNCE_MS > VLACKU_URL_DEBOUNCE_MS);
-        assert!(GENTUFA_URL_DEBOUNCE_MS > VLACKU_URL_DEBOUNCE_MS);
     }
 
     #[test]
@@ -18877,6 +18895,155 @@ mod tests {
         pending.record(&target);
 
         assert!(pending.consume(&reported));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_url_target_uses_committed_parse_state() {
+        let draft_text = "mi klama";
+        let committed_state = gentufa_state_from_parts(
+            "coi",
+            "",
+            GentufaWebViewMode::Blocks,
+            GentufaDisplayState {
+                show_elided: false,
+                show_glosses: false,
+            },
+            true,
+        );
+
+        let target = gentufa_route_for_committed_state(&committed_state, true);
+
+        assert_eq!(target.to_string(), "/gentufa?text=coi");
+        assert!(!target.to_string().contains(draft_text));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_url_sync_requires_gentufa_browser_location() {
+        let gentufa_route = parse_test_route("", "/gentufa?text=coi");
+        let vlacku_route = parse_test_route("", "/vlacku/klama");
+        let cukta_route = parse_test_route("", "/cukta/search?q=klama");
+
+        assert!(gentufa_url_sync_allowed(AppRoute::Gentufa, &gentufa_route));
+        assert!(!gentufa_url_sync_allowed(AppRoute::Gentufa, &vlacku_route));
+        assert!(!gentufa_url_sync_allowed(AppRoute::Gentufa, &cukta_route));
+        assert!(!gentufa_url_sync_allowed(AppRoute::Vlacku, &gentufa_route));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_parse_intent_pushes_changed_route() {
+        let current = parse_test_route("", "/gentufa?text=coi");
+        let target_state = gentufa_state_from_parts(
+            "mi klama",
+            "",
+            GentufaWebViewMode::Blocks,
+            GentufaDisplayState {
+                show_elided: false,
+                show_glosses: false,
+            },
+            true,
+        );
+        let target = gentufa_route_for_committed_state(&target_state, true);
+
+        assert_eq!(
+            gentufa_url_history_action(&current, &target, GentufaUrlWriteIntent::PushParse),
+            GentufaUrlHistoryAction::PushParse
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_display_changes_replace_current_route() {
+        let current = parse_test_route("", "/gentufa?text=coi");
+        let target_state = gentufa_state_from_parts(
+            "coi",
+            "",
+            GentufaWebViewMode::Tree,
+            GentufaDisplayState {
+                show_elided: false,
+                show_glosses: false,
+            },
+            true,
+        );
+        let target = gentufa_route_for_committed_state(&target_state, true);
+
+        assert_eq!(
+            gentufa_url_history_action(&current, &target, GentufaUrlWriteIntent::ReplaceCurrent),
+            GentufaUrlHistoryAction::ReplaceCurrent
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_matching_route_has_no_url_write() {
+        let current = parse_test_route("", "/gentufa?text=coi&view=tree");
+        let target_state = gentufa_state_from_parts(
+            "coi",
+            "",
+            GentufaWebViewMode::Tree,
+            GentufaDisplayState {
+                show_elided: false,
+                show_glosses: false,
+            },
+            true,
+        );
+        let target = gentufa_route_for_committed_state(&target_state, true);
+
+        assert_eq!(
+            gentufa_url_history_action(&current, &target, GentufaUrlWriteIntent::PushParse),
+            GentufaUrlHistoryAction::NoWrite
+        );
+        assert_eq!(
+            gentufa_url_history_action(&current, &target, GentufaUrlWriteIntent::ReplaceCurrent),
+            GentufaUrlHistoryAction::NoWrite
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_noop_sync_clears_pending_parse_intent() {
+        assert_eq!(
+            gentufa_url_intent_after_sync_action(
+                GentufaUrlWriteIntent::PushParse,
+                GentufaUrlHistoryAction::NoWrite,
+            ),
+            GentufaUrlWriteIntent::ReplaceCurrent
+        );
+        assert_eq!(
+            gentufa_url_intent_after_sync_action(
+                GentufaUrlWriteIntent::ReplaceCurrent,
+                GentufaUrlHistoryAction::NoWrite,
+            ),
+            GentufaUrlWriteIntent::ReplaceCurrent
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_changed_parse_intent_survives_until_route_matches() {
+        assert_eq!(
+            gentufa_url_intent_after_sync_action(
+                GentufaUrlWriteIntent::PushParse,
+                GentufaUrlHistoryAction::PushParse,
+            ),
+            GentufaUrlWriteIntent::PushParse
+        );
+        assert_eq!(
+            gentufa_url_intent_after_sync_action(
+                GentufaUrlWriteIntent::ReplaceCurrent,
+                GentufaUrlHistoryAction::ReplaceCurrent,
+            ),
+            GentufaUrlWriteIntent::ReplaceCurrent
+        );
     }
 
     #[test]
