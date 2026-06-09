@@ -1766,6 +1766,7 @@ fn collect_struct_placeholder_invariants(
 #[requires(true)]
 #[ensures(true)]
 fn scan_rust_source(relative_path: &Path, source: &str, placeholders: &mut BTreeSet<String>) {
+    let relative_path = normalized_source_path(relative_path);
     let lines = source.lines().collect::<Vec<_>>();
     let mut pending_placeholder = false;
     let mut index = 0;
@@ -1778,7 +1779,7 @@ fn scan_rust_source(relative_path: &Path, source: &str, placeholders: &mut BTree
         }
         if let Some(struct_name) = struct_name(line) {
             if pending_placeholder {
-                placeholders.insert(format!("{}:{struct_name}", relative_path.display()));
+                placeholders.insert(format!("{relative_path}:{struct_name}"));
             }
             pending_placeholder = false;
             index += 1;
@@ -1793,6 +1794,12 @@ fn scan_rust_source(relative_path: &Path, source: &str, placeholders: &mut BTree
         }
         index += 1;
     }
+}
+
+#[requires(true)]
+#[ensures(!ret.contains('\\'))]
+fn normalized_source_path(relative_path: &Path) -> String {
+    relative_path.to_string_lossy().replace('\\', "/")
 }
 
 #[requires(index < lines.len())]

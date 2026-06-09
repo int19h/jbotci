@@ -1614,6 +1614,7 @@ fn collect_enum_placeholder_invariants(
 #[requires(true)]
 #[ensures(true)]
 fn scan_rust_source(relative_path: &Path, source: &str, placeholders: &mut BTreeSet<String>) {
+    let relative_path = normalized_source_path(relative_path);
     let lines = source.lines().collect::<Vec<_>>();
     let mut pending = Vec::new();
     let mut index = 0;
@@ -1628,10 +1629,7 @@ fn scan_rust_source(relative_path: &Path, source: &str, placeholders: &mut BTree
         }
         if let Some(enum_name) = enum_name(line) {
             for variant in pending.drain(..) {
-                placeholders.insert(format!(
-                    "{}:{enum_name}::{variant}",
-                    relative_path.display()
-                ));
+                placeholders.insert(format!("{relative_path}:{enum_name}::{variant}"));
             }
             index += 1;
             continue;
@@ -1645,6 +1643,12 @@ fn scan_rust_source(relative_path: &Path, source: &str, placeholders: &mut BTree
         }
         index += 1;
     }
+}
+
+#[requires(true)]
+#[ensures(!ret.contains('\\'))]
+fn normalized_source_path(relative_path: &Path) -> String {
+    relative_path.to_string_lossy().replace('\\', "/")
 }
 
 #[requires(index < lines.len())]

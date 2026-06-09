@@ -16,8 +16,8 @@ expensive_contracts = []
 # Keep `web` as the only renderer-named feature so bare `dx build` infers web;
 # explicit desktop/mobile flags can still select features that enable those Dioxus renderers.
 web = ["app", "dioxus/web", "jbotci-ui/web"]
-native-desktop = ["app", "dioxus/desktop", "jbotci-ui/desktop", "dep:openssl"]
-native-mobile = ["app", "dioxus/mobile", "jbotci-ui/mobile", "dep:openssl"]
+native-desktop = ["app", "dioxus/desktop", "jbotci-ui/desktop"]
+native-mobile = ["app", "dioxus/mobile", "jbotci-ui/mobile"]
 
 [[bin]]
 name = "jbotci-app"
@@ -28,7 +28,6 @@ required-features = ["app"]
 bityzba.workspace = true
 dioxus = { workspace = true, default-features = false }
 jbotci-ui.workspace = true
-openssl = { workspace = true, optional = true }
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }

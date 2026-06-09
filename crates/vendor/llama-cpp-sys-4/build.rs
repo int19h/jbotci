@@ -33,6 +33,162 @@ fn get_cargo_target_dir() -> Result<std::path::PathBuf, Box<dyn std::error::Erro
     Ok(target_dir.to_path_buf())
 }
 
+fn configure_libclang_path(target: &str) {
+    if env::var_os("LIBCLANG_PATH").is_some() || !target.contains("windows") {
+        return;
+    }
+
+    let mut candidates = Vec::new();
+    if let Some(msystem_prefix) = env::var_os("MINGW_PREFIX") {
+        candidates.push(PathBuf::from(msystem_prefix).join("bin"));
+    }
+    candidates.extend([
+        PathBuf::from("C:\\msys64\\clang64\\bin"),
+        PathBuf::from("C:\\msys64\\ucrt64\\bin"),
+        PathBuf::from("C:\\msys64\\mingw64\\bin"),
+        PathBuf::from("C:\\Program Files\\LLVM\\bin"),
+    ]);
+
+    if let Some(libclang_dir) = candidates.into_iter().find(|dir| {
+        dir.join("libclang.dll").is_file() || dir.join("clang.dll").is_file()
+    }) {
+        let current_path = env::var_os("PATH").unwrap_or_default();
+        let mut path_entries = env::split_paths(&current_path).collect::<Vec<_>>();
+        if !path_entries.iter().any(|path| path == &libclang_dir) {
+            path_entries.insert(0, libclang_dir.clone());
+        }
+        if let Ok(path) = env::join_paths(path_entries) {
+            env::set_var("PATH", path);
+        }
+        println!(
+            "cargo:warning=Using libclang from {}",
+            libclang_dir.display()
+        );
+        env::set_var("LIBCLANG_PATH", libclang_dir);
+    }
+}
+
+fn latest_child_dir(parent: &Path) -> Option<PathBuf> {
+    let mut dirs = fs::read_dir(parent)
+        .ok()?
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| path.is_dir())
+        .collect::<Vec<_>>();
+    dirs.sort();
+    dirs.pop()
+}
+
+fn first_existing_child(parent: &Path, child: &str) -> Option<PathBuf> {
+    let path = parent.join(child);
+    path.is_dir().then_some(path)
+}
+
+fn vswhere_exe() -> Option<PathBuf> {
+    [
+        env::var_os("ProgramFiles(x86)").map(PathBuf::from),
+        env::var_os("ProgramFiles").map(PathBuf::from),
+    ]
+    .into_iter()
+    .flatten()
+    .map(|dir| dir.join("Microsoft Visual Studio\\Installer\\vswhere.exe"))
+    .find(|path| path.is_file())
+}
+
+fn vswhere_stdout(args: &[&str]) -> Option<String> {
+    let output = Command::new(vswhere_exe()?).args(args).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8(output.stdout).ok()?;
+    let trimmed = stdout.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_owned())
+}
+
+fn latest_complete_vc_find(pattern: &str) -> Option<PathBuf> {
+    vswhere_stdout(&[
+        "-latest",
+        "-products",
+        "*",
+        "-requires",
+        "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+        "-find",
+        pattern,
+    ])
+    .and_then(|stdout| stdout.lines().next().map(PathBuf::from))
+    .filter(|path| path.exists())
+}
+
+fn latest_complete_visual_studio_generator() -> Option<&'static str> {
+    let version = vswhere_stdout(&[
+        "-latest",
+        "-products",
+        "*",
+        "-requires",
+        "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+        "-property",
+        "installationVersion",
+    ])?;
+    match version.split('.').next()?.parse::<u32>().ok()? {
+        18 => Some("Visual Studio 18 2026"),
+        17 => Some("Visual Studio 17 2022"),
+        16 => Some("Visual Studio 16 2019"),
+        _ => None,
+    }
+}
+
+fn msvc_include_dir() -> Option<PathBuf> {
+    env::var_os("VCToolsInstallDir")
+        .and_then(|dir| first_existing_child(Path::new(&dir), "include"))
+        .or_else(|| {
+            latest_complete_vc_find("VC\\Tools\\MSVC\\**\\include\\vcruntime.h")
+                .and_then(|path| path.parent().map(Path::to_path_buf))
+        })
+        .or_else(|| {
+            latest_child_dir(Path::new(
+                "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC",
+            ))
+            .and_then(|dir| first_existing_child(&dir, "include"))
+        })
+        .or_else(|| {
+            latest_child_dir(Path::new(
+                "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC",
+            ))
+            .and_then(|dir| first_existing_child(&dir, "include"))
+        })
+}
+
+fn windows_sdk_include_dirs() -> Vec<PathBuf> {
+    let sdk_root = env::var_os("WindowsSdkDir")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("C:\\Program Files (x86)\\Windows Kits\\10"));
+    let include_root = sdk_root.join("Include");
+    let Some(version_dir) = env::var_os("WindowsSDKVersion")
+        .map(|version| include_root.join(version))
+        .filter(|dir| dir.is_dir())
+        .or_else(|| latest_child_dir(&include_root))
+    else {
+        return Vec::new();
+    };
+
+    ["ucrt", "shared", "um", "winrt", "cppwinrt"]
+        .into_iter()
+        .filter_map(|name| first_existing_child(&version_dir, name))
+        .collect()
+}
+
+fn bindgen_system_include_dirs(target: &str) -> Vec<PathBuf> {
+    if !target.contains("windows-msvc") {
+        return Vec::new();
+    }
+
+    let mut dirs = Vec::new();
+    if let Some(msvc_include_dir) = msvc_include_dir() {
+        dirs.push(msvc_include_dir);
+    }
+    dirs.extend(windows_sdk_include_dirs());
+    dirs
+}
+
 /// Compute a short hash over the contents of all `*.patch` files in `patches_dir`.
 /// Returns an empty string when the directory does not exist or contains no patches.
 fn patches_hash(patches_dir: &Path) -> String {
@@ -1077,6 +1233,8 @@ fn main() {
     let target = env::var("TARGET").unwrap();
     let host = env::var("HOST").unwrap();
     let is_cross = host != target;
+    let original_path = env::var_os("PATH");
+    configure_libclang_path(&target);
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     let target_dir = get_cargo_target_dir().unwrap();
@@ -1103,25 +1261,19 @@ fn main() {
     // causing MSBuild error MSB3491.
     //
     // Fix: on Windows, redirect cmake's build+install tree to a short path
-    // under %LOCALAPPDATA% that is derived from a stable hash of OUT_DIR so
-    // different crate versions / OUT_DIRs get their own isolated build trees.
+    // under Cargo's target directory that is derived from a stable hash of
+    // OUT_DIR so different crate versions / OUT_DIRs get isolated build trees.
     let cmake_out_dir: PathBuf = if target.contains("windows") {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
         let mut hasher = DefaultHasher::new();
         out_dir.to_string_lossy().as_ref().hash(&mut hasher);
-        // Use 8 hex digits (32-bit) — enough collision-resistance for local builds.
-        let hash = hasher.finish() as u32;
-        // Prefer %LOCALAPPDATA% (~26 chars on a default Windows install) over
-        // %TEMP% because TEMP sometimes points to a longer UNC path.
-        let base = std::env::var("LOCALAPPDATA")
-            .or_else(|_| std::env::var("TEMP"))
-            .or_else(|_| std::env::var("TMP"))
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("C:\\Temp"));
-        // Final cmake_out_dir ≈ base(~26) + \llcb\(6) + 8hex(8) = ~40 chars.
+        let hash = hasher.finish();
+        let base = target_dir.parent().unwrap_or(&target_dir).join("llcb");
+        // Final cmake_out_dir is normally <repo>\target\llcb\<16hex>, which is
+        // short enough even when the deepest Vulkan sub-build path is appended.
         // The deepest vulkan sub-path adds ~167 chars → total ~207 < 260. ✓
-        let short_dir = base.join("llcb").join(format!("{:08x}", hash));
+        let short_dir = base.join(format!("{:016x}", hash));
         std::fs::create_dir_all(&short_dir)
             .expect("Failed to create short cmake output dir (Windows MAX_PATH workaround)");
         short_dir
@@ -1140,7 +1292,7 @@ fn main() {
     // output and the source copy; only the CMake build tree is shared.
     //
     // Skip on Windows because the MAX_PATH workaround already handles this
-    // with a short LOCALAPPDATA path derived from OUT_DIR.
+    // with a short target-directory path derived from OUT_DIR.
     let cmake_out_dir: PathBuf = if !target.contains("windows") {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
@@ -1353,6 +1505,12 @@ fn main() {
         // .blocklist_type("llama_model_deleter")
         .opaque_type("std::.*");
 
+    for include_dir in bindgen_system_include_dirs(&target) {
+        builder = builder
+            .clang_arg("-isystem")
+            .clang_arg(include_dir.display().to_string());
+    }
+
     // Add RPC support if feature is enabled
     if cfg!(feature = "rpc") {
         builder = builder
@@ -1399,12 +1557,17 @@ fn main() {
     println!("cargo:rerun-if-env-changed=LLAMA_PATCH_ENGINE");
     println!("cargo:rerun-if-env-changed=LLAMA_PATCH");
     println!("cargo:rerun-if-env-changed=PATCH");
+    println!("cargo:rerun-if-env-changed=LIBCLANG_PATH");
 
     // Rerun if prebuilt feature is toggled
     #[cfg(feature = "prebuilt")]
     println!("cargo:rustc-cfg=llama_prebuilt_enabled");
 
     debug_log!("Bindings Created");
+    match original_path {
+        Some(path) => env::set_var("PATH", path),
+        None => env::remove_var("PATH"),
+    }
 
     // Print build progress information
     if std::env::var("BUILD_DEBUG").is_ok() {
@@ -1540,9 +1703,17 @@ fn main() {
     // ── CMake build ──────────────────────────────────────────────────────────
 
     let mut config = Config::new(&llama_dst);
+    let windows_msvc_cmake_generator = if target.contains("windows-msvc") {
+        latest_complete_visual_studio_generator()
+    } else {
+        None
+    };
 
-    // Prefer Ninja generator if available for faster builds
-    if command_exists("ninja") {
+    if let Some(generator) = windows_msvc_cmake_generator {
+        debug_log!("Using complete Visual Studio generator: {generator}");
+        config.generator(generator);
+    } else if command_exists("ninja") {
+        // Prefer Ninja generator if available for faster builds
         debug_log!("Ninja detected, using Ninja generator for CMake");
         config.generator("Ninja");
         // Enable Ninja's parallel build with all available cores
@@ -1628,6 +1799,7 @@ fn main() {
     config.define("LLAMA_BUILD_TESTS", "OFF");
     config.define("LLAMA_BUILD_EXAMPLES", "OFF");
     config.define("LLAMA_BUILD_SERVER", "OFF");
+    config.define("LLAMA_OPENSSL", "OFF");
 
     // Disable expensive CMake tests and checks for faster builds
     config.define("CMAKE_SKIP_INSTALL_RPATH", "ON");
@@ -1635,8 +1807,13 @@ fn main() {
 
     // Enable faster compilation by reducing debug info in release builds
     if profile != "Debug" {
-        config.define("CMAKE_C_FLAGS_RELEASE", "-O3 -DNDEBUG");
-        config.define("CMAKE_CXX_FLAGS_RELEASE", "-O3 -DNDEBUG");
+        let release_flags = if target.contains("windows-msvc") {
+            "/O2 /DNDEBUG"
+        } else {
+            "-O3 -DNDEBUG"
+        };
+        config.define("CMAKE_C_FLAGS_RELEASE", release_flags);
+        config.define("CMAKE_CXX_FLAGS_RELEASE", release_flags);
     }
 
     // Enable faster CMake configuration by disabling expensive checks
@@ -2129,7 +2306,31 @@ fn main() {
                         || (!cfg!(feature = "webgpu") && cached_webgpu_on)
                 };
 
-                // 2f. CMAKE_OSX_ARCHITECTURES mismatch: a stale cache from
+                // 2f. LLAMA_OPENSSL mismatch: the vendored build deliberately
+                //     disables llama.cpp HTTPS support so the native library
+                //     stays self-contained and does not pick up an unrelated
+                //     OpenSSL installation from the user's PATH.
+                let openssl_mismatch = cache_contents.contains("LLAMA_OPENSSL:BOOL=ON")
+                    || cache_contents.contains("OPENSSL_INCLUDE_DIR:PATH=");
+
+                // 2g. Windows MSVC cache contaminated by MSYS2/MinGW tools:
+                //     this can happen if libclang discovery prepended
+                //     C:\msys64\clang64\bin before CMake configured the build.
+                //     CMake then finds MSYS2 CMake/Ninja/OpenSSL and injects
+                //     MinGW headers into MSVC cl.exe compilations.
+                let windows_msvc_msys_cache =
+                    target.contains("windows-msvc") && cache_contents.contains("C:/msys64/");
+
+                let cmake_generator_mismatch = windows_msvc_cmake_generator
+                    .and_then(|generator| {
+                        cache_contents
+                            .lines()
+                            .find(|line| line.starts_with("CMAKE_GENERATOR:INTERNAL="))
+                            .map(|line| !line.ends_with(generator))
+                    })
+                    .unwrap_or(false);
+
+                // 2h. CMAKE_OSX_ARCHITECTURES mismatch: a stale cache from
                 //     a previous build (or from an environment-polluted cmake
                 //     run) may have the wrong architecture, producing x86_64
                 //     object code in an arm64 binary (or vice versa).
@@ -2158,6 +2359,9 @@ fn main() {
                     || x86_isa_mismatch
                     || metal_mismatch
                     || webgpu_mismatch
+                    || openssl_mismatch
+                    || windows_msvc_msys_cache
+                    || cmake_generator_mismatch
                     || osx_arch_mismatch;
                 if mismatch {
                     debug_log!(
@@ -2179,7 +2383,13 @@ fn main() {
                             "(not set)"
                         },
                     );
-                    std::fs::remove_file(&cache).expect("failed to remove stale CMakeCache.txt");
+                    if windows_msvc_msys_cache || cmake_generator_mismatch {
+                        std::fs::remove_dir_all(&cmake_build_dir)
+                            .expect("failed to remove stale CMake build dir");
+                    } else {
+                        std::fs::remove_file(&cache)
+                            .expect("failed to remove stale CMakeCache.txt");
+                    }
                 }
             }
         }
@@ -2217,12 +2427,22 @@ fn main() {
     // only in the build tree.  Add the search path and link it explicitly.
     if !build_shared_libs {
         let common_build_dir = cmake_out_dir.join("build").join("common");
-        if common_build_dir.exists() && !llama_libs.iter().any(|l| l == "llama-common-base") {
-            println!(
-                "cargo:rustc-link-search=native={}",
-                common_build_dir.display()
-            );
-            println!("cargo:rustc-link-lib=static=llama-common-base");
+        let common_base_lib = if target.contains("windows-msvc") {
+            "llama-common-base.lib"
+        } else {
+            "libllama-common-base.a"
+        };
+        let common_base_dir = [common_build_dir.join(&profile), common_build_dir.clone()]
+            .into_iter()
+            .find(|dir| dir.join(common_base_lib).is_file());
+        if !llama_libs.iter().any(|l| l == "llama-common-base") {
+            if let Some(common_base_dir) = common_base_dir {
+                println!(
+                    "cargo:rustc-link-search=native={}",
+                    common_base_dir.display()
+                );
+                println!("cargo:rustc-link-lib=static=llama-common-base");
+            }
         }
     }
 
