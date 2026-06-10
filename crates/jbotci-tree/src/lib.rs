@@ -12,17 +12,15 @@ pub use jbotci_tree_macros::tree_model;
 
 #[invariant(true)]
 #[invariant(::Valid(_) => true)]
-#[invariant(::Invalid(_) => true)]
-#[invariant(::Missing(_) => true)]
+#[invariant(::Error(_) => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "kebab-case")]
-pub enum Recovered<T, I, M> {
+pub enum Recovered<T, E> {
     Valid(T),
-    Invalid(I),
-    Missing(M),
+    Error(E),
 }
 
-impl<T, I, M> Recovered<T, I, M> {
+impl<T, E> Recovered<T, E> {
     #[requires(true)]
     #[ensures(matches!(ret, Self::Valid(_)))]
     pub fn valid(value: T) -> Self {
@@ -30,15 +28,9 @@ impl<T, I, M> Recovered<T, I, M> {
     }
 
     #[requires(true)]
-    #[ensures(matches!(ret, Self::Invalid(_)))]
-    pub fn invalid(item: I) -> Self {
-        Self::Invalid(item)
-    }
-
-    #[requires(true)]
-    #[ensures(matches!(ret, Self::Missing(_)))]
-    pub fn missing(item: M) -> Self {
-        Self::Missing(item)
+    #[ensures(matches!(ret, Self::Error(_)))]
+    pub fn error(item: E) -> Self {
+        Self::Error(item)
     }
 
     #[requires(true)]
@@ -46,76 +38,45 @@ impl<T, I, M> Recovered<T, I, M> {
     pub fn try_into_valid_with<V>(
         self,
         path: &mut TreePath,
-        convert: impl FnOnce(T, &mut TreePath) -> Result<V, RecoveryError<I, M>>,
-    ) -> Result<V, RecoveryError<I, M>> {
+        convert: impl FnOnce(T, &mut TreePath) -> Result<V, RecoveryError<E>>,
+    ) -> Result<V, RecoveryError<E>> {
         match self {
             Self::Valid(value) => convert(value, path),
-            Self::Invalid(item) => Err(RecoveryError::invalid(path.clone(), item)),
-            Self::Missing(item) => Err(RecoveryError::missing(path.clone(), item)),
+            Self::Error(item) => Err(RecoveryError::new(path.clone(), item)),
         }
     }
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct InvalidTreeItem {
-    pub message: String,
+pub struct RecoveryError<E> {
+    pub path: TreePath,
+    pub item: E,
 }
 
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MissingTreeItem {
-    pub expected: Vec<String>,
-}
-
-#[invariant(true)]
-#[invariant(::Invalid { .. } => true)]
-#[invariant(::Missing { .. } => true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
-pub enum RecoveryError<I, M> {
-    Invalid { path: TreePath, item: I },
-    Missing { path: TreePath, item: M },
-}
-
-impl<I, M> RecoveryError<I, M> {
+impl<E> RecoveryError<E> {
     #[requires(true)]
-    #[ensures(matches!(ret, Self::Invalid { .. }))]
-    pub fn invalid(path: TreePath, item: I) -> Self {
-        Self::Invalid { path, item }
-    }
-
-    #[requires(true)]
-    #[ensures(matches!(ret, Self::Missing { .. }))]
-    pub fn missing(path: TreePath, item: M) -> Self {
-        Self::Missing { path, item }
+    #[ensures(ret.path == old(path.clone()))]
+    pub fn new(path: TreePath, item: E) -> Self {
+        Self { path, item }
     }
 
     #[requires(true)]
     #[ensures(true)]
     pub fn path(&self) -> &TreePath {
-        match self {
-            Self::Invalid { path, .. } | Self::Missing { path, .. } => path,
-        }
+        &self.path
     }
 }
 
-impl<I, M> fmt::Display for RecoveryError<I, M> {
+impl<E> fmt::Display for RecoveryError<E> {
     #[requires(true)]
     #[ensures(true)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Invalid { path, .. } => {
-                write!(formatter, "invalid recovered tree item at {path}")
-            }
-            Self::Missing { path, .. } => {
-                write!(formatter, "missing recovered tree item at {path}")
-            }
-        }
+        write!(formatter, "recovered tree error item at {}", self.path)
     }
 }
 
-impl<I: fmt::Debug, M: fmt::Debug> std::error::Error for RecoveryError<I, M> {}
+impl<E: fmt::Debug> std::error::Error for RecoveryError<E> {}
 
 #[invariant(true)]
 #[invariant(::Field => name.as_ref().is_none_or(|name| !name.is_empty()))]
@@ -308,6 +269,10 @@ pub trait TreeVisitor<'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn visit_atom(&mut self, _atom: Self::Atom) {}
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_recovered_error<E: Serialize>(&mut self, _item: &'tree E) {}
 }
 
 #[cfg(test)]
@@ -320,6 +285,13 @@ mod tests {
     use serde_json::json;
     use smallvec::SmallVec;
     use vec1::Vec1;
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+    #[invariant(true)]
+    pub(crate) struct RecoveryTreeItem {
+        message: Option<String>,
+        expected: Vec<String>,
+    }
 
     tree_model! {
         pub type LeafAlias = LeafNode;
@@ -347,6 +319,7 @@ mod tests {
         }
 
         #[derive(Debug, Clone, PartialEq, Eq)]
+        #[allow(dead_code)]
         #[invariant(true)]
         #[invariant(::Tuple(_) => true)]
         #[invariant(::Named => true)]
@@ -469,18 +442,11 @@ mod tests {
         }
     }
 
-    #[requires(true)]
-    #[ensures(!ret.message.is_empty())]
-    fn invalid_item(message: &str) -> InvalidTreeItem {
-        InvalidTreeItem {
-            message: message.to_owned(),
-        }
-    }
-
-    #[requires(true)]
+    #[requires(!expected.is_empty())]
     #[ensures(!ret.expected.is_empty())]
-    fn missing_item(expected: &str) -> MissingTreeItem {
-        MissingTreeItem {
+    fn recovery_item(message: Option<&str>, expected: &str) -> RecoveryTreeItem {
+        RecoveryTreeItem {
+            message: message.map(str::to_owned),
             expected: vec![expected.to_owned()],
         }
     }
@@ -702,9 +668,12 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_invalid_sequence_slot_reports_tree_path() {
+    fn recovered_error_sequence_slot_reports_tree_path() {
         let mut recovered = sample_recovered_pair_node();
-        recovered.many = vec![recovered::Recovered::invalid(invalid_item("bad leaf"))];
+        recovered.many = vec![recovered::Recovered::error(recovery_item(
+            Some("bad leaf"),
+            "leaf",
+        ))];
 
         let error = recovered
             .try_into_valid()
@@ -716,21 +685,16 @@ mod tests {
                 TreePathStep::sequence_index(0),
             ])
         );
-        assert!(matches!(
-            error,
-            RecoveryError::Invalid {
-                item: InvalidTreeItem { message },
-                ..
-            } if message == "bad leaf"
-        ));
+        assert_eq!(error.item.message.as_deref(), Some("bad leaf"));
+        assert_eq!(error.item.expected, vec!["leaf".to_owned()]);
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_missing_optional_inner_reports_present_field_path() {
+    fn recovered_error_optional_inner_reports_present_field_path() {
         let mut recovered = sample_recovered_pair_node();
-        recovered.alias = Some(recovered::Recovered::missing(missing_item("leaf")));
+        recovered.alias = Some(recovered::Recovered::error(recovery_item(None, "leaf")));
 
         let error = recovered
             .try_into_valid()
@@ -739,13 +703,8 @@ mod tests {
             error.path(),
             &TreePath::from_steps(vec![TreePathStep::field(Some("alias"), 5)])
         );
-        assert!(matches!(
-            error,
-            RecoveryError::Missing {
-                item: MissingTreeItem { expected },
-                ..
-            } if expected == vec!["leaf".to_owned()]
-        ));
+        assert_eq!(error.item.message, None);
+        assert_eq!(error.item.expected, vec!["leaf".to_owned()]);
     }
 
     #[test]

@@ -5,6 +5,7 @@ mod diagnostics;
 mod json;
 mod places;
 pub mod qr_code;
+mod recovered;
 mod references;
 mod sexpr;
 mod surface;
@@ -348,6 +349,27 @@ pub fn compact_morphology_json_string_with_options(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
+pub fn compact_recovered_morphology_json_value(
+    words: &[jbotci_morphology::tree::recovered::WordLike],
+) -> Result<Value, OutputError> {
+    recovered::morphology_json_value(words, PhonemeRenderOptions::default())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn compact_recovered_morphology_json_string_with_options(
+    words: &[jbotci_morphology::tree::recovered::WordLike],
+    options: JsonRenderOptions,
+) -> Result<String, OutputError> {
+    Ok(format_compact_json_value(
+        &recovered::morphology_json_value(words, options.phonemes)?,
+        0,
+        options,
+    ))
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn ipa_morphology_text(words: &[WordLike], source: &str) -> Result<String, OutputError> {
     surface::format_words_ipa(words, source)
@@ -367,6 +389,27 @@ pub fn compact_syntax_json_string_with_options(
 ) -> Result<String, OutputError> {
     Ok(format_compact_json_value(
         &json::syntax_json_value(tree, options),
+        0,
+        options,
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
+pub fn compact_recovered_syntax_json_value(
+    tree: &jbotci_syntax::tree::recovered::TextSyntax,
+) -> Result<Value, OutputError> {
+    recovered::syntax_json_value(tree, JsonRenderOptions::default())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn compact_recovered_syntax_json_string_with_options(
+    tree: &jbotci_syntax::tree::recovered::TextSyntax,
+    options: JsonRenderOptions,
+) -> Result<String, OutputError> {
+    Ok(format_compact_json_value(
+        &recovered::syntax_json_value(tree, options)?,
         0,
         options,
     ))
@@ -401,6 +444,16 @@ pub fn pretty_morphology_tree_with_options(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn pretty_recovered_morphology_tree_with_options(
+    words: &[jbotci_morphology::tree::recovered::WordLike],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<String, OutputError> {
+    recovered::morphology_tree_with_options(words, source, options)
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
 pub fn pretty_tree_with_options(
     tree: &TextSyntax,
@@ -408,6 +461,16 @@ pub fn pretty_tree_with_options(
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
     tree::pretty_tree_with_options(tree, source, options)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn pretty_recovered_tree_with_options(
+    tree: &jbotci_syntax::tree::recovered::TextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<String, OutputError> {
+    recovered::syntax_tree_with_options(tree, source, options)
 }
 
 #[requires(true)]
@@ -834,6 +897,16 @@ pub fn pretty_brackets_with_options(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn pretty_recovered_brackets_with_options(
+    tree: &jbotci_syntax::tree::recovered::TextSyntax,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<String, OutputError> {
+    recovered::syntax_brackets(tree, source, options)
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty()))]
 pub fn pretty_bracket_source_fragments_with_options(
     tree: &TextSyntax,
@@ -851,6 +924,16 @@ pub fn pretty_morphology_brackets_with_options(
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
     brackets::pretty_morphology_brackets_with_options(words, source, options)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn pretty_recovered_morphology_brackets_with_options(
+    words: &[jbotci_morphology::tree::recovered::WordLike],
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<String, OutputError> {
+    recovered::morphology_brackets(words, source, options)
 }
 
 #[cfg(test)]

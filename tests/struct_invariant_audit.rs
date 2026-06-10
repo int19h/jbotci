@@ -20,6 +20,50 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "server config is normalized by ServerConfig::from_cli",
     ),
     (
+        "crates/jbotci-syntax/src/lib.rs:RecoveredTextFromTokens",
+        "private recovered syntax assembly result is produced by accumulator finish paths",
+    ),
+    (
+        "crates/jbotci-syntax/src/lib.rs:RecoveredTextAccumulator",
+        "private recovered syntax accumulator owns transient paragraph and warning queues",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredMorphologyTreeBuilder",
+        "private recovered morphology tree visitor state is constrained by visitor stack transitions",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredSyntaxTreeBuilder",
+        "private recovered syntax tree visitor state is constrained by visitor stack transitions",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredMorphologyJsonBuilder",
+        "private recovered morphology JSON visitor state is constrained by visitor stack transitions",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredSyntaxJsonBuilder",
+        "private recovered syntax JSON visitor state is constrained by visitor stack transitions",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredSyntaxWordBracketVisitor",
+        "private recovered syntax bracket visitor state is constrained by generated tree traversal callbacks",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:MorphologyJsonNodeInfo",
+        "private recovered JSON node metadata is copied from generated tree traversal metadata",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:SyntaxJsonNodeInfo",
+        "private recovered JSON node metadata is copied from generated tree traversal metadata",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveryRenderItem",
+        "private recovered render payload is a tolerant serde projection used only for formatting",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveryRenderSpan",
+        "private recovered render span is projected from SourceSpan fields that were already validated",
+    ),
+    (
         "crates/jbotci-ui/src/lib.rs:UserSettings",
         "browser settings are persisted transport state constrained by closed enum fields",
     ),
@@ -1556,12 +1600,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "recovered syntax parse attempt combines recovered parse output with optional trace data",
     ),
     (
-        "crates/jbotci-tree/src/lib.rs:InvalidTreeItem",
-        "generic fallback invalid recovery payload preserves parser-provided message shape",
+        "crates/jbotci-tree/src/lib.rs:RecoveryError",
+        "generic recovery conversion error carries a path plus parser-owned payload without shared semantic invariant",
     ),
     (
-        "crates/jbotci-tree/src/lib.rs:MissingTreeItem",
-        "generic fallback missing recovery payload preserves parser-provided expected-item shape",
+        "crates/jbotci-tree/src/lib.rs:RecoveryTreeItem",
+        "tree macro recovery fixture payload is constrained by test helpers rather than production semantics",
     ),
     (
         "tests/support/fixtures/mod.rs:CllSelector",

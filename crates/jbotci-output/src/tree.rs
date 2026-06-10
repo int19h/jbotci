@@ -151,8 +151,27 @@ pub(crate) fn pretty_morphology_tree_with_options(
 }
 
 #[requires(true)]
+#[ensures(!ret.is_empty())]
+pub(crate) fn render_plain_tree_value_with_options(
+    value: TreeValue,
+    options: TreeRenderOptions,
+) -> String {
+    let value = collapse_value(value);
+    let mut renderer = TreeRenderer {
+        color: options.color,
+        glyphs: options.glyphs,
+        indent_step: options.indent,
+        show_spans: options.show_spans,
+        references: None,
+        output: String::new(),
+    };
+    renderer.render_value(&value, 0);
+    renderer.output
+}
+
+#[requires(true)]
 #[ensures(true)]
-fn with_indicators_tree_value(
+pub(crate) fn with_indicators_tree_value(
     word: &WithIndicators<WordLike>,
     source: &str,
     options: TreeRenderOptions,
@@ -203,7 +222,7 @@ fn with_indicators_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
-fn word_tree_value(word: &Word, source: &str, options: TreeRenderOptions) -> TreeValue {
+pub(crate) fn word_tree_value(word: &Word, source: &str, options: TreeRenderOptions) -> TreeValue {
     morphology_tree_value(&WordLike::bare(word.clone()), source, options)
 }
 
@@ -1183,7 +1202,7 @@ impl<'tree> TreeVisitor<'tree> for MorphologyTreeBuilder<'_> {
 
 #[requires(true)]
 #[ensures(true)]
-fn morphology_node_value(
+pub(crate) fn morphology_node_value(
     constructor: &'static str,
     entries: &[TreeEntry],
     options: TreeRenderOptions,
@@ -1322,7 +1341,7 @@ fn word_kind_from_constructor(constructor: &str) -> Option<WordKind> {
 
 #[requires(span.char_start <= span.char_end)]
 #[ensures(true)]
-fn source_span_value(span: &SourceSpan) -> TreeValue {
+pub(crate) fn source_span_value(span: &SourceSpan) -> TreeValue {
     TreeValue::Span {
         byte_start: span.byte_start,
         byte_end: span.byte_end,

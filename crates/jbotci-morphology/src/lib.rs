@@ -2884,7 +2884,8 @@ mod tests {
         );
         assert!(matches!(
             closing_delimiter.as_ref(),
-            tree::recovered::Recovered::Missing(_)
+            tree::recovered::Recovered::Error(item)
+                if item.text.is_none() && item.expected == vec!["ZOI closing delimiter".to_owned()]
         ));
         assert!(recovered.result[0].clone().try_into_valid().is_err());
     }
@@ -3754,10 +3755,10 @@ mod tests {
         word: &tree::recovered::Recovered<tree::recovered::Word>,
         expected: &str,
     ) {
-        let tree::recovered::Recovered::Invalid(item) = word else {
+        let tree::recovered::Recovered::Error(item) = word else {
             panic!("expected recovered invalid word");
         };
-        assert_eq!(item.text, expected);
+        assert_eq!(item.text.as_deref(), Some(expected));
     }
 
     #[requires(true)]

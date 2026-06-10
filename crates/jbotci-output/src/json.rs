@@ -17,9 +17,9 @@ use crate::JsonRenderOptions;
 
 #[derive(Debug, Clone, PartialEq)]
 #[invariant(true)]
-struct JsonEntry {
-    label: Option<&'static str>,
-    value: Value,
+pub(crate) struct JsonEntry {
+    pub(crate) label: Option<&'static str>,
+    pub(crate) value: Value,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -71,7 +71,7 @@ fn morphology_word_like_value(word_like: &WordLike, phonemes: PhonemeRenderOptio
 
 #[requires(true)]
 #[ensures(true)]
-fn morphology_word_value(word: &Word, phonemes: PhonemeRenderOptions) -> Value {
+pub(crate) fn morphology_word_value(word: &Word, phonemes: PhonemeRenderOptions) -> Value {
     let mut builder = MorphologyJsonBuilder::new(phonemes);
     MorphologyTreeNode::visit_in_order(word, &mut builder);
     builder.finish()
@@ -468,7 +468,7 @@ fn push_entry<N>(stack: &mut [JsonFrame<N>], entry: JsonEntry) {
 
 #[requires(true)]
 #[ensures(true)]
-fn field_value(values: Vec<Value>, nested_entries: Vec<JsonEntry>) -> Option<Value> {
+pub(crate) fn field_value(values: Vec<Value>, nested_entries: Vec<JsonEntry>) -> Option<Value> {
     if nested_entries.is_empty() {
         return values_to_value(values);
     }
@@ -509,7 +509,11 @@ fn values_to_value(values: Vec<Value>) -> Option<Value> {
 
 #[requires(true)]
 #[ensures(true)]
-fn node_value(constructor: &'static str, variant: bool, entries: Vec<JsonEntry>) -> Value {
+pub(crate) fn node_value(
+    constructor: &'static str,
+    variant: bool,
+    entries: Vec<JsonEntry>,
+) -> Value {
     if variant {
         constructor_value(constructor, variant_payload(constructor, entries))
     } else {
@@ -595,13 +599,16 @@ fn word_fields(entries: Vec<JsonEntry>) -> Map<String, Value> {
 
 #[requires(true)]
 #[ensures(true)]
-fn constructor_value(constructor: &str, payload: Value) -> Value {
+pub(crate) fn constructor_value(constructor: &str, payload: Value) -> Value {
     Value::Object([(constructor.to_owned(), payload)].into_iter().collect())
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn with_indicators_value(word: &WithIndicators<WordLike>, phonemes: PhonemeRenderOptions) -> Value {
+pub(crate) fn with_indicators_value(
+    word: &WithIndicators<WordLike>,
+    phonemes: PhonemeRenderOptions,
+) -> Value {
     match word {
         WithIndicators::Plain(word_like) => {
             constructor_value("Plain", morphology_word_like_value(word_like, phonemes))
@@ -647,7 +654,7 @@ fn span_value(span: &SourceSpan) -> Value {
 
 #[requires(true)]
 #[ensures(!ret.ends_with("Syntax"))]
-fn syntax_constructor_name(constructor: &'static str) -> &'static str {
+pub(crate) fn syntax_constructor_name(constructor: &'static str) -> &'static str {
     constructor.strip_suffix("Syntax").unwrap_or(constructor)
 }
 

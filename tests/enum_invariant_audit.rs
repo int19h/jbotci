@@ -40,20 +40,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generic recovery slot validity is determined by the wrapped tree value",
     ),
     (
-        "crates/jbotci-tree/src/lib.rs:Recovered::Invalid",
-        "generic recovery slot carries parser-owned invalid payload without shared semantic invariant",
-    ),
-    (
-        "crates/jbotci-tree/src/lib.rs:Recovered::Missing",
-        "generic recovery slot carries parser-owned missing payload without shared semantic invariant",
-    ),
-    (
-        "crates/jbotci-tree/src/lib.rs:RecoveryError::Invalid",
-        "generic recovery error records a path plus parser-owned invalid payload",
-    ),
-    (
-        "crates/jbotci-tree/src/lib.rs:RecoveryError::Missing",
-        "generic recovery error records a path plus parser-owned missing payload",
+        "crates/jbotci-tree/src/lib.rs:Recovered::Error",
+        "generic recovery slot carries parser-owned recovery payload without shared semantic invariant",
     ),
     (
         "crates/jbotci-output/src/sexpr.rs:SExpr::Leaf",
@@ -62,6 +50,30 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/sexpr.rs:SExpr::Node",
         "empty render nodes are meaningful intermediate values",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredTreeFrame::Node",
+        "private recovered tree renderer stack frame; push/pop helpers enforce node entry shape",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredTreeFrame::Field",
+        "private recovered tree renderer stack frame; field queue shape is enforced while exiting fields",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredTreeFrame::Collection",
+        "private recovered tree renderer stack frame; sequence ownership is enforced by collection push/pop helpers",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredJsonFrame::Node",
+        "private recovered JSON renderer stack frame; push/pop helpers enforce node entry shape",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredJsonFrame::Field",
+        "private recovered JSON renderer stack frame; field queue shape is enforced while exiting fields",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredJsonFrame::Sequence",
+        "private recovered JSON renderer stack frame; sequence ownership is enforced by collection push/pop helpers",
     ),
     (
         "crates/jbotci-output/src/lib.rs:BracketSourceFragment::Text",

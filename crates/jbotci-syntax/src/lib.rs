@@ -2130,16 +2130,24 @@ pub fn parse_syntax_tree_recovered_with_source_and_options(
         }
         Err(error) => {
             let tokens = grammar::syntax_tokens(&valid_words);
+            let recovered = recovered_text_from_tokens(&tokens, &error, source, options);
             RecoveredSyntaxParseAttempt {
                 result: RecoveredSyntaxParse {
-                    parse_tree: Box::new(recovered_text_from_tokens(&tokens, &error)),
+                    parse_tree: Box::new(recovered.parse_tree),
                     diagnostics: vec![error],
-                    warnings: Vec::new(),
+                    warnings: recovered.warnings,
                 },
                 trace: attempt.trace,
             }
         }
     }
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct RecoveredTextFromTokens {
+    parse_tree: tree::recovered::TextSyntax,
+    warnings: Vec<SyntaxWarning>,
 }
 
 #[requires(true)]
@@ -2174,7 +2182,155 @@ fn recovered_text_from_statement_slot(
 fn recovered_text_from_tokens(
     tokens: &[Token],
     error: &SyntaxError,
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> RecoveredTextFromTokens {
+    let mut chunks = Vec::new();
+    let mut start = 0;
+    for (index, token) in tokens.iter().enumerate() {
+        if index != start && is_top_level_syntax_recovery_boundary(token) {
+            chunks.push(&tokens[start..index]);
+            start = index;
+        }
+    }
+    if start < tokens.len() {
+        chunks.push(&tokens[start..]);
+    }
+
+    let mut recovered = RecoveredTextAccumulator::default();
+    for chunk in chunks {
+        recovered.append_chunk(chunk, error, source, options);
+    }
+    recovered.finish()
+}
+
+#[derive(Debug, Default)]
+#[invariant(true)]
+struct RecoveredTextAccumulator {
+    paragraphs: Vec<RecoveredSyntax<tree::recovered::ParagraphSyntax>>,
+    warnings: Vec<SyntaxWarning>,
+}
+
+impl RecoveredTextAccumulator {
+    #[requires(true)]
+    #[ensures(true)]
+    fn append_chunk(
+        &mut self,
+        tokens: &[Token],
+        error: &SyntaxError,
+        source: Option<&str>,
+        options: &ParseOptions,
+    ) {
+        if tokens.is_empty() {
+            return;
+        }
+        if let Some(parsed) = recovered_text_for_valid_chunk(tokens, source, options) {
+            self.warnings.extend(parsed.warnings);
+            self.append_paragraphs(parsed.parse_tree.paragraphs);
+            return;
+        }
+        let fallback = recovered_invalid_text_from_tokens(tokens, error, source, options);
+        self.append_paragraphs(fallback.paragraphs);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn append_paragraphs(
+        &mut self,
+        paragraphs: Vec<RecoveredSyntax<tree::recovered::ParagraphSyntax>>,
+    ) {
+        for paragraph in paragraphs {
+            self.append_paragraph(paragraph);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn append_paragraph(&mut self, paragraph: RecoveredSyntax<tree::recovered::ParagraphSyntax>) {
+        let RecoveredSyntax::Valid(mut paragraph) = paragraph else {
+            self.paragraphs.push(paragraph);
+            return;
+        };
+        let can_merge = paragraph.i.is_none()
+            && paragraph.niho.is_empty()
+            && paragraph.free_modifiers.is_empty()
+            && self.paragraphs.last().is_some_and(|last| {
+                matches!(
+                    last,
+                    RecoveredSyntax::Valid(last)
+                        if last.i.is_none() && last.niho.is_empty() && last.free_modifiers.is_empty()
+                )
+            });
+        if can_merge {
+            let Some(RecoveredSyntax::Valid(last)) = self.paragraphs.last_mut() else {
+                unreachable!("can_merge checked last paragraph shape");
+            };
+            last.statements.append(&mut paragraph.statements);
+        } else {
+            self.paragraphs.push(RecoveredSyntax::Valid(paragraph));
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn finish(self) -> RecoveredTextFromTokens {
+        RecoveredTextFromTokens {
+            parse_tree: tree::recovered::TextSyntax {
+                leading_nai: Vec::new(),
+                leading_cmevla: Vec::new(),
+                leading_indicators: Vec::new(),
+                leading_free_modifiers: Vec::new(),
+                leading_connective: None,
+                paragraphs: self.paragraphs,
+            },
+            warnings: self.warnings,
+        }
+    }
+}
+
+#[requires(!tokens.is_empty())]
+#[ensures(true)]
+fn recovered_text_for_valid_chunk(
+    tokens: &[Token],
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> Option<RecoveredSyntaxParse> {
+    let words = tokens
+        .iter()
+        .map(|token| token.core_word().clone())
+        .collect::<Vec<_>>();
+    let attempt = grammar::parse_syntax_tree_with_source_attempt(&words, source, options);
+    match attempt.result {
+        Ok(parse) => {
+            let data = parse.into_data();
+            Some(RecoveredSyntaxParse {
+                parse_tree: Box::new(tree::recovered::TextSyntax::from_valid(*data.parse_tree)),
+                diagnostics: Vec::new(),
+                warnings: data.warnings,
+            })
+        }
+        Err(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == (token.is_selmaho(Selmaho::Niho) || token.is_cmavo(Cmavo::I)))]
+fn is_top_level_syntax_recovery_boundary(token: &Token) -> bool {
+    token.is_selmaho(Selmaho::Niho) || token.is_cmavo(Cmavo::I)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_invalid_text_from_tokens(
+    tokens: &[Token],
+    error: &SyntaxError,
+    source: Option<&str>,
+    options: &ParseOptions,
 ) -> tree::recovered::TextSyntax {
+    if let Some(tree) = recovered_forethought_gi_text_from_tokens(tokens, error, source, options) {
+        return tree;
+    }
+
     let mut paragraphs = Vec::new();
     let mut paragraph_niho = Vec::new();
     let mut statements = Vec::new();
@@ -2188,6 +2344,8 @@ fn recovered_text_from_tokens(
                 &mut statement_i,
                 &mut statement_tokens,
                 error,
+                source,
+                options,
             );
             push_recovered_paragraph(&mut paragraphs, &mut paragraph_niho, &mut statements);
             paragraph_niho.push(RecoveredSyntax::valid(token.clone()));
@@ -2199,6 +2357,8 @@ fn recovered_text_from_tokens(
                 &mut statement_i,
                 &mut statement_tokens,
                 error,
+                source,
+                options,
             );
             statement_i = Some(RecoveredSyntax::valid(token.clone()));
             continue;
@@ -2210,6 +2370,8 @@ fn recovered_text_from_tokens(
                 &mut statement_i,
                 &mut statement_tokens,
                 error,
+                source,
+                options,
             );
         }
     }
@@ -2218,6 +2380,8 @@ fn recovered_text_from_tokens(
         &mut statement_i,
         &mut statement_tokens,
         error,
+        source,
+        options,
     );
     push_recovered_paragraph(&mut paragraphs, &mut paragraph_niho, &mut statements);
 
@@ -2229,6 +2393,90 @@ fn recovered_text_from_tokens(
         leading_connective: None,
         paragraphs,
     }
+}
+
+#[requires(!tokens.is_empty())]
+#[ensures(true)]
+fn recovered_forethought_gi_text_from_tokens(
+    tokens: &[Token],
+    error: &SyntaxError,
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> Option<tree::recovered::TextSyntax> {
+    let pivot = tokens
+        .iter()
+        .position(|token| token.is_selmaho(Selmaho::Gi))?;
+    if pivot == 0 || !has_accepted_forethought_head_before_gi(&tokens[..pivot]) {
+        return None;
+    }
+    let mut statements = Vec::new();
+    statements.push(RecoveredSyntax::valid(
+        tree::recovered::ParagraphStatementSyntax {
+            i: None,
+            connective: None,
+            free_modifiers: Vec::new(),
+            statement: Some(Box::new(RecoveredSyntax::error(
+                syntax_invalid_item_for_tokens(&tokens[..=pivot], error),
+            ))),
+        },
+    ));
+    if pivot + 1 < tokens.len() {
+        let trailing_statement =
+            recovered_statement_for_valid_segment(&tokens[pivot + 1..], source, options)
+                .unwrap_or_else(|| {
+                    RecoveredSyntax::error(syntax_invalid_item_for_tokens(
+                        &tokens[pivot + 1..],
+                        error,
+                    ))
+                });
+        statements.push(RecoveredSyntax::valid(
+            tree::recovered::ParagraphStatementSyntax {
+                i: None,
+                connective: None,
+                free_modifiers: Vec::new(),
+                statement: Some(Box::new(trailing_statement)),
+            },
+        ));
+    }
+    Some(tree::recovered::TextSyntax {
+        leading_nai: Vec::new(),
+        leading_cmevla: Vec::new(),
+        leading_indicators: Vec::new(),
+        leading_free_modifiers: Vec::new(),
+        leading_connective: None,
+        paragraphs: vec![RecoveredSyntax::valid(tree::recovered::ParagraphSyntax {
+            i: None,
+            niho: Vec::new(),
+            free_modifiers: Vec::new(),
+            statements,
+        })],
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_accepted_forethought_head_before_gi(tokens: &[Token]) -> bool {
+    let mut index = 0;
+    if tokens
+        .get(index)
+        .is_some_and(|token| token.is_selmaho(Selmaho::Se))
+    {
+        index += 1;
+    }
+    let Some(head) = tokens.get(index) else {
+        return false;
+    };
+    if !(head.is_selmaho(Selmaho::Ga) || head.is_selmaho(Selmaho::Guha)) {
+        return false;
+    }
+    index += 1;
+    if tokens
+        .get(index)
+        .is_some_and(|token| token.is_cmavo(Cmavo::Nai))
+    {
+        index += 1;
+    }
+    index < tokens.len()
 }
 
 #[requires(true)]
@@ -2256,16 +2504,24 @@ fn push_recovered_statement(
     i: &mut Option<RecoveredSyntax<Token>>,
     tokens: &mut Vec<Token>,
     error: &SyntaxError,
+    source: Option<&str>,
+    options: &ParseOptions,
 ) {
     if i.is_none() && tokens.is_empty() {
         return;
     }
     let statement = if tokens.is_empty() {
-        Some(Box::new(RecoveredSyntax::missing(
+        Some(Box::new(RecoveredSyntax::error(
             syntax_missing_item_at_error(error, "statement"),
         )))
+    } else if let Some(statement) = recovered_statement_for_valid_segment(tokens, source, options) {
+        Some(Box::new(statement))
+    } else if let Some(statement) =
+        recovered_statement_for_failed_segment(tokens, error, source, options)
+    {
+        Some(Box::new(statement))
     } else {
-        Some(Box::new(RecoveredSyntax::invalid(
+        Some(Box::new(RecoveredSyntax::error(
             syntax_invalid_item_for_tokens(tokens, error),
         )))
     };
@@ -2280,11 +2536,208 @@ fn push_recovered_statement(
     tokens.clear();
 }
 
+#[requires(!tokens.is_empty())]
+#[ensures(true)]
+fn recovered_statement_for_valid_segment(
+    tokens: &[Token],
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> Option<RecoveredSyntax<tree::recovered::StatementSyntax>> {
+    let parsed = recovered_text_for_valid_chunk(tokens, source, options)?;
+    let mut paragraphs = parsed.parse_tree.paragraphs;
+    if paragraphs.len() != 1 {
+        return None;
+    }
+    let RecoveredSyntax::Valid(paragraph) = paragraphs.pop()? else {
+        return None;
+    };
+    if paragraph.i.is_some() || !paragraph.niho.is_empty() || !paragraph.free_modifiers.is_empty() {
+        return None;
+    }
+    let mut statements = paragraph.statements;
+    if statements.len() != 1 {
+        return None;
+    }
+    let RecoveredSyntax::Valid(statement) = statements.pop()? else {
+        return None;
+    };
+    if statement.i.is_some()
+        || statement.connective.is_some()
+        || !statement.free_modifiers.is_empty()
+    {
+        return None;
+    }
+    statement.statement.map(|statement| *statement)
+}
+
+#[requires(!tokens.is_empty())]
+#[ensures(true)]
+fn recovered_statement_for_failed_segment(
+    tokens: &[Token],
+    error: &SyntaxError,
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> Option<RecoveredSyntax<tree::recovered::StatementSyntax>> {
+    let error_index = syntax_error_token_index(tokens, error)?;
+    let error_tokens = &tokens[error_index..];
+    if error_index > 0
+        && let Some(mut statement) =
+            recovered_statement_for_valid_segment(&tokens[..error_index], source, options)
+    {
+        let item = syntax_invalid_item_for_tokens(error_tokens, error);
+        if append_bridi_tail_recovery_error_to_statement(&mut statement, item) {
+            return Some(statement);
+        }
+    }
+    recovered_partial_bridi_with_explicit_cu(tokens, error_index, error, source, options)
+}
+
+#[requires(!tokens.is_empty())]
+#[ensures(ret.is_none_or(|index| index < tokens.len()))]
+fn syntax_error_token_index(tokens: &[Token], error: &SyntaxError) -> Option<usize> {
+    let error_start = syntax_error_span(error).byte_start;
+    tokens.iter().position(|token| {
+        token_slice_span(std::slice::from_ref(token))
+            .is_some_and(|span| span.byte_end > error_start || span.byte_start >= error_start)
+    })
+}
+
+#[requires(!tokens.is_empty())]
+#[ensures(true)]
+fn recovered_partial_bridi_with_explicit_cu(
+    tokens: &[Token],
+    error_index: usize,
+    error: &SyntaxError,
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> Option<RecoveredSyntax<tree::recovered::StatementSyntax>> {
+    let cu_index = tokens[..error_index]
+        .iter()
+        .rposition(|token| token.is_cmavo(Cmavo::Cu))?;
+    if cu_index == 0 || cu_index + 1 != error_index {
+        return None;
+    }
+    let leading_terms = recovered_leading_terms_fragment(&tokens[..cu_index], source, options)?;
+    let bridi = tree::recovered::BridiSyntax {
+        leading_terms,
+        cu: Some(Arc::new(recovered_token_with_free_modifiers(
+            tokens[cu_index].clone(),
+        ))),
+        bridi_tail: Box::new(RecoveredSyntax::error(syntax_invalid_item_for_tokens(
+            &tokens[error_index..],
+            error,
+        ))),
+        free_modifiers: Vec::new(),
+    };
+    Some(RecoveredSyntax::valid(
+        tree::recovered::StatementSyntax::Bridi(Box::new(RecoveredSyntax::valid(bridi))),
+    ))
+}
+
+#[requires(!tokens.is_empty())]
+#[ensures(true)]
+fn recovered_leading_terms_fragment(
+    tokens: &[Token],
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> Option<Vec<RecoveredSyntax<tree::recovered::TermSyntax>>> {
+    let statement = recovered_statement_for_valid_segment(tokens, source, options)?;
+    let RecoveredSyntax::Valid(tree::recovered::StatementSyntax::Fragment(fragment)) = statement
+    else {
+        return None;
+    };
+    let RecoveredSyntax::Valid(fragment) = *fragment else {
+        return None;
+    };
+    let tree::recovered::FragmentSyntax::Terms { terms, vau } = fragment else {
+        return None;
+    };
+    if vau.is_some() {
+        return None;
+    }
+    Some(terms)
+}
+
+#[requires(true)]
+#[ensures(matches!(&ret.value, RecoveredSyntax::Valid(_)))]
+fn recovered_token_with_free_modifiers(
+    value: Token,
+) -> tree::recovered::WithFreeModifiers<RecoveredSyntax<Token>> {
+    tree::recovered::WithFreeModifiers {
+        value: RecoveredSyntax::valid(value),
+        free_modifiers: Vec::new(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_bridi_tail_recovery_error_to_statement(
+    statement: &mut RecoveredSyntax<tree::recovered::StatementSyntax>,
+    item: tree::RecoveryTreeItem,
+) -> bool {
+    let RecoveredSyntax::Valid(statement) = statement else {
+        return false;
+    };
+    match statement {
+        tree::recovered::StatementSyntax::Prenex {
+            inner_statement, ..
+        }
+        | tree::recovered::StatementSyntax::Iau {
+            inner_statement, ..
+        } => append_bridi_tail_recovery_error_to_statement(inner_statement.as_mut(), item),
+        tree::recovered::StatementSyntax::StatementConnection {
+            trailing_statement, ..
+        }
+        | tree::recovered::StatementSyntax::PreposedIStatementConnection {
+            trailing_statement,
+            ..
+        } => append_bridi_tail_recovery_error_to_statement(trailing_statement.as_mut(), item),
+        tree::recovered::StatementSyntax::Bridi(bridi) => {
+            append_bridi_tail_recovery_error_to_bridi(bridi.as_mut(), item)
+        }
+        tree::recovered::StatementSyntax::TextGroup { .. }
+        | tree::recovered::StatementSyntax::ExperimentalBridiContinuation { .. }
+        | tree::recovered::StatementSyntax::Fragment(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_bridi_tail_recovery_error_to_bridi(
+    bridi: &mut RecoveredSyntax<tree::recovered::BridiSyntax>,
+    item: tree::RecoveryTreeItem,
+) -> bool {
+    let RecoveredSyntax::Valid(bridi) = bridi else {
+        return false;
+    };
+    append_bridi_tail_recovery_error_to_tail(bridi.bridi_tail.as_mut(), item)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_bridi_tail_recovery_error_to_tail(
+    bridi_tail: &mut RecoveredSyntax<tree::recovered::BridiTailSyntax>,
+    item: tree::RecoveryTreeItem,
+) -> bool {
+    let RecoveredSyntax::Valid(bridi_tail) = bridi_tail else {
+        return false;
+    };
+    if bridi_tail.ke_continuation.is_some() {
+        return false;
+    }
+    let RecoveredSyntax::Valid(afterthought) = bridi_tail.first.as_mut() else {
+        return false;
+    };
+    afterthought
+        .continuations
+        .push(RecoveredSyntax::error(item));
+    true
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn is_local_syntax_recovery_boundary(token: &Token) -> bool {
-    token.is_cmavo(Cmavo::Cu)
-        || token.is_selmaho(Selmaho::Gi)
+    token.is_selmaho(Selmaho::Gi)
         || token.is_one_of_cmavo(&[
             Cmavo::Ku,
             Cmavo::Vau,
@@ -2308,22 +2761,26 @@ fn is_local_syntax_recovery_boundary(token: &Token) -> bool {
 }
 
 #[requires(!tokens.is_empty())]
-#[ensures(!ret.text.is_empty())]
-fn syntax_invalid_item_for_tokens(tokens: &[Token], error: &SyntaxError) -> tree::InvalidTreeItem {
+#[ensures(ret.text.as_ref().is_some_and(|text| !text.is_empty()))]
+fn syntax_invalid_item_for_tokens(tokens: &[Token], error: &SyntaxError) -> tree::RecoveryTreeItem {
     let span = token_slice_span(tokens).unwrap_or_else(|| syntax_error_span(error));
-    new!(tree::InvalidTreeItem {
+    new!(tree::RecoveryTreeItem {
         span: Arc::new(span),
-        text: token_text(tokens),
+        text: Some(token_text(tokens)),
+        expected: syntax_error_expected_items(error, "statement"),
         diagnostic_code: syntax_error_code(error).to_owned(),
     })
 }
 
 #[requires(true)]
 #[ensures(!ret.expected.is_empty())]
-fn syntax_missing_item_at_error(error: &SyntaxError, expected: &str) -> tree::MissingTreeItem {
-    new!(tree::MissingTreeItem {
-        span: Arc::new(syntax_error_span(error)),
+#[ensures(ret.text.is_none())]
+fn syntax_missing_item_at_error(error: &SyntaxError, expected: &str) -> tree::RecoveryTreeItem {
+    new!(tree::RecoveryTreeItem {
+        span: Arc::new(syntax_error_insertion_span(error)),
+        text: None,
         expected: vec![expected.to_owned()],
+        diagnostic_code: syntax_error_code(error).to_owned(),
     })
 }
 
@@ -2386,6 +2843,20 @@ fn syntax_error_span(error: &SyntaxError) -> SourceSpan {
 }
 
 #[requires(true)]
+#[ensures(ret.byte_start == ret.byte_end)]
+fn syntax_error_insertion_span(error: &SyntaxError) -> SourceSpan {
+    match error {
+        SyntaxError::Parse { byte_start, .. } => {
+            SourceSpan::new(None, *byte_start, *byte_start, *byte_start, *byte_start)
+                .expect("syntax error insertion ranges are ordered")
+        }
+        SyntaxError::NotImplemented => {
+            SourceSpan::new(None, 0, 0, 0, 0).expect("zero span is ordered")
+        }
+    }
+}
+
+#[requires(true)]
 #[ensures(!ret.is_empty())]
 fn syntax_error_code(error: &SyntaxError) -> &'static str {
     match error {
@@ -2394,60 +2865,54 @@ fn syntax_error_code(error: &SyntaxError) -> &'static str {
     }
 }
 
+#[requires(!fallback.is_empty())]
+#[ensures(!ret.is_empty())]
+fn syntax_error_expected_items(error: &SyntaxError, fallback: &str) -> Vec<String> {
+    match error {
+        SyntaxError::Parse { expected, .. } if !expected.is_empty() => expected.clone(),
+        SyntaxError::Parse { .. } | SyntaxError::NotImplemented => vec![fallback.to_owned()],
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn recovered_statement_slot_from_morphology_recovery(
-    error: jbotci_tree::RecoveryError<
-        jbotci_morphology::tree::InvalidTreeItem,
-        jbotci_morphology::tree::MissingTreeItem,
-    >,
+    error: jbotci_tree::RecoveryError<jbotci_morphology::tree::RecoveryTreeItem>,
 ) -> RecoveredSyntax<tree::recovered::StatementSyntax> {
-    match error {
-        jbotci_tree::RecoveryError::Invalid { item, .. } => {
-            let data = item.into_data();
-            RecoveredSyntax::invalid(new!(tree::InvalidTreeItem {
-                span: data.span,
-                text: data.text,
-                diagnostic_code: data.diagnostic_code,
-            }))
-        }
-        jbotci_tree::RecoveryError::Missing { item, .. } => {
-            let data = item.into_data();
-            RecoveredSyntax::missing(new!(tree::MissingTreeItem {
-                span: data.span,
-                expected: data.expected,
-            }))
-        }
-    }
+    let data = error.item.into_data();
+    RecoveredSyntax::error(new!(tree::RecoveryTreeItem {
+        span: data.span,
+        text: data.text,
+        expected: data.expected,
+        diagnostic_code: data.diagnostic_code,
+    }))
 }
 
 #[requires(true)]
 #[ensures(matches!(ret, SyntaxError::Parse { .. }))]
 fn syntax_error_for_morphology_recovery(
-    error: &jbotci_tree::RecoveryError<
-        jbotci_morphology::tree::InvalidTreeItem,
-        jbotci_morphology::tree::MissingTreeItem,
-    >,
+    error: &jbotci_tree::RecoveryError<jbotci_morphology::tree::RecoveryTreeItem>,
 ) -> SyntaxError {
-    match error {
-        jbotci_tree::RecoveryError::Invalid { item, .. } => SyntaxError::Parse {
+    if error.item.text.is_some() {
+        SyntaxError::Parse {
             kind: SyntaxErrorKind::UnexpectedWord,
-            byte_start: item.span.byte_start,
-            byte_end: item.span.byte_end,
+            byte_start: error.item.span.byte_start,
+            byte_end: error.item.span.byte_end,
             reason: "recovered morphology item is not a valid syntax token".to_owned(),
-            expected: Vec::new(),
+            expected: error.item.expected.clone(),
             expectations: Vec::new(),
             context: None,
-        },
-        jbotci_tree::RecoveryError::Missing { item, .. } => SyntaxError::Parse {
+        }
+    } else {
+        SyntaxError::Parse {
             kind: SyntaxErrorKind::UnexpectedEnd,
-            byte_start: item.span.byte_start,
-            byte_end: item.span.byte_end,
+            byte_start: error.item.span.byte_start,
+            byte_end: error.item.span.byte_end,
             reason: "missing morphology item cannot be parsed as syntax".to_owned(),
-            expected: item.expected.clone(),
+            expected: error.item.expected.clone(),
             expectations: Vec::new(),
             context: None,
-        },
+        }
     }
 }
 
@@ -2557,13 +3022,16 @@ mod tests {
         let statements = recovered_statement_slots(recovered.parse_tree.as_ref());
         assert_eq!(statements.len(), 2);
         assert_recovered_statement_invalid_text(&statements[0], "mi ku");
-        assert_recovered_statement_invalid_text(&statements[1], "do");
+        assert!(
+            matches!(statements[1], RecoveredSyntax::Valid(_)),
+            "statement after top-level i should be reparsed"
+        );
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_syntax_uses_cu_as_local_boundary() {
+    fn recovered_syntax_does_not_use_cu_as_global_boundary() {
         let morphology =
             jbotci_morphology::segment_words_with_modifiers_recovered("mi cu ku").into_data();
 
@@ -2571,9 +3039,47 @@ mod tests {
 
         assert_eq!(recovered.diagnostics.len(), 1);
         let statements = recovered_statement_slots(recovered.parse_tree.as_ref());
+        assert_eq!(statements.len(), 1);
+        assert_recovered_explicit_cu_bridi_error(&statements[0], "ku", 6, 8);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_reparses_valid_statement_after_top_level_i() {
+        let morphology =
+            jbotci_morphology::segment_words_with_modifiers_recovered("i mi klama cu do i gleki")
+                .into_data();
+
+        let recovered = parse_syntax_tree_recovered(&morphology.result).result;
+
+        assert_eq!(recovered.diagnostics.len(), 1);
+        let statements = recovered_statement_slots(recovered.parse_tree.as_ref());
         assert_eq!(statements.len(), 2);
-        assert_recovered_statement_invalid_text(&statements[0], "mi cu");
-        assert_recovered_statement_invalid_text(&statements[1], "ku");
+        assert_recovered_partial_bridi_continuation_error(&statements[0], "cu do", 11, 16);
+        assert!(
+            matches!(statements[1], RecoveredSyntax::Valid(_)),
+            "statement after second top-level i should parse as valid"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_reparses_valid_side_after_forethought_gi() {
+        let morphology =
+            jbotci_morphology::segment_words_with_modifiers_recovered("ge mi ku gi do").into_data();
+
+        let recovered = parse_syntax_tree_recovered(&morphology.result).result;
+
+        assert_eq!(recovered.diagnostics.len(), 1);
+        let statements = recovered_statement_slots(recovered.parse_tree.as_ref());
+        assert_eq!(statements.len(), 2);
+        assert_recovered_statement_invalid_text(&statements[0], "ge mi ku gi");
+        assert!(
+            matches!(statements[1], RecoveredSyntax::Valid(_)),
+            "statement after forethought GI should be reparsed"
+        );
     }
 
     #[test]
@@ -3108,10 +3614,84 @@ mod tests {
         statement: &RecoveredSyntax<tree::recovered::StatementSyntax>,
         expected: &str,
     ) {
-        let RecoveredSyntax::Invalid(item) = statement else {
-            panic!("expected invalid recovered syntax statement");
+        let RecoveredSyntax::Error(item) = statement else {
+            panic!("expected error recovered syntax statement");
         };
-        assert_eq!(item.text, expected);
+        assert_eq!(item.text.as_deref(), Some(expected));
+    }
+
+    #[requires(!expected.is_empty())]
+    #[ensures(true)]
+    fn assert_recovered_partial_bridi_continuation_error(
+        statement: &RecoveredSyntax<tree::recovered::StatementSyntax>,
+        expected: &str,
+        char_start: usize,
+        char_end: usize,
+    ) {
+        let RecoveredSyntax::Valid(tree::recovered::StatementSyntax::Bridi(bridi)) = statement
+        else {
+            panic!("expected recovered bridi statement");
+        };
+        let RecoveredSyntax::Valid(bridi) = bridi.as_ref() else {
+            panic!("expected valid recovered bridi shell");
+        };
+        assert_eq!(bridi.leading_terms.len(), 1);
+        let RecoveredSyntax::Valid(bridi_tail) = bridi.bridi_tail.as_ref() else {
+            panic!("expected valid recovered bridi tail shell");
+        };
+        let RecoveredSyntax::Valid(afterthought) = bridi_tail.first.as_ref() else {
+            panic!("expected valid recovered afterthought bridi tail shell");
+        };
+        let RecoveredSyntax::Valid(bo_grouped) = afterthought.first.as_ref() else {
+            panic!("expected valid recovered bo-grouped bridi tail shell");
+        };
+        let RecoveredSyntax::Valid(simple_tail) = bo_grouped.first.as_ref() else {
+            panic!("expected valid recovered simple bridi tail shell");
+        };
+        let tree::recovered::SimpleBridiTailSyntax::SelbriBridiTail { selbri, .. } = simple_tail
+        else {
+            panic!("expected selbri bridi tail before recovered error");
+        };
+        let RecoveredSyntax::Valid(tree::recovered::SelbriSyntax::SelbriWord(selbri_word)) =
+            selbri.as_ref()
+        else {
+            panic!("expected valid selbri word before recovered error");
+        };
+        let RecoveredSyntax::Valid(selbri_word) = selbri_word else {
+            panic!("expected valid selbri word token before recovered error");
+        };
+        assert_eq!(recovered_token_text(selbri_word), "klama");
+        let Some(RecoveredSyntax::Error(item)) = afterthought.continuations.first() else {
+            panic!("expected recovered bridi-tail continuation error");
+        };
+        assert_eq!(item.text.as_deref(), Some(expected));
+        assert_eq!(item.span.char_start, char_start);
+        assert_eq!(item.span.char_end, char_end);
+    }
+
+    #[requires(!expected.is_empty())]
+    #[ensures(true)]
+    fn assert_recovered_explicit_cu_bridi_error(
+        statement: &RecoveredSyntax<tree::recovered::StatementSyntax>,
+        expected: &str,
+        char_start: usize,
+        char_end: usize,
+    ) {
+        let RecoveredSyntax::Valid(tree::recovered::StatementSyntax::Bridi(bridi)) = statement
+        else {
+            panic!("expected recovered bridi statement");
+        };
+        let RecoveredSyntax::Valid(bridi) = bridi.as_ref() else {
+            panic!("expected valid recovered bridi shell");
+        };
+        assert_eq!(bridi.leading_terms.len(), 1);
+        assert!(bridi.cu.is_some(), "expected explicit cu to be preserved");
+        let RecoveredSyntax::Error(item) = bridi.bridi_tail.as_ref() else {
+            panic!("expected recovered bridi-tail error after explicit cu");
+        };
+        assert_eq!(item.text.as_deref(), Some(expected));
+        assert_eq!(item.span.char_start, char_start);
+        assert_eq!(item.span.char_end, char_end);
     }
 
     #[requires(true)]

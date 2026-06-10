@@ -11,7 +11,7 @@ use crate::{
     RecoveredMorphologySegmentAttempt, Selmaho, Verbatim, Word, WordKind, WordLike, WordLikeData,
     ZoiDelimiterDetailKind, canonical_text_eq, canonical_text_is_all, canonicalize_text,
     erasure_selmaho,
-    tree::{self, InvalidTreeItem, MissingTreeItem},
+    tree::{self, RecoveryTreeItem},
 };
 
 #[requires(true)]
@@ -1062,8 +1062,13 @@ impl<'a> Segmenter<'a> {
                     quoted_text: Box::new(tree::recovered::Recovered::valid(
                         self.recovered_verbatim(quoted_start, quoted_end),
                     )),
-                    closing_delimiter: Box::new(tree::recovered::Recovered::missing(
-                        self.missing_item_at(quoted_end, "ZOI closing delimiter"),
+                    closing_delimiter: Box::new(tree::recovered::Recovered::error(
+                        self.recovery_item_at(
+                            quoted_end,
+                            None,
+                            "ZOI closing delimiter",
+                            "morphology.unterminated-zoi-quote",
+                        ),
                     )),
                 }
             }
@@ -1081,8 +1086,13 @@ impl<'a> Segmenter<'a> {
                     quoted_text: Box::new(tree::recovered::Recovered::valid(
                         self.recovered_verbatim(quoted_start, quoted_end),
                     )),
-                    closing_delimiter: Box::new(tree::recovered::Recovered::missing(
-                        self.missing_item_at(quoted_end, "ZOI closing delimiter"),
+                    closing_delimiter: Box::new(tree::recovered::Recovered::error(
+                        self.recovery_item_at(
+                            quoted_end,
+                            None,
+                            "ZOI closing delimiter",
+                            "morphology.unterminated-zoi-quote",
+                        ),
                     )),
                 }
             }
@@ -1102,15 +1112,19 @@ impl<'a> Segmenter<'a> {
         let opening_end = self.recovery_boundary(opening_start);
         let opening = if opening_start < opening_end {
             self.index = opening_end;
-            tree::recovered::Recovered::invalid(self.invalid_item(
+            tree::recovered::Recovered::error(self.invalid_item(
                 opening_start,
                 opening_end,
+                "ZOI opening delimiter",
                 morphology_error_code(&error),
             ))
         } else {
-            tree::recovered::Recovered::missing(
-                self.missing_item_at(opening_start, "ZOI opening delimiter"),
-            )
+            tree::recovered::Recovered::error(self.recovery_item_at(
+                opening_start,
+                None,
+                "ZOI opening delimiter",
+                morphology_error_code(&error),
+            ))
         };
         let delimiter_text = (opening_start < opening_end)
             .then(|| self.slice(opening_start, opening_end).to_owned());
@@ -1129,13 +1143,12 @@ impl<'a> Segmenter<'a> {
                 quoted_text: Box::new(tree::recovered::Recovered::valid(
                     self.recovered_verbatim(quoted_start, quoted_end),
                 )),
-                closing_delimiter: Box::new(tree::recovered::Recovered::invalid(
-                    self.invalid_item(
-                        close_start,
-                        close_end,
-                        MorphologyErrorKind::InvalidZoiDelimiter.code(),
-                    ),
-                )),
+                closing_delimiter: Box::new(tree::recovered::Recovered::error(self.invalid_item(
+                    close_start,
+                    close_end,
+                    "ZOI closing delimiter",
+                    MorphologyErrorKind::InvalidZoiDelimiter.code(),
+                ))),
             };
         }
 
@@ -1158,9 +1171,12 @@ impl<'a> Segmenter<'a> {
             quoted_text: Box::new(tree::recovered::Recovered::valid(
                 self.recovered_verbatim(quoted_start, quoted_end),
             )),
-            closing_delimiter: Box::new(tree::recovered::Recovered::missing(
-                self.missing_item_at(quoted_end, "ZOI closing delimiter"),
-            )),
+            closing_delimiter: Box::new(tree::recovered::Recovered::error(self.recovery_item_at(
+                quoted_end,
+                None,
+                "ZOI closing delimiter",
+                "morphology.unterminated-zoi-quote",
+            ))),
         }
     }
 
@@ -1281,7 +1297,12 @@ impl<'a> Segmenter<'a> {
         loop {
             self.skip_separators();
             if self.index == self.chars.len() {
-                let missing = self.missing_item_at(self.index, "LEhU closing delimiter");
+                let missing = self.recovery_item_at(
+                    self.index,
+                    None,
+                    "LEhU closing delimiter",
+                    MorphologyErrorKind::ExpectedWord.code(),
+                );
                 diagnostics.push(self.invalid_span_with_detail(
                     MorphologyErrorKind::ExpectedWord,
                     self.index,
@@ -1300,7 +1321,7 @@ impl<'a> Segmenter<'a> {
                         crate::recovered_word_from_valid(lohu),
                     )),
                     quoted_words,
-                    lehu: Box::new(tree::recovered::Recovered::missing(missing)),
+                    lehu: Box::new(tree::recovered::Recovered::error(missing)),
                 }];
             }
             let word_start = self.index;
@@ -1327,7 +1348,7 @@ impl<'a> Segmenter<'a> {
                 Err(error) => {
                     diagnostics.push(error.clone());
                     if let Some(item) = self.invalid_item_for_recovery(error, word_start) {
-                        quoted_words.push(tree::recovered::Recovered::invalid(item));
+                        quoted_words.push(tree::recovered::Recovered::error(item));
                     }
                 }
             }
@@ -2164,24 +2185,29 @@ impl<'a> Segmenter<'a> {
             return Vec::new();
         };
         vec![tree::recovered::WordLike::PlainWord(
-            tree::recovered::Recovered::invalid(item),
+            tree::recovered::Recovered::error(item),
         )]
     }
 
     #[requires(fallback_start <= self.chars.len())]
-    #[ensures(ret.as_ref().is_none_or(|item| !item.text.is_empty()))]
+    #[ensures(ret.as_ref().is_none_or(|item| item.text.as_ref().is_some_and(|text| !text.is_empty())))]
     fn invalid_item_for_recovery(
         &mut self,
         error: MorphologyError,
         fallback_start: usize,
-    ) -> Option<InvalidTreeItem> {
+    ) -> Option<RecoveryTreeItem> {
         let start = fallback_start.min(self.chars.len());
         let end = self.recovery_boundary(start);
         if start == end {
             return None;
         }
         self.index = end;
-        Some(self.invalid_item(start, end, morphology_error_code(&error)))
+        Some(self.invalid_item(
+            start,
+            end,
+            recovery_expected_for_morphology_error(&error),
+            morphology_error_code(&error),
+        ))
     }
 
     #[requires(start <= self.chars.len())]
@@ -2202,28 +2228,48 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(start < end && end <= self.chars.len())]
-    #[ensures(!ret.text.is_empty())]
-    fn invalid_item(&self, start: usize, end: usize, diagnostic_code: &str) -> InvalidTreeItem {
-        new!(InvalidTreeItem {
+    #[requires(!expected.is_empty())]
+    #[requires(!diagnostic_code.is_empty())]
+    #[ensures(ret.text.as_ref().is_some_and(|text| !text.is_empty()))]
+    fn invalid_item(
+        &self,
+        start: usize,
+        end: usize,
+        expected: &str,
+        diagnostic_code: &str,
+    ) -> RecoveryTreeItem {
+        new!(RecoveryTreeItem {
             span: Arc::new(
                 self.source_span(start, end)
                     .expect("invalid recovery ranges are derived from source boundaries")
             ),
-            text: self.slice(start, end).to_owned(),
+            text: Some(self.slice(start, end).to_owned()),
+            expected: vec![expected.to_owned()],
             diagnostic_code: diagnostic_code.to_owned(),
         })
     }
 
     #[requires(index <= self.chars.len())]
+    #[requires(text.is_none())]
     #[requires(!expected.is_empty())]
+    #[requires(!diagnostic_code.is_empty())]
     #[ensures(!ret.expected.is_empty())]
-    fn missing_item_at(&self, index: usize, expected: &str) -> MissingTreeItem {
-        new!(MissingTreeItem {
+    #[ensures(ret.text.is_none())]
+    fn recovery_item_at(
+        &self,
+        index: usize,
+        text: Option<String>,
+        expected: &str,
+        diagnostic_code: &str,
+    ) -> RecoveryTreeItem {
+        new!(RecoveryTreeItem {
             span: Arc::new(
                 self.source_span(index, index)
                     .expect("missing recovery ranges are derived from source boundaries")
             ),
+            text,
             expected: vec![expected.to_owned()],
+            diagnostic_code: diagnostic_code.to_owned(),
         })
     }
 
@@ -2338,6 +2384,23 @@ fn morphology_error_code(error: &MorphologyError) -> &'static str {
         MorphologyError::Invalid { kind, .. } => kind.code(),
         MorphologyError::UnterminatedZoiQuote { .. } => "morphology.unterminated-zoi-quote",
         MorphologyError::SourceSpan(_) => "morphology.source-span",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn recovery_expected_for_morphology_error(error: &MorphologyError) -> &'static str {
+    match error {
+        MorphologyError::Invalid {
+            kind: MorphologyErrorKind::InvalidZoiDelimiter,
+            ..
+        } => "ZOI delimiter",
+        MorphologyError::Invalid {
+            kind: MorphologyErrorKind::InvalidQuoteMarker,
+            ..
+        } => "quote marker",
+        MorphologyError::UnterminatedZoiQuote { .. } => "ZOI closing delimiter",
+        MorphologyError::Invalid { .. } | MorphologyError::SourceSpan(_) => "Lojban word",
     }
 }
 

@@ -40,17 +40,22 @@ use jbotci_jvozba::{
 };
 use jbotci_morphology::{
     MORPHOLOGY_TRACE_FILTERS, MorphologyOptions, MorphologyWarning, Phonemes, WordLike,
-    segment_words_with_modifiers_with_options_and_source_id_attempt,
+    segment_words_with_modifiers_recovered_with_options_and_source_id,
 };
 use jbotci_output::{
     BracketRenderOptions, DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticDetailMode,
     DiagnosticRenderOptions, GlideMark, GlyphStyle, JsonRenderOptions, LojbanScript,
     PhonemeRenderOptions, StressMark, TraceRenderOptions, TreeRenderOptions,
-    compact_morphology_json_string_with_options, compact_syntax_json_string_with_options,
+    compact_morphology_json_string_with_options,
+    compact_recovered_morphology_json_string_with_options,
+    compact_recovered_syntax_json_string_with_options, compact_syntax_json_string_with_options,
     format_definition_or_notes_line_with_indexed_places, ipa_morphology_text,
     pretty_brackets_with_options, pretty_morphology_brackets_with_options,
-    pretty_morphology_tree_with_options, pretty_tree_with_options,
-    reference_display_model_for_syntax_tree, render_diagnostics, render_trace_report,
+    pretty_morphology_tree_with_options, pretty_recovered_brackets_with_options,
+    pretty_recovered_morphology_brackets_with_options,
+    pretty_recovered_morphology_tree_with_options, pretty_recovered_tree_with_options,
+    pretty_tree_with_options, reference_display_model_for_syntax_tree, render_diagnostics,
+    render_trace_report,
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
@@ -61,7 +66,7 @@ use jbotci_search::vlacku::{
 use jbotci_semantics::references::ReferenceAnalysis;
 use jbotci_source::SourceId;
 use jbotci_syntax::{
-    ParseOptions, SYNTAX_TRACE_FILTERS, parse_syntax_tree_with_source_and_options_attempt,
+    ParseOptions, SYNTAX_TRACE_FILTERS, parse_syntax_tree_recovered_with_source_and_options,
 };
 #[cfg(feature = "grammar-debug")]
 use jbotci_syntax::{syntax_grammar_ebnf, syntax_grammar_svg};
@@ -1206,7 +1211,7 @@ fn run_cli_command<WOut: Write, WErr: Write>(
             let morphology_options = MorphologyOptions::default()
                 .with_dialect_definition(&dialect)
                 .with_trace_options(morphology_trace_options);
-            let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+            let attempt = segment_words_with_modifiers_recovered_with_options_and_source_id(
                 &text,
                 &morphology_options,
                 Some(SourceId(source_label.clone())),
@@ -1217,35 +1222,17 @@ fn run_cli_command<WOut: Write, WErr: Write>(
                 color_policy.stderr,
                 diagnostic_terminal_width,
             );
-            let words = match attempt.result {
-                Ok(words) => words,
-                Err(error) => {
-                    stderr.write_all(trace_stderr.as_bytes())?;
-                    let mut diagnostics = morphology_warning_diagnostics(
-                        &attempt.warnings,
-                        Some(SourceId(source_label.clone())),
-                        &text,
-                    );
-                    diagnostics
-                        .push(error.to_diagnostic(Some(SourceId(source_label.clone())), &text));
-                    write_source_diagnostics(
-                        stderr,
-                        &source_label,
-                        &text,
-                        &diagnostics,
-                        color_policy.stderr,
-                        diagnostic_detail,
-                        glyphs,
-                        diagnostic_terminal_width,
-                    )?;
-                    return Ok(CliStatus::Failure);
-                }
-            };
             stderr.write_all(trace_stderr.as_bytes())?;
-            let diagnostics = morphology_warning_diagnostics(
+            let mut diagnostics = morphology_warning_diagnostics(
                 &attempt.warnings,
                 Some(SourceId(source_label.clone())),
                 &text,
+            );
+            diagnostics.extend(
+                attempt
+                    .diagnostics
+                    .iter()
+                    .map(|error| error.to_diagnostic(Some(SourceId(source_label.clone())), &text)),
             );
             write_source_diagnostics(
                 stderr,
@@ -1259,10 +1246,75 @@ fn run_cli_command<WOut: Write, WErr: Write>(
             )?;
             let phoneme_options =
                 phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
+            let recovered_words = attempt.result;
+            let valid_words = if attempt.diagnostics.is_empty() {
+                recovered_words
+                    .iter()
+                    .cloned()
+                    .map(jbotci_morphology::tree::recovered::WordLike::try_into_valid)
+                    .collect::<Result<Vec<_>, _>>()
+                    .ok()
+            } else {
+                None
+            };
+            if let Some(words) = valid_words {
+                match input.format {
+                    VlaseiFormat::Json => {
+                        let rendered = compact_morphology_json_string_with_options(
+                            &words,
+                            JsonRenderOptions {
+                                indent: input.indent.unwrap_or(2),
+                                phonemes: phoneme_options,
+                                show_elided: false,
+                            },
+                        )?;
+                        writeln!(stdout, "{}", colorize_json(&rendered, color_policy.stdout))?;
+                    }
+                    VlaseiFormat::Brackets => {
+                        let rendered = pretty_morphology_brackets_with_options(
+                            &words,
+                            &text,
+                            BracketRenderOptions {
+                                color: color_policy.stdout,
+                                phonemes: phoneme_options,
+                                script: LojbanScript::Latin,
+                                glyphs,
+                                decompose_lujvo: input.decompose_lujvo,
+                                insert_hair_space: false,
+                                show_elided: false,
+                            },
+                        )?;
+                        writeln!(stdout, "{rendered}")?;
+                    }
+                    VlaseiFormat::Tree => {
+                        let rendered = pretty_morphology_tree_with_options(
+                            &words,
+                            &text,
+                            TreeRenderOptions {
+                                color: color_policy.stdout,
+                                indent: input.indent.unwrap_or(2),
+                                phonemes: phoneme_options,
+                                glyphs,
+                                show_spans: input.show_spans,
+                                show_refs: false,
+                                decompose_lujvo: input.decompose_lujvo,
+                                show_elided: false,
+                            },
+                        )?;
+                        writeln!(stdout, "{rendered}")?;
+                    }
+                    VlaseiFormat::Ipa => {
+                        let rendered = ipa_morphology_text(&words, &text)?;
+                        writeln!(stdout, "{rendered}")?;
+                    }
+                    VlaseiFormat::Raw => write_debug_output(stdout, &words, input.indent)?,
+                }
+                return Ok(CliStatus::Success);
+            }
             match input.format {
                 VlaseiFormat::Json => {
-                    let rendered = compact_morphology_json_string_with_options(
-                        &words,
+                    let rendered = compact_recovered_morphology_json_string_with_options(
+                        &recovered_words,
                         JsonRenderOptions {
                             indent: input.indent.unwrap_or(2),
                             phonemes: phoneme_options,
@@ -1272,8 +1324,8 @@ fn run_cli_command<WOut: Write, WErr: Write>(
                     writeln!(stdout, "{}", colorize_json(&rendered, color_policy.stdout))?;
                 }
                 VlaseiFormat::Brackets => {
-                    let rendered = pretty_morphology_brackets_with_options(
-                        &words,
+                    let rendered = pretty_recovered_morphology_brackets_with_options(
+                        &recovered_words,
                         &text,
                         BracketRenderOptions {
                             color: color_policy.stdout,
@@ -1288,8 +1340,8 @@ fn run_cli_command<WOut: Write, WErr: Write>(
                     writeln!(stdout, "{rendered}")?;
                 }
                 VlaseiFormat::Tree => {
-                    let rendered = pretty_morphology_tree_with_options(
-                        &words,
+                    let rendered = pretty_recovered_morphology_tree_with_options(
+                        &recovered_words,
                         &text,
                         TreeRenderOptions {
                             color: color_policy.stdout,
@@ -1304,13 +1356,10 @@ fn run_cli_command<WOut: Write, WErr: Write>(
                     )?;
                     writeln!(stdout, "{rendered}")?;
                 }
-                VlaseiFormat::Ipa => {
-                    let rendered = ipa_morphology_text(&words, &text)?;
-                    writeln!(stdout, "{rendered}")?;
-                }
-                VlaseiFormat::Raw => write_debug_output(stdout, &words, input.indent)?,
+                VlaseiFormat::Ipa => {}
+                VlaseiFormat::Raw => write_debug_output(stdout, &recovered_words, input.indent)?,
             }
-            Ok(CliStatus::Success)
+            Ok(CliStatus::Failure)
         }
         Command::Gentufa(mut input) => {
             let glyphs = cli_glyph_style(input.ascii);
@@ -2696,7 +2745,7 @@ fn render_gentufa(
     let morphology_options = MorphologyOptions::default()
         .with_dialect_definition(&dialect)
         .with_trace_options(morphology_trace_options);
-    let morphology_attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+    let morphology_attempt = segment_words_with_modifiers_recovered_with_options_and_source_id(
         &text,
         &morphology_options,
         Some(SourceId(source_label.clone())),
@@ -2712,61 +2761,38 @@ fn render_gentufa(
         Some(SourceId(source_label.clone())),
         &text,
     );
-    let words = match morphology_attempt.result {
-        Ok(words) => words,
-        Err(error) => {
-            let mut diagnostics = morphology_diagnostics;
-            diagnostics.push(error.to_diagnostic(Some(SourceId(source_label.clone())), &text));
-            let mut stderr = morphology_trace_stderr;
-            stderr.push_str(&render_source_diagnostics(
-                &source_label,
-                &text,
-                &diagnostics,
-                color_policy.stderr,
-                diagnostic_detail,
-                glyphs,
-                diagnostic_terminal_width,
-            )?);
-            return Ok(new!(GentufaRendered {
-                status: CliStatus::Failure,
-                stdout: Vec::new(),
-                stderr,
-            }));
-        }
-    };
+    let recovered_words = morphology_attempt.result;
+    let morphology_has_errors = !morphology_attempt.diagnostics.is_empty();
     let parse_options = ParseOptions::default()
         .with_dialect_definition(&dialect)
         .with_trace_options(syntax_trace_options);
-    let parsed = parse_syntax_tree_with_source_and_options_attempt(&words, &text, &parse_options);
+    let parsed = parse_syntax_tree_recovered_with_source_and_options(
+        &recovered_words,
+        Some(&text),
+        &parse_options,
+    );
     let trace_stderr = render_cli_trace(
         parsed.trace.as_ref(),
         color_policy.stderr,
         diagnostic_terminal_width,
     );
-    let parsed = match parsed.result {
-        Ok(parsed) => parsed,
-        Err(error) => {
-            let mut diagnostics = morphology_diagnostics;
-            diagnostics.push(error.to_diagnostic(Some(SourceId(source_label.clone())), &text));
-            let mut stderr = morphology_trace_stderr;
-            stderr.push_str(&trace_stderr);
-            stderr.push_str(&render_source_diagnostics(
-                &source_label,
-                &text,
-                &diagnostics,
-                color_policy.stderr,
-                diagnostic_detail,
-                glyphs,
-                diagnostic_terminal_width,
-            )?);
-            return Ok(new!(GentufaRendered {
-                status: CliStatus::Failure,
-                stdout: Vec::new(),
-                stderr,
-            }));
-        }
-    };
+    let parsed = parsed.result;
+    let syntax_has_errors = !parsed.diagnostics.is_empty();
     let mut diagnostics = morphology_diagnostics;
+    diagnostics.extend(
+        morphology_attempt
+            .diagnostics
+            .iter()
+            .map(|error| error.to_diagnostic(Some(SourceId(source_label.clone())), &text)),
+    );
+    if !morphology_has_errors {
+        diagnostics.extend(
+            parsed
+                .diagnostics
+                .iter()
+                .map(|error| error.to_diagnostic(Some(SourceId(source_label.clone())), &text)),
+        );
+    }
     diagnostics.extend(
         parsed
             .warnings
@@ -2785,8 +2811,27 @@ fn render_gentufa(
         diagnostic_terminal_width,
     )?);
     let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
+    let valid_words = recovered_words
+        .iter()
+        .cloned()
+        .map(jbotci_morphology::tree::recovered::WordLike::try_into_valid)
+        .collect::<Result<Vec<_>, _>>()
+        .ok();
+    let recovered_parse_tree = parsed.parse_tree;
+    let valid_parse_tree = if !morphology_has_errors && !syntax_has_errors {
+        recovered_parse_tree.as_ref().clone().try_into_valid().ok()
+    } else {
+        None
+    };
+    let has_errors = morphology_has_errors
+        || syntax_has_errors
+        || valid_words.is_none()
+        || valid_parse_tree.is_none();
     let mut stdout = String::new();
-    if input.show_defs {
+    if !has_errors && input.show_defs {
+        let words = valid_words
+            .as_ref()
+            .expect("valid parse has valid morphology");
         let cards =
             dictionary_cards_for_word_likes(jbotci_dictionary_data::english(), words.as_slice());
         if !cards.is_empty() {
@@ -2808,9 +2853,22 @@ fn render_gentufa(
     }
     match input.format {
         GentufaFormat::Blocks => {
+            if has_errors {
+                return Ok(new!(GentufaRendered {
+                    status: CliStatus::Failure,
+                    stdout: Vec::new(),
+                    stderr,
+                }));
+            }
+            let words = valid_words
+                .as_ref()
+                .expect("valid parse has valid morphology");
+            let parse_tree = valid_parse_tree
+                .as_ref()
+                .expect("valid parse has valid syntax tree");
             let output_type = resolve_gentufa_blocks_output_type(&input)?;
             let stdout = render_gentufa_blocks_output(
-                &parsed.parse_tree,
+                parse_tree,
                 &text,
                 words.as_slice(),
                 phoneme_options,
@@ -2824,59 +2882,93 @@ fn render_gentufa(
             }));
         }
         GentufaFormat::Brackets => {
-            let rendered = pretty_brackets_with_options(
-                &parsed.parse_tree,
-                &text,
-                BracketRenderOptions {
-                    color: color_policy.stdout,
-                    phonemes: phoneme_options,
-                    script: LojbanScript::Latin,
-                    glyphs,
-                    decompose_lujvo: input.decompose_lujvo,
-                    insert_hair_space: false,
-                    show_elided: input.show_elided,
-                },
-            )?;
+            let options = BracketRenderOptions {
+                color: color_policy.stdout,
+                phonemes: phoneme_options,
+                script: LojbanScript::Latin,
+                glyphs,
+                decompose_lujvo: input.decompose_lujvo,
+                insert_hair_space: false,
+                show_elided: input.show_elided,
+            };
+            let rendered = if has_errors {
+                pretty_recovered_brackets_with_options(&recovered_parse_tree, &text, options)?
+            } else {
+                pretty_brackets_with_options(
+                    valid_parse_tree
+                        .as_ref()
+                        .expect("valid parse has valid syntax tree"),
+                    &text,
+                    options,
+                )?
+            };
             stdout.push_str(&rendered);
             stdout.push('\n');
         }
         GentufaFormat::Raw => {
-            stdout.push_str(&debug_output_string(&parsed.parse_tree, input.indent));
+            if has_errors {
+                stdout.push_str(&debug_output_string(&recovered_parse_tree, input.indent));
+            } else {
+                stdout.push_str(&debug_output_string(
+                    valid_parse_tree
+                        .as_ref()
+                        .expect("valid parse has valid syntax tree"),
+                    input.indent,
+                ));
+            }
         }
         GentufaFormat::Tree => {
-            let rendered = pretty_tree_with_options(
-                &parsed.parse_tree,
-                &text,
-                TreeRenderOptions {
-                    color: color_policy.stdout,
-                    indent: input.indent.unwrap_or(2),
-                    phonemes: phoneme_options,
-                    glyphs,
-                    show_spans: input.show_spans,
-                    show_refs: input.show_refs,
-                    decompose_lujvo: input.decompose_lujvo,
-                    show_elided: input.show_elided,
-                },
-            )?;
+            let options = TreeRenderOptions {
+                color: color_policy.stdout,
+                indent: input.indent.unwrap_or(2),
+                phonemes: phoneme_options,
+                glyphs,
+                show_spans: input.show_spans,
+                show_refs: input.show_refs,
+                decompose_lujvo: input.decompose_lujvo,
+                show_elided: input.show_elided,
+            };
+            let rendered = if has_errors {
+                pretty_recovered_tree_with_options(&recovered_parse_tree, &text, options)?
+            } else {
+                pretty_tree_with_options(
+                    valid_parse_tree
+                        .as_ref()
+                        .expect("valid parse has valid syntax tree"),
+                    &text,
+                    options,
+                )?
+            };
             stdout.push_str(&rendered);
             stdout.push('\n');
         }
         GentufaFormat::Json => {
-            let rendered = compact_syntax_json_string_with_options(
-                &parsed.parse_tree,
-                JsonRenderOptions {
-                    indent: input.indent.unwrap_or(2),
-                    phonemes: phoneme_options,
-                    show_elided: input.show_elided,
-                },
-            )?;
+            let options = JsonRenderOptions {
+                indent: input.indent.unwrap_or(2),
+                phonemes: phoneme_options,
+                show_elided: input.show_elided,
+            };
+            let rendered = if has_errors {
+                compact_recovered_syntax_json_string_with_options(&recovered_parse_tree, options)?
+            } else {
+                compact_syntax_json_string_with_options(
+                    valid_parse_tree
+                        .as_ref()
+                        .expect("valid parse has valid syntax tree"),
+                    options,
+                )?
+            };
             stdout.push_str(&colorize_json(&rendered, color_policy.stdout));
             stdout.push('\n');
         }
     }
     let stdout = stdout.into_bytes();
     Ok(new!(GentufaRendered {
-        status: CliStatus::Success,
+        status: if has_errors {
+            CliStatus::Failure
+        } else {
+            CliStatus::Success
+        },
         stdout,
         stderr,
     }))
@@ -4952,7 +5044,7 @@ mod tests {
         );
 
         assert_eq!(run.status, CliStatus::Failure);
-        assert!(run.stdout.is_empty());
+        assert!(run.stdout.contains("‼xlaglymlu‼"), "{}", run.stdout);
         assert!(run.stderr.contains("morphology.invalid-lujvo"));
         assert!(run.stderr.contains("after parsing"));
         assert!(run.stderr.contains("`xlá`"));
@@ -4967,15 +5059,20 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn vlasei_detailed_error_reports_zoi_delimiter_reason() {
-        let run = run_cli_capture(&["jbotci", "vlasei", "--detailed-errors", "zoi"], false);
+        let run = run_cli_capture(
+            &["jbotci", "vlasei", "--detailed-errors", "zoi y broda y"],
+            false,
+        );
 
         assert_eq!(run.status, CliStatus::Failure);
-        assert!(run.stdout.is_empty());
+        assert!(run.stdout.contains("‼y‼"), "{}", run.stdout);
         assert!(run.stderr.contains("morphology.invalid-zoi-delimiter"));
-        assert!(run.stderr.contains("ZOI requires an"));
+        assert!(
+            run.stderr
+                .contains("ZOI delimiter must be a single non-y word")
+        );
         let compact_stderr = run.stderr.split_whitespace().collect::<Vec<_>>().join(" ");
-        assert!(compact_stderr.contains("opening delimiter word after the quote marker"));
-        assert!(!compact_stderr.contains("reason: ZOI delimiter must be a single non-y word"));
+        assert!(compact_stderr.contains("reason: y is grammar noise"));
     }
 
     #[test]
@@ -5066,13 +5163,232 @@ mod tests {
         let status = run_cli(cli, &mut output, &mut error, false).expect("vlasei run");
 
         assert_eq!(status, CliStatus::Failure);
-        assert!(output.is_empty());
+        let stdout = String::from_utf8(output).expect("stdout utf8");
+        assert!(stdout.contains("‼aa‼"), "{stdout}");
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("morphology.vowel-hiatus"));
         assert!(stderr.contains("vowels in hiatus are not allowed"));
         assert!(stderr.contains("aa"));
         assert!(!stderr.contains("jbotci:"));
         assert!(!stderr.contains("\x1b["));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_recovered_invalid_word_json_outputs_error_slot() {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlasei",
+                "--color=never",
+                "--format",
+                "json",
+                "mi",
+                "@@@",
+                "do",
+            ],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Failure);
+        let value: serde_json::Value =
+            serde_json::from_str(&run.stdout).expect("recovered morphology JSON");
+        assert_eq!(value[1]["PlainWord"]["Error"]["text"], "@@@");
+        assert_eq!(
+            value[1]["PlainWord"]["Error"]["expected"],
+            serde_json::json!(["Lojban word"])
+        );
+        assert_eq!(
+            value[1]["PlainWord"]["Error"]["diagnostic_code"],
+            "morphology.invalid-character"
+        );
+        assert!(run.stderr.contains("morphology.invalid-character"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_recovered_invalid_word_inside_lohu_tree_keeps_quote() {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlasei",
+                "--color=never",
+                "--format",
+                "tree",
+                "lo'u broda @@@ le'u",
+            ],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Failure);
+        assert!(run.stdout.contains("QuotedWords"), "{}", run.stdout);
+        assert!(run.stdout.contains("Error {"), "{}", run.stdout);
+        assert!(!run.stdout.contains("RecoveryError"), "{}", run.stdout);
+        assert!(run.stdout.contains("text: \"@@@\""), "{}", run.stdout);
+        assert!(run.stderr.contains("morphology.invalid-character"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_recovered_invalid_word_brackets_marks_error_text() {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlasei",
+                "--color=never",
+                "--format",
+                "brackets",
+                "coi",
+                "@@@",
+                "do",
+            ],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Failure);
+        assert!(run.stdout.contains("‼@@@‼"), "{}", run.stdout);
+        assert!(!run.stdout.contains("recovery-error"), "{}", run.stdout);
+        assert!(run.stderr.contains("morphology.invalid-character"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_recovered_invalid_word_tree_shows_error_span() {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlasei",
+                "--color=never",
+                "--format",
+                "tree",
+                "--show-spans",
+                "coi",
+                "@@@",
+                "do",
+            ],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Failure);
+        assert!(run.stdout.contains("Error @[4‥7)"), "{}", run.stdout);
+        assert!(run.stdout.contains("text: \"@@@\""), "{}", run.stdout);
+        assert!(run.stderr.contains("morphology.invalid-character"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_recovered_invalid_zoi_delimiter_json_outputs_consumed_slot() {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlasei",
+                "--color=never",
+                "--format",
+                "json",
+                "zoi @@@ foo @@@",
+            ],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Failure);
+        let value: serde_json::Value =
+            serde_json::from_str(&run.stdout).expect("recovered ZOI JSON");
+        let quote = &value[0]["DelimitedNonLojbanQuote"];
+        assert_eq!(quote["opening_delimiter"]["Error"]["text"], "@@@");
+        assert_eq!(
+            quote["opening_delimiter"]["Error"]["expected"],
+            serde_json::json!(["ZOI opening delimiter"])
+        );
+        assert_eq!(quote["closing_delimiter"]["Error"]["text"], "@@@");
+        assert_eq!(
+            quote["closing_delimiter"]["Error"]["expected"],
+            serde_json::json!(["ZOI closing delimiter"])
+        );
+        assert!(run.stderr.contains("morphology.invalid-character"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_recovered_unclosed_zoi_json_outputs_insertion_slot() {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlasei",
+                "--color=never",
+                "--format",
+                "json",
+                "zoi gy foo bar",
+            ],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Failure);
+        let value: serde_json::Value =
+            serde_json::from_str(&run.stdout).expect("recovered ZOI JSON");
+        let closing = &value[0]["DelimitedNonLojbanQuote"]["closing_delimiter"]["Error"];
+        assert_eq!(closing["text"], serde_json::Value::Null);
+        assert_eq!(
+            closing["expected"],
+            serde_json::json!(["ZOI closing delimiter"])
+        );
+        assert_eq!(
+            closing["diagnostic_code"],
+            "morphology.unterminated-zoi-quote"
+        );
+        assert!(run.stderr.contains("morphology.unterminated-zoi-quote"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_recovered_unclosed_zoi_brackets_marks_insertion() {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlasei",
+                "--color=never",
+                "--format",
+                "brackets",
+                "zoi",
+                "gy",
+                "foo",
+                "bar",
+            ],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Failure);
+        assert!(run.stdout.contains("‼‼"), "{}", run.stdout);
+        assert!(run.stderr.contains("morphology.unterminated-zoi-quote"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlasei_recovered_error_ipa_outputs_diagnostics_only() {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlasei",
+                "--color=never",
+                "--format",
+                "ipa",
+                "mi",
+                "@@@",
+                "do",
+            ],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Failure);
+        assert!(run.stdout.is_empty(), "{}", run.stdout);
+        assert!(run.stderr.contains("morphology.invalid-character"));
     }
 
     #[test]
@@ -5493,7 +5809,8 @@ mod tests {
             let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
 
             assert_eq!(status, CliStatus::Failure);
-            assert!(output.is_empty());
+            let stdout = String::from_utf8(output).expect("stdout utf8");
+            assert!(stdout.contains("gléki ‼ku‼"), "{stdout}");
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
             assert!(stderr.contains("unexpected cmavo"));
@@ -5505,6 +5822,385 @@ mod tests {
             assert!(stderr.contains("ku"));
             assert!(!stderr.contains("jbotci:"));
             assert!(!stderr.contains("\x1b["));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_syntax_tree_splits_at_i() {
+        run_on_normal_stack(|| {
+            let run = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=never",
+                    "--format",
+                    "tree",
+                    "mi ku i do",
+                ],
+                false,
+            );
+
+            assert_eq!(run.status, CliStatus::Failure);
+            assert!(run.stdout.contains("Error {"), "{}", run.stdout);
+            assert!(!run.stdout.contains("RecoveredSyntax"), "{}", run.stdout);
+            assert!(!run.stdout.contains("RecoveryError"), "{}", run.stdout);
+            assert!(run.stdout.contains("text: \"mi ku\""), "{}", run.stdout);
+            assert!(run.stdout.contains("Terms {"), "{}", run.stdout);
+            assert!(run.stdout.contains("Cmavo \"do\""), "{}", run.stdout);
+            assert!(!run.stdout.contains("text: \"do\""), "{}", run.stdout);
+            assert!(run.stderr.contains("syntax.unexpected-cmavo"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_syntax_brackets_resumes_after_i() {
+        run_on_normal_stack(|| {
+            let run = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=never",
+                    "--format",
+                    "brackets",
+                    "i",
+                    "mi",
+                    "klama",
+                    "cu",
+                    "do",
+                    "i",
+                    "gleki",
+                ],
+                false,
+            );
+
+            assert_eq!(run.status, CliStatus::Failure);
+            assert!(run.stdout.contains("{mi kláma ‼cu do‼}"), "{}", run.stdout);
+            assert!(!run.stdout.contains("‼mi klama cu do‼"), "{}", run.stdout);
+            assert!(run.stdout.contains("gléki"), "{}", run.stdout);
+            assert!(!run.stdout.contains("‼gleki‼"), "{}", run.stdout);
+            assert!(!run.stdout.contains("recovery-error"), "{}", run.stdout);
+            assert!(run.stderr.contains("syntax.unexpected-cmavo"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_syntax_tree_preserves_partial_bridi_before_error() {
+        run_on_normal_stack(|| {
+            let run = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=never",
+                    "--format",
+                    "tree",
+                    "--show-spans",
+                    "i",
+                    "mi",
+                    "klama",
+                    "cu",
+                    "do",
+                    "i",
+                    "gleki",
+                ],
+                false,
+            );
+
+            assert_eq!(run.status, CliStatus::Failure);
+            assert!(run.stdout.contains("Bridi @[2‥16)"), "{}", run.stdout);
+            assert!(run.stdout.contains("Cmavo @[2‥4) \"mi\""), "{}", run.stdout);
+            assert!(
+                run.stdout.contains("Gismu @[5‥10) \"kláma\""),
+                "{}",
+                run.stdout
+            );
+            assert!(run.stdout.contains("Error @[11‥16)"), "{}", run.stdout);
+            assert!(run.stdout.contains("text: \"cu do\""), "{}", run.stdout);
+            assert!(
+                !run.stdout.contains("text: \"mi klama cu do\""),
+                "{}",
+                run.stdout
+            );
+            assert!(
+                run.stdout.contains("Gismu @[19‥24) \"gléki\""),
+                "{}",
+                run.stdout
+            );
+            assert!(run.stderr.contains("syntax.unexpected-cmavo"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_syntax_json_preserves_partial_bridi_before_error() {
+        run_on_normal_stack(|| {
+            let run = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=never",
+                    "--format",
+                    "json",
+                    "i",
+                    "mi",
+                    "klama",
+                    "cu",
+                    "do",
+                    "i",
+                    "gleki",
+                ],
+                false,
+            );
+
+            assert_eq!(run.status, CliStatus::Failure);
+            let value: serde_json::Value =
+                serde_json::from_str(&run.stdout).expect("recovered syntax JSON");
+            assert_eq!(
+                value["paragraphs"][0]["statements"][0]["statement"]["Bridi"]["leading_terms"][0]["Sumti"]
+                    ["ProSumti"]["Plain"]["PlainWord"]["Cmavo"]["phonemes"],
+                "mi"
+            );
+            assert_eq!(
+                value["paragraphs"][0]["statements"][0]["statement"]["Bridi"]["bridi_tail"]["first"]
+                    ["first"]["first"]["SelbriBridiTail"]["selbri"]["SelbriWord"]["Plain"]["PlainWord"]
+                    ["Gismu"]["phonemes"],
+                "kláma"
+            );
+            assert_eq!(
+                value["paragraphs"][0]["statements"][0]["statement"]["Bridi"]["bridi_tail"]["first"]
+                    ["continuations"][0]["Error"]["text"],
+                "cu do"
+            );
+            assert_eq!(
+                value["paragraphs"][0]["statements"][1]["statement"]["Bridi"]["bridi_tail"]["first"]
+                    ["first"]["first"]["SelbriBridiTail"]["selbri"]["SelbriWord"]["Plain"]["PlainWord"]
+                    ["Gismu"]["phonemes"],
+                "gléki"
+            );
+            assert!(run.stderr.contains("syntax.unexpected-cmavo"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_syntax_tree_splits_at_niho() {
+        run_on_normal_stack(|| {
+            let run = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=never",
+                    "--format",
+                    "tree",
+                    "mi ku ni'o do",
+                ],
+                false,
+            );
+
+            assert_eq!(run.status, CliStatus::Failure);
+            assert!(run.stdout.contains("Error {"), "{}", run.stdout);
+            assert!(!run.stdout.contains("RecoveryError"), "{}", run.stdout);
+            assert!(run.stdout.contains("text: \"mi ku\""), "{}", run.stdout);
+            assert!(run.stdout.contains("Cmavo \"ni'o\""), "{}", run.stdout);
+            assert!(run.stdout.contains("Cmavo \"do\""), "{}", run.stdout);
+            assert!(!run.stdout.contains("text: \"do\""), "{}", run.stdout);
+            assert!(run.stderr.contains("syntax.unexpected-cmavo"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_syntax_tree_does_not_use_cu_as_global_boundary() {
+        run_on_normal_stack(|| {
+            let run = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=never",
+                    "--format",
+                    "tree",
+                    "mi cu ku",
+                ],
+                false,
+            );
+
+            assert_eq!(run.status, CliStatus::Failure);
+            assert!(run.stdout.contains("Error {"), "{}", run.stdout);
+            assert!(!run.stdout.contains("RecoveryError"), "{}", run.stdout);
+            assert!(run.stdout.contains("Bridi {"), "{}", run.stdout);
+            assert!(run.stdout.contains("cu: Cmavo \"cu\""), "{}", run.stdout);
+            assert!(run.stdout.contains("text: \"ku\""), "{}", run.stdout);
+            assert!(!run.stdout.contains("text: \"mi cu\""), "{}", run.stdout);
+            assert!(!run.stdout.contains("text: \"mi cu ku\""), "{}", run.stdout);
+            assert!(run.stderr.contains("syntax.unexpected-cmavo"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_syntax_tree_records_gi_boundary() {
+        run_on_normal_stack(|| {
+            let run = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=never",
+                    "--format",
+                    "tree",
+                    "ga lo mlatu gi",
+                ],
+                false,
+            );
+
+            assert_eq!(run.status, CliStatus::Failure);
+            assert!(run.stdout.contains("Error {"), "{}", run.stdout);
+            assert!(!run.stdout.contains("RecoveryError"), "{}", run.stdout);
+            assert!(
+                run.stdout.contains("text: \"ga lo mlatu gi\""),
+                "{}",
+                run.stdout
+            );
+            assert!(
+                run.stderr
+                    .contains("syntax.incomplete-forethought-connection")
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_syntax_tree_reparses_after_forethought_gi() {
+        run_on_normal_stack(|| {
+            let run = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=never",
+                    "--format",
+                    "tree",
+                    "ge",
+                    "mi",
+                    "ku",
+                    "gi",
+                    "do",
+                ],
+                false,
+            );
+
+            assert_eq!(run.status, CliStatus::Failure);
+            assert!(run.stdout.contains("Error {"), "{}", run.stdout);
+            assert!(
+                run.stdout.contains("text: \"ge mi ku gi\""),
+                "{}",
+                run.stdout
+            );
+            assert!(run.stdout.contains("Terms {"), "{}", run.stdout);
+            assert!(run.stdout.contains("Cmavo \"do\""), "{}", run.stdout);
+            assert!(!run.stdout.contains("text: \"do\""), "{}", run.stdout);
+            assert!(run.stderr.contains("syntax.unexpected-cmavo"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_morphology_json_outputs_error_without_duplicate_syntax_diagnostic() {
+        run_on_normal_stack(|| {
+            let run = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=never",
+                    "--format",
+                    "json",
+                    "mi",
+                    "@@@",
+                    "do",
+                ],
+                false,
+            );
+
+            assert_eq!(run.status, CliStatus::Failure);
+            let value: serde_json::Value =
+                serde_json::from_str(&run.stdout).expect("recovered syntax JSON");
+            assert_eq!(
+                value["paragraphs"][0]["statements"][0]["statement"]["Error"]["text"],
+                "@@@"
+            );
+            assert_eq!(
+                value["paragraphs"][0]["statements"][0]["statement"]["Error"]["diagnostic_code"],
+                "morphology.invalid-character"
+            );
+            assert!(run.stderr.contains("morphology.invalid-character"));
+            assert!(!run.stderr.contains("syntax.unexpected-word"));
+            assert!(
+                !run.stderr
+                    .contains("recovered morphology item is not a valid syntax token")
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_blocks_outputs_diagnostics_only() {
+        run_on_normal_stack(|| {
+            let run = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=never",
+                    "--format",
+                    "blocks",
+                    "mi",
+                    "ku",
+                    "i",
+                    "do",
+                ],
+                false,
+            );
+
+            assert_eq!(run.status, CliStatus::Failure);
+            assert!(run.stdout.is_empty(), "{}", run.stdout);
+            assert!(run.stderr.contains("syntax.unexpected-cmavo"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_error_suppresses_show_defs() {
+        run_on_normal_stack(|| {
+            let run = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=never",
+                    "--show-defs",
+                    "--format",
+                    "tree",
+                    "mi",
+                    "ku",
+                ],
+                false,
+            );
+
+            assert_eq!(run.status, CliStatus::Failure);
+            assert!(run.stdout.contains("Error {"), "{}", run.stdout);
+            assert!(!run.stdout.contains("RecoveryError"), "{}", run.stdout);
+            assert!(!run.stdout.contains("definitions:"), "{}", run.stdout);
+            assert!(!run.stdout.contains("by: officialdata"), "{}", run.stdout);
+            assert!(run.stderr.contains("syntax.unexpected-cmavo"));
         });
     }
 
@@ -5536,7 +6232,8 @@ mod tests {
             .expect("gentufa run");
 
             assert_eq!(status, CliStatus::Failure);
-            assert!(output.is_empty());
+            let stdout = String::from_utf8(output).expect("stdout utf8");
+            assert!(stdout.contains("gléki ‼ku‼"), "{stdout}");
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("expected: free modifier, statement, or end of input"));
             assert!(!stderr.contains("expected one of:"));
@@ -5567,7 +6264,8 @@ mod tests {
                 let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
 
                 assert_eq!(status, CliStatus::Failure);
-                assert!(output.is_empty());
+                let stdout = String::from_utf8(output).expect("stdout utf8");
+                assert!(stdout.contains("‼"), "{stdout}");
                 let stderr = String::from_utf8(error).expect("stderr utf8");
                 assert!(stderr.contains(code), "{stderr}");
                 assert!(stderr.contains(message), "{stderr}");
@@ -5598,7 +6296,8 @@ mod tests {
             let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
 
             assert_eq!(status, CliStatus::Failure);
-            assert!(output.is_empty());
+            let stdout = String::from_utf8(output).expect("stdout utf8");
+            assert!(stdout.contains("gléki ‼ku‼"), "{stdout}");
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("needs one of:"));
             assert!(stderr.contains("selbri"));
@@ -5636,7 +6335,8 @@ mod tests {
             let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
 
             assert_eq!(status, CliStatus::Failure);
-            assert!(output.is_empty());
+            let stdout = String::from_utf8(output).expect("stdout utf8");
+            assert!(stdout.contains("‼mi cu‼"), "{stdout}");
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("while parsing bridi"), "{stderr}");
             assert_eq!(stderr.matches("while parsing").count(), 1, "{stderr}");
@@ -5731,7 +6431,7 @@ mod tests {
             let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
 
             assert_eq!(status, CliStatus::Failure);
-            assert!(output.is_empty());
+            assert!(!output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("trace[syntax]"), "{stderr}");
             assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
@@ -5762,7 +6462,7 @@ mod tests {
             let status = run_cli(always_cli, &mut output, &mut error, false)
                 .expect("always color trace run");
             assert_eq!(status, CliStatus::Failure);
-            assert!(output.is_empty());
+            assert!(!output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("\x1b["), "{stderr}");
 
@@ -5784,7 +6484,7 @@ mod tests {
             let status =
                 run_cli(never_cli, &mut output, &mut error, true).expect("never color trace run");
             assert_eq!(status, CliStatus::Failure);
-            assert!(output.is_empty());
+            assert!(!output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("trace[syntax]"), "{stderr}");
             assert!(!stderr.contains("\x1b["), "{stderr}");
@@ -5813,7 +6513,7 @@ mod tests {
             let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
 
             assert_eq!(status, CliStatus::Failure);
-            assert!(output.is_empty());
+            assert!(!output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("\x1b["));
             assert!(stderr.contains("be"));
@@ -5832,7 +6532,8 @@ mod tests {
         let status = run_cli(cli, &mut output, &mut error, false).expect("vlasei run");
 
         assert_eq!(status, CliStatus::Failure);
-        assert!(output.is_empty());
+        let stdout = String::from_utf8(output).expect("stdout utf8");
+        assert!(stdout.contains("‼aa‼"), "{stdout}");
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("morphology detail:"));
         assert!(stderr.contains("vowels in hiatus are not allowed"));

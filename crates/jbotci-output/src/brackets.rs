@@ -16,9 +16,9 @@ use crate::{
 
 #[derive(Debug, Clone, Copy)]
 #[invariant(true)]
-struct BracketContext<'source> {
-    source: &'source str,
-    options: BracketRenderOptions,
+pub(crate) struct BracketContext<'source> {
+    pub(crate) source: &'source str,
+    pub(crate) options: BracketRenderOptions,
 }
 
 #[requires(true)]
@@ -98,7 +98,7 @@ fn text(tree: &TextSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn paragraph(value: &ParagraphSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
+pub(crate) fn paragraph(value: &ParagraphSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     let mut children = Vec::new();
     if let Some(i) = &value.i {
         children.push(word(i, source));
@@ -121,7 +121,7 @@ fn paragraph(value: &ParagraphSyntax, source: &BracketContext<'_>) -> sexpr::SEx
 
 #[requires(true)]
 #[ensures(true)]
-fn paragraph_statement(
+pub(crate) fn paragraph_statement(
     value: &ParagraphStatementSyntax,
     source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
@@ -146,7 +146,10 @@ fn paragraph_statement(
 
 #[requires(true)]
 #[ensures(true)]
-fn statement_syntax(value: &StatementSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
+pub(crate) fn statement_syntax(
+    value: &StatementSyntax,
+    source: &BracketContext<'_>,
+) -> sexpr::SExpr {
     match value.as_data() {
         data!(StatementSyntax::TextGroup {
             tense_modal,
@@ -2550,7 +2553,7 @@ fn words(words: &[Token], source: &BracketContext<'_>) -> Vec<sexpr::SExpr> {
 
 #[requires(true)]
 #[ensures(true)]
-fn word(word: &Token, source: &BracketContext<'_>) -> sexpr::SExpr {
+pub(crate) fn word(word: &Token, source: &BracketContext<'_>) -> sexpr::SExpr {
     with_indicators_brackets(word.as_indicators(), source)
 }
 
@@ -2599,7 +2602,10 @@ fn with_indicators_brackets(
 
 #[requires(true)]
 #[ensures(true)]
-fn word_like_brackets(word_like: &WordLike, source: &BracketContext<'_>) -> sexpr::SExpr {
+pub(crate) fn word_like_brackets(
+    word_like: &WordLike,
+    source: &BracketContext<'_>,
+) -> sexpr::SExpr {
     match word_like.as_data() {
         data!(WordLike::PlainWord(word)) => word_leaf(word, source),
         data!(WordLike::QuotedWord { zo, word }) => {
@@ -2647,7 +2653,7 @@ fn word_like_brackets(word_like: &WordLike, source: &BracketContext<'_>) -> sexp
 
 #[requires(true)]
 #[ensures(true)]
-fn word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
+pub(crate) fn word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
     let latin = if source.options.decompose_lujvo
         && let Some(parts) = word.lujvo_parts()
     {
@@ -2731,7 +2737,7 @@ fn elided_cmavo_text(cmavo: Cmavo, options: jbotci_morphology::PhonemeRenderOpti
 
 #[requires(true)]
 #[ensures(true)]
-fn quoted_text_leaf(verbatim: &jbotci_morphology::Verbatim) -> sexpr::SExpr {
+pub(crate) fn quoted_text_leaf(verbatim: &jbotci_morphology::Verbatim) -> sexpr::SExpr {
     sexpr::leaf_with_range(
         verbatim.text.trim().to_owned(),
         Some(BracketSourceRange {

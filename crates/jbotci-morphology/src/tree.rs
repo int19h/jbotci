@@ -10,19 +10,16 @@ use vec1::Vec1;
 
 use crate::{Cmavo, Phonemes, Selmaho};
 
-#[invariant(!text.is_empty(), "invalid morphology items must preserve source text")]
+#[invariant(text.as_ref().is_none_or(|text| !text.is_empty()), "consumed recovery text must be non-empty")]
+#[invariant(!expected.is_empty(), "recovery items must record what was expected")]
+#[invariant(!diagnostic_code.is_empty(), "recovery items must preserve the diagnostic code")]
+#[invariant(text.is_some() || span.char_len() == 0, "missing recovery items are insertion points")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct InvalidTreeItem {
+pub struct RecoveryTreeItem {
     pub span: Arc<SourceSpan>,
-    pub text: String,
-    pub diagnostic_code: String,
-}
-
-#[invariant(!expected.is_empty(), "missing morphology items must record what was expected")]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MissingTreeItem {
-    pub span: Arc<SourceSpan>,
+    pub text: Option<String>,
     pub expected: Vec<String>,
+    pub diagnostic_code: String,
 }
 
 tree_model! {

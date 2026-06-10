@@ -133,8 +133,8 @@ fn recovered_module(
         pub mod recovered {
             use super::*;
 
-            pub type Recovered<T> = ::jbotci_tree::Recovered<T, super::InvalidTreeItem, super::MissingTreeItem>;
-            pub type RecoveryError = ::jbotci_tree::RecoveryError<super::InvalidTreeItem, super::MissingTreeItem>;
+            pub type Recovered<T> = ::jbotci_tree::Recovered<T, super::RecoveryTreeItem>;
+            pub type RecoveryError = ::jbotci_tree::RecoveryError<super::RecoveryTreeItem>;
 
             #with_free_modifiers
 
@@ -1679,8 +1679,9 @@ fn wrapper_trait_impls(
                 where
                     V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
                 {
-                    if let ::jbotci_tree::Recovered::Valid(value) = self {
-                        value.visit_in_order(visitor);
+                    match self {
+                        ::jbotci_tree::Recovered::Valid(value) => value.visit_in_order(visitor),
+                        ::jbotci_tree::Recovered::Error(item) => visitor.visit_recovered_error(item),
                     }
                 }
 
@@ -1693,8 +1694,7 @@ fn wrapper_trait_impls(
                         ::jbotci_tree::Recovered::Valid(value) => {
                             value.path_to_node_from(target, path)
                         }
-                        ::jbotci_tree::Recovered::Invalid(_)
-                        | ::jbotci_tree::Recovered::Missing(_) => false,
+                        ::jbotci_tree::Recovered::Error(_) => false,
                     }
                 }
 
@@ -1704,8 +1704,7 @@ fn wrapper_trait_impls(
                 ) -> Option<NodeRef<'tree>> {
                     match self {
                         ::jbotci_tree::Recovered::Valid(value) => value.node_at_path_steps(steps),
-                        ::jbotci_tree::Recovered::Invalid(_)
-                        | ::jbotci_tree::Recovered::Missing(_) => None,
+                        ::jbotci_tree::Recovered::Error(_) => None,
                     }
                 }
             }
