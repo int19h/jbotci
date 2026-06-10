@@ -1,27 +1,4 @@
-# jbotci v1
-
-Rust port of jbotci.
-
-The immediate goal is a clean workspace that can grow toward full v0 parity:
-command-line tools first, then the Dioxus web/server and GUI surfaces.
-
-## Workspace
-
-- `apps/jbotci`: CLI binary.
-- `apps/jbotci-app`: shared Dioxus app launcher for web, desktop, and future mobile builds.
-- `apps/jbotci-server`: server binary for the Dioxus web app and HTTP-facing integrations.
-- `crates/jbotci-morphology`: morphology object model and parser.
-- `crates/jbotci-syntax`: syntax object model and parser.
-- `crates/jbotci-semantics`: semantic object model and builder.
-- `crates/jbotci-output`: output format models and render entry points.
-- `crates/jbotci-dictionary`: dictionary data model.
-- `crates/jbotci-cll`: CLL data/reference model.
-- `crates/jbotci-search`: semantic search abstractions.
-- `crates/jbotci-jvozba`: lujvo composition and decomposition.
-- `crates/jbotci-source`: shared source-span and provenance support.
-- `tests/fixtures`: cross-cutting integration fixture corpus.
-- `tests/support`: test-only fixture loader and runner support.
-- `xtask`: local workspace automation.
+# jbotci 
 
 ## Local Commands
 
@@ -61,6 +38,12 @@ server bundle build. Direct Docker builds therefore need a builder that supports
 mounts are not persisted by the deployment builder, the Dioxus bundle build will
 recompile dependencies.
 
+The GitHub Actions Render image workflow builds the same `dist-server` output
+outside Docker, packages only `server` and `public/` with
+`deploy/render/Dockerfile.runtime`, and publishes a GHCR image. It is
+manual-only while the image-backed Render path is being validated. The existing
+Render Dockerfile remains the self-contained local and fallback build path.
+
 Browser embedding packs are deployed separately to Cloudflare R2 with
 `cargo xtask publish-web-embeddings-r2`. Browser builds default to
 `https://assets.jbotci.app/embeddings/web/v1`; set
@@ -74,10 +57,6 @@ The publisher uploads model artifacts under `https://assets.jbotci.app/models/`,
 uploads matching q4-generated `f16le` vector packs under the normal web
 embedding R2 prefix, and merges only the F2LLM catalog entries so inactive
 EmbeddingGemma entries are preserved.
-
-The parser facets are scaffolded but intentionally return `NotImplemented` at
-this checkpoint. Use `cargo xtask fixture-test --profile all --facet morphology
---facet syntax` when you want to exercise the intentionally red runner path.
 
 `vendor/cll` is kept as a submodule because CLL examples and references are
 part of the core parser and semantics development loop.

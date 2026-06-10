@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1
+
+FROM debian:bookworm-slim AS runtime
+
+ARG VCS_REF=
+ARG IMAGE_SOURCE=https://github.com/int19h/jbotci
+
+LABEL org.opencontainers.image.title="jbotci" \
+      org.opencontainers.image.description="Lojban tool web server" \
+      org.opencontainers.image.source="${IMAGE_SOURCE}" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later"
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --home /opt/jbotci --shell /usr/sbin/nologin jbotci
+
+WORKDIR /opt/jbotci
+
+COPY --chown=jbotci:jbotci --chmod=0755 server ./server
+COPY --chown=jbotci:jbotci public ./public
+
+ENV IP=0.0.0.0
+ENV PORT=10000
+ENV DIOXUS_ASSET_ROOT=/
+ENV DIOXUS_PUBLIC_PATH=/opt/jbotci/public
+ENV JBOTCI_WEB_EMBEDDINGS_BASE_URL=https://assets.jbotci.app/embeddings/web/v1
+
+EXPOSE 10000
+
+USER jbotci
+
+CMD ["./server"]
