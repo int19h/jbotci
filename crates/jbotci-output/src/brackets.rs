@@ -2719,7 +2719,9 @@ fn last_child_end_range(children: &[sexpr::SExpr]) -> Option<BracketSourceRange>
 #[ensures(ret.is_none_or(|range| range.byte_start == range.byte_end))]
 fn expr_end_range(expr: &sexpr::SExpr) -> Option<BracketSourceRange> {
     let range = match expr {
-        sexpr::SExpr::Leaf { range, .. } | sexpr::SExpr::Node { range, .. } => *range,
+        sexpr::SExpr::Leaf { range, .. }
+        | sexpr::SExpr::Error { range, .. }
+        | sexpr::SExpr::Node { range, .. } => *range,
     }?;
     Some(BracketSourceRange {
         byte_start: range.byte_end,

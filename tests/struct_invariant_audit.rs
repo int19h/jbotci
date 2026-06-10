@@ -28,6 +28,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private recovered syntax accumulator owns transient paragraph and warning queues",
     ),
     (
+        "crates/jbotci-syntax/src/lib.rs:RecoveredStatementFromSegment",
+        "private recovered syntax helper bundles a segment statement with warnings produced by strict subparse attempts",
+    ),
+    (
+        "crates/jbotci-syntax/src/lib.rs:RecoveredLeadingTermsFragment",
+        "private recovered syntax helper bundles leading term fragments with warnings produced by strict subparse attempts",
+    ),
+    (
         "crates/jbotci-output/src/recovered.rs:RecoveredMorphologyTreeBuilder",
         "private recovered morphology tree visitor state is constrained by visitor stack transitions",
     ),

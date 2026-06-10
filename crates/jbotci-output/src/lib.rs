@@ -1067,13 +1067,21 @@ mod tests {
 
         let colorized_tree = render_tree_with_elided_and_color("mi klama");
         assert!(
-            colorized_tree.contains("\x1b[9m\"vau\"\x1b[29m"),
+            colorized_tree.contains("\x1b[3m\"vau\"\x1b[23m"),
+            "{colorized_tree:?}"
+        );
+        assert!(
+            !colorized_tree.contains("\x1b[9m\"vau\"\x1b[29m"),
             "{colorized_tree:?}"
         );
 
         let colorized_brackets = render_brackets_with_elided_and_color("to coi");
         assert!(
-            colorized_brackets.contains("\x1b[9mtoi\x1b[29m"),
+            colorized_brackets.contains("\x1b[3mtoi\x1b[23m"),
+            "{colorized_brackets:?}"
+        );
+        assert!(
+            !colorized_brackets.contains("\x1b[9mtoi\x1b[29m"),
             "{colorized_brackets:?}"
         );
     }

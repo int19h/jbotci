@@ -46,6 +46,7 @@ pub(crate) struct TreeNode {
 #[invariant(::Syntax { .. } => true)]
 #[invariant(::Word => true)]
 #[invariant(::Verbatim => true)]
+#[invariant(::Error { .. } => true)]
 #[invariant(::Text(..) => true)]
 #[invariant(::Span => true)]
 pub(crate) enum TreeValue {
@@ -62,6 +63,10 @@ pub(crate) enum TreeValue {
         elided: bool,
     },
     Verbatim {
+        text: String,
+        span: Option<(usize, usize)>,
+    },
+    Error {
         text: String,
         span: Option<(usize, usize)>,
     },
@@ -619,6 +624,7 @@ fn collapse_value(value: TreeValue) -> TreeValue {
         TreeValue::Syntax { syntax_ids, value } => syntax_value(syntax_ids, collapse_value(*value)),
         TreeValue::Word { .. }
         | TreeValue::Verbatim { .. }
+        | TreeValue::Error { .. }
         | TreeValue::Text(..)
         | TreeValue::Span { .. } => value,
     }
@@ -676,6 +682,7 @@ impl TreeRenderer<'_> {
                 elided,
             } => self.render_word(constructor, phonemes, *span, *elided),
             TreeValue::Verbatim { text, span } => self.render_verbatim(text, *span),
+            TreeValue::Error { text, span } => self.render_error(text, *span),
             TreeValue::Text(text) => self.output.push_str(&self.string_literal(text)),
             TreeValue::Span {
                 byte_start: _,
@@ -746,6 +753,15 @@ impl TreeRenderer<'_> {
         self.render_optional_node_span(span);
         self.output.push(' ');
         self.output.push_str(&self.string_literal(text));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn render_error(&mut self, text: &str, span: Option<(usize, usize)>) {
+        self.output.push_str(&self.error_constructor_token());
+        self.render_optional_node_span(span);
+        self.output.push(' ');
+        self.output.push_str(&self.error_string_literal(text));
     }
 
     #[requires(true)]
@@ -861,6 +877,16 @@ impl TreeRenderer<'_> {
         self.elided_color_token(&literal, ColorRole::String)
     }
 
+    #[requires(true)]
+    #[ensures(!self.color -> ret.starts_with('"'))]
+    fn error_string_literal(&self, text: &str) -> String {
+        let literal = serde_json::to_string(text).expect("serializing string literal cannot fail");
+        if !self.color {
+            return literal;
+        }
+        format!("\x1b[91m\x1b[9m{literal}\x1b[29m\x1b[39m")
+    }
+
     #[requires(char_start <= char_end)]
     #[ensures(!ret.is_empty())]
     fn span_literal(&self, char_start: usize, char_end: usize) -> String {
@@ -927,6 +953,15 @@ impl TreeRenderer<'_> {
         self.color_token(text, ColorRole::Constructor)
     }
 
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn error_constructor_token(&self) -> String {
+        if !self.color {
+            return "Error".to_owned();
+        }
+        "\x1b[91m\x1b[1mError\x1b[22m\x1b[39m".to_owned()
+    }
+
     #[requires(!text.is_empty())]
     #[ensures(!ret.is_empty())]
     fn field_token(&self, text: &str) -> String {
@@ -966,7 +1001,7 @@ impl TreeRenderer<'_> {
         if !self.color {
             return text.to_owned();
         }
-        format!("{}\x1b[9m{}\x1b[29m{}", role.open(), text, "\x1b[39m")
+        format!("{}\x1b[3m{}\x1b[23m{}", role.open(), text, "\x1b[39m")
     }
 }
 
@@ -1023,7 +1058,9 @@ fn value_span(value: &TreeValue) -> Option<(usize, usize)> {
         TreeValue::Node(node) => tree_node_span(node),
         TreeValue::Collection(items) => span_from_values(items.iter().filter_map(value_span)),
         TreeValue::Syntax { value, .. } => value_span(value),
-        TreeValue::Word { span, .. } | TreeValue::Verbatim { span, .. } => *span,
+        TreeValue::Word { span, .. }
+        | TreeValue::Verbatim { span, .. }
+        | TreeValue::Error { span, .. } => *span,
         TreeValue::Text(_) => None,
         TreeValue::Span {
             char_start,

@@ -1262,34 +1262,14 @@ fn recovery_error_tree_value<E: Serialize>(
     source: Option<&str>,
 ) -> TreeValue {
     let item = recovery_render_item(item, source);
-    let mut entries = Vec::new();
-    if include_span && let Some(span) = item.span {
-        entries.push(TreeEntry {
-            label: Some("span"),
-            value: TreeValue::Span {
-                byte_start: span.byte_start,
-                byte_end: span.byte_end,
-                char_start: span.char_start,
-                char_end: span.char_end,
-            },
-        });
+    TreeValue::Error {
+        text: item.text.unwrap_or_default(),
+        span: if include_span {
+            item.span.map(|span| (span.char_start, span.char_end))
+        } else {
+            None
+        },
     }
-    entries.push(TreeEntry {
-        label: Some("text"),
-        value: TreeValue::Text(item.text.unwrap_or_default()),
-    });
-    entries.push(TreeEntry {
-        label: Some("expected"),
-        value: TreeValue::Collection(item.expected.into_iter().map(TreeValue::Text).collect()),
-    });
-    entries.push(TreeEntry {
-        label: Some("diagnostic_code"),
-        value: TreeValue::Text(item.diagnostic_code),
-    });
-    TreeValue::Node(TreeNode {
-        constructor: "Error",
-        entries,
-    })
 }
 
 #[requires(true)]
@@ -1322,7 +1302,7 @@ fn recovery_error_json_value<E: Serialize>(item: &E) -> Value {
 #[ensures(true)]
 fn recovery_error_bracket_leaf<E: Serialize>(item: &E) -> sexpr::SExpr {
     let item = recovery_render_item(item, None);
-    sexpr::leaf(format!("‼{}‼", item.text.unwrap_or_default()))
+    sexpr::error_leaf(item.text.unwrap_or_default())
 }
 
 #[requires(true)]

@@ -5224,9 +5224,9 @@ mod tests {
 
         assert_eq!(run.status, CliStatus::Failure);
         assert!(run.stdout.contains("QuotedWords"), "{}", run.stdout);
-        assert!(run.stdout.contains("Error {"), "{}", run.stdout);
+        assert!(run.stdout.contains("Error \"@@@\""), "{}", run.stdout);
         assert!(!run.stdout.contains("RecoveryError"), "{}", run.stdout);
-        assert!(run.stdout.contains("text: \"@@@\""), "{}", run.stdout);
+        assert!(!run.stdout.contains("diagnostic_code:"), "{}", run.stdout);
         assert!(run.stderr.contains("morphology.invalid-character"));
     }
 
@@ -5274,8 +5274,11 @@ mod tests {
         );
 
         assert_eq!(run.status, CliStatus::Failure);
-        assert!(run.stdout.contains("Error @[4‥7)"), "{}", run.stdout);
-        assert!(run.stdout.contains("text: \"@@@\""), "{}", run.stdout);
+        assert!(
+            run.stdout.contains("Error @[4‥7) \"@@@\""),
+            "{}",
+            run.stdout
+        );
         assert!(run.stderr.contains("morphology.invalid-character"));
     }
 
@@ -5843,13 +5846,13 @@ mod tests {
             );
 
             assert_eq!(run.status, CliStatus::Failure);
-            assert!(run.stdout.contains("Error {"), "{}", run.stdout);
+            assert!(run.stdout.contains("Error \"mi ku\""), "{}", run.stdout);
             assert!(!run.stdout.contains("RecoveredSyntax"), "{}", run.stdout);
             assert!(!run.stdout.contains("RecoveryError"), "{}", run.stdout);
-            assert!(run.stdout.contains("text: \"mi ku\""), "{}", run.stdout);
+            assert!(!run.stdout.contains("diagnostic_code:"), "{}", run.stdout);
             assert!(run.stdout.contains("Terms {"), "{}", run.stdout);
             assert!(run.stdout.contains("Cmavo \"do\""), "{}", run.stdout);
-            assert!(!run.stdout.contains("text: \"do\""), "{}", run.stdout);
+            assert!(!run.stdout.contains("Error \"do\""), "{}", run.stdout);
             assert!(run.stderr.contains("syntax.unexpected-cmavo"));
         });
     }
@@ -5919,10 +5922,13 @@ mod tests {
                 "{}",
                 run.stdout
             );
-            assert!(run.stdout.contains("Error @[11‥16)"), "{}", run.stdout);
-            assert!(run.stdout.contains("text: \"cu do\""), "{}", run.stdout);
             assert!(
-                !run.stdout.contains("text: \"mi klama cu do\""),
+                run.stdout.contains("Error @[11‥16) \"cu do\""),
+                "{}",
+                run.stdout
+            );
+            assert!(
+                !run.stdout.contains("Error \"mi klama cu do\""),
                 "{}",
                 run.stdout
             );
@@ -5932,6 +5938,157 @@ mod tests {
                 run.stdout
             );
             assert!(run.stderr.contains("syntax.unexpected-cmavo"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_syntax_tree_reports_multiple_errors_compactly() {
+        run_on_normal_stack(|| {
+            let run = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=never",
+                    "--format",
+                    "tree",
+                    "--show-spans",
+                    "--detailed-errors",
+                    "i",
+                    "mi",
+                    "cu",
+                    "ku",
+                    "klama",
+                    "do",
+                    "i",
+                    "ta",
+                    "klama",
+                    "ku",
+                    "i",
+                    "te",
+                    "gleki",
+                ],
+                false,
+            );
+
+            assert_eq!(run.status, CliStatus::Failure);
+            assert!(
+                run.stdout.contains("Error @[8‥10) \"ku\""),
+                "{}",
+                run.stdout
+            );
+            assert!(
+                run.stdout.contains("Error @[31‥33) \"ku\""),
+                "{}",
+                run.stdout
+            );
+            assert!(!run.stdout.contains("expected:"), "{}", run.stdout);
+            assert!(!run.stdout.contains("diagnostic_code:"), "{}", run.stdout);
+            assert!(run.stdout.contains("Cmavo @[2‥4) \"mi\""), "{}", run.stdout);
+            assert!(
+                run.stdout.contains("Gismu @[25‥30) \"kláma\""),
+                "{}",
+                run.stdout
+            );
+            assert!(
+                run.stdout.contains("ConvertedSelbri @[36‥44)"),
+                "{}",
+                run.stdout
+            );
+            assert_eq!(run.stderr.matches("syntax.unexpected-cmavo").count(), 2);
+            assert!(run.stderr.contains("needs one of:"), "{}", run.stderr);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_syntax_brackets_marks_multiple_errors() {
+        run_on_normal_stack(|| {
+            let run = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=never",
+                    "--format",
+                    "brackets",
+                    "i",
+                    "mi",
+                    "cu",
+                    "ku",
+                    "klama",
+                    "do",
+                    "i",
+                    "ta",
+                    "klama",
+                    "ku",
+                    "i",
+                    "te",
+                    "gleki",
+                ],
+                false,
+            );
+
+            assert_eq!(run.status, CliStatus::Failure);
+            assert_eq!(run.stdout.matches("‼ku‼").count(), 2, "{}", run.stdout);
+            assert!(run.stdout.contains("te gléki"), "{}", run.stdout);
+            assert_eq!(run.stderr.matches("syntax.unexpected-cmavo").count(), 2);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_recovered_error_color_styles_tree_and_brackets() {
+        run_on_normal_stack(|| {
+            let tree = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=always",
+                    "--format",
+                    "tree",
+                    "mi",
+                    "cu",
+                    "ku",
+                ],
+                false,
+            );
+
+            assert_eq!(tree.status, CliStatus::Failure);
+            assert!(
+                tree.stdout.contains("\x1b[91m\x1b[1mError\x1b[22m\x1b[39m"),
+                "{:?}",
+                tree.stdout
+            );
+            assert!(
+                tree.stdout
+                    .contains("\x1b[91m\x1b[9m\"ku\"\x1b[29m\x1b[39m"),
+                "{:?}",
+                tree.stdout
+            );
+
+            let brackets = run_cli_capture(
+                &[
+                    "jbotci",
+                    "gentufa",
+                    "--color=always",
+                    "--format",
+                    "brackets",
+                    "mi",
+                    "cu",
+                    "ku",
+                ],
+                false,
+            );
+
+            assert_eq!(brackets.status, CliStatus::Failure);
+            assert!(
+                brackets.stdout.contains("\x1b[91m‼\x1b[9mku\x1b[29m‼"),
+                "{:?}",
+                brackets.stdout
+            );
         });
     }
 
@@ -6005,12 +6162,11 @@ mod tests {
             );
 
             assert_eq!(run.status, CliStatus::Failure);
-            assert!(run.stdout.contains("Error {"), "{}", run.stdout);
+            assert!(run.stdout.contains("Error \"mi ku\""), "{}", run.stdout);
             assert!(!run.stdout.contains("RecoveryError"), "{}", run.stdout);
-            assert!(run.stdout.contains("text: \"mi ku\""), "{}", run.stdout);
             assert!(run.stdout.contains("Cmavo \"ni'o\""), "{}", run.stdout);
             assert!(run.stdout.contains("Cmavo \"do\""), "{}", run.stdout);
-            assert!(!run.stdout.contains("text: \"do\""), "{}", run.stdout);
+            assert!(!run.stdout.contains("Error \"do\""), "{}", run.stdout);
             assert!(run.stderr.contains("syntax.unexpected-cmavo"));
         });
     }
@@ -6033,13 +6189,12 @@ mod tests {
             );
 
             assert_eq!(run.status, CliStatus::Failure);
-            assert!(run.stdout.contains("Error {"), "{}", run.stdout);
+            assert!(run.stdout.contains("Error \"ku\""), "{}", run.stdout);
             assert!(!run.stdout.contains("RecoveryError"), "{}", run.stdout);
             assert!(run.stdout.contains("Bridi {"), "{}", run.stdout);
             assert!(run.stdout.contains("cu: Cmavo \"cu\""), "{}", run.stdout);
-            assert!(run.stdout.contains("text: \"ku\""), "{}", run.stdout);
-            assert!(!run.stdout.contains("text: \"mi cu\""), "{}", run.stdout);
-            assert!(!run.stdout.contains("text: \"mi cu ku\""), "{}", run.stdout);
+            assert!(!run.stdout.contains("Error \"mi cu\""), "{}", run.stdout);
+            assert!(!run.stdout.contains("Error \"mi cu ku\""), "{}", run.stdout);
             assert!(run.stderr.contains("syntax.unexpected-cmavo"));
         });
     }
@@ -6062,13 +6217,12 @@ mod tests {
             );
 
             assert_eq!(run.status, CliStatus::Failure);
-            assert!(run.stdout.contains("Error {"), "{}", run.stdout);
-            assert!(!run.stdout.contains("RecoveryError"), "{}", run.stdout);
             assert!(
-                run.stdout.contains("text: \"ga lo mlatu gi\""),
+                run.stdout.contains("Error \"ga lo mlatu gi\""),
                 "{}",
                 run.stdout
             );
+            assert!(!run.stdout.contains("RecoveryError"), "{}", run.stdout);
             assert!(
                 run.stderr
                     .contains("syntax.incomplete-forethought-connection")
@@ -6098,15 +6252,14 @@ mod tests {
             );
 
             assert_eq!(run.status, CliStatus::Failure);
-            assert!(run.stdout.contains("Error {"), "{}", run.stdout);
             assert!(
-                run.stdout.contains("text: \"ge mi ku gi\""),
+                run.stdout.contains("Error \"ge mi ku gi\""),
                 "{}",
                 run.stdout
             );
             assert!(run.stdout.contains("Terms {"), "{}", run.stdout);
             assert!(run.stdout.contains("Cmavo \"do\""), "{}", run.stdout);
-            assert!(!run.stdout.contains("text: \"do\""), "{}", run.stdout);
+            assert!(!run.stdout.contains("Error \"do\""), "{}", run.stdout);
             assert!(run.stderr.contains("syntax.unexpected-cmavo"));
         });
     }
@@ -6196,7 +6349,7 @@ mod tests {
             );
 
             assert_eq!(run.status, CliStatus::Failure);
-            assert!(run.stdout.contains("Error {"), "{}", run.stdout);
+            assert!(run.stdout.contains("Error \"mi ku\""), "{}", run.stdout);
             assert!(!run.stdout.contains("RecoveryError"), "{}", run.stdout);
             assert!(!run.stdout.contains("definitions:"), "{}", run.stdout);
             assert!(!run.stdout.contains("by: officialdata"), "{}", run.stdout);

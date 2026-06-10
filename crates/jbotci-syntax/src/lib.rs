@@ -2130,11 +2130,14 @@ pub fn parse_syntax_tree_recovered_with_source_and_options(
         }
         Err(error) => {
             let tokens = grammar::syntax_tokens(&valid_words);
-            let recovered = recovered_text_from_tokens(&tokens, &error, source, options);
+            let mut recovered = recovered_text_from_tokens(&tokens, source, options);
+            if recovered.diagnostics.is_empty() {
+                recovered.diagnostics.push(error);
+            }
             RecoveredSyntaxParseAttempt {
                 result: RecoveredSyntaxParse {
                     parse_tree: Box::new(recovered.parse_tree),
-                    diagnostics: vec![error],
+                    diagnostics: recovered.diagnostics,
                     warnings: recovered.warnings,
                 },
                 trace: attempt.trace,
@@ -2147,6 +2150,7 @@ pub fn parse_syntax_tree_recovered_with_source_and_options(
 #[invariant(true)]
 struct RecoveredTextFromTokens {
     parse_tree: tree::recovered::TextSyntax,
+    diagnostics: Vec<SyntaxError>,
     warnings: Vec<SyntaxWarning>,
 }
 
@@ -2181,7 +2185,6 @@ fn recovered_text_from_statement_slot(
 #[ensures(true)]
 fn recovered_text_from_tokens(
     tokens: &[Token],
-    error: &SyntaxError,
     source: Option<&str>,
     options: &ParseOptions,
 ) -> RecoveredTextFromTokens {
@@ -2199,7 +2202,7 @@ fn recovered_text_from_tokens(
 
     let mut recovered = RecoveredTextAccumulator::default();
     for chunk in chunks {
-        recovered.append_chunk(chunk, error, source, options);
+        recovered.append_chunk(chunk, source, options);
     }
     recovered.finish()
 }
@@ -2208,19 +2211,14 @@ fn recovered_text_from_tokens(
 #[invariant(true)]
 struct RecoveredTextAccumulator {
     paragraphs: Vec<RecoveredSyntax<tree::recovered::ParagraphSyntax>>,
+    diagnostics: Vec<SyntaxError>,
     warnings: Vec<SyntaxWarning>,
 }
 
 impl RecoveredTextAccumulator {
     #[requires(true)]
     #[ensures(true)]
-    fn append_chunk(
-        &mut self,
-        tokens: &[Token],
-        error: &SyntaxError,
-        source: Option<&str>,
-        options: &ParseOptions,
-    ) {
+    fn append_chunk(&mut self, tokens: &[Token], source: Option<&str>, options: &ParseOptions) {
         if tokens.is_empty() {
             return;
         }
@@ -2229,8 +2227,30 @@ impl RecoveredTextAccumulator {
             self.append_paragraphs(parsed.parse_tree.paragraphs);
             return;
         }
-        let fallback = recovered_invalid_text_from_tokens(tokens, error, source, options);
-        self.append_paragraphs(fallback.paragraphs);
+        let fallback = recovered_invalid_text_from_tokens(tokens, source, options);
+        self.extend_diagnostics(fallback.diagnostics);
+        self.warnings.extend(fallback.warnings);
+        self.append_paragraphs(fallback.parse_tree.paragraphs);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn extend_diagnostics(&mut self, diagnostics: Vec<SyntaxError>) {
+        for diagnostic in diagnostics {
+            self.push_diagnostic(diagnostic);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_diagnostic(&mut self, diagnostic: SyntaxError) {
+        if !self
+            .diagnostics
+            .iter()
+            .any(|existing| syntax_errors_have_same_recovery_site(existing, &diagnostic))
+        {
+            self.diagnostics.push(diagnostic);
+        }
     }
 
     #[requires(true)]
@@ -2283,9 +2303,20 @@ impl RecoveredTextAccumulator {
                 leading_connective: None,
                 paragraphs: self.paragraphs,
             },
+            diagnostics: self.diagnostics,
             warnings: self.warnings,
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_errors_have_same_recovery_site(left: &SyntaxError, right: &SyntaxError) -> bool {
+    let left_span = syntax_error_span(left);
+    let right_span = syntax_error_span(right);
+    left_span.byte_start == right_span.byte_start
+        && left_span.byte_end == right_span.byte_end
+        && syntax_error_code(left) == syntax_error_code(right)
 }
 
 #[requires(!tokens.is_empty())]
@@ -2313,6 +2344,51 @@ fn recovered_text_for_valid_chunk(
     }
 }
 
+#[requires(!tokens.is_empty())]
+#[ensures(matches!(ret, SyntaxError::Parse { .. }) || matches!(ret, SyntaxError::NotImplemented))]
+fn syntax_error_for_tokens(
+    tokens: &[Token],
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> SyntaxError {
+    let words = tokens
+        .iter()
+        .map(|token| token.core_word().clone())
+        .collect::<Vec<_>>();
+    let attempt = grammar::parse_syntax_tree_with_source_attempt(&words, source, options);
+    match attempt.result {
+        Err(error) => error,
+        Ok(_) => {
+            let span = token_slice_span(tokens)
+                .unwrap_or_else(|| SourceSpan::new(None, 0, 0, 0, 0).expect("zero span is valid"));
+            SyntaxError::Parse {
+                kind: SyntaxErrorKind::InvalidConstruct,
+                byte_start: span.byte_start,
+                byte_end: span.byte_end,
+                reason: "syntax segment did not contain exactly one recovered statement".to_owned(),
+                expected: vec!["statement".to_owned()],
+                expectations: Vec::new(),
+                context: Some(SyntaxConstructContext::new(
+                    "statement".to_owned(),
+                    span.byte_start,
+                    span.byte_end,
+                )),
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_syntax_diagnostic(diagnostics: &mut Vec<SyntaxError>, diagnostic: SyntaxError) {
+    if !diagnostics
+        .iter()
+        .any(|existing| syntax_errors_have_same_recovery_site(existing, &diagnostic))
+    {
+        diagnostics.push(diagnostic);
+    }
+}
+
 #[requires(true)]
 #[ensures(ret == (token.is_selmaho(Selmaho::Niho) || token.is_cmavo(Cmavo::I)))]
 fn is_top_level_syntax_recovery_boundary(token: &Token) -> bool {
@@ -2323,15 +2399,16 @@ fn is_top_level_syntax_recovery_boundary(token: &Token) -> bool {
 #[ensures(true)]
 fn recovered_invalid_text_from_tokens(
     tokens: &[Token],
-    error: &SyntaxError,
     source: Option<&str>,
     options: &ParseOptions,
-) -> tree::recovered::TextSyntax {
-    if let Some(tree) = recovered_forethought_gi_text_from_tokens(tokens, error, source, options) {
+) -> RecoveredTextFromTokens {
+    if let Some(tree) = recovered_forethought_gi_text_from_tokens(tokens, source, options) {
         return tree;
     }
 
     let mut paragraphs = Vec::new();
+    let mut diagnostics = Vec::new();
+    let mut warnings = Vec::new();
     let mut paragraph_niho = Vec::new();
     let mut statements = Vec::new();
     let mut statement_i = None;
@@ -2343,7 +2420,8 @@ fn recovered_invalid_text_from_tokens(
                 &mut statements,
                 &mut statement_i,
                 &mut statement_tokens,
-                error,
+                &mut diagnostics,
+                &mut warnings,
                 source,
                 options,
             );
@@ -2356,7 +2434,8 @@ fn recovered_invalid_text_from_tokens(
                 &mut statements,
                 &mut statement_i,
                 &mut statement_tokens,
-                error,
+                &mut diagnostics,
+                &mut warnings,
                 source,
                 options,
             );
@@ -2369,7 +2448,8 @@ fn recovered_invalid_text_from_tokens(
                 &mut statements,
                 &mut statement_i,
                 &mut statement_tokens,
-                error,
+                &mut diagnostics,
+                &mut warnings,
                 source,
                 options,
             );
@@ -2379,19 +2459,24 @@ fn recovered_invalid_text_from_tokens(
         &mut statements,
         &mut statement_i,
         &mut statement_tokens,
-        error,
+        &mut diagnostics,
+        &mut warnings,
         source,
         options,
     );
     push_recovered_paragraph(&mut paragraphs, &mut paragraph_niho, &mut statements);
 
-    tree::recovered::TextSyntax {
-        leading_nai: Vec::new(),
-        leading_cmevla: Vec::new(),
-        leading_indicators: Vec::new(),
-        leading_free_modifiers: Vec::new(),
-        leading_connective: None,
-        paragraphs,
+    RecoveredTextFromTokens {
+        parse_tree: tree::recovered::TextSyntax {
+            leading_nai: Vec::new(),
+            leading_cmevla: Vec::new(),
+            leading_indicators: Vec::new(),
+            leading_free_modifiers: Vec::new(),
+            leading_connective: None,
+            paragraphs,
+        },
+        diagnostics,
+        warnings,
     }
 }
 
@@ -2399,16 +2484,19 @@ fn recovered_invalid_text_from_tokens(
 #[ensures(true)]
 fn recovered_forethought_gi_text_from_tokens(
     tokens: &[Token],
-    error: &SyntaxError,
     source: Option<&str>,
     options: &ParseOptions,
-) -> Option<tree::recovered::TextSyntax> {
+) -> Option<RecoveredTextFromTokens> {
     let pivot = tokens
         .iter()
         .position(|token| token.is_selmaho(Selmaho::Gi))?;
     if pivot == 0 || !has_accepted_forethought_head_before_gi(&tokens[..pivot]) {
         return None;
     }
+    let leading_error = syntax_error_for_tokens(&tokens[..=pivot], source, options);
+    let mut diagnostics = Vec::new();
+    push_syntax_diagnostic(&mut diagnostics, leading_error.clone());
+    let mut warnings = Vec::new();
     let mut statements = Vec::new();
     statements.push(RecoveredSyntax::valid(
         tree::recovered::ParagraphStatementSyntax {
@@ -2416,19 +2504,18 @@ fn recovered_forethought_gi_text_from_tokens(
             connective: None,
             free_modifiers: Vec::new(),
             statement: Some(Box::new(RecoveredSyntax::error(
-                syntax_invalid_item_for_tokens(&tokens[..=pivot], error),
+                syntax_invalid_item_for_tokens(&tokens[..=pivot], &leading_error),
             ))),
         },
     ));
     if pivot + 1 < tokens.len() {
-        let trailing_statement =
-            recovered_statement_for_valid_segment(&tokens[pivot + 1..], source, options)
-                .unwrap_or_else(|| {
-                    RecoveredSyntax::error(syntax_invalid_item_for_tokens(
-                        &tokens[pivot + 1..],
-                        error,
-                    ))
-                });
+        let trailing_statement = recovered_statement_for_segment(
+            &tokens[pivot + 1..],
+            &mut diagnostics,
+            &mut warnings,
+            source,
+            options,
+        );
         statements.push(RecoveredSyntax::valid(
             tree::recovered::ParagraphStatementSyntax {
                 i: None,
@@ -2438,18 +2525,22 @@ fn recovered_forethought_gi_text_from_tokens(
             },
         ));
     }
-    Some(tree::recovered::TextSyntax {
-        leading_nai: Vec::new(),
-        leading_cmevla: Vec::new(),
-        leading_indicators: Vec::new(),
-        leading_free_modifiers: Vec::new(),
-        leading_connective: None,
-        paragraphs: vec![RecoveredSyntax::valid(tree::recovered::ParagraphSyntax {
-            i: None,
-            niho: Vec::new(),
-            free_modifiers: Vec::new(),
-            statements,
-        })],
+    Some(RecoveredTextFromTokens {
+        parse_tree: tree::recovered::TextSyntax {
+            leading_nai: Vec::new(),
+            leading_cmevla: Vec::new(),
+            leading_indicators: Vec::new(),
+            leading_free_modifiers: Vec::new(),
+            leading_connective: None,
+            paragraphs: vec![RecoveredSyntax::valid(tree::recovered::ParagraphSyntax {
+                i: None,
+                niho: Vec::new(),
+                free_modifiers: Vec::new(),
+                statements,
+            })],
+        },
+        diagnostics,
+        warnings,
     })
 }
 
@@ -2503,7 +2594,8 @@ fn push_recovered_statement(
     statements: &mut Vec<RecoveredSyntax<tree::recovered::ParagraphStatementSyntax>>,
     i: &mut Option<RecoveredSyntax<Token>>,
     tokens: &mut Vec<Token>,
-    error: &SyntaxError,
+    diagnostics: &mut Vec<SyntaxError>,
+    warnings: &mut Vec<SyntaxWarning>,
     source: Option<&str>,
     options: &ParseOptions,
 ) {
@@ -2511,18 +2603,18 @@ fn push_recovered_statement(
         return;
     }
     let statement = if tokens.is_empty() {
+        let error = syntax_missing_statement_error(i.as_ref());
+        push_syntax_diagnostic(diagnostics, error.clone());
         Some(Box::new(RecoveredSyntax::error(
-            syntax_missing_item_at_error(error, "statement"),
+            syntax_missing_item_at_error(&error, "statement"),
         )))
-    } else if let Some(statement) = recovered_statement_for_valid_segment(tokens, source, options) {
-        Some(Box::new(statement))
-    } else if let Some(statement) =
-        recovered_statement_for_failed_segment(tokens, error, source, options)
-    {
-        Some(Box::new(statement))
     } else {
-        Some(Box::new(RecoveredSyntax::error(
-            syntax_invalid_item_for_tokens(tokens, error),
+        Some(Box::new(recovered_statement_for_segment(
+            tokens,
+            diagnostics,
+            warnings,
+            source,
+            options,
         )))
     };
     statements.push(RecoveredSyntax::valid(
@@ -2536,14 +2628,46 @@ fn push_recovered_statement(
     tokens.clear();
 }
 
+#[derive(Debug)]
+#[invariant(true)]
+struct RecoveredStatementFromSegment {
+    statement: RecoveredSyntax<tree::recovered::StatementSyntax>,
+    warnings: Vec<SyntaxWarning>,
+}
+
+#[requires(!tokens.is_empty())]
+#[ensures(true)]
+fn recovered_statement_for_segment(
+    tokens: &[Token],
+    diagnostics: &mut Vec<SyntaxError>,
+    warnings: &mut Vec<SyntaxWarning>,
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> RecoveredSyntax<tree::recovered::StatementSyntax> {
+    if let Some(parsed) = recovered_statement_for_valid_segment(tokens, source, options) {
+        warnings.extend(parsed.warnings);
+        return parsed.statement;
+    }
+
+    let error = syntax_error_for_tokens(tokens, source, options);
+    push_syntax_diagnostic(diagnostics, error.clone());
+    if let Some(parsed) = recovered_statement_for_failed_segment(tokens, &error, source, options) {
+        warnings.extend(parsed.warnings);
+        parsed.statement
+    } else {
+        RecoveredSyntax::error(syntax_invalid_item_for_tokens(tokens, &error))
+    }
+}
+
 #[requires(!tokens.is_empty())]
 #[ensures(true)]
 fn recovered_statement_for_valid_segment(
     tokens: &[Token],
     source: Option<&str>,
     options: &ParseOptions,
-) -> Option<RecoveredSyntax<tree::recovered::StatementSyntax>> {
+) -> Option<RecoveredStatementFromSegment> {
     let parsed = recovered_text_for_valid_chunk(tokens, source, options)?;
+    let warnings = parsed.warnings;
     let mut paragraphs = parsed.parse_tree.paragraphs;
     if paragraphs.len() != 1 {
         return None;
@@ -2567,7 +2691,12 @@ fn recovered_statement_for_valid_segment(
     {
         return None;
     }
-    statement.statement.map(|statement| *statement)
+    statement
+        .statement
+        .map(|statement| RecoveredStatementFromSegment {
+            statement: *statement,
+            warnings,
+        })
 }
 
 #[requires(!tokens.is_empty())]
@@ -2577,16 +2706,20 @@ fn recovered_statement_for_failed_segment(
     error: &SyntaxError,
     source: Option<&str>,
     options: &ParseOptions,
-) -> Option<RecoveredSyntax<tree::recovered::StatementSyntax>> {
+) -> Option<RecoveredStatementFromSegment> {
     let error_index = syntax_error_token_index(tokens, error)?;
     let error_tokens = &tokens[error_index..];
     if error_index > 0
-        && let Some(mut statement) =
+        && let Some(parsed) =
             recovered_statement_for_valid_segment(&tokens[..error_index], source, options)
     {
+        let mut statement = parsed.statement;
         let item = syntax_invalid_item_for_tokens(error_tokens, error);
         if append_bridi_tail_recovery_error_to_statement(&mut statement, item) {
-            return Some(statement);
+            return Some(RecoveredStatementFromSegment {
+                statement,
+                warnings: parsed.warnings,
+            });
         }
     }
     recovered_partial_bridi_with_explicit_cu(tokens, error_index, error, source, options)
@@ -2610,7 +2743,7 @@ fn recovered_partial_bridi_with_explicit_cu(
     error: &SyntaxError,
     source: Option<&str>,
     options: &ParseOptions,
-) -> Option<RecoveredSyntax<tree::recovered::StatementSyntax>> {
+) -> Option<RecoveredStatementFromSegment> {
     let cu_index = tokens[..error_index]
         .iter()
         .rposition(|token| token.is_cmavo(Cmavo::Cu))?;
@@ -2619,7 +2752,7 @@ fn recovered_partial_bridi_with_explicit_cu(
     }
     let leading_terms = recovered_leading_terms_fragment(&tokens[..cu_index], source, options)?;
     let bridi = tree::recovered::BridiSyntax {
-        leading_terms,
+        leading_terms: leading_terms.terms,
         cu: Some(Arc::new(recovered_token_with_free_modifiers(
             tokens[cu_index].clone(),
         ))),
@@ -2629,9 +2762,19 @@ fn recovered_partial_bridi_with_explicit_cu(
         ))),
         free_modifiers: Vec::new(),
     };
-    Some(RecoveredSyntax::valid(
-        tree::recovered::StatementSyntax::Bridi(Box::new(RecoveredSyntax::valid(bridi))),
-    ))
+    Some(RecoveredStatementFromSegment {
+        statement: RecoveredSyntax::valid(tree::recovered::StatementSyntax::Bridi(Box::new(
+            RecoveredSyntax::valid(bridi),
+        ))),
+        warnings: leading_terms.warnings,
+    })
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct RecoveredLeadingTermsFragment {
+    terms: Vec<RecoveredSyntax<tree::recovered::TermSyntax>>,
+    warnings: Vec<SyntaxWarning>,
 }
 
 #[requires(!tokens.is_empty())]
@@ -2640,9 +2783,10 @@ fn recovered_leading_terms_fragment(
     tokens: &[Token],
     source: Option<&str>,
     options: &ParseOptions,
-) -> Option<Vec<RecoveredSyntax<tree::recovered::TermSyntax>>> {
-    let statement = recovered_statement_for_valid_segment(tokens, source, options)?;
-    let RecoveredSyntax::Valid(tree::recovered::StatementSyntax::Fragment(fragment)) = statement
+) -> Option<RecoveredLeadingTermsFragment> {
+    let parsed = recovered_statement_for_valid_segment(tokens, source, options)?;
+    let RecoveredSyntax::Valid(tree::recovered::StatementSyntax::Fragment(fragment)) =
+        parsed.statement
     else {
         return None;
     };
@@ -2655,7 +2799,10 @@ fn recovered_leading_terms_fragment(
     if vau.is_some() {
         return None;
     }
-    Some(terms)
+    Some(RecoveredLeadingTermsFragment {
+        terms,
+        warnings: parsed.warnings,
+    })
 }
 
 #[requires(true)]
@@ -2770,6 +2917,38 @@ fn syntax_invalid_item_for_tokens(tokens: &[Token], error: &SyntaxError) -> tree
         expected: syntax_error_expected_items(error, "statement"),
         diagnostic_code: syntax_error_code(error).to_owned(),
     })
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, SyntaxError::Parse { byte_start, byte_end, .. } if byte_start == byte_end))]
+fn syntax_missing_statement_error(boundary: Option<&RecoveredSyntax<Token>>) -> SyntaxError {
+    let offset = boundary
+        .and_then(recovered_token_slot_end_offset)
+        .unwrap_or(0);
+    SyntaxError::Parse {
+        kind: SyntaxErrorKind::IncompleteStatement,
+        byte_start: offset,
+        byte_end: offset,
+        reason: "missing statement".to_owned(),
+        expected: vec!["statement".to_owned()],
+        expectations: Vec::new(),
+        context: Some(SyntaxConstructContext::new(
+            "statement".to_owned(),
+            offset,
+            offset,
+        )),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_token_slot_end_offset(token: &RecoveredSyntax<Token>) -> Option<usize> {
+    match token {
+        RecoveredSyntax::Valid(token) => {
+            token_slice_span(std::slice::from_ref(token)).map(|span| span.byte_end)
+        }
+        RecoveredSyntax::Error(item) => Some(item.span.byte_end),
+    }
 }
 
 #[requires(true)]
@@ -3041,6 +3220,39 @@ mod tests {
         let statements = recovered_statement_slots(recovered.parse_tree.as_ref());
         assert_eq!(statements.len(), 1);
         assert_recovered_explicit_cu_bridi_error(&statements[0], "ku", 6, 8);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_reports_multiple_segment_local_errors() {
+        let morphology = jbotci_morphology::segment_words_with_modifiers_recovered(
+            "i mi cu ku klama do i ta klama ku i te gleki",
+        )
+        .into_data();
+
+        let recovered = parse_syntax_tree_recovered(&morphology.result).result;
+
+        assert_eq!(recovered.diagnostics.len(), 2);
+        let spans = recovered
+            .diagnostics
+            .iter()
+            .map(syntax_error_span)
+            .map(|span| (span.char_start, span.char_end))
+            .collect::<Vec<_>>();
+        assert_eq!(spans, vec![(8, 10), (31, 33)]);
+        let statements = recovered_statement_slots(recovered.parse_tree.as_ref());
+        assert_eq!(statements.len(), 4);
+        assert_recovered_explicit_cu_bridi_error(&statements[0], "ku", 8, 10);
+        assert!(
+            matches!(statements[1], RecoveredSyntax::Valid(_)),
+            "valid material after a construct-local flush point should be reparsed"
+        );
+        assert_recovered_partial_bridi_continuation_error(&statements[2], "ku", 31, 33);
+        assert!(
+            matches!(statements[3], RecoveredSyntax::Valid(_)),
+            "statement after the final top-level i should parse as valid"
+        );
     }
 
     #[test]

@@ -732,7 +732,10 @@ fn collect_visible_word_texts(tree: &TreeValue, words: &mut HashSet<String>) {
         TreeValue::Word { phonemes, .. } => {
             words.insert(phonemes.clone());
         }
-        TreeValue::Verbatim { .. } | TreeValue::Text(_) | TreeValue::Span { .. } => {}
+        TreeValue::Verbatim { .. }
+        | TreeValue::Error { .. }
+        | TreeValue::Text(_)
+        | TreeValue::Span { .. } => {}
     }
 }
 
@@ -751,6 +754,7 @@ fn word_for_syntax_id(tree: &TreeValue, id: RawSyntaxNodeId) -> Option<TreeWordL
         TreeValue::Collection(items) => items.iter().find_map(|item| word_for_syntax_id(item, id)),
         TreeValue::Word { .. }
         | TreeValue::Verbatim { .. }
+        | TreeValue::Error { .. }
         | TreeValue::Text(_)
         | TreeValue::Span { .. } => None,
     }
@@ -770,6 +774,7 @@ fn contains_syntax_id(tree: &TreeValue, id: RawSyntaxNodeId) -> bool {
         TreeValue::Collection(items) => items.iter().any(|item| contains_syntax_id(item, id)),
         TreeValue::Word { .. }
         | TreeValue::Verbatim { .. }
+        | TreeValue::Error { .. }
         | TreeValue::Text(_)
         | TreeValue::Span { .. } => false,
     }
@@ -786,7 +791,10 @@ fn first_word_label(tree: &TreeValue) -> Option<TreeWordLabel> {
         TreeValue::Collection(items) => items.iter().find_map(first_word_label),
         TreeValue::Syntax { value, .. } => first_word_label(value),
         TreeValue::Word { .. } => tree_word_label(tree),
-        TreeValue::Verbatim { .. } | TreeValue::Text(_) | TreeValue::Span { .. } => None,
+        TreeValue::Verbatim { .. }
+        | TreeValue::Error { .. }
+        | TreeValue::Text(_)
+        | TreeValue::Span { .. } => None,
     }
 }
 

@@ -48,8 +48,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "render tree leaf text is normalized by constructors and empty leaves collapse to nodes",
     ),
     (
+        "crates/jbotci-output/src/sexpr.rs:SExpr::Error",
+        "recovered bracket error leaves preserve parser-owned text and optional source range without extra enum-level rules",
+    ),
+    (
         "crates/jbotci-output/src/sexpr.rs:SExpr::Node",
         "empty render nodes are meaningful intermediate values",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:LeafRole::Normal",
+        "leaf role is a unit styling marker with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:LeafRole::Elided",
+        "leaf role is a unit styling marker with no payload to constrain",
     ),
     (
         "crates/jbotci-output/src/recovered.rs:RecoveredTreeFrame::Node",
@@ -798,6 +810,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/tree.rs:TreeValue::Verbatim",
         "verbatim render text is source-derived and may be empty",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:TreeValue::Error",
+        "recovered tree errors preserve parser-owned text and optional source span without changing strict renderer invariants",
     ),
     (
         "crates/jbotci-output/src/tree.rs:TreeValue::Text",
