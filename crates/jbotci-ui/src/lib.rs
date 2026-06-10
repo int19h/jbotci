@@ -270,7 +270,7 @@ enum TopbarSettingsLayout {
 enum TopbarNavLayout {
     Full,
     #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
-    Menu,
+    Carousel,
 }
 
 #[invariant(!self.settings.shows_script_inline() || self.settings.shows_theme_inline())]
@@ -2518,6 +2518,28 @@ fn font_face_css() -> String {
     )
 }
 
+#[requires(true)]
+#[ensures(ret.contains(".app-topbar-brand-logo"))]
+#[ensures(ret.contains(".rich-dictionary-tooltip"))]
+fn critical_startup_css() -> &'static str {
+    r#"
+.app-topbar-brand-logo {
+  display: block;
+  height: 1.9rem;
+  width: auto;
+}
+
+.rich-dictionary-tooltip,
+.rich-reference-tooltip-stack {
+  position: fixed;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+"#
+}
+
 #[allow(non_snake_case)]
 #[requires(true)]
 #[ensures(true)]
@@ -2545,7 +2567,6 @@ fn AppShell() -> Element {
     let topbar_settings_layout = use_signal(|| TopbarSettingsLayout::BothInline);
     let topbar_settings_open = use_signal(|| false);
     let topbar_nav_layout = use_signal(|| TopbarNavLayout::Full);
-    let topbar_nav_open = use_signal(|| false);
     let mut page_find_state = use_signal(PageFindState::default);
     let initial_gentufa = initial_gentufa_state(&current_route_location);
     let initial_gentufa_has_text = initial_gentufa_text_explicit(&current_route_location);
@@ -2706,7 +2727,6 @@ fn AppShell() -> Element {
         topbar_settings_layout,
         topbar_settings_open,
         topbar_nav_layout,
-        topbar_nav_open,
         cukta_toc_forced_autohide,
     );
     let scroll_base_path = base_path.clone();
@@ -3221,8 +3241,8 @@ fn AppShell() -> Element {
             topbar_settings_layout,
             topbar_settings_open,
             topbar_nav_layout,
-            topbar_nav_open,
         );
+        schedule_topbar_active_nav_sync();
         if *route.read() == AppRoute::Vlacku {
             schedule_vlacku_jvozba_pane_metrics_sync();
         }
@@ -3251,7 +3271,7 @@ fn AppShell() -> Element {
 
     rsx! {
         document::Title { "{document_title}" }
-        style { "{font_face_css()}" }
+        style { "{font_face_css()}\n{critical_startup_css()}" }
         document::Stylesheet { href: MAIN_CSS }
         if cfg!(target_arch = "wasm32") {
             document::Link { rel: "modulepreload", href: COMPUTE_WORKER_JS }
@@ -3275,7 +3295,6 @@ fn AppShell() -> Element {
                 *topbar_settings_layout.read(),
                 topbar_settings_open,
                 *topbar_nav_layout.read(),
-                topbar_nav_open,
                 page_find_state,
                 &page_find_context,
                 &activity_value,
@@ -3420,7 +3439,6 @@ fn render_topbar(
     settings_layout: TopbarSettingsLayout,
     settings_open: Signal<bool>,
     nav_layout: TopbarNavLayout,
-    nav_open: Signal<bool>,
     page_find_state: Signal<PageFindState>,
     page_find: &PageFindContext,
     activity: &AsyncActivityState,
@@ -3430,12 +3448,7 @@ fn render_topbar(
     let vlacku_loading = activity_visible && activity.has_kind(AsyncTaskKind::Vlacku);
     let gentufa_loading = activity_visible && activity.has_kind(AsyncTaskKind::Gentufa);
     let activity_class = topbar_activity_class(activity_visible);
-    let header_class = topbar_header_class(
-        settings_layout,
-        *settings_open.read(),
-        nav_layout,
-        *nav_open.read(),
-    );
+    let header_class = topbar_header_class(settings_layout, *settings_open.read(), nav_layout);
     let show_theme_inline = settings_layout.shows_theme_inline();
     let show_script_inline = settings_layout.shows_script_inline();
     let topbar_home_href = deployment_root_href(base_path);
@@ -3462,10 +3475,13 @@ fn render_topbar(
                             { render_script_switch(settings, current.script) }
                         }
                     }
-                    if nav_layout == TopbarNavLayout::Full {
-                        { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
-                    } else {
-                        { render_topbar_nav_menu(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll, nav_open) }
+                    match nav_layout {
+                        TopbarNavLayout::Full => {
+                            { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+                        }
+                        TopbarNavLayout::Carousel => {
+                            { render_topbar_nav_carousel(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+                        }
                     }
                 }
                 { render_topbar_fit_probes(
@@ -3556,7 +3572,7 @@ fn render_topbar_nav(
 #[allow(clippy::too_many_arguments)]
 #[requires(true)]
 #[ensures(true)]
-fn render_topbar_nav_menu(
+fn render_topbar_nav_carousel(
     route: AppRoute,
     cukta_loading: bool,
     vlacku_loading: bool,
@@ -3566,26 +3582,41 @@ fn render_topbar_nav_menu(
     gentufa_route: JbotciRoute,
     base_path: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
-    mut nav_open: Signal<bool>,
 ) -> Element {
-    let menu_open = *nav_open.read();
-    let button_class = topbar_nav_menu_button_class(menu_open);
-    let label = topbar_nav_menu_label(route);
+    let [previous_route, current_route, next_route] = topbar_carousel_routes(route);
     rsx! {
-        div { class: "app-topbar-nav-menu",
-            button {
-                class: "{button_class}",
-                r#type: "button",
-                aria_label: "Primary navigation",
-                aria_expanded: if menu_open { "true" } else { "false" },
-                aria_controls: "app-topbar-nav-menu-list",
-                onclick: move |_| nav_open.set(!menu_open),
-                span { class: "app-topbar-nav-menu-label", "{label}" }
-                span { class: "app-topbar-nav-menu-chevron", aria_hidden: "true", "▾" }
-            }
-            if menu_open {
-                { render_topbar_nav_menu_list(
+        nav { class: "spa-nav app-topbar-nav-carousel", aria_label: "Primary navigation",
+            div { class: "app-topbar-nav-carousel-track",
+                { render_topbar_nav_carousel_link(
+                    previous_route,
                     route,
+                    "is-adjacent is-previous",
+                    cukta_loading,
+                    vlacku_loading,
+                    gentufa_loading,
+                    cukta_route.clone(),
+                    vlacku_route.clone(),
+                    gentufa_route.clone(),
+                    base_path,
+                    pending_cukta_scroll,
+                ) }
+                { render_topbar_nav_carousel_link(
+                    current_route,
+                    route,
+                    "is-current-slot",
+                    cukta_loading,
+                    vlacku_loading,
+                    gentufa_loading,
+                    cukta_route.clone(),
+                    vlacku_route.clone(),
+                    gentufa_route.clone(),
+                    base_path,
+                    pending_cukta_scroll,
+                ) }
+                { render_topbar_nav_carousel_link(
+                    next_route,
+                    route,
+                    "is-adjacent is-next",
                     cukta_loading,
                     vlacku_loading,
                     gentufa_loading,
@@ -3594,7 +3625,6 @@ fn render_topbar_nav_menu(
                     gentufa_route,
                     base_path,
                     pending_cukta_scroll,
-                    nav_open,
                 ) }
             }
         }
@@ -3602,10 +3632,13 @@ fn render_topbar_nav_menu(
 }
 
 #[allow(clippy::too_many_arguments)]
-#[requires(true)]
+#[requires(target != AppRoute::Settings)]
+#[requires(!slot_class.is_empty())]
 #[ensures(true)]
-fn render_topbar_nav_menu_list(
-    route: AppRoute,
+fn render_topbar_nav_carousel_link(
+    target: AppRoute,
+    active_route: AppRoute,
+    slot_class: &'static str,
     cukta_loading: bool,
     vlacku_loading: bool,
     gentufa_loading: bool,
@@ -3614,90 +3647,150 @@ fn render_topbar_nav_menu_list(
     gentufa_route: JbotciRoute,
     base_path: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
-    mut nav_open: Signal<bool>,
 ) -> Element {
-    let topbar_cukta_scroll_target = route_href_with_base_path(base_path, &cukta_route);
-    let topbar_cukta_click_route = cukta_route.clone();
+    let active = target == active_route;
+    let loading =
+        topbar_carousel_route_loading(target, cukta_loading, vlacku_loading, gentufa_loading);
+    let class = topbar_carousel_link_class(active, loading, slot_class);
+    let aria_current = if active { "page" } else { "false" };
+    let data_active = if active { "true" } else { "false" };
+    let label = topbar_carousel_route_label(target);
+    let target_route = match target {
+        AppRoute::Cukta => cukta_route,
+        AppRoute::Vlacku => vlacku_route,
+        AppRoute::Gentufa => gentufa_route,
+        AppRoute::Settings => return rsx! {},
+    };
+    let href = route_href_with_base_path(base_path, &target_route);
+    let pending_scroll = if target == AppRoute::Cukta {
+        Some(cukta_stored_pending_scroll(href.clone()))
+    } else {
+        None
+    };
+    let click_route = target_route.clone();
     rsx! {
-        div {
-            id: "app-topbar-nav-menu-list",
-            class: "app-topbar-nav-menu-list",
-            role: "menu",
-            Link {
-                class: topbar_nav_menu_item_class(route == AppRoute::Cukta, cukta_loading),
-                to: cukta_route,
-                role: "menuitem",
-                onclick_only: true,
-                onclick: move |_| {
-                    nav_open.set(false);
-                    push_route_with_cukta_scroll_intent(
-                        pending_cukta_scroll,
-                        Some(cukta_stored_pending_scroll(topbar_cukta_scroll_target.clone())),
-                        topbar_cukta_click_route.clone(),
-                    );
-                },
-                "cukta"
-            }
-            Link {
-                class: topbar_nav_menu_item_class(route == AppRoute::Vlacku, vlacku_loading),
-                to: vlacku_route,
-                role: "menuitem",
-                onclick: move |_| nav_open.set(false),
-                "vlacku"
-            }
-            Link {
-                class: topbar_nav_menu_item_class(route == AppRoute::Gentufa, gentufa_loading),
-                to: gentufa_route,
-                role: "menuitem",
-                onclick: move |_| nav_open.set(false),
-                "gentufa"
+        a {
+            key: "{label}",
+            class: "{class}",
+            href: "{href}",
+            aria_current,
+            "data-topbar-nav-active": data_active,
+            onclick: move |event| {
+                if !event.modifiers().is_empty() {
+                    return;
+                }
+                event.prevent_default();
+                push_route_with_cukta_scroll_intent(
+                    pending_cukta_scroll,
+                    pending_scroll.clone(),
+                    click_route.clone(),
+                );
+            },
+            span { class: "app-topbar-link-label", "{label}" }
+            if target == AppRoute::Gentufa {
+                span { class: "app-topbar-link-dots", aria_hidden: "true",
+                    span { class: "app-topbar-link-dot" }
+                    span { class: "app-topbar-link-dot" }
+                    span { class: "app-topbar-link-dot" }
+                }
             }
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[requires(true)]
 #[ensures(true)]
-fn render_topbar_nav_menu_probe(route: AppRoute) -> Element {
-    let label = topbar_nav_menu_label(route);
+fn render_topbar_nav_carousel_probe(
+    route: AppRoute,
+    cukta_loading: bool,
+    vlacku_loading: bool,
+    gentufa_loading: bool,
+) -> Element {
+    let [previous_route, current_route, next_route] = topbar_carousel_routes(route);
+    let previous_label = topbar_carousel_route_label(previous_route);
+    let current_label = topbar_carousel_route_label(current_route);
+    let next_label = topbar_carousel_route_label(next_route);
     rsx! {
-        span { class: "app-topbar-nav-menu",
-            span { class: "app-topbar-nav-menu-toggle",
-                span { class: "app-topbar-nav-menu-label", "{label}" }
-                span { class: "app-topbar-nav-menu-chevron", aria_hidden: "true", "▾" }
+        nav { class: "spa-nav app-topbar-nav-carousel", aria_label: "Primary navigation",
+            div { class: "app-topbar-nav-carousel-track",
+                span {
+                    class: topbar_carousel_link_class(
+                        previous_route == route,
+                        topbar_carousel_route_loading(previous_route, cukta_loading, vlacku_loading, gentufa_loading),
+                        "is-adjacent is-previous",
+                    ),
+                    "data-topbar-nav-active": if previous_route == route { "true" } else { "false" },
+                    span { class: "app-topbar-link-label", "{previous_label}" }
+                }
+                span {
+                    class: topbar_carousel_link_class(
+                        current_route == route,
+                        topbar_carousel_route_loading(current_route, cukta_loading, vlacku_loading, gentufa_loading),
+                        "is-current-slot",
+                    ),
+                    "data-topbar-nav-active": if current_route == route { "true" } else { "false" },
+                    span { class: "app-topbar-link-label", "{current_label}" }
+                }
+                span {
+                    class: topbar_carousel_link_class(
+                        next_route == route,
+                        topbar_carousel_route_loading(next_route, cukta_loading, vlacku_loading, gentufa_loading),
+                        "is-adjacent is-next",
+                    ),
+                    "data-topbar-nav-active": if next_route == route { "true" } else { "false" },
+                    span { class: "app-topbar-link-label", "{next_label}" }
+                }
             }
         }
     }
 }
 
 #[requires(true)]
+#[requires(!slot_class.is_empty())]
 #[ensures(!ret.is_empty())]
-fn topbar_nav_menu_label(route: AppRoute) -> &'static str {
+fn topbar_carousel_link_class(active: bool, loading: bool, slot_class: &'static str) -> String {
+    let base = format!("app-topbar-link app-topbar-carousel-link {slot_class}");
+    class_names(&base, &[("active", active), ("is-loading", loading)])
+}
+
+#[requires(true)]
+#[ensures(!ret.contains(&AppRoute::Settings))]
+#[ensures(route == AppRoute::Settings || ret[1] == route)]
+fn topbar_carousel_routes(route: AppRoute) -> [AppRoute; 3] {
+    match route {
+        AppRoute::Cukta => [AppRoute::Gentufa, AppRoute::Cukta, AppRoute::Vlacku],
+        AppRoute::Vlacku => [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gentufa],
+        AppRoute::Gentufa => [AppRoute::Vlacku, AppRoute::Gentufa, AppRoute::Cukta],
+        AppRoute::Settings => [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gentufa],
+    }
+}
+
+#[requires(route != AppRoute::Settings)]
+#[ensures(true)]
+fn topbar_carousel_route_loading(
+    route: AppRoute,
+    cukta_loading: bool,
+    vlacku_loading: bool,
+    gentufa_loading: bool,
+) -> bool {
+    match route {
+        AppRoute::Cukta => cukta_loading,
+        AppRoute::Vlacku => vlacku_loading,
+        AppRoute::Gentufa => gentufa_loading,
+        AppRoute::Settings => false,
+    }
+}
+
+#[requires(route != AppRoute::Settings)]
+#[ensures(!ret.is_empty())]
+fn topbar_carousel_route_label(route: AppRoute) -> &'static str {
     match route {
         AppRoute::Cukta => "cukta",
         AppRoute::Vlacku => "vlacku",
         AppRoute::Gentufa => "gentufa",
-        AppRoute::Settings => "pages",
+        AppRoute::Settings => "",
     }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn topbar_nav_menu_button_class(open: bool) -> &'static str {
-    if open {
-        "app-topbar-nav-menu-toggle is-open"
-    } else {
-        "app-topbar-nav-menu-toggle"
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn topbar_nav_menu_item_class(active: bool, loading: bool) -> String {
-    class_names(
-        "app-topbar-nav-menu-item",
-        &[("active", active), ("is-loading", loading)],
-    )
 }
 
 #[requires(true)]
@@ -3765,61 +3858,100 @@ fn render_page_find_control(
                     }
                 },
             }
-            span { class: "page-find-count", aria_live: "polite", "{counter}" }
-            if !query.is_empty() {
+            span { class: "page-find-actions",
+                if !query.is_empty() {
+                    button {
+                        class: "page-find-button page-find-clear",
+                        r#type: "button",
+                        aria_label: "Clear page find",
+                        title: "Clear",
+                        onclick: move |_| {
+                            page_find_state.with_mut(|state| {
+                                set_page_find_query(
+                                    state,
+                                    route,
+                                    String::new(),
+                                    PageFindRouteQueryUpdate::Clear,
+                                );
+                            });
+                        },
+                        svg {
+                            class: "page-find-button-icon",
+                            view_box: "0 0 20 20",
+                            "aria-hidden": "true",
+                            path {
+                                d: "M5 5L15 15M15 5L5 15",
+                                fill: "none",
+                                stroke: "currentColor",
+                                stroke_width: "2.2",
+                                stroke_linecap: "round",
+                            }
+                        }
+                    }
+                }
                 button {
-                    class: "page-find-button page-find-clear",
+                    class: "page-find-button page-find-prev",
                     r#type: "button",
-                    aria_label: "Clear page find",
-                    title: "Clear",
+                    aria_label: "Previous page find match",
+                    title: "Previous",
+                    disabled: controls_disabled,
                     onclick: move |_| {
                         page_find_state.with_mut(|state| {
-                            set_page_find_query(
+                            update_page_find_active(
                                 state,
                                 route,
-                                String::new(),
-                                PageFindRouteQueryUpdate::Clear,
+                                PageFindDirection::Previous,
+                                match_count,
                             );
                         });
                     },
-                    "×"
+                    svg {
+                        class: "page-find-button-icon",
+                        view_box: "0 0 20 20",
+                        "aria-hidden": "true",
+                        path {
+                            d: "M12.5 5L7.5 10L12.5 15",
+                            fill: "none",
+                            stroke: "currentColor",
+                            stroke_width: "2.2",
+                            stroke_linecap: "round",
+                            stroke_linejoin: "round",
+                        }
+                    }
                 }
-            }
-            button {
-                class: "page-find-button page-find-prev",
-                r#type: "button",
-                aria_label: "Previous page find match",
-                title: "Previous",
-                disabled: controls_disabled,
-                onclick: move |_| {
-                    page_find_state.with_mut(|state| {
-                        update_page_find_active(
-                            state,
-                            route,
-                            PageFindDirection::Previous,
-                            match_count,
-                        );
-                    });
-                },
-                "‹"
-            }
-            button {
-                class: "page-find-button page-find-next",
-                r#type: "button",
-                aria_label: "Next page find match",
-                title: "Next",
-                disabled: controls_disabled,
-                onclick: move |_| {
-                    page_find_state.with_mut(|state| {
-                        update_page_find_active(
-                            state,
-                            route,
-                            PageFindDirection::Next,
-                            match_count,
-                        );
-                    });
-                },
-                "›"
+                if !counter.is_empty() {
+                    span { class: "page-find-count", aria_live: "polite", "{counter}" }
+                }
+                button {
+                    class: "page-find-button page-find-next",
+                    r#type: "button",
+                    aria_label: "Next page find match",
+                    title: "Next",
+                    disabled: controls_disabled,
+                    onclick: move |_| {
+                        page_find_state.with_mut(|state| {
+                            update_page_find_active(
+                                state,
+                                route,
+                                PageFindDirection::Next,
+                                match_count,
+                            );
+                        });
+                    },
+                    svg {
+                        class: "page-find-button-icon",
+                        view_box: "0 0 20 20",
+                        "aria-hidden": "true",
+                        path {
+                            d: "M7.5 5L12.5 10L7.5 15",
+                            fill: "none",
+                            stroke: "currentColor",
+                            stroke_width: "2.2",
+                            stroke_linecap: "round",
+                            stroke_linejoin: "round",
+                        }
+                    }
+                }
             }
         }
     }
@@ -3829,10 +3961,10 @@ fn render_page_find_control(
 #[ensures(!ret.is_empty())]
 fn page_find_placeholder(route: AppRoute) -> &'static str {
     match route {
-        AppRoute::Cukta => "Search CLL",
-        AppRoute::Vlacku => "Search cards",
-        AppRoute::Gentufa => "Search output",
-        AppRoute::Settings => "Search settings",
+        AppRoute::Cukta => "Find in section",
+        AppRoute::Vlacku => "Find in cards",
+        AppRoute::Gentufa => "Find in output",
+        AppRoute::Settings => "Find in settings",
     }
 }
 
@@ -3972,7 +4104,7 @@ fn render_topbar_fit_probes(
                 { render_topbar_probe_settings_button() }
                 { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
             }
-            div { class: "app-topbar-fit-probe app-topbar-fit-probe-both-menu",
+            div { class: "app-topbar-fit-probe app-topbar-fit-probe-both-carousel",
                 { render_topbar_probe_brand() }
                 { render_topbar_probe_settings_button() }
                 span { class: "app-topbar-theme app-topbar-theme-mode",
@@ -3981,20 +4113,20 @@ fn render_topbar_fit_probes(
                 span { class: "app-topbar-theme app-topbar-orthography",
                     { render_script_switch(settings, current.script) }
                 }
-                { render_topbar_nav_menu_probe(route) }
+                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gentufa_loading) }
             }
-            div { class: "app-topbar-fit-probe app-topbar-fit-probe-theme-menu",
+            div { class: "app-topbar-fit-probe app-topbar-fit-probe-theme-carousel",
                 { render_topbar_probe_brand() }
                 { render_topbar_probe_settings_button() }
                 span { class: "app-topbar-theme app-topbar-theme-mode",
                     { render_theme_switch(settings, current.theme) }
                 }
-                { render_topbar_nav_menu_probe(route) }
+                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gentufa_loading) }
             }
-            div { class: "app-topbar-fit-probe app-topbar-fit-probe-none-menu",
+            div { class: "app-topbar-fit-probe app-topbar-fit-probe-none-carousel",
                 { render_topbar_probe_brand() }
                 { render_topbar_probe_settings_button() }
-                { render_topbar_nav_menu_probe(route) }
+                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gentufa_loading) }
             }
         }
     }
@@ -4115,10 +4247,9 @@ fn topbar_header_class(
     settings_layout: TopbarSettingsLayout,
     settings_open: bool,
     nav_layout: TopbarNavLayout,
-    nav_open: bool,
 ) -> String {
     format!(
-        "app-topbar spa-topbar {} {}{}{}",
+        "app-topbar spa-topbar {} {}{}",
         match settings_layout {
             TopbarSettingsLayout::BothInline => "topbar-settings-both-inline",
             TopbarSettingsLayout::ThemeInline => "topbar-settings-theme-inline",
@@ -4126,18 +4257,13 @@ fn topbar_header_class(
         },
         match nav_layout {
             TopbarNavLayout::Full => "topbar-nav-full",
-            TopbarNavLayout::Menu => "topbar-nav-menu",
+            TopbarNavLayout::Carousel => "topbar-nav-carousel",
         },
         if settings_open && settings_layout.uses_popout() {
             " topbar-settings-open"
         } else {
             ""
-        },
-        if nav_open && nav_layout == TopbarNavLayout::Menu {
-            " topbar-nav-open"
-        } else {
-            ""
-        },
+        }
     )
 }
 
@@ -4209,7 +4335,6 @@ fn update_topbar_layout(
     mut settings_layout: Signal<TopbarSettingsLayout>,
     mut settings_open: Signal<bool>,
     mut nav_layout: Signal<TopbarNavLayout>,
-    mut nav_open: Signal<bool>,
     next_layout: TopbarLayout,
 ) {
     if *settings_layout.read() != next_layout.settings {
@@ -4221,9 +4346,6 @@ fn update_topbar_layout(
     if next_layout.settings == TopbarSettingsLayout::BothInline && *settings_open.read() {
         settings_open.set(false);
     }
-    if next_layout.nav == TopbarNavLayout::Full && *nav_open.read() {
-        nav_open.set(false);
-    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -4233,7 +4355,6 @@ fn schedule_topbar_settings_layout_measure(
     settings_layout: Signal<TopbarSettingsLayout>,
     settings_open: Signal<bool>,
     nav_layout: Signal<TopbarNavLayout>,
-    nav_open: Signal<bool>,
 ) {
     let Some(window) = web_sys::window() else {
         return;
@@ -4243,14 +4364,50 @@ fn schedule_topbar_settings_layout_measure(
             settings_layout,
             settings_open,
             nav_layout,
-            nav_open,
             measure_topbar_settings_layout(),
         );
     });
-    let _ = window
-        .set_timeout_with_callback_and_timeout_and_arguments_0(closure.as_ref().unchecked_ref(), 0);
+    let _ = window.request_animation_frame(closure.as_ref().unchecked_ref());
     closure.forget();
 }
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_topbar_active_nav_sync() {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move || {
+        scroll_active_topbar_nav_into_view();
+    });
+    let _ = window.request_animation_frame(closure.as_ref().unchecked_ref());
+    closure.forget();
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_topbar_active_nav_sync() {
+    spawn(async move {
+        sleep_ms(0).await;
+        let _ = document::eval(
+            r#"
+            const active = document.querySelector('.app-topbar-nav-carousel-track [data-topbar-nav-active="true"]');
+            if (active) {
+                active.scrollIntoView({ block: "nearest", inline: "center" });
+            }
+            return null;
+            "#,
+        )
+        .await;
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_topbar_active_nav_sync() {}
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(true)]
@@ -4259,17 +4416,25 @@ fn schedule_topbar_settings_layout_measure(
     settings_layout: Signal<TopbarSettingsLayout>,
     settings_open: Signal<bool>,
     nav_layout: Signal<TopbarNavLayout>,
-    nav_open: Signal<bool>,
 ) {
     spawn(async move {
-        sleep_ms(0).await;
-        let layout = measure_topbar_settings_layout_desktop()
-            .await
-            .unwrap_or(new!(TopbarLayout {
+        let mut layout = None;
+        for delay_ms in [0, 16, 64] {
+            sleep_ms(delay_ms).await;
+            layout = measure_topbar_settings_layout_desktop().await;
+            if layout.is_some() {
+                break;
+            }
+        }
+        update_topbar_layout(
+            settings_layout,
+            settings_open,
+            nav_layout,
+            layout.unwrap_or(new!(TopbarLayout {
                 settings: TopbarSettingsLayout::BothInline,
                 nav: TopbarNavLayout::Full,
-            }));
-        update_topbar_layout(settings_layout, settings_open, nav_layout, nav_open, layout);
+            })),
+        );
     });
 }
 
@@ -4280,13 +4445,11 @@ fn schedule_topbar_settings_layout_measure(
     settings_layout: Signal<TopbarSettingsLayout>,
     settings_open: Signal<bool>,
     nav_layout: Signal<TopbarNavLayout>,
-    nav_open: Signal<bool>,
 ) {
     update_topbar_layout(
         settings_layout,
         settings_open,
         nav_layout,
-        nav_open,
         new!(TopbarLayout {
             settings: TopbarSettingsLayout::BothInline,
             nav: TopbarNavLayout::Full,
@@ -4302,7 +4465,6 @@ fn schedule_topbar_settings_layout_after_fonts_ready(
     settings_layout: Signal<TopbarSettingsLayout>,
     settings_open: Signal<bool>,
     nav_layout: Signal<TopbarNavLayout>,
-    nav_open: Signal<bool>,
 ) {
     let Ok(fonts) = js_sys::Reflect::get(document.as_ref(), &JsValue::from_str("fonts")) else {
         return;
@@ -4315,12 +4477,7 @@ fn schedule_topbar_settings_layout_after_fonts_ready(
     };
     wasm_bindgen_futures::spawn_local(async move {
         let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-        schedule_topbar_settings_layout_measure(
-            settings_layout,
-            settings_open,
-            nav_layout,
-            nav_open,
-        );
+        schedule_topbar_settings_layout_measure(settings_layout, settings_open, nav_layout);
     });
 }
 
@@ -4339,9 +4496,9 @@ struct TopbarLayoutMetrics {
     both_full_required_width: f64,
     theme_full_required_width: f64,
     none_full_required_width: f64,
-    both_menu_required_width: f64,
-    theme_menu_required_width: f64,
-    none_menu_required_width: f64,
+    both_carousel_required_width: f64,
+    theme_carousel_required_width: f64,
+    none_carousel_required_width: f64,
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
@@ -4351,6 +4508,17 @@ async fn measure_topbar_settings_layout_desktop() -> Option<TopbarLayout> {
     let metrics: TopbarLayoutMetrics = document::eval(
         r#"
         const inner = document.querySelector(".app-topbar-inner");
+        const stylesReady = () => {
+            const shell = document.querySelector(".spa-shell.app-page");
+            if (!shell) {
+                return false;
+            }
+            const shellStyle = window.getComputedStyle(shell);
+            return String(shellStyle.getPropertyValue("--topbar-bg") || "").trim().length > 0;
+        };
+        if (!stylesReady()) {
+            return null;
+        }
         const widthFor = (parent, selector) => {
             const element = parent && parent.querySelector(selector);
             if (!element) {
@@ -4401,14 +4569,20 @@ async fn measure_topbar_settings_layout_desktop() -> Option<TopbarLayout> {
             const visibleColumns = 1 + (centerWidth > 0 ? 1 : 0) + (rightWidth > 0 ? 1 : 0);
             return probeWidth + centerWidth + rightWidth + (visibleColumns - 1) * columnGapFor(inner);
         };
+        const availableWidth = inner ? inner.getBoundingClientRect().width : 0;
+        const bothFullRequiredWidth = requiredFor(".app-topbar-fit-probe-both-full");
+        const rightWidth = widthFor(inner, ".app-topbar-right");
+        if (!inner || availableWidth <= 0 || bothFullRequiredWidth <= 0 || rightWidth <= 0) {
+            return null;
+        }
         return {
-            available_width: inner ? inner.getBoundingClientRect().width : 0,
-            both_full_required_width: requiredFor(".app-topbar-fit-probe-both-full"),
+            available_width: availableWidth,
+            both_full_required_width: bothFullRequiredWidth,
             theme_full_required_width: requiredFor(".app-topbar-fit-probe-theme-full"),
             none_full_required_width: requiredFor(".app-topbar-fit-probe-none-full"),
-            both_menu_required_width: requiredFor(".app-topbar-fit-probe-both-menu"),
-            theme_menu_required_width: requiredFor(".app-topbar-fit-probe-theme-menu"),
-            none_menu_required_width: requiredFor(".app-topbar-fit-probe-none-menu"),
+            both_carousel_required_width: requiredFor(".app-topbar-fit-probe-both-carousel"),
+            theme_carousel_required_width: requiredFor(".app-topbar-fit-probe-theme-carousel"),
+            none_carousel_required_width: requiredFor(".app-topbar-fit-probe-none-carousel"),
         };
         "#,
     )
@@ -4427,10 +4601,10 @@ fn topbar_layout_from_metrics(metrics: TopbarLayoutMetrics) -> TopbarLayout {
             ".app-topbar-fit-probe-both-full" => metrics.both_full_required_width,
             ".app-topbar-fit-probe-theme-full" => metrics.theme_full_required_width,
             ".app-topbar-fit-probe-none-full" => metrics.none_full_required_width,
-            ".app-topbar-fit-probe-both-menu" => metrics.both_menu_required_width,
-            ".app-topbar-fit-probe-theme-menu" => metrics.theme_menu_required_width,
-            ".app-topbar-fit-probe-none-menu" => metrics.none_menu_required_width,
-            _ => metrics.none_menu_required_width,
+            ".app-topbar-fit-probe-both-carousel" => metrics.both_carousel_required_width,
+            ".app-topbar-fit-probe-theme-carousel" => metrics.theme_carousel_required_width,
+            ".app-topbar-fit-probe-none-carousel" => metrics.none_carousel_required_width,
+            _ => metrics.none_carousel_required_width,
         };
         required_width <= metrics.available_width + 1.0
     })
@@ -4454,15 +4628,15 @@ fn topbar_layout_from_probe_fits(fits: impl Fn(&str) -> bool) -> TopbarLayout {
         }),
         new!(TopbarLayout {
             settings: TopbarSettingsLayout::BothInline,
-            nav: TopbarNavLayout::Menu,
+            nav: TopbarNavLayout::Carousel,
         }),
         new!(TopbarLayout {
             settings: TopbarSettingsLayout::ThemeInline,
-            nav: TopbarNavLayout::Menu,
+            nav: TopbarNavLayout::Carousel,
         }),
         new!(TopbarLayout {
             settings: TopbarSettingsLayout::NoneInline,
-            nav: TopbarNavLayout::Menu,
+            nav: TopbarNavLayout::Carousel,
         }),
     ];
     for candidate in candidates {
@@ -4472,7 +4646,7 @@ fn topbar_layout_from_probe_fits(fits: impl Fn(&str) -> bool) -> TopbarLayout {
     }
     new!(TopbarLayout {
         settings: TopbarSettingsLayout::NoneInline,
-        nav: TopbarNavLayout::Menu,
+        nav: TopbarNavLayout::Carousel,
     })
 }
 
@@ -4489,14 +4663,14 @@ fn topbar_layout_probe_selector(layout: TopbarLayout) -> &'static str {
         (TopbarSettingsLayout::NoneInline, TopbarNavLayout::Full) => {
             ".app-topbar-fit-probe-none-full"
         }
-        (TopbarSettingsLayout::BothInline, TopbarNavLayout::Menu) => {
-            ".app-topbar-fit-probe-both-menu"
+        (TopbarSettingsLayout::BothInline, TopbarNavLayout::Carousel) => {
+            ".app-topbar-fit-probe-both-carousel"
         }
-        (TopbarSettingsLayout::ThemeInline, TopbarNavLayout::Menu) => {
-            ".app-topbar-fit-probe-theme-menu"
+        (TopbarSettingsLayout::ThemeInline, TopbarNavLayout::Carousel) => {
+            ".app-topbar-fit-probe-theme-carousel"
         }
-        (TopbarSettingsLayout::NoneInline, TopbarNavLayout::Menu) => {
-            ".app-topbar-fit-probe-none-menu"
+        (TopbarSettingsLayout::NoneInline, TopbarNavLayout::Carousel) => {
+            ".app-topbar-fit-probe-none-carousel"
         }
     }
 }
@@ -4508,6 +4682,9 @@ fn topbar_probe_fits(selector: &str) -> bool {
     let Some(document) = web_sys::window().and_then(|window| window.document()) else {
         return true;
     };
+    if !topbar_styles_ready(&document) {
+        return true;
+    }
     let Some(inner) = document.query_selector(".app-topbar-inner").ok().flatten() else {
         return true;
     };
@@ -4525,6 +4702,29 @@ fn topbar_probe_fits(selector: &str) -> bool {
         + right_width
         + (visible_columns - 1.0) * topbar_column_gap(&inner);
     required_width <= available_width + 1.0
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn topbar_styles_ready(document: &web_sys::Document) -> bool {
+    let Some(shell) = document
+        .query_selector(".spa-shell.app-page")
+        .ok()
+        .flatten()
+    else {
+        return false;
+    };
+    let Some(window) = web_sys::window() else {
+        return false;
+    };
+    let Some(style) = window.get_computed_style(&shell).ok().flatten() else {
+        return false;
+    };
+    style
+        .get_property_value("--topbar-bg")
+        .ok()
+        .is_some_and(|value| !value.trim().is_empty())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -4678,6 +4878,37 @@ fn focus_page_find_input() {
     if let Ok(input) = element.dyn_into::<web_sys::HtmlInputElement>() {
         let _ = input.focus();
         input.select();
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn scroll_active_topbar_nav_into_view() {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Ok(Some(element)) = document
+        .query_selector(r#".app-topbar-nav-carousel-track [data-topbar-nav-active="true"]"#)
+    else {
+        return;
+    };
+    let options = js_sys::Object::new();
+    let _ = js_sys::Reflect::set(
+        options.as_ref(),
+        &JsValue::from_str("block"),
+        &JsValue::from_str("nearest"),
+    );
+    let _ = js_sys::Reflect::set(
+        options.as_ref(),
+        &JsValue::from_str("inline"),
+        &JsValue::from_str("center"),
+    );
+    if let Ok(function) =
+        js_sys::Reflect::get(element.as_ref(), &JsValue::from_str("scrollIntoView"))
+            .and_then(|value| value.dyn_into::<js_sys::Function>())
+    {
+        let _ = function.call1(element.as_ref(), options.as_ref());
     }
 }
 
@@ -16507,7 +16738,6 @@ fn install_browser_dom_handlers(
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
     topbar_nav_layout: Signal<TopbarNavLayout>,
-    topbar_nav_open: Signal<bool>,
     cukta_toc_forced_autohide: Signal<bool>,
 ) {
     let should_install = BROWSER_STATE_HANDLERS_INSTALLED.with(|installed| {
@@ -16561,18 +16791,12 @@ fn install_browser_dom_handlers(
     let resize_layout = topbar_settings_layout;
     let resize_open = topbar_settings_open;
     let resize_nav_layout = topbar_nav_layout;
-    let resize_nav_open = topbar_nav_open;
     let resize_jvozba_available = jvozba_available;
     let resize_cukta_toc_forced_autohide = cukta_toc_forced_autohide;
     let resize_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
         schedule_gentufa_tree_layout();
-        schedule_topbar_settings_layout_measure(
-            resize_layout,
-            resize_open,
-            resize_nav_layout,
-            resize_nav_open,
-        );
+        schedule_topbar_settings_layout_measure(resize_layout, resize_open, resize_nav_layout);
         update_vlacku_jvozba_availability(resize_jvozba_available);
         update_cukta_toc_forced_autohide(resize_cukta_toc_forced_autohide);
         schedule_vlacku_jvozba_pane_metrics_sync();
@@ -16584,18 +16808,12 @@ fn install_browser_dom_handlers(
     let load_layout = topbar_settings_layout;
     let load_open = topbar_settings_open;
     let load_nav_layout = topbar_nav_layout;
-    let load_nav_open = topbar_nav_open;
     let load_jvozba_available = jvozba_available;
     let load_cukta_toc_forced_autohide = cukta_toc_forced_autohide;
     let window_load_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
         schedule_gentufa_tree_layout();
-        schedule_topbar_settings_layout_measure(
-            load_layout,
-            load_open,
-            load_nav_layout,
-            load_nav_open,
-        );
+        schedule_topbar_settings_layout_measure(load_layout, load_open, load_nav_layout);
         update_vlacku_jvozba_availability(load_jvozba_available);
         update_cukta_toc_forced_autohide(load_cukta_toc_forced_autohide);
         schedule_vlacku_jvozba_pane_metrics_sync();
@@ -16607,7 +16825,6 @@ fn install_browser_dom_handlers(
     let stylesheet_layout = topbar_settings_layout;
     let stylesheet_open = topbar_settings_open;
     let stylesheet_nav_layout = topbar_nav_layout;
-    let stylesheet_nav_open = topbar_nav_open;
     let stylesheet_load_closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
         if event_target_is_stylesheet_link(&event) {
             schedule_gentufa_block_reference_layout();
@@ -16616,7 +16833,6 @@ fn install_browser_dom_handlers(
                 stylesheet_layout,
                 stylesheet_open,
                 stylesheet_nav_layout,
-                stylesheet_nav_open,
             );
             schedule_vlacku_jvozba_pane_metrics_sync();
         }
@@ -16634,7 +16850,6 @@ fn install_browser_dom_handlers(
         topbar_settings_layout,
         topbar_settings_open,
         topbar_nav_layout,
-        topbar_nav_open,
     );
     schedule_vlacku_jvozba_pane_metrics_after_fonts_ready(&document);
 
@@ -16665,7 +16880,6 @@ fn install_browser_dom_handlers(
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
     topbar_nav_layout: Signal<TopbarNavLayout>,
-    topbar_nav_open: Signal<bool>,
     cukta_toc_forced_autohide: Signal<bool>,
 ) {
     if DESKTOP_DOM_HANDLERS_INSTALLED.set(()).is_err() {
@@ -16693,12 +16907,16 @@ fn install_browser_dom_handlers(
                 } catch (_error) {
                 }
             };
-            window.addEventListener("resize", () => requestAnimationFrame(sendLayout));
+            const scheduleLayout = () => requestAnimationFrame(sendLayout);
+            window.addEventListener("resize", scheduleLayout);
             window.addEventListener("load", sendLayout);
+            for (const link of Array.from(document.querySelectorAll('link[rel~="stylesheet"]'))) {
+                link.addEventListener("load", scheduleLayout, { once: true });
+            }
             if (document.fonts && document.fonts.ready) {
                 document.fonts.ready.then(sendLayout).catch(() => {});
             }
-            requestAnimationFrame(sendLayout);
+            scheduleLayout();
             await new Promise(() => {});
             "#,
         );
@@ -16709,7 +16927,6 @@ fn install_browser_dom_handlers(
                 topbar_settings_layout,
                 topbar_settings_open,
                 topbar_nav_layout,
-                topbar_nav_open,
             );
             update_vlacku_jvozba_availability(jvozba_available);
             update_cukta_toc_forced_autohide(cukta_toc_forced_autohide);
@@ -16726,7 +16943,6 @@ fn install_browser_dom_handlers(
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
     topbar_nav_layout: Signal<TopbarNavLayout>,
-    topbar_nav_open: Signal<bool>,
     cukta_toc_forced_autohide: Signal<bool>,
 ) {
     let _ = (
@@ -16734,7 +16950,6 @@ fn install_browser_dom_handlers(
         topbar_settings_layout,
         topbar_settings_open,
         topbar_nav_layout,
-        topbar_nav_open,
         cukta_toc_forced_autohide,
     );
 }
@@ -18071,6 +18286,12 @@ fn block_reference_target_for_block(block: &web_sys::Element) -> Option<web_sys:
 #[requires(true)]
 #[ensures(true)]
 fn position_dictionary_tooltip_from_event(event: &web_sys::Event) {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    if !topbar_styles_ready(&document) {
+        return;
+    }
     let Some(target) = event
         .target()
         .and_then(|target| target.dyn_into::<web_sys::Element>().ok())
@@ -18237,6 +18458,14 @@ fn install_desktop_tooltip_bridge() {
             r#"
             let nextTooltipId = 1;
             const hostSelector = ".dictionary-tooltip-host, .reference-tooltip-host";
+            const stylesReady = () => {
+                const shell = document.querySelector(".spa-shell.app-page");
+                if (!shell) {
+                    return false;
+                }
+                const shellStyle = window.getComputedStyle(shell);
+                return String(shellStyle.getPropertyValue("--topbar-bg") || "").trim().length > 0;
+            };
             const tooltipForHost = (host) => {
                 for (const child of Array.from(host.children)) {
                     if (
@@ -18290,6 +18519,9 @@ fn install_desktop_tooltip_bridge() {
                 (host) => host.dataset.jbotciTooltipId === String(id),
             );
             const measureHost = (target) => {
+                if (!stylesReady()) {
+                    return;
+                }
                 const element = target instanceof Element ? target : target && target.parentElement;
                 const host = element && element.closest ? element.closest(hostSelector) : null;
                 if (!host) {
@@ -20289,6 +20521,28 @@ mod tests {
         assert_eq!(math_monospace_git_commit("f4a90c1"), "𝚏𝟺𝚊𝟿𝟶𝚌𝟷");
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn topbar_carousel_routes_center_active_page_and_wrap_neighbors() {
+        assert_eq!(
+            topbar_carousel_routes(AppRoute::Cukta),
+            [AppRoute::Gentufa, AppRoute::Cukta, AppRoute::Vlacku]
+        );
+        assert_eq!(
+            topbar_carousel_routes(AppRoute::Vlacku),
+            [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gentufa]
+        );
+        assert_eq!(
+            topbar_carousel_routes(AppRoute::Gentufa),
+            [AppRoute::Vlacku, AppRoute::Gentufa, AppRoute::Cukta]
+        );
+        assert_eq!(
+            topbar_carousel_routes(AppRoute::Settings),
+            [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gentufa]
+        );
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn page_find_entry_texts(entries: &[PageFindTextEntry]) -> Vec<String> {
@@ -20371,7 +20625,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn topbar_layout_resolver_prefers_full_nav_then_compact_settings_then_menu() {
+    fn topbar_layout_resolver_prefers_full_nav_then_compact_settings_then_carousel() {
         let layout =
             topbar_layout_from_probe_fits(|selector| selector == ".app-topbar-fit-probe-both-full");
         assert_eq!(layout.settings, TopbarSettingsLayout::BothInline);
@@ -20383,14 +20637,15 @@ mod tests {
         assert_eq!(layout.settings, TopbarSettingsLayout::ThemeInline);
         assert_eq!(layout.nav, TopbarNavLayout::Full);
 
-        let layout =
-            topbar_layout_from_probe_fits(|selector| selector == ".app-topbar-fit-probe-both-menu");
+        let layout = topbar_layout_from_probe_fits(|selector| {
+            selector == ".app-topbar-fit-probe-both-carousel"
+        });
         assert_eq!(layout.settings, TopbarSettingsLayout::BothInline);
-        assert_eq!(layout.nav, TopbarNavLayout::Menu);
+        assert_eq!(layout.nav, TopbarNavLayout::Carousel);
 
         let layout = topbar_layout_from_probe_fits(|_selector| false);
         assert_eq!(layout.settings, TopbarSettingsLayout::NoneInline);
-        assert_eq!(layout.nav, TopbarNavLayout::Menu);
+        assert_eq!(layout.nav, TopbarNavLayout::Carousel);
     }
 
     #[test]
