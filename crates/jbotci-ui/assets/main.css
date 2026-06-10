@@ -666,6 +666,93 @@ body::-webkit-scrollbar-thumb:hover,
   animation-delay: 240ms;
 }
 
+.app-topbar-nav-menu {
+  position: relative;
+  flex: 0 0 auto;
+  margin-left: 0.65rem;
+}
+
+.app-page .app-topbar .app-topbar-nav-menu-toggle {
+  min-width: 5.8rem;
+  height: 1.65rem;
+  padding: 0 0.55rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  border: 1px solid var(--theme-switch-border);
+  border-radius: 999px;
+  background: var(--theme-switch-bg);
+  color: var(--topbar-text);
+  font-family: var(--ui-font);
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.app-page .app-topbar .app-topbar-nav-menu-toggle:hover,
+.app-page .app-topbar .app-topbar-nav-menu-toggle.is-open {
+  color: var(--topbar-active);
+  background: var(--theme-btn-active-bg);
+}
+
+.app-topbar-nav-menu-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-topbar-nav-menu-chevron {
+  color: var(--topbar-commit);
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.app-topbar-nav-menu-list {
+  position: absolute;
+  top: calc(100% + 0.42rem);
+  left: 0;
+  min-width: 8.2rem;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.32rem;
+  border: 1px solid var(--topbar-border);
+  border-radius: 8px;
+  background: var(--topbar-bg);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.35);
+  z-index: 1200;
+}
+
+.app-page .app-topbar .app-topbar-nav-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.42rem 0.55rem;
+  border-radius: 6px;
+  color: var(--topbar-muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.app-page .app-topbar .app-topbar-nav-menu-item:hover,
+.app-page .app-topbar .app-topbar-nav-menu-item.active {
+  color: var(--topbar-active);
+  background: var(--theme-btn-active-bg);
+}
+
+.app-page .app-topbar .app-topbar-nav-menu-item.is-loading::after {
+  content: "";
+  width: 0.32rem;
+  height: 0.32rem;
+  margin-left: 0.5rem;
+  border-radius: 50%;
+  background: var(--topbar-commit);
+}
+
 .app-topbar-center {
   grid-column: 2;
   justify-self: stretch;
@@ -729,27 +816,113 @@ body::-webkit-scrollbar-thumb:hover,
   justify-self: end;
   align-self: center;
   padding-right: 0.2rem;
-  color: var(--topbar-commit);
+  color: var(--topbar-text);
   text-align: right;
   white-space: nowrap;
   font-size: 0.7rem;
 }
 
-.app-page .app-topbar .app-topbar-commit {
-  color: var(--topbar-commit);
-  font-family: var(--code-font);
-  font-size: 0.7rem;
-  font-weight: 500;
-  font-stretch: 87.5%;
-  font-variation-settings: "wdth" 87.5;
-  line-height: 1;
-  text-decoration: none;
+.page-find-control {
+  width: clamp(10rem, 26vw, 18rem);
+  min-width: 10rem;
+  height: 1.7rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 0.18rem;
+  padding: 0.08rem 0.16rem 0.08rem 0.42rem;
+  border: 1px solid var(--theme-switch-border);
+  border-radius: 999px;
+  background: var(--theme-switch-bg);
+  color: var(--topbar-text);
 }
 
-.app-page .app-topbar .app-topbar-commit:hover {
-  color: var(--dark-surface-link-hover);
-  text-decoration: underline;
-  text-underline-offset: 0.28em;
+.page-find-icon {
+  display: inline-flex;
+  width: 0.82rem;
+  height: 0.82rem;
+  color: var(--topbar-commit);
+}
+
+.page-find-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.page-find-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--topbar-text);
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.page-find-input::placeholder {
+  color: color-mix(in srgb, var(--topbar-muted) 82%, transparent);
+}
+
+.app-page .page-find-input:focus-visible {
+  box-shadow: none;
+}
+
+.page-find-count {
+  min-width: 3.2em;
+  color: var(--topbar-muted);
+  font-size: 0.66rem;
+  line-height: 1;
+  text-align: right;
+}
+
+.page-find-button {
+  width: 1.28rem;
+  min-width: 1.28rem;
+  height: 1.28rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--topbar-text);
+  font-size: 0.86rem;
+  line-height: 1;
+}
+
+.page-find-button:hover:not(:disabled) {
+  color: var(--topbar-active);
+  background: var(--theme-btn-active-bg);
+}
+
+.page-find-button:disabled {
+  color: color-mix(in srgb, var(--topbar-muted) 54%, transparent);
+}
+
+.page-find-clear {
+  color: var(--topbar-commit);
+  font-size: 0.9rem;
+}
+
+.page-find-hit {
+  padding: 0 0.03em;
+  border-radius: 2px;
+  background: color-mix(in srgb, #f4c430 62%, transparent);
+  color: inherit;
+}
+
+.page-find-hit.is-active {
+  background: #ff9d3d;
+  color: #1b1208;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #ff9d3d 36%, transparent);
 }
 
 .app-topbar-fit-probes {
@@ -780,6 +953,10 @@ body::-webkit-scrollbar-thumb:hover,
 .app-topbar-fit-probe .spa-nav {
   flex: 0 0 auto;
   flex-wrap: nowrap;
+}
+
+.app-topbar-fit-probe .app-topbar-nav-menu {
+  display: inline-flex;
 }
 
 .spa-page .page-container {
@@ -2303,6 +2480,28 @@ body::-webkit-scrollbar-thumb:hover,
 
 .settings-container h2 {
   font-size: 1rem;
+}
+
+.settings-page-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.settings-commit-link {
+  flex: 0 0 auto;
+  color: var(--app-muted);
+  font-family: var(--code-font);
+  font-size: 0.72rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.settings-commit-link:hover {
+  color: var(--app-link-hover);
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
 }
 
 .settings-section {
@@ -4870,16 +5069,22 @@ body::-webkit-scrollbar-thumb:hover,
 
 @media (max-width: 760px) {
   .app-topbar-inner {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 0.35rem;
   }
 
   .app-topbar-left {
     grid-column: 1;
   }
 
-  .app-topbar-center,
-  .app-topbar-right {
+  .app-topbar-center {
     display: none;
+  }
+
+  .app-topbar-right {
+    grid-column: 2;
+    display: block;
+    min-width: 10rem;
   }
 
   .app-topbar-theme {
@@ -4894,6 +5099,10 @@ body::-webkit-scrollbar-thumb:hover,
   .app-page .app-topbar .app-topbar-link {
     margin-left: 0.58em;
     font-size: 0.9rem;
+  }
+
+  .page-find-control {
+    width: 10rem;
   }
 
   .spa-page .page-container {

@@ -61,12 +61,12 @@ use wasm_bindgen::closure::Closure;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-#[cfg(target_arch = "wasm32")]
 use std::cell::Cell;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 use std::future::Future;
+use std::hash::{Hash, Hasher};
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 use std::path::Path;
 use std::rc::Rc;
@@ -159,6 +159,7 @@ const SEMANTIC_LOADING_MESSAGE_DELAY_MS: i32 = 100;
 const SEMANTIC_SEARCH_SETUP_MESSAGE: &str = "Download model and embeddings to use semantic search";
 const SEMANTIC_SEARCH_SETUP_LINK_LABEL: &str = "Download";
 const SEMANTIC_SEARCH_SETUP_LINK_SUFFIX: &str = " model and embeddings to use semantic search";
+const PAGE_FIND_INPUT_ID: &str = "app-page-find-input";
 #[cfg(target_arch = "wasm32")]
 const VLACKU_JVOZBA_MIN_WIDTH_PX: f64 = 981.0;
 #[cfg(target_arch = "wasm32")]
@@ -262,6 +263,21 @@ enum TopbarSettingsLayout {
     ThemeInline,
     #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
     NoneInline,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum TopbarNavLayout {
+    Full,
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+    Menu,
+}
+
+#[invariant(!self.settings.shows_script_inline() || self.settings.shows_theme_inline())]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct TopbarLayout {
+    settings: TopbarSettingsLayout,
+    nav: TopbarNavLayout,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -387,6 +403,1275 @@ enum AppRoute {
     Settings,
     Cukta,
     Vlacku,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct PageFindState {
+    cukta: PageFindRouteState,
+    vlacku: PageFindRouteState,
+    gentufa: PageFindRouteState,
+    settings: PageFindRouteState,
+}
+
+impl PageFindState {
+    #[requires(true)]
+    #[ensures(true)]
+    fn route_state(&self, route: AppRoute) -> &PageFindRouteState {
+        match route {
+            AppRoute::Cukta => &self.cukta,
+            AppRoute::Vlacku => &self.vlacku,
+            AppRoute::Gentufa => &self.gentufa,
+            AppRoute::Settings => &self.settings,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn route_state_mut(&mut self, route: AppRoute) -> &mut PageFindRouteState {
+        match route {
+            AppRoute::Cukta => &mut self.cukta,
+            AppRoute::Vlacku => &mut self.vlacku,
+            AppRoute::Gentufa => &mut self.gentufa,
+            AppRoute::Settings => &mut self.settings,
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_page_find_query(
+    state: &mut PageFindState,
+    route: AppRoute,
+    query: String,
+    update: PageFindRouteQueryUpdate,
+) {
+    let route_state = state.route_state_mut(route);
+    match update {
+        PageFindRouteQueryUpdate::Replace => {
+            if route_state.query != query {
+                *route_state = route_state.clone().with_data(data! {
+                    query: query,
+                    active_index: None,
+                    result_signature: 0,
+                });
+            }
+        }
+        PageFindRouteQueryUpdate::Clear => {
+            if !route_state.query.is_empty() || route_state.active_index.is_some() {
+                *route_state = route_state.clone().with_data(data! {
+                    query: String::new(),
+                    active_index: None,
+                    result_signature: 0,
+                });
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn update_page_find_active(
+    state: &mut PageFindState,
+    route: AppRoute,
+    direction: PageFindDirection,
+    match_count: usize,
+) {
+    if match_count == 0 {
+        let route_state = state.route_state_mut(route);
+        reset_page_find_active(route_state);
+        return;
+    }
+    let route_state = state.route_state_mut(route);
+    let next = match (route_state.active_index, direction) {
+        (Some(index), PageFindDirection::Next) => (index + 1) % match_count,
+        (Some(0), PageFindDirection::Previous) => match_count - 1,
+        (Some(index), PageFindDirection::Previous) => index - 1,
+        (None, PageFindDirection::Next) => 0,
+        (None, PageFindDirection::Previous) => match_count - 1,
+    };
+    *route_state = route_state.clone().with_data(data! {
+        active_index: Some(next),
+        scroll_request: route_state.scroll_request.wrapping_add(1),
+    });
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sync_page_find_result_signature(
+    state: &mut PageFindState,
+    route: AppRoute,
+    signature: u64,
+    match_count: usize,
+) {
+    let route_state = state.route_state_mut(route);
+    if route_state.result_signature != signature {
+        *route_state = route_state.clone().with_data(data! {
+            result_signature: signature,
+            active_index: None,
+        });
+        return;
+    }
+    if route_state
+        .active_index
+        .is_some_and(|active_index| active_index >= match_count)
+    {
+        reset_page_find_active(route_state);
+    }
+}
+
+#[requires(true)]
+#[ensures(route_state.active_index.is_none())]
+fn reset_page_find_active(route_state: &mut PageFindRouteState) {
+    if route_state.active_index.is_some() {
+        *route_state = route_state.clone().with_data(data! { active_index: None });
+    }
+}
+
+#[invariant(self.active_index.is_none() || !self.query.is_empty())]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct PageFindRouteState {
+    query: String,
+    active_index: Option<usize>,
+    result_signature: u64,
+    scroll_request: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[invariant(true)]
+struct PageFindTextKey {
+    ordinal: usize,
+}
+
+#[invariant(byte_start <= byte_end)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct PageFindTextRange {
+    byte_start: usize,
+    byte_end: usize,
+}
+
+#[invariant(self.range.byte_start < self.range.byte_end)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PageFindMatch {
+    key: PageFindTextKey,
+    range: PageFindTextRange,
+    index: usize,
+}
+
+#[invariant(!self.text.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PageFindTextEntry {
+    text: String,
+}
+
+#[invariant(!self.query.is_empty() || self.matches.is_empty())]
+#[invariant(self.matches.iter().enumerate().all(|(expected, page_match)| page_match.index == expected))]
+#[invariant(self.matches_by_key.values().map(Vec::len).sum::<usize>() == self.matches.len())]
+#[invariant(self.matches_by_key.values().flatten().all(|page_match| self.matches.get(page_match.index).is_some_and(|indexed| indexed == page_match)))]
+#[invariant(self.matches.iter().all(|page_match| self.matches_by_key.get(&page_match.key).is_some_and(|key_matches| key_matches.iter().any(|mapped| mapped == page_match))))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PageFindIndex {
+    query: String,
+    matches: Vec<PageFindMatch>,
+    matches_by_key: BTreeMap<PageFindTextKey, Vec<PageFindMatch>>,
+    signature: u64,
+}
+
+#[invariant(self.active_index.is_none_or(|index| index < self.match_count))]
+#[derive(Debug, Clone)]
+struct PageFindContext {
+    query: String,
+    active_index: Option<usize>,
+    match_count: usize,
+    matches_by_key: Rc<BTreeMap<PageFindTextKey, Vec<PageFindMatch>>>,
+    next_text_ordinal: Rc<Cell<usize>>,
+}
+
+#[invariant(!self.text.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PageFindRenderPiece {
+    text: String,
+    match_index: Option<usize>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum PageFindDirection {
+    Previous,
+    Next,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum PageFindRouteQueryUpdate {
+    Replace,
+    Clear,
+}
+
+impl PageFindContext {
+    #[requires(true)]
+    #[ensures(ret.match_count == index.matches.len())]
+    fn new(index: &PageFindIndex, route_state: &PageFindRouteState) -> Self {
+        let active_index = if route_state.result_signature == index.signature {
+            route_state
+                .active_index
+                .filter(|active_index| *active_index < index.matches.len())
+        } else {
+            None
+        };
+        new!(PageFindContext {
+            query: index.query.clone(),
+            active_index,
+            match_count: index.matches.len(),
+            matches_by_key: Rc::new(index.matches_by_key.clone()),
+            next_text_ordinal: Rc::new(Cell::new(0)),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn next_text_key(&self) -> PageFindTextKey {
+        let ordinal = self.next_text_ordinal.get();
+        self.next_text_ordinal.set(ordinal.saturating_add(1));
+        PageFindTextKey { ordinal }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn matches_for_key(&self, key: PageFindTextKey) -> &[PageFindMatch] {
+        self.matches_by_key
+            .get(&key)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.query == query)]
+fn build_page_find_index(query: &str, entries: &[PageFindTextEntry]) -> PageFindIndex {
+    let signature = page_find_result_signature(query, entries);
+    let mut matches = Vec::<PageFindMatch>::new();
+    let mut matches_by_key = BTreeMap::<PageFindTextKey, Vec<PageFindMatch>>::new();
+    if query.is_empty() {
+        return new!(PageFindIndex {
+            query: query.to_owned(),
+            matches,
+            matches_by_key,
+            signature,
+        });
+    }
+
+    for (ordinal, entry) in entries.iter().enumerate() {
+        let key = PageFindTextKey { ordinal };
+        for range in page_find_match_ranges(&entry.text, query) {
+            let index = matches.len();
+            let page_match = new!(PageFindMatch { key, range, index });
+            matches_by_key
+                .entry(key)
+                .or_default()
+                .push(page_match.clone());
+            matches.push(page_match);
+        }
+    }
+
+    new!(PageFindIndex {
+        query: query.to_owned(),
+        matches,
+        matches_by_key,
+        signature,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn page_find_result_signature(query: &str, entries: &[PageFindTextEntry]) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    query.hash(&mut hasher);
+    entries.len().hash(&mut hasher);
+    for entry in entries {
+        entry.text.hash(&mut hasher);
+    }
+    hasher.finish()
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|range| range.byte_start < range.byte_end))]
+fn page_find_match_ranges(text: &str, query: &str) -> Vec<PageFindTextRange> {
+    if text.is_empty() || query.is_empty() {
+        return Vec::new();
+    }
+    let normalized_text = normalized_page_find_text(text);
+    let normalized_query = lowercase_page_find_text(query);
+    if normalized_text.text.is_empty() || normalized_query.is_empty() {
+        return Vec::new();
+    }
+
+    let mut ranges = Vec::new();
+    let mut search_start = 0;
+    while search_start <= normalized_text.text.len() {
+        let Some(relative_start) = normalized_text.text[search_start..].find(&normalized_query)
+        else {
+            break;
+        };
+        let normalized_start = search_start + relative_start;
+        let normalized_end = normalized_start + normalized_query.len();
+        if let Some(range) = original_range_for_normalized_match(
+            &normalized_text.spans,
+            normalized_start,
+            normalized_end,
+        ) {
+            ranges.push(range);
+        }
+        search_start = normalized_end;
+    }
+    ranges
+}
+
+#[invariant(self.spans.iter().all(|span| span.normalized_end <= self.text.len()))]
+#[invariant(self.spans.windows(2).all(|pair| pair[0].normalized_end <= pair[1].normalized_start))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct NormalizedPageFindText {
+    text: String,
+    spans: Vec<NormalizedPageFindCharSpan>,
+}
+
+#[invariant(normalized_start <= normalized_end)]
+#[invariant(original_start <= original_end)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct NormalizedPageFindCharSpan {
+    normalized_start: usize,
+    normalized_end: usize,
+    original_start: usize,
+    original_end: usize,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalized_page_find_text(text: &str) -> NormalizedPageFindText {
+    let mut normalized = String::new();
+    let mut spans = Vec::new();
+    for (original_start, character) in text.char_indices() {
+        let original_end = original_start + character.len_utf8();
+        for lower in character.to_lowercase() {
+            let normalized_start = normalized.len();
+            normalized.push(lower);
+            let normalized_end = normalized.len();
+            spans.push(new!(NormalizedPageFindCharSpan {
+                normalized_start,
+                normalized_end,
+                original_start,
+                original_end,
+            }));
+        }
+    }
+    new!(NormalizedPageFindText {
+        text: normalized,
+        spans,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn lowercase_page_find_text(text: &str) -> String {
+    let mut normalized = String::new();
+    for character in text.chars() {
+        normalized.extend(character.to_lowercase());
+    }
+    normalized
+}
+
+#[requires(normalized_start < normalized_end)]
+#[ensures(ret.is_none_or(|range| range.byte_start < range.byte_end))]
+fn original_range_for_normalized_match(
+    spans: &[NormalizedPageFindCharSpan],
+    normalized_start: usize,
+    normalized_end: usize,
+) -> Option<PageFindTextRange> {
+    let first = spans
+        .iter()
+        .find(|span| span.normalized_end > normalized_start)?;
+    let last = spans
+        .iter()
+        .rev()
+        .find(|span| span.normalized_start < normalized_end)?;
+    Some(new!(PageFindTextRange {
+        byte_start: first.original_start,
+        byte_end: last.original_end,
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_page_find_entry(entries: &mut Vec<PageFindTextEntry>, text: impl Into<String>) {
+    let text = text.into();
+    if !text.is_empty() {
+        entries.push(new!(PageFindTextEntry { text }));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn page_find_render_pieces(text: &str, matches: &[PageFindMatch]) -> Vec<PageFindRenderPiece> {
+    if text.is_empty() {
+        return Vec::new();
+    }
+    if matches.is_empty() {
+        return vec![new!(PageFindRenderPiece {
+            text: text.to_owned(),
+            match_index: None,
+        })];
+    }
+    let mut pieces = Vec::new();
+    let mut cursor = 0;
+    for page_match in matches {
+        if page_match.range.byte_start > cursor {
+            pieces.push(new!(PageFindRenderPiece {
+                text: text[cursor..page_match.range.byte_start].to_owned(),
+                match_index: None,
+            }));
+        }
+        pieces.push(new!(PageFindRenderPiece {
+            text: text[page_match.range.byte_start..page_match.range.byte_end].to_owned(),
+            match_index: Some(page_match.index),
+        }));
+        cursor = page_match.range.byte_end;
+    }
+    if cursor < text.len() {
+        pieces.push(new!(PageFindRenderPiece {
+            text: text[cursor..].to_owned(),
+            match_index: None,
+        }));
+    }
+    pieces.retain(|piece| !piece.text.is_empty());
+    pieces
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_page_find_text(page_find: &PageFindContext, text: &str) -> Element {
+    if text.is_empty() {
+        return rsx! {};
+    }
+    let key = page_find.next_text_key();
+    let matches = page_find.matches_for_key(key);
+    if matches.is_empty() {
+        return rsx! { "{text}" };
+    }
+    let pieces = page_find_render_pieces(text, matches);
+    rsx! {
+        for piece in pieces.iter() {
+            if let Some(match_index) = piece.match_index {
+                {
+                    let class_name = page_find_mark_class(page_find.active_index == Some(match_index));
+                    rsx! {
+                        mark {
+                            class: "{class_name}",
+                            "data-page-find-match-index": "{match_index}",
+                            aria_current: if page_find.active_index == Some(match_index) { "true" } else { "false" },
+                            "{piece.text}"
+                        }
+                    }
+                }
+            } else {
+                "{piece.text}"
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_optional_page_find_text(page_find: Option<&PageFindContext>, text: &str) -> Element {
+    if let Some(page_find) = page_find {
+        render_page_find_text(page_find, text)
+    } else {
+        rsx! { "{text}" }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn page_find_mark_class(active: bool) -> &'static str {
+    if active {
+        "page-find-hit is-active"
+    } else {
+        "page-find-hit"
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(true)]
+#[ensures(true)]
+fn page_find_entries_for_route(
+    route: AppRoute,
+    cukta_page: &CuktaAsyncPageState,
+    vlacku_committed_state: &VlackuWebState,
+    vlacku_result_state: &VlackuAsyncResultState,
+    gentufa_result: &GentufaWebResult,
+    gentufa_request: Option<&GentufaWebRequest>,
+    gentufa_view_mode: GentufaWebViewMode,
+    gentufa_display: GentufaDisplayState,
+    current_settings: UserSettings,
+    dialect_settings: &DialectSettings,
+    selected_dialect: &str,
+    embedding_settings: &EmbeddingSettingsState,
+    script: GentufaScript,
+) -> Vec<PageFindTextEntry> {
+    let mut entries = Vec::new();
+    match route {
+        AppRoute::Cukta => collect_cukta_page_find_entries(&mut entries, &cukta_page.page, script),
+        AppRoute::Vlacku => {
+            let result =
+                visible_vlacku_result_for_find(vlacku_committed_state, vlacku_result_state);
+            collect_vlacku_page_find_entries(&mut entries, &result, script);
+        }
+        AppRoute::Gentufa => collect_gentufa_page_find_entries(
+            &mut entries,
+            gentufa_result,
+            gentufa_request,
+            gentufa_view_mode,
+            gentufa_display,
+            script,
+        ),
+        AppRoute::Settings => collect_settings_page_find_entries(
+            &mut entries,
+            current_settings,
+            dialect_settings,
+            selected_dialect,
+            embedding_settings,
+        ),
+    }
+    entries
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn visible_vlacku_result_for_find(
+    committed_state: &VlackuWebState,
+    result_state: &VlackuAsyncResultState,
+) -> VlackuWebResult {
+    if result_state.state.as_ref() == Some(committed_state) {
+        result_state.result.clone()
+    } else {
+        vlacku_loading_result(committed_state, "Loading dictionary results.")
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_cukta_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    page: &CuktaPageData,
+    script: GentufaScript,
+) {
+    match &page.page_kind {
+        CuktaPageKind::Section {
+            section_heading,
+            chapter_prelude_blocks,
+            blocks,
+            previous_section,
+            next_section,
+            ..
+        } => {
+            push_page_find_entry(entries, section_heading.clone());
+            for block in chapter_prelude_blocks {
+                collect_cll_block_page_find_entries(entries, block, script);
+            }
+            for block in blocks {
+                collect_cll_block_page_find_entries(entries, block, script);
+            }
+            if let Some(previous) = previous_section {
+                push_page_find_entry(entries, previous.label.clone());
+            }
+            if let Some(next) = next_section {
+                push_page_find_entry(entries, next.label.clone());
+            }
+        }
+        CuktaPageKind::Index {
+            entries: index_entries,
+        } => {
+            push_page_find_entry(entries, "Index");
+            for entry in index_entries {
+                push_page_find_entry(entries, entry.key.clone());
+                for reference in &entry.references {
+                    push_page_find_entry(entries, reference.label.clone());
+                }
+            }
+        }
+        CuktaPageKind::Search {
+            results,
+            message,
+            has_more,
+            ..
+        } => {
+            if let Some(message) = message {
+                push_page_find_entry(entries, semantic_search_message_visible_text(message));
+            }
+            for card in results {
+                collect_cukta_search_card_page_find_entries(entries, card);
+            }
+            if *has_more {
+                push_page_find_entry(entries, "Load more");
+            }
+        }
+        CuktaPageKind::Error { message } => push_page_find_entry(entries, message.clone()),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_cukta_search_card_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    card: &CuktaSearchResultCard,
+) {
+    push_page_find_entry(entries, format!("{} · {}", card.kind, card.section_label));
+    push_page_find_entry(entries, format!("{}. {}", card.rank, card.label));
+    if let Some(similarity) = &card.similarity_label {
+        push_page_find_entry(entries, similarity.clone());
+    }
+    push_page_find_entry(entries, card.preview.clone());
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_cll_block_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    block: &CllBlock,
+    script: GentufaScript,
+) {
+    match block {
+        CllBlock::Paragraph { inlines, text, .. } => {
+            if inlines.is_empty() {
+                push_page_find_entry(entries, text.clone());
+            } else {
+                collect_cll_inlines_page_find_entries(entries, inlines, script, false);
+            }
+        }
+        CllBlock::List { items, .. } => {
+            for item in items {
+                for child in item {
+                    collect_cll_block_page_find_entries(entries, child, script);
+                }
+            }
+        }
+        CllBlock::Example(example) => {
+            push_page_find_entry(entries, example.label.clone());
+            if example.blocks.is_empty() {
+                for line in &example.lines {
+                    push_page_find_entry(
+                        entries,
+                        cll_display_text_for_kind(script, &line.kind, &line.text),
+                    );
+                }
+            } else {
+                for child in &example.blocks {
+                    collect_cll_block_page_find_entries(entries, child, script);
+                }
+            }
+        }
+        CllBlock::Table {
+            caption,
+            header_rows,
+            body_rows,
+            ..
+        } => {
+            if let Some(caption) = caption {
+                collect_cll_inlines_page_find_entries(entries, caption, script, false);
+            }
+            for row in header_rows.iter().chain(body_rows.iter()) {
+                for cell in row {
+                    collect_cll_table_cell_page_find_entries(entries, cell, script);
+                }
+            }
+        }
+        CllBlock::SimpleListTable { rows, .. } => {
+            for row in rows {
+                for cell in row {
+                    if let Some(inlines) = cell {
+                        collect_cll_inlines_page_find_entries(entries, inlines, script, false);
+                    }
+                }
+            }
+        }
+        CllBlock::VariableList { entries: items, .. } => {
+            for entry in items {
+                collect_cll_inlines_page_find_entries(entries, &entry.term, script, false);
+                for child in &entry.blocks {
+                    collect_cll_block_page_find_entries(entries, child, script);
+                }
+            }
+        }
+        CllBlock::Media { title, .. } => {
+            if let Some(title) = title {
+                collect_cll_inlines_page_find_entries(entries, title, script, false);
+            }
+        }
+        CllBlock::Rule { term, body, .. } => {
+            push_page_find_entry(entries, term.clone());
+            for child in body {
+                collect_cll_block_page_find_entries(entries, child, script);
+            }
+        }
+        CllBlock::Code { text, .. } => push_page_find_entry(entries, text.clone()),
+        CllBlock::DisplayMath { .. } => {}
+        CllBlock::Heading { inlines, .. } => {
+            collect_cll_inlines_page_find_entries(entries, inlines, script, false);
+        }
+        CllBlock::BlockQuote { blocks, .. } => {
+            for child in blocks {
+                collect_cll_block_page_find_entries(entries, child, script);
+            }
+        }
+        CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
+            collect_cll_inlines_page_find_entries(entries, body, script, false);
+        }
+        CllBlock::InterlinearGloss {
+            rows,
+            natlang,
+            comments,
+            ..
+        } => {
+            for row in rows {
+                let row_context = cll_kind_is_lojban(&row.kind);
+                for cell in &row.cells {
+                    collect_cll_inlines_page_find_entries(entries, cell, script, row_context);
+                }
+            }
+            for comment in comments {
+                collect_cll_inlines_page_find_entries(entries, comment, script, false);
+            }
+            for line in natlang {
+                collect_cll_inlines_page_find_entries(entries, line, script, false);
+            }
+        }
+        CllBlock::CmavoList {
+            titles,
+            headers,
+            rows,
+            ..
+        } => {
+            for title in titles {
+                collect_cll_inlines_page_find_entries(entries, title, script, false);
+            }
+            for header in headers {
+                collect_cll_inlines_page_find_entries(entries, header, script, false);
+            }
+            for row in rows {
+                for cell in row {
+                    collect_cll_inlines_page_find_entries(entries, cell, script, false);
+                }
+            }
+        }
+        CllBlock::Lojbanization { lines, .. } => {
+            for line in lines {
+                push_page_find_entry(entries, line.kind.clone());
+                let line_context = cll_kind_is_lojban(&line.kind);
+                collect_cll_inlines_page_find_entries(entries, &line.body, script, line_context);
+                if let Some(comment) = &line.comment {
+                    collect_cll_inlines_page_find_entries(entries, comment, script, false);
+                }
+            }
+        }
+        CllBlock::LujvoMaking { parts, .. } => {
+            for part in parts {
+                push_page_find_entry(entries, part.kind.clone());
+                let part_context = cll_kind_is_lojban(&part.kind);
+                collect_cll_inlines_page_find_entries(entries, &part.body, script, part_context);
+            }
+        }
+        CllBlock::Ebnf { entries: rules, .. } => {
+            for rule in rules {
+                push_page_find_entry(entries, rule.rule_name.clone());
+                collect_cll_ebnf_tokens_page_find_entries(entries, &rule.rhs);
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_cll_table_cell_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    cell: &CllTableCell,
+    script: GentufaScript,
+) {
+    for child in &cell.blocks {
+        collect_cll_block_page_find_entries(entries, child, script);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_cll_inlines_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    inlines: &[CllInline],
+    script: GentufaScript,
+    lojban_context: bool,
+) {
+    for inline in inlines {
+        collect_cll_inline_page_find_entries(entries, inline, script, lojban_context);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_cll_inline_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    inline: &CllInline,
+    script: GentufaScript,
+    lojban_context: bool,
+) {
+    match inline {
+        CllInline::Text(text) => push_page_find_entry(
+            entries,
+            display_lojban_text_if(script, text, lojban_context),
+        ),
+        CllInline::Emphasis { language, inlines } | CllInline::Quote { language, inlines } => {
+            let child_context = lojban_context || cll_language_is_lojban(language.as_deref());
+            collect_cll_inlines_page_find_entries(entries, inlines, script, child_context);
+        }
+        CllInline::LanguageSpan {
+            kind,
+            language,
+            inlines,
+        } => {
+            let child_context = lojban_context
+                || *kind == CllLanguageSpanKind::JboPhrase
+                || cll_language_is_lojban(language.as_deref());
+            collect_cll_inlines_page_find_entries(entries, inlines, script, child_context);
+        }
+        CllInline::CiteTitle { inlines }
+        | CllInline::Subscript { inlines }
+        | CllInline::Superscript { inlines }
+        | CllInline::Link { inlines, .. } => {
+            collect_cll_inlines_page_find_entries(entries, inlines, script, lojban_context);
+        }
+        CllInline::Code(text) => push_page_find_entry(entries, text.clone()),
+        CllInline::Elidable { shown, inlines, .. } => {
+            if inlines.is_empty() {
+                push_page_find_entry(
+                    entries,
+                    display_lojban_text_if(script, shown, lojban_context),
+                );
+            } else {
+                collect_cll_inlines_page_find_entries(entries, inlines, script, lojban_context);
+            }
+        }
+        CllInline::InlineMath { .. } | CllInline::Anchor { .. } => {}
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_cll_ebnf_tokens_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    tokens: &[CllEbnfToken],
+) {
+    let lines = wrap_ebnf_choice_lines(tokens);
+    for line in lines {
+        for token in line {
+            match token {
+                CllEbnfToken::Text { body }
+                | CllEbnfToken::Operator { body }
+                | CllEbnfToken::Hash { body }
+                | CllEbnfToken::Terminal { body, .. }
+                | CllEbnfToken::ElidableTerminator { body, .. }
+                | CllEbnfToken::Nonterminal { body, .. } => {
+                    if let Some((prefix, suffix)) = cll_ebnf_elidable_hash_pieces(&body) {
+                        push_page_find_entry(entries, prefix.to_owned());
+                        push_page_find_entry(entries, "#");
+                        push_page_find_entry(entries, suffix.to_owned());
+                    } else {
+                        push_page_find_entry(entries, body.clone());
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_vlacku_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    result: &VlackuWebResult,
+    script: GentufaScript,
+) {
+    if let Some(message) = &result.message {
+        push_page_find_entry(entries, semantic_search_message_visible_text(message));
+    }
+    for error in &result.errors {
+        push_page_find_entry(entries, error.clone());
+    }
+    for card in &result.cards {
+        collect_vlacku_card_page_find_entries(entries, card, script);
+    }
+    if result.has_more {
+        push_page_find_entry(entries, "Load more");
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_vlacku_card_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    card: &VlackuWebCard,
+    script: GentufaScript,
+) {
+    push_page_find_entry(entries, display_lojban_text(script, &card.display_word));
+    if let Some(ipa) = &card.ipa {
+        push_page_find_entry(entries, format!("/{ipa}/"));
+    }
+    for piece in card
+        .decomposition
+        .iter()
+        .filter(|piece| piece.kind != VlackuCompositionPieceKind::Hyphen)
+    {
+        collect_vlacku_composition_piece_page_find_entries(entries, piece, script);
+    }
+    if card.decomposition.is_empty() {
+        for rafsi in &card.rafsi {
+            push_page_find_entry(entries, display_lojban_text(script, rafsi));
+        }
+    }
+    if let Some(author) = &card.author {
+        push_page_find_entry(entries, vlacku_author_credit_text(author));
+    }
+    push_page_find_entry(entries, card.word_type.clone());
+    if let Some(selmaho) = &card.selmaho {
+        push_page_find_entry(entries, selmaho.clone());
+    }
+    if let Some(similarity) = card.similarity {
+        push_page_find_entry(entries, format_similarity(similarity));
+    }
+    collect_vote_display_page_find_entries(entries, &card.votes);
+    collect_vlacku_inlines_page_find_entries(entries, &card.definition, script);
+    for gloss in &card.glosses {
+        push_page_find_entry(entries, gloss.clone());
+    }
+    collect_vlacku_inlines_page_find_entries(entries, &card.notes, script);
+    if !card.etymology.is_empty() {
+        push_page_find_entry(entries, "etymology: ");
+        collect_vlacku_inlines_page_find_entries(entries, &card.etymology, script);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_vlacku_composition_piece_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    piece: &VlackuCompositionPiece,
+    script: GentufaScript,
+) {
+    if piece.kind != VlackuCompositionPieceKind::Rafsi {
+        return;
+    }
+    push_page_find_entry(entries, display_lojban_text(script, &piece.display_surface));
+    if let Some(source) = &piece.source
+        && !piece.source_is_surface
+    {
+        let source_label = piece.display_source.as_deref().unwrap_or(source);
+        push_page_find_entry(entries, display_lojban_text(script, source_label));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_vote_display_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    votes: &VlackuVoteDisplay,
+) {
+    match votes {
+        VlackuVoteDisplay::Known(value) => push_page_find_entry(entries, value.to_string()),
+        VlackuVoteDisplay::Unknown => push_page_find_entry(entries, "?"),
+        VlackuVoteDisplay::Hidden => {}
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_vlacku_inlines_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    spans: &[VlackuInline],
+    script: GentufaScript,
+) {
+    for span in spans {
+        match span.as_data() {
+            data!(VlackuInline::Text(text)) => push_page_find_entry(entries, text.clone()),
+            data!(VlackuInline::Math(_math)) => {}
+            data!(VlackuInline::WordRef { label, .. }) => {
+                push_page_find_entry(entries, display_lojban_text(script, label));
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_gentufa_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    result: &GentufaWebResult,
+    request: Option<&GentufaWebRequest>,
+    view_mode: GentufaWebViewMode,
+    display: GentufaDisplayState,
+    script: GentufaScript,
+) {
+    match result {
+        GentufaWebResult::Blank => {}
+        GentufaWebResult::Error(error) => {
+            collect_diagnostics_pane_page_find_entries(
+                entries,
+                &error.diagnostics,
+                gentufa_request_source(request),
+                Some(error.message.as_str()),
+                true,
+                script,
+            );
+        }
+        GentufaWebResult::Success(success) => {
+            collect_bracket_fragments_page_find_entries(entries, &success.bracket_fragments);
+            collect_diagnostics_pane_page_find_entries(
+                entries,
+                &success.diagnostics,
+                gentufa_request_source(request),
+                None,
+                true,
+                script,
+            );
+            match view_mode {
+                GentufaWebViewMode::Blocks => {
+                    for block in &success.blocks_layout.blocks {
+                        push_page_find_entry(entries, block.label.clone());
+                    }
+                    if display.show_glosses {
+                        for block in success
+                            .blocks_layout
+                            .blocks
+                            .iter()
+                            .filter(|block| block.is_leaf)
+                        {
+                            let text = block
+                                .computed_gloss
+                                .as_deref()
+                                .or_else(|| block.glosses.first().map(String::as_str))
+                                .unwrap_or("");
+                            push_page_find_entry(entries, text.to_owned());
+                        }
+                    }
+                }
+                GentufaWebViewMode::Tree => {
+                    for row in &success.tree_rows {
+                        push_page_find_entry(entries, row.label.clone());
+                        for cell in &row.cells {
+                            push_page_find_entry(entries, cell.text.clone());
+                        }
+                    }
+                }
+                GentufaWebViewMode::Ipa => push_page_find_entry(entries, success.ipa_text.clone()),
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_bracket_fragments_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    fragments: &[GentufaBracketFragment],
+) {
+    for fragment in fragments {
+        match fragment {
+            GentufaBracketFragment::Text { text, .. } => {
+                push_page_find_entry(entries, text.clone())
+            }
+            GentufaBracketFragment::Span { children, .. } => {
+                collect_bracket_fragments_page_find_entries(entries, children);
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_diagnostics_pane_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    diagnostics: &[Diagnostic],
+    source: &str,
+    fallback_error: Option<&str>,
+    diagnostics_open: bool,
+    script: GentufaScript,
+) {
+    let fallback_error = fallback_error.filter(|message| !message.is_empty());
+    if diagnostics.is_empty() && fallback_error.is_none() {
+        return;
+    }
+    push_page_find_entry(
+        entries,
+        diagnostic_pane_title(diagnostic_counts(diagnostics, fallback_error)),
+    );
+    push_page_find_entry(entries, diagnostics_toggle_label(diagnostics_open));
+    if !diagnostics_open {
+        return;
+    }
+    if diagnostics.is_empty() {
+        if let Some(message) = fallback_error {
+            push_page_find_entry(entries, "error");
+            push_page_find_entry(entries, message.to_owned());
+        }
+        return;
+    }
+    for diagnostic in diagnostics {
+        collect_diagnostic_card_page_find_entries(entries, diagnostic, source, script);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_diagnostic_card_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    diagnostic: &Diagnostic,
+    source: &str,
+    script: GentufaScript,
+) {
+    push_page_find_entry(entries, diagnostic_severity_text(diagnostic.severity));
+    push_page_find_entry(entries, diagnostic.code.clone());
+    let location = diagnostic_label_location(source, diagnostic.primary_label());
+    push_page_find_entry(
+        entries,
+        format!(
+            "{}:{}: {}",
+            location.line, location.column, diagnostic.message
+        ),
+    );
+    for label in diagnostic_context_labels(diagnostic) {
+        if let Some(descriptor) = diagnostic_context_descriptor(&label.message) {
+            push_page_find_entry(entries, "while parsing ");
+            push_page_find_entry(entries, descriptor);
+        } else {
+            push_page_find_entry(entries, label.message.clone());
+        }
+    }
+    for segment in diagnostic_primary_detail_parts(diagnostic) {
+        push_page_find_entry(
+            entries,
+            diagnostic_display_text_part_for_script(&segment, script),
+        );
+    }
+    for note in diagnostic_plain_notes_for_web(diagnostic) {
+        for segment in diagnostic_plain_text_render_parts(note) {
+            push_page_find_entry(
+                entries,
+                diagnostic_display_text_part_for_script(&segment, script),
+            );
+        }
+    }
+    for note in diagnostic_styled_notes_for_web(diagnostic) {
+        for segment in &note.segments {
+            for part in diagnostic_text_segment_render_parts(segment) {
+                push_page_find_entry(
+                    entries,
+                    diagnostic_display_text_part_for_script(&part, script),
+                );
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_settings_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    _current_settings: UserSettings,
+    dialect_settings: &DialectSettings,
+    selected_dialect: &str,
+    embedding_settings: &EmbeddingSettingsState,
+) {
+    push_page_find_entry(entries, "Settings");
+    if let Some(commit) = build_commit_info() {
+        push_page_find_entry(entries, format!("commit {}", commit.short));
+    }
+    push_page_find_entry(entries, "Semantic search");
+    push_page_find_entry(entries, "Embedding model");
+    push_page_find_entry(entries, "Status");
+    push_page_find_entry(entries, embedding_settings.status.clone());
+    push_page_find_entry(entries, "Model");
+    push_page_find_entry(entries, embedding_settings.model_size.clone());
+    push_page_find_entry(entries, "Index");
+    push_page_find_entry(entries, embedding_settings.index_size.clone());
+    push_page_find_entry(entries, embedding_settings.detail.clone());
+    if embedding_settings.busy || embedding_settings.progress_percent.is_some() {
+        push_page_find_entry(
+            entries,
+            embedding_progress_display_label(embedding_settings),
+        );
+    }
+    push_page_find_entry(entries, "Download");
+    push_page_find_entry(entries, "Update");
+    push_page_find_entry(entries, "Remove");
+    if embedding_settings.remove_confirmation_open {
+        push_page_find_entry(
+            entries,
+            format!("Remove {}", embedding_settings.selected_model_label),
+        );
+        push_page_find_entry(
+            entries,
+            "This will remove the selected model files and vector index from this device.",
+        );
+        push_page_find_entry(entries, "Cancel");
+        push_page_find_entry(entries, "Remove");
+    }
+    push_page_find_entry(entries, "Output");
+    push_page_find_entry(entries, "Stress");
+    push_page_find_entry(entries, "none");
+    push_page_find_entry(entries, "acute");
+    push_page_find_entry(entries, "caps");
+    push_page_find_entry(entries, "Glides");
+    push_page_find_entry(entries, "none");
+    push_page_find_entry(entries, "breve");
+    push_page_find_entry(entries, "Lojban dialects");
+    push_page_find_entry(entries, "Builtins");
+    for name in builtin_dialect_names() {
+        push_page_find_entry(entries, name);
+    }
+    push_page_find_entry(entries, "Custom");
+    for custom in &dialect_settings.custom_dialects {
+        let item_name = custom.name.trim();
+        push_page_find_entry(
+            entries,
+            if item_name.is_empty() {
+                "(unnamed)"
+            } else {
+                item_name
+            },
+        );
+    }
+    if selected_dialect.trim().is_empty() {
+        push_page_find_entry(entries, "Select a dialect to edit it.");
+    } else {
+        push_page_find_entry(entries, "Name");
+        push_page_find_entry(entries, "Show in gentufa");
+        push_page_find_entry(entries, "Definition");
+        if let Some(custom) = dialect_settings
+            .custom_dialects
+            .iter()
+            .find(|custom| custom.name.trim() == selected_dialect.trim())
+            && let Err(error) = custom_dialect_is_valid(&dialect_settings.custom_dialects, custom)
+        {
+            push_page_find_entry(entries, error.message().to_owned());
+        } else {
+            push_page_find_entry(entries, "Definition is valid.");
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn semantic_search_message_visible_text(message: &str) -> String {
+    if message == SEMANTIC_SEARCH_SETUP_MESSAGE {
+        format!("{SEMANTIC_SEARCH_SETUP_LINK_LABEL}{SEMANTIC_SEARCH_SETUP_LINK_SUFFIX}")
+    } else {
+        message.to_owned()
+    }
 }
 
 #[invariant(!self.gentufa_text_explicit || matches!(&self.web_route, WebRoute::Gentufa(_)))]
@@ -1259,6 +2544,9 @@ fn AppShell() -> Element {
     let activity_indicator_delay_task = use_signal(|| None::<Task>);
     let topbar_settings_layout = use_signal(|| TopbarSettingsLayout::BothInline);
     let topbar_settings_open = use_signal(|| false);
+    let topbar_nav_layout = use_signal(|| TopbarNavLayout::Full);
+    let topbar_nav_open = use_signal(|| false);
+    let mut page_find_state = use_signal(PageFindState::default);
     let initial_gentufa = initial_gentufa_state(&current_route_location);
     let initial_gentufa_has_text = initial_gentufa_text_explicit(&current_route_location);
     let initial_gentufa_input_text = if initial_gentufa_has_text {
@@ -1308,6 +2596,8 @@ fn AppShell() -> Element {
     let pending_cukta_scroll = use_signal(move || initial_pending_cukta_scroll.clone());
     let initial_last_route_for_scroll = current_route_location.clone();
     let mut last_route_for_scroll = use_signal(move || initial_last_route_for_scroll.clone());
+    let initial_last_page_find_route = current_route_location.app_route();
+    let mut last_page_find_route = use_signal(move || initial_last_page_find_route);
     let jvozba_pane = use_signal(load_vlacku_jvozba_pane_state);
     let jvozba_available = use_signal(vlacku_jvozba_available);
     let jvozba_drag = use_signal(|| None::<VlackuJvozbaDragState>);
@@ -1331,6 +2621,8 @@ fn AppShell() -> Element {
 
     let settings_value = *settings.read();
     let dialect_settings_value = dialect_settings.read().clone();
+    let settings_dialect_selection_value = settings_dialect_selection.read().clone();
+    let embedding_settings_value = embedding_settings.read().clone();
     let activity_value = activity.read().clone();
     let activity_indicator_visible_value = *activity_indicator_visible.read();
     let route_value = *route.read();
@@ -1345,6 +2637,30 @@ fn AppShell() -> Element {
     let document_title = document_title_from_meta(&document_meta_value);
     let result = gentufa_page_value.result.clone();
     let gentufa_request = gentufa_page_value.request.clone();
+    let cukta_committed_state_value = cukta_committed_state.read().clone();
+    let cukta_page_value = cukta_page.read().clone();
+    let vlacku_committed_state_value = vlacku_committed_state.read().clone();
+    let vlacku_result_value = vlacku_result.read().clone();
+    let page_find_state_value = page_find_state.read().clone();
+    let current_page_find_route_state = page_find_state_value.route_state(route_value).clone();
+    let page_find_entries = page_find_entries_for_route(
+        route_value,
+        &cukta_page_value,
+        &vlacku_committed_state_value,
+        &vlacku_result_value,
+        &result,
+        gentufa_request.as_ref(),
+        view_mode_value,
+        gentufa_display_value,
+        settings_value,
+        &dialect_settings_value,
+        &settings_dialect_selection_value,
+        &embedding_settings_value,
+        settings_value.script,
+    );
+    let page_find_index =
+        build_page_find_index(&current_page_find_route_state.query, &page_find_entries);
+    let page_find_context = PageFindContext::new(&page_find_index, &current_page_find_route_state);
     let committed_gentufa_state = gentufa_state_from_parts(
         &parsed_text_value,
         &parsed_dialect_value,
@@ -1377,9 +2693,9 @@ fn AppShell() -> Element {
         view_mode: view_mode_value,
     };
     let topbar_cukta_route =
-        JbotciRoute::from_web_route(WebRoute::Cukta(cukta_committed_state.read().clone()), false);
+        JbotciRoute::from_web_route(WebRoute::Cukta(cukta_committed_state_value.clone()), false);
     let topbar_vlacku_route = JbotciRoute::from_web_route(
-        WebRoute::Vlacku(vlacku_committed_state.read().clone()),
+        WebRoute::Vlacku(vlacku_committed_state_value.clone()),
         false,
     );
     let topbar_gentufa_route =
@@ -1389,6 +2705,8 @@ fn AppShell() -> Element {
         jvozba_available,
         topbar_settings_layout,
         topbar_settings_open,
+        topbar_nav_layout,
+        topbar_nav_open,
         cukta_toc_forced_autohide,
     );
     let scroll_base_path = base_path.clone();
@@ -1442,6 +2760,44 @@ fn AppShell() -> Element {
             gentufa_display,
         );
     }));
+    use_effect(move || {
+        let current = *route.read();
+        let previous = *last_page_find_route.read();
+        if previous == current {
+            return;
+        }
+        page_find_state.with_mut(|state| {
+            reset_page_find_active(state.route_state_mut(previous));
+            reset_page_find_active(state.route_state_mut(current));
+        });
+        last_page_find_route.set(current);
+    });
+    let page_find_signature = page_find_index.signature;
+    let page_find_match_count = page_find_index.matches.len();
+    use_effect(use_reactive(
+        &(route_value, page_find_signature, page_find_match_count),
+        move |(route, signature, match_count)| {
+            page_find_state.with_mut(|state| {
+                sync_page_find_result_signature(state, route, signature, match_count);
+            });
+        },
+    ));
+    let page_find_scroll_request = current_page_find_route_state.scroll_request;
+    let page_find_active_index = page_find_context.active_index;
+    use_effect(use_reactive(
+        &(
+            route_value,
+            page_find_scroll_request,
+            page_find_active_index,
+        ),
+        move |(_route, scroll_request, active_index)| {
+            if scroll_request > 0
+                && let Some(active_index) = active_index
+            {
+                schedule_page_find_match_scroll(active_index);
+            }
+        },
+    ));
     use_effect(move || {
         pin_worker_client_asset();
         configure_embedding_worker_url(&format!("{EMBEDDING_WORKER_JS}"));
@@ -1859,8 +3215,14 @@ fn AppShell() -> Element {
             settings.read().script,
             activity.read().is_active(),
             *topbar_settings_layout.read(),
+            *topbar_nav_layout.read(),
         );
-        schedule_topbar_settings_layout_measure(topbar_settings_layout, topbar_settings_open);
+        schedule_topbar_settings_layout_measure(
+            topbar_settings_layout,
+            topbar_settings_open,
+            topbar_nav_layout,
+            topbar_nav_open,
+        );
         if *route.read() == AppRoute::Vlacku {
             schedule_vlacku_jvozba_pane_metrics_sync();
         }
@@ -1912,6 +3274,10 @@ fn AppShell() -> Element {
                 pending_cukta_scroll,
                 *topbar_settings_layout.read(),
                 topbar_settings_open,
+                *topbar_nav_layout.read(),
+                topbar_nav_open,
+                page_find_state,
+                &page_find_context,
                 &activity_value,
                 activity_indicator_visible_value,
             ) }
@@ -1981,6 +3347,7 @@ fn AppShell() -> Element {
                                                 reference_tooltip_open,
                                                 activity,
                                                 export_task,
+                                                &page_find_context,
                                             ) }
                                         }
                                     }
@@ -1995,6 +3362,7 @@ fn AppShell() -> Element {
                                 settings_dialect_qr_uri,
                                 embedding_settings,
                                 activity,
+                                &page_find_context,
                             ),
                             AppRoute::Cukta => {
                                 render_cukta_page(
@@ -2011,6 +3379,7 @@ fn AppShell() -> Element {
                                     pending_cukta_scroll,
                                     &base_path,
                                     settings_value.script,
+                                    &page_find_context,
                                 )
                             }
                             AppRoute::Vlacku => {
@@ -2025,6 +3394,7 @@ fn AppShell() -> Element {
                                     pending_vlacku_scroll_restore,
                                     &base_path,
                                     settings_value.script,
+                                    &page_find_context,
                                 )
                             },
                         }
@@ -2049,6 +3419,10 @@ fn render_topbar(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     settings_layout: TopbarSettingsLayout,
     settings_open: Signal<bool>,
+    nav_layout: TopbarNavLayout,
+    nav_open: Signal<bool>,
+    page_find_state: Signal<PageFindState>,
+    page_find: &PageFindContext,
     activity: &AsyncActivityState,
     activity_visible: bool,
 ) -> Element {
@@ -2056,12 +3430,16 @@ fn render_topbar(
     let vlacku_loading = activity_visible && activity.has_kind(AsyncTaskKind::Vlacku);
     let gentufa_loading = activity_visible && activity.has_kind(AsyncTaskKind::Gentufa);
     let activity_class = topbar_activity_class(activity_visible);
-    let header_class = topbar_header_class(settings_layout, *settings_open.read());
+    let header_class = topbar_header_class(
+        settings_layout,
+        *settings_open.read(),
+        nav_layout,
+        *nav_open.read(),
+    );
     let show_theme_inline = settings_layout.shows_theme_inline();
     let show_script_inline = settings_layout.shows_script_inline();
     let topbar_home_href = deployment_root_href(base_path);
-    let topbar_cukta_scroll_target = route_href_with_base_path(base_path, &cukta_route);
-    let topbar_cukta_click_route = cukta_route.clone();
+    let logo_title = logo_title_text();
     rsx! {
         header { class: "{header_class}",
             div { class: "app-topbar-inner spa-topbar-inner",
@@ -2070,7 +3448,7 @@ fn render_topbar(
                         class: "app-topbar-brand",
                         href: "{topbar_home_href}",
                         aria_label: "jbotci home",
-                        title: "jbotci home",
+                        title: "{logo_title}",
                         img { class: "app-topbar-brand-logo", src: LOGO, alt: "jbotci" }
                     }
                     { render_topbar_settings_button(settings, current, settings_route.clone(), settings_layout, settings_open) }
@@ -2084,38 +3462,10 @@ fn render_topbar(
                             { render_script_switch(settings, current.script) }
                         }
                     }
-                    nav { class: "spa-nav", aria_label: "Primary navigation",
-                        Link {
-                            class: topbar_link_class(route == AppRoute::Cukta, cukta_loading),
-                            to: cukta_route.clone(),
-                            aria_current: if route == AppRoute::Cukta { "page" } else { "false" },
-                            onclick_only: true,
-                            onclick: move |_| {
-                                push_route_with_cukta_scroll_intent(
-                                    pending_cukta_scroll,
-                                    Some(cukta_stored_pending_scroll(topbar_cukta_scroll_target.clone())),
-                                    topbar_cukta_click_route.clone(),
-                                );
-                            },
-                            span { class: "app-topbar-link-label", "cukta" }
-                        }
-                        Link {
-                            class: topbar_link_class(route == AppRoute::Vlacku, vlacku_loading),
-                            to: vlacku_route.clone(),
-                            aria_current: if route == AppRoute::Vlacku { "page" } else { "false" },
-                            span { class: "app-topbar-link-label", "vlacku" }
-                        }
-                        Link {
-                            class: topbar_link_class(route == AppRoute::Gentufa, gentufa_loading),
-                            to: gentufa_route.clone(),
-                            aria_current: if route == AppRoute::Gentufa { "page" } else { "false" },
-                            span { class: "app-topbar-link-label", "gentufa" }
-                            span { class: "app-topbar-link-dots", aria_hidden: "true",
-                                span { class: "app-topbar-link-dot" }
-                                span { class: "app-topbar-link-dot" }
-                                span { class: "app-topbar-link-dot" }
-                            }
-                        }
+                    if nav_layout == TopbarNavLayout::Full {
+                        { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+                    } else {
+                        { render_topbar_nav_menu(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll, nav_open) }
                     }
                 }
                 { render_topbar_fit_probes(
@@ -2144,7 +3494,7 @@ fn render_topbar(
                     }
                 }
                 div { class: "app-topbar-right",
-                    { render_topbar_commit_link() }
+                    { render_page_find_control(route, page_find_state, page_find) }
                 }
             }
         }
@@ -2200,6 +3550,306 @@ fn render_topbar_nav(
                 }
             }
         }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(true)]
+#[ensures(true)]
+fn render_topbar_nav_menu(
+    route: AppRoute,
+    cukta_loading: bool,
+    vlacku_loading: bool,
+    gentufa_loading: bool,
+    cukta_route: JbotciRoute,
+    vlacku_route: JbotciRoute,
+    gentufa_route: JbotciRoute,
+    base_path: &str,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    mut nav_open: Signal<bool>,
+) -> Element {
+    let menu_open = *nav_open.read();
+    let button_class = topbar_nav_menu_button_class(menu_open);
+    let label = topbar_nav_menu_label(route);
+    rsx! {
+        div { class: "app-topbar-nav-menu",
+            button {
+                class: "{button_class}",
+                r#type: "button",
+                aria_label: "Primary navigation",
+                aria_expanded: if menu_open { "true" } else { "false" },
+                aria_controls: "app-topbar-nav-menu-list",
+                onclick: move |_| nav_open.set(!menu_open),
+                span { class: "app-topbar-nav-menu-label", "{label}" }
+                span { class: "app-topbar-nav-menu-chevron", aria_hidden: "true", "▾" }
+            }
+            if menu_open {
+                { render_topbar_nav_menu_list(
+                    route,
+                    cukta_loading,
+                    vlacku_loading,
+                    gentufa_loading,
+                    cukta_route,
+                    vlacku_route,
+                    gentufa_route,
+                    base_path,
+                    pending_cukta_scroll,
+                    nav_open,
+                ) }
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(true)]
+#[ensures(true)]
+fn render_topbar_nav_menu_list(
+    route: AppRoute,
+    cukta_loading: bool,
+    vlacku_loading: bool,
+    gentufa_loading: bool,
+    cukta_route: JbotciRoute,
+    vlacku_route: JbotciRoute,
+    gentufa_route: JbotciRoute,
+    base_path: &str,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    mut nav_open: Signal<bool>,
+) -> Element {
+    let topbar_cukta_scroll_target = route_href_with_base_path(base_path, &cukta_route);
+    let topbar_cukta_click_route = cukta_route.clone();
+    rsx! {
+        div {
+            id: "app-topbar-nav-menu-list",
+            class: "app-topbar-nav-menu-list",
+            role: "menu",
+            Link {
+                class: topbar_nav_menu_item_class(route == AppRoute::Cukta, cukta_loading),
+                to: cukta_route,
+                role: "menuitem",
+                onclick_only: true,
+                onclick: move |_| {
+                    nav_open.set(false);
+                    push_route_with_cukta_scroll_intent(
+                        pending_cukta_scroll,
+                        Some(cukta_stored_pending_scroll(topbar_cukta_scroll_target.clone())),
+                        topbar_cukta_click_route.clone(),
+                    );
+                },
+                "cukta"
+            }
+            Link {
+                class: topbar_nav_menu_item_class(route == AppRoute::Vlacku, vlacku_loading),
+                to: vlacku_route,
+                role: "menuitem",
+                onclick: move |_| nav_open.set(false),
+                "vlacku"
+            }
+            Link {
+                class: topbar_nav_menu_item_class(route == AppRoute::Gentufa, gentufa_loading),
+                to: gentufa_route,
+                role: "menuitem",
+                onclick: move |_| nav_open.set(false),
+                "gentufa"
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_topbar_nav_menu_probe(route: AppRoute) -> Element {
+    let label = topbar_nav_menu_label(route);
+    rsx! {
+        span { class: "app-topbar-nav-menu",
+            span { class: "app-topbar-nav-menu-toggle",
+                span { class: "app-topbar-nav-menu-label", "{label}" }
+                span { class: "app-topbar-nav-menu-chevron", aria_hidden: "true", "▾" }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn topbar_nav_menu_label(route: AppRoute) -> &'static str {
+    match route {
+        AppRoute::Cukta => "cukta",
+        AppRoute::Vlacku => "vlacku",
+        AppRoute::Gentufa => "gentufa",
+        AppRoute::Settings => "pages",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn topbar_nav_menu_button_class(open: bool) -> &'static str {
+    if open {
+        "app-topbar-nav-menu-toggle is-open"
+    } else {
+        "app-topbar-nav-menu-toggle"
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn topbar_nav_menu_item_class(active: bool, loading: bool) -> String {
+    class_names(
+        "app-topbar-nav-menu-item",
+        &[("active", active), ("is-loading", loading)],
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_page_find_control(
+    route: AppRoute,
+    mut page_find_state: Signal<PageFindState>,
+    page_find: &PageFindContext,
+) -> Element {
+    let query = page_find.query.clone();
+    let placeholder = page_find_placeholder(route);
+    let match_count = page_find.match_count;
+    let counter = page_find_counter_text(page_find.active_index, match_count, !query.is_empty());
+    let controls_disabled = match_count == 0;
+    let query_for_keydown = query.clone();
+    rsx! {
+        div { class: "page-find-control", role: "search",
+            span { class: "page-find-icon", aria_hidden: "true",
+                svg { view_box: "0 0 20 20",
+                    circle { cx: "8.5", cy: "8.5", r: "5.5" }
+                    path { d: "M12.5 12.5L17 17" }
+                }
+            }
+            input {
+                id: PAGE_FIND_INPUT_ID,
+                class: "page-find-input",
+                r#type: "search",
+                aria_label: "Find on this page",
+                placeholder,
+                spellcheck: "false",
+                value: "{query}",
+                oninput: move |event| {
+                    let next_query = event.value();
+                    page_find_state.with_mut(|state| {
+                        set_page_find_query(
+                            state,
+                            route,
+                            next_query,
+                            PageFindRouteQueryUpdate::Replace,
+                        );
+                    });
+                },
+                onkeydown: move |event| {
+                    let key = event.data().key();
+                    if key == Key::Enter {
+                        event.prevent_default();
+                        let direction = if event.data().modifiers().contains(Modifiers::SHIFT) {
+                            PageFindDirection::Previous
+                        } else {
+                            PageFindDirection::Next
+                        };
+                        page_find_state.with_mut(|state| {
+                            update_page_find_active(state, route, direction, match_count);
+                        });
+                    } else if key == Key::Escape && !query_for_keydown.is_empty() {
+                        event.prevent_default();
+                        page_find_state.with_mut(|state| {
+                            set_page_find_query(
+                                state,
+                                route,
+                                String::new(),
+                                PageFindRouteQueryUpdate::Clear,
+                            );
+                        });
+                    }
+                },
+            }
+            span { class: "page-find-count", aria_live: "polite", "{counter}" }
+            if !query.is_empty() {
+                button {
+                    class: "page-find-button page-find-clear",
+                    r#type: "button",
+                    aria_label: "Clear page find",
+                    title: "Clear",
+                    onclick: move |_| {
+                        page_find_state.with_mut(|state| {
+                            set_page_find_query(
+                                state,
+                                route,
+                                String::new(),
+                                PageFindRouteQueryUpdate::Clear,
+                            );
+                        });
+                    },
+                    "×"
+                }
+            }
+            button {
+                class: "page-find-button page-find-prev",
+                r#type: "button",
+                aria_label: "Previous page find match",
+                title: "Previous",
+                disabled: controls_disabled,
+                onclick: move |_| {
+                    page_find_state.with_mut(|state| {
+                        update_page_find_active(
+                            state,
+                            route,
+                            PageFindDirection::Previous,
+                            match_count,
+                        );
+                    });
+                },
+                "‹"
+            }
+            button {
+                class: "page-find-button page-find-next",
+                r#type: "button",
+                aria_label: "Next page find match",
+                title: "Next",
+                disabled: controls_disabled,
+                onclick: move |_| {
+                    page_find_state.with_mut(|state| {
+                        update_page_find_active(
+                            state,
+                            route,
+                            PageFindDirection::Next,
+                            match_count,
+                        );
+                    });
+                },
+                "›"
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn page_find_placeholder(route: AppRoute) -> &'static str {
+    match route {
+        AppRoute::Cukta => "Search CLL",
+        AppRoute::Vlacku => "Search cards",
+        AppRoute::Gentufa => "Search output",
+        AppRoute::Settings => "Search settings",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn page_find_counter_text(
+    active_index: Option<usize>,
+    match_count: usize,
+    query_present: bool,
+) -> String {
+    if !query_present {
+        String::new()
+    } else if match_count == 0 {
+        "0/0".to_owned()
+    } else {
+        let current = active_index.map_or(1, |index| index + 1);
+        format!("{current}/{match_count}")
     }
 }
 
@@ -2298,7 +3948,7 @@ fn render_topbar_fit_probes(
         div {
             class: "app-topbar-fit-probes",
             aria_hidden: "true",
-            div { class: "app-topbar-fit-probe app-topbar-fit-probe-both",
+            div { class: "app-topbar-fit-probe app-topbar-fit-probe-both-full",
                 { render_topbar_probe_brand() }
                 { render_topbar_probe_settings_button() }
                 span { class: "app-topbar-theme app-topbar-theme-mode",
@@ -2309,7 +3959,7 @@ fn render_topbar_fit_probes(
                 }
                 { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
             }
-            div { class: "app-topbar-fit-probe app-topbar-fit-probe-theme",
+            div { class: "app-topbar-fit-probe app-topbar-fit-probe-theme-full",
                 { render_topbar_probe_brand() }
                 { render_topbar_probe_settings_button() }
                 span { class: "app-topbar-theme app-topbar-theme-mode",
@@ -2317,10 +3967,34 @@ fn render_topbar_fit_probes(
                 }
                 { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
             }
-            div { class: "app-topbar-fit-probe app-topbar-fit-probe-none",
+            div { class: "app-topbar-fit-probe app-topbar-fit-probe-none-full",
                 { render_topbar_probe_brand() }
                 { render_topbar_probe_settings_button() }
-                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route, vlacku_route, gentufa_route, base_path, pending_cukta_scroll) }
+                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+            }
+            div { class: "app-topbar-fit-probe app-topbar-fit-probe-both-menu",
+                { render_topbar_probe_brand() }
+                { render_topbar_probe_settings_button() }
+                span { class: "app-topbar-theme app-topbar-theme-mode",
+                    { render_theme_switch(settings, current.theme) }
+                }
+                span { class: "app-topbar-theme app-topbar-orthography",
+                    { render_script_switch(settings, current.script) }
+                }
+                { render_topbar_nav_menu_probe(route) }
+            }
+            div { class: "app-topbar-fit-probe app-topbar-fit-probe-theme-menu",
+                { render_topbar_probe_brand() }
+                { render_topbar_probe_settings_button() }
+                span { class: "app-topbar-theme app-topbar-theme-mode",
+                    { render_theme_switch(settings, current.theme) }
+                }
+                { render_topbar_nav_menu_probe(route) }
+            }
+            div { class: "app-topbar-fit-probe app-topbar-fit-probe-none-menu",
+                { render_topbar_probe_brand() }
+                { render_topbar_probe_settings_button() }
+                { render_topbar_nav_menu_probe(route) }
             }
         }
     }
@@ -2348,24 +4022,51 @@ fn render_topbar_probe_settings_button() -> Element {
     }
 }
 
+#[invariant(!short.is_empty())]
+#[invariant(!href.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BuildCommitInfo {
+    short: String,
+    href: String,
+}
+
 #[requires(true)]
-#[ensures(true)]
-fn render_topbar_commit_link() -> Element {
+#[ensures(ret.as_ref().is_none_or(|commit| !commit.href.is_empty()))]
+fn build_commit_info() -> Option<BuildCommitInfo> {
     let Some(full_commit) = BUILD_GIT_COMMIT else {
-        return rsx! {};
+        return None;
     };
     let Some(short_commit) = BUILD_GIT_COMMIT_SHORT else {
+        return None;
+    };
+    Some(new!(BuildCommitInfo {
+        short: short_commit.to_owned(),
+        href: format!("https://codeberg.org/int_19h/jbotci/commit/{full_commit}"),
+    }))
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn logo_title_text() -> String {
+    build_commit_info()
+        .map(|commit| format!("jbotci #{}", commit.short))
+        .unwrap_or_else(|| "jbotci".to_owned())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_settings_commit_link(page_find: &PageFindContext) -> Element {
+    let Some(commit) = build_commit_info() else {
         return rsx! {};
     };
-    let href = format!("https://codeberg.org/int_19h/jbotci/commit/{full_commit}");
-    let display_commit = math_monospace_git_commit(short_commit);
+    let label = format!("commit {}", commit.short);
     rsx! {
         a {
-            class: "app-topbar-commit",
-            href: "{href}",
+            class: "settings-commit-link",
+            href: "{commit.href}",
             title: "Git commit from which this version of jbotci was built.",
-            aria_label: "Build commit {short_commit}",
-            "{display_commit}"
+            aria_label: "Build commit {commit.short}",
+            { render_page_find_text(page_find, &label) }
         }
     }
 }
@@ -2410,19 +4111,33 @@ impl TopbarSettingsLayout {
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn topbar_header_class(settings_layout: TopbarSettingsLayout, settings_open: bool) -> String {
+fn topbar_header_class(
+    settings_layout: TopbarSettingsLayout,
+    settings_open: bool,
+    nav_layout: TopbarNavLayout,
+    nav_open: bool,
+) -> String {
     format!(
-        "app-topbar spa-topbar {}{}",
+        "app-topbar spa-topbar {} {}{}{}",
         match settings_layout {
             TopbarSettingsLayout::BothInline => "topbar-settings-both-inline",
             TopbarSettingsLayout::ThemeInline => "topbar-settings-theme-inline",
             TopbarSettingsLayout::NoneInline => "topbar-settings-none-inline",
         },
+        match nav_layout {
+            TopbarNavLayout::Full => "topbar-nav-full",
+            TopbarNavLayout::Menu => "topbar-nav-menu",
+        },
         if settings_open && settings_layout.uses_popout() {
             " topbar-settings-open"
         } else {
             ""
-        }
+        },
+        if nav_open && nav_layout == TopbarNavLayout::Menu {
+            " topbar-nav-open"
+        } else {
+            ""
+        },
     )
 }
 
@@ -2490,16 +4205,24 @@ fn update_cukta_toc_forced_autohide(mut forced_autohide: Signal<bool>) {
 
 #[requires(true)]
 #[ensures(true)]
-fn update_topbar_settings_layout(
+fn update_topbar_layout(
     mut settings_layout: Signal<TopbarSettingsLayout>,
     mut settings_open: Signal<bool>,
-    next_layout: TopbarSettingsLayout,
+    mut nav_layout: Signal<TopbarNavLayout>,
+    mut nav_open: Signal<bool>,
+    next_layout: TopbarLayout,
 ) {
-    if *settings_layout.read() != next_layout {
-        settings_layout.set(next_layout);
+    if *settings_layout.read() != next_layout.settings {
+        settings_layout.set(next_layout.settings);
     }
-    if next_layout == TopbarSettingsLayout::BothInline && *settings_open.read() {
+    if *nav_layout.read() != next_layout.nav {
+        nav_layout.set(next_layout.nav);
+    }
+    if next_layout.settings == TopbarSettingsLayout::BothInline && *settings_open.read() {
         settings_open.set(false);
+    }
+    if next_layout.nav == TopbarNavLayout::Full && *nav_open.read() {
+        nav_open.set(false);
     }
 }
 
@@ -2509,14 +4232,18 @@ fn update_topbar_settings_layout(
 fn schedule_topbar_settings_layout_measure(
     settings_layout: Signal<TopbarSettingsLayout>,
     settings_open: Signal<bool>,
+    nav_layout: Signal<TopbarNavLayout>,
+    nav_open: Signal<bool>,
 ) {
     let Some(window) = web_sys::window() else {
         return;
     };
     let closure = Closure::once(move || {
-        update_topbar_settings_layout(
+        update_topbar_layout(
             settings_layout,
             settings_open,
+            nav_layout,
+            nav_open,
             measure_topbar_settings_layout(),
         );
     });
@@ -2531,13 +4258,18 @@ fn schedule_topbar_settings_layout_measure(
 fn schedule_topbar_settings_layout_measure(
     settings_layout: Signal<TopbarSettingsLayout>,
     settings_open: Signal<bool>,
+    nav_layout: Signal<TopbarNavLayout>,
+    nav_open: Signal<bool>,
 ) {
     spawn(async move {
         sleep_ms(0).await;
         let layout = measure_topbar_settings_layout_desktop()
             .await
-            .unwrap_or(TopbarSettingsLayout::BothInline);
-        update_topbar_settings_layout(settings_layout, settings_open, layout);
+            .unwrap_or(new!(TopbarLayout {
+                settings: TopbarSettingsLayout::BothInline,
+                nav: TopbarNavLayout::Full,
+            }));
+        update_topbar_layout(settings_layout, settings_open, nav_layout, nav_open, layout);
     });
 }
 
@@ -2547,11 +4279,18 @@ fn schedule_topbar_settings_layout_measure(
 fn schedule_topbar_settings_layout_measure(
     settings_layout: Signal<TopbarSettingsLayout>,
     settings_open: Signal<bool>,
+    nav_layout: Signal<TopbarNavLayout>,
+    nav_open: Signal<bool>,
 ) {
-    update_topbar_settings_layout(
+    update_topbar_layout(
         settings_layout,
         settings_open,
-        TopbarSettingsLayout::BothInline,
+        nav_layout,
+        nav_open,
+        new!(TopbarLayout {
+            settings: TopbarSettingsLayout::BothInline,
+            nav: TopbarNavLayout::Full,
+        }),
     );
 }
 
@@ -2562,6 +4301,8 @@ fn schedule_topbar_settings_layout_after_fonts_ready(
     document: &web_sys::Document,
     settings_layout: Signal<TopbarSettingsLayout>,
     settings_open: Signal<bool>,
+    nav_layout: Signal<TopbarNavLayout>,
+    nav_open: Signal<bool>,
 ) {
     let Ok(fonts) = js_sys::Reflect::get(document.as_ref(), &JsValue::from_str("fonts")) else {
         return;
@@ -2574,21 +4315,20 @@ fn schedule_topbar_settings_layout_after_fonts_ready(
     };
     wasm_bindgen_futures::spawn_local(async move {
         let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-        schedule_topbar_settings_layout_measure(settings_layout, settings_open);
+        schedule_topbar_settings_layout_measure(
+            settings_layout,
+            settings_open,
+            nav_layout,
+            nav_open,
+        );
     });
 }
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
-fn measure_topbar_settings_layout() -> TopbarSettingsLayout {
-    if topbar_probe_fits(".app-topbar-fit-probe-both") {
-        TopbarSettingsLayout::BothInline
-    } else if topbar_probe_fits(".app-topbar-fit-probe-theme") {
-        TopbarSettingsLayout::ThemeInline
-    } else {
-        TopbarSettingsLayout::NoneInline
-    }
+fn measure_topbar_settings_layout() -> TopbarLayout {
+    topbar_layout_from_probe_fits(|selector| topbar_probe_fits(selector))
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
@@ -2596,14 +4336,18 @@ fn measure_topbar_settings_layout() -> TopbarSettingsLayout {
 #[invariant(true)]
 struct TopbarLayoutMetrics {
     available_width: f64,
-    both_required_width: f64,
-    theme_required_width: f64,
+    both_full_required_width: f64,
+    theme_full_required_width: f64,
+    none_full_required_width: f64,
+    both_menu_required_width: f64,
+    theme_menu_required_width: f64,
+    none_menu_required_width: f64,
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
-async fn measure_topbar_settings_layout_desktop() -> Option<TopbarSettingsLayout> {
+async fn measure_topbar_settings_layout_desktop() -> Option<TopbarLayout> {
     let metrics: TopbarLayoutMetrics = document::eval(
         r#"
         const inner = document.querySelector(".app-topbar-inner");
@@ -2659,27 +4403,101 @@ async fn measure_topbar_settings_layout_desktop() -> Option<TopbarSettingsLayout
         };
         return {
             available_width: inner ? inner.getBoundingClientRect().width : 0,
-            both_required_width: requiredFor(".app-topbar-fit-probe-both"),
-            theme_required_width: requiredFor(".app-topbar-fit-probe-theme"),
+            both_full_required_width: requiredFor(".app-topbar-fit-probe-both-full"),
+            theme_full_required_width: requiredFor(".app-topbar-fit-probe-theme-full"),
+            none_full_required_width: requiredFor(".app-topbar-fit-probe-none-full"),
+            both_menu_required_width: requiredFor(".app-topbar-fit-probe-both-menu"),
+            theme_menu_required_width: requiredFor(".app-topbar-fit-probe-theme-menu"),
+            none_menu_required_width: requiredFor(".app-topbar-fit-probe-none-menu"),
         };
         "#,
     )
     .join()
     .await
     .ok()?;
-    Some(topbar_settings_layout_from_metrics(metrics))
+    Some(topbar_layout_from_metrics(metrics))
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
-fn topbar_settings_layout_from_metrics(metrics: TopbarLayoutMetrics) -> TopbarSettingsLayout {
-    if metrics.both_required_width <= metrics.available_width + 1.0 {
-        TopbarSettingsLayout::BothInline
-    } else if metrics.theme_required_width <= metrics.available_width + 1.0 {
-        TopbarSettingsLayout::ThemeInline
-    } else {
-        TopbarSettingsLayout::NoneInline
+fn topbar_layout_from_metrics(metrics: TopbarLayoutMetrics) -> TopbarLayout {
+    topbar_layout_from_probe_fits(|selector| {
+        let required_width = match selector {
+            ".app-topbar-fit-probe-both-full" => metrics.both_full_required_width,
+            ".app-topbar-fit-probe-theme-full" => metrics.theme_full_required_width,
+            ".app-topbar-fit-probe-none-full" => metrics.none_full_required_width,
+            ".app-topbar-fit-probe-both-menu" => metrics.both_menu_required_width,
+            ".app-topbar-fit-probe-theme-menu" => metrics.theme_menu_required_width,
+            ".app-topbar-fit-probe-none-menu" => metrics.none_menu_required_width,
+            _ => metrics.none_menu_required_width,
+        };
+        required_width <= metrics.available_width + 1.0
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn topbar_layout_from_probe_fits(fits: impl Fn(&str) -> bool) -> TopbarLayout {
+    let candidates = [
+        new!(TopbarLayout {
+            settings: TopbarSettingsLayout::BothInline,
+            nav: TopbarNavLayout::Full,
+        }),
+        new!(TopbarLayout {
+            settings: TopbarSettingsLayout::ThemeInline,
+            nav: TopbarNavLayout::Full,
+        }),
+        new!(TopbarLayout {
+            settings: TopbarSettingsLayout::NoneInline,
+            nav: TopbarNavLayout::Full,
+        }),
+        new!(TopbarLayout {
+            settings: TopbarSettingsLayout::BothInline,
+            nav: TopbarNavLayout::Menu,
+        }),
+        new!(TopbarLayout {
+            settings: TopbarSettingsLayout::ThemeInline,
+            nav: TopbarNavLayout::Menu,
+        }),
+        new!(TopbarLayout {
+            settings: TopbarSettingsLayout::NoneInline,
+            nav: TopbarNavLayout::Menu,
+        }),
+    ];
+    for candidate in candidates {
+        if fits(topbar_layout_probe_selector(candidate)) {
+            return candidate;
+        }
+    }
+    new!(TopbarLayout {
+        settings: TopbarSettingsLayout::NoneInline,
+        nav: TopbarNavLayout::Menu,
+    })
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn topbar_layout_probe_selector(layout: TopbarLayout) -> &'static str {
+    match (layout.settings, layout.nav) {
+        (TopbarSettingsLayout::BothInline, TopbarNavLayout::Full) => {
+            ".app-topbar-fit-probe-both-full"
+        }
+        (TopbarSettingsLayout::ThemeInline, TopbarNavLayout::Full) => {
+            ".app-topbar-fit-probe-theme-full"
+        }
+        (TopbarSettingsLayout::NoneInline, TopbarNavLayout::Full) => {
+            ".app-topbar-fit-probe-none-full"
+        }
+        (TopbarSettingsLayout::BothInline, TopbarNavLayout::Menu) => {
+            ".app-topbar-fit-probe-both-menu"
+        }
+        (TopbarSettingsLayout::ThemeInline, TopbarNavLayout::Menu) => {
+            ".app-topbar-fit-probe-theme-menu"
+        }
+        (TopbarSettingsLayout::NoneInline, TopbarNavLayout::Menu) => {
+            ".app-topbar-fit-probe-none-menu"
+        }
     }
 }
 
@@ -2772,6 +4590,111 @@ fn topbar_column_gap(element: &web_sys::Element) -> f64 {
         .and_then(|value| value.trim_end_matches("px").parse::<f64>().ok())
         .filter(|value| value.is_finite() && *value >= 0.0)
         .unwrap_or(0.0)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_page_find_match_scroll(match_index: usize) {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let closure = Closure::once(move || scroll_page_find_match(match_index));
+    let _ = window
+        .set_timeout_with_callback_and_timeout_and_arguments_0(closure.as_ref().unchecked_ref(), 0);
+    closure.forget();
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_page_find_match_scroll(match_index: usize) {
+    spawn(async move {
+        sleep_ms(0).await;
+        scroll_page_find_match_desktop(match_index).await;
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_page_find_match_scroll(_match_index: usize) {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn scroll_page_find_match(match_index: usize) {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let selector = format!(r#"[data-page-find-match-index="{match_index}"]"#);
+    if let Ok(Some(element)) = document.query_selector(&selector) {
+        element.scroll_into_view();
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn event_is_page_find_shortcut(event: &web_sys::Event) -> bool {
+    let key = js_event_string_property(event, "key")
+        .unwrap_or_default()
+        .to_lowercase();
+    let ctrl_key = js_event_bool_property(event, "ctrlKey");
+    let meta_key = js_event_bool_property(event, "metaKey");
+    let alt_key = js_event_bool_property(event, "altKey");
+    (ctrl_key || meta_key) && !alt_key && key == "f"
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(!name.is_empty())]
+#[ensures(true)]
+fn js_event_string_property(event: &web_sys::Event, name: &str) -> Option<String> {
+    js_sys::Reflect::get(event.as_ref(), &JsValue::from_str(name))
+        .ok()
+        .and_then(|value| value.as_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(!name.is_empty())]
+#[ensures(true)]
+fn js_event_bool_property(event: &web_sys::Event, name: &str) -> bool {
+    js_sys::Reflect::get(event.as_ref(), &JsValue::from_str(name))
+        .ok()
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn focus_page_find_input() {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Some(element) = document.get_element_by_id(PAGE_FIND_INPUT_ID) else {
+        return;
+    };
+    if let Ok(input) = element.dyn_into::<web_sys::HtmlInputElement>() {
+        let _ = input.focus();
+        input.select();
+    }
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+async fn scroll_page_find_match_desktop(match_index: usize) {
+    let script = format!(
+        r#"
+        const element = document.querySelector('[data-page-find-match-index="{match_index}"]');
+        if (element) {{
+            element.scrollIntoView({{ block: "center", inline: "nearest" }});
+        }}
+        return null;
+        "#
+    );
+    let _ = document::eval(&script).await;
 }
 
 #[requires(true)]
@@ -4709,6 +6632,7 @@ fn render_cukta_page(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let page = cukta_page.read().page.clone();
     let toc_is_pinned = *toc_pinned.read();
@@ -4898,9 +6822,10 @@ fn render_cukta_page(
                                 blocks,
                                 base_path,
                                 script,
+                                page_find,
                             ),
                             CuktaPageKind::Index { entries } => {
-                                render_cukta_index(entries, pending_cukta_scroll, base_path)
+                                render_cukta_index(entries, pending_cukta_scroll, base_path, page_find)
                             }
                             CuktaPageKind::Search {
                                 state,
@@ -4925,10 +6850,11 @@ fn render_cukta_page(
                                     *has_more,
                                     base_path,
                                     script,
+                                    page_find,
                                 )
                             }
                             CuktaPageKind::Error { message } => rsx! {
-                                div { class: "spa-error", "{message}" }
+                                div { class: "spa-error", { render_page_find_text(page_find, message) } }
                             },
                         }
                     }
@@ -5457,12 +7383,13 @@ fn render_cukta_section(
     blocks: &[CllBlock],
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let _ = chapter_title;
     rsx! {
         article { class: "cll-section-content",
             div { class: "cll-section-heading",
-                h1 { "{heading}" }
+                h1 { { render_page_find_text(page_find, heading) } }
                 if let Some(parse_href) = parse_href {
                     { render_cll_parse_link(
                         "cll-parse-example cll-parse-section spa-cll-link spa-cll-link-parse",
@@ -5474,20 +7401,20 @@ fn render_cukta_section(
             if !prelude_blocks.is_empty() {
                 div { class: "cll-chapter-prelude",
                     for block in prelude_blocks.iter() {
-                        { render_cll_block(block, pending_cukta_scroll, base_path, script) }
+                        { render_cll_block(block, pending_cukta_scroll, base_path, script, page_find) }
                     }
                 }
             }
             for block in blocks.iter() {
-                { render_cll_block(block, pending_cukta_scroll, base_path, script) }
+                { render_cll_block(block, pending_cukta_scroll, base_path, script, page_find) }
             }
             if previous.is_some() || next.is_some() {
                 nav { class: "cll-section-pager",
                     if let Some(previous) = previous {
-                        { render_cukta_section_pager_link(previous, "prev", pending_cukta_scroll, base_path) }
+                        { render_cukta_section_pager_link(previous, "prev", pending_cukta_scroll, base_path, page_find) }
                     }
                     if let Some(next) = next {
-                        { render_cukta_section_pager_link(next, "next", pending_cukta_scroll, base_path) }
+                        { render_cukta_section_pager_link(next, "next", pending_cukta_scroll, base_path, page_find) }
                     }
                 }
             }
@@ -5502,6 +7429,7 @@ fn render_cukta_section_pager_link(
     direction: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    page_find: &PageFindContext,
 ) -> Element {
     let class_name = format!("cll-section-pager-link cll-section-pager-link-{direction}");
     if let Some(route) = jbotci_route_from_href(base_path, &section.href) {
@@ -5519,7 +7447,9 @@ fn render_cukta_section_pager_link(
                         click_route.clone(),
                     );
                 },
-                span { class: "cll-section-pager-link-label", "{section.label}" }
+                span { class: "cll-section-pager-link-label",
+                    { render_page_find_text(page_find, &section.label) }
+                }
             }
         }
     } else {
@@ -5527,7 +7457,9 @@ fn render_cukta_section_pager_link(
             a {
                 class: "{class_name}",
                 href: "{section.href}",
-                span { class: "cll-section-pager-link-label", "{section.label}" }
+                span { class: "cll-section-pager-link-label",
+                    { render_page_find_text(page_find, &section.label) }
+                }
             }
         }
     }
@@ -5539,14 +7471,17 @@ fn render_cukta_index(
     entries: &[jbotci_web_core::CuktaIndexEntry],
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    page_find: &PageFindContext,
 ) -> Element {
     rsx! {
         section { class: "cll-index-view",
-            h1 { "Index" }
+            h1 { { render_page_find_text(page_find, "Index") } }
             div { class: "cll-index-list",
                 for entry in entries.iter() {
                     div { class: "cll-index-entry",
-                        span { class: "cll-index-key", "{entry.key}" }
+                        span { class: "cll-index-key",
+                            { render_page_find_text(page_find, &entry.key) }
+                        }
                         span { class: "cll-index-refs",
                             for reference in entry.references.iter() {
                                 {
@@ -5564,14 +7499,14 @@ fn render_cukta_index(
                                                         click_route.clone(),
                                                     );
                                                 },
-                                                "{reference.label}"
+                                                { render_page_find_text(page_find, &reference.label) }
                                             }
                                         }
                                     } else {
                                         rsx! {
                                             a {
                                                 href: "{reference.href}",
-                                                "{reference.label}"
+                                                { render_page_find_text(page_find, &reference.label) }
                                             }
                                         }
                                     }
@@ -5597,6 +7532,7 @@ fn render_cukta_search(
     has_more: bool,
     base_path: &str,
     _script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let state_for_load_more = draft_state.clone();
     let mode_options = cukta_draft_mode_options(draft_state.mode);
@@ -5611,11 +7547,11 @@ fn render_cukta_search(
                 &target_options,
             ) }
             if let Some(message) = message {
-                { render_semantic_search_message("dictionary-empty cll-search-message", message) }
+                { render_semantic_search_message("dictionary-empty cll-search-message", message, Some(page_find)) }
             }
             div { class: "cll-search-results",
                 for card in results.iter() {
-                    { render_cukta_search_card(card, pending_cukta_scroll, base_path) }
+                    { render_cukta_search_card(card, pending_cukta_scroll, base_path, page_find) }
                 }
             }
             if has_more {
@@ -5634,7 +7570,7 @@ fn render_cukta_search(
                                 },
                             );
                         },
-                        "Load more"
+                        { render_page_find_text(page_find, "Load more") }
                     }
                 }
             }
@@ -5788,6 +7724,7 @@ fn render_cukta_search_card(
     card: &CuktaSearchResultCard,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    page_find: &PageFindContext,
 ) -> Element {
     let route = jbotci_route_from_href(base_path, &card.href).map(|route| {
         let pending_scroll = cukta_pending_scroll_for_route_link(base_path, &route);
@@ -5798,9 +7735,14 @@ fn render_cukta_search_card(
         article { class: "cll-search-result-card result-card",
             header { class: "cll-search-result-head result-header",
                 div {
-                    p { class: "cll-search-result-meta", "{card.kind} · {card.section_label}" }
+                    p { class: "cll-search-result-meta",
+                        { render_page_find_text(page_find, &format!("{} · {}", card.kind, card.section_label)) }
+                    }
                     h2 { class: "cll-search-result-title",
                         if let Some((route, click_route, pending_scroll)) = route {
+                            {
+                                let label = format!("{}. {}", card.rank, card.label);
+                                rsx! {
                             Link {
                                 to: route,
                                 onclick_only: true,
@@ -5811,21 +7753,32 @@ fn render_cukta_search_card(
                                         click_route.clone(),
                                     );
                                 },
-                                "{card.rank}. {card.label}"
+                                { render_page_find_text(page_find, &label) }
+                            }
+                                }
                             }
                         } else {
+                            {
+                                let label = format!("{}. {}", card.rank, card.label);
+                                rsx! {
                             a {
                                 href: "{card.href}",
-                                "{card.rank}. {card.label}"
+                                { render_page_find_text(page_find, &label) }
+                            }
+                                }
                             }
                         }
                     }
                 }
                 if let Some(similarity) = &card.similarity_label {
-                    span { class: "dictionary-meta-segment dictionary-meta-tooltip", "{similarity}" }
+                    span { class: "dictionary-meta-segment dictionary-meta-tooltip",
+                        { render_page_find_text(page_find, similarity) }
+                    }
                 }
             }
-            p { class: "cll-search-preview", "{card.preview}" }
+            p { class: "cll-search-preview",
+                { render_page_find_text(page_find, &card.preview) }
+            }
         }
     }
 }
@@ -5837,6 +7790,7 @@ fn render_cll_block(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     match block {
         CllBlock::Paragraph {
@@ -5852,10 +7806,10 @@ fn render_cll_block(
             rsx! {
                 p { id: anchor_id.clone().unwrap_or_default(), class: "{class_name}",
                     if inlines.is_empty() {
-                        "{text}"
+                        { render_page_find_text(page_find, text) }
                     } else {
                         for inline in inlines.iter() {
-                            { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                            { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                         }
                     }
                 }
@@ -5868,7 +7822,7 @@ fn render_cll_block(
                         for item in items.iter() {
                             li {
                                 for child in item.iter() {
-                                    { render_cll_block(child, pending_cukta_scroll, base_path, script) }
+                                    { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
                                 }
                             }
                         }
@@ -5880,7 +7834,7 @@ fn render_cll_block(
                         for item in items.iter() {
                             li {
                                 for child in item.iter() {
-                                    { render_cll_block(child, pending_cukta_scroll, base_path, script) }
+                                    { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
                                 }
                             }
                         }
@@ -5891,7 +7845,9 @@ fn render_cll_block(
         CllBlock::Example(example) => rsx! {
             figure { id: "{example.anchor_id}", class: "cll-example",
                 figcaption { class: "cll-example-head",
-                    span { class: "cll-example-title", "{example.label}" }
+                    span { class: "cll-example-title",
+                        { render_page_find_text(page_find, &example.label) }
+                    }
                     if let Some(parse_href) = &example.parse_href {
                         { render_cll_parse_link(
                             "cll-parse-example spa-cll-link spa-cll-link-parse",
@@ -5905,13 +7861,13 @@ fn render_cll_block(
                         for line in example.lines.iter() {
                             {
                                 let text = cll_display_text_for_kind(script, &line.kind, &line.text);
-                                rsx! { p { class: "cll-ig-line cll-ig-{line.kind}", "{text}" } }
+                                rsx! { p { class: "cll-ig-line cll-ig-{line.kind}", { render_page_find_text(page_find, &text) } } }
                             }
                         }
                     }
                 } else {
                     for child in example.blocks.iter() {
-                        { render_cll_block(child, pending_cukta_scroll, base_path, script) }
+                        { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
                     }
                 }
             }
@@ -5929,7 +7885,7 @@ fn render_cll_block(
                 if let Some(caption) = caption {
                     caption {
                         for inline in caption.iter() {
-                            { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                            { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                         }
                     }
                 }
@@ -5958,7 +7914,7 @@ fn render_cll_block(
                                             }
                                         }
                                         for child in cell.blocks.iter() {
-                                            { render_cll_block(child, pending_cukta_scroll, base_path, script) }
+                                            { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
                                         }
                                     }
                                 }
@@ -5992,7 +7948,7 @@ fn render_cll_block(
                                         }
                                     }
                                     for child in cell.blocks.iter() {
-                                        { render_cll_block(child, pending_cukta_scroll, base_path, script) }
+                                        { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
                                     }
                                 }
                             }
@@ -6024,7 +7980,7 @@ fn render_cll_block(
                                     td {
                                         if let Some(inlines) = cell {
                                             for inline in inlines.iter() {
-                                                { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                                                { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                                             }
                                         }
                                     }
@@ -6040,12 +7996,12 @@ fn render_cll_block(
                 for entry in entries.iter() {
                     dt {
                         for inline in entry.term.iter() {
-                            { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                            { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                         }
                     }
                     dd {
                         for child in entry.blocks.iter() {
-                            { render_cll_block(child, pending_cukta_scroll, base_path, script) }
+                            { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
                         }
                     }
                 }
@@ -6064,7 +8020,7 @@ fn render_cll_block(
                     if let Some(title) = title {
                         figcaption {
                             for inline in title.iter() {
-                                { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                                { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                             }
                         }
                     }
@@ -6073,16 +8029,16 @@ fn render_cll_block(
         }
         CllBlock::Rule { id, term, body } => rsx! {
             div { id: id.clone().unwrap_or_default(), class: "cll-rule",
-                dt { "{term}" }
+                dt { { render_page_find_text(page_find, term) } }
                 dd {
                     for child in body.iter() {
-                        { render_cll_block(child, pending_cukta_scroll, base_path, script) }
+                        { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
                     }
                 }
             }
         },
         CllBlock::Code { text, .. } => rsx! {
-            pre { class: "cll-code", code { "{text}" } }
+            pre { class: "cll-code", code { { render_page_find_text(page_find, text) } } }
         },
         CllBlock::DisplayMath { id, markup, .. } => rsx! {
             div {
@@ -6098,7 +8054,7 @@ fn render_cll_block(
             rsx! {
                 h2 { id: id.clone().unwrap_or_default(), class: "{class_name}",
                     for inline in inlines.iter() {
-                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                     }
                 }
             }
@@ -6106,14 +8062,14 @@ fn render_cll_block(
         CllBlock::BlockQuote { id, blocks } => rsx! {
             blockquote { id: id.clone().unwrap_or_default(), class: "cll-blockquote",
                 for child in blocks.iter() {
-                    { render_cll_block(child, pending_cukta_scroll, base_path, script) }
+                    { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
                 }
             }
         },
         CllBlock::Definition { id, body } => rsx! {
             p { id: id.clone().unwrap_or_default(), class: "cll-definition",
                 for inline in body.iter() {
-                    { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                    { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                 }
             }
         },
@@ -6136,6 +8092,7 @@ fn render_cll_block(
             pending_cukta_scroll,
             base_path,
             script,
+            page_find,
         ),
         CllBlock::CmavoList {
             id,
@@ -6150,6 +8107,7 @@ fn render_cll_block(
             pending_cukta_scroll,
             base_path,
             script,
+            page_find,
         ),
         CllBlock::Lojbanization { id, lines } => render_cll_lojbanization(
             id.as_deref(),
@@ -6157,6 +8115,7 @@ fn render_cll_block(
             pending_cukta_scroll,
             base_path,
             script,
+            page_find,
         ),
         CllBlock::LujvoMaking { id, parts } => render_cll_lujvo_making(
             id.as_deref(),
@@ -6164,11 +8123,12 @@ fn render_cll_block(
             pending_cukta_scroll,
             base_path,
             script,
+            page_find,
         ),
         CllBlock::GrammarTemplate { id, body } => rsx! {
             p { id: id.clone().unwrap_or_default(), class: "cll-grammar-template",
                 for inline in body.iter() {
-                    { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                    { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                 }
             }
         },
@@ -6178,6 +8138,7 @@ fn render_cll_block(
             pending_cukta_scroll,
             base_path,
             script,
+            page_find,
         ),
     }
 }
@@ -6190,6 +8151,7 @@ fn render_cll_inline(
     base_path: &str,
     script: GentufaScript,
     lojban_context: bool,
+    page_find: &PageFindContext,
 ) -> Element {
     match inline {
         CllInline::Text(text) => {
@@ -6198,14 +8160,14 @@ fn render_cll_inline(
             } else {
                 text.clone()
             };
-            rsx! { "{text}" }
+            rsx! { { render_page_find_text(page_find, &text) } }
         }
         CllInline::Emphasis { language, inlines } => {
             let child_context = lojban_context || cll_language_is_lojban(language.as_deref());
             rsx! {
                 em { lang: language.clone().unwrap_or_default(),
                     for child in inlines.iter() {
-                        { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
+                        { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context, page_find) }
                     }
                 }
             }
@@ -6215,7 +8177,7 @@ fn render_cll_inline(
             rsx! {
                 q { lang: language.clone().unwrap_or_default(),
                     for child in inlines.iter() {
-                        { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
+                        { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context, page_find) }
                     }
                 }
             }
@@ -6232,7 +8194,7 @@ fn render_cll_inline(
             rsx! {
                 span { class: "{class_name}", lang: language.clone().unwrap_or_default(),
                     for child in inlines.iter() {
-                        { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
+                        { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context, page_find) }
                     }
                 }
             }
@@ -6240,21 +8202,21 @@ fn render_cll_inline(
         CllInline::CiteTitle { inlines } => rsx! {
             cite {
                 for child in inlines.iter() {
-                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, lojban_context) }
+                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, lojban_context, page_find) }
                 }
             }
         },
         CllInline::Subscript { inlines } => rsx! {
             sub {
                 for child in inlines.iter() {
-                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, lojban_context) }
+                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, lojban_context, page_find) }
                 }
             }
         },
         CllInline::Superscript { inlines } => rsx! {
             sup {
                 for child in inlines.iter() {
-                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, lojban_context) }
+                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, lojban_context, page_find) }
                 }
             }
         },
@@ -6289,7 +8251,7 @@ fn render_cll_inline(
                                     );
                                 },
                                 for child in inlines.iter() {
-                                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
+                                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context, page_find) }
                                 }
                             }
                         } else {
@@ -6297,7 +8259,7 @@ fn render_cll_inline(
                                 class: "{class_name}",
                                 href: "{href}",
                                 for child in inlines.iter() {
-                                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
+                                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context, page_find) }
                                 }
                             }
                         }
@@ -6318,25 +8280,25 @@ fn render_cll_inline(
                                     click_route.clone(),
                                 );
                             },
-                            for child in inlines.iter() {
-                                { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
+                                for child in inlines.iter() {
+                                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context, page_find) }
+                                }
                             }
-                        }
                     }
                 } else {
                     rsx! {
                         a {
                             class: "{class_name}",
                             href: "{href}",
-                            for child in inlines.iter() {
-                                { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context) }
+                                for child in inlines.iter() {
+                                    { render_cll_inline(child, pending_cukta_scroll, base_path, script, child_context, page_find) }
+                                }
                             }
-                        }
                     }
                 }
             }
         }
-        CllInline::Code(text) => rsx! { code { "{text}" } },
+        CllInline::Code(text) => rsx! { code { { render_page_find_text(page_find, text) } } },
         CllInline::Elidable {
             shown,
             forced,
@@ -6346,10 +8308,10 @@ fn render_cll_inline(
             rsx! {
                 span { class: "{class_name}",
                     if inlines.is_empty() {
-                        "{display_lojban_text_if(script, shown, lojban_context)}"
+                        { render_page_find_text(page_find, &display_lojban_text_if(script, shown, lojban_context)) }
                     } else {
                         for child in inlines.iter() {
-                            { render_cll_inline(child, pending_cukta_scroll, base_path, script, lojban_context) }
+                            { render_cll_inline(child, pending_cukta_scroll, base_path, script, lojban_context, page_find) }
                         }
                     }
                 }
@@ -6431,6 +8393,7 @@ fn render_cll_interlinear(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let class_name = class_names(
         "cll-interlinear",
@@ -6461,7 +8424,7 @@ fn render_cll_interlinear(
                                             for cell in row.cells.iter() {
                                                 td { class: "cll-ig-cell",
                                                     for inline in cell.iter() {
-                                                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, row_context) }
+                                                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, row_context, page_find) }
                                                     }
                                                 }
                                             }
@@ -6481,7 +8444,7 @@ fn render_cll_interlinear(
                                         p { class: "cll-ig-line cll-ig-inline cll-ig-{row.kind}",
                                             for cell in row.cells.iter() {
                                                 for inline in cell.iter() {
-                                                    { render_cll_inline(inline, pending_cukta_scroll, base_path, script, row_context) }
+                                                    { render_cll_inline(inline, pending_cukta_scroll, base_path, script, row_context, page_find) }
                                                 }
                                             }
                                         }
@@ -6495,14 +8458,14 @@ fn render_cll_interlinear(
             for comment in comments.iter() {
                 p { class: "cll-ig-comment cll-interlinear-comment",
                     for inline in comment.iter() {
-                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                     }
                 }
             }
             for line in natlang.iter() {
                 p { class: "cll-ig-natlang-text cll-natlang",
                     for inline in line.iter() {
-                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                     }
                 }
             }
@@ -6520,13 +8483,14 @@ fn render_cll_cmavo_list(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     rsx! {
         div { id: id.unwrap_or_default(), class: "cll-cmavo-list",
             for title in titles.iter() {
                 p { class: "cll-cmavo-list-title",
                     for inline in title.iter() {
-                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                     }
                 }
             }
@@ -6537,7 +8501,7 @@ fn render_cll_cmavo_list(
                             for header in headers.iter() {
                                 th {
                                     for inline in header.iter() {
-                                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                                     }
                                 }
                             }
@@ -6548,7 +8512,7 @@ fn render_cll_cmavo_list(
                             for cell in row.iter() {
                                 td {
                                     for inline in cell.iter() {
-                                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                                     }
                                 }
                             }
@@ -6568,6 +8532,7 @@ fn render_cll_lojbanization(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     rsx! {
         table { id: id.unwrap_or_default(), class: "cll-lojbanization cll-lojbanization-table",
@@ -6577,16 +8542,16 @@ fn render_cll_lojbanization(
                         let line_context = cll_kind_is_lojban(&line.kind);
                         rsx! {
                             tr { class: "cll-lojbanization-row cll-lojbanization-line cll-lojbanization-line-{line.kind} cll-lojbanization-{line.kind}",
-                                th { "{line.kind}" }
+                                th { { render_page_find_text(page_find, &line.kind) } }
                                 td {
                                     for inline in line.body.iter() {
-                                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, line_context) }
+                                        { render_cll_inline(inline, pending_cukta_scroll, base_path, script, line_context, page_find) }
                                     }
                                 }
                                 td {
                                     if let Some(comment) = &line.comment {
                                         for inline in comment.iter() {
-                                            { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false) }
+                                            { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
                                         }
                                     }
                                 }
@@ -6607,17 +8572,20 @@ fn render_cll_lujvo_making(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     rsx! {
         ul { id: id.unwrap_or_default(), class: "cll-lujvo-making",
             for part in parts.iter() {
                 {
                     let part_context = cll_kind_is_lojban(&part.kind);
-                    rsx! {
-                        li { class: "cll-lujvo-part cll-lujvo-part-{part.kind}",
-                            span { class: "cll-lujvo-part-kind", "{part.kind}" }
+                        rsx! {
+                            li { class: "cll-lujvo-part cll-lujvo-part-{part.kind}",
+                            span { class: "cll-lujvo-part-kind",
+                                { render_page_find_text(page_find, &part.kind) }
+                            }
                             for inline in part.body.iter() {
-                                { render_cll_inline(inline, pending_cukta_scroll, base_path, script, part_context) }
+                                { render_cll_inline(inline, pending_cukta_scroll, base_path, script, part_context, page_find) }
                             }
                         }
                     }
@@ -6635,18 +8603,19 @@ fn render_cll_ebnf(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     rsx! {
         div { id: id.unwrap_or_default(), class: "cll-ebnf",
             for entry in entries.iter() {
                 section { id: "{entry.anchor_id}", class: "cll-ebnf-entry",
                     div { class: "cll-ebnf-head",
-                        { render_cll_ebnf_link("cll-ebnf-rule", &entry.rule_name, entry.rule_href.as_deref(), pending_cukta_scroll, base_path, script) }
+                        { render_cll_ebnf_link("cll-ebnf-rule", &entry.rule_name, entry.rule_href.as_deref(), pending_cukta_scroll, base_path, script, page_find) }
                         " "
                         span { class: "cll-ebnf-assign", "⩴" }
                     }
                     pre { class: "cll-ebnf-rhs",
-                        { render_cll_ebnf_rhs(&entry.rhs, pending_cukta_scroll, base_path, script) }
+                        { render_cll_ebnf_rhs(&entry.rhs, pending_cukta_scroll, base_path, script, page_find) }
                     }
                 }
             }
@@ -6661,13 +8630,14 @@ fn render_cll_ebnf_rhs(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let lines = wrap_ebnf_choice_lines(tokens);
     if lines.len() == 1 {
         let line = lines.into_iter().next().unwrap_or_default();
         return rsx! {
             for token in line.iter() {
-                { render_cll_ebnf_token(token, pending_cukta_scroll, base_path, script) }
+                { render_cll_ebnf_token(token, pending_cukta_scroll, base_path, script, page_find) }
             }
         };
     }
@@ -6675,7 +8645,7 @@ fn render_cll_ebnf_rhs(
         for line in lines.iter() {
             span { class: "cll-ebnf-choice-line",
                 for token in line.iter() {
-                    { render_cll_ebnf_token(token, pending_cukta_scroll, base_path, script) }
+                    { render_cll_ebnf_token(token, pending_cukta_scroll, base_path, script, page_find) }
                 }
             }
         }
@@ -6689,13 +8659,16 @@ fn render_cll_ebnf_token(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     match token {
-        CllEbnfToken::Text { body } => rsx! { "{body}" },
+        CllEbnfToken::Text { body } => rsx! { { render_page_find_text(page_find, body) } },
         CllEbnfToken::Operator { body } => {
-            rsx! { span { class: "cll-ebnf-op", "{body}" } }
+            rsx! { span { class: "cll-ebnf-op", { render_page_find_text(page_find, body) } } }
         }
-        CllEbnfToken::Hash { body } => rsx! { span { class: "cll-ebnf-hash", "{body}" } },
+        CllEbnfToken::Hash { body } => {
+            rsx! { span { class: "cll-ebnf-hash", { render_page_find_text(page_find, body) } } }
+        }
         CllEbnfToken::Terminal { body, href } => render_cll_ebnf_link(
             "cll-ebnf-terminal",
             body,
@@ -6703,6 +8676,7 @@ fn render_cll_ebnf_token(
             pending_cukta_scroll,
             base_path,
             script,
+            page_find,
         ),
         CllEbnfToken::ElidableTerminator { body, href } => render_cll_ebnf_elidable(
             body,
@@ -6710,6 +8684,7 @@ fn render_cll_ebnf_token(
             pending_cukta_scroll,
             base_path,
             script,
+            page_find,
         ),
         CllEbnfToken::Nonterminal { body, href } => render_cll_ebnf_link(
             "cll-ebnf-nonterminal",
@@ -6718,6 +8693,7 @@ fn render_cll_ebnf_token(
             pending_cukta_scroll,
             base_path,
             script,
+            page_find,
         ),
     }
 }
@@ -6730,6 +8706,7 @@ fn render_cll_ebnf_elidable(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let pieces = cll_ebnf_elidable_hash_pieces(body);
     if let Some(href) = href {
@@ -6756,21 +8733,21 @@ fn render_cll_ebnf_elidable(
                                 );
                             },
                             if let Some((prefix, suffix)) = pieces {
-                                "{prefix}"
-                                span { class: "cll-ebnf-hash", "#" }
-                                "{suffix}"
+                                { render_page_find_text(page_find, &prefix) }
+                                span { class: "cll-ebnf-hash", { render_page_find_text(page_find, "#") } }
+                                { render_page_find_text(page_find, &suffix) }
                             } else {
-                                "{body}"
+                                { render_page_find_text(page_find, body) }
                             }
                         }
                     } else {
                         a { class: "cll-ebnf-elidable", href: "{href}",
                             if let Some((prefix, suffix)) = pieces {
-                                "{prefix}"
-                                span { class: "cll-ebnf-hash", "#" }
-                                "{suffix}"
+                                { render_page_find_text(page_find, &prefix) }
+                                span { class: "cll-ebnf-hash", { render_page_find_text(page_find, "#") } }
+                                { render_page_find_text(page_find, &suffix) }
                             } else {
-                                "{body}"
+                                { render_page_find_text(page_find, body) }
                             }
                         }
                     }
@@ -6792,11 +8769,11 @@ fn render_cll_ebnf_elidable(
                             );
                         },
                         if let Some((prefix, suffix)) = pieces {
-                            "{prefix}"
-                            span { class: "cll-ebnf-hash", "#" }
-                            "{suffix}"
+                            { render_page_find_text(page_find, &prefix) }
+                            span { class: "cll-ebnf-hash", { render_page_find_text(page_find, "#") } }
+                            { render_page_find_text(page_find, &suffix) }
                         } else {
-                            "{body}"
+                            { render_page_find_text(page_find, body) }
                         }
                     }
                 }
@@ -6804,11 +8781,11 @@ fn render_cll_ebnf_elidable(
                 rsx! {
                     a { class: "cll-ebnf-elidable", href: "{href}",
                         if let Some((prefix, suffix)) = pieces {
-                            "{prefix}"
-                            span { class: "cll-ebnf-hash", "#" }
-                            "{suffix}"
+                            { render_page_find_text(page_find, &prefix) }
+                            span { class: "cll-ebnf-hash", { render_page_find_text(page_find, "#") } }
+                            { render_page_find_text(page_find, &suffix) }
                         } else {
-                            "{body}"
+                            { render_page_find_text(page_find, body) }
                         }
                     }
                 }
@@ -6818,11 +8795,11 @@ fn render_cll_ebnf_elidable(
         rsx! {
             span { class: "cll-ebnf-elidable",
                 if let Some((prefix, suffix)) = pieces {
-                    "{prefix}"
-                    span { class: "cll-ebnf-hash", "#" }
-                    "{suffix}"
+                    { render_page_find_text(page_find, &prefix) }
+                    span { class: "cll-ebnf-hash", { render_page_find_text(page_find, "#") } }
+                    { render_page_find_text(page_find, &suffix) }
                 } else {
-                    "{body}"
+                    { render_page_find_text(page_find, body) }
                 }
             }
         }
@@ -6838,6 +8815,7 @@ fn render_cll_ebnf_link(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     if let Some(href) = href {
         let tooltip = cll_dictionary_tooltip_for_href(base_path, href);
@@ -6862,10 +8840,10 @@ fn render_cll_ebnf_link(
                                     click_route.clone(),
                                 );
                             },
-                            "{body}"
+                            { render_page_find_text(page_find, body) }
                         }
                     } else {
-                        a { class: "{class_name}", href: "{href}", "{body}" }
+                        a { class: "{class_name}", href: "{href}", { render_page_find_text(page_find, body) } }
                     }
                     { render_dictionary_tooltip(card, false, base_path, script) }
                 }
@@ -6884,17 +8862,17 @@ fn render_cll_ebnf_link(
                                 click_route.clone(),
                             );
                         },
-                        "{body}"
+                        { render_page_find_text(page_find, body) }
                     }
                 }
             } else {
                 rsx! {
-                    a { class: "{class_name}", href: "{href}", "{body}" }
+                    a { class: "{class_name}", href: "{href}", { render_page_find_text(page_find, body) } }
                 }
             }
         }
     } else {
-        rsx! { span { class: "{class_name}", "{body}" } }
+        rsx! { span { class: "{class_name}", { render_page_find_text(page_find, body) } } }
     }
 }
 
@@ -7365,6 +9343,7 @@ fn render_vlacku_page(
     pending_vlacku_scroll_restore: Signal<Option<i32>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let committed_state = vlacku_committed_state.read().clone();
     let result_state = vlacku_result.read().clone();
@@ -7395,14 +9374,16 @@ fn render_vlacku_page(
                     { render_dictionary_info(info) }
                 }
                 if let Some(message) = &result.message {
-                    { render_semantic_search_message("dictionary-empty", message) }
+                    { render_semantic_search_message("dictionary-empty", message, Some(page_find)) }
                 }
                 for error in result.errors.iter() {
-                    div { class: "spa-error dictionary-error", "{error}" }
+                    div { class: "spa-error dictionary-error",
+                        { render_page_find_text(page_find, error) }
+                    }
                 }
                 div { class: "dictionary-layout",
                     div { class: "dictionary-main-column",
-                        { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, jvozba_available_value, pending_cukta_scroll, pending_vlacku_scroll_restore, base_path, script) }
+                        { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, jvozba_available_value, pending_cukta_scroll, pending_vlacku_scroll_restore, base_path, script, page_find) }
                     }
                     if jvozba_available_value {
                         { render_vlacku_jvozba_pane(jvozba_pane, jvozba_drag, script) }
@@ -7415,21 +9396,39 @@ fn render_vlacku_page(
 
 #[requires(!class_name.is_empty())]
 #[ensures(true)]
-fn render_semantic_search_message(class_name: &str, message: &str) -> Element {
+fn render_semantic_search_message(
+    class_name: &str,
+    message: &str,
+    page_find: Option<&PageFindContext>,
+) -> Element {
     if message == SEMANTIC_SEARCH_SETUP_MESSAGE {
         let settings_route = JbotciRoute::from_web_route(WebRoute::Settings, false);
         rsx! {
             p { class: "{class_name}",
                 Link {
                     to: settings_route,
-                    "{SEMANTIC_SEARCH_SETUP_LINK_LABEL}"
+                    if let Some(page_find) = page_find {
+                        { render_page_find_text(page_find, SEMANTIC_SEARCH_SETUP_LINK_LABEL) }
+                    } else {
+                        "{SEMANTIC_SEARCH_SETUP_LINK_LABEL}"
+                    }
                 }
-                "{SEMANTIC_SEARCH_SETUP_LINK_SUFFIX}"
+                if let Some(page_find) = page_find {
+                    { render_page_find_text(page_find, SEMANTIC_SEARCH_SETUP_LINK_SUFFIX) }
+                } else {
+                    "{SEMANTIC_SEARCH_SETUP_LINK_SUFFIX}"
+                }
             }
         }
     } else {
         rsx! {
-            p { class: "{class_name}", "{message}" }
+            p { class: "{class_name}",
+                if let Some(page_find) = page_find {
+                    { render_page_find_text(page_find, message) }
+                } else {
+                    "{message}"
+                }
+            }
         }
     }
 }
@@ -7620,13 +9619,14 @@ fn render_vlacku_body(
     mut pending_vlacku_scroll_restore: Signal<Option<i32>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     rsx! {
         div { class: "dictionary-results",
             if !result.cards.is_empty() {
                 div { class: "dictionary-results-grid", "data-jvozba-pane-anchor": "1",
                     for card in result.cards.iter() {
-                        { render_vlacku_card(card, jvozba_pane, jvozba_available, pending_cukta_scroll, base_path, script) }
+                        { render_vlacku_card(card, jvozba_pane, jvozba_available, pending_cukta_scroll, base_path, script, page_find) }
                     }
                 }
             }
@@ -7644,7 +9644,7 @@ fn render_vlacku_body(
                                 next,
                             );
                         },
-                        "Load more"
+                        { render_page_find_text(page_find, "Load more") }
                     }
                 }
             }
@@ -7707,6 +9707,34 @@ fn render_text_route_link(class_name: &str, href: &str, base_path: &str, label: 
     }
 }
 
+#[requires(!class_name.is_empty())]
+#[ensures(true)]
+fn render_text_route_link_with_page_find(
+    class_name: &str,
+    href: &str,
+    base_path: &str,
+    label: &str,
+    page_find: &PageFindContext,
+) -> Element {
+    if let Some(route) = jbotci_route_from_href(base_path, href) {
+        rsx! {
+            Link {
+                class: "{class_name}",
+                to: route,
+                { render_page_find_text(page_find, label) }
+            }
+        }
+    } else {
+        rsx! {
+            a {
+                class: "{class_name}",
+                href: "{href}",
+                { render_page_find_text(page_find, label) }
+            }
+        }
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn render_dictionary_count_node(node: &VlackuDictionaryCountNode) -> Element {
@@ -7737,21 +9765,22 @@ fn render_vlacku_card(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     rsx! {
         section { class: "result-card",
             header { class: "result-header",
-                { render_vlacku_headword_line(card, jvozba_pane, jvozba_available, base_path, script) }
+                { render_vlacku_headword_line(card, jvozba_pane, jvozba_available, base_path, script, page_find) }
                 div { class: "tag-row",
                     if let Some(author) = &card.author {
-                        { render_vlacku_author_credit(author) }
+                        { render_vlacku_author_credit(author, page_find) }
                     }
-                    { render_vlacku_metadata_pill(card, pending_cukta_scroll, base_path) }
+                    { render_vlacku_metadata_pill(card, pending_cukta_scroll, base_path, page_find) }
                 }
             }
             if !card.definition.is_empty() {
                 p { class: "dictionary-definition-copy",
-                    { render_inline_spans(&card.definition, jvozba_pane, jvozba_available, base_path, script) }
+                    { render_inline_spans(&card.definition, jvozba_pane, jvozba_available, base_path, script, page_find) }
                     {
                         let definition_source = card.definition_source.clone();
                         rsx! {
@@ -7770,19 +9799,23 @@ fn render_vlacku_card(
             if !card.glosses.is_empty() {
                 div { class: "chip-row dictionary-gloss-row",
                     for gloss in card.glosses.iter() {
-                        span { class: "chip dictionary-gloss-pill", title: "Gloss word", "{gloss}" }
+                        span { class: "chip dictionary-gloss-pill", title: "Gloss word",
+                            { render_page_find_text(page_find, gloss) }
+                        }
                     }
                 }
             }
             if !card.notes.is_empty() {
                 p { class: "dictionary-note-copy", "data-note-tooltip": "Dictionary notes",
-                    { render_inline_spans(&card.notes, jvozba_pane, jvozba_available, base_path, script) }
+                    { render_inline_spans(&card.notes, jvozba_pane, jvozba_available, base_path, script, page_find) }
                 }
             }
             if !card.etymology.is_empty() {
                 p { class: "dictionary-etymology-copy", title: "Etymology",
-                    span { class: "dictionary-detail-label", "etymology: " }
-                    { render_inline_spans(&card.etymology, jvozba_pane, jvozba_available, base_path, script) }
+                    span { class: "dictionary-detail-label",
+                        { render_page_find_text(page_find, "etymology: ") }
+                    }
+                    { render_inline_spans(&card.etymology, jvozba_pane, jvozba_available, base_path, script, page_find) }
                 }
             }
         }
@@ -8134,6 +10167,7 @@ fn render_vlacku_headword_line(
     jvozba_available: bool,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let word_href = vlacku_web_url(
         base_path,
@@ -8156,22 +10190,25 @@ fn render_vlacku_headword_line(
                     &display_word,
                     &word_href,
                     base_path,
+                    page_find,
                 ) }
             }
             if let Some(ipa) = &card.ipa {
-                span { class: "dictionary-headword-ipa", "/{ipa}/" }
+                span { class: "dictionary-headword-ipa",
+                    { render_page_find_text(page_find, &format!("/{ipa}/")) }
+                }
             }
             if !card.decomposition.is_empty() {
                 span { class: "dictionary-word-composition-group dictionary-word-decomposition-group",
                     { render_vlacku_inline_separator("=") }
-                    { render_vlacku_decomposition_inline(card, jvozba_pane, jvozba_available, base_path, script) }
+                    { render_vlacku_decomposition_inline(card, jvozba_pane, jvozba_available, base_path, script, page_find) }
                 }
             } else if !card.rafsi.is_empty() {
                 span { class: "dictionary-word-composition-group dictionary-word-rafsi-group",
                     { render_vlacku_inline_separator("≘") }
                     span { class: "dictionary-inline-pill-row",
                         for rafsi in card.rafsi.iter() {
-                            { render_rafsi_pill(jvozba_pane, jvozba_available, &card.word, rafsi, script) }
+                            { render_rafsi_pill(jvozba_pane, jvozba_available, &card.word, rafsi, script, page_find) }
                         }
                     }
                 }
@@ -8190,6 +10227,7 @@ fn render_vlacku_headword_action(
     display_word: &str,
     href: &str,
     base_path: &str,
+    page_find: &PageFindContext,
 ) -> Element {
     let pane_open = jvozba_available && jvozba_pane.read().open;
     let word_value = word.to_owned();
@@ -8200,15 +10238,23 @@ fn render_vlacku_headword_action(
                 r#type: "button",
                 title: "Add to jvozba",
                 onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
-                "{display_word}"
+                { render_page_find_text(page_find, display_word) }
             }
         }
     } else if pane_open {
         rsx! {
-            span { class: "dictionary-headword-link", "{display_word}" }
+            span { class: "dictionary-headword-link",
+                { render_page_find_text(page_find, display_word) }
+            }
         }
     } else {
-        render_text_route_link("dictionary-headword-link", href, base_path, display_word)
+        render_text_route_link_with_page_find(
+            "dictionary-headword-link",
+            href,
+            base_path,
+            display_word,
+            page_find,
+        )
     }
 }
 
@@ -8220,6 +10266,7 @@ fn render_vlacku_decomposition_inline(
     jvozba_available: bool,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let visible_pieces = card
         .decomposition
@@ -8231,7 +10278,7 @@ fn render_vlacku_decomposition_inline(
             if index > 0 {
                 { render_vlacku_inline_separator("+") }
             }
-            { render_composition_piece(piece, jvozba_pane, jvozba_available, base_path, script) }
+            { render_composition_piece(piece, jvozba_pane, jvozba_available, base_path, script, page_find) }
         }
     }
 }
@@ -8306,10 +10353,12 @@ fn vlacku_author_credit_text(author: &VlackuWebAuthor) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_vlacku_author_credit(author: &VlackuWebAuthor) -> Element {
+fn render_vlacku_author_credit(author: &VlackuWebAuthor, page_find: &PageFindContext) -> Element {
     let credit = vlacku_author_credit_text(author);
     rsx! {
-        span { class: "dictionary-author-credit", "{credit}" }
+        span { class: "dictionary-author-credit",
+            { render_page_find_text(page_find, &credit) }
+        }
     }
 }
 
@@ -8319,19 +10368,22 @@ fn render_vlacku_metadata_pill(
     card: &VlackuWebCard,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    page_find: &PageFindContext,
 ) -> Element {
     rsx! {
         div { class: "dictionary-meta-pill",
-            span { class: word_type_tag_class(&card.word_type_key), "{card.word_type}" }
+            span { class: word_type_tag_class(&card.word_type_key),
+                { render_page_find_text(page_find, &card.word_type) }
+            }
             if let Some(selmaho) = &card.selmaho {
-                { render_vlacku_selmaho_segment(card, selmaho, pending_cukta_scroll, base_path) }
+                { render_vlacku_selmaho_segment(card, selmaho, pending_cukta_scroll, base_path, page_find) }
             }
             if let Some(similarity) = card.similarity {
                 span { class: "dictionary-meta-segment dictionary-meta-tooltip", title: "Phonetic similarity to the current query.",
-                    "{format_similarity(similarity)}"
+                    { render_page_find_text(page_find, &format_similarity(similarity)) }
                 }
             }
-            { render_vote_display(&card.votes) }
+            { render_vote_display(&card.votes, page_find) }
         }
     }
 }
@@ -8343,6 +10395,7 @@ fn render_vlacku_selmaho_segment(
     selmaho: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
+    page_find: &PageFindContext,
 ) -> Element {
     if card.word_type_key == "gismu" {
         let href = format!("{}/cukta", base_path.trim_end_matches('/'));
@@ -8362,20 +10415,20 @@ fn render_vlacku_selmaho_segment(
                             click_route.clone(),
                         );
                     },
-                    em { "{selmaho}" }
+                    em { { render_page_find_text(page_find, selmaho) } }
                 }
             }
         } else {
             rsx! {
                 a { class: "dictionary-meta-segment dictionary-selmaho-tag", href: "{href}", title: "CLL gismu section",
-                    em { "{selmaho}" }
+                    em { { render_page_find_text(page_find, selmaho) } }
                 }
             }
         }
     } else {
         rsx! {
             span { class: "dictionary-meta-segment dictionary-selmaho-tag", title: "selma'o classification",
-                em { "{selmaho}" }
+                em { { render_page_find_text(page_find, selmaho) } }
             }
         }
     }
@@ -8416,6 +10469,7 @@ fn render_vlacku_word_action(
     class_name: &str,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let pane_open = jvozba_available && jvozba_pane.read().open;
     let word_value = word.to_owned();
@@ -8437,7 +10491,7 @@ fn render_vlacku_word_action(
                         r#type: "button",
                         title: "Add to jvozba",
                         onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
-                        "{display_word}"
+                        { render_page_find_text(page_find, display_word) }
                     }
                     { render_dictionary_tooltip(card, false, base_path, script) }
                 }
@@ -8449,37 +10503,49 @@ fn render_vlacku_word_action(
                     r#type: "button",
                     title: "Add to jvozba",
                     onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
-                    "{display_word}"
+                    { render_page_find_text(page_find, display_word) }
                 }
             }
         }
     } else if pane_open {
         rsx! {
-            span { class: "{static_class_name}", "{display_word}" }
+            span { class: "{static_class_name}",
+                { render_page_find_text(page_find, display_word) }
+            }
         }
     } else {
         if let Some(card) = &tooltip {
             rsx! {
                 span { class: "dictionary-tooltip-host",
-                    { render_text_route_link(&static_class_name, href, base_path, display_word) }
+                    { render_text_route_link_with_page_find(&static_class_name, href, base_path, display_word, page_find) }
                     { render_dictionary_tooltip(card, false, base_path, script) }
                 }
             }
         } else {
-            render_text_route_link(&static_class_name, href, base_path, display_word)
+            render_text_route_link_with_page_find(
+                &static_class_name,
+                href,
+                base_path,
+                display_word,
+                page_find,
+            )
         }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_vote_display(votes: &VlackuVoteDisplay) -> Element {
+fn render_vote_display(votes: &VlackuVoteDisplay, page_find: &PageFindContext) -> Element {
     match votes {
         VlackuVoteDisplay::Known(value) => rsx! {
-            span { class: vote_class(value), title: vote_title(value), "{value}" }
+            span { class: vote_class(value), title: vote_title(value),
+                { render_page_find_text(page_find, &value.to_string()) }
+            }
         },
         VlackuVoteDisplay::Unknown => rsx! {
-            span { class: "dictionary-meta-segment dictionary-meta-tooltip dictionary-vote-tag is-unknown", title: "This parses as a valid Lojban word, but it is not present in the embedded dictionary, so no Lensisku vote tally is available.", "?" }
+            span { class: "dictionary-meta-segment dictionary-meta-tooltip dictionary-vote-tag is-unknown", title: "This parses as a valid Lojban word, but it is not present in the embedded dictionary, so no Lensisku vote tally is available.",
+                { render_page_find_text(page_find, "?") }
+            }
         },
         VlackuVoteDisplay::Hidden => rsx! {},
     }
@@ -8493,12 +10559,15 @@ fn render_composition_piece(
     jvozba_available: bool,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     match piece.kind {
         VlackuCompositionPieceKind::Hyphen => {
             let display_surface = display_lojban_text(script, &piece.display_surface);
             rsx! {
-                span { class: "dictionary-word-inline-separator", "{display_surface}" }
+                span { class: "dictionary-word-inline-separator",
+                    { render_page_find_text(page_find, &display_surface) }
+                }
             }
         }
         VlackuCompositionPieceKind::Rafsi => {
@@ -8527,12 +10596,13 @@ fn render_composition_piece(
                             "chip rafsi-chip dictionary-word-link rafsi-source-link dictionary-jvozba-add-link-hint",
                             base_path,
                             script,
+                            page_find,
                         ) }
                     }
                 } else {
                     rsx! {
                         span { class: "rafsi-split-pill",
-                            { render_vlacku_rafsi_add_piece(jvozba_pane, jvozba_available, &piece.surface, source, &display_surface) }
+                            { render_vlacku_rafsi_add_piece(jvozba_pane, jvozba_available, &piece.surface, source, &display_surface, page_find) }
                             span { class: "rafsi-split-right",
                                 { render_vlacku_word_action(
                                     jvozba_pane,
@@ -8544,6 +10614,7 @@ fn render_composition_piece(
                                     "dictionary-word-link rafsi-source-link dictionary-jvozba-add-link-hint",
                                     base_path,
                                     script,
+                                    page_find,
                                 ) }
                             }
                         }
@@ -8551,7 +10622,9 @@ fn render_composition_piece(
                 }
             } else {
                 rsx! {
-                    span { class: "chip rafsi-chip", "{display_surface}" }
+                    span { class: "chip rafsi-chip",
+                        { render_page_find_text(page_find, &display_surface) }
+                    }
                 }
             }
         }
@@ -8566,6 +10639,7 @@ fn render_vlacku_rafsi_add_piece(
     rafsi: &str,
     source_word: &str,
     display_rafsi: &str,
+    page_find: &PageFindContext,
 ) -> Element {
     let pane_open = jvozba_available && jvozba_pane.read().open;
     let rafsi_value = rafsi.to_owned();
@@ -8581,11 +10655,15 @@ fn render_vlacku_rafsi_add_piece(
                     rafsi_value.clone(),
                     Some(source_value.clone()),
                 ),
-                "{display_rafsi}"
+                { render_page_find_text(page_find, display_rafsi) }
             }
         }
     } else {
-        rsx! { span { class: "rafsi-split-left", "{display_rafsi}" } }
+        rsx! {
+            span { class: "rafsi-split-left",
+                { render_page_find_text(page_find, display_rafsi) }
+            }
+        }
     }
 }
 
@@ -8597,6 +10675,7 @@ fn render_rafsi_pill(
     source_word: &str,
     rafsi: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let pane_open = jvozba_available && jvozba_pane.read().open;
     let rafsi_value = rafsi.to_owned();
@@ -8613,11 +10692,15 @@ fn render_rafsi_pill(
                     rafsi_value.clone(),
                     Some(source_value.clone()),
                 ),
-                "{display_rafsi}"
+                { render_page_find_text(page_find, &display_rafsi) }
             }
         }
     } else {
-        rsx! { span { class: "chip rafsi-chip", "{display_rafsi}" } }
+        rsx! {
+            span { class: "chip rafsi-chip",
+                { render_page_find_text(page_find, &display_rafsi) }
+            }
+        }
     }
 }
 
@@ -8629,12 +10712,15 @@ fn render_inline_spans(
     jvozba_available: bool,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     rsx! {
         for span in spans.iter() {
             {
                 match span.as_data() {
-                    data!(VlackuInline::Text(text)) => rsx! { "{text}" },
+                    data!(VlackuInline::Text(text)) => rsx! {
+                        { render_page_find_text(page_find, text) }
+                    },
                     data!(VlackuInline::Math(math)) => render_vlacku_math(math),
                     data!(VlackuInline::WordRef { label, href, can_add_to_jvozba }) => {
                         render_vlacku_inline_word_ref(
@@ -8645,6 +10731,7 @@ fn render_inline_spans(
                             href,
                             base_path,
                             script,
+                            page_find,
                         )
                     }
                 }
@@ -8663,6 +10750,7 @@ fn render_vlacku_inline_word_ref(
     href: &str,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let pane_open = jvozba_available && jvozba_pane.read().open;
     let word_value = label.to_owned();
@@ -8678,7 +10766,7 @@ fn render_vlacku_inline_word_ref(
                         r#type: "button",
                         title: "Add to jvozba",
                         onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
-                        "{display_label}"
+                        { render_page_find_text(page_find, &display_label) }
                     }
                     { render_dictionary_tooltip(card, false, base_path, script) }
                 }
@@ -8690,28 +10778,31 @@ fn render_vlacku_inline_word_ref(
                     r#type: "button",
                     title: "Add to jvozba",
                     onclick: move |_| add_vlacku_jvozba_word(&mut jvozba_pane, word_value.clone()),
-                    "{display_label}"
+                    { render_page_find_text(page_find, &display_label) }
                 }
             }
         }
     } else if pane_open {
         rsx! {
-            span { class: "dictionary-word-link", "{display_label}" }
+            span { class: "dictionary-word-link",
+                { render_page_find_text(page_find, &display_label) }
+            }
         }
     } else {
         if let Some(card) = &tooltip {
             rsx! {
                 span { class: "dictionary-tooltip-host",
-                    { render_text_route_link("dictionary-word-link", &resolved_href, base_path, &display_label) }
+                    { render_text_route_link_with_page_find("dictionary-word-link", &resolved_href, base_path, &display_label, page_find) }
                     { render_dictionary_tooltip(card, false, base_path, script) }
                 }
             }
         } else {
-            render_text_route_link(
+            render_text_route_link_with_page_find(
                 "dictionary-word-link",
                 &resolved_href,
                 base_path,
                 &display_label,
+                page_find,
             )
         }
     }
@@ -9426,6 +11517,7 @@ fn render_gentufa_diagnostic_input_tooltip(
                 pending_cukta_scroll,
                 base_path,
                 script,
+                None,
             ) }
         }
     }
@@ -9584,6 +11676,7 @@ fn render_result(
     reference_tooltip_open: Signal<Option<HoveredReference>>,
     activity: Signal<AsyncActivityState>,
     export_task: Signal<Option<LatestAsyncTask>>,
+    page_find: &PageFindContext,
 ) -> Element {
     match result {
         GentufaWebResult::Blank => rsx! {},
@@ -9596,6 +11689,7 @@ fn render_result(
             pending_cukta_scroll,
             base_path,
             settings_value.script,
+            page_find,
         ),
         GentufaWebResult::Success(success) => render_success(
             success,
@@ -9614,6 +11708,7 @@ fn render_result(
             reference_tooltip_open,
             activity,
             export_task,
+            page_find,
         ),
     }
 }
@@ -9629,6 +11724,7 @@ fn render_error(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let source = gentufa_request_source(request);
     rsx! {
@@ -9643,6 +11739,7 @@ fn render_error(
                 pending_cukta_scroll,
                 base_path,
                 script,
+                Some(page_find),
             ) }
         }
     }
@@ -9667,13 +11764,14 @@ fn render_success(
     reference_tooltip_open: Signal<Option<HoveredReference>>,
     activity: Signal<AsyncActivityState>,
     export_task: Signal<Option<LatestAsyncTask>>,
+    page_find: &PageFindContext,
 ) -> Element {
     let reference_hover_value = reference_hover.read().clone();
     let source = gentufa_request_source(request);
     rsx! {
         section { class: "result-section",
             { render_reference_overlay(&reference_hover_value) }
-            { render_surface_output(success, settings_value.script) }
+            { render_surface_output(success, settings_value.script, page_find) }
             { render_diagnostics_pane(
                 &success.diagnostics,
                 source,
@@ -9684,6 +11782,7 @@ fn render_success(
                 pending_cukta_scroll,
                 base_path,
                 settings_value.script,
+                Some(page_find),
             ) }
             div { class: "view-toolbar",
                 { render_view_tabs(view_mode, view_mode_value) }
@@ -9691,13 +11790,13 @@ fn render_success(
             }
             match view_mode_value {
                 GentufaWebViewMode::Blocks => rsx! {
-                    { render_blocks(success, display_value.show_glosses, settings_value.script, reference_hover, reference_tooltip_open, activity, export_task) }
+                    { render_blocks(success, display_value.show_glosses, settings_value.script, reference_hover, reference_tooltip_open, activity, export_task, page_find) }
                 },
                 GentufaWebViewMode::Tree => rsx! {
-                    { render_tree(success, reference_hover, reference_tooltip_open, settings_value.script) }
+                    { render_tree(success, reference_hover, reference_tooltip_open, settings_value.script, page_find) }
                 },
                 GentufaWebViewMode::Ipa => rsx! {
-                    { render_ipa_output(success) }
+                    { render_ipa_output(success, page_find) }
                 },
             }
         }
@@ -9706,14 +11805,18 @@ fn render_success(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_surface_output(success: &GentufaSuccess, script: GentufaScript) -> Element {
+fn render_surface_output(
+    success: &GentufaSuccess,
+    script: GentufaScript,
+    page_find: &PageFindContext,
+) -> Element {
     rsx! {
         div { class: "brackets-section",
             div { class: "brackets-output-stack",
                 pre { class: "brackets-output compact-output",
                     span { class: "brackets-output-markup",
                         for fragment in success.bracket_fragments.iter() {
-                            { render_bracket_fragment(fragment, script) }
+                            { render_bracket_fragment(fragment, script, page_find) }
                         }
                     }
                 }
@@ -9724,13 +11827,17 @@ fn render_surface_output(success: &GentufaSuccess, script: GentufaScript) -> Ele
 
 #[requires(true)]
 #[ensures(true)]
-fn render_bracket_fragment(fragment: &GentufaBracketFragment, script: GentufaScript) -> Element {
+fn render_bracket_fragment(
+    fragment: &GentufaBracketFragment,
+    script: GentufaScript,
+    page_find: &PageFindContext,
+) -> Element {
     match fragment {
         GentufaBracketFragment::Text { text, elided } => {
             if *elided {
-                rsx! { s { "{text}" } }
+                rsx! { s { { render_page_find_text(page_find, text) } } }
             } else {
-                rsx! { "{text}" }
+                render_page_find_text(page_find, text)
             }
         }
         GentufaBracketFragment::Span {
@@ -9754,13 +11861,13 @@ fn render_bracket_fragment(fragment: &GentufaBracketFragment, script: GentufaScr
                             if let Some(route) = route {
                                 Link { class: "bracket-word-link", to: route,
                                     for child in children.iter() {
-                                        { render_bracket_fragment(child, script) }
+                                        { render_bracket_fragment(child, script, page_find) }
                                     }
                                 }
                             } else {
                                 a { class: "bracket-word-link", href: "{href}",
                                     for child in children.iter() {
-                                        { render_bracket_fragment(child, script) }
+                                        { render_bracket_fragment(child, script, page_find) }
                                     }
                                 }
                             }
@@ -9775,7 +11882,7 @@ fn render_bracket_fragment(fragment: &GentufaBracketFragment, script: GentufaScr
                                 style: "{style}",
                                 to: route,
                                 for child in children.iter() {
-                                    { render_bracket_fragment(child, script) }
+                                    { render_bracket_fragment(child, script, page_find) }
                                 }
                             }
                         }
@@ -9786,7 +11893,7 @@ fn render_bracket_fragment(fragment: &GentufaBracketFragment, script: GentufaScr
                                 style: "{style}",
                                 href: "{href}",
                                 for child in children.iter() {
-                                    { render_bracket_fragment(child, script) }
+                                    { render_bracket_fragment(child, script, page_find) }
                                 }
                             }
                         }
@@ -9796,7 +11903,7 @@ fn render_bracket_fragment(fragment: &GentufaBracketFragment, script: GentufaScr
                 rsx! {
                     span { class: "bracket-fragment", style: "{style}",
                         for child in children.iter() {
-                            { render_bracket_fragment(child, script) }
+                            { render_bracket_fragment(child, script, page_find) }
                         }
                     }
                 }
@@ -9817,6 +11924,7 @@ fn render_diagnostics_pane(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: Option<&PageFindContext>,
 ) -> Element {
     let fallback_error = fallback_error.filter(|message| !message.is_empty());
     if diagnostics.is_empty() && fallback_error.is_none() {
@@ -9828,13 +11936,15 @@ fn render_diagnostics_pane(
     rsx! {
         section { class: "gentufa-diagnostics-pane", role: "alert", aria_live: "polite",
             div { class: "gentufa-diagnostics-header",
-                h2 { class: "gentufa-diagnostics-title", "{title}" }
+                h2 { class: "gentufa-diagnostics-title",
+                    { render_optional_page_find_text(page_find, &title) }
+                }
                 button {
                     class: "gentufa-diagnostics-toggle",
                     r#type: "button",
                     aria_expanded: if diagnostics_open_value { "true" } else { "false" },
                     onclick: move |_| diagnostics_open.set(!diagnostics_open_value),
-                    "{toggle_label}"
+                    { render_optional_page_find_text(page_find, toggle_label) }
                 }
             }
             if diagnostics_open_value {
@@ -9843,8 +11953,12 @@ fn render_diagnostics_pane(
                         if let Some(message) = fallback_error {
                             article { class: "gentufa-diagnostic-card is-error",
                                 div { class: "gentufa-diagnostic-main",
-                                    span { class: "gentufa-diagnostic-severity", "error" }
-                                    span { class: "gentufa-diagnostic-message", "{message}" }
+                                    span { class: "gentufa-diagnostic-severity",
+                                        { render_optional_page_find_text(page_find, "error") }
+                                    }
+                                    span { class: "gentufa-diagnostic-message",
+                                        { render_optional_page_find_text(page_find, message) }
+                                    }
                                 }
                             }
                         }
@@ -9858,6 +11972,7 @@ fn render_diagnostics_pane(
                                 pending_cukta_scroll,
                                 base_path,
                                 script,
+                                page_find,
                             ) }
                         }
                     }
@@ -9877,6 +11992,7 @@ fn render_diagnostic_card(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: Option<&PageFindContext>,
 ) -> Element {
     let mut enter_active = active_diagnostic;
     let mut leave_active = active_diagnostic;
@@ -9897,17 +12013,23 @@ fn render_diagnostic_card(
             onmouseenter: move |_| enter_active.set(Some(index)),
             onmouseleave: move |_| leave_active.set(None),
             div { class: "gentufa-diagnostic-main",
-                span { class: "gentufa-diagnostic-severity", "{diagnostic_severity_text(diagnostic.severity)}" }
-                code { class: "gentufa-diagnostic-code", "{diagnostic.code}" }
-                span { class: "gentufa-diagnostic-message", "{location_text}" }
+                span { class: "gentufa-diagnostic-severity",
+                    { render_optional_page_find_text(page_find, diagnostic_severity_text(diagnostic.severity)) }
+                }
+                code { class: "gentufa-diagnostic-code",
+                    { render_optional_page_find_text(page_find, &diagnostic.code) }
+                }
+                span { class: "gentufa-diagnostic-message",
+                    { render_optional_page_find_text(page_find, &location_text) }
+                }
             }
             for label in context_labels {
-                { render_diagnostic_context_label(label) }
+                { render_diagnostic_context_label(label, page_find) }
             }
             if !primary_detail_segments.is_empty() {
                 div { class: "gentufa-diagnostic-primary-detail",
                     for segment in primary_detail_segments.iter() {
-                        { render_diagnostic_text_part(segment, pending_cukta_scroll, base_path, script) }
+                        { render_diagnostic_text_part(segment, pending_cukta_scroll, base_path, script, page_find) }
                     }
                 }
             }
@@ -9916,12 +12038,12 @@ fn render_diagnostic_card(
                     for note in plain_notes.iter() {
                         div { class: "gentufa-diagnostic-note",
                             for segment in diagnostic_plain_text_render_parts(note).iter() {
-                                { render_diagnostic_text_part(segment, pending_cukta_scroll, base_path, script) }
+                                { render_diagnostic_text_part(segment, pending_cukta_scroll, base_path, script, page_find) }
                             }
                         }
                     }
                     for note in styled_notes {
-                        { render_styled_diagnostic_note(note, pending_cukta_scroll, base_path, script) }
+                        { render_styled_diagnostic_note(note, pending_cukta_scroll, base_path, script, page_find) }
                     }
                 }
             }
@@ -9936,12 +12058,13 @@ fn render_styled_diagnostic_note(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: Option<&PageFindContext>,
 ) -> Element {
     let class_name = diagnostic_styled_note_class(note);
     rsx! {
         div { class: "{class_name}",
             for segment in note.segments.iter() {
-                { render_diagnostic_note_segment(segment, pending_cukta_scroll, base_path, script) }
+                { render_diagnostic_note_segment(segment, pending_cukta_scroll, base_path, script, page_find) }
             }
         }
     }
@@ -9954,11 +12077,12 @@ fn render_diagnostic_note_segment(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: Option<&PageFindContext>,
 ) -> Element {
     let parts = diagnostic_text_segment_render_parts(segment);
     rsx! {
         for part in parts.iter() {
-            { render_diagnostic_text_part(part, pending_cukta_scroll, base_path, script) }
+            { render_diagnostic_text_part(part, pending_cukta_scroll, base_path, script, page_find) }
         }
     }
 }
@@ -10251,16 +12375,21 @@ fn diagnostic_context_labels(diagnostic: &Diagnostic) -> Vec<&DiagnosticLabel> {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_diagnostic_context_label(label: &DiagnosticLabel) -> Element {
+fn render_diagnostic_context_label(
+    label: &DiagnosticLabel,
+    page_find: Option<&PageFindContext>,
+) -> Element {
     let descriptor = diagnostic_context_descriptor(&label.message);
     rsx! {
         div { class: "gentufa-diagnostic-context",
             em {
                 if let Some(descriptor) = descriptor {
-                    "while parsing "
-                    span { class: "gentufa-diagnostic-context-descriptor", "{descriptor}" }
+                    { render_optional_page_find_text(page_find, "while parsing ") }
+                    span { class: "gentufa-diagnostic-context-descriptor",
+                        { render_optional_page_find_text(page_find, descriptor) }
+                    }
                 } else {
-                    "{label.message}"
+                    { render_optional_page_find_text(page_find, &label.message) }
                 }
             }
         }
@@ -10567,15 +12696,25 @@ fn render_diagnostic_text_part(
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
+    page_find: Option<&PageFindContext>,
 ) -> Element {
     let class_name = diagnostic_text_role_class(part.role);
     let href = diagnostic_text_part_href(part, base_path);
     let label = diagnostic_display_text_part_for_script(part, script);
     if let Some(href) = href {
-        render_diagnostic_text_link(class_name, &href, base_path, &label, pending_cukta_scroll)
+        render_diagnostic_text_link(
+            class_name,
+            &href,
+            base_path,
+            &label,
+            pending_cukta_scroll,
+            page_find,
+        )
     } else {
         rsx! {
-            span { class: "{class_name}", "{label}" }
+            span { class: "{class_name}",
+                { render_optional_page_find_text(page_find, &label) }
+            }
         }
     }
 }
@@ -10603,6 +12742,7 @@ fn render_diagnostic_text_link(
     base_path: &str,
     label: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    page_find: Option<&PageFindContext>,
 ) -> Element {
     let class_name = format!("{class_name} diagnostic-text-link");
     if let Some(route) = jbotci_route_from_href(base_path, href) {
@@ -10622,12 +12762,14 @@ fn render_diagnostic_text_link(
                         );
                     }
                 },
-                "{label}"
+                { render_optional_page_find_text(page_find, label) }
             }
         }
     } else {
         rsx! {
-            a { class: "{class_name}", href: "{href}", "{label}" }
+            a { class: "{class_name}", href: "{href}",
+                { render_optional_page_find_text(page_find, label) }
+            }
         }
     }
 }
@@ -11587,10 +13729,12 @@ fn render_elided_checkbox(mut display: Signal<GentufaDisplayState>, checked: boo
 
 #[requires(true)]
 #[ensures(true)]
-fn render_ipa_output(success: &GentufaSuccess) -> Element {
+fn render_ipa_output(success: &GentufaSuccess, page_find: &PageFindContext) -> Element {
     rsx! {
         section { class: "ipa-view",
-            pre { class: "ipa-tab-output", "{success.ipa_text}" }
+            pre { class: "ipa-tab-output",
+                { render_page_find_text(page_find, &success.ipa_text) }
+            }
         }
     }
 }
@@ -11605,6 +13749,7 @@ fn render_blocks(
     reference_tooltip_open: Signal<Option<HoveredReference>>,
     activity: Signal<AsyncActivityState>,
     export_task: Signal<Option<LatestAsyncTask>>,
+    page_find: &PageFindContext,
 ) -> Element {
     let column_count = success.blocks_layout.max_col.max(1);
     let column_template = repeated_parse_tree_template(column_count);
@@ -11639,11 +13784,11 @@ fn render_blocks(
                             }
                             for block in success.blocks_layout.blocks.iter() {
                                 { render_block_reference_height_sizer(block) }
-                                { render_block(block, reference_hover, reference_tooltip_open, export_anchor_id, &success.blocks_layout, show_glosses, script, activity, export_task) }
+                                { render_block(block, reference_hover, reference_tooltip_open, export_anchor_id, &success.blocks_layout, show_glosses, script, activity, export_task, page_find) }
                             }
                             if show_glosses {
                                 for block in success.blocks_layout.blocks.iter().filter(|block| block.is_leaf) {
-                                    { render_gloss_block(block, gloss_row) }
+                                    { render_gloss_block(block, gloss_row, page_find) }
                                 }
                             }
                         }
@@ -11807,6 +13952,7 @@ fn render_block(
     export_script: GentufaScript,
     activity: Signal<AsyncActivityState>,
     export_task: Signal<Option<LatestAsyncTask>>,
+    page_find: &PageFindContext,
 ) -> Element {
     let row = block.row + 1;
     let col = block.col + 1;
@@ -11865,13 +14011,13 @@ fn render_block(
                                 if let Some(route) = jbotci_route_from_href(&base_path, &card.href) {
                                     Link { class: "block-label-link", to: route,
                                         span { class: "block-label-text",
-                                            { render_elidable_text(&block.label, block.is_elided) }
+                                            { render_elidable_page_find_text(page_find, &block.label, block.is_elided) }
                                         }
                                     }
                                 } else {
                                     a { class: "block-label-link", href: "{card.href}",
                                         span { class: "block-label-text",
-                                            { render_elidable_text(&block.label, block.is_elided) }
+                                            { render_elidable_page_find_text(page_find, &block.label, block.is_elided) }
                                         }
                                     }
                                 }
@@ -11883,7 +14029,7 @@ fn render_block(
             } else {
                 span { class: "block-label", title: "{native_title}",
                     span { class: "block-label-text",
-                        { render_elidable_text(&block.label, block.is_elided) }
+                        { render_elidable_page_find_text(page_find, &block.label, block.is_elided) }
                     }
                 }
             }
@@ -12259,7 +14405,11 @@ fn save_native_bytes(file_name: &str, bytes: &[u8]) -> Result<(), String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_gloss_block(block: &GentufaBlock, gloss_row: usize) -> Element {
+fn render_gloss_block(
+    block: &GentufaBlock,
+    gloss_row: usize,
+    page_find: &PageFindContext,
+) -> Element {
     let col = block.col + 1;
     let text = block
         .computed_gloss
@@ -12279,7 +14429,9 @@ fn render_gloss_block(block: &GentufaBlock, gloss_row: usize) -> Element {
             "data-col": "{block.col}",
             "data-colspan": "{block.col_span}",
             "data-color": "{block.color}",
-            div { class: "gloss-list", "{text}" }
+            div { class: "gloss-list",
+                { render_page_find_text(page_find, text) }
+            }
         }
     }
 }
@@ -12291,6 +14443,7 @@ fn render_tree(
     reference_hover: Signal<ReferenceHoverState>,
     reference_tooltip_open: Signal<Option<HoveredReference>>,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     rsx! {
         div { class: "table-view",
@@ -12299,7 +14452,7 @@ fn render_tree(
                 table { class: "parse-table spa-gentufa-table",
                         tbody {
                             for row in success.tree_rows.iter() {
-                            { render_tree_row(row, reference_hover, reference_tooltip_open, script) }
+                            { render_tree_row(row, reference_hover, reference_tooltip_open, script, page_find) }
                             }
                         }
                 }
@@ -12315,6 +14468,7 @@ fn render_tree_row(
     reference_hover: Signal<ReferenceHoverState>,
     reference_tooltip_open: Signal<Option<HoveredReference>>,
     script: GentufaScript,
+    page_find: &PageFindContext,
 ) -> Element {
     let row_class = class_names(
         "tree-row",
@@ -12369,7 +14523,7 @@ fn render_tree_row(
                 div { class: "node-cell",
                     span { class: "node-content",
                         span { class: "node-label", style: "--block-color: {row.color};",
-                            "{row.label}"
+                            { render_page_find_text(page_find, &row.label) }
                         }
                     }
                 }
@@ -12378,7 +14532,7 @@ fn render_tree_row(
             td { class: "col-text",
                 div { class: "cell-pad tree-text-cell",
                     for cell in row.cells.iter() {
-                        { render_tree_cell(cell) }
+                        { render_tree_cell(cell, page_find) }
                     }
                     { render_tree_outgoing_edges(outgoing_markers, reference_hover, reference_tooltip_open, &hover_state, &tooltip_open_state, script) }
                 }
@@ -12452,7 +14606,7 @@ fn render_tree_outgoing_edges(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_tree_cell(cell: &GentufaCell) -> Element {
+fn render_tree_cell(cell: &GentufaCell, page_find: &PageFindContext) -> Element {
     let class = if cell.is_elided {
         "token is-elided"
     } else {
@@ -12461,7 +14615,7 @@ fn render_tree_cell(cell: &GentufaCell) -> Element {
     rsx! {
         span { class: "{class}",
             span { class: "token-raw lojban-text",
-                { render_elidable_text(&cell.text, cell.is_elided) }
+                { render_elidable_page_find_text(page_find, &cell.text, cell.is_elided) }
             }
         }
     }
@@ -12474,6 +14628,20 @@ fn render_elidable_text(text: &str, elided: bool) -> Element {
         rsx! { s { "{text}" } }
     } else {
         rsx! { "{text}" }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_elidable_page_find_text(
+    page_find: &PageFindContext,
+    text: &str,
+    elided: bool,
+) -> Element {
+    if elided {
+        rsx! { s { { render_page_find_text(page_find, text) } } }
+    } else {
+        render_page_find_text(page_find, text)
     }
 }
 
@@ -13060,15 +15228,19 @@ fn render_settings(
     qr_uri: Signal<Option<String>>,
     embedding_settings: Signal<EmbeddingSettingsState>,
     activity: Signal<AsyncActivityState>,
+    page_find: &PageFindContext,
 ) -> Element {
     let embedding_state = embedding_settings.read().clone();
     rsx! {
         section { class: "spa-page settings-page",
             div { class: "page-container settings-container",
-                h1 { "Settings" }
-                { render_embedding_settings(embedding_settings, &embedding_state, activity) }
-                { render_output_settings(settings, current_settings) }
-                { render_dialect_settings_section(dialect_settings, current_dialect_settings, selected_dialect, qr_uri) }
+                div { class: "settings-page-header",
+                    h1 { { render_page_find_text(page_find, "Settings") } }
+                    { render_settings_commit_link(page_find) }
+                }
+                { render_embedding_settings(embedding_settings, &embedding_state, activity, page_find) }
+                { render_output_settings(settings, current_settings, page_find) }
+                { render_dialect_settings_section(dialect_settings, current_dialect_settings, selected_dialect, qr_uri, page_find) }
             }
         }
     }
@@ -13076,32 +15248,40 @@ fn render_settings(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_output_settings(settings: Signal<UserSettings>, current: UserSettings) -> Element {
+fn render_output_settings(
+    settings: Signal<UserSettings>,
+    current: UserSettings,
+    page_find: &PageFindContext,
+) -> Element {
     rsx! {
         section { class: "settings-section settings-output",
             div { class: "settings-section-head",
-                h2 { "Output" }
+                h2 { { render_page_find_text(page_find, "Output") } }
             }
             div { class: "settings-output-grid",
                 div { class: "settings-output-selector",
-                    p { class: "settings-output-label", "Stress" }
+                    p { class: "settings-output-label",
+                        { render_page_find_text(page_find, "Stress") }
+                    }
                     div {
                         class: "settings-output-toggle-group",
                         role: "group",
                         aria_label: "Stress mark rendering",
-                        { render_stress_mark_button(settings, current.stress, StressMark::None, "none") }
-                        { render_stress_mark_button(settings, current.stress, StressMark::Acute, "acute") }
-                        { render_stress_mark_button(settings, current.stress, StressMark::Caps, "caps") }
+                        { render_stress_mark_button(settings, current.stress, StressMark::None, "none", page_find) }
+                        { render_stress_mark_button(settings, current.stress, StressMark::Acute, "acute", page_find) }
+                        { render_stress_mark_button(settings, current.stress, StressMark::Caps, "caps", page_find) }
                     }
                 }
                 div { class: "settings-output-selector",
-                    p { class: "settings-output-label", "Glides" }
+                    p { class: "settings-output-label",
+                        { render_page_find_text(page_find, "Glides") }
+                    }
                     div {
                         class: "settings-output-toggle-group",
                         role: "group",
                         aria_label: "Glide mark rendering",
-                        { render_glide_mark_button(settings, current.glides, GlideMark::None, "none") }
-                        { render_glide_mark_button(settings, current.glides, GlideMark::Breve, "breve") }
+                        { render_glide_mark_button(settings, current.glides, GlideMark::None, "none", page_find) }
+                        { render_glide_mark_button(settings, current.glides, GlideMark::Breve, "breve", page_find) }
                     }
                 }
             }
@@ -13116,6 +15296,7 @@ fn render_stress_mark_button(
     current: StressMark,
     mark: StressMark,
     label: &'static str,
+    page_find: &PageFindContext,
 ) -> Element {
     rsx! {
         button {
@@ -13123,7 +15304,7 @@ fn render_stress_mark_button(
             r#type: "button",
             aria_pressed: pressed_attr(current == mark),
             onclick: move |_| set_stress_mark(&mut settings, mark),
-            "{label}"
+            { render_page_find_text(page_find, label) }
         }
     }
 }
@@ -13135,6 +15316,7 @@ fn render_glide_mark_button(
     current: GlideMark,
     mark: GlideMark,
     label: &'static str,
+    page_find: &PageFindContext,
 ) -> Element {
     rsx! {
         button {
@@ -13142,7 +15324,7 @@ fn render_glide_mark_button(
             r#type: "button",
             aria_pressed: pressed_attr(current == mark),
             onclick: move |_| set_glide_mark(&mut settings, mark),
-            "{label}"
+            { render_page_find_text(page_find, label) }
         }
     }
 }
@@ -13164,6 +15346,7 @@ fn render_dialect_settings_section(
     current: DialectSettings,
     mut selected_dialect: Signal<String>,
     qr_uri: Signal<Option<String>>,
+    page_find: &PageFindContext,
 ) -> Element {
     let selected_name = selected_dialect_name(&current, &selected_dialect.read());
     let builtin_names = builtin_dialect_names()
@@ -13185,12 +15368,14 @@ fn render_dialect_settings_section(
     rsx! {
         section { class: "settings-section settings-dialects",
             div { class: "settings-section-head",
-                h2 { "Lojban dialects" }
+                h2 { { render_page_find_text(page_find, "Lojban dialects") } }
             }
             div { class: "settings-dialect-grid",
                 nav { class: "settings-dialect-list", aria_label: "Dialects",
                     div { class: "settings-dialect-list-group",
-                        p { class: "settings-dialect-list-heading", "Builtins" }
+                        p { class: "settings-dialect-list-heading",
+                            { render_page_find_text(page_find, "Builtins") }
+                        }
                         for name in builtin_names.iter() {
                             {
                                 let item_name = name.clone();
@@ -13202,14 +15387,16 @@ fn render_dialect_settings_section(
                                         r#type: "button",
                                         aria_pressed: pressed_attr(selected),
                                         onclick: move |_| selected_dialect.set(item_name.clone()),
-                                        "{name}"
+                                        { render_page_find_text(page_find, name) }
                                     }
                                 }
                             }
                         }
                     }
                     div { class: "settings-dialect-list-group",
-                        p { class: "settings-dialect-list-heading", "Custom" }
+                        p { class: "settings-dialect-list-heading",
+                            { render_page_find_text(page_find, "Custom") }
+                        }
                         for custom in custom_dialects.iter() {
                             {
                                 let item_name = custom.name.trim().to_owned();
@@ -13222,7 +15409,7 @@ fn render_dialect_settings_section(
                                         r#type: "button",
                                         aria_pressed: pressed_attr(selected),
                                         onclick: move |_| selected_dialect.set(item_name.clone()),
-                                        "{label}"
+                                        { render_page_find_text(page_find, &label) }
                                     }
                                 }
                             }
@@ -13239,11 +15426,13 @@ fn render_dialect_settings_section(
                 }
                 div { class: "settings-dialect-editor",
                     if selected_is_builtin {
-                        { render_builtin_dialect_editor(dialect_settings, &current, &selected_name, selected_definition.as_deref(), selected_johau_uri.as_deref(), qr_uri) }
+                        { render_builtin_dialect_editor(dialect_settings, &current, &selected_name, selected_definition.as_deref(), selected_johau_uri.as_deref(), qr_uri, page_find) }
                     } else if let Some(custom) = selected_custom {
-                        { render_custom_dialect_editor(dialect_settings, selected_dialect, &custom, selected_validation.as_deref(), selected_johau_uri.as_deref(), qr_uri) }
+                        { render_custom_dialect_editor(dialect_settings, selected_dialect, &custom, selected_validation.as_deref(), selected_johau_uri.as_deref(), qr_uri, page_find) }
                     } else {
-                        p { class: "settings-help-text", "Select a dialect to edit it." }
+                        p { class: "settings-help-text",
+                            { render_page_find_text(page_find, "Select a dialect to edit it.") }
+                        }
                     }
                 }
             }
@@ -13261,6 +15450,7 @@ fn render_builtin_dialect_editor(
     definition: Option<&str>,
     johau_uri: Option<&str>,
     qr_uri: Signal<Option<String>>,
+    page_find: &PageFindContext,
 ) -> Element {
     let show_in_gentufa = builtin_dialect_shows_in_gentufa(current, name);
     let definition = definition.unwrap_or_default();
@@ -13274,7 +15464,9 @@ fn render_builtin_dialect_editor(
             div { class: "settings-dialect-name-row",
                 div { class: "settings-dialect-name-stack",
                     label { class: "settings-field settings-dialect-name-field",
-                        span { class: "settings-field-label", "Name" }
+                        span { class: "settings-field-label",
+                            { render_page_find_text(page_find, "Name") }
+                        }
                         input {
                             class: "settings-text-input settings-dialect-name",
                             value: "{name}",
@@ -13290,10 +15482,10 @@ fn render_builtin_dialect_editor(
                         input {
                             r#type: "checkbox",
                             checked: show_in_gentufa && !gentufa_toggle_disabled,
-                            disabled: gentufa_toggle_disabled,
-                            onchange: move |_| toggle_builtin_dialect_gentufa_visibility(dialect_settings, &name_for_toggle, show_in_gentufa),
-                        }
-                        span { "Show in gentufa" }
+                        disabled: gentufa_toggle_disabled,
+                        onchange: move |_| toggle_builtin_dialect_gentufa_visibility(dialect_settings, &name_for_toggle, show_in_gentufa),
+                    }
+                        span { { render_page_find_text(page_find, "Show in gentufa") } }
                     }
                 }
                 div { class: "settings-dialect-name-actions",
@@ -13301,7 +15493,9 @@ fn render_builtin_dialect_editor(
                 }
             }
             label { class: "settings-field settings-dialect-definition-field",
-                span { class: "settings-field-label", "Definition" }
+                span { class: "settings-field-label",
+                    { render_page_find_text(page_find, "Definition") }
+                }
                 div { class: "settings-dialect-definition-wrap is-readonly",
                     pre { class: "settings-dialect-definition-highlight", aria_hidden: "true",
                         { render_dialect_highlight(definition) }
@@ -13316,7 +15510,9 @@ fn render_builtin_dialect_editor(
                     }
                 }
             }
-            p { class: "settings-dialect-validation is-ok", "Definition is valid." }
+            p { class: "settings-dialect-validation is-ok",
+                { render_page_find_text(page_find, "Definition is valid.") }
+            }
         }
     }
 }
@@ -13330,6 +15526,7 @@ fn render_custom_dialect_editor(
     validation: Option<&str>,
     johau_uri: Option<&str>,
     qr_uri: Signal<Option<String>>,
+    page_find: &PageFindContext,
 ) -> Element {
     let previous_name = custom.name.trim().to_owned();
     let name_for_rename = previous_name.clone();
@@ -13348,7 +15545,9 @@ fn render_custom_dialect_editor(
             div { class: "settings-dialect-name-row",
                 div { class: "settings-dialect-name-stack",
                     label { class: "settings-field settings-dialect-name-field",
-                        span { class: "settings-field-label", "Name" }
+                        span { class: "settings-field-label",
+                            { render_page_find_text(page_find, "Name") }
+                        }
                         input {
                             class: "settings-text-input settings-dialect-name",
                             value: "{custom_name}",
@@ -13363,10 +15562,10 @@ fn render_custom_dialect_editor(
                         input {
                             r#type: "checkbox",
                             checked: show_in_gentufa && !gentufa_toggle_disabled,
-                            disabled: gentufa_toggle_disabled,
-                            onchange: move |_| toggle_custom_dialect_gentufa_visibility(dialect_settings, &name_for_show),
-                        }
-                        span { "Show in gentufa" }
+                        disabled: gentufa_toggle_disabled,
+                        onchange: move |_| toggle_custom_dialect_gentufa_visibility(dialect_settings, &name_for_show),
+                    }
+                        span { { render_page_find_text(page_find, "Show in gentufa") } }
                     }
                 }
                 div { class: "settings-dialect-name-actions",
@@ -13382,7 +15581,9 @@ fn render_custom_dialect_editor(
                 }
             }
             label { class: "settings-field settings-dialect-definition-field",
-                span { class: "settings-field-label", "Definition" }
+                span { class: "settings-field-label",
+                    { render_page_find_text(page_find, "Definition") }
+                }
                 div { class: "settings-dialect-definition-wrap",
                     pre { class: "settings-dialect-definition-highlight", aria_hidden: "true",
                         { render_dialect_highlight(&custom_definition) }
@@ -13397,9 +15598,13 @@ fn render_custom_dialect_editor(
                 }
             }
             if let Some(message) = validation {
-                p { class: "settings-dialect-validation is-error", "{message}" }
+                p { class: "settings-dialect-validation is-error",
+                    { render_page_find_text(page_find, message) }
+                }
             } else {
-                p { class: "settings-dialect-validation is-ok", "Definition is valid." }
+                p { class: "settings-dialect-validation is-ok",
+                    { render_page_find_text(page_find, "Definition is valid.") }
+                }
             }
         }
     }
@@ -13714,15 +15919,18 @@ fn render_embedding_settings(
     mut embedding_settings: Signal<EmbeddingSettingsState>,
     state: &EmbeddingSettingsState,
     activity: Signal<AsyncActivityState>,
+    page_find: &PageFindContext,
 ) -> Element {
     let busy = state.busy;
     let webgpu_unavailable = state.webgpu_available == Some(false);
     let selected_model_key = state.selected_model_key.clone();
     rsx! {
         section { class: "settings-section embeddings-settings",
-            h2 { "Semantic search" }
+            h2 { { render_page_find_text(page_find, "Semantic search") } }
             label { class: "settings-model-select-row",
-                span { class: "settings-model-select-label", "Embedding model" }
+                span { class: "settings-model-select-label",
+                    { render_page_find_text(page_find, "Embedding model") }
+                }
                 select {
                     class: "settings-select",
                     value: "{state.selected_model_key}",
@@ -13768,15 +15976,29 @@ fn render_embedding_settings(
                 }
             }
             div { class: "settings-kv-grid",
-                span { class: "settings-kv-label", "Status" }
-                span { class: "settings-kv-value", "{state.status}" }
-                span { class: "settings-kv-label", "Model" }
-                span { class: "settings-kv-value", "{state.model_size}" }
-                span { class: "settings-kv-label", "Index" }
-                span { class: "settings-kv-value", "{state.index_size}" }
+                span { class: "settings-kv-label",
+                    { render_page_find_text(page_find, "Status") }
+                }
+                span { class: "settings-kv-value",
+                    { render_page_find_text(page_find, &state.status) }
+                }
+                span { class: "settings-kv-label",
+                    { render_page_find_text(page_find, "Model") }
+                }
+                span { class: "settings-kv-value",
+                    { render_page_find_text(page_find, &state.model_size) }
+                }
+                span { class: "settings-kv-label",
+                    { render_page_find_text(page_find, "Index") }
+                }
+                span { class: "settings-kv-value",
+                    { render_page_find_text(page_find, &state.index_size) }
+                }
             }
-            p { class: "settings-help-text", "{state.detail}" }
-            { render_embedding_progress(state) }
+            p { class: "settings-help-text",
+                { render_page_find_text(page_find, &state.detail) }
+            }
+            { render_embedding_progress(state, page_find) }
             div { class: "settings-actions",
                 button {
                     class: "settings-action-button",
@@ -13799,7 +16021,7 @@ fn render_embedding_settings(
                             setup_embeddings(embedding_settings).await;
                         });
                     },
-                    "Download"
+                    { render_page_find_text(page_find, "Download") }
                 }
                 button {
                     class: "settings-action-button",
@@ -13822,7 +16044,7 @@ fn render_embedding_settings(
                             setup_embeddings(embedding_settings).await;
                         });
                     },
-                    "Update"
+                    { render_page_find_text(page_find, "Update") }
                 }
                 button {
                     class: "settings-action-button danger",
@@ -13833,7 +16055,7 @@ fn render_embedding_settings(
                         next.remove_confirmation_open = true;
                         embedding_settings.set(next);
                     },
-                    "Remove"
+                    { render_page_find_text(page_find, "Remove") }
                 }
             }
             if state.remove_confirmation_open {
@@ -13843,9 +16065,11 @@ fn render_embedding_settings(
                     aria_modal: "true",
                     aria_label: "Remove embedding model",
                     div { class: "settings-confirmation-card",
-                        h3 { "Remove {state.selected_model_label}" }
+                        h3 {
+                            { render_page_find_text(page_find, &format!("Remove {}", state.selected_model_label)) }
+                        }
                         p {
-                            "This will remove the selected model files and vector index from this device."
+                            { render_page_find_text(page_find, "This will remove the selected model files and vector index from this device.") }
                         }
                         div { class: "settings-actions",
                             button {
@@ -13856,7 +16080,7 @@ fn render_embedding_settings(
                                     next.remove_confirmation_open = false;
                                     embedding_settings.set(next);
                                 },
-                                "Cancel"
+                                { render_page_find_text(page_find, "Cancel") }
                             }
                             button {
                                 class: "settings-action-button danger",
@@ -13877,7 +16101,7 @@ fn render_embedding_settings(
                                         remove_embeddings(embedding_settings).await;
                                     });
                                 },
-                                "Remove"
+                                { render_page_find_text(page_find, "Remove") }
                             }
                         }
                     }
@@ -13889,7 +16113,10 @@ fn render_embedding_settings(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_embedding_progress(state: &EmbeddingSettingsState) -> Element {
+fn render_embedding_progress(
+    state: &EmbeddingSettingsState,
+    page_find: &PageFindContext,
+) -> Element {
     if !state.busy && state.progress_percent.is_none() {
         return rsx! {};
     }
@@ -13903,7 +16130,9 @@ fn render_embedding_progress(state: &EmbeddingSettingsState) -> Element {
                     value: "{percent}",
                     aria_label: "{label}",
                 }
-                span { class: "settings-progress-label", "{label}" }
+                span { class: "settings-progress-label",
+                    { render_page_find_text(page_find, &label) }
+                }
             }
         }
     } else {
@@ -13913,7 +16142,9 @@ fn render_embedding_progress(state: &EmbeddingSettingsState) -> Element {
                     class: "settings-progress",
                     aria_label: "{label}",
                 }
-                span { class: "settings-progress-label", "{label}" }
+                span { class: "settings-progress-label",
+                    { render_page_find_text(page_find, &label) }
+                }
             }
         }
     }
@@ -14275,6 +16506,8 @@ fn install_browser_dom_handlers(
     jvozba_available: Signal<bool>,
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
+    topbar_nav_layout: Signal<TopbarNavLayout>,
+    topbar_nav_open: Signal<bool>,
     cukta_toc_forced_autohide: Signal<bool>,
 ) {
     let should_install = BROWSER_STATE_HANDLERS_INSTALLED.with(|installed| {
@@ -14312,14 +16545,34 @@ fn install_browser_dom_handlers(
     );
     tooltip_focus_closure.forget();
 
+    let page_find_keydown_closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
+        if event_is_page_find_shortcut(&event) {
+            event.prevent_default();
+            focus_page_find_input();
+        }
+    }) as Box<dyn FnMut(_)>);
+    let _ = document.add_event_listener_with_callback_and_bool(
+        "keydown",
+        page_find_keydown_closure.as_ref().unchecked_ref(),
+        true,
+    );
+    page_find_keydown_closure.forget();
+
     let resize_layout = topbar_settings_layout;
     let resize_open = topbar_settings_open;
+    let resize_nav_layout = topbar_nav_layout;
+    let resize_nav_open = topbar_nav_open;
     let resize_jvozba_available = jvozba_available;
     let resize_cukta_toc_forced_autohide = cukta_toc_forced_autohide;
     let resize_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
         schedule_gentufa_tree_layout();
-        schedule_topbar_settings_layout_measure(resize_layout, resize_open);
+        schedule_topbar_settings_layout_measure(
+            resize_layout,
+            resize_open,
+            resize_nav_layout,
+            resize_nav_open,
+        );
         update_vlacku_jvozba_availability(resize_jvozba_available);
         update_cukta_toc_forced_autohide(resize_cukta_toc_forced_autohide);
         schedule_vlacku_jvozba_pane_metrics_sync();
@@ -14330,12 +16583,19 @@ fn install_browser_dom_handlers(
 
     let load_layout = topbar_settings_layout;
     let load_open = topbar_settings_open;
+    let load_nav_layout = topbar_nav_layout;
+    let load_nav_open = topbar_nav_open;
     let load_jvozba_available = jvozba_available;
     let load_cukta_toc_forced_autohide = cukta_toc_forced_autohide;
     let window_load_closure = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         schedule_gentufa_block_reference_layout();
         schedule_gentufa_tree_layout();
-        schedule_topbar_settings_layout_measure(load_layout, load_open);
+        schedule_topbar_settings_layout_measure(
+            load_layout,
+            load_open,
+            load_nav_layout,
+            load_nav_open,
+        );
         update_vlacku_jvozba_availability(load_jvozba_available);
         update_cukta_toc_forced_autohide(load_cukta_toc_forced_autohide);
         schedule_vlacku_jvozba_pane_metrics_sync();
@@ -14346,11 +16606,18 @@ fn install_browser_dom_handlers(
 
     let stylesheet_layout = topbar_settings_layout;
     let stylesheet_open = topbar_settings_open;
+    let stylesheet_nav_layout = topbar_nav_layout;
+    let stylesheet_nav_open = topbar_nav_open;
     let stylesheet_load_closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
         if event_target_is_stylesheet_link(&event) {
             schedule_gentufa_block_reference_layout();
             schedule_gentufa_tree_layout();
-            schedule_topbar_settings_layout_measure(stylesheet_layout, stylesheet_open);
+            schedule_topbar_settings_layout_measure(
+                stylesheet_layout,
+                stylesheet_open,
+                stylesheet_nav_layout,
+                stylesheet_nav_open,
+            );
             schedule_vlacku_jvozba_pane_metrics_sync();
         }
     }) as Box<dyn FnMut(_)>);
@@ -14366,6 +16633,8 @@ fn install_browser_dom_handlers(
         &document,
         topbar_settings_layout,
         topbar_settings_open,
+        topbar_nav_layout,
+        topbar_nav_open,
     );
     schedule_vlacku_jvozba_pane_metrics_after_fonts_ready(&document);
 
@@ -14395,6 +16664,8 @@ fn install_browser_dom_handlers(
     jvozba_available: Signal<bool>,
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
+    topbar_nav_layout: Signal<TopbarNavLayout>,
+    topbar_nav_open: Signal<bool>,
     cukta_toc_forced_autohide: Signal<bool>,
 ) {
     if DESKTOP_DOM_HANDLERS_INSTALLED.set(()).is_err() {
@@ -14404,6 +16675,18 @@ fn install_browser_dom_handlers(
     spawn(async move {
         let mut eval = document::eval(
             r#"
+            window.addEventListener("keydown", (event) => {
+                if ((event.ctrlKey || event.metaKey) && !event.altKey && String(event.key || "").toLowerCase() === "f") {
+                    event.preventDefault();
+                    const input = document.getElementById("app-page-find-input");
+                    if (input) {
+                        input.focus();
+                        if (typeof input.select === "function") {
+                            input.select();
+                        }
+                    }
+                }
+            }, true);
             const sendLayout = () => {
                 try {
                     dioxus.send("layout");
@@ -14422,7 +16705,12 @@ fn install_browser_dom_handlers(
         while eval.recv::<String>().await.is_ok() {
             schedule_gentufa_block_reference_layout();
             schedule_gentufa_tree_layout();
-            schedule_topbar_settings_layout_measure(topbar_settings_layout, topbar_settings_open);
+            schedule_topbar_settings_layout_measure(
+                topbar_settings_layout,
+                topbar_settings_open,
+                topbar_nav_layout,
+                topbar_nav_open,
+            );
             update_vlacku_jvozba_availability(jvozba_available);
             update_cukta_toc_forced_autohide(cukta_toc_forced_autohide);
             schedule_vlacku_jvozba_pane_metrics_sync();
@@ -14437,12 +16725,16 @@ fn install_browser_dom_handlers(
     jvozba_available: Signal<bool>,
     topbar_settings_layout: Signal<TopbarSettingsLayout>,
     topbar_settings_open: Signal<bool>,
+    topbar_nav_layout: Signal<TopbarNavLayout>,
+    topbar_nav_open: Signal<bool>,
     cukta_toc_forced_autohide: Signal<bool>,
 ) {
     let _ = (
         jvozba_available,
         topbar_settings_layout,
         topbar_settings_open,
+        topbar_nav_layout,
+        topbar_nav_open,
         cukta_toc_forced_autohide,
     );
 }
@@ -17995,6 +20287,408 @@ mod tests {
     #[ensures(true)]
     fn git_commit_display_uses_math_monospace_hex() {
         assert_eq!(math_monospace_git_commit("f4a90c1"), "𝚏𝟺𝚊𝟿𝟶𝚌𝟷");
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn page_find_entry_texts(entries: &[PageFindTextEntry]) -> Vec<String> {
+        entries.iter().map(|entry| entry.text.clone()).collect()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn page_find_matching_handles_empty_overlap_and_unicode_ranges() {
+        assert!(page_find_match_ranges("banana", "").is_empty());
+        assert!(page_find_match_ranges("", "ana").is_empty());
+
+        let overlapping = page_find_match_ranges("banana", "ana");
+        assert_eq!(overlapping.len(), 1);
+        assert_eq!(overlapping[0].byte_start, 1);
+        assert_eq!(overlapping[0].byte_end, 4);
+
+        let unicode_text = "İS";
+        let unicode = page_find_match_ranges(unicode_text, "i\u{307}s");
+        assert_eq!(unicode.len(), 1);
+        assert!(unicode_text.is_char_boundary(unicode[0].byte_start));
+        assert!(unicode_text.is_char_boundary(unicode[0].byte_end));
+        assert_eq!(
+            &unicode_text[unicode[0].byte_start..unicode[0].byte_end],
+            unicode_text
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn page_find_route_state_remembers_queries_and_resets_active_selection() {
+        let mut state = PageFindState::default();
+
+        set_page_find_query(
+            &mut state,
+            AppRoute::Cukta,
+            "broda".to_owned(),
+            PageFindRouteQueryUpdate::Replace,
+        );
+        update_page_find_active(&mut state, AppRoute::Cukta, PageFindDirection::Next, 3);
+
+        set_page_find_query(
+            &mut state,
+            AppRoute::Vlacku,
+            "valsi".to_owned(),
+            PageFindRouteQueryUpdate::Replace,
+        );
+
+        assert_eq!(state.cukta.query, "broda");
+        assert_eq!(state.cukta.active_index, Some(0));
+        assert_eq!(state.vlacku.query, "valsi");
+        assert_eq!(state.vlacku.active_index, None);
+
+        set_page_find_query(
+            &mut state,
+            AppRoute::Cukta,
+            "brode".to_owned(),
+            PageFindRouteQueryUpdate::Replace,
+        );
+        assert_eq!(state.cukta.query, "brode");
+        assert_eq!(state.cukta.active_index, None);
+
+        state.cukta = state.cukta.clone().with_data(data! {
+            active_index: Some(2),
+            result_signature: 10,
+        });
+        sync_page_find_result_signature(&mut state, AppRoute::Cukta, 11, 3);
+        assert_eq!(state.cukta.active_index, None);
+
+        state.cukta = state.cukta.clone().with_data(data! {
+            active_index: Some(5),
+            result_signature: 11,
+        });
+        sync_page_find_result_signature(&mut state, AppRoute::Cukta, 11, 3);
+        assert_eq!(state.cukta.active_index, None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn topbar_layout_resolver_prefers_full_nav_then_compact_settings_then_menu() {
+        let layout =
+            topbar_layout_from_probe_fits(|selector| selector == ".app-topbar-fit-probe-both-full");
+        assert_eq!(layout.settings, TopbarSettingsLayout::BothInline);
+        assert_eq!(layout.nav, TopbarNavLayout::Full);
+
+        let layout = topbar_layout_from_probe_fits(|selector| {
+            selector == ".app-topbar-fit-probe-theme-full"
+        });
+        assert_eq!(layout.settings, TopbarSettingsLayout::ThemeInline);
+        assert_eq!(layout.nav, TopbarNavLayout::Full);
+
+        let layout =
+            topbar_layout_from_probe_fits(|selector| selector == ".app-topbar-fit-probe-both-menu");
+        assert_eq!(layout.settings, TopbarSettingsLayout::BothInline);
+        assert_eq!(layout.nav, TopbarNavLayout::Menu);
+
+        let layout = topbar_layout_from_probe_fits(|_selector| false);
+        assert_eq!(layout.settings, TopbarSettingsLayout::NoneInline);
+        assert_eq!(layout.nav, TopbarNavLayout::Menu);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn page_find_collects_cukta_content_but_not_toc() {
+        let page = CuktaPageData {
+            toc: vec![CuktaTocNode {
+                node_id: "toc-hidden".to_owned(),
+                number_label: None,
+                label: "TOC hidden label".to_owned(),
+                href: "/cukta#toc-hidden".to_owned(),
+                active: false,
+                section_id: None,
+                current: false,
+                children: Vec::new(),
+            }],
+            current_section_id: None,
+            page_kind: CuktaPageKind::Section {
+                section_heading: "Section heading".to_owned(),
+                section_parse_href: None,
+                chapter_title: None,
+                previous_section: None,
+                next_section: None,
+                chapter_prelude_blocks: Vec::new(),
+                blocks: vec![CllBlock::Paragraph {
+                    anchor_id: None,
+                    role: None,
+                    inlines: vec![CllInline::Text("Visible CLL body".to_owned())],
+                    text: "Visible CLL body".to_owned(),
+                }],
+            },
+        };
+        let mut entries = Vec::new();
+
+        collect_cukta_page_find_entries(&mut entries, &page, GentufaScript::Latin);
+        let texts = page_find_entry_texts(&entries);
+
+        assert!(texts.contains(&"Section heading".to_owned()));
+        assert!(texts.contains(&"Visible CLL body".to_owned()));
+        assert!(!texts.contains(&"TOC hidden label".to_owned()));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn page_find_collects_vlacku_card_text_without_controls() {
+        let result = VlackuWebResult {
+            state: VlackuWebState::default(),
+            cards: vec![VlackuWebCard {
+                rank: 1,
+                word: "broda".to_owned(),
+                display_word: "broda".to_owned(),
+                word_type: "gismu".to_owned(),
+                word_type_key: "gismu".to_owned(),
+                selmaho: Some("BRIVLA".to_owned()),
+                author: Some(new!(VlackuWebAuthor {
+                    username: "alice".to_owned(),
+                    realname: Some("Alice A.".to_owned()),
+                })),
+                ipa: Some("bɾoda".to_owned()),
+                similarity: Some(0.42),
+                votes: VlackuVoteDisplay::Known("+7".to_owned()),
+                rafsi: vec!["bro".to_owned()],
+                glosses: vec!["predicate".to_owned()],
+                definition_source: "definition source".to_owned(),
+                definition: vec![
+                    new!(VlackuInline::Text("definition body ".to_owned())),
+                    new!(VlackuInline::WordRef {
+                        label: "klama".to_owned(),
+                        href: "/vlacku?mode=word&q=klama".to_owned(),
+                        can_add_to_jvozba: true,
+                    }),
+                ],
+                notes: vec![new!(VlackuInline::Text("note body".to_owned()))],
+                etymology: vec![new!(VlackuInline::Text("etymology body".to_owned()))],
+                decomposition: vec![VlackuCompositionPiece {
+                    kind: VlackuCompositionPieceKind::Rafsi,
+                    surface: "bro".to_owned(),
+                    display_surface: "bro".to_owned(),
+                    source: Some("broda".to_owned()),
+                    display_source: Some("broda".to_owned()),
+                    source_href: None,
+                    source_is_surface: false,
+                }],
+                can_add_to_jvozba: true,
+            }],
+            word_type_options: Vec::new(),
+            dictionary_info: None,
+            has_more: true,
+            message: Some("semantic message".to_owned()),
+            errors: vec!["visible error".to_owned()],
+        };
+        let mut entries = Vec::new();
+
+        collect_vlacku_page_find_entries(&mut entries, &result, GentufaScript::Latin);
+        let texts = page_find_entry_texts(&entries);
+
+        for expected in [
+            "semantic message",
+            "visible error",
+            "broda",
+            "/bɾoda/",
+            "bro",
+            "by alice (Alice A.)",
+            "gismu",
+            "BRIVLA",
+            "42%",
+            "+7",
+            "definition body ",
+            "klama",
+            "predicate",
+            "note body",
+            "etymology: ",
+            "etymology body",
+            "Load more",
+        ] {
+            assert!(texts.contains(&expected.to_owned()), "missing {expected}");
+        }
+        assert!(!texts.contains(&"Dictionary query".to_owned()));
+        assert!(!texts.contains(&"jvozba".to_owned()));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
+        let edge_marker = ReferenceMarker {
+            role: ReferenceMarkerRole::Reference,
+            kind: "edge-only-kind".to_owned(),
+            label: ReferenceLabel::new("edgeonly", None, None),
+            source: None,
+            tooltip: None,
+        };
+        let success = GentufaSuccess {
+            ipa_text: "ipa-visible".to_owned(),
+            surface_text: String::new(),
+            brackets_text: "bracket visible".to_owned(),
+            bracket_fragments: vec![GentufaBracketFragment::Text {
+                text: "bracket visible".to_owned(),
+                elided: false,
+            }],
+            blocks_layout: GentufaBlocksLayout {
+                blocks: vec![GentufaBlock {
+                    block_id: "block-1".to_owned(),
+                    node_ids: vec![1],
+                    label: "block label".to_owned(),
+                    is_leaf: true,
+                    is_elided: false,
+                    token_kind: None,
+                    ref_markers: Vec::new(),
+                    span: None,
+                    node_types: Vec::new(),
+                    ancestors: Vec::new(),
+                    col: 0,
+                    col_span: 1,
+                    row: 0,
+                    row_span: 1,
+                    color: "#cccccc".to_owned(),
+                    parent_color: None,
+                    raw_text: "block label".to_owned(),
+                    display_text: "block label".to_owned(),
+                    transform: None,
+                    glosses: vec!["block gloss".to_owned()],
+                    definition: None,
+                    computed_gloss: None,
+                    tooltip: None,
+                }],
+                max_col: 1,
+                max_row: 1,
+            },
+            tree_rows: vec![GentufaTreeRow {
+                node_id: 1,
+                parent_id: None,
+                depth: 0,
+                label: "tree category".to_owned(),
+                color: "#cccccc".to_owned(),
+                guides: Vec::new(),
+                has_children: false,
+                cells: vec![GentufaCell {
+                    text: "tree token".to_owned(),
+                    is_word: true,
+                    quoted: false,
+                    tooltip: None,
+                    is_elided: false,
+                    transform: None,
+                }],
+                computed_gloss: None,
+                ref_markers: vec![edge_marker],
+                glosses: Vec::new(),
+                definition: None,
+                rafsi_breakdown: Vec::new(),
+            }],
+            diagnostics: Vec::new(),
+            features: WebFeatureAvailability::default(),
+        };
+        let mut tree_entries = Vec::new();
+        collect_gentufa_page_find_entries(
+            &mut tree_entries,
+            &GentufaWebResult::Success(success.clone()),
+            None,
+            GentufaWebViewMode::Tree,
+            GentufaDisplayState {
+                show_elided: false,
+                show_glosses: true,
+            },
+            GentufaScript::Latin,
+        );
+        let tree_texts = page_find_entry_texts(&tree_entries);
+        assert!(tree_texts.contains(&"bracket visible".to_owned()));
+        assert!(tree_texts.contains(&"tree category".to_owned()));
+        assert!(tree_texts.contains(&"tree token".to_owned()));
+        assert!(!tree_texts.contains(&"edgeonly".to_owned()));
+        assert!(!tree_texts.contains(&"edge-only-kind".to_owned()));
+        assert!(!tree_texts.contains(&"ipa-visible".to_owned()));
+
+        let mut block_entries = Vec::new();
+        collect_gentufa_page_find_entries(
+            &mut block_entries,
+            &GentufaWebResult::Success(success.clone()),
+            None,
+            GentufaWebViewMode::Blocks,
+            GentufaDisplayState {
+                show_elided: false,
+                show_glosses: true,
+            },
+            GentufaScript::Latin,
+        );
+        let block_texts = page_find_entry_texts(&block_entries);
+        assert!(block_texts.contains(&"block label".to_owned()));
+        assert!(block_texts.contains(&"block gloss".to_owned()));
+
+        let mut ipa_entries = Vec::new();
+        collect_gentufa_page_find_entries(
+            &mut ipa_entries,
+            &GentufaWebResult::Success(success),
+            None,
+            GentufaWebViewMode::Ipa,
+            GentufaDisplayState {
+                show_elided: false,
+                show_glosses: true,
+            },
+            GentufaScript::Latin,
+        );
+        let ipa_texts = page_find_entry_texts(&ipa_entries);
+        assert!(ipa_texts.contains(&"ipa-visible".to_owned()));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn page_find_collects_settings_static_text_without_editable_values() {
+        let dialect_settings = DialectSettings {
+            custom_dialects: vec![CustomDialect {
+                name: "custom-visible".to_owned(),
+                definition: "()".to_owned(),
+                show_in_gentufa: true,
+            }],
+            hidden_builtin_gentufa_dialects: BTreeSet::new(),
+        };
+        let mut entries = Vec::new();
+
+        collect_settings_page_find_entries(
+            &mut entries,
+            UserSettings {
+                theme: ThemeMode::Day,
+                script: GentufaScript::Latin,
+                stress: StressMark::None,
+                glides: GlideMark::None,
+            },
+            &dialect_settings,
+            "custom-visible",
+            &EmbeddingSettingsState::default(),
+        );
+        let texts = page_find_entry_texts(&entries);
+
+        for expected in [
+            "Settings",
+            "Semantic search",
+            "Embedding model",
+            "Status",
+            "Download",
+            "Output",
+            "Stress",
+            "none",
+            "Glides",
+            "Lojban dialects",
+            "Builtins",
+            "Custom",
+            "custom-visible",
+            "Name",
+            "Show in gentufa",
+            "Definition",
+            "Definition is valid.",
+        ] {
+            assert!(texts.contains(&expected.to_owned()), "missing {expected}");
+        }
+        assert!(!texts.contains(&"()".to_owned()));
     }
 
     #[test]

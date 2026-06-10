@@ -665,7 +665,10 @@ mod tests {
     use axum::http::{Method, Request};
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
+    use std::sync::atomic::{AtomicU64, Ordering};
     use tower::ServiceExt;
+
+    static TEST_STATIC_DIR_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     #[requires(true)]
     #[ensures(ret.is_dir())]
@@ -674,9 +677,10 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .expect("system clock after epoch")
             .as_nanos();
+        let ordinal = TEST_STATIC_DIR_COUNTER.fetch_add(1, Ordering::Relaxed);
         let dir = std::env::temp_dir().join(format!(
-            "jbotci-server-spa-test-{}-{nanos}",
-            std::process::id()
+            "jbotci-server-spa-test-{}-{nanos}-{ordinal}",
+            std::process::id(),
         ));
         std::fs::create_dir_all(&dir).expect("create test static dir");
         std::fs::write(

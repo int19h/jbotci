@@ -24,6 +24,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "browser settings are persisted transport state constrained by closed enum fields",
     ),
     (
+        "crates/jbotci-ui/src/lib.rs:PageFindTextKey",
+        "page-find text keys are transient ordinal identity tokens and every usize ordinal is a valid key",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:PageFindState",
+        "page-find state is a transient UI aggregate whose per-route fields are validated by PageFindRouteState",
+    ),
+    (
         "crates/jbotci-ui/src/lib.rs:GentufaDisplayState",
         "gentufa display toggles are two independent boolean URL controls with no invalid combination",
     ),
