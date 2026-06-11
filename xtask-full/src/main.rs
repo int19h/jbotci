@@ -6961,10 +6961,11 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
     let mut paths = fixture_paths(&args.root)
         .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
     let jobs = args.jobs.unwrap_or_else(default_fixture_jobs);
+    paths.retain(|path| path_matches_prefix_selector(&args.root, path, &profile.selector));
+    warn_if_large_debug_fixture_test(&args, &profile, paths.len());
     if !args.chunk_worker && should_spawn_fixture_test_chunks(&profile) {
         return fixture_test_subprocess_chunks(&args, &profile, &paths, jobs);
     }
-    paths.retain(|path| path_matches_prefix_selector(&args.root, path, &profile.selector));
     let failure_counter = AtomicUsize::new(0);
     let mut summary = RunSummary::default();
     for chunk in paths.chunks(FIXTURE_TEST_CHUNK_SIZE) {
@@ -6994,6 +6995,24 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
         bail!("fixture-test failed {} facet(s)", summary.failed);
     }
     Ok(())
+}
+
+#[requires(profile.is_valid())]
+#[ensures(true)]
+fn warn_if_large_debug_fixture_test(
+    args: &FixtureRunArgs,
+    profile: &FixtureProfile,
+    selected_path_count: usize,
+) {
+    if !cfg!(debug_assertions) || args.chunk_worker {
+        return;
+    }
+    let test_count = selected_path_count.saturating_mul(profile.facets.len());
+    if test_count > DEBUG_LARGE_FIXTURE_TEST_WARNING_THRESHOLD {
+        eprintln!(
+            "warning: running {test_count} fixture facet test(s) in a debug xtask build is very slow; use `cargo run -r -p xtask-full -- fixture-test ...` for large runs, and reserve debug fixture tests for targeted debugging."
+        );
+    }
 }
 
 #[requires(true)]
@@ -7486,6 +7505,7 @@ fn default_fixture_jobs() -> usize {
 const FIXTURE_TEST_CHUNK_SIZE: usize = 8;
 const FIXTURE_TEST_SUBPROCESS_CHUNK_SIZE: usize = 64;
 const FIXTURE_REWRITE_SUBPROCESS_CHUNK_SIZE: usize = 64;
+const DEBUG_LARGE_FIXTURE_TEST_WARNING_THRESHOLD: usize = 100;
 const DEFAULT_TEST_JOBS: usize = 16;
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
 

@@ -1062,6 +1062,7 @@ struct PlaceAnalysisBuilder<'index, 'tree> {
     assignment_ids_by_frame: HashMap<SelbriPlaceFrameId, Vec<SumtiPlaceAssignmentId>>,
     assignment_ids_by_frame_slot:
         HashMap<(SelbriPlaceFrameId, PlaceSlot), Vec<SumtiPlaceAssignmentId>>,
+    next_place_after_linked_arguments_by_frame: HashMap<SelbriPlaceFrameId, u8>,
 }
 
 impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
@@ -1077,6 +1078,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             assignment_ids_by_term: HashMap::new(),
             assignment_ids_by_frame: HashMap::new(),
             assignment_ids_by_frame_slot: HashMap::new(),
+            next_place_after_linked_arguments_by_frame: HashMap::new(),
         }
     }
 
@@ -1216,6 +1218,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         );
         for cursor in &mut cursors {
             cursor.ensure_next_place_at_least(2);
+            self.apply_linked_argument_cursor(cursor);
         }
         self.assign_term_refs(&mut cursors, &tail.terms, AssignmentSource::SequentialTerm);
         self.analyze_free_modifiers_nested(&bridi.free_modifiers);
@@ -1228,7 +1231,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         frames
             .iter()
             .copied()
-            .map(|frame| self.cursor_with_existing_assignments(frame, 2))
+            .map(|frame| self.tail_cursor_with_existing_assignments(frame, 2))
             .collect()
     }
 
@@ -1247,6 +1250,75 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             }
         }
         cursor
+    }
+
+    #[requires(start > 0)]
+    #[ensures(ret.frame == frame)]
+    fn tail_cursor_with_existing_assignments(
+        &self,
+        frame: SelbriPlaceFrameId,
+        start: u8,
+    ) -> PlaceCursor {
+        let mut cursor = self.cursor_with_existing_assignments(frame, start);
+        self.apply_linked_argument_cursor(&mut cursor);
+        cursor
+    }
+
+    #[requires(true)]
+    #[ensures(cursor.frame == old(cursor.frame))]
+    fn apply_linked_argument_cursor(&self, cursor: &mut PlaceCursor) {
+        if let Some(next_place) = self.next_place_after_linked_arguments(cursor.frame) {
+            cursor.reset_next_place(next_place);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn next_place_after_linked_arguments(&self, frame: SelbriPlaceFrameId) -> Option<u8> {
+        let mut visited = HashSet::new();
+        self.next_place_after_linked_arguments_recursive(frame, &mut visited)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn next_place_after_linked_arguments_recursive(
+        &self,
+        frame: SelbriPlaceFrameId,
+        visited: &mut HashSet<SelbriPlaceFrameId>,
+    ) -> Option<u8> {
+        if let Some(next_place) = self.next_place_after_linked_arguments_by_frame.get(&frame) {
+            return Some(*next_place);
+        }
+        if !visited.insert(frame) {
+            return None;
+        }
+        let Some(frame_data) = self.frames.get(frame.0) else {
+            return None;
+        };
+        match &frame_data.propagation {
+            PlaceFramePropagation::None => None,
+            PlaceFramePropagation::Forward { inner } => {
+                self.next_place_after_linked_arguments_recursive(*inner, visited)
+            }
+            PlaceFramePropagation::Conversion { inner, .. } => {
+                self.next_place_after_linked_arguments_recursive(*inner, visited)
+            }
+            PlaceFramePropagation::Jai { inner } => {
+                self.next_place_after_linked_arguments_recursive(*inner, visited)
+            }
+            PlaceFramePropagation::ConnectiveBranches { branches } => branches
+                .iter()
+                .filter_map(|branch| {
+                    self.next_place_after_linked_arguments_recursive(*branch, visited)
+                })
+                .max(),
+            PlaceFramePropagation::Compound { head, .. } => {
+                self.next_place_after_linked_arguments_recursive(*head, visited)
+            }
+            PlaceFramePropagation::Co { leading, .. } => {
+                self.next_place_after_linked_arguments_recursive(*leading, visited)
+            }
+        }
     }
 
     #[requires(true)]
@@ -2811,15 +2883,22 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         bei_links: &'tree [AdditionalLinkedSumtiSyntax],
     ) {
         let mut cursor = PlaceCursor::new_at(frame, 2);
+        let mut assigned_any = false;
         if let Some(sumti) = first_sumti {
             let slot = fa.and_then(fa_place_slot);
             self.assign_link_argument(&mut cursor, sumti, slot);
+            assigned_any = true;
         }
         for link in bei_links {
             if let Some(sumti) = link.sumti.as_deref() {
                 let slot = link.fa.as_ref().and_then(fa_place_slot);
                 self.assign_link_argument(&mut cursor, sumti, slot);
+                assigned_any = true;
             }
+        }
+        if assigned_any {
+            self.next_place_after_linked_arguments_by_frame
+                .insert(frame, cursor.next_place);
         }
     }
 
@@ -3112,6 +3191,15 @@ impl PlaceCursor {
             while self.filled_numbered.contains(&self.next_place) {
                 self.next_place = self.next_place.saturating_add(1);
             }
+        }
+    }
+
+    #[requires(next_place > 0)]
+    #[ensures(true)]
+    fn reset_next_place(&mut self, next_place: u8) {
+        self.next_place = next_place;
+        while self.filled_numbered.contains(&self.next_place) {
+            self.next_place = self.next_place.saturating_add(1);
         }
     }
 
@@ -6670,6 +6758,69 @@ mod tests {
             let projection = analysis.v0_compatibility_projection();
             assert!(!projection.sumti_assignments.is_empty());
             assert!(!projection.selbri_places.is_empty());
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn linked_fa_advances_following_untagged_terms() {
+        run_reference_test(|| {
+            let syntax = parse_syntax("mi klama be fi le zdani le dargu");
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+            let klama = frame_for_label_in_kinds(
+                &analysis,
+                "klama",
+                &[PlaceFrameKind::BaseSelbri, PlaceFrameKind::TanruUnit],
+            )
+            .expect("klama frame exists");
+
+            assert_eq!(
+                first_assignment_label(&analysis, klama, 1).as_deref(),
+                Some("mi")
+            );
+            assert_eq!(first_assignment_label(&analysis, klama, 2), None);
+            assert_eq!(
+                first_assignment_label(&analysis, klama, 3).as_deref(),
+                Some("zdani")
+            );
+            assert_eq!(
+                first_assignment_label(&analysis, klama, 4).as_deref(),
+                Some("dargu")
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn later_linked_fa_resets_following_untagged_cursor_before_skip() {
+        run_reference_test(|| {
+            let syntax = parse_syntax("mi klama be fo le dargu bei fe le zarci le zdani");
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+            let klama = frame_for_label_in_kinds(
+                &analysis,
+                "klama",
+                &[PlaceFrameKind::BaseSelbri, PlaceFrameKind::TanruUnit],
+            )
+            .expect("klama frame exists");
+
+            assert_eq!(
+                first_assignment_label(&analysis, klama, 1).as_deref(),
+                Some("mi")
+            );
+            assert_eq!(
+                first_assignment_label(&analysis, klama, 2).as_deref(),
+                Some("zarci")
+            );
+            assert_eq!(
+                first_assignment_label(&analysis, klama, 3).as_deref(),
+                Some("zdani")
+            );
+            assert_eq!(
+                first_assignment_label(&analysis, klama, 4).as_deref(),
+                Some("dargu")
+            );
         });
     }
 

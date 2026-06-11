@@ -315,7 +315,9 @@ If you have made any product changes, always build the `jbotci` debug binary and
 
 If you've made any product changes, always run at least `cargo test -r`.
 
-If you've changed morphology or syntax parsing logic or output formats, always run the fixture tests with `--profile all`. 
+If you've changed morphology or syntax parsing logic or output formats, always run the fixture tests with the full fixture profile in release mode:
+`cargo run -r -p xtask-full -- fixture-test --profile all`.
+The shorter `cargo xtask fixture-test --profile all` runs the xtask wrapper in debug mode and is only appropriate for targeted debugging, not large fixture runs.
 
 In all cases, when updating expectations, be VERY careful and do not blindly assume that new output is correct. Ideally expectations need to be updated manually rather than taking the output of the parser. When that is infeasible (e.g. you have more than a few hundred expectations that need updating), you need to definitively ascertain that the change is purely surface representation before doing any kind of automatic expectation update whatsoever. That is, if the change is predictable and mechanical, write a script that validates this while comparing the old and the new expectations, and only for those entries where such a script confirms that it is indeed only that mechanical change that is the difference, it is okay to update with new output; any cases that get flagged as more than that need careful *manual* review individually, one by one.
 
