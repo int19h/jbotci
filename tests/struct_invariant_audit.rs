@@ -88,10 +88,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "element sizes are direct layout measurements used transiently by render effects",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:ViewportSize",
-        "viewport sizes are direct platform measurements used transiently by layout code",
-    ),
-    (
         "crates/jbotci-ui/src/lib.rs:PositionedPoint",
         "positioned points are direct layout measurements used transiently by render effects",
     ),

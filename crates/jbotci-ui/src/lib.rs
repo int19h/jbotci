@@ -180,6 +180,10 @@ const GENTUFA_TREE_LAYOUT_FRAME_PASSES: u8 = 2;
 const BLOCK_REFERENCE_LABEL_GAP_PX: f64 = 8.0;
 #[allow(dead_code)]
 const BLOCK_REFERENCE_CONTAINMENT_GAP_PX: f64 = 1.0;
+#[allow(dead_code)]
+const DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX: f64 = 8.0;
+#[allow(dead_code)]
+const DICTIONARY_TOOLTIP_HOST_GAP_PX: f64 = 8.0;
 const DIALECT_SETTINGS_STORAGE_KEY: &str = "jbotci.dialect-settings.v1";
 const EMBEDDING_MODEL_STORAGE_KEY: &str = "jbotci.embedding-model.v1";
 #[cfg(not(target_arch = "wasm32"))]
@@ -326,9 +330,12 @@ struct ElementSize {
     height: f64,
 }
 
+#[invariant(*top >= 0.0)]
+#[invariant(*width >= 0.0)]
+#[invariant(*height >= 0.0)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[invariant(true)]
-struct ViewportSize {
+struct TooltipViewport {
+    top: f64,
     width: f64,
     height: f64,
 }
@@ -14088,27 +14095,34 @@ fn reference_rect_width(rect: ReferenceRect) -> f64 {
 }
 
 #[requires(true)]
+#[requires(tooltip_size.width >= 0.0)]
+#[requires(tooltip_size.height >= 0.0)]
+#[requires(viewport.top >= 0.0)]
+#[requires(viewport.width >= 0.0)]
+#[requires(viewport.height >= 0.0)]
 #[ensures(ret.left.is_finite())]
 #[ensures(ret.top.is_finite())]
+#[ensures(ret.top >= viewport.top + DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX)]
 fn dictionary_tooltip_position(
     host_rect: ReferenceRect,
     tooltip_size: ElementSize,
-    viewport_size: ViewportSize,
+    viewport: TooltipViewport,
 ) -> PositionedPoint {
-    let margin = 8.0;
-    let gap = 8.0;
+    let margin = DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX;
+    let gap = DICTIONARY_TOOLTIP_HOST_GAP_PX;
     let tooltip_width = tooltip_size.width.max(1.0);
     let tooltip_height = tooltip_size.height.max(1.0);
     let host_width = reference_rect_width(host_rect);
-    let max_left = (viewport_size.width - tooltip_width - margin).max(margin);
+    let max_left = (viewport.width - tooltip_width - margin).max(margin);
     let centered_left = host_rect.left + host_width / 2.0 - tooltip_width / 2.0;
     let left = centered_left.clamp(margin, max_left);
+    let min_top = viewport.top + margin;
     let preferred_top = host_rect.top - tooltip_height - gap;
-    let max_top = (viewport_size.height - tooltip_height - margin).max(margin);
-    let top = if preferred_top >= margin {
+    let max_top = (viewport.height - tooltip_height - margin).max(min_top);
+    let top = if preferred_top >= min_top {
         preferred_top.min(max_top)
     } else {
-        (host_rect.bottom + gap).clamp(margin, max_top)
+        (host_rect.bottom + gap).clamp(min_top, max_top)
     };
     PositionedPoint { left, top }
 }
@@ -18387,6 +18401,9 @@ fn position_dictionary_tooltip(host: &web_sys::Element) {
     let Some(window) = web_sys::window() else {
         return;
     };
+    let Some(document) = window.document() else {
+        return;
+    };
     let _ = tooltip_html.remove_attribute("data-jbotci-position-ready");
     let host_rect = host.get_bounding_client_rect();
     let tooltip_rect = tooltip_html.get_bounding_client_rect();
@@ -18400,6 +18417,7 @@ fn position_dictionary_tooltip(host: &web_sys::Element) {
         .ok()
         .and_then(|height| height.as_f64())
         .unwrap_or(1.0);
+    let viewport_top = dictionary_tooltip_visible_top(&document);
     let position = dictionary_tooltip_position(
         ReferenceRect {
             left: host_rect.left(),
@@ -18411,10 +18429,11 @@ fn position_dictionary_tooltip(host: &web_sys::Element) {
             width: tooltip_rect.width(),
             height: tooltip_rect.height(),
         },
-        ViewportSize {
+        new!(TooltipViewport {
+            top: viewport_top,
             width: viewport_width,
             height: viewport_height,
-        },
+        }),
     );
     let style = tooltip_html.style();
     let _ = style.set_property(
@@ -18430,6 +18449,25 @@ fn position_dictionary_tooltip(host: &web_sys::Element) {
     let _ = tooltip_html.set_attribute("data-jbotci-position-ready", "true");
 }
 
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret >= 0.0)]
+fn dictionary_tooltip_visible_top(document: &web_sys::Document) -> f64 {
+    let topbar_bottom = document
+        .query_selector(".app-topbar")
+        .ok()
+        .flatten()
+        .map(|element| element.get_bounding_client_rect().bottom())
+        .unwrap_or(0.0);
+    let app_scroll_top = document
+        .query_selector("[data-app-scroll='main']")
+        .ok()
+        .flatten()
+        .map(|element| element.get_bounding_client_rect().top())
+        .unwrap_or(0.0);
+    topbar_bottom.max(app_scroll_top).max(0.0)
+}
+
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[invariant(true)]
@@ -18437,7 +18475,7 @@ struct DesktopTooltipMeasure {
     id: String,
     host_rect: ReferenceRect,
     tooltip_size: ElementSize,
-    viewport_size: ViewportSize,
+    viewport: TooltipViewport,
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
@@ -18487,6 +18525,19 @@ fn install_desktop_tooltip_bridge() {
                     bottom: rect.bottom,
                 };
             };
+            const rectTop = (selector) => {
+                const element = document.querySelector(selector);
+                return element ? element.getBoundingClientRect().top : 0;
+            };
+            const rectBottom = (selector) => {
+                const element = document.querySelector(selector);
+                return element ? element.getBoundingClientRect().bottom : 0;
+            };
+            const visibleViewportTop = () => Math.max(
+                0,
+                rectBottom(".app-topbar"),
+                rectTop("[data-app-scroll='main']"),
+            );
             const hideInactiveTooltip = (host) => {
                 const tooltip = tooltipForHost(host);
                 if (!tooltip) {
@@ -18543,7 +18594,8 @@ fn install_desktop_tooltip_bridge() {
                         width: tooltipRect.width,
                         height: tooltipRect.height,
                     },
-                    viewport_size: {
+                    viewport: {
+                        top: visibleViewportTop(),
                         width: Number(window.innerWidth || 1),
                         height: Number(window.innerHeight || 1),
                     },
@@ -18583,7 +18635,7 @@ fn install_desktop_tooltip_bridge() {
             let position = dictionary_tooltip_position(
                 measure.host_rect,
                 measure.tooltip_size,
-                measure.viewport_size,
+                measure.viewport,
             );
             let _ = eval.send(DesktopTooltipPlacement {
                 id: measure.id,
@@ -21614,6 +21666,58 @@ mod tests {
             cll_display_text_for_kind(GentufaScript::Cyrillic, "natlang", "I go"),
             "I go"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_tooltip_position_keeps_normal_above_host_placement() {
+        let position = dictionary_tooltip_position(
+            ReferenceRect {
+                left: 240.0,
+                top: 300.0,
+                right: 260.0,
+                bottom: 320.0,
+            },
+            ElementSize {
+                width: 160.0,
+                height: 120.0,
+            },
+            new!(TooltipViewport {
+                top: 40.0,
+                width: 640.0,
+                height: 480.0,
+            }),
+        );
+
+        assert_eq!(position.top, 172.0);
+        assert_eq!(position.left, 170.0);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_tooltip_position_clamps_oversized_stack_below_visible_top() {
+        let position = dictionary_tooltip_position(
+            ReferenceRect {
+                left: 240.0,
+                top: 300.0,
+                right: 260.0,
+                bottom: 320.0,
+            },
+            ElementSize {
+                width: 160.0,
+                height: 460.0,
+            },
+            new!(TooltipViewport {
+                top: 56.0,
+                width: 640.0,
+                height: 480.0,
+            }),
+        );
+
+        assert_eq!(position.top, 64.0);
+        assert_eq!(position.left, 170.0);
     }
 
     #[requires(!selector.is_empty())]
