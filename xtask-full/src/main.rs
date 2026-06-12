@@ -12,6 +12,7 @@ use anyhow::{Context, Result, bail};
 use bityzba::{contract_trait, ensures, invariant, requires};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clx::progress::{ProgressJobBuilder, ProgressStatus};
+use jbotci_cll::{CllExample, CllSite, embedded_cll_site};
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity};
 use jbotci_dictionary::import::parse_lensisku_json;
 use jbotci_morphology::{
@@ -166,6 +167,7 @@ struct Cli {
 #[invariant(::FixtureCheck => true)]
 #[invariant(::FixtureImport(..) => true)]
 #[invariant(::FixtureList(..) => true)]
+#[invariant(::CllFixtureMetadataAudit(..) => true)]
 #[invariant(::FixtureRewrite(..) => true)]
 #[invariant(::RefsV0Parity(..) => true)]
 #[invariant(::FixtureVectorStats(..) => true)]
@@ -198,6 +200,8 @@ enum Command {
     },
     FixtureImport(FixtureImportArgs),
     FixtureList(FixtureRunArgs),
+    #[command(name = "cll-fixture-metadata-audit")]
+    CllFixtureMetadataAudit(CllFixtureMetadataAuditArgs),
     FixtureRewrite(FixtureRewriteArgs),
     RefsV0Parity(RefsV0ParityArgs),
     FixtureVectorStats(FixtureVectorStatsArgs),
@@ -271,6 +275,31 @@ struct FixtureRunArgs {
     failure_samples: Option<usize>,
     #[arg(long, hide = true)]
     chunk_worker: bool,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct CllFixtureMetadataAuditArgs {
+    #[arg(long, default_value = "tests/fixtures")]
+    root: PathBuf,
+    #[arg(long)]
+    profile: Option<String>,
+    #[arg(long = "provenance")]
+    provenance: Vec<String>,
+    #[arg(long = "tag")]
+    tags: Vec<String>,
+    #[arg(long = "id")]
+    ids: Vec<String>,
+    #[arg(long = "path-prefix")]
+    path_prefixes: Vec<String>,
+    #[arg(long = "cll-chapter")]
+    cll_chapter: Option<u16>,
+    #[arg(long = "cll-section")]
+    cll_section: Option<String>,
+    #[arg(long = "cll-example")]
+    cll_example: Option<String>,
+    #[arg(long)]
+    output: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -984,6 +1013,7 @@ fn main() -> Result<()> {
         }
         Command::FixtureImport(args) => fixture_import(args),
         Command::FixtureList(args) => fixture_list(args),
+        Command::CllFixtureMetadataAudit(args) => cll_fixture_metadata_audit(args),
         Command::FixtureRewrite(args) => fixture_rewrite(args),
         Command::RefsV0Parity(args) => refs_v0_parity(args),
         Command::FixtureVectorStats(args) => fixture_vector_stats(args),
@@ -5489,6 +5519,810 @@ fn fixture_list(args: FixtureRunArgs) -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[invariant(true)]
+enum CllFixtureMetadataAuditStatus {
+    Ok,
+    MissingFixtureValue,
+    MissingCllValue,
+    Mismatch,
+    MissingCllExample,
+    ProvenanceMismatch,
+}
+
+impl CllFixtureMetadataAuditStatus {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Ok => "ok",
+            Self::MissingFixtureValue => "missing_fixture_value",
+            Self::MissingCllValue => "missing_cll_value",
+            Self::Mismatch => "mismatch",
+            Self::MissingCllExample => "missing_cll_example",
+            Self::ProvenanceMismatch => "provenance_mismatch",
+        }
+    }
+}
+
+impl fmt::Display for CllFixtureMetadataAuditStatus {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[invariant(true)]
+enum CllFixtureMetadataAuditSeverity {
+    Info,
+    Warning,
+    Error,
+}
+
+impl CllFixtureMetadataAuditSeverity {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Info => "info",
+            Self::Warning => "warning",
+            Self::Error => "error",
+        }
+    }
+}
+
+impl fmt::Display for CllFixtureMetadataAuditSeverity {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum CllFixtureMetadataField {
+    Lojban,
+    TranslationEn,
+    GlossEn,
+}
+
+impl CllFixtureMetadataField {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn name(self) -> &'static str {
+        match self {
+            Self::Lojban => "lojban",
+            Self::TranslationEn => "translation-en",
+            Self::GlossEn => "gloss-en",
+        }
+    }
+
+    #[requires(fixture.test_case.is_valid_fixture_metadata())]
+    #[ensures(true)]
+    fn fixture_value(self, fixture: &LoadedTestCase) -> Option<&str> {
+        match self {
+            Self::Lojban => Some(&fixture.test_case.lojban),
+            Self::TranslationEn => fixture.test_case.translation_en.as_deref(),
+            Self::GlossEn => fixture.test_case.gloss_en.as_deref(),
+        }
+    }
+}
+
+const CLL_FIXTURE_METADATA_FIELDS: &[CllFixtureMetadataField] = &[
+    CllFixtureMetadataField::Lojban,
+    CllFixtureMetadataField::TranslationEn,
+    CllFixtureMetadataField::GlossEn,
+];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct CllFixtureMetadataAuditRow {
+    fixture_path: String,
+    fixture_id: String,
+    chapter: String,
+    section_number: String,
+    example_number: String,
+    example_id: String,
+    field: String,
+    status: String,
+    severity: String,
+    fixture_value: String,
+    cll_values_json: String,
+    note: String,
+}
+
+#[derive(Debug, Default)]
+#[invariant(true)]
+struct CllFixtureMetadataAuditSummary {
+    selected_fixture_count: usize,
+    cll_provenance_count: usize,
+    row_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct CllFixtureMetadataTextComparison {
+    status: CllFixtureMetadataAuditStatus,
+    severity: CllFixtureMetadataAuditSeverity,
+    note: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum CllExampleResolutionMethod {
+    ExampleId,
+    ExampleNumber,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[invariant(true)]
+struct ResolvedCllFixtureExample<'a> {
+    example: &'a CllExample,
+    method: CllExampleResolutionMethod,
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn cll_fixture_metadata_audit(args: CllFixtureMetadataAuditArgs) -> Result<()> {
+    let site = embedded_cll_site().context("loading embedded CLL site")?;
+    let selector = merged_cll_fixture_metadata_audit_selector(&args)?;
+    let paths = fixture_paths(&args.root)
+        .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
+    let mut rows = Vec::new();
+    let mut summary = CllFixtureMetadataAuditSummary::default();
+
+    for path in paths {
+        if !path_matches_prefix_selector(&args.root, &path, &selector) {
+            continue;
+        }
+        let fixture = load_fixture_path(&path)
+            .with_context(|| format!("loading fixture `{}`", path.display()))?;
+        if !fixture_matches_selector(&args.root, &fixture, &selector) {
+            continue;
+        }
+        let cll_provenance_count = fixture
+            .test_case
+            .provenance
+            .iter()
+            .filter(|provenance| matches!(provenance, Provenance::Cll { .. }))
+            .count();
+        if cll_provenance_count == 0 {
+            continue;
+        }
+        summary.selected_fixture_count += 1;
+        summary.cll_provenance_count += cll_provenance_count;
+        for provenance in &fixture.test_case.provenance {
+            let Provenance::Cll { .. } = provenance else {
+                continue;
+            };
+            audit_cll_fixture_provenance(site, &fixture, provenance, &mut rows)?;
+        }
+    }
+
+    summary.row_count = rows.len();
+    write_cll_fixture_metadata_audit_csv(&args.output, &rows)?;
+    print_cll_fixture_metadata_audit_summary(&summary, &rows);
+    println!("output={}", args.output.display());
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureSelector::is_valid))]
+fn merged_cll_fixture_metadata_audit_selector(
+    args: &CllFixtureMetadataAuditArgs,
+) -> Result<FixtureSelector> {
+    let mut profile = match &args.profile {
+        Some(name) => load_profile(&args.root, name)
+            .with_context(|| format!("loading fixture profile `{name}`"))?,
+        None => FixtureProfile::default(),
+    };
+    merge_cll_fixture_metadata_audit_selector(&mut profile.selector, args);
+    Ok(profile.selector)
+}
+
+#[requires(selector.is_valid())]
+#[ensures(selector.is_valid())]
+fn merge_cll_fixture_metadata_audit_selector(
+    selector: &mut FixtureSelector,
+    args: &CllFixtureMetadataAuditArgs,
+) {
+    selector.provenance.extend(args.provenance.clone());
+    selector.tags.extend(args.tags.clone());
+    selector.ids.extend(args.ids.clone());
+    selector.path_prefixes.extend(args.path_prefixes.clone());
+    if args.cll_chapter.is_some() || args.cll_section.is_some() || args.cll_example.is_some() {
+        let mut cll = selector.cll.take().unwrap_or_default();
+        if let Some(chapter) = args.cll_chapter {
+            cll.chapter = Some(chapter);
+        }
+        if let Some(section) = &args.cll_section {
+            cll.section_number = Some(section.clone());
+        }
+        if let Some(example) = &args.cll_example {
+            if example.starts_with('c') {
+                cll.example_id = Some(example.clone());
+            } else {
+                cll.example_number = Some(example.clone());
+            }
+        }
+        selector.cll = Some(cll);
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn audit_cll_fixture_provenance(
+    site: &CllSite,
+    fixture: &LoadedTestCase,
+    provenance: &Provenance,
+    rows: &mut Vec<CllFixtureMetadataAuditRow>,
+) -> Result<()> {
+    let Some(resolved) = resolve_cll_fixture_example(site, provenance) else {
+        rows.push(cll_fixture_metadata_audit_row(
+            fixture,
+            provenance,
+            "example",
+            CllFixtureMetadataAuditStatus::MissingCllExample,
+            CllFixtureMetadataAuditSeverity::Error,
+            &format_cll_fixture_provenance_key(provenance),
+            &[],
+            "fixture CLL provenance does not resolve to an embedded CLL example",
+        )?);
+        return Ok(());
+    };
+
+    push_cll_fixture_provenance_audit_rows(fixture, provenance, &resolved, rows)?;
+    for field in CLL_FIXTURE_METADATA_FIELDS {
+        let fixture_value = field.fixture_value(fixture);
+        let cll_values = cll_fixture_metadata_field_values(resolved.example, *field);
+        let comparison = compare_cll_fixture_metadata_text(fixture_value, &cll_values);
+        rows.push(cll_fixture_metadata_audit_row(
+            fixture,
+            provenance,
+            field.name(),
+            comparison.status,
+            comparison.severity,
+            fixture_value.unwrap_or_default(),
+            &cll_values,
+            &comparison.note,
+        )?);
+    }
+    Ok(())
+}
+
+#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[ensures(true)]
+fn resolve_cll_fixture_example<'a>(
+    site: &'a CllSite,
+    provenance: &Provenance,
+) -> Option<ResolvedCllFixtureExample<'a>> {
+    let Provenance::Cll {
+        chapter,
+        section_number,
+        example_number,
+        example_id,
+        ..
+    } = provenance
+    else {
+        return None;
+    };
+    if let Some(example_id) = example_id
+        && let Some(example) = site.examples_by_id.get(example_id)
+    {
+        return Some(ResolvedCllFixtureExample {
+            example,
+            method: CllExampleResolutionMethod::ExampleId,
+        });
+    }
+    let example_number = example_number.as_deref()?;
+    site.examples_by_id
+        .values()
+        .find(|example| {
+            example.reference.chapter == *chapter
+                && example.reference.section_number == *section_number
+                && example.reference.example_number.as_deref() == Some(example_number)
+        })
+        .map(|example| ResolvedCllFixtureExample {
+            example,
+            method: CllExampleResolutionMethod::ExampleNumber,
+        })
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn push_cll_fixture_provenance_audit_rows(
+    fixture: &LoadedTestCase,
+    provenance: &Provenance,
+    resolved: &ResolvedCllFixtureExample<'_>,
+    rows: &mut Vec<CllFixtureMetadataAuditRow>,
+) -> Result<()> {
+    let Provenance::Cll {
+        chapter,
+        section_number,
+        example_number,
+        example_id,
+        source_path,
+        ..
+    } = provenance
+    else {
+        return Ok(());
+    };
+    let reference = &resolved.example.reference;
+    let resolution_note = match resolved.method {
+        CllExampleResolutionMethod::ExampleId => "resolved by example-id",
+        CllExampleResolutionMethod::ExampleNumber => "resolved by example-number",
+    };
+    push_cll_fixture_provenance_field_row(
+        fixture,
+        provenance,
+        rows,
+        "provenance.chapter",
+        &chapter.to_string(),
+        &[reference.chapter.to_string()],
+        resolution_note,
+    )?;
+    push_cll_fixture_provenance_field_row(
+        fixture,
+        provenance,
+        rows,
+        "provenance.section-number",
+        section_number,
+        std::slice::from_ref(&reference.section_number),
+        resolution_note,
+    )?;
+    push_cll_fixture_provenance_field_row(
+        fixture,
+        provenance,
+        rows,
+        "provenance.example-number",
+        example_number.as_deref().unwrap_or_default(),
+        option_string_slice(reference.example_number.as_ref()),
+        resolution_note,
+    )?;
+    push_cll_fixture_provenance_field_row(
+        fixture,
+        provenance,
+        rows,
+        "provenance.example-id",
+        example_id.as_deref().unwrap_or_default(),
+        option_string_slice(reference.example_id.as_ref()),
+        resolution_note,
+    )?;
+    push_cll_fixture_provenance_field_row(
+        fixture,
+        provenance,
+        rows,
+        "provenance.source-path",
+        source_path.as_deref().unwrap_or_default(),
+        std::slice::from_ref(&reference.source_path),
+        resolution_note,
+    )?;
+    Ok(())
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[requires(!field.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn push_cll_fixture_provenance_field_row(
+    fixture: &LoadedTestCase,
+    provenance: &Provenance,
+    rows: &mut Vec<CllFixtureMetadataAuditRow>,
+    field: &str,
+    fixture_value: &str,
+    cll_values: &[String],
+    resolution_note: &str,
+) -> Result<()> {
+    let mut comparison = if field == "provenance.source-path" {
+        compare_cll_fixture_source_path_text(Some(fixture_value), cll_values)
+    } else {
+        compare_cll_fixture_metadata_text(Some(fixture_value), cll_values)
+    };
+    if comparison.status == CllFixtureMetadataAuditStatus::Mismatch {
+        comparison.status = CllFixtureMetadataAuditStatus::ProvenanceMismatch;
+        comparison.note =
+            format!("{resolution_note}; fixture provenance differs from resolved CLL reference");
+    } else if comparison.status == CllFixtureMetadataAuditStatus::Ok {
+        comparison.note = format!("{resolution_note}; {}", comparison.note);
+    }
+    rows.push(cll_fixture_metadata_audit_row(
+        fixture,
+        provenance,
+        field,
+        comparison.status,
+        comparison.severity,
+        fixture_value,
+        cll_values,
+        &comparison.note,
+    )?);
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= 1)]
+fn option_string_slice<'a>(value: Option<&'a String>) -> &'a [String] {
+    match value {
+        Some(value) => std::slice::from_ref(value),
+        None => &[],
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_fixture_metadata_field_values(
+    example: &CllExample,
+    field: CllFixtureMetadataField,
+) -> Vec<String> {
+    let mut values = Vec::new();
+    match field {
+        CllFixtureMetadataField::Lojban => {
+            extend_unique_cll_fixture_metadata_values(
+                &mut values,
+                example
+                    .lines
+                    .iter()
+                    .filter(|line| line.kind == "jbo" || line.kind == "jbophrase")
+                    .map(|line| line.text.as_str()),
+            );
+            if !example.lojban.trim().is_empty() {
+                push_unique_cll_fixture_metadata_value(&mut values, &example.lojban);
+            }
+        }
+        CllFixtureMetadataField::TranslationEn => {
+            extend_unique_cll_fixture_metadata_values(
+                &mut values,
+                example
+                    .lines
+                    .iter()
+                    .filter(|line| line.kind == "natlang")
+                    .map(|line| line.text.as_str()),
+            );
+            if let Some(value) = &example.translation_en {
+                push_unique_cll_fixture_metadata_value(&mut values, value);
+            }
+        }
+        CllFixtureMetadataField::GlossEn => {
+            extend_unique_cll_fixture_metadata_values(
+                &mut values,
+                example
+                    .lines
+                    .iter()
+                    .filter(|line| line.kind == "gloss")
+                    .map(|line| line.text.as_str()),
+            );
+            if let Some(value) = &example.gloss_en {
+                push_unique_cll_fixture_metadata_value(&mut values, value);
+            }
+        }
+    }
+    values
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn extend_unique_cll_fixture_metadata_values<'a>(
+    values: &mut Vec<String>,
+    new_values: impl Iterator<Item = &'a str>,
+) {
+    let mut joined = Vec::new();
+    for value in new_values {
+        joined.push(value);
+        push_unique_cll_fixture_metadata_value(values, value);
+    }
+    if joined.len() > 1 {
+        push_unique_cll_fixture_metadata_value(values, &joined.join("\n"));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_unique_cll_fixture_metadata_value(values: &mut Vec<String>, value: &str) {
+    if normalized_nonempty_cll_fixture_metadata_text(value).is_none() {
+        return;
+    }
+    if !values.iter().any(|existing| existing == value) {
+        values.push(value.to_owned());
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_cll_fixture_metadata_text(text: &str) -> String {
+    let mut normalized = String::new();
+    let mut pending_space = false;
+    for ch in text.trim().chars() {
+        if ch.is_whitespace() {
+            pending_space = !normalized.is_empty();
+            continue;
+        }
+        if pending_space {
+            normalized.push(' ');
+            pending_space = false;
+        }
+        normalized.push(ch);
+    }
+    normalized
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
+fn normalized_nonempty_cll_fixture_metadata_text(text: &str) -> Option<String> {
+    let normalized = normalize_cll_fixture_metadata_text(text);
+    (!normalized.is_empty()).then_some(normalized)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compare_cll_fixture_metadata_text(
+    fixture_value: Option<&str>,
+    cll_values: &[String],
+) -> CllFixtureMetadataTextComparison {
+    let fixture_normalized = fixture_value.and_then(normalized_nonempty_cll_fixture_metadata_text);
+    let cll_normalized = cll_values
+        .iter()
+        .filter_map(|value| normalized_nonempty_cll_fixture_metadata_text(value))
+        .collect::<BTreeSet<_>>();
+
+    match (fixture_normalized, cll_normalized.is_empty()) {
+        (None, true) => CllFixtureMetadataTextComparison {
+            status: CllFixtureMetadataAuditStatus::Ok,
+            severity: CllFixtureMetadataAuditSeverity::Info,
+            note: "fixture and embedded CLL both omit this value".to_owned(),
+        },
+        (None, false) => CllFixtureMetadataTextComparison {
+            status: CllFixtureMetadataAuditStatus::MissingFixtureValue,
+            severity: CllFixtureMetadataAuditSeverity::Warning,
+            note: "fixture is missing a value present in embedded CLL".to_owned(),
+        },
+        (Some(fixture_normalized), true) => CllFixtureMetadataTextComparison {
+            status: CllFixtureMetadataAuditStatus::MissingCllValue,
+            severity: CllFixtureMetadataAuditSeverity::Warning,
+            note: format!(
+                "fixture has `{}` but embedded CLL has no candidate value",
+                truncate_for_mismatch(&fixture_normalized)
+            ),
+        },
+        (Some(fixture_normalized), false) => {
+            if cll_normalized.contains(&fixture_normalized) {
+                CllFixtureMetadataTextComparison {
+                    status: CllFixtureMetadataAuditStatus::Ok,
+                    severity: CllFixtureMetadataAuditSeverity::Info,
+                    note: "fixture matches an embedded CLL candidate after safe whitespace normalization"
+                        .to_owned(),
+                }
+            } else {
+                CllFixtureMetadataTextComparison {
+                    status: CllFixtureMetadataAuditStatus::Mismatch,
+                    severity: CllFixtureMetadataAuditSeverity::Error,
+                    note: format!(
+                        "fixture value `{}` does not match any embedded CLL candidate",
+                        truncate_for_mismatch(&fixture_normalized)
+                    ),
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compare_cll_fixture_source_path_text(
+    fixture_value: Option<&str>,
+    cll_values: &[String],
+) -> CllFixtureMetadataTextComparison {
+    let comparison = compare_cll_fixture_metadata_text(fixture_value, cll_values);
+    if comparison.status != CllFixtureMetadataAuditStatus::Mismatch {
+        return comparison;
+    }
+    let Some(fixture_value) = fixture_value
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return comparison;
+    };
+    if cll_values
+        .iter()
+        .any(|cll_value| source_paths_have_same_file_name(fixture_value, cll_value))
+    {
+        return CllFixtureMetadataTextComparison {
+            status: CllFixtureMetadataAuditStatus::Ok,
+            severity: CllFixtureMetadataAuditSeverity::Info,
+            note: "fixture source path and embedded CLL source path name the same file".to_owned(),
+        };
+    }
+    comparison
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn source_paths_have_same_file_name(left: &str, right: &str) -> bool {
+    let Some(left_file_name) = Path::new(left).file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    let Some(right_file_name) = Path::new(right).file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    left_file_name == right_file_name
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[requires(!field.is_empty())]
+#[requires(!status.as_str().is_empty())]
+#[requires(!severity.as_str().is_empty())]
+#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|row| row.field == field))]
+fn cll_fixture_metadata_audit_row(
+    fixture: &LoadedTestCase,
+    provenance: &Provenance,
+    field: &str,
+    status: CllFixtureMetadataAuditStatus,
+    severity: CllFixtureMetadataAuditSeverity,
+    fixture_value: &str,
+    cll_values: &[String],
+    note: &str,
+) -> Result<CllFixtureMetadataAuditRow> {
+    let Provenance::Cll {
+        chapter,
+        section_number,
+        example_number,
+        example_id,
+        ..
+    } = provenance
+    else {
+        bail!("expected CLL provenance")
+    };
+    Ok(CllFixtureMetadataAuditRow {
+        fixture_path: fixture.path.display().to_string(),
+        fixture_id: fixture.test_case.id.clone(),
+        chapter: chapter.to_string(),
+        section_number: section_number.clone(),
+        example_number: example_number.clone().unwrap_or_default(),
+        example_id: example_id.clone().unwrap_or_default(),
+        field: field.to_owned(),
+        status: status.as_str().to_owned(),
+        severity: severity.as_str().to_owned(),
+        fixture_value: fixture_value.to_owned(),
+        cll_values_json: serde_json::to_string(cll_values).context("serializing CLL values")?,
+        note: note.to_owned(),
+    })
+}
+
+#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[ensures(!ret.is_empty())]
+fn format_cll_fixture_provenance_key(provenance: &Provenance) -> String {
+    let Provenance::Cll {
+        chapter,
+        section_number,
+        example_number,
+        example_id,
+        ..
+    } = provenance
+    else {
+        return String::new();
+    };
+    let example = example_id
+        .as_deref()
+        .or(example_number.as_deref())
+        .unwrap_or("<missing-example>");
+    format!("chapter={chapter}, section={section_number}, example={example}")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn write_cll_fixture_metadata_audit_csv(
+    output: &Path,
+    rows: &[CllFixtureMetadataAuditRow],
+) -> Result<()> {
+    if let Some(parent) = output.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("creating output directory `{}`", parent.display()))?;
+    }
+    let mut text = String::new();
+    append_cll_fixture_metadata_audit_csv_record(
+        &mut text,
+        &[
+            "fixture_path",
+            "fixture_id",
+            "chapter",
+            "section_number",
+            "example_number",
+            "example_id",
+            "field",
+            "status",
+            "severity",
+            "fixture_value",
+            "cll_values_json",
+            "note",
+        ],
+    );
+    for row in rows {
+        append_cll_fixture_metadata_audit_csv_record(
+            &mut text,
+            &[
+                &row.fixture_path,
+                &row.fixture_id,
+                &row.chapter,
+                &row.section_number,
+                &row.example_number,
+                &row.example_id,
+                &row.field,
+                &row.status,
+                &row.severity,
+                &row.fixture_value,
+                &row.cll_values_json,
+                &row.note,
+            ],
+        );
+    }
+    fs::write(output, text).with_context(|| format!("writing `{}`", output.display()))
+}
+
+#[requires(true)]
+#[ensures(output.ends_with('\n'))]
+fn append_cll_fixture_metadata_audit_csv_record(output: &mut String, fields: &[&str]) {
+    for (index, field) in fields.iter().enumerate() {
+        if index > 0 {
+            output.push(',');
+        }
+        append_cll_fixture_metadata_audit_csv_field(output, field);
+    }
+    output.push('\n');
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_cll_fixture_metadata_audit_csv_field(output: &mut String, field: &str) {
+    if !field.contains(',')
+        && !field.contains('"')
+        && !field.contains('\n')
+        && !field.contains('\r')
+    {
+        output.push_str(field);
+        return;
+    }
+    output.push('"');
+    for ch in field.chars() {
+        if ch == '"' {
+            output.push('"');
+        }
+        output.push(ch);
+    }
+    output.push('"');
+}
+
+#[requires(summary.row_count == rows.len())]
+#[ensures(true)]
+fn print_cll_fixture_metadata_audit_summary(
+    summary: &CllFixtureMetadataAuditSummary,
+    rows: &[CllFixtureMetadataAuditRow],
+) {
+    println!(
+        "fixtures={}, cll_provenances={}, rows={}",
+        summary.selected_fixture_count, summary.cll_provenance_count, summary.row_count
+    );
+    let mut by_status = BTreeMap::<&str, usize>::new();
+    let mut by_severity = BTreeMap::<&str, usize>::new();
+    for row in rows {
+        *by_status.entry(&row.status).or_default() += 1;
+        *by_severity.entry(&row.severity).or_default() += 1;
+    }
+    println!("status counts:");
+    for (status, count) in by_status {
+        println!("  {status}={count}");
+    }
+    println!("severity counts:");
+    for (severity, count) in by_severity {
+        println!("  {severity}={count}");
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn refs_v0_parity(args: RefsV0ParityArgs) -> Result<()> {
@@ -8934,6 +9768,7 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
 mod tests {
     use super::*;
     use bityzba::requires;
+    use jbotci_cll::{CllExampleLine, CllMetadata, CllReference};
 
     #[test]
     #[should_panic(expected = "cargo subcommand arguments must not be empty")]
@@ -8992,6 +9827,272 @@ mod tests {
         .unwrap();
 
         assert!(pages.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cll_metadata_compare_accepts_exact_match() {
+        let comparison = compare_cll_fixture_metadata_text(
+            Some("Some cat is a dog."),
+            &["Some cat is a dog.".to_owned()],
+        );
+
+        assert_eq!(comparison.status, CllFixtureMetadataAuditStatus::Ok);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cll_metadata_compare_accepts_whitespace_only_difference() {
+        let comparison = compare_cll_fixture_metadata_text(
+            Some(" Some\n\ncat   is a dog. "),
+            &["Some cat is a dog.".to_owned()],
+        );
+
+        assert_eq!(comparison.status, CllFixtureMetadataAuditStatus::Ok);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cll_metadata_compare_accepts_any_cll_candidate() {
+        let comparison = compare_cll_fixture_metadata_text(
+            Some("Second translation."),
+            &[
+                "First translation.".to_owned(),
+                "Second translation.".to_owned(),
+            ],
+        );
+
+        assert_eq!(comparison.status, CllFixtureMetadataAuditStatus::Ok);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cll_metadata_compare_reports_missing_fixture_value() {
+        let comparison =
+            compare_cll_fixture_metadata_text(Some(""), &["Some cat is a dog.".to_owned()]);
+
+        assert_eq!(
+            comparison.status,
+            CllFixtureMetadataAuditStatus::MissingFixtureValue
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cll_metadata_compare_reports_missing_cll_value() {
+        let comparison = compare_cll_fixture_metadata_text(Some("Fixture value."), &[]);
+
+        assert_eq!(
+            comparison.status,
+            CllFixtureMetadataAuditStatus::MissingCllValue
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cll_metadata_compare_reports_mismatch() {
+        let comparison = compare_cll_fixture_metadata_text(
+            Some("Fixture value."),
+            &["Different CLL value.".to_owned()],
+        );
+
+        assert_eq!(comparison.status, CllFixtureMetadataAuditStatus::Mismatch);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cll_source_path_compare_accepts_same_file_name() {
+        let comparison = compare_cll_fixture_source_path_text(
+            Some("vendor/cll/chapters/06.xml"),
+            &["06.xml".to_owned()],
+        );
+
+        assert_eq!(comparison.status, CllFixtureMetadataAuditStatus::Ok);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cll_fixture_example_resolution_reports_unresolved_provenance() {
+        let site = test_cll_site(Vec::new());
+        let provenance = test_cll_provenance(Some("c6e2d5"), Some("2.5"));
+
+        assert!(resolve_cll_fixture_example(&site, &provenance).is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cll_fixture_example_resolution_prefers_example_id() {
+        let id_example =
+            test_cll_example("c6e2d5", "2.5", 6, "6.2", "section-6.2", "chapter-6.xml");
+        let number_example =
+            test_cll_example("c6e2d6", "2.5", 6, "6.2", "section-6.2", "chapter-6.xml");
+        let site = test_cll_site(vec![id_example, number_example]);
+        let provenance = test_cll_provenance(Some("c6e2d5"), Some("2.5"));
+        let resolved = resolve_cll_fixture_example(&site, &provenance).unwrap();
+
+        assert_eq!(
+            resolved.example.reference.example_id.as_deref(),
+            Some("c6e2d5")
+        );
+        assert_eq!(resolved.method, CllExampleResolutionMethod::ExampleId);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cll_fixture_metadata_values_include_all_lines_and_joined_candidate() {
+        let example = CllExample {
+            reference: test_cll_reference(
+                "c6e2d5",
+                "2.5",
+                6,
+                "6.2",
+                "section-6.2",
+                "chapter-6.xml",
+            ),
+            label: "Example 6.2.5".to_owned(),
+            anchor_id: "c6e2d5".to_owned(),
+            title: None,
+            parse_href: None,
+            blocks: Vec::new(),
+            lojban: "lo mlatu\ncu gerku".to_owned(),
+            gloss_en: Some("joined gloss".to_owned()),
+            translation_en: Some("joined translation".to_owned()),
+            lines: vec![
+                CllExampleLine {
+                    kind: "natlang".to_owned(),
+                    text: "First translation.".to_owned(),
+                },
+                CllExampleLine {
+                    kind: "natlang".to_owned(),
+                    text: "Second translation.".to_owned(),
+                },
+            ],
+            plain_text: String::new(),
+        };
+
+        let values =
+            cll_fixture_metadata_field_values(&example, CllFixtureMetadataField::TranslationEn);
+
+        assert!(values.contains(&"First translation.".to_owned()));
+        assert!(values.contains(&"Second translation.".to_owned()));
+        assert!(values.contains(&"First translation.\nSecond translation.".to_owned()));
+        assert!(values.contains(&"joined translation".to_owned()));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn test_cll_site(examples: Vec<CllExample>) -> CllSite {
+        let examples_by_id = examples
+            .into_iter()
+            .map(|example| {
+                (
+                    example
+                        .reference
+                        .example_id
+                        .clone()
+                        .expect("test example has ID"),
+                    example,
+                )
+            })
+            .collect();
+        CllSite {
+            metadata: CllMetadata {
+                title: "Test CLL".to_owned(),
+                chapter_count: 0,
+            },
+            chapters: Vec::new(),
+            sections_by_id: BTreeMap::new(),
+            section_order: Vec::new(),
+            section_ids_by_normalized_reference: BTreeMap::new(),
+            examples_by_id,
+            example_ids_by_normalized_reference: BTreeMap::new(),
+            anchors_by_id: BTreeMap::new(),
+            index_entries: Vec::new(),
+            search_chunks: Vec::new(),
+        }
+    }
+
+    #[requires(!example_id.is_empty())]
+    #[requires(!example_number.is_empty())]
+    #[requires(!section_number.is_empty())]
+    #[requires(!section_id.is_empty())]
+    #[requires(!source_path.is_empty())]
+    #[ensures(ret.reference.example_id.as_deref() == Some(example_id))]
+    fn test_cll_example(
+        example_id: &str,
+        example_number: &str,
+        chapter: u16,
+        section_number: &str,
+        section_id: &str,
+        source_path: &str,
+    ) -> CllExample {
+        CllExample {
+            reference: test_cll_reference(
+                example_id,
+                example_number,
+                chapter,
+                section_number,
+                section_id,
+                source_path,
+            ),
+            label: format!("Example {chapter}.{example_number}"),
+            anchor_id: example_id.to_owned(),
+            title: None,
+            parse_href: None,
+            blocks: Vec::new(),
+            lojban: "lo mlatu cu gerku".to_owned(),
+            gloss_en: Some("That-which-really-is a-cat - is-a-dog.".to_owned()),
+            translation_en: Some("Some cat is a dog.".to_owned()),
+            lines: Vec::new(),
+            plain_text: String::new(),
+        }
+    }
+
+    #[requires(!example_id.is_empty())]
+    #[requires(!example_number.is_empty())]
+    #[requires(!section_number.is_empty())]
+    #[requires(!section_id.is_empty())]
+    #[requires(!source_path.is_empty())]
+    #[ensures(ret.example_id.as_deref() == Some(example_id))]
+    fn test_cll_reference(
+        example_id: &str,
+        example_number: &str,
+        chapter: u16,
+        section_number: &str,
+        section_id: &str,
+        source_path: &str,
+    ) -> CllReference {
+        CllReference {
+            chapter,
+            section_number: section_number.to_owned(),
+            section_id: section_id.to_owned(),
+            example_number: Some(example_number.to_owned()),
+            example_id: Some(example_id.to_owned()),
+            source_path: source_path.to_owned(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret, Provenance::Cll { .. }))]
+    fn test_cll_provenance(example_id: Option<&str>, example_number: Option<&str>) -> Provenance {
+        Provenance::Cll {
+            chapter: 6,
+            section_number: "6.2".to_owned(),
+            section_id: "section-6.2".to_owned(),
+            example_number: example_number.map(str::to_owned),
+            example_id: example_id.map(str::to_owned),
+            source_path: Some("chapter-6.xml".to_owned()),
+        }
     }
 
     #[test]
