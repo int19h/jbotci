@@ -50,7 +50,7 @@ use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
     VlackuRequest, VlackuSearchOptions, dictionary_entry_card, dictionary_matches_for_word_likes,
     filter_vlacku_cards, format_vote_display, grouped_word_type_filter_key, is_brivla_like,
-    normalize_word_type_filter, run_vlacku_requests,
+    normalize_word_type_filter, run_vlacku_requests, vlacku_exact_query_is_pattern,
 };
 use jbotci_semantics::references::{
     PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, SelbriPlaceFrameId, SumtiPlaceAssignmentId,
@@ -3466,6 +3466,9 @@ fn normalize_cukta_search_query(mode: CuktaWebMode, query: &str) -> String {
 #[ensures(true)]
 fn normalize_vlacku_search_query(mode: VlackuWebMode, query: &str) -> String {
     match mode {
+        VlackuWebMode::Word | VlackuWebMode::Rafsi if vlacku_exact_query_is_pattern(query) => {
+            query.trim().to_owned()
+        }
         VlackuWebMode::Word | VlackuWebMode::Rafsi => normalize_lojban_exact_query(query),
         VlackuWebMode::Sound | VlackuWebMode::Meaning => query.trim().to_owned(),
     }
@@ -7209,6 +7212,51 @@ mod tests {
         assert_eq!(
             vlacku_web_url("", &result.state),
             "/vlacku?mode=rafsi&q=kla"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_word_pattern_search_preserves_query_syntax() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: " klam@ ".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(result.state.query, "klam@");
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("klama")
+        );
+        assert_eq!(vlacku_web_url("", &result.state), "/vlacku/klam%40");
+
+        let regex = parse_vlacku_web_route("/vlacku", "?mode=valsi&q=%2FKLAMA%2F");
+        assert_eq!(regex.mode, VlackuWebMode::Word);
+        assert_eq!(regex.query, "/KLAMA/");
+        assert_eq!(vlacku_web_url("", &regex), "/vlacku/%2FKLAMA%2F");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_rafsi_pattern_search_preserves_query_syntax() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Rafsi,
+            query: " kl@ ".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(result.state.query, "kl@");
+        assert!(result.cards.iter().any(|card| card.word == "klama"));
+        assert_eq!(
+            vlacku_web_url("", &result.state),
+            "/vlacku?mode=rafsi&q=kl%40"
         );
     }
 

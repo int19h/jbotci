@@ -757,12 +757,6 @@ fn augment_vlacku_args(command: ClapCommand) -> ClapCommand {
                 .action(ArgAction::Append),
         )
         .arg(
-            Arg::new("glob")
-                .long("glob")
-                .value_name("PATTERN")
-                .action(ArgAction::Append),
-        )
-        .arg(
             Arg::new("sound")
                 .long("sound")
                 .value_name("TEXT|[IPA]")
@@ -803,7 +797,6 @@ fn parse_vlacku_matches(matches: &ArgMatches) -> VlackuInput {
         VlackuRequest::Lujvo,
         &mut ordered_requests,
     );
-    collect_ordered_vlacku_requests(matches, "glob", VlackuRequest::Glob, &mut ordered_requests);
     collect_ordered_vlacku_requests(
         matches,
         "sound",
@@ -1972,15 +1965,13 @@ fn validate_vlacku_input(input: &VlackuInput) -> Result<()> {
     }
     if input.requests.is_empty() {
         if input.query.is_empty() {
-            bail!(
-                "No query provided for vlacku. Use --valsi, --rafsi, --lujvo, --glob, or --sound."
-            );
+            bail!("No query provided for vlacku. Use --valsi, --rafsi, --lujvo, or --sound.");
         }
         let _ = joined_query_text(&input.query);
     }
     if !input.query.is_empty() && !input.requests.is_empty() {
         bail!(
-            "Do not pass positional query text when using --valsi, --rafsi, --lujvo, --glob, or --sound."
+            "Do not pass positional query text when using --valsi, --rafsi, --lujvo, or --sound."
         );
     }
     let sound_count = input
@@ -1992,7 +1983,7 @@ fn validate_vlacku_input(input: &VlackuInput) -> Result<()> {
         bail!("`--sound` may be specified only once");
     }
     if sound_count == 1 && input.requests.len() > 1 {
-        bail!("`--sound` cannot be combined with --valsi, --rafsi, --lujvo, or --glob");
+        bail!("`--sound` cannot be combined with --valsi, --rafsi, or --lujvo");
     }
     if input.min_similarity.is_some() && sound_count != 1 && !input.requests.is_empty() {
         bail!("`--min-similarity` is only valid with `--sound` or semantic search");
@@ -2011,7 +2002,6 @@ fn validate_vlacku_request_value(request: &VlackuRequest) -> Result<()> {
         VlackuRequest::Valsi(value) => ("--valsi", value),
         VlackuRequest::Rafsi(value) => ("--rafsi", value),
         VlackuRequest::Lujvo(value) => ("--lujvo", value),
-        VlackuRequest::Glob(value) => ("--glob", value),
         VlackuRequest::Sound(value) => ("--sound", value),
         VlackuRequest::Meaning(value) => ("semantic query", value),
     };
@@ -4015,8 +4005,6 @@ mod tests {
             "bau",
             "--valsi",
             "klama",
-            "--glob",
-            "CVCCV",
             "--lujvo",
             "mivyselbai",
         ])
@@ -4032,7 +4020,6 @@ mod tests {
                 VlackuRequest::Valsi("a".to_owned()),
                 VlackuRequest::Rafsi("bau".to_owned()),
                 VlackuRequest::Valsi("klama".to_owned()),
-                VlackuRequest::Glob("CVCCV".to_owned()),
                 VlackuRequest::Lujvo("mivyselbai".to_owned()),
             ]
         );
@@ -6602,17 +6589,25 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn vlacku_glob_matches_and_rejects_reserved_uppercase() {
+    fn vlacku_exact_word_glob_matches_through_valsi() {
         let found = run_cli_capture(
-            &["jbotci", "vlacku", "--glob", "klamV", "--count", "1"],
+            &["jbotci", "vlacku", "--valsi", "klam@", "--count", "1"],
             false,
         );
         assert_eq!(found.status, CliStatus::Success);
         assert!(found.stdout.contains("1. klama | by: officialdata | gismu"));
+    }
 
-        let invalid = run_cli_capture(&["jbotci", "vlacku", "--glob", "K"], false);
-        assert_eq!(invalid.status, CliStatus::InvalidInput);
-        assert!(invalid.stderr.contains("uppercase `K` is reserved"));
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_exact_rafsi_glob_matches_through_rafsi() {
+        let found = run_cli_capture(
+            &["jbotci", "vlacku", "--rafsi", "kl@", "--count", "5"],
+            false,
+        );
+        assert_eq!(found.status, CliStatus::Success);
+        assert!(found.stdout.contains("klama | by: officialdata | gismu"));
     }
 
     #[test]

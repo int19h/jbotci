@@ -1,10 +1,14 @@
 use bityzba::{data, invariant, new, requires};
-use jbotci_dictionary::{Dictionary, DictionaryEntry, Keyword, WordType, normalize_lookup_query};
+use jbotci_dictionary::{
+    Dictionary, DictionaryEntry, Keyword, WordType, normalize_lookup_query,
+    universal_gismu_rafsi_forms,
+};
 use jbotci_jvozba::{LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
     LujvoPart, Verbatim, Word, WordKind, WordLike, WordLikeData, canonicalize_text,
     normalize_lojban_input_text, segment_words_with_modifiers,
 };
+use regex::Regex;
 
 use crate::phonetic::{
     PhoneticError, aline_phonetic_similarity, compare_similarity_then_index, lojban_text_to_ipa,
@@ -19,14 +23,12 @@ pub const OFFICIAL_AUTHOR_USERNAME: &str = "officialdata";
 #[invariant(::Valsi(_) => true)]
 #[invariant(::Rafsi(_) => true)]
 #[invariant(::Lujvo(_) => true)]
-#[invariant(::Glob(_) => true)]
 #[invariant(::Sound(_) => true)]
 #[invariant(::Meaning(_) => true)]
 pub enum VlackuRequest {
     Valsi(String),
     Rafsi(String),
     Lujvo(String),
-    Glob(String),
     Sound(String),
     Meaning(String),
 }
@@ -248,6 +250,13 @@ pub fn grouped_word_type_filter_key(normalized_type: &str) -> String {
 }
 
 #[requires(true)]
+#[ensures(ret == (query.trim().starts_with('/') || query.trim().chars().any(is_glob_wildcard)))]
+pub fn vlacku_exact_query_is_pattern(query: &str) -> bool {
+    let query = query.trim();
+    query.starts_with('/') || query.chars().any(is_glob_wildcard)
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub fn is_cmavo_like(normalized_type: &str) -> bool {
     normalized_type == "cmavo"
@@ -327,7 +336,6 @@ fn run_single_request(
         VlackuRequest::Valsi(query) => cards_for_valsi(dictionary, query, options),
         VlackuRequest::Rafsi(query) => cards_for_rafsi(dictionary, query, options),
         VlackuRequest::Lujvo(query) => cards_for_lujvo(dictionary, query, options),
-        VlackuRequest::Glob(pattern) => cards_for_glob(dictionary, pattern, options),
         VlackuRequest::Sound(query) => cards_for_sound(dictionary, query, options),
         VlackuRequest::Meaning(_) => {
             invalid_output("Semantic vlacku search requires an embedding backend.".to_owned())
@@ -517,6 +525,10 @@ fn cards_for_valsi(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
+    if vlacku_exact_query_is_pattern(query) {
+        return cards_for_valsi_pattern(dictionary, query.trim(), options);
+    }
+
     let query = normalize_exact_lojban_query(query);
     let query = query.as_str();
     let entries = dictionary.lookup_words(query).collect::<Vec<_>>();
@@ -558,6 +570,10 @@ fn cards_for_rafsi(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
+    if vlacku_exact_query_is_pattern(query) {
+        return cards_for_rafsi_pattern(dictionary, query.trim(), options);
+    }
+
     let query = normalize_exact_lojban_query(query);
     let query = query.as_str();
     let cards = filter_and_limit(
@@ -629,28 +645,63 @@ fn cards_for_lujvo(
 
 #[requires(true)]
 #[ensures(true)]
-fn cards_for_glob(
+fn cards_for_valsi_pattern(
     dictionary: &Dictionary<'_>,
     pattern: &str,
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
-    let compiled = match compile_glob_pattern(pattern) {
+    let compiled = match compile_exact_pattern(pattern) {
         Ok(compiled) => compiled,
         Err(message) => return invalid_output(message),
     };
-    let cards = filter_and_limit(
+    let cards = cards_for_matching_entries(
+        dictionary,
         dictionary
             .entries()
             .iter()
-            .filter(|entry| compiled.matches(&glob_target_key(entry.word)))
-            .map(|entry| {
-                dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
-            })
-            .collect(),
+            .filter(|entry| compiled.matches(&exact_pattern_target_key(entry.word))),
         options,
-        false,
     );
     found_or_missing(cards)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cards_for_rafsi_pattern(
+    dictionary: &Dictionary<'_>,
+    pattern: &str,
+    options: &VlackuSearchOptions,
+) -> VlackuSearchOutput {
+    let compiled = match compile_exact_pattern(pattern) {
+        Ok(compiled) => compiled,
+        Err(message) => return invalid_output(message),
+    };
+    let cards = cards_for_matching_entries(
+        dictionary,
+        dictionary
+            .entries()
+            .iter()
+            .filter(|entry| entry_has_matching_rafsi_pattern(entry, &compiled)),
+        options,
+    );
+    found_or_missing(cards)
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= options.count)]
+fn cards_for_matching_entries<'dictionary>(
+    dictionary: &Dictionary<'dictionary>,
+    entries: impl IntoIterator<Item = &'dictionary DictionaryEntry<'dictionary>>,
+    options: &VlackuSearchOptions,
+) -> Vec<VlackuCard> {
+    entries
+        .into_iter()
+        .filter_map(|entry| {
+            let card = dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo);
+            passes_filters(&card, options, false).then_some(card)
+        })
+        .take(options.count)
+        .collect()
 }
 
 #[requires(true)]
@@ -1170,6 +1221,26 @@ fn passes_filters(card: &VlackuCard, options: &VlackuSearchOptions, similarity_m
     word_type_ok && votes_ok && similarity_ok
 }
 
+#[derive(Debug, Clone)]
+#[invariant(true)]
+#[invariant(::Glob(_) => true)]
+#[invariant(::Regex(_) => true)]
+enum ExactPattern {
+    Glob(GlobPattern),
+    Regex(Regex),
+}
+
+impl ExactPattern {
+    #[requires(true)]
+    #[ensures(true)]
+    fn matches(&self, target: &str) -> bool {
+        match self {
+            Self::Glob(pattern) => pattern.matches(target),
+            Self::Regex(pattern) => pattern.is_match(target),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 struct GlobPattern {
@@ -1200,20 +1271,54 @@ enum GlobToken {
 }
 
 #[requires(true)]
+#[ensures(ret.is_ok() || ret.as_ref().err().is_some_and(|message| !message.is_empty()))]
+fn compile_exact_pattern(pattern: &str) -> Result<ExactPattern, String> {
+    if pattern.starts_with('/') {
+        compile_regex_pattern(pattern).map(ExactPattern::Regex)
+    } else {
+        compile_glob_pattern(pattern).map(ExactPattern::Glob)
+    }
+}
+
+#[requires(pattern.starts_with('/'))]
+#[ensures(ret.is_ok() || ret.as_ref().err().is_some_and(|message| !message.is_empty()))]
+fn compile_regex_pattern(pattern: &str) -> Result<Regex, String> {
+    let Some(body) = regex_pattern_body(pattern) else {
+        return Err(format!(
+            "Invalid regex pattern `{pattern}`: regex searches must be written as /.../."
+        ));
+    };
+    if body.is_empty() {
+        return Err(format!(
+            "Invalid regex pattern `{pattern}`: regex body must not be empty."
+        ));
+    }
+
+    let pattern_source = format!("(?i)^(?:{body})$");
+    Regex::new(&pattern_source)
+        .map_err(|error| format!("Invalid regex pattern `{pattern}`: {error}"))
+}
+
+#[requires(pattern.starts_with('/'))]
+#[ensures(ret.is_none() || pattern.ends_with('/'))]
+fn regex_pattern_body(pattern: &str) -> Option<&str> {
+    if pattern.len() < 2 || !pattern.ends_with('/') {
+        return None;
+    }
+    Some(&pattern[1..pattern.len() - 1])
+}
+
+#[requires(true)]
+#[ensures(true)]
 #[ensures(ret.as_ref().is_ok_and(|pattern| !pattern.tokens.is_empty()) || ret.is_err())]
 fn compile_glob_pattern(pattern: &str) -> Result<GlobPattern, String> {
     let mut tokens = Vec::new();
     for raw in pattern.chars() {
         match raw {
-            'C' => tokens.push(GlobToken::Consonant),
-            'V' => tokens.push(GlobToken::Vowel),
+            '$' => tokens.push(GlobToken::Consonant),
+            '@' => tokens.push(GlobToken::Vowel),
             '?' => tokens.push(GlobToken::AnyOne),
             '*' => tokens.push(GlobToken::AnyMany),
-            value if value.is_ascii_uppercase() => {
-                return Err(format!(
-                    "Invalid --glob pattern `{pattern}`: uppercase `{value}` is reserved."
-                ));
-            }
             value => {
                 if let Some(normalized) = normalize_glob_literal(value) {
                     tokens.push(GlobToken::Literal(normalized));
@@ -1222,7 +1327,7 @@ fn compile_glob_pattern(pattern: &str) -> Result<GlobPattern, String> {
         }
     }
     if tokens.is_empty() {
-        Err("--glob requires a non-empty pattern.".to_owned())
+        Err("Glob pattern must contain at least one searchable character.".to_owned())
     } else {
         Ok(GlobPattern { tokens })
     }
@@ -1249,11 +1354,32 @@ fn normalize_glob_literal(value: char) -> Option<char> {
 
 #[requires(true)]
 #[ensures(true)]
-fn glob_target_key(raw_word: &str) -> String {
+fn exact_pattern_target_key(raw_word: &str) -> String {
     normalize_lookup_query(raw_word)
         .chars()
         .map(|value| if value == 'h' { '\'' } else { value })
         .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_glob_wildcard(value: char) -> bool {
+    matches!(value, '@' | '$' | '?' | '*')
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn entry_has_matching_rafsi_pattern(entry: &DictionaryEntry<'_>, pattern: &ExactPattern) -> bool {
+    entry.rafsi.iter().any(|rafsi| {
+        let key = exact_pattern_target_key(rafsi.0);
+        pattern.matches(&key)
+    }) || entry.word_type.is_gismu_like()
+        && universal_gismu_rafsi_forms(entry.word)
+            .into_iter()
+            .any(|(rafsi, _source)| {
+                let key = exact_pattern_target_key(&rafsi);
+                pattern.matches(&key)
+            })
 }
 
 #[requires(token_index <= tokens.len())]
@@ -1563,6 +1689,157 @@ mod tests {
                 "{query}"
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_glob_matches_words() {
+        let result = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Valsi("klam@".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_eq!(result.outcome, VlackuOutcome::Found);
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("klama")
+        );
+
+        let broad = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Valsi("$$@$@".to_owned())],
+            &VlackuSearchOptions {
+                count: usize::MAX,
+                ..VlackuSearchOptions::default()
+            },
+        );
+        assert!(broad.cards.iter().any(|card| card.word == "klama"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_pattern_cards_stop_after_requested_display_count() {
+        let dictionary = jbotci_dictionary_data::english();
+        let compiled = compile_exact_pattern("*").expect("match-all glob compiles");
+        let mut visited = 0;
+        let cards = cards_for_matching_entries(
+            dictionary,
+            dictionary
+                .entries()
+                .iter()
+                .inspect(|_| visited += 1)
+                .filter(|entry| compiled.matches(&exact_pattern_target_key(entry.word))),
+            &VlackuSearchOptions {
+                count: 1,
+                ..VlackuSearchOptions::default()
+            },
+        );
+
+        assert_eq!(cards.len(), 1);
+        assert_eq!(visited, 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_rafsi_glob_matches_listed_and_universal_rafsi() {
+        let listed = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Rafsi("kl@".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+
+        assert!(listed.diagnostics.is_empty(), "{:?}", listed.diagnostics);
+        assert_eq!(listed.outcome, VlackuOutcome::Found);
+        assert!(listed.cards.iter().any(|card| card.word == "klama"));
+
+        let universal = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Rafsi("klam@".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+
+        assert!(
+            universal.diagnostics.is_empty(),
+            "{:?}",
+            universal.diagnostics
+        );
+        assert_eq!(universal.outcome, VlackuOutcome::Found);
+        assert!(universal.cards.iter().any(|card| card.word == "klama"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_regex_is_full_match_and_case_insensitive_by_default() {
+        let insensitive = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Valsi("/KLAMA/".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+
+        assert!(
+            insensitive.diagnostics.is_empty(),
+            "{:?}",
+            insensitive.diagnostics
+        );
+        assert_eq!(insensitive.outcome, VlackuOutcome::Found);
+        assert_eq!(
+            insensitive.cards.first().map(|card| card.word.as_str()),
+            Some("klama")
+        );
+
+        let substring = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Valsi("/lam/".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        assert!(
+            substring.diagnostics.is_empty(),
+            "{:?}",
+            substring.diagnostics
+        );
+        assert_eq!(substring.outcome, VlackuOutcome::ValidMissing);
+        assert!(substring.cards.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_regex_allows_user_to_disable_case_insensitive_mode() {
+        let result = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Valsi("/(?-i)KLAMA/".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_eq!(result.outcome, VlackuOutcome::ValidMissing);
+        assert!(result.cards.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_regex_reports_invalid_patterns() {
+        let result = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Valsi("/[/".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+
+        assert_eq!(result.outcome, VlackuOutcome::Invalid);
+        assert!(result.cards.is_empty());
+        assert!(
+            result
+                .diagnostics
+                .first()
+                .is_some_and(|message| message.contains("Invalid regex pattern"))
+        );
     }
 
     #[test]

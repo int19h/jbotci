@@ -11327,8 +11327,9 @@ fn vlacku_mode_title(mode: VlackuWebMode, disabled: bool) -> &'static str {
 #[ensures(!ret.is_empty())]
 fn vlacku_query_placeholder(mode: VlackuWebMode) -> &'static str {
     match mode {
-        VlackuWebMode::Word => "valsi",
-        VlackuWebMode::Rafsi => "rafsi",
+        VlackuWebMode::Word | VlackuWebMode::Rafsi => {
+            "/regex/ or glob (@ = any vowel, $ = any consonant, ? = any character)"
+        }
         VlackuWebMode::Sound => "Lojban or [aj piː ej]",
         VlackuWebMode::Meaning => "semantic search",
     }
@@ -18648,14 +18649,6 @@ fn install_desktop_tooltip_bridge() {
 
 #[requires(true)]
 #[ensures(true)]
-fn has_app_asset_extension(path: &str) -> bool {
-    path.rsplit_once('/')
-        .map(|(_, name)| name.contains('.'))
-        .unwrap_or(false)
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn strip_base_path_for_client(path: &str, base_path: &str) -> Option<String> {
     let normalized = if path.starts_with('/') {
         path.to_owned()
@@ -18742,9 +18735,6 @@ fn jbotci_route_from_href(base_path: &str, href: &str) -> Option<JbotciRoute> {
         return None;
     }
     let (path, query, hash) = split_href(trimmed);
-    if has_app_asset_extension(path) {
-        return None;
-    }
     let logical_path = logical_app_path_for_client(path, base_path)?;
     let web_route = parse_web_route(&logical_path, query);
     let app_route = app_route_for_web_route(&web_route);
@@ -22871,6 +22861,10 @@ mod tests {
             parse_test_route("/jbotci", "/jbotci/vlacku/klama").to_string(),
             "/vlacku/klama"
         );
+        assert_eq!(
+            parse_test_route("", "/vlacku/%2Fma.*%2F").to_string(),
+            "/vlacku/%2Fma.%2A%2F"
+        );
     }
 
     #[test]
@@ -22899,6 +22893,12 @@ mod tests {
         assert_eq!(
             JbotciRoute::from_str("vlacku/klama").unwrap().to_string(),
             "/vlacku/klama"
+        );
+        assert_eq!(
+            JbotciRoute::from_str("vlacku/%2Fma.*%2F")
+                .unwrap()
+                .to_string(),
+            "/vlacku/%2Fma.%2A%2F"
         );
         assert!(JbotciRoute::from_str("assets/compute-worker.js").is_err());
     }

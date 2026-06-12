@@ -624,16 +624,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI and search validation reject empty lujvo requests before lookup execution",
     ),
     (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Glob",
-        "glob compilation validates request text and reports invalid patterns as lookup diagnostics",
-    ),
-    (
         "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Sound",
         "sound query parsing validates request text before ALINE matching",
     ),
     (
         "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Meaning",
         "semantic query text is validated by CLI and embedded locally before vector search",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:ExactPattern::Glob",
+        "compiled glob patterns carry their validation in GlobPattern",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:ExactPattern::Regex",
+        "compiled regex patterns carry their validation in regex::Regex",
     ),
     (
         "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Rafsi",
