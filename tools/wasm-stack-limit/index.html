@@ -1,0 +1,1296 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wasm Stack Limit Probe</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f7f4;
+      --fg: #181818;
+      --muted: #5d625e;
+      --line: #cfd4cf;
+      --panel: #ffffff;
+      --panel-2: #eeeeea;
+      --accent: #145f5a;
+      --accent-fg: #ffffff;
+      --bad: #8f2222;
+      --good: #17663c;
+      --warn: #856214;
+      font-family:
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #171817;
+        --fg: #f1f1ee;
+        --muted: #b2b8b3;
+        --line: #3a3f3b;
+        --panel: #202220;
+        --panel-2: #2a2d2a;
+        --accent: #53c7ba;
+        --accent-fg: #071514;
+        --bad: #ff8d83;
+        --good: #7bd99d;
+        --warn: #ebc766;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.45;
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.6rem, 3vw, 2.6rem);
+      font-weight: 720;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 1.05rem;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      max-width: 78ch;
+      color: var(--muted);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      background: var(--accent);
+      color: var(--accent-fg);
+      min-height: 42px;
+      padding: 0 16px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--accent);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+      color: var(--fg);
+      min-height: 42px;
+      padding: 8px 10px;
+    }
+
+    textarea {
+      min-height: 140px;
+      resize: vertical;
+      font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        "Liberation Mono",
+        monospace;
+      font-size: 0.9rem;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    code,
+    pre {
+      font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        "Liberation Mono",
+        monospace;
+    }
+
+    .stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 18px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .control-wide {
+      grid-column: span 2;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 42px;
+      color: var(--fg);
+    }
+
+    .check-row input {
+      width: 18px;
+      min-height: 18px;
+      margin: 0;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      padding: 12px;
+      min-width: 0;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .metric-value {
+      margin-top: 4px;
+      font-size: 1.25rem;
+      font-weight: 720;
+      overflow-wrap: anywhere;
+    }
+
+    progress {
+      width: 100%;
+      height: 16px;
+      accent-color: var(--accent);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-variant-numeric: tabular-nums;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 8px;
+      text-align: right;
+      vertical-align: top;
+    }
+
+    th:first-child,
+    td:first-child,
+    th:last-child,
+    td:last-child {
+      text-align: left;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-weight: 650;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .ok {
+      color: var(--good);
+    }
+
+    .bad {
+      color: var(--bad);
+    }
+
+    .warn {
+      color: var(--warn);
+    }
+
+    .mono {
+      font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        "Liberation Mono",
+        monospace;
+      font-size: 0.92rem;
+    }
+
+    .log {
+      max-height: 220px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      padding: 10px;
+      white-space: pre-wrap;
+    }
+
+    .note {
+      border-left: 4px solid var(--accent);
+      padding-left: 12px;
+    }
+
+    @media (max-width: 850px) {
+      main {
+        width: min(100vw - 24px, 720px);
+        padding-top: 20px;
+      }
+
+      .controls,
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .control-wide {
+        grid-column: auto;
+      }
+
+      table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stack">
+    <header class="stack">
+      <div>
+        <h1>Wasm Stack Limit Probe</h1>
+        <p>
+          Measures the largest non-tail-recursive WebAssembly call depth Safari can survive for generated
+          functions with different live local counts. Run this in the exact Safari version and device class you care about.
+        </p>
+      </div>
+      <p class="note">
+        The byte estimate is an empirical fit, not a WebAssembly specification guarantee. JIT tiering,
+        optimization level, device, tab state, Worker vs main thread, and browser version can all move the result.
+      </p>
+    </header>
+
+    <section class="panel">
+      <h2>Probe Settings</h2>
+      <div class="controls">
+        <label class="control-wide">
+          Local counts per frame
+          <input id="localCounts" value="0, 4, 16, 64, 256" spellcheck="false">
+        </label>
+        <label>
+          Maximum depth cap
+          <input id="maxDepth" type="number" min="1" step="1" value="1000000">
+        </label>
+        <label>
+          Attempts per probe
+          <input id="attempts" type="number" min="1" max="9" step="1" value="3">
+        </label>
+        <label>
+          Timeout per call, ms
+          <input id="timeoutMs" type="number" min="100" step="100" value="5000">
+        </label>
+        <label>
+          Search strategy
+          <select id="strategy">
+            <option value="minimum">Conservative: first failing attempt fails depth</option>
+            <option value="median">Median of repeated attempts</option>
+            <option value="maximum">Optimistic: any successful attempt passes depth</option>
+          </select>
+        </label>
+        <label class="check-row">
+          <input id="useWorker" type="checkbox" checked>
+          <span>Run inside a Web Worker</span>
+        </label>
+        <label class="check-row">
+          <input id="warmup" type="checkbox" checked>
+          <span>Warm up each generated module</span>
+        </label>
+      </div>
+      <div class="actions">
+        <button id="runButton" type="button">Run Probe</button>
+        <button id="stopButton" type="button" class="secondary" disabled>Stop</button>
+        <button id="copyButton" type="button" class="secondary" disabled>Copy CSV</button>
+      </div>
+    </section>
+
+    <section class="panel stack" aria-live="polite">
+      <h2>Status</h2>
+      <progress id="progress" max="1" value="0"></progress>
+      <div class="status-grid">
+        <div class="metric">
+          <div class="metric-label">Browser</div>
+          <div id="browserMetric" class="metric-value">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Current case</div>
+          <div id="caseMetric" class="metric-value">Idle</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Elapsed</div>
+          <div id="elapsedMetric" class="metric-value">0 ms</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Rough stack estimate</div>
+          <div id="estimateMetric" class="metric-value">-</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel stack">
+      <h2>Results</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Result</th>
+            <th>Live i64 locals</th>
+            <th>Known good depth</th>
+            <th>First failing depth</th>
+            <th>Depth cap hit</th>
+            <th>Best run time</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody">
+          <tr>
+            <td colspan="7">No results yet.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel stack">
+      <h2>CSV</h2>
+      <textarea id="csvOutput" readonly spellcheck="false"></textarea>
+    </section>
+
+    <section class="panel stack">
+      <h2>Log</h2>
+      <div id="log" class="log mono"></div>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const $ = (id) => document.getElementById(id);
+
+    const controls = {
+      localCounts: $("localCounts"),
+      maxDepth: $("maxDepth"),
+      attempts: $("attempts"),
+      timeoutMs: $("timeoutMs"),
+      strategy: $("strategy"),
+      useWorker: $("useWorker"),
+      warmup: $("warmup"),
+      runButton: $("runButton"),
+      stopButton: $("stopButton"),
+      copyButton: $("copyButton"),
+      progress: $("progress"),
+      browserMetric: $("browserMetric"),
+      caseMetric: $("caseMetric"),
+      elapsedMetric: $("elapsedMetric"),
+      estimateMetric: $("estimateMetric"),
+      resultsBody: $("resultsBody"),
+      csvOutput: $("csvOutput"),
+      log: $("log"),
+    };
+
+    let abortRequested = false;
+    let activeWorker = null;
+    let runStartedAt = 0;
+    let latestRows = [];
+
+    const workerSource = `
+      "use strict";
+      ${encodeU32.toString()}
+      ${encodeI64.toString()}
+      ${section.toString()}
+      ${makeProbeModuleBytes.toString()}
+      ${classifyError.toString()}
+      ${runSingleWasmAttempt.toString()}
+      ${raceWithTimeout.toString()}
+      ${probeDepth.toString()}
+
+      self.postMessage({ type: "ready" });
+
+      self.onmessage = async (event) => {
+        const message = event.data;
+        if (message.type !== "probe") {
+          return;
+        }
+        try {
+          const result = await probeDepth(message.localCount, message.depth, message.options);
+          self.postMessage({ type: "result", id: message.id, result });
+        } catch (error) {
+          self.postMessage({
+            type: "result",
+            id: message.id,
+            result: {
+              ok: false,
+              reason: classifyError(error),
+              elapsedMs: 0,
+              checksum: 0,
+            },
+          });
+        }
+      };
+    `;
+
+    function encodeU32(value) {
+      const bytes = [];
+      let remaining = value >>> 0;
+      do {
+        let byte = remaining & 0x7f;
+        remaining >>>= 7;
+        if (remaining !== 0) {
+          byte |= 0x80;
+        }
+        bytes.push(byte);
+      } while (remaining !== 0);
+      return bytes;
+    }
+
+    function encodeI64(value) {
+      const bytes = [];
+      let remaining = BigInt(value);
+      let more = true;
+      while (more) {
+        let byte = Number(remaining & 0x7fn);
+        remaining >>= 7n;
+        const signBitSet = (byte & 0x40) !== 0;
+        more = !((remaining === 0n && !signBitSet) || (remaining === -1n && signBitSet));
+        if (more) {
+          byte |= 0x80;
+        }
+        bytes.push(byte);
+      }
+      return bytes;
+    }
+
+    function section(id, payload) {
+      return [id, ...encodeU32(payload.length), ...payload];
+    }
+
+    function makeProbeModuleBytes(localCount) {
+      if (!Number.isInteger(localCount) || localCount < 0 || localCount > 8192) {
+        throw new Error("localCount must be an integer from 0 through 8192");
+      }
+
+      const typeSection = section(1, [
+        0x01,
+        0x60,
+        0x01, 0x7f,
+        0x01, 0x7f,
+      ]);
+      const functionSection = section(3, [
+        0x01,
+        0x00,
+      ]);
+      const exportName = Array.from(new TextEncoder().encode("probe"));
+      const exportSection = section(7, [
+        0x01,
+        ...encodeU32(exportName.length),
+        ...exportName,
+        0x00,
+        0x00,
+      ]);
+
+      const locals = localCount === 0
+        ? [0x00]
+        : [0x01, ...encodeU32(localCount), 0x7e];
+      const code = [
+        ...locals,
+
+        0x20, 0x00,
+        0x45,
+        0x04, 0x7f,
+          0x41, 0x00,
+        0x05,
+      ];
+
+      for (let i = 0; i < localCount; i += 1) {
+        code.push(
+          0x20, 0x00,
+          0xad,
+          0x42, ...encodeI64(i + 1),
+          0x7c,
+          0x21, ...encodeU32(i + 1),
+        );
+      }
+
+      code.push(
+        0x20, 0x00,
+        0x41, 0x01,
+        0x6b,
+        0x10, 0x00,
+        0x41, 0x01,
+        0x6a,
+      );
+
+      for (let i = 0; i < localCount; i += 1) {
+        code.push(
+          0x20, ...encodeU32(i + 1),
+          0xa7,
+          0x6a,
+        );
+      }
+
+      code.push(
+        0x0b,
+        0x0b,
+      );
+
+      const codeSection = section(10, [
+        0x01,
+        ...encodeU32(code.length),
+        ...code,
+      ]);
+
+      return new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d,
+        0x01, 0x00, 0x00, 0x00,
+        ...typeSection,
+        ...functionSection,
+        ...exportSection,
+        ...codeSection,
+      ]);
+    }
+
+    function classifyError(error) {
+      if (!error) {
+        return "unknown error";
+      }
+      const name = error.name || error.constructor?.name || "Error";
+      const message = error.message || String(error);
+      return `${name}: ${message}`;
+    }
+
+    async function runSingleWasmAttempt(localCount, depth, warmup) {
+      const started = performance.now();
+      const bytes = makeProbeModuleBytes(localCount);
+      const module = await WebAssembly.compile(bytes);
+      const instance = await WebAssembly.instantiate(module, {});
+      const probe = instance.exports.probe;
+
+      if (warmup) {
+        probe(Math.min(depth, 128));
+      }
+
+      const checksum = probe(depth);
+      return {
+        ok: true,
+        reason: "",
+        elapsedMs: performance.now() - started,
+        checksum,
+      };
+    }
+
+    async function raceWithTimeout(promise, timeoutMs) {
+      if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+        return promise;
+      }
+      let timeoutId = 0;
+      try {
+        return await Promise.race([
+          promise,
+          new Promise((_, reject) => {
+            timeoutId = setTimeout(() => {
+              reject(new Error(`timed out after ${timeoutMs} ms`));
+            }, timeoutMs);
+          }),
+        ]);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    async function probeDepth(localCount, depth, options) {
+      try {
+        return await raceWithTimeout(
+          runSingleWasmAttempt(localCount, depth, options.warmup),
+          options.timeoutMs,
+        );
+      } catch (error) {
+        return {
+          ok: false,
+          reason: classifyError(error),
+          elapsedMs: 0,
+          checksum: 0,
+        };
+      }
+    }
+
+    function parseLocalCounts(text) {
+      const counts = text
+        .split(/[,\s]+/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .map((part) => Number(part));
+      if (counts.length === 0) {
+        throw new Error("Enter at least one local count.");
+      }
+      for (const count of counts) {
+        if (!Number.isInteger(count) || count < 0 || count > 8192) {
+          throw new Error("Local counts must be integers from 0 through 8192.");
+        }
+      }
+      return Array.from(new Set(counts)).sort((a, b) => a - b);
+    }
+
+    function positiveInt(input, label) {
+      const value = Number(input.value);
+      if (!Number.isInteger(value) || value <= 0) {
+        throw new Error(`${label} must be a positive integer.`);
+      }
+      return value;
+    }
+
+    function appendLog(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      controls.log.textContent += `[${timestamp}] ${message}\n`;
+      controls.log.scrollTop = controls.log.scrollHeight;
+    }
+
+    function setRunning(isRunning) {
+      controls.runButton.disabled = isRunning;
+      controls.stopButton.disabled = !isRunning;
+      controls.localCounts.disabled = isRunning;
+      controls.maxDepth.disabled = isRunning;
+      controls.attempts.disabled = isRunning;
+      controls.timeoutMs.disabled = isRunning;
+      controls.strategy.disabled = isRunning;
+      controls.useWorker.disabled = isRunning;
+      controls.warmup.disabled = isRunning;
+    }
+
+    function formatInteger(value) {
+      if (value === null || value === undefined || Number.isNaN(value)) {
+        return "-";
+      }
+      return Math.trunc(value).toLocaleString();
+    }
+
+    function formatMs(ms) {
+      if (!Number.isFinite(ms)) {
+        return "-";
+      }
+      if (ms < 1000) {
+        return `${ms.toFixed(1)} ms`;
+      }
+      return `${(ms / 1000).toFixed(2)} s`;
+    }
+
+    function updateElapsed() {
+      if (runStartedAt === 0) {
+        controls.elapsedMetric.textContent = "0 ms";
+        return;
+      }
+      controls.elapsedMetric.textContent = formatMs(performance.now() - runStartedAt);
+    }
+
+    function makeBrowserSummary() {
+      const ua = navigator.userAgent;
+      const brands = navigator.userAgentData?.brands
+        ?.map((brand) => `${brand.brand} ${brand.version}`)
+        .join(", ");
+      return brands || ua.replace(/\s+/g, " ");
+    }
+
+    function renderRows(rows) {
+      if (rows.length === 0) {
+        controls.resultsBody.innerHTML = '<tr><td colspan="7">No results yet.</td></tr>';
+        return;
+      }
+      controls.resultsBody.replaceChildren(...rows.map((row) => {
+        const tr = document.createElement("tr");
+        const status = row.aborted
+          ? '<span class="warn">aborted</span>'
+          : row.hitCap
+            ? '<span class="warn">cap hit</span>'
+            : '<span class="ok">bounded</span>';
+        const cells = [
+          status,
+          formatInteger(row.localCount),
+          formatInteger(row.goodDepth),
+          row.failDepth === null ? "-" : formatInteger(row.failDepth),
+          row.hitCap ? "yes" : "no",
+          formatMs(row.bestElapsedMs),
+          row.error || "",
+        ];
+        for (const html of cells) {
+          const td = document.createElement("td");
+          td.innerHTML = html;
+          tr.appendChild(td);
+        }
+        return tr;
+      }));
+    }
+
+    function rowsToCsv(rows) {
+      const header = [
+        "timestamp",
+        "user_agent",
+        "execution_context",
+        "strategy",
+        "attempts",
+        "timeout_ms",
+        "warmup",
+        "local_count",
+        "approx_live_local_bytes",
+        "good_depth",
+        "fail_depth",
+        "hit_cap",
+        "best_elapsed_ms",
+        "error",
+      ];
+      const context = controls.useWorker.checked ? "worker" : "main-thread";
+      const stamp = new Date().toISOString();
+      const ua = navigator.userAgent;
+      const escape = (value) => {
+        const text = String(value ?? "");
+        return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+      };
+      return [
+        header.join(","),
+        ...rows.map((row) => [
+          stamp,
+          ua,
+          context,
+          controls.strategy.value,
+          controls.attempts.value,
+          controls.timeoutMs.value,
+          controls.warmup.checked,
+          row.localCount,
+          row.localCount * 8,
+          row.goodDepth,
+          row.failDepth ?? "",
+          row.hitCap,
+          Number.isFinite(row.bestElapsedMs) ? row.bestElapsedMs.toFixed(3) : "",
+          row.error,
+        ].map(escape).join(",")),
+      ].join("\n");
+    }
+
+    function updateOutputs(rows) {
+      latestRows = rows.slice();
+      renderRows(rows);
+      controls.csvOutput.value = rowsToCsv(rows);
+      controls.copyButton.disabled = rows.length === 0;
+      updateEstimate(rows);
+    }
+
+    function updateEstimate(rows) {
+      const usable = rows.filter((row) => !row.hitCap && !row.aborted && row.goodDepth > 0);
+      if (usable.length < 2) {
+        controls.estimateMetric.textContent = "-";
+        return;
+      }
+
+      const points = usable.map((row) => ({
+        x: row.localCount * 8,
+        y: 1 / row.goodDepth,
+      }));
+      const meanX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+      const meanY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+      const covariance = points.reduce((sum, point) => sum + ((point.x - meanX) * (point.y - meanY)), 0);
+      const variance = points.reduce((sum, point) => sum + ((point.x - meanX) ** 2), 0);
+
+      if (variance === 0) {
+        controls.estimateMetric.textContent = "-";
+        return;
+      }
+
+      const slope = covariance / variance;
+      const intercept = meanY - (slope * meanX);
+      if (!Number.isFinite(slope) || slope <= 0) {
+        controls.estimateMetric.textContent = "nonlinear";
+        return;
+      }
+
+      const estimatedStackBytes = 1 / slope;
+      const estimatedBaseFrameBytes = intercept / slope;
+      const kib = estimatedStackBytes / 1024;
+      const base = Number.isFinite(estimatedBaseFrameBytes)
+        ? `, base frame ${Math.max(0, estimatedBaseFrameBytes).toFixed(1)} B`
+        : "";
+      controls.estimateMetric.textContent = `${kib.toFixed(1)} KiB${base}`;
+    }
+
+    function selectDepthOutcome(attemptResults, strategy) {
+      const successes = attemptResults.filter((result) => result.ok);
+      const failures = attemptResults.filter((result) => !result.ok);
+      if (strategy === "maximum") {
+        return successes.length > 0
+          ? { ok: true, elapsedMs: Math.min(...successes.map((result) => result.elapsedMs)), error: "" }
+          : { ok: false, elapsedMs: Infinity, error: failures[0]?.reason || "failed" };
+      }
+      if (strategy === "median") {
+        const ordered = attemptResults.slice().sort((left, right) => Number(left.ok) - Number(right.ok));
+        const median = ordered[Math.floor(ordered.length / 2)];
+        return median.ok
+          ? { ok: true, elapsedMs: Math.min(...successes.map((result) => result.elapsedMs)), error: "" }
+          : { ok: false, elapsedMs: Infinity, error: failures[0]?.reason || "failed" };
+      }
+      return failures.length === 0
+        ? { ok: true, elapsedMs: Math.min(...successes.map((result) => result.elapsedMs)), error: "" }
+        : { ok: false, elapsedMs: Infinity, error: failures[0]?.reason || "failed" };
+    }
+
+    async function makeProbeRunner(useWorker) {
+      if (!useWorker) {
+        return async (localCount, depth, options) => probeDepth(localCount, depth, options);
+      }
+
+      let nextId = 1;
+      let workerSupported = true;
+      let currentController = null;
+
+      const startWorkerController = async () => {
+        let worker = null;
+        let url = "";
+        const pending = new Map();
+        let ready = false;
+        let resolveReady = null;
+        const readySignal = new Promise((resolve) => {
+          resolveReady = resolve;
+        });
+
+        try {
+          const blob = new Blob([workerSource], { type: "text/javascript" });
+          url = URL.createObjectURL(blob);
+          worker = new Worker(url);
+        } catch (error) {
+          workerSupported = false;
+          appendLog(`Worker startup failed; falling back to main thread. ${classifyError(error)}`);
+          return null;
+        } finally {
+          if (url !== "") {
+            URL.revokeObjectURL(url);
+          }
+        }
+
+        const controller = { worker, pending };
+        activeWorker = controller;
+        worker.onmessage = (event) => {
+          const message = event.data;
+          if (message.type === "ready") {
+            ready = true;
+            resolveReady({ ok: true, reason: "" });
+            return;
+          }
+          if (message.type !== "result") {
+            return;
+          }
+          const callbacks = pending.get(message.id);
+          if (!callbacks) {
+            return;
+          }
+          callbacks.resolve(message.result);
+        };
+        worker.onerror = (event) => {
+          if (!ready) {
+            resolveReady({ ok: false, reason: `WorkerError: ${event.message}` });
+          }
+          for (const callbacks of pending.values()) {
+            callbacks.resolve({
+              ok: false,
+              reason: `WorkerError: ${event.message}`,
+              elapsedMs: 0,
+              checksum: 0,
+            });
+          }
+          pending.clear();
+          if (activeWorker === controller) {
+            activeWorker = null;
+          }
+          if (currentController === controller) {
+            currentController = null;
+          }
+        };
+
+        const readyResult = await Promise.race([
+          readySignal,
+          new Promise((resolve) => {
+            setTimeout(() => resolve({ ok: false, reason: "Worker startup timed out" }), 1500);
+          }),
+        ]);
+        if (!readyResult.ok) {
+          terminateActiveWorker(readyResult.reason);
+          workerSupported = false;
+          appendLog(`${readyResult.reason}; falling back to main thread.`);
+          return null;
+        }
+
+        return controller;
+      };
+
+      const ensureWorkerController = async () => {
+        if (!workerSupported) {
+          return null;
+        }
+        if (currentController && activeWorker === currentController) {
+          return currentController;
+        }
+        currentController = await startWorkerController();
+        return currentController;
+      };
+
+      if (!(await ensureWorkerController())) {
+        return async (localCount, depth, options) => probeDepth(localCount, depth, options);
+      }
+
+      return async (localCount, depth, options) => {
+        const controller = await ensureWorkerController();
+        if (!controller) {
+          return probeDepth(localCount, depth, options);
+        }
+
+        return new Promise((resolve) => {
+          const id = nextId;
+          nextId += 1;
+          let settled = false;
+          let timeoutId = 0;
+          const finish = (result) => {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            clearTimeout(timeoutId);
+            controller.pending.delete(id);
+            resolve(result);
+          };
+
+          if (Number.isFinite(options.timeoutMs) && options.timeoutMs > 0) {
+            timeoutId = setTimeout(() => {
+              controller.pending.delete(id);
+              if (activeWorker === controller) {
+                terminateActiveWorker(`timed out after ${options.timeoutMs} ms`);
+              }
+              if (currentController === controller) {
+                currentController = null;
+              }
+              finish({
+                ok: false,
+                reason: `Error: timed out after ${options.timeoutMs} ms`,
+                elapsedMs: 0,
+                checksum: 0,
+              });
+            }, options.timeoutMs);
+          }
+
+          controller.pending.set(id, { resolve: finish });
+          try {
+            controller.worker.postMessage({
+              type: "probe",
+              id,
+              localCount,
+              depth,
+              options,
+            });
+          } catch (error) {
+            controller.pending.delete(id);
+            if (activeWorker === controller) {
+              terminateActiveWorker(classifyError(error));
+            }
+            if (currentController === controller) {
+              currentController = null;
+            }
+            finish({
+              ok: false,
+              reason: classifyError(error),
+              elapsedMs: 0,
+              checksum: 0,
+            });
+          }
+        });
+      };
+    }
+
+    function terminateActiveWorker(reason) {
+      if (!activeWorker) {
+        return;
+      }
+      const controller = activeWorker;
+      activeWorker = null;
+      controller.worker.terminate();
+      for (const callbacks of controller.pending.values()) {
+        callbacks.resolve({
+          ok: false,
+          reason,
+          elapsedMs: 0,
+          checksum: 0,
+        });
+      }
+      controller.pending.clear();
+    }
+
+    async function runDepthAttempts(runProbe, localCount, depth, options) {
+      const attemptResults = [];
+      for (let attempt = 0; attempt < options.attempts; attempt += 1) {
+        if (abortRequested) {
+          return {
+            ok: false,
+            elapsedMs: Infinity,
+            error: "aborted",
+            aborted: true,
+          };
+        }
+        const result = await runProbe(localCount, depth, options);
+        attemptResults.push(result);
+      }
+      return selectDepthOutcome(attemptResults, options.strategy);
+    }
+
+    async function findLimitForLocalCount(runProbe, localCount, maxDepth, options, progress) {
+      controls.caseMetric.textContent = `${localCount} locals`;
+      appendLog(`Testing ${localCount} live i64 locals per frame.`);
+
+      let low = 0;
+      let high = 1;
+      let bestElapsedMs = Infinity;
+      let lastError = "";
+
+      while (high <= maxDepth && !abortRequested) {
+        controls.progress.value = progress.completed + (progress.weight * Math.min(high / maxDepth, 0.48));
+        updateElapsed();
+        const outcome = await runDepthAttempts(runProbe, localCount, high, options);
+        if (outcome.aborted) {
+          return {
+            localCount,
+            goodDepth: low,
+            failDepth: high,
+            hitCap: false,
+            bestElapsedMs,
+            error: "aborted",
+            aborted: true,
+          };
+        }
+        if (!outcome.ok) {
+          lastError = outcome.error;
+          break;
+        }
+        low = high;
+        bestElapsedMs = Math.min(bestElapsedMs, outcome.elapsedMs);
+        high *= 2;
+      }
+
+      if (abortRequested) {
+        return {
+          localCount,
+          goodDepth: low,
+          failDepth: high,
+          hitCap: false,
+          bestElapsedMs,
+          error: "aborted",
+          aborted: true,
+        };
+      }
+
+      if (high > maxDepth) {
+        high = maxDepth;
+        if (low < maxDepth) {
+          const outcome = await runDepthAttempts(runProbe, localCount, high, options);
+          if (outcome.ok) {
+            low = high;
+            bestElapsedMs = Math.min(bestElapsedMs, outcome.elapsedMs);
+            return {
+              localCount,
+              goodDepth: low,
+              failDepth: null,
+              hitCap: true,
+              bestElapsedMs,
+              error: "",
+              aborted: false,
+            };
+          }
+          lastError = outcome.error;
+        } else {
+          return {
+            localCount,
+            goodDepth: low,
+            failDepth: null,
+            hitCap: true,
+            bestElapsedMs,
+            error: "",
+            aborted: false,
+          };
+        }
+      }
+
+      let binaryLow = low;
+      let binaryHigh = high;
+      while ((binaryHigh - binaryLow) > 1 && !abortRequested) {
+        const mid = binaryLow + Math.floor((binaryHigh - binaryLow) / 2);
+        controls.progress.value = progress.completed + (progress.weight * (0.5 + (0.5 * (mid / Math.max(1, binaryHigh)))));
+        updateElapsed();
+        const outcome = await runDepthAttempts(runProbe, localCount, mid, options);
+        if (outcome.ok) {
+          binaryLow = mid;
+          bestElapsedMs = Math.min(bestElapsedMs, outcome.elapsedMs);
+        } else {
+          binaryHigh = mid;
+          lastError = outcome.error;
+        }
+      }
+
+      return {
+        localCount,
+        goodDepth: binaryLow,
+        failDepth: binaryHigh,
+        hitCap: false,
+        bestElapsedMs,
+        error: abortRequested ? "aborted" : lastError,
+        aborted: abortRequested,
+      };
+    }
+
+    async function runProbeSuite() {
+      controls.browserMetric.textContent = makeBrowserSummary();
+      controls.log.textContent = "";
+      controls.csvOutput.value = "";
+      controls.estimateMetric.textContent = "-";
+      controls.progress.value = 0;
+      controls.caseMetric.textContent = "Starting";
+
+      const localCounts = parseLocalCounts(controls.localCounts.value);
+      const maxDepth = positiveInt(controls.maxDepth, "Maximum depth cap");
+      const options = {
+        attempts: positiveInt(controls.attempts, "Attempts per probe"),
+        timeoutMs: positiveInt(controls.timeoutMs, "Timeout per call"),
+        strategy: controls.strategy.value,
+        warmup: controls.warmup.checked,
+      };
+
+      if (!("WebAssembly" in window)) {
+        throw new Error("This browser does not expose WebAssembly.");
+      }
+
+      abortRequested = false;
+      runStartedAt = performance.now();
+      const rows = [];
+      const runProbe = await makeProbeRunner(controls.useWorker.checked);
+      appendLog(`Running in ${controls.useWorker.checked ? "Worker" : "main thread"} context.`);
+      appendLog(`Depth cap ${maxDepth.toLocaleString()}, attempts ${options.attempts}, strategy ${options.strategy}.`);
+
+      try {
+        for (let i = 0; i < localCounts.length; i += 1) {
+          if (abortRequested) {
+            break;
+          }
+          const progress = {
+            completed: i / localCounts.length,
+            weight: 1 / localCounts.length,
+          };
+          const row = await findLimitForLocalCount(runProbe, localCounts[i], maxDepth, options, progress);
+          rows.push(row);
+          updateOutputs(rows);
+          if (row.hitCap) {
+            appendLog(`${row.localCount} locals: survived cap at ${row.goodDepth.toLocaleString()}.`);
+          } else {
+            appendLog(`${row.localCount} locals: good ${row.goodDepth.toLocaleString()}, fail ${row.failDepth.toLocaleString()}.`);
+          }
+        }
+      } finally {
+        terminateActiveWorker("run finished");
+        controls.progress.value = abortRequested ? controls.progress.value : 1;
+        controls.caseMetric.textContent = abortRequested ? "Stopped" : "Done";
+        updateElapsed();
+        runStartedAt = 0;
+      }
+    }
+
+    controls.runButton.addEventListener("click", async () => {
+      setRunning(true);
+      try {
+        await runProbeSuite();
+      } catch (error) {
+        appendLog(classifyError(error));
+        controls.caseMetric.textContent = "Error";
+      } finally {
+        setRunning(false);
+      }
+    });
+
+    controls.stopButton.addEventListener("click", () => {
+      abortRequested = true;
+      terminateActiveWorker("aborted");
+      controls.stopButton.disabled = true;
+      appendLog("Stop requested.");
+    });
+
+    controls.copyButton.addEventListener("click", async () => {
+      const csv = controls.csvOutput.value || rowsToCsv(latestRows);
+      await navigator.clipboard.writeText(csv);
+      appendLog("Copied CSV to clipboard.");
+    });
+
+    controls.browserMetric.textContent = makeBrowserSummary();
+    controls.csvOutput.value = rowsToCsv([]);
+  </script>
+</body>
+</html>
