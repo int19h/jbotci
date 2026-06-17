@@ -553,12 +553,12 @@ fn stressable_nucleus_byte_starts(phonemes: &str) -> Vec<usize> {
             index += 1;
             continue;
         }
-        if let Some((_, end)) = parse_diphthong(&chars, index) {
+        if let Some((_, end)) = parse_diphthong_end(&chars, index) {
             if let Some(byte_start) = byte_starts.get(index).copied() {
                 starts.push(byte_start);
             }
             index = end;
-        } else if let Some((_, end)) = parse_single_vowel(&chars, index) {
+        } else if let Some(end) = parse_single_vowel_end(&chars, index) {
             if !matches!(chars[index], 'y' | 'ý')
                 && let Some(byte_start) = byte_starts.get(index).copied()
             {
@@ -1466,16 +1466,77 @@ fn text_chars(text: &str) -> Vec<char> {
 #[ensures(true)]
 pub(crate) fn parse_cmavo_form(text: &str) -> Option<String> {
     let chars = text_chars(text);
+    parse_cmavo_form_chars(&chars)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
+fn parse_cmavo_form_chars(chars: &[char]) -> Option<String> {
     if chars.is_empty() {
         return None;
     }
     if chars.iter().all(|value| matches!(value, 'y' | 'ý')) {
-        return Some(text.to_owned());
+        return Some(chars.iter().collect());
     }
     if chars.len() == 1 && chars[0].is_ascii_digit() {
         return Some(digit_to_cmavo(chars[0]).to_owned());
     }
-    parse_cmavo_form_main(&chars)
+    parse_cmavo_form_main(chars)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn matches_cmavo_form_chars(chars: &[char]) -> bool {
+    if chars.is_empty() {
+        return false;
+    }
+    if chars.iter().all(|value| matches!(value, 'y' | 'ý')) {
+        return true;
+    }
+    if chars.len() == 1 && chars[0].is_ascii_digit() {
+        return true;
+    }
+    matches_cmavo_form_main(chars)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn matches_cmavo_form_main(chars: &[char]) -> bool {
+    if chars.first().is_some_and(|value| *value == '\'') || starts_with_cluster(chars, 0) {
+        return false;
+    }
+    if parse_glide_end(chars, 0).is_some_and(|end| matches_cmavo_form_tail(chars, end)) {
+        return true;
+    }
+    (0..=max_initial_end(chars, 0)).rev().any(|end| {
+        parse_initial_end(chars, 0, end).is_some() && matches_cmavo_form_tail(chars, end)
+    })
+}
+
+#[requires(start <= chars.len())]
+#[ensures(true)]
+fn matches_cmavo_form_tail(chars: &[char], start: usize) -> bool {
+    if let Some((_, after_nucleus)) = parse_diphthong_end(chars, start) {
+        if after_nucleus == chars.len() {
+            return true;
+        }
+        if chars.get(after_nucleus) == Some(&'\'')
+            && matches_cmavo_form_tail(chars, after_nucleus + 1)
+        {
+            return true;
+        }
+    }
+    if let Some(after_nucleus) = parse_single_vowel_end(chars, start) {
+        if after_nucleus == chars.len() {
+            return true;
+        }
+        if chars.get(after_nucleus) == Some(&'\'')
+            && matches_cmavo_form_tail(chars, after_nucleus + 1)
+        {
+            return true;
+        }
+    }
+    false
 }
 
 #[requires(true)]
@@ -1502,7 +1563,25 @@ fn parse_cmavo_form_main(chars: &[char]) -> Option<String> {
 #[requires(start <= chars.len())]
 #[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 fn parse_cmavo_form_tail(chars: &[char], start: usize) -> Option<String> {
-    for (nucleus, after_nucleus) in parse_nuclei(chars, start) {
+    if let Some((semivowel, after_nucleus)) = parse_diphthong_end(chars, start) {
+        let nucleus = format!("{}{}", normalize_vowel(chars[start]), semivowel);
+        if after_nucleus == chars.len() {
+            return Some(nucleus);
+        }
+        if chars.get(after_nucleus) == Some(&'\'')
+            && let Some(rest) = parse_cmavo_form_tail(chars, after_nucleus + 1)
+        {
+            return Some(format!("{nucleus}'{rest}"));
+        }
+    }
+    if let Some(after_nucleus) = parse_single_vowel_end(chars, start) {
+        let value = chars[start];
+        let nucleus = if is_y(value) {
+            value
+        } else {
+            normalize_vowel(value)
+        }
+        .to_string();
         if after_nucleus == chars.len() {
             return Some(nucleus);
         }
@@ -1519,10 +1598,15 @@ fn parse_cmavo_form_tail(chars: &[char], start: usize) -> Option<String> {
 #[ensures(ret.iter().all(|(_, end)| *end >= start && *end <= chars.len()))]
 fn parse_onsets(chars: &[char], start: usize) -> Vec<(String, usize)> {
     let mut onsets = Vec::new();
-    if let Some((glide, end)) = parse_glide(chars, start) {
-        onsets.push((glide, end));
+    if let Some(end) = parse_glide_end(chars, start) {
+        let glide = match chars[start] {
+            'i' | 'í' | 'ĭ' => 'ĭ',
+            'u' | 'ú' | 'ŭ' => 'ŭ',
+            _ => unreachable!("parse_glide_end only accepts glide starts"),
+        };
+        onsets.push((glide.to_string(), end));
     }
-    for end in (start..=chars.len()).rev() {
+    for end in (start..=max_initial_end(chars, start)).rev() {
         if let Some(initial) = parse_initial(chars, start, end) {
             onsets.push((initial, end));
         }
@@ -1533,14 +1617,61 @@ fn parse_onsets(chars: &[char], start: usize) -> Vec<(String, usize)> {
 #[requires(start <= end && end <= chars.len())]
 #[ensures(ret.as_ref().is_none_or(|value| value.chars().count() == end - start))]
 fn parse_initial(chars: &[char], start: usize, end: usize) -> Option<String> {
-    let initial: String = chars.get(start..end)?.iter().collect();
+    parse_initial_end(chars, start, end)?;
+    Some(chars[start..end].iter().collect())
+}
+
+#[requires(start <= chars.len())]
+#[ensures(ret >= start && ret <= chars.len())]
+fn max_initial_end(chars: &[char], start: usize) -> usize {
+    chars.len().min(start + 3)
+}
+
+#[requires(start <= chars.len())]
+#[requires(ends.iter().all(|end| *end <= chars.len()))]
+#[ensures(ends.iter().all(|end| *end <= chars.len()))]
+fn append_parse_onset_ends(chars: &[char], start: usize, ends: &mut Vec<usize>) {
+    if let Some(end) = parse_glide_end(chars, start) {
+        ends.push(end);
+    }
+    for end in (start..=max_initial_end(chars, start)).rev() {
+        if parse_initial_end(chars, start, end).is_some() {
+            ends.push(end);
+        }
+    }
+}
+
+#[requires(start <= chars.len())]
+#[requires(target_end <= chars.len())]
+#[ensures(true)]
+fn has_parse_onset_end(chars: &[char], start: usize, target_end: usize) -> bool {
+    if parse_glide_end(chars, start) == Some(target_end) {
+        return true;
+    }
+    target_end >= start
+        && target_end <= max_initial_end(chars, start)
+        && parse_initial_end(chars, start, target_end).is_some()
+}
+
+#[requires(start <= chars.len())]
+#[ensures(true)]
+fn has_parse_onset(chars: &[char], start: usize) -> bool {
+    parse_glide_end(chars, start).is_some()
+        || (start..=max_initial_end(chars, start))
+            .rev()
+            .any(|end| parse_initial_end(chars, start, end).is_some())
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(ret.is_none_or(|value| value == end))]
+fn parse_initial_end(chars: &[char], start: usize, end: usize) -> Option<usize> {
     if !valid_initial_shape(chars, start, end) {
         return None;
     }
-    if end < chars.len() && (is_consonant(chars[end]) || parse_glide(chars, end).is_some()) {
+    if end < chars.len() && (is_consonant(chars[end]) || starts_glide(chars, end)) {
         return None;
     }
-    Some(initial)
+    Some(end)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -1556,21 +1687,36 @@ fn valid_initial_shape(chars: &[char], start: usize, end: usize) -> bool {
 }
 
 #[requires(start <= chars.len())]
-#[ensures(ret.iter().all(|(_, end)| *end > start && *end <= chars.len()))]
-fn parse_nuclei(chars: &[char], start: usize) -> Vec<(String, usize)> {
-    let mut nuclei = Vec::new();
-    if let Some((diphthong, end)) = parse_diphthong(chars, start) {
-        nuclei.push((diphthong, end));
+#[requires(ends.iter().all(|end| *end <= chars.len()))]
+#[ensures(ends.iter().all(|end| *end <= chars.len()))]
+fn append_parse_nucleus_ends(chars: &[char], start: usize, ends: &mut Vec<usize>) {
+    if let Some((_, end)) = parse_diphthong_end(chars, start) {
+        ends.push(end);
     }
-    if let Some((vowel, end)) = parse_single_vowel(chars, start) {
-        nuclei.push((vowel, end));
+    if let Some(end) = parse_single_vowel_end(chars, start) {
+        ends.push(end);
     }
-    nuclei
 }
 
 #[requires(start <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|(_, end)| *end > start && *end <= chars.len()))]
-fn parse_diphthong(chars: &[char], start: usize) -> Option<(String, usize)> {
+#[requires(target_end <= chars.len())]
+#[ensures(true)]
+fn has_parse_nucleus_end(chars: &[char], start: usize, target_end: usize) -> bool {
+    parse_diphthong_end(chars, start).is_some_and(|(_, end)| end == target_end)
+        || parse_single_vowel_end(chars, start) == Some(target_end)
+}
+
+#[requires(start <= chars.len())]
+#[requires(limit <= chars.len())]
+#[ensures(true)]
+fn has_parse_nucleus_end_at_or_before(chars: &[char], start: usize, limit: usize) -> bool {
+    parse_diphthong_end(chars, start).is_some_and(|(_, end)| end <= limit)
+        || parse_single_vowel_end(chars, start).is_some_and(|end| end <= limit)
+}
+
+#[requires(start <= chars.len())]
+#[ensures(ret.is_none_or(|(_, end)| end > start && end <= chars.len()))]
+fn parse_diphthong_end(chars: &[char], start: usize) -> Option<(char, usize)> {
     let first = *chars.get(start)?;
     let second = *chars.get(start + 1)?;
     let semivowel = match (base_vowel(first)?, second) {
@@ -1587,7 +1733,7 @@ fn parse_diphthong(chars: &[char], start: usize) -> Option<(String, usize)> {
     if starts_with_nucleus(chars, end) {
         return None;
     }
-    Some((format!("{}{}", normalize_vowel(first), semivowel), end))
+    Some((semivowel, end))
 }
 
 #[requires(true)]
@@ -1601,15 +1747,15 @@ fn matches_diphthong_semivowel(value: char, semivowel: char) -> bool {
 }
 
 #[requires(start <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|(_, end)| *end == start + 1))]
-fn parse_single_vowel(chars: &[char], start: usize) -> Option<(String, usize)> {
+#[ensures(ret.is_none_or(|end| end == start + 1))]
+fn parse_single_vowel_end(chars: &[char], start: usize) -> Option<usize> {
     let value = *chars.get(start)?;
     if value == 'y' || value == 'ý' {
         let end = start + 1;
         if starts_with_nucleus(chars, end) {
             return None;
         }
-        return Some((value.to_string(), end));
+        return Some(end);
     }
     if !is_vowel(value) && !matches!(value, 'ĭ' | 'ŭ') {
         return None;
@@ -1618,7 +1764,7 @@ fn parse_single_vowel(chars: &[char], start: usize) -> Option<(String, usize)> {
     if starts_with_nucleus(chars, end) {
         return None;
     }
-    Some((normalize_vowel(value).to_string(), end))
+    Some(end)
 }
 
 #[requires(start <= chars.len())]
@@ -1638,12 +1784,18 @@ fn parse_glide(chars: &[char], start: usize) -> Option<(String, usize)> {
 }
 
 #[requires(start <= chars.len())]
+#[ensures(ret.is_none_or(|end| end > start && end <= chars.len()))]
+fn parse_glide_end(chars: &[char], start: usize) -> Option<usize> {
+    starts_glide(chars, start).then_some(start + 1)
+}
+
+#[requires(start <= chars.len())]
 #[ensures(true)]
 fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
     if start >= chars.len() {
         return false;
     }
-    parse_diphthong(chars, start).is_some() || parse_single_vowel(chars, start).is_some()
+    parse_diphthong_end(chars, start).is_some() || parse_single_vowel_end(chars, start).is_some()
 }
 
 #[requires(start <= chars.len())]
@@ -2396,11 +2548,7 @@ fn stressed_fuhivla_rafsi_slice(chars: &[char], start: usize, end: usize) -> boo
 #[requires(index <= end && end <= chars.len())]
 #[ensures(true)]
 fn consonantal_chain_then_onset(chars: &[char], index: usize, end: usize) -> bool {
-    if chars.get(index) != Some(&'\'')
-        && parse_onsets(chars, index)
-            .into_iter()
-            .any(|(_, onset_end)| onset_end == end)
-    {
+    if chars.get(index) != Some(&'\'') && has_parse_onset_end(chars, index, end) {
         return true;
     }
     consonantal_syllable_ends(chars, index, end, SyllablePolicy::Brivla)
@@ -2440,10 +2588,7 @@ fn fuhivla_rafsi_base_slice(
         .into_iter()
         .filter(|head_end| *head_end > start && *head_end < end)
         .any(|head_end| {
-            chars.get(head_end) != Some(&'\'')
-                && parse_onsets(chars, head_end)
-                    .into_iter()
-                    .any(|(_, onset_end)| onset_end == end)
+            chars.get(head_end) != Some(&'\'') && has_parse_onset_end(chars, head_end, end)
         })
 }
 
@@ -3135,7 +3280,7 @@ fn is_indicator_cmavo_slice(chars: &[char], start: usize, end: usize) -> bool {
     if start >= end {
         return false;
     }
-    parse_cmavo_form(&chars[start..end].iter().collect::<String>())
+    parse_cmavo_form_chars(&chars[start..end])
         .and_then(|phonemes| Cmavo::from_text(&phonemes))
         .is_some_and(|cmavo| cmavo.is_selmaho(Selmaho::Ui) || cmavo.is_selmaho(Selmaho::Cai))
 }
@@ -3217,12 +3362,12 @@ fn count_vocalic_nuclei(chars: &[char], start: usize, end: usize) -> usize {
     let mut count = 0;
     let mut index = start;
     while index < end {
-        if let Some((_, nucleus_end)) = parse_diphthong(chars, index)
+        if let Some((_, nucleus_end)) = parse_diphthong_end(chars, index)
             && nucleus_end <= end
         {
             count += 1;
             index = nucleus_end;
-        } else if let Some((_, nucleus_end)) = parse_single_vowel(chars, index)
+        } else if let Some(nucleus_end) = parse_single_vowel_end(chars, index)
             && nucleus_end <= end
         {
             count += 1;
@@ -3445,14 +3590,7 @@ fn stressed_syllable_has_implicit_stress(
 #[requires(start <= syllable_end && syllable_end <= chars.len())]
 #[ensures(true)]
 fn syllable_can_end_without_coda(chars: &[char], start: usize, syllable_end: usize) -> bool {
-    brivla_onset_ends(chars, start)
-        .into_iter()
-        .filter(|onset_end| !chars.get(*onset_end).is_some_and(|value| is_y(*value)))
-        .any(|onset_end| {
-            parse_nuclei(chars, onset_end)
-                .into_iter()
-                .any(|(_, nucleus_end)| nucleus_end == syllable_end)
-        })
+    brivla_onset_has_nucleus_end(chars, start, syllable_end, true)
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -3469,16 +3607,8 @@ fn consonantal_chain_then_final(chars: &[char], index: usize, end: usize) -> boo
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn final_syllable_slice(chars: &[char], start: usize, end: usize) -> bool {
-    brivla_onset_ends(chars, start)
-        .into_iter()
-        .filter(|onset_end| !chars.get(*onset_end).is_some_and(|value| is_y(*value)))
-        .any(|onset_end| {
-            parse_nuclei(chars, onset_end)
-                .into_iter()
-                .any(|(_, nucleus_end)| {
-                    nucleus_end == end && !syllable_has_explicit_stress(chars, start, end)
-                })
-        })
+    !syllable_has_explicit_stress(chars, start, end)
+        && brivla_onset_has_nucleus_end(chars, start, end, true)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3491,11 +3621,16 @@ enum SyllablePolicy {
 #[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= end))]
 fn syllable_ends(chars: &[char], index: usize, end: usize, policy: SyllablePolicy) -> Vec<usize> {
     let mut ends = Vec::new();
-    for onset_end in brivla_onset_ends(chars, index) {
+    let mut onset_ends = Vec::with_capacity(6);
+    let mut nucleus_ends = Vec::with_capacity(2);
+    append_brivla_onset_ends_unsorted(chars, index, &mut onset_ends);
+    for onset_end in onset_ends.iter().copied() {
         if chars.get(onset_end).is_some_and(|value| is_y(*value)) {
             continue;
         }
-        for (_, nucleus_end) in parse_nuclei(chars, onset_end) {
+        nucleus_ends.clear();
+        append_parse_nucleus_ends(chars, onset_end, &mut nucleus_ends);
+        for nucleus_end in nucleus_ends.iter().copied() {
             if nucleus_end <= end {
                 ends.push(nucleus_end);
                 ends.extend(coda_ends(chars, nucleus_end, end, policy));
@@ -3532,7 +3667,8 @@ fn consonantal_syllable_ends(
 #[requires(index <= end && end <= chars.len())]
 #[ensures(ret.iter().all(|coda_end| *coda_end >= index && *coda_end <= end))]
 fn coda_ends(chars: &[char], index: usize, end: usize, policy: SyllablePolicy) -> Vec<usize> {
-    let mut ends = vec![index];
+    let mut ends = Vec::with_capacity(2);
+    ends.push(index);
     if index < end
         && is_consonant(chars[index])
         && !starts_any_syllable(chars, index, end, policy)
@@ -3552,31 +3688,97 @@ fn starts_any_syllable(chars: &[char], index: usize, end: usize, policy: Syllabl
     if !consonantal_syllable_ends(chars, index, end, policy).is_empty() {
         return true;
     }
-    brivla_onset_ends(chars, index)
-        .into_iter()
-        .any(|onset_end| {
-            parse_nuclei(chars, onset_end)
-                .into_iter()
-                .any(|(_, nucleus_end)| nucleus_end <= end)
-        })
+    brivla_onset_has_nucleus_end_at_or_before(chars, index, end)
 }
 
 #[requires(index <= chars.len())]
 #[ensures(ret.iter().all(|onset_end| *onset_end >= index && *onset_end <= chars.len()))]
 fn brivla_onset_ends(chars: &[char], index: usize) -> Vec<usize> {
-    let mut ends: Vec<usize> = parse_onsets(chars, index)
-        .into_iter()
-        .map(|(_, end)| end)
-        .collect();
+    let mut ends = Vec::with_capacity(6);
+    append_brivla_onset_ends_unsorted(chars, index, &mut ends);
+    ends.sort_unstable_by(|left, right| right.cmp(left));
+    ends.dedup();
+    ends
+}
+
+#[requires(index <= chars.len())]
+#[requires(ends.iter().all(|end| *end <= chars.len()))]
+#[ensures(ends.iter().all(|end| *end <= chars.len()))]
+fn append_brivla_onset_ends_unsorted(chars: &[char], index: usize, ends: &mut Vec<usize>) {
+    append_parse_onset_ends(chars, index, ends);
     if let Some(end) = experimental_cgv_brivla_onset_end(chars, index) {
         ends.push(end);
     }
     if chars.get(index) == Some(&'\'') {
         ends.push(index + 1);
     }
-    ends.sort_unstable_by(|left, right| right.cmp(left));
-    ends.dedup();
-    ends
+}
+
+#[requires(index <= chars.len())]
+#[requires(nucleus_end <= chars.len())]
+#[ensures(true)]
+fn brivla_onset_has_nucleus_end(
+    chars: &[char],
+    index: usize,
+    nucleus_end: usize,
+    skip_y_onset: bool,
+) -> bool {
+    if let Some(onset_end) = parse_glide_end(chars, index)
+        && brivla_onset_candidate_has_nucleus_end(chars, onset_end, nucleus_end, skip_y_onset)
+    {
+        return true;
+    }
+    for onset_end in (index..=max_initial_end(chars, index)).rev() {
+        if parse_initial_end(chars, index, onset_end).is_some()
+            && brivla_onset_candidate_has_nucleus_end(chars, onset_end, nucleus_end, skip_y_onset)
+        {
+            return true;
+        }
+    }
+    if let Some(onset_end) = experimental_cgv_brivla_onset_end(chars, index)
+        && brivla_onset_candidate_has_nucleus_end(chars, onset_end, nucleus_end, skip_y_onset)
+    {
+        return true;
+    }
+    chars.get(index) == Some(&'\'')
+        && brivla_onset_candidate_has_nucleus_end(chars, index + 1, nucleus_end, skip_y_onset)
+}
+
+#[requires(onset_end <= chars.len())]
+#[requires(nucleus_end <= chars.len())]
+#[ensures(true)]
+fn brivla_onset_candidate_has_nucleus_end(
+    chars: &[char],
+    onset_end: usize,
+    nucleus_end: usize,
+    skip_y_onset: bool,
+) -> bool {
+    (!skip_y_onset || !chars.get(onset_end).is_some_and(|value| is_y(*value)))
+        && has_parse_nucleus_end(chars, onset_end, nucleus_end)
+}
+
+#[requires(index <= chars.len())]
+#[requires(limit <= chars.len())]
+#[ensures(true)]
+fn brivla_onset_has_nucleus_end_at_or_before(chars: &[char], index: usize, limit: usize) -> bool {
+    if let Some(onset_end) = parse_glide_end(chars, index)
+        && has_parse_nucleus_end_at_or_before(chars, onset_end, limit)
+    {
+        return true;
+    }
+    for onset_end in (index..=max_initial_end(chars, index)).rev() {
+        if parse_initial_end(chars, index, onset_end).is_some()
+            && has_parse_nucleus_end_at_or_before(chars, onset_end, limit)
+        {
+            return true;
+        }
+    }
+    if let Some(onset_end) = experimental_cgv_brivla_onset_end(chars, index)
+        && has_parse_nucleus_end_at_or_before(chars, onset_end, limit)
+    {
+        return true;
+    }
+    chars.get(index) == Some(&'\'') && has_parse_nucleus_end_at_or_before(chars, index + 1, limit)
 }
 
 #[requires(index <= chars.len())]
@@ -3635,7 +3837,7 @@ fn vowel_hiatus_range(chars: &[char]) -> Option<Range<usize>> {
         if starts_glide(chars, index) {
             continue;
         }
-        if parse_diphthong(chars, index).is_some() {
+        if parse_diphthong_end(chars, index).is_some() {
             continue;
         }
         if next_non_comma_index(chars, index + 1).is_some_and(|next| starts_glide(chars, next)) {
@@ -3696,14 +3898,14 @@ fn is_cmavo_slice(chars: &[char], start: usize, end: usize) -> bool {
     if start >= end {
         return false;
     }
-    parse_cmavo_form(&chars[start..end].iter().collect::<String>()).is_some()
+    matches_cmavo_form_chars(&chars[start..end])
 }
 
 #[requires(index <= chars.len())]
 #[ensures(true)]
 fn starts_with_onset(chars: &[char], index: usize) -> bool {
     index <= chars.len()
-        && (!parse_onsets(chars, index).is_empty()
+        && (has_parse_onset(chars, index)
             || experimental_cgv_brivla_onset_end(chars, index).is_some())
 }
 
