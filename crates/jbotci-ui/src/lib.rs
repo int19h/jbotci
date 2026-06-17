@@ -31,18 +31,19 @@ use jbotci_web_core::{
     DictionaryTooltipCard, FAVICON_ASSET_PATH, GentufaBlock, GentufaBlocksLayout,
     GentufaBracketFragment, GentufaCell, GentufaError, GentufaScript, GentufaSuccess,
     GentufaTreeGuide, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest, GentufaWebResult,
-    GentufaWebState, GentufaWebViewMode, MANIFEST_ASSET_PATH, PageMeta, ReferenceLabel,
-    ReferenceMarker, ReferenceMarkerRole, ReferenceTooltip, ReferenceTooltipInline,
-    ReferenceTooltipInlineData, ReferenceTooltipRow, VLACKU_WEB_DEFAULT_COUNT,
-    VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece, VlackuCompositionPieceKind,
-    VlackuDictionaryCountNode, VlackuDictionaryInfo, VlackuInline, VlackuInlineData,
-    VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
+    GentufaWebState, GentufaWebViewMode, GimfiheOutput, GimfihePreset, GimfihePresetOption,
+    GimfiheWebResult, GimfiheWebSource, GimfiheWebState, MANIFEST_ASSET_PATH, PageMeta,
+    RafsiAvailability, RafsiCandidate, ReferenceLabel, ReferenceMarker, ReferenceMarkerRole,
+    ReferenceTooltip, ReferenceTooltipInline, ReferenceTooltipInlineData, ReferenceTooltipRow,
+    VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece,
+    VlackuCompositionPieceKind, VlackuDictionaryCountNode, VlackuDictionaryInfo, VlackuInline,
+    VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
     VlackuJvozbaSegmentTone, VlackuMath, VlackuSemanticSearchHit, VlackuVoteDisplay,
     VlackuWebAuthor, VlackuWebCard, VlackuWebMode, VlackuWebResult, VlackuWebState,
     VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest, WebComputeResponse,
-    WebFeatureAvailability, WebRoute, build_page_meta, build_vlacku_jvozba_output,
+    WebFeatureAvailability, WebRoute, all_presets, build_page_meta, build_vlacku_jvozba_output,
     dictionary_tooltip_for_rafsi, dictionary_tooltip_for_word, gentufa_web_url,
-    normalize_vlacku_state, parse_web_route, reference_slot_display_text,
+    normalize_gimfihe_state, normalize_vlacku_state, parse_web_route, reference_slot_display_text,
     toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
     vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
 };
@@ -149,6 +150,7 @@ const VLACKU_URL_DEBOUNCE_MS: i32 = 450;
 const COMPUTE_CHANNEL_GENTUFA: &str = "gentufa-page";
 const COMPUTE_CHANNEL_CUKTA: &str = "cukta-page";
 const COMPUTE_CHANNEL_VLACKU: &str = "vlacku-page";
+const COMPUTE_CHANNEL_GIMFIHE: &str = "gimfihe-page";
 #[cfg(target_arch = "wasm32")]
 const COMPUTE_CHANNEL_EMBEDDINGS: &str = "embedding-corpus";
 const COMPUTE_CHANNEL_EXPORT: &str = "gentufa-export";
@@ -410,6 +412,7 @@ enum AppRoute {
     Settings,
     Cukta,
     Vlacku,
+    Gimfihe,
 }
 
 #[invariant(true)]
@@ -417,6 +420,7 @@ enum AppRoute {
 struct PageFindState {
     cukta: PageFindRouteState,
     vlacku: PageFindRouteState,
+    gimfihe: PageFindRouteState,
     gentufa: PageFindRouteState,
     settings: PageFindRouteState,
 }
@@ -428,6 +432,7 @@ impl PageFindState {
         match route {
             AppRoute::Cukta => &self.cukta,
             AppRoute::Vlacku => &self.vlacku,
+            AppRoute::Gimfihe => &self.gimfihe,
             AppRoute::Gentufa => &self.gentufa,
             AppRoute::Settings => &self.settings,
         }
@@ -439,6 +444,7 @@ impl PageFindState {
         match route {
             AppRoute::Cukta => &mut self.cukta,
             AppRoute::Vlacku => &mut self.vlacku,
+            AppRoute::Gimfihe => &mut self.gimfihe,
             AppRoute::Gentufa => &mut self.gentufa,
             AppRoute::Settings => &mut self.settings,
         }
@@ -914,6 +920,8 @@ fn page_find_entries_for_route(
     cukta_page: &CuktaAsyncPageState,
     vlacku_committed_state: &VlackuWebState,
     vlacku_result_state: &VlackuAsyncResultState,
+    gimfihe_committed_state: &GimfiheWebState,
+    gimfihe_result_state: &GimfiheAsyncResultState,
     gentufa_result: &GentufaWebResult,
     gentufa_request: Option<&GentufaWebRequest>,
     gentufa_view_mode: GentufaWebViewMode,
@@ -931,6 +939,11 @@ fn page_find_entries_for_route(
             let result =
                 visible_vlacku_result_for_find(vlacku_committed_state, vlacku_result_state);
             collect_vlacku_page_find_entries(&mut entries, &result, script);
+        }
+        AppRoute::Gimfihe => {
+            let result =
+                visible_gimfihe_result_for_find(gimfihe_committed_state, gimfihe_result_state);
+            collect_gimfihe_page_find_entries(&mut entries, &result);
         }
         AppRoute::Gentufa => collect_gentufa_page_find_entries(
             &mut entries,
@@ -961,6 +974,19 @@ fn visible_vlacku_result_for_find(
         result_state.result.clone()
     } else {
         vlacku_loading_result(committed_state, "Loading dictionary results.")
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn visible_gimfihe_result_for_find(
+    committed_state: &GimfiheWebState,
+    result_state: &GimfiheAsyncResultState,
+) -> GimfiheWebResult {
+    if result_state.state.as_ref() == Some(committed_state) {
+        result_state.result.clone()
+    } else {
+        gimfihe_loading_result(committed_state, "Loading gismu candidates.")
     }
 }
 
@@ -1315,6 +1341,41 @@ fn collect_vlacku_page_find_entries(
     }
     if result.has_more {
         push_page_find_entry(entries, "Load more");
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_gimfihe_page_find_entries(
+    entries: &mut Vec<PageFindTextEntry>,
+    result: &GimfiheWebResult,
+) {
+    push_page_find_entry(entries, "gimfi'e");
+    for source in &result.state.sources {
+        push_page_find_entry(entries, source.language.clone());
+        push_page_find_entry(entries, source.word.clone());
+        if let Some(weight) = &source.weight {
+            push_page_find_entry(entries, weight.clone());
+        }
+    }
+    for error in &result.errors {
+        push_page_find_entry(entries, error.clone());
+    }
+    let Some(output) = &result.output else {
+        return;
+    };
+    if let Some(winner) = &output.winner {
+        push_page_find_entry(entries, winner.clone());
+    }
+    if let Some(highlighted) = &output.highlighted_word {
+        push_page_find_entry(entries, highlighted.clone());
+    }
+    for candidate in &output.candidates {
+        push_page_find_entry(entries, candidate.word.clone());
+        push_page_find_entry(entries, format_gimfihe_score(candidate.score));
+        for rafsi in &candidate.rafsi {
+            push_page_find_entry(entries, rafsi.form.clone());
+        }
     }
 }
 
@@ -1934,12 +1995,14 @@ type AsyncTaskId = u64;
 #[invariant(::Gentufa => true)]
 #[invariant(::Cukta => true)]
 #[invariant(::Vlacku => true)]
+#[invariant(::Gimfihe => true)]
 #[invariant(::Settings => true)]
 #[invariant(::Export => true)]
 enum AsyncTaskKind {
     Gentufa,
     Cukta,
     Vlacku,
+    Gimfihe,
     Settings,
     Export,
 }
@@ -2172,6 +2235,16 @@ struct VlackuAsyncResultState {
     error: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+#[invariant(true)]
+struct GimfiheAsyncResultState {
+    state: Option<GimfiheWebState>,
+    result: GimfiheWebResult,
+    meta: Option<PageMeta>,
+    loading: bool,
+    error: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 struct GentufaDisplayState {
@@ -2292,6 +2365,21 @@ impl Default for VlackuAsyncResultState {
         Self {
             state: None,
             result: vlacku_loading_result(&state, "Loading dictionary results."),
+            meta: None,
+            loading: false,
+            error: None,
+        }
+    }
+}
+
+impl Default for GimfiheAsyncResultState {
+    #[requires(true)]
+    #[ensures(ret.state.is_none())]
+    fn default() -> Self {
+        let state = GimfiheWebState::default();
+        Self {
+            state: None,
+            result: gimfihe_loading_result(&state, "Loading gismu candidates."),
             meta: None,
             loading: false,
             error: None,
@@ -2616,6 +2704,11 @@ fn AppShell() -> Element {
     let vlacku_result = use_signal(VlackuAsyncResultState::default);
     let vlacku_result_task = use_signal(|| None::<LatestAsyncTask>);
     let vlacku_semantic_task = use_signal(|| None::<LatestAsyncTask>);
+    let initial_gimfihe = initial_gimfihe_state(&current_route_location);
+    let gimfihe_draft_state = use_signal(|| initial_gimfihe.clone());
+    let gimfihe_committed_state = use_signal(|| initial_gimfihe);
+    let gimfihe_result = use_signal(GimfiheAsyncResultState::default);
+    let gimfihe_result_task = use_signal(|| None::<LatestAsyncTask>);
     let cukta_semantic_result = use_signal(CuktaSemanticResultState::default);
     let cukta_page = use_signal(CuktaAsyncPageState::default);
     let cukta_page_task = use_signal(|| None::<LatestAsyncTask>);
@@ -2669,6 +2762,8 @@ fn AppShell() -> Element {
     let cukta_page_value = cukta_page.read().clone();
     let vlacku_committed_state_value = vlacku_committed_state.read().clone();
     let vlacku_result_value = vlacku_result.read().clone();
+    let gimfihe_committed_state_value = gimfihe_committed_state.read().clone();
+    let gimfihe_result_value = gimfihe_result.read().clone();
     let page_find_state_value = page_find_state.read().clone();
     let current_page_find_route_state = page_find_state_value.route_state(route_value).clone();
     let page_find_entries = page_find_entries_for_route(
@@ -2676,6 +2771,8 @@ fn AppShell() -> Element {
         &cukta_page_value,
         &vlacku_committed_state_value,
         &vlacku_result_value,
+        &gimfihe_committed_state_value,
+        &gimfihe_result_value,
         &result,
         gentufa_request.as_ref(),
         view_mode_value,
@@ -2724,6 +2821,10 @@ fn AppShell() -> Element {
         JbotciRoute::from_web_route(WebRoute::Cukta(cukta_committed_state_value.clone()), false);
     let topbar_vlacku_route = JbotciRoute::from_web_route(
         WebRoute::Vlacku(vlacku_committed_state_value.clone()),
+        false,
+    );
+    let topbar_gimfihe_route = JbotciRoute::from_web_route(
+        WebRoute::Gimfihe(gimfihe_committed_state_value.clone()),
         false,
     );
     let topbar_gentufa_route =
@@ -2778,6 +2879,8 @@ fn AppShell() -> Element {
             cukta_committed_state,
             vlacku_draft_state,
             vlacku_committed_state,
+            gimfihe_draft_state,
+            gimfihe_committed_state,
             input_text,
             parsed_text,
             parsed_text_explicit,
@@ -3058,6 +3161,56 @@ fn AppShell() -> Element {
             },
         );
     });
+    let gimfihe_page_base_path = base_path.clone();
+    use_effect(move || {
+        if *route.read() != AppRoute::Gimfihe {
+            cancel_compute_channel(COMPUTE_CHANNEL_GIMFIHE);
+            cancel_latest_task(gimfihe_result_task);
+            return;
+        }
+        let state = gimfihe_committed_state.read().clone();
+        let mut page_signal = gimfihe_result;
+        page_signal.with_mut(|page| {
+            page.state = Some(state.clone());
+            page.loading = true;
+            page.error = None;
+        });
+        let mut result_signal = gimfihe_result;
+        let request = WebComputeRequest::GimfihePage {
+            base_path: gimfihe_page_base_path.clone(),
+            state: state.clone(),
+        };
+        cancel_compute_channel(COMPUTE_CHANNEL_GIMFIHE);
+        spawn_latest_tracked(
+            gimfihe_result_task,
+            activity,
+            AsyncTaskKind::Gimfihe,
+            async move {
+                let response = compute_request(COMPUTE_CHANNEL_GIMFIHE, request).await;
+                match response {
+                    Ok(WebComputeResponse::GimfihePage { result, meta }) => {
+                        result_signal.set(GimfiheAsyncResultState {
+                            state: Some(state),
+                            result,
+                            meta: Some(meta.clone()),
+                            loading: false,
+                            error: None,
+                        });
+                        apply_document_meta(document_meta, meta);
+                    }
+                    Ok(_) => {
+                        result_signal.set(gimfihe_async_error_state(
+                            &state,
+                            "compute worker returned the wrong gimfihe response",
+                        ));
+                    }
+                    Err(error) => {
+                        result_signal.set(gimfihe_async_error_state(&state, &error));
+                    }
+                }
+            },
+        );
+    });
     use_effect(move || {
         let mut result_signal = cukta_semantic_result;
         let state = cukta_committed_state.read().clone();
@@ -3186,6 +3339,19 @@ fn AppShell() -> Element {
             );
         }
     });
+    let gimfihe_url_route_location = current_route_location.clone();
+    let gimfihe_url_history = app_history.clone();
+    use_effect(move || {
+        if *route.read() == AppRoute::Gimfihe {
+            let state = gimfihe_committed_state.read().clone();
+            push_gimfihe_url(
+                gimfihe_url_history.clone(),
+                pending_local_route_writes,
+                &gimfihe_url_route_location,
+                &state,
+            );
+        }
+    });
     let cukta_url_route_location = current_route_location.clone();
     let cukta_url_history = app_history.clone();
     use_effect(move || {
@@ -3295,6 +3461,7 @@ fn AppShell() -> Element {
                 settings_value,
                 topbar_cukta_route,
                 topbar_vlacku_route,
+                topbar_gimfihe_route,
                 topbar_gentufa_route,
                 topbar_settings_route,
                 &base_path,
@@ -3423,6 +3590,14 @@ fn AppShell() -> Element {
                                     &page_find_context,
                                 )
                             },
+                            AppRoute::Gimfihe => {
+                                render_gimfihe_page(
+                                    gimfihe_draft_state,
+                                    gimfihe_committed_state,
+                                    gimfihe_result,
+                                    &page_find_context,
+                                )
+                            },
                         }
                     }
                 }
@@ -3439,6 +3614,7 @@ fn render_topbar(
     current: UserSettings,
     cukta_route: JbotciRoute,
     vlacku_route: JbotciRoute,
+    gimfihe_route: JbotciRoute,
     gentufa_route: JbotciRoute,
     settings_route: JbotciRoute,
     base_path: &str,
@@ -3453,6 +3629,7 @@ fn render_topbar(
 ) -> Element {
     let cukta_loading = activity_visible && activity.has_kind(AsyncTaskKind::Cukta);
     let vlacku_loading = activity_visible && activity.has_kind(AsyncTaskKind::Vlacku);
+    let gimfihe_loading = activity_visible && activity.has_kind(AsyncTaskKind::Gimfihe);
     let gentufa_loading = activity_visible && activity.has_kind(AsyncTaskKind::Gentufa);
     let activity_class = topbar_activity_class(activity_visible);
     let header_class = topbar_header_class(settings_layout, *settings_open.read(), nav_layout);
@@ -3484,10 +3661,10 @@ fn render_topbar(
                     }
                     match nav_layout {
                         TopbarNavLayout::Full => {
-                            { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+                            { render_topbar_nav(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihe_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
                         }
                         TopbarNavLayout::Carousel => {
-                            { render_topbar_nav_carousel(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+                            { render_topbar_nav_carousel(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihe_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
                         }
                     }
                 }
@@ -3497,9 +3674,11 @@ fn render_topbar(
                     route,
                     cukta_loading,
                     vlacku_loading,
+                    gimfihe_loading,
                     gentufa_loading,
                     cukta_route,
                     vlacku_route,
+                    gimfihe_route,
                     gentufa_route,
                     base_path,
                     pending_cukta_scroll,
@@ -3530,9 +3709,11 @@ fn render_topbar_nav(
     route: AppRoute,
     cukta_loading: bool,
     vlacku_loading: bool,
+    gimfihe_loading: bool,
     gentufa_loading: bool,
     cukta_route: JbotciRoute,
     vlacku_route: JbotciRoute,
+    gimfihe_route: JbotciRoute,
     gentufa_route: JbotciRoute,
     base_path: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
@@ -3562,6 +3743,12 @@ fn render_topbar_nav(
                 span { class: "app-topbar-link-label", "vlacku" }
             }
             Link {
+                class: topbar_link_class(route == AppRoute::Gimfihe, gimfihe_loading),
+                to: gimfihe_route,
+                aria_current: if route == AppRoute::Gimfihe { "page" } else { "false" },
+                span { class: "app-topbar-link-label", "gimfi'e" }
+            }
+            Link {
                 class: topbar_link_class(route == AppRoute::Gentufa, gentufa_loading),
                 to: gentufa_route,
                 aria_current: if route == AppRoute::Gentufa { "page" } else { "false" },
@@ -3583,9 +3770,11 @@ fn render_topbar_nav_carousel(
     route: AppRoute,
     cukta_loading: bool,
     vlacku_loading: bool,
+    gimfihe_loading: bool,
     gentufa_loading: bool,
     cukta_route: JbotciRoute,
     vlacku_route: JbotciRoute,
+    gimfihe_route: JbotciRoute,
     gentufa_route: JbotciRoute,
     base_path: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
@@ -3600,9 +3789,11 @@ fn render_topbar_nav_carousel(
                     "is-adjacent is-previous",
                     cukta_loading,
                     vlacku_loading,
+                    gimfihe_loading,
                     gentufa_loading,
                     cukta_route.clone(),
                     vlacku_route.clone(),
+                    gimfihe_route.clone(),
                     gentufa_route.clone(),
                     base_path,
                     pending_cukta_scroll,
@@ -3613,9 +3804,11 @@ fn render_topbar_nav_carousel(
                     "is-current-slot",
                     cukta_loading,
                     vlacku_loading,
+                    gimfihe_loading,
                     gentufa_loading,
                     cukta_route.clone(),
                     vlacku_route.clone(),
+                    gimfihe_route.clone(),
                     gentufa_route.clone(),
                     base_path,
                     pending_cukta_scroll,
@@ -3626,9 +3819,11 @@ fn render_topbar_nav_carousel(
                     "is-adjacent is-next",
                     cukta_loading,
                     vlacku_loading,
+                    gimfihe_loading,
                     gentufa_loading,
                     cukta_route,
                     vlacku_route,
+                    gimfihe_route,
                     gentufa_route,
                     base_path,
                     pending_cukta_scroll,
@@ -3648,16 +3843,23 @@ fn render_topbar_nav_carousel_link(
     slot_class: &'static str,
     cukta_loading: bool,
     vlacku_loading: bool,
+    gimfihe_loading: bool,
     gentufa_loading: bool,
     cukta_route: JbotciRoute,
     vlacku_route: JbotciRoute,
+    gimfihe_route: JbotciRoute,
     gentufa_route: JbotciRoute,
     base_path: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
 ) -> Element {
     let active = target == active_route;
-    let loading =
-        topbar_carousel_route_loading(target, cukta_loading, vlacku_loading, gentufa_loading);
+    let loading = topbar_carousel_route_loading(
+        target,
+        cukta_loading,
+        vlacku_loading,
+        gimfihe_loading,
+        gentufa_loading,
+    );
     let class = topbar_carousel_link_class(active, loading, slot_class);
     let aria_current = if active { "page" } else { "false" };
     let data_active = if active { "true" } else { "false" };
@@ -3665,6 +3867,7 @@ fn render_topbar_nav_carousel_link(
     let target_route = match target {
         AppRoute::Cukta => cukta_route,
         AppRoute::Vlacku => vlacku_route,
+        AppRoute::Gimfihe => gimfihe_route,
         AppRoute::Gentufa => gentufa_route,
         AppRoute::Settings => return rsx! {},
     };
@@ -3712,6 +3915,7 @@ fn render_topbar_nav_carousel_probe(
     route: AppRoute,
     cukta_loading: bool,
     vlacku_loading: bool,
+    gimfihe_loading: bool,
     gentufa_loading: bool,
 ) -> Element {
     let [previous_route, current_route, next_route] = topbar_carousel_routes(route);
@@ -3724,7 +3928,7 @@ fn render_topbar_nav_carousel_probe(
                 span {
                     class: topbar_carousel_link_class(
                         previous_route == route,
-                        topbar_carousel_route_loading(previous_route, cukta_loading, vlacku_loading, gentufa_loading),
+                        topbar_carousel_route_loading(previous_route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading),
                         "is-adjacent is-previous",
                     ),
                     "data-topbar-nav-active": if previous_route == route { "true" } else { "false" },
@@ -3733,7 +3937,7 @@ fn render_topbar_nav_carousel_probe(
                 span {
                     class: topbar_carousel_link_class(
                         current_route == route,
-                        topbar_carousel_route_loading(current_route, cukta_loading, vlacku_loading, gentufa_loading),
+                        topbar_carousel_route_loading(current_route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading),
                         "is-current-slot",
                     ),
                     "data-topbar-nav-active": if current_route == route { "true" } else { "false" },
@@ -3742,7 +3946,7 @@ fn render_topbar_nav_carousel_probe(
                 span {
                     class: topbar_carousel_link_class(
                         next_route == route,
-                        topbar_carousel_route_loading(next_route, cukta_loading, vlacku_loading, gentufa_loading),
+                        topbar_carousel_route_loading(next_route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading),
                         "is-adjacent is-next",
                     ),
                     "data-topbar-nav-active": if next_route == route { "true" } else { "false" },
@@ -3766,10 +3970,11 @@ fn topbar_carousel_link_class(active: bool, loading: bool, slot_class: &'static 
 #[ensures(route == AppRoute::Settings || ret[1] == route)]
 fn topbar_carousel_routes(route: AppRoute) -> [AppRoute; 3] {
     match route {
-        AppRoute::Cukta => [AppRoute::Gentufa, AppRoute::Cukta, AppRoute::Vlacku],
-        AppRoute::Vlacku => [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gentufa],
-        AppRoute::Gentufa => [AppRoute::Vlacku, AppRoute::Gentufa, AppRoute::Cukta],
-        AppRoute::Settings => [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gentufa],
+        AppRoute::Cukta => [AppRoute::Gimfihe, AppRoute::Cukta, AppRoute::Vlacku],
+        AppRoute::Vlacku => [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihe],
+        AppRoute::Gimfihe => [AppRoute::Vlacku, AppRoute::Gimfihe, AppRoute::Gentufa],
+        AppRoute::Gentufa => [AppRoute::Gimfihe, AppRoute::Gentufa, AppRoute::Cukta],
+        AppRoute::Settings => [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihe],
     }
 }
 
@@ -3779,11 +3984,13 @@ fn topbar_carousel_route_loading(
     route: AppRoute,
     cukta_loading: bool,
     vlacku_loading: bool,
+    gimfihe_loading: bool,
     gentufa_loading: bool,
 ) -> bool {
     match route {
         AppRoute::Cukta => cukta_loading,
         AppRoute::Vlacku => vlacku_loading,
+        AppRoute::Gimfihe => gimfihe_loading,
         AppRoute::Gentufa => gentufa_loading,
         AppRoute::Settings => false,
     }
@@ -3795,6 +4002,7 @@ fn topbar_carousel_route_label(route: AppRoute) -> &'static str {
     match route {
         AppRoute::Cukta => "cukta",
         AppRoute::Vlacku => "vlacku",
+        AppRoute::Gimfihe => "gimfi'e",
         AppRoute::Gentufa => "gentufa",
         AppRoute::Settings => "",
     }
@@ -3970,6 +4178,7 @@ fn page_find_placeholder(route: AppRoute) -> &'static str {
     match route {
         AppRoute::Cukta => "Find in section",
         AppRoute::Vlacku => "Find in cards",
+        AppRoute::Gimfihe => "Find in candidates",
         AppRoute::Gentufa => "Find in output",
         AppRoute::Settings => "Find in settings",
     }
@@ -4076,9 +4285,11 @@ fn render_topbar_fit_probes(
     route: AppRoute,
     cukta_loading: bool,
     vlacku_loading: bool,
+    gimfihe_loading: bool,
     gentufa_loading: bool,
     cukta_route: JbotciRoute,
     vlacku_route: JbotciRoute,
+    gimfihe_route: JbotciRoute,
     gentufa_route: JbotciRoute,
     base_path: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
@@ -4096,7 +4307,7 @@ fn render_topbar_fit_probes(
                 span { class: "app-topbar-theme app-topbar-orthography",
                     { render_script_switch(settings, current.script) }
                 }
-                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+                { render_topbar_nav(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihe_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-theme-full",
                 { render_topbar_probe_brand() }
@@ -4104,12 +4315,12 @@ fn render_topbar_fit_probes(
                 span { class: "app-topbar-theme app-topbar-theme-mode",
                     { render_theme_switch(settings, current.theme) }
                 }
-                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+                { render_topbar_nav(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihe_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-none-full",
                 { render_topbar_probe_brand() }
                 { render_topbar_probe_settings_button() }
-                { render_topbar_nav(route, cukta_loading, vlacku_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+                { render_topbar_nav(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihe_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-both-carousel",
                 { render_topbar_probe_brand() }
@@ -4120,7 +4331,7 @@ fn render_topbar_fit_probes(
                 span { class: "app-topbar-theme app-topbar-orthography",
                     { render_script_switch(settings, current.script) }
                 }
-                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gentufa_loading) }
+                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-theme-carousel",
                 { render_topbar_probe_brand() }
@@ -4128,12 +4339,12 @@ fn render_topbar_fit_probes(
                 span { class: "app-topbar-theme app-topbar-theme-mode",
                     { render_theme_switch(settings, current.theme) }
                 }
-                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gentufa_loading) }
+                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-none-carousel",
                 { render_topbar_probe_brand() }
                 { render_topbar_probe_settings_button() }
-                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gentufa_loading) }
+                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading) }
             }
         }
     }
@@ -5679,6 +5890,19 @@ fn vlacku_loading_result(state: &VlackuWebState, message: &str) -> VlackuWebResu
     }
 }
 
+#[requires(!_message.is_empty())]
+#[ensures(ret.errors.is_empty())]
+fn gimfihe_loading_result(state: &GimfiheWebState, _message: &str) -> GimfiheWebResult {
+    let state = normalize_gimfihe_state(state);
+    GimfiheWebResult {
+        preset_options: gimfihe_preset_options_for_state(&state),
+        language_suggestions: gimfihe_language_suggestions(),
+        state,
+        output: None,
+        errors: Vec::new(),
+    }
+}
+
 #[requires(!message.is_empty())]
 #[ensures(ret.error.as_ref().is_some_and(|error| error == message))]
 fn gentufa_async_error_state(
@@ -5718,6 +5942,18 @@ fn vlacku_async_error_state(state: &VlackuWebState, message: &str) -> VlackuAsyn
     VlackuAsyncResultState {
         state: Some(state.clone()),
         result: vlacku_loading_result(state, message),
+        meta: None,
+        loading: false,
+        error: Some(message.to_owned()),
+    }
+}
+
+#[requires(!message.is_empty())]
+#[ensures(ret.error.as_ref().is_some_and(|error| error == message))]
+fn gimfihe_async_error_state(state: &GimfiheWebState, message: &str) -> GimfiheAsyncResultState {
+    GimfiheAsyncResultState {
+        state: Some(state.clone()),
+        result: gimfihe_loading_result(state, message),
         meta: None,
         loading: false,
         error: Some(message.to_owned()),
@@ -9566,6 +9802,697 @@ fn set_cukta_state_immediate(
     clear_cukta_search_timer();
     draft_state.set(state.clone());
     committed_state.set(state);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_gimfihe_page(
+    gimfihe_draft_state: Signal<GimfiheWebState>,
+    gimfihe_committed_state: Signal<GimfiheWebState>,
+    gimfihe_result: Signal<GimfiheAsyncResultState>,
+    page_find: &PageFindContext,
+) -> Element {
+    let draft_state = gimfihe_draft_state.read().clone();
+    let committed_state = gimfihe_committed_state.read().clone();
+    let result_state = gimfihe_result.read().clone();
+    let result_current = result_state.state.as_ref() == Some(&committed_state);
+    let result = if result_current {
+        result_state.result
+    } else {
+        gimfihe_loading_result(&committed_state, "Loading gismu candidates.")
+    };
+    let loading = result_state.loading || !result_current;
+    let show_result_errors = gimfihe_state_has_any_source_word(&committed_state);
+    rsx! {
+        section { class: "spa-page dictionary-page gimfihe-page",
+            h1 { class: "sr-only", "jbotci gimfi'e" }
+            div { class: "gimfihe-shell",
+                { render_gimfihe_controls(gimfihe_draft_state, gimfihe_committed_state, &draft_state, &result) }
+                if loading {
+                    p { class: "gimfihe-status",
+                        { render_page_find_text(page_find, "Loading gismu candidates.") }
+                    }
+                }
+                if let Some(error) = &result_state.error {
+                    div { class: "spa-error dictionary-error",
+                        { render_page_find_text(page_find, error) }
+                    }
+                }
+                if show_result_errors {
+                    for error in result.errors.iter() {
+                        div { class: "spa-error dictionary-error",
+                            { render_page_find_text(page_find, error) }
+                        }
+                    }
+                }
+                { render_gimfihe_results(&result, gimfihe_draft_state, gimfihe_committed_state, page_find) }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_gimfihe_controls(
+    mut gimfihe_draft_state: Signal<GimfiheWebState>,
+    mut gimfihe_committed_state: Signal<GimfiheWebState>,
+    state: &GimfiheWebState,
+    result: &GimfiheWebResult,
+) -> Element {
+    let current_preset = state.preset.clone().unwrap_or_default();
+    rsx! {
+        div { class: "gimfihe-form",
+            div { class: "gimfihe-control-grid",
+                label { class: "gimfihe-control gimfihe-preset-control",
+                    span { class: "gimfihe-control-label", "Preset" }
+                    select {
+                        class: "gimfihe-select",
+                        value: "{current_preset}",
+                        onchange: move |event| {
+                            let value = event.value();
+                            let next = match value.parse::<GimfihePreset>() {
+                                Ok(preset) => gimfihe_state_for_selected_preset(&gimfihe_draft_state.read(), Some(preset)),
+                                Err(_) => gimfihe_state_with_explicit_custom_weights(&gimfihe_draft_state.read()),
+                            };
+                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                        },
+                        option { value: "", "custom" }
+                        for option in result.preset_options.iter() {
+                            option {
+                                value: "{option.value}",
+                                "{option.label}"
+                            }
+                        }
+                    }
+                }
+                label { class: "gimfihe-control gimfihe-count-control",
+                    span { class: "gimfihe-control-label", "Count" }
+                    input {
+                        class: "gimfihe-number-input",
+                        r#type: "number",
+                        min: "1",
+                        max: "512",
+                        step: "1",
+                        value: "{state.count}",
+                        oninput: move |event| {
+                            let mut next = gimfihe_draft_state.read().clone();
+                            if let Ok(count) = event.value().parse::<usize>() {
+                                next.count = count;
+                                gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                            }
+                        },
+                    }
+                }
+                label { class: "gimfihe-control gimfihe-collision-control",
+                    span { class: "gimfihe-control-label", "Collisions" }
+                    select {
+                        class: "gimfihe-select",
+                        value: "{state.check_collisions}",
+                        onchange: move |event| {
+                            let mut next = gimfihe_draft_state.read().clone();
+                            next.check_collisions = event.value();
+                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                        },
+                        option { value: "all", "all" }
+                        option { value: "official", "official" }
+                        option { value: "none", "none" }
+                    }
+                }
+                label { class: "gimfihe-control gimfihe-highlight-control",
+                    span { class: "gimfihe-control-label", "Highlight" }
+                    input {
+                        class: "gimfihe-text-input",
+                        r#type: "text",
+                        spellcheck: "false",
+                        value: "{state.highlight.clone().unwrap_or_default()}",
+                        oninput: move |event| {
+                            let mut next = gimfihe_draft_state.read().clone();
+                            next.highlight = gimfihe_optional_text(&event.value());
+                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                        },
+                    }
+                }
+            }
+            div { class: "gimfihe-source-table-wrap",
+                datalist { id: "gimfihe-language-options",
+                    for language in result.language_suggestions.iter() {
+                        option { value: "{language}" }
+                    }
+                }
+                table { class: "gimfihe-source-table",
+                    thead {
+                        tr {
+                            th { "Lang" }
+                            th { "Weight" }
+                            th { "Word" }
+                            th { "Actions" }
+                        }
+                    }
+                    tbody {
+                        for (index, source) in state.sources.iter().enumerate() {
+                            { render_gimfihe_source_row(gimfihe_draft_state, state, index, source) }
+                        }
+                    }
+                }
+            }
+            div { class: "gimfihe-option-row",
+                div { class: "gimfihe-shape-group", role: "group", aria_label: "Gismu shapes",
+                    { render_gimfihe_shape_toggle(gimfihe_draft_state, state, "ccvcv") }
+                    { render_gimfihe_shape_toggle(gimfihe_draft_state, state, "cvccv") }
+                }
+                label { class: "compact-check gimfihe-checkbox",
+                    input {
+                        r#type: "checkbox",
+                        checked: state.all_letters,
+                        onchange: move |_| {
+                            let mut next = gimfihe_draft_state.read().clone();
+                            next.all_letters = !next.all_letters;
+                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                        },
+                    }
+                    span { "all letters" }
+                }
+                label { class: "compact-check gimfihe-checkbox",
+                    input {
+                        r#type: "checkbox",
+                        checked: state.require_free_short_rafsi,
+                        onchange: move |_| {
+                            let mut next = gimfihe_draft_state.read().clone();
+                            next.require_free_short_rafsi = !next.require_free_short_rafsi;
+                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                        },
+                    }
+                    span { "free short rafsi" }
+                }
+            }
+            div { class: "gimfihe-action-row",
+                button {
+                    class: "gimfihe-secondary-button",
+                    r#type: "button",
+                    onclick: move |_| {
+                        let mut next = gimfihe_state_with_explicit_custom_weights(&gimfihe_draft_state.read());
+                        next.sources.push(GimfiheWebSource {
+                            language: String::new(),
+                            weight: Some("1".to_owned()),
+                            word: String::new(),
+                        });
+                        gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                    },
+                    "Add row"
+                }
+                button {
+                    class: "btn-parse gimfihe-generate-button",
+                    r#type: "button",
+                    onclick: move |_| {
+                        let next = normalize_gimfihe_state(&gimfihe_draft_state.read());
+                        gimfihe_draft_state.set(next.clone());
+                        gimfihe_committed_state.set(next);
+                    },
+                    "Generate"
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_gimfihe_source_row(
+    mut gimfihe_draft_state: Signal<GimfiheWebState>,
+    state: &GimfiheWebState,
+    index: usize,
+    source: &GimfiheWebSource,
+) -> Element {
+    let row_count = state.sources.len();
+    let weight_value = gimfihe_source_weight_value(state, source);
+    let language = source.language.clone();
+    let word = source.word.clone();
+    rsx! {
+        tr { class: "gimfihe-source-row",
+            td {
+                input {
+                    class: "gimfihe-lang-input",
+                    r#type: "text",
+                    list: "gimfihe-language-options",
+                    spellcheck: "false",
+                    value: "{language}",
+                    oninput: move |event| {
+                        let next = gimfihe_state_with_source_language(&gimfihe_draft_state.read(), index, &event.value());
+                        gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                    },
+                }
+            }
+            td {
+                div { class: "gimfihe-weight-cell",
+                    input {
+                        class: "gimfihe-weight-slider",
+                        r#type: "range",
+                        min: "0.001",
+                        max: "5",
+                        step: "0.001",
+                        value: "{weight_value}",
+                        oninput: move |event| {
+                            let next = gimfihe_state_with_source_weight(&gimfihe_draft_state.read(), index, &event.value());
+                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                        },
+                    }
+                    input {
+                        class: "gimfihe-weight-number",
+                        r#type: "number",
+                        min: "0.001",
+                        step: "0.001",
+                        value: "{weight_value}",
+                        oninput: move |event| {
+                            let next = gimfihe_state_with_source_weight(&gimfihe_draft_state.read(), index, &event.value());
+                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                        },
+                    }
+                }
+            }
+            td {
+                input {
+                    class: "gimfihe-word-input",
+                    r#type: "text",
+                    spellcheck: "false",
+                    value: "{word}",
+                    oninput: move |event| {
+                        let next = gimfihe_state_with_source_word(&gimfihe_draft_state.read(), index, &event.value());
+                        gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                    },
+                }
+            }
+            td {
+                button {
+                    class: "gimfihe-row-button",
+                    r#type: "button",
+                    disabled: row_count <= 1,
+                    onclick: move |_| {
+                        let next = gimfihe_state_without_source(&gimfihe_draft_state.read(), index);
+                        gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                    },
+                    "Remove"
+                }
+            }
+        }
+    }
+}
+
+#[requires(!shape.is_empty())]
+#[ensures(true)]
+fn render_gimfihe_shape_toggle(
+    mut gimfihe_draft_state: Signal<GimfiheWebState>,
+    state: &GimfiheWebState,
+    shape: &'static str,
+) -> Element {
+    let selected = state.shapes.iter().any(|current| current == shape);
+    rsx! {
+        label { class: class_names("compact-check gimfihe-shape-toggle", &[("is-selected", selected)]),
+            input {
+                r#type: "checkbox",
+                checked: selected,
+                onchange: move |_| {
+                    let next = gimfihe_state_with_shape_toggled(&gimfihe_draft_state.read(), shape);
+                    gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                },
+            }
+            span { "{shape}" }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_gimfihe_results(
+    result: &GimfiheWebResult,
+    mut gimfihe_draft_state: Signal<GimfiheWebState>,
+    mut gimfihe_committed_state: Signal<GimfiheWebState>,
+    page_find: &PageFindContext,
+) -> Element {
+    let Some(output) = &result.output else {
+        return rsx! {};
+    };
+    if output.candidates.is_empty() {
+        return rsx! {
+            p { class: "dictionary-empty",
+                { render_page_find_text(page_find, "No candidates found.") }
+            }
+        };
+    }
+    let summary = gimfihe_result_summary(output);
+    rsx! {
+        div { class: "gimfihe-results",
+            div { class: "gimfihe-result-summary",
+                { render_page_find_text(page_find, &summary) }
+            }
+            div { class: "gimfihe-results-table-wrap",
+                table { class: "gimfihe-results-table",
+                    thead {
+                        tr {
+                            th { "Candidate" }
+                            th { "Score" }
+                            th { "Rafsi" }
+                        }
+                    }
+                    tbody {
+                        for candidate in output.candidates.iter() {
+                            {
+                                let word = candidate.word.clone();
+                                let score = format_gimfihe_score(candidate.score);
+                                let rafsi = format_gimfihe_rafsis(&candidate.rafsi);
+                                let row_class = class_names(
+                                    "gimfihe-candidate-row",
+                                    &[("is-highlighted", candidate.highlighted)],
+                                );
+                                rsx! {
+                                    tr { class: "{row_class}",
+                                        td {
+                                            button {
+                                                class: "gimfihe-candidate-button",
+                                                r#type: "button",
+                                                aria_pressed: pressed_attr(candidate.highlighted),
+                                                onclick: move |_| {
+                                                    let next = gimfihe_state_with_highlight(
+                                                        &gimfihe_committed_state.read(),
+                                                        &word,
+                                                    );
+                                                    gimfihe_draft_state.set(next.clone());
+                                                    gimfihe_committed_state.set(next);
+                                                },
+                                                { render_page_find_text(page_find, &candidate.word) }
+                                            }
+                                        }
+                                        td { { render_page_find_text(page_find, &score) } }
+                                        td { { render_page_find_text(page_find, &rafsi) } }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_preset_options_for_state(state: &GimfiheWebState) -> Vec<GimfihePresetOption> {
+    all_presets()
+        .iter()
+        .map(|preset| GimfihePresetOption {
+            value: preset.as_str().to_owned(),
+            label: preset.as_str().to_owned(),
+            selected: state.preset.as_deref() == Some(preset.as_str()),
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn gimfihe_language_suggestions() -> Vec<String> {
+    let mut languages = BTreeSet::new();
+    for preset in all_presets() {
+        for entry in preset.entries() {
+            languages.insert(entry.language.to_owned());
+        }
+    }
+    languages.into_iter().collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_sources_for_preset(preset: GimfihePreset) -> Vec<GimfiheWebSource> {
+    preset
+        .entries()
+        .iter()
+        .map(|entry| GimfiheWebSource {
+            language: entry.language.to_owned(),
+            weight: None,
+            word: String::new(),
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_state_for_selected_preset(
+    state: &GimfiheWebState,
+    preset: Option<GimfihePreset>,
+) -> GimfiheWebState {
+    let Some(preset) = preset else {
+        return gimfihe_state_with_explicit_custom_weights(state);
+    };
+    let words_by_language = state
+        .sources
+        .iter()
+        .map(|source| (source.language.clone(), source.word.clone()))
+        .collect::<BTreeMap<_, _>>();
+    let mut next = state.clone();
+    next.preset = Some(preset.as_str().to_owned());
+    next.sources = gimfihe_sources_for_preset(preset)
+        .into_iter()
+        .map(|mut source| {
+            if let Some(word) = words_by_language.get(&source.language) {
+                source.word = word.clone();
+            }
+            source
+        })
+        .collect();
+    next
+}
+
+#[requires(true)]
+#[ensures(ret.preset.is_none())]
+fn gimfihe_state_with_explicit_custom_weights(state: &GimfiheWebState) -> GimfiheWebState {
+    let preset = state
+        .preset
+        .as_deref()
+        .and_then(|value| value.parse::<GimfihePreset>().ok());
+    let mut next = state.clone();
+    next.preset = None;
+    for source in &mut next.sources {
+        if source.weight.is_none() {
+            source.weight = Some(gimfihe_preset_weight_text(preset, &source.language));
+        }
+    }
+    next
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_state_with_source_language(
+    state: &GimfiheWebState,
+    index: usize,
+    language: &str,
+) -> GimfiheWebState {
+    let mut next = state.clone();
+    if let Some(source) = next.sources.get_mut(index) {
+        source.language = language.to_owned();
+    }
+    let Some(preset) = state
+        .preset
+        .as_deref()
+        .and_then(|value| value.parse::<GimfihePreset>().ok())
+    else {
+        return next;
+    };
+    if gimfihe_language_multiset(&next.sources) == gimfihe_preset_language_multiset(preset) {
+        next
+    } else {
+        let mut custom = gimfihe_state_with_explicit_custom_weights(state);
+        if let Some(source) = custom.sources.get_mut(index) {
+            source.language = language.to_owned();
+        }
+        custom
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_state_with_source_weight(
+    state: &GimfiheWebState,
+    index: usize,
+    weight: &str,
+) -> GimfiheWebState {
+    let mut next = state.clone();
+    if let Some(source) = next.sources.get_mut(index) {
+        source.weight = gimfihe_optional_text(weight);
+    }
+    next
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_state_with_source_word(
+    state: &GimfiheWebState,
+    index: usize,
+    word: &str,
+) -> GimfiheWebState {
+    let mut next = state.clone();
+    if let Some(source) = next.sources.get_mut(index) {
+        source.word = word.to_owned();
+    }
+    next
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_state_without_source(state: &GimfiheWebState, index: usize) -> GimfiheWebState {
+    let mut next = gimfihe_state_with_explicit_custom_weights(state);
+    if index < next.sources.len() {
+        next.sources.remove(index);
+    }
+    next
+}
+
+#[requires(!shape.is_empty())]
+#[ensures(true)]
+fn gimfihe_state_with_shape_toggled(state: &GimfiheWebState, shape: &str) -> GimfiheWebState {
+    let mut next = state.clone();
+    if let Some(index) = next.shapes.iter().position(|current| current == shape) {
+        next.shapes.remove(index);
+    } else {
+        next.shapes.push(shape.to_owned());
+    }
+    next
+}
+
+#[requires(!highlight.trim().is_empty())]
+#[ensures(ret.highlight.as_ref().is_some_and(|value| value == &highlight.trim().to_ascii_lowercase()))]
+fn gimfihe_state_with_highlight(state: &GimfiheWebState, highlight: &str) -> GimfiheWebState {
+    let mut next = state.clone();
+    next.highlight = Some(highlight.trim().to_owned());
+    normalize_gimfihe_state(&next)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_language_multiset(sources: &[GimfiheWebSource]) -> Vec<String> {
+    let mut languages = sources
+        .iter()
+        .map(|source| source.language.trim().to_ascii_lowercase())
+        .collect::<Vec<_>>();
+    languages.sort();
+    languages
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_preset_language_multiset(preset: GimfihePreset) -> Vec<String> {
+    let mut languages = preset
+        .entries()
+        .iter()
+        .map(|entry| entry.language.to_owned())
+        .collect::<Vec<_>>();
+    languages.sort();
+    languages
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_source_weight_value(state: &GimfiheWebState, source: &GimfiheWebSource) -> String {
+    source.weight.clone().unwrap_or_else(|| {
+        let preset = state
+            .preset
+            .as_deref()
+            .and_then(|value| value.parse::<GimfihePreset>().ok());
+        gimfihe_preset_weight_text(preset, &source.language)
+    })
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn gimfihe_preset_weight_text(preset: Option<GimfihePreset>, language: &str) -> String {
+    preset
+        .and_then(|preset| {
+            preset
+                .entries()
+                .iter()
+                .find(|entry| entry.language == language.trim())
+                .map(|entry| trim_gimfihe_float(&format!("{:.6}", entry.weight)))
+        })
+        .unwrap_or_else(|| "1".to_owned())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_optional_text(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_owned())
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_state_has_any_source_word(state: &GimfiheWebState) -> bool {
+    state
+        .sources
+        .iter()
+        .any(|source| !source.word.trim().is_empty())
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn gimfihe_result_summary(output: &GimfiheOutput) -> String {
+    match &output.highlighted_word {
+        Some(highlighted) => format!(
+            "{highlighted} highlighted, {} shown, {} passed filters",
+            output.candidates.len(),
+            output.filtered_count
+        ),
+        None => format!(
+            "{} shown, {} passed filters",
+            output.candidates.len(),
+            output.filtered_count
+        ),
+    }
+}
+
+#[requires(value.is_finite())]
+#[ensures(!ret.is_empty())]
+fn format_gimfihe_score(value: f64) -> String {
+    trim_gimfihe_float(&format!("{value:.6}"))
+}
+
+#[requires(!value.is_empty())]
+#[ensures(!ret.is_empty())]
+fn trim_gimfihe_float(value: &str) -> String {
+    let trimmed = value.trim_end_matches('0').trim_end_matches('.');
+    if trimmed.is_empty() {
+        "0".to_owned()
+    } else {
+        trimmed.to_owned()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn format_gimfihe_rafsis(rafsis: &[RafsiCandidate]) -> String {
+    if rafsis.is_empty() {
+        return "none".to_owned();
+    }
+    rafsis
+        .iter()
+        .map(format_gimfihe_rafsi)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+#[requires(!rafsi.form.is_empty())]
+#[ensures(ret.contains(&rafsi.form))]
+fn format_gimfihe_rafsi(rafsi: &RafsiCandidate) -> String {
+    match rafsi.availability {
+        RafsiAvailability::Free => format!("{} free", rafsi.form),
+        RafsiAvailability::OfficialTaken => {
+            format!("{} official: {}", rafsi.form, rafsi.taken_by.join(", "))
+        }
+        RafsiAvailability::ExperimentalTaken => {
+            format!("{} experimental: {}", rafsi.form, rafsi.taken_by.join(", "))
+        }
+    }
 }
 
 #[requires(true)]
@@ -16643,6 +17570,16 @@ fn initial_vlacku_state(route: &JbotciRoute) -> VlackuWebState {
 
 #[requires(true)]
 #[ensures(true)]
+fn initial_gimfihe_state(route: &JbotciRoute) -> GimfiheWebState {
+    if let WebRoute::Gimfihe(state) = &route.web_route {
+        state.clone()
+    } else {
+        GimfiheWebState::default()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn initial_cukta_state(route: &JbotciRoute) -> CuktaWebState {
     if let WebRoute::Cukta(state) = &route.web_route {
         state.clone()
@@ -16741,6 +17678,7 @@ fn app_route_for_web_route(route: &WebRoute) -> AppRoute {
         WebRoute::Gentufa(_) => AppRoute::Gentufa,
         WebRoute::Cukta(_) => AppRoute::Cukta,
         WebRoute::Vlacku(_) => AppRoute::Vlacku,
+        WebRoute::Gimfihe(_) => AppRoute::Gimfihe,
         WebRoute::Settings => AppRoute::Settings,
     }
 }
@@ -18778,6 +19716,8 @@ fn apply_web_route_to_client_state(
     mut cukta_committed_state: Signal<CuktaWebState>,
     mut vlacku_draft_state: Signal<VlackuWebState>,
     mut vlacku_committed_state: Signal<VlackuWebState>,
+    mut gimfihe_draft_state: Signal<GimfiheWebState>,
+    mut gimfihe_committed_state: Signal<GimfiheWebState>,
     mut input_text: Signal<String>,
     mut parsed_text: Signal<String>,
     mut parsed_text_explicit: Signal<bool>,
@@ -18823,6 +19763,10 @@ fn apply_web_route_to_client_state(
             clear_vlacku_search_timer();
             vlacku_draft_state.set(state.clone());
             vlacku_committed_state.set(state.clone());
+        }
+        WebRoute::Gimfihe(state) => {
+            gimfihe_draft_state.set(state.clone());
+            gimfihe_committed_state.set(state.clone());
         }
         WebRoute::Settings => {}
     }
@@ -19575,6 +20519,22 @@ fn push_cukta_url(
     state: &CuktaWebState,
 ) {
     let target = JbotciRoute::from_web_route(WebRoute::Cukta(state.clone()), false);
+    if current.without_hash() == target {
+        return;
+    }
+    pending_writes.with_mut(|pending| pending.record(&target));
+    history.push(route_path_for_route(&target));
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_gimfihe_url(
+    history: Rc<dyn History>,
+    mut pending_writes: Signal<PendingLocalRouteWrites>,
+    current: &JbotciRoute,
+    state: &GimfiheWebState,
+) {
+    let target = JbotciRoute::from_web_route(WebRoute::Gimfihe(state.clone()), false);
     if current.without_hash() == target {
         return;
     }
@@ -20569,20 +21529,90 @@ mod tests {
     fn topbar_carousel_routes_center_active_page_and_wrap_neighbors() {
         assert_eq!(
             topbar_carousel_routes(AppRoute::Cukta),
-            [AppRoute::Gentufa, AppRoute::Cukta, AppRoute::Vlacku]
+            [AppRoute::Gimfihe, AppRoute::Cukta, AppRoute::Vlacku]
         );
         assert_eq!(
             topbar_carousel_routes(AppRoute::Vlacku),
-            [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gentufa]
+            [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihe]
+        );
+        assert_eq!(
+            topbar_carousel_routes(AppRoute::Gimfihe),
+            [AppRoute::Vlacku, AppRoute::Gimfihe, AppRoute::Gentufa]
         );
         assert_eq!(
             topbar_carousel_routes(AppRoute::Gentufa),
-            [AppRoute::Vlacku, AppRoute::Gentufa, AppRoute::Cukta]
+            [AppRoute::Gimfihe, AppRoute::Gentufa, AppRoute::Cukta]
         );
         assert_eq!(
             topbar_carousel_routes(AppRoute::Settings),
-            [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gentufa]
+            [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihe]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihe_sources_for_preset_populates_rows() {
+        let sources = gimfihe_sources_for_preset(GimfihePreset::Ilmen12);
+
+        assert_eq!(sources.len(), 12);
+        assert_eq!(sources[0].language, "cmn");
+        assert_eq!(sources[11].language, "fra");
+        assert!(sources.iter().all(|source| source.weight.is_none()));
+        assert!(sources.iter().all(|source| source.word.is_empty()));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihe_language_edit_clears_preset_and_preserves_visible_weight() {
+        let state = GimfiheWebState::default();
+
+        let next = gimfihe_state_with_source_language(&state, 0, "jpn");
+
+        assert_eq!(next.preset, None);
+        assert_eq!(next.sources[0].language, "jpn");
+        assert_eq!(next.sources[0].weight.as_deref(), Some("0.347"));
+        assert_eq!(next.sources[1].weight.as_deref(), Some("0.196"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihe_selected_preset_preserves_matching_words() {
+        let mut state = GimfiheWebState::default();
+        state.sources[0].word = "uan".to_owned();
+        state.sources[2].word = "ekspekt".to_owned();
+
+        let next = gimfihe_state_for_selected_preset(&state, Some(GimfihePreset::Ilmen6));
+
+        assert_eq!(next.preset.as_deref(), Some("ilmen6"));
+        assert_eq!(next.sources[0].language, "eng");
+        assert_eq!(next.sources[0].word, "ekspekt");
+        assert_eq!(next.sources[1].language, "cmn");
+        assert_eq!(next.sources[1].word, "uan");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihe_initial_state_hydrates_from_route() {
+        let mut state = GimfiheWebState::default();
+        state.highlight = Some("nanpe".to_owned());
+        let route = JbotciRoute::from_web_route(WebRoute::Gimfihe(state.clone()), false);
+
+        assert_eq!(initial_gimfihe_state(&route), state);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihe_highlight_helper_preserves_row_selection_in_state() {
+        let state = GimfiheWebState::default();
+
+        let next = gimfihe_state_with_highlight(&state, "Nanpe");
+
+        assert_eq!(next.highlight.as_deref(), Some("nanpe"));
     }
 
     #[requires(true)]

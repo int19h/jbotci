@@ -1,0 +1,28 @@
+[package]
+name = "jbotci-gimfihe"
+description = "CLL gismu composition for jbotci."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[features]
+expensive_contracts = []
+
+[dependencies]
+bityzba.workspace = true
+jbotci-dictionary.workspace = true
+jbotci-morphology.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+jbotci-dictionary-data.workspace = true
+
+[build-dependencies]
+bityzba = { workspace = true, features = ["contract_scanner"] }
+
+[lints]
+workspace = true

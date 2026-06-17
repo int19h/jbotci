@@ -376,6 +376,9 @@ fn is_spa_route_path(path: &str) -> bool {
         || path.starts_with("/gentufa/")
         || path == "/vlacku"
         || path.starts_with("/vlacku/")
+        || path == "/gimfihe"
+        || path == "/gimfi'e"
+        || path == "/gimfi%27e"
         || path == "/cukta"
         || path.starts_with("/cukta/")
         || path == "/settings"
@@ -1287,6 +1290,7 @@ mod tests {
         assert!(cukta_body.contains("name=\"twitter:title\" content=\"jbotci CLL - CLL index\""));
 
         let vlacku = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .uri("/jbotci/vlacku/klama")
@@ -1303,6 +1307,24 @@ mod tests {
             vlacku_body.contains(
                 "property=\"og:url\" content=\"http://example.test/jbotci/vlacku/klama\""
             )
+        );
+
+        let gimfihe = app
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/gimfihe?preset=1995&source=cmn%3A%3Auan&source=hin%3A%3Arakan&source=eng%3A%3Aekspekt&source=spa%3A%3Aesper&source=rus%3A%3Apredpologa&source=ara%3A%3Amulud&shape=ccvcv&shape=cvccv&letters=source&check-collisions=none&require-free-short-rafsi=false&count=5&highlight=nanpe")
+                    .header(HOST, "example.test")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let gimfihe_body = response_text(gimfihe).await;
+        assert!(gimfihe_body.contains("<title>nanpe - jbotci gimfi"));
+        assert!(gimfihe_body.contains("nanpe = cmn:uan ×0.347"));
+        assert!(
+            gimfihe_body
+                .contains("property=\"og:url\" content=\"http://example.test/jbotci/gimfihe?")
         );
     }
 

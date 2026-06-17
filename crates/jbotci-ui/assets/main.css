@@ -3427,6 +3427,175 @@ body::-webkit-scrollbar-thumb:hover,
   cursor: pointer;
 }
 
+.gimfihe-page .gimfihe-shell {
+  display: grid;
+  gap: 1rem;
+  width: min(100%, 76rem);
+  margin: 0 auto;
+  padding: 0 1rem 1.25rem;
+}
+
+.gimfihe-page .gimfihe-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.gimfihe-page .gimfihe-control-grid {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.85fr) minmax(7rem, 0.45fr) minmax(9rem, 0.65fr) minmax(11rem, 1fr);
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.gimfihe-page .gimfihe-control {
+  display: grid;
+  gap: 0.24rem;
+  min-width: 0;
+}
+
+.gimfihe-page .gimfihe-control-label {
+  color: var(--app-muted);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+}
+
+.gimfihe-page .gimfihe-select,
+.gimfihe-page .gimfihe-text-input,
+.gimfihe-page .gimfihe-number-input,
+.gimfihe-page .gimfihe-lang-input,
+.gimfihe-page .gimfihe-word-input,
+.gimfihe-page .gimfihe-weight-number {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  background: var(--app-surface-0);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 0.9rem;
+  min-height: 2.15rem;
+  padding: 0.38rem 0.5rem;
+}
+
+.gimfihe-page .gimfihe-source-table-wrap,
+.gimfihe-page .gimfihe-results-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--app-surface-0) 96%, transparent);
+}
+
+.gimfihe-page .gimfihe-source-table,
+.gimfihe-page .gimfihe-results-table {
+  width: 100%;
+  min-width: 44rem;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.gimfihe-page th,
+.gimfihe-page td {
+  border-bottom: 1px solid var(--app-border);
+  padding: 0.45rem 0.52rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.gimfihe-page tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.gimfihe-page th {
+  color: var(--app-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--app-surface-2);
+}
+
+.gimfihe-page .gimfihe-weight-cell {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1fr) 5.8rem;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.gimfihe-page .gimfihe-weight-slider {
+  width: 100%;
+  accent-color: var(--app-accent);
+}
+
+.gimfihe-page .gimfihe-option-row,
+.gimfihe-page .gimfihe-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1rem;
+  align-items: center;
+}
+
+.gimfihe-page .gimfihe-shape-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.gimfihe-page .gimfihe-checkbox,
+.gimfihe-page .gimfihe-shape-toggle {
+  min-height: 2rem;
+}
+
+.gimfihe-page .gimfihe-secondary-button,
+.gimfihe-page .gimfihe-row-button,
+.gimfihe-page .gimfihe-candidate-button {
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  background: var(--app-surface-0);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 0.88rem;
+  min-height: 2rem;
+  padding: 0.28rem 0.58rem;
+  cursor: pointer;
+}
+
+.gimfihe-page .gimfihe-row-button:disabled {
+  color: var(--app-muted);
+  cursor: default;
+  opacity: 0.62;
+}
+
+.gimfihe-page .gimfihe-candidate-button {
+  min-width: 5.5rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--app-link);
+  font-weight: 700;
+  text-align: left;
+}
+
+.gimfihe-page .gimfihe-candidate-row.is-highlighted {
+  background: color-mix(in srgb, var(--app-accent) 12%, transparent);
+}
+
+.gimfihe-page .gimfihe-candidate-row.is-highlighted .gimfihe-candidate-button {
+  color: var(--app-text);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.gimfihe-page .gimfihe-status,
+.gimfihe-page .gimfihe-result-summary {
+  color: var(--app-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.gimfihe-page .gimfihe-results {
+  display: grid;
+  gap: 0.55rem;
+}
+
 .dictionary-page .dictionary-results-grid {
   display: grid;
   gap: 0.85rem;
@@ -5162,6 +5331,24 @@ body::-webkit-scrollbar-thumb:hover,
 
   .dictionary-page .dictionary-query-row {
     grid-template-columns: 1fr;
+  }
+
+  .gimfihe-page .gimfihe-shell {
+    padding-inline: 0.75rem;
+  }
+
+  .gimfihe-page .gimfihe-control-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gimfihe-page .gimfihe-source-table,
+  .gimfihe-page .gimfihe-results-table {
+    min-width: 39rem;
+    font-size: 0.84rem;
+  }
+
+  .gimfihe-page .gimfihe-weight-cell {
+    grid-template-columns: minmax(6rem, 1fr) 5rem;
   }
 
   .cll-page .cll-shell {

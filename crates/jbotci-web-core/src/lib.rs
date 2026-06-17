@@ -30,6 +30,14 @@ use jbotci_gentufa::{
     reference_slot_label_from_output, rendered_leaves as build_rendered_leaves,
     syntax_constructor_name as gentufa_syntax_constructor_name,
 };
+use jbotci_gimfihe::{
+    CollisionScope, GimfiheRequest, GimfiheSourceInput, compose_gismu, default_shapes,
+    parse_collision_scope, parse_preset, parse_shape, parse_weight, preset_language_suggestions,
+};
+pub use jbotci_gimfihe::{
+    GIMFIHE_DEFAULT_COUNT, GIMFIHE_MAX_COUNT, GimfiheCandidate, GimfiheOutput, GimfihePreset,
+    RafsiAvailability, RafsiCandidate, ResolvedSource, all_presets,
+};
 use jbotci_jvozba::{
     JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegment, JvozbaSegmentKind,
     build_best_jvozba_detailed, word_can_enter_jvozba_pane,
@@ -966,6 +974,8 @@ fn color_for_node(depth: usize, preorder: usize) -> String {
 
 pub const VLACKU_WEB_DEFAULT_COUNT: usize = DEFAULT_VLACKU_RESULT_COUNT;
 pub const VLACKU_WEB_MAX_COUNT: usize = 2048;
+pub const GIMFIHE_WEB_DEFAULT_COUNT: usize = GIMFIHE_DEFAULT_COUNT;
+pub const GIMFIHE_WEB_MAX_COUNT: usize = GIMFIHE_MAX_COUNT;
 
 pub const CUKTA_WEB_DEFAULT_COUNT: usize = DEFAULT_CUKTA_WEB_RESULT_COUNT;
 pub const CUKTA_WEB_MAX_COUNT: usize = MAX_CUKTA_RESULT_COUNT;
@@ -1035,6 +1045,11 @@ pub fn run_web_compute_request(
                 build_vlacku_semantic_web_result_with_loading(&state, &hits, message, loading);
             let meta = build_page_meta(&base_path, &WebRoute::Vlacku(state));
             Ok(WebComputeResponse::VlackuPage { result, meta })
+        }
+        WebComputeRequest::GimfihePage { base_path, state } => {
+            let result = build_gimfihe_web_result(&state);
+            let meta = build_page_meta(&base_path, &WebRoute::Gimfihe(state));
+            Ok(WebComputeResponse::GimfihePage { result, meta })
         }
         WebComputeRequest::EmbeddingCorpusJson => Ok(WebComputeResponse::EmbeddingCorpusJson {
             json: embedding_worker_corpus_json(),
@@ -1314,9 +1329,83 @@ impl Default for VlackuWebState {
 }
 
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct GimfiheWebSource {
+    pub language: String,
+    pub weight: Option<String>,
+    pub word: String,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct GimfiheWebState {
+    pub preset: Option<String>,
+    pub sources: Vec<GimfiheWebSource>,
+    pub shapes: Vec<String>,
+    pub all_letters: bool,
+    pub check_collisions: String,
+    pub require_free_short_rafsi: bool,
+    pub count: usize,
+    pub highlight: Option<String>,
+}
+
+impl Default for GimfiheWebState {
+    #[requires(true)]
+    #[ensures(ret.preset.as_deref() == Some("1995"))]
+    #[ensures(ret.count == GIMFIHE_WEB_DEFAULT_COUNT)]
+    fn default() -> Self {
+        let preset = GimfihePreset::Data1995;
+        Self {
+            preset: Some(preset.as_str().to_owned()),
+            sources: preset
+                .entries()
+                .iter()
+                .map(|entry| GimfiheWebSource {
+                    language: entry.language.to_owned(),
+                    weight: None,
+                    word: String::new(),
+                })
+                .collect(),
+            shapes: default_shapes()
+                .into_iter()
+                .map(|shape| shape.as_str().to_owned())
+                .collect(),
+            all_letters: false,
+            check_collisions: CollisionScope::All.as_str().to_owned(),
+            require_free_short_rafsi: false,
+            count: GIMFIHE_WEB_DEFAULT_COUNT,
+            highlight: None,
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct GimfihePresetOption {
+    pub value: String,
+    pub label: String,
+    pub selected: bool,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct GimfiheWebResult {
+    pub state: GimfiheWebState,
+    pub output: Option<GimfiheOutput>,
+    pub preset_options: Vec<GimfihePresetOption>,
+    pub language_suggestions: Vec<String>,
+    pub errors: Vec<String>,
+}
+
+#[invariant(true)]
 #[invariant(::Gentufa(_) => true)]
 #[invariant(::Cukta(_) => true)]
 #[invariant(::Vlacku(_) => true)]
+#[invariant(::Gimfihe(_) => true)]
 #[invariant(::Settings => true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -1324,6 +1413,7 @@ pub enum WebRoute {
     Gentufa(GentufaWebState),
     Cukta(CuktaWebState),
     Vlacku(VlackuWebState),
+    Gimfihe(GimfiheWebState),
     Settings,
 }
 
@@ -1413,6 +1503,7 @@ pub struct VlackuSemanticSearchHit {
 #[invariant(::CuktaSemanticPage { .. } => true)]
 #[invariant(::VlackuPage { .. } => true)]
 #[invariant(::VlackuSemanticPage { .. } => true)]
+#[invariant(::GimfihePage { .. } => true)]
 #[invariant(::EmbeddingCorpusJson => true)]
 #[invariant(::GentufaBlocksSvg { .. } => true)]
 #[invariant(::GentufaBlocksPng { .. } => true)]
@@ -1446,6 +1537,10 @@ pub enum WebComputeRequest {
         message: Option<String>,
         loading: bool,
     },
+    GimfihePage {
+        base_path: String,
+        state: GimfiheWebState,
+    },
     EmbeddingCorpusJson,
     GentufaBlocksSvg {
         layout: GentufaBlocksLayout,
@@ -1463,6 +1558,7 @@ pub enum WebComputeRequest {
 #[invariant(::GentufaPage { .. } => true)]
 #[invariant(::CuktaPage { .. } => true)]
 #[invariant(::VlackuPage { .. } => true)]
+#[invariant(::GimfihePage { .. } => true)]
 #[invariant(::EmbeddingCorpusJson { .. } => true)]
 #[invariant(::GentufaBlocksSvg { .. } => true)]
 #[invariant(::GentufaBlocksPng { .. } => true)]
@@ -1479,6 +1575,10 @@ pub enum WebComputeResponse {
     },
     VlackuPage {
         result: VlackuWebResult,
+        meta: PageMeta,
+    },
+    GimfihePage {
+        result: GimfiheWebResult,
         meta: PageMeta,
     },
     EmbeddingCorpusJson {
@@ -1798,6 +1898,93 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
         message,
         errors: output.diagnostics,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn build_gimfihe_web_result(state: &GimfiheWebState) -> GimfiheWebResult {
+    let normalized = normalize_gimfihe_state(state);
+    let request = gimfihe_request_from_web_state(&normalized);
+    let (output, errors) = match request {
+        Ok(request) => match compose_gismu(jbotci_dictionary_data::english(), &request) {
+            Ok(output) => (Some(output), Vec::new()),
+            Err(error) => (None, vec![error.to_string()]),
+        },
+        Err(error) => (None, vec![error]),
+    };
+    GimfiheWebResult {
+        preset_options: gimfihe_preset_options(normalized.preset.as_deref()),
+        language_suggestions: preset_language_suggestions(),
+        state: normalized,
+        output,
+        errors,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_request_from_web_state(state: &GimfiheWebState) -> Result<GimfiheRequest, String> {
+    let preset = state
+        .preset
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .map(parse_preset)
+        .transpose()
+        .map_err(|error| error.to_string())?;
+    let sources = state
+        .sources
+        .iter()
+        .map(gimfihe_source_input_from_web_source)
+        .collect::<Result<Vec<_>, _>>()?;
+    let shapes = state
+        .shapes
+        .iter()
+        .map(|shape| parse_shape(shape).map_err(|error| error.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    let check_collisions =
+        parse_collision_scope(&state.check_collisions).map_err(|error| error.to_string())?;
+    Ok(GimfiheRequest {
+        preset,
+        sources,
+        shapes,
+        all_letters: state.all_letters,
+        check_collisions,
+        require_free_short_rafsi: state.require_free_short_rafsi,
+        count: state.count.clamp(1, GIMFIHE_WEB_MAX_COUNT),
+        highlight: state.highlight.clone(),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_source_input_from_web_source(
+    source: &GimfiheWebSource,
+) -> Result<GimfiheSourceInput, String> {
+    let explicit_weight = source
+        .weight
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .map(parse_weight)
+        .transpose()
+        .map_err(|error| error.to_string())?;
+    Ok(GimfiheSourceInput {
+        language: source.language.trim().to_ascii_lowercase(),
+        explicit_weight,
+        word: source.word.trim().to_ascii_lowercase(),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_preset_options(selected: Option<&str>) -> Vec<GimfihePresetOption> {
+    jbotci_gimfihe::all_presets()
+        .iter()
+        .map(|preset| GimfihePresetOption {
+            value: preset.as_str().to_owned(),
+            label: preset.as_str().to_owned(),
+            selected: selected == Some(preset.as_str()),
+        })
+        .collect()
 }
 
 #[requires(true)]
@@ -2143,6 +2330,8 @@ pub fn parse_web_route(path: &str, query: &str) -> WebRoute {
         WebRoute::Cukta(parse_cukta_web_route(path, query))
     } else if logical == "vlacku" || logical.starts_with("vlacku/") {
         WebRoute::Vlacku(parse_vlacku_web_route(path, query))
+    } else if is_gimfihe_route_logical(logical) {
+        WebRoute::Gimfihe(parse_gimfihe_web_route(path, query))
     } else if logical == "gentufa" || logical.starts_with("gentufa/") {
         WebRoute::Gentufa(parse_gentufa_web_route(path, query))
     } else {
@@ -2157,6 +2346,7 @@ pub fn web_route_url(base_path: &str, route: &WebRoute) -> String {
         WebRoute::Gentufa(state) => gentufa_web_url(base_path, state),
         WebRoute::Cukta(state) => cukta_web_url(base_path, state),
         WebRoute::Vlacku(state) => vlacku_web_url(base_path, state),
+        WebRoute::Gimfihe(state) => gimfihe_web_url(base_path, state),
         WebRoute::Settings => prefixed_web_path(base_path, "/settings"),
     }
 }
@@ -2168,6 +2358,7 @@ pub fn build_page_meta(base_path: &str, route: &WebRoute) -> PageMeta {
         WebRoute::Gentufa(state) => build_gentufa_page_meta(base_path, state),
         WebRoute::Cukta(state) => build_cukta_page_meta(base_path, state),
         WebRoute::Vlacku(state) => build_vlacku_page_meta(base_path, state),
+        WebRoute::Gimfihe(state) => build_gimfihe_page_meta(base_path, state),
         WebRoute::Settings => page_meta(
             "Settings".to_owned(),
             "Browser-facing jbotci display and parser preferences.".to_owned(),
@@ -2807,6 +2998,58 @@ fn build_vlacku_page_meta(base_path: &str, state: &VlackuWebState) -> PageMeta {
         vlacku_web_url(base_path, &state),
         None,
     )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_gimfihe_page_meta(base_path: &str, state: &GimfiheWebState) -> PageMeta {
+    let state = normalize_gimfihe_state(state);
+    let result = build_gimfihe_web_result(&state);
+    if let Some(output) = result.output
+        && let Some(candidate) = output.highlighted_word.or(output.winner)
+    {
+        return page_meta(
+            format!("{candidate} - jbotci gimfi'e"),
+            gimfihe_metadata_description(&candidate, &output.resolved_sources),
+            gimfihe_web_url(base_path, &state),
+            None,
+        );
+    }
+    page_meta(
+        "jbotci gimfi'e".to_owned(),
+        "Compose candidate gismu from Lojbanized source words.".to_owned(),
+        gimfihe_web_url(base_path, &state),
+        None,
+    )
+}
+
+#[requires(!candidate.is_empty())]
+#[ensures(ret.starts_with(candidate))]
+fn gimfihe_metadata_description(candidate: &str, sources: &[ResolvedSource]) -> String {
+    let sources = sources
+        .iter()
+        .map(|source| {
+            format!(
+                "{}:{} ×{}",
+                source.language,
+                source.word,
+                trim_web_float(&format!("{:.6}", source.weight))
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" + ");
+    format!("{candidate} = {sources}")
+}
+
+#[requires(!value.is_empty())]
+#[ensures(!ret.is_empty())]
+fn trim_web_float(value: &str) -> String {
+    let trimmed = value.trim_end_matches('0').trim_end_matches('.');
+    if trimmed.is_empty() {
+        "0".to_owned()
+    } else {
+        trimmed.to_owned()
+    }
 }
 
 #[requires(true)]
@@ -3537,6 +3780,149 @@ pub fn parse_vlacku_web_route(path: &str, query: &str) -> VlackuWebState {
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn is_gimfihe_route_logical(logical: &str) -> bool {
+    let decoded = percent_decode(logical);
+    matches!(logical, "gimfihe" | "gimfi'e" | "gimfi%27e")
+        || matches!(decoded.as_str(), "gimfihe" | "gimfi'e")
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_gimfihe_web_route(_path: &str, query: &str) -> GimfiheWebState {
+    let mut state = GimfiheWebState::default();
+    state.sources.clear();
+    state.shapes.clear();
+    for (key, value) in parse_query_pairs(query) {
+        match key.as_str() {
+            "preset" => state.preset = non_empty_string(value),
+            "source" => state.sources.push(parse_gimfihe_web_source(&value)),
+            "shape" => state.shapes.push(value),
+            "letters" => state.all_letters = value == "all",
+            "all-letters" | "all_letters" => state.all_letters = parse_bool_query_value(&value),
+            "check-collisions" | "check_collisions" => state.check_collisions = value,
+            "require-free-short-rafsi" | "require_free_short_rafsi" => {
+                state.require_free_short_rafsi = parse_bool_query_value(&value);
+            }
+            "count" => {
+                if let Ok(count) = value.parse::<usize>() {
+                    state.count = count;
+                }
+            }
+            "highlight" => state.highlight = non_empty_string(value),
+            _ => {}
+        }
+    }
+    normalize_gimfihe_state(&state)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_gimfihe_web_source(value: &str) -> GimfiheWebSource {
+    let parts = value.split(':').collect::<Vec<_>>();
+    match parts.as_slice() {
+        [language, word] => GimfiheWebSource {
+            language: language.trim().to_ascii_lowercase(),
+            weight: None,
+            word: word.trim().to_ascii_lowercase(),
+        },
+        [language, weight, word] => GimfiheWebSource {
+            language: language.trim().to_ascii_lowercase(),
+            weight: non_empty_string(weight.trim().to_owned()),
+            word: word.trim().to_ascii_lowercase(),
+        },
+        _ => GimfiheWebSource {
+            language: String::new(),
+            weight: None,
+            word: value.trim().to_ascii_lowercase(),
+        },
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_bool_query_value(value: &str) -> bool {
+    matches!(value, "1" | "true" | "yes" | "on" | "all")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn non_empty_string(value: String) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_owned())
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn normalize_gimfihe_state(state: &GimfiheWebState) -> GimfiheWebState {
+    let preset = state
+        .preset
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_ascii_lowercase);
+    let mut sources = state
+        .sources
+        .iter()
+        .map(|source| GimfiheWebSource {
+            language: source.language.trim().to_ascii_lowercase(),
+            weight: source
+                .weight
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_owned),
+            word: source.word.trim().to_ascii_lowercase(),
+        })
+        .collect::<Vec<_>>();
+    if sources.is_empty()
+        && let Some(preset) = preset.as_deref().and_then(|value| parse_preset(value).ok())
+    {
+        sources = preset
+            .entries()
+            .iter()
+            .map(|entry| GimfiheWebSource {
+                language: entry.language.to_owned(),
+                weight: None,
+                word: String::new(),
+            })
+            .collect();
+    }
+    let shapes = if state.shapes.is_empty() {
+        default_shapes()
+            .into_iter()
+            .map(|shape| shape.as_str().to_owned())
+            .collect()
+    } else {
+        state
+            .shapes
+            .iter()
+            .map(|shape| shape.trim().to_ascii_lowercase())
+            .filter(|shape| !shape.is_empty())
+            .collect()
+    };
+    GimfiheWebState {
+        preset,
+        sources,
+        shapes,
+        all_letters: state.all_letters,
+        check_collisions: state.check_collisions.trim().to_ascii_lowercase(),
+        require_free_short_rafsi: state.require_free_short_rafsi,
+        count: state.count.clamp(1, GIMFIHE_WEB_MAX_COUNT),
+        highlight: state
+            .highlight
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_ascii_lowercase),
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.starts_with(base_path) || base_path.is_empty())]
 pub fn vlacku_web_url(base_path: &str, state: &VlackuWebState) -> String {
     let state = normalize_vlacku_state(state);
@@ -3575,6 +3961,56 @@ pub fn vlacku_web_url(base_path: &str, state: &VlackuWebState) -> String {
                 .collect::<Vec<_>>()
                 .join("&")
         )
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.starts_with(base_path) || base_path.is_empty())]
+pub fn gimfihe_web_url(base_path: &str, state: &GimfiheWebState) -> String {
+    let state = normalize_gimfihe_state(state);
+    let prefix = base_path.trim_end_matches('/');
+    let mut pairs = Vec::new();
+    if let Some(preset) = &state.preset {
+        pairs.push(("preset".to_owned(), preset.clone()));
+    }
+    for source in &state.sources {
+        pairs.push(("source".to_owned(), gimfihe_web_source_query_value(source)));
+    }
+    for shape in &state.shapes {
+        pairs.push(("shape".to_owned(), shape.clone()));
+    }
+    pairs.push((
+        "letters".to_owned(),
+        if state.all_letters { "all" } else { "source" }.to_owned(),
+    ));
+    pairs.push((
+        "check-collisions".to_owned(),
+        state.check_collisions.clone(),
+    ));
+    pairs.push((
+        "require-free-short-rafsi".to_owned(),
+        state.require_free_short_rafsi.to_string(),
+    ));
+    pairs.push(("count".to_owned(), state.count.to_string()));
+    if let Some(highlight) = &state.highlight {
+        pairs.push(("highlight".to_owned(), highlight.clone()));
+    }
+    format!(
+        "{prefix}/gimfihe?{}",
+        pairs
+            .iter()
+            .map(|(key, value)| format!("{key}={}", percent_encode(value)))
+            .collect::<Vec<_>>()
+            .join("&")
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihe_web_source_query_value(source: &GimfiheWebSource) -> String {
+    match &source.weight {
+        Some(weight) => format!("{}:{}:{}", source.language, weight, source.word),
+        None => format!("{}::{}", source.language, source.word),
     }
 }
 
@@ -3717,7 +4153,7 @@ fn base_path_from_canonical(canonical_url: &str) -> String {
     let path = canonical_url
         .split_once('?')
         .map_or(canonical_url, |(path, _)| path);
-    ["/gentufa", "/cukta", "/vlacku", "/settings"]
+    ["/gentufa", "/cukta", "/vlacku", "/gimfihe", "/settings"]
         .iter()
         .find_map(|route| path.find(route).map(|index| path[..index].to_owned()))
         .unwrap_or_default()
@@ -5289,6 +5725,52 @@ mod tests {
     use jbotci_morphology::{GlideMark, StressMark};
     use std::collections::BTreeSet;
 
+    #[requires(true)]
+    #[ensures(ret.preset.as_deref() == Some("1995"))]
+    fn gimfihe_sample_state(highlight: Option<&str>) -> GimfiheWebState {
+        GimfiheWebState {
+            preset: Some("1995".to_owned()),
+            sources: vec![
+                GimfiheWebSource {
+                    language: "cmn".to_owned(),
+                    weight: None,
+                    word: "uan".to_owned(),
+                },
+                GimfiheWebSource {
+                    language: "hin".to_owned(),
+                    weight: None,
+                    word: "rakan".to_owned(),
+                },
+                GimfiheWebSource {
+                    language: "eng".to_owned(),
+                    weight: None,
+                    word: "ekspekt".to_owned(),
+                },
+                GimfiheWebSource {
+                    language: "spa".to_owned(),
+                    weight: None,
+                    word: "esper".to_owned(),
+                },
+                GimfiheWebSource {
+                    language: "rus".to_owned(),
+                    weight: None,
+                    word: "predpologa".to_owned(),
+                },
+                GimfiheWebSource {
+                    language: "ara".to_owned(),
+                    weight: None,
+                    word: "mulud".to_owned(),
+                },
+            ],
+            shapes: vec!["ccvcv".to_owned(), "cvccv".to_owned()],
+            all_letters: false,
+            check_collisions: "none".to_owned(),
+            require_free_short_rafsi: false,
+            count: 5,
+            highlight: highlight.map(str::to_owned),
+        }
+    }
+
     #[requires(!text.trim().is_empty())]
     #[ensures(true)]
     fn parse_success(text: &str) -> GentufaSuccess {
@@ -6416,6 +6898,64 @@ mod tests {
         assert_eq!(zbalermorna_glide.mode, VlackuWebMode::Word);
         assert_eq!(zbalermorna_glide.query, "coi");
         assert_eq!(vlacku_web_url("", &zbalermorna_glide), "/vlacku/coi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihe_route_roundtrips_canonical_query_state() {
+        let state = gimfihe_sample_state(None);
+        let url = gimfihe_web_url("/jbotci", &state);
+        assert!(url.starts_with("/jbotci/gimfihe?"));
+        assert!(url.contains("preset=1995"));
+        assert!(url.contains("source=cmn%3A%3Auan"));
+        assert!(url.contains("shape=ccvcv"));
+        assert!(url.contains("letters=source"));
+        assert!(url.contains("check-collisions=none"));
+
+        let query = url.split_once('?').map(|(_, query)| query).expect("query");
+        let reparsed = parse_gimfihe_web_route("/gimfihe", query);
+        assert_eq!(gimfihe_web_url("", &reparsed), gimfihe_web_url("", &state));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihe_route_accepts_apostrophe_aliases_but_generates_ascii_path() {
+        let query = gimfihe_web_url("", &gimfihe_sample_state(None))
+            .split_once('?')
+            .map(|(_, query)| query.to_owned())
+            .expect("query");
+        for path in ["/gimfi'e", "/gimfi%27e"] {
+            let route = parse_web_route(path, &query);
+            assert!(matches!(route, WebRoute::Gimfihe(_)), "{path}");
+            assert!(web_route_url("", &route).starts_with("/gimfihe?"));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihe_metadata_uses_highlighted_candidate_and_sources() {
+        let state = gimfihe_sample_state(Some("nanpe"));
+        let meta = build_page_meta("", &WebRoute::Gimfihe(state));
+
+        assert_eq!(meta.title, "nanpe - jbotci gimfi'e");
+        assert!(meta.description.starts_with("nanpe = cmn:uan ×0.347"));
+        assert!(meta.description.contains("eng:ekspekt ×0.16"));
+        assert!(meta.canonical_url.starts_with("/gimfihe?"));
+        assert!(meta.canonical_url.contains("highlight=nanpe"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihe_metadata_falls_back_to_winner_for_invalid_highlight() {
+        let state = gimfihe_sample_state(Some("zzzzz"));
+        let meta = build_page_meta("", &WebRoute::Gimfihe(state));
+
+        assert_eq!(meta.title, "kanpe - jbotci gimfi'e");
+        assert!(meta.description.starts_with("kanpe = "));
     }
 
     #[test]
