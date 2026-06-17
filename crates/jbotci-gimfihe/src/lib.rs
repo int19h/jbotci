@@ -5,7 +5,7 @@ use std::fmt;
 use std::str::FromStr;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{ensures, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, WordType};
 use jbotci_morphology::{
     GlideMark, PhonemeRenderOptions, StressMark, WordKind, is_consonant, is_vowel,
@@ -597,19 +597,20 @@ pub fn compose_gismu(
         return Err(GimfiheError::NoShapes);
     }
     let shapes = unique_shapes(&request.shapes);
-    let mut candidates = generate_candidates(&resolved_sources, &shapes, request.all_letters)
+    let collision_index = CollisionIndex::from_dictionary(dictionary, request.check_collisions);
+    let candidates = generate_candidates(&resolved_sources, &shapes, request.all_letters)
         .into_iter()
         .filter(|word| valid_gismu_candidate(word))
         .map(|word| {
             score_candidate(
                 dictionary,
-                request.check_collisions,
+                &collision_index,
                 &resolved_sources,
                 word,
+                request.require_free_short_rafsi,
             )
         })
         .collect::<Vec<_>>();
-    candidates.sort_by(compare_candidates);
     let candidate_count = candidates.len();
     let mut filtered = candidates
         .into_iter()
@@ -647,6 +648,9 @@ pub fn compose_gismu(
         candidate.highlighted = highlighted_word
             .as_ref()
             .is_some_and(|highlighted| highlighted == &candidate.word);
+        if candidate.rafsi.is_empty() {
+            candidate.rafsi = possible_short_rafsis(dictionary, &candidate.word);
+        }
     }
     Ok(GimfiheOutput {
         resolved_sources,
@@ -900,9 +904,10 @@ fn rendered_phonemes_without_marks(word: &jbotci_morphology::Word) -> String {
 #[ensures(!ret.word.is_empty())]
 fn score_candidate(
     dictionary: &Dictionary<'_>,
-    scope: CollisionScope,
+    collision_index: &CollisionIndex,
     sources: &[ResolvedSource],
     word: String,
+    include_rafsi: bool,
 ) -> GimfiheCandidate {
     let source_scores = sources
         .iter()
@@ -912,8 +917,12 @@ fn score_candidate(
         .iter()
         .map(|source_score| source_score.weighted_score)
         .sum::<f64>();
-    let collision = find_collision(dictionary, scope, &word);
-    let rafsi = possible_short_rafsis(dictionary, &word);
+    let collision = collision_index.find(&word);
+    let rafsi = if include_rafsi {
+        possible_short_rafsis(dictionary, &word)
+    } else {
+        Vec::new()
+    };
     GimfiheCandidate {
         word,
         score,
@@ -1008,6 +1017,145 @@ fn has_valid_two_letter_match(candidate: &str, source: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn find_collision(
+    dictionary: &Dictionary<'_>,
+    scope: CollisionScope,
+    candidate: &str,
+) -> Option<GismuCollision> {
+    CollisionIndex::from_dictionary(dictionary, scope).find(candidate)
+}
+
+#[invariant(
+    collisions
+        .iter()
+        .all(|(candidate, collision)| !candidate.is_empty() && !collision.existing_word.is_empty())
+)]
+struct CollisionIndex {
+    collisions: BTreeMap<String, GismuCollision>,
+}
+
+impl CollisionIndex {
+    #[requires(true)]
+    #[ensures(scope != CollisionScope::None || ret.collisions.is_empty())]
+    fn from_dictionary(dictionary: &Dictionary<'_>, scope: CollisionScope) -> Self {
+        let mut collisions = BTreeMap::new();
+        if scope != CollisionScope::None {
+            for entry in dictionary
+                .entries()
+                .iter()
+                .filter(|entry| collision_scope_includes(scope, entry.word_type))
+            {
+                insert_collision_entry(&mut collisions, entry.word, entry.word_type);
+            }
+        }
+        new!(CollisionIndex { collisions })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn find(&self, candidate: &str) -> Option<GismuCollision> {
+        self.collisions.get(candidate).cloned()
+    }
+}
+
+#[requires(true)]
+#[requires(!existing.is_empty())]
+#[ensures(true)]
+fn insert_collision_entry(
+    collisions: &mut BTreeMap<String, GismuCollision>,
+    existing: &str,
+    word_type: WordType,
+) {
+    let collision = collision(CollisionKind::Identical, existing, word_type);
+    insert_collision(collisions, existing.to_owned(), collision);
+
+    let chars = existing.chars().collect::<Vec<_>>();
+    if chars.len() != 5 {
+        return;
+    }
+    insert_final_vowel_collisions(collisions, &chars, existing, word_type);
+    insert_similar_consonant_collisions(collisions, &chars, existing, word_type);
+}
+
+#[requires(true)]
+#[requires(chars.len() == 5)]
+#[requires(!existing.is_empty())]
+#[ensures(true)]
+fn insert_final_vowel_collisions(
+    collisions: &mut BTreeMap<String, GismuCollision>,
+    chars: &[char],
+    existing: &str,
+    word_type: WordType,
+) {
+    if !is_vowel(chars[4]) {
+        return;
+    }
+    for vowel in VOWELS {
+        if *vowel == chars[4] {
+            continue;
+        }
+        let mut candidate = chars.to_vec();
+        candidate[4] = *vowel;
+        let collision = collision(CollisionKind::FinalVowel, existing, word_type);
+        insert_collision(collisions, candidate.iter().collect(), collision);
+    }
+}
+
+#[requires(true)]
+#[requires(chars.len() == 5)]
+#[requires(!existing.is_empty())]
+#[ensures(true)]
+fn insert_similar_consonant_collisions(
+    collisions: &mut BTreeMap<String, GismuCollision>,
+    chars: &[char],
+    existing: &str,
+    word_type: WordType,
+) {
+    for (index, existing_consonant) in chars.iter().copied().enumerate() {
+        if !is_consonant(existing_consonant) {
+            continue;
+        }
+        for proposed in CONSONANTS
+            .iter()
+            .copied()
+            .filter(|proposed| too_similar_consonant(*proposed, existing_consonant))
+        {
+            let mut candidate = chars.to_vec();
+            candidate[index] = proposed;
+            let collision = collision(CollisionKind::SimilarConsonant, existing, word_type);
+            insert_collision(collisions, candidate.iter().collect(), collision);
+        }
+    }
+}
+
+#[requires(true)]
+#[requires(!candidate.is_empty())]
+#[requires(!collision.existing_word.is_empty())]
+#[ensures(true)]
+fn insert_collision(
+    collisions: &mut BTreeMap<String, GismuCollision>,
+    candidate: String,
+    collision: GismuCollision,
+) {
+    match collisions.get(&candidate) {
+        Some(existing) if !collision_beats(collision.kind, &collision.existing_word, existing) => {}
+        _ => {
+            collisions.insert(candidate, collision);
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collision_beats(kind: CollisionKind, existing_word: &str, current: &GismuCollision) -> bool {
+    collision_kind_order(kind)
+        .cmp(&collision_kind_order(current.kind))
+        .then_with(|| existing_word.cmp(&current.existing_word))
+        .is_lt()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn find_collision_by_scan(
     dictionary: &Dictionary<'_>,
     scope: CollisionScope,
     candidate: &str,
@@ -1443,6 +1591,25 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn indexed_collisions_match_dictionary_scan() {
+        let dictionary = jbotci_dictionary_data::english();
+        for scope in [CollisionScope::Official, CollisionScope::All] {
+            let index = CollisionIndex::from_dictionary(dictionary, scope);
+            for candidate in [
+                "klama", "klami", "plama", "trado", "ctado", "nanpe", "zzzzz",
+            ] {
+                assert_eq!(
+                    index.find(candidate),
+                    find_collision_by_scan(dictionary, scope, candidate),
+                    "{scope:?} {candidate}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn rafsi_availability_uses_dictionary_index() {
         let dictionary = jbotci_dictionary_data::english();
         let rafsi = possible_short_rafsis(dictionary, "sakli");
@@ -1494,6 +1661,43 @@ mod tests {
                 .candidates
                 .iter()
                 .any(|candidate| candidate.word == "nanpe" && candidate.highlighted)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn compose_high_inventory_request_uses_indexed_collisions() {
+        let dictionary = jbotci_dictionary_data::english();
+        let sources = [
+            parse_source_spec("eng::tradicon").expect("source"),
+            parse_source_spec("cmn::tcuanton").expect("source"),
+            parse_source_spec("hin::parampara").expect("source"),
+            parse_source_spec("spa::tradision").expect("source"),
+            parse_source_spec("ara::taklid").expect("source"),
+            parse_source_spec("fra::tradision").expect("source"),
+        ];
+        let request = GimfiheRequest {
+            preset: Some(GimfihePreset::Ilmen6),
+            sources: sources.to_vec(),
+            shapes: default_shapes(),
+            all_letters: false,
+            check_collisions: CollisionScope::All,
+            require_free_short_rafsi: false,
+            count: 20,
+            highlight: None,
+        };
+
+        let output = compose_gismu(dictionary, &request).expect("output");
+        assert_eq!(output.candidate_count, 16_320);
+        assert_eq!(output.filtered_count, 12_222);
+        assert_eq!(output.winner.as_deref(), Some("trado"));
+        assert_eq!(
+            output
+                .candidates
+                .first()
+                .map(|candidate| candidate.word.as_str()),
+            Some("trado")
         );
     }
 }
