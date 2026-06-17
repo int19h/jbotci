@@ -19617,8 +19617,15 @@ fn is_app_route_path_for_client(path: &str) -> bool {
         || path.starts_with("/cukta/")
         || path == "/vlacku"
         || path.starts_with("/vlacku/")
+        || is_gimfihe_route_path_for_client(path)
         || path == "/settings"
         || path.starts_with("/settings/")
+}
+
+#[requires(path.starts_with('/'))]
+#[ensures(true)]
+fn is_gimfihe_route_path_for_client(path: &str) -> bool {
+    matches!(path, "/gimfihe" | "/gimfi'e" | "/gimfi%27e")
 }
 
 #[requires(true)]
@@ -23842,6 +23849,10 @@ mod tests {
             AppRoute::Vlacku
         );
         assert_eq!(
+            parse_test_route("/jbotci", "/jbotci/gimfihe/").app_route(),
+            AppRoute::Gimfihe
+        );
+        assert_eq!(
             parse_test_route("/jbotci", "/jbotci/settings/").app_route(),
             AppRoute::Settings
         );
@@ -23895,6 +23906,19 @@ mod tests {
             parse_test_route("", "/vlacku/%2Fma.*%2F").to_string(),
             "/vlacku/%2Fma.%2A%2F"
         );
+
+        let gimfihe = parse_test_route(
+            "",
+            "/gimfihe?preset=1995&source=cmn%3A%3A&source=hin%3A%3A&source=eng%3A%3A&source=spa%3A%3A&source=rus%3A%3A&source=ara%3A%3A&shape=ccvcv&shape=cvccv&letters=source&check-collisions=all&require-free-short-rafsi=false&count=20",
+        );
+        assert_eq!(gimfihe.app_route(), AppRoute::Gimfihe);
+        assert!(gimfihe.to_string().starts_with("/gimfihe?"));
+
+        for alias in ["/gimfi'e", "/gimfi%27e"] {
+            let route = parse_test_route("", alias);
+            assert_eq!(route.app_route(), AppRoute::Gimfihe);
+            assert!(route.to_string().starts_with("/gimfihe?"));
+        }
     }
 
     #[test]
@@ -23929,6 +23953,14 @@ mod tests {
                 .unwrap()
                 .to_string(),
             "/vlacku/%2Fma.%2A%2F"
+        );
+        assert_eq!(
+            JbotciRoute::from_str(
+                "gimfihe?preset=1995&source=cmn%3A%3A&source=hin%3A%3A&source=eng%3A%3A&source=spa%3A%3A&source=rus%3A%3A&source=ara%3A%3A&shape=ccvcv&shape=cvccv&letters=source&check-collisions=all&require-free-short-rafsi=false&count=20",
+            )
+            .unwrap()
+            .app_route(),
+            AppRoute::Gimfihe
         );
         assert!(JbotciRoute::from_str("assets/compute-worker.js").is_err());
     }
