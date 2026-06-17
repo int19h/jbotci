@@ -23,24 +23,22 @@ use jbotci_output::{
     render_lojban_text_for_script,
 };
 #[cfg(test)]
-use jbotci_web_core::GimfihiCandidate;
-#[cfg(test)]
 use jbotci_web_core::ReferenceSlotLabel;
 use jbotci_web_core::{
     APPLE_TOUCH_ICON_ASSET_PATH, CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption,
     CuktaPageData, CuktaPageKind, CuktaSearchResultCard, CuktaSemanticSearchHit, CuktaTargetOption,
     CuktaTocNode, CuktaWebMode, CuktaWebSearchState, CuktaWebState, CuktaWebView,
-    DictionaryTooltipCard, FAVICON_ASSET_PATH, GIMFIHI_MAX_WEIGHT, GIMFIHI_MIN_WEIGHT,
-    GentufaBlock, GentufaBlocksLayout, GentufaBracketFragment, GentufaCell, GentufaError,
-    GentufaScript, GentufaSuccess, GentufaTreeGuide, GentufaTreeRow, GentufaWebOptions,
-    GentufaWebRequest, GentufaWebResult, GentufaWebState, GentufaWebViewMode, GimfihiOutput,
-    GimfihiPreset, GimfihiPresetOption, GimfihiWebResult, GimfihiWebSource, GimfihiWebState,
-    MANIFEST_ASSET_PATH, PageMeta, RafsiAvailability, RafsiCandidate, ReferenceLabel,
-    ReferenceMarker, ReferenceMarkerRole, ReferenceTooltip, ReferenceTooltipInline,
-    ReferenceTooltipInlineData, ReferenceTooltipRow, VLACKU_WEB_DEFAULT_COUNT,
-    VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece, VlackuCompositionPieceKind,
-    VlackuDictionaryCountNode, VlackuDictionaryInfo, VlackuInline, VlackuInlineData,
-    VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
+    DictionaryTooltipCard, FAVICON_ASSET_PATH, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
+    GIMFIHI_MIN_WEIGHT, GentufaBlock, GentufaBlocksLayout, GentufaBracketFragment, GentufaCell,
+    GentufaError, GentufaScript, GentufaSuccess, GentufaTreeGuide, GentufaTreeRow,
+    GentufaWebOptions, GentufaWebRequest, GentufaWebResult, GentufaWebState, GentufaWebViewMode,
+    GimfihiCandidate, GimfihiOutput, GimfihiPreset, GimfihiPresetOption, GimfihiWebResult,
+    GimfihiWebSource, GimfihiWebState, MANIFEST_ASSET_PATH, PageMeta, RafsiAvailability,
+    RafsiCandidate, ReferenceLabel, ReferenceMarker, ReferenceMarkerRole, ReferenceTooltip,
+    ReferenceTooltipInline, ReferenceTooltipInlineData, ReferenceTooltipRow,
+    VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece,
+    VlackuCompositionPieceKind, VlackuDictionaryCountNode, VlackuDictionaryInfo, VlackuInline,
+    VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
     VlackuJvozbaSegmentTone, VlackuMath, VlackuSemanticSearchHit, VlackuVoteDisplay,
     VlackuWebAuthor, VlackuWebCard, VlackuWebMode, VlackuWebResult, VlackuWebState,
     VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest, WebComputeResponse,
@@ -603,6 +601,19 @@ struct PageFindContext {
     matches_by_key: Rc<BTreeMap<PageFindTextKey, Vec<PageFindMatch>>>,
     next_text_ordinal: Rc<Cell<usize>>,
 }
+
+impl PartialEq for PageFindContext {
+    #[requires(true)]
+    #[ensures(true)]
+    fn eq(&self, other: &Self) -> bool {
+        self.query == other.query
+            && self.active_index == other.active_index
+            && self.match_count == other.match_count
+            && self.matches_by_key == other.matches_by_key
+    }
+}
+
+impl Eq for PageFindContext {}
 
 #[invariant(!self.text.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2715,6 +2726,9 @@ fn AppShell() -> Element {
     let vlacku_result_task = use_signal(|| None::<LatestAsyncTask>);
     let vlacku_semantic_task = use_signal(|| None::<LatestAsyncTask>);
     let initial_gimfihi = initial_gimfihi_state(&current_route_location);
+    let initial_gimfihi_source_words = initial_gimfihi.clone();
+    let gimfihi_source_word_memory =
+        use_signal(move || gimfihi_source_word_memory_from_state(&initial_gimfihi_source_words));
     let gimfihi_draft_state = use_signal(|| initial_gimfihi.clone());
     let gimfihi_committed_state = use_signal(|| initial_gimfihi);
     let gimfihi_result = use_signal(GimfihiAsyncResultState::default);
@@ -2892,6 +2906,7 @@ fn AppShell() -> Element {
             vlacku_committed_state,
             gimfihi_draft_state,
             gimfihi_committed_state,
+            gimfihi_source_word_memory,
             input_text,
             parsed_text,
             parsed_text_explicit,
@@ -3632,6 +3647,7 @@ fn AppShell() -> Element {
                                     gimfihi_draft_state,
                                     gimfihi_committed_state,
                                     gimfihi_result,
+                                    gimfihi_source_word_memory,
                                     &base_path,
                                     settings_value.script,
                                     &page_find_context,
@@ -6031,7 +6047,46 @@ fn gimfihi_cached_result_for_state(
         output: Some(highlighted_output.clone()),
         preset_options: gimfihi_preset_options_for_state(&normalized),
         language_suggestions: gimfihi_language_suggestions(),
-        errors: Vec::new(),
+        errors: cached.result.errors.clone(),
+    };
+    Some(GimfihiAsyncResultState {
+        state: Some(normalized.clone()),
+        result,
+        meta: Some(build_gimfihi_page_meta_from_output(
+            base_path,
+            &normalized,
+            &highlighted_output,
+        )),
+        loading: false,
+        error: None,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihi_result_state_with_highlight(
+    base_path: &str,
+    state: &GimfihiWebState,
+    current: &GimfihiAsyncResultState,
+) -> Option<GimfihiAsyncResultState> {
+    let normalized = normalize_gimfihi_state(state);
+    let output = current.result.output.as_ref()?;
+    let highlight = normalized.highlight.as_deref()?;
+    if output.winner.as_deref() != Some(highlight)
+        && !output
+            .candidates
+            .iter()
+            .any(|candidate| candidate.word == highlight)
+    {
+        return None;
+    }
+    let highlighted_output = gimfihi_output_with_highlight(output, Some(highlight));
+    let result = GimfihiWebResult {
+        state: normalized.clone(),
+        output: Some(highlighted_output.clone()),
+        preset_options: gimfihi_preset_options_for_state(&normalized),
+        language_suggestions: gimfihi_language_suggestions(),
+        errors: current.result.errors.clone(),
     };
     Some(GimfihiAsyncResultState {
         state: Some(normalized.clone()),
@@ -9921,11 +9976,63 @@ fn render_gimfihi_page(
     gimfihi_draft_state: Signal<GimfihiWebState>,
     gimfihi_committed_state: Signal<GimfihiWebState>,
     gimfihi_result: Signal<GimfihiAsyncResultState>,
+    gimfihi_source_word_memory: Signal<BTreeMap<String, String>>,
     base_path: &str,
     script: GentufaScript,
     page_find: &PageFindContext,
 ) -> Element {
+    rsx! {
+        section { class: "spa-page dictionary-page gimfihi-page",
+            h1 { class: "sr-only", "jbotci gimfi'i" }
+            div { class: "gimfihi-shell",
+                GimfihiControlsPanel {
+                    gimfihi_draft_state,
+                    gimfihi_committed_state,
+                    gimfihi_source_word_memory,
+                }
+                GimfihiResultPanel {
+                    gimfihi_draft_state,
+                    gimfihi_committed_state,
+                    gimfihi_result,
+                    base_path: base_path.to_owned(),
+                    script,
+                    page_find: page_find.clone(),
+                }
+            }
+        }
+    }
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+#[component]
+fn GimfihiControlsPanel(
+    gimfihi_draft_state: Signal<GimfihiWebState>,
+    gimfihi_committed_state: Signal<GimfihiWebState>,
+    gimfihi_source_word_memory: Signal<BTreeMap<String, String>>,
+) -> Element {
     let draft_state = gimfihi_draft_state.read().clone();
+    render_gimfihi_controls(
+        gimfihi_draft_state,
+        gimfihi_committed_state,
+        gimfihi_source_word_memory,
+        &draft_state,
+    )
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+#[component]
+fn GimfihiResultPanel(
+    gimfihi_draft_state: Signal<GimfihiWebState>,
+    gimfihi_committed_state: Signal<GimfihiWebState>,
+    gimfihi_result: Signal<GimfihiAsyncResultState>,
+    base_path: String,
+    script: GentufaScript,
+    page_find: PageFindContext,
+) -> Element {
     let committed_state = gimfihi_committed_state.read().clone();
     let result_state = gimfihi_result.read().clone();
     let result_current = result_state.state.as_ref() == Some(&committed_state);
@@ -9937,30 +10044,32 @@ fn render_gimfihi_page(
     let loading = result_state.loading || !result_current;
     let show_result_errors = gimfihi_state_has_any_source_word(&committed_state);
     rsx! {
-        section { class: "spa-page dictionary-page gimfihi-page",
-            h1 { class: "sr-only", "jbotci gimfi'i" }
-            div { class: "gimfihi-shell",
-                { render_gimfihi_controls(gimfihi_draft_state, gimfihi_committed_state, &draft_state, &result) }
-                if loading {
-                    p { class: "gimfihi-status",
-                        { render_page_find_text(page_find, "Loading gismu candidates.") }
-                    }
-                }
-                if let Some(error) = &result_state.error {
-                    div { class: "spa-error dictionary-error",
-                        { render_page_find_text(page_find, error) }
-                    }
-                }
-                if show_result_errors {
-                    for error in result.errors.iter() {
-                        div { class: "spa-error dictionary-error",
-                            { render_page_find_text(page_find, error) }
-                        }
-                    }
-                }
-                { render_gimfihi_results(&result, gimfihi_draft_state, gimfihi_committed_state, base_path, script, page_find) }
+        if loading {
+            p { class: "gimfihi-status",
+                { render_page_find_text(&page_find, "Loading gismu candidates.") }
             }
         }
+        if let Some(error) = &result_state.error {
+            div { class: "spa-error dictionary-error",
+                { render_page_find_text(&page_find, error) }
+            }
+        }
+        if show_result_errors {
+            for error in result.errors.iter() {
+                div { class: "spa-error dictionary-error",
+                    { render_page_find_text(&page_find, error) }
+                }
+            }
+        }
+        { render_gimfihi_results(
+            &result,
+            gimfihi_draft_state,
+            gimfihi_committed_state,
+            gimfihi_result,
+            &base_path,
+            script,
+            &page_find,
+        ) }
     }
 }
 
@@ -9969,13 +10078,15 @@ fn render_gimfihi_page(
 fn render_gimfihi_controls(
     mut gimfihi_draft_state: Signal<GimfihiWebState>,
     mut gimfihi_committed_state: Signal<GimfihiWebState>,
+    mut gimfihi_source_word_memory: Signal<BTreeMap<String, String>>,
     state: &GimfihiWebState,
-    result: &GimfihiWebResult,
 ) -> Element {
     let current_preset = state.preset.clone().unwrap_or_default();
+    let preset_options = gimfihi_preset_options_for_state(state);
+    let language_suggestions = gimfihi_language_suggestions();
     rsx! {
         div { class: "gimfihi-form",
-            div { class: "gimfihi-control-grid",
+            div { class: "gimfihi-preset-row",
                 label { class: "gimfihi-control gimfihi-preset-control",
                     span { class: "gimfihi-control-label", "Preset" }
                     select {
@@ -9983,14 +10094,19 @@ fn render_gimfihi_controls(
                         value: "{current_preset}",
                         onchange: move |event| {
                             let value = event.value();
+                            let current = gimfihi_draft_state.read().clone();
+                            let source_words = gimfihi_source_word_memory.with_mut(|memory| {
+                                update_gimfihi_source_word_memory(memory, &current);
+                                memory.clone()
+                            });
                             let next = match value.parse::<GimfihiPreset>() {
-                                Ok(preset) => gimfihi_state_for_selected_preset(&gimfihi_draft_state.read(), Some(preset)),
-                                Err(_) => gimfihi_state_with_explicit_custom_weights(&gimfihi_draft_state.read()),
+                                Ok(preset) => gimfihi_state_for_selected_preset(&current, Some(preset), &source_words),
+                                Err(_) => gimfihi_state_with_explicit_custom_weights(&current),
                             };
-                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
+                            gimfihi_draft_state.set(next);
                         },
                         option { value: "", "custom" }
-                        for option in result.preset_options.iter() {
+                        for option in preset_options.iter() {
                             option {
                                 value: "{option.value}",
                                 "{option.label}"
@@ -9998,43 +10114,10 @@ fn render_gimfihi_controls(
                         }
                     }
                 }
-                label { class: "gimfihi-control gimfihi-count-control",
-                    span { class: "gimfihi-control-label", "Count" }
-                    input {
-                        class: "gimfihi-number-input",
-                        r#type: "number",
-                        min: "1",
-                        max: "512",
-                        step: "1",
-                        value: "{state.count}",
-                        onchange: move |event| {
-                            let mut next = gimfihi_draft_state.read().clone();
-                            if let Ok(count) = event.value().parse::<usize>() {
-                                next.count = count;
-                                gimfihi_draft_state.set(normalize_gimfihi_state(&next));
-                            }
-                        },
-                    }
-                }
-                label { class: "gimfihi-control gimfihi-collision-control",
-                    span { class: "gimfihi-control-label", "Collisions" }
-                    select {
-                        class: "gimfihi-select",
-                        value: "{state.check_collisions}",
-                        onchange: move |event| {
-                            let mut next = gimfihi_draft_state.read().clone();
-                            next.check_collisions = event.value();
-                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
-                        },
-                        option { value: "all", "all" }
-                        option { value: "official", "official" }
-                        option { value: "none", "none" }
-                    }
-                }
             }
             div { class: "gimfihi-source-table-wrap",
                 datalist { id: "gimfihi-language-options",
-                    for language in result.language_suggestions.iter() {
+                    for language in language_suggestions.iter() {
                         option { value: "{language}" }
                     }
                 }
@@ -10044,12 +10127,12 @@ fn render_gimfihi_controls(
                             th { class: "gimfihi-language-column", "Language" }
                             th { "Weight" }
                             th { "Word" }
-                            th { "Actions" }
+                            th { class: "gimfihi-actions-column", "Actions" }
                         }
                     }
                     tbody {
                         for (index, source) in state.sources.iter().enumerate() {
-                            { render_gimfihi_source_row(gimfihi_draft_state, state, index, source) }
+                            { render_gimfihi_source_row(gimfihi_draft_state, gimfihi_source_word_memory, state, index, source) }
                         }
                         { render_gimfihi_add_source_row(gimfihi_draft_state) }
                     }
@@ -10067,22 +10150,25 @@ fn render_gimfihi_controls(
                         onchange: move |_| {
                             let mut next = gimfihi_draft_state.read().clone();
                             next.all_letters = !next.all_letters;
-                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
+                            gimfihi_draft_state.set(next);
                         },
                     }
-                    span { "all letters" }
+                    span { "use all letters" }
                 }
-                label { class: "compact-check gimfihi-checkbox",
-                    input {
-                        r#type: "checkbox",
-                        checked: state.require_free_short_rafsi,
-                        onchange: move |_| {
+                label { class: "gimfihi-inline-select gimfihi-collision-control",
+                    span { "collisions" }
+                    select {
+                        class: "gimfihi-select",
+                        value: "{state.check_collisions}",
+                        onchange: move |event| {
                             let mut next = gimfihi_draft_state.read().clone();
-                            next.require_free_short_rafsi = !next.require_free_short_rafsi;
-                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
+                            next.check_collisions = event.value();
+                            gimfihi_draft_state.set(next);
                         },
+                        option { value: "all", "all" }
+                        option { value: "official", "official" }
+                        option { value: "none", "none" }
                     }
-                    span { "free short rafsi" }
                 }
                 label { class: "compact-check gimfihi-checkbox",
                     input {
@@ -10091,10 +10177,22 @@ fn render_gimfihi_controls(
                         onchange: move |_| {
                             let mut next = gimfihi_draft_state.read().clone();
                             next.show_collisions = !next.show_collisions;
-                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
+                            gimfihi_draft_state.set(next);
                         },
                     }
-                    span { "Show collisions" }
+                    span { "show collisions" }
+                }
+                label { class: "compact-check gimfihi-checkbox",
+                    input {
+                        r#type: "checkbox",
+                        checked: state.require_free_short_rafsi,
+                        onchange: move |_| {
+                            let mut next = gimfihi_draft_state.read().clone();
+                            next.require_free_short_rafsi = !next.require_free_short_rafsi;
+                            gimfihi_draft_state.set(next);
+                        },
+                    }
+                    span { "require free rafsi" }
                 }
                 button {
                     class: "btn-parse gimfihi-generate-button",
@@ -10115,6 +10213,7 @@ fn render_gimfihi_controls(
 #[ensures(true)]
 fn render_gimfihi_source_row(
     mut gimfihi_draft_state: Signal<GimfihiWebState>,
+    mut gimfihi_source_word_memory: Signal<BTreeMap<String, String>>,
     state: &GimfihiWebState,
     index: usize,
     source: &GimfihiWebSource,
@@ -10135,8 +10234,24 @@ fn render_gimfihi_source_row(
                     spellcheck: "false",
                     value: "{language}",
                     oninput: move |event| {
-                        let next = gimfihi_state_with_source_language(&gimfihi_draft_state.read(), index, &event.value());
-                        gimfihi_draft_state.set(normalize_gimfihi_state(&next));
+                        let next_language = event.value();
+                        let current = gimfihi_draft_state.read().clone();
+                        if let Some(source) = current.sources.get(index) {
+                            gimfihi_source_word_memory.with_mut(|memory| {
+                                if gimfihi_source_language_key(&source.language)
+                                    != gimfihi_source_language_key(&next_language)
+                                {
+                                    gimfihi_remove_source_word_memory_entry(memory, &source.language);
+                                }
+                                gimfihi_set_source_word_memory_entry(
+                                    memory,
+                                    &next_language,
+                                    &source.word,
+                                );
+                            });
+                        }
+                        let next = gimfihi_state_with_source_language(&current, index, &next_language);
+                        gimfihi_draft_state.set(next);
                     },
                 }
             }
@@ -10151,7 +10266,7 @@ fn render_gimfihi_source_row(
                         value: "{weight_value}",
                         onchange: move |event| {
                             let next = gimfihi_state_with_source_weight(&gimfihi_draft_state.read(), index, &event.value());
-                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
+                            gimfihi_draft_state.set(next);
                         },
                     }
                     input {
@@ -10163,7 +10278,7 @@ fn render_gimfihi_source_row(
                         value: "{weight_value}",
                         onchange: move |event| {
                             let next = gimfihi_state_with_source_weight(&gimfihi_draft_state.read(), index, &event.value());
-                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
+                            gimfihi_draft_state.set(next);
                         },
                     }
                 }
@@ -10175,19 +10290,36 @@ fn render_gimfihi_source_row(
                     spellcheck: "false",
                     value: "{word}",
                     oninput: move |event| {
-                        let next = gimfihi_state_with_source_word(&gimfihi_draft_state.read(), index, &event.value());
-                        gimfihi_draft_state.set(normalize_gimfihi_state(&next));
+                        let next_word = event.value();
+                        let current = gimfihi_draft_state.read().clone();
+                        if let Some(source) = current.sources.get(index) {
+                            gimfihi_source_word_memory.with_mut(|memory| {
+                                gimfihi_set_source_word_memory_entry(
+                                    memory,
+                                    &source.language,
+                                    &next_word,
+                                );
+                            });
+                        }
+                        let next = gimfihi_state_with_source_word(&current, index, &next_word);
+                        gimfihi_draft_state.set(next);
                     },
                 }
             }
-            td {
+            td { class: "gimfihi-actions-column",
                 button {
                     class: "gimfihi-row-button gimfihi-delete-button",
                     r#type: "button",
                     disabled: row_count <= 1,
                     onclick: move |_| {
-                        let next = gimfihi_state_without_source(&gimfihi_draft_state.read(), index);
-                        gimfihi_draft_state.set(normalize_gimfihi_state(&next));
+                        let current = gimfihi_draft_state.read().clone();
+                        if let Some(source) = current.sources.get(index) {
+                            gimfihi_source_word_memory.with_mut(|memory| {
+                                gimfihi_remove_source_word_memory_entry(memory, &source.language);
+                            });
+                        }
+                        let next = gimfihi_state_without_source(&current, index);
+                        gimfihi_draft_state.set(next);
                     },
                     "Delete"
                 }
@@ -10204,7 +10336,7 @@ fn render_gimfihi_add_source_row(mut gimfihi_draft_state: Signal<GimfihiWebState
             td { class: "gimfihi-language-column" }
             td {}
             td {}
-            td {
+            td { class: "gimfihi-actions-column",
                 button {
                     class: "gimfihi-row-button gimfihi-add-button",
                     r#type: "button",
@@ -10215,7 +10347,7 @@ fn render_gimfihi_add_source_row(mut gimfihi_draft_state: Signal<GimfihiWebState
                             weight: Some("1".to_owned()),
                             word: String::new(),
                         });
-                        gimfihi_draft_state.set(normalize_gimfihi_state(&next));
+                        gimfihi_draft_state.set(next);
                     },
                     "Add"
                 }
@@ -10240,7 +10372,7 @@ fn render_gimfihi_shape_toggle(
                 checked: selected,
                 onchange: move |_| {
                     let next = gimfihi_state_with_shape_toggled(&gimfihi_draft_state.read(), shape);
-                    gimfihi_draft_state.set(normalize_gimfihi_state(&next));
+                    gimfihi_draft_state.set(next);
                 },
             }
             span { "{label}" }
@@ -10254,6 +10386,7 @@ fn render_gimfihi_results(
     result: &GimfihiWebResult,
     mut gimfihi_draft_state: Signal<GimfihiWebState>,
     mut gimfihi_committed_state: Signal<GimfihiWebState>,
+    gimfihi_result: Signal<GimfihiAsyncResultState>,
     base_path: &str,
     script: GentufaScript,
     page_find: &PageFindContext,
@@ -10270,6 +10403,8 @@ fn render_gimfihi_results(
     }
     let summary = gimfihi_result_summary(output);
     let show_collisions = result.state.show_collisions;
+    let has_more =
+        result.state.count < output.filtered_count && result.state.count < GIMFIHI_MAX_COUNT;
     rsx! {
         div { class: "gimfihi-results",
             div { class: "gimfihi-result-summary",
@@ -10289,47 +10424,98 @@ fn render_gimfihi_results(
                     }
                     tbody {
                         for candidate in output.candidates.iter() {
-                            {
-                                let word = candidate.word.clone();
-                                let score = format_gimfihi_score(candidate.score);
-                                let existing = candidate
-                                    .collision
-                                    .as_ref()
-                                    .map(|collision| collision.existing_word.clone())
-                                    .unwrap_or_default();
-                                let row_class = class_names(
-                                    "gimfihi-candidate-row",
-                                    &[("is-highlighted", candidate.highlighted)],
-                                );
-                                rsx! {
-                                    tr { class: "{row_class}",
-                                        td {
-                                            button {
-                                                class: "gimfihi-candidate-button",
-                                                r#type: "button",
-                                                aria_pressed: pressed_attr(candidate.highlighted),
-                                                onclick: move |_| {
-                                                    let next = gimfihi_state_with_highlight(
-                                                        &gimfihi_committed_state.read(),
-                                                        &word,
-                                                    );
-                                                    gimfihi_draft_state.set(next.clone());
-                                                    gimfihi_committed_state.set(next);
-                                                },
-                                                { render_page_find_text(page_find, &candidate.word) }
-                                            }
-                                        }
-                                        td { { render_page_find_text(page_find, &score) } }
-                                        if show_collisions {
-                                            td { { render_page_find_text(page_find, &existing) } }
-                                        }
-                                        td { { render_gimfihi_rafsis(&candidate.rafsi, base_path, script, page_find) } }
-                                    }
-                                }
+                            GimfihiCandidateRow {
+                                key: "{candidate.word}",
+                                candidate: candidate.clone(),
+                                show_collisions,
+                                gimfihi_draft_state,
+                                gimfihi_committed_state,
+                                gimfihi_result,
+                                base_path: base_path.to_owned(),
+                                script,
+                                page_find: page_find.clone(),
                             }
                         }
                     }
                 }
+            }
+            if has_more {
+                div { class: "load-more-wrap",
+                    button {
+                        class: "btn-parse load-more-link",
+                        r#type: "button",
+                        onclick: move |_| {
+                            let next = gimfihi_load_more_state(&gimfihi_committed_state.read());
+                            gimfihi_draft_state.set(next.clone());
+                            gimfihi_committed_state.set(next);
+                        },
+                        { render_page_find_text(page_find, "Load more") }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+#[component]
+fn GimfihiCandidateRow(
+    candidate: GimfihiCandidate,
+    show_collisions: bool,
+    mut gimfihi_draft_state: Signal<GimfihiWebState>,
+    mut gimfihi_committed_state: Signal<GimfihiWebState>,
+    mut gimfihi_result: Signal<GimfihiAsyncResultState>,
+    base_path: String,
+    script: GentufaScript,
+    page_find: PageFindContext,
+) -> Element {
+    let word = candidate.word.clone();
+    let score = format_gimfihi_score(candidate.score);
+    let existing = candidate
+        .collision
+        .as_ref()
+        .map(|collision| collision.existing_word.clone());
+    let row_class = class_names(
+        "gimfihi-candidate-row",
+        &[("is-highlighted", candidate.highlighted)],
+    );
+    let base_path_for_highlight = base_path.clone();
+    rsx! {
+        tr { class: "{row_class}",
+            td {
+                button {
+                    class: "gimfihi-candidate-button",
+                    r#type: "button",
+                    aria_pressed: pressed_attr(candidate.highlighted),
+                    onclick: move |_| {
+                        let next = gimfihi_state_with_highlight(
+                            &gimfihi_committed_state.read(),
+                            &word,
+                        );
+                        let current_result = gimfihi_result.read().clone();
+                        if let Some(highlighted_result) = gimfihi_result_state_with_highlight(
+                            &base_path_for_highlight,
+                            &next,
+                            &current_result,
+                        ) {
+                            gimfihi_result.set(highlighted_result);
+                        }
+                        gimfihi_draft_state.set(next.clone());
+                        gimfihi_committed_state.set(next);
+                    },
+                    { render_page_find_text(&page_find, &candidate.word) }
+                }
+            }
+            td { { render_page_find_text(&page_find, &score) } }
+            if show_collisions {
+                td {
+                    { render_gimfihi_dictionary_word_link(existing.as_deref(), &base_path, script, &page_find) }
+                }
+            }
+            td {
+                { render_gimfihi_rafsis(&candidate.rafsi, &base_path, script, &page_find) }
             }
         }
     }
@@ -10379,27 +10565,82 @@ fn gimfihi_sources_for_preset(preset: GimfihiPreset) -> Vec<GimfihiWebSource> {
 fn gimfihi_state_for_selected_preset(
     state: &GimfihiWebState,
     preset: Option<GimfihiPreset>,
+    source_words: &BTreeMap<String, String>,
 ) -> GimfihiWebState {
     let Some(preset) = preset else {
         return gimfihi_state_with_explicit_custom_weights(state);
     };
-    let words_by_language = state
-        .sources
-        .iter()
-        .map(|source| (source.language.clone(), source.word.clone()))
-        .collect::<BTreeMap<_, _>>();
+    let mut words_by_language = source_words.clone();
+    words_by_language.extend(state.sources.iter().filter_map(|source| {
+        let language = gimfihi_source_language_key(&source.language)?;
+        Some((language, source.word.clone()))
+    }));
     let mut next = state.clone();
     next.preset = Some(preset.as_str().to_owned());
     next.sources = gimfihi_sources_for_preset(preset)
         .into_iter()
         .map(|mut source| {
-            if let Some(word) = words_by_language.get(&source.language) {
+            if let Some(word) = gimfihi_source_language_key(&source.language)
+                .and_then(|language| words_by_language.get(&language))
+            {
                 source.word = word.clone();
             }
             source
         })
         .collect();
     next
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihi_source_word_memory_from_state(state: &GimfihiWebState) -> BTreeMap<String, String> {
+    let mut memory = BTreeMap::new();
+    update_gimfihi_source_word_memory(&mut memory, state);
+    memory
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn update_gimfihi_source_word_memory(
+    memory: &mut BTreeMap<String, String>,
+    state: &GimfihiWebState,
+) {
+    for source in &state.sources {
+        gimfihi_set_source_word_memory_entry(memory, &source.language, &source.word);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihi_set_source_word_memory_entry(
+    memory: &mut BTreeMap<String, String>,
+    language: &str,
+    word: &str,
+) {
+    let Some(language) = gimfihi_source_language_key(language) else {
+        return;
+    };
+    let word = word.trim();
+    if word.is_empty() {
+        memory.remove(&language);
+    } else {
+        memory.insert(language, word.to_owned());
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihi_remove_source_word_memory_entry(memory: &mut BTreeMap<String, String>, language: &str) {
+    if let Some(language) = gimfihi_source_language_key(language) {
+        memory.remove(&language);
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
+fn gimfihi_source_language_key(language: &str) -> Option<String> {
+    let language = language.trim().to_ascii_lowercase();
+    (!language.is_empty()).then_some(language)
 }
 
 #[requires(true)]
@@ -10504,6 +10745,14 @@ fn gimfihi_state_with_highlight(state: &GimfihiWebState, highlight: &str) -> Gim
     let mut next = state.clone();
     next.highlight = Some(highlight.trim().to_owned());
     normalize_gimfihi_state(&next)
+}
+
+#[requires(true)]
+#[ensures(ret.count >= 1 && ret.count <= GIMFIHI_MAX_COUNT)]
+fn gimfihi_load_more_state(state: &GimfihiWebState) -> GimfihiWebState {
+    let mut next = state.clone();
+    next.count = next.count.saturating_mul(2).clamp(1, GIMFIHI_MAX_COUNT);
+    next
 }
 
 #[requires(true)]
@@ -10689,28 +10938,72 @@ fn render_gimfihi_taken_rafsi_source(
     script: GentufaScript,
     page_find: &PageFindContext,
 ) -> Element {
-    if source.is_empty() {
+    let Some(source) = (!source.is_empty()).then_some(source) else {
         return rsx! { span { class: "rafsi-split-right" } };
-    }
-    let href = vlacku_web_url(
+    };
+    render_gimfihi_dictionary_word_link_with_host(
+        "rafsi-split-right dictionary-tooltip-host",
+        Some(source),
         base_path,
-        &VlackuWebState {
-            mode: VlackuWebMode::Word,
-            query: source.to_owned(),
-            count: VLACKU_WEB_DEFAULT_COUNT,
-            word_types: Vec::new(),
-        },
-    );
-    let display_source = display_lojban_text(script, source);
-    let tooltip = dictionary_tooltip_for_word(base_path, source);
+        script,
+        page_find,
+    )
+}
+
+#[requires(!host_class.is_empty())]
+#[ensures(true)]
+fn render_gimfihi_dictionary_word_link_with_host(
+    host_class: &str,
+    word: Option<&str>,
+    base_path: &str,
+    script: GentufaScript,
+    page_find: &PageFindContext,
+) -> Element {
+    let Some(word) = word.filter(|word| !word.is_empty()) else {
+        return rsx! {};
+    };
+    let href = vlacku_word_href(base_path, word);
+    let display_word = display_lojban_text(script, word);
+    let tooltip = dictionary_tooltip_for_word(base_path, word);
     rsx! {
-        span { class: "rafsi-split-right dictionary-tooltip-host",
-            { render_text_route_link_with_page_find("gimfihi-rafsi-source-link", &href, base_path, &display_source, page_find) }
+        span { class: "{host_class}",
+            { render_text_route_link_with_page_find("dictionary-word-link", &href, base_path, &display_word, page_find) }
             if let Some(card) = &tooltip {
                 { render_dictionary_tooltip(card, true, base_path, script) }
             }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_gimfihi_dictionary_word_link(
+    word: Option<&str>,
+    base_path: &str,
+    script: GentufaScript,
+    page_find: &PageFindContext,
+) -> Element {
+    render_gimfihi_dictionary_word_link_with_host(
+        "dictionary-tooltip-host",
+        word,
+        base_path,
+        script,
+        page_find,
+    )
+}
+
+#[requires(!word.is_empty())]
+#[ensures(ret.starts_with(base_path) || base_path.is_empty())]
+fn vlacku_word_href(base_path: &str, word: &str) -> String {
+    vlacku_web_url(
+        base_path,
+        &VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: word.to_owned(),
+            count: VLACKU_WEB_DEFAULT_COUNT,
+            word_types: Vec::new(),
+        },
+    )
 }
 
 #[requires(true)]
@@ -19943,6 +20236,7 @@ fn apply_web_route_to_client_state(
     mut vlacku_committed_state: Signal<VlackuWebState>,
     mut gimfihi_draft_state: Signal<GimfihiWebState>,
     mut gimfihi_committed_state: Signal<GimfihiWebState>,
+    mut gimfihi_source_word_memory: Signal<BTreeMap<String, String>>,
     mut input_text: Signal<String>,
     mut parsed_text: Signal<String>,
     mut parsed_text_explicit: Signal<bool>,
@@ -19990,6 +20284,9 @@ fn apply_web_route_to_client_state(
             vlacku_committed_state.set(state.clone());
         }
         WebRoute::Gimfihi(state) => {
+            gimfihi_source_word_memory.with_mut(|memory| {
+                update_gimfihi_source_word_memory(memory, state);
+            });
             gimfihi_draft_state.set(state.clone());
             gimfihi_committed_state.set(state.clone());
         }
@@ -21808,14 +22105,100 @@ mod tests {
         let mut state = GimfihiWebState::default();
         state.sources[0].word = "uan".to_owned();
         state.sources[2].word = "ekspekt".to_owned();
+        let memory = gimfihi_source_word_memory_from_state(&state);
 
-        let next = gimfihi_state_for_selected_preset(&state, Some(GimfihiPreset::Ilmen6));
+        let next = gimfihi_state_for_selected_preset(&state, Some(GimfihiPreset::Ilmen6), &memory);
 
         assert_eq!(next.preset.as_deref(), Some("ilmen6"));
         assert_eq!(next.sources[0].language, "eng");
         assert_eq!(next.sources[0].word, "ekspekt");
         assert_eq!(next.sources[1].language, "cmn");
         assert_eq!(next.sources[1].word, "uan");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_preset_switch_restores_words_for_returning_languages() {
+        let mut state = GimfihiWebState::default();
+        state.sources[4].word = "predpologa".to_owned();
+        let mut memory = gimfihi_source_word_memory_from_state(&state);
+
+        let ilmen6 =
+            gimfihi_state_for_selected_preset(&state, Some(GimfihiPreset::Ilmen6), &memory);
+        update_gimfihi_source_word_memory(&mut memory, &ilmen6);
+        let restored =
+            gimfihi_state_for_selected_preset(&ilmen6, Some(GimfihiPreset::Data1995), &memory);
+
+        assert_eq!(restored.sources[4].language, "rus");
+        assert_eq!(restored.sources[4].word, "predpologa");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_source_word_memory_tracks_explicit_language_edits() {
+        let mut memory = BTreeMap::new();
+        gimfihi_set_source_word_memory_entry(&mut memory, "rus", "predpologa");
+
+        gimfihi_remove_source_word_memory_entry(&mut memory, "rus");
+        gimfihi_set_source_word_memory_entry(&mut memory, "jpn", "dentou");
+
+        assert!(!memory.contains_key("rus"));
+        assert_eq!(memory.get("jpn").map(String::as_str), Some("dentou"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_source_word_memory_removes_empty_words() {
+        let mut memory = BTreeMap::new();
+        gimfihi_set_source_word_memory_entry(&mut memory, "rus", "predpologa");
+
+        gimfihi_set_source_word_memory_entry(&mut memory, "rus", "   ");
+
+        assert!(!memory.contains_key("rus"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_load_more_state_doubles_and_clamps_count() {
+        let mut state = GimfihiWebState {
+            count: 20,
+            ..GimfihiWebState::default()
+        };
+
+        assert_eq!(gimfihi_load_more_state(&state).count, 40);
+
+        state.count = GIMFIHI_MAX_COUNT;
+        assert_eq!(gimfihi_load_more_state(&state).count, GIMFIHI_MAX_COUNT);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_result_summary_reports_candidates_and_shown_count() {
+        let output = GimfihiOutput {
+            resolved_sources: Vec::new(),
+            candidate_count: 20_000,
+            filtered_count: 12_222,
+            winner: None,
+            highlighted_word: None,
+            candidates: vec![GimfihiCandidate {
+                word: "traco".to_owned(),
+                score: 0.0,
+                source_scores: Vec::new(),
+                collision: None,
+                rafsi: Vec::new(),
+                highlighted: false,
+            }],
+        };
+
+        assert_eq!(
+            gimfihi_result_summary(&output),
+            "12,222 candidates, 1 shown"
+        );
     }
 
     #[test]
