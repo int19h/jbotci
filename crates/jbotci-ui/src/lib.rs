@@ -106,6 +106,10 @@ const APPLE_TOUCH_ICON: Asset = asset!("/assets/icons/apple-touch-icon.png");
 const ICON_512: Asset = asset!("/assets/icons/jbotci-icon-512.png");
 #[allow(dead_code)]
 const ICON_SVG: Asset = asset!("/assets/icons/jbotci-icon.svg");
+#[allow(dead_code)]
+const ICON_MASKABLE_192: Asset = asset!("/assets/icons/jbotci-icon-maskable-192.png");
+#[allow(dead_code)]
+const ICON_MASKABLE_512: Asset = asset!("/assets/icons/jbotci-icon-maskable-512.png");
 const LOGO: Asset = asset!("/assets/icons/jbotci-dark.svg");
 pub const APP_DISPLAY_NAME: &str = "jbotci";
 const DEFAULT_WEB_EMBEDDINGS_BASE_URL: &str = "https://assets.jbotci.app/embeddings/web/v1";
@@ -22037,6 +22041,79 @@ fn _feature_availability_for_linking() -> WebFeatureAvailability {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn pwa_manifest_uses_root_routes_and_separate_maskable_icons() {
+        let manifest: serde_json::Value =
+            serde_json::from_str(include_str!("../assets/manifest.webmanifest"))
+                .expect("PWA manifest is valid JSON");
+
+        assert_eq!(manifest["id"], "/");
+        assert_eq!(manifest["start_url"], "/gentufa");
+        assert_eq!(manifest["scope"], "/");
+
+        let protocol_handlers = manifest["protocol_handlers"]
+            .as_array()
+            .expect("protocol_handlers is an array");
+        assert!(protocol_handlers.iter().any(|handler| {
+            handler.get("protocol").and_then(serde_json::Value::as_str) == Some("web+johau")
+                && handler.get("url").and_then(serde_json::Value::as_str)
+                    == Some("/settings?johau=%s")
+        }));
+
+        let icons = manifest["icons"].as_array().expect("icons is an array");
+        let has_icon = |src: &str, sizes: &str, content_type: &str, purpose: &str| {
+            icons.iter().any(|icon| {
+                icon.get("src").and_then(serde_json::Value::as_str) == Some(src)
+                    && icon.get("sizes").and_then(serde_json::Value::as_str) == Some(sizes)
+                    && icon.get("type").and_then(serde_json::Value::as_str) == Some(content_type)
+                    && icon.get("purpose").and_then(serde_json::Value::as_str) == Some(purpose)
+            })
+        };
+        assert!(has_icon(
+            "/assets/icons/jbotci-icon-192.png",
+            "192x192",
+            "image/png",
+            "any"
+        ));
+        assert!(has_icon(
+            "/assets/icons/jbotci-icon-512.png",
+            "512x512",
+            "image/png",
+            "any"
+        ));
+        assert!(has_icon(
+            "/assets/icons/jbotci-icon.svg",
+            "any",
+            "image/svg+xml",
+            "any"
+        ));
+        assert!(has_icon(
+            "/assets/icons/jbotci-icon-maskable-192.png",
+            "192x192",
+            "image/png",
+            "maskable"
+        ));
+        assert!(has_icon(
+            "/assets/icons/jbotci-icon-maskable-512.png",
+            "512x512",
+            "image/png",
+            "maskable"
+        ));
+        assert_eq!(
+            icons
+                .iter()
+                .filter(|icon| {
+                    icon.get("purpose").and_then(serde_json::Value::as_str) == Some("maskable")
+                })
+                .count(),
+            2
+        );
+        assert!(!include_bytes!("../assets/icons/jbotci-icon-maskable-192.png").is_empty());
+        assert!(!include_bytes!("../assets/icons/jbotci-icon-maskable-512.png").is_empty());
+    }
 
     #[test]
     #[requires(true)]
