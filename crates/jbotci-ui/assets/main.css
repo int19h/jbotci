@@ -3427,7 +3427,7 @@ body::-webkit-scrollbar-thumb:hover,
   cursor: pointer;
 }
 
-.gimfihe-page .gimfihe-shell {
+.gimfihi-page .gimfihi-shell {
   display: grid;
   gap: 1rem;
   width: min(100%, 76rem);
@@ -3435,36 +3435,36 @@ body::-webkit-scrollbar-thumb:hover,
   padding: 0 1rem 1.25rem;
 }
 
-.gimfihe-page .gimfihe-form {
+.gimfihi-page .gimfihi-form {
   display: grid;
   gap: 0.9rem;
 }
 
-.gimfihe-page .gimfihe-control-grid {
+.gimfihi-page .gimfihi-control-grid {
   display: grid;
-  grid-template-columns: minmax(9rem, 0.85fr) minmax(7rem, 0.45fr) minmax(9rem, 0.65fr) minmax(11rem, 1fr);
+  grid-template-columns: minmax(9rem, 0.85fr) minmax(7rem, 0.45fr) minmax(9rem, 0.65fr);
   gap: 0.75rem;
   align-items: end;
 }
 
-.gimfihe-page .gimfihe-control {
+.gimfihi-page .gimfihi-control {
   display: grid;
   gap: 0.24rem;
   min-width: 0;
 }
 
-.gimfihe-page .gimfihe-control-label {
+.gimfihi-page .gimfihi-control-label {
   color: var(--app-muted);
   font-size: 0.74rem;
   text-transform: uppercase;
 }
 
-.gimfihe-page .gimfihe-select,
-.gimfihe-page .gimfihe-text-input,
-.gimfihe-page .gimfihe-number-input,
-.gimfihe-page .gimfihe-lang-input,
-.gimfihe-page .gimfihe-word-input,
-.gimfihe-page .gimfihe-weight-number {
+.gimfihi-page .gimfihi-select,
+.gimfihi-page .gimfihi-text-input,
+.gimfihi-page .gimfihi-number-input,
+.gimfihi-page .gimfihi-lang-input,
+.gimfihi-page .gimfihi-word-input,
+.gimfihi-page .gimfihi-weight-number {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--app-border);
@@ -3477,35 +3477,35 @@ body::-webkit-scrollbar-thumb:hover,
   padding: 0.38rem 0.5rem;
 }
 
-.gimfihe-page .gimfihe-source-table-wrap,
-.gimfihe-page .gimfihe-results-table-wrap {
+.gimfihi-page .gimfihi-source-table-wrap,
+.gimfihi-page .gimfihi-results-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--app-border);
   border-radius: 6px;
   background: color-mix(in srgb, var(--app-surface-0) 96%, transparent);
 }
 
-.gimfihe-page .gimfihe-source-table,
-.gimfihe-page .gimfihe-results-table {
+.gimfihi-page .gimfihi-source-table,
+.gimfihi-page .gimfihi-results-table {
   width: 100%;
   min-width: 44rem;
   border-collapse: collapse;
   font-size: 0.9rem;
 }
 
-.gimfihe-page th,
-.gimfihe-page td {
+.gimfihi-page th,
+.gimfihi-page td {
   border-bottom: 1px solid var(--app-border);
   padding: 0.45rem 0.52rem;
   text-align: left;
   vertical-align: middle;
 }
 
-.gimfihe-page tbody tr:last-child td {
+.gimfihi-page tbody tr:last-child td {
   border-bottom: 0;
 }
 
-.gimfihe-page th {
+.gimfihi-page th {
   color: var(--app-muted);
   font-size: 0.74rem;
   font-weight: 700;
@@ -3513,41 +3513,49 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--app-surface-2);
 }
 
-.gimfihe-page .gimfihe-weight-cell {
+.gimfihi-page .gimfihi-source-table .gimfihi-language-column {
+  width: 7rem;
+  max-width: 7rem;
+}
+
+.gimfihi-page .gimfihi-lang-input {
+  width: 6rem;
+}
+
+.gimfihi-page .gimfihi-weight-cell {
   display: grid;
   grid-template-columns: minmax(7rem, 1fr) 5.8rem;
   gap: 0.5rem;
   align-items: center;
 }
 
-.gimfihe-page .gimfihe-weight-slider {
+.gimfihi-page .gimfihi-weight-slider {
   width: 100%;
   accent-color: var(--app-accent);
 }
 
-.gimfihe-page .gimfihe-option-row,
-.gimfihe-page .gimfihe-action-row {
+.gimfihi-page .gimfihi-option-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.7rem 1rem;
   align-items: center;
 }
 
-.gimfihe-page .gimfihe-shape-group {
+.gimfihi-page .gimfihi-shape-group {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
   align-items: center;
 }
 
-.gimfihe-page .gimfihe-checkbox,
-.gimfihe-page .gimfihe-shape-toggle {
+.gimfihi-page .gimfihi-checkbox,
+.gimfihi-page .gimfihi-shape-toggle {
   min-height: 2rem;
 }
 
-.gimfihe-page .gimfihe-secondary-button,
-.gimfihe-page .gimfihe-row-button,
-.gimfihe-page .gimfihe-candidate-button {
+.gimfihi-page .gimfihi-secondary-button,
+.gimfihi-page .gimfihi-row-button,
+.gimfihi-page .gimfihi-candidate-button {
   border: 1px solid var(--app-border);
   border-radius: 4px;
   background: var(--app-surface-0);
@@ -3559,13 +3567,36 @@ body::-webkit-scrollbar-thumb:hover,
   cursor: pointer;
 }
 
-.gimfihe-page .gimfihe-row-button:disabled {
+.gimfihi-page .gimfihi-row-button {
+  width: 5.3rem;
+}
+
+.gimfihi-page .gimfihi-delete-button {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.gimfihi-page .gimfihi-delete-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--danger-text) 55%, var(--danger-border));
+  background: color-mix(in srgb, var(--danger-text) 11%, var(--danger-bg));
+}
+
+.gimfihi-page .gimfihi-add-button {
+  border-color: color-mix(in srgb, var(--app-accent) 42%, var(--app-border));
+}
+
+.gimfihi-page .gimfihi-generate-button {
+  margin-left: auto;
+}
+
+.gimfihi-page .gimfihi-row-button:disabled {
   color: var(--app-muted);
   cursor: default;
   opacity: 0.62;
 }
 
-.gimfihe-page .gimfihe-candidate-button {
+.gimfihi-page .gimfihi-candidate-button {
   min-width: 5.5rem;
   border-color: transparent;
   background: transparent;
@@ -3574,26 +3605,88 @@ body::-webkit-scrollbar-thumb:hover,
   text-align: left;
 }
 
-.gimfihe-page .gimfihe-candidate-row.is-highlighted {
+.gimfihi-page .gimfihi-candidate-row.is-highlighted {
   background: color-mix(in srgb, var(--app-accent) 12%, transparent);
 }
 
-.gimfihe-page .gimfihe-candidate-row.is-highlighted .gimfihe-candidate-button {
+.gimfihi-page .gimfihi-candidate-row.is-highlighted .gimfihi-candidate-button {
   color: var(--app-text);
   text-decoration: underline;
   text-underline-offset: 0.18em;
 }
 
-.gimfihe-page .gimfihe-status,
-.gimfihe-page .gimfihe-result-summary {
+.gimfihi-page .gimfihi-status,
+.gimfihi-page .gimfihi-result-summary {
   color: var(--app-muted);
   font-size: 0.9rem;
   margin: 0;
 }
 
-.gimfihe-page .gimfihe-results {
+.gimfihi-page .gimfihi-results {
   display: grid;
   gap: 0.55rem;
+}
+
+.gimfihi-page .gimfihi-rafsi-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.gimfihi-page .gimfihi-rafsi-pill.is-free {
+  border-color: color-mix(in srgb, #22863a 60%, var(--app-border));
+  background: color-mix(in srgb, #22863a 14%, var(--app-surface-0));
+  color: color-mix(in srgb, #22863a 72%, var(--app-text));
+}
+
+.gimfihi-page .gimfihi-rafsi-pill.is-official-taken {
+  border-color: var(--danger-border);
+}
+
+.gimfihi-page .gimfihi-rafsi-pill.is-official-taken .rafsi-split-right {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.gimfihi-page .gimfihi-rafsi-pill.is-official-taken .rafsi-split-left {
+  background: color-mix(in srgb, var(--danger-bg) 76%, var(--danger-text));
+  color: var(--danger-text);
+}
+
+.gimfihi-page .gimfihi-rafsi-pill.is-experimental-taken {
+  border-color: color-mix(in srgb, #b45f06 58%, var(--app-border));
+}
+
+.gimfihi-page .gimfihi-rafsi-pill.is-experimental-taken .rafsi-split-right {
+  background: color-mix(in srgb, #b45f06 13%, var(--app-surface-0));
+  color: color-mix(in srgb, #b45f06 72%, var(--app-text));
+}
+
+.gimfihi-page .gimfihi-rafsi-pill.is-experimental-taken .rafsi-split-left {
+  background: color-mix(in srgb, #b45f06 25%, var(--app-surface-0));
+  color: color-mix(in srgb, #b45f06 78%, var(--app-text));
+}
+
+.gimfihi-page .gimfihi-rafsi-pill .rafsi-split-right {
+  align-items: center;
+  padding: 0.2rem 0.58rem;
+}
+
+.gimfihi-page .gimfihi-rafsi-source-link {
+  color: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.gimfihi-page .gimfihi-rafsi-source-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.gimfihi-page .gimfihi-rafsi-empty {
+  color: var(--app-muted);
 }
 
 .dictionary-page .dictionary-results-grid {
@@ -4165,6 +4258,10 @@ body::-webkit-scrollbar-thumb:hover,
   display: inline-block;
   vertical-align: baseline;
   overflow: visible;
+}
+
+.dictionary-page .rafsi-split-right.dictionary-tooltip-host {
+  display: inline-flex;
 }
 
 .rich-dictionary-tooltip {
@@ -5333,21 +5430,21 @@ body::-webkit-scrollbar-thumb:hover,
     grid-template-columns: 1fr;
   }
 
-  .gimfihe-page .gimfihe-shell {
+  .gimfihi-page .gimfihi-shell {
     padding-inline: 0.75rem;
   }
 
-  .gimfihe-page .gimfihe-control-grid {
+  .gimfihi-page .gimfihi-control-grid {
     grid-template-columns: 1fr;
   }
 
-  .gimfihe-page .gimfihe-source-table,
-  .gimfihe-page .gimfihe-results-table {
+  .gimfihi-page .gimfihi-source-table,
+  .gimfihi-page .gimfihi-results-table {
     min-width: 39rem;
     font-size: 0.84rem;
   }
 
-  .gimfihe-page .gimfihe-weight-cell {
+  .gimfihi-page .gimfihi-weight-cell {
     grid-template-columns: minmax(6rem, 1fr) 5rem;
   }
 

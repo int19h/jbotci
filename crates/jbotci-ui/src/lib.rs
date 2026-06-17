@@ -23,27 +23,31 @@ use jbotci_output::{
     render_lojban_text_for_script,
 };
 #[cfg(test)]
+use jbotci_web_core::GimfihiCandidate;
+#[cfg(test)]
 use jbotci_web_core::ReferenceSlotLabel;
 use jbotci_web_core::{
     APPLE_TOUCH_ICON_ASSET_PATH, CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption,
     CuktaPageData, CuktaPageKind, CuktaSearchResultCard, CuktaSemanticSearchHit, CuktaTargetOption,
     CuktaTocNode, CuktaWebMode, CuktaWebSearchState, CuktaWebState, CuktaWebView,
-    DictionaryTooltipCard, FAVICON_ASSET_PATH, GentufaBlock, GentufaBlocksLayout,
-    GentufaBracketFragment, GentufaCell, GentufaError, GentufaScript, GentufaSuccess,
-    GentufaTreeGuide, GentufaTreeRow, GentufaWebOptions, GentufaWebRequest, GentufaWebResult,
-    GentufaWebState, GentufaWebViewMode, GimfiheOutput, GimfihePreset, GimfihePresetOption,
-    GimfiheWebResult, GimfiheWebSource, GimfiheWebState, MANIFEST_ASSET_PATH, PageMeta,
-    RafsiAvailability, RafsiCandidate, ReferenceLabel, ReferenceMarker, ReferenceMarkerRole,
-    ReferenceTooltip, ReferenceTooltipInline, ReferenceTooltipInlineData, ReferenceTooltipRow,
-    VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece,
-    VlackuCompositionPieceKind, VlackuDictionaryCountNode, VlackuDictionaryInfo, VlackuInline,
-    VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
+    DictionaryTooltipCard, FAVICON_ASSET_PATH, GIMFIHI_MAX_WEIGHT, GIMFIHI_MIN_WEIGHT,
+    GentufaBlock, GentufaBlocksLayout, GentufaBracketFragment, GentufaCell, GentufaError,
+    GentufaScript, GentufaSuccess, GentufaTreeGuide, GentufaTreeRow, GentufaWebOptions,
+    GentufaWebRequest, GentufaWebResult, GentufaWebState, GentufaWebViewMode, GimfihiOutput,
+    GimfihiPreset, GimfihiPresetOption, GimfihiWebResult, GimfihiWebSource, GimfihiWebState,
+    MANIFEST_ASSET_PATH, PageMeta, RafsiAvailability, RafsiCandidate, ReferenceLabel,
+    ReferenceMarker, ReferenceMarkerRole, ReferenceTooltip, ReferenceTooltipInline,
+    ReferenceTooltipInlineData, ReferenceTooltipRow, VLACKU_WEB_DEFAULT_COUNT,
+    VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece, VlackuCompositionPieceKind,
+    VlackuDictionaryCountNode, VlackuDictionaryInfo, VlackuInline, VlackuInlineData,
+    VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
     VlackuJvozbaSegmentTone, VlackuMath, VlackuSemanticSearchHit, VlackuVoteDisplay,
     VlackuWebAuthor, VlackuWebCard, VlackuWebMode, VlackuWebResult, VlackuWebState,
     VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest, WebComputeResponse,
-    WebFeatureAvailability, WebRoute, all_presets, build_page_meta, build_vlacku_jvozba_output,
-    dictionary_tooltip_for_rafsi, dictionary_tooltip_for_word, gentufa_web_url,
-    normalize_gimfihe_state, normalize_vlacku_state, parse_web_route, reference_slot_display_text,
+    WebFeatureAvailability, WebRoute, all_presets, build_gimfihi_page_meta_from_output,
+    build_page_meta, build_vlacku_jvozba_output, dictionary_tooltip_for_rafsi,
+    dictionary_tooltip_for_word, gentufa_web_url, gimfihi_web_url, normalize_gimfihi_state,
+    normalize_vlacku_state, parse_web_route, reference_slot_display_text,
     toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
     vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
 };
@@ -150,7 +154,7 @@ const VLACKU_URL_DEBOUNCE_MS: i32 = 450;
 const COMPUTE_CHANNEL_GENTUFA: &str = "gentufa-page";
 const COMPUTE_CHANNEL_CUKTA: &str = "cukta-page";
 const COMPUTE_CHANNEL_VLACKU: &str = "vlacku-page";
-const COMPUTE_CHANNEL_GIMFIHE: &str = "gimfihe-page";
+const COMPUTE_CHANNEL_GIMFIHI: &str = "gimfihi-page";
 #[cfg(target_arch = "wasm32")]
 const COMPUTE_CHANNEL_EMBEDDINGS: &str = "embedding-corpus";
 const COMPUTE_CHANNEL_EXPORT: &str = "gentufa-export";
@@ -412,7 +416,7 @@ enum AppRoute {
     Settings,
     Cukta,
     Vlacku,
-    Gimfihe,
+    Gimfihi,
 }
 
 #[invariant(true)]
@@ -420,7 +424,7 @@ enum AppRoute {
 struct PageFindState {
     cukta: PageFindRouteState,
     vlacku: PageFindRouteState,
-    gimfihe: PageFindRouteState,
+    gimfihi: PageFindRouteState,
     gentufa: PageFindRouteState,
     settings: PageFindRouteState,
 }
@@ -432,7 +436,7 @@ impl PageFindState {
         match route {
             AppRoute::Cukta => &self.cukta,
             AppRoute::Vlacku => &self.vlacku,
-            AppRoute::Gimfihe => &self.gimfihe,
+            AppRoute::Gimfihi => &self.gimfihi,
             AppRoute::Gentufa => &self.gentufa,
             AppRoute::Settings => &self.settings,
         }
@@ -444,7 +448,7 @@ impl PageFindState {
         match route {
             AppRoute::Cukta => &mut self.cukta,
             AppRoute::Vlacku => &mut self.vlacku,
-            AppRoute::Gimfihe => &mut self.gimfihe,
+            AppRoute::Gimfihi => &mut self.gimfihi,
             AppRoute::Gentufa => &mut self.gentufa,
             AppRoute::Settings => &mut self.settings,
         }
@@ -920,8 +924,8 @@ fn page_find_entries_for_route(
     cukta_page: &CuktaAsyncPageState,
     vlacku_committed_state: &VlackuWebState,
     vlacku_result_state: &VlackuAsyncResultState,
-    gimfihe_committed_state: &GimfiheWebState,
-    gimfihe_result_state: &GimfiheAsyncResultState,
+    gimfihi_committed_state: &GimfihiWebState,
+    gimfihi_result_state: &GimfihiAsyncResultState,
     gentufa_result: &GentufaWebResult,
     gentufa_request: Option<&GentufaWebRequest>,
     gentufa_view_mode: GentufaWebViewMode,
@@ -940,10 +944,10 @@ fn page_find_entries_for_route(
                 visible_vlacku_result_for_find(vlacku_committed_state, vlacku_result_state);
             collect_vlacku_page_find_entries(&mut entries, &result, script);
         }
-        AppRoute::Gimfihe => {
+        AppRoute::Gimfihi => {
             let result =
-                visible_gimfihe_result_for_find(gimfihe_committed_state, gimfihe_result_state);
-            collect_gimfihe_page_find_entries(&mut entries, &result);
+                visible_gimfihi_result_for_find(gimfihi_committed_state, gimfihi_result_state);
+            collect_gimfihi_page_find_entries(&mut entries, &result);
         }
         AppRoute::Gentufa => collect_gentufa_page_find_entries(
             &mut entries,
@@ -979,14 +983,14 @@ fn visible_vlacku_result_for_find(
 
 #[requires(true)]
 #[ensures(true)]
-fn visible_gimfihe_result_for_find(
-    committed_state: &GimfiheWebState,
-    result_state: &GimfiheAsyncResultState,
-) -> GimfiheWebResult {
+fn visible_gimfihi_result_for_find(
+    committed_state: &GimfihiWebState,
+    result_state: &GimfihiAsyncResultState,
+) -> GimfihiWebResult {
     if result_state.state.as_ref() == Some(committed_state) {
         result_state.result.clone()
     } else {
-        gimfihe_loading_result(committed_state, "Loading gismu candidates.")
+        gimfihi_loading_result(committed_state, "Loading gismu candidates.")
     }
 }
 
@@ -1346,11 +1350,11 @@ fn collect_vlacku_page_find_entries(
 
 #[requires(true)]
 #[ensures(true)]
-fn collect_gimfihe_page_find_entries(
+fn collect_gimfihi_page_find_entries(
     entries: &mut Vec<PageFindTextEntry>,
-    result: &GimfiheWebResult,
+    result: &GimfihiWebResult,
 ) {
-    push_page_find_entry(entries, "gimfi'e");
+    push_page_find_entry(entries, "gimfi'i");
     for source in &result.state.sources {
         push_page_find_entry(entries, source.language.clone());
         push_page_find_entry(entries, source.word.clone());
@@ -1372,9 +1376,15 @@ fn collect_gimfihe_page_find_entries(
     }
     for candidate in &output.candidates {
         push_page_find_entry(entries, candidate.word.clone());
-        push_page_find_entry(entries, format_gimfihe_score(candidate.score));
+        push_page_find_entry(entries, format_gimfihi_score(candidate.score));
+        if let Some(collision) = &candidate.collision {
+            push_page_find_entry(entries, collision.existing_word.clone());
+        }
         for rafsi in &candidate.rafsi {
             push_page_find_entry(entries, rafsi.form.clone());
+            for source in &rafsi.taken_by {
+                push_page_find_entry(entries, source.clone());
+            }
         }
     }
 }
@@ -1995,14 +2005,14 @@ type AsyncTaskId = u64;
 #[invariant(::Gentufa => true)]
 #[invariant(::Cukta => true)]
 #[invariant(::Vlacku => true)]
-#[invariant(::Gimfihe => true)]
+#[invariant(::Gimfihi => true)]
 #[invariant(::Settings => true)]
 #[invariant(::Export => true)]
 enum AsyncTaskKind {
     Gentufa,
     Cukta,
     Vlacku,
-    Gimfihe,
+    Gimfihi,
     Settings,
     Export,
 }
@@ -2237,9 +2247,9 @@ struct VlackuAsyncResultState {
 
 #[derive(Debug, Clone, PartialEq)]
 #[invariant(true)]
-struct GimfiheAsyncResultState {
-    state: Option<GimfiheWebState>,
-    result: GimfiheWebResult,
+struct GimfihiAsyncResultState {
+    state: Option<GimfihiWebState>,
+    result: GimfihiWebResult,
     meta: Option<PageMeta>,
     loading: bool,
     error: Option<String>,
@@ -2372,14 +2382,14 @@ impl Default for VlackuAsyncResultState {
     }
 }
 
-impl Default for GimfiheAsyncResultState {
+impl Default for GimfihiAsyncResultState {
     #[requires(true)]
     #[ensures(ret.state.is_none())]
     fn default() -> Self {
-        let state = GimfiheWebState::default();
+        let state = GimfihiWebState::default();
         Self {
             state: None,
-            result: gimfihe_loading_result(&state, "Loading gismu candidates."),
+            result: gimfihi_loading_result(&state, "Loading gismu candidates."),
             meta: None,
             loading: false,
             error: None,
@@ -2704,11 +2714,12 @@ fn AppShell() -> Element {
     let vlacku_result = use_signal(VlackuAsyncResultState::default);
     let vlacku_result_task = use_signal(|| None::<LatestAsyncTask>);
     let vlacku_semantic_task = use_signal(|| None::<LatestAsyncTask>);
-    let initial_gimfihe = initial_gimfihe_state(&current_route_location);
-    let gimfihe_draft_state = use_signal(|| initial_gimfihe.clone());
-    let gimfihe_committed_state = use_signal(|| initial_gimfihe);
-    let gimfihe_result = use_signal(GimfiheAsyncResultState::default);
-    let gimfihe_result_task = use_signal(|| None::<LatestAsyncTask>);
+    let initial_gimfihi = initial_gimfihi_state(&current_route_location);
+    let gimfihi_draft_state = use_signal(|| initial_gimfihi.clone());
+    let gimfihi_committed_state = use_signal(|| initial_gimfihi);
+    let gimfihi_result = use_signal(GimfihiAsyncResultState::default);
+    let gimfihi_result_cache = use_signal(BTreeMap::<String, GimfihiAsyncResultState>::new);
+    let gimfihi_result_task = use_signal(|| None::<LatestAsyncTask>);
     let cukta_semantic_result = use_signal(CuktaSemanticResultState::default);
     let cukta_page = use_signal(CuktaAsyncPageState::default);
     let cukta_page_task = use_signal(|| None::<LatestAsyncTask>);
@@ -2762,8 +2773,8 @@ fn AppShell() -> Element {
     let cukta_page_value = cukta_page.read().clone();
     let vlacku_committed_state_value = vlacku_committed_state.read().clone();
     let vlacku_result_value = vlacku_result.read().clone();
-    let gimfihe_committed_state_value = gimfihe_committed_state.read().clone();
-    let gimfihe_result_value = gimfihe_result.read().clone();
+    let gimfihi_committed_state_value = gimfihi_committed_state.read().clone();
+    let gimfihi_result_value = gimfihi_result.read().clone();
     let page_find_state_value = page_find_state.read().clone();
     let current_page_find_route_state = page_find_state_value.route_state(route_value).clone();
     let page_find_entries = page_find_entries_for_route(
@@ -2771,8 +2782,8 @@ fn AppShell() -> Element {
         &cukta_page_value,
         &vlacku_committed_state_value,
         &vlacku_result_value,
-        &gimfihe_committed_state_value,
-        &gimfihe_result_value,
+        &gimfihi_committed_state_value,
+        &gimfihi_result_value,
         &result,
         gentufa_request.as_ref(),
         view_mode_value,
@@ -2823,8 +2834,8 @@ fn AppShell() -> Element {
         WebRoute::Vlacku(vlacku_committed_state_value.clone()),
         false,
     );
-    let topbar_gimfihe_route = JbotciRoute::from_web_route(
-        WebRoute::Gimfihe(gimfihe_committed_state_value.clone()),
+    let topbar_gimfihi_route = JbotciRoute::from_web_route(
+        WebRoute::Gimfihi(gimfihi_committed_state_value.clone()),
         false,
     );
     let topbar_gentufa_route =
@@ -2879,8 +2890,8 @@ fn AppShell() -> Element {
             cukta_committed_state,
             vlacku_draft_state,
             vlacku_committed_state,
-            gimfihe_draft_state,
-            gimfihe_committed_state,
+            gimfihi_draft_state,
+            gimfihi_committed_state,
             input_text,
             parsed_text,
             parsed_text_explicit,
@@ -3161,51 +3172,77 @@ fn AppShell() -> Element {
             },
         );
     });
-    let gimfihe_page_base_path = base_path.clone();
+    let gimfihi_page_base_path = base_path.clone();
     use_effect(move || {
-        if *route.read() != AppRoute::Gimfihe {
-            cancel_compute_channel(COMPUTE_CHANNEL_GIMFIHE);
-            cancel_latest_task(gimfihe_result_task);
+        if *route.read() != AppRoute::Gimfihi {
+            cancel_compute_channel(COMPUTE_CHANNEL_GIMFIHI);
+            cancel_latest_task(gimfihi_result_task);
             return;
         }
-        let state = gimfihe_committed_state.read().clone();
-        let mut page_signal = gimfihe_result;
+        let state = gimfihi_committed_state.read().clone();
+        let cache_key = gimfihi_generation_cache_key(&state);
+        if let Some(cached) = gimfihi_result_cache.read().get(&cache_key).cloned()
+            && let Some(cached_result) =
+                gimfihi_cached_result_for_state(&gimfihi_page_base_path, &state, cached)
+        {
+            cancel_compute_channel(COMPUTE_CHANNEL_GIMFIHI);
+            cancel_latest_task(gimfihi_result_task);
+            if let Some(meta) = cached_result.meta.clone() {
+                apply_document_meta(document_meta, meta);
+            }
+            let mut cached_result_signal = gimfihi_result;
+            cached_result_signal.set(cached_result);
+            return;
+        }
+        let mut page_signal = gimfihi_result;
         page_signal.with_mut(|page| {
             page.state = Some(state.clone());
             page.loading = true;
             page.error = None;
         });
-        let mut result_signal = gimfihe_result;
-        let request = WebComputeRequest::GimfihePage {
-            base_path: gimfihe_page_base_path.clone(),
+        let mut result_signal = gimfihi_result;
+        let mut cache_signal = gimfihi_result_cache;
+        let request = WebComputeRequest::GimfihiPage {
+            base_path: gimfihi_page_base_path.clone(),
             state: state.clone(),
         };
-        cancel_compute_channel(COMPUTE_CHANNEL_GIMFIHE);
+        cancel_compute_channel(COMPUTE_CHANNEL_GIMFIHI);
         spawn_latest_tracked(
-            gimfihe_result_task,
+            gimfihi_result_task,
             activity,
-            AsyncTaskKind::Gimfihe,
+            AsyncTaskKind::Gimfihi,
             async move {
-                let response = compute_request(COMPUTE_CHANNEL_GIMFIHE, request).await;
+                let response = compute_request(COMPUTE_CHANNEL_GIMFIHI, request).await;
                 match response {
-                    Ok(WebComputeResponse::GimfihePage { result, meta }) => {
-                        result_signal.set(GimfiheAsyncResultState {
+                    Ok(WebComputeResponse::GimfihiPage { result, meta }) => {
+                        let next = GimfihiAsyncResultState {
                             state: Some(state),
                             result,
                             meta: Some(meta.clone()),
                             loading: false,
                             error: None,
+                        };
+                        cache_signal.with_mut(|cache| {
+                            cache.insert(cache_key, next.clone());
+                            while cache.len() > 16 {
+                                if let Some(first_key) = cache.keys().next().cloned() {
+                                    cache.remove(&first_key);
+                                } else {
+                                    break;
+                                }
+                            }
                         });
+                        result_signal.set(next);
                         apply_document_meta(document_meta, meta);
                     }
                     Ok(_) => {
-                        result_signal.set(gimfihe_async_error_state(
+                        result_signal.set(gimfihi_async_error_state(
                             &state,
-                            "compute worker returned the wrong gimfihe response",
+                            "compute worker returned the wrong gimfihi response",
                         ));
                     }
                     Err(error) => {
-                        result_signal.set(gimfihe_async_error_state(&state, &error));
+                        result_signal.set(gimfihi_async_error_state(&state, &error));
                     }
                 }
             },
@@ -3339,15 +3376,15 @@ fn AppShell() -> Element {
             );
         }
     });
-    let gimfihe_url_route_location = current_route_location.clone();
-    let gimfihe_url_history = app_history.clone();
+    let gimfihi_url_route_location = current_route_location.clone();
+    let gimfihi_url_history = app_history.clone();
     use_effect(move || {
-        if *route.read() == AppRoute::Gimfihe {
-            let state = gimfihe_committed_state.read().clone();
-            push_gimfihe_url(
-                gimfihe_url_history.clone(),
+        if *route.read() == AppRoute::Gimfihi {
+            let state = gimfihi_committed_state.read().clone();
+            push_gimfihi_url(
+                gimfihi_url_history.clone(),
                 pending_local_route_writes,
-                &gimfihe_url_route_location,
+                &gimfihi_url_route_location,
                 &state,
             );
         }
@@ -3461,7 +3498,7 @@ fn AppShell() -> Element {
                 settings_value,
                 topbar_cukta_route,
                 topbar_vlacku_route,
-                topbar_gimfihe_route,
+                topbar_gimfihi_route,
                 topbar_gentufa_route,
                 topbar_settings_route,
                 &base_path,
@@ -3590,11 +3627,13 @@ fn AppShell() -> Element {
                                     &page_find_context,
                                 )
                             },
-                            AppRoute::Gimfihe => {
-                                render_gimfihe_page(
-                                    gimfihe_draft_state,
-                                    gimfihe_committed_state,
-                                    gimfihe_result,
+                            AppRoute::Gimfihi => {
+                                render_gimfihi_page(
+                                    gimfihi_draft_state,
+                                    gimfihi_committed_state,
+                                    gimfihi_result,
+                                    &base_path,
+                                    settings_value.script,
                                     &page_find_context,
                                 )
                             },
@@ -3614,7 +3653,7 @@ fn render_topbar(
     current: UserSettings,
     cukta_route: JbotciRoute,
     vlacku_route: JbotciRoute,
-    gimfihe_route: JbotciRoute,
+    gimfihi_route: JbotciRoute,
     gentufa_route: JbotciRoute,
     settings_route: JbotciRoute,
     base_path: &str,
@@ -3629,7 +3668,7 @@ fn render_topbar(
 ) -> Element {
     let cukta_loading = activity_visible && activity.has_kind(AsyncTaskKind::Cukta);
     let vlacku_loading = activity_visible && activity.has_kind(AsyncTaskKind::Vlacku);
-    let gimfihe_loading = activity_visible && activity.has_kind(AsyncTaskKind::Gimfihe);
+    let gimfihi_loading = activity_visible && activity.has_kind(AsyncTaskKind::Gimfihi);
     let gentufa_loading = activity_visible && activity.has_kind(AsyncTaskKind::Gentufa);
     let activity_class = topbar_activity_class(activity_visible);
     let header_class = topbar_header_class(settings_layout, *settings_open.read(), nav_layout);
@@ -3661,10 +3700,10 @@ fn render_topbar(
                     }
                     match nav_layout {
                         TopbarNavLayout::Full => {
-                            { render_topbar_nav(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihe_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+                            { render_topbar_nav(route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihi_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
                         }
                         TopbarNavLayout::Carousel => {
-                            { render_topbar_nav_carousel(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihe_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+                            { render_topbar_nav_carousel(route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihi_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
                         }
                     }
                 }
@@ -3674,11 +3713,11 @@ fn render_topbar(
                     route,
                     cukta_loading,
                     vlacku_loading,
-                    gimfihe_loading,
+                    gimfihi_loading,
                     gentufa_loading,
                     cukta_route,
                     vlacku_route,
-                    gimfihe_route,
+                    gimfihi_route,
                     gentufa_route,
                     base_path,
                     pending_cukta_scroll,
@@ -3709,11 +3748,11 @@ fn render_topbar_nav(
     route: AppRoute,
     cukta_loading: bool,
     vlacku_loading: bool,
-    gimfihe_loading: bool,
+    gimfihi_loading: bool,
     gentufa_loading: bool,
     cukta_route: JbotciRoute,
     vlacku_route: JbotciRoute,
-    gimfihe_route: JbotciRoute,
+    gimfihi_route: JbotciRoute,
     gentufa_route: JbotciRoute,
     base_path: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
@@ -3743,10 +3782,10 @@ fn render_topbar_nav(
                 span { class: "app-topbar-link-label", "vlacku" }
             }
             Link {
-                class: topbar_link_class(route == AppRoute::Gimfihe, gimfihe_loading),
-                to: gimfihe_route,
-                aria_current: if route == AppRoute::Gimfihe { "page" } else { "false" },
-                span { class: "app-topbar-link-label", "gimfi'e" }
+                class: topbar_link_class(route == AppRoute::Gimfihi, gimfihi_loading),
+                to: gimfihi_route,
+                aria_current: if route == AppRoute::Gimfihi { "page" } else { "false" },
+                span { class: "app-topbar-link-label", "gimfi'i" }
             }
             Link {
                 class: topbar_link_class(route == AppRoute::Gentufa, gentufa_loading),
@@ -3770,11 +3809,11 @@ fn render_topbar_nav_carousel(
     route: AppRoute,
     cukta_loading: bool,
     vlacku_loading: bool,
-    gimfihe_loading: bool,
+    gimfihi_loading: bool,
     gentufa_loading: bool,
     cukta_route: JbotciRoute,
     vlacku_route: JbotciRoute,
-    gimfihe_route: JbotciRoute,
+    gimfihi_route: JbotciRoute,
     gentufa_route: JbotciRoute,
     base_path: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
@@ -3789,11 +3828,11 @@ fn render_topbar_nav_carousel(
                     "is-adjacent is-previous",
                     cukta_loading,
                     vlacku_loading,
-                    gimfihe_loading,
+                    gimfihi_loading,
                     gentufa_loading,
                     cukta_route.clone(),
                     vlacku_route.clone(),
-                    gimfihe_route.clone(),
+                    gimfihi_route.clone(),
                     gentufa_route.clone(),
                     base_path,
                     pending_cukta_scroll,
@@ -3804,11 +3843,11 @@ fn render_topbar_nav_carousel(
                     "is-current-slot",
                     cukta_loading,
                     vlacku_loading,
-                    gimfihe_loading,
+                    gimfihi_loading,
                     gentufa_loading,
                     cukta_route.clone(),
                     vlacku_route.clone(),
-                    gimfihe_route.clone(),
+                    gimfihi_route.clone(),
                     gentufa_route.clone(),
                     base_path,
                     pending_cukta_scroll,
@@ -3819,11 +3858,11 @@ fn render_topbar_nav_carousel(
                     "is-adjacent is-next",
                     cukta_loading,
                     vlacku_loading,
-                    gimfihe_loading,
+                    gimfihi_loading,
                     gentufa_loading,
                     cukta_route,
                     vlacku_route,
-                    gimfihe_route,
+                    gimfihi_route,
                     gentufa_route,
                     base_path,
                     pending_cukta_scroll,
@@ -3843,11 +3882,11 @@ fn render_topbar_nav_carousel_link(
     slot_class: &'static str,
     cukta_loading: bool,
     vlacku_loading: bool,
-    gimfihe_loading: bool,
+    gimfihi_loading: bool,
     gentufa_loading: bool,
     cukta_route: JbotciRoute,
     vlacku_route: JbotciRoute,
-    gimfihe_route: JbotciRoute,
+    gimfihi_route: JbotciRoute,
     gentufa_route: JbotciRoute,
     base_path: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
@@ -3857,7 +3896,7 @@ fn render_topbar_nav_carousel_link(
         target,
         cukta_loading,
         vlacku_loading,
-        gimfihe_loading,
+        gimfihi_loading,
         gentufa_loading,
     );
     let class = topbar_carousel_link_class(active, loading, slot_class);
@@ -3867,7 +3906,7 @@ fn render_topbar_nav_carousel_link(
     let target_route = match target {
         AppRoute::Cukta => cukta_route,
         AppRoute::Vlacku => vlacku_route,
-        AppRoute::Gimfihe => gimfihe_route,
+        AppRoute::Gimfihi => gimfihi_route,
         AppRoute::Gentufa => gentufa_route,
         AppRoute::Settings => return rsx! {},
     };
@@ -3915,7 +3954,7 @@ fn render_topbar_nav_carousel_probe(
     route: AppRoute,
     cukta_loading: bool,
     vlacku_loading: bool,
-    gimfihe_loading: bool,
+    gimfihi_loading: bool,
     gentufa_loading: bool,
 ) -> Element {
     let [previous_route, current_route, next_route] = topbar_carousel_routes(route);
@@ -3928,7 +3967,7 @@ fn render_topbar_nav_carousel_probe(
                 span {
                     class: topbar_carousel_link_class(
                         previous_route == route,
-                        topbar_carousel_route_loading(previous_route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading),
+                        topbar_carousel_route_loading(previous_route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading),
                         "is-adjacent is-previous",
                     ),
                     "data-topbar-nav-active": if previous_route == route { "true" } else { "false" },
@@ -3937,7 +3976,7 @@ fn render_topbar_nav_carousel_probe(
                 span {
                     class: topbar_carousel_link_class(
                         current_route == route,
-                        topbar_carousel_route_loading(current_route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading),
+                        topbar_carousel_route_loading(current_route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading),
                         "is-current-slot",
                     ),
                     "data-topbar-nav-active": if current_route == route { "true" } else { "false" },
@@ -3946,7 +3985,7 @@ fn render_topbar_nav_carousel_probe(
                 span {
                     class: topbar_carousel_link_class(
                         next_route == route,
-                        topbar_carousel_route_loading(next_route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading),
+                        topbar_carousel_route_loading(next_route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading),
                         "is-adjacent is-next",
                     ),
                     "data-topbar-nav-active": if next_route == route { "true" } else { "false" },
@@ -3970,11 +4009,11 @@ fn topbar_carousel_link_class(active: bool, loading: bool, slot_class: &'static 
 #[ensures(route == AppRoute::Settings || ret[1] == route)]
 fn topbar_carousel_routes(route: AppRoute) -> [AppRoute; 3] {
     match route {
-        AppRoute::Cukta => [AppRoute::Gimfihe, AppRoute::Cukta, AppRoute::Vlacku],
-        AppRoute::Vlacku => [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihe],
-        AppRoute::Gimfihe => [AppRoute::Vlacku, AppRoute::Gimfihe, AppRoute::Gentufa],
-        AppRoute::Gentufa => [AppRoute::Gimfihe, AppRoute::Gentufa, AppRoute::Cukta],
-        AppRoute::Settings => [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihe],
+        AppRoute::Cukta => [AppRoute::Gimfihi, AppRoute::Cukta, AppRoute::Vlacku],
+        AppRoute::Vlacku => [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihi],
+        AppRoute::Gimfihi => [AppRoute::Vlacku, AppRoute::Gimfihi, AppRoute::Gentufa],
+        AppRoute::Gentufa => [AppRoute::Gimfihi, AppRoute::Gentufa, AppRoute::Cukta],
+        AppRoute::Settings => [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihi],
     }
 }
 
@@ -3984,13 +4023,13 @@ fn topbar_carousel_route_loading(
     route: AppRoute,
     cukta_loading: bool,
     vlacku_loading: bool,
-    gimfihe_loading: bool,
+    gimfihi_loading: bool,
     gentufa_loading: bool,
 ) -> bool {
     match route {
         AppRoute::Cukta => cukta_loading,
         AppRoute::Vlacku => vlacku_loading,
-        AppRoute::Gimfihe => gimfihe_loading,
+        AppRoute::Gimfihi => gimfihi_loading,
         AppRoute::Gentufa => gentufa_loading,
         AppRoute::Settings => false,
     }
@@ -4002,7 +4041,7 @@ fn topbar_carousel_route_label(route: AppRoute) -> &'static str {
     match route {
         AppRoute::Cukta => "cukta",
         AppRoute::Vlacku => "vlacku",
-        AppRoute::Gimfihe => "gimfi'e",
+        AppRoute::Gimfihi => "gimfi'i",
         AppRoute::Gentufa => "gentufa",
         AppRoute::Settings => "",
     }
@@ -4178,7 +4217,7 @@ fn page_find_placeholder(route: AppRoute) -> &'static str {
     match route {
         AppRoute::Cukta => "Find in section",
         AppRoute::Vlacku => "Find in cards",
-        AppRoute::Gimfihe => "Find in candidates",
+        AppRoute::Gimfihi => "Find in candidates",
         AppRoute::Gentufa => "Find in output",
         AppRoute::Settings => "Find in settings",
     }
@@ -4285,11 +4324,11 @@ fn render_topbar_fit_probes(
     route: AppRoute,
     cukta_loading: bool,
     vlacku_loading: bool,
-    gimfihe_loading: bool,
+    gimfihi_loading: bool,
     gentufa_loading: bool,
     cukta_route: JbotciRoute,
     vlacku_route: JbotciRoute,
-    gimfihe_route: JbotciRoute,
+    gimfihi_route: JbotciRoute,
     gentufa_route: JbotciRoute,
     base_path: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
@@ -4307,7 +4346,7 @@ fn render_topbar_fit_probes(
                 span { class: "app-topbar-theme app-topbar-orthography",
                     { render_script_switch(settings, current.script) }
                 }
-                { render_topbar_nav(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihe_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+                { render_topbar_nav(route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihi_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-theme-full",
                 { render_topbar_probe_brand() }
@@ -4315,12 +4354,12 @@ fn render_topbar_fit_probes(
                 span { class: "app-topbar-theme app-topbar-theme-mode",
                     { render_theme_switch(settings, current.theme) }
                 }
-                { render_topbar_nav(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihe_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+                { render_topbar_nav(route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihi_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-none-full",
                 { render_topbar_probe_brand() }
                 { render_topbar_probe_settings_button() }
-                { render_topbar_nav(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihe_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
+                { render_topbar_nav(route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading, cukta_route.clone(), vlacku_route.clone(), gimfihi_route.clone(), gentufa_route.clone(), base_path, pending_cukta_scroll) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-both-carousel",
                 { render_topbar_probe_brand() }
@@ -4331,7 +4370,7 @@ fn render_topbar_fit_probes(
                 span { class: "app-topbar-theme app-topbar-orthography",
                     { render_script_switch(settings, current.script) }
                 }
-                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading) }
+                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-theme-carousel",
                 { render_topbar_probe_brand() }
@@ -4339,12 +4378,12 @@ fn render_topbar_fit_probes(
                 span { class: "app-topbar-theme app-topbar-theme-mode",
                     { render_theme_switch(settings, current.theme) }
                 }
-                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading) }
+                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading) }
             }
             div { class: "app-topbar-fit-probe app-topbar-fit-probe-none-carousel",
                 { render_topbar_probe_brand() }
                 { render_topbar_probe_settings_button() }
-                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gimfihe_loading, gentufa_loading) }
+                { render_topbar_nav_carousel_probe(route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading) }
             }
         }
     }
@@ -5892,11 +5931,11 @@ fn vlacku_loading_result(state: &VlackuWebState, message: &str) -> VlackuWebResu
 
 #[requires(!_message.is_empty())]
 #[ensures(ret.errors.is_empty())]
-fn gimfihe_loading_result(state: &GimfiheWebState, _message: &str) -> GimfiheWebResult {
-    let state = normalize_gimfihe_state(state);
-    GimfiheWebResult {
-        preset_options: gimfihe_preset_options_for_state(&state),
-        language_suggestions: gimfihe_language_suggestions(),
+fn gimfihi_loading_result(state: &GimfihiWebState, _message: &str) -> GimfihiWebResult {
+    let state = normalize_gimfihi_state(state);
+    GimfihiWebResult {
+        preset_options: gimfihi_preset_options_for_state(&state),
+        language_suggestions: gimfihi_language_suggestions(),
         state,
         output: None,
         errors: Vec::new(),
@@ -5950,14 +5989,86 @@ fn vlacku_async_error_state(state: &VlackuWebState, message: &str) -> VlackuAsyn
 
 #[requires(!message.is_empty())]
 #[ensures(ret.error.as_ref().is_some_and(|error| error == message))]
-fn gimfihe_async_error_state(state: &GimfiheWebState, message: &str) -> GimfiheAsyncResultState {
-    GimfiheAsyncResultState {
+fn gimfihi_async_error_state(state: &GimfihiWebState, message: &str) -> GimfihiAsyncResultState {
+    GimfihiAsyncResultState {
         state: Some(state.clone()),
-        result: gimfihe_loading_result(state, message),
+        result: gimfihi_loading_result(state, message),
         meta: None,
         loading: false,
         error: Some(message.to_owned()),
     }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn gimfihi_generation_cache_key(state: &GimfihiWebState) -> String {
+    let mut key_state = normalize_gimfihi_state(state);
+    key_state.highlight = None;
+    gimfihi_web_url("", &key_state)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gimfihi_cached_result_for_state(
+    base_path: &str,
+    state: &GimfihiWebState,
+    cached: GimfihiAsyncResultState,
+) -> Option<GimfihiAsyncResultState> {
+    let normalized = normalize_gimfihi_state(state);
+    let output = cached.result.output.as_ref()?;
+    if let Some(highlight) = normalized.highlight.as_deref()
+        && output.winner.as_deref() != Some(highlight)
+        && !output
+            .candidates
+            .iter()
+            .any(|candidate| candidate.word == highlight)
+    {
+        return None;
+    }
+    let highlighted_output = gimfihi_output_with_highlight(output, normalized.highlight.as_deref());
+    let result = GimfihiWebResult {
+        state: normalized.clone(),
+        output: Some(highlighted_output.clone()),
+        preset_options: gimfihi_preset_options_for_state(&normalized),
+        language_suggestions: gimfihi_language_suggestions(),
+        errors: Vec::new(),
+    };
+    Some(GimfihiAsyncResultState {
+        state: Some(normalized.clone()),
+        result,
+        meta: Some(build_gimfihi_page_meta_from_output(
+            base_path,
+            &normalized,
+            &highlighted_output,
+        )),
+        loading: false,
+        error: None,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.candidates.len() == output.candidates.len())]
+fn gimfihi_output_with_highlight(output: &GimfihiOutput, highlight: Option<&str>) -> GimfihiOutput {
+    let requested = highlight
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_ascii_lowercase);
+    let selected = requested
+        .filter(|value| {
+            output
+                .candidates
+                .iter()
+                .any(|candidate| &candidate.word == value)
+        })
+        .or_else(|| output.winner.clone());
+    let mut next = output.clone();
+    next.highlighted_word = selected.clone();
+    for candidate in &mut next.candidates {
+        candidate.highlighted = selected
+            .as_ref()
+            .is_some_and(|highlighted| highlighted == &candidate.word);
+    }
+    next
 }
 
 #[requires(true)]
@@ -9806,30 +9917,32 @@ fn set_cukta_state_immediate(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_gimfihe_page(
-    gimfihe_draft_state: Signal<GimfiheWebState>,
-    gimfihe_committed_state: Signal<GimfiheWebState>,
-    gimfihe_result: Signal<GimfiheAsyncResultState>,
+fn render_gimfihi_page(
+    gimfihi_draft_state: Signal<GimfihiWebState>,
+    gimfihi_committed_state: Signal<GimfihiWebState>,
+    gimfihi_result: Signal<GimfihiAsyncResultState>,
+    base_path: &str,
+    script: GentufaScript,
     page_find: &PageFindContext,
 ) -> Element {
-    let draft_state = gimfihe_draft_state.read().clone();
-    let committed_state = gimfihe_committed_state.read().clone();
-    let result_state = gimfihe_result.read().clone();
+    let draft_state = gimfihi_draft_state.read().clone();
+    let committed_state = gimfihi_committed_state.read().clone();
+    let result_state = gimfihi_result.read().clone();
     let result_current = result_state.state.as_ref() == Some(&committed_state);
     let result = if result_current {
         result_state.result
     } else {
-        gimfihe_loading_result(&committed_state, "Loading gismu candidates.")
+        gimfihi_loading_result(&committed_state, "Loading gismu candidates.")
     };
     let loading = result_state.loading || !result_current;
-    let show_result_errors = gimfihe_state_has_any_source_word(&committed_state);
+    let show_result_errors = gimfihi_state_has_any_source_word(&committed_state);
     rsx! {
-        section { class: "spa-page dictionary-page gimfihe-page",
-            h1 { class: "sr-only", "jbotci gimfi'e" }
-            div { class: "gimfihe-shell",
-                { render_gimfihe_controls(gimfihe_draft_state, gimfihe_committed_state, &draft_state, &result) }
+        section { class: "spa-page dictionary-page gimfihi-page",
+            h1 { class: "sr-only", "jbotci gimfi'i" }
+            div { class: "gimfihi-shell",
+                { render_gimfihi_controls(gimfihi_draft_state, gimfihi_committed_state, &draft_state, &result) }
                 if loading {
-                    p { class: "gimfihe-status",
+                    p { class: "gimfihi-status",
                         { render_page_find_text(page_find, "Loading gismu candidates.") }
                     }
                 }
@@ -9845,7 +9958,7 @@ fn render_gimfihe_page(
                         }
                     }
                 }
-                { render_gimfihe_results(&result, gimfihe_draft_state, gimfihe_committed_state, page_find) }
+                { render_gimfihi_results(&result, gimfihi_draft_state, gimfihi_committed_state, base_path, script, page_find) }
             }
         }
     }
@@ -9853,28 +9966,28 @@ fn render_gimfihe_page(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_gimfihe_controls(
-    mut gimfihe_draft_state: Signal<GimfiheWebState>,
-    mut gimfihe_committed_state: Signal<GimfiheWebState>,
-    state: &GimfiheWebState,
-    result: &GimfiheWebResult,
+fn render_gimfihi_controls(
+    mut gimfihi_draft_state: Signal<GimfihiWebState>,
+    mut gimfihi_committed_state: Signal<GimfihiWebState>,
+    state: &GimfihiWebState,
+    result: &GimfihiWebResult,
 ) -> Element {
     let current_preset = state.preset.clone().unwrap_or_default();
     rsx! {
-        div { class: "gimfihe-form",
-            div { class: "gimfihe-control-grid",
-                label { class: "gimfihe-control gimfihe-preset-control",
-                    span { class: "gimfihe-control-label", "Preset" }
+        div { class: "gimfihi-form",
+            div { class: "gimfihi-control-grid",
+                label { class: "gimfihi-control gimfihi-preset-control",
+                    span { class: "gimfihi-control-label", "Preset" }
                     select {
-                        class: "gimfihe-select",
+                        class: "gimfihi-select",
                         value: "{current_preset}",
                         onchange: move |event| {
                             let value = event.value();
-                            let next = match value.parse::<GimfihePreset>() {
-                                Ok(preset) => gimfihe_state_for_selected_preset(&gimfihe_draft_state.read(), Some(preset)),
-                                Err(_) => gimfihe_state_with_explicit_custom_weights(&gimfihe_draft_state.read()),
+                            let next = match value.parse::<GimfihiPreset>() {
+                                Ok(preset) => gimfihi_state_for_selected_preset(&gimfihi_draft_state.read(), Some(preset)),
+                                Err(_) => gimfihi_state_with_explicit_custom_weights(&gimfihi_draft_state.read()),
                             };
-                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
                         },
                         option { value: "", "custom" }
                         for option in result.preset_options.iter() {
@@ -9885,64 +9998,50 @@ fn render_gimfihe_controls(
                         }
                     }
                 }
-                label { class: "gimfihe-control gimfihe-count-control",
-                    span { class: "gimfihe-control-label", "Count" }
+                label { class: "gimfihi-control gimfihi-count-control",
+                    span { class: "gimfihi-control-label", "Count" }
                     input {
-                        class: "gimfihe-number-input",
+                        class: "gimfihi-number-input",
                         r#type: "number",
                         min: "1",
                         max: "512",
                         step: "1",
                         value: "{state.count}",
-                        oninput: move |event| {
-                            let mut next = gimfihe_draft_state.read().clone();
+                        onchange: move |event| {
+                            let mut next = gimfihi_draft_state.read().clone();
                             if let Ok(count) = event.value().parse::<usize>() {
                                 next.count = count;
-                                gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                                gimfihi_draft_state.set(normalize_gimfihi_state(&next));
                             }
                         },
                     }
                 }
-                label { class: "gimfihe-control gimfihe-collision-control",
-                    span { class: "gimfihe-control-label", "Collisions" }
+                label { class: "gimfihi-control gimfihi-collision-control",
+                    span { class: "gimfihi-control-label", "Collisions" }
                     select {
-                        class: "gimfihe-select",
+                        class: "gimfihi-select",
                         value: "{state.check_collisions}",
                         onchange: move |event| {
-                            let mut next = gimfihe_draft_state.read().clone();
+                            let mut next = gimfihi_draft_state.read().clone();
                             next.check_collisions = event.value();
-                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
                         },
                         option { value: "all", "all" }
                         option { value: "official", "official" }
                         option { value: "none", "none" }
                     }
                 }
-                label { class: "gimfihe-control gimfihe-highlight-control",
-                    span { class: "gimfihe-control-label", "Highlight" }
-                    input {
-                        class: "gimfihe-text-input",
-                        r#type: "text",
-                        spellcheck: "false",
-                        value: "{state.highlight.clone().unwrap_or_default()}",
-                        oninput: move |event| {
-                            let mut next = gimfihe_draft_state.read().clone();
-                            next.highlight = gimfihe_optional_text(&event.value());
-                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
-                        },
-                    }
-                }
             }
-            div { class: "gimfihe-source-table-wrap",
-                datalist { id: "gimfihe-language-options",
+            div { class: "gimfihi-source-table-wrap",
+                datalist { id: "gimfihi-language-options",
                     for language in result.language_suggestions.iter() {
                         option { value: "{language}" }
                     }
                 }
-                table { class: "gimfihe-source-table",
+                table { class: "gimfihi-source-table",
                     thead {
                         tr {
-                            th { "Lang" }
+                            th { class: "gimfihi-language-column", "Language" }
                             th { "Weight" }
                             th { "Word" }
                             th { "Actions" }
@@ -9950,63 +10049,60 @@ fn render_gimfihe_controls(
                     }
                     tbody {
                         for (index, source) in state.sources.iter().enumerate() {
-                            { render_gimfihe_source_row(gimfihe_draft_state, state, index, source) }
+                            { render_gimfihi_source_row(gimfihi_draft_state, state, index, source) }
                         }
+                        { render_gimfihi_add_source_row(gimfihi_draft_state) }
                     }
                 }
             }
-            div { class: "gimfihe-option-row",
-                div { class: "gimfihe-shape-group", role: "group", aria_label: "Gismu shapes",
-                    { render_gimfihe_shape_toggle(gimfihe_draft_state, state, "ccvcv") }
-                    { render_gimfihe_shape_toggle(gimfihe_draft_state, state, "cvccv") }
+            div { class: "gimfihi-option-row",
+                div { class: "gimfihi-shape-group", role: "group", aria_label: "Gismu shapes",
+                    { render_gimfihi_shape_toggle(gimfihi_draft_state, state, "ccvcv") }
+                    { render_gimfihi_shape_toggle(gimfihi_draft_state, state, "cvccv") }
                 }
-                label { class: "compact-check gimfihe-checkbox",
+                label { class: "compact-check gimfihi-checkbox",
                     input {
                         r#type: "checkbox",
                         checked: state.all_letters,
                         onchange: move |_| {
-                            let mut next = gimfihe_draft_state.read().clone();
+                            let mut next = gimfihi_draft_state.read().clone();
                             next.all_letters = !next.all_letters;
-                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
                         },
                     }
                     span { "all letters" }
                 }
-                label { class: "compact-check gimfihe-checkbox",
+                label { class: "compact-check gimfihi-checkbox",
                     input {
                         r#type: "checkbox",
                         checked: state.require_free_short_rafsi,
                         onchange: move |_| {
-                            let mut next = gimfihe_draft_state.read().clone();
+                            let mut next = gimfihi_draft_state.read().clone();
                             next.require_free_short_rafsi = !next.require_free_short_rafsi;
-                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
                         },
                     }
                     span { "free short rafsi" }
                 }
-            }
-            div { class: "gimfihe-action-row",
-                button {
-                    class: "gimfihe-secondary-button",
-                    r#type: "button",
-                    onclick: move |_| {
-                        let mut next = gimfihe_state_with_explicit_custom_weights(&gimfihe_draft_state.read());
-                        next.sources.push(GimfiheWebSource {
-                            language: String::new(),
-                            weight: Some("1".to_owned()),
-                            word: String::new(),
-                        });
-                        gimfihe_draft_state.set(normalize_gimfihe_state(&next));
-                    },
-                    "Add row"
+                label { class: "compact-check gimfihi-checkbox",
+                    input {
+                        r#type: "checkbox",
+                        checked: state.show_collisions,
+                        onchange: move |_| {
+                            let mut next = gimfihi_draft_state.read().clone();
+                            next.show_collisions = !next.show_collisions;
+                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
+                        },
+                    }
+                    span { "Show collisions" }
                 }
                 button {
-                    class: "btn-parse gimfihe-generate-button",
+                    class: "btn-parse gimfihi-generate-button",
                     r#type: "button",
                     onclick: move |_| {
-                        let next = normalize_gimfihe_state(&gimfihe_draft_state.read());
-                        gimfihe_draft_state.set(next.clone());
-                        gimfihe_committed_state.set(next);
+                        let next = normalize_gimfihi_state(&gimfihi_draft_state.read());
+                        gimfihi_draft_state.set(next.clone());
+                        gimfihi_committed_state.set(next);
                     },
                     "Generate"
                 }
@@ -10017,80 +10113,111 @@ fn render_gimfihe_controls(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_gimfihe_source_row(
-    mut gimfihe_draft_state: Signal<GimfiheWebState>,
-    state: &GimfiheWebState,
+fn render_gimfihi_source_row(
+    mut gimfihi_draft_state: Signal<GimfihiWebState>,
+    state: &GimfihiWebState,
     index: usize,
-    source: &GimfiheWebSource,
+    source: &GimfihiWebSource,
 ) -> Element {
     let row_count = state.sources.len();
-    let weight_value = gimfihe_source_weight_value(state, source);
+    let weight_value = gimfihi_source_weight_value(state, source);
+    let min_weight = GIMFIHI_MIN_WEIGHT.to_string();
+    let max_weight = GIMFIHI_MAX_WEIGHT.to_string();
     let language = source.language.clone();
     let word = source.word.clone();
     rsx! {
-        tr { class: "gimfihe-source-row",
-            td {
+        tr { class: "gimfihi-source-row",
+            td { class: "gimfihi-language-column",
                 input {
-                    class: "gimfihe-lang-input",
+                    class: "gimfihi-lang-input",
                     r#type: "text",
-                    list: "gimfihe-language-options",
+                    list: "gimfihi-language-options",
                     spellcheck: "false",
                     value: "{language}",
                     oninput: move |event| {
-                        let next = gimfihe_state_with_source_language(&gimfihe_draft_state.read(), index, &event.value());
-                        gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                        let next = gimfihi_state_with_source_language(&gimfihi_draft_state.read(), index, &event.value());
+                        gimfihi_draft_state.set(normalize_gimfihi_state(&next));
                     },
                 }
             }
             td {
-                div { class: "gimfihe-weight-cell",
+                div { class: "gimfihi-weight-cell",
                     input {
-                        class: "gimfihe-weight-slider",
+                        class: "gimfihi-weight-slider",
                         r#type: "range",
-                        min: "0.001",
-                        max: "5",
-                        step: "0.001",
+                        min: "{min_weight}",
+                        max: "{max_weight}",
+                        step: "1",
                         value: "{weight_value}",
-                        oninput: move |event| {
-                            let next = gimfihe_state_with_source_weight(&gimfihe_draft_state.read(), index, &event.value());
-                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                        onchange: move |event| {
+                            let next = gimfihi_state_with_source_weight(&gimfihi_draft_state.read(), index, &event.value());
+                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
                         },
                     }
                     input {
-                        class: "gimfihe-weight-number",
+                        class: "gimfihi-weight-number",
                         r#type: "number",
-                        min: "0.001",
-                        step: "0.001",
+                        min: "{min_weight}",
+                        max: "{max_weight}",
+                        step: "1",
                         value: "{weight_value}",
-                        oninput: move |event| {
-                            let next = gimfihe_state_with_source_weight(&gimfihe_draft_state.read(), index, &event.value());
-                            gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                        onchange: move |event| {
+                            let next = gimfihi_state_with_source_weight(&gimfihi_draft_state.read(), index, &event.value());
+                            gimfihi_draft_state.set(normalize_gimfihi_state(&next));
                         },
                     }
                 }
             }
             td {
                 input {
-                    class: "gimfihe-word-input",
+                    class: "gimfihi-word-input",
                     r#type: "text",
                     spellcheck: "false",
                     value: "{word}",
                     oninput: move |event| {
-                        let next = gimfihe_state_with_source_word(&gimfihe_draft_state.read(), index, &event.value());
-                        gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                        let next = gimfihi_state_with_source_word(&gimfihi_draft_state.read(), index, &event.value());
+                        gimfihi_draft_state.set(normalize_gimfihi_state(&next));
                     },
                 }
             }
             td {
                 button {
-                    class: "gimfihe-row-button",
+                    class: "gimfihi-row-button gimfihi-delete-button",
                     r#type: "button",
                     disabled: row_count <= 1,
                     onclick: move |_| {
-                        let next = gimfihe_state_without_source(&gimfihe_draft_state.read(), index);
-                        gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                        let next = gimfihi_state_without_source(&gimfihi_draft_state.read(), index);
+                        gimfihi_draft_state.set(normalize_gimfihi_state(&next));
                     },
-                    "Remove"
+                    "Delete"
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_gimfihi_add_source_row(mut gimfihi_draft_state: Signal<GimfihiWebState>) -> Element {
+    rsx! {
+        tr { class: "gimfihi-source-row gimfihi-add-row",
+            td { class: "gimfihi-language-column" }
+            td {}
+            td {}
+            td {
+                button {
+                    class: "gimfihi-row-button gimfihi-add-button",
+                    r#type: "button",
+                    onclick: move |_| {
+                        let mut next = gimfihi_state_with_explicit_custom_weights(&gimfihi_draft_state.read());
+                        next.sources.push(GimfihiWebSource {
+                            language: String::new(),
+                            weight: Some("1".to_owned()),
+                            word: String::new(),
+                        });
+                        gimfihi_draft_state.set(normalize_gimfihi_state(&next));
+                    },
+                    "Add"
                 }
             }
         }
@@ -10099,33 +10226,36 @@ fn render_gimfihe_source_row(
 
 #[requires(!shape.is_empty())]
 #[ensures(true)]
-fn render_gimfihe_shape_toggle(
-    mut gimfihe_draft_state: Signal<GimfiheWebState>,
-    state: &GimfiheWebState,
+fn render_gimfihi_shape_toggle(
+    mut gimfihi_draft_state: Signal<GimfihiWebState>,
+    state: &GimfihiWebState,
     shape: &'static str,
 ) -> Element {
     let selected = state.shapes.iter().any(|current| current == shape);
+    let label = shape.to_ascii_uppercase();
     rsx! {
-        label { class: class_names("compact-check gimfihe-shape-toggle", &[("is-selected", selected)]),
+        label { class: class_names("compact-check gimfihi-shape-toggle", &[("is-selected", selected)]),
             input {
                 r#type: "checkbox",
                 checked: selected,
                 onchange: move |_| {
-                    let next = gimfihe_state_with_shape_toggled(&gimfihe_draft_state.read(), shape);
-                    gimfihe_draft_state.set(normalize_gimfihe_state(&next));
+                    let next = gimfihi_state_with_shape_toggled(&gimfihi_draft_state.read(), shape);
+                    gimfihi_draft_state.set(normalize_gimfihi_state(&next));
                 },
             }
-            span { "{shape}" }
+            span { "{label}" }
         }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_gimfihe_results(
-    result: &GimfiheWebResult,
-    mut gimfihe_draft_state: Signal<GimfiheWebState>,
-    mut gimfihe_committed_state: Signal<GimfiheWebState>,
+fn render_gimfihi_results(
+    result: &GimfihiWebResult,
+    mut gimfihi_draft_state: Signal<GimfihiWebState>,
+    mut gimfihi_committed_state: Signal<GimfihiWebState>,
+    base_path: &str,
+    script: GentufaScript,
     page_find: &PageFindContext,
 ) -> Element {
     let Some(output) = &result.output else {
@@ -10138,51 +10268,62 @@ fn render_gimfihe_results(
             }
         };
     }
-    let summary = gimfihe_result_summary(output);
+    let summary = gimfihi_result_summary(output);
+    let show_collisions = result.state.show_collisions;
     rsx! {
-        div { class: "gimfihe-results",
-            div { class: "gimfihe-result-summary",
+        div { class: "gimfihi-results",
+            div { class: "gimfihi-result-summary",
                 { render_page_find_text(page_find, &summary) }
             }
-            div { class: "gimfihe-results-table-wrap",
-                table { class: "gimfihe-results-table",
+            div { class: "gimfihi-results-table-wrap",
+                table { class: "gimfihi-results-table",
                     thead {
                         tr {
                             th { "Candidate" }
                             th { "Score" }
-                            th { "Rafsi" }
+                            if show_collisions {
+                                th { "Existing" }
+                            }
+                            th { "possible rafsi" }
                         }
                     }
                     tbody {
                         for candidate in output.candidates.iter() {
                             {
                                 let word = candidate.word.clone();
-                                let score = format_gimfihe_score(candidate.score);
-                                let rafsi = format_gimfihe_rafsis(&candidate.rafsi);
+                                let score = format_gimfihi_score(candidate.score);
+                                let existing = candidate
+                                    .collision
+                                    .as_ref()
+                                    .map(|collision| collision.existing_word.clone())
+                                    .unwrap_or_default();
                                 let row_class = class_names(
-                                    "gimfihe-candidate-row",
+                                    "gimfihi-candidate-row",
                                     &[("is-highlighted", candidate.highlighted)],
                                 );
                                 rsx! {
                                     tr { class: "{row_class}",
                                         td {
                                             button {
-                                                class: "gimfihe-candidate-button",
+                                                class: "gimfihi-candidate-button",
                                                 r#type: "button",
                                                 aria_pressed: pressed_attr(candidate.highlighted),
                                                 onclick: move |_| {
-                                                    let next = gimfihe_state_with_highlight(
-                                                        &gimfihe_committed_state.read(),
+                                                    let next = gimfihi_state_with_highlight(
+                                                        &gimfihi_committed_state.read(),
                                                         &word,
                                                     );
-                                                    gimfihe_draft_state.set(next.clone());
-                                                    gimfihe_committed_state.set(next);
+                                                    gimfihi_draft_state.set(next.clone());
+                                                    gimfihi_committed_state.set(next);
                                                 },
                                                 { render_page_find_text(page_find, &candidate.word) }
                                             }
                                         }
                                         td { { render_page_find_text(page_find, &score) } }
-                                        td { { render_page_find_text(page_find, &rafsi) } }
+                                        if show_collisions {
+                                            td { { render_page_find_text(page_find, &existing) } }
+                                        }
+                                        td { { render_gimfihi_rafsis(&candidate.rafsi, base_path, script, page_find) } }
                                     }
                                 }
                             }
@@ -10196,10 +10337,10 @@ fn render_gimfihe_results(
 
 #[requires(true)]
 #[ensures(true)]
-fn gimfihe_preset_options_for_state(state: &GimfiheWebState) -> Vec<GimfihePresetOption> {
+fn gimfihi_preset_options_for_state(state: &GimfihiWebState) -> Vec<GimfihiPresetOption> {
     all_presets()
         .iter()
-        .map(|preset| GimfihePresetOption {
+        .map(|preset| GimfihiPresetOption {
             value: preset.as_str().to_owned(),
             label: preset.as_str().to_owned(),
             selected: state.preset.as_deref() == Some(preset.as_str()),
@@ -10209,7 +10350,7 @@ fn gimfihe_preset_options_for_state(state: &GimfiheWebState) -> Vec<GimfihePrese
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn gimfihe_language_suggestions() -> Vec<String> {
+fn gimfihi_language_suggestions() -> Vec<String> {
     let mut languages = BTreeSet::new();
     for preset in all_presets() {
         for entry in preset.entries() {
@@ -10221,11 +10362,11 @@ fn gimfihe_language_suggestions() -> Vec<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn gimfihe_sources_for_preset(preset: GimfihePreset) -> Vec<GimfiheWebSource> {
+fn gimfihi_sources_for_preset(preset: GimfihiPreset) -> Vec<GimfihiWebSource> {
     preset
         .entries()
         .iter()
-        .map(|entry| GimfiheWebSource {
+        .map(|entry| GimfihiWebSource {
             language: entry.language.to_owned(),
             weight: None,
             word: String::new(),
@@ -10235,12 +10376,12 @@ fn gimfihe_sources_for_preset(preset: GimfihePreset) -> Vec<GimfiheWebSource> {
 
 #[requires(true)]
 #[ensures(true)]
-fn gimfihe_state_for_selected_preset(
-    state: &GimfiheWebState,
-    preset: Option<GimfihePreset>,
-) -> GimfiheWebState {
+fn gimfihi_state_for_selected_preset(
+    state: &GimfihiWebState,
+    preset: Option<GimfihiPreset>,
+) -> GimfihiWebState {
     let Some(preset) = preset else {
-        return gimfihe_state_with_explicit_custom_weights(state);
+        return gimfihi_state_with_explicit_custom_weights(state);
     };
     let words_by_language = state
         .sources
@@ -10249,7 +10390,7 @@ fn gimfihe_state_for_selected_preset(
         .collect::<BTreeMap<_, _>>();
     let mut next = state.clone();
     next.preset = Some(preset.as_str().to_owned());
-    next.sources = gimfihe_sources_for_preset(preset)
+    next.sources = gimfihi_sources_for_preset(preset)
         .into_iter()
         .map(|mut source| {
             if let Some(word) = words_by_language.get(&source.language) {
@@ -10263,16 +10404,16 @@ fn gimfihe_state_for_selected_preset(
 
 #[requires(true)]
 #[ensures(ret.preset.is_none())]
-fn gimfihe_state_with_explicit_custom_weights(state: &GimfiheWebState) -> GimfiheWebState {
+fn gimfihi_state_with_explicit_custom_weights(state: &GimfihiWebState) -> GimfihiWebState {
     let preset = state
         .preset
         .as_deref()
-        .and_then(|value| value.parse::<GimfihePreset>().ok());
+        .and_then(|value| value.parse::<GimfihiPreset>().ok());
     let mut next = state.clone();
     next.preset = None;
     for source in &mut next.sources {
         if source.weight.is_none() {
-            source.weight = Some(gimfihe_preset_weight_text(preset, &source.language));
+            source.weight = Some(gimfihi_preset_weight_text(preset, &source.language));
         }
     }
     next
@@ -10280,11 +10421,11 @@ fn gimfihe_state_with_explicit_custom_weights(state: &GimfiheWebState) -> Gimfih
 
 #[requires(true)]
 #[ensures(true)]
-fn gimfihe_state_with_source_language(
-    state: &GimfiheWebState,
+fn gimfihi_state_with_source_language(
+    state: &GimfihiWebState,
     index: usize,
     language: &str,
-) -> GimfiheWebState {
+) -> GimfihiWebState {
     let mut next = state.clone();
     if let Some(source) = next.sources.get_mut(index) {
         source.language = language.to_owned();
@@ -10292,14 +10433,14 @@ fn gimfihe_state_with_source_language(
     let Some(preset) = state
         .preset
         .as_deref()
-        .and_then(|value| value.parse::<GimfihePreset>().ok())
+        .and_then(|value| value.parse::<GimfihiPreset>().ok())
     else {
         return next;
     };
-    if gimfihe_language_multiset(&next.sources) == gimfihe_preset_language_multiset(preset) {
+    if gimfihi_language_multiset(&next.sources) == gimfihi_preset_language_multiset(preset) {
         next
     } else {
-        let mut custom = gimfihe_state_with_explicit_custom_weights(state);
+        let mut custom = gimfihi_state_with_explicit_custom_weights(state);
         if let Some(source) = custom.sources.get_mut(index) {
             source.language = language.to_owned();
         }
@@ -10309,25 +10450,25 @@ fn gimfihe_state_with_source_language(
 
 #[requires(true)]
 #[ensures(true)]
-fn gimfihe_state_with_source_weight(
-    state: &GimfiheWebState,
+fn gimfihi_state_with_source_weight(
+    state: &GimfihiWebState,
     index: usize,
     weight: &str,
-) -> GimfiheWebState {
+) -> GimfihiWebState {
     let mut next = state.clone();
     if let Some(source) = next.sources.get_mut(index) {
-        source.weight = gimfihe_optional_text(weight);
+        source.weight = gimfihi_optional_text(weight);
     }
     next
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn gimfihe_state_with_source_word(
-    state: &GimfiheWebState,
+fn gimfihi_state_with_source_word(
+    state: &GimfihiWebState,
     index: usize,
     word: &str,
-) -> GimfiheWebState {
+) -> GimfihiWebState {
     let mut next = state.clone();
     if let Some(source) = next.sources.get_mut(index) {
         source.word = word.to_owned();
@@ -10337,8 +10478,8 @@ fn gimfihe_state_with_source_word(
 
 #[requires(true)]
 #[ensures(true)]
-fn gimfihe_state_without_source(state: &GimfiheWebState, index: usize) -> GimfiheWebState {
-    let mut next = gimfihe_state_with_explicit_custom_weights(state);
+fn gimfihi_state_without_source(state: &GimfihiWebState, index: usize) -> GimfihiWebState {
+    let mut next = gimfihi_state_with_explicit_custom_weights(state);
     if index < next.sources.len() {
         next.sources.remove(index);
     }
@@ -10347,7 +10488,7 @@ fn gimfihe_state_without_source(state: &GimfiheWebState, index: usize) -> Gimfih
 
 #[requires(!shape.is_empty())]
 #[ensures(true)]
-fn gimfihe_state_with_shape_toggled(state: &GimfiheWebState, shape: &str) -> GimfiheWebState {
+fn gimfihi_state_with_shape_toggled(state: &GimfihiWebState, shape: &str) -> GimfihiWebState {
     let mut next = state.clone();
     if let Some(index) = next.shapes.iter().position(|current| current == shape) {
         next.shapes.remove(index);
@@ -10359,15 +10500,15 @@ fn gimfihe_state_with_shape_toggled(state: &GimfiheWebState, shape: &str) -> Gim
 
 #[requires(!highlight.trim().is_empty())]
 #[ensures(ret.highlight.as_ref().is_some_and(|value| value == &highlight.trim().to_ascii_lowercase()))]
-fn gimfihe_state_with_highlight(state: &GimfiheWebState, highlight: &str) -> GimfiheWebState {
+fn gimfihi_state_with_highlight(state: &GimfihiWebState, highlight: &str) -> GimfihiWebState {
     let mut next = state.clone();
     next.highlight = Some(highlight.trim().to_owned());
-    normalize_gimfihe_state(&next)
+    normalize_gimfihi_state(&next)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn gimfihe_language_multiset(sources: &[GimfiheWebSource]) -> Vec<String> {
+fn gimfihi_language_multiset(sources: &[GimfihiWebSource]) -> Vec<String> {
     let mut languages = sources
         .iter()
         .map(|source| source.language.trim().to_ascii_lowercase())
@@ -10378,7 +10519,7 @@ fn gimfihe_language_multiset(sources: &[GimfiheWebSource]) -> Vec<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn gimfihe_preset_language_multiset(preset: GimfihePreset) -> Vec<String> {
+fn gimfihi_preset_language_multiset(preset: GimfihiPreset) -> Vec<String> {
     let mut languages = preset
         .entries()
         .iter()
@@ -10390,33 +10531,33 @@ fn gimfihe_preset_language_multiset(preset: GimfihePreset) -> Vec<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn gimfihe_source_weight_value(state: &GimfiheWebState, source: &GimfiheWebSource) -> String {
+fn gimfihi_source_weight_value(state: &GimfihiWebState, source: &GimfihiWebSource) -> String {
     source.weight.clone().unwrap_or_else(|| {
         let preset = state
             .preset
             .as_deref()
-            .and_then(|value| value.parse::<GimfihePreset>().ok());
-        gimfihe_preset_weight_text(preset, &source.language)
+            .and_then(|value| value.parse::<GimfihiPreset>().ok());
+        gimfihi_preset_weight_text(preset, &source.language)
     })
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn gimfihe_preset_weight_text(preset: Option<GimfihePreset>, language: &str) -> String {
+fn gimfihi_preset_weight_text(preset: Option<GimfihiPreset>, language: &str) -> String {
     preset
         .and_then(|preset| {
             preset
                 .entries()
                 .iter()
                 .find(|entry| entry.language == language.trim())
-                .map(|entry| trim_gimfihe_float(&format!("{:.6}", entry.weight)))
+                .map(|entry| entry.weight.to_string())
         })
         .unwrap_or_else(|| "1".to_owned())
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn gimfihe_optional_text(value: &str) -> Option<String> {
+fn gimfihi_optional_text(value: &str) -> Option<String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
         None
@@ -10427,7 +10568,7 @@ fn gimfihe_optional_text(value: &str) -> Option<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn gimfihe_state_has_any_source_word(state: &GimfiheWebState) -> bool {
+fn gimfihi_state_has_any_source_word(state: &GimfihiWebState) -> bool {
     state
         .sources
         .iter()
@@ -10436,30 +10577,37 @@ fn gimfihe_state_has_any_source_word(state: &GimfiheWebState) -> bool {
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn gimfihe_result_summary(output: &GimfiheOutput) -> String {
-    match &output.highlighted_word {
-        Some(highlighted) => format!(
-            "{highlighted} highlighted, {} shown, {} passed filters",
-            output.candidates.len(),
-            output.filtered_count
-        ),
-        None => format!(
-            "{} shown, {} passed filters",
-            output.candidates.len(),
-            output.filtered_count
-        ),
+fn gimfihi_result_summary(output: &GimfihiOutput) -> String {
+    format!(
+        "{} candidates, {} shown",
+        format_integer_count(output.filtered_count),
+        format_integer_count(output.candidates.len())
+    )
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn format_integer_count(value: usize) -> String {
+    let digits = value.to_string();
+    let mut output = String::new();
+    for (index, ch) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+            output.push(',');
+        }
+        output.push(ch);
     }
+    output
 }
 
 #[requires(value.is_finite())]
 #[ensures(!ret.is_empty())]
-fn format_gimfihe_score(value: f64) -> String {
-    trim_gimfihe_float(&format!("{value:.6}"))
+fn format_gimfihi_score(value: f64) -> String {
+    trim_gimfihi_float(&format!("{value:.6}"))
 }
 
 #[requires(!value.is_empty())]
 #[ensures(!ret.is_empty())]
-fn trim_gimfihe_float(value: &str) -> String {
+fn trim_gimfihi_float(value: &str) -> String {
     let trimmed = value.trim_end_matches('0').trim_end_matches('.');
     if trimmed.is_empty() {
         "0".to_owned()
@@ -10470,27 +10618,97 @@ fn trim_gimfihe_float(value: &str) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn format_gimfihe_rafsis(rafsis: &[RafsiCandidate]) -> String {
+fn render_gimfihi_rafsis(
+    rafsis: &[RafsiCandidate],
+    base_path: &str,
+    script: GentufaScript,
+    page_find: &PageFindContext,
+) -> Element {
     if rafsis.is_empty() {
-        return "none".to_owned();
+        return rsx! {
+            span { class: "gimfihi-rafsi-empty",
+                { render_page_find_text(page_find, "none") }
+            }
+        };
     }
-    rafsis
-        .iter()
-        .map(format_gimfihe_rafsi)
-        .collect::<Vec<_>>()
-        .join(", ")
+    rsx! {
+        div { class: "gimfihi-rafsi-list",
+            for rafsi in rafsis.iter() {
+                { render_gimfihi_rafsi_pill(rafsi, base_path, script, page_find) }
+            }
+        }
+    }
 }
 
 #[requires(!rafsi.form.is_empty())]
-#[ensures(ret.contains(&rafsi.form))]
-fn format_gimfihe_rafsi(rafsi: &RafsiCandidate) -> String {
+#[ensures(true)]
+fn render_gimfihi_rafsi_pill(
+    rafsi: &RafsiCandidate,
+    base_path: &str,
+    script: GentufaScript,
+    page_find: &PageFindContext,
+) -> Element {
     match rafsi.availability {
-        RafsiAvailability::Free => format!("{} free", rafsi.form),
-        RafsiAvailability::OfficialTaken => {
-            format!("{} official: {}", rafsi.form, rafsi.taken_by.join(", "))
+        RafsiAvailability::Free => {
+            rsx! {
+                span { class: "chip rafsi-chip gimfihi-rafsi-pill is-free",
+                    { render_page_find_text(page_find, &rafsi.form) }
+                }
+            }
         }
-        RafsiAvailability::ExperimentalTaken => {
-            format!("{} experimental: {}", rafsi.form, rafsi.taken_by.join(", "))
+        RafsiAvailability::OfficialTaken | RafsiAvailability::ExperimentalTaken => {
+            let tone_class = match rafsi.availability {
+                RafsiAvailability::OfficialTaken => "is-official-taken",
+                RafsiAvailability::ExperimentalTaken => "is-experimental-taken",
+                RafsiAvailability::Free => "is-free",
+            };
+            let sources = if rafsi.taken_by.is_empty() {
+                vec![String::new()]
+            } else {
+                rafsi.taken_by.clone()
+            };
+            rsx! {
+                for source in sources.iter() {
+                    span { class: "rafsi-split-pill gimfihi-rafsi-pill {tone_class}",
+                        span { class: "rafsi-split-left",
+                            { render_page_find_text(page_find, &rafsi.form) }
+                        }
+                        { render_gimfihi_taken_rafsi_source(source, base_path, script, page_find) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_gimfihi_taken_rafsi_source(
+    source: &str,
+    base_path: &str,
+    script: GentufaScript,
+    page_find: &PageFindContext,
+) -> Element {
+    if source.is_empty() {
+        return rsx! { span { class: "rafsi-split-right" } };
+    }
+    let href = vlacku_web_url(
+        base_path,
+        &VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: source.to_owned(),
+            count: VLACKU_WEB_DEFAULT_COUNT,
+            word_types: Vec::new(),
+        },
+    );
+    let display_source = display_lojban_text(script, source);
+    let tooltip = dictionary_tooltip_for_word(base_path, source);
+    rsx! {
+        span { class: "rafsi-split-right dictionary-tooltip-host",
+            { render_text_route_link_with_page_find("gimfihi-rafsi-source-link", &href, base_path, &display_source, page_find) }
+            if let Some(card) = &tooltip {
+                { render_dictionary_tooltip(card, true, base_path, script) }
+            }
         }
     }
 }
@@ -17570,11 +17788,11 @@ fn initial_vlacku_state(route: &JbotciRoute) -> VlackuWebState {
 
 #[requires(true)]
 #[ensures(true)]
-fn initial_gimfihe_state(route: &JbotciRoute) -> GimfiheWebState {
-    if let WebRoute::Gimfihe(state) = &route.web_route {
+fn initial_gimfihi_state(route: &JbotciRoute) -> GimfihiWebState {
+    if let WebRoute::Gimfihi(state) = &route.web_route {
         state.clone()
     } else {
-        GimfiheWebState::default()
+        GimfihiWebState::default()
     }
 }
 
@@ -17678,7 +17896,7 @@ fn app_route_for_web_route(route: &WebRoute) -> AppRoute {
         WebRoute::Gentufa(_) => AppRoute::Gentufa,
         WebRoute::Cukta(_) => AppRoute::Cukta,
         WebRoute::Vlacku(_) => AppRoute::Vlacku,
-        WebRoute::Gimfihe(_) => AppRoute::Gimfihe,
+        WebRoute::Gimfihi(_) => AppRoute::Gimfihi,
         WebRoute::Settings => AppRoute::Settings,
     }
 }
@@ -19617,15 +19835,15 @@ fn is_app_route_path_for_client(path: &str) -> bool {
         || path.starts_with("/cukta/")
         || path == "/vlacku"
         || path.starts_with("/vlacku/")
-        || is_gimfihe_route_path_for_client(path)
+        || is_gimfihi_route_path_for_client(path)
         || path == "/settings"
         || path.starts_with("/settings/")
 }
 
 #[requires(path.starts_with('/'))]
 #[ensures(true)]
-fn is_gimfihe_route_path_for_client(path: &str) -> bool {
-    matches!(path, "/gimfihe" | "/gimfi'e" | "/gimfi%27e")
+fn is_gimfihi_route_path_for_client(path: &str) -> bool {
+    matches!(path, "/gimfihi" | "/gimfi'i" | "/gimfi%27i")
 }
 
 #[requires(true)]
@@ -19723,8 +19941,8 @@ fn apply_web_route_to_client_state(
     mut cukta_committed_state: Signal<CuktaWebState>,
     mut vlacku_draft_state: Signal<VlackuWebState>,
     mut vlacku_committed_state: Signal<VlackuWebState>,
-    mut gimfihe_draft_state: Signal<GimfiheWebState>,
-    mut gimfihe_committed_state: Signal<GimfiheWebState>,
+    mut gimfihi_draft_state: Signal<GimfihiWebState>,
+    mut gimfihi_committed_state: Signal<GimfihiWebState>,
     mut input_text: Signal<String>,
     mut parsed_text: Signal<String>,
     mut parsed_text_explicit: Signal<bool>,
@@ -19771,9 +19989,9 @@ fn apply_web_route_to_client_state(
             vlacku_draft_state.set(state.clone());
             vlacku_committed_state.set(state.clone());
         }
-        WebRoute::Gimfihe(state) => {
-            gimfihe_draft_state.set(state.clone());
-            gimfihe_committed_state.set(state.clone());
+        WebRoute::Gimfihi(state) => {
+            gimfihi_draft_state.set(state.clone());
+            gimfihi_committed_state.set(state.clone());
         }
         WebRoute::Settings => {}
     }
@@ -20535,13 +20753,13 @@ fn push_cukta_url(
 
 #[requires(true)]
 #[ensures(true)]
-fn push_gimfihe_url(
+fn push_gimfihi_url(
     history: Rc<dyn History>,
     mut pending_writes: Signal<PendingLocalRouteWrites>,
     current: &JbotciRoute,
-    state: &GimfiheWebState,
+    state: &GimfihiWebState,
 ) {
-    let target = JbotciRoute::from_web_route(WebRoute::Gimfihe(state.clone()), false);
+    let target = JbotciRoute::from_web_route(WebRoute::Gimfihi(state.clone()), false);
     if current.without_hash() == target {
         return;
     }
@@ -21536,31 +21754,31 @@ mod tests {
     fn topbar_carousel_routes_center_active_page_and_wrap_neighbors() {
         assert_eq!(
             topbar_carousel_routes(AppRoute::Cukta),
-            [AppRoute::Gimfihe, AppRoute::Cukta, AppRoute::Vlacku]
+            [AppRoute::Gimfihi, AppRoute::Cukta, AppRoute::Vlacku]
         );
         assert_eq!(
             topbar_carousel_routes(AppRoute::Vlacku),
-            [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihe]
+            [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihi]
         );
         assert_eq!(
-            topbar_carousel_routes(AppRoute::Gimfihe),
-            [AppRoute::Vlacku, AppRoute::Gimfihe, AppRoute::Gentufa]
+            topbar_carousel_routes(AppRoute::Gimfihi),
+            [AppRoute::Vlacku, AppRoute::Gimfihi, AppRoute::Gentufa]
         );
         assert_eq!(
             topbar_carousel_routes(AppRoute::Gentufa),
-            [AppRoute::Gimfihe, AppRoute::Gentufa, AppRoute::Cukta]
+            [AppRoute::Gimfihi, AppRoute::Gentufa, AppRoute::Cukta]
         );
         assert_eq!(
             topbar_carousel_routes(AppRoute::Settings),
-            [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihe]
+            [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihi]
         );
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gimfihe_sources_for_preset_populates_rows() {
-        let sources = gimfihe_sources_for_preset(GimfihePreset::Ilmen12);
+    fn gimfihi_sources_for_preset_populates_rows() {
+        let sources = gimfihi_sources_for_preset(GimfihiPreset::Ilmen12);
 
         assert_eq!(sources.len(), 12);
         assert_eq!(sources[0].language, "cmn");
@@ -21572,26 +21790,26 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gimfihe_language_edit_clears_preset_and_preserves_visible_weight() {
-        let state = GimfiheWebState::default();
+    fn gimfihi_language_edit_clears_preset_and_preserves_visible_weight() {
+        let state = GimfihiWebState::default();
 
-        let next = gimfihe_state_with_source_language(&state, 0, "jpn");
+        let next = gimfihi_state_with_source_language(&state, 0, "jpn");
 
         assert_eq!(next.preset, None);
         assert_eq!(next.sources[0].language, "jpn");
-        assert_eq!(next.sources[0].weight.as_deref(), Some("0.347"));
-        assert_eq!(next.sources[1].weight.as_deref(), Some("0.196"));
+        assert_eq!(next.sources[0].weight.as_deref(), Some("347"));
+        assert_eq!(next.sources[1].weight.as_deref(), Some("196"));
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gimfihe_selected_preset_preserves_matching_words() {
-        let mut state = GimfiheWebState::default();
+    fn gimfihi_selected_preset_preserves_matching_words() {
+        let mut state = GimfihiWebState::default();
         state.sources[0].word = "uan".to_owned();
         state.sources[2].word = "ekspekt".to_owned();
 
-        let next = gimfihe_state_for_selected_preset(&state, Some(GimfihePreset::Ilmen6));
+        let next = gimfihi_state_for_selected_preset(&state, Some(GimfihiPreset::Ilmen6));
 
         assert_eq!(next.preset.as_deref(), Some("ilmen6"));
         assert_eq!(next.sources[0].language, "eng");
@@ -21603,23 +21821,76 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gimfihe_initial_state_hydrates_from_route() {
-        let mut state = GimfiheWebState::default();
+    fn gimfihi_initial_state_hydrates_from_route() {
+        let mut state = GimfihiWebState::default();
         state.highlight = Some("nanpe".to_owned());
-        let route = JbotciRoute::from_web_route(WebRoute::Gimfihe(state.clone()), false);
+        let route = JbotciRoute::from_web_route(WebRoute::Gimfihi(state.clone()), false);
 
-        assert_eq!(initial_gimfihe_state(&route), state);
+        assert_eq!(initial_gimfihi_state(&route), state);
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gimfihe_highlight_helper_preserves_row_selection_in_state() {
-        let state = GimfiheWebState::default();
+    fn gimfihi_highlight_helper_preserves_row_selection_in_state() {
+        let state = GimfihiWebState::default();
 
-        let next = gimfihe_state_with_highlight(&state, "Nanpe");
+        let next = gimfihi_state_with_highlight(&state, "Nanpe");
 
         assert_eq!(next.highlight.as_deref(), Some("nanpe"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_generation_cache_key_ignores_highlight() {
+        let mut left = GimfihiWebState::default();
+        left.highlight = Some("traco".to_owned());
+        let mut right = left.clone();
+        right.highlight = Some("kanpe".to_owned());
+
+        assert_eq!(
+            gimfihi_generation_cache_key(&left),
+            gimfihi_generation_cache_key(&right)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_result_cache_misses_highlight_outside_cached_rows() {
+        let mut state = GimfihiWebState::default();
+        state.highlight = Some("nanpe".to_owned());
+        let output = GimfihiOutput {
+            resolved_sources: Vec::new(),
+            candidate_count: 2,
+            filtered_count: 2,
+            winner: Some("traco".to_owned()),
+            highlighted_word: Some("traco".to_owned()),
+            candidates: vec![GimfihiCandidate {
+                word: "traco".to_owned(),
+                score: 0.0,
+                source_scores: Vec::new(),
+                collision: None,
+                rafsi: Vec::new(),
+                highlighted: true,
+            }],
+        };
+        let cached = GimfihiAsyncResultState {
+            state: Some(state.clone()),
+            result: GimfihiWebResult {
+                state: state.clone(),
+                output: Some(output),
+                preset_options: Vec::new(),
+                language_suggestions: Vec::new(),
+                errors: Vec::new(),
+            },
+            meta: None,
+            loading: false,
+            error: None,
+        };
+
+        assert!(gimfihi_cached_result_for_state("", &state, cached).is_none());
     }
 
     #[requires(true)]
@@ -23849,8 +24120,8 @@ mod tests {
             AppRoute::Vlacku
         );
         assert_eq!(
-            parse_test_route("/jbotci", "/jbotci/gimfihe/").app_route(),
-            AppRoute::Gimfihe
+            parse_test_route("/jbotci", "/jbotci/gimfihi/").app_route(),
+            AppRoute::Gimfihi
         );
         assert_eq!(
             parse_test_route("/jbotci", "/jbotci/settings/").app_route(),
@@ -23907,17 +24178,17 @@ mod tests {
             "/vlacku/%2Fma.%2A%2F"
         );
 
-        let gimfihe = parse_test_route(
+        let gimfihi = parse_test_route(
             "",
-            "/gimfihe?preset=1995&source=cmn%3A%3A&source=hin%3A%3A&source=eng%3A%3A&source=spa%3A%3A&source=rus%3A%3A&source=ara%3A%3A&shape=ccvcv&shape=cvccv&letters=source&check-collisions=all&require-free-short-rafsi=false&count=20",
+            "/gimfihi?preset=1995&source=cmn%3A%3A&source=hin%3A%3A&source=eng%3A%3A&source=spa%3A%3A&source=rus%3A%3A&source=ara%3A%3A&shape=ccvcv&shape=cvccv&letters=source&check-collisions=all&require-free-short-rafsi=false&count=20",
         );
-        assert_eq!(gimfihe.app_route(), AppRoute::Gimfihe);
-        assert!(gimfihe.to_string().starts_with("/gimfihe?"));
+        assert_eq!(gimfihi.app_route(), AppRoute::Gimfihi);
+        assert!(gimfihi.to_string().starts_with("/gimfihi?"));
 
-        for alias in ["/gimfi'e", "/gimfi%27e"] {
+        for alias in ["/gimfi'i", "/gimfi%27i"] {
             let route = parse_test_route("", alias);
-            assert_eq!(route.app_route(), AppRoute::Gimfihe);
-            assert!(route.to_string().starts_with("/gimfihe?"));
+            assert_eq!(route.app_route(), AppRoute::Gimfihi);
+            assert!(route.to_string().starts_with("/gimfihi?"));
         }
     }
 
@@ -23956,11 +24227,11 @@ mod tests {
         );
         assert_eq!(
             JbotciRoute::from_str(
-                "gimfihe?preset=1995&source=cmn%3A%3A&source=hin%3A%3A&source=eng%3A%3A&source=spa%3A%3A&source=rus%3A%3A&source=ara%3A%3A&shape=ccvcv&shape=cvccv&letters=source&check-collisions=all&require-free-short-rafsi=false&count=20",
+                "gimfihi?preset=1995&source=cmn%3A%3A&source=hin%3A%3A&source=eng%3A%3A&source=spa%3A%3A&source=rus%3A%3A&source=ara%3A%3A&shape=ccvcv&shape=cvccv&letters=source&check-collisions=all&require-free-short-rafsi=false&count=20",
             )
             .unwrap()
             .app_route(),
-            AppRoute::Gimfihe
+            AppRoute::Gimfihi
         );
         assert!(JbotciRoute::from_str("assets/compute-worker.js").is_err());
     }

@@ -1188,8 +1188,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
-        "apps/jbotci/src/main.rs:Command::Gimfihe",
-        "CLI enum delegates validation to clap and gimfihe option handling",
+        "apps/jbotci/src/main.rs:Command::Gimfihi",
+        "CLI enum delegates validation to clap and gimfihi option handling",
     ),
     (
         "apps/jbotci/src/main.rs:Command::Cukta",
@@ -1216,43 +1216,43 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheError::UnknownPreset",
-        "gimfihe error variant carries raw invalid user input, including possible empty text",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::UnknownPreset",
+        "gimfihi error variant carries raw invalid user input, including possible empty text",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheError::UnknownShape",
-        "gimfihe error variant carries raw invalid user input, including possible empty text",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::UnknownShape",
+        "gimfihi error variant carries raw invalid user input, including possible empty text",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheError::UnknownCollisionScope",
-        "gimfihe error variant carries raw invalid user input, including possible empty text",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::UnknownCollisionScope",
+        "gimfihi error variant carries raw invalid user input, including possible empty text",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheError::InvalidSourceSpec",
-        "gimfihe error variant carries raw invalid source text plus a diagnostic message",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidSourceSpec",
+        "gimfihi error variant carries raw invalid source text plus a diagnostic message",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheError::InvalidWeight",
-        "gimfihe error variant carries raw invalid user input, including possible empty text",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidWeight",
+        "gimfihi error variant carries raw invalid user input, including possible empty text",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheError::MissingPresetLanguage",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::MissingPresetLanguage",
         "missing preset language is produced from the validated preset table",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheError::ExtraPresetLanguage",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::ExtraPresetLanguage",
         "extra preset language is produced from normalized source input for diagnostics",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheError::DuplicateSourceLanguage",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::DuplicateSourceLanguage",
         "duplicate source language is produced from normalized source input for diagnostics",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheError::MissingExplicitWeight",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::MissingExplicitWeight",
         "missing custom weight is reported against normalized source input for diagnostics",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheError::InvalidSourceWord",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidSourceWord",
         "invalid source word preserves normalized invalid input, including the empty word case",
     ),
     (
@@ -1496,7 +1496,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "activity task kind is a unit discriminant with no payload to constrain",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Gimfihe",
+        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Gimfihi",
         "activity task kind is a unit discriminant with no payload to constrain",
     ),
     (
@@ -1548,7 +1548,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::GimfihePage",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::GimfihiPage",
         "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
     ),
     (
@@ -1572,7 +1572,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "compute response is a serde protocol DTO whose payloads are typed result data and metadata",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::GimfihePage",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::GimfihiPage",
         "compute response is a serde protocol DTO whose payloads are typed result data and metadata",
     ),
     (
@@ -1608,8 +1608,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "route variant delegates URL state constraints to VlackuWebState and canonical route builders",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:WebRoute::Gimfihe",
-        "route variant delegates URL state constraints to GimfiheWebState and canonical route builders",
+        "crates/jbotci-web-core/src/lib.rs:WebRoute::Gimfihi",
+        "route variant delegates URL state constraints to GimfihiWebState and canonical route builders",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:WebRoute::Settings",

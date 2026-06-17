@@ -14,8 +14,12 @@ use jbotci_morphology::{
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-pub const GIMFIHE_DEFAULT_COUNT: usize = 20;
-pub const GIMFIHE_MAX_COUNT: usize = 512;
+pub const GIMFIHI_DEFAULT_COUNT: usize = 20;
+pub const GIMFIHI_MAX_COUNT: usize = 512;
+pub const GIMFIHI_MIN_WEIGHT: u16 = 1;
+pub const GIMFIHI_MAX_WEIGHT: u16 = 999;
+
+const GIMFIHI_WEIGHT_SCALE: f64 = 1000.0;
 
 const CONSONANTS: &[char] = &[
     'b', 'c', 'd', 'f', 'g', 'j', 'k', 'l', 'm', 'n', 'p', 'r', 's', 't', 'v', 'x', 'z',
@@ -23,90 +27,90 @@ const CONSONANTS: &[char] = &[
 const VOWELS: &[char] = &['a', 'e', 'i', 'o', 'u'];
 
 const PRESET_1985: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 0.36),
-    PresetEntry::new("hin", 0.16),
-    PresetEntry::new("eng", 0.21),
-    PresetEntry::new("spa", 0.11),
-    PresetEntry::new("rus", 0.09),
-    PresetEntry::new("ara", 0.07),
+    PresetEntry::new("cmn", 360),
+    PresetEntry::new("hin", 160),
+    PresetEntry::new("eng", 210),
+    PresetEntry::new("spa", 110),
+    PresetEntry::new("rus", 90),
+    PresetEntry::new("ara", 70),
 ];
 const PRESET_1987: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 0.36),
-    PresetEntry::new("hin", 0.156),
-    PresetEntry::new("eng", 0.208),
-    PresetEntry::new("spa", 0.116),
-    PresetEntry::new("rus", 0.087),
-    PresetEntry::new("ara", 0.073),
+    PresetEntry::new("cmn", 360),
+    PresetEntry::new("hin", 156),
+    PresetEntry::new("eng", 208),
+    PresetEntry::new("spa", 116),
+    PresetEntry::new("rus", 87),
+    PresetEntry::new("ara", 73),
 ];
 const PRESET_1994: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 0.348),
-    PresetEntry::new("hin", 0.194),
-    PresetEntry::new("eng", 0.163),
-    PresetEntry::new("spa", 0.123),
-    PresetEntry::new("rus", 0.088),
-    PresetEntry::new("ara", 0.084),
+    PresetEntry::new("cmn", 348),
+    PresetEntry::new("hin", 194),
+    PresetEntry::new("eng", 163),
+    PresetEntry::new("spa", 123),
+    PresetEntry::new("rus", 88),
+    PresetEntry::new("ara", 84),
 ];
 const PRESET_1995: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 0.347),
-    PresetEntry::new("hin", 0.196),
-    PresetEntry::new("eng", 0.160),
-    PresetEntry::new("spa", 0.123),
-    PresetEntry::new("rus", 0.089),
-    PresetEntry::new("ara", 0.085),
+    PresetEntry::new("cmn", 347),
+    PresetEntry::new("hin", 196),
+    PresetEntry::new("eng", 160),
+    PresetEntry::new("spa", 123),
+    PresetEntry::new("rus", 89),
+    PresetEntry::new("ara", 85),
 ];
 const PRESET_1999: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 0.334),
-    PresetEntry::new("hin", 0.195),
-    PresetEntry::new("eng", 0.187),
-    PresetEntry::new("spa", 0.116),
-    PresetEntry::new("rus", 0.081),
-    PresetEntry::new("ara", 0.088),
+    PresetEntry::new("cmn", 334),
+    PresetEntry::new("hin", 195),
+    PresetEntry::new("eng", 187),
+    PresetEntry::new("spa", 116),
+    PresetEntry::new("rus", 81),
+    PresetEntry::new("ara", 88),
 ];
 const PRESET_EVENLY: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 1.0),
-    PresetEntry::new("hin", 1.0),
-    PresetEntry::new("eng", 1.0),
-    PresetEntry::new("spa", 1.0),
-    PresetEntry::new("rus", 1.0),
-    PresetEntry::new("ara", 1.0),
+    PresetEntry::new("cmn", 1),
+    PresetEntry::new("hin", 1),
+    PresetEntry::new("eng", 1),
+    PresetEntry::new("spa", 1),
+    PresetEntry::new("rus", 1),
+    PresetEntry::new("ara", 1),
 ];
 const PRESET_ILMEN6: &[PresetEntry] = &[
-    PresetEntry::new("eng", 0.339),
-    PresetEntry::new("cmn", 0.255),
-    PresetEntry::new("hin", 0.136),
-    PresetEntry::new("spa", 0.126),
-    PresetEntry::new("ara", 0.074),
-    PresetEntry::new("fra", 0.070),
+    PresetEntry::new("eng", 339),
+    PresetEntry::new("cmn", 255),
+    PresetEntry::new("hin", 136),
+    PresetEntry::new("spa", 126),
+    PresetEntry::new("ara", 74),
+    PresetEntry::new("fra", 70),
 ];
 const PRESET_ILMEN8: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 0.271),
-    PresetEntry::new("eng", 0.170),
-    PresetEntry::new("spa", 0.130),
-    PresetEntry::new("hin", 0.125),
-    PresetEntry::new("ara", 0.104),
-    PresetEntry::new("ben", 0.076),
-    PresetEntry::new("rus", 0.064),
-    PresetEntry::new("por", 0.060),
+    PresetEntry::new("cmn", 271),
+    PresetEntry::new("eng", 170),
+    PresetEntry::new("spa", 130),
+    PresetEntry::new("hin", 125),
+    PresetEntry::new("ara", 104),
+    PresetEntry::new("ben", 76),
+    PresetEntry::new("rus", 64),
+    PresetEntry::new("por", 60),
 ];
 const PRESET_ILMEN12: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 0.238),
-    PresetEntry::new("eng", 0.160),
-    PresetEntry::new("spa", 0.113),
-    PresetEntry::new("hin", 0.108),
-    PresetEntry::new("ara", 0.090),
-    PresetEntry::new("ben", 0.066),
-    PresetEntry::new("rus", 0.055),
-    PresetEntry::new("por", 0.052),
-    PresetEntry::new("msa", 0.032),
-    PresetEntry::new("jpn", 0.030),
-    PresetEntry::new("deu", 0.029),
-    PresetEntry::new("fra", 0.026),
+    PresetEntry::new("cmn", 238),
+    PresetEntry::new("eng", 160),
+    PresetEntry::new("spa", 113),
+    PresetEntry::new("hin", 108),
+    PresetEntry::new("ara", 90),
+    PresetEntry::new("ben", 66),
+    PresetEntry::new("rus", 55),
+    PresetEntry::new("por", 52),
+    PresetEntry::new("msa", 32),
+    PresetEntry::new("jpn", 30),
+    PresetEntry::new("deu", 29),
+    PresetEntry::new("fra", 26),
 ];
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub enum GimfihePreset {
+pub enum GimfihiPreset {
     #[serde(rename = "1985")]
     Data1985,
     #[serde(rename = "1987")]
@@ -123,7 +127,7 @@ pub enum GimfihePreset {
     Ilmen12,
 }
 
-impl GimfihePreset {
+impl GimfihiPreset {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     pub const fn as_str(self) -> &'static str {
@@ -157,7 +161,7 @@ impl GimfihePreset {
     }
 }
 
-impl fmt::Display for GimfihePreset {
+impl fmt::Display for GimfihiPreset {
     #[requires(true)]
     #[ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -165,8 +169,8 @@ impl fmt::Display for GimfihePreset {
     }
 }
 
-impl FromStr for GimfihePreset {
-    type Err = GimfiheError;
+impl FromStr for GimfihiPreset {
+    type Err = GimfihiError;
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|preset| !preset.as_str().is_empty()) || ret.is_err())]
@@ -179,14 +183,14 @@ impl FromStr for GimfihePreset {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PresetEntry {
     pub language: &'static str,
-    pub weight: f64,
+    pub weight: u16,
 }
 
 impl PresetEntry {
     #[requires(!language.is_empty())]
-    #[requires(weight > 0.0 && weight.is_finite())]
+    #[requires(weight >= GIMFIHI_MIN_WEIGHT && weight <= GIMFIHI_MAX_WEIGHT)]
     #[ensures(true)]
-    pub const fn new(language: &'static str, weight: f64) -> Self {
+    pub const fn new(language: &'static str, weight: u16) -> Self {
         Self { language, weight }
     }
 }
@@ -219,7 +223,7 @@ impl fmt::Display for GismuShape {
 }
 
 impl FromStr for GismuShape {
-    type Err = GimfiheError;
+    type Err = GimfihiError;
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|shape| !shape.as_str().is_empty()) || ret.is_err())]
@@ -266,7 +270,7 @@ impl fmt::Display for CollisionScope {
 }
 
 impl FromStr for CollisionScope {
-    type Err = GimfiheError;
+    type Err = GimfihiError;
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|scope| !scope.as_str().is_empty()) || ret.is_err())]
@@ -278,9 +282,9 @@ impl FromStr for CollisionScope {
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct GimfiheSourceInput {
+pub struct GimfihiSourceInput {
     pub language: String,
-    pub explicit_weight: Option<f64>,
+    pub explicit_weight: Option<u16>,
     pub word: String,
 }
 
@@ -289,27 +293,28 @@ pub struct GimfiheSourceInput {
 #[serde(rename_all = "kebab-case")]
 pub struct ResolvedSource {
     pub language: String,
-    pub weight: f64,
+    pub weight: u16,
     pub word: String,
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct GimfiheRequest {
-    pub preset: Option<GimfihePreset>,
-    pub sources: Vec<GimfiheSourceInput>,
+pub struct GimfihiRequest {
+    pub preset: Option<GimfihiPreset>,
+    pub sources: Vec<GimfihiSourceInput>,
     pub shapes: Vec<GismuShape>,
     pub all_letters: bool,
     pub check_collisions: CollisionScope,
+    pub show_collisions: bool,
     pub require_free_short_rafsi: bool,
     pub count: usize,
     pub highlight: Option<String>,
 }
 
-impl Default for GimfiheRequest {
+impl Default for GimfihiRequest {
     #[requires(true)]
-    #[ensures(ret.count == GIMFIHE_DEFAULT_COUNT)]
+    #[ensures(ret.count == GIMFIHI_DEFAULT_COUNT)]
     fn default() -> Self {
         Self {
             preset: None,
@@ -317,8 +322,9 @@ impl Default for GimfiheRequest {
             shapes: default_shapes(),
             all_letters: false,
             check_collisions: CollisionScope::All,
+            show_collisions: false,
             require_free_short_rafsi: false,
-            count: GIMFIHE_DEFAULT_COUNT,
+            count: GIMFIHI_DEFAULT_COUNT,
             highlight: None,
         }
     }
@@ -376,7 +382,7 @@ pub struct GismuCollision {
 pub struct SourceScore {
     pub language: String,
     pub word: String,
-    pub weight: f64,
+    pub weight: u16,
     pub raw_score: usize,
     pub weighted_score: f64,
 }
@@ -384,7 +390,7 @@ pub struct SourceScore {
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct GimfiheCandidate {
+pub struct GimfihiCandidate {
     pub word: String,
     pub score: f64,
     pub source_scores: Vec<SourceScore>,
@@ -396,13 +402,13 @@ pub struct GimfiheCandidate {
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct GimfiheOutput {
+pub struct GimfihiOutput {
     pub resolved_sources: Vec<ResolvedSource>,
     pub candidate_count: usize,
     pub filtered_count: usize,
     pub winner: Option<String>,
     pub highlighted_word: Option<String>,
-    pub candidates: Vec<GimfiheCandidate>,
+    pub candidates: Vec<GimfihiCandidate>,
 }
 
 #[invariant(true)]
@@ -417,8 +423,8 @@ pub struct GimfiheOutput {
 #[invariant(::MissingExplicitWeight { .. } => true)]
 #[invariant(::InvalidSourceWord { .. } => true)]
 #[derive(Debug, Error, Clone, PartialEq)]
-pub enum GimfiheError {
-    #[error("unknown gimfi'e preset `{value}`")]
+pub enum GimfihiError {
+    #[error("unknown gimfi'i preset `{value}`")]
     UnknownPreset { value: String },
     #[error("unknown gismu shape `{value}`")]
     UnknownShape { value: String },
@@ -426,7 +432,7 @@ pub enum GimfiheError {
     UnknownCollisionScope { value: String },
     #[error("invalid --source `{spec}`: {message}")]
     InvalidSourceSpec { spec: String, message: String },
-    #[error("source weight must be a positive finite number, got `{value}`")]
+    #[error("source weight must be an integer from 1 to 999, got `{value}`")]
     InvalidWeight { value: String },
     #[error("preset source language `{language}` is missing")]
     MissingPresetLanguage { language: String },
@@ -454,17 +460,17 @@ pub fn default_shapes() -> Vec<GismuShape> {
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub fn all_presets() -> &'static [GimfihePreset] {
+pub fn all_presets() -> &'static [GimfihiPreset] {
     &[
-        GimfihePreset::Data1985,
-        GimfihePreset::Data1987,
-        GimfihePreset::Data1994,
-        GimfihePreset::Data1995,
-        GimfihePreset::Data1999,
-        GimfihePreset::Evenly,
-        GimfihePreset::Ilmen6,
-        GimfihePreset::Ilmen8,
-        GimfihePreset::Ilmen12,
+        GimfihiPreset::Data1985,
+        GimfihiPreset::Data1987,
+        GimfihiPreset::Data1994,
+        GimfihiPreset::Data1995,
+        GimfihiPreset::Data1999,
+        GimfihiPreset::Evenly,
+        GimfihiPreset::Ilmen6,
+        GimfihiPreset::Ilmen8,
+        GimfihiPreset::Ilmen12,
     ]
 }
 
@@ -482,18 +488,18 @@ pub fn preset_language_suggestions() -> Vec<String> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|preset| !preset.as_str().is_empty()) || ret.is_err())]
-pub fn parse_preset(value: &str) -> Result<GimfihePreset, GimfiheError> {
+pub fn parse_preset(value: &str) -> Result<GimfihiPreset, GimfihiError> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "1985" => Ok(GimfihePreset::Data1985),
-        "1987" => Ok(GimfihePreset::Data1987),
-        "1994" => Ok(GimfihePreset::Data1994),
-        "1995" => Ok(GimfihePreset::Data1995),
-        "1999" => Ok(GimfihePreset::Data1999),
-        "evenly" => Ok(GimfihePreset::Evenly),
-        "ilmen6" => Ok(GimfihePreset::Ilmen6),
-        "ilmen8" => Ok(GimfihePreset::Ilmen8),
-        "ilmen12" => Ok(GimfihePreset::Ilmen12),
-        _ => Err(GimfiheError::UnknownPreset {
+        "1985" => Ok(GimfihiPreset::Data1985),
+        "1987" => Ok(GimfihiPreset::Data1987),
+        "1994" => Ok(GimfihiPreset::Data1994),
+        "1995" => Ok(GimfihiPreset::Data1995),
+        "1999" => Ok(GimfihiPreset::Data1999),
+        "evenly" => Ok(GimfihiPreset::Evenly),
+        "ilmen6" => Ok(GimfihiPreset::Ilmen6),
+        "ilmen8" => Ok(GimfihiPreset::Ilmen8),
+        "ilmen12" => Ok(GimfihiPreset::Ilmen12),
+        _ => Err(GimfihiError::UnknownPreset {
             value: value.to_owned(),
         }),
     }
@@ -501,11 +507,11 @@ pub fn parse_preset(value: &str) -> Result<GimfihePreset, GimfiheError> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|shape| !shape.as_str().is_empty()) || ret.is_err())]
-pub fn parse_shape(value: &str) -> Result<GismuShape, GimfiheError> {
+pub fn parse_shape(value: &str) -> Result<GismuShape, GimfihiError> {
     match value.trim().to_ascii_lowercase().as_str() {
         "ccvcv" => Ok(GismuShape::Ccvcv),
         "cvccv" => Ok(GismuShape::Cvccv),
-        _ => Err(GimfiheError::UnknownShape {
+        _ => Err(GimfihiError::UnknownShape {
             value: value.to_owned(),
         }),
     }
@@ -513,12 +519,12 @@ pub fn parse_shape(value: &str) -> Result<GismuShape, GimfiheError> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|scope| !scope.as_str().is_empty()) || ret.is_err())]
-pub fn parse_collision_scope(value: &str) -> Result<CollisionScope, GimfiheError> {
+pub fn parse_collision_scope(value: &str) -> Result<CollisionScope, GimfihiError> {
     match value.trim().to_ascii_lowercase().as_str() {
         "all" => Ok(CollisionScope::All),
         "official" => Ok(CollisionScope::Official),
         "none" => Ok(CollisionScope::None),
-        _ => Err(GimfiheError::UnknownCollisionScope {
+        _ => Err(GimfihiError::UnknownCollisionScope {
             value: value.to_owned(),
         }),
     }
@@ -526,7 +532,7 @@ pub fn parse_collision_scope(value: &str) -> Result<CollisionScope, GimfiheError
 
 #[requires(!spec.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|source| !source.language.is_empty()) || ret.is_err())]
-pub fn parse_source_spec(spec: &str) -> Result<GimfiheSourceInput, GimfiheError> {
+pub fn parse_source_spec(spec: &str) -> Result<GimfihiSourceInput, GimfihiError> {
     let parts = spec.split(':').collect::<Vec<_>>();
     match parts.as_slice() {
         [language, word] => parsed_source_spec(spec, language, None, word),
@@ -538,7 +544,7 @@ pub fn parse_source_spec(spec: &str) -> Result<GimfiheSourceInput, GimfiheError>
             };
             parsed_source_spec(spec, language, explicit_weight, word)
         }
-        _ => Err(GimfiheError::InvalidSourceSpec {
+        _ => Err(GimfihiError::InvalidSourceSpec {
             spec: spec.to_owned(),
             message: "expected LANG:WORD or LANG:WEIGHT:WORD".to_owned(),
         }),
@@ -551,18 +557,18 @@ pub fn parse_source_spec(spec: &str) -> Result<GimfiheSourceInput, GimfiheError>
 fn parsed_source_spec(
     spec: &str,
     language: &str,
-    explicit_weight: Option<f64>,
+    explicit_weight: Option<u16>,
     word: &str,
-) -> Result<GimfiheSourceInput, GimfiheError> {
+) -> Result<GimfihiSourceInput, GimfihiError> {
     let language = normalize_language(language);
     let word = normalize_source_word(word);
     if language.is_empty() {
-        return Err(GimfiheError::InvalidSourceSpec {
+        return Err(GimfihiError::InvalidSourceSpec {
             spec: spec.to_owned(),
             message: "language must be non-empty".to_owned(),
         });
     }
-    Ok(GimfiheSourceInput {
+    Ok(GimfihiSourceInput {
         language,
         explicit_weight,
         word,
@@ -570,17 +576,17 @@ fn parsed_source_spec(
 }
 
 #[requires(!value.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|weight| weight.is_finite() && *weight > 0.0) || ret.is_err())]
-pub fn parse_weight(value: &str) -> Result<f64, GimfiheError> {
-    let Ok(weight) = value.parse::<f64>() else {
-        return Err(GimfiheError::InvalidWeight {
+#[ensures(ret.as_ref().is_ok_and(|weight| *weight >= GIMFIHI_MIN_WEIGHT && *weight <= GIMFIHI_MAX_WEIGHT) || ret.is_err())]
+pub fn parse_weight(value: &str) -> Result<u16, GimfihiError> {
+    let Ok(weight) = value.parse::<u16>() else {
+        return Err(GimfihiError::InvalidWeight {
             value: value.to_owned(),
         });
     };
-    if weight.is_finite() && weight > 0.0 {
+    if (GIMFIHI_MIN_WEIGHT..=GIMFIHI_MAX_WEIGHT).contains(&weight) {
         Ok(weight)
     } else {
-        Err(GimfiheError::InvalidWeight {
+        Err(GimfihiError::InvalidWeight {
             value: value.to_owned(),
         })
     }
@@ -590,11 +596,11 @@ pub fn parse_weight(value: &str) -> Result<f64, GimfiheError> {
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn compose_gismu(
     dictionary: &Dictionary<'_>,
-    request: &GimfiheRequest,
-) -> Result<GimfiheOutput, GimfiheError> {
+    request: &GimfihiRequest,
+) -> Result<GimfihiOutput, GimfihiError> {
     let resolved_sources = resolve_sources(request.preset, &request.sources)?;
     if request.shapes.is_empty() {
-        return Err(GimfiheError::NoShapes);
+        return Err(GimfihiError::NoShapes);
     }
     let shapes = unique_shapes(&request.shapes);
     let collision_index = CollisionIndex::from_dictionary(dictionary, request.check_collisions);
@@ -631,7 +637,7 @@ pub fn compose_gismu(
         .or_else(|| winner.clone());
     let mut displayed = filtered
         .iter()
-        .take(request.count.min(GIMFIHE_MAX_COUNT))
+        .take(request.count.min(GIMFIHI_MAX_COUNT))
         .cloned()
         .collect::<Vec<_>>();
     if let Some(highlighted_word) = &highlighted_word
@@ -652,7 +658,7 @@ pub fn compose_gismu(
             candidate.rafsi = possible_short_rafsis(dictionary, &candidate.word);
         }
     }
-    Ok(GimfiheOutput {
+    Ok(GimfihiOutput {
         resolved_sources,
         candidate_count,
         filtered_count,
@@ -665,11 +671,11 @@ pub fn compose_gismu(
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|sources| !sources.is_empty()) || ret.is_err())]
 pub fn resolve_sources(
-    preset: Option<GimfihePreset>,
-    sources: &[GimfiheSourceInput],
-) -> Result<Vec<ResolvedSource>, GimfiheError> {
+    preset: Option<GimfihiPreset>,
+    sources: &[GimfihiSourceInput],
+) -> Result<Vec<ResolvedSource>, GimfihiError> {
     if sources.is_empty() {
-        return Err(GimfiheError::NoSources);
+        return Err(GimfihiError::NoSources);
     }
     validate_unique_languages(sources)?;
     for source in sources {
@@ -683,12 +689,12 @@ pub fn resolve_sources(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn validate_unique_languages(sources: &[GimfiheSourceInput]) -> Result<(), GimfiheError> {
+fn validate_unique_languages(sources: &[GimfihiSourceInput]) -> Result<(), GimfihiError> {
     let mut seen = BTreeSet::new();
     for source in sources {
         let language = normalize_language(&source.language);
         if !seen.insert(language.clone()) {
-            return Err(GimfiheError::DuplicateSourceLanguage { language });
+            return Err(GimfihiError::DuplicateSourceLanguage { language });
         }
     }
     Ok(())
@@ -696,10 +702,10 @@ fn validate_unique_languages(sources: &[GimfiheSourceInput]) -> Result<(), Gimfi
 
 #[requires(!source.language.is_empty() || !source.word.is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn validate_source_word(source: &GimfiheSourceInput) -> Result<(), GimfiheError> {
+fn validate_source_word(source: &GimfihiSourceInput) -> Result<(), GimfihiError> {
     let word = normalize_source_word(&source.word);
     if word.is_empty() || !word.chars().all(is_valid_source_word_char) {
-        return Err(GimfiheError::InvalidSourceWord {
+        return Err(GimfihiError::InvalidSourceWord {
             language: normalize_language(&source.language),
             word,
         });
@@ -710,9 +716,9 @@ fn validate_source_word(source: &GimfiheSourceInput) -> Result<(), GimfiheError>
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|sources| !sources.is_empty()) || ret.is_err())]
 fn resolve_preset_sources(
-    preset: GimfihePreset,
-    sources: &[GimfiheSourceInput],
-) -> Result<Vec<ResolvedSource>, GimfiheError> {
+    preset: GimfihiPreset,
+    sources: &[GimfihiSourceInput],
+) -> Result<Vec<ResolvedSource>, GimfihiError> {
     let source_by_language = sources
         .iter()
         .map(|source| (normalize_language(&source.language), source))
@@ -723,7 +729,7 @@ fn resolve_preset_sources(
             .iter()
             .any(|entry| entry.language == language)
         {
-            return Err(GimfiheError::ExtraPresetLanguage {
+            return Err(GimfihiError::ExtraPresetLanguage {
                 language: language.clone(),
             });
         }
@@ -731,7 +737,7 @@ fn resolve_preset_sources(
     let mut resolved = Vec::new();
     for entry in preset.entries() {
         let Some(source) = source_by_language.get(entry.language) else {
-            return Err(GimfiheError::MissingPresetLanguage {
+            return Err(GimfihiError::MissingPresetLanguage {
                 language: entry.language.to_owned(),
             });
         };
@@ -747,13 +753,13 @@ fn resolve_preset_sources(
 #[requires(!sources.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|resolved| resolved.len() == sources.len()) || ret.is_err())]
 fn resolve_custom_sources(
-    sources: &[GimfiheSourceInput],
-) -> Result<Vec<ResolvedSource>, GimfiheError> {
+    sources: &[GimfihiSourceInput],
+) -> Result<Vec<ResolvedSource>, GimfihiError> {
     let mut resolved = Vec::new();
     for source in sources {
         let language = normalize_language(&source.language);
         let Some(weight) = source.explicit_weight else {
-            return Err(GimfiheError::MissingExplicitWeight { language });
+            return Err(GimfihiError::MissingExplicitWeight { language });
         };
         resolved.push(ResolvedSource {
             language,
@@ -908,7 +914,7 @@ fn score_candidate(
     sources: &[ResolvedSource],
     word: String,
     include_rafsi: bool,
-) -> GimfiheCandidate {
+) -> GimfihiCandidate {
     let source_scores = sources
         .iter()
         .map(|source| score_source(word.as_str(), source))
@@ -923,7 +929,7 @@ fn score_candidate(
     } else {
         Vec::new()
     };
-    GimfiheCandidate {
+    GimfihiCandidate {
         word,
         score,
         source_scores,
@@ -938,7 +944,8 @@ fn score_candidate(
 #[ensures(ret.weight == source.weight)]
 fn score_source(candidate: &str, source: &ResolvedSource) -> SourceScore {
     let raw_score = gismu_match_score(candidate, &source.word);
-    let weighted_score = raw_score as f64 / source.word.chars().count() as f64 * source.weight;
+    let scaled_weight = f64::from(source.weight) / GIMFIHI_WEIGHT_SCALE;
+    let weighted_score = raw_score as f64 / source.word.chars().count() as f64 * scaled_weight;
     SourceScore {
         language: source.language.clone(),
         word: source.word.clone(),
@@ -1432,8 +1439,8 @@ fn rafsi_availability(
 
 #[requires(true)]
 #[ensures(true)]
-fn candidate_passes_filters(candidate: &GimfiheCandidate, request: &GimfiheRequest) -> bool {
-    candidate.collision.is_none()
+fn candidate_passes_filters(candidate: &GimfihiCandidate, request: &GimfihiRequest) -> bool {
+    (request.show_collisions || candidate.collision.is_none())
         && (!request.require_free_short_rafsi
             || candidate
                 .rafsi
@@ -1443,7 +1450,7 @@ fn candidate_passes_filters(candidate: &GimfiheCandidate, request: &GimfiheReque
 
 #[requires(true)]
 #[ensures(true)]
-fn compare_candidates(left: &GimfiheCandidate, right: &GimfiheCandidate) -> std::cmp::Ordering {
+fn compare_candidates(left: &GimfihiCandidate, right: &GimfihiCandidate) -> std::cmp::Ordering {
     right
         .score
         .total_cmp(&left.score)
@@ -1497,8 +1504,8 @@ mod tests {
         assert_eq!(source.explicit_weight, None);
         assert_eq!(source.word, "ekspekt");
 
-        let source = parse_source_spec("eng:0.160:ekspekt").expect("source");
-        assert_eq!(source.explicit_weight, Some(0.160));
+        let source = parse_source_spec("eng:160:ekspekt").expect("source");
+        assert_eq!(source.explicit_weight, Some(160));
     }
 
     #[test]
@@ -1513,7 +1520,7 @@ mod tests {
             parse_source_spec("rus::predpologa").expect("source"),
             parse_source_spec("ara::mulud").expect("source"),
         ];
-        let resolved = resolve_sources(Some(GimfihePreset::Data1995), &sources).expect("resolved");
+        let resolved = resolve_sources(Some(GimfihiPreset::Data1995), &sources).expect("resolved");
         assert_eq!(
             resolved
                 .iter()
@@ -1521,7 +1528,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["cmn", "hin", "eng", "spa", "rus", "ara"]
         );
-        assert_eq!(resolved[2].weight, 0.160);
+        assert_eq!(resolved[2].weight, 160);
     }
 
     #[test]
@@ -1532,9 +1539,9 @@ mod tests {
             parse_source_spec("eng::ekspekt").expect("source"),
             parse_source_spec("hin::rakan").expect("source"),
         ];
-        let error = resolve_sources(Some(GimfihePreset::Data1995), &sources)
+        let error = resolve_sources(Some(GimfihiPreset::Data1995), &sources)
             .expect_err("missing preset language");
-        assert!(matches!(error, GimfiheError::MissingPresetLanguage { .. }));
+        assert!(matches!(error, GimfihiError::MissingPresetLanguage { .. }));
 
         let sources = [
             parse_source_spec("eng::ekspekt").expect("source"),
@@ -1545,9 +1552,9 @@ mod tests {
             parse_source_spec("ara::mulud").expect("source"),
             parse_source_spec("fra::esper").expect("source"),
         ];
-        let error = resolve_sources(Some(GimfihePreset::Data1995), &sources)
+        let error = resolve_sources(Some(GimfihiPreset::Data1995), &sources)
             .expect_err("extra preset language");
-        assert!(matches!(error, GimfiheError::ExtraPresetLanguage { .. }));
+        assert!(matches!(error, GimfihiError::ExtraPresetLanguage { .. }));
     }
 
     #[test]
@@ -1638,12 +1645,13 @@ mod tests {
             parse_source_spec("rus::predpologa").expect("source"),
             parse_source_spec("ara::mulud").expect("source"),
         ];
-        let request = GimfiheRequest {
-            preset: Some(GimfihePreset::Data1995),
+        let request = GimfihiRequest {
+            preset: Some(GimfihiPreset::Data1995),
             sources: sources.to_vec(),
             shapes: default_shapes(),
             all_letters: false,
             check_collisions: CollisionScope::None,
+            show_collisions: false,
             require_free_short_rafsi: false,
             count: 1,
             highlight: Some("nanpe".to_owned()),
@@ -1677,12 +1685,13 @@ mod tests {
             parse_source_spec("ara::taklid").expect("source"),
             parse_source_spec("fra::tradision").expect("source"),
         ];
-        let request = GimfiheRequest {
-            preset: Some(GimfihePreset::Ilmen6),
+        let request = GimfihiRequest {
+            preset: Some(GimfihiPreset::Ilmen6),
             sources: sources.to_vec(),
             shapes: default_shapes(),
             all_letters: false,
             check_collisions: CollisionScope::All,
+            show_collisions: false,
             require_free_short_rafsi: false,
             count: 20,
             highlight: None,
@@ -1698,6 +1707,19 @@ mod tests {
                 .first()
                 .map(|candidate| candidate.word.as_str()),
             Some("trado")
+        );
+
+        let request = GimfihiRequest {
+            show_collisions: true,
+            ..request
+        };
+        let output = compose_gismu(dictionary, &request).expect("output");
+        assert_eq!(output.filtered_count, output.candidate_count);
+        assert!(
+            output
+                .candidates
+                .iter()
+                .any(|candidate| candidate.collision.is_some())
         );
     }
 }

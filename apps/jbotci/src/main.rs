@@ -34,9 +34,9 @@ use jbotci_gentufa::{
     GentufaPngOptions, GentufaScript, GentufaSvgOptions, WebSourceRange, blocks_layout,
     elided_terminators, render_gentufa_blocks_png, render_gentufa_blocks_svg, rendered_leaves,
 };
-use jbotci_gimfihe::{
-    CollisionScope, GIMFIHE_DEFAULT_COUNT, GIMFIHE_MAX_COUNT, GimfiheCandidate, GimfiheOutput,
-    GimfiheRequest, RafsiAvailability, compose_gismu, default_shapes, parse_preset, parse_shape,
+use jbotci_gimfihi::{
+    CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GimfihiCandidate, GimfihiOutput,
+    GimfihiRequest, RafsiAvailability, compose_gismu, default_shapes, parse_preset, parse_shape,
     parse_source_spec,
 };
 use jbotci_jvozba::{
@@ -108,7 +108,7 @@ struct Cli {
 #[invariant(::Tersmu(..) => true)]
 #[invariant(::Vlacku(..) => true)]
 #[invariant(::Jvozba(..) => true)]
-#[invariant(::Gimfihe(..) => true)]
+#[invariant(::Gimfihi(..) => true)]
 #[invariant(::Cukta(..) => true)]
 #[invariant(::Zbasu(..) => true)]
 #[invariant(::Setup(..) => true)]
@@ -126,8 +126,8 @@ enum Command {
     Vlacku(VlackuInput),
     #[command(name = "jvozba")]
     Jvozba(JvozbaInput),
-    #[command(name = "gimfihe", alias = "gimfi'e")]
-    Gimfihe(GimfiheInput),
+    #[command(name = "gimfihi", alias = "gimfi'i")]
+    Gimfihi(GimfihiInput),
     #[command(name = "cukta", visible_alias = "book")]
     Cukta(CuktaInput),
     #[command(name = "zbasu")]
@@ -240,7 +240,7 @@ enum VlaseiFormat {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum GimfiheCliFormat {
+enum GimfihiCliFormat {
     Table,
     #[value(alias = "djeisone")]
     Json,
@@ -609,7 +609,7 @@ struct CuktaInput {
 
 #[derive(Debug, Clone, Args)]
 #[invariant(true)]
-struct GimfiheInput {
+struct GimfihiInput {
     #[arg(long = "source", value_name = "LANG[:WEIGHT]:WORD", action = ArgAction::Append)]
     sources: Vec<String>,
     #[arg(long = "preset", value_name = "PRESET")]
@@ -624,14 +624,16 @@ struct GimfiheInput {
     check_collisions: CliCollisionScope,
     #[arg(long = "all-letters")]
     all_letters: bool,
+    #[arg(long = "show-collisions")]
+    show_collisions: bool,
     #[arg(long = "require-free-short-rafsi")]
     require_free_short_rafsi: bool,
     #[arg(short = 'n', long = "count", value_name = "N")]
     count: Option<usize>,
     #[arg(long = "highlight", value_name = "GISMU")]
     highlight: Option<String>,
-    #[arg(long = "format", value_enum, default_value_t = GimfiheCliFormat::Table)]
-    format: GimfiheCliFormat,
+    #[arg(long = "format", value_enum, default_value_t = GimfihiCliFormat::Table)]
+    format: GimfihiCliFormat,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -1449,7 +1451,7 @@ fn run_cli_command<WOut: Write, WErr: Write>(
             )
         }
         Command::Jvozba(input) => run_jvozba(input, stdout, color_policy.stdout),
-        Command::Gimfihe(input) => run_gimfihe(input, stdout),
+        Command::Gimfihi(input) => run_gimfihi(input, stdout),
         Command::Cukta(input) => run_cukta(input, stdout, stderr),
         Command::Zbasu(input) => {
             validate_trace_controls_for_unsupported_command(
@@ -2018,18 +2020,18 @@ fn render_jvozba_result(result: &JvozbaBuildResult, color: bool) -> String {
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn run_gimfihe<WOut: Write>(input: GimfiheInput, stdout: &mut WOut) -> Result<CliStatus> {
-    let request = gimfihe_request_from_input(&input)?;
+fn run_gimfihi<WOut: Write>(input: GimfihiInput, stdout: &mut WOut) -> Result<CliStatus> {
+    let request = gimfihi_request_from_input(&input)?;
     let output = compose_gismu(jbotci_dictionary_data::english(), &request)
         .map_err(|error| anyhow!(error.to_string()))?;
     match input.format {
-        GimfiheCliFormat::Table => writeln!(stdout, "{}", render_gimfihe_table(&output))?,
-        GimfiheCliFormat::Json => {
+        GimfihiCliFormat::Table => writeln!(stdout, "{}", render_gimfihi_table(&output))?,
+        GimfihiCliFormat::Json => {
             writeln!(
                 stdout,
                 "{}",
                 serde_json::to_string_pretty(&output)
-                    .context("failed to serialize gimfihe output")?
+                    .context("failed to serialize gimfihi output")?
             )?;
         }
     }
@@ -2038,13 +2040,13 @@ fn run_gimfihe<WOut: Write>(input: GimfiheInput, stdout: &mut WOut) -> Result<Cl
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn gimfihe_request_from_input(input: &GimfiheInput) -> Result<GimfiheRequest> {
-    let count = input.count.unwrap_or(GIMFIHE_DEFAULT_COUNT);
+fn gimfihi_request_from_input(input: &GimfihiInput) -> Result<GimfihiRequest> {
+    let count = input.count.unwrap_or(GIMFIHI_DEFAULT_COUNT);
     if count == 0 {
         bail!("`--count` must be greater than 0");
     }
-    if count > GIMFIHE_MAX_COUNT {
-        bail!("`--count` must be at most {GIMFIHE_MAX_COUNT}");
+    if count > GIMFIHI_MAX_COUNT {
+        bail!("`--count` must be at most {GIMFIHI_MAX_COUNT}");
     }
     let preset = input
         .preset
@@ -2066,12 +2068,13 @@ fn gimfihe_request_from_input(input: &GimfiheInput) -> Result<GimfiheRequest> {
             .map(|shape| parse_shape(shape).map_err(|error| anyhow!(error.to_string())))
             .collect::<Result<Vec<_>>>()?
     };
-    Ok(GimfiheRequest {
+    Ok(GimfihiRequest {
         preset,
         sources,
         shapes,
         all_letters: input.all_letters,
         check_collisions: input.check_collisions.into(),
+        show_collisions: input.show_collisions,
         require_free_short_rafsi: input.require_free_short_rafsi,
         count,
         highlight: input.highlight.clone(),
@@ -2080,7 +2083,7 @@ fn gimfihe_request_from_input(input: &GimfiheInput) -> Result<GimfiheRequest> {
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn render_gimfihe_table(output: &GimfiheOutput) -> String {
+fn render_gimfihi_table(output: &GimfihiOutput) -> String {
     if output.candidates.is_empty() {
         return "No gismu candidates matched the selected filters.".to_owned();
     }
@@ -2097,32 +2100,32 @@ fn render_gimfihe_table(output: &GimfiheOutput) -> String {
     ));
     lines.push("mark  gismu  score     rafsi".to_owned());
     for candidate in &output.candidates {
-        lines.push(render_gimfihe_candidate_row(candidate));
+        lines.push(render_gimfihi_candidate_row(candidate));
     }
     lines.join("\n")
 }
 
 #[requires(!candidate.word.is_empty())]
 #[ensures(!ret.is_empty())]
-fn render_gimfihe_candidate_row(candidate: &GimfiheCandidate) -> String {
+fn render_gimfihi_candidate_row(candidate: &GimfihiCandidate) -> String {
     let marker = if candidate.highlighted { "*" } else { " " };
     format!(
         "{marker}     {:<5}  {:<8} {}",
         candidate.word,
-        format_gimfihe_score(candidate.score),
-        format_gimfihe_rafsi(candidate)
+        format_gimfihi_score(candidate.score),
+        format_gimfihi_rafsi(candidate)
     )
 }
 
 #[requires(score.is_finite())]
 #[ensures(!ret.is_empty())]
-fn format_gimfihe_score(score: f64) -> String {
+fn format_gimfihi_score(score: f64) -> String {
     trim_float(&format!("{score:.6}"))
 }
 
 #[requires(!candidate.word.is_empty())]
 #[ensures(true)]
-fn format_gimfihe_rafsi(candidate: &GimfiheCandidate) -> String {
+fn format_gimfihi_rafsi(candidate: &GimfihiCandidate) -> String {
     if candidate.rafsi.is_empty() {
         return String::new();
     }
@@ -4211,32 +4214,40 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn parses_gimfihe_command_and_apostrophe_alias() {
-        let Command::Gimfihe(primary_input) = Cli::try_parse_from([
+    fn parses_gimfihi_command_and_apostrophe_alias() {
+        let Command::Gimfihi(primary_input) = Cli::try_parse_from([
             "jbotci",
-            "gimfihe",
+            "gimfihi",
             "--preset",
             "1995",
             "--source",
             "eng::ekspekt",
         ])
-        .expect("gimfihe command")
+        .expect("gimfihi command")
         .command
         else {
-            panic!("expected gimfihe command");
+            panic!("expected gimfihi command");
         };
         assert_eq!(primary_input.preset.as_deref(), Some("1995"));
         assert_eq!(primary_input.sources, vec!["eng::ekspekt".to_owned()]);
 
-        let Command::Gimfihe(alias_input) =
-            Cli::try_parse_from(["jbotci", "gimfi'e", "--source", "eng:1:ekspekt"])
-                .expect("gimfi'e alias command")
+        let Command::Gimfihi(alias_input) =
+            Cli::try_parse_from(["jbotci", "gimfi'i", "--source", "eng:1:ekspekt"])
+                .expect("gimfi'i alias command")
                 .command
         else {
-            panic!("expected gimfihe command");
+            panic!("expected gimfihi command");
         };
         assert_eq!(alias_input.preset, None);
         assert_eq!(alias_input.sources, vec!["eng:1:ekspekt".to_owned()]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_rejects_old_spellings() {
+        assert!(Cli::try_parse_from(["jbotci", "gimfihe"]).is_err());
+        assert!(Cli::try_parse_from(["jbotci", "gimfi'e"]).is_err());
     }
 
     #[test]
@@ -6705,8 +6716,8 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gimfihe_outputs_table_for_canonical_command() {
-        let run = run_cli_capture(&gimfihe_1995_sample_args("gimfihe", &[]), false);
+    fn gimfihi_outputs_table_for_canonical_command() {
+        let run = run_cli_capture(&gimfihi_1995_sample_args("gimfihi", &[]), false);
 
         assert_eq!(run.status, CliStatus::Success);
         assert!(run.stderr.is_empty(), "{}", run.stderr);
@@ -6718,9 +6729,9 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gimfihe_json_uses_preset_weights_and_explicit_overrides() {
+    fn gimfihi_json_uses_preset_weights_and_explicit_overrides() {
         let run = run_cli_capture(
-            &gimfihe_1995_sample_args_with_eng("gimfihe", "eng:2.5:ekspekt", &["--format", "json"]),
+            &gimfihi_1995_sample_args_with_eng("gimfihi", "eng:250:ekspekt", &["--format", "json"]),
             false,
         );
 
@@ -6732,24 +6743,24 @@ mod tests {
             .iter()
             .find(|source| source["language"] == "cmn")
             .expect("cmn source");
-        assert_eq!(cmn["weight"], 0.347);
+        assert_eq!(cmn["weight"], 347);
         let eng = sources
             .iter()
             .find(|source| source["language"] == "eng")
             .expect("eng source");
-        assert_eq!(eng["weight"], 2.5);
+        assert_eq!(eng["weight"], 250);
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gimfihe_check_collisions_changes_filtered_winner() {
+    fn gimfihi_check_collisions_changes_filtered_winner() {
         let without_collisions = run_cli_capture(
-            &gimfihe_1995_sample_args("gimfihe", &["--check-collisions", "none"]),
+            &gimfihi_1995_sample_args("gimfihi", &["--check-collisions", "none"]),
             false,
         );
         let with_collisions = run_cli_capture(
-            &gimfihe_1995_sample_args("gimfihe", &["--check-collisions", "all"]),
+            &gimfihi_1995_sample_args("gimfihi", &["--check-collisions", "all"]),
             false,
         );
 
@@ -6762,10 +6773,10 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gimfihe_json_includes_highlighted_candidate_outside_count() {
+    fn gimfihi_json_includes_highlighted_candidate_outside_count() {
         let run = run_cli_capture(
-            &gimfihe_1995_sample_args(
-                "gimfihe",
+            &gimfihi_1995_sample_args(
+                "gimfihi",
                 &[
                     "--check-collisions",
                     "none",
@@ -6796,18 +6807,18 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gimfihe_rejects_incomplete_preset_language_set() {
+    fn gimfihi_rejects_incomplete_preset_language_set() {
         let cli = Cli::try_parse_from([
             "jbotci",
-            "gimfihe",
+            "gimfihi",
             "--preset",
             "1995",
             "--source",
             "eng::ekspekt",
         ])
-        .expect("gimfihe args");
+        .expect("gimfihi args");
         let error =
-            run_cli(cli, &mut Vec::new(), &mut Vec::new(), false).expect_err("gimfihe error");
+            run_cli(cli, &mut Vec::new(), &mut Vec::new(), false).expect_err("gimfihi error");
         assert!(
             error
                 .to_string()
@@ -7306,17 +7317,17 @@ mod tests {
 
     #[requires(!command.is_empty())]
     #[ensures(ret.iter().any(|arg| *arg == "--preset"))]
-    fn gimfihe_1995_sample_args(
+    fn gimfihi_1995_sample_args(
         command: &'static str,
         extra_args: &[&'static str],
     ) -> Vec<&'static str> {
-        gimfihe_1995_sample_args_with_eng(command, "eng::ekspekt", extra_args)
+        gimfihi_1995_sample_args_with_eng(command, "eng::ekspekt", extra_args)
     }
 
     #[requires(!command.is_empty())]
     #[requires(!eng_source.is_empty())]
     #[ensures(ret.iter().any(|arg| *arg == eng_source))]
-    fn gimfihe_1995_sample_args_with_eng(
+    fn gimfihi_1995_sample_args_with_eng(
         command: &'static str,
         eng_source: &'static str,
         extra_args: &[&'static str],

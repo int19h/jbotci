@@ -20,8 +20,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "server config is normalized by ServerConfig::from_cli",
     ),
     (
-        "apps/jbotci/src/main.rs:GimfiheInput",
-        "gimfihe CLI input is raw clap transport state and is validated by gimfihe_request_from_input",
+        "apps/jbotci/src/main.rs:GimfihiInput",
+        "gimfihi CLI input is raw clap transport state and is validated by gimfihi_request_from_input",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:UserSettings",
@@ -316,7 +316,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "async result state is transient UI cache data keyed and replaced by latest-wins worker tasks",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:GimfiheAsyncResultState",
+        "crates/jbotci-ui/src/lib.rs:GimfihiAsyncResultState",
         "async result state is transient UI cache data keyed and replaced by latest-wins worker tasks",
     ),
     (
@@ -780,40 +780,40 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "segment source resolution is local to decompose_lujvo_like and hyphen segments intentionally have no source",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:PresetEntry",
-        "gimfihe preset entries are fixed static tables constructed through PresetEntry::new",
+        "crates/jbotci-gimfihi/src/lib.rs:PresetEntry",
+        "gimfihi preset entries are fixed static tables constructed through PresetEntry::new",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheSourceInput",
-        "gimfihe source input is raw CLI/web transport state validated by resolve_sources",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiSourceInput",
+        "gimfihi source input is raw CLI/web transport state validated by resolve_sources",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:ResolvedSource",
-        "resolved gimfihe source rows are produced only after preset and source validation",
+        "crates/jbotci-gimfihi/src/lib.rs:ResolvedSource",
+        "resolved gimfihi source rows are produced only after preset and source validation",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheRequest",
-        "gimfihe request is a CLI/web transport envelope validated by compose_gismu",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiRequest",
+        "gimfihi request is a CLI/web transport envelope validated by compose_gismu",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:RafsiCandidate",
+        "crates/jbotci-gimfihi/src/lib.rs:RafsiCandidate",
         "short rafsi candidates are generated and classified by possible_short_rafsis",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GismuCollision",
+        "crates/jbotci-gimfihi/src/lib.rs:GismuCollision",
         "collision payloads are produced by dictionary-backed collision checks",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:SourceScore",
+        "crates/jbotci-gimfihi/src/lib.rs:SourceScore",
         "source score rows are derived from resolved source words and CLL scoring",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheCandidate",
-        "gimfihe candidates are generated only after morphology validation and scoring",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiCandidate",
+        "gimfihi candidates are generated only after morphology validation and scoring",
     ),
     (
-        "crates/jbotci-gimfihe/src/lib.rs:GimfiheOutput",
-        "gimfihe output is assembled by compose_gismu from validated candidates and sources",
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiOutput",
+        "gimfihi output is assembled by compose_gismu from validated candidates and sources",
     ),
     (
         "crates/jbotci-search/src/phonetic.rs:AlineFeatures",
@@ -1268,20 +1268,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "vlacku result payload is assembled from dictionary/search APIs and covered by web-core tests",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:GimfiheWebSource",
-        "gimfihe web source rows are editable URL/UI state normalized before request construction",
+        "crates/jbotci-web-core/src/lib.rs:GimfihiWebSource",
+        "gimfihi web source rows are editable URL/UI state normalized before request construction",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:GimfiheWebState",
-        "gimfihe web state is a direct URL/local UI state envelope normalized by the result builder",
+        "crates/jbotci-web-core/src/lib.rs:GimfihiWebState",
+        "gimfihi web state is a direct URL/local UI state envelope normalized by the result builder",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:GimfihePresetOption",
-        "gimfihe preset options are fixed UI selector rows built from the preset table",
+        "crates/jbotci-web-core/src/lib.rs:GimfihiPresetOption",
+        "gimfihi preset options are fixed UI selector rows built from the preset table",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:GimfiheWebResult",
-        "gimfihe result payload is assembled from the shared composer and covered by web-core tests",
+        "crates/jbotci-web-core/src/lib.rs:GimfihiWebResult",
+        "gimfihi result payload is assembled from the shared composer and covered by web-core tests",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:VlackuWebCard",
