@@ -669,9 +669,9 @@ body::-webkit-scrollbar-thumb:hover,
 .app-page .app-topbar .app-topbar-nav-carousel {
   --topbar-carousel-item-width: 4.55rem;
   --topbar-carousel-gap: 0.12rem;
-  width: clamp(5.9rem, 17vw, 8.4rem);
-  min-width: 5.9rem;
-  flex: 0 1 clamp(5.9rem, 17vw, 8.4rem);
+  width: clamp(7.4rem, 24vw, 13.6rem);
+  min-width: 6.2rem;
+  flex: 0 1 clamp(7.4rem, 24vw, 13.6rem);
   display: block;
   position: relative;
   margin-left: 0.42rem;
@@ -695,7 +695,10 @@ body::-webkit-scrollbar-thumb:hover,
   overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
-  padding-inline: max(0.75rem, calc((100% - var(--topbar-carousel-item-width)) / 2));
+  padding: 0.08rem max(
+      0.75rem,
+      calc((100% - var(--topbar-carousel-item-width)) / 2)
+    );
 }
 
 .app-topbar-nav-carousel-track::-webkit-scrollbar {
@@ -705,10 +708,11 @@ body::-webkit-scrollbar-thumb:hover,
 .app-page .app-topbar .app-topbar-carousel-link {
   flex: 0 0 var(--topbar-carousel-item-width);
   margin-left: 0;
-  padding-inline: 0.08rem;
+  padding: 0.16rem 0.08rem 0.22rem;
   scroll-snap-align: center;
-  overflow: hidden;
+  overflow: visible;
   text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .app-page .app-topbar .app-topbar-carousel-link.is-adjacent {
@@ -719,6 +723,7 @@ body::-webkit-scrollbar-thumb:hover,
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .app-topbar-center {
@@ -5406,9 +5411,9 @@ body::-webkit-scrollbar-thumb:hover,
   .app-page .app-topbar .app-topbar-nav-carousel {
     --topbar-carousel-item-width: 3.65rem;
     --topbar-carousel-gap: 0.08rem;
-    width: 6.35rem;
+    width: clamp(6.35rem, 38vw, 12.2rem);
     min-width: 5.7rem;
-    flex-basis: 6.35rem;
+    flex-basis: clamp(6.35rem, 38vw, 12.2rem);
     margin-left: 0.28rem;
   }
 

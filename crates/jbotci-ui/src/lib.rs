@@ -421,6 +421,13 @@ enum AppRoute {
     Gimfihi,
 }
 
+const TOPBAR_NAV_ROUTES: [AppRoute; 4] = [
+    AppRoute::Cukta,
+    AppRoute::Vlacku,
+    AppRoute::Gentufa,
+    AppRoute::Gimfihi,
+];
+
 #[invariant(true)]
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct PageFindState {
@@ -3471,6 +3478,9 @@ fn AppShell() -> Element {
             topbar_settings_open,
             topbar_nav_layout,
         );
+    });
+    use_effect(move || {
+        let _ = (*route.read(), *topbar_nav_layout.read());
         schedule_topbar_active_nav_sync();
         if *route.read() == AppRoute::Vlacku {
             schedule_vlacku_jvozba_pane_metrics_sync();
@@ -3802,12 +3812,6 @@ fn render_topbar_nav(
                 span { class: "app-topbar-link-label", "vlacku" }
             }
             Link {
-                class: topbar_link_class(route == AppRoute::Gimfihi, gimfihi_loading),
-                to: gimfihi_route,
-                aria_current: if route == AppRoute::Gimfihi { "page" } else { "false" },
-                span { class: "app-topbar-link-label", "gimfi'i" }
-            }
-            Link {
                 class: topbar_link_class(route == AppRoute::Gentufa, gentufa_loading),
                 to: gentufa_route,
                 aria_current: if route == AppRoute::Gentufa { "page" } else { "false" },
@@ -3817,6 +3821,12 @@ fn render_topbar_nav(
                     span { class: "app-topbar-link-dot" }
                     span { class: "app-topbar-link-dot" }
                 }
+            }
+            Link {
+                class: topbar_link_class(route == AppRoute::Gimfihi, gimfihi_loading),
+                to: gimfihi_route,
+                aria_current: if route == AppRoute::Gimfihi { "page" } else { "false" },
+                span { class: "app-topbar-link-label", "gimfi'i" }
             }
         }
     }
@@ -3838,14 +3848,14 @@ fn render_topbar_nav_carousel(
     base_path: &str,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
 ) -> Element {
-    let [previous_route, current_route, next_route] = topbar_carousel_routes(route);
+    let [first_route, second_route, third_route, fourth_route] = topbar_carousel_routes(route);
     rsx! {
         nav { class: "spa-nav app-topbar-nav-carousel", aria_label: "Primary navigation",
             div { class: "app-topbar-nav-carousel-track",
                 { render_topbar_nav_carousel_link(
-                    previous_route,
+                    first_route,
                     route,
-                    "is-adjacent is-previous",
+                    topbar_carousel_route_slot_class(first_route, route),
                     cukta_loading,
                     vlacku_loading,
                     gimfihi_loading,
@@ -3858,9 +3868,9 @@ fn render_topbar_nav_carousel(
                     pending_cukta_scroll,
                 ) }
                 { render_topbar_nav_carousel_link(
-                    current_route,
+                    second_route,
                     route,
-                    "is-current-slot",
+                    topbar_carousel_route_slot_class(second_route, route),
                     cukta_loading,
                     vlacku_loading,
                     gimfihi_loading,
@@ -3873,9 +3883,24 @@ fn render_topbar_nav_carousel(
                     pending_cukta_scroll,
                 ) }
                 { render_topbar_nav_carousel_link(
-                    next_route,
+                    third_route,
                     route,
-                    "is-adjacent is-next",
+                    topbar_carousel_route_slot_class(third_route, route),
+                    cukta_loading,
+                    vlacku_loading,
+                    gimfihi_loading,
+                    gentufa_loading,
+                    cukta_route.clone(),
+                    vlacku_route.clone(),
+                    gimfihi_route.clone(),
+                    gentufa_route.clone(),
+                    base_path,
+                    pending_cukta_scroll,
+                ) }
+                { render_topbar_nav_carousel_link(
+                    fourth_route,
+                    route,
+                    topbar_carousel_route_slot_class(fourth_route, route),
                     cukta_loading,
                     vlacku_loading,
                     gimfihi_loading,
@@ -3977,39 +4002,49 @@ fn render_topbar_nav_carousel_probe(
     gimfihi_loading: bool,
     gentufa_loading: bool,
 ) -> Element {
-    let [previous_route, current_route, next_route] = topbar_carousel_routes(route);
-    let previous_label = topbar_carousel_route_label(previous_route);
-    let current_label = topbar_carousel_route_label(current_route);
-    let next_label = topbar_carousel_route_label(next_route);
+    let [first_route, second_route, third_route, fourth_route] = topbar_carousel_routes(route);
+    let first_label = topbar_carousel_route_label(first_route);
+    let second_label = topbar_carousel_route_label(second_route);
+    let third_label = topbar_carousel_route_label(third_route);
+    let fourth_label = topbar_carousel_route_label(fourth_route);
     rsx! {
         nav { class: "spa-nav app-topbar-nav-carousel", aria_label: "Primary navigation",
             div { class: "app-topbar-nav-carousel-track",
                 span {
                     class: topbar_carousel_link_class(
-                        previous_route == route,
-                        topbar_carousel_route_loading(previous_route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading),
-                        "is-adjacent is-previous",
+                        first_route == route,
+                        topbar_carousel_route_loading(first_route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading),
+                        topbar_carousel_route_slot_class(first_route, route),
                     ),
-                    "data-topbar-nav-active": if previous_route == route { "true" } else { "false" },
-                    span { class: "app-topbar-link-label", "{previous_label}" }
+                    "data-topbar-nav-active": if first_route == route { "true" } else { "false" },
+                    span { class: "app-topbar-link-label", "{first_label}" }
                 }
                 span {
                     class: topbar_carousel_link_class(
-                        current_route == route,
-                        topbar_carousel_route_loading(current_route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading),
-                        "is-current-slot",
+                        second_route == route,
+                        topbar_carousel_route_loading(second_route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading),
+                        topbar_carousel_route_slot_class(second_route, route),
                     ),
-                    "data-topbar-nav-active": if current_route == route { "true" } else { "false" },
-                    span { class: "app-topbar-link-label", "{current_label}" }
+                    "data-topbar-nav-active": if second_route == route { "true" } else { "false" },
+                    span { class: "app-topbar-link-label", "{second_label}" }
                 }
                 span {
                     class: topbar_carousel_link_class(
-                        next_route == route,
-                        topbar_carousel_route_loading(next_route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading),
-                        "is-adjacent is-next",
+                        third_route == route,
+                        topbar_carousel_route_loading(third_route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading),
+                        topbar_carousel_route_slot_class(third_route, route),
                     ),
-                    "data-topbar-nav-active": if next_route == route { "true" } else { "false" },
-                    span { class: "app-topbar-link-label", "{next_label}" }
+                    "data-topbar-nav-active": if third_route == route { "true" } else { "false" },
+                    span { class: "app-topbar-link-label", "{third_label}" }
+                }
+                span {
+                    class: topbar_carousel_link_class(
+                        fourth_route == route,
+                        topbar_carousel_route_loading(fourth_route, cukta_loading, vlacku_loading, gimfihi_loading, gentufa_loading),
+                        topbar_carousel_route_slot_class(fourth_route, route),
+                    ),
+                    "data-topbar-nav-active": if fourth_route == route { "true" } else { "false" },
+                    span { class: "app-topbar-link-label", "{fourth_label}" }
                 }
             }
         }
@@ -4026,14 +4061,21 @@ fn topbar_carousel_link_class(active: bool, loading: bool, slot_class: &'static 
 
 #[requires(true)]
 #[ensures(!ret.contains(&AppRoute::Settings))]
-#[ensures(route == AppRoute::Settings || ret[1] == route)]
-fn topbar_carousel_routes(route: AppRoute) -> [AppRoute; 3] {
-    match route {
-        AppRoute::Cukta => [AppRoute::Gimfihi, AppRoute::Cukta, AppRoute::Vlacku],
-        AppRoute::Vlacku => [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihi],
-        AppRoute::Gimfihi => [AppRoute::Vlacku, AppRoute::Gimfihi, AppRoute::Gentufa],
-        AppRoute::Gentufa => [AppRoute::Gimfihi, AppRoute::Gentufa, AppRoute::Cukta],
-        AppRoute::Settings => [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihi],
+#[ensures(route == AppRoute::Settings || ret.contains(&route))]
+#[ensures(ret[0] == AppRoute::Cukta)]
+#[ensures(ret[3] == AppRoute::Gimfihi)]
+fn topbar_carousel_routes(route: AppRoute) -> [AppRoute; 4] {
+    let _ = route;
+    TOPBAR_NAV_ROUTES
+}
+
+#[requires(target != AppRoute::Settings)]
+#[ensures(!ret.is_empty())]
+fn topbar_carousel_route_slot_class(target: AppRoute, active_route: AppRoute) -> &'static str {
+    if target == active_route {
+        "is-current-slot"
+    } else {
+        "is-adjacent"
     }
 }
 
@@ -22051,8 +22093,13 @@ mod tests {
                 .expect("PWA manifest is valid JSON");
 
         assert_eq!(manifest["id"], "/");
-        assert_eq!(manifest["start_url"], "/gentufa");
+        assert_eq!(manifest["start_url"], "/vlacku");
         assert_eq!(manifest["scope"], "/");
+        assert_eq!(manifest["display"], "standalone");
+        assert_eq!(
+            manifest["display_override"],
+            serde_json::json!(["tabbed", "minimal-ui", "standalone"])
+        );
 
         let protocol_handlers = manifest["protocol_handlers"]
             .as_array()
@@ -22125,27 +22172,16 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn topbar_carousel_routes_center_active_page_and_wrap_neighbors() {
-        assert_eq!(
-            topbar_carousel_routes(AppRoute::Cukta),
-            [AppRoute::Gimfihi, AppRoute::Cukta, AppRoute::Vlacku]
-        );
-        assert_eq!(
-            topbar_carousel_routes(AppRoute::Vlacku),
-            [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihi]
-        );
-        assert_eq!(
-            topbar_carousel_routes(AppRoute::Gimfihi),
-            [AppRoute::Vlacku, AppRoute::Gimfihi, AppRoute::Gentufa]
-        );
-        assert_eq!(
-            topbar_carousel_routes(AppRoute::Gentufa),
-            [AppRoute::Gimfihi, AppRoute::Gentufa, AppRoute::Cukta]
-        );
+    fn topbar_carousel_routes_keep_all_primary_pages_in_display_order() {
+        assert_eq!(topbar_carousel_routes(AppRoute::Cukta), TOPBAR_NAV_ROUTES);
+        assert_eq!(topbar_carousel_routes(AppRoute::Vlacku), TOPBAR_NAV_ROUTES);
+        assert_eq!(topbar_carousel_routes(AppRoute::Gimfihi), TOPBAR_NAV_ROUTES);
+        assert_eq!(topbar_carousel_routes(AppRoute::Gentufa), TOPBAR_NAV_ROUTES);
         assert_eq!(
             topbar_carousel_routes(AppRoute::Settings),
-            [AppRoute::Cukta, AppRoute::Vlacku, AppRoute::Gimfihi]
+            TOPBAR_NAV_ROUTES
         );
+        assert_eq!(TOPBAR_NAV_ROUTES.last(), Some(&AppRoute::Gimfihi));
     }
 
     #[test]
