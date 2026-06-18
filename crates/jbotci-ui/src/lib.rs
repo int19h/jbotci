@@ -1012,7 +1012,7 @@ fn visible_gimfihi_result_for_find(
     if result_state.state.as_ref() == Some(committed_state) {
         result_state.result.clone()
     } else {
-        gimfihi_loading_result(committed_state, "Loading gismu candidates.")
+        gimfihi_empty_result(committed_state)
     }
 }
 
@@ -2411,7 +2411,7 @@ impl Default for GimfihiAsyncResultState {
         let state = GimfihiWebState::default();
         Self {
             state: None,
-            result: gimfihi_loading_result(&state, "Loading gismu candidates."),
+            result: gimfihi_empty_result(&state),
             meta: None,
             loading: false,
             error: None,
@@ -3206,6 +3206,13 @@ fn AppShell() -> Element {
             return;
         }
         let state = gimfihi_committed_state.read().clone();
+        if !gimfihi_state_has_any_source_word(&state) {
+            cancel_compute_channel(COMPUTE_CHANNEL_GIMFIHI);
+            cancel_latest_task(gimfihi_result_task);
+            let mut idle_result_signal = gimfihi_result;
+            idle_result_signal.set(gimfihi_idle_result_state(&state));
+            return;
+        }
         let cache_key = gimfihi_generation_cache_key(&state);
         if let Some(cached) = gimfihi_result_cache.read().get(&cache_key).cloned()
             && let Some(cached_result) =
@@ -5991,9 +5998,9 @@ fn vlacku_loading_result(state: &VlackuWebState, message: &str) -> VlackuWebResu
     }
 }
 
-#[requires(!_message.is_empty())]
+#[requires(true)]
 #[ensures(ret.errors.is_empty())]
-fn gimfihi_loading_result(state: &GimfihiWebState, _message: &str) -> GimfihiWebResult {
+fn gimfihi_empty_result(state: &GimfihiWebState) -> GimfihiWebResult {
     let state = normalize_gimfihi_state(state);
     GimfihiWebResult {
         preset_options: gimfihi_preset_options_for_state(&state),
@@ -6001,6 +6008,19 @@ fn gimfihi_loading_result(state: &GimfihiWebState, _message: &str) -> GimfihiWeb
         state,
         output: None,
         errors: Vec::new(),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.state.as_ref().is_some_and(|current| current == state))]
+#[ensures(!ret.loading)]
+fn gimfihi_idle_result_state(state: &GimfihiWebState) -> GimfihiAsyncResultState {
+    GimfihiAsyncResultState {
+        state: Some(state.clone()),
+        result: gimfihi_empty_result(state),
+        meta: None,
+        loading: false,
+        error: None,
     }
 }
 
@@ -6054,7 +6074,7 @@ fn vlacku_async_error_state(state: &VlackuWebState, message: &str) -> VlackuAsyn
 fn gimfihi_async_error_state(state: &GimfihiWebState, message: &str) -> GimfihiAsyncResultState {
     GimfihiAsyncResultState {
         state: Some(state.clone()),
-        result: gimfihi_loading_result(state, message),
+        result: gimfihi_empty_result(state),
         meta: None,
         loading: false,
         error: Some(message.to_owned()),
@@ -10083,11 +10103,11 @@ fn GimfihiResultPanel(
     let result_state = gimfihi_result.read().clone();
     let result_current = result_state.state.as_ref() == Some(&committed_state);
     let result = if result_current {
-        result_state.result
+        result_state.result.clone()
     } else {
-        gimfihi_loading_result(&committed_state, "Loading gismu candidates.")
+        gimfihi_empty_result(&committed_state)
     };
-    let loading = result_state.loading || !result_current;
+    let loading = gimfihi_result_panel_is_loading(&committed_state, &result_state);
     let show_result_errors = gimfihi_state_has_any_source_word(&committed_state);
     rsx! {
         if loading {
@@ -10868,6 +10888,16 @@ fn gimfihi_state_has_any_source_word(state: &GimfihiWebState) -> bool {
         .sources
         .iter()
         .any(|source| !source.word.trim().is_empty())
+}
+
+#[requires(true)]
+#[ensures(!gimfihi_state_has_any_source_word(committed_state) -> !ret)]
+fn gimfihi_result_panel_is_loading(
+    committed_state: &GimfihiWebState,
+    result_state: &GimfihiAsyncResultState,
+) -> bool {
+    let result_current = result_state.state.as_ref() == Some(committed_state);
+    gimfihi_state_has_any_source_word(committed_state) && (result_state.loading || !result_current)
 }
 
 #[requires(true)]
@@ -22271,6 +22301,44 @@ mod tests {
         gimfihi_set_source_word_memory_entry(&mut memory, "rus", "   ");
 
         assert!(!memory.contains_key("rus"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_idle_result_state_is_current_and_not_loading() {
+        let state = GimfihiWebState::default();
+
+        let result = gimfihi_idle_result_state(&state);
+
+        assert_eq!(result.state.as_ref(), Some(&state));
+        assert!(!result.loading);
+        assert!(result.result.output.is_none());
+        assert!(!gimfihi_result_panel_is_loading(&state, &result));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_blank_committed_state_never_shows_loading() {
+        let state = GimfihiWebState::default();
+        let mut stale_result = GimfihiAsyncResultState::default();
+
+        assert!(!gimfihi_result_panel_is_loading(&state, &stale_result));
+
+        stale_result.loading = true;
+        assert!(!gimfihi_result_panel_is_loading(&state, &stale_result));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_nonblank_committed_state_shows_loading_for_stale_result() {
+        let mut state = GimfihiWebState::default();
+        state.sources[0].word = "uan".to_owned();
+        let stale_result = GimfihiAsyncResultState::default();
+
+        assert!(gimfihi_result_panel_is_loading(&state, &stale_result));
     }
 
     #[test]
