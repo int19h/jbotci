@@ -19,7 +19,8 @@ use jbotci_cll::{
     DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site, render_cukta_request, render_search_output,
 };
 use jbotci_diagnostics::{
-    DEFAULT_TRACE_LIMIT, Diagnostic, TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport,
+    DEFAULT_TRACE_LIMIT, Diagnostic, DiagnosticLabel, DiagnosticPhase, DiagnosticSeverity,
+    TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport, source_span_from_char_offsets,
 };
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_embeddings::native::{
@@ -44,16 +45,19 @@ use jbotci_jvozba::{
     build_best_jvozba_detailed,
 };
 use jbotci_morphology::{
-    MORPHOLOGY_TRACE_FILTERS, MorphologyOptions, MorphologyWarning, Phonemes, WordLike,
+    MORPHOLOGY_TRACE_FILTERS, MorphologyOptions, MorphologyWarning, Phonemes,
+    PlainWordClassification, ValsiAnalysis, ValsiAnalysisStatus, ValsiClassification,
+    ValsiClassificationKind, ValsiFuhivlaStage, ValsiLujvoPart, ValsiLujvoPartKind,
+    ValsiLujvoRafsiKind, WordKind, WordLike, analyze_valsi_with_options_and_source_id,
     segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
     BracketRenderOptions, DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticDetailMode,
     DiagnosticRenderOptions, GlideMark, GlyphStyle, JsonRenderOptions, LojbanScript,
     PhonemeRenderOptions, StressMark, TraceRenderOptions, TreeRenderOptions,
-    compact_morphology_json_string_with_options, compact_syntax_json_string_with_options,
-    format_definition_or_notes_line_with_indexed_places, ipa_morphology_text,
-    pretty_brackets_with_options, pretty_morphology_brackets_with_options,
+    compact_morphology_json_string_with_options, compact_morphology_json_value,
+    compact_syntax_json_string_with_options, format_definition_or_notes_line_with_indexed_places,
+    ipa_morphology_text, pretty_brackets_with_options, pretty_morphology_brackets_with_options,
     pretty_morphology_tree_with_options, pretty_tree_with_options,
     reference_display_model_for_syntax_tree, render_diagnostics, render_trace_report,
 };
@@ -103,6 +107,7 @@ struct Cli {
 #[derive(Debug, Clone, Subcommand)]
 #[invariant(true)]
 #[invariant(::Vlasei(..) => true)]
+#[invariant(::Vlatai(..) => true)]
 #[invariant(::Gentufa(..) => true)]
 #[invariant(::Mulgau(..) => true)]
 #[invariant(::Tersmu(..) => true)]
@@ -116,6 +121,8 @@ struct Cli {
 enum Command {
     #[command(name = "vlasei", visible_alias = "lex")]
     Vlasei(VlaseiInput),
+    #[command(name = "vlatai")]
+    Vlatai(VlataiInput),
     #[command(name = "gentufa", visible_alias = "parse")]
     Gentufa(GentufaInput),
     #[command(name = "mulgau", visible_alias = "completions")]
@@ -234,6 +241,14 @@ enum VlaseiFormat {
     Tree,
     Ipa,
     Raw,
+    #[value(alias = "djeisone")]
+    Json,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum VlataiFormat {
+    Text,
     #[value(alias = "djeisone")]
     Json,
 }
@@ -414,6 +429,40 @@ impl VlaseiInput {
         read_text_input(self.file.as_ref(), &self.text, stdin_text)
     }
 
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn dialect_definition(&self) -> Result<DialectDefinition> {
+        dialect_definition(self.dialect.as_deref())
+    }
+}
+
+#[derive(Debug, Clone, Args)]
+#[invariant(true)]
+struct VlataiInput {
+    #[arg(long = "ascii")]
+    ascii: bool,
+    #[arg(long = "detailed-errors")]
+    detailed_errors: bool,
+    #[arg(
+        long = "turtai",
+        visible_alias = "format",
+        default_value_t = VlataiFormat::Text,
+        value_enum
+    )]
+    format: VlataiFormat,
+    #[arg(long = "indent")]
+    indent: Option<usize>,
+    #[arg(long = "dialect")]
+    dialect: Option<String>,
+    #[arg(long = "mark-stress", value_enum)]
+    mark_stress: Option<CliStressMark>,
+    #[arg(long = "mark-glides", value_enum)]
+    mark_glides: Option<CliGlideMark>,
+    #[arg(required = true)]
+    words: Vec<String>,
+}
+
+impl VlataiInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     fn dialect_definition(&self) -> Result<DialectDefinition> {
@@ -1369,6 +1418,51 @@ fn run_cli_command<WOut: Write, WErr: Write>(
                 VlaseiFormat::Raw => write_debug_output(stdout, &words, input.indent)?,
             }
             Ok(CliStatus::Success)
+        }
+        Command::Vlatai(input) => {
+            let glyphs = cli_glyph_style(input.ascii);
+            let diagnostic_detail = cli_diagnostic_detail(input.detailed_errors);
+            let dialect = input.dialect_definition()?;
+            let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+            let phoneme_options =
+                phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
+            let analyses = input
+                .words
+                .iter()
+                .enumerate()
+                .map(|(index, word)| {
+                    let source_label = vlatai_source_label(index);
+                    analyze_valsi_with_options_and_source_id(
+                        word,
+                        &morphology_options,
+                        Some(SourceId(source_label)),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let status = if analyses.iter().all(|analysis| analysis.result.is_valid()) {
+                CliStatus::Success
+            } else {
+                CliStatus::Failure
+            };
+            match input.format {
+                VlataiFormat::Text => {
+                    let rendered = render_vlatai_text(
+                        &analyses,
+                        phoneme_options,
+                        color_policy.stdout,
+                        diagnostic_detail,
+                        glyphs,
+                        diagnostic_terminal_width,
+                    )?;
+                    stdout.write_all(rendered.as_bytes())?;
+                }
+                VlataiFormat::Json => {
+                    let rendered =
+                        render_vlatai_json(&analyses, phoneme_options, input.indent.unwrap_or(2))?;
+                    writeln!(stdout, "{}", colorize_json(&rendered, color_policy.stdout))?;
+                }
+            }
+            Ok(status)
         }
         Command::Gentufa(mut input) => {
             let glyphs = cli_glyph_style(input.ascii);
@@ -3251,6 +3345,464 @@ fn write_source_diagnostics<W: Write>(
     Ok(())
 }
 
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn vlatai_source_label(index: usize) -> String {
+    format!("<arg:{}>", index + 1)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlatai_text(
+    analyses: &[ValsiAnalysis],
+    phoneme_options: PhonemeRenderOptions,
+    color_enabled: bool,
+    diagnostic_detail: DiagnosticDetailMode,
+    glyphs: GlyphStyle,
+    diagnostic_terminal_width: usize,
+) -> Result<String> {
+    let mut out = String::new();
+    for (index, analysis) in analyses.iter().enumerate() {
+        if index > 0 {
+            out.push('\n');
+        }
+        let source_label = vlatai_source_label(index);
+        out.push_str(&format!("valsi: {}\n", analysis.input));
+        out.push_str(&format!("status: {}\n", vlatai_status(analysis)));
+        let diagnostics = vlatai_diagnostics(analysis, Some(SourceId(source_label.clone())))?;
+        out.push_str(&render_source_diagnostics(
+            &source_label,
+            &analysis.input,
+            &diagnostics,
+            color_enabled,
+            diagnostic_detail,
+            glyphs,
+            diagnostic_terminal_width,
+        )?);
+        match analysis.result.status {
+            ValsiAnalysisStatus::Valid => {
+                let classification = analysis
+                    .result
+                    .classification
+                    .as_ref()
+                    .expect("valid vlatai result carries classification");
+                render_vlatai_classification_text(&mut out, classification, phoneme_options);
+            }
+            ValsiAnalysisStatus::NotSingleWord => {
+                let rendered = pretty_morphology_brackets_with_options(
+                    &analysis.result.words,
+                    &analysis.input,
+                    BracketRenderOptions {
+                        color: color_enabled,
+                        phonemes: phoneme_options,
+                        script: LojbanScript::Latin,
+                        glyphs,
+                        decompose_lujvo: true,
+                        insert_hair_space: false,
+                        show_elided: false,
+                    },
+                )?;
+                out.push_str(&format!("words: {rendered}\n"));
+            }
+            ValsiAnalysisStatus::Invalid => {}
+        }
+    }
+    Ok(out)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn render_vlatai_json(
+    analyses: &[ValsiAnalysis],
+    phoneme_options: PhonemeRenderOptions,
+    indent: usize,
+) -> Result<String> {
+    let reports = analyses
+        .iter()
+        .enumerate()
+        .map(|(index, analysis)| vlatai_json_value(index, analysis, phoneme_options))
+        .collect::<Result<Vec<_>>>()?;
+    let value = serde_json::Value::Array(reports);
+    if indent == 0 {
+        Ok(serde_json::to_string(&value)?)
+    } else {
+        Ok(serde_json::to_string_pretty(&value)?)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok() || ret.is_err())]
+fn vlatai_json_value(
+    index: usize,
+    analysis: &ValsiAnalysis,
+    phoneme_options: PhonemeRenderOptions,
+) -> Result<serde_json::Value> {
+    let diagnostics = vlatai_diagnostics(analysis, Some(SourceId(vlatai_source_label(index))))?;
+    let mut value = serde_json::json!({
+        "input": analysis.input,
+        "status": vlatai_status(analysis),
+        "diagnostics": diagnostics,
+    });
+    match analysis.result.status {
+        ValsiAnalysisStatus::Valid => {
+            let word = analysis
+                .result
+                .word
+                .as_ref()
+                .expect("valid vlatai result carries word");
+            let classification = analysis
+                .result
+                .classification
+                .as_ref()
+                .expect("valid vlatai result carries classification");
+            value["classification"] = vlatai_classification_json(classification, phoneme_options);
+            value["word"] = compact_morphology_json_value(std::slice::from_ref(word))?;
+        }
+        ValsiAnalysisStatus::Invalid => {}
+        ValsiAnalysisStatus::NotSingleWord => {
+            value["words"] = compact_morphology_json_value(&analysis.result.words)?;
+        }
+    }
+    Ok(value)
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, "valid" | "invalid" | "not-single-word"))]
+fn vlatai_status(analysis: &ValsiAnalysis) -> &'static str {
+    match analysis.result.status {
+        ValsiAnalysisStatus::Valid => "valid",
+        ValsiAnalysisStatus::Invalid => "invalid",
+        ValsiAnalysisStatus::NotSingleWord => "not-single-word",
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok() || ret.is_err())]
+fn vlatai_diagnostics(
+    analysis: &ValsiAnalysis,
+    source_id: Option<SourceId>,
+) -> Result<Vec<Diagnostic>> {
+    let mut diagnostics =
+        morphology_warning_diagnostics(&analysis.warnings, source_id.clone(), &analysis.input);
+    match analysis.result.status {
+        ValsiAnalysisStatus::Invalid => {
+            let error = analysis
+                .result
+                .error
+                .as_ref()
+                .expect("invalid vlatai result carries error");
+            diagnostics.push(error.to_diagnostic(source_id, &analysis.input));
+        }
+        ValsiAnalysisStatus::NotSingleWord => {
+            diagnostics.push(vlatai_not_single_word_diagnostic(
+                source_id,
+                &analysis.input,
+                analysis.result.words.len(),
+            )?);
+        }
+        ValsiAnalysisStatus::Valid => {}
+    }
+    Ok(diagnostics)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error) || ret.is_err())]
+fn vlatai_not_single_word_diagnostic(
+    source_id: Option<SourceId>,
+    source: &str,
+    word_count: usize,
+) -> Result<Diagnostic> {
+    let char_end = source.chars().count();
+    let span = source_span_from_char_offsets(source_id, source, 0, char_end)
+        .map_err(|error| anyhow!(error))?;
+    let (message, label) = if word_count == 0 {
+        ("input did not parse as one word", "parsed zero words")
+    } else {
+        (
+            "input parsed as multiple words",
+            "parsed more than one word",
+        )
+    };
+    Ok(Diagnostic::new(
+        DiagnosticSeverity::Error,
+        DiagnosticPhase::Morphology,
+        "vlatai.not-single-word".to_owned(),
+        message.to_owned(),
+        vec![DiagnosticLabel::new(span, label.to_owned(), true)],
+        vec![format!("parsed word count: {word_count}")],
+        None,
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlatai_classification_text(
+    out: &mut String,
+    classification: &ValsiClassification,
+    phoneme_options: PhonemeRenderOptions,
+) {
+    render_vlatai_classification_text_with_prefix(out, classification, phoneme_options, "");
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_vlatai_classification_text_with_prefix(
+    out: &mut String,
+    classification: &ValsiClassification,
+    phoneme_options: PhonemeRenderOptions,
+    prefix: &str,
+) {
+    match classification.kind {
+        ValsiClassificationKind::PlainWord => {
+            render_plain_word_classification_text(
+                out,
+                classification
+                    .word
+                    .as_ref()
+                    .expect("plain-word classification carries word"),
+                phoneme_options,
+                prefix,
+            );
+        }
+        ValsiClassificationKind::QuotedWord => {
+            out.push_str(&format!("{prefix}category: quoted-word\n"));
+            render_plain_word_classification_text(
+                out,
+                classification.marker.as_ref().expect("quoted word marker"),
+                phoneme_options,
+                "marker ",
+            );
+            render_plain_word_classification_text(
+                out,
+                classification
+                    .quoted_word
+                    .as_ref()
+                    .expect("quoted word payload"),
+                phoneme_options,
+                "quoted ",
+            );
+        }
+        ValsiClassificationKind::DelimitedNonLojbanQuote => {
+            out.push_str(&format!("{prefix}category: delimited-non-lojban-quote\n"));
+            render_plain_word_classification_text(
+                out,
+                classification.marker.as_ref().expect("quote marker"),
+                phoneme_options,
+                "marker ",
+            );
+            let delimiter = classification
+                .delimiter
+                .as_ref()
+                .expect("delimited quote carries delimiter");
+            out.push_str(&format!("{prefix}delimiter: {delimiter}\n"));
+        }
+        ValsiClassificationKind::QuotedWords => {
+            out.push_str(&format!("{prefix}category: quoted-words\n"));
+            render_plain_word_classification_text(
+                out,
+                classification.marker.as_ref().expect("quoted words marker"),
+                phoneme_options,
+                "marker ",
+            );
+            out.push_str(&format!(
+                "{prefix}quoted word count: {}\n",
+                classification.quoted_words.len()
+            ));
+        }
+        ValsiClassificationKind::DelimitedWordQuote => {
+            out.push_str(&format!("{prefix}category: delimited-word-quote\n"));
+            out.push_str(&format!(
+                "{prefix}marker: {}\n",
+                classification
+                    .marker_text
+                    .as_ref()
+                    .expect("delimited word quote marker")
+            ));
+        }
+        ValsiClassificationKind::LerfuWord => {
+            out.push_str(&format!("{prefix}category: lerfu-word\n"));
+            render_vlatai_classification_text_with_prefix(
+                out,
+                classification.base.as_ref().expect("lerfu base"),
+                phoneme_options,
+                "base ",
+            );
+            render_plain_word_classification_text(
+                out,
+                classification.suffix.as_ref().expect("lerfu suffix"),
+                phoneme_options,
+                "suffix ",
+            );
+        }
+        ValsiClassificationKind::ZeiCompound => {
+            out.push_str(&format!("{prefix}category: zei-compound\n"));
+            render_vlatai_classification_text_with_prefix(
+                out,
+                classification.left.as_ref().expect("zei left"),
+                phoneme_options,
+                "left ",
+            );
+            render_plain_word_classification_text(
+                out,
+                classification.link.as_ref().expect("zei link"),
+                phoneme_options,
+                "link ",
+            );
+            render_plain_word_classification_text(
+                out,
+                classification.right.as_ref().expect("zei right"),
+                phoneme_options,
+                "right ",
+            );
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_plain_word_classification_text(
+    out: &mut String,
+    classification: &PlainWordClassification,
+    phoneme_options: PhonemeRenderOptions,
+    prefix: &str,
+) {
+    match classification.category {
+        WordKind::Cmavo => {
+            out.push_str(&format!("{prefix}category: cmavo\n"));
+            out.push_str(&format!(
+                "{prefix}phonemes: {}\n",
+                render_vlatai_phonemes(&classification.phonemes, phoneme_options)
+            ));
+            if let Some(selmaho) = &classification.selmaho {
+                out.push_str(&format!("{prefix}selma'o: {selmaho}\n"));
+            }
+        }
+        WordKind::Gismu => {
+            out.push_str(&format!("{prefix}category: gismu\n"));
+            out.push_str(&format!(
+                "{prefix}phonemes: {}\n",
+                render_vlatai_phonemes(&classification.phonemes, phoneme_options)
+            ));
+        }
+        WordKind::Lujvo => {
+            out.push_str(&format!("{prefix}category: lujvo\n"));
+            out.push_str(&format!(
+                "{prefix}phonemes: {}\n",
+                render_vlatai_phonemes(&classification.phonemes, phoneme_options)
+            ));
+            let split = classification
+                .split
+                .as_ref()
+                .expect("lujvo classification carries split");
+            out.push_str(&format!("{prefix}split: {split}\n"));
+            out.push_str(&format!("{prefix}parts:\n"));
+            for part in &classification.parts {
+                out.push_str(&format!("{prefix}  - {}\n", vlatai_lujvo_part_text(part)));
+            }
+        }
+        WordKind::Fuhivla => {
+            out.push_str(&format!("{prefix}category: fu'ivla\n"));
+            out.push_str(&format!(
+                "{prefix}phonemes: {}\n",
+                render_vlatai_phonemes(&classification.phonemes, phoneme_options)
+            ));
+            let stage = classification
+                .stage
+                .expect("fu'ivla classification carries stage");
+            out.push_str(&format!("{prefix}stage: {}\n", vlatai_fuhivla_stage(stage)));
+        }
+        WordKind::Cmevla => {
+            out.push_str(&format!("{prefix}category: cmevla\n"));
+            out.push_str(&format!(
+                "{prefix}phonemes: {}\n",
+                render_vlatai_phonemes(&classification.phonemes, phoneme_options)
+            ));
+        }
+    }
+}
+
+#[requires(!part.text.is_empty())]
+#[ensures(!ret.is_empty())]
+fn vlatai_lujvo_part_text(part: &ValsiLujvoPart) -> String {
+    match part.kind {
+        ValsiLujvoPartKind::Hyphen => format!("hyphen: {}", part.text),
+        ValsiLujvoPartKind::Rafsi => format!(
+            "rafsi: {} ({})",
+            part.text,
+            part.rafsi_kind
+                .map(vlatai_rafsi_kind)
+                .unwrap_or("unknown-rafsi")
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn vlatai_rafsi_kind(kind: ValsiLujvoRafsiKind) -> &'static str {
+    match kind {
+        ValsiLujvoRafsiKind::Cvc => "cvc-rafsi",
+        ValsiLujvoRafsiKind::Ccv => "ccv-rafsi",
+        ValsiLujvoRafsiKind::Cvv => "cvv-rafsi",
+        ValsiLujvoRafsiKind::Long => "long-rafsi",
+        ValsiLujvoRafsiKind::Gismu => "gismu",
+        ValsiLujvoRafsiKind::Fuhivla => "fu'ivla",
+        ValsiLujvoRafsiKind::Cultural => "cultural-rafsi",
+        ValsiLujvoRafsiKind::Extended => "extended-rafsi",
+        ValsiLujvoRafsiKind::Unknown => "unknown-rafsi",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn vlatai_fuhivla_stage(stage: ValsiFuhivlaStage) -> &'static str {
+    match stage {
+        ValsiFuhivlaStage::Stage3 => "stage-3",
+        ValsiFuhivlaStage::Stage4 => "stage-4",
+        ValsiFuhivlaStage::Unknown => "unknown",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vlatai_classification_json(
+    classification: &ValsiClassification,
+    phoneme_options: PhonemeRenderOptions,
+) -> serde_json::Value {
+    match classification.kind {
+        ValsiClassificationKind::PlainWord => plain_word_classification_json(
+            classification
+                .word
+                .as_ref()
+                .expect("plain-word classification carries word"),
+            phoneme_options,
+        ),
+        _ => serde_json::to_value(classification).expect("vlatai classification serializes"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn plain_word_classification_json(
+    classification: &PlainWordClassification,
+    phoneme_options: PhonemeRenderOptions,
+) -> serde_json::Value {
+    let mut value =
+        serde_json::to_value(classification).expect("plain word classification serializes");
+    value["phonemes"] = serde_json::Value::String(render_vlatai_phonemes(
+        &classification.phonemes,
+        phoneme_options,
+    ));
+    value
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty() || phonemes.is_empty())]
+fn render_vlatai_phonemes(phonemes: &str, options: PhonemeRenderOptions) -> String {
+    Phonemes::from_canonical(phonemes.to_owned())
+        .map(|value| value.render(options))
+        .unwrap_or_else(|_| phonemes.to_owned())
+}
+
 #[requires(!source_label.is_empty())]
 #[requires(diagnostic_terminal_width > 0)]
 #[ensures(diagnostics.is_empty() -> ret.as_ref().is_ok_and(String::is_empty))]
@@ -4040,8 +4592,78 @@ mod tests {
                 .command,
             Command::Vlasei(_)
         ));
+        assert!(matches!(
+            Cli::try_parse_from(["jbotci", "vlatai", "coi"])
+                .expect("vlatai command")
+                .command,
+            Command::Vlatai(_)
+        ));
         assert!(Cli::try_parse_from(["jbotci", "server"]).is_err());
         assert!(Cli::try_parse_from(["jbotci", "selfu"]).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlatai_text_reports_lujvo_split_and_stdout_diagnostics() {
+        let run = run_cli_capture(
+            &["jbotci", "vlatai", "jetcybolxada", "coibroda", "aa"],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Failure);
+        assert!(run.stderr.is_empty());
+        assert_in_order(
+            &run.stdout,
+            &[
+                "valsi: jetcybolxada\n",
+                "status: valid\n",
+                "category: lujvo\n",
+                "phonemes: jetcybolxáda\n",
+                "split: jetc-y-bolxáda\n",
+                "rafsi: jetc",
+                "hyphen: y",
+                "rafsi: bolxáda",
+                "valsi: coibroda\n",
+                "status: not-single-word\n",
+                "vlatai.not-single-word",
+                "words:",
+                "valsi: aa\n",
+                "status: invalid\n",
+                "morphology.vowel-hiatus",
+            ],
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlatai_json_reports_machine_readable_statuses() {
+        let run = run_cli_capture(
+            &[
+                "jbotci",
+                "vlatai",
+                "--format",
+                "json",
+                "jetcybolxada",
+                "coibroda",
+            ],
+            false,
+        );
+
+        assert_eq!(run.status, CliStatus::Failure);
+        assert!(run.stderr.is_empty());
+        let json: serde_json::Value = serde_json::from_str(&run.stdout).expect("valid JSON");
+        assert_eq!(json[0]["status"], "valid");
+        assert_eq!(json[0]["classification"]["category"], "lujvo");
+        assert_eq!(json[0]["classification"]["split"], "jetc-y-bolxáda");
+        assert_eq!(json[1]["status"], "not-single-word");
+        assert!(
+            json[1]["diagnostics"]
+                .as_array()
+                .is_some_and(|value| !value.is_empty())
+        );
+        assert!(json[1]["words"].is_array());
     }
 
     #[test]

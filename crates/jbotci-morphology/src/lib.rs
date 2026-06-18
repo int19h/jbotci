@@ -135,6 +135,136 @@ pub enum WordKind {
     Cmevla,
 }
 
+#[invariant(result.is_valid() -> warnings.iter().all(|warning| warning.char_start < warning.char_end))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValsiAnalysis {
+    pub input: String,
+    pub warnings: Vec<MorphologyWarning>,
+    pub result: ValsiAnalysisResult,
+}
+
+#[invariant(matches!(status, ValsiAnalysisStatus::Valid) == word.is_some())]
+#[invariant(matches!(status, ValsiAnalysisStatus::Valid) == classification.is_some())]
+#[invariant(matches!(status, ValsiAnalysisStatus::Invalid) == error.is_some())]
+#[invariant(matches!(status, ValsiAnalysisStatus::NotSingleWord) == (word.is_none() && classification.is_none() && error.is_none()))]
+#[invariant(matches!(status, ValsiAnalysisStatus::NotSingleWord) || words.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValsiAnalysisResult {
+    pub status: ValsiAnalysisStatus,
+    pub word: Option<WordLike>,
+    pub classification: Option<ValsiClassification>,
+    pub error: Option<MorphologyError>,
+    pub words: Vec<WordLike>,
+}
+
+impl ValsiAnalysisResult {
+    #[requires(true)]
+    #[ensures(ret == matches!(self.status, ValsiAnalysisStatus::Valid))]
+    pub fn is_valid(&self) -> bool {
+        matches!(self.status, ValsiAnalysisStatus::Valid)
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ValsiAnalysisStatus {
+    Valid,
+    Invalid,
+    NotSingleWord,
+}
+
+#[invariant(matches!(kind, ValsiClassificationKind::PlainWord) == word.is_some())]
+#[invariant(matches!(kind, ValsiClassificationKind::DelimitedNonLojbanQuote) == delimiter.is_some())]
+#[invariant(matches!(kind, ValsiClassificationKind::DelimitedWordQuote) == marker_text.is_some())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ValsiClassification {
+    pub kind: ValsiClassificationKind,
+    pub word: Option<PlainWordClassification>,
+    pub marker: Option<PlainWordClassification>,
+    pub quoted_word: Option<PlainWordClassification>,
+    pub quoted_words: Vec<PlainWordClassification>,
+    pub marker_text: Option<String>,
+    pub delimiter: Option<String>,
+    pub base: Option<Box<ValsiClassification>>,
+    pub left: Option<Box<ValsiClassification>>,
+    pub link: Option<PlainWordClassification>,
+    pub right: Option<PlainWordClassification>,
+    pub suffix: Option<PlainWordClassification>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ValsiClassificationKind {
+    PlainWord,
+    QuotedWord,
+    DelimitedNonLojbanQuote,
+    QuotedWords,
+    DelimitedWordQuote,
+    LerfuWord,
+    ZeiCompound,
+}
+
+#[invariant(!phonemes.is_empty())]
+#[invariant(*category == WordKind::Cmavo || selmaho.is_none())]
+#[invariant(*category == WordKind::Lujvo || (split.is_none() && parts.is_empty()))]
+#[invariant(*category == WordKind::Fuhivla || stage.is_none())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct PlainWordClassification {
+    pub category: WordKind,
+    pub phonemes: String,
+    pub selmaho: Option<String>,
+    pub split: Option<String>,
+    pub parts: Vec<ValsiLujvoPart>,
+    pub stage: Option<ValsiFuhivlaStage>,
+}
+
+#[invariant(!text.is_empty())]
+#[invariant(matches!(kind, ValsiLujvoPartKind::Hyphen) -> rafsi_kind.is_none())]
+#[invariant(matches!(kind, ValsiLujvoPartKind::Rafsi) -> rafsi_kind.is_some())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ValsiLujvoPart {
+    pub kind: ValsiLujvoPartKind,
+    pub text: String,
+    pub rafsi_kind: Option<ValsiLujvoRafsiKind>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub enum ValsiLujvoPartKind {
+    Rafsi,
+    Hyphen,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub enum ValsiLujvoRafsiKind {
+    Cvc,
+    Ccv,
+    Cvv,
+    Long,
+    Gismu,
+    Fuhivla,
+    Cultural,
+    Extended,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub enum ValsiFuhivlaStage {
+    Stage3,
+    Stage4,
+    Unknown,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum StressMark {
@@ -1521,6 +1651,272 @@ pub fn segment_words_with_modifiers(input: &str) -> Result<Vec<WordLike>, Morpho
 }
 
 #[requires(true)]
+#[ensures(ret.input == input)]
+#[ensures(matches!(ret.result.status, ValsiAnalysisStatus::Valid | ValsiAnalysisStatus::Invalid | ValsiAnalysisStatus::NotSingleWord))]
+pub fn analyze_valsi_with_options_and_source_id(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> ValsiAnalysis {
+    let attempt =
+        segment_words_with_modifiers_with_options_and_source_id_attempt(input, options, source_id);
+    let attempt = attempt.into_data();
+    let result = match attempt.result {
+        Ok(words) if words.len() == 1 => {
+            let word = words
+                .into_iter()
+                .next()
+                .expect("length checked above guarantees a word");
+            let classification = valsi_classification(&word);
+            new!(ValsiAnalysisResult {
+                status: ValsiAnalysisStatus::Valid,
+                word: Some(word),
+                classification: Some(classification),
+                error: None,
+                words: Vec::new(),
+            })
+        }
+        Ok(words) => new!(ValsiAnalysisResult {
+            status: ValsiAnalysisStatus::NotSingleWord,
+            word: None,
+            classification: None,
+            error: None,
+            words: words,
+        }),
+        Err(error) => new!(ValsiAnalysisResult {
+            status: ValsiAnalysisStatus::Invalid,
+            word: None,
+            classification: None,
+            error: Some(error),
+            words: Vec::new(),
+        }),
+    };
+    new!(ValsiAnalysis {
+        input: input.to_owned(),
+        warnings: attempt.warnings,
+        result: result,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn analyze_valsi_with_options(input: &str, options: &MorphologyOptions) -> ValsiAnalysis {
+    analyze_valsi_with_options_and_source_id(input, options, None)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn analyze_valsi(input: &str) -> ValsiAnalysis {
+    analyze_valsi_with_options(input, &MorphologyOptions::default())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn valsi_classification(word_like: &WordLike) -> ValsiClassification {
+    match word_like.as_data() {
+        data!(WordLike::PlainWord(word)) => valsi_classification_data(
+            ValsiClassificationKind::PlainWord,
+            Some(plain_word_classification(word)),
+        ),
+        data!(WordLike::QuotedWord { zo, word }) => new!(ValsiClassification {
+            kind: ValsiClassificationKind::QuotedWord,
+            word: None,
+            marker: Some(plain_word_classification(zo)),
+            quoted_word: Some(plain_word_classification(word)),
+            quoted_words: Vec::new(),
+            marker_text: None,
+            delimiter: None,
+            base: None,
+            left: None,
+            link: None,
+            right: None,
+            suffix: None,
+        }),
+        data!(WordLike::DelimitedNonLojbanQuote {
+            zoi,
+            opening_delimiter,
+            ..
+        }) => new!(ValsiClassification {
+            kind: ValsiClassificationKind::DelimitedNonLojbanQuote,
+            word: None,
+            marker: Some(plain_word_classification(zoi)),
+            quoted_word: None,
+            quoted_words: Vec::new(),
+            marker_text: None,
+            delimiter: Some(opening_delimiter.phonemes().into_string()),
+            base: None,
+            left: None,
+            link: None,
+            right: None,
+            suffix: None,
+        }),
+        data!(WordLike::QuotedWords {
+            lohu,
+            quoted_words,
+            ..
+        }) => new!(ValsiClassification {
+            kind: ValsiClassificationKind::QuotedWords,
+            word: None,
+            marker: Some(plain_word_classification(lohu)),
+            quoted_word: None,
+            quoted_words: quoted_words.iter().map(plain_word_classification).collect(),
+            marker_text: None,
+            delimiter: None,
+            base: None,
+            left: None,
+            link: None,
+            right: None,
+            suffix: None,
+        }),
+        data!(WordLike::DelimitedWordQuote { marker, .. }) => new!(ValsiClassification {
+            kind: ValsiClassificationKind::DelimitedWordQuote,
+            word: None,
+            marker: None,
+            quoted_word: None,
+            quoted_words: Vec::new(),
+            marker_text: Some(marker.phonemes().into_string()),
+            delimiter: None,
+            base: None,
+            left: None,
+            link: None,
+            right: None,
+            suffix: None,
+        }),
+        data!(WordLike::LerfuWord { base, bu }) => new!(ValsiClassification {
+            kind: ValsiClassificationKind::LerfuWord,
+            word: None,
+            marker: None,
+            quoted_word: None,
+            quoted_words: Vec::new(),
+            marker_text: None,
+            delimiter: None,
+            base: Some(Box::new(valsi_classification(base))),
+            left: None,
+            link: None,
+            right: None,
+            suffix: Some(plain_word_classification(bu)),
+        }),
+        data!(WordLike::ZeiCompound { left, zei, right }) => new!(ValsiClassification {
+            kind: ValsiClassificationKind::ZeiCompound,
+            word: None,
+            marker: None,
+            quoted_word: None,
+            quoted_words: Vec::new(),
+            marker_text: None,
+            delimiter: None,
+            base: None,
+            left: Some(Box::new(valsi_classification(left))),
+            link: Some(plain_word_classification(zei)),
+            right: Some(plain_word_classification(right)),
+            suffix: None,
+        }),
+    }
+}
+
+#[requires(matches!(kind, ValsiClassificationKind::PlainWord) == word.is_some())]
+#[ensures(ret.kind == kind)]
+fn valsi_classification_data(
+    kind: ValsiClassificationKind,
+    word: Option<PlainWordClassification>,
+) -> ValsiClassification {
+    new!(ValsiClassification {
+        kind: kind,
+        word: word,
+        marker: None,
+        quoted_word: None,
+        quoted_words: Vec::new(),
+        marker_text: None,
+        delimiter: None,
+        base: None,
+        left: None,
+        link: None,
+        right: None,
+        suffix: None,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn plain_word_classification(word: &Word) -> PlainWordClassification {
+    let phonemes = word.phonemes().into_string();
+    match word.kind() {
+        WordKind::Cmavo => new!(PlainWordClassification {
+            category: WordKind::Cmavo,
+            phonemes: phonemes,
+            selmaho: word.selmaho().map(str::to_owned),
+            split: None,
+            parts: Vec::new(),
+            stage: None,
+        }),
+        WordKind::Gismu => new!(PlainWordClassification {
+            category: WordKind::Gismu,
+            phonemes: phonemes,
+            selmaho: None,
+            split: None,
+            parts: Vec::new(),
+            stage: None,
+        }),
+        WordKind::Lujvo => {
+            let parts = word
+                .lujvo_parts()
+                .expect("lujvo words carry parsed lujvo parts")
+                .iter()
+                .map(valsi_lujvo_part)
+                .collect::<Vec<_>>();
+            let split = parts
+                .iter()
+                .map(|part| part.text.as_str())
+                .collect::<Vec<_>>()
+                .join("-");
+            new!(PlainWordClassification {
+                category: WordKind::Lujvo,
+                phonemes: phonemes,
+                selmaho: None,
+                split: Some(split),
+                parts: parts,
+                stage: None,
+            })
+        }
+        WordKind::Fuhivla => new!(PlainWordClassification {
+            category: WordKind::Fuhivla,
+            stage: Some(segment::classify_fuhivla_stage(&phonemes)),
+            phonemes: phonemes,
+            selmaho: None,
+            split: None,
+            parts: Vec::new(),
+        }),
+        WordKind::Cmevla => new!(PlainWordClassification {
+            category: WordKind::Cmevla,
+            phonemes: phonemes,
+            selmaho: None,
+            split: None,
+            parts: Vec::new(),
+            stage: None,
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.text.is_empty())]
+fn valsi_lujvo_part(part: &LujvoPart) -> ValsiLujvoPart {
+    match part {
+        LujvoPart::Rafsi(phonemes) => {
+            let text = phonemes.as_str().to_owned();
+            new!(ValsiLujvoPart {
+                kind: ValsiLujvoPartKind::Rafsi,
+                rafsi_kind: Some(segment::classify_lujvo_rafsi(&text)),
+                text: text,
+            })
+        }
+        LujvoPart::Hyphen(phonemes) => new!(ValsiLujvoPart {
+            kind: ValsiLujvoPartKind::Hyphen,
+            rafsi_kind: None,
+            text: phonemes.as_str().to_owned(),
+        }),
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub fn segment_words_with_modifiers_with_options(
     input: &str,
@@ -2343,6 +2739,78 @@ mod tests {
                 "{source}"
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valsi_analysis_classifies_lujvo_with_parts() {
+        let analysis = analyze_valsi("jetcybolxada");
+
+        assert!(matches!(analysis.result.status, ValsiAnalysisStatus::Valid));
+        let classification = analysis
+            .result
+            .classification
+            .as_ref()
+            .expect("valid analysis has classification");
+        let word = classification
+            .word
+            .as_ref()
+            .expect("plain word classification");
+        assert_eq!(word.category, WordKind::Lujvo);
+        assert_eq!(word.phonemes, "jetcybolxáda");
+        assert_eq!(word.split.as_deref(), Some("jetc-y-bolxáda"));
+        assert_eq!(
+            word.parts
+                .iter()
+                .map(|part| part.text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["jetc", "y", "bolxáda"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valsi_analysis_reports_invalid_and_not_single_word() {
+        let invalid = analyze_valsi("aa");
+        assert!(matches!(
+            invalid.result.status,
+            ValsiAnalysisStatus::Invalid
+        ));
+        assert!(invalid.result.error.is_some());
+
+        let multiple = analyze_valsi("coibroda");
+        assert!(matches!(
+            multiple.result.status,
+            ValsiAnalysisStatus::NotSingleWord
+        ));
+        assert_eq!(multiple.result.words.len(), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valsi_analysis_labels_fuhivla_stage() {
+        let stage3 = analyze_valsi("cidjrspageti");
+        let stage3_word = stage3
+            .result
+            .classification
+            .as_ref()
+            .and_then(|classification| classification.word.as_ref())
+            .expect("valid plain word classification");
+        assert_eq!(stage3_word.category, WordKind::Fuhivla);
+        assert_eq!(stage3_word.stage, Some(ValsiFuhivlaStage::Stage3));
+
+        let stage4 = analyze_valsi("spageti");
+        let stage4_word = stage4
+            .result
+            .classification
+            .as_ref()
+            .and_then(|classification| classification.word.as_ref())
+            .expect("valid plain word classification");
+        assert_eq!(stage4_word.category, WordKind::Fuhivla);
+        assert_eq!(stage4_word.stage, Some(ValsiFuhivlaStage::Stage4));
     }
 
     #[test]

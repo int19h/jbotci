@@ -1168,6 +1168,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
+        "apps/jbotci/src/main.rs:Command::Vlatai",
+        "CLI enum delegates validation to clap and command option structs",
+    ),
+    (
         "apps/jbotci/src/main.rs:Command::Gentufa",
         "CLI enum delegates validation to clap and command option structs",
     ),

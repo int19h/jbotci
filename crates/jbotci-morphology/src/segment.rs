@@ -729,6 +729,94 @@ pub(crate) fn pronunciation_syllable_texts(phonemes: &str) -> Option<Vec<String>
     strict_pronunciation_syllable_texts(&chars)
 }
 
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn classify_lujvo_rafsi(text: &str) -> crate::ValsiLujvoRafsiKind {
+    let chars = text_chars(text);
+    if chars.is_empty() {
+        return crate::ValsiLujvoRafsiKind::Unknown;
+    }
+    let end = chars.len();
+    if is_cultural_rafsi_slice(&chars, 0, end) {
+        return crate::ValsiLujvoRafsiKind::Cultural;
+    }
+    if is_gismu_slice(&chars, 0, end) {
+        return crate::ValsiLujvoRafsiKind::Gismu;
+    }
+    if is_fuhivla_shape_slice(&chars, 0, end) {
+        return crate::ValsiLujvoRafsiKind::Fuhivla;
+    }
+    if cvc_rafsi_end(&chars, 0) == Some(end) {
+        return crate::ValsiLujvoRafsiKind::Cvc;
+    }
+    if ccv_rafsi_end(&chars, 0) == Some(end) {
+        return crate::ValsiLujvoRafsiKind::Ccv;
+    }
+    if cvv_rafsi_ends(&chars, 0)
+        .into_iter()
+        .any(|rafsi_end| rafsi_end == end)
+    {
+        return crate::ValsiLujvoRafsiKind::Cvv;
+    }
+    if long_rafsi_ends(&chars, 0)
+        .into_iter()
+        .any(|rafsi_end| rafsi_end == end)
+    {
+        return crate::ValsiLujvoRafsiKind::Long;
+    }
+    if rafsi_string_slice(&chars, 0, end) {
+        return crate::ValsiLujvoRafsiKind::Extended;
+    }
+    crate::ValsiLujvoRafsiKind::Unknown
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn classify_fuhivla_stage(text: &str) -> crate::ValsiFuhivlaStage {
+    let chars = text_chars(text);
+    if chars.is_empty() || !is_fuhivla_shape_slice(&chars, 0, chars.len()) {
+        return crate::ValsiFuhivlaStage::Unknown;
+    }
+    if has_stage3_classifier(&chars) {
+        crate::ValsiFuhivlaStage::Stage3
+    } else {
+        crate::ValsiFuhivlaStage::Stage4
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_stage3_classifier(chars: &[char]) -> bool {
+    let end = chars.len();
+    for classifier_end in y_rafsi_ends(chars, 0)
+        .into_iter()
+        .chain(hy_rafsi_ends(chars, 0))
+        .chain(rn_hyphenated_classifier_ends(chars, 0))
+    {
+        if classifier_end < end && is_fuhivla_shape_slice(chars, classifier_end, end) {
+            return true;
+        }
+    }
+    false
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
+fn rn_hyphenated_classifier_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends = Vec::new();
+    for base_end in long_rafsi_ends(chars, index)
+        .into_iter()
+        .chain(cvc_rafsi_end(chars, index))
+        .chain(ccv_rafsi_end(chars, index))
+        .chain(cvv_rafsi_ends(chars, index))
+    {
+        if let Some(end) = r_hyphen_end(chars, base_end).or_else(|| n_hyphen_end(chars, base_end)) {
+            ends.push(end);
+        }
+    }
+    ends
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 struct PronunciationChar {
@@ -2940,6 +3028,35 @@ fn y_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
         }
     }
     ends
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(true)]
+fn is_cultural_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
+    if end <= start {
+        return false;
+    }
+    let Some(base_end) = rafsi_hyphen_start(chars, start, end) else {
+        return false;
+    };
+    let base = &chars[start..base_end];
+    (base.len() == 5
+        && initial_pair_chars(base[0], base[1])
+        && is_vowel(base[2])
+        && is_vowel(base[3])
+        && is_consonant(base[4]))
+        || (base.len() == 6
+            && initial_pair_chars(base[0], base[1])
+            && is_vowel(base[2])
+            && base[3] == '\''
+            && is_vowel(base[4])
+            && is_consonant(base[5]))
+}
+
+#[requires(start <= end && end <= chars.len())]
+#[ensures(ret.is_none_or(|index| start < index && index < end))]
+fn rafsi_hyphen_start(chars: &[char], start: usize, end: usize) -> Option<usize> {
+    (start + 1..end).find(|index| is_rafsi_hyphen_start(chars, *index))
 }
 
 #[requires(start <= end && end <= chars.len())]

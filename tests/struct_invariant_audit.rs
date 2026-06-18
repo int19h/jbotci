@@ -372,6 +372,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
     (
+        "apps/jbotci/src/main.rs:VlataiInput",
+        "CLI input selector is validated by clap and vlatai command execution",
+    ),
+    (
         "apps/jbotci/src/main.rs:CapturedCliRun",
         "test helper records CLI process output after run_cli returns a status",
     ),
