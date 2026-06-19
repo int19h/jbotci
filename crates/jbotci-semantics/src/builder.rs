@@ -1,6 +1,6 @@
 //! Syntax-to-semantic-graph builder for the public JSON semantics model.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 
 #[allow(unused_imports)]
@@ -280,12 +280,25 @@ struct BoundSelbriTanruPair<'tree> {
     trailing: &'tree SelbriSyntax,
 }
 
+#[invariant(::Explicit => true)]
+#[invariant(::Bare => true)]
+#[derive(Debug, Clone, Copy)]
+enum DaSeriesScopeSource<'tree> {
+    Explicit {
+        quantified_sumti: &'tree SumtiSyntax,
+        quantifier: &'tree QuantifierSyntax,
+    },
+    Bare {
+        da_series_sumti: &'tree SumtiSyntax,
+    },
+}
+
 #[invariant(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
-#[invariant(quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)]
+#[invariant(quantity.is_none_or(|quantity| quantity.object_kind() == crate::model::SemanticObjectKind::Quantity))]
 #[derive(Debug, Clone)]
 struct QuantifiedProSumtiScope {
     variable: SemanticObjectId,
-    quantity: SemanticObjectId,
+    quantity: Option<SemanticObjectId>,
     operator: FormulaOperator,
     source: Option<crate::model::SemanticSource>,
 }
@@ -1279,6 +1292,15 @@ where
         formula: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut scopes = self.quantified_pro_sumti_scopes_for_bridi(bridi)?;
+        let mut scoped_variables = scopes
+            .iter()
+            .map(|scope| scope.variable)
+            .collect::<HashSet<_>>();
+        self.collect_bare_da_series_scopes_from_formula(
+            formula,
+            &mut scoped_variables,
+            &mut scopes,
+        );
         let mut body = formula;
         while let Some(scope) = scopes.pop() {
             let data!(QuantifiedProSumtiScope {
@@ -1296,7 +1318,7 @@ where
                     variable,
                     restriction,
                     body,
-                    Some(quantity),
+                    quantity,
                     source,
                     Vec::new(),
                 ),
@@ -1316,6 +1338,7 @@ where
             return Ok(Vec::new());
         };
         let mut scopes = Vec::new();
+        let mut scoped_variables = HashSet::new();
         let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
         for assignment_id in assignment_ids {
             let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
@@ -1329,31 +1352,135 @@ where
                 .syntax_index
                 .sumti(assignment.sumti)
                 .ok_or_else(SemanticsError::missing_syntax_node)?;
-            let Some(quantified_sumti) = quantified_da_series_sumti(sumti) else {
+            let Some(scope_source) = da_series_scope_source(sumti) else {
                 continue;
             };
-            let data!(SumtiSyntax::QuantifiedSumti { quantifier, .. }) = quantified_sumti.as_data()
-            else {
-                continue;
-            };
-            let raw = self
-                .analysis
-                .syntax_index
-                .sumti_node_id(quantified_sumti)
-                .ok_or_else(SemanticsError::missing_syntax_node)?
-                .0;
             let variable = self.build_sumti_referent(sumti)?;
-            let quantity = self.build_quantity_for_sumti_quantifier(raw, quantifier)?;
+            if !scoped_variables.insert(variable) {
+                continue;
+            }
+            let (quantity, operator, source) = match scope_source {
+                DaSeriesScopeSource::Explicit {
+                    quantified_sumti,
+                    quantifier,
+                } => {
+                    let raw = self
+                        .analysis
+                        .syntax_index
+                        .sumti_node_id(quantified_sumti)
+                        .ok_or_else(SemanticsError::missing_syntax_node)?
+                        .0;
+                    (
+                        Some(self.build_quantity_for_sumti_quantifier(raw, quantifier)?),
+                        quantified_pro_sumti_formula_operator(quantifier),
+                        self.source_for_node(raw, "quantifier-scope"),
+                    )
+                }
+                DaSeriesScopeSource::Bare { da_series_sumti } => {
+                    let raw = self
+                        .analysis
+                        .syntax_index
+                        .sumti_node_id(da_series_sumti)
+                        .ok_or_else(SemanticsError::missing_syntax_node)?
+                        .0;
+                    (
+                        None,
+                        FormulaOperator::Exists,
+                        self.source_for_node(raw, "quantifier-scope"),
+                    )
+                }
+            };
             scopes.push(QuantifiedProSumtiScope::from_data(data!(
                 QuantifiedProSumtiScope {
                     variable,
                     quantity,
-                    operator: quantified_pro_sumti_formula_operator(quantifier),
-                    source: self.source_for_node(raw, "quantifier-scope"),
+                    operator,
+                    source,
                 }
             )));
         }
         Ok(scopes)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(true)]
+    fn collect_bare_da_series_scopes_from_formula(
+        &self,
+        formula: SemanticObjectId,
+        scoped_variables: &mut HashSet<SemanticObjectId>,
+        out: &mut Vec<QuantifiedProSumtiScope>,
+    ) {
+        let Some(object) = self.objects.get(&formula) else {
+            return;
+        };
+        if let Some(predication) = object.predication
+            && let Some(predication) = self.objects.get(&predication)
+        {
+            for argument in predication.arguments.values() {
+                if let Some(value) = argument.value
+                    && value.object_kind() == crate::model::SemanticObjectKind::Referent
+                {
+                    self.push_bare_da_series_scope(value, scoped_variables, out);
+                }
+                for relative_clause in &argument.relative_clauses {
+                    self.collect_bare_da_series_scopes_from_formula(
+                        relative_clause.body,
+                        scoped_variables,
+                        out,
+                    );
+                }
+            }
+        }
+        for child in &object.children {
+            self.collect_bare_da_series_scopes_from_formula(*child, scoped_variables, out);
+        }
+        if let Some(restriction) = object.restriction {
+            self.collect_bare_da_series_scopes_from_formula(restriction, scoped_variables, out);
+        }
+        if let Some(body) = object.body {
+            self.collect_bare_da_series_scopes_from_formula(body, scoped_variables, out);
+        }
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(true)]
+    fn push_bare_da_series_scope(
+        &self,
+        referent: SemanticObjectId,
+        scoped_variables: &mut HashSet<SemanticObjectId>,
+        out: &mut Vec<QuantifiedProSumtiScope>,
+    ) {
+        let Some(object) = self.objects.get(&referent) else {
+            return;
+        };
+        if object.object_kind() != crate::model::SemanticObjectKind::Referent {
+            return;
+        }
+        let Some(descriptor) = &object.descriptor else {
+            return;
+        };
+        if descriptor.kind != "proSumti"
+            || !matches!(descriptor.word.as_str(), "da" | "de" | "di")
+            || descriptor.quantity.is_some()
+            || !scoped_variables.insert(referent)
+        {
+            return;
+        }
+        let source = object
+            .source
+            .clone()
+            .map(|source| crate::model::SemanticSource {
+                construct: Some("quantifier-scope".to_owned()),
+                ..source
+            });
+        out.push(QuantifiedProSumtiScope::from_data(data!(
+            QuantifiedProSumtiScope {
+                variable: referent,
+                quantity: None,
+                operator: FormulaOperator::Exists,
+                source,
+            }
+        )));
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -8153,7 +8280,7 @@ fn quantifier_text(quantifier: &QuantifierSyntax) -> Option<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn quantified_da_series_sumti(sumti: &SumtiSyntax) -> Option<&SumtiSyntax> {
+fn da_series_scope_source(sumti: &SumtiSyntax) -> Option<DaSeriesScopeSource<'_>> {
     match sumti.as_data() {
         data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
         | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. })
@@ -8164,11 +8291,24 @@ fn quantified_da_series_sumti(sumti: &SumtiSyntax) -> Option<&SumtiSyntax> {
         | data!(SumtiSyntax::TaggedSumti {
             inner_sumti: base_sumti,
             ..
-        }) => quantified_da_series_sumti(base_sumti),
+        }) => da_series_scope_source(base_sumti),
         data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. })
             if sumti_is_da_series_pro_sumti(inner_sumti) =>
         {
-            Some(sumti)
+            let data!(SumtiSyntax::QuantifiedSumti { quantifier, .. }) = sumti.as_data() else {
+                return None;
+            };
+            Some(DaSeriesScopeSource::Explicit {
+                quantified_sumti: sumti,
+                quantifier,
+            })
+        }
+        data!(SumtiSyntax::ProSumti(token))
+            if matches!(token.cmavo(), Some(Cmavo::Da | Cmavo::De | Cmavo::Di)) =>
+        {
+            Some(DaSeriesScopeSource::Bare {
+                da_series_sumti: sumti,
+            })
         }
         _ => None,
     }
@@ -9593,6 +9733,28 @@ mod tests {
         assert_eq!(exact_one["body"], "formula:f3");
         assert_eq!(exact_one["quantity"], "quantity:q2");
         assert_eq!(object(&json, "quantity:q2")["value"]["integer"], 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_da_series_introduces_implicit_existential_scope_once() {
+        let json = semantic_json_for("la djan cu lafti da poi grana ku'o gi'e desku da")
+            .expect("semantic JSON");
+        let root = root_object(&json);
+        assert_eq!(root["content"], "formula:f5");
+
+        let exists = object(&json, "formula:f5");
+        assert_eq!(exists["operator"], "exists");
+        assert_eq!(exists["variable"], "referent:r1");
+        assert_eq!(exists["restriction"], "formula:f1");
+        assert_eq!(exists["body"], "formula:f4");
+        assert!(exists.get("quantity").is_none());
+
+        let lafti = predication_with_relation_and_mode(&json, "lafti", "asserted");
+        assert_eq!(lafti["arguments"]["x2"]["value"], "referent:r1");
+        let desku = predication_with_relation_and_mode(&json, "desku", "asserted");
+        assert_eq!(desku["arguments"]["x2"]["value"], "referent:r1");
     }
 
     #[test]
