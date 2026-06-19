@@ -675,6 +675,40 @@ impl SemanticObject {
         object
     }
 
+    #[requires(matches!(
+        operator,
+        FormulaOperator::Exists
+            | FormulaOperator::Forall
+            | FormulaOperator::None
+            | FormulaOperator::Cardinality
+            | FormulaOperator::PluralExists
+            | FormulaOperator::PluralForall
+    ))]
+    #[requires(variable.object_kind() == SemanticObjectKind::Referent)]
+    #[requires(restriction.is_none_or(|restriction| restriction.object_kind() == SemanticObjectKind::Formula))]
+    #[requires(body.object_kind() == SemanticObjectKind::Formula)]
+    #[requires(quantity.is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity))]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Formula)]
+    pub fn quantified_formula(
+        operator: FormulaOperator,
+        variable: SemanticObjectId,
+        restriction: Option<SemanticObjectId>,
+        body: SemanticObjectId,
+        quantity: Option<SemanticObjectId>,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Formula);
+        object.operator = Some(operator);
+        object.variable = Some(variable);
+        object.restriction = restriction;
+        object.body = Some(body);
+        object.quantity = quantity;
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
     #[requires(parameters
         .iter()
         .all(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter))]
@@ -1438,6 +1472,7 @@ pub struct MathLiteral {
 #[serde(rename_all = "camelCase")]
 pub enum QuantityForm {
     Exact,
+    All,
     AtLeast,
     AtMost,
     MoreThan,
@@ -1609,6 +1644,7 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && optional_reference_has_kind(object.restriction, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.body, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.quantity, SemanticObjectKind::Quantity)
+        && target_reference_matches_role(object.object_kind(), object.target)
         && object.descriptor.as_ref().is_none_or(|descriptor| {
             optional_reference_has_kind(descriptor.speaker, SemanticObjectKind::Referent)
                 && optional_reference_has_kind(descriptor.body, SemanticObjectKind::Formula)
@@ -1638,6 +1674,28 @@ fn optional_reference_has_kind(
     kind: SemanticObjectKind,
 ) -> bool {
     reference.is_none_or(|reference| reference.object_kind() == kind)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn target_reference_matches_role(
+    object_kind: SemanticObjectKind,
+    target: Option<SemanticObjectId>,
+) -> bool {
+    let Some(target) = target else {
+        return true;
+    };
+    match object_kind {
+        SemanticObjectKind::Referent => matches!(
+            target.object_kind(),
+            SemanticObjectKind::Utterance
+                | SemanticObjectKind::Sequence
+                | SemanticObjectKind::Formula
+                | SemanticObjectKind::Referent
+                | SemanticObjectKind::Sign
+        ),
+        _ => true,
+    }
 }
 
 #[requires(true)]

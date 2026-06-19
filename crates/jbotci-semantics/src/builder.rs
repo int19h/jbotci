@@ -277,6 +277,16 @@ struct BoundSelbriTanruPair<'tree> {
     trailing: &'tree SelbriSyntax,
 }
 
+#[invariant(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+#[invariant(quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)]
+#[derive(Debug, Clone)]
+struct QuantifiedProSumtiScope {
+    variable: SemanticObjectId,
+    quantity: SemanticObjectId,
+    operator: FormulaOperator,
+    source: Option<crate::model::SemanticSource>,
+}
+
 impl IdCounters {
     #[requires(true)]
     #[ensures(ret.utterance == 1)]
@@ -314,6 +324,7 @@ where
     counters: IdCounters,
     sumti_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     sumti_quantities: HashMap<RawSyntaxNodeId, SemanticObjectId>,
+    utterance_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     parameter_slots: Vec<QuestionSlot>,
     pending_asides: Vec<SemanticObjectId>,
 }
@@ -337,6 +348,7 @@ where
             counters: IdCounters::new(),
             sumti_objects: HashMap::new(),
             sumti_quantities: HashMap::new(),
+            utterance_objects: HashMap::new(),
             parameter_slots: Vec::new(),
             pending_asides: Vec::new(),
         };
@@ -741,6 +753,9 @@ where
             return self.build_standalone_asides(asides);
         };
         let statement_id = self.build_statement(statement, truth_question)?;
+        if let Some(node) = self.analysis.syntax_index.statement_node_id(statement) {
+            self.utterance_objects.insert(node.0, statement_id);
+        }
         if !asides.is_empty() {
             self.add_asides_to_discourse_item(statement_id, std::mem::take(&mut asides));
         }
@@ -997,9 +1012,11 @@ where
         let mut nested = GraphBuilder::new(self.analysis, self.options, self.relation_place_count);
         nested.counters = self.counters;
         nested.objects = std::mem::take(&mut self.objects);
+        nested.utterance_objects = std::mem::take(&mut self.utterance_objects);
         let graph = nested.build_text(text)?;
         self.counters = nested.counters;
         self.objects = graph.objects;
+        self.utterance_objects = nested.utterance_objects;
         Ok(graph.root)
     }
 
@@ -1013,6 +1030,7 @@ where
         let previous_slots = std::mem::take(&mut self.parameter_slots);
         let previous_asides = std::mem::take(&mut self.pending_asides);
         let formula = self.build_bridi_formula(bridi)?;
+        let formula = self.wrap_bridi_formula_with_quantified_pro_sumti(bridi, formula)?;
         let slots = std::mem::replace(&mut self.parameter_slots, previous_slots);
         let asides = std::mem::replace(&mut self.pending_asides, previous_asides);
         let is_question = truth_question || !slots.is_empty();
@@ -1061,8 +1079,160 @@ where
                 .and_then(|node| self.source_for_node(node.0, "bridi")),
             Vec::new(),
         )?;
+        if let Some(node) = self.analysis.syntax_index.bridi_node_id(bridi) {
+            self.utterance_objects.insert(node.0, utterance);
+        }
         self.add_utterance_asides(utterance, asides);
         Ok(utterance)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn wrap_bridi_formula_with_quantified_pro_sumti(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        formula: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut scopes = self.quantified_pro_sumti_scopes_for_bridi(bridi)?;
+        let mut body = formula;
+        while let Some(scope) = scopes.pop() {
+            let data!(QuantifiedProSumtiScope {
+                variable,
+                quantity,
+                operator,
+                source,
+            }) = scope.into_data();
+            let restriction = self.restriction_formula_for_variable_in_formula(body, variable)?;
+            let formula = self.next_formula();
+            self.insert(
+                formula,
+                SemanticObject::quantified_formula(
+                    operator,
+                    variable,
+                    restriction,
+                    body,
+                    Some(quantity),
+                    source,
+                    Vec::new(),
+                ),
+            )?;
+            body = formula;
+        }
+        Ok(body)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn quantified_pro_sumti_scopes_for_bridi(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+    ) -> Result<Vec<QuantifiedProSumtiScope>, SemanticsError> {
+        let Some(frame) = self.bridi_frame(bridi) else {
+            return Ok(Vec::new());
+        };
+        let mut scopes = Vec::new();
+        let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
+        for assignment_id in assignment_ids {
+            let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
+                continue;
+            };
+            if !matches!(assignment.slot, PlaceSlot::Numbered(_)) {
+                continue;
+            }
+            let sumti = self
+                .analysis
+                .syntax_index
+                .sumti(assignment.sumti)
+                .ok_or_else(SemanticsError::missing_syntax_node)?;
+            let Some(quantified_sumti) = quantified_da_series_sumti(sumti) else {
+                continue;
+            };
+            let data!(SumtiSyntax::QuantifiedSumti { quantifier, .. }) = quantified_sumti.as_data()
+            else {
+                continue;
+            };
+            let raw = self
+                .analysis
+                .syntax_index
+                .sumti_node_id(quantified_sumti)
+                .ok_or_else(SemanticsError::missing_syntax_node)?
+                .0;
+            let variable = self.build_sumti_referent(sumti)?;
+            let quantity = self.build_quantity_for_sumti_quantifier(raw, quantifier)?;
+            scopes.push(QuantifiedProSumtiScope::from_data(data!(
+                QuantifiedProSumtiScope {
+                    variable,
+                    quantity,
+                    operator: quantified_pro_sumti_formula_operator(quantifier),
+                    source: self.source_for_node(raw, "quantifier-scope"),
+                }
+            )));
+        }
+        Ok(scopes)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|restriction| restriction.is_none_or(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn restriction_formula_for_variable_in_formula(
+        &mut self,
+        formula: SemanticObjectId,
+        variable: SemanticObjectId,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let mut restrictions = Vec::new();
+        self.collect_restriction_formulas_for_variable(formula, variable, &mut restrictions);
+        restrictions.sort_unstable();
+        restrictions.dedup();
+        match restrictions.as_slice() {
+            [] => Ok(None),
+            [single] => Ok(Some(*single)),
+            _ => {
+                let conjunction = self.next_formula();
+                self.insert(
+                    conjunction,
+                    SemanticObject::connective_formula(
+                        FormulaOperator::And,
+                        restrictions,
+                        None,
+                        None,
+                        Vec::new(),
+                    ),
+                )
+                .map(Some)
+            }
+        }
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(true)]
+    fn collect_restriction_formulas_for_variable(
+        &self,
+        formula: SemanticObjectId,
+        variable: SemanticObjectId,
+        out: &mut Vec<SemanticObjectId>,
+    ) {
+        let Some(object) = self.objects.get(&formula) else {
+            return;
+        };
+        if let Some(predication) = object.predication
+            && let Some(predication) = self.objects.get(&predication)
+        {
+            for argument in predication.arguments.values() {
+                if argument.value == Some(variable) {
+                    out.extend(argument.relative_clauses.iter().map(|clause| clause.body));
+                }
+            }
+        }
+        for child in &object.children {
+            self.collect_restriction_formulas_for_variable(*child, variable, out);
+        }
+        if let Some(restriction) = object.restriction {
+            self.collect_restriction_formulas_for_variable(restriction, variable, out);
+        }
+        if let Some(body) = object.body {
+            self.collect_restriction_formulas_for_variable(body, variable, out);
+        }
     }
 
     #[requires(true)]
@@ -3328,6 +3498,20 @@ where
         head: SemanticObjectId,
         kind: RelativeClauseKind,
     ) -> Result<RelativeClause, SemanticsError> {
+        let mode = match kind {
+            RelativeClauseKind::Incidental => PredicationMode::Incidental,
+            RelativeClauseKind::Restrictive => PredicationMode::Restrictive,
+        };
+        if subbridi_contains_keha(subbridi)
+            && let Some(formula) = self.build_subbridi_formula(subbridi)?
+        {
+            self.set_formula_predication_mode(formula, mode);
+            return Ok(RelativeClause::new(
+                kind,
+                formula,
+                self.source_for_subbridi(subbridi, "relative-clause"),
+            ));
+        }
         let Some(selbri) = main_selbri_for_subbridi(subbridi) else {
             let formula = self.build_diagnostic_relative_formula(subbridi)?;
             return Ok(RelativeClause::new(
@@ -3335,10 +3519,6 @@ where
                 formula,
                 self.source_for_subbridi(subbridi, "relative-clause"),
             ));
-        };
-        let mode = match kind {
-            RelativeClauseKind::Incidental => PredicationMode::Incidental,
-            RelativeClauseKind::Restrictive => PredicationMode::Restrictive,
         };
         let formula = self.build_referent_predication_formula_for_selbri(
             selbri,
@@ -3351,6 +3531,46 @@ where
             formula,
             self.source_for_subbridi(subbridi, "relative-clause"),
         ))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_subbridi_formula(
+        &mut self,
+        subbridi: &'tree SubbridiSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match subbridi.as_data() {
+            data!(SubbridiSyntax::Bridi(bridi)) => {
+                let formula = self.build_bridi_formula(bridi)?;
+                self.wrap_bridi_formula_with_quantified_pro_sumti(bridi, formula)
+                    .map(Some)
+            }
+            data!(SubbridiSyntax::Prenex { inner_subbridi, .. }) => {
+                self.build_subbridi_formula(inner_subbridi)
+            }
+        }
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(true)]
+    fn set_formula_predication_mode(&mut self, formula: SemanticObjectId, mode: PredicationMode) {
+        let Some(object) = self.objects.get(&formula).cloned() else {
+            return;
+        };
+        if let Some(predication) = object.predication
+            && let Some(object) = self.objects.get_mut(&predication)
+        {
+            object.mode = Some(mode);
+        }
+        for child in object.children {
+            self.set_formula_predication_mode(child, mode);
+        }
+        if let Some(restriction) = object.restriction {
+            self.set_formula_predication_mode(restriction, mode);
+        }
+        if let Some(body) = object.body {
+            self.set_formula_predication_mode(body, mode);
+        }
     }
 
     #[requires(true)]
@@ -3850,8 +4070,9 @@ where
             Some(Cmavo::Cehu) => {
                 self.build_parameter(token, raw, crate::model::ParameterRole::PropertySlot)
             }
-            Some(Cmavo::Keha) => {
-                self.build_parameter(token, raw, crate::model::ParameterRole::RelativeClauseHead)
+            Some(Cmavo::Keha) => self.build_relative_head_referent(token, raw),
+            Some(Cmavo::Dei | Cmavo::Dihu | Cmavo::Dihe) => {
+                self.build_utterance_reference_referent(token, raw)
             }
             Some(Cmavo::Zohe) => self.build_elided_referent(Some(raw), "zo'e".to_owned()),
             Some(Cmavo::Ti) => {
@@ -3888,6 +4109,55 @@ where
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_relative_head_referent(
+        &mut self,
+        token: &'tree WithFreeModifiers<Token>,
+        raw: RawSyntaxNodeId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(referent) = self.build_resolved_sumti_reference(raw)? {
+            return Ok(referent);
+        }
+        self.build_parameter(token, raw, crate::model::ParameterRole::RelativeClauseHead)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_utterance_reference_referent(
+        &mut self,
+        token: &'tree WithFreeModifiers<Token>,
+        raw: RawSyntaxNodeId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let target = self.resolved_utterance_reference_target(raw);
+        let mut diagnostics = Vec::new();
+        if target.is_none() {
+            diagnostics.push(diagnostic(
+                "utterance pro-sumti did not resolve to a concrete discourse item",
+            ));
+        }
+        let id = self.next_referent();
+        let mut object = SemanticObject::referent(
+            ReferentCategory::Constant,
+            SemanticSort::Sign,
+            None,
+            Some(Descriptor {
+                kind: "utteranceReference".to_owned(),
+                word: token_text(&token.value),
+                speaker: Some(SemanticObjectId::speaker()),
+                body: None,
+                quantity: None,
+                name: None,
+                operand: None,
+            }),
+            None,
+            self.source_for_node(raw, "sumti"),
+            diagnostics,
+        );
+        object.target = target;
+        self.insert(id, object)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
     fn build_resolved_sumti_reference(
         &mut self,
         raw: RawSyntaxNodeId,
@@ -3912,6 +4182,26 @@ where
             .filter(|edge| sumti_reference_kind_is_direct_reference(&edge.kind))
             .find_map(|edge| match edge.target {
                 ReferenceTarget::ResolvedNode(target) if target != raw => Some(target),
+                _ => None,
+            })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn resolved_utterance_reference_target(
+        &self,
+        raw: RawSyntaxNodeId,
+    ) -> Option<SemanticObjectId> {
+        self.analysis
+            .discourse_references
+            .references_from_node(raw)
+            .iter()
+            .filter_map(|edge_id| self.analysis.discourse_references.edge(*edge_id))
+            .filter(|edge| edge.kind == ReferenceKind::Utterance)
+            .find_map(|edge| match edge.target {
+                ReferenceTarget::ResolvedNode(target) if target != raw => {
+                    self.utterance_objects.get(&target).copied()
+                }
                 _ => None,
             })
     }
@@ -4450,7 +4740,12 @@ where
         let id = self.next_quantity();
         self.insert(
             id,
-            SemanticObject::quantity(QuantityForm::Exact, value, QuantityScale::Count, source),
+            SemanticObject::quantity(
+                quantity_form_for_text(&text),
+                value,
+                QuantityScale::Count,
+                source,
+            ),
         )
     }
 
@@ -5591,6 +5886,73 @@ fn quantifier_text(quantifier: &QuantifierSyntax) -> Option<String> {
 
 #[requires(true)]
 #[ensures(true)]
+fn quantified_da_series_sumti(sumti: &SumtiSyntax) -> Option<&SumtiSyntax> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::GroupedSumti {
+            inner_sumti: base_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::TaggedSumti {
+            inner_sumti: base_sumti,
+            ..
+        }) => quantified_da_series_sumti(base_sumti),
+        data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. })
+            if sumti_is_da_series_pro_sumti(inner_sumti) =>
+        {
+            Some(sumti)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sumti_is_da_series_pro_sumti(sumti: &SumtiSyntax) -> bool {
+    match sumti.as_data() {
+        data!(SumtiSyntax::ProSumti(token)) => {
+            matches!(token.cmavo(), Some(Cmavo::Da | Cmavo::De | Cmavo::Di))
+        }
+        data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. }) => {
+            sumti_is_da_series_pro_sumti(inner_sumti)
+        }
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn subbridi_contains_keha(subbridi: &SubbridiSyntax) -> bool {
+    let mut found = false;
+    subbridi.visit_words(&mut |token| {
+        found |= token.cmavo() == Some(Cmavo::Keha);
+    });
+    found
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quantified_pro_sumti_formula_operator(quantifier: &QuantifierSyntax) -> FormulaOperator {
+    match quantifier_text(quantifier).as_deref() {
+        Some("ro") => FormulaOperator::Forall,
+        Some("no") => FormulaOperator::None,
+        _ => FormulaOperator::Cardinality,
+    }
+}
+
+#[requires(!text.is_empty())]
+#[ensures(true)]
+fn quantity_form_for_text(text: &str) -> QuantityForm {
+    match text {
+        "ro" => QuantityForm::All,
+        _ => QuantityForm::Exact,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn gadri_name_sort(cmavo: Option<Cmavo>) -> SemanticSort {
     match cmavo {
         Some(Cmavo::Lai) => SemanticSort::Mass,
@@ -5647,6 +6009,7 @@ fn sumti_reference_kind_is_direct_reference(kind: &ReferenceKind) -> bool {
             | ReferenceKind::Ri
             | ReferenceKind::Ra
             | ReferenceKind::Ru
+            | ReferenceKind::Keha
             | ReferenceKind::Letter
             | ReferenceKind::VohaSeries
             | ReferenceKind::DaSeries
@@ -6661,6 +7024,71 @@ mod tests {
             barda["arguments"]["x1"]["value"],
             zdani["arguments"]["x1"]["value"]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quantified_da_series_wraps_formula_scope() {
+        let json =
+            semantic_json_for("ro da poi prenu cu prami pa de poi finpe").expect("semantic JSON");
+        let root = root_object(&json);
+        assert_eq!(root["content"], "formula:f5");
+
+        let universal = object(&json, "formula:f5");
+        assert_eq!(universal["operator"], "forall");
+        assert_eq!(universal["variable"], "referent:r1");
+        assert_eq!(universal["restriction"], "formula:f1");
+        assert_eq!(universal["body"], "formula:f4");
+        assert_eq!(universal["quantity"], "quantity:q1");
+        assert_eq!(object(&json, "quantity:q1")["form"], "all");
+
+        let exact_one = object(&json, "formula:f4");
+        assert_eq!(exact_one["operator"], "cardinality");
+        assert_eq!(exact_one["variable"], "referent:r2");
+        assert_eq!(exact_one["restriction"], "formula:f2");
+        assert_eq!(exact_one["body"], "formula:f3");
+        assert_eq!(exact_one["quantity"], "quantity:q2");
+        assert_eq!(object(&json, "quantity:q2")["value"]["integer"], 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn explicit_keha_relative_clause_reuses_head_in_surface_place() {
+        let json = semantic_json_for("mi viska le mlatu ku poi zo'e zbasu ke'a loi slasi")
+            .expect("semantic JSON");
+        let zbasu = predication_with_relation_and_mode(&json, "zbasu", "restrictive");
+        let viska = predication_with_relation_and_mode(&json, "viska", "asserted");
+        assert_eq!(zbasu["arguments"]["x1"]["kind"], "elided");
+        assert_eq!(
+            zbasu["arguments"]["x2"]["value"],
+            viska["arguments"]["x2"]["value"]
+        );
+        assert!(
+            json["objects"]
+                .as_object()
+                .expect("objects")
+                .values()
+                .all(|object| object["type"] != "parameter")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn metalinguistic_pro_sumti_targets_previous_utterance() {
+        let json =
+            semantic_json_for("li re su'i re du li vo .i la'e di'u jetnu").expect("semantic JSON");
+        let dihu = object(&json, "referent:r3");
+        assert_eq!(dihu["descriptor"]["kind"], "utteranceReference");
+        assert_eq!(dihu["descriptor"]["word"], "di'u");
+        assert_eq!(dihu["target"], "utterance:u1");
+        assert!(dihu.get("diagnostics").is_none());
+
+        let lahe = object(&json, "referent:r4");
+        assert_eq!(lahe["descriptor"]["kind"], "referentOfSymbol");
+        assert_eq!(lahe["descriptor"]["operand"], "referent:r3");
     }
 
     #[test]
