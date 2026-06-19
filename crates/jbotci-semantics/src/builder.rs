@@ -4595,11 +4595,12 @@ where
             }
         }
         let id = self.next_predication();
+        let mode = asserted_predication_mode_for_relation(&relation);
         let mut object = SemanticObject::predication(
             relation,
             Some(eventuality),
             arguments,
-            PredicationMode::Asserted,
+            mode,
             source,
             diagnostics,
         );
@@ -7589,7 +7590,7 @@ fn nonlogical_composition_operator(connective: &ConnectiveSyntax) -> String {
 #[ensures(!ret.is_empty())]
 fn relation_label_for_selbri(selbri: &SelbriSyntax) -> String {
     match selbri.as_data() {
-        data!(SelbriSyntax::SelbriWord(token)) => token_text(token),
+        data!(SelbriSyntax::SelbriWord(token)) => semantic_relation_label(token_text(token)),
         data!(SelbriSyntax::Tanru(units)) => units
             .iter()
             .map(relation_label_for_tanru_unit)
@@ -7960,8 +7961,12 @@ fn tanru_unit_requires_lowering(unit: &TanruUnitSyntax) -> bool {
 #[ensures(!ret.is_empty())]
 fn relation_label_for_tanru_unit(unit: &TanruUnitSyntax) -> String {
     match unit.as_data() {
-        data!(TanruUnitSyntax::TanruUnitWord(token)) => token_text(&token.value),
-        data!(TanruUnitSyntax::ProBridi { goha, .. }) => token_text(&goha.value),
+        data!(TanruUnitSyntax::TanruUnitWord(token)) => {
+            semantic_relation_label(token_text(&token.value))
+        }
+        data!(TanruUnitSyntax::ProBridi { goha, .. }) => {
+            semantic_relation_label(token_text(&goha.value))
+        }
         data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
         | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
         | data!(TanruUnitSyntax::ModalConversion { inner_unit, .. }) => {
@@ -8058,7 +8063,27 @@ fn constructed_relation_place_count(relation: &str) -> Option<usize> {
 #[requires(true)]
 #[ensures(true)]
 fn relation_has_open_place_structure(relation: &str) -> bool {
-    relation == "du" || relation.starts_with("nu'a ")
+    relation == "identity" || relation.starts_with("nu'a ")
+}
+
+#[requires(!relation.is_empty())]
+#[ensures(true)]
+fn asserted_predication_mode_for_relation(relation: &str) -> PredicationMode {
+    if relation == "identity" {
+        PredicationMode::Definitional
+    } else {
+        PredicationMode::Asserted
+    }
+}
+
+#[requires(!relation.is_empty())]
+#[ensures(!ret.is_empty())]
+fn semantic_relation_label(relation: String) -> String {
+    if relation == "du" {
+        "identity".to_owned()
+    } else {
+        relation
+    }
 }
 
 #[requires(true)]
@@ -9755,6 +9780,29 @@ mod tests {
         assert_eq!(lafti["arguments"]["x2"]["value"], "referent:r1");
         let desku = predication_with_relation_and_mode(&json, "desku", "asserted");
         assert_eq!(desku["arguments"]["x2"]["value"], "referent:r1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn du_identity_is_definitional_not_ordinary_mintu() {
+        let identity = semantic_json_for("ko'a du le nanmu").expect("semantic JSON");
+        let identity_predication =
+            predication_with_relation_and_mode(&identity, "identity", "definitional");
+        assert_eq!(
+            identity_predication["arguments"]["x1"]["value"],
+            "referent:r1"
+        );
+        assert_eq!(
+            identity_predication["arguments"]["x2"]["value"],
+            "referent:r2"
+        );
+
+        let sameness = semantic_json_for("ko'a mintu le nanmu").expect("semantic JSON");
+        let mintu = predication_with_relation_and_mode(&sameness, "mintu", "asserted");
+        assert_eq!(mintu["arguments"]["x1"]["value"], "referent:r1");
+        assert_eq!(mintu["arguments"]["x2"]["value"], "referent:r2");
+        assert_eq!(mintu["arguments"]["x3"]["kind"], "elided");
     }
 
     #[test]

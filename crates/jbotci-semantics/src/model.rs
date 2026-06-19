@@ -1458,6 +1458,7 @@ fn argument_value_shape_is_valid(
 #[serde(rename_all = "camelCase")]
 pub enum PredicationMode {
     Asserted,
+    Definitional,
     Restrictive,
     Incidental,
     Displayed,
