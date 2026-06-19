@@ -9648,6 +9648,7 @@ fn vocative_kind_for_markers(markers: &WithFreeModifiers<Vec<Token>>) -> String 
         Some(Cmavo::Coi) => "greeting".to_owned(),
         Some(Cmavo::Jehe) => "acknowledgement".to_owned(),
         Some(Cmavo::Coho) => "farewell".to_owned(),
+        Some(Cmavo::Fihi) => "welcome".to_owned(),
         Some(Cmavo::Mihe) => "selfIdentification".to_owned(),
         Some(Cmavo::Doi) => "address".to_owned(),
         _ => token_text(first),
@@ -10128,6 +10129,16 @@ mod tests {
         let audience = utterance["audience"].as_str().expect("audience referent");
         assert_eq!(object(&json, audience)["descriptor"]["kind"], "name");
         assert_eq!(object(&json, audience)["descriptor"]["name"], "djan");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn welcome_vocative_kind_uses_english_label() {
+        let json = semantic_json_for("fi'i la .frank.").expect("semantic JSON");
+        let utterance = root_object(&json);
+        assert_eq!(utterance["force"], "vocative");
+        assert_eq!(utterance["vocativeKind"], "welcome");
     }
 
     #[test]
