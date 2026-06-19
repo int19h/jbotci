@@ -1570,6 +1570,7 @@ pub fn argument_object_kind_can_fill(kind: SemanticObjectKind) -> bool {
         SemanticObjectKind::Referent
             | SemanticObjectKind::Parameter
             | SemanticObjectKind::Eventuality
+            | SemanticObjectKind::Formula
             | SemanticObjectKind::Abstraction
             | SemanticObjectKind::Sign
             | SemanticObjectKind::DisplayedContent

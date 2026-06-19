@@ -38,7 +38,7 @@ use crate::model::{
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
     ReferenceAnalysisError, ReferenceKind, ReferenceTarget, SelbriPlaceFrameId, SumtiNodeId,
-    SumtiPlaceAssignment, analyze_references,
+    SumtiPlaceAssignment, SumtiPlaceAssignmentId, analyze_references,
 };
 
 #[invariant(true)]
@@ -370,6 +370,7 @@ where
     objects: BTreeMap<SemanticObjectId, SemanticObject>,
     counters: IdCounters,
     sumti_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
+    math_variable_referents: HashMap<String, SemanticObjectId>,
     sumti_quantities: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     relation_question_parameters: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     utterance_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
@@ -399,6 +400,7 @@ where
             objects: BTreeMap::new(),
             counters: IdCounters::new(),
             sumti_objects: HashMap::new(),
+            math_variable_referents: HashMap::new(),
             sumti_quantities: HashMap::new(),
             relation_question_parameters: HashMap::new(),
             utterance_objects: HashMap::new(),
@@ -1682,6 +1684,15 @@ where
         {
             return self.build_afterthought_bridi_tail_formula(bridi);
         }
+        if bridi.bridi_tail.ke_continuation.is_none()
+            && bridi.bridi_tail.first.continuations.is_empty()
+            && bridi.bridi_tail.first.first.bo_continuation.is_none()
+            && let data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(
+                connection
+            )) = bridi.bridi_tail.first.first.first.as_data()
+        {
+            return self.build_forethought_bridi_connection_formula(connection);
+        }
         let selbri = main_selbri_for_tail(&bridi.bridi_tail);
         if let Some(selbri) = selbri
             && let Some(formula) = self.build_scoped_selbri_formula_for_bridi(bridi, selbri)?
@@ -1758,6 +1769,17 @@ where
         let relation = selbri
             .map(relation_label_for_selbri)
             .unwrap_or_else(|| "unknown-relation".to_owned());
+        if let Some(formula) =
+            self.build_forethought_termset_connection_formula(bridi, selbri, relation.clone())?
+        {
+            return Ok(formula);
+        }
+        if let Some(selbri) = selbri
+            && relation == "identity"
+            && let Some(formula) = self.build_connected_mekso_identity_formula(bridi, selbri)?
+        {
+            return Ok(formula);
+        }
         if let Some(formula) =
             self.build_logical_sumti_connection_formula(bridi, selbri, relation.clone())?
         {
@@ -1923,6 +1945,7 @@ where
         let mut alternatives = BTreeMap::<String, Vec<AlternativeArgument>>::new();
         let mut highest_assigned_place = 0usize;
         let mut connector = None;
+        let mut modal_connection_spec = None;
         let mut operator = FormulaOperator::And;
         let mut assigned_sumtis = Vec::new();
         let mut assignment_counts = BTreeMap::<String, usize>::new();
@@ -1947,6 +1970,7 @@ where
             {
                 if connector.is_none() {
                     operator = formula_operator_for_connective(connective);
+                    modal_connection_spec = modal_statement_connection_spec(connective);
                     connector = Some(Connector {
                         source: full_connective_text(connective),
                         locus: "sumti".to_owned(),
@@ -2056,6 +2080,29 @@ where
             };
             children.push(formula);
         }
+        let mut diagnostics = Vec::new();
+        if let Some(spec) = modal_connection_spec {
+            if let [visible_formula, other_formula] = children.as_slice() {
+                match self.build_modal_formula_connection_claim(
+                    *visible_formula,
+                    *other_formula,
+                    &spec,
+                    self.analysis
+                        .syntax_index
+                        .bridi_node_id(bridi)
+                        .and_then(|node| self.source_for_node(node.0, "sumti-connection-claim")),
+                )? {
+                    Some(claim) => children.push(claim),
+                    None => diagnostics.push(diagnostic(
+                        "modal sumti connection could not find formula-bearing bridi events to relate",
+                    )),
+                }
+            } else {
+                diagnostics.push(diagnostic(
+                    "modal sumti connection with more than two distributed branches is not fully lowered yet",
+                ));
+            }
+        }
         let formula = self.next_formula();
         self.insert(
             formula,
@@ -2067,10 +2114,305 @@ where
                     .syntax_index
                     .bridi_node_id(bridi)
                     .and_then(|node| self.source_for_node(node.0, "sumti-connection-formula")),
-                Vec::new(),
+                diagnostics,
             ),
         )
         .map(Some)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_forethought_termset_connection_formula(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: Option<&'tree SelbriSyntax>,
+        relation: String,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some((term, gek, leading_terms, trailing_terms)) =
+            bridi
+                .leading_terms
+                .iter()
+                .find_map(|term| match term.as_data() {
+                    data!(TermSyntax::ForethoughtTermsetConnection {
+                        gek,
+                        terms,
+                        gik_terms,
+                        ..
+                    }) => Some((term, gek, terms.as_slice(), gik_terms.as_slice())),
+                    _ => None,
+                })
+        else {
+            return Ok(None);
+        };
+        let source = self
+            .analysis
+            .syntax_index
+            .term_node_id(term)
+            .and_then(|node| self.source_for_node(node.0, "termset-connection-formula"));
+        let leading = self.build_termset_branch_formula(
+            leading_terms,
+            selbri,
+            relation.clone(),
+            source.clone(),
+        )?;
+        let trailing =
+            self.build_termset_branch_formula(trailing_terms, selbri, relation, source.clone())?;
+        let mut children = vec![leading, trailing];
+        let mut diagnostics = Vec::new();
+        if bridi
+            .leading_terms
+            .iter()
+            .filter(|candidate| !std::ptr::eq(*candidate, term))
+            .any(|candidate| !matches!(candidate.as_data(), data!(TermSyntax::Termset { .. })))
+        {
+            diagnostics.push(diagnostic(
+                "forethought termset connection with extra outer terms is not fully lowered yet",
+            ));
+        }
+        let operator = if let Some(spec) = modal_statement_connection_spec(gek) {
+            match self.build_modal_formula_connection_claim(leading, trailing, &spec, source.clone())?
+            {
+                Some(claim) => children.push(claim),
+                None => diagnostics.push(diagnostic(
+                    "modal termset connection could not find formula-bearing bridi events or propositions to relate",
+                )),
+            }
+            FormulaOperator::And
+        } else {
+            formula_operator_for_connective(gek)
+        };
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                operator,
+                children,
+                Some(Connector {
+                    source: connective_text(gek),
+                    locus: "termset".to_owned(),
+                    truth_table: None,
+                }),
+                source,
+                diagnostics,
+            ),
+        )
+        .map(Some)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_connected_mekso_identity_formula(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: &'tree SelbriSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(frame) = self.bridi_frame(bridi) else {
+            return Ok(None);
+        };
+        let assignments = self
+            .analysis
+            .place_analysis
+            .assignments_for_frame(frame)
+            .iter()
+            .filter_map(|id| self.analysis.place_analysis.assignment(*id).cloned())
+            .collect::<Vec<_>>();
+        for connected_assignment in &assignments {
+            let PlaceSlot::Numbered(connected_place) = connected_assignment.slot else {
+                continue;
+            };
+            let connected_sumti = self
+                .analysis
+                .syntax_index
+                .sumti(connected_assignment.sumti)
+                .ok_or_else(SemanticsError::missing_syntax_node)?;
+            let data!(SumtiSyntax::NumberSumti { li, expression, .. }) = connected_sumti.as_data()
+            else {
+                continue;
+            };
+            let data!(MeksoSyntax::ForethoughtMeksoConnection {
+                gek,
+                left_expression,
+                right_expression,
+                ..
+            }) = expression.as_data()
+            else {
+                continue;
+            };
+            let source = self
+                .analysis
+                .syntax_index
+                .sumti_node_id(connected_sumti)
+                .and_then(|node| self.source_for_node(node.0, "operand-connection-formula"));
+            let left = self.build_connected_mekso_identity_branch_formula(
+                &assignments,
+                connected_assignment.id,
+                connected_place.get() as usize,
+                left_expression,
+                li,
+                connected_assignment.sumti.0,
+                selbri,
+                source.clone(),
+            )?;
+            let right = self.build_connected_mekso_identity_branch_formula(
+                &assignments,
+                connected_assignment.id,
+                connected_place.get() as usize,
+                right_expression,
+                li,
+                connected_assignment.sumti.0,
+                selbri,
+                source.clone(),
+            )?;
+            let mut children = vec![left, right];
+            let mut diagnostics = Vec::new();
+            let operator = if let Some(spec) = modal_statement_connection_spec(gek) {
+                match self.build_modal_formula_connection_claim(
+                    left,
+                    right,
+                    &spec,
+                    source.clone(),
+                )? {
+                    Some(claim) => children.push(claim),
+                    None => diagnostics.push(diagnostic(
+                        "modal operand connection could not find formulas to relate",
+                    )),
+                }
+                FormulaOperator::And
+            } else {
+                formula_operator_for_connective(gek)
+            };
+            let formula = self.next_formula();
+            return self
+                .insert(
+                    formula,
+                    SemanticObject::connective_formula(
+                        operator,
+                        children,
+                        Some(Connector {
+                            source: connective_text(gek),
+                            locus: "operand".to_owned(),
+                            truth_table: None,
+                        }),
+                        source,
+                        diagnostics,
+                    ),
+                )
+                .map(Some);
+        }
+        Ok(None)
+    }
+
+    #[requires(connected_place > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_connected_mekso_identity_branch_formula(
+        &mut self,
+        assignments: &[SumtiPlaceAssignment],
+        connected_assignment: SumtiPlaceAssignmentId,
+        connected_place: usize,
+        expression: &MeksoSyntax,
+        li: &WithFreeModifiers<Token>,
+        raw: RawSyntaxNodeId,
+        selbri: &'tree SelbriSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        for assignment in assignments {
+            let PlaceSlot::Numbered(place) = assignment.slot else {
+                continue;
+            };
+            if assignment.id == connected_assignment {
+                continue;
+            }
+            let sumti = self
+                .analysis
+                .syntax_index
+                .sumti(assignment.sumti)
+                .ok_or_else(SemanticsError::missing_syntax_node)?;
+            arguments.insert(
+                format!("x{}", place.get()),
+                self.build_argument_for_sumti(sumti)?,
+            );
+        }
+        let branch_referent = self.build_number_referent(expression, li, raw)?;
+        arguments.insert(
+            format!("x{connected_place}"),
+            ArgumentValue::filled(branch_referent, None),
+        );
+        let predication = self.build_predication_from_arguments(
+            "identity".to_owned(),
+            Some(selbri),
+            source.clone(),
+            arguments,
+            Vec::new(),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_termset_branch_formula(
+        &mut self,
+        terms: &'tree [TermSyntax],
+        selbri: Option<&'tree SelbriSyntax>,
+        relation: String,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        let mut diagnostics = Vec::new();
+        let mut next_sequential_place = 1usize;
+        for term in terms {
+            match term.as_data() {
+                data!(TermSyntax::Sumti(sumti)) => {
+                    let argument = self.build_argument_for_sumti(sumti)?;
+                    arguments.insert(format!("x{next_sequential_place}"), argument);
+                    next_sequential_place += 1;
+                }
+                data!(TermSyntax::PlaceTaggedSumti { fa, sumti, .. }) => {
+                    if let Some(place) = numbered_place_for_fa_token(&fa.value) {
+                        arguments
+                            .insert(format!("x{place}"), self.build_argument_for_sumti(sumti)?);
+                    } else {
+                        diagnostics.push(diagnostic(
+                            "forethought termset branch place question is not fully lowered yet",
+                        ));
+                    }
+                }
+                _ => diagnostics.push(diagnostic(
+                    "forethought termset branch term is not fully lowered yet",
+                )),
+            }
+        }
+        let highest_place = arguments
+            .keys()
+            .filter_map(|place| argument_place_index(place))
+            .max()
+            .unwrap_or(0);
+        if let Some(place_count) = self.place_count_for_relation(&relation) {
+            for place in 1..=place_count {
+                let key = format!("x{place}");
+                if !arguments.contains_key(&key) {
+                    arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                }
+            }
+        } else if highest_place == 0 {
+            arguments.insert("x1".to_owned(), self.build_elided_argument_for_place(1)?);
+        }
+        let predication = self.build_predication_from_arguments(
+            relation,
+            selbri,
+            source.clone(),
+            arguments,
+            diagnostics,
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )
     }
 
     #[requires(!bridi.bridi_tail.first.continuations.is_empty())]
@@ -2153,6 +2495,12 @@ where
         &mut self,
         tail: &'tree BoGroupedBridiTailSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if let data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(
+            connection
+        )) = tail.first.as_data()
+        {
+            return self.build_forethought_bridi_connection_formula(connection);
+        }
         let Some(selbri) = simple_bo_grouped_tail_selbri(tail) else {
             let predication =
                 self.build_predication_for_frame(None, None, None, "unknown-relation".to_owned())?;
@@ -2324,6 +2672,112 @@ where
             formula,
             x1_argument: tertau.x1_argument,
         })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_forethought_bridi_connection_formula(
+        &mut self,
+        connection: &'tree ForethoughtBridiConnectionSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        match connection.as_data() {
+            data!(ForethoughtBridiConnectionSyntax::BridiConnection {
+                gek,
+                first,
+                second,
+                tail_terms,
+                free_modifiers,
+                ..
+            }) => {
+                let Some(first_formula) = self.build_subbridi_formula(first)? else {
+                    let predication = self.build_predication_for_frame(
+                        None,
+                        None,
+                        None,
+                        "unknown-relation".to_owned(),
+                    )?;
+                    let formula = self.next_formula();
+                    return self.insert(
+                        formula,
+                        SemanticObject::atom_formula(
+                            predication,
+                            None,
+                            vec![diagnostic(
+                                "forethought bridi connection first branch is not fully lowered",
+                            )],
+                        ),
+                    );
+                };
+                let Some(second_formula) = self.build_subbridi_formula(second)? else {
+                    let predication = self.build_predication_for_frame(
+                        None,
+                        None,
+                        None,
+                        "unknown-relation".to_owned(),
+                    )?;
+                    let formula = self.next_formula();
+                    return self.insert(
+                        formula,
+                        SemanticObject::atom_formula(
+                            predication,
+                            None,
+                            vec![diagnostic(
+                                "forethought bridi connection second branch is not fully lowered",
+                            )],
+                        ),
+                    );
+                };
+                let mut children = vec![first_formula, second_formula];
+                let mut diagnostics = Vec::new();
+                let operator = if let Some(spec) = modal_statement_connection_spec(gek) {
+                    match self.build_modal_formula_connection_claim(
+                        first_formula,
+                        second_formula,
+                        &spec,
+                        None,
+                    )? {
+                        Some(claim) => children.push(claim),
+                        None => diagnostics.push(diagnostic(
+                            "modal forethought connection could not find formula-bearing bridi events to relate",
+                        )),
+                    }
+                    FormulaOperator::And
+                } else {
+                    formula_operator_for_connective(gek)
+                };
+                if !tail_terms.is_empty() {
+                    // Shared bridi-tail terms are propagated into each branch frame by
+                    // reference analysis and are therefore already represented above.
+                }
+                if !free_modifiers.is_empty() {
+                    diagnostics.push(diagnostic(
+                        "forethought bridi connection free modifiers are not fully lowered yet",
+                    ));
+                }
+                let formula = self.next_formula();
+                self.insert(
+                    formula,
+                    SemanticObject::connective_formula(
+                        operator,
+                        children,
+                        Some(Connector {
+                            source: connective_text(gek),
+                            locus: "bridi".to_owned(),
+                            truth_table: None,
+                        }),
+                        None,
+                        diagnostics,
+                    ),
+                )
+            }
+            data!(ForethoughtBridiConnectionSyntax::GroupedBridiConnection { inner, .. }) => {
+                self.build_forethought_bridi_connection_formula(inner)
+            }
+            data!(ForethoughtBridiConnectionSyntax::NegatedBridiConnection { inner, .. }) => {
+                let child = self.build_forethought_bridi_connection_formula(inner)?;
+                self.build_unary_formula(FormulaOperator::Not, child, None, Vec::new())
+            }
+        }
     }
 
     #[requires(true)]
@@ -4442,29 +4896,57 @@ where
         spec: &ModalStatementConnectionSpec,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let Some(leading_eventuality) = self.asserted_eventuality_for_discourse_item(leading_item)
-        else {
+        let Some(leading_formula) = self.content_formula_for_discourse_item(leading_item) else {
             return Ok(None);
         };
-        let Some(trailing_eventuality) =
-            self.asserted_eventuality_for_discourse_item(trailing_item)
-        else {
+        let Some(trailing_formula) = self.content_formula_for_discourse_item(trailing_item) else {
             return Ok(None);
         };
-        let leading_place = convert_numbered_place(2, spec.visible_place);
+        self.build_modal_formula_connection_claim(trailing_formula, leading_formula, spec, source)
+    }
+
+    #[requires(visible_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(other_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(spec.visible_place > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|claim| claim.is_none_or(|claim| claim.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn build_modal_formula_connection_claim(
+        &mut self,
+        visible_formula: SemanticObjectId,
+        other_formula: SemanticObjectId,
+        spec: &ModalStatementConnectionSpec,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some((visible_argument, other_argument)) = (match spec.argument_kind {
+            ModalConnectionArgumentKind::Eventuality => {
+                let Some(visible_eventuality) =
+                    self.asserted_eventuality_for_formula(visible_formula)
+                else {
+                    return Ok(None);
+                };
+                let Some(other_eventuality) = self.asserted_eventuality_for_formula(other_formula)
+                else {
+                    return Ok(None);
+                };
+                Some((visible_eventuality, other_eventuality))
+            }
+            ModalConnectionArgumentKind::Formula => Some((visible_formula, other_formula)),
+        }) else {
+            return Ok(None);
+        };
+        let other_place = convert_numbered_place(2, spec.visible_place);
         let highest_place = self
             .place_count_for_relation(&spec.relation)
-            .unwrap_or(spec.visible_place.max(leading_place))
+            .unwrap_or(spec.visible_place.max(other_place))
             .max(spec.visible_place)
-            .max(leading_place);
+            .max(other_place);
         let mut arguments = BTreeMap::new();
         arguments.insert(
             format!("x{}", spec.visible_place),
-            ArgumentValue::filled(trailing_eventuality, None),
+            ArgumentValue::filled(visible_argument, None),
         );
         arguments.insert(
-            format!("x{leading_place}"),
-            ArgumentValue::filled(leading_eventuality, None),
+            format!("x{other_place}"),
+            ArgumentValue::filled(other_argument, None),
         );
         for place in 1..=highest_place {
             let key = format!("x{place}");
@@ -5223,13 +5705,14 @@ where
         }
         self.insert(eventuality, event)?;
         let id = self.next_predication();
+        let mode = asserted_predication_mode_for_relation(&relation);
         self.insert(
             id,
             SemanticObject::predication(
                 relation,
                 Some(eventuality),
                 arguments,
-                PredicationMode::Asserted,
+                mode,
                 source,
                 diagnostics,
             ),
@@ -6222,10 +6705,16 @@ where
             return self.build_math_expression_sign(expression, raw);
         }
 
+        let variable_name = math_variable_name(expression);
+        if let Some(variable_name) = &variable_name
+            && let Some(referent) = self.math_variable_referents.get(variable_name)
+        {
+            return Ok(*referent);
+        }
         let text = mekso_surface_text(expression);
         let quantity = self.build_quantity_for_mekso(expression, raw)?;
         let id = self.next_referent();
-        self.insert(
+        let referent = self.insert(
             id,
             SemanticObject::referent(
                 ReferentCategory::Constant,
@@ -6245,7 +6734,11 @@ where
                 self.source_for_node(raw, "number-sumti"),
                 Vec::new(),
             ),
-        )
+        )?;
+        if let Some(variable_name) = variable_name {
+            self.math_variable_referents.insert(variable_name, referent);
+        }
+        Ok(referent)
     }
 
     #[requires(true)]
@@ -8449,6 +8942,14 @@ struct ModalStatementConnectionSpec {
     introduced_by: String,
     relation: String,
     visible_place: usize,
+    argument_kind: ModalConnectionArgumentKind,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ModalConnectionArgumentKind {
+    Eventuality,
+    Formula,
 }
 
 #[requires(true)]
@@ -8456,15 +8957,22 @@ struct ModalStatementConnectionSpec {
 fn modal_statement_connection_spec(
     connective: &ConnectiveSyntax,
 ) -> Option<ModalStatementConnectionSpec> {
-    let data!(ConnectiveSyntax::Selbri {
-        se,
-        nahe,
-        na,
-        cmavo,
-        nai,
-    }) = connective.as_data()
-    else {
-        return None;
+    let (se, nahe, na, cmavo, nai) = match connective.as_data() {
+        data!(ConnectiveSyntax::Selbri {
+            se,
+            nahe,
+            na,
+            cmavo,
+            nai,
+        })
+        | data!(ConnectiveSyntax::Forethought {
+            se,
+            nahe,
+            na,
+            cmavo,
+            nai,
+        }) => (se, nahe, na, cmavo, nai),
+        _ => return None,
     };
     if nahe.is_some() || na.is_some() || nai.is_some() {
         return None;
@@ -8476,7 +8984,8 @@ fn modal_statement_connection_spec(
         }
         _ => return None,
     };
-    if !marker_token.is_selmaho(Selmaho::Bai) || bo.cmavo() != Some(Cmavo::Bo) {
+    if !marker_token.is_selmaho(Selmaho::Bai) || !matches!(bo.cmavo(), Some(Cmavo::Bo | Cmavo::Gi))
+    {
         return None;
     }
     let marker = token_text(marker_token);
@@ -8490,7 +8999,30 @@ fn modal_statement_connection_spec(
         relation: modal_relation_for_marker(&marker),
         introduced_by,
         visible_place,
+        argument_kind: modal_connection_argument_kind_for_marker(&marker),
     })
+}
+
+#[requires(!marker.is_empty())]
+#[ensures(true)]
+fn modal_connection_argument_kind_for_marker(marker: &str) -> ModalConnectionArgumentKind {
+    match marker {
+        "ni'i" => ModalConnectionArgumentKind::Formula,
+        _ => ModalConnectionArgumentKind::Eventuality,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|place| (1..=5).contains(&place)))]
+fn numbered_place_for_fa_token(fa: &Token) -> Option<usize> {
+    match fa.cmavo() {
+        Some(Cmavo::Fa) => Some(1),
+        Some(Cmavo::Fe) => Some(2),
+        Some(Cmavo::Fi) => Some(3),
+        Some(Cmavo::Fo) => Some(4),
+        Some(Cmavo::Fu) => Some(5),
+        _ => None,
+    }
 }
 
 #[requires(true)]
@@ -9411,6 +9943,25 @@ fn mekso_surface_text(expression: &MeksoSyntax) -> String {
             .collect::<Vec<_>>()
             .join(" "),
         _ => "mekso".to_owned(),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|name| !name.is_empty()))]
+fn math_variable_name(expression: &MeksoSyntax) -> Option<String> {
+    match expression.as_data() {
+        data!(MeksoSyntax::LerfuStringMekso { letter, .. }) => {
+            Some(math_letteral_text(&letter.value))
+        }
+        data!(MeksoSyntax::ParenthesizedMekso {
+            inner_expression,
+            ..
+        })
+        | data!(MeksoSyntax::QualifiedOperand {
+            inner_expression,
+            ..
+        }) => math_variable_name(inner_expression),
+        _ => None,
     }
 }
 
@@ -10838,6 +11389,122 @@ mod tests {
         assert_eq!(rinka["introducedBy"], "se ri'a");
         assert_eq!(rinka["arguments"]["x1"]["value"], dunda_event);
         assert_eq!(rinka["arguments"]["x2"]["value"], banro_event);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn forethought_modal_bridi_tail_connection_shares_outer_places() {
+        let json =
+            semantic_json_for("mi mu'igi viska gi lebna vau le cukta").expect("semantic JSON");
+        let viska = predication_with_relation_and_mode(&json, "viska", "asserted");
+        let lebna = predication_with_relation_and_mode(&json, "lebna", "asserted");
+        assert_eq!(viska["arguments"]["x1"]["value"], "referent:speaker");
+        assert_eq!(lebna["arguments"]["x1"]["value"], "referent:speaker");
+        assert_eq!(
+            viska["arguments"]["x2"]["value"],
+            lebna["arguments"]["x2"]["value"]
+        );
+        let mukti = predication_with_relation_and_mode(&json, "mukti", "asserted");
+        assert_eq!(mukti["introducedBy"], "mu'i");
+        assert_eq!(
+            mukti["arguments"]["x1"]["value"],
+            viska["eventuality"].as_str().expect("viska event")
+        );
+        assert_eq!(
+            mukti["arguments"]["x2"]["value"],
+            lebna["eventuality"].as_str().expect("lebna event")
+        );
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["connector"]["source"], "mu'i gi");
+        assert_eq!(content["connector"]["locus"], "bridi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn forethought_modal_termset_connection_pairs_whole_branches() {
+        let json = semantic_json_for(
+            "nu'i mu'igi la .djan. lei jdini mi gi mi le cukta la .djan. nu'u dunda",
+        )
+        .expect("semantic JSON");
+        let dundas = predications_with_relation_and_mode(&json, "dunda", "asserted");
+        assert_eq!(dundas.len(), 2);
+        let mukti = predication_with_relation_and_mode(&json, "mukti", "asserted");
+        assert_eq!(mukti["introducedBy"], "mu'i");
+        assert_eq!(
+            mukti["arguments"]["x1"]["value"],
+            dundas[0]["eventuality"]
+                .as_str()
+                .expect("first dunda event")
+        );
+        assert_eq!(
+            mukti["arguments"]["x2"]["value"],
+            dundas[1]["eventuality"]
+                .as_str()
+                .expect("second dunda event")
+        );
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["connector"]["source"], "mu'i gi");
+        assert_eq!(content["connector"]["locus"], "termset");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nibli_modal_connections_use_formula_arguments() {
+        let json = semantic_json_for("li ny. du li vo .ini'ibo li ny. du li re su'i re")
+            .expect("semantic JSON");
+        let identities = predications_with_relation_and_mode(&json, "identity", "definitional");
+        assert_eq!(identities.len(), 2);
+        assert_eq!(
+            identities[0]["arguments"]["x1"]["value"],
+            identities[1]["arguments"]["x1"]["value"]
+        );
+        let nibli = predication_with_relation_and_mode(&json, "nibli", "asserted");
+        for place in ["x1", "x2"] {
+            let formula = nibli["arguments"][place]["value"]
+                .as_str()
+                .expect("formula argument");
+            assert_eq!(object(&json, formula)["type"], "formula");
+        }
+        assert_eq!(nibli["introducedBy"], "ni'i");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_mekso_identity_expands_to_entailment_between_identities() {
+        let json = semantic_json_for("li ny. du li ni'igi vei re su'i re ve'o gi vo")
+            .expect("semantic JSON");
+        let identities = predications_with_relation_and_mode(&json, "identity", "definitional");
+        assert_eq!(identities.len(), 2);
+        assert_eq!(
+            identities[0]["arguments"]["x1"]["value"],
+            identities[1]["arguments"]["x1"]["value"]
+        );
+        let nibli = predication_with_relation_and_mode(&json, "nibli", "asserted");
+        assert_eq!(nibli["arguments"]["x1"]["value"], "formula:f1");
+        assert_eq!(nibli["arguments"]["x2"]["value"], "formula:f2");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["children"].as_array().expect("children").len(), 3);
+        assert_eq!(content["connector"]["source"], "ni'i gi");
+        assert_eq!(content["connector"]["locus"], "operand");
     }
 
     #[test]
