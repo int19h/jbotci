@@ -4662,6 +4662,7 @@ where
                 | Cmavo::Dohi,
             ) => self.build_utterance_reference_referent(token, raw),
             Some(Cmavo::Zohe) => self.build_elided_referent(Some(raw), "zo'e".to_owned()),
+            Some(Cmavo::Zuhi) => self.build_typical_place_value_referent(token, raw),
             Some(Cmavo::Ti) => {
                 self.build_demonstrative_referent(raw, IndexicalKind::ProximalDemonstrative)
             }
@@ -4692,6 +4693,30 @@ where
                 )
             }
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_typical_place_value_referent(
+        &mut self,
+        token: &'tree WithFreeModifiers<Token>,
+        raw: RawSyntaxNodeId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_plain_referent(
+            raw,
+            ReferentCategory::Constant,
+            SemanticSort::Entity,
+            Descriptor {
+                kind: "typicalPlaceValue".to_owned(),
+                word: token_text(&token.value),
+                speaker: Some(SemanticObjectId::speaker()),
+                body: None,
+                quantity: None,
+                name: None,
+                operand: None,
+            },
+            Vec::new(),
+        )
     }
 
     #[requires(true)]
@@ -7434,6 +7459,21 @@ mod tests {
             object(&json, "referent:r1")["descriptor"]["kind"],
             "speakerStereotypeDescription"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zuhi_is_filled_typical_place_value_not_elision() {
+        let json = semantic_json_for("mi klama zu'i").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        assert_eq!(klama["arguments"]["x2"]["kind"], "filled");
+        let typical = klama["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("typical place value");
+        let descriptor = &object(&json, typical)["descriptor"];
+        assert_eq!(descriptor["kind"], "typicalPlaceValue");
+        assert_eq!(descriptor["word"], "zu'i");
     }
 
     #[test]
