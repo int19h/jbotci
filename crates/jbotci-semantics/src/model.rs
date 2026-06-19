@@ -1578,7 +1578,10 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
                 && ground.place.object_kind() == SemanticObjectKind::Referent
         })
         && references_have_kind(&object.asides, SemanticObjectKind::Utterance)
-        && references_have_kind(&object.items, SemanticObjectKind::Utterance)
+        && object
+            .items
+            .iter()
+            .all(|item| sequence_item_kind_is_allowed(item.object_kind()))
         && optional_reference_has_kind(
             object.relation_metadata,
             SemanticObjectKind::RelationMetadata,
@@ -1645,6 +1648,15 @@ fn references_have_kind(references: &[SemanticObjectId], kind: SemanticObjectKin
     references
         .iter()
         .all(|reference| reference.object_kind() == kind)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sequence_item_kind_is_allowed(kind: SemanticObjectKind) -> bool {
+    matches!(
+        kind,
+        SemanticObjectKind::Utterance | SemanticObjectKind::Sequence
+    )
 }
 
 #[requires(true)]

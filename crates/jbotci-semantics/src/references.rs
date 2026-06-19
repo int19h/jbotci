@@ -3275,6 +3275,12 @@ impl<'tree> SyntaxIndex<'tree> {
 
     #[requires(true)]
     #[ensures(true)]
+    pub fn argument_node(&self, id: RawSyntaxNodeId) -> Option<&'tree SumtiSyntax> {
+        self.node(id).and_then(node_ref_as_argument)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     pub fn metadata(&self, id: RawSyntaxNodeId) -> Option<&SyntaxNodeMetadata> {
         self.nodes.get(id.0).map(|node| &node.metadata)
     }

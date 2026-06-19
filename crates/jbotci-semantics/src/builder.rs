@@ -30,7 +30,7 @@ use crate::model::{
 };
 use crate::references::{
     PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, ReferenceAnalysisError,
-    SelbriPlaceFrameId, analyze_references,
+    ReferenceKind, ReferenceTarget, SelbriPlaceFrameId, analyze_references,
 };
 
 #[invariant(true)]
@@ -3551,11 +3551,29 @@ where
                 ..
             }) => self.build_qualified_referent(raw, lahe, inner_sumti)?,
             data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
-            | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. })
-            | data!(SumtiSyntax::ScalarNegatedSumti { inner_sumti, .. })
-            | data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. }) => {
+            | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. }) => {
                 self.build_sumti_referent(inner_sumti)?
             }
+            data!(SumtiSyntax::ScalarNegatedSumti {
+                nahe,
+                inner_sumti,
+                ..
+            }) => self.build_scalar_negated_sumti_referent(
+                raw,
+                nahe.cmavo(),
+                token_text(&nahe.value),
+                inner_sumti,
+            )?,
+            data!(SumtiSyntax::ScalarNegatedSumtiWithBo {
+                nahe,
+                inner_sumti,
+                ..
+            }) => self.build_scalar_negated_sumti_referent(
+                raw,
+                nahe.cmavo(),
+                format!("{} bo", token_text(nahe)),
+                inner_sumti,
+            )?,
             _ => self.build_diagnostic_referent(raw, "sumti construct is not fully lowered yet")?,
         };
         self.sumti_objects.insert(raw, id);
@@ -3664,22 +3682,57 @@ where
             Some(Cmavo::Tu) => {
                 self.build_demonstrative_referent(raw, IndexicalKind::DistalDemonstrative)
             }
-            _ => self.build_plain_referent(
-                raw,
-                ReferentCategory::Constant,
-                SemanticSort::Entity,
-                Descriptor {
-                    kind: "proSumti".to_owned(),
-                    word: token_text(&token.value),
-                    speaker: None,
-                    body: None,
-                    quantity: None,
-                    name: None,
-                    operand: None,
-                },
-                Vec::new(),
-            ),
+            _ => {
+                if let Some(referent) = self.build_resolved_sumti_reference(raw)? {
+                    return Ok(referent);
+                }
+                self.build_plain_referent(
+                    raw,
+                    ReferentCategory::Constant,
+                    SemanticSort::Entity,
+                    Descriptor {
+                        kind: "proSumti".to_owned(),
+                        word: token_text(&token.value),
+                        speaker: None,
+                        body: None,
+                        quantity: None,
+                        name: None,
+                        operand: None,
+                    },
+                    Vec::new(),
+                )
+            }
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_resolved_sumti_reference(
+        &mut self,
+        raw: RawSyntaxNodeId,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(target) = self.resolved_sumti_reference_target(raw) else {
+            return Ok(None);
+        };
+        let Some(sumti) = self.analysis.syntax_index.argument_node(target) else {
+            return Err(SemanticsError::missing_syntax_node());
+        };
+        self.build_sumti_referent(sumti).map(Some)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn resolved_sumti_reference_target(&self, raw: RawSyntaxNodeId) -> Option<RawSyntaxNodeId> {
+        self.analysis
+            .discourse_references
+            .references_from_node(raw)
+            .iter()
+            .filter_map(|edge_id| self.analysis.discourse_references.edge(*edge_id))
+            .filter(|edge| sumti_reference_kind_is_direct_reference(&edge.kind))
+            .find_map(|edge| match edge.target {
+                ReferenceTarget::ResolvedNode(target) if target != raw => Some(target),
+                _ => None,
+            })
     }
 
     #[requires(true)]
@@ -3891,6 +3944,38 @@ where
             sort,
             Descriptor {
                 kind,
+                word,
+                speaker: Some(SemanticObjectId::speaker()),
+                body: None,
+                quantity: None,
+                name: None,
+                operand: Some(operand),
+            },
+            Vec::new(),
+        )
+    }
+
+    #[requires(!word.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_scalar_negated_sumti_referent(
+        &mut self,
+        raw: RawSyntaxNodeId,
+        cmavo: Option<Cmavo>,
+        word: String,
+        inner_sumti: &'tree SumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let operand = self.build_sumti_referent(inner_sumti)?;
+        let sort = self
+            .objects
+            .get(&operand)
+            .and_then(|object| object.sort)
+            .unwrap_or(SemanticSort::Entity);
+        self.build_plain_referent(
+            raw,
+            ReferentCategory::Constant,
+            sort,
+            Descriptor {
+                kind: scalar_negated_sumti_qualifier_kind(cmavo).to_owned(),
                 word,
                 speaker: Some(SemanticObjectId::speaker()),
                 body: None,
@@ -5274,6 +5359,32 @@ fn referent_qualifier_sort(cmavo: Option<Cmavo>) -> SemanticSort {
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn scalar_negated_sumti_qualifier_kind(cmavo: Option<Cmavo>) -> &'static str {
+    match cmavo {
+        Some(Cmavo::Tohe) => "oppositeOf",
+        Some(Cmavo::Nohe) => "neutralOf",
+        Some(Cmavo::Jeha) => "affirmedAs",
+        _ => "otherThan",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sumti_reference_kind_is_direct_reference(kind: &ReferenceKind) -> bool {
+    matches!(
+        kind,
+        ReferenceKind::Koha
+            | ReferenceKind::Ri
+            | ReferenceKind::Ra
+            | ReferenceKind::Ru
+            | ReferenceKind::Letter
+            | ReferenceKind::VohaSeries
+            | ReferenceKind::DaSeries
+    )
+}
+
+#[requires(true)]
 #[ensures(!ret.introduced_by.is_empty())]
 fn scalar_negation_for_marker(marker: &WithFreeModifiers<Token>) -> ScalarNegation {
     ScalarNegation::new(
@@ -5443,6 +5554,17 @@ mod tests {
                     && object["mode"] == mode
             })
             .unwrap_or_else(|| panic!("missing {mode} predication for relation {relation}"))
+    }
+
+    #[requires(!kind.is_empty())]
+    #[ensures(true)]
+    fn referent_with_descriptor_kind<'a>(json: &'a Value, kind: &str) -> &'a Value {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| object["type"] == "referent" && object["descriptor"]["kind"] == kind)
+            .unwrap_or_else(|| panic!("missing referent descriptor kind {kind}"))
     }
 
     #[test]
@@ -5994,6 +6116,69 @@ mod tests {
             .as_str()
             .expect("operand referent id");
         assert_eq!(object(&json, operand)["descriptor"]["word"], "le");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn scalar_negated_sumti_qualifier_preserves_operand_referent() {
+        let json = semantic_json_for("mi viska na'ebo le gerku").expect("semantic JSON");
+        let viska = predication_with_relation_and_mode(&json, "viska", "asserted");
+        let qualified = viska["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("qualified referent id");
+        let descriptor = &object(&json, qualified)["descriptor"];
+        assert_eq!(descriptor["kind"], "otherThan");
+        assert_eq!(descriptor["word"], "na'e bo");
+        let operand = descriptor["operand"].as_str().expect("operand referent id");
+        assert_eq!(object(&json, operand)["descriptor"]["word"], "le");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ri_resolves_inside_luhe_member_qualifier() {
+        let json =
+            semantic_json_for("lo'i ratcu cu barda .iku'i lu'a ri cmalu").expect("semantic JSON");
+        let barda = predication_with_relation_and_mode(&json, "barda", "asserted");
+        let rat_set = barda["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("rat-set referent id");
+        let cmalu = predication_with_relation_and_mode(&json, "cmalu", "asserted");
+        let member = cmalu["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("member referent id");
+        let descriptor = &object(&json, member)["descriptor"];
+        assert_eq!(descriptor["kind"], "memberOf");
+        assert_eq!(descriptor["operand"], rat_set);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn scalar_negated_sumti_qualifier_handles_resolved_and_vague_anaphora() {
+        let json = semantic_json_for(
+            "mi nelci loi glare cidja .ije do nelci to'ebo ri .ije la .djein. nelci no'ebo ra",
+        )
+        .expect("semantic JSON");
+        let opposite = referent_with_descriptor_kind(&json, "oppositeOf");
+        assert_eq!(opposite["sort"], "mass");
+        let opposite_operand = opposite["descriptor"]["operand"]
+            .as_str()
+            .expect("opposite operand");
+        assert_eq!(
+            object(&json, opposite_operand)["descriptor"]["kind"],
+            "veridicalMassDescription"
+        );
+        let neutral = referent_with_descriptor_kind(&json, "neutralOf");
+        let neutral_operand = neutral["descriptor"]["operand"]
+            .as_str()
+            .expect("neutral operand");
+        assert_eq!(
+            object(&json, neutral_operand)["descriptor"]["kind"],
+            "proSumti"
+        );
+        assert_eq!(object(&json, neutral_operand)["descriptor"]["word"], "ra");
     }
 
     #[test]
