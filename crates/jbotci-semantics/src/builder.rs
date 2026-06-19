@@ -12,7 +12,8 @@ use jbotci_morphology::{
 use jbotci_syntax::ast::{
     AbstractionSyntax, AfterthoughtBridiTailSyntax, BoGroupedBridiTailSyntax,
     BoundBridiTailConnectionSyntax, BridiSyntax, BridiTailConnectionSyntax, BridiTailSyntax,
-    ConnectiveSyntax, ConnectiveSyntaxData, DescriptionSyntax, ForethoughtBridiConnectionSyntax,
+    ConnectiveSyntax, ConnectiveSyntaxData, DescriptionSyntax, DescriptionTailElementSyntax,
+    DescriptionTailElementSyntaxData, ForethoughtBridiConnectionSyntax,
     ForethoughtBridiConnectionSyntaxData, FragmentSyntax, FragmentSyntaxData, FreeModifierSyntax,
     FreeModifierSyntaxData, GroupedBridiTailConnectionSyntax, MeksoOperatorSyntax,
     MeksoOperatorSyntaxData, MeksoSyntax, MeksoSyntaxData, ParagraphStatementSyntax,
@@ -8702,11 +8703,410 @@ fn sumti_is_da_series_pro_sumti(sumti: &SumtiSyntax) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn subbridi_contains_keha(subbridi: &SubbridiSyntax) -> bool {
-    let mut found = false;
-    subbridi.visit_words(&mut |token| {
-        found |= token.cmavo() == Some(Cmavo::Keha);
-    });
-    found
+    subbridi_contains_current_level_keha(subbridi)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn subbridi_contains_current_level_keha(subbridi: &SubbridiSyntax) -> bool {
+    match subbridi.as_data() {
+        data!(SubbridiSyntax::Bridi(bridi)) => bridi_contains_current_level_keha(bridi),
+        data!(SubbridiSyntax::Prenex {
+            prenex_terms,
+            inner_subbridi,
+            ..
+        }) => {
+            prenex_terms.iter().any(term_contains_current_level_keha)
+                || subbridi_contains_current_level_keha(inner_subbridi)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bridi_contains_current_level_keha(bridi: &BridiSyntax) -> bool {
+    bridi
+        .leading_terms
+        .iter()
+        .any(term_contains_current_level_keha)
+        || bridi_tail_contains_current_level_keha(&bridi.bridi_tail)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bridi_tail_contains_current_level_keha(tail: &BridiTailSyntax) -> bool {
+    afterthought_bridi_tail_contains_current_level_keha(&tail.first)
+        || tail.ke_continuation.as_ref().is_some_and(|continuation| {
+            bridi_tail_contains_current_level_keha(&continuation.bridi_tail)
+                || continuation
+                    .tail_terms
+                    .iter()
+                    .any(term_contains_current_level_keha)
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn afterthought_bridi_tail_contains_current_level_keha(tail: &AfterthoughtBridiTailSyntax) -> bool {
+    bo_grouped_bridi_tail_contains_current_level_keha(&tail.first)
+        || tail.continuations.iter().any(|continuation| {
+            bo_grouped_bridi_tail_contains_current_level_keha(&continuation.bridi_tail)
+                || continuation
+                    .tail_terms
+                    .iter()
+                    .any(term_contains_current_level_keha)
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bo_grouped_bridi_tail_contains_current_level_keha(tail: &BoGroupedBridiTailSyntax) -> bool {
+    simple_bridi_tail_contains_current_level_keha(&tail.first)
+        || tail.bo_continuation.as_ref().is_some_and(|continuation| {
+            bo_grouped_bridi_tail_contains_current_level_keha(&continuation.bridi_tail)
+                || continuation
+                    .tail_terms
+                    .iter()
+                    .any(term_contains_current_level_keha)
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn simple_bridi_tail_contains_current_level_keha(tail: &SimpleBridiTailSyntax) -> bool {
+    match tail.as_data() {
+        data!(SimpleBridiTailSyntax::SelbriBridiTail { selbri, terms, .. }) => {
+            selbri_contains_current_level_keha(selbri)
+                || terms.iter().any(term_contains_current_level_keha)
+        }
+        data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(
+            connection
+        )) => forethought_bridi_connection_contains_current_level_keha(connection),
+        data!(SimpleBridiTailSyntax::TermPrefixedBridiTail { terms, bridi_tail }) => {
+            terms.iter().any(term_contains_current_level_keha)
+                || bridi_tail_contains_current_level_keha(bridi_tail)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn forethought_bridi_connection_contains_current_level_keha(
+    connection: &ForethoughtBridiConnectionSyntax,
+) -> bool {
+    match connection.as_data() {
+        data!(ForethoughtBridiConnectionSyntax::BridiConnection {
+            first,
+            second,
+            tail_terms,
+            ..
+        }) => {
+            subbridi_contains_current_level_keha(first)
+                || subbridi_contains_current_level_keha(second)
+                || tail_terms.iter().any(term_contains_current_level_keha)
+        }
+        data!(ForethoughtBridiConnectionSyntax::GroupedBridiConnection { inner, .. })
+        | data!(ForethoughtBridiConnectionSyntax::NegatedBridiConnection { inner, .. }) => {
+            forethought_bridi_connection_contains_current_level_keha(inner)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn term_contains_current_level_keha(term: &TermSyntax) -> bool {
+    match term.as_data() {
+        data!(TermSyntax::Termset { termset, .. }) => {
+            termset.iter().any(term_contains_current_level_keha)
+        }
+        data!(TermSyntax::ForethoughtTermsetConnection {
+            terms,
+            gik_terms,
+            ..
+        }) => {
+            terms.iter().any(term_contains_current_level_keha)
+                || gik_terms.iter().any(term_contains_current_level_keha)
+        }
+        data!(TermSyntax::TermsetGroup {
+            leading_terms,
+            trailing_terms,
+            ..
+        })
+        | data!(TermSyntax::TermsetConnection {
+            leading_terms,
+            trailing_terms,
+            ..
+        }) => {
+            leading_terms.iter().any(term_contains_current_level_keha)
+                || trailing_terms.iter().any(term_contains_current_level_keha)
+        }
+        data!(TermSyntax::Sumti(sumti))
+        | data!(TermSyntax::PlaceTaggedSumti { sumti, .. })
+        | data!(TermSyntax::JaiTaggedSumti { sumti, .. })
+        | data!(TermSyntax::TaggedSumti { sumti, .. }) => sumti_contains_current_level_keha(sumti),
+        data!(TermSyntax::RelativeAdverbialTerm {
+            tail_elements,
+            selbri,
+            ..
+        })
+        | data!(TermSyntax::BridiVariableAdverbialTerm {
+            tail_elements,
+            selbri,
+            ..
+        }) => {
+            tail_elements
+                .iter()
+                .any(description_tail_element_contains_current_level_keha)
+                || selbri
+                    .as_ref()
+                    .is_some_and(|selbri| selbri_contains_current_level_keha(selbri))
+        }
+        data!(TermSyntax::AdHocBridiAdverbialTerm { subbridi, .. })
+        | data!(TermSyntax::ReciprocalBridiAdverbialTerm { subbridi, .. }) => {
+            subbridi_contains_current_level_keha(subbridi)
+        }
+        data!(TermSyntax::TermConnection {
+            leading_terms,
+            trailing_terms,
+            ..
+        }) => {
+            leading_terms.iter().any(term_contains_current_level_keha)
+                || trailing_terms.iter().any(term_contains_current_level_keha)
+        }
+        data!(TermSyntax::BoundTermConnection {
+            leading_terms,
+            trailing_term,
+            ..
+        }) => {
+            leading_terms.iter().any(term_contains_current_level_keha)
+                || term_contains_current_level_keha(trailing_term)
+        }
+        data!(TermSyntax::BridiNegation { .. }) | data!(TermSyntax::BareNegation(_)) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sumti_contains_current_level_keha(sumti: &SumtiSyntax) -> bool {
+    match sumti.as_data() {
+        data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::GroupedSumti { inner_sumti, .. }) => {
+            sumti_contains_current_level_keha(inner_sumti)
+        }
+        data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. }) => {
+            sumti_contains_current_level_keha(base_sumti)
+        }
+        data!(SumtiSyntax::BridiDescription { subbridi, .. }) => {
+            subbridi_contains_current_level_keha(subbridi)
+        }
+        data!(SumtiSyntax::QualifiedTerm { inner_term, .. }) => {
+            term_contains_current_level_keha(inner_term)
+        }
+        data!(SumtiSyntax::ProSumti(koha)) => koha.value.cmavo() == Some(Cmavo::Keha),
+        data!(SumtiSyntax::ReferentSumti { inner_sumti, .. }) => {
+            sumti_contains_current_level_keha(inner_sumti)
+        }
+        data!(SumtiSyntax::SumtiConnection {
+            leading_sumti,
+            trailing_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::BoundSumtiConnection {
+            leading_sumti,
+            trailing_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::ForethoughtSumtiConnection {
+            leading_sumti,
+            trailing_sumti,
+            ..
+        }) => {
+            sumti_contains_current_level_keha(leading_sumti)
+                || sumti_contains_current_level_keha(trailing_sumti)
+        }
+        data!(SumtiSyntax::Description(description)) => {
+            description_contains_current_level_keha(description)
+        }
+        data!(SumtiSyntax::DescriptionConnection(description)) => {
+            description
+                .tail_elements
+                .iter()
+                .any(description_tail_element_contains_current_level_keha)
+                || description
+                    .selbri
+                    .as_ref()
+                    .is_some_and(|selbri| selbri_contains_current_level_keha(selbri))
+        }
+        data!(SumtiSyntax::SelbriVocative { selbri, .. }) => {
+            selbri_contains_current_level_keha(selbri)
+        }
+        data!(SumtiSyntax::QuotedSumti(_))
+        | data!(SumtiSyntax::NumberSumti { .. })
+        | data!(SumtiSyntax::LerfuStringSumti { .. })
+        | data!(SumtiSyntax::NegatedSumti { .. })
+        | data!(SumtiSyntax::ElidedSumti { .. })
+        | data!(SumtiSyntax::NameDescription { .. })
+        | data!(SumtiSyntax::NameWords(_)) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn description_contains_current_level_keha(description: &DescriptionSyntax) -> bool {
+    description
+        .tail_elements
+        .iter()
+        .any(description_tail_element_contains_current_level_keha)
+        || description
+            .selbri
+            .as_ref()
+            .is_some_and(|selbri| selbri_contains_current_level_keha(selbri))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn description_tail_element_contains_current_level_keha(
+    element: &DescriptionTailElementSyntax,
+) -> bool {
+    match element.as_data() {
+        data!(DescriptionTailElementSyntax::DescriptionTailSumti(sumti)) => {
+            sumti_contains_current_level_keha(sumti)
+        }
+        data!(DescriptionTailElementSyntax::DescriptionTailRelativeClauses(_))
+        | data!(DescriptionTailElementSyntax::DescriptionTailQuantifier(_)) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn selbri_contains_current_level_keha(selbri: &SelbriSyntax) -> bool {
+    match selbri.as_data() {
+        data!(SelbriSyntax::SelbriConnection {
+            leading_selbri,
+            trailing_selbri,
+            ..
+        })
+        | data!(SelbriSyntax::InvertedTanru {
+            leading_selbri,
+            trailing_selbri,
+            ..
+        })
+        | data!(SelbriSyntax::BoundSelbriConnection {
+            leading_selbri,
+            trailing_selbri,
+            ..
+        }) => {
+            selbri_contains_current_level_keha(leading_selbri)
+                || selbri_contains_current_level_keha(trailing_selbri)
+        }
+        data!(SelbriSyntax::Negated { inner_selbri, .. })
+        | data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. })
+        | data!(SelbriSyntax::TaggedSelbri { inner_selbri, .. }) => {
+            selbri_contains_current_level_keha(inner_selbri)
+        }
+        data!(SelbriSyntax::GroupedSelbri { selbri, .. }) => {
+            selbri_contains_current_level_keha(selbri)
+        }
+        data!(SelbriSyntax::ForethoughtSelbriConnection {
+            leading_bridi,
+            trailing_bridi,
+            ..
+        }) => {
+            bridi_contains_current_level_keha(leading_bridi)
+                || bridi_contains_current_level_keha(trailing_bridi)
+        }
+        data!(SelbriSyntax::Abstraction(abstraction)) => {
+            subbridi_contains_current_level_keha(&abstraction.subbridi)
+        }
+        data!(SelbriSyntax::Tanru(units)) => {
+            units.iter().any(tanru_unit_contains_current_level_keha)
+        }
+        data!(SelbriSyntax::SelbriWord(token)) => token.cmavo() == Some(Cmavo::Keha),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tanru_unit_contains_current_level_keha(unit: &TanruUnitSyntax) -> bool {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ModalConversion { inner_unit, .. }) => {
+            tanru_unit_contains_current_level_keha(inner_unit)
+        }
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+            selbri_contains_current_level_keha(selbri)
+        }
+        data!(TanruUnitSyntax::BoundTanruUnitConnection {
+            leading_unit,
+            trailing_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::TanruUnitConnection {
+            leading_unit,
+            trailing_unit,
+            ..
+        }) => {
+            tanru_unit_contains_current_level_keha(leading_unit)
+                || tanru_unit_contains_current_level_keha(trailing_unit)
+        }
+        data!(TanruUnitSyntax::RelativeClauses { base, .. })
+        | data!(TanruUnitSyntax::AssignedProBridi { base, .. }) => {
+            tanru_unit_contains_current_level_keha(base)
+        }
+        data!(TanruUnitSyntax::LinkedSumtiTanruUnit {
+            base,
+            first_sumti,
+            bei_links,
+            ..
+        }) => {
+            tanru_unit_contains_current_level_keha(base)
+                || first_sumti
+                    .as_ref()
+                    .is_some_and(|sumti| sumti_contains_current_level_keha(sumti))
+                || bei_links.iter().any(|link| {
+                    link.sumti
+                        .as_ref()
+                        .is_some_and(|sumti| sumti_contains_current_level_keha(sumti))
+                })
+        }
+        data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
+            base,
+            first_sumti,
+            bei_links,
+            ..
+        }) => {
+            tanru_unit_contains_current_level_keha(base)
+                || first_sumti
+                    .as_ref()
+                    .is_some_and(|sumti| sumti_contains_current_level_keha(sumti))
+                || bei_links.iter().any(|link| {
+                    link.sumti
+                        .as_ref()
+                        .is_some_and(|sumti| sumti_contains_current_level_keha(sumti))
+                })
+        }
+        data!(TanruUnitSyntax::Abstraction(abstraction)) => {
+            subbridi_contains_current_level_keha(&abstraction.subbridi)
+        }
+        data!(TanruUnitSyntax::SumtiSelbri { sumti, .. }) => {
+            sumti_contains_current_level_keha(sumti)
+        }
+        data!(TanruUnitSyntax::TanruUnitWord(word)) => word.value.cmavo() == Some(Cmavo::Keha),
+        data!(TanruUnitSyntax::ProBridi { .. })
+        | data!(TanruUnitSyntax::QuotedWordSelbri(_))
+        | data!(TanruUnitSyntax::QuotedBridiSelbri(_))
+        | data!(TanruUnitSyntax::QuotedTextSelbri(_))
+        | data!(TanruUnitSyntax::TextSelbri { .. })
+        | data!(TanruUnitSyntax::OrdinalSelbri { .. })
+        | data!(TanruUnitSyntax::OperatorSelbri { .. })
+        | data!(TanruUnitSyntax::TagSelbri { .. }) => false,
+    }
 }
 
 #[requires(true)]
@@ -10209,6 +10609,30 @@ mod tests {
         assert_eq!(
             lacpu["arguments"]["x2"]["value"],
             ratcu["arguments"]["x1"]["value"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nested_relative_keha_does_not_satisfy_outer_omitted_head() {
+        let json =
+            semantic_json_for("le prenu poi zvati le kumfa poi ke'axire zbasu ke'a cu masno")
+                .expect("semantic JSON");
+        let zbasu = predication_with_relation_and_mode(&json, "zbasu", "restrictive");
+        let zvati = predication_with_relation_and_mode(&json, "zvati", "restrictive");
+        let masno = predication_with_relation_and_mode(&json, "masno", "asserted");
+        assert_eq!(
+            zvati["arguments"]["x1"]["value"],
+            masno["arguments"]["x1"]["value"]
+        );
+        assert_eq!(
+            zbasu["arguments"]["x1"]["value"],
+            masno["arguments"]["x1"]["value"]
+        );
+        assert_eq!(
+            zbasu["arguments"]["x2"]["value"],
+            zvati["arguments"]["x2"]["value"]
         );
     }
 
