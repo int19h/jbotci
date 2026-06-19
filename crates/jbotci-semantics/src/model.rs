@@ -368,6 +368,8 @@ pub struct SemanticObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<PredicationMode>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub scalar_negation: Option<ScalarNegation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub relation_metadata: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub operator: Option<FormulaOperator>,
@@ -481,6 +483,7 @@ impl SemanticObject {
             arguments: BTreeMap::new(),
             modal_arguments: Vec::new(),
             mode: None,
+            scalar_negation: None,
             relation_metadata: None,
             operator: None,
             predication: None,
@@ -1242,6 +1245,35 @@ pub enum PredicationMode {
     Displayed,
     Inert,
     Performative,
+}
+
+#[invariant(!introduced_by.is_empty(), "scalar negation source marker must be named")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScalarNegation {
+    pub kind: ScalarNegationKind,
+    pub introduced_by: String,
+}
+
+impl ScalarNegation {
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.introduced_by == old(introduced_by.clone()))]
+    pub fn new(kind: ScalarNegationKind, introduced_by: String) -> Self {
+        Self::from_data(data!(ScalarNegation {
+            kind,
+            introduced_by,
+        }))
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ScalarNegationKind {
+    OtherThan,
+    Opposite,
+    Neutral,
+    Affirmed,
 }
 
 #[invariant(true)]

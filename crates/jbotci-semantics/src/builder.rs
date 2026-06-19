@@ -22,8 +22,9 @@ use crate::model::{
     Connector, Descriptor, EventualityClass, FormulaOperator, IndexicalKind, ModalArgument,
     PredicationMode, QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode,
     QuestionSlot, QuestionSlotRole, ReferentCategory, RelativeClause, RelativeClauseKind,
-    SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId, SemanticSort,
-    SequenceRelation, UtteranceForce, diagnostic, source_from_spans,
+    ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject,
+    SemanticObjectId, SemanticSort, SequenceRelation, UtteranceForce, diagnostic,
+    source_from_spans,
 };
 use crate::references::{
     PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, ReferenceAnalysisError,
@@ -1722,6 +1723,16 @@ where
                     x1_argument: tertau.x1_argument,
                 })
             }
+            data!(TanruUnitSyntax::ScalarNegatedTanruUnit { nahe, inner_unit }) => self
+                .build_scalar_negated_tanru_unit_formula_for_frame(
+                    selbri,
+                    unit,
+                    nahe,
+                    inner_unit,
+                    frame,
+                    source,
+                    visible_x1_override,
+                ),
             data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
             | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
                 if let Some(units) = tanru_units_for_selbri(selbri)
@@ -1884,6 +1895,43 @@ where
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )?;
         let x1_argument = self.predication_argument(predication, 1)?;
+        Ok(TanruFormulaForArgument {
+            formula,
+            x1_argument,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_scalar_negated_tanru_unit_formula_for_frame(
+        &mut self,
+        selbri: Option<&'tree SelbriSyntax>,
+        unit: &'tree TanruUnitSyntax,
+        marker: &WithFreeModifiers<Token>,
+        inner_unit: &'tree TanruUnitSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        visible_x1_override: Option<ArgumentValue>,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        let visible_x1_place = visible_x1_place_for_tanru_unit(inner_unit);
+        let mut overrides = BTreeMap::new();
+        if let Some(argument) = visible_x1_override {
+            overrides.insert(format!("x{visible_x1_place}"), argument);
+        }
+        let predication = self.build_predication_for_frame_with_overrides(
+            self.semantic_predication_frame_for_tanru_unit(unit, frame),
+            source.clone(),
+            selbri,
+            relation_label_for_tanru_unit(inner_unit),
+            overrides,
+        )?;
+        self.set_scalar_negation(predication, scalar_negation_for_marker(marker));
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )?;
+        let x1_argument = self.predication_argument(predication, visible_x1_place)?;
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument,
@@ -2353,6 +2401,20 @@ where
                     PredicationMode::Restrictive,
                 )
                 .map(|result| result.formula),
+            data!(TanruUnitSyntax::ScalarNegatedTanruUnit { nahe, inner_unit }) => {
+                let frame = self.semantic_predication_frame_for_tanru_unit(
+                    unit,
+                    self.branch_frame_for_tanru_unit(unit),
+                );
+                self.build_property_atom_for_relation_with_scalar_negation(
+                    relation_label_for_tanru_unit(inner_unit),
+                    parameter,
+                    source,
+                    frame,
+                    visible_x1_place_for_tanru_unit(inner_unit),
+                    Some(scalar_negation_for_marker(nahe)),
+                )
+            }
             _ => {
                 let frame = self.semantic_predication_frame_for_tanru_unit(
                     unit,
@@ -2400,6 +2462,27 @@ where
         source: Option<crate::model::SemanticSource>,
         frame: Option<SelbriPlaceFrameId>,
         visible_x1_place: usize,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_property_atom_for_relation_with_scalar_negation(
+            relation,
+            parameter,
+            source,
+            frame,
+            visible_x1_place,
+            None,
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_property_atom_for_relation_with_scalar_negation(
+        &mut self,
+        relation: String,
+        parameter: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+        frame: Option<SelbriPlaceFrameId>,
+        visible_x1_place: usize,
+        scalar_negation: Option<ScalarNegation>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let eventuality = self.next_eventuality();
         self.insert(
@@ -2449,6 +2532,7 @@ where
             diagnostics,
         );
         object.modal_arguments = modal_arguments;
+        object.scalar_negation = scalar_negation;
         self.insert(predication, object)?;
         let formula = self.next_formula();
         self.insert(
@@ -3038,7 +3122,9 @@ where
         frame: Option<SelbriPlaceFrameId>,
     ) -> Option<SelbriPlaceFrameId> {
         match unit.as_data() {
-            data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. }) => self
+            data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+            | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
+            | data!(TanruUnitSyntax::ModalConversion { inner_unit, .. }) => self
                 .semantic_predication_frame_for_tanru_unit(
                     inner_unit,
                     self.branch_frame_for_tanru_unit(inner_unit).or(frame),
@@ -3791,6 +3877,18 @@ where
         };
         object.push_diagnostic(diagnostic);
     }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(true)]
+    fn set_scalar_negation(
+        &mut self,
+        predication: SemanticObjectId,
+        scalar_negation: ScalarNegation,
+    ) {
+        if let Some(object) = self.objects.get_mut(&predication) {
+            object.scalar_negation = Some(scalar_negation);
+        }
+    }
 }
 
 #[requires(true)]
@@ -4495,8 +4593,8 @@ fn tanru_unit_has_explicit_grouping(unit: &TanruUnitSyntax) -> bool {
 fn tanru_unit_requires_lowering(unit: &TanruUnitSyntax) -> bool {
     match unit.as_data() {
         data!(TanruUnitSyntax::SumtiSelbri { .. }) => true,
+        data!(TanruUnitSyntax::ScalarNegatedTanruUnit { .. }) => true,
         data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
-        | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
         | data!(TanruUnitSyntax::ModalConversion { inner_unit, .. })
         | data!(TanruUnitSyntax::RelativeClauses {
             base: inner_unit,
@@ -4720,6 +4818,26 @@ fn referent_qualifier_sort(cmavo: Option<Cmavo>) -> SemanticSort {
         Some(Cmavo::Luho) => SemanticSort::Mass,
         Some(Cmavo::Vuhi) => SemanticSort::Sequence,
         _ => SemanticSort::Entity,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.introduced_by.is_empty())]
+fn scalar_negation_for_marker(marker: &WithFreeModifiers<Token>) -> ScalarNegation {
+    ScalarNegation::new(
+        scalar_negation_kind_for_cmavo(marker.cmavo()),
+        token_text(&marker.value),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn scalar_negation_kind_for_cmavo(cmavo: Option<Cmavo>) -> ScalarNegationKind {
+    match cmavo {
+        Some(Cmavo::Tohe) => ScalarNegationKind::Opposite,
+        Some(Cmavo::Nohe) => ScalarNegationKind::Neutral,
+        Some(Cmavo::Jeha) => ScalarNegationKind::Affirmed,
+        _ => ScalarNegationKind::OtherThan,
     }
 }
 
@@ -4986,6 +5104,56 @@ mod tests {
         assert_eq!(object(&json, "formula:f4")["operator"], "and");
         assert_eq!(object(&json, "formula:f4")["children"][0], "formula:f1");
         assert_eq!(object(&json, "formula:f4")["children"][1], "formula:f3");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn scalar_negated_single_tanru_unit_uses_semantic_lowering() {
+        let json = semantic_json_for("mi na'e cadzu").expect("semantic JSON");
+        let cadzu = predication_with_relation_and_mode(&json, "cadzu", "asserted");
+        assert_eq!(cadzu["arguments"]["x1"]["value"], "referent:speaker");
+        assert_eq!(cadzu["scalarNegation"]["kind"], "otherThan");
+        assert_eq!(cadzu["scalarNegation"]["introducedBy"], "na'e");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn scalar_negated_seltau_does_not_negate_tertau() {
+        let json =
+            semantic_json_for("la .alis. cu na'e cadzu klama le zarci").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        assert!(klama.get("scalarNegation").is_none());
+
+        let cadzu = predication_with_relation_and_mode(&json, "cadzu", "restrictive");
+        assert_eq!(cadzu["arguments"]["x1"]["value"], "parameter:p1");
+        assert_eq!(cadzu["scalarNegation"]["kind"], "otherThan");
+        assert_eq!(cadzu["scalarNegation"]["introducedBy"], "na'e");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn scalar_negated_group_preserves_linked_places_and_omitted_terminator_scope() {
+        let grouped =
+            semantic_json_for("mi na'e ke sutra cadzu be fi le birka ke'e klama le zarci")
+                .expect("semantic JSON");
+        let sutra_cadzu =
+            predication_with_relation_and_mode(&grouped, "sutra cadzu", "restrictive");
+        assert_eq!(sutra_cadzu["arguments"]["x3"]["kind"], "filled");
+        assert_eq!(sutra_cadzu["scalarNegation"]["kind"], "otherThan");
+        assert_eq!(sutra_cadzu["scalarNegation"]["introducedBy"], "na'e");
+
+        let omitted =
+            semantic_json_for("mi na'e ke sutra bo cadzu be fi le birka je masno klama le zarci")
+                .expect("semantic JSON");
+        let whole_group =
+            predication_with_relation_and_mode(&omitted, "sutra bo cadzu", "asserted");
+        assert_eq!(whole_group["arguments"]["x1"]["value"], "referent:speaker");
+        assert_eq!(whole_group["arguments"]["x4"]["kind"], "filled");
+        assert_eq!(whole_group["scalarNegation"]["kind"], "otherThan");
+        assert_eq!(whole_group["scalarNegation"]["introducedBy"], "na'e");
     }
 
     #[test]
