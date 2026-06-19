@@ -2876,6 +2876,52 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn morphology_accepts_pathological_long_lujvo() {
+        let cases = [
+            "zgikemfi'inalka'esefsysajyke'ejvekemsefsyda'atoiflike'ejvejagborkemjilryjvesefsyborxenze'a",
+            "jbojevysofkemsuzgugje'ake'eborkemfaipaltrusi'oke'ekemgubyseltru",
+            "tci'ilykemcantutra",
+        ];
+
+        for source in cases {
+            let words = segment_words_with_modifiers(source)
+                .unwrap_or_else(|error| panic!("{source} should parse as lujvo: {error:?}"));
+            let word = base_word(&words[0]).expect("base word");
+
+            assert_eq!(words.len(), 1, "{source}");
+            assert_eq!(word.kind(), WordKind::Lujvo, "{source}");
+            assert!(
+                word.lujvo_parts().is_some_and(|parts| parts.len() > 1),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_slinkuhi_examples_remain_invalid() {
+        for source in ["xlaglymlu", "jbaugri"] {
+            let Err(error) = segment_words_with_modifiers(source) else {
+                panic!("{source} must remain invalid");
+            };
+
+            assert!(
+                matches!(
+                    error,
+                    MorphologyError::Invalid {
+                        kind: MorphologyErrorKind::Slinkuhi,
+                        ..
+                    }
+                ),
+                "{source}: {error:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn pronunciation_syllables_match_updated_jvot3_clusters() {
         let cases = [
             (
