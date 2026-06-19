@@ -1311,11 +1311,14 @@ impl ArgumentValue {
 }
 
 #[invariant(body.object_kind() == SemanticObjectKind::Formula)]
+#[invariant(introduced_by.as_ref().is_none_or(|introduced_by| !introduced_by.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RelativeClause {
     pub kind: RelativeClauseKind,
     pub body: SemanticObjectId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub introduced_by: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SemanticSource>,
 }
@@ -1328,7 +1331,29 @@ impl RelativeClause {
         body: SemanticObjectId,
         source: Option<SemanticSource>,
     ) -> Self {
-        Self::from_data(data!(RelativeClause { kind, body, source }))
+        Self::from_data(data!(RelativeClause {
+            kind,
+            body,
+            introduced_by: None,
+            source
+        }))
+    }
+
+    #[requires(body.object_kind() == SemanticObjectKind::Formula)]
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.body == body)]
+    pub fn with_introducer(
+        kind: RelativeClauseKind,
+        body: SemanticObjectId,
+        introduced_by: String,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::from_data(data!(RelativeClause {
+            kind,
+            body,
+            introduced_by: Some(introduced_by),
+            source
+        }))
     }
 }
 

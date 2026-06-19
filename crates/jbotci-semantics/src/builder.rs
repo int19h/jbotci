@@ -5057,8 +5057,69 @@ where
             | data!(RelativeClauseSyntax::RelativeClauseConnection { inner, .. }) => {
                 self.build_relative_clause(inner, head)
             }
-            data!(RelativeClauseSyntax::SumtiAssociationPhrase(..)) => Ok(None),
+            data!(RelativeClauseSyntax::SumtiAssociationPhrase(phrase)) => {
+                self.build_sumti_association_phrase_clause(phrase, head)
+            }
         }
+    }
+
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_sumti_association_phrase_clause(
+        &mut self,
+        phrase: &'tree SumtiAssociationPhraseSyntax,
+        head: SemanticObjectId,
+    ) -> Result<Option<RelativeClause>, SemanticsError> {
+        let marker_text = token_text(&phrase.association_marker.value);
+        if phrase.association_marker.cmavo() == Some(Cmavo::Goi) {
+            return Ok(None);
+        }
+        let source = self.source_for_sumti_association_phrase(phrase, "relative-phrase");
+        let marker = phrase.association_marker.cmavo();
+        let kind = marker
+            .and_then(relative_phrase_kind_for_marker)
+            .unwrap_or(RelativeClauseKind::Restrictive);
+        let relation = marker
+            .and_then(relative_phrase_relation_for_marker)
+            .unwrap_or("relativePhrase")
+            .to_owned();
+        let mode = predication_mode_for_relative_clause_kind(kind);
+        let mut diagnostics = Vec::new();
+        if marker
+            .and_then(relative_phrase_relation_for_marker)
+            .is_none()
+        {
+            diagnostics.push(diagnostic(
+                "GOI relative phrase marker is not semantically lowered yet",
+            ));
+        }
+        let associated_argument = self.build_argument_for_sumti(&phrase.sumti)?;
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(head, None));
+        arguments.insert("x2".to_owned(), associated_argument);
+        let predication = self.next_predication();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                relation,
+                None,
+                arguments,
+                mode,
+                source.clone(),
+                diagnostics,
+            ),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source.clone(), Vec::new()),
+        )?;
+        Ok(Some(RelativeClause::with_introducer(
+            kind,
+            formula,
+            marker_text,
+            source,
+        )))
     }
 
     #[requires(true)]
@@ -5069,10 +5130,7 @@ where
         head: SemanticObjectId,
         kind: RelativeClauseKind,
     ) -> Result<RelativeClause, SemanticsError> {
-        let mode = match kind {
-            RelativeClauseKind::Incidental => PredicationMode::Incidental,
-            RelativeClauseKind::Restrictive => PredicationMode::Restrictive,
-        };
+        let mode = predication_mode_for_relative_clause_kind(kind);
         if subbridi_contains_keha(subbridi)
             && let Some(formula) = self.build_subbridi_formula(subbridi)?
         {
@@ -5176,6 +5234,13 @@ where
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(units) = tanru_units_for_selbri(selbri)
+            && tanru_units_require_lowering(&units)
+        {
+            let formula = self.build_restrictive_formula(selbri, head)?;
+            self.set_formula_predication_mode(formula, mode);
+            return Ok(formula);
+        }
         let relation = relation_label_for_selbri(selbri);
         let frame = self
             .semantic_predication_frame_for_selbri(selbri, self.branch_frame_for_selbri(selbri));
@@ -8395,6 +8460,9 @@ fn constructed_relation_place_count(relation: &str) -> Option<usize> {
             | "conceptOf"
             | "experienceOf"
             | "abstractionOf"
+            | "associatedWith"
+            | "specificallyAssociatedWith"
+            | "intrinsicallyPossessedBy"
     ) {
         Some(2)
     } else if relation.starts_with("nu ") {
@@ -8403,6 +8471,37 @@ fn constructed_relation_place_count(relation: &str) -> Option<usize> {
         Some(3)
     } else {
         None
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predication_mode_for_relative_clause_kind(kind: RelativeClauseKind) -> PredicationMode {
+    match kind {
+        RelativeClauseKind::Incidental => PredicationMode::Incidental,
+        RelativeClauseKind::Restrictive => PredicationMode::Restrictive,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn relative_phrase_kind_for_marker(marker: Cmavo) -> Option<RelativeClauseKind> {
+    match marker {
+        Cmavo::Ne | Cmavo::Nohu => Some(RelativeClauseKind::Incidental),
+        Cmavo::Pe | Cmavo::Po | Cmavo::Pohe | Cmavo::Pohu => Some(RelativeClauseKind::Restrictive),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|relation| !relation.is_empty()))]
+fn relative_phrase_relation_for_marker(marker: Cmavo) -> Option<&'static str> {
+    match marker {
+        Cmavo::Pe | Cmavo::Ne => Some("associatedWith"),
+        Cmavo::Po => Some("specificallyAssociatedWith"),
+        Cmavo::Pohe => Some("intrinsicallyPossessedBy"),
+        Cmavo::Pohu | Cmavo::Nohu => Some("identity"),
+        _ => None,
     }
 }
 
@@ -10609,6 +10708,92 @@ mod tests {
         assert_eq!(
             lacpu["arguments"]["x2"]["value"],
             ratcu["arguments"]["x1"]["value"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn goi_relative_phrases_lower_to_semantic_relations() {
+        let pe = semantic_json_for("le stizu pe mi cu blanu").expect("semantic JSON");
+        let associated = predication_with_relation_and_mode(&pe, "associatedWith", "restrictive");
+        let blanu = predication_with_relation_and_mode(&pe, "blanu", "asserted");
+        assert_eq!(associated["arguments"]["x2"]["value"], "referent:speaker");
+        assert_eq!(
+            associated["arguments"]["x1"]["value"],
+            blanu["arguments"]["x1"]["value"]
+        );
+        assert_eq!(
+            blanu["arguments"]["x1"]["relativeClauses"][0]["kind"],
+            "restrictive"
+        );
+        assert_eq!(
+            blanu["arguments"]["x1"]["relativeClauses"][0]["introducedBy"],
+            "pe"
+        );
+
+        let ne = semantic_json_for("le gerku ne mi cu batci do").expect("semantic JSON");
+        let associated = predication_with_relation_and_mode(&ne, "associatedWith", "incidental");
+        let batci = predication_with_relation_and_mode(&ne, "batci", "asserted");
+        assert_eq!(
+            associated["arguments"]["x1"]["value"],
+            batci["arguments"]["x1"]["value"]
+        );
+        assert_eq!(
+            batci["arguments"]["x1"]["relativeClauses"][0]["kind"],
+            "incidental"
+        );
+        assert_eq!(
+            batci["arguments"]["x1"]["relativeClauses"][0]["introducedBy"],
+            "ne"
+        );
+
+        let po = semantic_json_for("le stizu po mi cu xunre").expect("semantic JSON");
+        let specific =
+            predication_with_relation_and_mode(&po, "specificallyAssociatedWith", "restrictive");
+        assert_eq!(specific["arguments"]["x2"]["value"], "referent:speaker");
+
+        let pohe = semantic_json_for("le birka po'e mi cu spofu").expect("semantic JSON");
+        let intrinsic =
+            predication_with_relation_and_mode(&pohe, "intrinsicallyPossessedBy", "restrictive");
+        assert_eq!(intrinsic["arguments"]["x2"]["value"], "referent:speaker");
+
+        let pohu =
+            semantic_json_for("le gerku po'u le mi pendo cu cinba mi").expect("semantic JSON");
+        let identity = predication_with_relation_and_mode(&pohu, "identity", "restrictive");
+        let cinba = predication_with_relation_and_mode(&pohu, "cinba", "asserted");
+        assert_eq!(
+            identity["arguments"]["x1"]["value"],
+            cinba["arguments"]["x1"]["value"]
+        );
+
+        let nohu = semantic_json_for("le nanmu no'u la .djim. cu terpemci").expect("semantic JSON");
+        let identity = predication_with_relation_and_mode(&nohu, "identity", "incidental");
+        let terpemci = predication_with_relation_and_mode(&nohu, "terpemci", "asserted");
+        assert_eq!(
+            identity["arguments"]["x1"]["value"],
+            terpemci["arguments"]["x1"]["value"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn implicit_relative_tanru_uses_uniform_lowering() {
+        let json = semantic_json_for("le birka poi jinzi ke se steci srana mi cu spofu")
+            .expect("semantic JSON");
+        let spofu = predication_with_relation_and_mode(&json, "spofu", "asserted");
+        assert_eq!(
+            spofu["arguments"]["x1"]["relativeClauses"][0]["kind"],
+            "restrictive"
+        );
+        predication_with_relation_and_mode(&json, "srana", "restrictive");
+        predication_with_relation_and_mode(&json, "jinzi", "restrictive");
+        let objects = json["objects"].as_object().expect("objects");
+        assert!(
+            objects
+                .values()
+                .all(|object| object["relation"] != "jinzi steci srana")
         );
     }
 
