@@ -90,10 +90,12 @@ impl ReferenceLabel {
 #[serde(rename_all = "kebab-case")]
 #[invariant(::Numbered(_) => true)]
 #[invariant(::Modal(_) => true)]
+#[invariant(::PlaceQuestion => true)]
 #[invariant(::Fai => true)]
 pub enum ReferenceSlotLabel {
     Numbered(u8),
     Modal(Vec<String>),
+    PlaceQuestion,
     Fai,
 }
 
@@ -109,6 +111,7 @@ impl ReferenceSlotLabel {
                 .map(|word| reference_label_plain_text(word))
                 .collect::<Vec<_>>()
                 .join(" "),
+            Self::PlaceQuestion => "place-question".to_owned(),
             Self::Fai => "fai".to_owned(),
         }
     }
@@ -1618,6 +1621,7 @@ pub fn reference_slot_label_from_output(slot: &OutputReferenceSlotName) -> Refer
     match slot {
         OutputReferenceSlotName::Numbered(place) => ReferenceSlotLabel::Numbered(*place),
         OutputReferenceSlotName::Modal(words) => ReferenceSlotLabel::Modal(words.clone()),
+        OutputReferenceSlotName::PlaceQuestion => ReferenceSlotLabel::PlaceQuestion,
         OutputReferenceSlotName::Fai => ReferenceSlotLabel::Fai,
     }
 }

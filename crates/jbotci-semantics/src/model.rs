@@ -370,6 +370,8 @@ pub struct SemanticObject {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub arguments: BTreeMap<String, ArgumentValue>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub place_questions: Vec<PlaceQuestionBinding>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub modal_arguments: Vec<ModalArgument>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reciprocity: Vec<ReciprocalExchange>,
@@ -494,6 +496,7 @@ impl SemanticObject {
             relation: None,
             relation_parameter: None,
             arguments: BTreeMap::new(),
+            place_questions: Vec::new(),
             modal_arguments: Vec::new(),
             reciprocity: Vec::new(),
             mode: None,
@@ -909,6 +912,9 @@ impl SemanticObject {
         for argument in self.arguments.values() {
             argument.references_into(out);
         }
+        for question in &self.place_questions {
+            question.references_into(out);
+        }
         for argument in &self.modal_arguments {
             argument.references_into(out);
         }
@@ -1143,6 +1149,7 @@ pub enum SemanticSort {
     Text,
     Sign,
     Relation,
+    Place,
     ArgumentBundle,
 }
 
@@ -1402,6 +1409,47 @@ pub struct AssignedName {
 pub enum RelativeClauseKind {
     Incidental,
     Restrictive,
+}
+
+#[invariant(parameter.object_kind() == SemanticObjectKind::Parameter)]
+#[invariant(!candidate_places.is_empty(), "place questions must enumerate candidate places")]
+#[invariant(candidate_places.iter().all(|place| is_numbered_argument_place(place)))]
+#[invariant(candidate_places.iter().enumerate().all(|(index, place)| !candidate_places[..index].contains(place)))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaceQuestionBinding {
+    pub parameter: SemanticObjectId,
+    pub argument: ArgumentValue,
+    pub candidate_places: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SemanticSource>,
+}
+
+impl PlaceQuestionBinding {
+    #[requires(parameter.object_kind() == SemanticObjectKind::Parameter)]
+    #[requires(!candidate_places.is_empty())]
+    #[requires(candidate_places.iter().all(|place| is_numbered_argument_place(place)))]
+    #[ensures(ret.parameter == parameter)]
+    pub fn new(
+        parameter: SemanticObjectId,
+        argument: ArgumentValue,
+        candidate_places: Vec<String>,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::from_data(data!(PlaceQuestionBinding {
+            parameter,
+            argument,
+            candidate_places,
+            source,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        out.push(self.parameter);
+        self.argument.references_into(out);
+    }
 }
 
 #[invariant(!relation.is_empty(), "modal relation must be named")]
@@ -2011,6 +2059,13 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
             .slots
             .iter()
             .all(|slot| slot.parameter.object_kind() == SemanticObjectKind::Parameter)
+        && object.place_questions.iter().all(|question| {
+            question.parameter.object_kind() == SemanticObjectKind::Parameter
+                && question
+                    .candidate_places
+                    .iter()
+                    .all(|place| is_numbered_argument_place(place))
+        })
         && optional_reference_has_kind(object.focus, SemanticObjectKind::Parameter)
 }
 
@@ -2121,6 +2176,16 @@ pub fn semantic_object_arguments_are_valid(
             && object.arguments.iter().all(|(place, value)| {
                 is_numbered_argument_place(place)
                     && argument_value_references_allowed_objects(value, objects)
+            })
+            && object.place_questions.iter().all(|question| {
+                objects
+                    .get(&question.parameter)
+                    .is_some_and(|object| object.object_kind() == SemanticObjectKind::Parameter)
+                    && argument_value_references_allowed_objects(&question.argument, objects)
+                    && question
+                        .candidate_places
+                        .iter()
+                        .all(|place| is_numbered_argument_place(place))
             })
             && object.modal_arguments.iter().all(|argument| {
                 argument_value_references_allowed_objects(&argument.argument, objects)

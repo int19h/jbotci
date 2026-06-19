@@ -28,17 +28,17 @@ use jbotci_syntax::ast::{
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, AssignedName,
     AssignedNameData, Composition, Connector, Descriptor, EventualityClass, FormulaOperator,
-    IndexicalKind, MathLiteral, ModalArgument, PredicationMode, QuantityForm, QuantityScale,
-    QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
-    RafsiBinding, ReciprocalExchange, ReferentCategory, RelationExpansion, RelativeClause,
-    RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph,
-    SemanticObject, SemanticObjectId, SemanticSort, SequenceRelation, SignKind, UtteranceForce,
-    diagnostic, source_from_spans,
+    IndexicalKind, MathLiteral, ModalArgument, PlaceQuestionBinding, PredicationMode, QuantityForm,
+    QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole,
+    Quotation, RafsiBinding, ReciprocalExchange, ReferentCategory, RelationExpansion,
+    RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic,
+    SemanticGraph, SemanticObject, SemanticObjectId, SemanticSort, SequenceRelation, SignKind,
+    UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
     ReferenceAnalysisError, ReferenceKind, ReferenceTarget, SelbriPlaceFrameId, SumtiNodeId,
-    analyze_references,
+    SumtiPlaceAssignment, analyze_references,
 };
 
 #[invariant(true)]
@@ -1339,6 +1339,11 @@ where
         }) {
             return (QuestionKind::Relation, SemanticSort::Relation);
         }
+        if slots.iter().any(|slot| {
+            self.parameter_role(slot.parameter) == Some(crate::model::ParameterRole::PlaceQuestion)
+        }) {
+            return (QuestionKind::Place, SemanticSort::Place);
+        }
         (QuestionKind::Argument, SemanticSort::Entity)
     }
 
@@ -1893,6 +1898,7 @@ where
         let mut connector = None;
         let mut operator = FormulaOperator::And;
         let mut assigned_sumtis = Vec::new();
+        let mut assignment_counts = BTreeMap::<String, usize>::new();
         let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
         for assignment_id in assignment_ids {
             let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
@@ -1921,36 +1927,35 @@ where
                     });
                 }
             }
-            assigned_sumtis.push((key, sumti));
+            assigned_sumtis.push((key.clone(), sumti));
+            *assignment_counts.entry(key).or_default() += 1;
         }
-        let Some(connector) = connector else {
+        let has_duplicate_numbered_assignments = assignment_counts.values().any(|count| *count > 1);
+        if connector.is_none() && !has_duplicate_numbered_assignments {
             return Ok(None);
-        };
+        }
         for (key, sumti) in assigned_sumtis {
             if let Some((leading_sumti, connective, trailing_sumti)) =
                 logical_sumti_connection_parts(sumti)
             {
-                alternatives.insert(
-                    key,
-                    vec![
-                        AlternativeArgument::new(
-                            self.build_argument_for_sumti(leading_sumti)?,
-                            connective_negates_left(connective),
-                        ),
-                        AlternativeArgument::new(
-                            self.build_argument_for_sumti(trailing_sumti)?,
-                            connective_negates_right(connective),
-                        ),
-                    ],
-                );
+                alternatives.entry(key).or_default().extend([
+                    AlternativeArgument::new(
+                        self.build_argument_for_sumti(leading_sumti)?,
+                        connective_negates_left(connective),
+                    ),
+                    AlternativeArgument::new(
+                        self.build_argument_for_sumti(trailing_sumti)?,
+                        connective_negates_right(connective),
+                    ),
+                ]);
             } else {
-                alternatives.insert(
-                    key,
-                    vec![AlternativeArgument::new(
+                alternatives
+                    .entry(key)
+                    .or_default()
+                    .push(AlternativeArgument::new(
                         self.build_argument_for_sumti(sumti)?,
                         false,
-                    )],
-                );
+                    ));
             }
         }
         let fill_through = self
@@ -2030,7 +2035,7 @@ where
             SemanticObject::connective_formula(
                 operator,
                 children,
-                Some(connector),
+                connector,
                 self.analysis
                     .syntax_index
                     .bridi_node_id(bridi)
@@ -4591,6 +4596,8 @@ where
             }
             arguments.entry(place).or_insert(argument);
         }
+        let place_questions =
+            self.place_question_bindings(frame, &arguments, None, highest_assigned_place)?;
         for place in 1..=highest_assigned_place.max(1) {
             let key = format!("x{place}");
             if !arguments.contains_key(&key) {
@@ -4607,6 +4614,7 @@ where
             Vec::new(),
         );
         object.modal_arguments = modal_arguments;
+        object.place_questions = place_questions;
         self.insert(predication, object)
     }
 
@@ -4636,18 +4644,21 @@ where
         let mut highest_assigned_place =
             self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
         let modal_arguments = self.modal_assignment_arguments(frame)?;
+        let place_count = self.place_count_for_relation(&relation);
         for (place, argument) in argument_overrides {
             if let Some(place_index) = argument_place_index(&place) {
                 highest_assigned_place = highest_assigned_place.max(place_index);
             }
             arguments.entry(place).or_insert(argument);
         }
+        let place_questions =
+            self.place_question_bindings(frame, &arguments, place_count, highest_assigned_place)?;
         let mut diagnostics = if selbri.is_none() {
             vec![diagnostic("bridi tail has no direct selbri relation")]
         } else {
             Vec::new()
         };
-        match self.place_count_for_relation(&relation) {
+        match place_count {
             Some(place_count) => {
                 for place in 1..=place_count {
                     let key = format!("x{place}");
@@ -4686,6 +4697,7 @@ where
             diagnostics,
         );
         object.modal_arguments = modal_arguments;
+        object.place_questions = place_questions;
         object.relation_metadata = relation_metadata;
         self.insert(id, object)
     }
@@ -4901,6 +4913,92 @@ where
             ));
         }
         Ok(modal_arguments)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn place_question_bindings(
+        &mut self,
+        frame: Option<SelbriPlaceFrameId>,
+        arguments: &BTreeMap<String, ArgumentValue>,
+        place_count: Option<usize>,
+        highest_assigned_place: usize,
+    ) -> Result<Vec<PlaceQuestionBinding>, SemanticsError> {
+        let Some(frame) = frame else {
+            return Ok(Vec::new());
+        };
+        let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
+        let mut occupied = HashSet::new();
+        for place in arguments
+            .keys()
+            .filter_map(|place| argument_place_index(place))
+        {
+            occupied.insert(place);
+        }
+        let mut question_assignments = Vec::new();
+        for assignment_id in assignment_ids {
+            let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
+                continue;
+            };
+            match assignment.slot {
+                PlaceSlot::Numbered(place) => {
+                    occupied.insert(place.get() as usize);
+                }
+                PlaceSlot::PlaceQuestion => question_assignments.push(assignment.clone()),
+                PlaceSlot::Modal(_) | PlaceSlot::Fai => {}
+            }
+        }
+        if question_assignments.is_empty() {
+            return Ok(Vec::new());
+        }
+        let candidate_limit = place_count.unwrap_or_else(|| highest_assigned_place.max(1));
+        let candidate_places = (1..=candidate_limit)
+            .filter(|place| !occupied.contains(place))
+            .map(|place| format!("x{place}"))
+            .collect::<Vec<_>>();
+        if candidate_places.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut bindings = Vec::new();
+        for assignment in question_assignments {
+            let sumti = self
+                .analysis
+                .syntax_index
+                .sumti(assignment.sumti)
+                .ok_or_else(SemanticsError::missing_syntax_node)?;
+            let introduced_by = self.place_question_introducer(&assignment);
+            let source_node = assignment
+                .term
+                .map(|term| term.0)
+                .or(Some(assignment.sumti.0));
+            let parameter = self.build_place_question_parameter(introduced_by, source_node)?;
+            let argument = self.build_argument_for_sumti(sumti)?;
+            let source = source_node.and_then(|node| self.source_for_node(node, "place-question"));
+            bindings.push(PlaceQuestionBinding::new(
+                parameter,
+                argument,
+                candidate_places.clone(),
+                source,
+            ));
+        }
+        Ok(bindings)
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn place_question_introducer(&self, assignment: &SumtiPlaceAssignment) -> String {
+        assignment
+            .term
+            .and_then(|term| self.analysis.syntax_index.term(term))
+            .and_then(|term| match term.as_data() {
+                data!(TermSyntax::PlaceTaggedSumti { fa, .. })
+                    if fa.cmavo() == Some(Cmavo::Fiha) =>
+                {
+                    Some(token_text(&fa.value))
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| "fi'a".to_owned())
     }
 
     #[requires(!relation.is_empty())]
@@ -6465,6 +6563,27 @@ where
             ),
         )?;
         self.relation_question_parameters.insert(raw, id);
+        self.push_question_answer_slot(id);
+        Ok(id)
+    }
+
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter) || ret.is_err())]
+    fn build_place_question_parameter(
+        &mut self,
+        introduced_by: String,
+        source_node: Option<RawSyntaxNodeId>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_parameter();
+        self.insert(
+            id,
+            SemanticObject::parameter(
+                SemanticSort::Place,
+                crate::model::ParameterRole::PlaceQuestion,
+                introduced_by,
+                source_node.and_then(|node| self.source_for_node(node, "parameter")),
+            ),
+        )?;
         self.push_question_answer_slot(id);
         Ok(id)
     }
@@ -9770,6 +9889,7 @@ mod tests {
     use jbotci_source::SourceId;
     use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_source_and_options};
     use serde_json::Value;
+    use std::collections::BTreeSet;
 
     #[requires(!source.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|value| value.get("objects").is_some()) || ret.is_err())]
@@ -9833,6 +9953,26 @@ mod tests {
                     && object["mode"] == mode
             })
             .unwrap_or_else(|| panic!("missing {mode} predication for relation {relation}"))
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(!mode.is_empty())]
+    #[ensures(true)]
+    fn predications_with_relation_and_mode<'a>(
+        json: &'a Value,
+        relation: &str,
+        mode: &str,
+    ) -> Vec<&'a Value> {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .filter(|object| {
+                object["type"] == "predication"
+                    && object["relation"] == relation
+                    && object["mode"] == mode
+            })
+            .collect()
     }
 
     #[requires(!relation_parameter.is_empty())]
@@ -11787,6 +11927,55 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn duplicate_fa_expands_to_conjoined_claims() {
+        let json =
+            semantic_json_for("fa mi fa do klama fe le zarci fe le zdani").expect("semantic JSON");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "and");
+        assert!(content.get("connector").is_none());
+
+        let klamas = predications_with_relation_and_mode(&json, "klama", "asserted");
+        assert_eq!(klamas.len(), 4);
+        let x1_values = klamas
+            .iter()
+            .map(|predication| {
+                predication["arguments"]["x1"]["value"]
+                    .as_str()
+                    .expect("x1 value")
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            x1_values,
+            BTreeSet::from(["referent:addressee", "referent:speaker"])
+        );
+        let x2_values = klamas
+            .iter()
+            .map(|predication| {
+                predication["arguments"]["x2"]["value"]
+                    .as_str()
+                    .expect("x2 value")
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(x2_values.len(), 2);
+        let shared_x3_values = klamas
+            .iter()
+            .map(|predication| {
+                predication["arguments"]["x3"]["value"]
+                    .as_str()
+                    .expect("x3 value")
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(shared_x3_values.len(), 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn truth_question_has_no_fillable_slot() {
         let json = semantic_json_for("xu do klama").expect("semantic JSON");
         let question = object(&json, "question:q1");
@@ -11823,6 +12012,32 @@ mod tests {
             object(&json, "predication:p1")["arguments"]["x1"]["value"],
             "parameter:p1"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fiha_place_question_binds_known_argument_to_candidate_places() {
+        let json = semantic_json_for("fi'a do dunda fe le vi rozgu").expect("semantic JSON");
+        let question = object(&json, "question:q1");
+        assert_eq!(object(&json, "utterance:u1")["force"], "ask");
+        assert_eq!(question["kind"], "place");
+        assert_eq!(question["domain"], "place");
+        assert_eq!(question["slots"][0]["parameter"], "parameter:p1");
+        assert_eq!(object(&json, "parameter:p1")["sort"], "place");
+        assert_eq!(object(&json, "parameter:p1")["role"], "placeQuestion");
+
+        let dunda = predication_with_relation_and_mode(&json, "dunda", "asserted");
+        assert_eq!(dunda["arguments"]["x1"]["kind"], "elided");
+        assert_eq!(dunda["arguments"]["x2"]["kind"], "filled");
+        assert_eq!(dunda["arguments"]["x3"]["kind"], "elided");
+        assert_eq!(dunda["placeQuestions"][0]["parameter"], "parameter:p1");
+        assert_eq!(
+            dunda["placeQuestions"][0]["argument"]["value"],
+            "referent:addressee"
+        );
+        assert_eq!(dunda["placeQuestions"][0]["candidatePlaces"][0], "x1");
+        assert_eq!(dunda["placeQuestions"][0]["candidatePlaces"][1], "x3");
     }
 
     #[test]

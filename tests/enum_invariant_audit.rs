@@ -700,6 +700,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture place slots are serialization projections of PlaceSlot values",
     ),
     (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceSlot::PlaceQuestion",
+        "fixture place slots are serialization projections of PlaceSlot values",
+    ),
+    (
         "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::ResolvedNode",
         "fixture reference targets are serialization projections of ReferenceTarget values",
     ),
@@ -786,6 +790,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/references.rs:ReferenceSlotName::Modal",
         "reference display slot words are renderer projections of validated syntax",
+    ),
+    (
+        "crates/jbotci-output/src/references.rs:ReferenceSlotName::PlaceQuestion",
+        "reference display slot is projected from validated semantic PlaceSlot values",
     ),
     (
         "crates/jbotci-output/src/references.rs:ReferenceSlotName::Fai",
@@ -1433,6 +1441,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::Modal",
+        "gentufa reference slot labels mirror the validated CLI reference display model",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::PlaceQuestion",
         "gentufa reference slot labels mirror the validated CLI reference display model",
     ),
     (

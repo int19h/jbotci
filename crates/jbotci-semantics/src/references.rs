@@ -111,9 +111,11 @@ pub struct ReferenceEdgeId(pub usize);
 #[invariant(true)]
 #[invariant(::Numbered(_) => true)]
 #[invariant(::Modal(_) => true)]
+#[invariant(::PlaceQuestion => true)]
 pub enum PlaceSlot {
     Numbered(NonZeroU8),
     Modal(Option<RawSyntaxNodeId>),
+    PlaceQuestion,
     Fai,
 }
 
@@ -129,7 +131,7 @@ impl PlaceSlot {
     pub fn numbered_index(self) -> Option<u8> {
         match self {
             PlaceSlot::Numbered(place) => Some(place.get()),
-            PlaceSlot::Modal(_) | PlaceSlot::Fai => None,
+            PlaceSlot::Modal(_) | PlaceSlot::PlaceQuestion | PlaceSlot::Fai => None,
         }
     }
 }
@@ -144,6 +146,12 @@ fn numbered_slot(place: NonZeroU8) -> PlaceSlot {
 #[ensures(true)]
 fn modal_slot(tag: Option<RawSyntaxNodeId>) -> PlaceSlot {
     PlaceSlot::Modal(tag)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn place_question_slot() -> PlaceSlot {
+    PlaceSlot::PlaceQuestion
 }
 
 #[requires(true)]
@@ -645,9 +653,11 @@ pub enum FixturePlaceFramePropagation {
 #[invariant(true)]
 #[invariant(::Numbered => true)]
 #[invariant(::Modal => true)]
+#[invariant(::PlaceQuestion => true)]
 pub enum FixturePlaceSlot {
     Numbered { place: u8 },
     Modal { tag: Option<FixtureSpanKey> },
+    PlaceQuestion,
     Fai,
 }
 
@@ -912,6 +922,7 @@ fn fixture_place_slot(index: &SyntaxIndex<'_>, slot: PlaceSlot) -> FixturePlaceS
         PlaceSlot::Modal(tag) => FixturePlaceSlot::Modal {
             tag: tag.and_then(|node| fixture_span_key_for_node(index, node)),
         },
+        PlaceSlot::PlaceQuestion => FixturePlaceSlot::PlaceQuestion,
         PlaceSlot::Fai => FixturePlaceSlot::Fai,
     }
 }
@@ -1388,7 +1399,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 PlaceSlot::Numbered(place) if place.get() > 1 => {
                     self.frame_slot_has_existing_assignment_recursive(*inner, slot, visited)
                 }
-                PlaceSlot::Numbered(_) | PlaceSlot::Modal(_) => false,
+                PlaceSlot::Numbered(_) | PlaceSlot::Modal(_) | PlaceSlot::PlaceQuestion => false,
             },
             PlaceFramePropagation::ConnectiveBranches { branches } => {
                 branches.iter().any(|branch| {
@@ -3074,7 +3085,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     AssignmentSource::Propagated,
                     visited,
                 ),
-                PlaceSlot::Numbered(_) | PlaceSlot::Modal(_) => {}
+                PlaceSlot::Numbered(_) | PlaceSlot::Modal(_) | PlaceSlot::PlaceQuestion => {}
             },
             PlaceFramePropagation::ConnectiveBranches { branches } => {
                 for branch in branches {
@@ -3188,6 +3199,9 @@ impl PlaceCursor {
                 self.next_place = place.saturating_add(1);
             }
             PlaceSlot::Modal(_) | PlaceSlot::Fai => {}
+            PlaceSlot::PlaceQuestion => {
+                self.next_place = self.next_place.saturating_add(1);
+            }
         }
     }
 
@@ -6011,6 +6025,7 @@ fn fa_place_slot(fa: &WithFreeModifiers<Token>) -> Option<PlaceSlot> {
         Some(Cmavo::Fi) => PlaceSlot::numbered(3),
         Some(Cmavo::Fo) => PlaceSlot::numbered(4),
         Some(Cmavo::Fu) => PlaceSlot::numbered(5),
+        Some(Cmavo::Fiha) => Some(place_question_slot()),
         Some(Cmavo::Fai) => Some(fai_slot()),
         _ => None,
     }
@@ -6822,6 +6837,39 @@ mod tests {
             let projection = analysis.v0_compatibility_projection();
             assert!(!projection.sumti_assignments.is_empty());
             assert!(!projection.selbri_places.is_empty());
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fiha_advances_without_numbered_assignment() {
+        run_reference_test(|| {
+            let syntax = parse_syntax("fi'a do dunda le vi rozgu");
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+            let dunda = frame_for_selbri_label(&analysis, "dunda", PlaceFrameKind::BaseSelbri)
+                .expect("dunda frame exists");
+
+            let mut saw_place_question = false;
+            for assignment_id in analysis.place_analysis.assignments_for_frame(dunda) {
+                let assignment = analysis
+                    .place_analysis
+                    .assignment(*assignment_id)
+                    .expect("assignment exists");
+                if assignment.slot == PlaceSlot::PlaceQuestion {
+                    saw_place_question = true;
+                    assert_eq!(
+                        sumti_label(&analysis.syntax_index, assignment.sumti).as_deref(),
+                        Some("do")
+                    );
+                }
+            }
+            assert!(saw_place_question);
+            assert_eq!(first_assignment_label(&analysis, dunda, 1), None);
+            assert_eq!(
+                first_assignment_label(&analysis, dunda, 2).as_deref(),
+                Some("rozgu")
+            );
         });
     }
 

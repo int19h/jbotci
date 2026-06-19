@@ -6716,7 +6716,9 @@ fn slot_reaches_numbered_place(
             FixturePlaceSlot::Numbered { place: slot_place } if *slot_place > 1 => {
                 slot_reaches_numbered_place(projection, *inner, slot, place, visited)
             }
-            FixturePlaceSlot::Numbered { .. } | FixturePlaceSlot::Modal { .. } => false,
+            FixturePlaceSlot::Numbered { .. }
+            | FixturePlaceSlot::Modal { .. }
+            | FixturePlaceSlot::PlaceQuestion => false,
         },
         jbotci_semantics::references::FixturePlaceFramePropagation::ConnectiveBranches {
             branches,

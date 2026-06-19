@@ -30,10 +30,12 @@ pub struct ReferenceName {
 #[invariant(true)]
 #[invariant(::Numbered(_) => true)]
 #[invariant(::Modal(..) => true)]
+#[invariant(::PlaceQuestion => true)]
 #[invariant(::Fai => true)]
 pub enum ReferenceSlotName {
     Numbered(u8),
     Modal(Vec<String>),
+    PlaceQuestion,
     Fai,
 }
 
@@ -45,6 +47,7 @@ impl ReferenceSlotName {
             Self::Numbered(place) => place.to_string(),
             Self::Modal(words) if words.is_empty() => "modal".to_owned(),
             Self::Modal(words) => words.join(" "),
+            Self::PlaceQuestion => "place-question".to_owned(),
             Self::Fai => "fai".to_owned(),
         }
     }
@@ -535,6 +538,7 @@ pub fn reference_slot_name_for_place_slot(
             ReferenceSlotName::Modal(modal_slot_words(index, tag, source, options))
         }
         PlaceSlot::Modal(None) => ReferenceSlotName::Modal(Vec::new()),
+        PlaceSlot::PlaceQuestion => ReferenceSlotName::PlaceQuestion,
         PlaceSlot::Fai => ReferenceSlotName::Fai,
     }
 }
