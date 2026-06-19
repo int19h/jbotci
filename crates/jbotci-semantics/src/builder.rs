@@ -3817,6 +3817,7 @@ where
         } else {
             None
         };
+        let operand = self.build_description_operand(description)?;
         let quantity = self.build_description_quantity(description, raw)?;
         self.insert(
             id,
@@ -3831,7 +3832,7 @@ where
                     body,
                     quantity,
                     name: None,
-                    operand: None,
+                    operand,
                 }),
                 None,
                 self.source_for_description(description, raw, "description"),
@@ -4213,6 +4214,25 @@ where
                         .or_else(|| self.source_for_node(raw, "quantity")),
                 )
             })
+            .transpose()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_description_operand(
+        &mut self,
+        description: &'tree DescriptionSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        description
+            .tail_elements
+            .iter()
+            .find_map(|element| match element.as_data() {
+                data!(
+                    jbotci_syntax::ast::DescriptionTailElementSyntax::DescriptionTailSumti(sumti)
+                ) => Some(sumti),
+                _ => None,
+            })
+            .map(|sumti| self.build_sumti_referent(sumti))
             .transpose()
     }
 
@@ -6493,6 +6513,54 @@ mod tests {
         assert_eq!(object(&json, "quantity:q1")["source"]["text"], "re");
         assert_eq!(object(&json, "quantity:q2")["value"]["integer"], 3);
         assert_eq!(object(&json, "quantity:q2")["source"]["text"], "ci");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sumti_based_description_preserves_operand_and_quantity() {
+        let json = semantic_json_for("le re do cu nanmu").expect("semantic JSON");
+        let nanmu = predication_with_relation_and_mode(&json, "nanmu", "asserted");
+        let described = nanmu["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("description referent");
+        let descriptor = &object(&json, described)["descriptor"];
+        assert_eq!(descriptor["word"], "le");
+        assert_eq!(descriptor["quantity"], "quantity:q1");
+        assert_eq!(descriptor["operand"], "referent:addressee");
+        assert_eq!(object(&json, described)["source"]["text"], "le re do");
+        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 2);
+        assert_eq!(object(&json, "quantity:q1")["source"]["text"], "re");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nested_sumti_based_description_preserves_all_quantities() {
+        let json = semantic_json_for("pa le re le ci cribe cu bunre").expect("semantic JSON");
+        let bunre = predication_with_relation_and_mode(&json, "bunre", "asserted");
+        let outer_argument = bunre["arguments"]["x1"]
+            .as_object()
+            .expect("brown argument");
+        assert_eq!(outer_argument["quantity"], "quantity:q1");
+        let outer_referent = outer_argument["value"]
+            .as_str()
+            .expect("outer description referent");
+        let outer_descriptor = &object(&json, outer_referent)["descriptor"];
+        let outer_quantity = outer_descriptor["quantity"]
+            .as_str()
+            .expect("outer descriptor quantity");
+        let inner_referent = outer_descriptor["operand"]
+            .as_str()
+            .expect("inner description referent");
+        let inner_descriptor = &object(&json, inner_referent)["descriptor"];
+        let inner_quantity = inner_descriptor["quantity"]
+            .as_str()
+            .expect("inner descriptor quantity");
+        assert_eq!(inner_descriptor["body"], "formula:f1");
+        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 1);
+        assert_eq!(object(&json, outer_quantity)["value"]["integer"], 2);
+        assert_eq!(object(&json, inner_quantity)["value"]["integer"], 3);
     }
 
     #[test]

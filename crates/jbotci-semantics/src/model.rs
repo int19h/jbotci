@@ -1593,7 +1593,9 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
             optional_reference_has_kind(descriptor.speaker, SemanticObjectKind::Referent)
                 && optional_reference_has_kind(descriptor.body, SemanticObjectKind::Formula)
                 && optional_reference_has_kind(descriptor.quantity, SemanticObjectKind::Quantity)
-                && optional_reference_has_kind(descriptor.operand, SemanticObjectKind::Referent)
+                && descriptor
+                    .operand
+                    .is_none_or(|operand| argument_object_kind_can_fill(operand.object_kind()))
         })
         && references_have_kind(&object.parameters, SemanticObjectKind::Parameter)
         && references_have_kind(&object.embedded_questions, SemanticObjectKind::Question)
