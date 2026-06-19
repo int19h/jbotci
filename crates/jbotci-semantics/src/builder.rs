@@ -8,8 +8,9 @@ use bityzba::{data, ensures, invariant, requires};
 use jbotci_dictionary::{Dictionary, WordType, normalize_lookup_query};
 use jbotci_morphology::{Cmavo, Word, strip_diacritics};
 use jbotci_syntax::ast::{
-    BoGroupedBridiTailSyntax, BridiSyntax, BridiTailSyntax, ConnectiveSyntax, ConnectiveSyntaxData,
-    DescriptionSyntax, ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData,
+    AbstractionSyntax, BoGroupedBridiTailSyntax, BridiSyntax, BridiTailSyntax, ConnectiveSyntax,
+    ConnectiveSyntaxData, DescriptionSyntax, MeksoOperatorSyntax, MeksoOperatorSyntaxData,
+    MeksoSyntax, MeksoSyntaxData, ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData,
     RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax, SelbriSyntaxData,
     SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData, SubbridiSyntax,
     SubbridiSyntaxData, SumtiSyntax, SumtiSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData,
@@ -909,8 +910,9 @@ where
                 alternatives.insert(key, vec![self.build_argument_for_sumti(sumti)?]);
             }
         }
-        let fill_through =
-            (self.relation_place_count)(&relation).unwrap_or_else(|| highest_assigned_place.max(1));
+        let fill_through = self
+            .place_count_for_relation(&relation)
+            .unwrap_or_else(|| highest_assigned_place.max(1));
         for place in 1..=fill_through {
             let key = format!("x{place}");
             if !alternatives.contains_key(&key) {
@@ -2342,7 +2344,7 @@ where
             ArgumentValue::filled(parameter, None),
         );
         let mut diagnostics = Vec::new();
-        match (self.relation_place_count)(&relation) {
+        match self.place_count_for_relation(&relation) {
             Some(place_count) => {
                 for place in 2..=place_count {
                     let key = format!("x{place}");
@@ -2358,9 +2360,11 @@ where
                         arguments.insert(key, self.build_elided_argument_for_place(place)?);
                     }
                 }
-                diagnostics.push(diagnostic(
-                    "relation place structure is unavailable; only explicit assigned places are represented",
-                ));
+                if !relation_has_open_place_structure(&relation) {
+                    diagnostics.push(diagnostic(
+                        "relation place structure is unavailable; only explicit assigned places are represented",
+                    ));
+                }
             }
         }
         let predication = self.next_predication();
@@ -2493,7 +2497,7 @@ where
         } else {
             Vec::new()
         };
-        match (self.relation_place_count)(&relation) {
+        match self.place_count_for_relation(&relation) {
             Some(place_count) => {
                 for place in 1..=place_count {
                     let key = format!("x{place}");
@@ -2509,9 +2513,11 @@ where
                         arguments.insert(key, self.build_elided_argument_for_place(place)?);
                     }
                 }
-                diagnostics.push(diagnostic(
-                    "relation place structure is unavailable; only places required by explicit assignments are represented",
-                ));
+                if !relation_has_open_place_structure(&relation) {
+                    diagnostics.push(diagnostic(
+                        "relation place structure is unavailable; only places required by explicit assignments are represented",
+                    ));
+                }
             }
         }
         let id = self.next_predication();
@@ -2772,6 +2778,28 @@ where
         let frame = self
             .semantic_predication_frame_for_selbri(selbri, self.branch_frame_for_selbri(selbri));
         let visible_x1_place = visible_x1_place_for_selbri(selbri);
+        self.build_referent_predication_formula_for_relation(
+            relation,
+            frame,
+            visible_x1_place,
+            referent,
+            mode,
+            source,
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(visible_x1_place > 0)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_referent_predication_formula_for_relation(
+        &mut self,
+        relation: String,
+        frame: Option<SelbriPlaceFrameId>,
+        visible_x1_place: usize,
+        referent: SemanticObjectId,
+        mode: PredicationMode,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let mut arguments = BTreeMap::new();
         self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
         let modal_arguments = self.modal_assignment_arguments(frame)?;
@@ -2779,11 +2807,21 @@ where
             format!("x{visible_x1_place}"),
             ArgumentValue::filled(referent, None),
         );
-        if let Some(place_count) = (self.relation_place_count)(&relation) {
-            for place in 1..=place_count {
-                let key = format!("x{place}");
-                if !arguments.contains_key(&key) {
-                    arguments.insert(key, self.build_elided_argument_for_place(place)?);
+        let mut diagnostics = Vec::new();
+        match self.place_count_for_relation(&relation) {
+            Some(place_count) => {
+                for place in 1..=place_count {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+            }
+            None => {
+                if !relation_has_open_place_structure(&relation) {
+                    diagnostics.push(diagnostic(
+                        "relation place structure is unavailable; only places required by explicit assignments are represented",
+                    ));
                 }
             }
         }
@@ -2794,7 +2832,7 @@ where
             arguments,
             mode,
             source.clone(),
-            Vec::new(),
+            diagnostics,
         );
         object.modal_arguments = modal_arguments;
         self.insert(predication, object)?;
@@ -2880,6 +2918,12 @@ where
             .place_analysis
             .assignments_for_frame_slot(frame, slot)
             .is_empty()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn place_count_for_relation(&self, relation: &str) -> Option<usize> {
+        constructed_relation_place_count(relation).or_else(|| (self.relation_place_count)(relation))
     }
 
     #[requires(true)]
@@ -3044,6 +3088,9 @@ where
         }
         let id = match sumti.as_data() {
             data!(SumtiSyntax::ProSumti(token)) => self.build_pro_sumti(token, raw)?,
+            data!(SumtiSyntax::NumberSumti { expression, li, .. }) => {
+                self.build_number_referent(expression, li, raw)?
+            }
             data!(SumtiSyntax::ElidedSumti { .. }) => {
                 self.build_elided_referent(Some(raw), "zo'e".to_owned())?
             }
@@ -3092,6 +3139,38 @@ where
         };
         self.sumti_objects.insert(raw, id);
         Ok(id)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_number_referent(
+        &mut self,
+        expression: &MeksoSyntax,
+        li: &WithFreeModifiers<Token>,
+        raw: RawSyntaxNodeId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let text = simple_mekso_text(expression).unwrap_or_else(|| "mekso".to_owned());
+        let quantity = self.build_quantity_for_words(text.clone(), Some(raw))?;
+        let id = self.next_referent();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Constant,
+                SemanticSort::Number,
+                None,
+                Some(Descriptor {
+                    kind: "number".to_owned(),
+                    word: token_text(&li.value),
+                    speaker: None,
+                    body: None,
+                    quantity: Some(quantity),
+                    name: Some(text),
+                }),
+                None,
+                self.source_for_node(raw, "number-sumti"),
+                Vec::new(),
+            ),
+        )
     }
 
     #[requires(true)]
@@ -3242,11 +3321,24 @@ where
             .and_then(|word| word.cmavo())
         {
             Some(Cmavo::Lo) => "veridicalDescription",
+            Some(Cmavo::Loi) => "veridicalMassDescription",
+            Some(Cmavo::Lohi) => "veridicalSetDescription",
             Some(Cmavo::Le) => "speakerDescription",
+            Some(Cmavo::Lei) => "speakerMassDescription",
+            Some(Cmavo::Lehi) => "speakerSetDescription",
             Some(Cmavo::La) => "name",
             _ => "description",
         }
         .to_owned();
+        let sort = match description
+            .description
+            .as_ref()
+            .and_then(|word| word.cmavo())
+        {
+            Some(Cmavo::Loi | Cmavo::Lei) => SemanticSort::Mass,
+            Some(Cmavo::Lohi | Cmavo::Lehi) => SemanticSort::Set,
+            _ => SemanticSort::Entity,
+        };
         let body = if let Some(selbri) = description.selbri.as_deref() {
             Some(self.build_restrictive_formula(selbri, id)?)
         } else {
@@ -3264,7 +3356,7 @@ where
             id,
             SemanticObject::referent(
                 ReferentCategory::Constant,
-                SemanticSort::Entity,
+                sort,
                 None,
                 Some(Descriptor {
                     kind,
@@ -3385,6 +3477,11 @@ where
         selbri: &'tree SelbriSyntax,
         referent: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(units) = tanru_units_for_selbri(selbri)
+            && tanru_units_require_lowering(&units)
+        {
+            return self.build_restrictive_tanru_formula(selbri, &units, referent);
+        }
         let relation = relation_label_for_selbri(selbri);
         let frame = self
             .semantic_predication_frame_for_selbri(selbri, self.branch_frame_for_selbri(selbri));
@@ -3396,7 +3493,7 @@ where
             format!("x{visible_x1_place}"),
             ArgumentValue::filled(referent, None),
         );
-        if let Some(place_count) = (self.relation_place_count)(&relation) {
+        if let Some(place_count) = self.place_count_for_relation(&relation) {
             for place in 1..=place_count {
                 let key = format!("x{place}");
                 if !arguments.contains_key(&key) {
@@ -3430,6 +3527,96 @@ where
                 Vec::new(),
             ),
         )
+    }
+
+    #[requires(!units.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_restrictive_tanru_formula(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        units: &[&'tree TanruUnitSyntax],
+        referent: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let [single] = units {
+            return self.build_restrictive_tanru_unit_formula(selbri, single, referent);
+        }
+        let tertau = units
+            .last()
+            .expect("precondition guarantees at least one tanru unit");
+        let tertau_formula = self.build_restrictive_tanru_unit_formula(selbri, tertau, referent)?;
+        let source = self
+            .analysis
+            .syntax_index
+            .selbri_node_id(selbri)
+            .and_then(|node| self.source_for_node(node.0, "restrictive-tanru-formula"));
+        let modifier =
+            self.build_property_abstraction_for_units(&units[..units.len() - 1], source.clone())?;
+        let relation_formula = self.build_tanru_relation_formula(
+            ArgumentValue::filled(referent, None),
+            modifier,
+            tanru_relation_name(units),
+            source.clone(),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                FormulaOperator::And,
+                vec![tertau_formula, relation_formula],
+                Some(Connector {
+                    source: "tanru".to_owned(),
+                    locus: "description".to_owned(),
+                    truth_table: None,
+                }),
+                source,
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_restrictive_tanru_unit_formula(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        unit: &'tree TanruUnitSyntax,
+        referent: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        match unit.as_data() {
+            data!(TanruUnitSyntax::GroupedTanruUnit {
+                selbri: grouped,
+                ..
+            })
+            | data!(TanruUnitSyntax::SelbriGroupTanruUnit(grouped)) => {
+                if let Some(units) = tanru_units_for_selbri(grouped)
+                    && tanru_units_require_lowering(&units)
+                {
+                    return self.build_restrictive_tanru_formula(grouped, &units, referent);
+                }
+                self.build_restrictive_formula(grouped, referent)
+            }
+            _ => {
+                let relation = relation_label_for_tanru_unit(unit);
+                let frame = self.semantic_predication_frame_for_tanru_unit(
+                    unit,
+                    self.branch_frame_for_tanru_unit(unit),
+                );
+                let visible_x1_place = visible_x1_place_for_tanru_unit(unit);
+                let source = self
+                    .analysis
+                    .syntax_index
+                    .selbri_node_id(selbri)
+                    .and_then(|node| self.source_for_node(node.0, "restrictive-predication"));
+                self.build_referent_predication_formula_for_relation(
+                    relation,
+                    frame,
+                    visible_x1_place,
+                    referent,
+                    PredicationMode::Restrictive,
+                    source,
+                )
+            }
+        }
     }
 
     #[requires(!text.is_empty())]
@@ -3921,7 +4108,7 @@ fn relation_label_for_selbri(selbri: &SelbriSyntax) -> String {
             relation_label_for_selbri(leading_selbri),
             relation_label_for_selbri(trailing_selbri)
         ),
-        data!(SelbriSyntax::Abstraction(abstraction)) => token_text(&abstraction.nu.value),
+        data!(SelbriSyntax::Abstraction(abstraction)) => abstraction_relation_label(abstraction),
         data!(SelbriSyntax::ForethoughtSelbriConnection {
             guhek,
             leading_bridi,
@@ -4214,17 +4401,114 @@ fn relation_label_for_tanru_unit(unit: &TanruUnitSyntax) -> String {
         | data!(TanruUnitSyntax::AssignedProBridi { base, .. }) => {
             relation_label_for_tanru_unit(base)
         }
-        data!(TanruUnitSyntax::Abstraction(abstraction)) => token_text(&abstraction.nu.value),
+        data!(TanruUnitSyntax::Abstraction(abstraction)) => abstraction_relation_label(abstraction),
         data!(TanruUnitSyntax::SumtiSelbri { .. }) => "me-sumti".to_owned(),
         data!(TanruUnitSyntax::QuotedWordSelbri(token))
         | data!(TanruUnitSyntax::QuotedBridiSelbri(token))
         | data!(TanruUnitSyntax::QuotedTextSelbri(token)) => token_text(&token.value),
         data!(TanruUnitSyntax::TextSelbri { .. }) => "text-selbri".to_owned(),
-        data!(TanruUnitSyntax::OrdinalSelbri { number, .. }) => {
-            format!("{} moi", word_run_text(number))
+        data!(TanruUnitSyntax::OrdinalSelbri { number, moi }) => {
+            format!("{} {}", word_run_text(number), token_text(&moi.value))
         }
-        data!(TanruUnitSyntax::OperatorSelbri { .. }) => "operator-selbri".to_owned(),
+        data!(TanruUnitSyntax::OperatorSelbri {
+            nuha,
+            mekso_operator,
+        }) => {
+            format!(
+                "{} {}",
+                token_text(&nuha.value),
+                mekso_operator_label(mekso_operator)
+            )
+        }
         data!(TanruUnitSyntax::TagSelbri { .. }) => "tag-selbri".to_owned(),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() -> *ret.as_ref().unwrap() > 0)]
+fn constructed_relation_place_count(relation: &str) -> Option<usize> {
+    if relation.starts_with("nu ") {
+        Some(1)
+    } else if relation.ends_with(" moi") || relation.ends_with(" mei") {
+        Some(3)
+    } else {
+        None
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn relation_has_open_place_structure(relation: &str) -> bool {
+    relation.starts_with("nu'a ")
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn abstraction_relation_label(abstraction: &AbstractionSyntax) -> String {
+    let abstractor = token_text(&abstraction.nu.value);
+    match main_selbri_for_subbridi(&abstraction.subbridi) {
+        Some(selbri) => format!("{abstractor} {}", relation_label_for_selbri(selbri)),
+        None => abstractor,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn mekso_operator_label(operator: &MeksoOperatorSyntax) -> String {
+    match operator.as_data() {
+        data!(MeksoOperatorSyntax::Primitive(token)) => token_text(&token.value),
+        data!(MeksoOperatorSyntax::Converted { inner_operator, .. })
+        | data!(MeksoOperatorSyntax::ScalarNegated { inner_operator, .. })
+        | data!(MeksoOperatorSyntax::GroupedOperator { inner_operator, .. }) => {
+            mekso_operator_label(inner_operator)
+        }
+        data!(MeksoOperatorSyntax::SelbriAsOperator { selbri, .. }) => {
+            relation_label_for_selbri(selbri)
+        }
+        data!(MeksoOperatorSyntax::BoundOperatorConnection {
+            left_operator,
+            right_operator,
+            ..
+        })
+        | data!(MeksoOperatorSyntax::OperatorConnection {
+            left_operator,
+            right_operator,
+            ..
+        }) => format!(
+            "{} {}",
+            mekso_operator_label(left_operator),
+            mekso_operator_label(right_operator)
+        ),
+        data!(MeksoOperatorSyntax::OperandAsOperator { .. }) => "operand-operator".to_owned(),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() -> !ret.as_ref().unwrap().is_empty())]
+fn simple_mekso_text(expression: &MeksoSyntax) -> Option<String> {
+    match expression.as_data() {
+        data!(MeksoSyntax::NumberMekso(quantifier)) => quantifier_text(quantifier),
+        data!(MeksoSyntax::ParenthesizedMekso {
+            inner_expression,
+            ..
+        })
+        | data!(MeksoSyntax::QualifiedOperand {
+            inner_expression,
+            ..
+        }) => simple_mekso_text(inner_expression),
+        data!(MeksoSyntax::LerfuStringMekso { letter, .. }) => Some(word_run_text(&letter.value)),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() -> !ret.as_ref().unwrap().is_empty())]
+fn quantifier_text(quantifier: &QuantifierSyntax) -> Option<String> {
+    match quantifier.as_data() {
+        data!(QuantifierSyntax::NumberQuantifier { number, .. }) => {
+            Some(word_run_text(&number.value))
+        }
+        data!(QuantifierSyntax::MeksoQuantifier { .. }) => None,
     }
 }
 
@@ -4562,6 +4846,77 @@ mod tests {
                 .iter()
                 .any(|relation| *relation == "R[tanru:cmalu-nixli-ckule]")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn number_sumti_and_nuha_operator_selbri_are_explicit() {
+        let json = semantic_json_for("li vo nu'a su'i li re li re").expect("semantic JSON");
+        assert_eq!(object(&json, "referent:r1")["sort"], "number");
+        assert_eq!(
+            object(&json, "referent:r1")["descriptor"]["quantity"],
+            "quantity:q1"
+        );
+        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 4);
+        let sum = predication_with_relation_and_mode(&json, "nu'a su'i", "asserted");
+        assert_eq!(sum["arguments"]["x1"]["value"], "referent:r1");
+        assert_eq!(sum["arguments"]["x2"]["value"], "referent:r2");
+        assert_eq!(sum["arguments"]["x3"]["value"], "referent:r3");
+        assert!(sum.get("diagnostics").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn moi_selbri_preserve_marker_and_place_structure() {
+        let ordinal = semantic_json_for("la .prim. .palvr. pamoi cusku").expect("semantic JSON");
+        let pamoi = predication_with_relation_and_mode(&ordinal, "pa moi", "restrictive");
+        assert_eq!(pamoi["arguments"]["x1"]["value"], "parameter:p1");
+        assert_eq!(pamoi["arguments"]["x2"]["kind"], "elided");
+        assert_eq!(pamoi["arguments"]["x3"]["kind"], "elided");
+        assert!(pamoi.get("diagnostics").is_none());
+
+        let cardinal =
+            semantic_json_for("la .anis. joi la .asun. bruna remei").expect("semantic JSON");
+        let remei = predication_with_relation_and_mode(&cardinal, "re mei", "asserted");
+        assert_eq!(remei["arguments"]["x1"]["value"], "referent:r3");
+        assert_eq!(remei["arguments"]["x2"]["kind"], "elided");
+        assert_eq!(remei["arguments"]["x3"]["kind"], "elided");
+        assert!(remei.get("diagnostics").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn abstraction_tanru_unit_preserves_embedded_relation_label() {
+        let json = semantic_json_for("ti nu zdile kei kumfa").expect("semantic JSON");
+        let event_property = predication_with_relation_and_mode(&json, "nu zdile", "restrictive");
+        assert_eq!(event_property["arguments"]["x1"]["value"], "parameter:p1");
+        assert!(event_property["arguments"].get("x2").is_none());
+        assert!(event_property.get("diagnostics").is_none());
+        let tanru =
+            predication_with_relation_and_mode(&json, "R[tanru:nu zdile-kumfa]", "asserted");
+        assert_eq!(tanru["arguments"]["x2"]["value"], "abstraction:a1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tanru_inside_description_uses_uniform_lowering() {
+        let json = semantic_json_for("mi jimpe tu'a loi nu'a su'i nabmi").expect("semantic JSON");
+        assert_eq!(object(&json, "referent:r1")["sort"], "mass");
+        assert_eq!(
+            object(&json, "referent:r1")["descriptor"]["kind"],
+            "veridicalMassDescription"
+        );
+        let nabmi = predication_with_relation_and_mode(&json, "nabmi", "restrictive");
+        assert_eq!(nabmi["arguments"]["x1"]["value"], "referent:r1");
+        let operator = predication_with_relation_and_mode(&json, "nu'a su'i", "restrictive");
+        assert_eq!(operator["arguments"]["x1"]["value"], "parameter:p1");
+        let tanru =
+            predication_with_relation_and_mode(&json, "R[tanru:nu'a su'i-nabmi]", "asserted");
+        assert_eq!(tanru["arguments"]["x1"]["value"], "referent:r1");
     }
 
     #[test]
