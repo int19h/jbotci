@@ -854,6 +854,27 @@ impl SemanticObject {
         object
     }
 
+    #[requires(!relation.is_empty())]
+    #[requires(source_words.iter().all(|word| !word.is_empty()))]
+    #[ensures(ret.object_kind() == SemanticObjectKind::RelationMetadata)]
+    pub fn relation_metadata(
+        relation: String,
+        source_words: Vec<String>,
+        place_structure: Vec<PlaceDescription>,
+        expansion: Option<RelationExpansion>,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::RelationMetadata);
+        object.relation = Some(relation);
+        object.source_words = source_words;
+        object.place_structure = place_structure;
+        object.expansion = expansion;
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
     #[requires(true)]
     #[ensures(true)]
     pub fn object_kind(&self) -> SemanticObjectKind {
@@ -896,6 +917,9 @@ impl SemanticObject {
         }
         extend_optional(out, self.relation_parameter);
         extend_optional(out, self.relation_metadata);
+        if let Some(expansion) = &self.expansion {
+            expansion.references_into(out);
+        }
         extend_optional(out, self.predication);
         out.extend(self.children.iter().copied());
         extend_optional(out, self.variable);
@@ -1757,6 +1781,55 @@ pub struct RelationExpansion {
     pub kind: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub source_words: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rafsi_bindings: Vec<RafsiBinding>,
+}
+
+impl RelationExpansion {
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        for binding in &self.rafsi_bindings {
+            binding.references_into(out);
+        }
+    }
+}
+
+#[invariant(!rafsi.is_empty(), "rafsi binding must preserve the source rafsi")]
+#[invariant(source_word.as_ref().is_none_or(|word| !word.is_empty()))]
+#[invariant(referent.is_none_or(|referent| referent.object_kind() == SemanticObjectKind::Referent))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RafsiBinding {
+    pub rafsi: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_word: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub referent: Option<SemanticObjectId>,
+}
+
+impl RafsiBinding {
+    #[requires(!rafsi.is_empty())]
+    #[requires(source_word.as_ref().is_none_or(|word| !word.is_empty()))]
+    #[requires(referent.is_none_or(|referent| referent.object_kind() == SemanticObjectKind::Referent))]
+    #[ensures(!ret.rafsi.is_empty())]
+    pub fn new(
+        rafsi: String,
+        source_word: Option<String>,
+        referent: Option<SemanticObjectId>,
+    ) -> Self {
+        Self::from_data(data!(RafsiBinding {
+            rafsi,
+            source_word,
+            referent,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        extend_optional(out, self.referent);
+    }
 }
 
 #[invariant(true)]

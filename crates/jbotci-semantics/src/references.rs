@@ -545,6 +545,8 @@ pub struct DiscourseReferences {
     edges: Vec<ReferenceEdge>,
     edge_ids_by_source: HashMap<RawSyntaxNodeId, Vec<ReferenceEdgeId>>,
     edge_ids_by_target_node: HashMap<RawSyntaxNodeId, Vec<ReferenceEdgeId>>,
+    #[serde(skip)]
+    koha_bindings: HashMap<Cmavo, SumtiNodeId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -1047,6 +1049,12 @@ impl DiscourseReferences {
             .get(&node)
             .map(Vec::as_slice)
             .unwrap_or(&[])
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn koha_binding(&self, cmavo: Cmavo) -> Option<SumtiNodeId> {
+        self.koha_bindings.get(&cmavo).copied()
     }
 }
 
@@ -3567,6 +3575,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
             edges: self.edges,
             edge_ids_by_source: self.edge_ids_by_source,
             edge_ids_by_target_node: self.edge_ids_by_target_node,
+            koha_bindings: self.koha_bindings,
         }
     }
 

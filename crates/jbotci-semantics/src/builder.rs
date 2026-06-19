@@ -6,7 +6,9 @@ use std::fmt;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, requires};
 use jbotci_dictionary::{Dictionary, WordType, normalize_lookup_query};
-use jbotci_morphology::{Cmavo, Word, WordLike, WordLikeData, strip_diacritics};
+use jbotci_morphology::{
+    Cmavo, LujvoPart, Word, WordData, WordLike, WordLikeData, strip_diacritics,
+};
 use jbotci_syntax::ast::{
     AbstractionSyntax, AfterthoughtBridiTailSyntax, BoGroupedBridiTailSyntax,
     BoundBridiTailConnectionSyntax, BridiSyntax, BridiTailConnectionSyntax, BridiTailSyntax,
@@ -27,13 +29,15 @@ use crate::model::{
     AssignedNameData, Composition, Connector, Descriptor, EventualityClass, FormulaOperator,
     IndexicalKind, MathLiteral, ModalArgument, PredicationMode, QuantityForm, QuantityScale,
     QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
-    ReciprocalExchange, ReferentCategory, RelativeClause, RelativeClauseKind, ScalarNegation,
-    ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId,
-    SemanticSort, SequenceRelation, SignKind, UtteranceForce, diagnostic, source_from_spans,
+    RafsiBinding, ReciprocalExchange, ReferentCategory, RelationExpansion, RelativeClause,
+    RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph,
+    SemanticObject, SemanticObjectId, SemanticSort, SequenceRelation, SignKind, UtteranceForce,
+    diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
-    ReferenceAnalysisError, ReferenceKind, ReferenceTarget, SelbriPlaceFrameId, analyze_references,
+    ReferenceAnalysisError, ReferenceKind, ReferenceTarget, SelbriPlaceFrameId, SumtiNodeId,
+    analyze_references,
 };
 
 #[invariant(true)]
@@ -133,9 +137,17 @@ pub fn build_semantic_graph_with_dictionary(
     source_text: Option<&str>,
     dictionary: &Dictionary<'_>,
 ) -> Result<SemanticGraph, SemanticsError> {
-    build_semantic_graph_with_place_resolver(syntax, source_text, |relation| {
-        dictionary_relation_place_count(dictionary, relation)
-    })
+    build_semantic_graph_with_resolvers(
+        syntax,
+        source_text,
+        |relation| dictionary_relation_place_count(dictionary, relation),
+        |rafsi| {
+            dictionary
+                .lookup_rafsi(rafsi)
+                .next()
+                .map(|rafsi_match| rafsi_match.entry.word.to_owned())
+        },
+    )
 }
 
 #[requires(true)]
@@ -148,11 +160,27 @@ pub fn build_semantic_graph_with_place_resolver<F>(
 where
     F: Fn(&str) -> Option<usize>,
 {
+    build_semantic_graph_with_resolvers(syntax, source_text, relation_place_count, |_| None)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
+fn build_semantic_graph_with_resolvers<F, R>(
+    syntax: &TextSyntax,
+    source_text: Option<&str>,
+    relation_place_count: F,
+    rafsi_source_word: R,
+) -> Result<SemanticGraph, SemanticsError>
+where
+    F: Fn(&str) -> Option<usize>,
+    R: Fn(&str) -> Option<String>,
+{
     let analysis = analyze_references(syntax)?;
     let mut builder = GraphBuilder::new(
         &analysis,
         SemanticBuildOptions { source_text },
         &relation_place_count,
+        &rafsi_source_word,
     );
     builder.build_text(syntax)
 }
@@ -329,13 +357,15 @@ impl IdCounters {
 
 #[invariant(true)]
 #[derive(Debug)]
-struct GraphBuilder<'analysis, 'tree, 'resolver, F>
+struct GraphBuilder<'analysis, 'tree, 'resolver, F, R>
 where
     F: Fn(&str) -> Option<usize>,
+    R: Fn(&str) -> Option<String>,
 {
     analysis: &'analysis ReferenceAnalysis<'tree>,
     options: SemanticBuildOptions<'analysis>,
     relation_place_count: &'resolver F,
+    rafsi_source_word: &'resolver R,
     objects: BTreeMap<SemanticObjectId, SemanticObject>,
     counters: IdCounters,
     sumti_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
@@ -347,9 +377,10 @@ where
     pending_asides: Vec<SemanticObjectId>,
 }
 
-impl<'analysis, 'tree, 'resolver, F> GraphBuilder<'analysis, 'tree, 'resolver, F>
+impl<'analysis, 'tree, 'resolver, F, R> GraphBuilder<'analysis, 'tree, 'resolver, F, R>
 where
     F: Fn(&str) -> Option<usize>,
+    R: Fn(&str) -> Option<String>,
 {
     #[requires(true)]
     #[ensures(ret.objects.contains_key(&SemanticObjectId::speaker()))]
@@ -357,11 +388,13 @@ where
         analysis: &'analysis ReferenceAnalysis<'tree>,
         options: SemanticBuildOptions<'analysis>,
         relation_place_count: &'resolver F,
+        rafsi_source_word: &'resolver R,
     ) -> Self {
         let mut builder = Self {
             analysis,
             options,
             relation_place_count,
+            rafsi_source_word,
             objects: BTreeMap::new(),
             counters: IdCounters::new(),
             sumti_objects: HashMap::new(),
@@ -533,6 +566,14 @@ where
     fn next_quantity(&mut self) -> SemanticObjectId {
         let id = SemanticObjectId::quantity(self.counters.quantity);
         self.counters.quantity += 1;
+        id
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::RelationMetadata)]
+    fn next_relation_metadata(&mut self) -> SemanticObjectId {
+        let id = SemanticObjectId::relation_metadata(self.counters.relation);
+        self.counters.relation += 1;
         id
     }
 
@@ -1186,7 +1227,12 @@ where
         &mut self,
         text: &'tree TextSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let mut nested = GraphBuilder::new(self.analysis, self.options, self.relation_place_count);
+        let mut nested = GraphBuilder::new(
+            self.analysis,
+            self.options,
+            self.relation_place_count,
+            self.rafsi_source_word,
+        );
         nested.counters = self.counters;
         nested.objects = std::mem::take(&mut self.objects);
         nested.utterance_objects = std::mem::take(&mut self.utterance_objects);
@@ -3185,8 +3231,12 @@ where
                 visible_x1_place_for_selbri(selbri),
             );
         }
+        let relation = relation_label_for_selbri(selbri);
+        let relation_metadata =
+            self.build_relation_metadata_for_selbri(selbri, &relation, source.clone())?;
         self.build_property_atom_for_relation(
-            relation_label_for_selbri(selbri),
+            relation,
+            relation_metadata,
             parameter,
             source,
             frame,
@@ -3373,6 +3423,7 @@ where
                 );
                 self.build_property_atom_for_relation_with_scalar_negation(
                     relation_label_for_tanru_unit(inner_unit),
+                    None,
                     parameter,
                     source,
                     frame,
@@ -3398,6 +3449,7 @@ where
                 }
                 self.build_property_atom_for_relation(
                     relation_label_for_tanru_unit(unit),
+                    None,
                     parameter,
                     source,
                     frame,
@@ -3430,10 +3482,12 @@ where
     }
 
     #[requires(!relation.is_empty())]
+    #[requires(relation_metadata.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::RelationMetadata))]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_property_atom_for_relation(
         &mut self,
         relation: String,
+        relation_metadata: Option<SemanticObjectId>,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
         frame: Option<SelbriPlaceFrameId>,
@@ -3441,6 +3495,7 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_property_atom_for_relation_with_scalar_negation(
             relation,
+            relation_metadata,
             parameter,
             source,
             frame,
@@ -3499,10 +3554,12 @@ where
     }
 
     #[requires(!relation.is_empty())]
+    #[requires(relation_metadata.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::RelationMetadata))]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_property_atom_for_relation_with_scalar_negation(
         &mut self,
         relation: String,
+        relation_metadata: Option<SemanticObjectId>,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
         frame: Option<SelbriPlaceFrameId>,
@@ -3557,6 +3614,7 @@ where
             diagnostics,
         );
         object.modal_arguments = modal_arguments;
+        object.relation_metadata = relation_metadata;
         object.scalar_negation = scalar_negation;
         self.insert(predication, object)?;
         let formula = self.next_formula();
@@ -4596,6 +4654,11 @@ where
         }
         let id = self.next_predication();
         let mode = asserted_predication_mode_for_relation(&relation);
+        let relation_metadata = if let Some(selbri) = selbri {
+            self.build_relation_metadata_for_selbri(selbri, &relation, source.clone())?
+        } else {
+            None
+        };
         let mut object = SemanticObject::predication(
             relation,
             Some(eventuality),
@@ -4605,7 +4668,118 @@ where
             diagnostics,
         );
         object.modal_arguments = modal_arguments;
+        object.relation_metadata = relation_metadata;
         self.insert(id, object)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::RelationMetadata)) || ret.is_err())]
+    fn build_relation_metadata_for_selbri(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        relation: &str,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(rafsis) = lujvo_rafsi_parts_for_selbri(selbri) else {
+            return Ok(None);
+        };
+        let mut source_words = Vec::new();
+        let mut rafsi_bindings = Vec::new();
+        for rafsi in &rafsis {
+            let Some(source_word) = self.source_word_for_lujvo_rafsi(rafsi) else {
+                continue;
+            };
+            source_words.push(source_word.clone());
+            let Some(cmavo) = assignable_koha_cmavo_for_word(&source_word) else {
+                continue;
+            };
+            if let Some(referent) = self.bound_koha_referent(cmavo)? {
+                rafsi_bindings.push(RafsiBinding::new(
+                    rafsi.clone(),
+                    Some(source_word),
+                    Some(referent),
+                ));
+            }
+        }
+        if rafsi_bindings.is_empty() {
+            return Ok(None);
+        }
+        let id = self.next_relation_metadata();
+        self.insert(
+            id,
+            SemanticObject::relation_metadata(
+                relation.to_owned(),
+                source_words,
+                Vec::new(),
+                Some(RelationExpansion {
+                    kind: "lujvo".to_owned(),
+                    source_words: rafsis,
+                    rafsi_bindings,
+                }),
+                source,
+                Vec::new(),
+            ),
+        )?;
+        Ok(Some(id))
+    }
+
+    #[requires(!rafsi.is_empty())]
+    #[ensures(ret.as_ref().is_none_or(|word| !word.is_empty()))]
+    fn source_word_for_lujvo_rafsi(&self, rafsi: &str) -> Option<String> {
+        if let Some(source_word) = (self.rafsi_source_word)(rafsi) {
+            return Some(source_word);
+        }
+        let stripped = rafsi
+            .strip_suffix('r')
+            .or_else(|| rafsi.strip_suffix('n'))?;
+        if stripped.is_empty() {
+            return None;
+        }
+        (self.rafsi_source_word)(stripped)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent)) || ret.is_err())]
+    fn bound_koha_referent(
+        &mut self,
+        cmavo: Cmavo,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(sumti_id) = self
+            .analysis
+            .discourse_references
+            .koha_binding(cmavo)
+            .or_else(|| self.bound_koha_sumti_from_association_edges(cmavo))
+        else {
+            return Ok(None);
+        };
+        let sumti = self
+            .analysis
+            .syntax_index
+            .sumti(sumti_id)
+            .ok_or_else(SemanticsError::missing_syntax_node)?;
+        self.build_sumti_referent(sumti).map(Some)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bound_koha_sumti_from_association_edges(&self, cmavo: Cmavo) -> Option<SumtiNodeId> {
+        for edge in self.analysis.discourse_references.edges() {
+            if edge.kind != ReferenceKind::SumtiAssociation {
+                continue;
+            }
+            let Some(source_sumti) = self.analysis.syntax_index.argument_node(edge.source) else {
+                continue;
+            };
+            if sumti_koha_cmavo(source_sumti) != Some(cmavo) {
+                continue;
+            }
+            let ReferenceTarget::ResolvedNode(target) = edge.target else {
+                continue;
+            };
+            self.analysis.syntax_index.argument_node(target)?;
+            return Some(SumtiNodeId(target));
+        }
+        None
     }
 
     #[requires(true)]
@@ -6412,17 +6586,34 @@ where
             .semantic_predication_frame_for_selbri(selbri, self.branch_frame_for_selbri(selbri));
         let visible_x1_place = visible_x1_place_for_selbri(selbri);
         let mut arguments = BTreeMap::new();
-        self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
+        let highest_assigned_place =
+            self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
         let modal_arguments = self.modal_assignment_arguments(frame)?;
         arguments.insert(
             format!("x{visible_x1_place}"),
             ArgumentValue::filled(referent, None),
         );
-        if let Some(place_count) = self.place_count_for_relation(&relation) {
-            for place in 1..=place_count {
-                let key = format!("x{place}");
-                if !arguments.contains_key(&key) {
-                    arguments.insert(key, self.build_elided_argument_for_place(place)?);
+        let mut diagnostics = Vec::new();
+        match self.place_count_for_relation(&relation) {
+            Some(place_count) => {
+                for place in 1..=place_count {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+            }
+            None => {
+                for place in 1..=highest_assigned_place.max(visible_x1_place) {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+                if !relation_has_open_place_structure(&relation) {
+                    diagnostics.push(diagnostic(
+                        "relation place structure is unavailable; only places required by explicit assignments are represented",
+                    ));
                 }
             }
         }
@@ -6432,6 +6623,8 @@ where
             .selbri_node_id(selbri)
             .and_then(|node| self.source_for_node(node.0, "restrictive-predication"));
         let eventuality = self.build_tagged_eventuality_for_selbri(selbri, source.clone())?;
+        let relation_metadata =
+            self.build_relation_metadata_for_selbri(selbri, &relation, source.clone())?;
         let predication = self.next_predication();
         let mut object = SemanticObject::predication(
             relation,
@@ -6439,9 +6632,10 @@ where
             arguments,
             PredicationMode::Restrictive,
             source,
-            Vec::new(),
+            diagnostics,
         );
         object.modal_arguments = modal_arguments;
+        object.relation_metadata = relation_metadata;
         self.insert(predication, object)?;
         let formula = self.next_formula();
         self.insert(
@@ -7663,6 +7857,77 @@ fn relation_label_for_selbri(selbri: &SelbriSyntax) -> String {
                 .map(relation_label_for_selbri)
                 .unwrap_or_else(|| "bridi".to_owned())
         ),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn lujvo_rafsi_parts_for_selbri(selbri: &SelbriSyntax) -> Option<Vec<String>> {
+    match selbri.as_data() {
+        data!(SelbriSyntax::SelbriWord(token)) => lujvo_rafsi_parts_for_token(token),
+        data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. })
+        | data!(SelbriSyntax::Negated { inner_selbri, .. })
+        | data!(SelbriSyntax::GroupedSelbri {
+            selbri: inner_selbri,
+            ..
+        })
+        | data!(SelbriSyntax::TaggedSelbri { inner_selbri, .. }) => {
+            lujvo_rafsi_parts_for_selbri(inner_selbri)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn lujvo_rafsi_parts_for_token(token: &Token) -> Option<Vec<String>> {
+    let word = token.core_word().bare_word()?;
+    match word.as_data() {
+        data!(Word::Lujvo { parts, .. }) => Some(
+            parts
+                .iter()
+                .filter_map(|part| match part {
+                    LujvoPart::Rafsi(phonemes) => Some(strip_diacritics(phonemes.as_str())),
+                    LujvoPart::Hyphen(_) => None,
+                })
+                .collect(),
+        ),
+        _ => None,
+    }
+}
+
+#[requires(!word.is_empty())]
+#[ensures(true)]
+fn assignable_koha_cmavo_for_word(word: &str) -> Option<Cmavo> {
+    let cmavo = Cmavo::from_text(word)?;
+    matches!(
+        cmavo,
+        Cmavo::Koha
+            | Cmavo::Kohe
+            | Cmavo::Kohi
+            | Cmavo::Koho
+            | Cmavo::Kohu
+            | Cmavo::Foha
+            | Cmavo::Fohe
+            | Cmavo::Fohi
+            | Cmavo::Foho
+            | Cmavo::Fohu
+    )
+    .then_some(cmavo)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sumti_koha_cmavo(sumti: &SumtiSyntax) -> Option<Cmavo> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::ProSumti(koha)) => koha.cmavo(),
+        data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. }) => sumti_koha_cmavo(inner_sumti),
+        data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. }) => {
+            sumti_koha_cmavo(base_sumti)
+        }
+        _ => None,
     }
 }
 
@@ -9803,6 +10068,29 @@ mod tests {
         assert_eq!(mintu["arguments"]["x1"]["value"], "referent:r1");
         assert_eq!(mintu["arguments"]["x2"]["value"], "referent:r2");
         assert_eq!(mintu["arguments"]["x3"]["kind"], "elided");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lujvo_pro_sumti_rafsi_metadata_resolves_bound_referent() {
+        let json = semantic_json_for("fo'a goi le kulnrsu'omi .i lo fo'arselsanga")
+            .expect("semantic JSON");
+        let predication = predication_with_relation_and_mode(&json, "fo'arselsanga", "restrictive");
+        assert_eq!(predication["relationMetadata"], "relation:r1");
+        let metadata = object(&json, "relation:r1");
+        assert_eq!(metadata["relation"], "fo'arselsanga");
+        assert_eq!(metadata["sourceWords"][0], "fo'a");
+        assert_eq!(metadata["expansion"]["kind"], "lujvo");
+        assert_eq!(metadata["expansion"]["sourceWords"][0], "fo'ar");
+        assert_eq!(
+            metadata["expansion"]["rafsiBindings"][0]["sourceWord"],
+            "fo'a"
+        );
+        assert_eq!(
+            metadata["expansion"]["rafsiBindings"][0]["referent"],
+            "referent:r1"
+        );
     }
 
     #[test]
