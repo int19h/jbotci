@@ -3990,11 +3990,19 @@ where
         let source = self.source_for_node(raw, "quotation");
         let source_text = source.as_ref().and_then(|source| source.text.clone());
         let quotation = match quote.as_data() {
-            data!(QuoteSyntax::TextQuote { text, .. }) => {
-                let utterance = if text_has_statements(text) {
-                    Some(self.build_text_group_sequence(text)?)
-                } else {
+            data!(QuoteSyntax::TextQuote { lu, text, .. }) => {
+                let mut marker_asides = self.build_vocative_asides(&lu.free_modifiers)?;
+                let utterance = if text_has_semantic_content(text) {
+                    let utterance = self.build_text_group_sequence(text)?;
+                    self.add_asides_to_discourse_item(
+                        utterance,
+                        std::mem::take(&mut marker_asides),
+                    );
+                    Some(utterance)
+                } else if marker_asides.is_empty() {
                     None
+                } else {
+                    self.build_standalone_asides(marker_asides)?
                 };
                 Quotation {
                     mode: "parsed".to_owned(),
@@ -6026,6 +6034,7 @@ fn vocative_kind_for_markers(markers: &WithFreeModifiers<Vec<Token>>) -> String 
         Some(Cmavo::Coi) => "greeting".to_owned(),
         Some(Cmavo::Jehe) => "acknowledgement".to_owned(),
         Some(Cmavo::Coho) => "farewell".to_owned(),
+        Some(Cmavo::Mihe) => "selfIdentification".to_owned(),
         Some(Cmavo::Doi) => "address".to_owned(),
         _ => token_text(first),
     }
@@ -6113,14 +6122,16 @@ fn word_type_is_brivla_like(word_type: WordType) -> bool {
 }
 
 #[requires(true)]
-#[ensures(ret == text.paragraphs.iter().any(|paragraph| paragraph.statements.iter().any(|statement| statement.statement.is_some())))]
-fn text_has_statements(text: &TextSyntax) -> bool {
-    text.paragraphs.iter().any(|paragraph| {
-        paragraph
-            .statements
-            .iter()
-            .any(|statement| statement.statement.is_some())
-    })
+#[ensures(true)]
+fn text_has_semantic_content(text: &TextSyntax) -> bool {
+    !text.leading_cmevla.is_empty()
+        || !text.leading_free_modifiers.is_empty()
+        || text.paragraphs.iter().any(|paragraph| {
+            paragraph
+                .statements
+                .iter()
+                .any(|statement| statement.statement.is_some())
+        })
 }
 
 #[requires(true)]
@@ -6360,6 +6371,21 @@ mod tests {
             predication_with_relation_and_mode(&json, "cusku", "asserted")["arguments"]["x2"]["value"],
             sign_id.as_str()
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parsed_quotation_preserves_vocative_only_text() {
+        let json = semantic_json_for("mi cusku lu mi'e .djan. li'u").expect("semantic JSON");
+        let sign = object(&json, "sign:s1");
+        assert_eq!(sign["quotation"]["mode"], "parsed");
+        let quoted_utterance = sign["quotation"]["utterance"]
+            .as_str()
+            .expect("quoted vocative utterance");
+        let utterance = object(&json, quoted_utterance);
+        assert_eq!(utterance["force"], "vocative");
+        assert_eq!(utterance["vocativeKind"], "selfIdentification");
     }
 
     #[test]
