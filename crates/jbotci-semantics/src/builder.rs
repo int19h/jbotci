@@ -1185,13 +1185,16 @@ where
                 Vec::new(),
             ),
         )?;
+        let visible_x1_place = visible_x1_place_for_tanru_unit(tertau);
         let x1_argument = self
             .objects
             .get(&tertau_predication)
-            .and_then(|object| object.arguments.get("x1"))
+            .and_then(|object| object.arguments.get(&format!("x{visible_x1_place}")))
             .cloned()
             .ok_or_else(|| {
-                SemanticsError::invalid_graph("tanru tertau has no x1 argument".to_owned())
+                SemanticsError::invalid_graph(format!(
+                    "tanru tertau has no visible x1 argument at x{visible_x1_place}"
+                ))
             })?;
         let modifier = self.build_property_abstraction_for_units(
             &units[..units.len() - 1],
@@ -4263,6 +4266,9 @@ fn relation_label_for_selbri(selbri: &SelbriSyntax) -> String {
 fn tanru_units_for_selbri(selbri: &SelbriSyntax) -> Option<Vec<&TanruUnitSyntax>> {
     match selbri.as_data() {
         data!(SelbriSyntax::Tanru(units)) => Some(units.iter().collect()),
+        data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. }) => {
+            tanru_units_for_selbri(inner_selbri)
+        }
         data!(SelbriSyntax::GroupedSelbri { selbri, .. })
         | data!(SelbriSyntax::TaggedSelbri {
             inner_selbri: selbri,
@@ -5471,6 +5477,29 @@ mod tests {
         );
         assert_eq!(object(&json, "formula:f4")["operator"], "or");
         assert_eq!(object(&json, "formula:f4")["connector"]["truthTable"], "ja");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn converted_tanru_uses_visible_x1_for_modifier_relation() {
+        let whole = semantic_json_for("le zarci cu se ke cadzu klama ke'e la .alis.")
+            .expect("semantic JSON");
+        let whole_klama = predication_with_relation_and_mode(&whole, "klama", "asserted");
+        assert_eq!(whole_klama["arguments"]["x1"]["value"], "referent:r4");
+        assert_eq!(whole_klama["arguments"]["x2"]["value"], "referent:r1");
+        let whole_tanru =
+            predication_with_relation_and_mode(&whole, "R[tanru:cadzu-klama]", "asserted");
+        assert_eq!(whole_tanru["arguments"]["x1"]["value"], "referent:r4");
+
+        let tertau =
+            semantic_json_for("le zarci cu cadzu se klama la .alis.").expect("semantic JSON");
+        let tertau_klama = predication_with_relation_and_mode(&tertau, "klama", "asserted");
+        assert_eq!(tertau_klama["arguments"]["x1"]["value"], "referent:r4");
+        assert_eq!(tertau_klama["arguments"]["x2"]["value"], "referent:r1");
+        let tertau_tanru =
+            predication_with_relation_and_mode(&tertau, "R[tanru:cadzu-klama]", "asserted");
+        assert_eq!(tertau_tanru["arguments"]["x1"]["value"], "referent:r1");
     }
 
     #[test]
