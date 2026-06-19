@@ -2692,11 +2692,15 @@ fn tanru_unit_label(unit: &TanruUnitSyntax) -> String {
             leading_unit,
             trailing_unit,
             ..
-        }) => format!(
-            "{}-{}",
-            tanru_unit_label(leading_unit),
-            tanru_unit_label(trailing_unit)
-        ),
+        }) => {
+            let trailing_label = tanru_unit_label(trailing_unit);
+            let trailing_label = if tanru_unit_has_explicit_grouping(trailing_unit) {
+                format!("({trailing_label})")
+            } else {
+                trailing_label
+            };
+            format!("{}-{trailing_label}", tanru_unit_label(leading_unit))
+        }
         data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
         | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
         | data!(TanruUnitSyntax::ModalConversion { inner_unit, .. }) => {
@@ -3173,6 +3177,20 @@ mod tests {
             !relations
                 .iter()
                 .any(|relation| relation.contains("connected"))
+        );
+
+        let nested_unit_bo =
+            semantic_json_for("ta melbi cmalu bo nixli bo ckule").expect("semantic JSON");
+        let relations = predication_relations(&nested_unit_bo);
+        assert!(
+            relations
+                .iter()
+                .any(|relation| relation == "R[tanru:cmalu-(nixli-ckule)]")
+        );
+        assert!(
+            relations
+                .iter()
+                .any(|relation| relation == "R[tanru:melbi-(cmalu-(nixli-ckule))]")
         );
     }
 
