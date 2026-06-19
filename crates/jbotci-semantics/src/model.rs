@@ -363,6 +363,8 @@ pub struct SemanticObject {
     pub relation: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub arguments: BTreeMap<String, ArgumentValue>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub modal_arguments: Vec<ModalArgument>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<PredicationMode>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -477,6 +479,7 @@ impl SemanticObject {
             introduced_by: None,
             relation: None,
             arguments: BTreeMap::new(),
+            modal_arguments: Vec::new(),
             mode: None,
             relation_metadata: None,
             operator: None,
@@ -760,6 +763,9 @@ impl SemanticObject {
         for argument in self.arguments.values() {
             argument.references_into(out);
         }
+        for argument in &self.modal_arguments {
+            argument.references_into(out);
+        }
         extend_optional(out, self.relation_metadata);
         extend_optional(out, self.predication);
         out.extend(self.children.iter().copied());
@@ -1031,6 +1037,7 @@ pub enum ParameterRole {
 }
 
 #[invariant(argument_value_shape_is_valid(*kind, *value, introduced_by.as_deref()))]
+#[invariant(*kind != ArgumentValueKind::Deleted || relative_clauses.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArgumentValue {
@@ -1041,6 +1048,8 @@ pub struct ArgumentValue {
     pub introduced_by: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SemanticSource>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub relative_clauses: Vec<RelativeClause>,
 }
 
 impl ArgumentValue {
@@ -1052,6 +1061,7 @@ impl ArgumentValue {
             value: Some(value),
             introduced_by: None,
             source,
+            relative_clauses: Vec::new(),
         }))
     }
 
@@ -1068,6 +1078,7 @@ impl ArgumentValue {
             value: Some(value),
             introduced_by: Some(introduced_by),
             source,
+            relative_clauses: Vec::new(),
         }))
     }
 
@@ -1079,6 +1090,18 @@ impl ArgumentValue {
             value: None,
             introduced_by: Some(introduced_by),
             source,
+            relative_clauses: Vec::new(),
+        }))
+    }
+
+    #[requires(self.kind != ArgumentValueKind::Deleted)]
+    #[requires(!relative_clauses.is_empty())]
+    #[ensures(!ret.relative_clauses.is_empty())]
+    pub fn with_relative_clauses(self, relative_clauses: Vec<RelativeClause>) -> Self {
+        let data = self.into_data();
+        Self::from_data(data!(ArgumentValue {
+            relative_clauses,
+            ..data
         }))
     }
 
@@ -1088,6 +1111,74 @@ impl ArgumentValue {
         if let Some(value) = self.value {
             out.push(value);
         }
+        out.extend(self.relative_clauses.iter().map(|clause| clause.body));
+    }
+}
+
+#[invariant(body.object_kind() == SemanticObjectKind::Formula)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelativeClause {
+    pub kind: RelativeClauseKind,
+    pub body: SemanticObjectId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SemanticSource>,
+}
+
+impl RelativeClause {
+    #[requires(body.object_kind() == SemanticObjectKind::Formula)]
+    #[ensures(ret.body == body)]
+    pub fn new(
+        kind: RelativeClauseKind,
+        body: SemanticObjectId,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::from_data(data!(RelativeClause { kind, body, source }))
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RelativeClauseKind {
+    Incidental,
+    Restrictive,
+}
+
+#[invariant(!relation.is_empty(), "modal relation must be named")]
+#[invariant(!introduced_by.is_empty(), "modal source marker must be named")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModalArgument {
+    pub relation: String,
+    pub introduced_by: String,
+    pub argument: ArgumentValue,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SemanticSource>,
+}
+
+impl ModalArgument {
+    #[requires(!relation.is_empty())]
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(true)]
+    pub fn new(
+        relation: String,
+        introduced_by: String,
+        argument: ArgumentValue,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::from_data(data!(ModalArgument {
+            relation,
+            introduced_by,
+            argument,
+            source,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        self.argument.references_into(out);
     }
 }
 
@@ -1472,7 +1563,10 @@ pub fn semantic_object_arguments_are_valid(
         object.arguments.iter().all(|(place, value)| {
             is_numbered_argument_place(place)
                 && argument_value_references_allowed_objects(value, objects)
-        })
+        }) && object
+            .modal_arguments
+            .iter()
+            .all(|argument| argument_value_references_allowed_objects(&argument.argument, objects))
     })
 }
 
@@ -1482,12 +1576,18 @@ fn argument_value_references_allowed_objects(
     value: &ArgumentValue,
     objects: &BTreeMap<SemanticObjectId, SemanticObject>,
 ) -> bool {
-    match value.value {
+    let value_is_valid = match value.value {
         Some(value) => objects
             .get(&value)
             .is_some_and(|object| argument_object_kind_can_fill(object.object_kind())),
         None => value.kind == ArgumentValueKind::Deleted,
-    }
+    };
+    value_is_valid
+        && value.relative_clauses.iter().all(|clause| {
+            objects
+                .get(&clause.body)
+                .is_some_and(|object| object.object_kind() == SemanticObjectKind::Formula)
+        })
 }
 
 #[requires(true)]
@@ -1655,6 +1755,7 @@ mod tests {
             value: Some(SemanticObjectId::referent(1)),
             introduced_by: Some("zi'o".to_owned()),
             source: None,
+            relative_clauses: Vec::new(),
         }));
 
         assert!(invalid.is_err());

@@ -10,18 +10,19 @@ use jbotci_morphology::{Cmavo, Word, strip_diacritics};
 use jbotci_syntax::ast::{
     BoGroupedBridiTailSyntax, BridiSyntax, BridiTailSyntax, ConnectiveSyntax, ConnectiveSyntaxData,
     DescriptionSyntax, ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData,
-    SelbriSyntax, SelbriSyntaxData, SimpleBridiTailSyntaxData, StatementSyntax,
-    StatementSyntaxData, SumtiSyntax, SumtiSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData,
+    RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax, SelbriSyntaxData,
+    SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData, SubbridiSyntax,
+    SubbridiSyntaxData, SumtiSyntax, SumtiSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData,
     TenseModalSyntax, TenseModalSyntaxData, TextSyntax, Token, WithFreeModifiers, WordRun,
 };
 
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, Composition,
-    Connector, Descriptor, EventualityClass, FormulaOperator, IndexicalKind, PredicationMode,
-    QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot,
-    QuestionSlotRole, ReferentCategory, SemanticDiagnostic, SemanticGraph, SemanticObject,
-    SemanticObjectId, SemanticSort, SequenceRelation, UtteranceForce, diagnostic,
-    source_from_spans,
+    Connector, Descriptor, EventualityClass, FormulaOperator, IndexicalKind, ModalArgument,
+    PredicationMode, QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode,
+    QuestionSlot, QuestionSlotRole, ReferentCategory, RelativeClause, RelativeClauseKind,
+    SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId, SemanticSort,
+    SequenceRelation, UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
     PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, ReferenceAnalysisError,
@@ -488,6 +489,25 @@ where
     }
 
     #[requires(true)]
+    #[ensures(true)]
+    fn source_for_subbridi(
+        &self,
+        subbridi: &'tree SubbridiSyntax,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        match subbridi.as_data() {
+            data!(SubbridiSyntax::Bridi(bridi)) => self
+                .analysis
+                .syntax_index
+                .bridi_node_id(bridi)
+                .and_then(|node| self.source_for_node(node.0, construct)),
+            data!(SubbridiSyntax::Prenex { inner_subbridi, .. }) => {
+                self.source_for_subbridi(inner_subbridi, construct)
+            }
+        }
+    }
+
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
     fn build_text(&mut self, text: &'tree TextSyntax) -> Result<SemanticGraph, SemanticsError> {
         let truth_question = text
@@ -822,6 +842,7 @@ where
         let mut highest_assigned_place = 0usize;
         let mut connector = None;
         let mut operator = FormulaOperator::And;
+        let mut assigned_sumtis = Vec::new();
         let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
         for assignment_id in assignment_ids {
             let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
@@ -838,7 +859,7 @@ where
             let place = place.get() as usize;
             highest_assigned_place = highest_assigned_place.max(place);
             let key = format!("x{place}");
-            if let Some((leading_sumti, connective, trailing_sumti)) =
+            if let Some((_leading_sumti, connective, _trailing_sumti)) =
                 logical_sumti_connection_parts(sumti)
             {
                 if connector.is_none() {
@@ -849,6 +870,16 @@ where
                         truth_table: None,
                     });
                 }
+            }
+            assigned_sumtis.push((key, sumti));
+        }
+        let Some(connector) = connector else {
+            return Ok(None);
+        };
+        for (key, sumti) in assigned_sumtis {
+            if let Some((leading_sumti, _connective, trailing_sumti)) =
+                logical_sumti_connection_parts(sumti)
+            {
                 alternatives.insert(
                     key,
                     vec![
@@ -860,9 +891,6 @@ where
                 alternatives.insert(key, vec![self.build_argument_for_sumti(sumti)?]);
             }
         }
-        let Some(connector) = connector else {
-            return Ok(None);
-        };
         let fill_through =
             (self.relation_place_count)(&relation).unwrap_or_else(|| highest_assigned_place.max(1));
         for place in 1..=fill_through {
@@ -1935,7 +1963,15 @@ where
                 ),
             );
         }
-        self.build_property_atom_for_relation(relation_label_for_selbri(selbri), parameter, source)
+        let frame = self
+            .semantic_predication_frame_for_selbri(selbri, self.branch_frame_for_selbri(selbri));
+        self.build_property_atom_for_relation(
+            relation_label_for_selbri(selbri),
+            parameter,
+            source,
+            frame,
+            visible_x1_place_for_selbri(selbri),
+        )
     }
 
     #[requires(true)]
@@ -2101,11 +2137,19 @@ where
                 }
                 self.build_property_formula_for_selbri(selbri, parameter, source)
             }
-            _ => self.build_property_atom_for_relation(
-                relation_label_for_tanru_unit(unit),
-                parameter,
-                source,
-            ),
+            _ => {
+                let frame = self.semantic_predication_frame_for_tanru_unit(
+                    unit,
+                    self.branch_frame_for_tanru_unit(unit),
+                );
+                self.build_property_atom_for_relation(
+                    relation_label_for_tanru_unit(unit),
+                    parameter,
+                    source,
+                    frame,
+                    visible_x1_place_for_tanru_unit(unit),
+                )
+            }
         }
     }
 
@@ -2138,6 +2182,8 @@ where
         relation: String,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
+        frame: Option<SelbriPlaceFrameId>,
+        visible_x1_place: usize,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let eventuality = self.next_eventuality();
         self.insert(
@@ -2145,31 +2191,47 @@ where
             SemanticObject::eventuality(EventualityClass::Event, None, source.clone()),
         )?;
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(parameter, None));
+        let mut highest_assigned_place =
+            self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
+        let modal_arguments = self.modal_assignment_arguments(frame)?;
+        highest_assigned_place = highest_assigned_place.max(visible_x1_place);
+        arguments.insert(
+            format!("x{visible_x1_place}"),
+            ArgumentValue::filled(parameter, None),
+        );
         let mut diagnostics = Vec::new();
         match (self.relation_place_count)(&relation) {
             Some(place_count) => {
                 for place in 2..=place_count {
-                    arguments
-                        .insert(format!("x{place}"), self.build_elided_argument_for_place(place)?);
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
                 }
             }
-            None => diagnostics.push(diagnostic(
-                "relation place structure is unavailable; only explicit assigned places are represented",
-            )),
+            None => {
+                for place in 1..=highest_assigned_place.max(1) {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+                diagnostics.push(diagnostic(
+                    "relation place structure is unavailable; only explicit assigned places are represented",
+                ));
+            }
         }
         let predication = self.next_predication();
-        self.insert(
-            predication,
-            SemanticObject::predication(
-                relation,
-                Some(eventuality),
-                arguments,
-                PredicationMode::Restrictive,
-                source.clone(),
-                diagnostics,
-            ),
-        )?;
+        let mut object = SemanticObject::predication(
+            relation,
+            Some(eventuality),
+            arguments,
+            PredicationMode::Restrictive,
+            source.clone(),
+            diagnostics,
+        );
+        object.modal_arguments = modal_arguments;
+        self.insert(predication, object)?;
         let formula = self.next_formula();
         self.insert(
             formula,
@@ -2216,8 +2278,12 @@ where
         selbri: Option<&'tree SelbriSyntax>,
         relation: String,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        let frame = self.bridi_frame(bridi);
+        let frame = selbri
+            .and_then(|selbri| self.semantic_predication_frame_for_selbri(selbri, frame))
+            .or(frame);
         self.build_predication_for_frame(
-            self.bridi_frame(bridi),
+            frame,
             self.analysis
                 .syntax_index
                 .bridi_node_id(bridi)
@@ -2271,28 +2337,9 @@ where
         }
         self.insert(eventuality, event)?;
         let mut arguments = BTreeMap::new();
-        let mut highest_assigned_place = 0usize;
-        if let Some(frame) = frame {
-            let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
-            for assignment_id in assignment_ids {
-                let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id)
-                else {
-                    continue;
-                };
-                let PlaceSlot::Numbered(place) = assignment.slot else {
-                    continue;
-                };
-                let sumti = self
-                    .analysis
-                    .syntax_index
-                    .sumti(assignment.sumti)
-                    .ok_or_else(SemanticsError::missing_syntax_node)?;
-                let argument = self.build_argument_for_sumti(sumti)?;
-                let place = place.get() as usize;
-                highest_assigned_place = highest_assigned_place.max(place);
-                arguments.insert(format!("x{place}"), argument);
-            }
-        }
+        let mut highest_assigned_place =
+            self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
+        let modal_arguments = self.modal_assignment_arguments(frame)?;
         for (place, argument) in argument_overrides {
             if let Some(place_index) = argument_place_index(&place) {
                 highest_assigned_place = highest_assigned_place.max(place_index);
@@ -2326,17 +2373,88 @@ where
             }
         }
         let id = self.next_predication();
-        self.insert(
-            id,
-            SemanticObject::predication(
+        let mut object = SemanticObject::predication(
+            relation,
+            Some(eventuality),
+            arguments,
+            PredicationMode::Asserted,
+            source,
+            diagnostics,
+        );
+        object.modal_arguments = modal_arguments;
+        self.insert(id, object)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn insert_numbered_assignment_arguments(
+        &mut self,
+        arguments: &mut BTreeMap<String, ArgumentValue>,
+        frame: Option<SelbriPlaceFrameId>,
+    ) -> Result<usize, SemanticsError> {
+        let Some(frame) = frame else {
+            return Ok(0);
+        };
+        let mut highest_assigned_place = 0usize;
+        let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
+        for assignment_id in assignment_ids {
+            let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
+                continue;
+            };
+            let PlaceSlot::Numbered(place) = assignment.slot else {
+                continue;
+            };
+            let sumti = self
+                .analysis
+                .syntax_index
+                .sumti(assignment.sumti)
+                .ok_or_else(SemanticsError::missing_syntax_node)?;
+            let argument = self.build_argument_for_sumti(sumti)?;
+            let place = place.get() as usize;
+            highest_assigned_place = highest_assigned_place.max(place);
+            arguments.insert(format!("x{place}"), argument);
+        }
+        Ok(highest_assigned_place)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn modal_assignment_arguments(
+        &mut self,
+        frame: Option<SelbriPlaceFrameId>,
+    ) -> Result<Vec<ModalArgument>, SemanticsError> {
+        let Some(frame) = frame else {
+            return Ok(Vec::new());
+        };
+        let mut modal_arguments = Vec::new();
+        let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
+        for assignment_id in assignment_ids {
+            let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
+                continue;
+            };
+            let PlaceSlot::Modal(tag_node) = assignment.slot else {
+                continue;
+            };
+            let sumti = self
+                .analysis
+                .syntax_index
+                .sumti(assignment.sumti)
+                .ok_or_else(SemanticsError::missing_syntax_node)?;
+            let argument = self.build_argument_for_sumti(sumti)?;
+            let source = tag_node.and_then(|node| self.source_for_node(node, "modal-argument"));
+            let introduced_by = source
+                .as_ref()
+                .and_then(|source| source.text.clone())
+                .unwrap_or_else(|| "modal".to_owned());
+            let relation = modal_relation_for_marker(&introduced_by);
+            modal_arguments.push(ModalArgument::new(
                 relation,
-                Some(eventuality),
-                arguments,
-                PredicationMode::Asserted,
+                introduced_by,
+                argument,
                 source,
-                diagnostics,
-            ),
-        )
+            ));
+        }
+        Ok(modal_arguments)
     }
 
     #[requires(!relation.is_empty())]
@@ -2404,7 +2522,174 @@ where
                 self.source_for_node(raw, "elided-place"),
             ));
         }
-        Ok(ArgumentValue::filled(referent, None))
+        let argument = ArgumentValue::filled(referent, None);
+        self.attach_relative_clauses_to_argument(argument, sumti, referent)
+    }
+
+    #[requires(argument.kind != crate::model::ArgumentValueKind::Deleted)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_relative_clauses_to_argument(
+        &mut self,
+        argument: ArgumentValue,
+        sumti: &'tree SumtiSyntax,
+        head: SemanticObjectId,
+    ) -> Result<ArgumentValue, SemanticsError> {
+        let clauses = match sumti.as_data() {
+            data!(SumtiSyntax::SumtiWithRelativeClauses {
+                relative_clauses,
+                ..
+            })
+            | data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
+                relative_clauses,
+                ..
+            }) => relative_clauses.as_slice(),
+            data!(SumtiSyntax::Description(description)) => description.relative_clauses.as_slice(),
+            data!(SumtiSyntax::DescriptionConnection(description)) => {
+                description.relative_clauses.as_slice()
+            }
+            _ => return Ok(argument),
+        };
+        let mut lowered = Vec::new();
+        for clause in clauses {
+            if let Some(clause) = self.build_relative_clause(clause, head)? {
+                lowered.push(clause);
+            }
+        }
+        if lowered.is_empty() {
+            Ok(argument)
+        } else {
+            Ok(argument.with_relative_clauses(lowered))
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_relative_clause(
+        &mut self,
+        clause: &'tree RelativeClauseSyntax,
+        head: SemanticObjectId,
+    ) -> Result<Option<RelativeClause>, SemanticsError> {
+        match clause.as_data() {
+            data!(RelativeClauseSyntax::IncidentalRelativeBridi { subbridi, .. }) => self
+                .build_relative_bridi_clause(subbridi, head, RelativeClauseKind::Incidental)
+                .map(Some),
+            data!(RelativeClauseSyntax::RestrictiveRelativeBridi { subbridi, .. }) => self
+                .build_relative_bridi_clause(subbridi, head, RelativeClauseKind::Restrictive)
+                .map(Some),
+            data!(RelativeClauseSyntax::JoinedRelativeClauses { inner, .. })
+            | data!(RelativeClauseSyntax::RelativeClauseConnection { inner, .. }) => {
+                self.build_relative_clause(inner, head)
+            }
+            data!(RelativeClauseSyntax::SumtiAssociationPhrase(..)) => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_relative_bridi_clause(
+        &mut self,
+        subbridi: &'tree SubbridiSyntax,
+        head: SemanticObjectId,
+        kind: RelativeClauseKind,
+    ) -> Result<RelativeClause, SemanticsError> {
+        let Some(selbri) = main_selbri_for_subbridi(subbridi) else {
+            let formula = self.build_diagnostic_relative_formula(subbridi)?;
+            return Ok(RelativeClause::new(
+                kind,
+                formula,
+                self.source_for_subbridi(subbridi, "relative-clause"),
+            ));
+        };
+        let mode = match kind {
+            RelativeClauseKind::Incidental => PredicationMode::Incidental,
+            RelativeClauseKind::Restrictive => PredicationMode::Restrictive,
+        };
+        let formula = self.build_referent_predication_formula_for_selbri(
+            selbri,
+            head,
+            mode,
+            self.source_for_subbridi(subbridi, "relative-clause"),
+        )?;
+        Ok(RelativeClause::new(
+            kind,
+            formula,
+            self.source_for_subbridi(subbridi, "relative-clause"),
+        ))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_referent_predication_formula_for_selbri(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        referent: SemanticObjectId,
+        mode: PredicationMode,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let relation = relation_label_for_selbri(selbri);
+        let frame = self
+            .semantic_predication_frame_for_selbri(selbri, self.branch_frame_for_selbri(selbri));
+        let visible_x1_place = visible_x1_place_for_selbri(selbri);
+        let mut arguments = BTreeMap::new();
+        self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
+        let modal_arguments = self.modal_assignment_arguments(frame)?;
+        arguments.insert(
+            format!("x{visible_x1_place}"),
+            ArgumentValue::filled(referent, None),
+        );
+        if let Some(place_count) = (self.relation_place_count)(&relation) {
+            for place in 1..=place_count {
+                let key = format!("x{place}");
+                if !arguments.contains_key(&key) {
+                    arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                }
+            }
+        }
+        let predication = self.next_predication();
+        let mut object = SemanticObject::predication(
+            relation,
+            None,
+            arguments,
+            mode,
+            source.clone(),
+            Vec::new(),
+        );
+        object.modal_arguments = modal_arguments;
+        self.insert(predication, object)?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_diagnostic_relative_formula(
+        &mut self,
+        subbridi: &'tree SubbridiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let predication = self.next_predication();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                "relative-clause".to_owned(),
+                None,
+                BTreeMap::new(),
+                PredicationMode::Incidental,
+                self.source_for_subbridi(subbridi, "relative-clause"),
+                vec![diagnostic("relative clause bridi is not fully lowered yet")],
+            ),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(
+                predication,
+                self.source_for_subbridi(subbridi, "relative-clause"),
+                Vec::new(),
+            ),
+        )
     }
 
     #[requires(true)]
@@ -2476,6 +2761,13 @@ where
                 selbri,
                 self.branch_frame_for_selbri(selbri).or(frame),
             ),
+            data!(SelbriSyntax::Tanru(units)) => {
+                let unit = units.last();
+                self.semantic_predication_frame_for_tanru_unit(
+                    unit,
+                    self.branch_frame_for_tanru_unit(unit).or(frame),
+                )
+            }
             _ => frame,
         }
     }
@@ -2551,6 +2843,7 @@ where
                                 | PlaceFrameKind::JaiConverted
                                 | PlaceFrameKind::CoInverted
                                 | PlaceFrameKind::Forwarding
+                                | PlaceFrameKind::LinkedUnit
                                 | PlaceFrameKind::ConnectiveBranching
                                 | PlaceFrameKind::ProBridi
                         )
@@ -2584,6 +2877,7 @@ where
                                 | PlaceFrameKind::JaiConverted
                                 | PlaceFrameKind::CoInverted
                                 | PlaceFrameKind::Forwarding
+                                | PlaceFrameKind::LinkedUnit
                                 | PlaceFrameKind::ConnectiveBranching
                                 | PlaceFrameKind::ProBridi
                         )
@@ -2631,6 +2925,10 @@ where
                 let referent = self.build_sumti_referent(inner_sumti)?;
                 self.add_quantity_to_referent(referent, quantity);
                 referent
+            }
+            data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+            | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. }) => {
+                self.build_sumti_referent(base_sumti)?
             }
             data!(SumtiSyntax::SumtiConnection {
                 leading_sumti,
@@ -2946,31 +3244,38 @@ where
         referent: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let relation = relation_label_for_selbri(selbri);
+        let frame = self
+            .semantic_predication_frame_for_selbri(selbri, self.branch_frame_for_selbri(selbri));
+        let visible_x1_place = visible_x1_place_for_selbri(selbri);
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
+        self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
+        let modal_arguments = self.modal_assignment_arguments(frame)?;
+        arguments.insert(
+            format!("x{visible_x1_place}"),
+            ArgumentValue::filled(referent, None),
+        );
         if let Some(place_count) = (self.relation_place_count)(&relation) {
-            for place in 2..=place_count {
-                arguments.insert(
-                    format!("x{place}"),
-                    self.build_elided_argument_for_place(place)?,
-                );
+            for place in 1..=place_count {
+                let key = format!("x{place}");
+                if !arguments.contains_key(&key) {
+                    arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                }
             }
         }
         let predication = self.next_predication();
-        self.insert(
-            predication,
-            SemanticObject::predication(
-                relation,
-                None,
-                arguments,
-                PredicationMode::Restrictive,
-                self.analysis
-                    .syntax_index
-                    .selbri_node_id(selbri)
-                    .and_then(|node| self.source_for_node(node.0, "restrictive-predication")),
-                Vec::new(),
-            ),
-        )?;
+        let mut object = SemanticObject::predication(
+            relation,
+            None,
+            arguments,
+            PredicationMode::Restrictive,
+            self.analysis
+                .syntax_index
+                .selbri_node_id(selbri)
+                .and_then(|node| self.source_for_node(node.0, "restrictive-predication")),
+            Vec::new(),
+        );
+        object.modal_arguments = modal_arguments;
+        self.insert(predication, object)?;
         let formula = self.next_formula();
         self.insert(
             formula,
@@ -3255,6 +3560,17 @@ fn main_selbri_for_bridi(bridi: &'_ BridiSyntax) -> Option<&'_ SelbriSyntax> {
 
 #[requires(true)]
 #[ensures(true)]
+fn main_selbri_for_subbridi(subbridi: &'_ SubbridiSyntax) -> Option<&'_ SelbriSyntax> {
+    match subbridi.as_data() {
+        data!(SubbridiSyntax::Bridi(bridi)) => main_selbri_for_bridi(bridi),
+        data!(SubbridiSyntax::Prenex { inner_subbridi, .. }) => {
+            main_selbri_for_subbridi(inner_subbridi)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn simple_bo_grouped_tail_selbri(tail: &BoGroupedBridiTailSyntax) -> Option<&SelbriSyntax> {
     match tail.first.as_data() {
         data!(SimpleBridiTailSyntax::SelbriBridiTail { selbri, .. }) => Some(selbri),
@@ -3290,6 +3606,15 @@ fn full_connective_text(connective: &ConnectiveSyntax) -> String {
 #[ensures(!ret.is_empty())]
 fn connective_label(connective: &ConnectiveSyntax) -> String {
     full_connective_text(connective).replace(' ', "-")
+}
+
+#[requires(!marker.is_empty())]
+#[ensures(!ret.is_empty())]
+fn modal_relation_for_marker(marker: &str) -> String {
+    match marker {
+        "ga'a" => "observer".to_owned(),
+        _ => marker.replace(' ', "-"),
+    }
 }
 
 #[requires(!locus.is_empty())]
@@ -3857,6 +4182,26 @@ mod tests {
             .collect()
     }
 
+    #[requires(!relation.is_empty())]
+    #[requires(!mode.is_empty())]
+    #[ensures(true)]
+    fn predication_with_relation_and_mode<'a>(
+        json: &'a Value,
+        relation: &str,
+        mode: &str,
+    ) -> &'a Value {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| {
+                object["type"] == "predication"
+                    && object["relation"] == relation
+                    && object["mode"] == mode
+            })
+            .unwrap_or_else(|| panic!("missing {mode} predication for relation {relation}"))
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -3991,6 +4336,106 @@ mod tests {
         assert_eq!(object(&json, "formula:f4")["operator"], "and");
         assert_eq!(object(&json, "formula:f4")["children"][0], "formula:f1");
         assert_eq!(object(&json, "formula:f4")["children"][1], "formula:f3");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn linked_sumti_fill_main_selbri_places() {
+        let json =
+            semantic_json_for("mi klama be le zarci bei le zdani be'o").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        assert_eq!(klama["arguments"]["x1"]["value"], "referent:speaker");
+        assert_eq!(klama["arguments"]["x2"]["kind"], "filled");
+        assert_eq!(klama["arguments"]["x2"]["value"], "referent:r1");
+        assert_eq!(klama["arguments"]["x3"]["kind"], "filled");
+        assert_eq!(klama["arguments"]["x3"]["value"], "referent:r4");
+        assert_eq!(klama["arguments"]["x4"]["kind"], "elided");
+        assert_eq!(klama["arguments"]["x5"]["kind"], "elided");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn linked_sumti_fill_tanru_modifier_places() {
+        let json = semantic_json_for("ti xamgu be do bei mi be'o zdani").expect("semantic JSON");
+        let xamgu = predication_with_relation_and_mode(&json, "xamgu", "restrictive");
+        assert_eq!(xamgu["arguments"]["x1"]["value"], "parameter:p1");
+        assert_eq!(xamgu["arguments"]["x2"]["kind"], "filled");
+        assert_eq!(xamgu["arguments"]["x2"]["value"], "referent:addressee");
+        assert_eq!(xamgu["arguments"]["x3"]["kind"], "filled");
+        assert_eq!(xamgu["arguments"]["x3"]["value"], "referent:speaker");
+
+        let fa_ordered =
+            semantic_json_for("ti xamgu be fi mi bei fe do be'o zdani").expect("semantic JSON");
+        let xamgu = predication_with_relation_and_mode(&fa_ordered, "xamgu", "restrictive");
+        assert_eq!(xamgu["arguments"]["x2"]["value"], "referent:addressee");
+        assert_eq!(xamgu["arguments"]["x3"]["value"], "referent:speaker");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_linkargs_preserve_modifier_vs_bridi_scope() {
+        let linked = semantic_json_for("ta blanu be ga'a mi be'o zdani").expect("semantic JSON");
+        let blanu = predication_with_relation_and_mode(&linked, "blanu", "restrictive");
+        assert_eq!(blanu["modalArguments"][0]["relation"], "observer");
+        assert_eq!(blanu["modalArguments"][0]["introducedBy"], "ga'a");
+        assert_eq!(blanu["modalArguments"][0]["argument"]["kind"], "filled");
+        assert_eq!(
+            blanu["modalArguments"][0]["argument"]["value"],
+            "referent:speaker"
+        );
+        let zdani = predication_with_relation_and_mode(&linked, "zdani", "asserted");
+        assert!(zdani.get("modalArguments").is_none());
+
+        let tail = semantic_json_for("ta blanu zdani ga'a mi").expect("semantic JSON");
+        let zdani = predication_with_relation_and_mode(&tail, "zdani", "asserted");
+        assert_eq!(zdani["modalArguments"][0]["relation"], "observer");
+        assert_eq!(
+            zdani["modalArguments"][0]["argument"]["value"],
+            "referent:speaker"
+        );
+        let blanu = predication_with_relation_and_mode(&tail, "blanu", "restrictive");
+        assert!(blanu.get("modalArguments").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn relative_clause_attachment_preserves_beho_scope() {
+        let linked = semantic_json_for("le xamgu be do noi barda cu zdani").expect("semantic JSON");
+        let xamgu = predication_with_relation_and_mode(&linked, "xamgu", "restrictive");
+        assert_eq!(xamgu["arguments"]["x2"]["value"], "referent:addressee");
+        assert_eq!(
+            xamgu["arguments"]["x2"]["relativeClauses"][0]["kind"],
+            "incidental"
+        );
+        assert_eq!(
+            xamgu["arguments"]["x2"]["relativeClauses"][0]["body"],
+            "formula:f1"
+        );
+        let barda = predication_with_relation_and_mode(&linked, "barda", "incidental");
+        assert_eq!(barda["arguments"]["x1"]["value"], "referent:addressee");
+
+        let outer =
+            semantic_json_for("le xamgu be do be'o noi barda cu zdani").expect("semantic JSON");
+        let xamgu = predication_with_relation_and_mode(&outer, "xamgu", "restrictive");
+        assert!(xamgu["arguments"]["x2"].get("relativeClauses").is_none());
+        let zdani = predication_with_relation_and_mode(&outer, "zdani", "asserted");
+        assert_eq!(
+            zdani["arguments"]["x1"]["relativeClauses"][0]["kind"],
+            "incidental"
+        );
+        assert_eq!(
+            zdani["arguments"]["x1"]["relativeClauses"][0]["body"],
+            "formula:f2"
+        );
+        let barda = predication_with_relation_and_mode(&outer, "barda", "incidental");
+        assert_eq!(
+            barda["arguments"]["x1"]["value"],
+            zdani["arguments"]["x1"]["value"]
+        );
     }
 
     #[test]
