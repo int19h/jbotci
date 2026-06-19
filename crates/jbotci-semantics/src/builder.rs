@@ -697,6 +697,19 @@ where
 
     #[requires(!construct.is_empty())]
     #[ensures(true)]
+    fn source_for_sumti(
+        &self,
+        sumti: &'tree SumtiSyntax,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        self.analysis
+            .syntax_index
+            .sumti_node_id(sumti)
+            .and_then(|node| self.source_for_node(node.0, construct))
+    }
+
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
     fn source_for_abstraction(
         &self,
         abstraction: &'tree AbstractionSyntax,
@@ -6536,7 +6549,10 @@ where
         } else {
             None
         };
-        let operand = self.build_description_operand(description)?;
+        let operand_sumti = description_tail_sumti(&description.tail_elements);
+        let operand = operand_sumti
+            .map(|sumti| self.build_sumti_referent(sumti))
+            .transpose()?;
         let quantity = self.build_description_quantity(description, raw)?;
         let mut object = SemanticObject::referent(
             ReferentCategory::Constant,
@@ -6559,11 +6575,28 @@ where
         self.push_goi_assigned_names_to_referent(&mut object, &description.relative_clauses);
         self.insert(id, object)?;
         self.sumti_objects.insert(raw, id);
-        let relative_clauses = if description.description.is_some() {
-            self.lower_relative_clauses(description.relative_clauses.iter(), id)?
+        let mut relative_clauses = if description.description.is_some() {
+            let mut clauses = Vec::new();
+            descriptor_relative_clauses_for_description_tail(
+                &description.tail_elements,
+                &mut clauses,
+            );
+            clauses.extend(description.relative_clauses.iter());
+            self.lower_relative_clauses(clauses, id)?
         } else {
             Vec::new()
         };
+        if description.description.is_some()
+            && description.selbri.is_some()
+            && let (Some(operand_sumti), Some(operand)) = (operand_sumti, operand)
+        {
+            relative_clauses.push(self.build_possessive_association_clause(
+                id,
+                operand,
+                operand_sumti,
+                &description.tail_elements,
+            )?);
+        }
         if !relative_clauses.is_empty() {
             let object = self.objects.get_mut(&id).ok_or_else(|| {
                 SemanticsError::invalid_graph(format!(
@@ -6578,6 +6611,51 @@ where
             descriptor.relative_clauses = relative_clauses;
         }
         Ok(id)
+    }
+
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(operand.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_possessive_association_clause(
+        &mut self,
+        head: SemanticObjectId,
+        operand: SemanticObjectId,
+        operand_sumti: &'tree SumtiSyntax,
+        tail_elements: &'tree [DescriptionTailElementSyntax],
+    ) -> Result<RelativeClause, SemanticsError> {
+        let source = self.source_for_sumti(operand_sumti, "possessive-sumti");
+        let operand_relative_clauses =
+            self.lower_relative_clauses(possessive_sumti_relative_clauses(tail_elements), operand)?;
+        let mut associated_argument = ArgumentValue::filled(operand, None);
+        if !operand_relative_clauses.is_empty() {
+            associated_argument =
+                associated_argument.with_relative_clauses(operand_relative_clauses);
+        }
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(head, None));
+        arguments.insert("x2".to_owned(), associated_argument);
+        let predication = self.next_predication();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                "associatedWith".to_owned(),
+                None,
+                arguments,
+                PredicationMode::Restrictive,
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source.clone(), Vec::new()),
+        )?;
+        Ok(RelativeClause::new(
+            RelativeClauseKind::Restrictive,
+            formula,
+            source,
+        ))
     }
 
     #[requires(object.object_kind() == crate::model::SemanticObjectKind::Referent)]
@@ -7083,25 +7161,6 @@ where
             .transpose()
     }
 
-    #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
-    fn build_description_operand(
-        &mut self,
-        description: &'tree DescriptionSyntax,
-    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        description
-            .tail_elements
-            .iter()
-            .find_map(|element| match element.as_data() {
-                data!(
-                    jbotci_syntax::ast::DescriptionTailElementSyntax::DescriptionTailSumti(sumti)
-                ) => Some(sumti),
-                _ => None,
-            })
-            .map(|sumti| self.build_sumti_referent(sumti))
-            .transpose()
-    }
-
     #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_abstraction_description_formula(
@@ -7427,12 +7486,98 @@ fn occurrence_relative_clauses_for_description_tail<'a>(
     tail_elements: &'a [DescriptionTailElementSyntax],
     out: &mut Vec<&'a RelativeClauseSyntax>,
 ) {
+    let mut saw_possessor_sumti = false;
     for element in tail_elements {
-        if let data!(DescriptionTailElementSyntax::DescriptionTailRelativeClauses(clauses)) =
-            element.as_data()
-        {
-            out.extend(clauses.iter());
+        match element.as_data() {
+            data!(DescriptionTailElementSyntax::DescriptionTailSumti(_)) => {
+                saw_possessor_sumti = true;
+            }
+            data!(DescriptionTailElementSyntax::DescriptionTailRelativeClauses(clauses))
+                if !saw_possessor_sumti =>
+            {
+                out.extend(
+                    clauses
+                        .iter()
+                        .filter(|clause| !relative_clause_is_sumti_association_phrase(clause)),
+                );
+            }
+            _ => {}
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn descriptor_relative_clauses_for_description_tail<'a>(
+    tail_elements: &'a [DescriptionTailElementSyntax],
+    out: &mut Vec<&'a RelativeClauseSyntax>,
+) {
+    let mut saw_possessor_sumti = false;
+    for element in tail_elements {
+        match element.as_data() {
+            data!(DescriptionTailElementSyntax::DescriptionTailSumti(_)) => {
+                saw_possessor_sumti = true;
+            }
+            data!(DescriptionTailElementSyntax::DescriptionTailRelativeClauses(clauses))
+                if !saw_possessor_sumti =>
+            {
+                out.extend(
+                    clauses
+                        .iter()
+                        .filter(|clause| relative_clause_is_sumti_association_phrase(clause)),
+                );
+            }
+            _ => {}
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn possessive_sumti_relative_clauses<'a>(
+    tail_elements: &'a [DescriptionTailElementSyntax],
+) -> Vec<&'a RelativeClauseSyntax> {
+    let mut after_possessor_sumti = false;
+    let mut clauses = Vec::new();
+    for element in tail_elements {
+        match element.as_data() {
+            data!(DescriptionTailElementSyntax::DescriptionTailSumti(_)) => {
+                after_possessor_sumti = true;
+            }
+            data!(
+                DescriptionTailElementSyntax::DescriptionTailRelativeClauses(relative_clauses)
+            ) if after_possessor_sumti => {
+                clauses.extend(relative_clauses.iter());
+            }
+            _ => {}
+        }
+    }
+    clauses
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() == tail_elements.iter().any(|element| matches!(element.as_data(), data!(DescriptionTailElementSyntax::DescriptionTailSumti(_)))))]
+fn description_tail_sumti(tail_elements: &[DescriptionTailElementSyntax]) -> Option<&SumtiSyntax> {
+    tail_elements
+        .iter()
+        .find_map(|element| match element.as_data() {
+            data!(DescriptionTailElementSyntax::DescriptionTailSumti(sumti)) => {
+                Some(sumti.as_ref())
+            }
+            _ => None,
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn relative_clause_is_sumti_association_phrase(clause: &RelativeClauseSyntax) -> bool {
+    match clause.as_data() {
+        data!(RelativeClauseSyntax::SumtiAssociationPhrase(_)) => true,
+        data!(RelativeClauseSyntax::JoinedRelativeClauses { inner, .. })
+        | data!(RelativeClauseSyntax::RelativeClauseConnection { inner, .. }) => {
+            relative_clause_is_sumti_association_phrase(inner)
+        }
+        _ => false,
     }
 }
 
@@ -10968,6 +11113,57 @@ mod tests {
             identity["arguments"]["x1"]["value"],
             terpemci["arguments"]["x1"]["value"]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn possessive_sumti_lowers_to_association_clause() {
+        let json = semantic_json_for("le mi karce cu xunre").expect("semantic JSON");
+        let associated = predication_with_relation_and_mode(&json, "associatedWith", "restrictive");
+        let xunre = predication_with_relation_and_mode(&json, "xunre", "asserted");
+        assert_eq!(
+            associated["arguments"]["x1"]["value"],
+            xunre["arguments"]["x1"]["value"]
+        );
+        assert_eq!(associated["arguments"]["x2"]["value"], "referent:speaker");
+        let head = xunre["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("possessed referent");
+        assert_eq!(
+            object(&json, head)["descriptor"]["relativeClauses"][0]["body"],
+            "formula:f2"
+        );
+        assert!(xunre["arguments"]["x1"].get("relativeClauses").is_none());
+
+        let preposed = semantic_json_for("le pe mi karce cu xunre").expect("semantic JSON");
+        let xunre = predication_with_relation_and_mode(&preposed, "xunre", "asserted");
+        let head = xunre["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("preposed associated referent");
+        assert_eq!(
+            object(&preposed, head)["descriptor"]["relativeClauses"][0]["introducedBy"],
+            "pe"
+        );
+        assert!(xunre["arguments"]["x1"].get("relativeClauses").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn possessor_relative_clause_attaches_to_possessor_argument() {
+        let json =
+            semantic_json_for("le mi noi sipna vau karce cu na klama").expect("semantic JSON");
+        let associated = predication_with_relation_and_mode(&json, "associatedWith", "restrictive");
+        assert_eq!(associated["arguments"]["x2"]["value"], "referent:speaker");
+        assert_eq!(
+            associated["arguments"]["x2"]["relativeClauses"][0]["kind"],
+            "incidental"
+        );
+        let sipna = predication_with_relation_and_mode(&json, "sipna", "incidental");
+        assert_eq!(sipna["arguments"]["x1"]["value"], "referent:speaker");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        assert!(klama["arguments"]["x1"].get("relativeClauses").is_none());
     }
 
     #[test]
