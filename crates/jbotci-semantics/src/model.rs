@@ -365,6 +365,8 @@ pub struct SemanticObject {
     pub introduced_by: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub relation: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relation_parameter: Option<SemanticObjectId>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub arguments: BTreeMap<String, ArgumentValue>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -490,6 +492,7 @@ impl SemanticObject {
             role: None,
             introduced_by: None,
             relation: None,
+            relation_parameter: None,
             arguments: BTreeMap::new(),
             modal_arguments: Vec::new(),
             reciprocity: Vec::new(),
@@ -643,6 +646,26 @@ impl SemanticObject {
     ) -> Self {
         let mut object = Self::empty(SemanticObjectKind::Predication);
         object.relation = Some(relation);
+        object.eventuality = eventuality;
+        object.arguments = arguments;
+        object.mode = Some(mode);
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(relation_parameter.object_kind() == SemanticObjectKind::Parameter)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Predication)]
+    pub fn relation_parameter_predication(
+        relation_parameter: SemanticObjectId,
+        eventuality: Option<SemanticObjectId>,
+        arguments: BTreeMap<String, ArgumentValue>,
+        mode: PredicationMode,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Predication);
+        object.relation_parameter = Some(relation_parameter);
         object.eventuality = eventuality;
         object.arguments = arguments;
         object.mode = Some(mode);
@@ -871,6 +894,7 @@ impl SemanticObject {
         for exchange in &self.reciprocity {
             exchange.references_into(out);
         }
+        extend_optional(out, self.relation_parameter);
         extend_optional(out, self.relation_metadata);
         extend_optional(out, self.predication);
         out.extend(self.children.iter().copied());
@@ -1825,6 +1849,7 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
             object.relation_metadata,
             SemanticObjectKind::RelationMetadata,
         )
+        && optional_reference_has_kind(object.relation_parameter, SemanticObjectKind::Parameter)
         && optional_reference_has_kind(object.predication, SemanticObjectKind::Predication)
         && references_have_kind(&object.children, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.variable, SemanticObjectKind::Referent)
@@ -1966,13 +1991,15 @@ pub fn semantic_object_arguments_are_valid(
         if object.object_kind() != SemanticObjectKind::Predication {
             return true;
         }
-        object.arguments.iter().all(|(place, value)| {
-            is_numbered_argument_place(place)
-                && argument_value_references_allowed_objects(value, objects)
-        }) && object
-            .modal_arguments
-            .iter()
-            .all(|argument| argument_value_references_allowed_objects(&argument.argument, objects))
+        let has_relation = object.relation.is_some() ^ object.relation_parameter.is_some();
+        has_relation
+            && object.arguments.iter().all(|(place, value)| {
+                is_numbered_argument_place(place)
+                    && argument_value_references_allowed_objects(value, objects)
+            })
+            && object.modal_arguments.iter().all(|argument| {
+                argument_value_references_allowed_objects(&argument.argument, objects)
+            })
             && object.reciprocity.iter().all(|exchange| {
                 argument_value_references_allowed_objects(&exchange.left, objects)
                     && argument_value_references_allowed_objects(&exchange.right, objects)

@@ -327,6 +327,7 @@ where
     counters: IdCounters,
     sumti_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     sumti_quantities: HashMap<RawSyntaxNodeId, SemanticObjectId>,
+    relation_question_parameters: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     utterance_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     parameter_slots: Vec<QuestionSlot>,
     abstraction_parameter_stack: Vec<Vec<SemanticObjectId>>,
@@ -352,6 +353,7 @@ where
             counters: IdCounters::new(),
             sumti_objects: HashMap::new(),
             sumti_quantities: HashMap::new(),
+            relation_question_parameters: HashMap::new(),
             utterance_objects: HashMap::new(),
             parameter_slots: Vec::new(),
             abstraction_parameter_stack: Vec::new(),
@@ -905,6 +907,7 @@ where
             return Ok(None);
         };
         let vocative_kind = vocative_kind_for_markers(vocative_markers);
+        let previous_slots = std::mem::take(&mut self.parameter_slots);
         let previous_pending_asides = std::mem::take(&mut self.pending_asides);
         let addressed_or_identified = if let Some(sumti) = sumti.as_deref() {
             self.build_sumti_referent(sumti)?
@@ -912,8 +915,19 @@ where
             SemanticObjectId::addressee()
         };
         let nested_asides = std::mem::replace(&mut self.pending_asides, previous_pending_asides);
+        let slots = std::mem::replace(&mut self.parameter_slots, previous_slots);
+        let content = if slots.is_empty() {
+            None
+        } else {
+            Some(self.build_vocative_question_content(
+                addressed_or_identified,
+                slots,
+                self.source_for_free_modifier(free_modifier, "vocative-question"),
+            )?)
+        };
         let diagnostics = if addressed_or_identified.object_kind()
             == crate::model::SemanticObjectKind::Referent
+            || addressed_or_identified.object_kind() == crate::model::SemanticObjectKind::Parameter
         {
             Vec::new()
         } else {
@@ -923,7 +937,7 @@ where
         };
         let id = self.build_utterance(
             UtteranceForce::Vocative,
-            None,
+            content,
             self.source_for_free_modifier(free_modifier, "vocative"),
             diagnostics,
             None,
@@ -939,6 +953,41 @@ where
         self.add_utterance_asides(id, nested_asides);
         self.set_vocative_kind(id, vocative_kind);
         Ok(Some(id))
+    }
+
+    #[requires(!slots.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Question) || ret.is_err())]
+    fn build_vocative_question_content(
+        &mut self,
+        target: SemanticObjectId,
+        slots: Vec<QuestionSlot>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let predication = self.next_predication();
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(target, None));
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                "vocativeTarget".to_owned(),
+                None,
+                arguments,
+                PredicationMode::Performative,
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source.clone(), Vec::new()),
+        )?;
+        let (kind, domain) = self.question_kind_and_domain(false, &slots);
+        let question = self.next_question();
+        self.insert(
+            question,
+            SemanticObject::question(kind, QuestionMode::Direct, domain, formula, slots, source),
+        )
     }
 
     #[requires(true)]
@@ -1128,10 +1177,13 @@ where
         nested.counters = self.counters;
         nested.objects = std::mem::take(&mut self.objects);
         nested.utterance_objects = std::mem::take(&mut self.utterance_objects);
+        nested.relation_question_parameters =
+            std::mem::take(&mut self.relation_question_parameters);
         let graph = nested.build_text(text)?;
         self.counters = nested.counters;
         self.objects = graph.objects;
         self.utterance_objects = nested.utterance_objects;
+        self.relation_question_parameters = nested.relation_question_parameters;
         Ok(graph.root)
     }
 
@@ -1152,16 +1204,7 @@ where
         let is_question = truth_question || !slots.is_empty();
         let content = if is_question {
             let id = self.next_question();
-            let kind = if truth_question && slots.is_empty() {
-                QuestionKind::Truth
-            } else {
-                QuestionKind::Argument
-            };
-            let domain = if truth_question && slots.is_empty() {
-                SemanticSort::TruthValue
-            } else {
-                SemanticSort::Entity
-            };
+            let (kind, domain) = self.question_kind_and_domain(truth_question, &slots);
             self.insert(
                 id,
                 SemanticObject::question(
@@ -1201,6 +1244,31 @@ where
         }
         self.add_utterance_asides(utterance, asides);
         Ok(utterance)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn question_kind_and_domain(
+        &self,
+        truth_question: bool,
+        slots: &[QuestionSlot],
+    ) -> (QuestionKind, SemanticSort) {
+        if truth_question && slots.is_empty() {
+            return (QuestionKind::Truth, SemanticSort::TruthValue);
+        }
+        if slots.iter().any(|slot| {
+            self.parameter_role(slot.parameter)
+                == Some(crate::model::ParameterRole::RelationQuestion)
+        }) {
+            return (QuestionKind::Relation, SemanticSort::Relation);
+        }
+        (QuestionKind::Argument, SemanticSort::Entity)
+    }
+
+    #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(true)]
+    fn parameter_role(&self, parameter: SemanticObjectId) -> Option<crate::model::ParameterRole> {
+        self.objects.get(&parameter).and_then(|object| object.role)
     }
 
     #[requires(true)]
@@ -1458,6 +1526,11 @@ where
                     .bridi_node_id(bridi)
                     .and_then(|node| self.source_for_node(node.0, "tanru-inversion-formula")),
             );
+        }
+        if let Some(selbri) = selbri
+            && selbri_is_single_relation_question(selbri)
+        {
+            return self.build_relation_question_formula_for_bridi(bridi, selbri);
         }
         let relation = selbri
             .map(relation_label_for_selbri)
@@ -2562,6 +2635,27 @@ where
         if let Some(argument) = visible_x1_override {
             overrides.insert(format!("x{visible_x1_place}"), argument);
         }
+        if let Some(relation_parameter) =
+            self.build_relation_question_parameter_for_tanru_unit(unit)?
+        {
+            let predication = self.build_relation_parameter_predication_for_frame_with_overrides(
+                self.semantic_predication_frame_for_tanru_unit(unit, frame),
+                source.clone(),
+                selbri,
+                relation_parameter,
+                overrides,
+            )?;
+            let formula = self.next_formula();
+            self.insert(
+                formula,
+                SemanticObject::atom_formula(predication, source, Vec::new()),
+            )?;
+            let x1_argument = self.predication_argument(predication, visible_x1_place)?;
+            return Ok(TanruFormulaForArgument {
+                formula,
+                x1_argument,
+            });
+        }
         let predication = self.build_predication_for_frame_with_overrides(
             self.semantic_predication_frame_for_tanru_unit(unit, frame),
             source.clone(),
@@ -2952,6 +3046,18 @@ where
         }
         let frame = self
             .semantic_predication_frame_for_selbri(selbri, self.branch_frame_for_selbri(selbri));
+        if selbri_is_single_relation_question(selbri)
+            && let Some(relation_parameter) =
+                self.build_relation_question_parameter_for_selbri(selbri)?
+        {
+            return self.build_property_atom_for_relation_parameter(
+                relation_parameter,
+                parameter,
+                source,
+                frame,
+                visible_x1_place_for_selbri(selbri),
+            );
+        }
         self.build_property_atom_for_relation(
             relation_label_for_selbri(selbri),
             parameter,
@@ -3152,6 +3258,17 @@ where
                     unit,
                     self.branch_frame_for_tanru_unit(unit),
                 );
+                if let Some(relation_parameter) =
+                    self.build_relation_question_parameter_for_tanru_unit(unit)?
+                {
+                    return self.build_property_atom_for_relation_parameter(
+                        relation_parameter,
+                        parameter,
+                        source,
+                        frame,
+                        visible_x1_place_for_tanru_unit(unit),
+                    );
+                }
                 self.build_property_atom_for_relation(
                     relation_label_for_tanru_unit(unit),
                     parameter,
@@ -3202,6 +3319,55 @@ where
             frame,
             visible_x1_place,
             None,
+        )
+    }
+
+    #[requires(relation_parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_property_atom_for_relation_parameter(
+        &mut self,
+        relation_parameter: SemanticObjectId,
+        parameter: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+        frame: Option<SelbriPlaceFrameId>,
+        visible_x1_place: usize,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let eventuality = self.next_eventuality();
+        self.insert(
+            eventuality,
+            SemanticObject::eventuality(EventualityClass::Event, None, source.clone()),
+        )?;
+        let mut arguments = BTreeMap::new();
+        let mut highest_assigned_place =
+            self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
+        let modal_arguments = self.modal_assignment_arguments(frame)?;
+        highest_assigned_place = highest_assigned_place.max(visible_x1_place);
+        arguments.insert(
+            format!("x{visible_x1_place}"),
+            ArgumentValue::filled(parameter, None),
+        );
+        for place in 1..=highest_assigned_place.max(1) {
+            let key = format!("x{place}");
+            if !arguments.contains_key(&key) {
+                arguments.insert(key, self.build_elided_argument_for_place(place)?);
+            }
+        }
+        let predication = self.next_predication();
+        let mut object = SemanticObject::relation_parameter_predication(
+            relation_parameter,
+            Some(eventuality),
+            arguments,
+            PredicationMode::Restrictive,
+            source.clone(),
+            Vec::new(),
+        );
+        object.modal_arguments = modal_arguments;
+        self.insert(predication, object)?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
         )
     }
 
@@ -3327,6 +3493,39 @@ where
         )?;
         self.attach_reciprocity_to_predication(predication, bridi, &[])?;
         Ok(predication)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_relation_question_formula_for_bridi(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: &'tree SelbriSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let relation_parameter = self
+            .build_relation_question_parameter_for_selbri(selbri)?
+            .ok_or_else(SemanticsError::missing_syntax_node)?;
+        let frame = self
+            .semantic_predication_frame_for_selbri(selbri, self.bridi_frame(bridi))
+            .or_else(|| self.bridi_frame(bridi));
+        let source = self
+            .analysis
+            .syntax_index
+            .bridi_node_id(bridi)
+            .and_then(|node| self.source_for_node(node.0, "relation-question-formula"));
+        let predication = self.build_relation_parameter_predication_for_frame_with_overrides(
+            frame,
+            source.clone(),
+            Some(selbri),
+            relation_parameter,
+            BTreeMap::new(),
+        )?;
+        self.attach_reciprocity_to_predication(predication, bridi, &[])?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
@@ -4155,6 +4354,57 @@ where
             relation,
             BTreeMap::new(),
         )
+    }
+
+    #[requires(relation_parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_relation_parameter_predication_for_frame_with_overrides(
+        &mut self,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        selbri: Option<&'tree SelbriSyntax>,
+        relation_parameter: SemanticObjectId,
+        argument_overrides: BTreeMap<String, ArgumentValue>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let eventuality = self.next_eventuality();
+        let mut event = SemanticObject::eventuality(
+            EventualityClass::Event,
+            Some(Actuality {
+                kind: ActualityKind::Actual,
+            }),
+            source.clone(),
+        );
+        if let Some(selbri) = selbri {
+            apply_selbri_anchors_to_event(selbri, &mut event);
+        }
+        self.insert(eventuality, event)?;
+        let mut arguments = BTreeMap::new();
+        let mut highest_assigned_place =
+            self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
+        let modal_arguments = self.modal_assignment_arguments(frame)?;
+        for (place, argument) in argument_overrides {
+            if let Some(place_index) = argument_place_index(&place) {
+                highest_assigned_place = highest_assigned_place.max(place_index);
+            }
+            arguments.entry(place).or_insert(argument);
+        }
+        for place in 1..=highest_assigned_place.max(1) {
+            let key = format!("x{place}");
+            if !arguments.contains_key(&key) {
+                arguments.insert(key, self.build_elided_argument_for_place(place)?);
+            }
+        }
+        let predication = self.next_predication();
+        let mut object = SemanticObject::relation_parameter_predication(
+            relation_parameter,
+            Some(eventuality),
+            arguments,
+            PredicationMode::Asserted,
+            source,
+            Vec::new(),
+        );
+        object.modal_arguments = modal_arguments;
+        self.insert(predication, object)
     }
 
     #[requires(!relation.is_empty())]
@@ -5546,10 +5796,7 @@ where
         raw: RawSyntaxNodeId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.build_parameter(token, raw, crate::model::ParameterRole::ArgumentQuestion)?;
-        self.parameter_slots.push(QuestionSlot {
-            parameter: id,
-            role: QuestionSlotRole::Answer,
-        });
+        self.push_question_answer_slot(id);
         Ok(id)
     }
 
@@ -5561,11 +5808,23 @@ where
         raw: RawSyntaxNodeId,
         role: crate::model::ParameterRole,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_parameter_with_sort(token, raw, SemanticSort::Entity, role)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_parameter_with_sort(
+        &mut self,
+        token: &WithFreeModifiers<Token>,
+        raw: RawSyntaxNodeId,
+        sort: SemanticSort,
+        role: crate::model::ParameterRole,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.next_parameter();
         self.insert(
             id,
             SemanticObject::parameter(
-                SemanticSort::Entity,
+                sort,
                 role,
                 token_text(&token.value),
                 self.source_for_node(raw, "parameter"),
@@ -5577,6 +5836,96 @@ where
         {
             parameters.push(id);
         }
+        Ok(id)
+    }
+
+    #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(self.parameter_slots.iter().any(|slot| slot.parameter == parameter))]
+    fn push_question_answer_slot(&mut self, parameter: SemanticObjectId) {
+        if self
+            .parameter_slots
+            .iter()
+            .any(|slot| slot.parameter == parameter)
+        {
+            return;
+        }
+        self.parameter_slots.push(QuestionSlot {
+            parameter,
+            role: QuestionSlotRole::Answer,
+        });
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_relation_question_parameter_for_selbri(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match selbri.as_data() {
+            data!(SelbriSyntax::SelbriWord(token)) if token.cmavo() == Some(Cmavo::Mo) => {
+                let raw = self
+                    .analysis
+                    .syntax_index
+                    .selbri_node_id(selbri)
+                    .ok_or_else(SemanticsError::missing_syntax_node)?
+                    .0;
+                self.build_relation_question_parameter_from_raw(raw, token_text(token))
+                    .map(Some)
+            }
+            data!(SelbriSyntax::Tanru(units)) if units.len() == 1 => {
+                self.build_relation_question_parameter_for_tanru_unit(units.first())
+            }
+            data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+            | data!(SelbriSyntax::TaggedSelbri {
+                inner_selbri: selbri,
+                ..
+            }) => self.build_relation_question_parameter_for_selbri(selbri),
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_relation_question_parameter_for_tanru_unit(
+        &mut self,
+        unit: &'tree TanruUnitSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(introduced_by) = relation_question_word_for_tanru_unit(unit) else {
+            return Ok(None);
+        };
+        let raw = self
+            .analysis
+            .syntax_index
+            .tanru_unit_node_id(unit)
+            .ok_or_else(SemanticsError::missing_syntax_node)?
+            .0;
+        self.build_relation_question_parameter_from_raw(raw, introduced_by)
+            .map(Some)
+    }
+
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter) || ret.is_err())]
+    fn build_relation_question_parameter_from_raw(
+        &mut self,
+        raw: RawSyntaxNodeId,
+        introduced_by: String,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(id) = self.relation_question_parameters.get(&raw).copied() {
+            self.push_question_answer_slot(id);
+            return Ok(id);
+        }
+        let id = self.next_parameter();
+        self.insert(
+            id,
+            SemanticObject::parameter(
+                SemanticSort::Relation,
+                crate::model::ParameterRole::RelationQuestion,
+                introduced_by,
+                self.source_for_node(raw, "parameter"),
+            ),
+        )?;
+        self.relation_question_parameters.insert(raw, id);
+        self.push_question_answer_slot(id);
         Ok(id)
     }
 
@@ -6557,6 +6906,49 @@ fn voha_place_for_sumti(sumti: &SumtiSyntax) -> Option<usize> {
         }) => voha_place_for_sumti(inner_sumti),
         _ => None,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn relation_question_word_for_tanru_unit(unit: &TanruUnitSyntax) -> Option<String> {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::TanruUnitWord(word)) if word.cmavo() == Some(Cmavo::Mo) => {
+            Some(token_text(&word.value))
+        }
+        data!(TanruUnitSyntax::ProBridi { goha, .. }) if goha.cmavo() == Some(Cmavo::Mo) => {
+            Some(token_text(&goha.value))
+        }
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+            relation_question_word_for_selbri(selbri)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn relation_question_word_for_selbri(selbri: &SelbriSyntax) -> Option<String> {
+    match selbri.as_data() {
+        data!(SelbriSyntax::SelbriWord(token)) if token.cmavo() == Some(Cmavo::Mo) => {
+            Some(token_text(token))
+        }
+        data!(SelbriSyntax::Tanru(units)) if units.len() == 1 => {
+            relation_question_word_for_tanru_unit(units.first())
+        }
+        data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+        | data!(SelbriSyntax::TaggedSelbri {
+            inner_selbri: selbri,
+            ..
+        }) => relation_question_word_for_selbri(selbri),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn selbri_is_single_relation_question(selbri: &SelbriSyntax) -> bool {
+    relation_question_word_for_selbri(selbri).is_some()
 }
 
 #[requires(true)]
@@ -8085,6 +8477,24 @@ mod tests {
                     && object["mode"] == mode
             })
             .unwrap_or_else(|| panic!("missing {mode} predication for relation {relation}"))
+    }
+
+    #[requires(!relation_parameter.is_empty())]
+    #[ensures(true)]
+    fn predication_with_relation_parameter<'a>(
+        json: &'a Value,
+        relation_parameter: &str,
+    ) -> &'a Value {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| {
+                object["type"] == "predication" && object["relationParameter"] == relation_parameter
+            })
+            .unwrap_or_else(|| {
+                panic!("missing predication with relation parameter {relation_parameter}")
+            })
     }
 
     #[requires(!kind.is_empty())]
@@ -9712,6 +10122,57 @@ mod tests {
             object(&json, "predication:p1")["arguments"]["x1"]["value"],
             "parameter:p1"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mo_question_slot_is_relation_parameter_inside_formula() {
+        let json = semantic_json_for("do mo").expect("semantic JSON");
+        let question = object(&json, "question:q1");
+        assert_eq!(object(&json, "utterance:u1")["force"], "ask");
+        assert_eq!(question["kind"], "relation");
+        assert_eq!(question["domain"], "relation");
+        assert_eq!(question["slots"][0]["parameter"], "parameter:p1");
+        assert_eq!(object(&json, "parameter:p1")["sort"], "relation");
+        assert_eq!(object(&json, "parameter:p1")["role"], "relationQuestion");
+        let predication = predication_with_relation_parameter(&json, "parameter:p1");
+        assert_eq!(
+            predication["arguments"]["x1"]["value"],
+            "referent:addressee"
+        );
+        assert!(predication.get("relation").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mo_inside_tanru_description_is_relation_question() {
+        let json = semantic_json_for("lo mo prenu cu darxi do .i barda").expect("semantic JSON");
+        let question = object(&json, "question:q1");
+        assert_eq!(object(&json, "utterance:u1")["force"], "ask");
+        assert_eq!(object(&json, "utterance:u2")["force"], "assert");
+        assert_eq!(question["kind"], "relation");
+        assert_eq!(object(&json, "parameter:p2")["sort"], "relation");
+        let relation_slot = predication_with_relation_parameter(&json, "parameter:p2");
+        assert_eq!(relation_slot["mode"], "restrictive");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vocative_ma_is_question_content() {
+        let json = semantic_json_for("doi ma").expect("semantic JSON");
+        let utterance = object(&json, "utterance:u1");
+        assert_eq!(utterance["force"], "vocative");
+        assert_eq!(utterance["content"], "question:q1");
+        assert_eq!(object(&json, "question:q1")["kind"], "argument");
+        assert_eq!(
+            object(&json, "question:q1")["slots"][0]["parameter"],
+            "parameter:p1"
+        );
+        let target = predication_with_relation_and_mode(&json, "vocativeTarget", "performative");
+        assert_eq!(target["arguments"]["x1"]["value"], "parameter:p1");
     }
 
     #[test]
