@@ -975,6 +975,9 @@ pub enum IndexicalKind {
     Audience,
     SpeechTime,
     Here,
+    ProximalDemonstrative,
+    MedialDemonstrative,
+    DistalDemonstrative,
 }
 
 #[invariant(true)]

@@ -1568,6 +1568,15 @@ where
                 self.build_parameter(token, raw, crate::model::ParameterRole::RelativeClauseHead)
             }
             Some(Cmavo::Zohe) => self.build_elided_referent(Some(raw), "zo'e".to_owned()),
+            Some(Cmavo::Ti) => {
+                self.build_demonstrative_referent(raw, IndexicalKind::ProximalDemonstrative)
+            }
+            Some(Cmavo::Ta) => {
+                self.build_demonstrative_referent(raw, IndexicalKind::MedialDemonstrative)
+            }
+            Some(Cmavo::Tu) => {
+                self.build_demonstrative_referent(raw, IndexicalKind::DistalDemonstrative)
+            }
             _ => self.build_plain_referent(
                 raw,
                 ReferentCategory::Constant,
@@ -1582,6 +1591,28 @@ where
                 Vec::new(),
             ),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_demonstrative_referent(
+        &mut self,
+        raw: RawSyntaxNodeId,
+        indexical: IndexicalKind,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_referent();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Indexical,
+                SemanticSort::Entity,
+                Some(indexical),
+                None,
+                None,
+                self.source_for_node(raw, "sumti"),
+                Vec::new(),
+            ),
+        )
     }
 
     #[requires(true)]
@@ -2355,6 +2386,21 @@ mod tests {
             object(&json, "referent:r4")["descriptor"]["word"],
             "zo'e x5"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn demonstrative_sumti_are_indexical_referents() {
+        let json = semantic_json_for("ta bloti").expect("semantic JSON");
+        let referent = object(&json, "referent:r1");
+        assert_eq!(referent["category"], "indexical");
+        assert_eq!(referent["indexical"], "medialDemonstrative");
+
+        let json = semantic_json_for("tu bloti").expect("semantic JSON");
+        let referent = object(&json, "referent:r1");
+        assert_eq!(referent["category"], "indexical");
+        assert_eq!(referent["indexical"], "distalDemonstrative");
     }
 
     #[test]
