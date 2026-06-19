@@ -978,7 +978,11 @@ where
         let previous_slots = std::mem::take(&mut self.parameter_slots);
         let previous_pending_asides = std::mem::take(&mut self.pending_asides);
         let addressed_or_identified = if let Some(sumti) = sumti.as_deref() {
-            self.build_sumti_referent(sumti)?
+            let referent = self.build_sumti_referent(sumti)?;
+            if referent.object_kind() == crate::model::SemanticObjectKind::Referent {
+                self.attach_relative_clauses_to_referent(referent, sumti)?;
+            }
+            referent
         } else {
             SemanticObjectId::addressee()
         };
@@ -5729,9 +5733,16 @@ where
                     SemanticSort::Entity,
                 )?
             }
-            data!(SumtiSyntax::SelbriVocative { selbri, .. }) => {
-                self.build_selbri_vocative_referent(raw, selbri)?
-            }
+            data!(SumtiSyntax::SelbriVocative {
+                leading_relative_clauses,
+                selbri,
+                trailing_relative_clauses,
+            }) => self.build_selbri_vocative_referent(
+                raw,
+                leading_relative_clauses,
+                selbri,
+                trailing_relative_clauses,
+            )?,
             data!(SumtiSyntax::QuantifiedSumti {
                 quantifier,
                 inner_sumti,
@@ -6710,11 +6721,19 @@ where
     fn build_selbri_vocative_referent(
         &mut self,
         raw: RawSyntaxNodeId,
+        leading_relative_clauses: &'tree [RelativeClauseSyntax],
         selbri: &'tree SelbriSyntax,
+        trailing_relative_clauses: &'tree [RelativeClauseSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.next_referent();
         self.sumti_objects.insert(raw, id);
         let body = self.build_restrictive_formula(selbri, id)?;
+        let relative_clauses = self.lower_relative_clauses(
+            leading_relative_clauses
+                .iter()
+                .chain(trailing_relative_clauses.iter()),
+            id,
+        )?;
         self.insert(
             id,
             SemanticObject::referent(
@@ -6726,7 +6745,7 @@ where
                     word: "le".to_owned(),
                     speaker: Some(SemanticObjectId::speaker()),
                     body: Some(body),
-                    relative_clauses: Vec::new(),
+                    relative_clauses,
                     quantity: None,
                     name: None,
                     operand: None,
@@ -10136,6 +10155,49 @@ mod tests {
         assert_eq!(descriptor["word"], "le");
         let body = descriptor["body"].as_str().expect("vocative restriction");
         assert_eq!(object(&json, body)["type"], "formula");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn named_vocative_relative_clause_qualifies_audience() {
+        let json = semantic_json_for("coi .frank. poi xunre se bende").expect("semantic JSON");
+        let utterance = root_object(&json);
+        assert_eq!(utterance["force"], "vocative");
+        let audience = utterance["audience"].as_str().expect("audience referent");
+        let relative_clauses = object(&json, audience)["relativeClauses"]
+            .as_array()
+            .expect("audience relative clauses");
+        assert_eq!(relative_clauses.len(), 1);
+        assert_eq!(relative_clauses[0]["kind"], "restrictive");
+        let body = relative_clauses[0]["body"]
+            .as_str()
+            .expect("relative-clause body");
+        assert_eq!(object(&json, body)["type"], "formula");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn selbri_vocative_relative_clauses_are_descriptor_scoped() {
+        for source in [
+            "co'o poi mi zvati ke'a ku'o xirma",
+            "co'o xirma poi mi zvati",
+        ] {
+            let json = semantic_json_for(source).expect("semantic JSON");
+            let utterance = root_object(&json);
+            assert_eq!(utterance["force"], "vocative");
+            let audience = utterance["audience"].as_str().expect("audience referent");
+            let descriptor = &object(&json, audience)["descriptor"];
+            let relative_clauses = descriptor["relativeClauses"]
+                .as_array()
+                .expect("descriptor relative clauses");
+            assert_eq!(relative_clauses.len(), 1);
+            assert_eq!(relative_clauses[0]["kind"], "restrictive");
+            let zvati = predication_with_relation_and_mode(&json, "zvati", "restrictive");
+            assert_eq!(zvati["arguments"]["x1"]["value"], "referent:speaker");
+            assert_eq!(zvati["arguments"]["x2"]["value"], audience);
+        }
     }
 
     #[test]
