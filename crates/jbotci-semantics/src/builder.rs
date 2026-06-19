@@ -3672,6 +3672,8 @@ where
             Some(Cmavo::Lei) => "speakerMassDescription",
             Some(Cmavo::Lehi) => "speakerSetDescription",
             Some(Cmavo::La) => "name",
+            Some(Cmavo::Lai) => "massNameDescription",
+            Some(Cmavo::Lahi) => "setNameDescription",
             _ => "description",
         }
         .to_owned();
@@ -3682,6 +3684,8 @@ where
         {
             Some(Cmavo::Loi | Cmavo::Lei) => SemanticSort::Mass,
             Some(Cmavo::Lohi | Cmavo::Lehi) => SemanticSort::Set,
+            Some(Cmavo::Lai) => SemanticSort::Mass,
+            Some(Cmavo::Lahi) => SemanticSort::Set,
             _ => SemanticSort::Entity,
         };
         let body = if let Some(selbri) = description.selbri.as_deref() {
@@ -3729,12 +3733,17 @@ where
         word: &str,
         sort: SemanticSort,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        let kind = match sort {
+            SemanticSort::Mass => "massName",
+            SemanticSort::Set => "setName",
+            _ => "name",
+        };
         self.build_plain_referent(
             raw,
             ReferentCategory::Constant,
             sort,
             Descriptor {
-                kind: "name".to_owned(),
+                kind: kind.to_owned(),
                 word: word.to_owned(),
                 speaker: Some(SemanticObjectId::speaker()),
                 body: None,
@@ -5651,11 +5660,24 @@ mod tests {
             .as_str()
             .expect("source referent id");
         assert_eq!(object(&json, source)["sort"], "mass");
+        assert_eq!(object(&json, source)["descriptor"]["kind"], "massName");
         assert_eq!(object(&json, source)["descriptor"]["word"], "lai");
         assert_eq!(object(&json, source)["descriptor"]["name"], "kraislr");
         let tanru =
             predication_with_relation_and_mode(&json, "R[tanru:referentOf-karce]", "asserted");
         assert_eq!(tanru["arguments"]["x2"]["value"], "abstraction:a1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lai_selbri_description_is_mass_name_description() {
+        let json = semantic_json_for("lai cribe cu finti").expect("semantic JSON");
+        let referent = object(&json, "referent:r1");
+        assert_eq!(referent["sort"], "mass");
+        assert_eq!(referent["descriptor"]["kind"], "massNameDescription");
+        assert_eq!(referent["descriptor"]["word"], "lai");
+        assert_eq!(referent["descriptor"]["body"], "formula:f1");
     }
 
     #[test]
