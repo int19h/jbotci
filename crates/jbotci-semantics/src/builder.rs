@@ -8331,7 +8331,10 @@ fn connective_label(connective: &ConnectiveSyntax) -> String {
 #[ensures(!ret.is_empty())]
 fn modal_relation_for_marker(marker: &str) -> String {
     match marker {
-        "ga'a" => "observer".to_owned(),
+        "do'e" => "unspecified-modal".to_owned(),
+        "ga'a" => "zgana".to_owned(),
+        "ka'a" => "klama".to_owned(),
+        "pi'o" => "pilno".to_owned(),
         _ => marker.replace(' ', "-"),
     }
 }
@@ -11142,7 +11145,7 @@ mod tests {
     fn modal_linkargs_preserve_modifier_vs_bridi_scope() {
         let linked = semantic_json_for("ta blanu be ga'a mi be'o zdani").expect("semantic JSON");
         let blanu = predication_with_relation_and_mode(&linked, "blanu", "restrictive");
-        assert_eq!(blanu["modalArguments"][0]["relation"], "observer");
+        assert_eq!(blanu["modalArguments"][0]["relation"], "zgana");
         assert_eq!(blanu["modalArguments"][0]["introducedBy"], "ga'a");
         assert_eq!(
             blanu["modalArguments"][0]["arguments"]["x1"]["kind"],
@@ -11152,12 +11155,24 @@ mod tests {
             blanu["modalArguments"][0]["arguments"]["x1"]["value"],
             "referent:speaker"
         );
+        assert_eq!(
+            blanu["modalArguments"][0]["arguments"]["x2"]["kind"],
+            "elided"
+        );
+        assert_eq!(
+            blanu["modalArguments"][0]["arguments"]["x3"]["kind"],
+            "elided"
+        );
+        assert_eq!(
+            blanu["modalArguments"][0]["arguments"]["x4"]["kind"],
+            "elided"
+        );
         let zdani = predication_with_relation_and_mode(&linked, "zdani", "asserted");
         assert!(zdani.get("modalArguments").is_none());
 
         let tail = semantic_json_for("ta blanu zdani ga'a mi").expect("semantic JSON");
         let zdani = predication_with_relation_and_mode(&tail, "zdani", "asserted");
-        assert_eq!(zdani["modalArguments"][0]["relation"], "observer");
+        assert_eq!(zdani["modalArguments"][0]["relation"], "zgana");
         assert_eq!(
             zdani["modalArguments"][0]["arguments"]["x1"]["value"],
             "referent:speaker"
