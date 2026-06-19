@@ -163,6 +163,12 @@ fn push_expectations_toml(
                 push_command_output_fields(output, show_elided)?;
             }
         }
+        if let Some(tersmu) = &output_expectation.tersmu
+            && tersmu.json.is_some()
+        {
+            output.push_str("\n[expectations.output.tersmu]\n");
+            push_optional_field(output, "json", &tersmu.json)?;
+        }
     }
     Ok(())
 }

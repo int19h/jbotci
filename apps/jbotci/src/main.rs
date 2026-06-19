@@ -68,7 +68,7 @@ use jbotci_search::vlacku::{
     dictionary_matches_for_word_likes, format_vote_display, normalize_word_type_filter,
     run_vlacku_requests,
 };
-use jbotci_semantics::references::ReferenceAnalysis;
+use jbotci_semantics::{build_semantic_graph_with_dictionary, references::ReferenceAnalysis};
 use jbotci_source::SourceId;
 use jbotci_syntax::{
     ParseOptions, SYNTAX_TRACE_FILTERS, parse_syntax_tree_with_source_and_options_attempt,
@@ -129,7 +129,7 @@ enum Command {
     #[command(name = "mulgau", visible_alias = "completions")]
     Mulgau(TextInput),
     #[command(name = "tersmu")]
-    Tersmu(TextInput),
+    Tersmu(TersmuInput),
     #[command(name = "vlacku", visible_alias = "dict")]
     Vlacku(VlackuInput),
     #[command(name = "jvozba")]
@@ -226,6 +226,13 @@ enum GentufaFormat {
     #[value(alias = "vipcihe", help = "alias: vipcihe")]
     Tree,
     Raw,
+    #[value(alias = "djeisone")]
+    Json,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum TersmuFormat {
     #[value(alias = "djeisone")]
     Json,
 }
@@ -514,6 +521,49 @@ impl TextInput {
     }
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Args)]
+struct TersmuInput {
+    #[arg(long = "file", alias = "sfaile")]
+    file: Option<PathBuf>,
+    #[arg(
+        long = "format",
+        default_value_t = TersmuFormat::Json,
+        value_enum
+    )]
+    format: TersmuFormat,
+    #[arg(
+        long = "trace",
+        alias = "plivei",
+        value_name = "SPEC",
+        num_args = 0..=1,
+        default_missing_value = "1"
+    )]
+    trace: Option<Option<String>>,
+    #[arg(long = "dialect")]
+    dialect: Option<String>,
+    #[arg(long = "no-postproc", alias = "na-velruhe")]
+    no_postproc: bool,
+    #[arg(long = "indent")]
+    indent: Option<usize>,
+    #[arg()]
+    text: Vec<String>,
+}
+
+impl TersmuInput {
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
+        read_text_input(self.file.as_ref(), &self.text, stdin_text)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn dialect_definition(&self) -> Result<DialectDefinition> {
+        dialect_definition(self.dialect.as_deref())
+    }
+}
+
 #[derive(Debug, Clone, Args)]
 #[invariant(true)]
 struct GentufaInput {
@@ -574,6 +624,13 @@ struct GentufaInput {
 
 #[invariant(stderr.is_empty() || stderr.ends_with('\n'))]
 struct GentufaRendered {
+    status: CliStatus,
+    stdout: Vec<u8>,
+    stderr: String,
+}
+
+#[invariant(stderr.is_empty() || stderr.ends_with('\n'))]
+struct TersmuRendered {
     status: CliStatus,
     stdout: Vec<u8>,
     stderr: String,
@@ -1522,17 +1579,29 @@ fn run_cli_command<WOut: Write, WErr: Write>(
             command_not_implemented("mulgau")?;
             Ok(CliStatus::Success)
         }
-        Command::Tersmu(input) => {
-            validate_trace_controls_for_unsupported_command(
-                "tersmu",
+        Command::Tersmu(mut input) => {
+            normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
+            validate_trace_controls(
                 &input.trace,
-                None,
-                false,
-                false,
+                new!(CliTraceValidation {
+                    command_name: "tersmu",
+                    trace_phase: None,
+                    trace_limit_present: false,
+                    trace_list: false,
+                    supports_morphology: true,
+                    supports_syntax: true,
+                }),
             )?;
-            let _ = input.read_text_with_stdin(stdin_text)?;
-            command_not_implemented("tersmu")?;
-            Ok(CliStatus::Success)
+            run_tersmu(
+                input,
+                stdout,
+                stderr,
+                color_policy,
+                cli_diagnostic_detail(false),
+                cli_glyph_style(false),
+                diagnostic_terminal_width,
+                stdin_text,
+            )
         }
         Command::Vlacku(input) => {
             let glyphs = cli_glyph_style(input.ascii);
@@ -1601,6 +1670,7 @@ fn benchmark_command_reads_stdin(command: &Command) -> bool {
     match command {
         Command::Vlasei(input) => vlasei_input_reads_stdin(input),
         Command::Gentufa(input) => gentufa_input_reads_stdin(input),
+        Command::Tersmu(input) => tersmu_input_reads_stdin(input),
         _ => false,
     }
 }
@@ -1620,6 +1690,12 @@ fn gentufa_input_reads_stdin(input: &GentufaInput) -> bool {
     if input.trace_list {
         return false;
     }
+    trace_text_input_reads_stdin(&input.file, &input.text, &input.trace)
+}
+
+#[requires(true)]
+#[ensures(input.file.is_some() -> !ret)]
+fn tersmu_input_reads_stdin(input: &TersmuInput) -> bool {
     trace_text_input_reads_stdin(&input.file, &input.text, &input.trace)
 }
 
@@ -2943,6 +3019,31 @@ fn run_gentufa<WOut: Write, WErr: Write>(
     Ok(rendered.status)
 }
 
+#[requires(diagnostic_terminal_width > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_tersmu<WOut: Write, WErr: Write>(
+    input: TersmuInput,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color_policy: CliColorPolicy,
+    diagnostic_detail: DiagnosticDetailMode,
+    glyphs: GlyphStyle,
+    diagnostic_terminal_width: usize,
+    stdin_text: Option<&str>,
+) -> Result<CliStatus> {
+    let rendered = render_tersmu(
+        input,
+        color_policy,
+        diagnostic_detail,
+        glyphs,
+        diagnostic_terminal_width,
+        stdin_text,
+    )?;
+    stderr.write_all(rendered.stderr.as_bytes())?;
+    stdout.write_all(&rendered.stdout)?;
+    Ok(rendered.status)
+}
+
 #[cfg(feature = "grammar-debug")]
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
@@ -3190,6 +3291,141 @@ fn render_gentufa(
     Ok(new!(GentufaRendered {
         status: CliStatus::Success,
         stdout,
+        stderr,
+    }))
+}
+
+#[requires(diagnostic_terminal_width > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn render_tersmu(
+    input: TersmuInput,
+    color_policy: CliColorPolicy,
+    diagnostic_detail: DiagnosticDetailMode,
+    glyphs: GlyphStyle,
+    diagnostic_terminal_width: usize,
+    stdin_text: Option<&str>,
+) -> Result<TersmuRendered> {
+    let morphology_trace_options =
+        trace_options(&input.trace, TracePhase::Syntax, DEFAULT_TRACE_LIMIT)?;
+    let syntax_trace_options =
+        trace_options(&input.trace, TracePhase::Syntax, DEFAULT_TRACE_LIMIT)?;
+    let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
+    let text = input.read_text_with_stdin(stdin_text)?;
+    let dialect = input.dialect_definition()?;
+    let morphology_options = MorphologyOptions::default()
+        .with_dialect_definition(&dialect)
+        .with_trace_options(morphology_trace_options);
+    let morphology_attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+        &text,
+        &morphology_options,
+        Some(SourceId(source_label.clone())),
+    );
+    let morphology_attempt = morphology_attempt.into_data();
+    let morphology_trace_stderr = render_cli_trace(
+        morphology_attempt.trace.as_ref(),
+        color_policy.stderr,
+        diagnostic_terminal_width,
+    );
+    let morphology_diagnostics = morphology_warning_diagnostics(
+        &morphology_attempt.warnings,
+        Some(SourceId(source_label.clone())),
+        &text,
+    );
+    let words = match morphology_attempt.result {
+        Ok(words) => words,
+        Err(error) => {
+            let mut diagnostics = morphology_diagnostics;
+            diagnostics.push(error.to_diagnostic(Some(SourceId(source_label.clone())), &text));
+            let mut stderr = morphology_trace_stderr;
+            stderr.push_str(&render_source_diagnostics(
+                &source_label,
+                &text,
+                &diagnostics,
+                color_policy.stderr,
+                diagnostic_detail,
+                glyphs,
+                diagnostic_terminal_width,
+            )?);
+            return Ok(new!(TersmuRendered {
+                status: CliStatus::Failure,
+                stdout: Vec::new(),
+                stderr,
+            }));
+        }
+    };
+    let parse_options = ParseOptions::default()
+        .with_dialect_definition(&dialect)
+        .with_trace_options(syntax_trace_options);
+    let parsed = parse_syntax_tree_with_source_and_options_attempt(&words, &text, &parse_options);
+    let trace_stderr = render_cli_trace(
+        parsed.trace.as_ref(),
+        color_policy.stderr,
+        diagnostic_terminal_width,
+    );
+    let parsed = match parsed.result {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            let mut diagnostics = morphology_diagnostics;
+            diagnostics.push(error.to_diagnostic(Some(SourceId(source_label.clone())), &text));
+            let mut stderr = morphology_trace_stderr;
+            stderr.push_str(&trace_stderr);
+            stderr.push_str(&render_source_diagnostics(
+                &source_label,
+                &text,
+                &diagnostics,
+                color_policy.stderr,
+                diagnostic_detail,
+                glyphs,
+                diagnostic_terminal_width,
+            )?);
+            return Ok(new!(TersmuRendered {
+                status: CliStatus::Failure,
+                stdout: Vec::new(),
+                stderr,
+            }));
+        }
+    };
+    let mut diagnostics = morphology_diagnostics;
+    diagnostics.extend(
+        parsed
+            .warnings
+            .iter()
+            .map(|warning| warning.to_diagnostic(Some(SourceId(source_label.clone())), &text)),
+    );
+    let mut stderr = morphology_trace_stderr;
+    stderr.push_str(&trace_stderr);
+    stderr.push_str(&render_source_diagnostics(
+        &source_label,
+        &text,
+        &diagnostics,
+        color_policy.stderr,
+        diagnostic_detail,
+        glyphs,
+        diagnostic_terminal_width,
+    )?);
+    let graph = match build_semantic_graph_with_dictionary(
+        &parsed.parse_tree,
+        Some(&text),
+        jbotci_dictionary_data::english(),
+    ) {
+        Ok(graph) => graph,
+        Err(error) => {
+            stderr.push_str(&format!("semantic error: {error}\n"));
+            return Ok(new!(TersmuRendered {
+                status: CliStatus::Failure,
+                stdout: Vec::new(),
+                stderr,
+            }));
+        }
+    };
+    let mut rendered = match input.format {
+        TersmuFormat::Json => graph.to_json_string(input.indent.unwrap_or(0))?,
+    };
+    rendered.push('\n');
+    let rendered = colorize_json(&rendered, color_policy.stdout);
+    Ok(new!(TersmuRendered {
+        status: CliStatus::Success,
+        stdout: rendered.into_bytes(),
         stderr,
     }))
 }
@@ -5114,6 +5350,66 @@ mod tests {
                 .expect("dialect definition")
                 .features
                 .contains(&DialectFeature::ZantufaConnectives)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_tersmu_json_format() {
+        let Command::Tersmu(default_input) = Cli::try_parse_from(["jbotci", "tersmu", "coi"])
+            .expect("default tersmu")
+            .command
+        else {
+            panic!("expected tersmu command")
+        };
+        assert_eq!(default_input.format, TersmuFormat::Json);
+
+        let Command::Tersmu(json_input) =
+            Cli::try_parse_from(["jbotci", "tersmu", "--format", "json", "coi"])
+                .expect("explicit json tersmu")
+                .command
+        else {
+            panic!("expected tersmu command")
+        };
+        assert_eq!(json_input.format, TersmuFormat::Json);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_outputs_json_by_default() {
+        let run = run_cli_capture(&["jbotci", "tersmu", "mi", "klama"], false);
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty());
+        let json: serde_json::Value = serde_json::from_str(&run.stdout).expect("semantic json");
+        assert_eq!(json["version"], "lojban-semantics-json-1");
+        assert_eq!(json["root"], "utterance:u1");
+        assert_eq!(
+            json["objects"]["predication:p1"]["arguments"]["x1"]["kind"],
+            "filled"
+        );
+        assert_eq!(
+            json["objects"]["predication:p1"]["arguments"]["x1"]["value"],
+            "referent:speaker"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_accepts_explicit_json_format() {
+        let run = run_cli_capture(
+            &["jbotci", "tersmu", "--format", "json", "ma", "klama"],
+            false,
+        );
+        assert_eq!(run.status, CliStatus::Success);
+        assert!(run.stderr.is_empty());
+        let json: serde_json::Value = serde_json::from_str(&run.stdout).expect("semantic json");
+        assert_eq!(json["objects"]["question:q1"]["kind"], "argument");
+        assert_eq!(
+            json["objects"]["question:q1"]["slots"][0]["parameter"],
+            "parameter:p1"
         );
     }
 

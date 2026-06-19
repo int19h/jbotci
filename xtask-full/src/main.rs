@@ -26,9 +26,12 @@ use jbotci_output::{
     pretty_brackets, pretty_brackets_with_options, pretty_morphology_brackets_with_options,
     pretty_morphology_tree_with_options, pretty_tree_with_options,
 };
-use jbotci_semantics::references::{
-    FixturePlaceSlot, FixtureReferenceTarget, FixtureSpanKey, ReferenceFixtureProjection,
-    analyze_references,
+use jbotci_semantics::{
+    build_semantic_graph_with_dictionary,
+    references::{
+        FixturePlaceSlot, FixtureReferenceTarget, FixtureSpanKey, ReferenceFixtureProjection,
+        analyze_references,
+    },
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -8496,6 +8499,7 @@ impl FixtureBackend for NotImplementedBackend {
             Facet::GentufaBracketsShowElided => run_gentufa_brackets_show_elided_fixture(fixture),
             Facet::GentufaTreeShowElided => run_gentufa_tree_show_elided_fixture(fixture),
             Facet::GentufaJsonShowElided => run_gentufa_json_show_elided_fixture(fixture),
+            Facet::TersmuJson => run_tersmu_json_fixture(fixture),
         }
     }
 }
@@ -8874,6 +8878,60 @@ fn run_gentufa_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
             &actual,
         )),
         Err(error) => FacetResult::failed(format!("gentufa JSON render error: {error}")),
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_tersmu_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let Some(expectation) = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.tersmu.as_ref())
+        .and_then(|output| output.json.as_ref())
+    else {
+        return FacetResult::skipped("fixture has no tersmu JSON expectation");
+    };
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let words = match segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &options,
+        Some(SourceId("<fixture>".to_owned())),
+    ) {
+        Ok(words) => words,
+        Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
+    };
+    let parsed = match parse_syntax_tree_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    ) {
+        Ok(parsed) => parsed,
+        Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
+    };
+    let graph = match build_semantic_graph_with_dictionary(
+        &parsed.parse_tree,
+        Some(&fixture.test_case.lojban),
+        jbotci_dictionary_data::english(),
+    ) {
+        Ok(graph) => graph,
+        Err(error) => return FacetResult::failed(format!("tersmu JSON build error: {error}")),
+    };
+    match graph.to_json_string(0) {
+        Ok(actual) if actual == expectation.text => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format_text_mismatch(
+            "tersmu JSON",
+            &expectation.text,
+            &actual,
+        )),
+        Err(error) => FacetResult::failed(format!("tersmu JSON render error: {error}")),
     }
 }
 
@@ -9759,6 +9817,12 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
             .as_ref()
             .and_then(|output| output.gentufa.as_ref())
             .and_then(|output| output.show_elided.as_ref())
+            .and_then(|output| output.json.as_ref())
+            .map(|_| ExpectationStatus::Success),
+        Facet::TersmuJson => expectations
+            .output
+            .as_ref()
+            .and_then(|output| output.tersmu.as_ref())
             .and_then(|output| output.json.as_ref())
             .map(|_| ExpectationStatus::Success),
     }

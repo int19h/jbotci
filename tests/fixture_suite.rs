@@ -419,6 +419,12 @@ fn writer_keeps_tree_and_output_values() {
                     }),
                     show_elided: None,
                 }),
+                tersmu: Some(CommandOutputExpectation {
+                    json: Some(TextExpectation {
+                        text: "{\"version\":\"lojban-semantics-json-1\"}".into(),
+                    }),
+                    ..CommandOutputExpectation::default()
+                }),
             }),
             morphology: Some(MorphologyExpectation {
                 status: ExpectationStatus::Success,
@@ -459,6 +465,7 @@ fn writer_keeps_tree_and_output_values() {
     );
     assert!(text.contains("[expectations.output.vlasei]\njson = "));
     assert!(text.contains("[expectations.output.gentufa]\nbrackets = \"[coi]\""));
+    assert!(text.contains("[expectations.output.tersmu]\njson = "));
     assert!(text.contains("tree = '\"coi\"'"));
     assert!(text.contains("[expectations.morphology]\nstatus = \"success\"\nraw = "));
     assert!(!text.contains("words = ["));
@@ -523,6 +530,7 @@ fn writer_round_trips_script_brackets_and_show_elided_profile() {
                     }),
                     ..GentufaOutputExpectation::default()
                 }),
+                ..OutputExpectations::default()
             }),
             ..Expectations::default()
         },
@@ -621,6 +629,12 @@ fn available_facets_include_tree_expectations() {
                     }),
                     ..GentufaOutputExpectation::default()
                 }),
+                tersmu: Some(CommandOutputExpectation {
+                    json: Some(TextExpectation {
+                        text: "{\"version\":\"lojban-semantics-json-1\"}".into(),
+                    }),
+                    ..CommandOutputExpectation::default()
+                }),
                 ..OutputExpectations::default()
             }),
             ..Expectations::default()
@@ -628,10 +642,15 @@ fn available_facets_include_tree_expectations() {
     };
     let facets = case.available_facets();
     assert!(facets.contains(&Facet::GentufaTree));
+    assert!(facets.contains(&Facet::TersmuJson));
     assert!(!facets.contains(&Facet::GentufaBrackets));
     assert_eq!(
         "gentufa-tree".parse::<Facet>().expect("tree facet"),
         Facet::GentufaTree
+    );
+    assert_eq!(
+        "tersmu-json".parse::<Facet>().expect("tersmu facet"),
+        Facet::TersmuJson
     );
 }
 

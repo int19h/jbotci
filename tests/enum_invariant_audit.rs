@@ -1060,10 +1060,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "diagnostic enum records parser error location and message",
     ),
     (
-        "crates/jbotci-semantics/src/lib.rs:SemanticsError::NotImplemented",
-        "semantic builder placeholder has no payload beyond the diagnostic variant",
-    ),
-    (
         "crates/jbotci-syntax/src/tree.rs:SimpleBridiTailSyntax::ForethoughtBridiTailConnection",
         "variant delegates all grammar markers to ForethoughtBridiConnectionSyntax",
     ),

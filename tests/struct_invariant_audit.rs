@@ -1536,20 +1536,100 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "v0 compatibility relation-place entry is derived from typed place assignments",
     ),
     (
-        "crates/jbotci-semantics/src/lib.rs:ScopedModifier",
-        "semantic model is a placeholder port scaffold with no derived grammar contract yet",
+        "apps/jbotci/src/main.rs:TersmuInput",
+        "tersmu CLI input is clap transport state validated by render_tersmu before semantic building",
     ),
     (
-        "crates/jbotci-semantics/src/lib.rs:SemanticParagraph",
-        "semantic model is a placeholder port scaffold with no derived grammar contract yet",
+        "crates/jbotci-semantics/src/builder.rs:GraphBuilder",
+        "semantic builder state is private mutable construction state validated when SemanticGraph::new seals the graph",
     ),
     (
-        "crates/jbotci-semantics/src/lib.rs:SemanticStatement",
-        "semantic model is a placeholder port scaffold with no derived grammar contract yet",
+        "crates/jbotci-semantics/src/builder.rs:IdCounters",
+        "semantic ID counters are private builder state advanced only by typed next-id helpers",
     ),
     (
-        "crates/jbotci-semantics/src/lib.rs:SemanticText",
-        "semantic model is a placeholder port scaffold with no derived grammar contract yet",
+        "crates/jbotci-semantics/src/builder.rs:SemanticBuildOptions",
+        "semantic build options are caller transport state with no invalid combination beyond lifetimes",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:SemanticsError",
+        "semantic errors are produced by constructors that attach nonempty diagnostic messages",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:Actuality",
+        "actuality is a single closed enum field",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:AnchorRelation",
+        "anchor relation DTOs are assembled by typed semantic builders before graph validation",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:Aspect",
+        "aspect DTOs are reserved semantic output fields not externally constructed yet",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:Composition",
+        "composition DTOs are assembled by typed semantic builder helpers before graph validation",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:Connector",
+        "connector DTOs are reserved semantic output fields not externally constructed yet",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:DeicticGround",
+        "deictic ground is assembled by the utterance constructor from fixed special referents",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:Descriptor",
+        "descriptor DTOs are assembled by typed referent builder helpers before graph validation",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:MathLiteral",
+        "math literal DTOs are reserved semantic output fields not externally constructed yet",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:PlaceDescription",
+        "relation place descriptions are reserved metadata DTOs not externally constructed yet",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:QuantityValue",
+        "quantity values are produced through typed constructors for integer and text forms",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:QuestionSlot",
+        "question slots are produced only when builder-created parameters appear in the body formula",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:Quotation",
+        "quotation DTOs are reserved semantic output fields not externally constructed yet",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:RelationExpansion",
+        "relation expansion DTOs are reserved metadata fields not externally constructed yet",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticDiagnostic",
+        "semantic diagnostics are produced by constructors with nonempty messages",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticGraph",
+        "semantic graph validity is enforced by SemanticGraph::new with ID-type and dangling-reference checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticObject",
+        "semantic objects are assembled through typed constructors and sealed by SemanticGraph::new",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticObjectId",
+        "semantic object IDs have private fields and are constructed through typed ID constructors",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticSource",
+        "semantic source DTOs are projected from validated source spans by source_from_spans",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SourceByteSpan",
+        "source byte spans are projected from validated SourceSpan values",
     ),
     (
         "crates/jbotci-source/src/lib.rs:SourceId",

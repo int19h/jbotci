@@ -1,0 +1,1444 @@
+//! Public semantic object graph model serialized by `tersmu --format json`.
+
+use std::collections::BTreeMap;
+use std::fmt;
+
+#[allow(unused_imports)]
+use bityzba::{data, ensures, invariant, requires};
+use jbotci_source::SourceSpan;
+use serde::ser::SerializeMap;
+use serde::{Serialize, Serializer};
+
+pub const SEMANTIC_JSON_VERSION: &str = "lojban-semantics-json-1";
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SemanticObjectId {
+    kind: SemanticObjectKind,
+    index: usize,
+    referent_special: Option<SemanticReferentSpecial>,
+}
+
+impl SemanticObjectId {
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Utterance)]
+    pub fn utterance(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::Utterance, index)
+    }
+
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Sequence)]
+    pub fn sequence(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::Sequence, index)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Eventuality)]
+    pub fn eventuality(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::Eventuality, index)
+    }
+
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    pub fn referent(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::Referent, index)
+    }
+
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Parameter)]
+    pub fn parameter(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::Parameter, index)
+    }
+
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Predication)]
+    pub fn predication(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::Predication, index)
+    }
+
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Formula)]
+    pub fn formula(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::Formula, index)
+    }
+
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Abstraction)]
+    pub fn abstraction(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::Abstraction, index)
+    }
+
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Sign)]
+    pub fn sign(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::Sign, index)
+    }
+
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::DisplayedContent)]
+    pub fn displayed_content(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::DisplayedContent, index)
+    }
+
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::MathExpression)]
+    pub fn math_expression(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::MathExpression, index)
+    }
+
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Quantity)]
+    pub fn quantity(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::Quantity, index)
+    }
+
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::RelationMetadata)]
+    pub fn relation_metadata(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::RelationMetadata, index)
+    }
+
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Question)]
+    pub fn question(index: usize) -> Self {
+        Self::numbered(SemanticObjectKind::Question, index)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    pub fn speaker() -> Self {
+        Self::special_referent(SemanticReferentSpecial::Speaker)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    pub fn addressee() -> Self {
+        Self::special_referent(SemanticReferentSpecial::Addressee)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    pub fn speech_time() -> Self {
+        Self::special_referent(SemanticReferentSpecial::SpeechTime)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    pub fn here() -> Self {
+        Self::special_referent(SemanticReferentSpecial::Here)
+    }
+
+    #[requires(index > 0 || kind == SemanticObjectKind::Eventuality)]
+    #[ensures(ret.object_kind() == kind)]
+    fn numbered(kind: SemanticObjectKind, index: usize) -> Self {
+        Self {
+            kind,
+            index,
+            referent_special: None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    fn special_referent(referent_special: SemanticReferentSpecial) -> Self {
+        Self {
+            kind: SemanticObjectKind::Referent,
+            index: 0,
+            referent_special: Some(referent_special),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn object_kind(self) -> SemanticObjectKind {
+        self.kind
+    }
+}
+
+impl fmt::Display for SemanticObjectId {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(referent) = self.referent_special {
+            return write!(formatter, "referent:{referent}");
+        }
+        match self.kind {
+            SemanticObjectKind::Utterance => write!(formatter, "utterance:u{}", self.index),
+            SemanticObjectKind::Sequence => write!(formatter, "sequence:s{}", self.index),
+            SemanticObjectKind::Eventuality => write!(formatter, "eventuality:e{}", self.index),
+            SemanticObjectKind::Referent => write!(formatter, "referent:r{}", self.index),
+            SemanticObjectKind::Parameter => write!(formatter, "parameter:p{}", self.index),
+            SemanticObjectKind::Predication => write!(formatter, "predication:p{}", self.index),
+            SemanticObjectKind::Formula => write!(formatter, "formula:f{}", self.index),
+            SemanticObjectKind::Abstraction => write!(formatter, "abstraction:a{}", self.index),
+            SemanticObjectKind::Sign => write!(formatter, "sign:s{}", self.index),
+            SemanticObjectKind::DisplayedContent => write!(formatter, "display:d{}", self.index),
+            SemanticObjectKind::MathExpression => write!(formatter, "math:m{}", self.index),
+            SemanticObjectKind::Quantity => write!(formatter, "quantity:q{}", self.index),
+            SemanticObjectKind::RelationMetadata => write!(formatter, "relation:r{}", self.index),
+            SemanticObjectKind::Question => write!(formatter, "question:q{}", self.index),
+        }
+    }
+}
+
+impl Serialize for SemanticObjectId {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum SemanticReferentSpecial {
+    Speaker,
+    Addressee,
+    SpeechTime,
+    Here,
+}
+
+pub type SemanticReferentId = SemanticReferentSpecial;
+
+impl fmt::Display for SemanticReferentSpecial {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Speaker => formatter.write_str("speaker"),
+            Self::Addressee => formatter.write_str("addressee"),
+            Self::SpeechTime => formatter.write_str("speech-time"),
+            Self::Here => formatter.write_str("here"),
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SemanticObjectKind {
+    Utterance,
+    Sequence,
+    Eventuality,
+    Referent,
+    Parameter,
+    Predication,
+    Formula,
+    Abstraction,
+    Sign,
+    DisplayedContent,
+    MathExpression,
+    Quantity,
+    RelationMetadata,
+    Question,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SemanticGraph {
+    pub version: &'static str,
+    pub root: SemanticObjectId,
+    #[serde(serialize_with = "serialize_objects")]
+    pub objects: BTreeMap<SemanticObjectId, SemanticObject>,
+}
+
+impl SemanticGraph {
+    #[requires(objects.contains_key(&root))]
+    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|graph| graph.root == root))]
+    pub fn new(
+        root: SemanticObjectId,
+        objects: BTreeMap<SemanticObjectId, SemanticObject>,
+    ) -> Result<Self, String> {
+        if !semantic_object_ids_match_types(&objects) {
+            return Err("semantic object ID prefixes must match object types".to_owned());
+        }
+        if !semantic_object_references_are_defined(&objects) {
+            return Err("semantic object references must not dangle".to_owned());
+        }
+        if !semantic_object_arguments_are_valid(&objects) {
+            return Err(
+                "predication arguments must use valid numbered places and argument fillers"
+                    .to_owned(),
+            );
+        }
+        Ok(Self {
+            version: SEMANTIC_JSON_VERSION,
+            root,
+            objects,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+    pub fn to_json_string(&self, indent: usize) -> Result<String, serde_json::Error> {
+        if indent == 0 {
+            serde_json::to_string(self)
+        } else {
+            let mut buffer = Vec::new();
+            let indent_bytes = vec![b' '; indent];
+            let formatter = serde_json::ser::PrettyFormatter::with_indent(&indent_bytes);
+            let mut serializer = serde_json::Serializer::with_formatter(&mut buffer, formatter);
+            self.serialize(&mut serializer)?;
+            String::from_utf8(buffer)
+                .map_err(|error| serde_json::Error::io(std::io::Error::other(error)))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn serialize_objects<S>(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut map = serializer.serialize_map(Some(objects.len()))?;
+    for (id, object) in objects {
+        map.serialize_entry(&id.to_string(), object)?;
+    }
+    map.end()
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SemanticObject {
+    #[serde(rename = "type")]
+    pub object_type: SemanticObjectKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub force: Option<UtteranceForce>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub speaker: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audience: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eventuality: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deictic_ground: Option<DeicticGround>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub asides: Vec<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vocative_kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub items: Vec<SemanticObjectId>,
+    #[serde(rename = "relation", skip_serializing_if = "Option::is_none")]
+    pub sequence_relation: Option<SequenceRelation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub class: Option<EventualityClass>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub actuality: Option<Actuality>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time: Option<AnchorRelation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aspect: Option<Aspect>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub space: Option<AnchorRelation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<ReferentCategory>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sort: Option<SemanticSort>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub indexical: Option<IndexicalKind>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub descriptor: Option<Descriptor>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub composition: Option<Composition>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<ParameterRole>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub introduced_by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relation: Option<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub arguments: BTreeMap<String, ArgumentValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<PredicationMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relation_metadata: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operator: Option<FormulaOperator>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub predication: Option<SemanticObjectId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub children: Vec<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connector: Option<Connector>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variable: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restriction: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantity: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub abstraction_kind: Option<AbstractionKind>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub abstracted: Option<SemanticObjectId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parameters: Vec<SemanticObjectId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub embedded_questions: Vec<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sign_kind: Option<SignKind>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quotation: Option<Quotation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub denotes: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub family: Option<DisplayedContentFamily>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub experiencer: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anchor: Option<SemanticObjectId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub operands: Vec<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub literal: Option<MathLiteral>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub form: Option<QuantityForm>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<QuantityValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scale: Option<QuantityScale>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comparison_set: Option<SemanticObjectId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_words: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub place_structure: Vec<PlaceDescription>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expansion: Option<RelationExpansion>,
+    #[serde(rename = "kind", skip_serializing_if = "Option::is_none")]
+    pub question_kind: Option<QuestionKind>,
+    #[serde(rename = "mode", skip_serializing_if = "Option::is_none")]
+    pub question_mode: Option<QuestionMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asker: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub respondent: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub domain: Option<SemanticSort>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub slots: Vec<QuestionSlot>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focus: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub presupposed_answer: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SemanticSource>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub diagnostics: Vec<SemanticDiagnostic>,
+}
+
+impl SemanticObject {
+    #[requires(true)]
+    #[ensures(true)]
+    fn empty(object_type: SemanticObjectKind) -> Self {
+        Self {
+            object_type,
+            force: None,
+            speaker: None,
+            audience: None,
+            eventuality: None,
+            content: None,
+            deictic_ground: None,
+            asides: Vec::new(),
+            vocative_kind: None,
+            items: Vec::new(),
+            sequence_relation: None,
+            class: None,
+            actuality: None,
+            time: None,
+            aspect: None,
+            space: None,
+            category: None,
+            sort: None,
+            indexical: None,
+            descriptor: None,
+            composition: None,
+            role: None,
+            introduced_by: None,
+            relation: None,
+            arguments: BTreeMap::new(),
+            mode: None,
+            relation_metadata: None,
+            operator: None,
+            predication: None,
+            children: Vec::new(),
+            connector: None,
+            variable: None,
+            restriction: None,
+            body: None,
+            quantity: None,
+            abstraction_kind: None,
+            abstracted: None,
+            parameters: Vec::new(),
+            embedded_questions: Vec::new(),
+            sign_kind: None,
+            quotation: None,
+            denotes: None,
+            family: None,
+            experiencer: None,
+            target: None,
+            anchor: None,
+            operands: Vec::new(),
+            literal: None,
+            form: None,
+            value: None,
+            scale: None,
+            comparison_set: None,
+            source_words: Vec::new(),
+            place_structure: Vec::new(),
+            expansion: None,
+            question_kind: None,
+            question_mode: None,
+            asker: None,
+            respondent: None,
+            domain: None,
+            slots: Vec::new(),
+            focus: None,
+            presupposed_answer: None,
+            source: None,
+            diagnostics: Vec::new(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Utterance)]
+    pub fn utterance(
+        force: UtteranceForce,
+        eventuality: SemanticObjectId,
+        content: Option<SemanticObjectId>,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Utterance);
+        object.force = Some(force);
+        object.speaker = Some(SemanticObjectId::speaker());
+        object.audience = Some(SemanticObjectId::addressee());
+        object.eventuality = Some(eventuality);
+        object.content = content;
+        object.deictic_ground = Some(DeicticGround {
+            time: SemanticObjectId::speech_time(),
+            place: SemanticObjectId::here(),
+        });
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Sequence)]
+    pub fn sequence(
+        items: Vec<SemanticObjectId>,
+        relation: SequenceRelation,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Sequence);
+        object.items = items;
+        object.sequence_relation = Some(relation);
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Eventuality)]
+    pub fn eventuality(
+        class: EventualityClass,
+        actuality: Option<Actuality>,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Eventuality);
+        object.class = Some(class);
+        object.actuality = actuality;
+        object.source = source;
+        object
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    pub fn referent(
+        category: ReferentCategory,
+        sort: SemanticSort,
+        indexical: Option<IndexicalKind>,
+        descriptor: Option<Descriptor>,
+        composition: Option<Composition>,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Referent);
+        object.category = Some(category);
+        object.sort = Some(sort);
+        object.indexical = indexical;
+        object.descriptor = descriptor;
+        object.composition = composition;
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Parameter)]
+    pub fn parameter(
+        sort: SemanticSort,
+        role: ParameterRole,
+        introduced_by: String,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Parameter);
+        object.sort = Some(sort);
+        object.role = Some(role);
+        object.introduced_by = Some(introduced_by);
+        object.source = source;
+        object
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Predication)]
+    pub fn predication(
+        relation: String,
+        eventuality: Option<SemanticObjectId>,
+        arguments: BTreeMap<String, ArgumentValue>,
+        mode: PredicationMode,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Predication);
+        object.relation = Some(relation);
+        object.eventuality = eventuality;
+        object.arguments = arguments;
+        object.mode = Some(mode);
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Formula)]
+    pub fn atom_formula(
+        predication: SemanticObjectId,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Formula);
+        object.operator = Some(FormulaOperator::Atom);
+        object.predication = Some(predication);
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Question)]
+    pub fn question(
+        kind: QuestionKind,
+        mode: QuestionMode,
+        domain: SemanticSort,
+        body: SemanticObjectId,
+        slots: Vec<QuestionSlot>,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Question);
+        object.question_kind = Some(kind);
+        object.question_mode = Some(mode);
+        object.asker = Some(SemanticObjectId::speaker());
+        object.respondent = Some(SemanticObjectId::addressee());
+        object.domain = Some(domain);
+        object.body = Some(body);
+        object.slots = slots;
+        object.source = source;
+        object
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Quantity)]
+    pub fn quantity(
+        form: QuantityForm,
+        value: QuantityValue,
+        scale: QuantityScale,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Quantity);
+        object.form = Some(form);
+        object.value = Some(value);
+        object.scale = Some(scale);
+        object.source = source;
+        object
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn object_kind(&self) -> SemanticObjectKind {
+        self.object_type
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        extend_optional(out, self.speaker);
+        extend_optional(out, self.audience);
+        extend_optional(out, self.eventuality);
+        extend_optional(out, self.content);
+        if let Some(ground) = self.deictic_ground {
+            out.extend([ground.time, ground.place]);
+        }
+        out.extend(self.asides.iter().copied());
+        out.extend(self.items.iter().copied());
+        if let Some(time) = &self.time {
+            out.push(time.anchor);
+        }
+        if let Some(space) = &self.space {
+            out.push(space.anchor);
+        }
+        if let Some(descriptor) = &self.descriptor {
+            descriptor.references_into(out);
+        }
+        if let Some(composition) = &self.composition {
+            out.extend(composition.members.iter().copied());
+        }
+        for argument in self.arguments.values() {
+            argument.references_into(out);
+        }
+        extend_optional(out, self.relation_metadata);
+        extend_optional(out, self.predication);
+        out.extend(self.children.iter().copied());
+        extend_optional(out, self.variable);
+        extend_optional(out, self.restriction);
+        extend_optional(out, self.body);
+        extend_optional(out, self.quantity);
+        extend_optional(out, self.abstracted);
+        out.extend(self.parameters.iter().copied());
+        out.extend(self.embedded_questions.iter().copied());
+        extend_optional(out, self.denotes);
+        extend_optional(out, self.experiencer);
+        extend_optional(out, self.target);
+        extend_optional(out, self.anchor);
+        out.extend(self.operands.iter().copied());
+        extend_optional(out, self.comparison_set);
+        out.extend(self.slots.iter().map(|slot| slot.parameter));
+        extend_optional(out, self.focus);
+        extend_optional(out, self.presupposed_answer);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn push_diagnostic(&mut self, diagnostic: SemanticDiagnostic) {
+        self.diagnostics.push(diagnostic);
+    }
+
+    #[requires(quantity.object_kind() == SemanticObjectKind::Quantity)]
+    #[ensures(true)]
+    pub fn set_descriptor_quantity(&mut self, quantity: SemanticObjectId) {
+        if let Some(descriptor) = &mut self.descriptor {
+            descriptor.quantity = Some(quantity);
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn extend_optional(out: &mut Vec<SemanticObjectId>, value: Option<SemanticObjectId>) {
+    if let Some(value) = value {
+        out.push(value);
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SemanticSource {
+    pub span: SourceByteSpan,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub construct: Option<String>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceByteSpan {
+    pub byte_start: usize,
+    pub byte_end: usize,
+}
+
+impl SourceByteSpan {
+    #[requires(span.byte_start <= span.byte_end)]
+    #[ensures(ret.byte_start == span.byte_start)]
+    pub fn from_source_span(span: &SourceSpan) -> Self {
+        Self {
+            byte_start: span.byte_start,
+            byte_end: span.byte_end,
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SemanticDiagnostic {
+    pub severity: DiagnosticSeverity,
+    pub message: String,
+}
+
+impl SemanticDiagnostic {
+    #[requires(true)]
+    #[ensures(!ret.message.is_empty())]
+    pub fn warning(message: impl Into<String>) -> Self {
+        let message = message.into();
+        Self {
+            severity: DiagnosticSeverity::Warning,
+            message,
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DiagnosticSeverity {
+    Info,
+    Warning,
+    Error,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum UtteranceForce {
+    Assert,
+    Ask,
+    Command,
+    Mention,
+    Quote,
+    Parenthetical,
+    Vocative,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum SequenceRelation {
+    SameTopicContinuation,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum EventualityClass {
+    Locution,
+    Event,
+    State,
+    Process,
+    Activity,
+    Achievement,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Actuality {
+    pub kind: ActualityKind,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ActualityKind {
+    Actual,
+    Capable,
+    Potential,
+    Demonstrated,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnchorRelation {
+    pub relation: String,
+    pub anchor: SemanticObjectId,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Aspect {
+    pub contour: String,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeicticGround {
+    pub time: SemanticObjectId,
+    pub place: SemanticObjectId,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ReferentCategory {
+    Constant,
+    Variable,
+    Indexical,
+    Composite,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SemanticSort {
+    Entity,
+    Mass,
+    Set,
+    Sequence,
+    Eventuality,
+    Predication,
+    TruthValue,
+    Proposition,
+    Concept,
+    Amount,
+    Quantity,
+    Number,
+    Text,
+    Sign,
+    Relation,
+    ArgumentBundle,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum IndexicalKind {
+    Speaker,
+    Audience,
+    SpeechTime,
+    Here,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Descriptor {
+    pub kind: String,
+    pub word: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub speaker: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantity: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+impl Descriptor {
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        extend_optional(out, self.speaker);
+        extend_optional(out, self.body);
+        extend_optional(out, self.quantity);
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Composition {
+    pub operator: String,
+    pub members: Vec<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub collective: Option<bool>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ParameterRole {
+    PropertySlot,
+    RelativeClauseHead,
+    ArgumentQuestion,
+    RelationQuestion,
+    PlaceQuestion,
+    ConnectiveQuestion,
+    TenseQuestion,
+    AttitudeQuestion,
+}
+
+#[invariant(argument_value_shape_is_valid(*kind, *value, introduced_by.as_deref()))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArgumentValue {
+    pub kind: ArgumentValueKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub introduced_by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SemanticSource>,
+}
+
+impl ArgumentValue {
+    #[requires(argument_object_kind_can_fill(value.object_kind()))]
+    #[ensures(true)]
+    pub fn filled(value: SemanticObjectId, source: Option<SemanticSource>) -> Self {
+        Self::from_data(data!(ArgumentValue {
+            kind: ArgumentValueKind::Filled,
+            value: Some(value),
+            introduced_by: None,
+            source,
+        }))
+    }
+
+    #[requires(argument_object_kind_can_fill(value.object_kind()))]
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(true)]
+    pub fn elided(
+        value: SemanticObjectId,
+        introduced_by: String,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::from_data(data!(ArgumentValue {
+            kind: ArgumentValueKind::Elided,
+            value: Some(value),
+            introduced_by: Some(introduced_by),
+            source,
+        }))
+    }
+
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(true)]
+    pub fn deleted(introduced_by: String, source: Option<SemanticSource>) -> Self {
+        Self::from_data(data!(ArgumentValue {
+            kind: ArgumentValueKind::Deleted,
+            value: None,
+            introduced_by: Some(introduced_by),
+            source,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        if let Some(value) = self.value {
+            out.push(value);
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ArgumentValueKind {
+    Filled,
+    Elided,
+    Deleted,
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn argument_object_kind_can_fill(kind: SemanticObjectKind) -> bool {
+    matches!(
+        kind,
+        SemanticObjectKind::Referent
+            | SemanticObjectKind::Parameter
+            | SemanticObjectKind::Eventuality
+            | SemanticObjectKind::Abstraction
+            | SemanticObjectKind::Sign
+            | SemanticObjectKind::DisplayedContent
+            | SemanticObjectKind::MathExpression
+            | SemanticObjectKind::Quantity
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn argument_value_shape_is_valid(
+    kind: ArgumentValueKind,
+    value: Option<SemanticObjectId>,
+    introduced_by: Option<&str>,
+) -> bool {
+    let value_allowed =
+        value.is_none_or(|value| argument_object_kind_can_fill(value.object_kind()));
+    match kind {
+        ArgumentValueKind::Filled => value_allowed && value.is_some() && introduced_by.is_none(),
+        ArgumentValueKind::Elided => {
+            value_allowed
+                && value.is_some()
+                && introduced_by.is_some_and(|introduced_by| !introduced_by.is_empty())
+        }
+        ArgumentValueKind::Deleted => {
+            value.is_none() && introduced_by.is_some_and(|introduced_by| !introduced_by.is_empty())
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PredicationMode {
+    Asserted,
+    Restrictive,
+    Incidental,
+    Displayed,
+    Inert,
+    Performative,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FormulaOperator {
+    Atom,
+    Not,
+    And,
+    Or,
+    Implies,
+    Iff,
+    ExclusiveOr,
+    WhetherOrNot,
+    Exists,
+    Forall,
+    None,
+    Cardinality,
+    PluralExists,
+    PluralForall,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Connector {
+    pub source: String,
+    pub locus: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub truth_table: Option<String>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AbstractionKind {
+    Event,
+    Achievement,
+    Process,
+    Activity,
+    State,
+    Property,
+    Amount,
+    TruthValue,
+    Proposition,
+    SentenceSign,
+    Concept,
+    Experience,
+    Unspecified,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SignKind {
+    Quotation,
+    Letteral,
+    Word,
+    Text,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Quotation {
+    pub mode: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub utterance: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delimiter: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DisplayedContentFamily {
+    Emotion,
+    PropositionalAttitude,
+    Evidential,
+    Discursive,
+    Metalinguistic,
+    Emphasis,
+    QuestionPrompt,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MathLiteral {
+    pub kind: String,
+    pub value: String,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum QuantityForm {
+    Exact,
+    AtLeast,
+    AtMost,
+    MoreThan,
+    LessThan,
+    Approximate,
+    Indefinite,
+    Enough,
+    TooMany,
+    TooFew,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuantityValue {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub integer: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub math_expression: Option<SemanticObjectId>,
+}
+
+impl QuantityValue {
+    #[requires(true)]
+    #[ensures(ret.integer == Some(integer))]
+    pub fn integer(integer: i64) -> Self {
+        Self {
+            integer: Some(integer),
+            text: None,
+            math_expression: None,
+        }
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(ret.text.is_some())]
+    pub fn text(text: String) -> Self {
+        Self {
+            integer: None,
+            text: Some(text),
+            math_expression: None,
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum QuantityScale {
+    Count,
+    Fraction,
+    Ordinal,
+    Amount,
+    Extent,
+    Frequency,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaceDescription {
+    pub place: String,
+    pub description: String,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RelationExpansion {
+    pub kind: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_words: Vec<String>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum QuestionKind {
+    Truth,
+    Argument,
+    Relation,
+    Place,
+    Connective,
+    Tense,
+    Attitude,
+    Quantity,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum QuestionMode {
+    Direct,
+    Indirect,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuestionSlot {
+    pub parameter: SemanticObjectId,
+    pub role: QuestionSlotRole,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum QuestionSlotRole {
+    Answer,
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn semantic_object_ids_match_types(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> bool {
+    objects
+        .iter()
+        .all(|(id, object)| id.object_kind() == object.object_kind())
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn semantic_object_references_are_defined(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> bool {
+    let mut references = Vec::new();
+    for object in objects.values() {
+        object.references_into(&mut references);
+    }
+    references
+        .into_iter()
+        .all(|reference| objects.contains_key(&reference))
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn semantic_object_arguments_are_valid(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> bool {
+    objects.values().all(|object| {
+        if object.object_kind() != SemanticObjectKind::Predication {
+            return true;
+        }
+        object.arguments.iter().all(|(place, value)| {
+            is_numbered_argument_place(place)
+                && argument_value_references_allowed_objects(value, objects)
+        })
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn argument_value_references_allowed_objects(
+    value: &ArgumentValue,
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> bool {
+    match value.value {
+        Some(value) => objects
+            .get(&value)
+            .is_some_and(|object| argument_object_kind_can_fill(object.object_kind())),
+        None => value.kind == ArgumentValueKind::Deleted,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn is_numbered_argument_place(place: &str) -> bool {
+    let Some(digits) = place.strip_prefix('x') else {
+        return false;
+    };
+    !digits.is_empty()
+        && !digits.starts_with('0')
+        && digits.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn source_from_spans(
+    spans: &[SourceSpan],
+    source_text: Option<&str>,
+    construct: Option<&str>,
+) -> Option<SemanticSource> {
+    let first = spans.first()?;
+    let byte_start = spans
+        .iter()
+        .map(|span| span.byte_start)
+        .min()
+        .unwrap_or(first.byte_start);
+    let byte_end = spans
+        .iter()
+        .map(|span| span.byte_end)
+        .max()
+        .unwrap_or(first.byte_end);
+    let text = source_text
+        .and_then(|text| text.get(byte_start..byte_end))
+        .map(str::to_owned);
+    Some(SemanticSource {
+        span: SourceByteSpan {
+            byte_start,
+            byte_end,
+        },
+        text,
+        construct: construct.map(str::to_owned),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn diagnostic(message: impl Into<String>) -> SemanticDiagnostic {
+    SemanticDiagnostic::warning(message)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn semantic_graph_object_ids_match_types(graph: &SemanticGraph) -> bool {
+    semantic_object_ids_match_types(&graph.objects)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn semantic_graph_references_are_defined(graph: &SemanticGraph) -> bool {
+    semantic_object_references_are_defined(&graph.objects)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_graph_rejects_dangling_object_references() {
+        let root = SemanticObjectId::formula(1);
+        let mut objects = BTreeMap::new();
+        objects.insert(
+            root,
+            SemanticObject::atom_formula(SemanticObjectId::predication(1), None, Vec::new()),
+        );
+
+        let error = SemanticGraph::new(root, objects).expect_err("dangling reference");
+        assert!(error.contains("must not dangle"));
+    }
+}

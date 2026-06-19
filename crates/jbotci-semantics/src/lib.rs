@@ -1,60 +1,15 @@
 //! Lojban semantic model and builder facade.
 
+pub mod builder;
+pub mod model;
 pub mod references;
 
-use bityzba::{invariant, requires};
-use jbotci_source::SourceSpan;
-use jbotci_syntax::TextSyntax;
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct SemanticText {
-    pub source: Option<SourceSpan>,
-    pub leading_modifiers: Vec<ScopedModifier>,
-    pub paragraphs: Vec<SemanticParagraph>,
-    pub trailing_modifiers: Vec<ScopedModifier>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct SemanticParagraph {
-    pub source: Option<SourceSpan>,
-    pub statements: Vec<SemanticStatement>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct SemanticStatement {
-    pub source: Option<SourceSpan>,
-    pub content: StatementContent,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
-#[invariant(true)]
-pub enum StatementContent {
-    Empty,
-    Placeholder,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct ScopedModifier {
-    pub source: Option<SourceSpan>,
-}
-
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
-#[invariant(true)]
-#[invariant(::NotImplemented => true)]
-pub enum SemanticsError {
-    #[error("semantic analysis is not implemented yet")]
-    NotImplemented,
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn build_semantic_text(_syntax: &TextSyntax) -> Result<SemanticText, SemanticsError> {
-    Err(SemanticsError::NotImplemented)
-}
+pub use builder::{
+    SemanticBuildOptions, SemanticsError, build_semantic_graph,
+    build_semantic_graph_with_dictionary, build_semantic_graph_with_place_resolver,
+    dictionary_relation_place_count,
+};
+pub use model::{
+    SEMANTIC_JSON_VERSION, SemanticGraph, SemanticObject, SemanticObjectId, SemanticReferentId,
+    semantic_graph_object_ids_match_types, semantic_graph_references_are_defined,
+};

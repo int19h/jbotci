@@ -179,6 +179,13 @@ impl TestCase {
             {
                 facets.insert(Facet::GentufaJsonShowElided);
             }
+            if output
+                .tersmu
+                .as_ref()
+                .is_some_and(|tersmu| tersmu.json.is_some())
+            {
+                facets.insert(Facet::TersmuJson);
+            }
         }
         facets
     }
@@ -299,6 +306,13 @@ impl TestCase {
                 .as_ref()
                 .and_then(|output| output.gentufa.as_ref())
                 .and_then(|output| output.show_elided.as_ref())
+                .and_then(|output| output.json.as_ref())
+                .map(|_| ExpectationStatus::Success),
+            Facet::TersmuJson => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.tersmu.as_ref())
                 .and_then(|output| output.json.as_ref())
                 .map(|_| ExpectationStatus::Success),
         }
@@ -427,6 +441,8 @@ pub struct OutputExpectations {
     pub vlasei: Option<VlaseiOutputExpectation>,
     #[serde(default)]
     pub gentufa: Option<GentufaOutputExpectation>,
+    #[serde(default)]
+    pub tersmu: Option<CommandOutputExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -766,6 +782,7 @@ pub enum Facet {
     GentufaBracketsShowElided,
     GentufaTreeShowElided,
     GentufaJsonShowElided,
+    TersmuJson,
 }
 
 impl Facet {
@@ -788,6 +805,7 @@ impl Facet {
             Self::GentufaBracketsShowElided,
             Self::GentufaTreeShowElided,
             Self::GentufaJsonShowElided,
+            Self::TersmuJson,
         ]
     }
 }
@@ -812,6 +830,7 @@ impl fmt::Display for Facet {
             Self::GentufaBracketsShowElided => "gentufa-brackets-show-elided",
             Self::GentufaTreeShowElided => "gentufa-tree-show-elided",
             Self::GentufaJsonShowElided => "gentufa-json-show-elided",
+            Self::TersmuJson => "tersmu-json",
         };
         f.write_str(text)
     }
@@ -839,6 +858,7 @@ impl std::str::FromStr for Facet {
             "gentufa-brackets-show-elided" => Ok(Self::GentufaBracketsShowElided),
             "gentufa-tree-show-elided" => Ok(Self::GentufaTreeShowElided),
             "gentufa-json-show-elided" => Ok(Self::GentufaJsonShowElided),
+            "tersmu-json" => Ok(Self::TersmuJson),
             other => Err(format!("unknown fixture facet `{other}`")),
         }
     }
