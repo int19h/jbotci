@@ -1282,6 +1282,7 @@ pub enum ScalarNegationKind {
 pub enum FormulaOperator {
     Atom,
     Not,
+    Scoped,
     And,
     Or,
     Implies,

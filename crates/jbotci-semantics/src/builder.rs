@@ -492,6 +492,19 @@ where
 
     #[requires(true)]
     #[ensures(true)]
+    fn source_for_selbri(
+        &self,
+        selbri: &'tree SelbriSyntax,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        self.analysis
+            .syntax_index
+            .selbri_node_id(selbri)
+            .and_then(|node| self.source_for_node(node.0, construct))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn source_for_subbridi(
         &self,
         subbridi: &'tree SubbridiSyntax,
@@ -774,6 +787,11 @@ where
         }
         let selbri = main_selbri_for_tail(&bridi.bridi_tail);
         if let Some(selbri) = selbri
+            && let Some(formula) = self.build_scoped_selbri_formula_for_bridi(bridi, selbri)?
+        {
+            return Ok(formula);
+        }
+        if let Some(selbri) = selbri
             && let Some(units) = tanru_units_for_selbri(selbri)
             && tanru_units_require_lowering(&units)
         {
@@ -845,6 +863,127 @@ where
                 Vec::new(),
             ),
         )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_scoped_selbri_formula_for_bridi(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: &'tree SelbriSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match selbri.as_data() {
+            data!(SelbriSyntax::Negated { inner_selbri, .. }) => {
+                let child = self.build_selbri_formula_for_bridi_scope_child(bridi, inner_selbri)?;
+                self.build_unary_formula(
+                    FormulaOperator::Not,
+                    child,
+                    self.source_for_selbri(selbri, "bridi-negation"),
+                    Vec::new(),
+                )
+                .map(Some)
+            }
+            data!(SelbriSyntax::TaggedSelbri {
+                tense_modal,
+                inner_selbri,
+            }) if selbri_has_formula_scope(inner_selbri) => {
+                let child = self.build_selbri_formula_for_bridi_scope_child(bridi, inner_selbri)?;
+                self.build_tense_scope_formula(
+                    child,
+                    tense_modal,
+                    self.source_for_selbri(selbri, "tense-scope"),
+                )
+                .map(Some)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_selbri_formula_for_bridi_scope_child(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: &'tree SelbriSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(scoped) = self.build_scoped_selbri_formula_for_bridi(bridi, selbri)? {
+            return Ok(scoped);
+        }
+        let relation = relation_label_for_selbri(selbri);
+        if let Some(formula) =
+            self.build_logical_sumti_connection_formula(bridi, Some(selbri), relation.clone())?
+        {
+            return Ok(formula);
+        }
+        self.build_selbri_tanru_formula_for_frame_with_visible_x1_override(
+            selbri,
+            selbri,
+            self.bridi_frame(bridi),
+            self.analysis
+                .syntax_index
+                .bridi_node_id(bridi)
+                .and_then(|node| self.source_for_node(node.0, "bridi-formula")),
+            None,
+        )
+        .map(|result| result.formula)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_unary_formula(
+        &mut self,
+        operator: FormulaOperator,
+        child: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(operator, vec![child], None, source, diagnostics),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_tense_scope_formula(
+        &mut self,
+        child: SemanticObjectId,
+        tense_modal: &'tree TenseModalSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut diagnostics = Vec::new();
+        let eventuality = if let Some(relation) = time_relation_for_tense_modal(tense_modal) {
+            let eventuality = self.next_eventuality();
+            let mut event = SemanticObject::eventuality(
+                EventualityClass::Event,
+                Some(Actuality {
+                    kind: ActualityKind::Actual,
+                }),
+                source.clone(),
+            );
+            event.time = Some(AnchorRelation {
+                relation,
+                anchor: SemanticObjectId::speech_time(),
+            });
+            self.insert(eventuality, event)?;
+            Some(eventuality)
+        } else {
+            diagnostics.push(diagnostic(
+                "scoped tense or modal is not fully lowered beyond source preservation",
+            ));
+            None
+        };
+        let formula = self.next_formula();
+        let mut object = SemanticObject::connective_formula(
+            FormulaOperator::Scoped,
+            vec![child],
+            None,
+            source,
+            diagnostics,
+        );
+        object.eventuality = eventuality;
+        self.insert(formula, object)
     }
 
     #[requires(!relation.is_empty())]
@@ -4050,6 +4189,21 @@ fn connective_is_logical(connective: &ConnectiveSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+fn selbri_has_formula_scope(selbri: &SelbriSyntax) -> bool {
+    match selbri.as_data() {
+        data!(SelbriSyntax::Negated { .. }) => true,
+        data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. })
+        | data!(SelbriSyntax::TaggedSelbri { inner_selbri, .. })
+        | data!(SelbriSyntax::GroupedSelbri {
+            selbri: inner_selbri,
+            ..
+        }) => selbri_has_formula_scope(inner_selbri),
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn time_relation_for_selbri(selbri: &SelbriSyntax) -> Option<String> {
     match selbri.as_data() {
         data!(SelbriSyntax::TaggedSelbri {
@@ -4293,7 +4447,7 @@ fn relation_label_for_selbri(selbri: &SelbriSyntax) -> String {
             relation_label_for_selbri(inner_selbri)
         }
         data!(SelbriSyntax::Negated { inner_selbri, .. }) => {
-            format!("scalar-not {}", relation_label_for_selbri(inner_selbri))
+            relation_label_for_selbri(inner_selbri)
         }
         data!(SelbriSyntax::GroupedSelbri { selbri, .. })
         | data!(SelbriSyntax::TaggedSelbri {
@@ -5053,6 +5207,55 @@ mod tests {
         let event = object(&json, "eventuality:e0");
         assert_eq!(event["time"]["relation"], "before");
         assert_eq!(event["time"]["anchor"], "referent:speech-time");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bridi_negation_wraps_formula_instead_of_relation_label() {
+        let json = semantic_json_for("la .djonz. na pamoi cusku").expect("semantic JSON");
+        assert_eq!(object(&json, "utterance:u1")["content"], "formula:f5");
+        assert_eq!(object(&json, "formula:f5")["operator"], "not");
+        assert_eq!(object(&json, "formula:f5")["children"][0], "formula:f4");
+        assert!(
+            predication_relations(&json)
+                .iter()
+                .all(|relation| !relation.contains("scalar-not"))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn double_bridi_negation_preserves_nested_scope() {
+        let json = semantic_json_for("mi na na klama le zarci").expect("semantic JSON");
+        assert_eq!(object(&json, "utterance:u1")["content"], "formula:f4");
+        assert_eq!(object(&json, "formula:f4")["operator"], "not");
+        assert_eq!(object(&json, "formula:f4")["children"][0], "formula:f3");
+        assert_eq!(object(&json, "formula:f3")["operator"], "not");
+        assert_eq!(object(&json, "formula:f3")["children"][0], "formula:f2");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tense_can_scope_over_negated_formula() {
+        let json = semantic_json_for("mi na pu na ca klama le zarci").expect("semantic JSON");
+        assert_eq!(object(&json, "utterance:u1")["content"], "formula:f5");
+        assert_eq!(object(&json, "formula:f5")["operator"], "not");
+        assert_eq!(object(&json, "formula:f5")["children"][0], "formula:f4");
+        assert_eq!(object(&json, "formula:f4")["operator"], "scoped");
+        assert_eq!(object(&json, "formula:f4")["children"][0], "formula:f3");
+        assert_eq!(object(&json, "formula:f4")["eventuality"], "eventuality:e1");
+        assert_eq!(
+            object(&json, "eventuality:e1")["time"]["relation"],
+            "before"
+        );
+        assert_eq!(object(&json, "formula:f3")["operator"], "not");
+        let klama_event = object(&json, "predication:p2")["eventuality"]
+            .as_str()
+            .expect("klama eventuality");
+        assert_eq!(object(&json, klama_event)["time"]["relation"], "at");
     }
 
     #[test]
