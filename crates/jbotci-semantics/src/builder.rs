@@ -1134,28 +1134,25 @@ where
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let tertau_predication = self.build_predication_for_frame(
-            frame,
-            source.clone(),
-            Some(selbri),
-            relation_label_for_selbri(trailing),
-        )?;
-        let tertau_formula = self.next_formula();
-        self.insert(
-            tertau_formula,
-            SemanticObject::atom_formula(tertau_predication, source.clone(), Vec::new()),
-        )?;
-        let x1_argument = self
-            .objects
-            .get(&tertau_predication)
-            .and_then(|object| object.arguments.get("x1"))
-            .cloned()
-            .ok_or_else(|| {
-                SemanticsError::invalid_graph("tanru tertau has no x1 argument".to_owned())
-            })?;
+        self.build_bound_selbri_tanru_formula_for_argument(selbri, leading, trailing, frame, source)
+            .map(|result| result.formula)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_bound_selbri_tanru_formula_for_argument(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        leading: &'tree SelbriSyntax,
+        trailing: &'tree SelbriSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        let tertau =
+            self.build_selbri_tanru_formula_for_frame(selbri, trailing, frame, source.clone())?;
         let modifier = self.build_property_abstraction_for_selbri(leading, source.clone())?;
         let relation_formula = self.build_tanru_relation_formula(
-            x1_argument,
+            tertau.x1_argument.clone(),
             modifier,
             tanru_relation_name_for_selbri_pair(leading, trailing),
             source.clone(),
@@ -1165,7 +1162,7 @@ where
             formula,
             SemanticObject::connective_formula(
                 FormulaOperator::And,
-                vec![tertau_formula, relation_formula],
+                vec![tertau.formula, relation_formula],
                 Some(Connector {
                     source: "tanru".to_owned(),
                     locus: "selbri".to_owned(),
@@ -1174,7 +1171,54 @@ where
                 source,
                 Vec::new(),
             ),
-        )
+        )?;
+        Ok(TanruFormulaForArgument {
+            formula,
+            x1_argument: tertau.x1_argument,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_selbri_tanru_formula_for_frame(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        relation_selbri: &'tree SelbriSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        if let Some(bound_tanru) = connectorless_bound_selbri_pair(relation_selbri) {
+            return self.build_bound_selbri_tanru_formula_for_argument(
+                selbri,
+                bound_tanru.leading,
+                bound_tanru.trailing,
+                frame,
+                source,
+            );
+        }
+        let predication = self.build_predication_for_frame(
+            frame,
+            source.clone(),
+            Some(selbri),
+            relation_label_for_selbri(relation_selbri),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )?;
+        let x1_argument = self
+            .objects
+            .get(&predication)
+            .and_then(|object| object.arguments.get("x1"))
+            .cloned()
+            .ok_or_else(|| {
+                SemanticsError::invalid_graph("tanru tertau has no x1 argument".to_owned())
+            })?;
+        Ok(TanruFormulaForArgument {
+            formula,
+            x1_argument,
+        })
     }
 
     #[requires(!units.is_empty())]
@@ -2610,10 +2654,16 @@ fn tanru_relation_name(units: &[&TanruUnitSyntax]) -> String {
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn tanru_relation_name_for_selbri_pair(leading: &SelbriSyntax, trailing: &SelbriSyntax) -> String {
+    let trailing_label = tanru_label_for_selbri(trailing);
+    let trailing_label = if selbri_has_explicit_grouping(trailing) {
+        format!("({trailing_label})")
+    } else {
+        trailing_label
+    };
     format!(
         "R[tanru:{}-{}]",
         tanru_label_for_selbri(leading),
-        tanru_label_for_selbri(trailing)
+        trailing_label
     )
 }
 
@@ -2685,6 +2735,17 @@ fn tanru_label_for_selbri(selbri: &SelbriSyntax) -> String {
         );
     }
     relation_label_for_selbri(selbri)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn selbri_has_explicit_grouping(selbri: &SelbriSyntax) -> bool {
+    if let Some(units) = tanru_units_for_selbri(selbri)
+        && !units.is_empty()
+    {
+        return tanru_sequence_has_explicit_grouping(&units);
+    }
+    connectorless_bound_selbri_pair(selbri).is_some()
 }
 
 #[requires(!units.is_empty())]
@@ -3093,6 +3154,25 @@ mod tests {
             !relations
                 .iter()
                 .any(|relation| relation == "klama connected jubme")
+        );
+
+        let repeated_bo = semantic_json_for("ta cmalu bo nixli bo ckule").expect("semantic JSON");
+        let relations = predication_relations(&repeated_bo);
+        assert!(relations.iter().any(|relation| relation == "ckule"));
+        assert!(
+            relations
+                .iter()
+                .any(|relation| relation == "R[tanru:nixli-ckule]")
+        );
+        assert!(
+            relations
+                .iter()
+                .any(|relation| relation == "R[tanru:cmalu-(nixli-ckule)]")
+        );
+        assert!(
+            !relations
+                .iter()
+                .any(|relation| relation.contains("connected"))
         );
     }
 
