@@ -8,19 +8,20 @@ use bityzba::{data, ensures, invariant, requires};
 use jbotci_dictionary::{Dictionary, WordType, normalize_lookup_query};
 use jbotci_morphology::{Cmavo, Word, strip_diacritics};
 use jbotci_syntax::ast::{
-    BridiSyntax, BridiTailSyntax, DescriptionSyntax, ParagraphStatementSyntax, QuantifierSyntax,
-    QuantifierSyntaxData, SelbriSyntax, SelbriSyntaxData, SimpleBridiTailSyntaxData,
-    StatementSyntax, StatementSyntaxData, SumtiSyntax, SumtiSyntaxData, TanruUnitSyntax,
-    TanruUnitSyntaxData, TenseModalSyntax, TenseModalSyntaxData, TextSyntax, Token,
-    WithFreeModifiers, WordRun,
+    BoGroupedBridiTailSyntax, BridiSyntax, BridiTailSyntax, ConnectiveSyntax, ConnectiveSyntaxData,
+    DescriptionSyntax, ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData,
+    SelbriSyntax, SelbriSyntaxData, SimpleBridiTailSyntaxData, StatementSyntax,
+    StatementSyntaxData, SumtiSyntax, SumtiSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData,
+    TenseModalSyntax, TenseModalSyntaxData, TextSyntax, Token, WithFreeModifiers, WordRun,
 };
 
 use crate::model::{
-    Actuality, ActualityKind, AnchorRelation, ArgumentValue, Composition, Descriptor,
-    EventualityClass, IndexicalKind, PredicationMode, QuantityForm, QuantityScale, QuantityValue,
-    QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, ReferentCategory,
-    SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId, SemanticSort,
-    SequenceRelation, UtteranceForce, diagnostic, source_from_spans,
+    AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, Composition,
+    Connector, Descriptor, EventualityClass, FormulaOperator, IndexicalKind, PredicationMode,
+    QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot,
+    QuestionSlotRole, ReferentCategory, SemanticDiagnostic, SemanticGraph, SemanticObject,
+    SemanticObjectId, SemanticSort, SequenceRelation, UtteranceForce, diagnostic,
+    source_from_spans,
 };
 use crate::references::{
     PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, ReferenceAnalysisError,
@@ -435,6 +436,14 @@ where
 
     #[requires(true)]
     #[ensures(true)]
+    fn next_abstraction(&mut self) -> SemanticObjectId {
+        let id = SemanticObjectId::abstraction(self.counters.abstraction);
+        self.counters.abstraction += 1;
+        id
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn next_quantity(&mut self) -> SemanticObjectId {
         let id = SemanticObjectId::quantity(self.counters.quantity);
         self.counters.quantity += 1;
@@ -722,10 +731,26 @@ where
         &mut self,
         bridi: &'tree BridiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if bridi.bridi_tail.ke_continuation.is_none()
+            && !bridi.bridi_tail.first.continuations.is_empty()
+        {
+            return self.build_afterthought_bridi_tail_formula(bridi);
+        }
         let selbri = main_selbri_for_tail(&bridi.bridi_tail);
+        if let Some(selbri) = selbri
+            && let Some(units) = tanru_units_for_selbri(selbri)
+            && units.len() > 1
+        {
+            return self.build_tanru_formula_for_bridi(bridi, selbri, &units);
+        }
         let relation = selbri
             .map(relation_label_for_selbri)
             .unwrap_or_else(|| "unknown-relation".to_owned());
+        if let Some(formula) =
+            self.build_logical_sumti_connection_formula(bridi, selbri, relation.clone())?
+        {
+            return Ok(formula);
+        }
         let predication = self.build_predication_for_bridi(bridi, selbri, relation)?;
         let id = self.next_formula();
         self.insert(
@@ -743,9 +768,519 @@ where
 
     #[requires(!relation.is_empty())]
     #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_logical_sumti_connection_formula(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: Option<&'tree SelbriSyntax>,
+        relation: String,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(frame) = self.bridi_frame(bridi) else {
+            return Ok(None);
+        };
+        let mut alternatives = BTreeMap::<String, Vec<ArgumentValue>>::new();
+        let mut highest_assigned_place = 0usize;
+        let mut connector = None;
+        let mut operator = FormulaOperator::And;
+        let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
+        for assignment_id in assignment_ids {
+            let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
+                continue;
+            };
+            let PlaceSlot::Numbered(place) = assignment.slot else {
+                continue;
+            };
+            let sumti = self
+                .analysis
+                .syntax_index
+                .sumti(assignment.sumti)
+                .ok_or_else(SemanticsError::missing_syntax_node)?;
+            let place = place.get() as usize;
+            highest_assigned_place = highest_assigned_place.max(place);
+            let key = format!("x{place}");
+            if let Some((leading_sumti, connective, trailing_sumti)) =
+                logical_sumti_connection_parts(sumti)
+            {
+                if connector.is_none() {
+                    operator = formula_operator_for_connective(connective);
+                    connector = Some(Connector {
+                        source: connective_text(connective),
+                        locus: "sumti".to_owned(),
+                        truth_table: None,
+                    });
+                }
+                alternatives.insert(
+                    key,
+                    vec![
+                        self.build_argument_for_sumti(leading_sumti)?,
+                        self.build_argument_for_sumti(trailing_sumti)?,
+                    ],
+                );
+            } else {
+                alternatives.insert(key, vec![self.build_argument_for_sumti(sumti)?]);
+            }
+        }
+        let Some(connector) = connector else {
+            return Ok(None);
+        };
+        let fill_through =
+            (self.relation_place_count)(&relation).unwrap_or_else(|| highest_assigned_place.max(1));
+        for place in 1..=fill_through {
+            let key = format!("x{place}");
+            if !alternatives.contains_key(&key) {
+                alternatives.insert(key, vec![self.build_elided_argument_for_place(place)?]);
+            }
+        }
+        let mut branches = vec![BTreeMap::new()];
+        for (place, values) in alternatives {
+            let mut next = Vec::new();
+            for branch in &branches {
+                for value in &values {
+                    let mut branch = branch.clone();
+                    branch.insert(place.clone(), value.clone());
+                    next.push(branch);
+                }
+            }
+            branches = next;
+        }
+        let mut children = Vec::new();
+        for arguments in branches {
+            let predication = self.build_predication_from_arguments(
+                relation.clone(),
+                selbri,
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "distributed-predication")),
+                arguments,
+                Vec::new(),
+            )?;
+            let formula = self.next_formula();
+            self.insert(
+                formula,
+                SemanticObject::atom_formula(
+                    predication,
+                    self.analysis
+                        .syntax_index
+                        .bridi_node_id(bridi)
+                        .and_then(|node| self.source_for_node(node.0, "distributed-formula")),
+                    Vec::new(),
+                ),
+            )?;
+            children.push(formula);
+        }
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                operator,
+                children,
+                Some(connector),
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "sumti-connection-formula")),
+                Vec::new(),
+            ),
+        )
+        .map(Some)
+    }
+
+    #[requires(!bridi.bridi_tail.first.continuations.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_afterthought_bridi_tail_formula(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut children = Vec::new();
+        children.push(self.build_bo_grouped_tail_formula(&bridi.bridi_tail.first.first)?);
+        let mut connector = None;
+        let mut operator = FormulaOperator::And;
+        for continuation in &bridi.bridi_tail.first.continuations {
+            if connector.is_none() {
+                operator = formula_operator_for_connective(&continuation.connective);
+                connector = Some(Connector {
+                    source: connective_text(&continuation.connective),
+                    locus: "bridiTail".to_owned(),
+                    truth_table: None,
+                });
+            }
+            children.push(self.build_bo_grouped_tail_formula(&continuation.bridi_tail)?);
+        }
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                operator,
+                children,
+                connector,
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "compound-bridi-formula")),
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(units.len() > 1)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_tanru_formula_for_tail(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        units: &[&'tree TanruUnitSyntax],
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let tertau = units
+            .last()
+            .expect("precondition guarantees at least one tanru unit");
+        let tertau_relation = relation_label_for_tanru_unit(tertau);
+        let source = self
+            .analysis
+            .syntax_index
+            .selbri_node_id(selbri)
+            .and_then(|node| self.source_for_node(node.0, "predication"));
+        let tertau_predication = self.build_predication_for_frame(
+            self.branch_frame_for_selbri(selbri),
+            source.clone(),
+            Some(selbri),
+            tertau_relation,
+        )?;
+        let tertau_formula = self.next_formula();
+        self.insert(
+            tertau_formula,
+            SemanticObject::atom_formula(tertau_predication, source.clone(), Vec::new()),
+        )?;
+        let x1_argument = self
+            .objects
+            .get(&tertau_predication)
+            .and_then(|object| object.arguments.get("x1"))
+            .cloned()
+            .ok_or_else(|| {
+                SemanticsError::invalid_graph("tanru tertau has no x1 argument".to_owned())
+            })?;
+        let modifier =
+            self.build_property_abstraction_for_units(&units[..units.len() - 1], source.clone())?;
+        let relation_formula = self.build_tanru_relation_formula(
+            x1_argument,
+            modifier,
+            tanru_relation_name(units),
+            source.clone(),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                FormulaOperator::And,
+                vec![tertau_formula, relation_formula],
+                Some(Connector {
+                    source: "tanru".to_owned(),
+                    locus: "selbri".to_owned(),
+                    truth_table: None,
+                }),
+                source,
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_bo_grouped_tail_formula(
+        &mut self,
+        tail: &'tree BoGroupedBridiTailSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let Some(selbri) = simple_bo_grouped_tail_selbri(tail) else {
+            let predication =
+                self.build_predication_for_frame(None, None, None, "unknown-relation".to_owned())?;
+            let formula = self.next_formula();
+            return self.insert(
+                formula,
+                SemanticObject::atom_formula(
+                    predication,
+                    None,
+                    vec![diagnostic("bridi-tail branch is not fully lowered yet")],
+                ),
+            );
+        };
+        if let Some(units) = tanru_units_for_selbri(selbri)
+            && units.len() > 1
+        {
+            return self.build_tanru_formula_for_tail(selbri, &units);
+        }
+        let relation = relation_label_for_selbri(selbri);
+        let predication = self.build_predication_for_frame(
+            self.branch_frame_for_selbri(selbri),
+            self.analysis
+                .syntax_index
+                .selbri_node_id(selbri)
+                .and_then(|node| self.source_for_node(node.0, "predication")),
+            Some(selbri),
+            relation,
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(
+                predication,
+                self.analysis
+                    .syntax_index
+                    .selbri_node_id(selbri)
+                    .and_then(|node| self.source_for_node(node.0, "bridi-tail-formula")),
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(units.len() > 1)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_tanru_formula_for_bridi(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: &'tree SelbriSyntax,
+        units: &[&'tree TanruUnitSyntax],
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let tertau = units
+            .last()
+            .expect("precondition guarantees at least one tanru unit");
+        let tertau_relation = relation_label_for_tanru_unit(tertau);
+        let tertau_predication =
+            self.build_predication_for_bridi(bridi, Some(selbri), tertau_relation)?;
+        let tertau_formula = self.next_formula();
+        self.insert(
+            tertau_formula,
+            SemanticObject::atom_formula(
+                tertau_predication,
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "tertau-formula")),
+                Vec::new(),
+            ),
+        )?;
+        let x1_argument = self
+            .objects
+            .get(&tertau_predication)
+            .and_then(|object| object.arguments.get("x1"))
+            .cloned()
+            .ok_or_else(|| {
+                SemanticsError::invalid_graph("tanru tertau has no x1 argument".to_owned())
+            })?;
+        let modifier = self.build_property_abstraction_for_units(
+            &units[..units.len() - 1],
+            self.analysis
+                .syntax_index
+                .selbri_node_id(selbri)
+                .and_then(|node| self.source_for_node(node.0, "tanru-modifier")),
+        )?;
+        let relation_formula = self.build_tanru_relation_formula(
+            x1_argument,
+            modifier,
+            tanru_relation_name(units),
+            self.analysis
+                .syntax_index
+                .selbri_node_id(selbri)
+                .and_then(|node| self.source_for_node(node.0, "tanru-relation")),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                FormulaOperator::And,
+                vec![tertau_formula, relation_formula],
+                Some(Connector {
+                    source: "tanru".to_owned(),
+                    locus: "selbri".to_owned(),
+                    truth_table: None,
+                }),
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "tanru-formula")),
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(!units.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_property_abstraction_for_units(
+        &mut self,
+        units: &[&'tree TanruUnitSyntax],
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let parameter = self.next_parameter();
+        self.insert(
+            parameter,
+            SemanticObject::parameter(
+                SemanticSort::Entity,
+                crate::model::ParameterRole::PropertySlot,
+                "ce'u".to_owned(),
+                source.clone(),
+            ),
+        )?;
+        let body = self.build_property_formula_for_units(units, parameter, source.clone())?;
+        let abstraction = self.next_abstraction();
+        self.insert(
+            abstraction,
+            SemanticObject::abstraction(
+                AbstractionKind::Property,
+                body,
+                vec![parameter],
+                source,
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(!units.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_property_formula_for_units(
+        &mut self,
+        units: &[&'tree TanruUnitSyntax],
+        parameter: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let [single] = units {
+            return self.build_property_atom_for_relation(
+                relation_label_for_tanru_unit(single),
+                parameter,
+                source,
+            );
+        }
+        let tertau = units
+            .last()
+            .expect("precondition guarantees at least one tanru unit");
+        let tertau_formula = self.build_property_atom_for_relation(
+            relation_label_for_tanru_unit(tertau),
+            parameter,
+            source.clone(),
+        )?;
+        let modifier =
+            self.build_property_abstraction_for_units(&units[..units.len() - 1], source.clone())?;
+        let relation_formula = self.build_tanru_relation_formula(
+            ArgumentValue::filled(parameter, None),
+            modifier,
+            tanru_relation_name(units),
+            source.clone(),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                FormulaOperator::And,
+                vec![tertau_formula, relation_formula],
+                Some(Connector {
+                    source: "tanru".to_owned(),
+                    locus: "property-abstraction".to_owned(),
+                    truth_table: None,
+                }),
+                source,
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_property_atom_for_relation(
+        &mut self,
+        relation: String,
+        parameter: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let eventuality = self.next_eventuality();
+        self.insert(
+            eventuality,
+            SemanticObject::eventuality(EventualityClass::Event, None, source.clone()),
+        )?;
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(parameter, None));
+        let mut diagnostics = Vec::new();
+        match (self.relation_place_count)(&relation) {
+            Some(place_count) => {
+                for place in 2..=place_count {
+                    arguments
+                        .insert(format!("x{place}"), self.build_elided_argument_for_place(place)?);
+                }
+            }
+            None => diagnostics.push(diagnostic(
+                "relation place structure is unavailable; only explicit assigned places are represented",
+            )),
+        }
+        let predication = self.next_predication();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                relation,
+                Some(eventuality),
+                arguments,
+                PredicationMode::Restrictive,
+                source.clone(),
+                diagnostics,
+            ),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_tanru_relation_formula(
+        &mut self,
+        x1_argument: ArgumentValue,
+        modifier: SemanticObjectId,
+        relation: String,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), x1_argument);
+        arguments.insert("x2".to_owned(), ArgumentValue::filled(modifier, None));
+        let predication = self.next_predication();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                relation,
+                None,
+                arguments,
+                PredicationMode::Asserted,
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
     fn build_predication_for_bridi(
         &mut self,
         bridi: &'tree BridiSyntax,
+        selbri: Option<&'tree SelbriSyntax>,
+        relation: String,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_predication_for_frame(
+            self.bridi_frame(bridi),
+            self.analysis
+                .syntax_index
+                .bridi_node_id(bridi)
+                .and_then(|node| self.source_for_node(node.0, "predication")),
+            selbri,
+            relation,
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_predication_for_frame(
+        &mut self,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
         selbri: Option<&'tree SelbriSyntax>,
         relation: String,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -755,10 +1290,7 @@ where
             Some(Actuality {
                 kind: ActualityKind::Actual,
             }),
-            self.analysis
-                .syntax_index
-                .bridi_node_id(bridi)
-                .and_then(|node| self.source_for_node(node.0, "eventuality")),
+            source.clone(),
         );
         if let Some(relation) = selbri.and_then(time_relation_for_selbri) {
             event.time = Some(AnchorRelation {
@@ -767,8 +1299,8 @@ where
             });
         }
         self.insert(eventuality, event)?;
-        let frame = self.bridi_frame(bridi);
         let mut arguments = BTreeMap::new();
+        let mut highest_assigned_place = 0usize;
         if let Some(frame) = frame {
             let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
             for assignment_id in assignment_ids {
@@ -785,7 +1317,9 @@ where
                     .sumti(assignment.sumti)
                     .ok_or_else(SemanticsError::missing_syntax_node)?;
                 let argument = self.build_argument_for_sumti(sumti)?;
-                arguments.insert(format!("x{}", place.get()), argument);
+                let place = place.get() as usize;
+                highest_assigned_place = highest_assigned_place.max(place);
+                arguments.insert(format!("x{place}"), argument);
             }
         }
         let mut diagnostics = if selbri.is_none() {
@@ -802,9 +1336,17 @@ where
                     }
                 }
             }
-            None => diagnostics.push(diagnostic(
-                "relation place structure is unavailable; only explicit assigned places are represented",
-            )),
+            None => {
+                for place in 1..=highest_assigned_place.max(1) {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+                diagnostics.push(diagnostic(
+                    "relation place structure is unavailable; only places required by explicit assignments are represented",
+                ));
+            }
         }
         let id = self.next_predication();
         self.insert(
@@ -814,10 +1356,46 @@ where
                 Some(eventuality),
                 arguments,
                 PredicationMode::Asserted,
-                self.analysis
-                    .syntax_index
-                    .bridi_node_id(bridi)
-                    .and_then(|node| self.source_for_node(node.0, "predication")),
+                source,
+                diagnostics,
+            ),
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_predication_from_arguments(
+        &mut self,
+        relation: String,
+        selbri: Option<&'tree SelbriSyntax>,
+        source: Option<crate::model::SemanticSource>,
+        arguments: BTreeMap<String, ArgumentValue>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let eventuality = self.next_eventuality();
+        let mut event = SemanticObject::eventuality(
+            EventualityClass::Event,
+            Some(Actuality {
+                kind: ActualityKind::Actual,
+            }),
+            source.clone(),
+        );
+        if let Some(relation) = selbri.and_then(time_relation_for_selbri) {
+            event.time = Some(AnchorRelation {
+                relation,
+                anchor: SemanticObjectId::speech_time(),
+            });
+        }
+        self.insert(eventuality, event)?;
+        let id = self.next_predication();
+        self.insert(
+            id,
+            SemanticObject::predication(
+                relation,
+                Some(eventuality),
+                arguments,
+                PredicationMode::Asserted,
+                source,
                 diagnostics,
             ),
         )
@@ -876,6 +1454,36 @@ where
                     .place_analysis
                     .frame(*frame)
                     .is_some_and(|frame| frame.kind == PlaceFrameKind::Bridi)
+            })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn branch_frame_for_selbri(&self, selbri: &'tree SelbriSyntax) -> Option<SelbriPlaceFrameId> {
+        let selbri_id = self.analysis.syntax_index.selbri_node_id(selbri)?;
+        self.analysis
+            .place_analysis
+            .frames_for_node(selbri_id.0)
+            .iter()
+            .copied()
+            .find(|frame| {
+                self.analysis
+                    .place_analysis
+                    .frame(*frame)
+                    .is_some_and(|frame| {
+                        matches!(
+                            frame.kind,
+                            PlaceFrameKind::BaseSelbri
+                                | PlaceFrameKind::TanruUnit
+                                | PlaceFrameKind::Compound
+                                | PlaceFrameKind::Converted
+                                | PlaceFrameKind::JaiConverted
+                                | PlaceFrameKind::CoInverted
+                                | PlaceFrameKind::Forwarding
+                                | PlaceFrameKind::ConnectiveBranching
+                                | PlaceFrameKind::ProBridi
+                        )
+                    })
             })
     }
 
@@ -1314,6 +1922,47 @@ fn sumti_is_elided(sumti: &SumtiSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+fn logical_sumti_connection_parts(
+    sumti: &SumtiSyntax,
+) -> Option<(&SumtiSyntax, &ConnectiveSyntax, &SumtiSyntax)> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::SumtiConnection {
+            leading_sumti,
+            connective,
+            trailing_sumti,
+        }) if connective_is_logical(connective) => {
+            Some((leading_sumti, connective, trailing_sumti))
+        }
+        data!(SumtiSyntax::BoundSumtiConnection {
+            leading_sumti,
+            bo_connective,
+            trailing_sumti,
+            ..
+        }) => bo_connective
+            .as_deref()
+            .filter(|connective| connective_is_logical(connective))
+            .map(|connective| (leading_sumti.as_ref(), connective, trailing_sumti.as_ref())),
+        data!(SumtiSyntax::ForethoughtSumtiConnection {
+            leading_sumti,
+            gek,
+            trailing_sumti,
+            ..
+        }) if connective_is_logical(gek) => Some((leading_sumti, gek, trailing_sumti)),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connective_is_logical(connective: &ConnectiveSyntax) -> bool {
+    !matches!(
+        connective.as_data(),
+        data!(ConnectiveSyntax::NonLogical { .. }) | data!(ConnectiveSyntax::Interval { .. })
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn time_relation_for_selbri(selbri: &SelbriSyntax) -> Option<String> {
     match selbri.as_data() {
         data!(SelbriSyntax::TaggedSelbri {
@@ -1378,6 +2027,82 @@ fn main_selbri_for_tail(tail: &'_ BridiTailSyntax) -> Option<&'_ SelbriSyntax> {
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn simple_bo_grouped_tail_selbri(tail: &BoGroupedBridiTailSyntax) -> Option<&SelbriSyntax> {
+    match tail.first.as_data() {
+        data!(SimpleBridiTailSyntax::SelbriBridiTail { selbri, .. }) => Some(selbri),
+        data!(SimpleBridiTailSyntax::TermPrefixedBridiTail { bridi_tail, .. }) => {
+            main_selbri_for_tail(bridi_tail)
+        }
+        data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(..)) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn connective_text(connective: &ConnectiveSyntax) -> String {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Afterthought { cmavo, .. })
+        | data!(ConnectiveSyntax::Selbri { cmavo, .. })
+        | data!(ConnectiveSyntax::BridiTail { cmavo, .. })
+        | data!(ConnectiveSyntax::Forethought { cmavo, .. })
+        | data!(ConnectiveSyntax::NonLogical { cmavo, .. })
+        | data!(ConnectiveSyntax::Interval { cmavo, .. }) => token_vec_text(&cmavo.value),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn formula_operator_for_connective(connective: &ConnectiveSyntax) -> FormulaOperator {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Afterthought { cmavo, .. })
+        | data!(ConnectiveSyntax::Selbri { cmavo, .. })
+        | data!(ConnectiveSyntax::BridiTail { cmavo, .. })
+        | data!(ConnectiveSyntax::Forethought { cmavo, .. })
+        | data!(ConnectiveSyntax::NonLogical { cmavo, .. })
+        | data!(ConnectiveSyntax::Interval { cmavo, .. }) => match () {
+            _ if cmavo.value.iter().any(|token| {
+                matches!(
+                    token.cmavo(),
+                    Some(Cmavo::A | Cmavo::Giha | Cmavo::Ja | Cmavo::Ga)
+                )
+            }) =>
+            {
+                FormulaOperator::Or
+            }
+            _ if cmavo.value.iter().any(|token| {
+                matches!(
+                    token.cmavo(),
+                    Some(Cmavo::E | Cmavo::Gihe | Cmavo::Je | Cmavo::Ge)
+                )
+            }) =>
+            {
+                FormulaOperator::And
+            }
+            _ if cmavo.value.iter().any(|token| {
+                matches!(
+                    token.cmavo(),
+                    Some(Cmavo::O | Cmavo::Giho | Cmavo::Jo | Cmavo::Go)
+                )
+            }) =>
+            {
+                FormulaOperator::Iff
+            }
+            _ if cmavo.value.iter().any(|token| {
+                matches!(
+                    token.cmavo(),
+                    Some(Cmavo::U | Cmavo::Gihu | Cmavo::Ju | Cmavo::Gu)
+                )
+            }) =>
+            {
+                FormulaOperator::WhetherOrNot
+            }
+            _ => FormulaOperator::And,
+        },
+    }
+}
+
+#[requires(true)]
 #[ensures(!ret.is_empty())]
 fn relation_label_for_selbri(selbri: &SelbriSyntax) -> String {
     match selbri.as_data() {
@@ -1424,6 +2149,31 @@ fn relation_label_for_selbri(selbri: &SelbriSyntax) -> String {
         data!(SelbriSyntax::Abstraction(abstraction)) => token_text(&abstraction.nu.value),
         data!(SelbriSyntax::ForethoughtSelbriConnection { .. }) => "connected-bridi".to_owned(),
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tanru_units_for_selbri(selbri: &SelbriSyntax) -> Option<Vec<&TanruUnitSyntax>> {
+    match selbri.as_data() {
+        data!(SelbriSyntax::Tanru(units)) => Some(units.iter().collect()),
+        data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+        | data!(SelbriSyntax::TaggedSelbri {
+            inner_selbri: selbri,
+            ..
+        }) => tanru_units_for_selbri(selbri),
+        _ => None,
+    }
+}
+
+#[requires(!units.is_empty())]
+#[ensures(!ret.is_empty())]
+fn tanru_relation_name(units: &[&TanruUnitSyntax]) -> String {
+    let labels = units
+        .iter()
+        .map(|unit| relation_label_for_tanru_unit(unit))
+        .collect::<Vec<_>>()
+        .join("-");
+    format!("R[tanru:{labels}]")
 }
 
 #[requires(true)]
@@ -1493,6 +2243,12 @@ fn word_text(word: &Word) -> String {
 #[ensures(!ret.is_empty())]
 fn word_run_text(words: &WordRun) -> String {
     words.iter().map(token_text).collect::<Vec<_>>().join(" ")
+}
+
+#[requires(!tokens.is_empty())]
+#[ensures(!ret.is_empty())]
+fn token_vec_text(tokens: &[Token]) -> String {
+    tokens.iter().map(token_text).collect::<Vec<_>>().join(" ")
 }
 
 #[requires(!text.is_empty())]
@@ -1645,6 +2401,103 @@ mod tests {
             sequence["diagnostics"][0]["message"]
                 .as_str()
                 .is_some_and(|message| message.contains("truth-functional lowering"))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn uniform_tanru_reifies_seltau_as_property_modifier() {
+        let json = semantic_json_for("ti barda nanla").expect("semantic JSON");
+        assert_eq!(object(&json, "utterance:u1")["content"], "formula:f4");
+        assert_eq!(object(&json, "predication:p1")["relation"], "nanla");
+        assert_eq!(object(&json, "predication:p2")["relation"], "barda");
+        assert_eq!(object(&json, "predication:p2")["mode"], "restrictive");
+        assert_eq!(
+            object(&json, "predication:p2")["arguments"]["x1"]["value"],
+            "parameter:p1"
+        );
+        assert_eq!(
+            object(&json, "abstraction:a1")["abstractionKind"],
+            "property"
+        );
+        assert_eq!(object(&json, "abstraction:a1")["arity"], 1);
+        assert_eq!(object(&json, "abstraction:a1")["body"], "formula:f2");
+        assert_eq!(
+            object(&json, "abstraction:a1")["parameters"][0],
+            "parameter:p1"
+        );
+        assert_eq!(
+            object(&json, "predication:p3")["relation"],
+            "R[tanru:barda-nanla]"
+        );
+        assert_eq!(
+            object(&json, "predication:p3")["arguments"]["x2"]["value"],
+            "abstraction:a1"
+        );
+        assert_eq!(object(&json, "formula:f4")["operator"], "and");
+        assert_eq!(object(&json, "formula:f4")["children"][0], "formula:f1");
+        assert_eq!(object(&json, "formula:f4")["children"][1], "formula:f3");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gihe_omitted_x1_is_not_shared_but_explicit_x1_is_shared() {
+        let omitted =
+            semantic_json_for("klama le zarci gi'e klama le briju").expect("semantic JSON");
+        let first_omitted = object(&omitted, "predication:p2")["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("first x1 value");
+        let second_omitted = object(&omitted, "predication:p4")["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("second x1 value");
+        assert_ne!(first_omitted, second_omitted);
+        assert_eq!(object(&omitted, "formula:f5")["operator"], "and");
+        assert_eq!(
+            object(&omitted, "formula:f5")["connector"]["source"],
+            "gi'e"
+        );
+
+        let explicit =
+            semantic_json_for("mi klama le zarci gi'e klama le briju").expect("semantic JSON");
+        assert_eq!(
+            object(&explicit, "predication:p2")["arguments"]["x1"]["value"],
+            "referent:speaker"
+        );
+        assert_eq!(
+            object(&explicit, "predication:p4")["arguments"]["x1"]["value"],
+            "referent:speaker"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_sumti_connection_distributes_and_shares_elided_places() {
+        let json = semantic_json_for("la djan .e la alis klama le zarci").expect("semantic JSON");
+        assert_eq!(object(&json, "utterance:u1")["content"], "formula:f4");
+        assert_eq!(object(&json, "formula:f4")["operator"], "and");
+        assert_eq!(object(&json, "formula:f4")["connector"]["source"], "e");
+        assert_eq!(
+            object(&json, "predication:p2")["arguments"]["x1"]["value"],
+            "referent:r1"
+        );
+        assert_eq!(
+            object(&json, "predication:p3")["arguments"]["x1"]["value"],
+            "referent:r2"
+        );
+        assert_eq!(
+            object(&json, "predication:p2")["arguments"]["x3"]["value"],
+            object(&json, "predication:p3")["arguments"]["x3"]["value"]
+        );
+        assert_eq!(
+            object(&json, "predication:p2")["arguments"]["x4"]["value"],
+            object(&json, "predication:p3")["arguments"]["x4"]["value"]
+        );
+        assert_eq!(
+            object(&json, "predication:p2")["arguments"]["x5"]["value"],
+            object(&json, "predication:p3")["arguments"]["x5"]["value"]
         );
     }
 

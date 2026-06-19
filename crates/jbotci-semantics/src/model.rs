@@ -260,6 +260,9 @@ impl SemanticGraph {
         if !semantic_object_references_are_defined(&objects) {
             return Err("semantic object references must not dangle".to_owned());
         }
+        if !semantic_object_references_match_roles(&objects) {
+            return Err("semantic object references must match semantic roles".to_owned());
+        }
         if !semantic_object_arguments_are_valid(&objects) {
             return Err(
                 "predication arguments must use valid numbered places and argument fillers"
@@ -386,6 +389,8 @@ pub struct SemanticObject {
     pub abstracted: Option<SemanticObjectId>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parameters: Vec<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arity: Option<usize>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub embedded_questions: Vec<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -485,6 +490,7 @@ impl SemanticObject {
             abstraction_kind: None,
             abstracted: None,
             parameters: Vec::new(),
+            arity: None,
             embedded_questions: Vec::new(),
             sign_kind: None,
             quotation: None,
@@ -637,6 +643,47 @@ impl SemanticObject {
         let mut object = Self::empty(SemanticObjectKind::Formula);
         object.operator = Some(FormulaOperator::Atom);
         object.predication = Some(predication);
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(!children.is_empty())]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Formula)]
+    pub fn connective_formula(
+        operator: FormulaOperator,
+        children: Vec<SemanticObjectId>,
+        connector: Option<Connector>,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Formula);
+        object.operator = Some(operator);
+        object.children = children;
+        object.connector = connector;
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(parameters
+        .iter()
+        .all(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter))]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Abstraction)]
+    pub fn abstraction(
+        kind: AbstractionKind,
+        body: SemanticObjectId,
+        parameters: Vec<SemanticObjectId>,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Abstraction);
+        object.abstraction_kind = Some(kind);
+        object.body = Some(body);
+        if kind == AbstractionKind::Property {
+            object.arity = Some(parameters.len());
+        }
+        object.parameters = parameters;
         object.source = source;
         object.diagnostics = diagnostics;
         object
@@ -1335,6 +1382,83 @@ pub fn semantic_object_references_are_defined(
 
 #[requires(true)]
 #[ensures(true)]
+pub fn semantic_object_references_match_roles(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> bool {
+    objects
+        .values()
+        .all(semantic_object_references_match_roles_for_object)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn semantic_object_references_match_roles_for_object(object: &SemanticObject) -> bool {
+    optional_reference_has_kind(object.speaker, SemanticObjectKind::Referent)
+        && optional_reference_has_kind(object.audience, SemanticObjectKind::Referent)
+        && optional_reference_has_kind(object.eventuality, SemanticObjectKind::Eventuality)
+        && optional_reference_has_any_kind(
+            object.content,
+            &[
+                SemanticObjectKind::Formula,
+                SemanticObjectKind::Sequence,
+                SemanticObjectKind::Question,
+            ],
+        )
+        && object.deictic_ground.is_none_or(|ground| {
+            ground.time.object_kind() == SemanticObjectKind::Referent
+                && ground.place.object_kind() == SemanticObjectKind::Referent
+        })
+        && references_have_kind(&object.asides, SemanticObjectKind::Utterance)
+        && references_have_kind(&object.items, SemanticObjectKind::Utterance)
+        && optional_reference_has_kind(
+            object.relation_metadata,
+            SemanticObjectKind::RelationMetadata,
+        )
+        && optional_reference_has_kind(object.predication, SemanticObjectKind::Predication)
+        && references_have_kind(&object.children, SemanticObjectKind::Formula)
+        && optional_reference_has_kind(object.variable, SemanticObjectKind::Referent)
+        && optional_reference_has_kind(object.restriction, SemanticObjectKind::Formula)
+        && optional_reference_has_kind(object.body, SemanticObjectKind::Formula)
+        && optional_reference_has_kind(object.quantity, SemanticObjectKind::Quantity)
+        && references_have_kind(&object.parameters, SemanticObjectKind::Parameter)
+        && references_have_kind(&object.embedded_questions, SemanticObjectKind::Question)
+        && optional_reference_has_kind(object.asker, SemanticObjectKind::Referent)
+        && optional_reference_has_kind(object.respondent, SemanticObjectKind::Referent)
+        && object
+            .slots
+            .iter()
+            .all(|slot| slot.parameter.object_kind() == SemanticObjectKind::Parameter)
+        && optional_reference_has_kind(object.focus, SemanticObjectKind::Parameter)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn optional_reference_has_kind(
+    reference: Option<SemanticObjectId>,
+    kind: SemanticObjectKind,
+) -> bool {
+    reference.is_none_or(|reference| reference.object_kind() == kind)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn optional_reference_has_any_kind(
+    reference: Option<SemanticObjectId>,
+    kinds: &[SemanticObjectKind],
+) -> bool {
+    reference.is_none_or(|reference| kinds.contains(&reference.object_kind()))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn references_have_kind(references: &[SemanticObjectId], kind: SemanticObjectKind) -> bool {
+    references
+        .iter()
+        .all(|reference| reference.object_kind() == kind)
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub fn semantic_object_arguments_are_valid(
     objects: &BTreeMap<SemanticObjectId, SemanticObject>,
 ) -> bool {
@@ -1440,5 +1564,96 @@ mod tests {
 
         let error = SemanticGraph::new(root, objects).expect_err("dangling reference");
         assert!(error.contains("must not dangle"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_graph_rejects_wrong_kind_role_references() {
+        let root = SemanticObjectId::formula(1);
+        let referent = SemanticObjectId::referent(1);
+        let mut objects = BTreeMap::new();
+        objects.insert(
+            root,
+            SemanticObject::connective_formula(
+                FormulaOperator::And,
+                vec![referent],
+                None,
+                None,
+                Vec::new(),
+            ),
+        );
+        objects.insert(
+            referent,
+            SemanticObject::referent(
+                ReferentCategory::Constant,
+                SemanticSort::Entity,
+                None,
+                None,
+                None,
+                None,
+                Vec::new(),
+            ),
+        );
+
+        let error = SemanticGraph::new(root, objects).expect_err("wrong reference kind");
+        assert!(error.contains("match semantic roles"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_graph_rejects_malformed_argument_places() {
+        let root = SemanticObjectId::formula(1);
+        let predication = SemanticObjectId::predication(1);
+        let referent = SemanticObjectId::referent(1);
+        let mut arguments = BTreeMap::new();
+        arguments.insert("01".to_owned(), ArgumentValue::filled(referent, None));
+
+        let mut objects = BTreeMap::new();
+        objects.insert(
+            root,
+            SemanticObject::atom_formula(predication, None, Vec::new()),
+        );
+        objects.insert(
+            predication,
+            SemanticObject::predication(
+                "klama".to_owned(),
+                None,
+                arguments,
+                PredicationMode::Asserted,
+                None,
+                Vec::new(),
+            ),
+        );
+        objects.insert(
+            referent,
+            SemanticObject::referent(
+                ReferentCategory::Constant,
+                SemanticSort::Entity,
+                None,
+                None,
+                None,
+                None,
+                Vec::new(),
+            ),
+        );
+
+        let error = SemanticGraph::new(root, objects).expect_err("malformed argument place");
+        assert!(error.contains("valid numbered places"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn argument_value_invariant_rejects_deleted_values() {
+        let invalid = ArgumentValue::try_from_data(data!(ArgumentValue {
+            kind: ArgumentValueKind::Deleted,
+            value: Some(SemanticObjectId::referent(1)),
+            introduced_by: Some("zi'o".to_owned()),
+            source: None,
+        }));
+
+        assert!(invalid.is_err());
     }
 }
