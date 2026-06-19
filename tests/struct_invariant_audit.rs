@@ -108,6 +108,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "jvozba pane layout is a transient placement result derived from measured viewport state",
     ),
     (
+        "crates/jbotci-phonetic/src/lib.rs:AlineSimilarityScratch",
+        "ALINE scratch rows are resized before scoring and arbitrary cached buffer contents are valid",
+    ),
+    (
         "crates/jbotci-ui/src/lib.rs:BlockReferenceHeightMetrics",
         "block reference height metrics are measured renderer geometry consumed by sizing effects",
     ),

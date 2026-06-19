@@ -9,7 +9,8 @@ use jbotci_morphology::{
     normalize_lojban_input_text, segment_words_with_modifiers,
 };
 use jbotci_phonetic::{
-    aline_phonetic_similarity, compare_similarity_then_index, sound_query_to_token_sequence,
+    AlineSimilarityScratch, aline_phonetic_similarity_with_scratch, compare_similarity_then_index,
+    sound_query_to_token_sequence,
 };
 use regex::Regex;
 
@@ -331,6 +332,20 @@ pub fn dictionary_entry_passes_vlacku_filters(
     similarity: Option<f32>,
     similarity_mode: bool,
 ) -> bool {
+    let entry_filters_ok = dictionary_entry_passes_vlacku_entry_filters(entry, options);
+    let similarity_ok = !similarity_mode
+        || options
+            .min_similarity
+            .is_none_or(|min_similarity| similarity.unwrap_or(0.0) * 100.0 >= min_similarity);
+    entry_filters_ok && similarity_ok
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn dictionary_entry_passes_vlacku_entry_filters(
+    entry: &DictionaryEntry<'_>,
+    options: &VlackuSearchOptions,
+) -> bool {
     let normalized_type = normalize_word_type_filter(entry.word_type.as_str());
     let word_type_ok = options.word_types.is_empty()
         || options
@@ -340,11 +355,7 @@ pub fn dictionary_entry_passes_vlacku_filters(
     let votes_ok = options
         .min_votes
         .is_none_or(|min_votes| entry_vote_count(entry) >= min_votes);
-    let similarity_ok = !similarity_mode
-        || options
-            .min_similarity
-            .is_none_or(|min_similarity| similarity.unwrap_or(0.0) * 100.0 >= min_similarity);
-    word_type_ok && votes_ok && similarity_ok
+    word_type_ok && votes_ok
 }
 
 #[requires(true)]
@@ -781,25 +792,34 @@ fn cards_for_sound(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
+    if options.count == 0 {
+        return found_or_missing(Vec::new());
+    }
+
     let query_sound = match sound_query_to_token_sequence(query) {
         Ok(sequence) => sequence,
         Err(error) => return invalid_output(error.to_string()),
     };
 
+    let mut scratch = AlineSimilarityScratch::default();
     let mut scored = dictionary
         .sound_index()
         .iter()
         .filter_map(|sound_entry| {
             let entry = dictionary.entries().get(sound_entry.entry_index.get())?;
-            let similarity =
-                aline_phonetic_similarity(query_sound.view(), sound_entry.token_sequence) as f32;
+            if !dictionary_entry_passes_vlacku_entry_filters(entry, options) {
+                return None;
+            }
+            let similarity = aline_phonetic_similarity_with_scratch(
+                query_sound.view(),
+                sound_entry.token_sequence,
+                &mut scratch,
+            ) as f32;
             dictionary_entry_passes_vlacku_filters(entry, options, Some(similarity), true)
                 .then_some((sound_entry.entry_index.get(), similarity, entry))
         })
         .collect::<Vec<_>>();
-    scored.sort_by(|left, right| {
-        compare_similarity_then_index((left.0, left.1.into()), (right.0, right.1.into()))
-    });
+    retain_best_sound_scores(&mut scored, options.count);
 
     let cards = scored
         .into_iter()
@@ -809,6 +829,25 @@ fn cards_for_sound(
         })
         .collect();
     found_or_missing(cards)
+}
+
+#[requires(true)]
+#[ensures(scored.len() <= count)]
+fn retain_best_sound_scores<'dictionary>(
+    scored: &mut Vec<(usize, f32, &'dictionary DictionaryEntry<'dictionary>)>,
+    count: usize,
+) {
+    if scored.len() > count {
+        scored.select_nth_unstable_by(count, compare_sound_score);
+        scored.truncate(count);
+    }
+    scored.sort_by(compare_sound_score);
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, std::cmp::Ordering::Less | std::cmp::Ordering::Equal | std::cmp::Ordering::Greater))]
+fn compare_sound_score<T>(left: &(usize, f32, T), right: &(usize, f32, T)) -> std::cmp::Ordering {
+    compare_similarity_then_index((left.0, left.1.into()), (right.0, right.1.into()))
 }
 
 #[requires(true)]
@@ -1979,6 +2018,28 @@ mod tests {
             result.cards.first().map(|card| card.word.as_str()),
             Some("klama")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sound_score_retention_keeps_best_scores_with_dictionary_order_ties() {
+        let dictionary = jbotci_dictionary_data::english();
+        let entry = dictionary.lookup_word("klama").expect("entry for klama");
+        let mut scored = vec![
+            (4, 0.60, entry),
+            (2, 0.90, entry),
+            (1, 0.90, entry),
+            (3, 0.10, entry),
+        ];
+
+        retain_best_sound_scores(&mut scored, 2);
+
+        let retained = scored
+            .iter()
+            .map(|(index, similarity, _)| (*index, *similarity))
+            .collect::<Vec<_>>();
+        assert_eq!(retained, vec![(1, 0.90), (2, 0.90)]);
     }
 
     #[test]

@@ -94,6 +94,14 @@ pub struct IpaTokenizedText {
     pub token_sequence: IpaTokenSequence,
 }
 
+#[derive(Debug, Default, Clone, PartialEq)]
+#[invariant(true)]
+pub struct AlineSimilarityScratch {
+    previous_previous: Vec<f64>,
+    previous: Vec<f64>,
+    current: Vec<f64>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[invariant(true)]
 struct AlineFeatures {
@@ -237,6 +245,30 @@ static IPA_SEGMENT_FEATURES: LazyLock<Vec<AlineFeatures>> = LazyLock::new(|| {
         .collect()
 });
 
+static ALINE_PAIR_FEATURE_DIFFERENCES: LazyLock<Vec<f64>> = LazyLock::new(|| {
+    let segment_count = IPA_SEGMENT_SYMBOLS.len();
+    let mut differences = Vec::with_capacity(segment_count * segment_count);
+    for left in IPA_SEGMENT_FEATURES.iter().copied() {
+        for right in IPA_SEGMENT_FEATURES.iter().copied() {
+            differences.push(feature_difference_from_features(left, right));
+        }
+    }
+    differences
+});
+
+static ALINE_VOWEL_PENALTIES: LazyLock<Vec<f64>> = LazyLock::new(|| {
+    IPA_SEGMENT_FEATURES
+        .iter()
+        .map(|features| {
+            if features.is_consonant {
+                0.0
+            } else {
+                ALINE_VOWEL_PENALTY
+            }
+        })
+        .collect()
+});
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|sequence| sequence.segment_count() > 0) || ret.is_err())]
 pub fn sound_query_to_token_sequence(raw_query: &str) -> Result<IpaTokenSequence, PhoneticError> {
@@ -333,7 +365,22 @@ pub fn aline_phonetic_similarity(
     source: IpaTokenSequenceView<'_>,
     target: IpaTokenSequenceView<'_>,
 ) -> f64 {
-    let raw_similarity = aline_raw_similarity(source.segments, target.segments);
+    let mut scratch = AlineSimilarityScratch::default();
+    aline_phonetic_similarity_with_scratch(source, target, &mut scratch)
+}
+
+#[requires(true)]
+#[ensures((0.0..=1.0).contains(&ret))]
+pub fn aline_phonetic_similarity_with_scratch(
+    source: IpaTokenSequenceView<'_>,
+    target: IpaTokenSequenceView<'_>,
+    scratch: &mut AlineSimilarityScratch,
+) -> f64 {
+    if source.segments.is_empty() || target.segments.is_empty() {
+        return 0.0;
+    }
+    let raw_similarity =
+        aline_raw_similarity_with_scratch(source.segments, target.segments, scratch);
     let normalizer = source.self_similarity + target.self_similarity;
     if normalizer <= 0.0 {
         0.0
@@ -430,29 +477,45 @@ fn make_token_sequence(segments: Vec<IpaSegmentId>) -> IpaTokenSequence {
 #[requires(!target.is_empty())]
 #[ensures(true)]
 fn aline_raw_similarity(source: &[IpaSegmentId], target: &[IpaSegmentId]) -> f64 {
-    let mut previous_previous: Option<Vec<f64>> = None;
-    let mut previous = vec![0.0; target.len() + 1];
+    let mut scratch = AlineSimilarityScratch::default();
+    aline_raw_similarity_with_scratch(source, target, &mut scratch)
+}
+
+#[requires(!source.is_empty())]
+#[requires(!target.is_empty())]
+#[ensures(true)]
+fn aline_raw_similarity_with_scratch(
+    source: &[IpaSegmentId],
+    target: &[IpaSegmentId],
+    scratch: &mut AlineSimilarityScratch,
+) -> f64 {
+    let row_width = target.len() + 1;
+    scratch.previous_previous.resize(row_width, 0.0);
+    scratch.previous.resize(row_width, 0.0);
+    scratch.current.resize(row_width, 0.0);
+    scratch.previous.fill(0.0);
+
+    let mut has_previous_previous = false;
     let mut best: f64 = 0.0;
     for source_index in 0..source.len() {
-        let mut current = vec![0.0; target.len() + 1];
+        scratch.current[0] = 0.0;
         for target_index in 1..=target.len() {
-            let delete_source = previous[target_index] + ALINE_SKIP_SCORE;
-            let insert_target = current[target_index - 1] + ALINE_SKIP_SCORE;
-            let substitute = previous[target_index - 1]
+            let delete_source = scratch.previous[target_index] + ALINE_SKIP_SCORE;
+            let insert_target = scratch.current[target_index - 1] + ALINE_SKIP_SCORE;
+            let substitute = scratch.previous[target_index - 1]
                 + substitution_score(source[source_index], target[target_index - 1]);
-            let compress_source = previous_previous
-                .as_ref()
-                .filter(|_| source_index > 0)
-                .map_or(0.0, |row| {
-                    row[target_index - 1]
-                        + expansion_score(
-                            target[target_index - 1],
-                            source[source_index - 1],
-                            source[source_index],
-                        )
-                });
+            let compress_source = if has_previous_previous && source_index > 0 {
+                scratch.previous_previous[target_index - 1]
+                    + expansion_score(
+                        target[target_index - 1],
+                        source[source_index - 1],
+                        source[source_index],
+                    )
+            } else {
+                0.0
+            };
             let expand_target = if target_index > 1 {
-                previous[target_index - 2]
+                scratch.previous[target_index - 2]
                     + expansion_score(
                         source[source_index],
                         target[target_index - 2],
@@ -467,11 +530,12 @@ fn aline_raw_similarity(source: &[IpaSegmentId], target: &[IpaSegmentId]) -> f64
                 .max(compress_source)
                 .max(expand_target)
                 .max(0.0);
-            current[target_index] = cell;
+            scratch.current[target_index] = cell;
             best = best.max(cell);
         }
-        previous_previous = Some(previous);
-        previous = current;
+        std::mem::swap(&mut scratch.previous_previous, &mut scratch.previous);
+        std::mem::swap(&mut scratch.previous, &mut scratch.current);
+        has_previous_previous = true;
     }
     best
 }
@@ -502,8 +566,19 @@ fn expansion_score(
 #[requires(true)]
 #[ensures(true)]
 fn feature_difference(left: IpaSegmentId, right: IpaSegmentId) -> f64 {
-    let left_features = segment_features(left);
-    let right_features = segment_features(right);
+    let segment_count = IPA_SEGMENT_SYMBOLS.len();
+    let index = (left.0 as usize) * segment_count + (right.0 as usize);
+    *ALINE_PAIR_FEATURE_DIFFERENCES
+        .get(index)
+        .expect("IPA segment ids used by ALINE must come from the tokenizer")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn feature_difference_from_features(
+    left_features: AlineFeatures,
+    right_features: AlineFeatures,
+) -> f64 {
     relevant_features(left_features, right_features)
         .iter()
         .map(|feature| {
@@ -564,11 +639,9 @@ fn feature_salience(feature: AlineFeature) -> f64 {
 #[requires(true)]
 #[ensures(true)]
 fn vowel_penalty(segment: IpaSegmentId) -> f64 {
-    if segment_features(segment).is_consonant {
-        0.0
-    } else {
-        ALINE_VOWEL_PENALTY
-    }
+    *ALINE_VOWEL_PENALTIES
+        .get(segment.0 as usize)
+        .expect("IPA segment ids used by ALINE must come from the tokenizer")
 }
 
 #[requires(true)]
@@ -1051,6 +1124,33 @@ mod tests {
         assert!(
             aline_phonetic_similarity(tied_affricate.view(), plain_affricate.view())
                 > aline_phonetic_similarity(tied_affricate.view(), separated.view())
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn aline_similarity_reuses_scratch_without_changing_scores() {
+        let long = sound_query_to_token_sequence("klama").expect("longer query");
+        let short = sound_query_to_token_sequence("ka").expect("shorter query");
+        let different = sound_query_to_token_sequence("coi").expect("different query");
+        let mut scratch = AlineSimilarityScratch::default();
+
+        assert_eq!(
+            aline_phonetic_similarity_with_scratch(long.view(), short.view(), &mut scratch),
+            aline_phonetic_similarity(long.view(), short.view())
+        );
+        assert_eq!(
+            aline_phonetic_similarity_with_scratch(short.view(), long.view(), &mut scratch),
+            aline_phonetic_similarity(short.view(), long.view())
+        );
+        assert_eq!(
+            aline_phonetic_similarity_with_scratch(different.view(), long.view(), &mut scratch),
+            aline_phonetic_similarity(different.view(), long.view())
+        );
+        assert_eq!(
+            aline_phonetic_similarity_with_scratch(long.view(), long.view(), &mut scratch),
+            1.0
         );
     }
 
