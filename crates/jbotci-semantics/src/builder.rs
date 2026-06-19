@@ -4900,19 +4900,102 @@ where
                 .ok_or_else(SemanticsError::missing_syntax_node)?;
             let argument = self.build_argument_for_sumti(sumti)?;
             let source = tag_node.and_then(|node| self.source_for_node(node, "modal-argument"));
-            let introduced_by = source
-                .as_ref()
-                .and_then(|source| source.text.clone())
-                .unwrap_or_else(|| "modal".to_owned());
-            let relation = modal_relation_for_marker(&introduced_by);
+            let (introduced_by, relation, arguments) =
+                self.modal_relation_arguments_for_tag(tag_node, argument)?;
             modal_arguments.push(ModalArgument::new(
                 relation,
                 introduced_by,
-                argument,
+                arguments,
                 source,
             ));
         }
         Ok(modal_arguments)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn modal_relation_arguments_for_tag(
+        &mut self,
+        tag_node: Option<RawSyntaxNodeId>,
+        argument: ArgumentValue,
+    ) -> Result<(String, String, BTreeMap<String, ArgumentValue>), SemanticsError> {
+        let Some(tense_modal) =
+            tag_node.and_then(|node| self.analysis.syntax_index.tense_modal(node))
+        else {
+            return Ok((
+                "modal".to_owned(),
+                "modal".to_owned(),
+                self.modal_argument_map_for_visible_place(argument, 1, None)?,
+            ));
+        };
+        match tense_modal.as_data() {
+            data!(TenseModalSyntax::AdHocModal { selbri, .. }) => {
+                let relation = relation_label_for_selbri(selbri);
+                let visible_x1_place = visible_x1_place_for_selbri(selbri);
+                let arguments = self.modal_argument_map_for_visible_place(
+                    argument,
+                    visible_x1_place,
+                    self.place_count_for_relation(&relation),
+                )?;
+                Ok(("fi'o".to_owned(), relation, arguments))
+            }
+            data!(TenseModalSyntax::Modal { se, bai, .. }) => {
+                let marker = token_text(&bai.value);
+                let relation = modal_relation_for_marker(&marker);
+                let visible_x1_place = se
+                    .as_ref()
+                    .and_then(se_conversion_place)
+                    .map(usize::from)
+                    .unwrap_or(1);
+                let arguments = self.modal_argument_map_for_visible_place(
+                    argument,
+                    visible_x1_place,
+                    self.place_count_for_relation(&relation),
+                )?;
+                let introduced_by = se
+                    .as_ref()
+                    .map(|se| format!("{} {marker}", token_text(&se.value)))
+                    .unwrap_or(marker);
+                Ok((introduced_by, relation, arguments))
+            }
+            _ => {
+                let marker = self
+                    .source_for_node(
+                        tag_node.expect("tense modal came from a recorded syntax node"),
+                        "modal-argument",
+                    )
+                    .and_then(|source| source.text)
+                    .unwrap_or_else(|| "modal".to_owned());
+                let relation = modal_relation_for_marker(&marker);
+                Ok((
+                    marker,
+                    relation,
+                    self.modal_argument_map_for_visible_place(argument, 1, None)?,
+                ))
+            }
+        }
+    }
+
+    #[requires(visible_x1_place > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|arguments| !arguments.is_empty()) || ret.is_err())]
+    fn modal_argument_map_for_visible_place(
+        &mut self,
+        argument: ArgumentValue,
+        visible_x1_place: usize,
+        place_count: Option<usize>,
+    ) -> Result<BTreeMap<String, ArgumentValue>, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        arguments.insert(format!("x{visible_x1_place}"), argument);
+        let highest_place = place_count
+            .unwrap_or(visible_x1_place)
+            .max(visible_x1_place);
+        for place in 1..=highest_place {
+            let key = format!("x{place}");
+            if !arguments.contains_key(&key) {
+                arguments.insert(key, self.build_elided_argument_for_place(place)?);
+            }
+        }
+        Ok(arguments)
     }
 
     #[requires(true)]
@@ -11061,9 +11144,12 @@ mod tests {
         let blanu = predication_with_relation_and_mode(&linked, "blanu", "restrictive");
         assert_eq!(blanu["modalArguments"][0]["relation"], "observer");
         assert_eq!(blanu["modalArguments"][0]["introducedBy"], "ga'a");
-        assert_eq!(blanu["modalArguments"][0]["argument"]["kind"], "filled");
         assert_eq!(
-            blanu["modalArguments"][0]["argument"]["value"],
+            blanu["modalArguments"][0]["arguments"]["x1"]["kind"],
+            "filled"
+        );
+        assert_eq!(
+            blanu["modalArguments"][0]["arguments"]["x1"]["value"],
             "referent:speaker"
         );
         let zdani = predication_with_relation_and_mode(&linked, "zdani", "asserted");
@@ -11073,11 +11159,35 @@ mod tests {
         let zdani = predication_with_relation_and_mode(&tail, "zdani", "asserted");
         assert_eq!(zdani["modalArguments"][0]["relation"], "observer");
         assert_eq!(
-            zdani["modalArguments"][0]["argument"]["value"],
+            zdani["modalArguments"][0]["arguments"]["x1"]["value"],
             "referent:speaker"
         );
         let blanu = predication_with_relation_and_mode(&tail, "blanu", "restrictive");
         assert!(blanu.get("modalArguments").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ad_hoc_modal_uses_tag_selbri_place_structure() {
+        let kanla =
+            semantic_json_for("mi viska do fi'o kanla fe'u le zunle").expect("semantic JSON");
+        let viska = predication_with_relation_and_mode(&kanla, "viska", "asserted");
+        let modal = &viska["modalArguments"][0];
+        assert_eq!(modal["introducedBy"], "fi'o");
+        assert_eq!(modal["relation"], "kanla");
+        assert_eq!(modal["arguments"]["x1"]["value"], "referent:r1");
+        assert_eq!(modal["arguments"]["x2"]["kind"], "elided");
+
+        let pilno =
+            semantic_json_for("mi viska do fi'o se pilno le zunle kanla").expect("semantic JSON");
+        let viska = predication_with_relation_and_mode(&pilno, "viska", "asserted");
+        let modal = &viska["modalArguments"][0];
+        assert_eq!(modal["introducedBy"], "fi'o");
+        assert_eq!(modal["relation"], "pilno");
+        assert_eq!(modal["arguments"]["x1"]["kind"], "elided");
+        assert_eq!(modal["arguments"]["x2"]["value"], "referent:r1");
+        assert_eq!(modal["arguments"]["x3"]["kind"], "elided");
     }
 
     #[test]

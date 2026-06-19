@@ -1454,12 +1454,14 @@ impl PlaceQuestionBinding {
 
 #[invariant(!relation.is_empty(), "modal relation must be named")]
 #[invariant(!introduced_by.is_empty(), "modal source marker must be named")]
+#[invariant(!arguments.is_empty(), "modal relation must have at least one explicit place")]
+#[invariant(arguments.keys().all(|place| is_numbered_argument_place(place)))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModalArgument {
     pub relation: String,
     pub introduced_by: String,
-    pub argument: ArgumentValue,
+    pub arguments: BTreeMap<String, ArgumentValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SemanticSource>,
 }
@@ -1467,17 +1469,19 @@ pub struct ModalArgument {
 impl ModalArgument {
     #[requires(!relation.is_empty())]
     #[requires(!introduced_by.is_empty())]
+    #[requires(!arguments.is_empty())]
+    #[requires(arguments.keys().all(|place| is_numbered_argument_place(place)))]
     #[ensures(true)]
     pub fn new(
         relation: String,
         introduced_by: String,
-        argument: ArgumentValue,
+        arguments: BTreeMap<String, ArgumentValue>,
         source: Option<SemanticSource>,
     ) -> Self {
         Self::from_data(data!(ModalArgument {
             relation,
             introduced_by,
-            argument,
+            arguments,
             source,
         }))
     }
@@ -1485,7 +1489,9 @@ impl ModalArgument {
     #[requires(true)]
     #[ensures(true)]
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
-        self.argument.references_into(out);
+        for argument in self.arguments.values() {
+            argument.references_into(out);
+        }
     }
 }
 
@@ -2188,7 +2194,10 @@ pub fn semantic_object_arguments_are_valid(
                         .all(|place| is_numbered_argument_place(place))
             })
             && object.modal_arguments.iter().all(|argument| {
-                argument_value_references_allowed_objects(&argument.argument, objects)
+                argument.arguments.iter().all(|(place, value)| {
+                    is_numbered_argument_place(place)
+                        && argument_value_references_allowed_objects(value, objects)
+                })
             })
             && object.reciprocity.iter().all(|exchange| {
                 argument_value_references_allowed_objects(&exchange.left, objects)

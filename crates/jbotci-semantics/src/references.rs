@@ -3404,6 +3404,12 @@ impl<'tree> SyntaxIndex<'tree> {
 
     #[requires(true)]
     #[ensures(true)]
+    pub fn tense_modal(&self, id: RawSyntaxNodeId) -> Option<&'tree TenseModalSyntax> {
+        node_ref_as_tense_modal(self.node(id)?)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     pub fn bridi(&self, id: BridiNodeId) -> Option<&'tree BridiSyntax> {
         match self.node(id.0)? {
             SyntaxNodeRef::BridiSyntax(node) => Some(node),
@@ -5949,6 +5955,28 @@ fn node_ref_as_argument<'tree>(node: SyntaxNodeRef<'tree>) -> Option<&'tree Sumt
         | SyntaxNodeRef::SumtiSyntaxNameDescription(sumti)
         | SyntaxNodeRef::SumtiSyntaxNameWords(sumti)
         | SyntaxNodeRef::SumtiSyntaxSelbriVocative(sumti) => Some(sumti),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn node_ref_as_tense_modal<'tree>(node: SyntaxNodeRef<'tree>) -> Option<&'tree TenseModalSyntax> {
+    match node {
+        SyntaxNodeRef::TenseModalSyntaxComposite(tense_modal)
+        | SyntaxNodeRef::TenseModalSyntaxTimeDirection(tense_modal)
+        | SyntaxNodeRef::TenseModalSyntaxTimeDirectionDistance(tense_modal)
+        | SyntaxNodeRef::TenseModalSyntaxTimeInterval(tense_modal)
+        | SyntaxNodeRef::TenseModalSyntaxTimeDirectionActuality(tense_modal)
+        | SyntaxNodeRef::TenseModalSyntaxSpaceDistance(tense_modal)
+        | SyntaxNodeRef::TenseModalSyntaxSpaceDirection(tense_modal)
+        | SyntaxNodeRef::TenseModalSyntaxSpaceMovement(tense_modal)
+        | SyntaxNodeRef::TenseModalSyntaxModal(tense_modal)
+        | SyntaxNodeRef::TenseModalSyntaxSticky(tense_modal)
+        | SyntaxNodeRef::TenseModalSyntaxAdHocModal(tense_modal)
+        | SyntaxNodeRef::TenseModalSyntaxActuality(tense_modal)
+        | SyntaxNodeRef::TenseModalSyntaxEventContour(tense_modal)
+        | SyntaxNodeRef::TenseModalSyntaxIntervalProperty(tense_modal) => Some(tense_modal),
         _ => None,
     }
 }
