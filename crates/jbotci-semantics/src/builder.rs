@@ -1371,6 +1371,17 @@ where
         )? {
             return Ok(connected);
         }
+        if let Some(units) = tanru_units_for_selbri(relation_selbri)
+            && tanru_units_require_lowering(&units)
+        {
+            return self.build_tanru_sequence_formula_for_frame_with_visible_x1_override(
+                Some(relation_selbri),
+                &units,
+                frame,
+                source,
+                visible_x1_override,
+            );
+        }
         if let Some(bound_tanru) = connectorless_bound_selbri_pair(relation_selbri) {
             return self.build_bound_selbri_tanru_formula_for_argument(
                 selbri,
@@ -1413,14 +1424,40 @@ where
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        self.build_tanru_sequence_formula_for_frame_with_visible_x1_override(
+            selbri, units, frame, source, None,
+        )
+    }
+
+    #[requires(!units.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_tanru_sequence_formula_for_frame_with_visible_x1_override(
+        &mut self,
+        selbri: Option<&'tree SelbriSyntax>,
+        units: &[&'tree TanruUnitSyntax],
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        visible_x1_override: Option<ArgumentValue>,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
         if let [single] = units {
-            return self.build_tanru_unit_formula_for_frame(selbri, single, frame, source);
+            return self.build_tanru_unit_formula_for_frame_with_visible_x1_override(
+                selbri,
+                single,
+                frame,
+                source,
+                visible_x1_override,
+            );
         }
         let tertau = units
             .last()
             .expect("precondition guarantees at least one tanru unit");
-        let tertau =
-            self.build_tanru_unit_formula_for_frame(selbri, tertau, frame, source.clone())?;
+        let tertau = self.build_tanru_unit_formula_for_frame_with_visible_x1_override(
+            selbri,
+            tertau,
+            frame,
+            source.clone(),
+            visible_x1_override,
+        )?;
         let modifier =
             self.build_property_abstraction_for_units(&units[..units.len() - 1], source.clone())?;
         let relation_formula = self.build_tanru_relation_formula(
@@ -1547,11 +1584,12 @@ where
                 if let Some(units) = tanru_units_for_selbri(selbri)
                     && !units.is_empty()
                 {
-                    return self.build_tanru_sequence_formula_for_frame(
+                    return self.build_tanru_sequence_formula_for_frame_with_visible_x1_override(
                         Some(selbri.as_ref()),
                         &units,
                         frame,
                         source,
+                        visible_x1_override,
                     );
                 }
                 self.build_selbri_tanru_formula_for_frame_with_visible_x1_override(
