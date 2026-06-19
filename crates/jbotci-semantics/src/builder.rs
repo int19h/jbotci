@@ -14,23 +14,23 @@ use jbotci_syntax::ast::{
     MeksoSyntax, MeksoSyntaxData, ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData,
     QuoteSyntax, QuoteSyntaxData, RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax,
     SelbriSyntaxData, SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData,
-    SubbridiSyntax, SubbridiSyntaxData, SumtiSyntax, SumtiSyntaxData, TanruUnitSyntax,
-    TanruUnitSyntaxData, TenseModalSyntax, TenseModalSyntaxData, TermSyntax, TermSyntaxData,
-    TextSyntax, Token, WithFreeModifiers, WordRun,
+    SubbridiSyntax, SubbridiSyntaxData, SumtiAssociationPhraseSyntax, SumtiSyntax, SumtiSyntaxData,
+    TanruUnitSyntax, TanruUnitSyntaxData, TenseModalSyntax, TenseModalSyntaxData, TermSyntax,
+    TermSyntaxData, TextSyntax, Token, WithFreeModifiers, WordRun,
 };
 
 use crate::model::{
-    AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, Composition,
-    Connector, Descriptor, EventualityClass, FormulaOperator, IndexicalKind, MathLiteral,
-    ModalArgument, PredicationMode, QuantityForm, QuantityScale, QuantityValue, QuestionKind,
-    QuestionMode, QuestionSlot, QuestionSlotRole, Quotation, ReferentCategory, RelativeClause,
-    RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph,
-    SemanticObject, SemanticObjectId, SemanticSort, SequenceRelation, SignKind, UtteranceForce,
-    diagnostic, source_from_spans,
+    AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, AssignedName,
+    AssignedNameData, Composition, Connector, Descriptor, EventualityClass, FormulaOperator,
+    IndexicalKind, MathLiteral, ModalArgument, PredicationMode, QuantityForm, QuantityScale,
+    QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
+    ReferentCategory, RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind,
+    SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId, SemanticSort,
+    SequenceRelation, SignKind, UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
-    PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, ReferenceAnalysisError,
-    ReferenceKind, ReferenceTarget, SelbriPlaceFrameId, analyze_references,
+    BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
+    ReferenceAnalysisError, ReferenceKind, ReferenceTarget, SelbriPlaceFrameId, analyze_references,
 };
 
 #[invariant(true)]
@@ -631,6 +631,20 @@ where
                 self.source_for_subbridi(inner_subbridi, construct)
             }
         }
+    }
+
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    fn source_for_sumti_association_phrase(
+        &self,
+        phrase: &SumtiAssociationPhraseSyntax,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        let mut spans = Vec::new();
+        phrase.visit_words(&mut |token| {
+            spans.extend(token.source_spans().into_iter().cloned());
+        });
+        source_from_spans(&spans, self.options.source_text, Some(construct))
     }
 
     #[requires(!construct.is_empty())]
@@ -1333,6 +1347,11 @@ where
             && let Some(formula) = self.build_scoped_selbri_formula_for_bridi(bridi, selbri)?
         {
             return Ok(formula);
+        }
+        if let Some(selbri) = selbri
+            && let Some(target_bridi) = self.resolved_broda_target_bridi_for_selbri(selbri)
+        {
+            return self.build_resolved_pro_bridi_formula(bridi, selbri, target_bridi);
         }
         if let Some(selbri) = selbri
             && let Some(units) = tanru_units_for_selbri(selbri)
@@ -3253,6 +3272,103 @@ where
         )
     }
 
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_resolved_pro_bridi_formula(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: &'tree SelbriSyntax,
+        target_bridi: &'tree BridiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let Some(target_selbri) = main_selbri_for_bridi(target_bridi) else {
+            return self
+                .build_predication_for_bridi(bridi, Some(selbri), relation_label_for_selbri(selbri))
+                .and_then(|predication| {
+                    let formula = self.next_formula();
+                    self.insert(
+                        formula,
+                        SemanticObject::atom_formula(
+                            predication,
+                            self.analysis
+                                .syntax_index
+                                .bridi_node_id(bridi)
+                                .and_then(|node| self.source_for_node(node.0, "bridi-formula")),
+                            vec![diagnostic(
+                                "resolved pro-bridi target has no direct selbri relation",
+                            )],
+                        ),
+                    )
+                });
+        };
+        let mut inherited_arguments = BTreeMap::new();
+        self.insert_numbered_assignment_arguments(
+            &mut inherited_arguments,
+            self.bridi_frame(target_bridi),
+        )?;
+        let predication = self.build_predication_for_frame_with_overrides(
+            self.bridi_frame(bridi),
+            self.analysis
+                .syntax_index
+                .bridi_node_id(bridi)
+                .and_then(|node| self.source_for_node(node.0, "predication")),
+            Some(selbri),
+            relation_label_for_selbri(target_selbri),
+            inherited_arguments,
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(
+                predication,
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "bridi-formula")),
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn resolved_broda_target_bridi_for_selbri(
+        &self,
+        selbri: &'tree SelbriSyntax,
+    ) -> Option<&'tree BridiSyntax> {
+        let raw = self.analysis.syntax_index.selbri_node_id(selbri)?.0;
+        self.resolved_broda_target_bridi_for_raw(raw)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn resolved_broda_target_bridi_for_tanru_unit(
+        &self,
+        unit: &'tree TanruUnitSyntax,
+    ) -> Option<&'tree BridiSyntax> {
+        let raw = self.analysis.syntax_index.tanru_unit_node_id(unit)?.0;
+        self.resolved_broda_target_bridi_for_raw(raw)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn resolved_broda_target_bridi_for_raw(
+        &self,
+        raw: RawSyntaxNodeId,
+    ) -> Option<&'tree BridiSyntax> {
+        self.analysis
+            .discourse_references
+            .references_from_node(raw)
+            .iter()
+            .filter_map(|edge_id| self.analysis.discourse_references.edge(*edge_id))
+            .filter(|edge| edge.kind == ReferenceKind::BrodaSeries)
+            .find_map(|edge| match edge.target {
+                ReferenceTarget::ResolvedNode(target) => {
+                    self.analysis.syntax_index.bridi(BridiNodeId(target))
+                }
+                _ => None,
+            })
+    }
+
     #[requires(!relation.is_empty())]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_predication_for_frame(
@@ -4003,6 +4119,16 @@ where
             data!(SumtiSyntax::NumberSumti { expression, li, .. }) => {
                 self.build_number_referent(expression, li, raw)?
             }
+            data!(SumtiSyntax::LerfuStringSumti { .. }) => {
+                if let Some(referent) = self.build_resolved_sumti_reference(raw)? {
+                    referent
+                } else {
+                    self.build_diagnostic_referent(
+                        raw,
+                        "letteral pro-sumti did not resolve to an antecedent",
+                    )?
+                }
+            }
             data!(SumtiSyntax::ElidedSumti { .. }) => {
                 self.build_elided_referent(Some(raw), "zo'e".to_owned())?
             }
@@ -4039,9 +4165,23 @@ where
                 self.add_quantity_to_referent(referent, quantity);
                 referent
             }
-            data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
-            | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. }) => {
-                self.build_sumti_referent(base_sumti)?
+            data!(SumtiSyntax::SumtiWithRelativeClauses {
+                base_sumti,
+                relative_clauses,
+                ..
+            })
+            | data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
+                base_sumti,
+                relative_clauses,
+                ..
+            }) => {
+                if let Some(referent) =
+                    self.build_goi_associated_referent(base_sumti, relative_clauses)?
+                {
+                    referent
+                } else {
+                    self.build_sumti_referent(base_sumti)?
+                }
             }
             data!(SumtiSyntax::SumtiConnection {
                 leading_sumti,
@@ -4085,6 +4225,57 @@ where
         };
         self.sumti_objects.insert(raw, id);
         Ok(id)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_goi_associated_referent(
+        &mut self,
+        base_sumti: &'tree SumtiSyntax,
+        relative_clauses: &'tree [RelativeClauseSyntax],
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(phrase) = relative_clauses.iter().find_map(goi_assignment_phrase) else {
+            return Ok(None);
+        };
+        let associated_sumti = &phrase.sumti;
+        if sumti_is_assignable_reference(base_sumti) {
+            return self.build_sumti_referent(associated_sumti).map(Some);
+        }
+        if sumti_is_assignable_reference(associated_sumti) {
+            return self.build_sumti_referent(base_sumti).map(Some);
+        }
+        if let Some(assigned_name) = self.assigned_name_for_sumti(associated_sumti, phrase) {
+            let referent = self.build_sumti_referent(base_sumti)?;
+            self.add_assigned_name_to_referent(referent, assigned_name);
+            return Ok(Some(referent));
+        }
+        Ok(None)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assigned_name_for_sumti(
+        &self,
+        sumti: &SumtiSyntax,
+        phrase: &SumtiAssociationPhraseSyntax,
+    ) -> Option<AssignedName> {
+        let (word, name) = match sumti.as_data() {
+            data!(SumtiSyntax::NameDescription { la, names }) => {
+                (token_text(&la.value), word_run_text(&names.value))
+            }
+            data!(SumtiSyntax::NameWords(names)) => ("la".to_owned(), word_run_text(&names.value)),
+            data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
+            | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. }) => {
+                return self.assigned_name_for_sumti(inner_sumti, phrase);
+            }
+            _ => return None,
+        };
+        Some(AssignedName::from_data(data!(AssignedName {
+            name,
+            word,
+            introduced_by: token_text(&phrase.association_marker.value),
+            source: self.source_for_sumti_association_phrase(phrase, "assigned-name"),
+        })))
     }
 
     #[requires(true)]
@@ -4636,26 +4827,39 @@ where
         };
         let operand = self.build_description_operand(description)?;
         let quantity = self.build_description_quantity(description, raw)?;
-        self.insert(
-            id,
-            SemanticObject::referent(
-                ReferentCategory::Constant,
-                sort,
-                None,
-                Some(Descriptor {
-                    kind,
-                    word,
-                    speaker: Some(SemanticObjectId::speaker()),
-                    body,
-                    quantity,
-                    name: None,
-                    operand,
-                }),
-                None,
-                self.source_for_description(description, raw, "description"),
-                Vec::new(),
-            ),
-        )
+        let mut object = SemanticObject::referent(
+            ReferentCategory::Constant,
+            sort,
+            None,
+            Some(Descriptor {
+                kind,
+                word,
+                speaker: Some(SemanticObjectId::speaker()),
+                body,
+                quantity,
+                name: None,
+                operand,
+            }),
+            None,
+            self.source_for_description(description, raw, "description"),
+            Vec::new(),
+        );
+        self.push_goi_assigned_names_to_referent(&mut object, &description.relative_clauses);
+        self.insert(id, object)
+    }
+
+    #[requires(object.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(true)]
+    fn push_goi_assigned_names_to_referent(
+        &self,
+        object: &mut SemanticObject,
+        clauses: &'tree [RelativeClauseSyntax],
+    ) {
+        for phrase in clauses.iter().filter_map(goi_assignment_phrase) {
+            if let Some(assigned_name) = self.assigned_name_for_sumti(&phrase.sumti, phrase) {
+                object.push_assigned_name(assigned_name);
+            }
+        }
     }
 
     #[requires(!name.is_empty())]
@@ -4866,6 +5070,11 @@ where
         selbri: &'tree SelbriSyntax,
         referent: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(target_bridi) = self.resolved_broda_target_bridi_for_selbri(selbri)
+            && let Some(target_selbri) = main_selbri_for_bridi(target_bridi)
+        {
+            return self.build_restrictive_formula(target_selbri, referent);
+        }
         if let Some(units) = tanru_units_for_selbri(selbri)
             && tanru_units_require_lowering(&units)
         {
@@ -4974,6 +5183,11 @@ where
         unit: &'tree TanruUnitSyntax,
         referent: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(target_bridi) = self.resolved_broda_target_bridi_for_tanru_unit(unit)
+            && let Some(target_selbri) = main_selbri_for_bridi(target_bridi)
+        {
+            return self.build_restrictive_formula(target_selbri, referent);
+        }
         match unit.as_data() {
             data!(TanruUnitSyntax::GroupedTanruUnit {
                 selbri: grouped,
@@ -5139,6 +5353,18 @@ where
         false
     }
 
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(true)]
+    fn add_assigned_name_to_referent(
+        &mut self,
+        referent: SemanticObjectId,
+        assigned_name: AssignedName,
+    ) {
+        if let Some(object) = self.objects.get_mut(&referent) {
+            object.push_assigned_name(assigned_name);
+        }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn referent_descriptor_quantity_is(
@@ -5284,6 +5510,59 @@ fn relative_clauses_for_sumti(sumti: &SumtiSyntax) -> Option<&[RelativeClauseSyn
         }
         _ => None,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn goi_assignment_phrase(clause: &RelativeClauseSyntax) -> Option<&SumtiAssociationPhraseSyntax> {
+    match clause.as_data() {
+        data!(RelativeClauseSyntax::SumtiAssociationPhrase(phrase))
+            if phrase.association_marker.cmavo() == Some(Cmavo::Goi) =>
+        {
+            Some(phrase)
+        }
+        data!(RelativeClauseSyntax::JoinedRelativeClauses { inner, .. })
+        | data!(RelativeClauseSyntax::RelativeClauseConnection { inner, .. }) => {
+            goi_assignment_phrase(inner)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sumti_is_assignable_reference(sumti: &SumtiSyntax) -> bool {
+    match sumti.as_data() {
+        data!(SumtiSyntax::ProSumti(token)) => token.cmavo().is_some_and(is_assignable_koha),
+        data!(SumtiSyntax::LerfuStringSumti { .. }) => true,
+        data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. }) => {
+            sumti_is_assignable_reference(inner_sumti)
+        }
+        data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. }) => {
+            sumti_is_assignable_reference(base_sumti)
+        }
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_assignable_koha(cmavo: Cmavo) -> bool {
+    matches!(
+        cmavo,
+        Cmavo::Koha
+            | Cmavo::Kohe
+            | Cmavo::Kohi
+            | Cmavo::Koho
+            | Cmavo::Kohu
+            | Cmavo::Foha
+            | Cmavo::Fohe
+            | Cmavo::Fohi
+            | Cmavo::Foho
+            | Cmavo::Fohu
+    )
 }
 
 #[requires(true)]
@@ -7722,6 +8001,97 @@ mod tests {
         assert_eq!(dohi["sort"], "sign");
         assert!(dohi.get("target").is_none());
         assert!(dohi.get("diagnostics").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn goi_assignable_sumti_uses_associated_referent_publicly() {
+        let json = semantic_json_for("la .alis. klama le zarci .i ko'a goi la .alis. cu blanu")
+            .expect("semantic JSON");
+        let blanu = predication_with_relation_and_mode(&json, "blanu", "asserted");
+        let x1 = blanu["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("x1 value");
+        assert_eq!(object(&json, x1)["descriptor"]["name"], "alis");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cei_pro_bridi_inherits_non_overridden_places() {
+        let json =
+            semantic_json_for("mi klama cei brode le zarci .i do brode").expect("semantic JSON");
+        let objects = json["objects"].as_object().expect("objects");
+        let first_klama = objects
+            .values()
+            .find(|object| {
+                object["type"] == "predication"
+                    && object["relation"] == "klama"
+                    && object["source"]["text"] == "mi klama cei brode le zarci"
+            })
+            .expect("antecedent klama");
+        let second_klama = objects
+            .values()
+            .find(|object| {
+                object["type"] == "predication"
+                    && object["relation"] == "klama"
+                    && object["source"]["text"] == "do brode"
+            })
+            .expect("pro-bridi klama");
+        assert_eq!(
+            second_klama["arguments"]["x1"]["value"],
+            "referent:addressee"
+        );
+        assert_eq!(
+            second_klama["arguments"]["x2"]["value"],
+            first_klama["arguments"]["x2"]["value"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn letteral_pro_sumti_resolves_by_initial_letter() {
+        let json =
+            semantic_json_for("mi viska le gerku .i gy. cusku zo .arf.").expect("semantic JSON");
+        let viska = predication_with_relation_and_mode(&json, "viska", "asserted");
+        let cusku = predication_with_relation_and_mode(&json, "cusku", "asserted");
+        assert_eq!(
+            cusku["arguments"]["x1"]["value"],
+            viska["arguments"]["x2"]["value"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn goi_named_assignment_is_public_on_referent() {
+        let json =
+            semantic_json_for("le ninmu goi la .sam. cu klama le zarci").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        let x1 = klama["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("x1 value");
+        let assigned_names = object(&json, x1)["assignedNames"]
+            .as_array()
+            .expect("assigned names");
+        assert_eq!(assigned_names[0]["name"], "sam");
+        assert_eq!(assigned_names[0]["word"], "la");
+        assert_eq!(assigned_names[0]["introducedBy"], "goi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cei_pro_bridi_expands_inside_restrictive_tanru() {
+        let json = semantic_json_for(
+            "ti slasi je mlatu bo cidja lante gacri cei broda .i le crino broda cu barda",
+        )
+        .expect("semantic JSON");
+        let relations = predication_relations(&json);
+        assert!(relations.iter().any(|relation| relation == "gacri"));
+        assert!(!relations.iter().any(|relation| relation == "broda"));
     }
 
     #[test]

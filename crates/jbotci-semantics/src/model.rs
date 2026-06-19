@@ -357,6 +357,8 @@ pub struct SemanticObject {
     pub composition: Option<Composition>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub relative_clauses: Vec<RelativeClause>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assigned_names: Vec<AssignedName>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub role: Option<ParameterRole>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -482,6 +484,7 @@ impl SemanticObject {
             descriptor: None,
             composition: None,
             relative_clauses: Vec::new(),
+            assigned_names: Vec::new(),
             role: None,
             introduced_by: None,
             relation: None,
@@ -909,6 +912,13 @@ impl SemanticObject {
     pub fn extend_relative_clauses(&mut self, relative_clauses: Vec<RelativeClause>) {
         self.relative_clauses.extend(relative_clauses);
     }
+
+    #[requires(!assigned_name.name.is_empty())]
+    #[requires(self.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(!self.assigned_names.is_empty())]
+    pub fn push_assigned_name(&mut self, assigned_name: AssignedName) {
+        self.assigned_names.push(assigned_name);
+    }
 }
 
 #[requires(true)]
@@ -1266,6 +1276,19 @@ impl RelativeClause {
     ) -> Self {
         Self::from_data(data!(RelativeClause { kind, body, source }))
     }
+}
+
+#[invariant(!name.is_empty(), "assigned names must preserve the assigned cmevla")]
+#[invariant(!word.is_empty(), "assigned names must record the naming word")]
+#[invariant(!introduced_by.is_empty(), "assigned names must record the assignment marker")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssignedName {
+    pub name: String,
+    pub word: String,
+    pub introduced_by: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SemanticSource>,
 }
 
 #[invariant(true)]
