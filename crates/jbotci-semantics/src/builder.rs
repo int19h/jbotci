@@ -6559,8 +6559,11 @@ where
         self.push_goi_assigned_names_to_referent(&mut object, &description.relative_clauses);
         self.insert(id, object)?;
         self.sumti_objects.insert(raw, id);
-        let relative_clauses =
-            self.lower_relative_clauses(description.relative_clauses.iter(), id)?;
+        let relative_clauses = if description.description.is_some() {
+            self.lower_relative_clauses(description.relative_clauses.iter(), id)?
+        } else {
+            Vec::new()
+        };
         if !relative_clauses.is_empty() {
             let object = self.objects.get_mut(&id).ok_or_else(|| {
                 SemanticsError::invalid_graph(format!(
@@ -7407,6 +7410,9 @@ fn occurrence_relative_clauses_for_sumti<'a>(
         }
         data!(SumtiSyntax::Description(description)) => {
             occurrence_relative_clauses_for_description_tail(&description.tail_elements, out);
+            if description.description.is_none() {
+                out.extend(description.relative_clauses.iter());
+            }
         }
         data!(SumtiSyntax::DescriptionConnection(description)) => {
             occurrence_relative_clauses_for_description_tail(&description.tail_elements, out);
@@ -11781,6 +11787,24 @@ mod tests {
             "quantity:q2"
         );
         assert_eq!(object(&json, "quantity:q2")["source"]["text"], "mu");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_indefinite_relative_clause_is_occurrence_scoped() {
+        let json = semantic_json_for("mi ponse re karce poi xekri").expect("semantic JSON");
+        let ponse = predication_with_relation_and_mode(&json, "ponse", "asserted");
+        let argument = &ponse["arguments"]["x2"];
+        assert_eq!(argument["quantity"], "quantity:q1");
+        assert_eq!(argument["relativeClauses"][0]["kind"], "restrictive");
+        assert_eq!(argument["relativeClauses"][0]["body"], "formula:f2");
+        let described = argument["value"].as_str().expect("car referent");
+        assert!(
+            object(&json, described)["descriptor"]
+                .get("relativeClauses")
+                .is_none()
+        );
     }
 
     #[test]
