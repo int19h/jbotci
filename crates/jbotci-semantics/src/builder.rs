@@ -7,7 +7,7 @@ use std::fmt;
 use bityzba::{data, ensures, invariant, requires};
 use jbotci_dictionary::{Dictionary, WordType, normalize_lookup_query};
 use jbotci_morphology::{
-    Cmavo, LujvoPart, Word, WordData, WordLike, WordLikeData, strip_diacritics,
+    Cmavo, LujvoPart, Selmaho, Word, WordData, WordLike, WordLikeData, strip_diacritics,
 };
 use jbotci_syntax::ast::{
     AbstractionSyntax, AfterthoughtBridiTailSyntax, BoGroupedBridiTailSyntax,
@@ -32,8 +32,8 @@ use crate::model::{
     QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole,
     Quotation, RafsiBinding, ReciprocalExchange, ReferentCategory, RelationExpansion,
     RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic,
-    SemanticGraph, SemanticObject, SemanticObjectId, SemanticSort, SequenceRelation, SignKind,
-    UtteranceForce, diagnostic, source_from_spans,
+    SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort,
+    SequenceRelation, SignKind, UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -1106,29 +1106,56 @@ where
             data!(StatementSyntax::StatementConnection {
                 leading_statement,
                 trailing_statement,
+                connective,
                 ..
             })
             | data!(StatementSyntax::PreposedIStatementConnection {
                 leading_statement,
                 trailing_statement,
+                connective,
                 ..
             }) => {
                 let first = self.build_statement(leading_statement, truth_question)?;
                 let second = self.build_statement(trailing_statement, false)?;
-                let id = self.next_sequence();
-                self.insert(
-                    id,
-                    SemanticObject::sequence(
-                        vec![first, second],
-                        SequenceRelation::SameTopicContinuation,
-                        self
-                            .analysis
-                            .syntax_index
-                            .statement_node_id(statement)
-                            .and_then(|node| self.source_for_node(node.0, "statement-connection")),
+                let source = self
+                    .analysis
+                    .syntax_index
+                    .statement_node_id(statement)
+                    .and_then(|node| self.source_for_node(node.0, "statement-connection"));
+                let (connection_claims, diagnostics) = if let Some(spec) =
+                    modal_statement_connection_spec(connective)
+                {
+                    match self.build_modal_statement_connection_claim(
+                        first,
+                        second,
+                        &spec,
+                        source.clone(),
+                    )? {
+                        Some(claim) => (vec![claim], Vec::new()),
+                        None => (
+                            Vec::new(),
+                            vec![diagnostic(
+                                "modal statement connection could not find formula-bearing bridi events to relate",
+                            )],
+                        ),
+                    }
+                } else {
+                    (
+                        Vec::new(),
                         vec![diagnostic(
                             "statement connective is preserved as discourse sequencing until truth-functional lowering is implemented",
                         )],
+                    )
+                };
+                let id = self.next_sequence();
+                self.insert(
+                    id,
+                    SemanticObject::sequence_with_connection_claims(
+                        vec![first, second],
+                        SequenceRelation::SameTopicContinuation,
+                        connection_claims,
+                        source,
+                        diagnostics,
                     ),
                 )
             }
@@ -4372,6 +4399,95 @@ where
                 .and_then(|question| question.body),
             _ => None,
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality))]
+    fn asserted_eventuality_for_discourse_item(
+        &self,
+        item: SemanticObjectId,
+    ) -> Option<SemanticObjectId> {
+        let formula = self.content_formula_for_discourse_item(item)?;
+        self.asserted_eventuality_for_formula(formula)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.is_none_or(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality))]
+    fn asserted_eventuality_for_formula(
+        &self,
+        formula: SemanticObjectId,
+    ) -> Option<SemanticObjectId> {
+        let object = self.objects.get(&formula)?;
+        match object.operator.as_ref()?.as_data() {
+            data!(SemanticOperator::Formula(FormulaOperator::Atom)) => {
+                let predication = self.objects.get(&object.predication?)?;
+                (predication.mode == Some(PredicationMode::Asserted))
+                    .then_some(predication.eventuality)
+                    .flatten()
+            }
+            data!(SemanticOperator::Formula(_)) => object
+                .children
+                .iter()
+                .find_map(|child| self.asserted_eventuality_for_formula(*child)),
+            data!(SemanticOperator::Math(_)) => None,
+        }
+    }
+
+    #[requires(spec.visible_place > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|claim| claim.is_none_or(|claim| claim.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn build_modal_statement_connection_claim(
+        &mut self,
+        leading_item: SemanticObjectId,
+        trailing_item: SemanticObjectId,
+        spec: &ModalStatementConnectionSpec,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(leading_eventuality) = self.asserted_eventuality_for_discourse_item(leading_item)
+        else {
+            return Ok(None);
+        };
+        let Some(trailing_eventuality) =
+            self.asserted_eventuality_for_discourse_item(trailing_item)
+        else {
+            return Ok(None);
+        };
+        let leading_place = convert_numbered_place(2, spec.visible_place);
+        let highest_place = self
+            .place_count_for_relation(&spec.relation)
+            .unwrap_or(spec.visible_place.max(leading_place))
+            .max(spec.visible_place)
+            .max(leading_place);
+        let mut arguments = BTreeMap::new();
+        arguments.insert(
+            format!("x{}", spec.visible_place),
+            ArgumentValue::filled(trailing_eventuality, None),
+        );
+        arguments.insert(
+            format!("x{leading_place}"),
+            ArgumentValue::filled(leading_eventuality, None),
+        );
+        for place in 1..=highest_place {
+            let key = format!("x{place}");
+            if !arguments.contains_key(&key) {
+                arguments.insert(key, self.build_elided_argument_for_place(place)?);
+            }
+        }
+        let predication = self.build_predication_from_arguments(
+            spec.relation.clone(),
+            None,
+            source.clone(),
+            arguments,
+            Vec::new(),
+        )?;
+        if let Some(object) = self.objects.get_mut(&predication) {
+            object.introduced_by = Some(spec.introduced_by.clone());
+        }
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )
+        .map(Some)
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -8327,6 +8443,68 @@ fn connective_label(connective: &ConnectiveSyntax) -> String {
     full_connective_text(connective).replace(' ', "-")
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ModalStatementConnectionSpec {
+    introduced_by: String,
+    relation: String,
+    visible_place: usize,
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|spec| !spec.relation.is_empty() && spec.visible_place > 0))]
+fn modal_statement_connection_spec(
+    connective: &ConnectiveSyntax,
+) -> Option<ModalStatementConnectionSpec> {
+    let data!(ConnectiveSyntax::Selbri {
+        se,
+        nahe,
+        na,
+        cmavo,
+        nai,
+    }) = connective.as_data()
+    else {
+        return None;
+    };
+    if nahe.is_some() || na.is_some() || nai.is_some() {
+        return None;
+    }
+    let (inline_se, marker_token, bo) = match cmavo.value.as_slice() {
+        [marker_token, bo] => (None, marker_token, bo),
+        [se_token, marker_token, bo] if se_token.is_selmaho(Selmaho::Se) => {
+            (Some(se_token), marker_token, bo)
+        }
+        _ => return None,
+    };
+    if !marker_token.is_selmaho(Selmaho::Bai) || bo.cmavo() != Some(Cmavo::Bo) {
+        return None;
+    }
+    let marker = token_text(marker_token);
+    let conversion = se.as_ref().or(inline_se);
+    let visible_place = conversion.and_then(se_token_conversion_place).unwrap_or(1);
+    let introduced_by = conversion
+        .as_ref()
+        .map(|se| format!("{} {marker}", token_text(se)))
+        .unwrap_or_else(|| marker.clone());
+    Some(ModalStatementConnectionSpec {
+        relation: modal_relation_for_marker(&marker),
+        introduced_by,
+        visible_place,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|place| (2..=5).contains(&place)))]
+fn se_token_conversion_place(se: &Token) -> Option<usize> {
+    match se.cmavo() {
+        Some(Cmavo::Se) => Some(2),
+        Some(Cmavo::Te) => Some(3),
+        Some(Cmavo::Ve) => Some(4),
+        Some(Cmavo::Xe) => Some(5),
+        _ => None,
+    }
+}
+
 #[requires(!marker.is_empty())]
 #[ensures(!ret.is_empty())]
 fn modal_relation_for_marker(marker: &str) -> String {
@@ -8334,7 +8512,11 @@ fn modal_relation_for_marker(marker: &str) -> String {
         "do'e" => "unspecified-modal".to_owned(),
         "ga'a" => "zgana".to_owned(),
         "ka'a" => "klama".to_owned(),
+        "ki'u" => "krinu".to_owned(),
+        "mu'i" => "mukti".to_owned(),
+        "ni'i" => "nibli".to_owned(),
         "pi'o" => "pilno".to_owned(),
+        "ri'a" => "rinka".to_owned(),
         _ => marker.replace(' ', "-"),
     }
 }
@@ -10598,6 +10780,64 @@ mod tests {
                 .as_str()
                 .is_some_and(|message| message.contains("truth-functional lowering"))
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_statement_connection_adds_event_relation_claim() {
+        let because = semantic_json_for("le spati cu banro .iri'abo do djacu dunda fi le spati")
+            .expect("semantic JSON");
+        let sequence = object(&because, "sequence:s1");
+        let claim = sequence["connectionClaims"][0]
+            .as_str()
+            .expect("connection claim");
+        let claim_formula = object(&because, claim);
+        let rinka = object(
+            &because,
+            claim_formula["predication"]
+                .as_str()
+                .expect("claim predication"),
+        );
+        let banro_event =
+            predication_with_relation_and_mode(&because, "banro", "asserted")["eventuality"]
+                .as_str()
+                .expect("banro eventuality");
+        let dunda_event =
+            predication_with_relation_and_mode(&because, "dunda", "asserted")["eventuality"]
+                .as_str()
+                .expect("dunda eventuality");
+        assert_eq!(rinka["relation"], "rinka");
+        assert_eq!(rinka["introducedBy"], "ri'a");
+        assert_eq!(rinka["arguments"]["x1"]["value"], dunda_event);
+        assert_eq!(rinka["arguments"]["x2"]["value"], banro_event);
+
+        let therefore =
+            semantic_json_for("do djacu dunda fi le spati .iseri'abo le spati cu banro")
+                .expect("semantic JSON");
+        let sequence = object(&therefore, "sequence:s1");
+        let claim = sequence["connectionClaims"][0]
+            .as_str()
+            .expect("connection claim");
+        let claim_formula = object(&therefore, claim);
+        let rinka = object(
+            &therefore,
+            claim_formula["predication"]
+                .as_str()
+                .expect("claim predication"),
+        );
+        let dunda_event =
+            predication_with_relation_and_mode(&therefore, "dunda", "asserted")["eventuality"]
+                .as_str()
+                .expect("dunda eventuality");
+        let banro_event =
+            predication_with_relation_and_mode(&therefore, "banro", "asserted")["eventuality"]
+                .as_str()
+                .expect("banro eventuality");
+        assert_eq!(rinka["relation"], "rinka");
+        assert_eq!(rinka["introducedBy"], "se ri'a");
+        assert_eq!(rinka["arguments"]["x1"]["value"], dunda_event);
+        assert_eq!(rinka["arguments"]["x2"]["value"], banro_event);
     }
 
     #[test]

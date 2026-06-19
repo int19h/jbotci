@@ -333,6 +333,8 @@ pub struct SemanticObject {
     pub vocative_kind: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<SemanticObjectId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub connection_claims: Vec<SemanticObjectId>,
     #[serde(rename = "relation", skip_serializing_if = "Option::is_none")]
     pub sequence_relation: Option<SequenceRelation>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -478,6 +480,7 @@ impl SemanticObject {
             asides: Vec::new(),
             vocative_kind: None,
             items: Vec::new(),
+            connection_claims: Vec::new(),
             sequence_relation: None,
             class: None,
             actuality: None,
@@ -582,6 +585,20 @@ impl SemanticObject {
         object.sequence_relation = Some(relation);
         object.source = source;
         object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Sequence)]
+    pub fn sequence_with_connection_claims(
+        items: Vec<SemanticObjectId>,
+        relation: SequenceRelation,
+        connection_claims: Vec<SemanticObjectId>,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::sequence(items, relation, source, diagnostics);
+        object.connection_claims = connection_claims;
         object
     }
 
@@ -896,6 +913,7 @@ impl SemanticObject {
         }
         out.extend(self.asides.iter().copied());
         out.extend(self.items.iter().copied());
+        out.extend(self.connection_claims.iter().copied());
         if let Some(time) = &self.time {
             out.push(time.anchor);
         }
@@ -2024,6 +2042,7 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
             .items
             .iter()
             .all(|item| sequence_item_kind_is_allowed(item.object_kind()))
+        && references_have_kind(&object.connection_claims, SemanticObjectKind::Formula)
         && optional_reference_has_kind(
             object.relation_metadata,
             SemanticObjectKind::RelationMetadata,
