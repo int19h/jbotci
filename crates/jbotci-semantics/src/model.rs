@@ -1063,12 +1063,16 @@ pub enum ParameterRole {
 
 #[invariant(argument_value_shape_is_valid(*kind, *value, introduced_by.as_deref()))]
 #[invariant(*kind != ArgumentValueKind::Deleted || relative_clauses.is_empty())]
+#[invariant(*kind != ArgumentValueKind::Deleted || quantity.is_none())]
+#[invariant((*quantity).is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArgumentValue {
     pub kind: ArgumentValueKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantity: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub introduced_by: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1084,6 +1088,7 @@ impl ArgumentValue {
         Self::from_data(data!(ArgumentValue {
             kind: ArgumentValueKind::Filled,
             value: Some(value),
+            quantity: None,
             introduced_by: None,
             source,
             relative_clauses: Vec::new(),
@@ -1101,6 +1106,7 @@ impl ArgumentValue {
         Self::from_data(data!(ArgumentValue {
             kind: ArgumentValueKind::Elided,
             value: Some(value),
+            quantity: None,
             introduced_by: Some(introduced_by),
             source,
             relative_clauses: Vec::new(),
@@ -1113,6 +1119,7 @@ impl ArgumentValue {
         Self::from_data(data!(ArgumentValue {
             kind: ArgumentValueKind::Deleted,
             value: None,
+            quantity: None,
             introduced_by: Some(introduced_by),
             source,
             relative_clauses: Vec::new(),
@@ -1130,12 +1137,24 @@ impl ArgumentValue {
         }))
     }
 
+    #[requires(self.kind != ArgumentValueKind::Deleted)]
+    #[requires(quantity.object_kind() == SemanticObjectKind::Quantity)]
+    #[ensures(ret.quantity == Some(quantity))]
+    pub fn with_quantity(self, quantity: SemanticObjectId) -> Self {
+        let data = self.into_data();
+        Self::from_data(data!(ArgumentValue {
+            quantity: Some(quantity),
+            ..data
+        }))
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
         if let Some(value) = self.value {
             out.push(value);
         }
+        extend_optional(out, self.quantity);
         out.extend(self.relative_clauses.iter().map(|clause| clause.body));
     }
 }
@@ -1658,6 +1677,11 @@ fn argument_value_references_allowed_objects(
         None => value.kind == ArgumentValueKind::Deleted,
     };
     value_is_valid
+        && value.quantity.is_none_or(|quantity| {
+            objects
+                .get(&quantity)
+                .is_some_and(|object| object.object_kind() == SemanticObjectKind::Quantity)
+        })
         && value.relative_clauses.iter().all(|clause| {
             objects
                 .get(&clause.body)
@@ -1828,6 +1852,23 @@ mod tests {
         let invalid = ArgumentValue::try_from_data(data!(ArgumentValue {
             kind: ArgumentValueKind::Deleted,
             value: Some(SemanticObjectId::referent(1)),
+            quantity: None,
+            introduced_by: Some("zi'o".to_owned()),
+            source: None,
+            relative_clauses: Vec::new(),
+        }));
+
+        assert!(invalid.is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn argument_value_invariant_rejects_deleted_quantities() {
+        let invalid = ArgumentValue::try_from_data(data!(ArgumentValue {
+            kind: ArgumentValueKind::Deleted,
+            value: None,
+            quantity: Some(SemanticObjectId::quantity(1)),
             introduced_by: Some("zi'o".to_owned()),
             source: None,
             relative_clauses: Vec::new(),

@@ -313,6 +313,7 @@ where
     objects: BTreeMap<SemanticObjectId, SemanticObject>,
     counters: IdCounters,
     sumti_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
+    sumti_quantities: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     parameter_slots: Vec<QuestionSlot>,
 }
 
@@ -334,6 +335,7 @@ where
             objects: BTreeMap::new(),
             counters: IdCounters::new(),
             sumti_objects: HashMap::new(),
+            sumti_quantities: HashMap::new(),
             parameter_slots: Vec::new(),
         };
         builder.insert_deictic_referents();
@@ -513,6 +515,20 @@ where
             self.options.source_text,
             Some(construct),
         )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn source_for_quantifier(
+        &self,
+        quantifier: &QuantifierSyntax,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        let mut spans = Vec::new();
+        quantifier.visit_words(&mut |token| {
+            spans.extend(token.source_spans().into_iter().cloned());
+        });
+        source_from_spans(&spans, self.options.source_text, Some(construct))
     }
 
     #[requires(true)]
@@ -3000,15 +3016,29 @@ where
                 self.source_for_node(raw, "deleted-place"),
             ));
         }
+        let explicit_quantity = match sumti.as_data() {
+            data!(SumtiSyntax::QuantifiedSumti { quantifier, .. }) => {
+                Some(self.build_quantity_for_sumti_quantifier(raw, quantifier)?)
+            }
+            _ => None,
+        };
         let referent = self.build_sumti_referent(sumti)?;
-        if sumti_is_elided(sumti) {
-            return Ok(ArgumentValue::elided(
+        let mut argument = if sumti_is_elided(sumti) {
+            ArgumentValue::elided(
                 referent,
                 "zo'e".to_owned(),
                 self.source_for_node(raw, "elided-place"),
-            ));
+            )
+        } else {
+            ArgumentValue::filled(referent, None)
+        };
+        if let Some(quantity) = explicit_quantity {
+            if !self.referent_descriptor_quantity_is(referent, quantity)
+                && argument.kind != crate::model::ArgumentValueKind::Deleted
+            {
+                argument = argument.with_quantity(quantity);
+            }
         }
-        let argument = ArgumentValue::filled(referent, None);
         self.attach_relative_clauses_to_argument(argument, sumti, referent)
     }
 
@@ -3454,10 +3484,7 @@ where
                 quantifier,
                 inner_sumti,
             }) => {
-                let quantity = self.build_quantity_for_words(
-                    quantifier_first_word_text(quantifier).unwrap_or_else(|| "xo'e".to_owned()),
-                    Some(raw),
-                )?;
+                let quantity = self.build_quantity_for_sumti_quantifier(raw, quantifier)?;
                 let referent = self.build_sumti_referent(inner_sumti)?;
                 self.add_quantity_to_referent(referent, quantity);
                 referent
@@ -3541,7 +3568,8 @@ where
         raw: RawSyntaxNodeId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let text = simple_mekso_text(expression).unwrap_or_else(|| "mekso".to_owned());
-        let quantity = self.build_quantity_for_words(text.clone(), Some(raw))?;
+        let quantity =
+            self.build_quantity_for_words(text.clone(), self.source_for_node(raw, "quantity"))?;
         let id = self.next_referent();
         self.insert(
             id,
@@ -3746,14 +3774,7 @@ where
         } else {
             None
         };
-        let quantity = if let Some(quantifier) = description.outer_quantifier.as_deref() {
-            Some(self.build_quantity_for_words(
-                quantifier_first_word_text(quantifier).unwrap_or_else(|| "xo'e".to_owned()),
-                Some(raw),
-            )?)
-        } else {
-            None
-        };
+        let quantity = self.build_description_quantity(description, raw)?;
         self.insert(
             id,
             SemanticObject::referent(
@@ -4079,7 +4100,7 @@ where
     fn build_quantity_for_words(
         &mut self,
         text: String,
-        raw: Option<RawSyntaxNodeId>,
+        source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let value = parse_decimal_integer(&text)
             .map(QuantityValue::integer)
@@ -4087,21 +4108,85 @@ where
         let id = self.next_quantity();
         self.insert(
             id,
-            SemanticObject::quantity(
-                QuantityForm::Exact,
-                value,
-                QuantityScale::Count,
-                raw.and_then(|raw| self.source_for_node(raw, "quantity")),
-            ),
+            SemanticObject::quantity(QuantityForm::Exact, value, QuantityScale::Count, source),
         )
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    fn add_quantity_to_referent(&mut self, referent: SemanticObjectId, quantity: SemanticObjectId) {
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_quantity_for_sumti_quantifier(
+        &mut self,
+        raw: RawSyntaxNodeId,
+        quantifier: &QuantifierSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(quantity) = self.sumti_quantities.get(&raw) {
+            return Ok(*quantity);
+        }
+        let quantity = self.build_quantity_for_words(
+            quantifier_text(quantifier).unwrap_or_else(|| "xo'e".to_owned()),
+            self.source_for_quantifier(quantifier, "quantity")
+                .or_else(|| self.source_for_node(raw, "quantity")),
+        )?;
+        self.sumti_quantities.insert(raw, quantity);
+        Ok(quantity)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_description_quantity(
+        &mut self,
+        description: &'tree DescriptionSyntax,
+        raw: RawSyntaxNodeId,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let quantifier = description.outer_quantifier.as_deref().or_else(|| {
+            description
+                .tail_elements
+                .iter()
+                .find_map(|element| match element.as_data() {
+                    data!(
+                        jbotci_syntax::ast::DescriptionTailElementSyntax::DescriptionTailQuantifier(
+                            quantifier
+                        )
+                    ) => Some(quantifier),
+                    _ => None,
+                })
+        });
+        quantifier
+            .map(|quantifier| {
+                self.build_quantity_for_words(
+                    quantifier_text(quantifier).unwrap_or_else(|| "xo'e".to_owned()),
+                    self.source_for_quantifier(quantifier, "quantity")
+                        .or_else(|| self.source_for_node(raw, "quantity")),
+                )
+            })
+            .transpose()
+    }
+
+    #[requires(true)]
+    #[ensures(ret -> self.referent_descriptor_quantity_is(referent, quantity))]
+    fn add_quantity_to_referent(
+        &mut self,
+        referent: SemanticObjectId,
+        quantity: SemanticObjectId,
+    ) -> bool {
         if let Some(object) = self.objects.get_mut(&referent) {
             object.set_descriptor_quantity(quantity);
+            return self.referent_descriptor_quantity_is(referent, quantity);
         }
+        false
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn referent_descriptor_quantity_is(
+        &self,
+        referent: SemanticObjectId,
+        quantity: SemanticObjectId,
+    ) -> bool {
+        self.objects
+            .get(&referent)
+            .and_then(|object| object.descriptor.as_ref())
+            .is_some_and(|descriptor| descriptor.quantity == Some(quantity))
     }
 
     #[requires(true)]
@@ -4123,17 +4208,6 @@ where
         if let Some(object) = self.objects.get_mut(&predication) {
             object.scalar_negation = Some(scalar_negation);
         }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn quantifier_first_word_text(quantifier: &QuantifierSyntax) -> Option<String> {
-    match quantifier.as_data() {
-        data!(QuantifierSyntax::NumberQuantifier { number, .. }) => {
-            Some(word_run_text(&number.value))
-        }
-        data!(QuantifierSyntax::MeksoQuantifier { .. }) => None,
     }
 }
 
@@ -6279,6 +6353,48 @@ mod tests {
             object(&json, "predication:p1")["arguments"]["x1"]["value"],
             "parameter:p1"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quantified_pro_sumti_quantity_is_argument_scoped() {
+        let json = semantic_json_for("re do cadzu le bisli").expect("semantic JSON");
+        let cadzu = predication_with_relation_and_mode(&json, "cadzu", "asserted");
+        assert_eq!(cadzu["arguments"]["x1"]["value"], "referent:addressee");
+        assert_eq!(cadzu["arguments"]["x1"]["quantity"], "quantity:q1");
+        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 2);
+        assert_eq!(object(&json, "quantity:q1")["source"]["text"], "re");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quantified_quotation_quantity_is_argument_scoped() {
+        let json =
+            semantic_json_for("mi cusku re lu do cadzu le bisli li'u").expect("semantic JSON");
+        let cusku = predication_with_relation_and_mode(&json, "cusku", "asserted");
+        assert_eq!(cusku["arguments"]["x2"]["value"], "sign:s1");
+        assert_eq!(cusku["arguments"]["x2"]["quantity"], "quantity:q1");
+        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 2);
+        assert_eq!(object(&json, "quantity:q1")["source"]["text"], "re");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn descriptor_tail_quantifier_sets_description_quantity() {
+        let json = semantic_json_for("mi ponse su'o ci cutci").expect("semantic JSON");
+        let ponse = predication_with_relation_and_mode(&json, "ponse", "asserted");
+        let shoes = ponse["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("shoe referent ID");
+        assert_eq!(
+            object(&json, shoes)["descriptor"]["quantity"],
+            "quantity:q1"
+        );
+        assert_eq!(object(&json, "quantity:q1")["value"]["text"], "su'o ci");
+        assert_eq!(object(&json, "quantity:q1")["source"]["text"], "su'o ci");
     }
 
     #[test]
