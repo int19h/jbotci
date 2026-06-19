@@ -400,6 +400,8 @@ pub struct SemanticObject {
     #[serde(rename = "kind", skip_serializing_if = "Option::is_none")]
     pub sign_kind: Option<SignKind>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub quotation: Option<Quotation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub denotes: Option<SemanticObjectId>,
@@ -499,6 +501,7 @@ impl SemanticObject {
             arity: None,
             embedded_questions: Vec::new(),
             sign_kind: None,
+            text: None,
             quotation: None,
             denotes: None,
             family: None,
@@ -730,6 +733,20 @@ impl SemanticObject {
         object.quotation = quotation;
         object.source = source;
         object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(sign_kind != SignKind::Quotation)]
+    #[requires(!text.is_empty())]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Sign)]
+    pub fn text_sign(
+        sign_kind: SignKind,
+        text: String,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::sign(sign_kind, None, source, diagnostics);
+        object.text = Some(text);
         object
     }
 

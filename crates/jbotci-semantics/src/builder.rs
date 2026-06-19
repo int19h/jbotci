@@ -627,6 +627,21 @@ where
         source_from_spans(&spans, self.options.source_text, Some(construct))
     }
 
+    #[requires(!tokens.is_empty())]
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    fn source_for_tokens(
+        &self,
+        tokens: &[Token],
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        let spans = tokens
+            .iter()
+            .flat_map(|token| token.source_spans().into_iter().cloned())
+            .collect::<Vec<_>>();
+        source_from_spans(&spans, self.options.source_text, Some(construct))
+    }
+
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
     fn build_text(&mut self, text: &'tree TextSyntax) -> Result<SemanticGraph, SemanticsError> {
@@ -636,6 +651,9 @@ where
             .any(|indicator| indicator.indicator.cmavo() == Some(Cmavo::Xu));
         let mut leading_asides = self.build_vocative_asides(&text.leading_free_modifiers)?;
         let mut items = Vec::new();
+        if let Some(leading_names) = self.build_leading_cmevla_utterance(text)? {
+            items.push(leading_names);
+        }
         for paragraph in &text.paragraphs {
             let mut paragraph_asides = self.build_vocative_asides(&paragraph.free_modifiers)?;
             let first_paragraph_item = items.len();
@@ -685,6 +703,30 @@ where
         };
         SemanticGraph::new(root, std::mem::take(&mut self.objects))
             .map_err(SemanticsError::invalid_graph)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_leading_cmevla_utterance(
+        &mut self,
+        text: &'tree TextSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        if text.leading_cmevla.is_empty() {
+            return Ok(None);
+        }
+        let sign = self.next_sign();
+        let source = self.source_for_tokens(&text.leading_cmevla, "name-words");
+        self.insert(
+            sign,
+            SemanticObject::text_sign(
+                SignKind::Text,
+                token_vec_text(&text.leading_cmevla),
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        self.build_utterance(UtteranceForce::Mention, Some(sign), source, Vec::new())
+            .map(Some)
     }
 
     #[requires(true)]
@@ -5985,6 +6027,18 @@ mod tests {
         let audience = utterance["audience"].as_str().expect("audience referent");
         assert_eq!(object(&json, audience)["descriptor"]["kind"], "name");
         assert_eq!(object(&json, audience)["descriptor"]["name"], "djan");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_cmevla_text_is_mentioned_as_name_word_text() {
+        let json = semantic_json_for(".lojban.").expect("semantic JSON");
+        let utterance = root_object(&json);
+        assert_eq!(utterance["force"], "mention");
+        assert_eq!(utterance["content"], "sign:s1");
+        assert_eq!(object(&json, "sign:s1")["kind"], "text");
+        assert_eq!(object(&json, "sign:s1")["text"], "lojban");
     }
 
     #[test]
