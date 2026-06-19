@@ -5047,6 +5047,14 @@ where
         head: SemanticObjectId,
     ) -> Result<Option<RelativeClause>, SemanticsError> {
         match clause.as_data() {
+            data!(RelativeClauseSyntax::IncidentalRelativeBridi { noi, subbridi, .. })
+                if noi
+                    .cmavo()
+                    .is_some_and(cmavo_is_nonveridical_relative_marker) =>
+            {
+                self.build_nonveridical_relative_bridi_clause(noi, subbridi, head)
+                    .map(Some)
+            }
             data!(RelativeClauseSyntax::IncidentalRelativeBridi { subbridi, .. }) => self
                 .build_relative_bridi_clause(subbridi, head, RelativeClauseKind::Incidental)
                 .map(Some),
@@ -5061,6 +5069,66 @@ where
                 self.build_sumti_association_phrase_clause(phrase, head)
             }
         }
+    }
+
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_nonveridical_relative_bridi_clause(
+        &mut self,
+        marker: &'tree WithFreeModifiers<Token>,
+        subbridi: &'tree SubbridiSyntax,
+        head: SemanticObjectId,
+    ) -> Result<RelativeClause, SemanticsError> {
+        let marker_text = token_text(&marker.value);
+        let source = self.source_for_subbridi(subbridi, "relative-clause");
+        let formula = if let Some(selbri) = main_selbri_for_subbridi(subbridi) {
+            self.build_nonveridical_relative_formula_for_selbri(selbri, head, source.clone())?
+        } else {
+            let formula = self.build_diagnostic_relative_formula(subbridi)?;
+            self.set_formula_predication_mode(formula, PredicationMode::Restrictive);
+            formula
+        };
+        Ok(RelativeClause::nonveridical(
+            RelativeClauseKind::Restrictive,
+            formula,
+            marker_text,
+            source,
+        ))
+    }
+
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_nonveridical_relative_formula_for_selbri(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        head: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let property = self.build_property_abstraction_for_selbri(selbri, source.clone())?;
+        let mut arguments = BTreeMap::new();
+        arguments.insert(
+            "x1".to_owned(),
+            ArgumentValue::filled(SemanticObjectId::speaker(), None),
+        );
+        arguments.insert("x2".to_owned(), ArgumentValue::filled(head, None));
+        arguments.insert("x3".to_owned(), ArgumentValue::filled(property, None));
+        let predication = self.next_predication();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                "describedAs".to_owned(),
+                None,
+                arguments,
+                PredicationMode::Restrictive,
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
@@ -8465,6 +8533,8 @@ fn constructed_relation_place_count(relation: &str) -> Option<usize> {
             | "intrinsicallyPossessedBy"
     ) {
         Some(2)
+    } else if relation == "describedAs" {
+        Some(3)
     } else if relation.starts_with("nu ") {
         Some(1)
     } else if relation.ends_with(" moi") || relation.ends_with(" mei") {
@@ -8472,6 +8542,12 @@ fn constructed_relation_place_count(relation: &str) -> Option<usize> {
     } else {
         None
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cmavo_is_nonveridical_relative_marker(cmavo: Cmavo) -> bool {
+    matches!(cmavo, Cmavo::Voi | Cmavo::Voihi)
 }
 
 #[requires(true)]
@@ -10794,6 +10870,36 @@ mod tests {
             objects
                 .values()
                 .all(|object| object["relation"] != "jinzi steci srana")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn voi_relative_clause_is_restrictive_and_nonveridical() {
+        let json = semantic_json_for("ti voi mlatu cu gerku").expect("semantic JSON");
+        let described = predication_with_relation_and_mode(&json, "describedAs", "restrictive");
+        let gerku = predication_with_relation_and_mode(&json, "gerku", "asserted");
+        let relative_clause = &gerku["arguments"]["x1"]["relativeClauses"][0];
+        assert_eq!(relative_clause["kind"], "restrictive");
+        assert_eq!(relative_clause["introducedBy"], "voi");
+        assert_eq!(relative_clause["veridical"], false);
+        assert_eq!(described["arguments"]["x1"]["value"], "referent:speaker");
+        assert_eq!(
+            described["arguments"]["x2"]["value"],
+            gerku["arguments"]["x1"]["value"]
+        );
+        assert!(
+            described["arguments"]["x3"]["value"]
+                .as_str()
+                .expect("property abstraction")
+                .starts_with("abstraction:")
+        );
+        let objects = json["objects"].as_object().expect("objects");
+        assert!(
+            objects
+                .values()
+                .all(|object| { object["relation"] != "mlatu" || object["mode"] != "incidental" })
         );
     }
 
