@@ -804,6 +804,24 @@ where
                     .and_then(|node| self.source_for_node(node.0, "tanru-formula")),
             );
         }
+        if let Some(selbri) = selbri
+            && let data!(SelbriSyntax::InvertedTanru {
+                leading_selbri,
+                trailing_selbri,
+                ..
+            }) = selbri.as_data()
+        {
+            return self.build_inverted_tanru_formula_for_frame(
+                selbri,
+                leading_selbri,
+                trailing_selbri,
+                self.bridi_frame(bridi),
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "tanru-inversion-formula")),
+            );
+        }
         let relation = selbri
             .map(relation_label_for_selbri)
             .unwrap_or_else(|| "unknown-relation".to_owned());
@@ -1075,6 +1093,23 @@ where
                     .and_then(|node| self.source_for_node(node.0, "tanru-formula")),
             );
         }
+        if let data!(SelbriSyntax::InvertedTanru {
+            leading_selbri,
+            trailing_selbri,
+            ..
+        }) = selbri.as_data()
+        {
+            return self.build_inverted_tanru_formula_for_frame(
+                selbri,
+                leading_selbri,
+                trailing_selbri,
+                self.branch_frame_for_selbri(selbri),
+                self.analysis
+                    .syntax_index
+                    .selbri_node_id(selbri)
+                    .and_then(|node| self.source_for_node(node.0, "tanru-inversion-formula")),
+            );
+        }
         let relation = relation_label_for_selbri(selbri);
         let predication = self.build_predication_for_frame(
             self.branch_frame_for_selbri(selbri),
@@ -1203,6 +1238,20 @@ where
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_bound_selbri_tanru_formula_for_argument(selbri, leading, trailing, frame, source)
+            .map(|result| result.formula)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_inverted_tanru_formula_for_frame(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        tertau: &'tree SelbriSyntax,
+        seltau: &'tree SelbriSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_inverted_tanru_formula_for_argument(selbri, tertau, seltau, frame, source, None)
             .map(|result| result.formula)
     }
 
@@ -1419,6 +1468,21 @@ where
                 source,
             );
         }
+        if let data!(SelbriSyntax::InvertedTanru {
+            leading_selbri,
+            trailing_selbri,
+            ..
+        }) = relation_selbri.as_data()
+        {
+            return self.build_inverted_tanru_formula_for_argument(
+                selbri,
+                leading_selbri,
+                trailing_selbri,
+                frame,
+                source,
+                visible_x1_override,
+            );
+        }
         let visible_x1_place = visible_x1_place_for_selbri(relation_selbri);
         let mut overrides = BTreeMap::new();
         if let Some(argument) = visible_x1_override {
@@ -1440,6 +1504,52 @@ where
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_inverted_tanru_formula_for_argument(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        tertau: &'tree SelbriSyntax,
+        seltau: &'tree SelbriSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        visible_x1_override: Option<ArgumentValue>,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        let tertau_formula = self.build_selbri_tanru_formula_for_frame_with_visible_x1_override(
+            selbri,
+            tertau,
+            self.branch_frame_for_selbri(tertau).or(frame),
+            source.clone(),
+            visible_x1_override,
+        )?;
+        let modifier = self.build_property_abstraction_for_selbri(seltau, source.clone())?;
+        let relation_formula = self.build_tanru_relation_formula(
+            tertau_formula.x1_argument.clone(),
+            modifier,
+            tanru_relation_name_for_selbri_pair(seltau, tertau),
+            source.clone(),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                FormulaOperator::And,
+                vec![tertau_formula.formula, relation_formula],
+                Some(Connector {
+                    source: "tanru".to_owned(),
+                    locus: "selbri-inversion".to_owned(),
+                    truth_table: None,
+                }),
+                source,
+                Vec::new(),
+            ),
+        )?;
+        Ok(TanruFormulaForArgument {
+            formula,
+            x1_argument: tertau_formula.x1_argument,
         })
     }
 
@@ -1956,6 +2066,38 @@ where
                     Some(Connector {
                         source: "tanru".to_owned(),
                         locus: "property-abstraction".to_owned(),
+                        truth_table: None,
+                    }),
+                    source,
+                    Vec::new(),
+                ),
+            );
+        }
+        if let data!(SelbriSyntax::InvertedTanru {
+            leading_selbri,
+            trailing_selbri,
+            ..
+        }) = selbri.as_data()
+        {
+            let tertau_formula =
+                self.build_property_formula_for_selbri(leading_selbri, parameter, source.clone())?;
+            let modifier =
+                self.build_property_abstraction_for_selbri(trailing_selbri, source.clone())?;
+            let relation_formula = self.build_tanru_relation_formula(
+                ArgumentValue::filled(parameter, None),
+                modifier,
+                tanru_relation_name_for_selbri_pair(trailing_selbri, leading_selbri),
+                source.clone(),
+            )?;
+            let formula = self.next_formula();
+            return self.insert(
+                formula,
+                SemanticObject::connective_formula(
+                    FormulaOperator::And,
+                    vec![tertau_formula, relation_formula],
+                    Some(Connector {
+                        source: "tanru".to_owned(),
+                        locus: "property-inversion".to_owned(),
                         truth_table: None,
                     }),
                     source,
@@ -3936,6 +4078,18 @@ fn tanru_label_for_selbri(selbri: &SelbriSyntax) -> String {
             tanru_label_for_selbri(bound_tanru.trailing)
         );
     }
+    if let data!(SelbriSyntax::InvertedTanru {
+        leading_selbri,
+        trailing_selbri,
+        ..
+    }) = selbri.as_data()
+    {
+        return format!(
+            "{}-{}",
+            tanru_label_for_selbri(trailing_selbri),
+            tanru_label_for_selbri(leading_selbri)
+        );
+    }
     relation_label_for_selbri(selbri)
 }
 
@@ -3948,6 +4102,7 @@ fn selbri_has_explicit_grouping(selbri: &SelbriSyntax) -> bool {
         return tanru_sequence_has_explicit_grouping(&units);
     }
     connectorless_bound_selbri_pair(selbri).is_some()
+        || matches!(selbri.as_data(), data!(SelbriSyntax::InvertedTanru { .. }))
 }
 
 #[requires(!units.is_empty())]
@@ -4336,6 +4491,77 @@ mod tests {
         assert_eq!(object(&json, "formula:f4")["operator"], "and");
         assert_eq!(object(&json, "formula:f4")["children"][0], "formula:f1");
         assert_eq!(object(&json, "formula:f4")["children"][1], "formula:f3");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn inverted_tanru_lowers_to_same_tertau_and_modifier_shape() {
+        let json = semantic_json_for("ta zdani co blanu").expect("semantic JSON");
+        let zdani = predication_with_relation_and_mode(&json, "zdani", "asserted");
+        assert_eq!(zdani["arguments"]["x1"]["value"], "referent:r1");
+        assert_eq!(zdani["arguments"]["x2"]["kind"], "elided");
+
+        let blanu = predication_with_relation_and_mode(&json, "blanu", "restrictive");
+        assert_eq!(blanu["arguments"]["x1"]["value"], "parameter:p1");
+
+        let relation =
+            predication_with_relation_and_mode(&json, "R[tanru:blanu-zdani]", "asserted");
+        assert_eq!(relation["arguments"]["x1"]["value"], "referent:r1");
+        assert_eq!(relation["arguments"]["x2"]["value"], "abstraction:a1");
+        assert_eq!(
+            object(&json, "formula:f4")["connector"]["locus"],
+            "selbri-inversion"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn inverted_tanru_tail_terms_fill_seltau_places() {
+        let json = semantic_json_for("mi troci co klama le zarci le zdani").expect("semantic JSON");
+        let troci = predication_with_relation_and_mode(&json, "troci", "asserted");
+        assert_eq!(troci["arguments"]["x1"]["value"], "referent:speaker");
+        assert_eq!(troci["arguments"]["x2"]["kind"], "elided");
+        assert_eq!(troci["arguments"]["x3"]["kind"], "elided");
+
+        let klama = predication_with_relation_and_mode(&json, "klama", "restrictive");
+        assert_eq!(klama["arguments"]["x1"]["value"], "parameter:p1");
+        assert_eq!(klama["arguments"]["x2"]["kind"], "filled");
+        assert_eq!(klama["arguments"]["x3"]["kind"], "filled");
+        assert_eq!(klama["arguments"]["x4"]["kind"], "elided");
+        assert_eq!(klama["arguments"]["x5"]["kind"], "elided");
+
+        let relation =
+            predication_with_relation_and_mode(&json, "R[tanru:klama-troci]", "asserted");
+        assert_eq!(relation["arguments"]["x1"]["value"], "referent:speaker");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn multiple_inverted_tanru_lower_in_non_inverted_order() {
+        let json = semantic_json_for("ckule co nixli co cmalu").expect("semantic JSON");
+        let relations = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .filter(|object| object["type"] == "predication")
+            .filter_map(|object| object["relation"].as_str())
+            .collect::<Vec<_>>();
+        assert!(relations.iter().any(|relation| *relation == "ckule"));
+        assert!(relations.iter().any(|relation| *relation == "nixli"));
+        assert!(relations.iter().any(|relation| *relation == "cmalu"));
+        assert!(
+            relations
+                .iter()
+                .any(|relation| *relation == "R[tanru:cmalu-nixli]")
+        );
+        assert!(
+            relations
+                .iter()
+                .any(|relation| *relation == "R[tanru:cmalu-nixli-ckule]")
+        );
     }
 
     #[test]
