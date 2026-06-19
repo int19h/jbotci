@@ -6,7 +6,7 @@ use std::fmt;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, requires};
 use jbotci_dictionary::{Dictionary, WordType, normalize_lookup_query};
-use jbotci_morphology::{Cmavo, Word, strip_diacritics};
+use jbotci_morphology::{Cmavo, Word, WordLike, WordLikeData, strip_diacritics};
 use jbotci_syntax::ast::{
     AbstractionSyntax, BoGroupedBridiTailSyntax, BridiSyntax, BridiTailSyntax, ConnectiveSyntax,
     ConnectiveSyntaxData, DescriptionSyntax, FragmentSyntax, FragmentSyntaxData,
@@ -21,9 +21,9 @@ use jbotci_syntax::ast::{
 
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, Composition,
-    Connector, Descriptor, EventualityClass, FormulaOperator, IndexicalKind, ModalArgument,
-    PredicationMode, QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode,
-    QuestionSlot, QuestionSlotRole, Quotation, ReferentCategory, RelativeClause,
+    Connector, Descriptor, EventualityClass, FormulaOperator, IndexicalKind, MathLiteral,
+    ModalArgument, PredicationMode, QuantityForm, QuantityScale, QuantityValue, QuestionKind,
+    QuestionMode, QuestionSlot, QuestionSlotRole, Quotation, ReferentCategory, RelativeClause,
     RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph,
     SemanticObject, SemanticObjectId, SemanticSort, SequenceRelation, SignKind, UtteranceForce,
     diagnostic, source_from_spans,
@@ -497,6 +497,14 @@ where
     fn next_sign(&mut self) -> SemanticObjectId {
         let id = SemanticObjectId::sign(self.counters.sign);
         self.counters.sign += 1;
+        id
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn next_math(&mut self) -> SemanticObjectId {
+        let id = SemanticObjectId::math_expression(self.counters.math);
+        self.counters.math += 1;
         id
     }
 
@@ -4036,9 +4044,12 @@ where
         li: &WithFreeModifiers<Token>,
         raw: RawSyntaxNodeId,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let text = simple_mekso_text(expression).unwrap_or_else(|| "mekso".to_owned());
-        let quantity =
-            self.build_quantity_for_words(text.clone(), self.source_for_node(raw, "quantity"))?;
+        if li.cmavo() == Some(Cmavo::Meho) {
+            return self.build_math_expression_sign(expression, raw);
+        }
+
+        let text = mekso_surface_text(expression);
+        let quantity = self.build_quantity_for_mekso(expression, raw)?;
         let id = self.next_referent();
         self.insert(
             id,
@@ -4059,6 +4070,174 @@ where
                 self.source_for_node(raw, "number-sumti"),
                 Vec::new(),
             ),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_math_expression_sign(
+        &mut self,
+        expression: &MeksoSyntax,
+        raw: RawSyntaxNodeId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let expression_id =
+            self.build_math_expression(expression, self.source_for_node(raw, "math-expression"))?;
+        let mut sign = SemanticObject::text_sign(
+            SignKind::MathExpression,
+            mekso_surface_text(expression),
+            self.source_for_node(raw, "number-sumti"),
+            Vec::new(),
+        );
+        sign.denotes = Some(expression_id);
+        let id = self.next_sign();
+        self.insert(id, sign)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_quantity_for_mekso(
+        &mut self,
+        expression: &MeksoSyntax,
+        raw: RawSyntaxNodeId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let text = mekso_surface_text(expression);
+        let value = parse_decimal_integer(&text)
+            .map(QuantityValue::integer)
+            .map_or_else(
+                || {
+                    self.build_math_expression(
+                        expression,
+                        self.source_for_node(raw, "math-expression"),
+                    )
+                    .map(QuantityValue::math_expression)
+                },
+                Ok,
+            )?;
+        let id = self.next_quantity();
+        self.insert(
+            id,
+            SemanticObject::quantity(
+                quantity_form_for_text(&text),
+                value,
+                QuantityScale::Count,
+                self.source_for_node(raw, "quantity"),
+            ),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_math_expression(
+        &mut self,
+        expression: &MeksoSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        match expression.as_data() {
+            data!(MeksoSyntax::NumberMekso(quantifier)) => {
+                self.build_math_expression_for_quantifier(quantifier, source)
+            }
+            data!(MeksoSyntax::LerfuStringMekso { letter, .. }) => self.build_math_literal(
+                MathLiteral::text("variable".to_owned(), math_letteral_text(&letter.value)),
+                source,
+            ),
+            data!(MeksoSyntax::ParenthesizedMekso {
+                inner_expression,
+                ..
+            })
+            | data!(MeksoSyntax::QualifiedOperand {
+                inner_expression,
+                ..
+            }) => self.build_math_expression(inner_expression, source),
+            data!(MeksoSyntax::Infix {
+                left_expression,
+                operator,
+                right_expression,
+            })
+            | data!(MeksoSyntax::PrecedenceInfix {
+                left_expression,
+                operator,
+                right_expression,
+                ..
+            }) => {
+                let operands = vec![
+                    self.build_math_expression(left_expression, None)?,
+                    self.build_math_expression(right_expression, None)?,
+                ];
+                self.build_math_operator_expression(math_operator_label(operator), operands, source)
+            }
+            data!(MeksoSyntax::ForethoughtCall {
+                operator,
+                operands,
+                ..
+            }) => {
+                let operands = operands
+                    .iter()
+                    .map(|operand| self.build_math_expression(operand, None))
+                    .collect::<Result<Vec<_>, _>>()?;
+                self.build_math_operator_expression(math_operator_label(operator), operands, source)
+            }
+            data!(MeksoSyntax::MeksoArray { expressions, .. }) => {
+                let operands = expressions
+                    .iter()
+                    .map(|operand| self.build_math_expression(operand, None))
+                    .collect::<Result<Vec<_>, _>>()?;
+                self.build_math_operator_expression("array".to_owned(), operands, source)
+            }
+            _ => self.build_math_literal(
+                MathLiteral::text("expression".to_owned(), mekso_surface_text(expression)),
+                source,
+            ),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_math_expression_for_quantifier(
+        &mut self,
+        quantifier: &QuantifierSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        match quantifier.as_data() {
+            data!(QuantifierSyntax::NumberQuantifier { number, .. }) => {
+                let text = word_run_text(&number.value);
+                let literal = parse_decimal_integer(&text)
+                    .map(MathLiteral::integer)
+                    .unwrap_or_else(|| MathLiteral::text("number".to_owned(), text));
+                self.build_math_literal(literal, source)
+            }
+            data!(QuantifierSyntax::MeksoQuantifier { mekso, .. }) => {
+                self.build_math_expression(mekso, source)
+            }
+        }
+    }
+
+    #[requires(!operator.is_empty())]
+    #[requires(!operands.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_math_operator_expression(
+        &mut self,
+        operator: String,
+        operands: Vec<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_math();
+        self.insert(
+            id,
+            SemanticObject::math_expression(Some(operator), operands, None, source, Vec::new()),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_math_literal(
+        &mut self,
+        literal: MathLiteral,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_math();
+        self.insert(
+            id,
+            SemanticObject::math_expression(None, Vec::new(), Some(literal), source, Vec::new()),
         )
     }
 
@@ -5864,10 +6043,12 @@ fn mekso_operator_label(operator: &MeksoOperatorSyntax) -> String {
 }
 
 #[requires(true)]
-#[ensures(ret.is_some() -> !ret.as_ref().unwrap().is_empty())]
-fn simple_mekso_text(expression: &MeksoSyntax) -> Option<String> {
+#[ensures(!ret.is_empty())]
+fn mekso_surface_text(expression: &MeksoSyntax) -> String {
     match expression.as_data() {
-        data!(MeksoSyntax::NumberMekso(quantifier)) => quantifier_text(quantifier),
+        data!(MeksoSyntax::NumberMekso(quantifier)) => {
+            quantifier_text(quantifier).unwrap_or_else(|| "mekso".to_owned())
+        }
         data!(MeksoSyntax::ParenthesizedMekso {
             inner_expression,
             ..
@@ -5875,9 +6056,96 @@ fn simple_mekso_text(expression: &MeksoSyntax) -> Option<String> {
         | data!(MeksoSyntax::QualifiedOperand {
             inner_expression,
             ..
-        }) => simple_mekso_text(inner_expression),
-        data!(MeksoSyntax::LerfuStringMekso { letter, .. }) => Some(word_run_text(&letter.value)),
-        _ => None,
+        }) => mekso_surface_text(inner_expression),
+        data!(MeksoSyntax::LerfuStringMekso { letter, .. }) => math_letteral_text(&letter.value),
+        data!(MeksoSyntax::Infix {
+            left_expression,
+            operator,
+            right_expression,
+        })
+        | data!(MeksoSyntax::PrecedenceInfix {
+            left_expression,
+            operator,
+            right_expression,
+            ..
+        }) => format!(
+            "{} {} {}",
+            mekso_surface_text(left_expression),
+            mekso_operator_label(operator),
+            mekso_surface_text(right_expression)
+        ),
+        data!(MeksoSyntax::ForethoughtCall {
+            operator,
+            operands,
+            ..
+        }) => {
+            let mut parts = Vec::with_capacity(operands.len() + 1);
+            parts.push(mekso_operator_label(operator));
+            parts.extend(operands.iter().map(mekso_surface_text));
+            parts.join(" ")
+        }
+        data!(MeksoSyntax::MeksoArray { expressions, .. }) => expressions
+            .iter()
+            .map(mekso_surface_text)
+            .collect::<Vec<_>>()
+            .join(" "),
+        _ => "mekso".to_owned(),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn math_operator_label(operator: &MeksoOperatorSyntax) -> String {
+    let source = mekso_operator_label(operator);
+    match source.as_str() {
+        "su'i" => "add".to_owned(),
+        "pi'i" => "multiply".to_owned(),
+        "te'a" => "power".to_owned(),
+        "vu'u" => "subtract".to_owned(),
+        "fe'i" => "divide".to_owned(),
+        _ => source,
+    }
+}
+
+#[requires(!letters.is_empty())]
+#[ensures(!ret.is_empty())]
+fn math_letteral_text(letters: &WordRun) -> String {
+    letters
+        .iter()
+        .map(math_letteral_token_text)
+        .collect::<Vec<_>>()
+        .join("")
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn math_letteral_token_text(token: &Token) -> String {
+    match token.core_word().as_data() {
+        data!(WordLike::PlainWord(word)) => math_letteral_word_text(word),
+        data!(WordLike::LerfuWord { base, .. }) => math_letteral_word_like_text(base),
+        _ => token_text(token),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn math_letteral_word_like_text(word_like: &WordLike) -> String {
+    match word_like.as_data() {
+        data!(WordLike::PlainWord(word)) => math_letteral_word_text(word),
+        data!(WordLike::LerfuWord { base, .. }) => math_letteral_word_like_text(base),
+        _ => word_like.to_string(),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn math_letteral_word_text(word: &Word) -> String {
+    match word.cmavo() {
+        Some(Cmavo::A) => "a".to_owned(),
+        Some(Cmavo::By) => "b".to_owned(),
+        Some(Cmavo::Cy) => "c".to_owned(),
+        Some(Cmavo::Xy) => "x".to_owned(),
+        _ => word_text(word),
     }
 }
 
@@ -6734,6 +7002,47 @@ mod tests {
         assert_eq!(sum["arguments"]["x2"]["value"], "referent:r2");
         assert_eq!(sum["arguments"]["x3"]["value"], "referent:r3");
         assert!(sum.get("diagnostics").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn meho_sumti_mentions_math_expression_sign() {
+        let json = semantic_json_for("me'o re su'i re").expect("semantic JSON");
+        let utterance = root_object(&json);
+        assert_eq!(utterance["content"], "sign:s1");
+        let sign = object(&json, "sign:s1");
+        assert_eq!(sign["kind"], "mathExpression");
+        assert_eq!(sign["text"], "re su'i re");
+        assert_eq!(sign["denotes"], "math:m3");
+        assert_eq!(object(&json, "math:m3")["operator"], "add");
+        assert_eq!(object(&json, "math:m3")["operands"][0], "math:m1");
+        assert_eq!(object(&json, "math:m1")["literal"]["value"], 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn complex_li_preserves_math_expression_tree() {
+        let json =
+            semantic_json_for("li .abu bi'epi'i xy. bi'ete'a re su'i by. bi'epi'i xy. su'i cy.")
+                .expect("semantic JSON");
+        assert_eq!(object(&json, "referent:r1")["sort"], "number");
+        assert_eq!(
+            object(&json, "quantity:q1")["value"]["mathExpression"],
+            "math:m11"
+        );
+        assert_eq!(
+            object(&json, "referent:r1")["descriptor"]["name"],
+            "a pi'i x te'a re su'i b pi'i x su'i c"
+        );
+        assert_eq!(object(&json, "math:m11")["operator"], "add");
+        assert_eq!(object(&json, "math:m5")["operator"], "multiply");
+        assert_eq!(object(&json, "math:m4")["operator"], "power");
+        assert_eq!(object(&json, "math:m1")["literal"]["value"], "a");
+        assert_eq!(object(&json, "math:m2")["literal"]["value"], "x");
+        assert_eq!(object(&json, "math:m6")["literal"]["value"], "b");
+        assert_eq!(object(&json, "math:m10")["literal"]["value"], "c");
     }
 
     #[test]

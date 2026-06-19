@@ -372,7 +372,7 @@ pub struct SemanticObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub relation_metadata: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub operator: Option<FormulaOperator>,
+    pub operator: Option<SemanticOperator>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub predication: Option<SemanticObjectId>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -650,7 +650,7 @@ impl SemanticObject {
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Self {
         let mut object = Self::empty(SemanticObjectKind::Formula);
-        object.operator = Some(FormulaOperator::Atom);
+        object.operator = Some(SemanticOperator::formula(FormulaOperator::Atom));
         object.predication = Some(predication);
         object.source = source;
         object.diagnostics = diagnostics;
@@ -667,7 +667,7 @@ impl SemanticObject {
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Self {
         let mut object = Self::empty(SemanticObjectKind::Formula);
-        object.operator = Some(operator);
+        object.operator = Some(SemanticOperator::formula(operator));
         object.children = children;
         object.connector = connector;
         object.source = source;
@@ -699,7 +699,7 @@ impl SemanticObject {
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Self {
         let mut object = Self::empty(SemanticObjectKind::Formula);
-        object.operator = Some(operator);
+        object.operator = Some(SemanticOperator::formula(operator));
         object.variable = Some(variable);
         object.restriction = restriction;
         object.body = Some(body);
@@ -784,6 +784,28 @@ impl SemanticObject {
         object
     }
 
+    #[requires(literal.is_some() || operator.as_ref().is_some_and(|operator| !operator.is_empty()))]
+    #[requires(literal.is_some() == operands.is_empty())]
+    #[requires(operands
+        .iter()
+        .all(|operand| operand.object_kind() == SemanticObjectKind::MathExpression))]
+    #[ensures(ret.object_kind() == SemanticObjectKind::MathExpression)]
+    pub fn math_expression(
+        operator: Option<String>,
+        operands: Vec<SemanticObjectId>,
+        literal: Option<MathLiteral>,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::MathExpression);
+        object.operator = operator.map(SemanticOperator::math);
+        object.operands = operands;
+        object.literal = literal;
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
     #[requires(true)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Quantity)]
     pub fn quantity(
@@ -854,6 +876,9 @@ impl SemanticObject {
         extend_optional(out, self.target);
         extend_optional(out, self.anchor);
         out.extend(self.operands.iter().copied());
+        if let Some(value) = &self.value {
+            value.references_into(out);
+        }
         extend_optional(out, self.comparison_set);
         out.extend(self.slots.iter().map(|slot| slot.parameter));
         extend_optional(out, self.focus);
@@ -1365,6 +1390,42 @@ pub enum ScalarNegationKind {
     Affirmed,
 }
 
+#[invariant(::Formula(_) => true)]
+#[invariant(::Math(operator) => !operator.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SemanticOperator {
+    Formula(FormulaOperator),
+    Math(String),
+}
+
+impl SemanticOperator {
+    #[requires(true)]
+    #[ensures(matches!(ret.as_data(), data!(SemanticOperator::Formula(_))))]
+    fn formula(operator: FormulaOperator) -> Self {
+        Self::from_data(data!(SemanticOperator::Formula(operator)))
+    }
+
+    #[requires(!operator.is_empty())]
+    #[ensures(matches!(ret.as_data(), data!(SemanticOperator::Math(_))))]
+    fn math(operator: String) -> Self {
+        Self::from_data(data!(SemanticOperator::Math(operator)))
+    }
+}
+
+impl Serialize for SemanticOperator {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.as_data() {
+            data!(SemanticOperator::Formula(operator)) => operator.serialize(serializer),
+            data!(SemanticOperator::Math(operator)) => serializer.serialize_str(operator),
+        }
+    }
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1421,6 +1482,7 @@ pub enum AbstractionKind {
 pub enum SignKind {
     Quotation,
     Letteral,
+    MathExpression,
     Word,
     Text,
 }
@@ -1459,12 +1521,41 @@ pub enum DisplayedContentFamily {
     QuestionPrompt,
 }
 
-#[invariant(true)]
+#[invariant(!kind.is_empty(), "math literal kind must be named")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MathLiteral {
     pub kind: String,
-    pub value: String,
+    pub value: MathLiteralValue,
+}
+
+impl MathLiteral {
+    #[requires(true)]
+    #[ensures(ret.kind == "integer")]
+    pub fn integer(value: i64) -> Self {
+        Self::from_data(data!(MathLiteral {
+            kind: "integer".to_owned(),
+            value: MathLiteralValue::from_data(data!(MathLiteralValue::Integer(value))),
+        }))
+    }
+
+    #[requires(!value.is_empty())]
+    #[ensures(ret.kind == old(kind.clone()))]
+    pub fn text(kind: String, value: String) -> Self {
+        Self::from_data(data!(MathLiteral {
+            kind,
+            value: MathLiteralValue::from_data(data!(MathLiteralValue::Text(value))),
+        }))
+    }
+}
+
+#[invariant(::Integer(_) => true)]
+#[invariant(::Text(value) => !value.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum MathLiteralValue {
+    Integer(i64),
+    Text(String),
 }
 
 #[invariant(true)]
@@ -1484,7 +1575,7 @@ pub enum QuantityForm {
     TooFew,
 }
 
-#[invariant(true)]
+#[invariant((integer.is_some() as usize + text.is_some() as usize + math_expression.is_some() as usize) == 1)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuantityValue {
@@ -1500,21 +1591,37 @@ impl QuantityValue {
     #[requires(true)]
     #[ensures(ret.integer == Some(integer))]
     pub fn integer(integer: i64) -> Self {
-        Self {
+        Self::from_data(data!(QuantityValue {
             integer: Some(integer),
             text: None,
             math_expression: None,
-        }
+        }))
     }
 
     #[requires(!text.is_empty())]
     #[ensures(ret.text.is_some())]
     pub fn text(text: String) -> Self {
-        Self {
+        Self::from_data(data!(QuantityValue {
             integer: None,
             text: Some(text),
             math_expression: None,
-        }
+        }))
+    }
+
+    #[requires(math_expression.object_kind() == SemanticObjectKind::MathExpression)]
+    #[ensures(ret.math_expression == Some(math_expression))]
+    pub fn math_expression(math_expression: SemanticObjectId) -> Self {
+        Self::from_data(data!(QuantityValue {
+            integer: None,
+            text: None,
+            math_expression: Some(math_expression),
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        extend_optional(out, self.math_expression);
     }
 }
 
@@ -1645,6 +1752,7 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && optional_reference_has_kind(object.body, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.quantity, SemanticObjectKind::Quantity)
         && target_reference_matches_role(object.object_kind(), object.target)
+        && denotes_reference_matches_role(object.object_kind(), object.denotes)
         && object.descriptor.as_ref().is_none_or(|descriptor| {
             optional_reference_has_kind(descriptor.speaker, SemanticObjectKind::Referent)
                 && optional_reference_has_kind(descriptor.body, SemanticObjectKind::Formula)
@@ -1658,6 +1766,11 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && object.quotation.as_ref().is_none_or(|quotation| {
             optional_reference_has_kind(quotation.utterance, SemanticObjectKind::Utterance)
         })
+        && references_have_kind(&object.operands, SemanticObjectKind::MathExpression)
+        && object
+            .value
+            .as_ref()
+            .is_none_or(quantity_value_references_match_roles)
         && optional_reference_has_kind(object.asker, SemanticObjectKind::Referent)
         && optional_reference_has_kind(object.respondent, SemanticObjectKind::Referent)
         && object
@@ -1696,6 +1809,32 @@ fn target_reference_matches_role(
         ),
         _ => true,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn denotes_reference_matches_role(
+    object_kind: SemanticObjectKind,
+    denotes: Option<SemanticObjectId>,
+) -> bool {
+    let Some(denotes) = denotes else {
+        return true;
+    };
+    match object_kind {
+        SemanticObjectKind::Sign => matches!(
+            denotes.object_kind(),
+            SemanticObjectKind::Referent | SemanticObjectKind::MathExpression
+        ),
+        _ => true,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quantity_value_references_match_roles(value: &QuantityValue) -> bool {
+    value.math_expression.is_none_or(|math_expression| {
+        math_expression.object_kind() == SemanticObjectKind::MathExpression
+    })
 }
 
 #[requires(true)]
