@@ -256,6 +256,21 @@ struct TanruFormulaForArgument {
 }
 
 #[invariant(true)]
+#[derive(Debug, Clone)]
+struct AlternativeArgument {
+    argument: ArgumentValue,
+    negated: bool,
+}
+
+impl AlternativeArgument {
+    #[requires(true)]
+    #[ensures(ret.negated == negated)]
+    fn new(argument: ArgumentValue, negated: bool) -> Self {
+        Self { argument, negated }
+    }
+}
+
+#[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 struct BoundSelbriTanruPair<'tree> {
     leading: &'tree SelbriSyntax,
@@ -1059,7 +1074,7 @@ where
         let Some(frame) = self.bridi_frame(bridi) else {
             return Ok(None);
         };
-        let mut alternatives = BTreeMap::<String, Vec<ArgumentValue>>::new();
+        let mut alternatives = BTreeMap::<String, Vec<AlternativeArgument>>::new();
         let mut highest_assigned_place = 0usize;
         let mut connector = None;
         let mut operator = FormulaOperator::And;
@@ -1086,7 +1101,7 @@ where
                 if connector.is_none() {
                     operator = formula_operator_for_connective(connective);
                     connector = Some(Connector {
-                        source: connective_text(connective),
+                        source: full_connective_text(connective),
                         locus: "sumti".to_owned(),
                         truth_table: None,
                     });
@@ -1098,18 +1113,30 @@ where
             return Ok(None);
         };
         for (key, sumti) in assigned_sumtis {
-            if let Some((leading_sumti, _connective, trailing_sumti)) =
+            if let Some((leading_sumti, connective, trailing_sumti)) =
                 logical_sumti_connection_parts(sumti)
             {
                 alternatives.insert(
                     key,
                     vec![
-                        self.build_argument_for_sumti(leading_sumti)?,
-                        self.build_argument_for_sumti(trailing_sumti)?,
+                        AlternativeArgument::new(
+                            self.build_argument_for_sumti(leading_sumti)?,
+                            connective_negates_left(connective),
+                        ),
+                        AlternativeArgument::new(
+                            self.build_argument_for_sumti(trailing_sumti)?,
+                            connective_negates_right(connective),
+                        ),
                     ],
                 );
             } else {
-                alternatives.insert(key, vec![self.build_argument_for_sumti(sumti)?]);
+                alternatives.insert(
+                    key,
+                    vec![AlternativeArgument::new(
+                        self.build_argument_for_sumti(sumti)?,
+                        false,
+                    )],
+                );
             }
         }
         let fill_through = self
@@ -1118,7 +1145,13 @@ where
         for place in 1..=fill_through {
             let key = format!("x{place}");
             if !alternatives.contains_key(&key) {
-                alternatives.insert(key, vec![self.build_elided_argument_for_place(place)?]);
+                alternatives.insert(
+                    key,
+                    vec![AlternativeArgument::new(
+                        self.build_elided_argument_for_place(place)?,
+                        false,
+                    )],
+                );
             }
         }
         let mut branches = vec![BTreeMap::new()];
@@ -1134,7 +1167,12 @@ where
             branches = next;
         }
         let mut children = Vec::new();
-        for arguments in branches {
+        for branch in branches {
+            let branch_negated = branch.values().any(|value| value.negated);
+            let arguments = branch
+                .into_iter()
+                .map(|(place, value)| (place, value.argument))
+                .collect();
             let predication = self.build_predication_from_arguments(
                 relation.clone(),
                 selbri,
@@ -1157,6 +1195,19 @@ where
                     Vec::new(),
                 ),
             )?;
+            let formula = if branch_negated {
+                self.build_unary_formula(
+                    FormulaOperator::Not,
+                    formula,
+                    self.analysis
+                        .syntax_index
+                        .bridi_node_id(bridi)
+                        .and_then(|node| self.source_for_node(node.0, "distributed-negation")),
+                    Vec::new(),
+                )?
+            } else {
+                formula
+            };
             children.push(formula);
         }
         let formula = self.next_formula();
@@ -3671,9 +3722,11 @@ where
             Some(Cmavo::Le) => "speakerDescription",
             Some(Cmavo::Lei) => "speakerMassDescription",
             Some(Cmavo::Lehi) => "speakerSetDescription",
+            Some(Cmavo::Lehe) => "speakerStereotypeDescription",
             Some(Cmavo::La) => "name",
             Some(Cmavo::Lai) => "massNameDescription",
             Some(Cmavo::Lahi) => "setNameDescription",
+            Some(Cmavo::Lohe) => "typicalDescription",
             _ => "description",
         }
         .to_owned();
@@ -4460,6 +4513,35 @@ fn connective_is_na_ja(connective: &ConnectiveSyntax) -> bool {
                     .iter()
                     .any(|token| matches!(token.cmavo(), Some(Cmavo::Ja)))
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connective_negates_left(connective: &ConnectiveSyntax) -> bool {
+    if connective_is_na_ja(connective) {
+        return false;
+    }
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Afterthought { na, .. })
+        | data!(ConnectiveSyntax::Selbri { na, .. })
+        | data!(ConnectiveSyntax::BridiTail { na, .. })
+        | data!(ConnectiveSyntax::Forethought { na, .. })
+        | data!(ConnectiveSyntax::NonLogical { na, .. })
+        | data!(ConnectiveSyntax::Interval { na, .. }) => na.is_some(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connective_negates_right(connective: &ConnectiveSyntax) -> bool {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Afterthought { nai, .. })
+        | data!(ConnectiveSyntax::Selbri { nai, .. })
+        | data!(ConnectiveSyntax::BridiTail { nai, .. })
+        | data!(ConnectiveSyntax::Forethought { nai, .. })
+        | data!(ConnectiveSyntax::NonLogical { nai, .. })
+        | data!(ConnectiveSyntax::Interval { nai, .. }) => nai.is_some(),
     }
 }
 
@@ -5267,6 +5349,46 @@ mod tests {
             "speakerDescription"
         );
         assert!(object(&json, "utterance:u1").get("diagnostics").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn typical_descriptors_are_explicit() {
+        let json = semantic_json_for("lo'e cinfo cu xabju").expect("semantic JSON");
+        assert_eq!(
+            object(&json, "referent:r1")["descriptor"]["kind"],
+            "typicalDescription"
+        );
+
+        let json = semantic_json_for("le'e skina cu finti").expect("semantic JSON");
+        assert_eq!(
+            object(&json, "referent:r1")["descriptor"]["kind"],
+            "speakerStereotypeDescription"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sumti_connective_pre_na_negates_left_branch() {
+        let json =
+            semantic_json_for("mi xabju le fi'ortu'a na.e le gligugde").expect("semantic JSON");
+        let formula = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| {
+                object["type"] == "formula"
+                    && object["operator"] == "and"
+                    && object
+                        .pointer("/connector/locus")
+                        .is_some_and(|locus| locus == "sumti")
+            })
+            .expect("sumti connective formula");
+        assert_eq!(formula["connector"]["source"], "na e");
+        let first_child = formula["children"][0].as_str().expect("first child id");
+        assert_eq!(object(&json, first_child)["operator"], "not");
     }
 
     #[test]
