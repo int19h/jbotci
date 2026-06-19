@@ -3502,6 +3502,10 @@ struct DiscourseReferenceBuilder<'index, 'tree> {
     sumti_mentions: Vec<SumtiMention>,
     letter_sumti_mentions: HashMap<String, Vec<SumtiMention>>,
     predicate_mentions: Vec<NodeMention>,
+    quote_sumti_mentions: Vec<SumtiMention>,
+    quote_letter_sumti_mentions: HashMap<String, Vec<SumtiMention>>,
+    quote_predicate_mentions: Vec<NodeMention>,
+    quote_depth: usize,
     last_bridi: Option<BridiNodeId>,
     current_bridi: Option<BridiNodeId>,
     predicate_stack: Vec<RawSyntaxNodeId>,
@@ -3531,6 +3535,10 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
             sumti_mentions: Vec::new(),
             letter_sumti_mentions: HashMap::new(),
             predicate_mentions: Vec::new(),
+            quote_sumti_mentions: Vec::new(),
+            quote_letter_sumti_mentions: HashMap::new(),
+            quote_predicate_mentions: Vec::new(),
+            quote_depth: 0,
             last_bridi: None,
             current_bridi: None,
             predicate_stack: Vec::new(),
@@ -4438,12 +4446,53 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_quote(&mut self, quote: &'tree QuoteSyntax) {
         match quote.as_data() {
-            data!(QuoteSyntax::TextQuote { text, .. }) => self.visit_text(text),
+            data!(QuoteSyntax::TextQuote { text, .. }) => {
+                self.visit_text_with_quote_anaphora_context(text);
+            }
             data!(QuoteSyntax::WordQuote(..))
             | data!(QuoteSyntax::DelimitedWordQuote(..))
             | data!(QuoteSyntax::DelimitedNonLojbanQuote(..))
             | data!(QuoteSyntax::WordsQuote(..)) => {}
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_text_with_quote_anaphora_context(&mut self, text: &'tree TextSyntax) {
+        if self.quote_depth > 0 {
+            self.quote_depth += 1;
+            self.visit_text(text);
+            self.quote_depth -= 1;
+            return;
+        }
+
+        self.quote_depth = 1;
+        std::mem::swap(&mut self.sumti_mentions, &mut self.quote_sumti_mentions);
+        std::mem::swap(
+            &mut self.letter_sumti_mentions,
+            &mut self.quote_letter_sumti_mentions,
+        );
+        std::mem::swap(
+            &mut self.predicate_mentions,
+            &mut self.quote_predicate_mentions,
+        );
+        let outer_predicate_stack = std::mem::take(&mut self.predicate_stack);
+        let outer_discourse_predicate_stack = std::mem::take(&mut self.discourse_predicate_stack);
+        let outer_current_bridi = self.current_bridi.take();
+        self.visit_text(text);
+        self.current_bridi = outer_current_bridi;
+        self.discourse_predicate_stack = outer_discourse_predicate_stack;
+        self.predicate_stack = outer_predicate_stack;
+        std::mem::swap(
+            &mut self.predicate_mentions,
+            &mut self.quote_predicate_mentions,
+        );
+        std::mem::swap(
+            &mut self.letter_sumti_mentions,
+            &mut self.quote_letter_sumti_mentions,
+        );
+        std::mem::swap(&mut self.sumti_mentions, &mut self.quote_sumti_mentions);
+        self.quote_depth = 0;
     }
 
     #[requires(true)]
@@ -7010,6 +7059,36 @@ mod tests {
                 edge.kind == ReferenceKind::Koha
                     && matches!(edge.target, ReferenceTarget::ResolvedNode(_))
             }));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quoted_goha_uses_previous_quotation_not_supporting_text() {
+        run_reference_test(|| {
+            let syntax = parse_syntax(
+                "la .djan. cusku lu mi klama le zarci li'u .i la .alis. cusku lu mi go'i li'u",
+            );
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let quoted_klama = FixtureSpanKey {
+                offset: 19,
+                length: 17,
+            };
+
+            let gohi_targets = projection
+                .references
+                .iter()
+                .filter(|edge| edge.kind == ReferenceKind::GohaSeries)
+                .map(|edge| &edge.target)
+                .collect::<Vec<_>>();
+
+            assert_eq!(gohi_targets.len(), 1);
+            assert!(matches!(
+                gohi_targets[0],
+                FixtureReferenceTarget::ResolvedNode { node } if *node == quoted_klama
+            ));
         });
     }
 
