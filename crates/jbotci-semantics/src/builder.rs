@@ -243,6 +243,13 @@ struct IdCounters {
     question: usize,
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone)]
+struct TanruFormulaForArgument {
+    formula: SemanticObjectId,
+    x1_argument: ArgumentValue,
+}
+
 impl IdCounters {
     #[requires(true)]
     #[ensures(ret.utterance == 1)]
@@ -929,57 +936,18 @@ where
         selbri: &'tree SelbriSyntax,
         units: &[&'tree TanruUnitSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let tertau = units
-            .last()
-            .expect("precondition guarantees at least one tanru unit");
-        let tertau_relation = relation_label_for_tanru_unit(tertau);
         let source = self
             .analysis
             .syntax_index
             .selbri_node_id(selbri)
             .and_then(|node| self.source_for_node(node.0, "predication"));
-        let tertau_predication = self.build_predication_for_frame(
-            self.branch_frame_for_selbri(selbri),
-            source.clone(),
+        self.build_tanru_sequence_formula_for_frame(
             Some(selbri),
-            tertau_relation,
-        )?;
-        let tertau_formula = self.next_formula();
-        self.insert(
-            tertau_formula,
-            SemanticObject::atom_formula(tertau_predication, source.clone(), Vec::new()),
-        )?;
-        let x1_argument = self
-            .objects
-            .get(&tertau_predication)
-            .and_then(|object| object.arguments.get("x1"))
-            .cloned()
-            .ok_or_else(|| {
-                SemanticsError::invalid_graph("tanru tertau has no x1 argument".to_owned())
-            })?;
-        let modifier =
-            self.build_property_abstraction_for_units(&units[..units.len() - 1], source.clone())?;
-        let relation_formula = self.build_tanru_relation_formula(
-            x1_argument,
-            modifier,
-            tanru_relation_name(units),
-            source.clone(),
-        )?;
-        let formula = self.next_formula();
-        self.insert(
-            formula,
-            SemanticObject::connective_formula(
-                FormulaOperator::And,
-                vec![tertau_formula, relation_formula],
-                Some(Connector {
-                    source: "tanru".to_owned(),
-                    locus: "selbri".to_owned(),
-                    truth_table: None,
-                }),
-                source,
-                Vec::new(),
-            ),
+            units,
+            self.branch_frame_for_selbri(selbri),
+            source,
         )
+        .map(|result| result.formula)
     }
 
     #[requires(true)]
@@ -1033,6 +1001,29 @@ where
     #[requires(units.len() > 1)]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_tanru_formula_for_bridi(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: &'tree SelbriSyntax,
+        units: &[&'tree TanruUnitSyntax],
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if !tanru_sequence_has_explicit_grouping(units) {
+            return self.build_flat_tanru_formula_for_bridi(bridi, selbri, units);
+        }
+        self.build_tanru_sequence_formula_for_frame(
+            Some(selbri),
+            units,
+            self.bridi_frame(bridi),
+            self.analysis
+                .syntax_index
+                .bridi_node_id(bridi)
+                .and_then(|node| self.source_for_node(node.0, "tanru-formula")),
+        )
+        .map(|result| result.formula)
+    }
+
+    #[requires(units.len() > 1)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_flat_tanru_formula_for_bridi(
         &mut self,
         bridi: &'tree BridiSyntax,
         selbri: &'tree SelbriSyntax,
@@ -1102,6 +1093,158 @@ where
 
     #[requires(!units.is_empty())]
     #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_tanru_sequence_formula_for_frame(
+        &mut self,
+        selbri: Option<&'tree SelbriSyntax>,
+        units: &[&'tree TanruUnitSyntax],
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        if let [single] = units {
+            return self.build_tanru_unit_formula_for_frame(selbri, single, frame, source);
+        }
+        let tertau = units
+            .last()
+            .expect("precondition guarantees at least one tanru unit");
+        let tertau =
+            self.build_tanru_unit_formula_for_frame(selbri, tertau, frame, source.clone())?;
+        let modifier =
+            self.build_property_abstraction_for_units(&units[..units.len() - 1], source.clone())?;
+        let relation_formula = self.build_tanru_relation_formula(
+            tertau.x1_argument.clone(),
+            modifier,
+            tanru_relation_name(units),
+            source.clone(),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                FormulaOperator::And,
+                vec![tertau.formula, relation_formula],
+                Some(Connector {
+                    source: "tanru".to_owned(),
+                    locus: "selbri".to_owned(),
+                    truth_table: None,
+                }),
+                source,
+                Vec::new(),
+            ),
+        )?;
+        Ok(TanruFormulaForArgument {
+            formula,
+            x1_argument: tertau.x1_argument,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_tanru_unit_formula_for_frame(
+        &mut self,
+        selbri: Option<&'tree SelbriSyntax>,
+        unit: &'tree TanruUnitSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        match unit.as_data() {
+            data!(TanruUnitSyntax::BoundTanruUnitConnection {
+                leading_unit,
+                trailing_unit,
+                ..
+            }) => {
+                let tertau = self.build_tanru_unit_formula_for_frame(
+                    selbri,
+                    trailing_unit,
+                    frame,
+                    source.clone(),
+                )?;
+                let modifier =
+                    self.build_property_abstraction_for_tanru_unit(leading_unit, source.clone())?;
+                let relation_formula = self.build_tanru_relation_formula(
+                    tertau.x1_argument.clone(),
+                    modifier,
+                    tanru_unit_relation_name(unit),
+                    source.clone(),
+                )?;
+                let formula = self.next_formula();
+                self.insert(
+                    formula,
+                    SemanticObject::connective_formula(
+                        FormulaOperator::And,
+                        vec![tertau.formula, relation_formula],
+                        Some(Connector {
+                            source: "tanru".to_owned(),
+                            locus: "tanru-unit".to_owned(),
+                            truth_table: None,
+                        }),
+                        source,
+                        Vec::new(),
+                    ),
+                )?;
+                Ok(TanruFormulaForArgument {
+                    formula,
+                    x1_argument: tertau.x1_argument,
+                })
+            }
+            data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+            | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+                if let Some(units) = tanru_units_for_selbri(selbri)
+                    && !units.is_empty()
+                {
+                    return self.build_tanru_sequence_formula_for_frame(
+                        Some(selbri.as_ref()),
+                        &units,
+                        frame,
+                        source,
+                    );
+                }
+                self.build_simple_tanru_unit_formula_for_frame(
+                    Some(selbri.as_ref()),
+                    unit,
+                    frame,
+                    source,
+                )
+            }
+            _ => self.build_simple_tanru_unit_formula_for_frame(selbri, unit, frame, source),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_simple_tanru_unit_formula_for_frame(
+        &mut self,
+        selbri: Option<&'tree SelbriSyntax>,
+        unit: &'tree TanruUnitSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        let predication = self.build_predication_for_frame(
+            frame,
+            source.clone(),
+            selbri,
+            relation_label_for_tanru_unit(unit),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )?;
+        let x1_argument = self
+            .objects
+            .get(&predication)
+            .and_then(|object| object.arguments.get("x1"))
+            .cloned()
+            .ok_or_else(|| {
+                SemanticsError::invalid_graph("tanru tertau has no x1 argument".to_owned())
+            })?;
+        Ok(TanruFormulaForArgument {
+            formula,
+            x1_argument,
+        })
+    }
+
+    #[requires(!units.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
     fn build_property_abstraction_for_units(
         &mut self,
         units: &[&'tree TanruUnitSyntax],
@@ -1140,20 +1283,13 @@ where
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if let [single] = units {
-            return self.build_property_atom_for_relation(
-                relation_label_for_tanru_unit(single),
-                parameter,
-                source,
-            );
+            return self.build_property_formula_for_tanru_unit(single, parameter, source);
         }
         let tertau = units
             .last()
             .expect("precondition guarantees at least one tanru unit");
-        let tertau_formula = self.build_property_atom_for_relation(
-            relation_label_for_tanru_unit(tertau),
-            parameter,
-            source.clone(),
-        )?;
+        let tertau_formula =
+            self.build_property_formula_for_tanru_unit(tertau, parameter, source.clone())?;
         let modifier =
             self.build_property_abstraction_for_units(&units[..units.len() - 1], source.clone())?;
         let relation_formula = self.build_tanru_relation_formula(
@@ -1177,6 +1313,81 @@ where
                 Vec::new(),
             ),
         )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_property_abstraction_for_tanru_unit(
+        &mut self,
+        unit: &'tree TanruUnitSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let units = [unit];
+        self.build_property_abstraction_for_units(&units, source)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_property_formula_for_tanru_unit(
+        &mut self,
+        unit: &'tree TanruUnitSyntax,
+        parameter: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        match unit.as_data() {
+            data!(TanruUnitSyntax::BoundTanruUnitConnection {
+                leading_unit,
+                trailing_unit,
+                ..
+            }) => {
+                let tertau_formula = self.build_property_formula_for_tanru_unit(
+                    trailing_unit,
+                    parameter,
+                    source.clone(),
+                )?;
+                let modifier =
+                    self.build_property_abstraction_for_tanru_unit(leading_unit, source.clone())?;
+                let relation_formula = self.build_tanru_relation_formula(
+                    ArgumentValue::filled(parameter, None),
+                    modifier,
+                    tanru_unit_relation_name(unit),
+                    source.clone(),
+                )?;
+                let formula = self.next_formula();
+                self.insert(
+                    formula,
+                    SemanticObject::connective_formula(
+                        FormulaOperator::And,
+                        vec![tertau_formula, relation_formula],
+                        Some(Connector {
+                            source: "tanru".to_owned(),
+                            locus: "property-abstraction".to_owned(),
+                            truth_table: None,
+                        }),
+                        source,
+                        Vec::new(),
+                    ),
+                )
+            }
+            data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+            | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+                if let Some(units) = tanru_units_for_selbri(selbri)
+                    && !units.is_empty()
+                {
+                    return self.build_property_formula_for_units(&units, parameter, source);
+                }
+                self.build_property_atom_for_relation(
+                    relation_label_for_tanru_unit(unit),
+                    parameter,
+                    source,
+                )
+            }
+            _ => self.build_property_atom_for_relation(
+                relation_label_for_tanru_unit(unit),
+                parameter,
+                source,
+            ),
+        }
     }
 
     #[requires(!relation.is_empty())]
@@ -2201,10 +2412,118 @@ fn tanru_units_for_selbri(selbri: &SelbriSyntax) -> Option<Vec<&TanruUnitSyntax>
 fn tanru_relation_name(units: &[&TanruUnitSyntax]) -> String {
     let labels = units
         .iter()
-        .map(|unit| relation_label_for_tanru_unit(unit))
+        .enumerate()
+        .map(|(index, unit)| {
+            tanru_sequence_unit_label(unit, index + 1 == units.len() && units.len() > 1)
+        })
         .collect::<Vec<_>>()
         .join("-");
     format!("R[tanru:{labels}]")
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn tanru_unit_relation_name(unit: &TanruUnitSyntax) -> String {
+    format!("R[tanru:{}]", tanru_unit_label(unit))
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn tanru_sequence_unit_label(unit: &TanruUnitSyntax, is_tertau: bool) -> String {
+    let label = tanru_unit_label(unit);
+    if is_tertau && tanru_unit_has_explicit_grouping(unit) {
+        format!("({label})")
+    } else {
+        label
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn tanru_unit_label(unit: &TanruUnitSyntax) -> String {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::BoundTanruUnitConnection {
+            leading_unit,
+            trailing_unit,
+            ..
+        }) => format!(
+            "{}-{}",
+            tanru_unit_label(leading_unit),
+            tanru_unit_label(trailing_unit)
+        ),
+        data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ModalConversion { inner_unit, .. }) => {
+            tanru_unit_label(inner_unit)
+        }
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+            if let Some(units) = tanru_units_for_selbri(selbri)
+                && !units.is_empty()
+            {
+                return tanru_units_label(&units);
+            }
+            relation_label_for_selbri(selbri)
+        }
+        data!(TanruUnitSyntax::RelativeClauses { base, .. })
+        | data!(TanruUnitSyntax::LinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::AssignedProBridi { base, .. }) => tanru_unit_label(base),
+        _ => relation_label_for_tanru_unit(unit),
+    }
+}
+
+#[requires(!units.is_empty())]
+#[ensures(!ret.is_empty())]
+fn tanru_units_label(units: &[&TanruUnitSyntax]) -> String {
+    units
+        .iter()
+        .enumerate()
+        .map(|(index, unit)| {
+            tanru_sequence_unit_label(unit, index + 1 == units.len() && units.len() > 1)
+        })
+        .collect::<Vec<_>>()
+        .join("-")
+}
+
+#[requires(!units.is_empty())]
+#[ensures(true)]
+fn tanru_sequence_has_explicit_grouping(units: &[&TanruUnitSyntax]) -> bool {
+    units
+        .iter()
+        .any(|unit| tanru_unit_has_explicit_grouping(unit))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tanru_unit_has_explicit_grouping(unit: &TanruUnitSyntax) -> bool {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::BoundTanruUnitConnection { .. }) => true,
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+            tanru_units_for_selbri(selbri).is_some_and(|units| units.len() > 1)
+        }
+        data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ModalConversion { inner_unit, .. })
+        | data!(TanruUnitSyntax::RelativeClauses {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::LinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::AssignedProBridi {
+            base: inner_unit,
+            ..
+        }) => tanru_unit_has_explicit_grouping(inner_unit),
+        _ => false,
+    }
 }
 
 #[requires(true)]
@@ -2350,6 +2669,19 @@ mod tests {
             .unwrap_or_else(|| panic!("missing semantic object {id}"))
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn predication_relations(json: &Value) -> Vec<String> {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .filter(|object| object["type"] == "predication")
+            .filter_map(|object| object["relation"].as_str())
+            .map(ToOwned::to_owned)
+            .collect()
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -2484,6 +2816,50 @@ mod tests {
         assert_eq!(object(&json, "formula:f4")["operator"], "and");
         assert_eq!(object(&json, "formula:f4")["children"][0], "formula:f1");
         assert_eq!(object(&json, "formula:f4")["children"][1], "formula:f3");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bo_grouped_tanru_uses_nested_uniform_tanru_lowering() {
+        let right_grouped = semantic_json_for("ta cmalu nixli bo ckule").expect("semantic JSON");
+        let relations = predication_relations(&right_grouped);
+        assert!(relations.iter().any(|relation| relation == "ckule"));
+        assert!(relations.iter().any(|relation| relation == "nixli"));
+        assert!(relations.iter().any(|relation| relation == "cmalu"));
+        assert!(
+            relations
+                .iter()
+                .any(|relation| relation == "R[tanru:nixli-ckule]")
+        );
+        assert!(
+            relations
+                .iter()
+                .any(|relation| relation == "R[tanru:cmalu-(nixli-ckule)]")
+        );
+        assert!(
+            !relations
+                .iter()
+                .any(|relation| relation.contains("connected"))
+        );
+
+        let left_grouped = semantic_json_for("ta cmalu bo nixli ckule").expect("semantic JSON");
+        let relations = predication_relations(&left_grouped);
+        assert!(
+            relations
+                .iter()
+                .any(|relation| relation == "R[tanru:cmalu-nixli]")
+        );
+        assert!(
+            relations
+                .iter()
+                .any(|relation| relation == "R[tanru:cmalu-nixli-ckule]")
+        );
+        assert!(
+            !relations
+                .iter()
+                .any(|relation| relation.contains("connected"))
+        );
     }
 
     #[test]
