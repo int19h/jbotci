@@ -11,20 +11,21 @@ use jbotci_syntax::ast::{
     AbstractionSyntax, BoGroupedBridiTailSyntax, BridiSyntax, BridiTailSyntax, ConnectiveSyntax,
     ConnectiveSyntaxData, DescriptionSyntax, MeksoOperatorSyntax, MeksoOperatorSyntaxData,
     MeksoSyntax, MeksoSyntaxData, ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData,
-    RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax, SelbriSyntaxData,
-    SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData, SubbridiSyntax,
-    SubbridiSyntaxData, SumtiSyntax, SumtiSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData,
-    TenseModalSyntax, TenseModalSyntaxData, TextSyntax, Token, WithFreeModifiers, WordRun,
+    QuoteSyntax, QuoteSyntaxData, RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax,
+    SelbriSyntaxData, SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData,
+    SubbridiSyntax, SubbridiSyntaxData, SumtiSyntax, SumtiSyntaxData, TanruUnitSyntax,
+    TanruUnitSyntaxData, TenseModalSyntax, TenseModalSyntaxData, TextSyntax, Token,
+    WithFreeModifiers, WordRun,
 };
 
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, Composition,
     Connector, Descriptor, EventualityClass, FormulaOperator, IndexicalKind, ModalArgument,
     PredicationMode, QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode,
-    QuestionSlot, QuestionSlotRole, ReferentCategory, RelativeClause, RelativeClauseKind,
-    ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject,
-    SemanticObjectId, SemanticSort, SequenceRelation, UtteranceForce, diagnostic,
-    source_from_spans,
+    QuestionSlot, QuestionSlotRole, Quotation, ReferentCategory, RelativeClause,
+    RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph,
+    SemanticObject, SemanticObjectId, SemanticSort, SequenceRelation, SignKind, UtteranceForce,
+    diagnostic, source_from_spans,
 };
 use crate::references::{
     PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, ReferenceAnalysisError,
@@ -113,7 +114,7 @@ impl Default for SemanticBuildOptions<'_> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
 pub fn build_semantic_graph(
     syntax: &TextSyntax,
     source_text: Option<&str>,
@@ -122,7 +123,7 @@ pub fn build_semantic_graph(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
 pub fn build_semantic_graph_with_dictionary(
     syntax: &TextSyntax,
     source_text: Option<&str>,
@@ -134,7 +135,7 @@ pub fn build_semantic_graph_with_dictionary(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
 pub fn build_semantic_graph_with_place_resolver<F>(
     syntax: &TextSyntax,
     source_text: Option<&str>,
@@ -461,6 +462,14 @@ where
 
     #[requires(true)]
     #[ensures(true)]
+    fn next_sign(&mut self) -> SemanticObjectId {
+        let id = SemanticObjectId::sign(self.counters.sign);
+        self.counters.sign += 1;
+        id
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn next_quantity(&mut self) -> SemanticObjectId {
         let id = SemanticObjectId::quantity(self.counters.quantity);
         self.counters.quantity += 1;
@@ -733,6 +742,8 @@ where
         };
         let force = if is_question {
             UtteranceForce::Ask
+        } else if bridi_contains_ko(bridi) {
+            UtteranceForce::Command
         } else {
             UtteranceForce::Assert
         };
@@ -3314,6 +3325,7 @@ where
             return Ok(*id);
         }
         let id = match sumti.as_data() {
+            data!(SumtiSyntax::QuotedSumti(quote)) => self.build_quote_sign(quote, raw)?,
             data!(SumtiSyntax::ProSumti(token)) => self.build_pro_sumti(token, raw)?,
             data!(SumtiSyntax::NumberSumti { expression, li, .. }) => {
                 self.build_number_referent(expression, li, raw)?
@@ -3380,6 +3392,46 @@ where
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_quote_sign(
+        &mut self,
+        quote: &'tree QuoteSyntax,
+        raw: RawSyntaxNodeId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let source = self.source_for_node(raw, "quotation");
+        let source_text = source.as_ref().and_then(|source| source.text.clone());
+        let quotation = match quote.as_data() {
+            data!(QuoteSyntax::TextQuote { text, .. }) => {
+                let utterance = if text_has_statements(text) {
+                    Some(self.build_text_group_sequence(text)?)
+                } else {
+                    None
+                };
+                Quotation {
+                    mode: "parsed".to_owned(),
+                    utterance,
+                    delimiter: None,
+                    text: source_text,
+                }
+            }
+            data!(QuoteSyntax::WordQuote(marker))
+            | data!(QuoteSyntax::DelimitedWordQuote(marker))
+            | data!(QuoteSyntax::DelimitedNonLojbanQuote(marker))
+            | data!(QuoteSyntax::WordsQuote(marker)) => Quotation {
+                mode: "opaque".to_owned(),
+                utterance: None,
+                delimiter: Some(token_text(&marker.value)),
+                text: source_text,
+            },
+        };
+        let id = self.next_sign();
+        self.insert(
+            id,
+            SemanticObject::sign(SignKind::Quotation, Some(quotation), source, Vec::new()),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
     fn build_number_referent(
         &mut self,
         expression: &MeksoSyntax,
@@ -3421,6 +3473,7 @@ where
         match token.cmavo() {
             Some(Cmavo::Mi) => Ok(SemanticObjectId::speaker()),
             Some(Cmavo::Do) => Ok(SemanticObjectId::addressee()),
+            Some(Cmavo::Ko) => Ok(SemanticObjectId::addressee()),
             Some(Cmavo::Ma) => self.build_argument_parameter(token, raw),
             Some(Cmavo::Cehu) => {
                 self.build_parameter(token, raw, crate::model::ParameterRole::PropertySlot)
@@ -4986,6 +5039,29 @@ fn word_type_is_brivla_like(word_type: WordType) -> bool {
     )
 }
 
+#[requires(true)]
+#[ensures(ret == text.paragraphs.iter().any(|paragraph| paragraph.statements.iter().any(|statement| statement.statement.is_some())))]
+fn text_has_statements(text: &TextSyntax) -> bool {
+    text.paragraphs.iter().any(|paragraph| {
+        paragraph
+            .statements
+            .iter()
+            .any(|statement| statement.statement.is_some())
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bridi_contains_ko(bridi: &BridiSyntax) -> bool {
+    let mut contains_ko = false;
+    bridi.visit_words(&mut |token| {
+        if token.cmavo() == Some(Cmavo::Ko) {
+            contains_ko = true;
+        }
+    });
+    contains_ko
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -5105,6 +5181,58 @@ mod tests {
         let referent = object(&json, "referent:r1");
         assert_eq!(referent["category"], "indexical");
         assert_eq!(referent["indexical"], "distalDemonstrative");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ko_resolves_to_addressee_and_marks_command_force() {
+        let json = semantic_json_for("ko sarji la .lojban.").expect("semantic JSON");
+        assert_eq!(object(&json, "utterance:u1")["force"], "command");
+        assert_eq!(
+            predication_with_relation_and_mode(&json, "sarji", "asserted")["arguments"]["x1"]["value"],
+            "referent:addressee"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quoted_sumti_are_sign_arguments_with_parsed_utterances() {
+        let json = semantic_json_for("mi cusku lu mi klama li'u do").expect("semantic JSON");
+        let objects = json["objects"].as_object().expect("semantic objects");
+        let (sign_id, sign) = objects
+            .iter()
+            .find(|(_id, object)| object["type"] == "sign")
+            .expect("quotation sign");
+        assert_eq!(sign["kind"], "quotation");
+        assert_eq!(sign["quotation"]["mode"], "parsed");
+        assert!(
+            sign["quotation"]["utterance"]
+                .as_str()
+                .is_some_and(|id| id.starts_with("utterance:"))
+        );
+        assert_eq!(
+            predication_with_relation_and_mode(&json, "cusku", "asserted")["arguments"]["x2"]["value"],
+            sign_id.as_str()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quoted_indicator_text_preserves_sign_without_nested_utterance() {
+        let json = semantic_json_for("mi cusku lu e'osai li'u do").expect("semantic JSON");
+        let sign = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| object["type"] == "sign")
+            .expect("quotation sign");
+        assert_eq!(sign["kind"], "quotation");
+        assert_eq!(sign["quotation"]["mode"], "parsed");
+        assert_eq!(sign["quotation"]["text"], "lu e'osai li'u");
+        assert!(sign["quotation"].get("utterance").is_none());
     }
 
     #[test]

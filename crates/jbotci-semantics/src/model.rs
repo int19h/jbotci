@@ -397,7 +397,7 @@ pub struct SemanticObject {
     pub arity: Option<usize>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub embedded_questions: Vec<SemanticObjectId>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "kind", skip_serializing_if = "Option::is_none")]
     pub sign_kind: Option<SignKind>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quotation: Option<Quotation>,
@@ -718,6 +718,22 @@ impl SemanticObject {
     }
 
     #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Sign)]
+    pub fn sign(
+        sign_kind: SignKind,
+        quotation: Option<Quotation>,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Sign);
+        object.sign_kind = Some(sign_kind);
+        object.quotation = quotation;
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(true)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Quantity)]
     pub fn quantity(
         form: QuantityForm,
@@ -779,6 +795,9 @@ impl SemanticObject {
         extend_optional(out, self.abstracted);
         out.extend(self.parameters.iter().copied());
         out.extend(self.embedded_questions.iter().copied());
+        if let Some(quotation) = &self.quotation {
+            quotation.references_into(out);
+        }
         extend_optional(out, self.denotes);
         extend_optional(out, self.experiencer);
         extend_optional(out, self.target);
@@ -1349,6 +1368,14 @@ pub struct Quotation {
     pub text: Option<String>,
 }
 
+impl Quotation {
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        extend_optional(out, self.utterance);
+    }
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1558,6 +1585,9 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         })
         && references_have_kind(&object.parameters, SemanticObjectKind::Parameter)
         && references_have_kind(&object.embedded_questions, SemanticObjectKind::Question)
+        && object.quotation.as_ref().is_none_or(|quotation| {
+            optional_reference_has_kind(quotation.utterance, SemanticObjectKind::Utterance)
+        })
         && optional_reference_has_kind(object.asker, SemanticObjectKind::Referent)
         && optional_reference_has_kind(object.respondent, SemanticObjectKind::Referent)
         && object
