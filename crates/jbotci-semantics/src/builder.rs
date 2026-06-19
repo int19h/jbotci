@@ -558,7 +558,17 @@ where
                 spans.extend(token.source_spans().into_iter().cloned());
             });
         }
-        for element in &description.tail_elements {
+        for element in description.tail_elements.iter().filter(|element| {
+            description.description.is_some()
+                || !matches!(
+                    element.as_data(),
+                    data!(
+                        jbotci_syntax::ast::DescriptionTailElementSyntax::DescriptionTailQuantifier(
+                            ..
+                        )
+                    )
+                )
+        }) {
             element.visit_words(&mut |token| {
                 spans.extend(token.source_spans().into_iter().cloned());
             });
@@ -6460,6 +6470,7 @@ mod tests {
             .expect("shoe referent ID");
         assert_eq!(ponse["arguments"]["x2"]["quantity"], "quantity:q1");
         assert!(object(&json, shoes)["descriptor"].get("quantity").is_none());
+        assert_eq!(object(&json, shoes)["source"]["text"], "cutci");
         assert_eq!(object(&json, "quantity:q1")["value"]["text"], "su'o ci");
         assert_eq!(object(&json, "quantity:q1")["source"]["text"], "su'o ci");
     }
