@@ -835,12 +835,17 @@ where
         else {
             return Ok(None);
         };
-        let audience = if let Some(sumti) = sumti.as_deref() {
+        let vocative_kind = vocative_kind_for_markers(vocative_markers);
+        let previous_pending_asides = std::mem::take(&mut self.pending_asides);
+        let addressed_or_identified = if let Some(sumti) = sumti.as_deref() {
             self.build_sumti_referent(sumti)?
         } else {
             SemanticObjectId::addressee()
         };
-        let diagnostics = if audience.object_kind() == crate::model::SemanticObjectKind::Referent {
+        let nested_asides = std::mem::replace(&mut self.pending_asides, previous_pending_asides);
+        let diagnostics = if addressed_or_identified.object_kind()
+            == crate::model::SemanticObjectKind::Referent
+        {
             Vec::new()
         } else {
             vec![diagnostic(
@@ -853,10 +858,16 @@ where
             self.source_for_free_modifier(free_modifier, "vocative"),
             diagnostics,
         )?;
-        if audience.object_kind() == crate::model::SemanticObjectKind::Referent {
-            self.set_utterance_audience(id, audience);
+        if addressed_or_identified.object_kind() == crate::model::SemanticObjectKind::Referent {
+            if vocative_kind == "selfIdentification" {
+                self.set_referent_target(addressed_or_identified, SemanticObjectId::speaker());
+            } else {
+                self.set_utterance_audience(id, addressed_or_identified);
+                self.set_referent_target(addressed_or_identified, SemanticObjectId::addressee());
+            }
         }
-        self.set_vocative_kind(id, vocative_kind_for_markers(vocative_markers));
+        self.add_utterance_asides(id, nested_asides);
+        self.set_vocative_kind(id, vocative_kind);
         Ok(Some(id))
     }
 
@@ -3916,18 +3927,24 @@ where
             data!(SumtiSyntax::Description(description)) => {
                 self.build_description_referent(description, raw)?
             }
-            data!(SumtiSyntax::NameDescription { la, names }) => self.build_named_referent(
-                raw,
-                word_run_text(&names.value),
-                &token_text(&la.value),
-                gadri_name_sort(la.cmavo()),
-            )?,
-            data!(SumtiSyntax::NameWords(names)) => self.build_named_referent(
-                raw,
-                word_run_text(&names.value),
-                "la",
-                SemanticSort::Entity,
-            )?,
+            data!(SumtiSyntax::NameDescription { la, names }) => {
+                self.queue_vocative_asides(&names.free_modifiers)?;
+                self.build_named_referent(
+                    raw,
+                    word_run_text(&names.value),
+                    &token_text(&la.value),
+                    gadri_name_sort(la.cmavo()),
+                )?
+            }
+            data!(SumtiSyntax::NameWords(names)) => {
+                self.queue_vocative_asides(&names.free_modifiers)?;
+                self.build_named_referent(
+                    raw,
+                    word_run_text(&names.value),
+                    "la",
+                    SemanticSort::Entity,
+                )?
+            }
             data!(SumtiSyntax::SelbriVocative { selbri, .. }) => {
                 self.build_selbri_vocative_referent(raw, selbri)?
             }
@@ -5096,6 +5113,15 @@ where
     fn set_utterance_audience(&mut self, utterance: SemanticObjectId, audience: SemanticObjectId) {
         if let Some(object) = self.objects.get_mut(&utterance) {
             object.audience = Some(audience);
+        }
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(target.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(true)]
+    fn set_referent_target(&mut self, referent: SemanticObjectId, target: SemanticObjectId) {
+        if let Some(object) = self.objects.get_mut(&referent) {
+            object.target = Some(target);
         }
     }
 
@@ -6731,6 +6757,40 @@ mod tests {
             assert_eq!(klama["arguments"]["x1"]["value"], "referent:addressee");
             assert_eq!(klama["arguments"]["x2"]["value"], "referent:speaker");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vocative_assignments_target_indexicals() {
+        let json = semantic_json_for("mi'e .djan. doi .frank. mi cusku lu mi bajra li'u do")
+            .expect("semantic JSON");
+        let utterance = root_object(&json);
+        let asides = utterance["asides"].as_array().expect("vocative asides");
+        assert_eq!(asides.len(), 1);
+
+        let self_identification = object(
+            &json,
+            asides[0].as_str().expect("self-identification aside"),
+        );
+        assert_eq!(self_identification["vocativeKind"], "selfIdentification");
+        let nested_asides = self_identification["asides"]
+            .as_array()
+            .expect("nested address aside");
+
+        let address = object(&json, nested_asides[0].as_str().expect("address aside"));
+        assert_eq!(address["vocativeKind"], "address");
+        let frank = address["audience"].as_str().expect("address audience");
+        assert_eq!(object(&json, frank)["descriptor"]["name"], "frank");
+        assert_eq!(object(&json, frank)["target"], "referent:addressee");
+
+        let john = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| object["descriptor"]["name"] == "djan")
+            .expect("self-identified speaker name");
+        assert_eq!(john["target"], "referent:speaker");
     }
 
     #[test]
