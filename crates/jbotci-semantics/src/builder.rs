@@ -1284,92 +1284,19 @@ where
         selbri: &'tree SelbriSyntax,
         units: &[&'tree TanruUnitSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if units.len() > 1 && !tanru_sequence_has_explicit_grouping(units) {
-            return self.build_flat_tanru_formula_for_bridi(bridi, selbri, units);
-        }
+        let frame = self
+            .semantic_predication_frame_for_selbri(selbri, self.bridi_frame(bridi))
+            .or_else(|| self.bridi_frame(bridi));
         self.build_tanru_sequence_formula_for_frame(
             Some(selbri),
             units,
-            self.bridi_frame(bridi),
+            frame,
             self.analysis
                 .syntax_index
                 .bridi_node_id(bridi)
                 .and_then(|node| self.source_for_node(node.0, "tanru-formula")),
         )
         .map(|result| result.formula)
-    }
-
-    #[requires(units.len() > 1)]
-    #[ensures(ret.is_ok() || ret.is_err())]
-    fn build_flat_tanru_formula_for_bridi(
-        &mut self,
-        bridi: &'tree BridiSyntax,
-        selbri: &'tree SelbriSyntax,
-        units: &[&'tree TanruUnitSyntax],
-    ) -> Result<SemanticObjectId, SemanticsError> {
-        let tertau = units
-            .last()
-            .expect("precondition guarantees at least one tanru unit");
-        let tertau_relation = relation_label_for_tanru_unit(tertau);
-        let tertau_predication =
-            self.build_predication_for_bridi(bridi, Some(selbri), tertau_relation)?;
-        let tertau_formula = self.next_formula();
-        self.insert(
-            tertau_formula,
-            SemanticObject::atom_formula(
-                tertau_predication,
-                self.analysis
-                    .syntax_index
-                    .bridi_node_id(bridi)
-                    .and_then(|node| self.source_for_node(node.0, "tertau-formula")),
-                Vec::new(),
-            ),
-        )?;
-        let visible_x1_place = visible_x1_place_for_tanru_unit(tertau);
-        let x1_argument = self
-            .objects
-            .get(&tertau_predication)
-            .and_then(|object| object.arguments.get(&format!("x{visible_x1_place}")))
-            .cloned()
-            .ok_or_else(|| {
-                SemanticsError::invalid_graph(format!(
-                    "tanru tertau has no visible x1 argument at x{visible_x1_place}"
-                ))
-            })?;
-        let modifier = self.build_property_abstraction_for_units(
-            &units[..units.len() - 1],
-            self.analysis
-                .syntax_index
-                .selbri_node_id(selbri)
-                .and_then(|node| self.source_for_node(node.0, "tanru-modifier")),
-        )?;
-        let relation_formula = self.build_tanru_relation_formula(
-            x1_argument,
-            modifier,
-            tanru_relation_name(units),
-            self.analysis
-                .syntax_index
-                .selbri_node_id(selbri)
-                .and_then(|node| self.source_for_node(node.0, "tanru-relation")),
-        )?;
-        let formula = self.next_formula();
-        self.insert(
-            formula,
-            SemanticObject::connective_formula(
-                FormulaOperator::And,
-                vec![tertau_formula, relation_formula],
-                Some(Connector {
-                    source: "tanru".to_owned(),
-                    locus: "selbri".to_owned(),
-                    truth_table: None,
-                }),
-                self.analysis
-                    .syntax_index
-                    .bridi_node_id(bridi)
-                    .and_then(|node| self.source_for_node(node.0, "tanru-formula")),
-                Vec::new(),
-            ),
-        )
     }
 
     #[requires(true)]
@@ -1596,6 +1523,9 @@ where
         if let Some(units) = tanru_units_for_selbri(relation_selbri)
             && tanru_units_require_lowering(&units)
         {
+            let frame = self
+                .semantic_predication_frame_for_selbri(relation_selbri, frame)
+                .or(frame);
             return self.build_tanru_sequence_formula_for_frame_with_visible_x1_override(
                 Some(relation_selbri),
                 &units,
@@ -5800,6 +5730,33 @@ mod tests {
             "property-abstraction"
         );
         assert_eq!(object(&json, "formula:f4")["connector"]["truthTable"], "je");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_tanru_connective_lowers_when_tertau_is_connected() {
+        let json = semantic_json_for("melbi cmalu nixli je ckule").expect("semantic JSON");
+        let relations = predication_relations(&json);
+        assert!(relations.iter().any(|relation| relation == "nixli"));
+        assert!(relations.iter().any(|relation| relation == "ckule"));
+        assert!(
+            !relations
+                .iter()
+                .any(|relation| relation == "nixli je ckule")
+        );
+
+        let nixli = predication_with_relation_and_mode(&json, "nixli", "asserted");
+        let ckule = predication_with_relation_and_mode(&json, "ckule", "asserted");
+        assert_eq!(
+            nixli["arguments"]["x1"]["value"],
+            ckule["arguments"]["x1"]["value"]
+        );
+        assert_eq!(object(&json, "formula:f3")["operator"], "and");
+        assert_eq!(
+            object(&json, "formula:f3")["connector"]["locus"],
+            "tanru-unit"
+        );
     }
 
     #[test]
