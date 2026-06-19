@@ -10,13 +10,13 @@ use jbotci_morphology::{Cmavo, Word, strip_diacritics};
 use jbotci_syntax::ast::{
     AbstractionSyntax, BoGroupedBridiTailSyntax, BridiSyntax, BridiTailSyntax, ConnectiveSyntax,
     ConnectiveSyntaxData, DescriptionSyntax, FragmentSyntax, FragmentSyntaxData,
-    MeksoOperatorSyntax, MeksoOperatorSyntaxData, MeksoSyntax, MeksoSyntaxData,
-    ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData, QuoteSyntax, QuoteSyntaxData,
-    RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax, SelbriSyntaxData,
-    SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData, SubbridiSyntax,
-    SubbridiSyntaxData, SumtiSyntax, SumtiSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData,
-    TenseModalSyntax, TenseModalSyntaxData, TermSyntax, TermSyntaxData, TextSyntax, Token,
-    WithFreeModifiers, WordRun,
+    FreeModifierSyntax, FreeModifierSyntaxData, MeksoOperatorSyntax, MeksoOperatorSyntaxData,
+    MeksoSyntax, MeksoSyntaxData, ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData,
+    QuoteSyntax, QuoteSyntaxData, RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax,
+    SelbriSyntaxData, SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData,
+    SubbridiSyntax, SubbridiSyntaxData, SumtiSyntax, SumtiSyntaxData, TanruUnitSyntax,
+    TanruUnitSyntaxData, TenseModalSyntax, TenseModalSyntaxData, TermSyntax, TermSyntaxData,
+    TextSyntax, Token, WithFreeModifiers, WordRun,
 };
 
 use crate::model::{
@@ -315,6 +315,7 @@ where
     sumti_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     sumti_quantities: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     parameter_slots: Vec<QuestionSlot>,
+    pending_asides: Vec<SemanticObjectId>,
 }
 
 impl<'analysis, 'tree, 'resolver, F> GraphBuilder<'analysis, 'tree, 'resolver, F>
@@ -337,6 +338,7 @@ where
             sumti_objects: HashMap::new(),
             sumti_quantities: HashMap::new(),
             parameter_slots: Vec::new(),
+            pending_asides: Vec::new(),
         };
         builder.insert_deictic_referents();
         builder
@@ -611,6 +613,20 @@ where
         }
     }
 
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    fn source_for_free_modifier(
+        &self,
+        free_modifier: &FreeModifierSyntax,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        let mut spans = Vec::new();
+        free_modifier.visit_words(&mut |token| {
+            spans.extend(token.source_spans().into_iter().cloned());
+        });
+        source_from_spans(&spans, self.options.source_text, Some(construct))
+    }
+
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
     fn build_text(&mut self, text: &'tree TextSyntax) -> Result<SemanticGraph, SemanticsError> {
@@ -618,14 +634,34 @@ where
             .leading_indicators
             .iter()
             .any(|indicator| indicator.indicator.cmavo() == Some(Cmavo::Xu));
+        let mut leading_asides = self.build_vocative_asides(&text.leading_free_modifiers)?;
         let mut items = Vec::new();
         for paragraph in &text.paragraphs {
+            let mut paragraph_asides = self.build_vocative_asides(&paragraph.free_modifiers)?;
+            let first_paragraph_item = items.len();
             for statement in &paragraph.statements {
                 if let Some(statement_id) =
                     self.build_paragraph_statement(statement, truth_question)?
                 {
                     items.push(statement_id);
                 }
+            }
+            if !paragraph_asides.is_empty() {
+                if let Some(first_item) = items.get(first_paragraph_item).copied() {
+                    self.add_asides_to_discourse_item(
+                        first_item,
+                        std::mem::take(&mut paragraph_asides),
+                    );
+                } else {
+                    items.extend(paragraph_asides);
+                }
+            }
+        }
+        if !leading_asides.is_empty() {
+            if let Some(first_item) = items.first().copied() {
+                self.add_asides_to_discourse_item(first_item, std::mem::take(&mut leading_asides));
+            } else {
+                items.extend(leading_asides);
             }
         }
         let root = if let [single] = items.as_slice() {
@@ -658,10 +694,105 @@ where
         statement: &'tree ParagraphStatementSyntax,
         truth_question: bool,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let mut asides = self.build_vocative_asides(&statement.free_modifiers)?;
         let Some(statement) = statement.statement.as_deref() else {
+            return self.build_standalone_asides(asides);
+        };
+        let statement_id = self.build_statement(statement, truth_question)?;
+        if !asides.is_empty() {
+            self.add_asides_to_discourse_item(statement_id, std::mem::take(&mut asides));
+        }
+        Ok(Some(statement_id))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_standalone_asides(
+        &mut self,
+        asides: Vec<SemanticObjectId>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match asides.as_slice() {
+            [] => Ok(None),
+            [single] => Ok(Some(*single)),
+            _ => {
+                let id = self.next_sequence();
+                self.insert(
+                    id,
+                    SemanticObject::sequence(
+                        asides,
+                        SequenceRelation::SameTopicContinuation,
+                        None,
+                        Vec::new(),
+                    ),
+                )
+                .map(Some)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_vocative_asides(
+        &mut self,
+        free_modifiers: &'tree [FreeModifierSyntax],
+    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+        let mut asides = Vec::new();
+        for free_modifier in free_modifiers {
+            if let Some(aside) = self.build_vocative_aside(free_modifier)? {
+                asides.push(aside);
+            }
+        }
+        Ok(asides)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn queue_vocative_asides(
+        &mut self,
+        free_modifiers: &'tree [FreeModifierSyntax],
+    ) -> Result<(), SemanticsError> {
+        let asides = self.build_vocative_asides(free_modifiers)?;
+        self.pending_asides.extend(asides);
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_vocative_aside(
+        &mut self,
+        free_modifier: &'tree FreeModifierSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let data!(FreeModifierSyntax::Vocative {
+            vocative_markers,
+            sumti,
+            ..
+        }) = free_modifier.as_data()
+        else {
             return Ok(None);
         };
-        self.build_statement(statement, truth_question).map(Some)
+        let audience = if let Some(sumti) = sumti.as_deref() {
+            self.build_sumti_referent(sumti)?
+        } else {
+            SemanticObjectId::addressee()
+        };
+        let diagnostics = if audience.object_kind() == crate::model::SemanticObjectKind::Referent {
+            Vec::new()
+        } else {
+            vec![diagnostic(
+                "vocative target is not referent-valued; audience remains contextual",
+            )]
+        };
+        let id = self.build_utterance(
+            UtteranceForce::Vocative,
+            None,
+            self.source_for_free_modifier(free_modifier, "vocative"),
+            diagnostics,
+        )?;
+        if audience.object_kind() == crate::model::SemanticObjectKind::Referent {
+            self.set_utterance_audience(id, audience);
+        }
+        self.set_vocative_kind(id, vocative_kind_for_markers(vocative_markers));
+        Ok(Some(id))
     }
 
     #[requires(true)]
@@ -838,8 +969,10 @@ where
         truth_question: bool,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let previous_slots = std::mem::take(&mut self.parameter_slots);
+        let previous_asides = std::mem::take(&mut self.pending_asides);
         let formula = self.build_bridi_formula(bridi)?;
         let slots = std::mem::replace(&mut self.parameter_slots, previous_slots);
+        let asides = std::mem::replace(&mut self.pending_asides, previous_asides);
         let is_question = truth_question || !slots.is_empty();
         let content = if is_question {
             let id = self.next_question();
@@ -877,7 +1010,7 @@ where
         } else {
             UtteranceForce::Assert
         };
-        self.build_utterance(
+        let utterance = self.build_utterance(
             force,
             Some(content),
             self.analysis
@@ -885,7 +1018,9 @@ where
                 .bridi_node_id(bridi)
                 .and_then(|node| self.source_for_node(node.0, "bridi")),
             Vec::new(),
-        )
+        )?;
+        self.add_utterance_asides(utterance, asides);
+        Ok(utterance)
     }
 
     #[requires(true)]
@@ -3523,6 +3658,9 @@ where
                 "la",
                 SemanticSort::Entity,
             )?,
+            data!(SumtiSyntax::SelbriVocative { selbri, .. }) => {
+                self.build_selbri_vocative_referent(raw, selbri)?
+            }
             data!(SumtiSyntax::QuantifiedSumti {
                 quantifier,
                 inner_sumti,
@@ -3658,9 +3796,10 @@ where
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_pro_sumti(
         &mut self,
-        token: &WithFreeModifiers<Token>,
+        token: &'tree WithFreeModifiers<Token>,
         raw: RawSyntaxNodeId,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.queue_vocative_asides(&token.free_modifiers)?;
         match token.cmavo() {
             Some(Cmavo::Mi) => Ok(SemanticObjectId::speaker()),
             Some(Cmavo::Do) => Ok(SemanticObjectId::addressee()),
@@ -3923,6 +4062,38 @@ where
                 operand: None,
             },
             Vec::new(),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_selbri_vocative_referent(
+        &mut self,
+        raw: RawSyntaxNodeId,
+        selbri: &'tree SelbriSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_referent();
+        self.sumti_objects.insert(raw, id);
+        let body = self.build_restrictive_formula(selbri, id)?;
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Constant,
+                SemanticSort::Entity,
+                None,
+                Some(Descriptor {
+                    kind: "speakerDescription".to_owned(),
+                    word: "le".to_owned(),
+                    speaker: Some(SemanticObjectId::speaker()),
+                    body: Some(body),
+                    quantity: None,
+                    name: None,
+                    operand: None,
+                }),
+                None,
+                self.source_for_node(raw, "vocative-description"),
+                Vec::new(),
+            ),
         )
     }
 
@@ -4355,6 +4526,62 @@ where
             return;
         };
         object.push_diagnostic(diagnostic);
+    }
+
+    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[ensures(true)]
+    fn add_asides_to_discourse_item(
+        &mut self,
+        item: SemanticObjectId,
+        asides: Vec<SemanticObjectId>,
+    ) {
+        if asides.is_empty() {
+            return;
+        }
+        match item.object_kind() {
+            crate::model::SemanticObjectKind::Utterance => self.add_utterance_asides(item, asides),
+            crate::model::SemanticObjectKind::Sequence => {
+                let first_item = self
+                    .objects
+                    .get(&item)
+                    .and_then(|object| object.items.first().copied());
+                if let Some(first_item) = first_item {
+                    self.add_asides_to_discourse_item(first_item, asides);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    #[requires(utterance.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[requires(asides.iter().all(|aside| aside.object_kind() == crate::model::SemanticObjectKind::Utterance))]
+    #[ensures(true)]
+    fn add_utterance_asides(&mut self, utterance: SemanticObjectId, asides: Vec<SemanticObjectId>) {
+        if asides.is_empty() {
+            return;
+        }
+        let Some(object) = self.objects.get_mut(&utterance) else {
+            return;
+        };
+        object.asides.extend(asides);
+    }
+
+    #[requires(utterance.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[requires(audience.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(true)]
+    fn set_utterance_audience(&mut self, utterance: SemanticObjectId, audience: SemanticObjectId) {
+        if let Some(object) = self.objects.get_mut(&utterance) {
+            object.audience = Some(audience);
+        }
+    }
+
+    #[requires(utterance.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[requires(!kind.is_empty())]
+    #[ensures(true)]
+    fn set_vocative_kind(&mut self, utterance: SemanticObjectId, kind: String) {
+        if let Some(object) = self.objects.get_mut(&utterance) {
+            object.vocative_kind = Some(kind);
+        }
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
@@ -5384,6 +5611,21 @@ fn sumti_reference_kind_is_direct_reference(kind: &ReferenceKind) -> bool {
     )
 }
 
+#[requires(!markers.value.is_empty())]
+#[ensures(!ret.is_empty())]
+fn vocative_kind_for_markers(markers: &WithFreeModifiers<Vec<Token>>) -> String {
+    let Some(first) = markers.value.first() else {
+        return "vocative".to_owned();
+    };
+    match first.cmavo() {
+        Some(Cmavo::Coi) => "greeting".to_owned(),
+        Some(Cmavo::Jehe) => "acknowledgement".to_owned(),
+        Some(Cmavo::Coho) => "farewell".to_owned(),
+        Some(Cmavo::Doi) => "address".to_owned(),
+        _ => token_text(first),
+    }
+}
+
 #[requires(true)]
 #[ensures(!ret.introduced_by.is_empty())]
 fn scalar_negation_for_marker(marker: &WithFreeModifiers<Token>) -> ScalarNegation {
@@ -5521,6 +5763,12 @@ mod tests {
     fn object<'a>(json: &'a Value, id: &str) -> &'a Value {
         json.pointer(&format!("/objects/{id}"))
             .unwrap_or_else(|| panic!("missing semantic object {id}"))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn root_object(json: &Value) -> &Value {
+        object(json, json["root"].as_str().expect("root object ID"))
     }
 
     #[requires(true)]
@@ -5724,6 +5972,54 @@ mod tests {
         assert_eq!(sign["quotation"]["mode"], "parsed");
         assert_eq!(sign["quotation"]["text"], "lu e'osai li'u");
         assert!(sign["quotation"].get("utterance").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn named_vocative_is_vocative_utterance() {
+        let json = semantic_json_for("coi .djan.").expect("semantic JSON");
+        let utterance = root_object(&json);
+        assert_eq!(utterance["force"], "vocative");
+        assert_eq!(utterance["vocativeKind"], "greeting");
+        let audience = utterance["audience"].as_str().expect("audience referent");
+        assert_eq!(object(&json, audience)["descriptor"]["kind"], "name");
+        assert_eq!(object(&json, audience)["descriptor"]["name"], "djan");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_selbri_vocative_targets_implicit_speaker_description() {
+        let json = semantic_json_for("coi xunre pastu nixli").expect("semantic JSON");
+        let utterance = root_object(&json);
+        assert_eq!(utterance["force"], "vocative");
+        let audience = utterance["audience"].as_str().expect("audience referent");
+        let descriptor = &object(&json, audience)["descriptor"];
+        assert_eq!(descriptor["kind"], "speakerDescription");
+        assert_eq!(descriptor["word"], "le");
+        let body = descriptor["body"].as_str().expect("vocative restriction");
+        assert_eq!(object(&json, body)["type"], "formula");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sentence_internal_vocatives_are_utterance_asides() {
+        for source in ["doi .djan. ko klama mi", "ko klama mi doi .djan."] {
+            let json = semantic_json_for(source).expect("semantic JSON");
+            let utterance = root_object(&json);
+            assert_eq!(utterance["force"], "command");
+            let aside = utterance["asides"][0].as_str().expect("vocative aside");
+            let vocative = object(&json, aside);
+            assert_eq!(vocative["force"], "vocative");
+            assert_eq!(vocative["vocativeKind"], "address");
+            let audience = vocative["audience"].as_str().expect("vocative audience");
+            assert_eq!(object(&json, audience)["descriptor"]["name"], "djan");
+            let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+            assert_eq!(klama["arguments"]["x1"]["value"], "referent:addressee");
+            assert_eq!(klama["arguments"]["x2"]["value"], "referent:speaker");
+        }
     }
 
     #[test]
