@@ -5090,7 +5090,7 @@ where
                 self.source_for_subbridi(subbridi, "relative-clause"),
             ));
         };
-        let formula = self.build_referent_predication_formula_for_selbri(
+        let formula = self.build_implicit_relative_head_formula_for_selbri(
             selbri,
             head,
             mode,
@@ -5163,6 +5163,70 @@ where
             referent,
             mode,
             source,
+        )
+    }
+
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_implicit_relative_head_formula_for_selbri(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        head: SemanticObjectId,
+        mode: PredicationMode,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let relation = relation_label_for_selbri(selbri);
+        let frame = self
+            .semantic_predication_frame_for_selbri(selbri, self.branch_frame_for_selbri(selbri));
+        let mut arguments = BTreeMap::new();
+        let highest_assigned_place =
+            self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
+        let modal_arguments = self.modal_assignment_arguments(frame)?;
+        let head_place =
+            first_unfilled_visible_place_for_selbri(selbri, &arguments, highest_assigned_place);
+        arguments.insert(format!("x{head_place}"), ArgumentValue::filled(head, None));
+        let mut diagnostics = Vec::new();
+        match self.place_count_for_relation(&relation) {
+            Some(place_count) => {
+                for place in 1..=place_count {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+            }
+            None => {
+                for place in 1..=highest_assigned_place.max(head_place) {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+                if !relation_has_open_place_structure(&relation) {
+                    diagnostics.push(diagnostic(
+                        "relation place structure is unavailable; only places required by explicit assignments are represented",
+                    ));
+                }
+            }
+        }
+        let relation_metadata =
+            self.build_relation_metadata_for_selbri(selbri, &relation, source.clone())?;
+        let predication = self.next_predication();
+        let mut object = SemanticObject::predication(
+            relation,
+            None,
+            arguments,
+            mode,
+            source.clone(),
+            diagnostics,
+        );
+        object.modal_arguments = modal_arguments;
+        object.relation_metadata = relation_metadata;
+        self.insert(predication, object)?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
         )
     }
 
@@ -7315,6 +7379,22 @@ fn argument_place_index(place: &str) -> Option<usize> {
 #[ensures(ret > 0)]
 fn visible_x1_place_for_selbri(selbri: &SelbriSyntax) -> usize {
     visible_place_for_selbri(selbri, 1)
+}
+
+#[requires(true)]
+#[ensures(ret > 0)]
+fn first_unfilled_visible_place_for_selbri(
+    selbri: &SelbriSyntax,
+    arguments: &BTreeMap<String, ArgumentValue>,
+    highest_assigned_place: usize,
+) -> usize {
+    for visible_place in 1..=highest_assigned_place.max(1) + 1 {
+        let place = visible_place_for_selbri(selbri, visible_place);
+        if !arguments.contains_key(&format!("x{place}")) {
+            return place;
+        }
+    }
+    visible_place_for_selbri(selbri, highest_assigned_place.max(1) + 2)
 }
 
 #[requires(place > 0)]
@@ -10112,6 +10192,23 @@ mod tests {
                 .expect("objects")
                 .values()
                 .all(|object| object["type"] != "parameter")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn omitted_keha_relative_clause_uses_first_unfilled_visible_place() {
+        let json = semantic_json_for("tu poi le mlatu pu lacpu cu ratcu").expect("semantic JSON");
+        let lacpu = predication_with_relation_and_mode(&json, "lacpu", "restrictive");
+        let ratcu = predication_with_relation_and_mode(&json, "ratcu", "asserted");
+        assert_ne!(
+            lacpu["arguments"]["x1"]["value"],
+            ratcu["arguments"]["x1"]["value"]
+        );
+        assert_eq!(
+            lacpu["arguments"]["x2"]["value"],
+            ratcu["arguments"]["x1"]["value"]
         );
     }
 
