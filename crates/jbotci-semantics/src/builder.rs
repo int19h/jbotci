@@ -546,6 +546,44 @@ where
 
     #[requires(true)]
     #[ensures(true)]
+    fn source_for_description(
+        &self,
+        description: &'tree DescriptionSyntax,
+        fallback: RawSyntaxNodeId,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        let mut spans = Vec::new();
+        if let Some(descriptor) = &description.description {
+            descriptor.visit_words(&mut |token| {
+                spans.extend(token.source_spans().into_iter().cloned());
+            });
+        }
+        for element in &description.tail_elements {
+            element.visit_words(&mut |token| {
+                spans.extend(token.source_spans().into_iter().cloned());
+            });
+        }
+        if let Some(selbri) = &description.selbri {
+            selbri.visit_words(&mut |token| {
+                spans.extend(token.source_spans().into_iter().cloned());
+            });
+        }
+        for relative_clause in &description.relative_clauses {
+            relative_clause.visit_words(&mut |token| {
+                spans.extend(token.source_spans().into_iter().cloned());
+            });
+        }
+        if let Some(ku) = &description.ku {
+            ku.visit_words(&mut |token| {
+                spans.extend(token.source_spans().into_iter().cloned());
+            });
+        }
+        source_from_spans(&spans, self.options.source_text, Some(construct))
+            .or_else(|| self.source_for_node(fallback, construct))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn source_for_subbridi(
         &self,
         subbridi: &'tree SubbridiSyntax,
@@ -3016,12 +3054,7 @@ where
                 self.source_for_node(raw, "deleted-place"),
             ));
         }
-        let explicit_quantity = match sumti.as_data() {
-            data!(SumtiSyntax::QuantifiedSumti { quantifier, .. }) => {
-                Some(self.build_quantity_for_sumti_quantifier(raw, quantifier)?)
-            }
-            _ => None,
-        };
+        let explicit_quantity = self.build_argument_quantity_for_sumti(raw, sumti)?;
         let referent = self.build_sumti_referent(sumti)?;
         let mut argument = if sumti_is_elided(sumti) {
             ArgumentValue::elided(
@@ -3791,7 +3824,7 @@ where
                     operand: None,
                 }),
                 None,
-                self.source_for_node(raw, "description"),
+                self.source_for_description(description, raw, "description"),
                 Vec::new(),
             ),
         )
@@ -4114,6 +4147,26 @@ where
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_argument_quantity_for_sumti(
+        &mut self,
+        raw: RawSyntaxNodeId,
+        sumti: &'tree SumtiSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let quantifier = match sumti.as_data() {
+            data!(SumtiSyntax::QuantifiedSumti { quantifier, .. }) => Some(quantifier),
+            data!(SumtiSyntax::Description(description)) => description
+                .outer_quantifier
+                .as_deref()
+                .or_else(|| bare_description_tail_quantifier(description)),
+            _ => None,
+        };
+        quantifier
+            .map(|quantifier| self.build_quantity_for_sumti_quantifier(raw, quantifier))
+            .transpose()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
     fn build_quantity_for_sumti_quantifier(
         &mut self,
         raw: RawSyntaxNodeId,
@@ -4138,19 +4191,10 @@ where
         description: &'tree DescriptionSyntax,
         raw: RawSyntaxNodeId,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let quantifier = description.outer_quantifier.as_deref().or_else(|| {
-            description
-                .tail_elements
-                .iter()
-                .find_map(|element| match element.as_data() {
-                    data!(
-                        jbotci_syntax::ast::DescriptionTailElementSyntax::DescriptionTailQuantifier(
-                            quantifier
-                        )
-                    ) => Some(quantifier),
-                    _ => None,
-                })
-        });
+        let quantifier = description
+            .description
+            .as_ref()
+            .and_then(|_| description_tail_quantifier(description));
         quantifier
             .map(|quantifier| {
                 self.build_quantity_for_words(
@@ -4209,6 +4253,31 @@ where
             object.scalar_negation = Some(scalar_negation);
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bare_description_tail_quantifier(description: &DescriptionSyntax) -> Option<&QuantifierSyntax> {
+    if description.description.is_some() {
+        return None;
+    }
+    description_tail_quantifier(description)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn description_tail_quantifier(description: &DescriptionSyntax) -> Option<&QuantifierSyntax> {
+    description
+        .tail_elements
+        .iter()
+        .find_map(|element| match element.as_data() {
+            data!(
+                jbotci_syntax::ast::DescriptionTailElementSyntax::DescriptionTailQuantifier(
+                    quantifier
+                )
+            ) => Some(quantifier),
+            _ => None,
+        })
 }
 
 #[requires(true)]
@@ -6383,18 +6452,36 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn descriptor_tail_quantifier_sets_description_quantity() {
+    fn bare_quantified_description_quantity_is_argument_scoped() {
         let json = semantic_json_for("mi ponse su'o ci cutci").expect("semantic JSON");
         let ponse = predication_with_relation_and_mode(&json, "ponse", "asserted");
         let shoes = ponse["arguments"]["x2"]["value"]
             .as_str()
             .expect("shoe referent ID");
-        assert_eq!(
-            object(&json, shoes)["descriptor"]["quantity"],
-            "quantity:q1"
-        );
+        assert_eq!(ponse["arguments"]["x2"]["quantity"], "quantity:q1");
+        assert!(object(&json, shoes)["descriptor"].get("quantity").is_none());
         assert_eq!(object(&json, "quantity:q1")["value"]["text"], "su'o ci");
         assert_eq!(object(&json, "quantity:q1")["source"]["text"], "su'o ci");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn inner_and_outer_description_quantifiers_are_distinct() {
+        let json = semantic_json_for("re le ci gerku cu blabi").expect("semantic JSON");
+        let blabi = predication_with_relation_and_mode(&json, "blabi", "asserted");
+        let dogs = blabi["arguments"]["x1"].as_object().expect("dog argument");
+        assert_eq!(dogs["quantity"], "quantity:q1");
+        let dog_referent = dogs["value"].as_str().expect("dog referent ID");
+        assert_eq!(
+            object(&json, dog_referent)["descriptor"]["quantity"],
+            "quantity:q2"
+        );
+        assert_eq!(object(&json, dog_referent)["source"]["text"], "le ci gerku");
+        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 2);
+        assert_eq!(object(&json, "quantity:q1")["source"]["text"], "re");
+        assert_eq!(object(&json, "quantity:q2")["value"]["integer"], 3);
+        assert_eq!(object(&json, "quantity:q2")["source"]["text"], "ci");
     }
 
     #[test]
