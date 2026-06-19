@@ -1016,7 +1016,11 @@ where
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         match term.as_data() {
             data!(TermSyntax::Sumti(sumti)) | data!(TermSyntax::PlaceTaggedSumti { sumti, .. }) => {
-                self.build_sumti_referent(sumti).map(Some)
+                let referent = self.build_sumti_referent(sumti)?;
+                if referent.object_kind() == crate::model::SemanticObjectKind::Referent {
+                    self.attach_relative_clauses_to_referent(referent, sumti)?;
+                }
+                Ok(Some(referent))
             }
             _ => Ok(None),
         }
@@ -1460,7 +1464,9 @@ where
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut diagnostics = Vec::new();
-        let eventuality = if let Some(relation) = time_relation_for_tense_modal(tense_modal) {
+        let time_relation = time_relation_for_tense_modal(tense_modal);
+        let space_relation = space_relation_for_tense_modal(tense_modal);
+        let eventuality = if time_relation.is_some() || space_relation.is_some() {
             let eventuality = self.next_eventuality();
             let mut event = SemanticObject::eventuality(
                 EventualityClass::Event,
@@ -1469,10 +1475,18 @@ where
                 }),
                 source.clone(),
             );
-            event.time = Some(AnchorRelation {
-                relation,
-                anchor: SemanticObjectId::speech_time(),
-            });
+            if let Some(relation) = time_relation {
+                event.time = Some(AnchorRelation {
+                    relation,
+                    anchor: SemanticObjectId::speech_time(),
+                });
+            }
+            if let Some(relation) = space_relation {
+                event.space = Some(AnchorRelation {
+                    relation,
+                    anchor: SemanticObjectId::here(),
+                });
+            }
             self.insert(eventuality, event)?;
             Some(eventuality)
         } else {
@@ -3243,11 +3257,8 @@ where
             }),
             source.clone(),
         );
-        if let Some(relation) = selbri.and_then(time_relation_for_selbri) {
-            event.time = Some(AnchorRelation {
-                relation,
-                anchor: SemanticObjectId::speech_time(),
-            });
+        if let Some(selbri) = selbri {
+            apply_selbri_anchors_to_event(selbri, &mut event);
         }
         self.insert(eventuality, event)?;
         let mut arguments = BTreeMap::new();
@@ -3391,11 +3402,8 @@ where
             }),
             source.clone(),
         );
-        if let Some(relation) = selbri.and_then(time_relation_for_selbri) {
-            event.time = Some(AnchorRelation {
-                relation,
-                anchor: SemanticObjectId::speech_time(),
-            });
+        if let Some(selbri) = selbri {
+            apply_selbri_anchors_to_event(selbri, &mut event);
         }
         self.insert(eventuality, event)?;
         let id = self.next_predication();
@@ -3410,6 +3418,29 @@ where
                 diagnostics,
             ),
         )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.is_none_or(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality)) || ret.is_err())]
+    fn build_tagged_eventuality_for_selbri(
+        &mut self,
+        selbri: &SelbriSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        if time_relation_for_selbri(selbri).is_none() && space_relation_for_selbri(selbri).is_none()
+        {
+            return Ok(None);
+        }
+        let eventuality = self.next_eventuality();
+        let mut event = SemanticObject::eventuality(
+            EventualityClass::Event,
+            Some(Actuality {
+                kind: ActualityKind::Actual,
+            }),
+            source,
+        );
+        apply_selbri_anchors_to_event(selbri, &mut event);
+        self.insert(eventuality, event).map(Some)
     }
 
     #[requires(true)]
@@ -3459,20 +3490,43 @@ where
         sumti: &'tree SumtiSyntax,
         head: SemanticObjectId,
     ) -> Result<ArgumentValue, SemanticsError> {
-        let clauses = match sumti.as_data() {
-            data!(SumtiSyntax::SumtiWithRelativeClauses {
-                relative_clauses,
-                ..
-            })
-            | data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
-                relative_clauses,
-                ..
-            }) => relative_clauses.as_slice(),
-            data!(SumtiSyntax::Description(description)) => description.relative_clauses.as_slice(),
-            data!(SumtiSyntax::DescriptionConnection(description)) => {
-                description.relative_clauses.as_slice()
-            }
-            _ => return Ok(argument),
+        let lowered = self.lower_relative_clauses_for_sumti(sumti, head)?;
+        if lowered.is_empty() {
+            Ok(argument)
+        } else {
+            Ok(argument.with_relative_clauses(lowered))
+        }
+    }
+
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_relative_clauses_to_referent(
+        &mut self,
+        head: SemanticObjectId,
+        sumti: &'tree SumtiSyntax,
+    ) -> Result<(), SemanticsError> {
+        let lowered = self.lower_relative_clauses_for_sumti(sumti, head)?;
+        if lowered.is_empty() {
+            return Ok(());
+        }
+        let object = self.objects.get_mut(&head).ok_or_else(|| {
+            SemanticsError::invalid_graph(format!(
+                "semantic builder could not find relative-clause head {head}"
+            ))
+        })?;
+        object.extend_relative_clauses(lowered);
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn lower_relative_clauses_for_sumti(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+        head: SemanticObjectId,
+    ) -> Result<Vec<RelativeClause>, SemanticsError> {
+        let Some(clauses) = relative_clauses_for_sumti(sumti) else {
+            return Ok(Vec::new());
         };
         let mut lowered = Vec::new();
         for clause in clauses {
@@ -3480,11 +3534,7 @@ where
                 lowered.push(clause);
             }
         }
-        if lowered.is_empty() {
-            Ok(argument)
-        } else {
-            Ok(argument.with_relative_clauses(lowered))
-        }
+        Ok(lowered)
     }
 
     #[requires(true)]
@@ -4801,16 +4851,19 @@ where
                 }
             }
         }
+        let source = self
+            .analysis
+            .syntax_index
+            .selbri_node_id(selbri)
+            .and_then(|node| self.source_for_node(node.0, "restrictive-predication"));
+        let eventuality = self.build_tagged_eventuality_for_selbri(selbri, source.clone())?;
         let predication = self.next_predication();
         let mut object = SemanticObject::predication(
             relation,
-            None,
+            eventuality,
             arguments,
             PredicationMode::Restrictive,
-            self.analysis
-                .syntax_index
-                .selbri_node_id(selbri)
-                .and_then(|node| self.source_for_node(node.0, "restrictive-predication")),
+            source,
             Vec::new(),
         );
         object.modal_arguments = modal_arguments;
@@ -5174,6 +5227,28 @@ fn description_tail_quantifier(description: &DescriptionSyntax) -> Option<&Quant
 
 #[requires(true)]
 #[ensures(true)]
+fn relative_clauses_for_sumti(sumti: &SumtiSyntax) -> Option<&[RelativeClauseSyntax]> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::SumtiWithRelativeClauses {
+            relative_clauses,
+            ..
+        })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
+            relative_clauses,
+            ..
+        }) => Some(relative_clauses.as_slice()),
+        data!(SumtiSyntax::Description(description)) => {
+            Some(description.relative_clauses.as_slice())
+        }
+        data!(SumtiSyntax::DescriptionConnection(description)) => {
+            Some(description.relative_clauses.as_slice())
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn sumti_deletes_place(sumti: &SumtiSyntax) -> bool {
     match sumti.as_data() {
         data!(SumtiSyntax::ProSumti(token)) => token.cmavo() == Some(Cmavo::Ziho),
@@ -5335,6 +5410,23 @@ fn selbri_has_formula_scope(selbri: &SelbriSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+fn apply_selbri_anchors_to_event(selbri: &SelbriSyntax, event: &mut SemanticObject) {
+    if let Some(relation) = time_relation_for_selbri(selbri) {
+        event.time = Some(AnchorRelation {
+            relation,
+            anchor: SemanticObjectId::speech_time(),
+        });
+    }
+    if let Some(relation) = space_relation_for_selbri(selbri) {
+        event.space = Some(AnchorRelation {
+            relation,
+            anchor: SemanticObjectId::here(),
+        });
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn time_relation_for_selbri(selbri: &SelbriSyntax) -> Option<String> {
     match selbri.as_data() {
         data!(SelbriSyntax::TaggedSelbri {
@@ -5350,6 +5442,27 @@ fn time_relation_for_selbri(selbri: &SelbriSyntax) -> Option<String> {
             .as_deref()
             .and_then(time_relation_for_tense_modal)
             .or_else(|| time_relation_for_selbri(selbri)),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn space_relation_for_selbri(selbri: &SelbriSyntax) -> Option<String> {
+    match selbri.as_data() {
+        data!(SelbriSyntax::TaggedSelbri {
+            tense_modal,
+            inner_selbri,
+        }) => space_relation_for_tense_modal(tense_modal)
+            .or_else(|| space_relation_for_selbri(inner_selbri)),
+        data!(SelbriSyntax::GroupedSelbri {
+            ke_tense_modal,
+            selbri,
+            ..
+        }) => ke_tense_modal
+            .as_deref()
+            .and_then(space_relation_for_tense_modal)
+            .or_else(|| space_relation_for_selbri(selbri)),
         _ => None,
     }
 }
@@ -5377,11 +5490,44 @@ fn time_relation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<Strin
 
 #[requires(true)]
 #[ensures(true)]
+fn space_relation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<String> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => {
+            parts.value.iter().find_map(|part| match part.as_data() {
+                data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
+                    token
+                )) => space_relation_for_space_distance_token(token),
+                data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::AdHocModal(..)) => None,
+            })
+        }
+        data!(TenseModalSyntax::SpaceDistance(word)) => {
+            space_relation_for_space_distance_token(&word.value)
+        }
+        data!(TenseModalSyntax::SpaceMovement { distance, .. }) => distance
+            .as_ref()
+            .and_then(|distance| space_relation_for_space_distance_token(&distance.value)),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn time_relation_for_pu_token(token: &Token) -> Option<String> {
     match token.cmavo() {
         Some(Cmavo::Pu) => Some("before".to_owned()),
         Some(Cmavo::Ca) => Some("at".to_owned()),
         Some(Cmavo::Ba) => Some("after".to_owned()),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn space_relation_for_space_distance_token(token: &Token) -> Option<String> {
+    match token.cmavo() {
+        Some(Cmavo::Vi) => Some("near".to_owned()),
+        Some(Cmavo::Va) => Some("mediumDistance".to_owned()),
+        Some(Cmavo::Vu) => Some("far".to_owned()),
         _ => None,
     }
 }
@@ -6607,6 +6753,25 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn standalone_sumti_fragment_preserves_relative_clause() {
+        let json = semantic_json_for("ti noi bloti").expect("semantic JSON");
+        let referent_id = object(&json, "utterance:u1")["content"]
+            .as_str()
+            .expect("referent content");
+        let referent = object(&json, referent_id);
+        let relative_clause = referent["relativeClauses"][0]
+            .as_object()
+            .expect("relative clause");
+        assert_eq!(relative_clause["kind"], "incidental");
+        let body = relative_clause["body"].as_str().expect("relative body");
+        let predication = object(&json, object(&json, body)["predication"].as_str().unwrap());
+        assert_eq!(predication["mode"], "incidental");
+        assert_eq!(predication["arguments"]["x1"]["value"], referent_id);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn typical_descriptors_are_explicit() {
         let json = semantic_json_for("lo'e cinfo cu xabju").expect("semantic JSON");
         assert_eq!(
@@ -6823,6 +6988,19 @@ mod tests {
         let event = object(&json, "eventuality:e0");
         assert_eq!(event["time"]["relation"], "before");
         assert_eq!(event["time"]["anchor"], "referent:speech-time");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn space_distance_tag_anchors_eventuality_to_here() {
+        let json = semantic_json_for("le vi bloti").expect("semantic JSON");
+        let event = object(&json, "predication:p1")["eventuality"]
+            .as_str()
+            .expect("tagged restrictive eventuality");
+        let event = object(&json, event);
+        assert_eq!(event["space"]["relation"], "near");
+        assert_eq!(event["space"]["anchor"], "referent:here");
     }
 
     #[test]

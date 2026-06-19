@@ -355,6 +355,8 @@ pub struct SemanticObject {
     pub descriptor: Option<Descriptor>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub composition: Option<Composition>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub relative_clauses: Vec<RelativeClause>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub role: Option<ParameterRole>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -479,6 +481,7 @@ impl SemanticObject {
             indexical: None,
             descriptor: None,
             composition: None,
+            relative_clauses: Vec::new(),
             role: None,
             introduced_by: None,
             relation: None,
@@ -852,6 +855,7 @@ impl SemanticObject {
         if let Some(composition) = &self.composition {
             out.extend(composition.members.iter().copied());
         }
+        out.extend(self.relative_clauses.iter().map(|clause| clause.body));
         for argument in self.arguments.values() {
             argument.references_into(out);
         }
@@ -897,6 +901,13 @@ impl SemanticObject {
         if let Some(descriptor) = &mut self.descriptor {
             descriptor.quantity = Some(quantity);
         }
+    }
+
+    #[requires(!relative_clauses.is_empty())]
+    #[requires(self.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(!self.relative_clauses.is_empty())]
+    pub fn extend_relative_clauses(&mut self, relative_clauses: Vec<RelativeClause>) {
+        self.relative_clauses.extend(relative_clauses);
     }
 }
 
@@ -1753,6 +1764,10 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && optional_reference_has_kind(object.quantity, SemanticObjectKind::Quantity)
         && target_reference_matches_role(object.object_kind(), object.target)
         && denotes_reference_matches_role(object.object_kind(), object.denotes)
+        && object.relative_clauses.iter().all(|clause| {
+            clause.body.object_kind() == SemanticObjectKind::Formula
+                && object.object_kind() == SemanticObjectKind::Referent
+        })
         && object.descriptor.as_ref().is_none_or(|descriptor| {
             optional_reference_has_kind(descriptor.speaker, SemanticObjectKind::Referent)
                 && optional_reference_has_kind(descriptor.body, SemanticObjectKind::Formula)
