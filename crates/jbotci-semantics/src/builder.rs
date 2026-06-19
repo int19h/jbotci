@@ -8,13 +8,16 @@ use bityzba::{data, ensures, invariant, requires};
 use jbotci_dictionary::{Dictionary, WordType, normalize_lookup_query};
 use jbotci_morphology::{Cmavo, Word, WordLike, WordLikeData, strip_diacritics};
 use jbotci_syntax::ast::{
-    AbstractionSyntax, BoGroupedBridiTailSyntax, BridiSyntax, BridiTailSyntax, ConnectiveSyntax,
-    ConnectiveSyntaxData, DescriptionSyntax, FragmentSyntax, FragmentSyntaxData,
-    FreeModifierSyntax, FreeModifierSyntaxData, MeksoOperatorSyntax, MeksoOperatorSyntaxData,
-    MeksoSyntax, MeksoSyntaxData, ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData,
-    QuoteSyntax, QuoteSyntaxData, RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax,
-    SelbriSyntaxData, SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData,
-    SubbridiSyntax, SubbridiSyntaxData, SumtiAssociationPhraseSyntax, SumtiSyntax, SumtiSyntaxData,
+    AbstractionSyntax, AfterthoughtBridiTailSyntax, BoGroupedBridiTailSyntax,
+    BoundBridiTailConnectionSyntax, BridiSyntax, BridiTailConnectionSyntax, BridiTailSyntax,
+    ConnectiveSyntax, ConnectiveSyntaxData, DescriptionSyntax, ForethoughtBridiConnectionSyntax,
+    ForethoughtBridiConnectionSyntaxData, FragmentSyntax, FragmentSyntaxData, FreeModifierSyntax,
+    FreeModifierSyntaxData, GroupedBridiTailConnectionSyntax, MeksoOperatorSyntax,
+    MeksoOperatorSyntaxData, MeksoSyntax, MeksoSyntaxData, ParagraphStatementSyntax,
+    QuantifierSyntax, QuantifierSyntaxData, QuoteSyntax, QuoteSyntaxData, RelativeClauseSyntax,
+    RelativeClauseSyntaxData, SelbriSyntax, SelbriSyntaxData, SimpleBridiTailSyntax,
+    SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData, SubbridiSyntax,
+    SubbridiSyntaxData, SumtiAssociationPhraseSyntax, SumtiSyntax, SumtiSyntaxData,
     TanruUnitSyntax, TanruUnitSyntaxData, TenseModalSyntax, TenseModalSyntaxData, TermSyntax,
     TermSyntaxData, TextSyntax, Token, WithFreeModifiers, WordRun,
 };
@@ -24,9 +27,9 @@ use crate::model::{
     AssignedNameData, Composition, Connector, Descriptor, EventualityClass, FormulaOperator,
     IndexicalKind, MathLiteral, ModalArgument, PredicationMode, QuantityForm, QuantityScale,
     QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
-    ReferentCategory, RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind,
-    SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId, SemanticSort,
-    SequenceRelation, SignKind, UtteranceForce, diagnostic, source_from_spans,
+    ReciprocalExchange, ReferentCategory, RelativeClause, RelativeClauseKind, ScalarNegation,
+    ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId,
+    SemanticSort, SequenceRelation, SignKind, UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -704,15 +707,35 @@ where
             items.push(leading_names);
         }
         let mut truth_question_pending = truth_question;
+        let mut leading_reciprocity_attached = false;
         for paragraph in &text.paragraphs {
             let mut paragraph_asides = self.build_vocative_asides(&paragraph.free_modifiers)?;
             let first_paragraph_item = items.len();
+            let mut paragraph_reciprocity_attached = false;
             for statement in &paragraph.statements {
                 let statement_truth_question =
                     truth_question_pending && statement.statement.is_some();
                 if let Some(statement_id) =
                     self.build_paragraph_statement(statement, statement_truth_question)?
                 {
+                    if let Some(statement) = statement.statement.as_deref() {
+                        if !leading_reciprocity_attached {
+                            self.attach_statement_reciprocity_to_discourse_item(
+                                statement_id,
+                                statement,
+                                &text.leading_free_modifiers,
+                            )?;
+                            leading_reciprocity_attached = true;
+                        }
+                        if !paragraph_reciprocity_attached {
+                            self.attach_statement_reciprocity_to_discourse_item(
+                                statement_id,
+                                statement,
+                                &paragraph.free_modifiers,
+                            )?;
+                            paragraph_reciprocity_attached = true;
+                        }
+                    }
                     items.push(statement_id);
                     if statement_truth_question {
                         truth_question_pending = false;
@@ -794,14 +817,19 @@ where
     #[ensures(true)]
     fn build_paragraph_statement(
         &mut self,
-        statement: &'tree ParagraphStatementSyntax,
+        paragraph_statement: &'tree ParagraphStatementSyntax,
         truth_question: bool,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let mut asides = self.build_vocative_asides(&statement.free_modifiers)?;
-        let Some(statement) = statement.statement.as_deref() else {
+        let mut asides = self.build_vocative_asides(&paragraph_statement.free_modifiers)?;
+        let Some(statement) = paragraph_statement.statement.as_deref() else {
             return self.build_standalone_asides(asides);
         };
         let statement_id = self.build_statement(statement, truth_question)?;
+        self.attach_statement_reciprocity_to_discourse_item(
+            statement_id,
+            statement,
+            &paragraph_statement.free_modifiers,
+        )?;
         if let Some(node) = self.analysis.syntax_index.statement_node_id(statement) {
             self.utterance_objects.insert(node.0, statement_id);
         }
@@ -3288,7 +3316,7 @@ where
         let frame = selbri
             .and_then(|selbri| self.semantic_predication_frame_for_selbri(selbri, frame))
             .or(frame);
-        self.build_predication_for_frame(
+        let predication = self.build_predication_for_frame(
             frame,
             self.analysis
                 .syntax_index
@@ -3296,7 +3324,677 @@ where
                 .and_then(|node| self.source_for_node(node.0, "predication")),
             selbri,
             relation,
+        )?;
+        self.attach_reciprocity_to_predication(predication, bridi, &[])?;
+        Ok(predication)
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_reciprocity_to_predication(
+        &mut self,
+        predication: SemanticObjectId,
+        bridi: &'tree BridiSyntax,
+        extra_free_modifiers: &'tree [FreeModifierSyntax],
+    ) -> Result<(), SemanticsError> {
+        let mut exchanges = Vec::new();
+        self.collect_reciprocal_exchanges_from_bridi(bridi, predication, &mut exchanges)?;
+        self.collect_reciprocal_exchanges_from_free_modifiers(
+            bridi,
+            extra_free_modifiers,
+            None,
+            predication,
+            &mut exchanges,
+        )?;
+        self.append_reciprocal_exchanges_to_predication(predication, exchanges)
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_reciprocity_free_modifiers_to_predication(
+        &mut self,
+        predication: SemanticObjectId,
+        bridi: &'tree BridiSyntax,
+        free_modifiers: &'tree [FreeModifierSyntax],
+        host_sumti: Option<&'tree SumtiSyntax>,
+    ) -> Result<(), SemanticsError> {
+        let mut exchanges = Vec::new();
+        self.collect_reciprocal_exchanges_from_free_modifiers(
+            bridi,
+            free_modifiers,
+            host_sumti,
+            predication,
+            &mut exchanges,
+        )?;
+        self.append_reciprocal_exchanges_to_predication(predication, exchanges)
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn append_reciprocal_exchanges_to_predication(
+        &mut self,
+        predication: SemanticObjectId,
+        exchanges: Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        if exchanges.is_empty() {
+            return Ok(());
+        }
+        let object = self.objects.get_mut(&predication).ok_or_else(|| {
+            SemanticsError::invalid_graph(format!(
+                "semantic builder could not find reciprocal predication {predication}"
+            ))
+        })?;
+        object.reciprocity.extend(exchanges);
+        Ok(())
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_reciprocal_exchanges_from_bridi(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        predication: SemanticObjectId,
+        out: &mut Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        self.collect_reciprocal_exchanges_from_terms(
+            &bridi.leading_terms,
+            bridi,
+            predication,
+            out,
+        )?;
+        self.collect_reciprocal_exchanges_from_bridi_tail(
+            &bridi.bridi_tail,
+            bridi,
+            predication,
+            out,
+        )?;
+        self.collect_reciprocal_exchanges_from_free_modifiers(
+            bridi,
+            &bridi.free_modifiers,
+            None,
+            predication,
+            out,
         )
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_reciprocal_exchanges_from_bridi_tail(
+        &mut self,
+        tail: &'tree BridiTailSyntax,
+        bridi: &'tree BridiSyntax,
+        predication: SemanticObjectId,
+        out: &mut Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        self.collect_reciprocal_exchanges_from_afterthought_bridi_tail(
+            &tail.first,
+            bridi,
+            predication,
+            out,
+        )?;
+        if let Some(continuation) = &tail.ke_continuation {
+            self.collect_reciprocal_exchanges_from_grouped_bridi_tail_connection(
+                continuation,
+                bridi,
+                predication,
+                out,
+            )?;
+        }
+        Ok(())
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_reciprocal_exchanges_from_grouped_bridi_tail_connection(
+        &mut self,
+        continuation: &'tree GroupedBridiTailConnectionSyntax,
+        bridi: &'tree BridiSyntax,
+        predication: SemanticObjectId,
+        out: &mut Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        self.collect_reciprocal_exchanges_from_bridi_tail(
+            &continuation.bridi_tail,
+            bridi,
+            predication,
+            out,
+        )?;
+        self.collect_reciprocal_exchanges_from_terms(
+            &continuation.tail_terms,
+            bridi,
+            predication,
+            out,
+        )?;
+        self.collect_reciprocal_exchanges_from_free_modifiers(
+            bridi,
+            &continuation.free_modifiers,
+            None,
+            predication,
+            out,
+        )
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_reciprocal_exchanges_from_afterthought_bridi_tail(
+        &mut self,
+        tail: &'tree AfterthoughtBridiTailSyntax,
+        bridi: &'tree BridiSyntax,
+        predication: SemanticObjectId,
+        out: &mut Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        self.collect_reciprocal_exchanges_from_bo_grouped_bridi_tail(
+            &tail.first,
+            bridi,
+            predication,
+            out,
+        )?;
+        for continuation in &tail.continuations {
+            self.collect_reciprocal_exchanges_from_bridi_tail_connection(
+                continuation,
+                bridi,
+                predication,
+                out,
+            )?;
+        }
+        Ok(())
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_reciprocal_exchanges_from_bridi_tail_connection(
+        &mut self,
+        continuation: &'tree BridiTailConnectionSyntax,
+        bridi: &'tree BridiSyntax,
+        predication: SemanticObjectId,
+        out: &mut Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        self.collect_reciprocal_exchanges_from_bo_grouped_bridi_tail(
+            &continuation.bridi_tail,
+            bridi,
+            predication,
+            out,
+        )?;
+        self.collect_reciprocal_exchanges_from_terms(
+            &continuation.tail_terms,
+            bridi,
+            predication,
+            out,
+        )?;
+        self.collect_reciprocal_exchanges_from_free_modifiers(
+            bridi,
+            &continuation.free_modifiers,
+            None,
+            predication,
+            out,
+        )
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_reciprocal_exchanges_from_bo_grouped_bridi_tail(
+        &mut self,
+        tail: &'tree BoGroupedBridiTailSyntax,
+        bridi: &'tree BridiSyntax,
+        predication: SemanticObjectId,
+        out: &mut Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        self.collect_reciprocal_exchanges_from_simple_bridi_tail(
+            &tail.first,
+            bridi,
+            predication,
+            out,
+        )?;
+        if let Some(continuation) = &tail.bo_continuation {
+            self.collect_reciprocal_exchanges_from_bound_bridi_tail_connection(
+                continuation,
+                bridi,
+                predication,
+                out,
+            )?;
+        }
+        Ok(())
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_reciprocal_exchanges_from_bound_bridi_tail_connection(
+        &mut self,
+        continuation: &'tree BoundBridiTailConnectionSyntax,
+        bridi: &'tree BridiSyntax,
+        predication: SemanticObjectId,
+        out: &mut Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        self.collect_reciprocal_exchanges_from_bo_grouped_bridi_tail(
+            &continuation.bridi_tail,
+            bridi,
+            predication,
+            out,
+        )?;
+        self.collect_reciprocal_exchanges_from_terms(
+            &continuation.tail_terms,
+            bridi,
+            predication,
+            out,
+        )?;
+        self.collect_reciprocal_exchanges_from_free_modifiers(
+            bridi,
+            &continuation.free_modifiers,
+            None,
+            predication,
+            out,
+        )
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_reciprocal_exchanges_from_simple_bridi_tail(
+        &mut self,
+        tail: &'tree SimpleBridiTailSyntax,
+        bridi: &'tree BridiSyntax,
+        predication: SemanticObjectId,
+        out: &mut Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        match tail.as_data() {
+            data!(SimpleBridiTailSyntax::SelbriBridiTail {
+                terms,
+                free_modifiers,
+                ..
+            }) => {
+                self.collect_reciprocal_exchanges_from_terms(terms, bridi, predication, out)?;
+                self.collect_reciprocal_exchanges_from_free_modifiers(
+                    bridi,
+                    free_modifiers,
+                    None,
+                    predication,
+                    out,
+                )
+            }
+            data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(
+                connection
+            )) => self.collect_reciprocal_exchanges_from_forethought_bridi_connection(
+                connection,
+                bridi,
+                predication,
+                out,
+            ),
+            data!(SimpleBridiTailSyntax::TermPrefixedBridiTail { terms, bridi_tail }) => {
+                self.collect_reciprocal_exchanges_from_terms(terms, bridi, predication, out)?;
+                self.collect_reciprocal_exchanges_from_bridi_tail(
+                    bridi_tail,
+                    bridi,
+                    predication,
+                    out,
+                )
+            }
+        }
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_reciprocal_exchanges_from_forethought_bridi_connection(
+        &mut self,
+        connection: &'tree ForethoughtBridiConnectionSyntax,
+        bridi: &'tree BridiSyntax,
+        predication: SemanticObjectId,
+        out: &mut Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        match connection.as_data() {
+            data!(ForethoughtBridiConnectionSyntax::BridiConnection {
+                tail_terms,
+                free_modifiers,
+                ..
+            }) => {
+                self.collect_reciprocal_exchanges_from_terms(tail_terms, bridi, predication, out)?;
+                self.collect_reciprocal_exchanges_from_free_modifiers(
+                    bridi,
+                    free_modifiers,
+                    None,
+                    predication,
+                    out,
+                )
+            }
+            data!(ForethoughtBridiConnectionSyntax::GroupedBridiConnection { inner, .. })
+            | data!(ForethoughtBridiConnectionSyntax::NegatedBridiConnection { inner, .. }) => self
+                .collect_reciprocal_exchanges_from_forethought_bridi_connection(
+                    inner,
+                    bridi,
+                    predication,
+                    out,
+                ),
+        }
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_reciprocal_exchanges_from_terms(
+        &mut self,
+        terms: &'tree [TermSyntax],
+        bridi: &'tree BridiSyntax,
+        predication: SemanticObjectId,
+        out: &mut Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        for term in terms {
+            self.collect_reciprocal_exchanges_from_term(term, bridi, predication, out)?;
+        }
+        Ok(())
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_reciprocal_exchanges_from_term(
+        &mut self,
+        term: &'tree TermSyntax,
+        bridi: &'tree BridiSyntax,
+        predication: SemanticObjectId,
+        out: &mut Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        match term.as_data() {
+            data!(TermSyntax::Termset { termset, .. }) => {
+                self.collect_reciprocal_exchanges_from_terms(termset, bridi, predication, out)
+            }
+            data!(TermSyntax::ForethoughtTermsetConnection {
+                terms,
+                gik_terms,
+                ..
+            }) => {
+                self.collect_reciprocal_exchanges_from_terms(terms, bridi, predication, out)?;
+                self.collect_reciprocal_exchanges_from_terms(gik_terms, bridi, predication, out)
+            }
+            data!(TermSyntax::TermsetGroup {
+                leading_terms,
+                trailing_terms,
+                ..
+            })
+            | data!(TermSyntax::TermsetConnection {
+                leading_terms,
+                trailing_terms,
+                ..
+            })
+            | data!(TermSyntax::TermConnection {
+                leading_terms,
+                trailing_terms,
+                ..
+            }) => {
+                self.collect_reciprocal_exchanges_from_terms(
+                    leading_terms,
+                    bridi,
+                    predication,
+                    out,
+                )?;
+                self.collect_reciprocal_exchanges_from_terms(
+                    trailing_terms,
+                    bridi,
+                    predication,
+                    out,
+                )
+            }
+            data!(TermSyntax::BoundTermConnection {
+                leading_terms,
+                trailing_term,
+                ..
+            }) => {
+                self.collect_reciprocal_exchanges_from_terms(
+                    leading_terms,
+                    bridi,
+                    predication,
+                    out,
+                )?;
+                self.collect_reciprocal_exchanges_from_term(trailing_term, bridi, predication, out)
+            }
+            data!(TermSyntax::Sumti(sumti))
+            | data!(TermSyntax::PlaceTaggedSumti { sumti, .. })
+            | data!(TermSyntax::JaiTaggedSumti { sumti, .. })
+            | data!(TermSyntax::TaggedSumti { sumti, .. }) => {
+                self.collect_reciprocal_exchanges_from_sumti(sumti, bridi, predication, out)
+            }
+            _ => Ok(()),
+        }
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_reciprocal_exchanges_from_sumti(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+        bridi: &'tree BridiSyntax,
+        predication: SemanticObjectId,
+        out: &mut Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        match sumti.as_data() {
+            data!(SumtiSyntax::ProSumti(token)) => self
+                .collect_reciprocal_exchanges_from_free_modifiers(
+                    bridi,
+                    &token.free_modifiers,
+                    Some(sumti),
+                    predication,
+                    out,
+                ),
+            data!(SumtiSyntax::ElidedSumti { free_modifiers, .. }) => self
+                .collect_reciprocal_exchanges_from_free_modifiers(
+                    bridi,
+                    free_modifiers,
+                    Some(sumti),
+                    predication,
+                    out,
+                ),
+            data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. })
+            | data!(SumtiSyntax::SumtiWithRelativeClauses {
+                base_sumti: inner_sumti,
+                ..
+            })
+            | data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
+                base_sumti: inner_sumti,
+                ..
+            })
+            | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. })
+            | data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. })
+            | data!(SumtiSyntax::ScalarNegatedSumti { inner_sumti, .. })
+            | data!(SumtiSyntax::ReferentSumti { inner_sumti, .. })
+            | data!(SumtiSyntax::GroupedSumti { inner_sumti, .. }) => {
+                self.collect_reciprocal_exchanges_from_sumti(inner_sumti, bridi, predication, out)
+            }
+            data!(SumtiSyntax::QualifiedTerm { inner_term, .. }) => {
+                self.collect_reciprocal_exchanges_from_term(inner_term, bridi, predication, out)
+            }
+            data!(SumtiSyntax::SumtiConnection {
+                leading_sumti,
+                trailing_sumti,
+                ..
+            })
+            | data!(SumtiSyntax::BoundSumtiConnection {
+                leading_sumti,
+                trailing_sumti,
+                ..
+            })
+            | data!(SumtiSyntax::ForethoughtSumtiConnection {
+                leading_sumti,
+                trailing_sumti,
+                ..
+            }) => {
+                self.collect_reciprocal_exchanges_from_sumti(
+                    leading_sumti,
+                    bridi,
+                    predication,
+                    out,
+                )?;
+                self.collect_reciprocal_exchanges_from_sumti(
+                    trailing_sumti,
+                    bridi,
+                    predication,
+                    out,
+                )
+            }
+            _ => Ok(()),
+        }
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_reciprocal_exchanges_from_free_modifiers(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        free_modifiers: &'tree [FreeModifierSyntax],
+        host_sumti: Option<&'tree SumtiSyntax>,
+        predication: SemanticObjectId,
+        out: &mut Vec<ReciprocalExchange>,
+    ) -> Result<(), SemanticsError> {
+        for free_modifier in free_modifiers {
+            let data!(FreeModifierSyntax::ReciprocalSumti {
+                leading_sumti,
+                trailing_sumti,
+                ..
+            }) = free_modifier.as_data()
+            else {
+                continue;
+            };
+            let left =
+                self.build_reciprocal_argument_for_sumti(bridi, predication, leading_sumti)?;
+            let right = if let Some(trailing_sumti) = trailing_sumti {
+                self.build_reciprocal_argument_for_sumti(bridi, predication, trailing_sumti)?
+            } else if let Some(host_sumti) = host_sumti {
+                self.build_reciprocal_argument_for_sumti(bridi, predication, host_sumti)?
+            } else {
+                self.add_object_diagnostic(
+                    predication,
+                    diagnostic(
+                        "soi with one explicit participant has no preceding sumti in this position",
+                    ),
+                );
+                continue;
+            };
+            if left.kind == crate::model::ArgumentValueKind::Deleted
+                || right.kind == crate::model::ArgumentValueKind::Deleted
+            {
+                self.add_object_diagnostic(
+                    predication,
+                    diagnostic("soi reciprocity participant was deleted; exchange omitted"),
+                );
+                continue;
+            }
+            out.push(ReciprocalExchange::new(
+                left,
+                right,
+                "soi".to_owned(),
+                self.source_for_free_modifier(free_modifier, "reciprocity"),
+            ));
+        }
+        Ok(())
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_reciprocal_argument_for_sumti(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        predication: SemanticObjectId,
+        sumti: &'tree SumtiSyntax,
+    ) -> Result<ArgumentValue, SemanticsError> {
+        if let Some(place) = voha_place_for_sumti(sumti) {
+            return self.predication_argument(predication, place);
+        }
+        if let Some(place) = self.assigned_place_for_sumti(bridi, sumti) {
+            return self.predication_argument(predication, place);
+        }
+        self.build_argument_for_sumti(sumti)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assigned_place_for_sumti(
+        &self,
+        bridi: &'tree BridiSyntax,
+        sumti: &'tree SumtiSyntax,
+    ) -> Option<usize> {
+        let frame = self.bridi_frame(bridi)?;
+        let sumti_node = self.analysis.syntax_index.sumti_node_id(sumti)?.0;
+        self.analysis
+            .place_analysis
+            .assignments_for_frame(frame)
+            .iter()
+            .filter_map(|assignment_id| self.analysis.place_analysis.assignment(*assignment_id))
+            .find_map(|assignment| {
+                let PlaceSlot::Numbered(place) = assignment.slot else {
+                    return None;
+                };
+                self.syntax_node_contains(assignment.sumti.0, sumti_node)
+                    .then_some(place.get() as usize)
+            })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_statement_reciprocity_to_discourse_item(
+        &mut self,
+        item: SemanticObjectId,
+        statement: &'tree StatementSyntax,
+        free_modifiers: &'tree [FreeModifierSyntax],
+    ) -> Result<(), SemanticsError> {
+        if !free_modifiers_have_reciprocity(free_modifiers) {
+            return Ok(());
+        }
+        let Some(bridi) = direct_statement_bridi(statement) else {
+            self.add_object_diagnostic(
+                item,
+                diagnostic("statement-level soi is not lowered for this statement shape"),
+            );
+            return Ok(());
+        };
+        let Some(formula) = self.content_formula_for_discourse_item(item) else {
+            self.add_object_diagnostic(
+                item,
+                diagnostic("statement-level soi has no formula-bearing statement to modify"),
+            );
+            return Ok(());
+        };
+        self.attach_reciprocity_to_formula(formula, bridi, free_modifiers)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn content_formula_for_discourse_item(
+        &self,
+        item: SemanticObjectId,
+    ) -> Option<SemanticObjectId> {
+        let object = self.objects.get(&item)?;
+        let content = object.content?;
+        match content.object_kind() {
+            crate::model::SemanticObjectKind::Formula => Some(content),
+            crate::model::SemanticObjectKind::Question => self
+                .objects
+                .get(&content)
+                .and_then(|question| question.body),
+            _ => None,
+        }
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_reciprocity_to_formula(
+        &mut self,
+        formula: SemanticObjectId,
+        bridi: &'tree BridiSyntax,
+        free_modifiers: &'tree [FreeModifierSyntax],
+    ) -> Result<(), SemanticsError> {
+        let object = self.objects.get(&formula).cloned().ok_or_else(|| {
+            SemanticsError::invalid_graph(format!(
+                "semantic builder could not find reciprocal formula {formula}"
+            ))
+        })?;
+        if let Some(predication) = object.predication {
+            self.attach_reciprocity_free_modifiers_to_predication(
+                predication,
+                bridi,
+                free_modifiers,
+                None,
+            )?;
+        }
+        for child in object.children {
+            self.attach_reciprocity_to_formula(child, bridi, free_modifiers)?;
+        }
+        if let Some(body) = object.body {
+            self.attach_reciprocity_to_formula(body, bridi, free_modifiers)?;
+        }
+        Ok(())
     }
 
     #[requires(true)]
@@ -5837,6 +6535,60 @@ fn sumti_is_elided(sumti: &SumtiSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+fn voha_place_for_sumti(sumti: &SumtiSyntax) -> Option<usize> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::ProSumti(token)) => match token.cmavo() {
+            Some(Cmavo::Voha) => Some(1),
+            Some(Cmavo::Vohe) => Some(2),
+            Some(Cmavo::Vohi) => Some(3),
+            Some(Cmavo::Voho) => Some(4),
+            Some(Cmavo::Vohu) => Some(5),
+            _ => None,
+        },
+        data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithRelativeClauses {
+            base_sumti: inner_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
+            base_sumti: inner_sumti,
+            ..
+        }) => voha_place_for_sumti(inner_sumti),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn free_modifiers_have_reciprocity(free_modifiers: &[FreeModifierSyntax]) -> bool {
+    free_modifiers.iter().any(|free_modifier| {
+        matches!(
+            free_modifier.as_data(),
+            data!(FreeModifierSyntax::ReciprocalSumti { .. })
+        )
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn direct_statement_bridi(statement: &StatementSyntax) -> Option<&BridiSyntax> {
+    match statement.as_data() {
+        data!(StatementSyntax::Bridi(bridi)) => Some(bridi),
+        data!(StatementSyntax::Prenex {
+            inner_statement,
+            ..
+        })
+        | data!(StatementSyntax::Iau {
+            inner_statement,
+            ..
+        }) => direct_statement_bridi(inner_statement),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn argument_place_index(place: &str) -> Option<usize> {
     let digits = place.strip_prefix('x')?;
     if digits.is_empty() || digits.starts_with('0') {
@@ -7474,6 +8226,52 @@ mod tests {
         let descriptor = &object(&json, typical)["descriptor"];
         assert_eq!(descriptor["kind"], "typicalPlaceValue");
         assert_eq!(descriptor["word"], "zu'i");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn soi_reciprocity_preserves_explicit_participants() {
+        let json = semantic_json_for("mi prami do soi vo'a vo'e").expect("semantic JSON");
+        let prami = predication_with_relation_and_mode(&json, "prami", "asserted");
+        assert_eq!(prami["reciprocity"][0]["introducedBy"], "soi");
+        assert_eq!(prami["reciprocity"][0]["left"]["value"], "referent:speaker");
+        assert_eq!(
+            prami["reciprocity"][0]["right"]["value"],
+            "referent:addressee"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn soi_single_participant_uses_host_sumti() {
+        let json = semantic_json_for("mi bajykla ti ta soi vo'e").expect("semantic JSON");
+        let bajykla = predication_with_relation_and_mode(&json, "bajykla", "asserted");
+        assert_eq!(
+            bajykla["reciprocity"][0]["left"]["value"],
+            bajykla["arguments"]["x2"]["value"]
+        );
+        assert_eq!(
+            bajykla["reciprocity"][0]["right"]["value"],
+            bajykla["arguments"]["x3"]["value"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn preposed_soi_resolves_voha_slots_from_predication() {
+        let json = semantic_json_for("soi vo'e vo'i mi bajykla ti ta").expect("semantic JSON");
+        let bajykla = predication_with_relation_and_mode(&json, "bajykla", "asserted");
+        assert_eq!(
+            bajykla["reciprocity"][0]["left"]["value"],
+            bajykla["arguments"]["x2"]["value"]
+        );
+        assert_eq!(
+            bajykla["reciprocity"][0]["right"]["value"],
+            bajykla["arguments"]["x3"]["value"]
+        );
     }
 
     #[test]

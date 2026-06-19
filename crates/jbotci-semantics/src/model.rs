@@ -369,6 +369,8 @@ pub struct SemanticObject {
     pub arguments: BTreeMap<String, ArgumentValue>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub modal_arguments: Vec<ModalArgument>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reciprocity: Vec<ReciprocalExchange>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<PredicationMode>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -490,6 +492,7 @@ impl SemanticObject {
             relation: None,
             arguments: BTreeMap::new(),
             modal_arguments: Vec::new(),
+            reciprocity: Vec::new(),
             mode: None,
             scalar_negation: None,
             relation_metadata: None,
@@ -864,6 +867,9 @@ impl SemanticObject {
         }
         for argument in &self.modal_arguments {
             argument.references_into(out);
+        }
+        for exchange in &self.reciprocity {
+            exchange.references_into(out);
         }
         extend_optional(out, self.relation_metadata);
         extend_optional(out, self.predication);
@@ -1333,6 +1339,46 @@ impl ModalArgument {
     #[ensures(true)]
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
         self.argument.references_into(out);
+    }
+}
+
+#[invariant(!introduced_by.is_empty(), "reciprocity source marker must be named")]
+#[invariant(left.kind != ArgumentValueKind::Deleted, "reciprocity participants must exist")]
+#[invariant(right.kind != ArgumentValueKind::Deleted, "reciprocity participants must exist")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReciprocalExchange {
+    pub left: ArgumentValue,
+    pub right: ArgumentValue,
+    pub introduced_by: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SemanticSource>,
+}
+
+impl ReciprocalExchange {
+    #[requires(!introduced_by.is_empty())]
+    #[requires(left.kind != ArgumentValueKind::Deleted)]
+    #[requires(right.kind != ArgumentValueKind::Deleted)]
+    #[ensures(true)]
+    pub fn new(
+        left: ArgumentValue,
+        right: ArgumentValue,
+        introduced_by: String,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::from_data(data!(ReciprocalExchange {
+            left,
+            right,
+            introduced_by,
+            source,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        self.left.references_into(out);
+        self.right.references_into(out);
     }
 }
 
@@ -1927,6 +1973,10 @@ pub fn semantic_object_arguments_are_valid(
             .modal_arguments
             .iter()
             .all(|argument| argument_value_references_allowed_objects(&argument.argument, objects))
+            && object.reciprocity.iter().all(|exchange| {
+                argument_value_references_allowed_objects(&exchange.left, objects)
+                    && argument_value_references_allowed_objects(&exchange.right, objects)
+            })
     })
 }
 
