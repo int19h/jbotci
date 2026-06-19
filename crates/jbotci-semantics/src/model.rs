@@ -1169,6 +1169,8 @@ pub struct Descriptor {
     pub speaker: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<SemanticObjectId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub relative_clauses: Vec<RelativeClause>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quantity: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1183,6 +1185,7 @@ impl Descriptor {
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
         extend_optional(out, self.speaker);
         extend_optional(out, self.body);
+        out.extend(self.relative_clauses.iter().map(|clause| clause.body));
         extend_optional(out, self.quantity);
         extend_optional(out, self.operand);
     }

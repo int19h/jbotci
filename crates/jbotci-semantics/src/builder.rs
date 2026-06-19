@@ -5027,9 +5027,21 @@ where
         sumti: &'tree SumtiSyntax,
         head: SemanticObjectId,
     ) -> Result<Vec<RelativeClause>, SemanticsError> {
-        let Some(clauses) = relative_clauses_for_sumti(sumti) else {
-            return Ok(Vec::new());
-        };
+        let mut clauses = Vec::new();
+        occurrence_relative_clauses_for_sumti(sumti, &mut clauses);
+        self.lower_relative_clauses(clauses, head)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn lower_relative_clauses<I>(
+        &mut self,
+        clauses: I,
+        head: SemanticObjectId,
+    ) -> Result<Vec<RelativeClause>, SemanticsError>
+    where
+        I: IntoIterator<Item = &'tree RelativeClauseSyntax>,
+    {
         let mut lowered = Vec::new();
         for clause in clauses {
             if let Some(clause) = self.build_relative_clause(clause, head)? {
@@ -5903,6 +5915,7 @@ where
                     word: token_text(&li.value),
                     speaker: None,
                     body: None,
+                    relative_clauses: Vec::new(),
                     quantity: Some(quantity),
                     name: Some(text),
                     operand: None,
@@ -6133,6 +6146,7 @@ where
                         word: token_text(&token.value),
                         speaker: None,
                         body: None,
+                        relative_clauses: Vec::new(),
                         quantity: None,
                         name: None,
                         operand: None,
@@ -6159,6 +6173,7 @@ where
                 word: token_text(&token.value),
                 speaker: Some(SemanticObjectId::speaker()),
                 body: None,
+                relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
                 operand: None,
@@ -6204,6 +6219,7 @@ where
                 word: token_text(&token.value),
                 speaker: Some(SemanticObjectId::speaker()),
                 body: None,
+                relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
                 operand: None,
@@ -6448,6 +6464,7 @@ where
                     word: label,
                     speaker: None,
                     body: None,
+                    relative_clauses: Vec::new(),
                     quantity: None,
                     name: None,
                     operand: None,
@@ -6530,6 +6547,7 @@ where
                 word,
                 speaker: Some(SemanticObjectId::speaker()),
                 body,
+                relative_clauses: Vec::new(),
                 quantity,
                 name: None,
                 operand,
@@ -6539,7 +6557,24 @@ where
             Vec::new(),
         );
         self.push_goi_assigned_names_to_referent(&mut object, &description.relative_clauses);
-        self.insert(id, object)
+        self.insert(id, object)?;
+        self.sumti_objects.insert(raw, id);
+        let relative_clauses =
+            self.lower_relative_clauses(description.relative_clauses.iter(), id)?;
+        if !relative_clauses.is_empty() {
+            let object = self.objects.get_mut(&id).ok_or_else(|| {
+                SemanticsError::invalid_graph(format!(
+                    "semantic builder could not find description referent {id}"
+                ))
+            })?;
+            let Some(descriptor) = object.descriptor.as_mut() else {
+                return Err(SemanticsError::invalid_graph(format!(
+                    "semantic builder description referent {id} has no descriptor"
+                )));
+            };
+            descriptor.relative_clauses = relative_clauses;
+        }
+        Ok(id)
     }
 
     #[requires(object.object_kind() == crate::model::SemanticObjectKind::Referent)]
@@ -6580,6 +6615,7 @@ where
                 word: word.to_owned(),
                 speaker: Some(SemanticObjectId::speaker()),
                 body: None,
+                relative_clauses: Vec::new(),
                 quantity: None,
                 name: Some(name),
                 operand: None,
@@ -6609,6 +6645,7 @@ where
                     word: "le".to_owned(),
                     speaker: Some(SemanticObjectId::speaker()),
                     body: Some(body),
+                    relative_clauses: Vec::new(),
                     quantity: None,
                     name: None,
                     operand: None,
@@ -6641,6 +6678,7 @@ where
                 word,
                 speaker: Some(SemanticObjectId::speaker()),
                 body: None,
+                relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
                 operand: Some(operand),
@@ -6673,6 +6711,7 @@ where
                 word,
                 speaker: Some(SemanticObjectId::speaker()),
                 body: None,
+                relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
                 operand: Some(operand),
@@ -6697,6 +6736,7 @@ where
                 word: "sumti".to_owned(),
                 speaker: None,
                 body: None,
+                relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
                 operand: None,
@@ -6990,14 +7030,10 @@ where
         raw: RawSyntaxNodeId,
         sumti: &'tree SumtiSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let quantifier = match sumti.as_data() {
-            data!(SumtiSyntax::QuantifiedSumti { quantifier, .. }) => Some(quantifier),
-            data!(SumtiSyntax::Description(description)) => description
-                .outer_quantifier
-                .as_deref()
-                .or_else(|| bare_description_tail_quantifier(description)),
-            _ => None,
-        };
+        if da_series_scope_source(sumti).is_some() {
+            return Ok(None);
+        }
+        let quantifier = argument_quantifier_for_sumti(sumti);
         quantifier
             .map(|quantifier| self.build_quantity_for_sumti_quantifier(raw, quantifier))
             .transpose()
@@ -7310,23 +7346,87 @@ fn description_tail_quantifier(description: &DescriptionSyntax) -> Option<&Quant
 
 #[requires(true)]
 #[ensures(true)]
-fn relative_clauses_for_sumti(sumti: &SumtiSyntax) -> Option<&[RelativeClauseSyntax]> {
+fn argument_quantifier_for_sumti(sumti: &SumtiSyntax) -> Option<&QuantifierSyntax> {
     match sumti.as_data() {
+        data!(SumtiSyntax::QuantifiedSumti { quantifier, .. }) => Some(quantifier),
+        data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. }) => {
+            argument_quantifier_for_sumti(base_sumti)
+        }
+        data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::ReferentSumti { inner_sumti, .. }) => {
+            argument_quantifier_for_sumti(inner_sumti)
+        }
+        data!(SumtiSyntax::Description(description)) => description
+            .outer_quantifier
+            .as_deref()
+            .or_else(|| bare_description_tail_quantifier(description)),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn occurrence_relative_clauses_for_sumti<'a>(
+    sumti: &'a SumtiSyntax,
+    out: &mut Vec<&'a RelativeClauseSyntax>,
+) {
+    match sumti.as_data() {
+        data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. }) => {
+            occurrence_relative_clauses_for_sumti(inner_sumti, out);
+        }
         data!(SumtiSyntax::SumtiWithRelativeClauses {
+            base_sumti,
             relative_clauses,
             ..
         })
         | data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
+            base_sumti,
             relative_clauses,
             ..
-        }) => Some(relative_clauses.as_slice()),
+        }) => {
+            occurrence_relative_clauses_for_sumti(base_sumti, out);
+            out.extend(relative_clauses.iter());
+        }
+        data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumti { inner_sumti, .. }) => {
+            occurrence_relative_clauses_for_sumti(inner_sumti, out);
+        }
+        data!(SumtiSyntax::ReferentSumti {
+            relative_clauses,
+            inner_sumti,
+            ..
+        }) => {
+            out.extend(relative_clauses.iter());
+            occurrence_relative_clauses_for_sumti(inner_sumti, out);
+        }
         data!(SumtiSyntax::Description(description)) => {
-            Some(description.relative_clauses.as_slice())
+            occurrence_relative_clauses_for_description_tail(&description.tail_elements, out);
         }
         data!(SumtiSyntax::DescriptionConnection(description)) => {
-            Some(description.relative_clauses.as_slice())
+            occurrence_relative_clauses_for_description_tail(&description.tail_elements, out);
         }
-        _ => None,
+        _ => {}
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn occurrence_relative_clauses_for_description_tail<'a>(
+    tail_elements: &'a [DescriptionTailElementSyntax],
+    out: &mut Vec<&'a RelativeClauseSyntax>,
+) {
+    for element in tail_elements {
+        if let data!(DescriptionTailElementSyntax::DescriptionTailRelativeClauses(clauses)) =
+            element.as_data()
+        {
+            out.extend(clauses.iter());
+        }
     }
 }
 
@@ -10639,14 +10739,18 @@ mod tests {
         let xamgu = predication_with_relation_and_mode(&outer, "xamgu", "restrictive");
         assert!(xamgu["arguments"]["x2"].get("relativeClauses").is_none());
         let zdani = predication_with_relation_and_mode(&outer, "zdani", "asserted");
+        let outer_head = zdani["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("outer description head");
         assert_eq!(
-            zdani["arguments"]["x1"]["relativeClauses"][0]["kind"],
+            object(&outer, outer_head)["descriptor"]["relativeClauses"][0]["kind"],
             "incidental"
         );
         assert_eq!(
-            zdani["arguments"]["x1"]["relativeClauses"][0]["body"],
+            object(&outer, outer_head)["descriptor"]["relativeClauses"][0]["body"],
             "formula:f2"
         );
+        assert!(zdani["arguments"]["x1"].get("relativeClauses").is_none());
         let barda = predication_with_relation_and_mode(&outer, "barda", "incidental");
         assert_eq!(
             barda["arguments"]["x1"]["value"],
@@ -10799,14 +10903,18 @@ mod tests {
             associated["arguments"]["x1"]["value"],
             blanu["arguments"]["x1"]["value"]
         );
+        let pe_head = blanu["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("PE head referent");
         assert_eq!(
-            blanu["arguments"]["x1"]["relativeClauses"][0]["kind"],
+            object(&pe, pe_head)["descriptor"]["relativeClauses"][0]["kind"],
             "restrictive"
         );
         assert_eq!(
-            blanu["arguments"]["x1"]["relativeClauses"][0]["introducedBy"],
+            object(&pe, pe_head)["descriptor"]["relativeClauses"][0]["introducedBy"],
             "pe"
         );
+        assert!(blanu["arguments"]["x1"].get("relativeClauses").is_none());
 
         let ne = semantic_json_for("le gerku ne mi cu batci do").expect("semantic JSON");
         let associated = predication_with_relation_and_mode(&ne, "associatedWith", "incidental");
@@ -10815,14 +10923,18 @@ mod tests {
             associated["arguments"]["x1"]["value"],
             batci["arguments"]["x1"]["value"]
         );
+        let ne_head = batci["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("NE head referent");
         assert_eq!(
-            batci["arguments"]["x1"]["relativeClauses"][0]["kind"],
+            object(&ne, ne_head)["descriptor"]["relativeClauses"][0]["kind"],
             "incidental"
         );
         assert_eq!(
-            batci["arguments"]["x1"]["relativeClauses"][0]["introducedBy"],
+            object(&ne, ne_head)["descriptor"]["relativeClauses"][0]["introducedBy"],
             "ne"
         );
+        assert!(batci["arguments"]["x1"].get("relativeClauses").is_none());
 
         let po = semantic_json_for("le stizu po mi cu xunre").expect("semantic JSON");
         let specific =
@@ -10859,10 +10971,14 @@ mod tests {
         let json = semantic_json_for("le birka poi jinzi ke se steci srana mi cu spofu")
             .expect("semantic JSON");
         let spofu = predication_with_relation_and_mode(&json, "spofu", "asserted");
+        let head = spofu["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("spofu head referent");
         assert_eq!(
-            spofu["arguments"]["x1"]["relativeClauses"][0]["kind"],
+            object(&json, head)["descriptor"]["relativeClauses"][0]["kind"],
             "restrictive"
         );
+        assert!(spofu["arguments"]["x1"].get("relativeClauses").is_none());
         predication_with_relation_and_mode(&json, "srana", "restrictive");
         predication_with_relation_and_mode(&json, "jinzi", "restrictive");
         let objects = json["objects"].as_object().expect("objects");
@@ -11592,6 +11708,79 @@ mod tests {
         assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 1);
         assert_eq!(object(&json, outer_quantity)["value"]["integer"], 2);
         assert_eq!(object(&json, inner_quantity)["value"]["integer"], 3);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn leading_description_relative_clause_is_occurrence_scoped() {
+        let json = semantic_json_for("le poi blabi ku'o gerku cu klama").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        let argument = &klama["arguments"]["x1"];
+        assert_eq!(argument["value"], "referent:r1");
+        assert_eq!(argument["relativeClauses"][0]["kind"], "restrictive");
+        assert_eq!(argument["relativeClauses"][0]["body"], "formula:f2");
+        assert!(
+            object(&json, "referent:r1")["descriptor"]
+                .get("relativeClauses")
+                .is_none()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn in_description_and_post_ku_relative_clauses_have_distinct_scopes() {
+        let in_description =
+            semantic_json_for("lo prenu noi blabi cu klama le zarci").expect("semantic JSON");
+        let in_description_referent = object(&in_description, "referent:r1");
+        assert_eq!(
+            in_description_referent["descriptor"]["relativeClauses"][0]["kind"],
+            "incidental"
+        );
+        let in_description_klama =
+            predication_with_relation_and_mode(&in_description, "klama", "asserted");
+        assert!(
+            in_description_klama["arguments"]["x1"]
+                .get("relativeClauses")
+                .is_none()
+        );
+
+        let post_ku =
+            semantic_json_for("lo prenu ku noi blabi cu klama le zarci").expect("semantic JSON");
+        assert!(
+            object(&post_ku, "referent:r1")["descriptor"]
+                .get("relativeClauses")
+                .is_none()
+        );
+        let post_ku_klama = predication_with_relation_and_mode(&post_ku, "klama", "asserted");
+        assert_eq!(
+            post_ku_klama["arguments"]["x1"]["relativeClauses"][0]["kind"],
+            "incidental"
+        );
+        assert_eq!(
+            post_ku_klama["arguments"]["x1"]["relativeClauses"][0]["body"],
+            "formula:f2"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn post_ku_relative_clause_preserves_outer_quantifier() {
+        let json = semantic_json_for("re le mu prenu ku poi ninmu cu klama le zarci")
+            .expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        let argument = &klama["arguments"]["x1"];
+        assert_eq!(argument["quantity"], "quantity:q1");
+        assert_eq!(argument["relativeClauses"][0]["kind"], "restrictive");
+        assert_eq!(argument["relativeClauses"][0]["body"], "formula:f2");
+        assert_eq!(object(&json, "quantity:q1")["source"]["text"], "re");
+        assert_eq!(
+            object(&json, "referent:r1")["descriptor"]["quantity"],
+            "quantity:q2"
+        );
+        assert_eq!(object(&json, "quantity:q2")["source"]["text"], "mu");
     }
 
     #[test]
