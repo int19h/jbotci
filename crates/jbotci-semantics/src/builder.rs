@@ -9,12 +9,13 @@ use jbotci_dictionary::{Dictionary, WordType, normalize_lookup_query};
 use jbotci_morphology::{Cmavo, Word, strip_diacritics};
 use jbotci_syntax::ast::{
     AbstractionSyntax, BoGroupedBridiTailSyntax, BridiSyntax, BridiTailSyntax, ConnectiveSyntax,
-    ConnectiveSyntaxData, DescriptionSyntax, MeksoOperatorSyntax, MeksoOperatorSyntaxData,
-    MeksoSyntax, MeksoSyntaxData, ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData,
-    QuoteSyntax, QuoteSyntaxData, RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax,
-    SelbriSyntaxData, SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData,
-    SubbridiSyntax, SubbridiSyntaxData, SumtiSyntax, SumtiSyntaxData, TanruUnitSyntax,
-    TanruUnitSyntaxData, TenseModalSyntax, TenseModalSyntaxData, TextSyntax, Token,
+    ConnectiveSyntaxData, DescriptionSyntax, FragmentSyntax, FragmentSyntaxData,
+    MeksoOperatorSyntax, MeksoOperatorSyntaxData, MeksoSyntax, MeksoSyntaxData,
+    ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData, QuoteSyntax, QuoteSyntaxData,
+    RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax, SelbriSyntaxData,
+    SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData, SubbridiSyntax,
+    SubbridiSyntaxData, SumtiSyntax, SumtiSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData,
+    TenseModalSyntax, TenseModalSyntaxData, TermSyntax, TermSyntaxData, TextSyntax, Token,
     WithFreeModifiers, WordRun,
 };
 
@@ -673,15 +674,65 @@ where
                 );
                 Ok(id)
             }
-            data!(StatementSyntax::Fragment(..)) => self.build_utterance(
+            data!(StatementSyntax::Fragment(fragment)) => {
+                self.build_fragment_utterance(statement, fragment)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_fragment_utterance(
+        &mut self,
+        statement: &'tree StatementSyntax,
+        fragment: &'tree FragmentSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let source = self
+            .analysis
+            .syntax_index
+            .statement_node_id(statement)
+            .and_then(|node| self.source_for_node(node.0, "fragment"));
+        if let Some(content) = self.build_fragment_content(fragment)? {
+            return self.build_utterance(
                 UtteranceForce::Mention,
-                None,
-                self.analysis
-                    .syntax_index
-                    .statement_node_id(statement)
-                    .and_then(|node| self.source_for_node(node.0, "fragment")),
-                vec![diagnostic("fragment has no truth-bearing semantic formula")],
-            ),
+                Some(content),
+                source,
+                Vec::new(),
+            );
+        }
+        self.build_utterance(
+            UtteranceForce::Mention,
+            None,
+            source,
+            vec![diagnostic("fragment has no truth-bearing semantic formula")],
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_fragment_content(
+        &mut self,
+        fragment: &'tree FragmentSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match fragment.as_data() {
+            data!(FragmentSyntax::Terms { terms, .. }) if terms.len() == 1 => {
+                self.build_fragment_term_content(&terms[0])
+            }
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_fragment_term_content(
+        &mut self,
+        term: &'tree TermSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match term.as_data() {
+            data!(TermSyntax::Sumti(sumti)) | data!(TermSyntax::PlaceTaggedSumti { sumti, .. }) => {
+                self.build_sumti_referent(sumti).map(Some)
+            }
+            _ => Ok(None),
         }
     }
 
@@ -5193,6 +5244,20 @@ mod tests {
             predication_with_relation_and_mode(&json, "sarji", "asserted")["arguments"]["x1"]["value"],
             "referent:addressee"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn standalone_sumti_fragment_mentions_referent_content() {
+        let json = semantic_json_for("le zarci").expect("semantic JSON");
+        assert_eq!(object(&json, "utterance:u1")["force"], "mention");
+        assert_eq!(object(&json, "utterance:u1")["content"], "referent:r1");
+        assert_eq!(
+            object(&json, "referent:r1")["descriptor"]["kind"],
+            "speakerDescription"
+        );
+        assert!(object(&json, "utterance:u1").get("diagnostics").is_none());
     }
 
     #[test]
