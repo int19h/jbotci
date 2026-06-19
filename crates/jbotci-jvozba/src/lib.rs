@@ -6,7 +6,8 @@ use jbotci_dictionary::{Dictionary, RafsiSource, WordType};
 use jbotci_morphology::{
     LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoPart, Phonemes, WordKind, WordLike,
     bond_rafsis, canonicalize_text, choose_best_lujvo_candidate_from_parts, ends_with_consonant,
-    ensure_cmevla_word, is_bonding_hyphen, segment_words_with_modifiers, syllables_pattern,
+    ensure_cmevla_word, is_bonding_hyphen, parse_lujvo_word_parts, segment_words_with_modifiers,
+    syllables_pattern,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -573,6 +574,10 @@ fn normalize_apostrophe(value: char) -> char {
 #[requires(true)]
 #[ensures(true)]
 fn morphology_lujvo_parts(normalized: &str) -> Option<Vec<LujvoPart>> {
+    if let Some(parts) = parse_lujvo_word_parts(normalized) {
+        return Some(parts);
+    }
+
     let words = segment_words_with_modifiers(normalized).ok()?;
     let [word_like] = words.as_slice() else {
         return None;

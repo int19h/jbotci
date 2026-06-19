@@ -64,8 +64,9 @@ use jbotci_output::{
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
     VlackuOutcome, VlackuRequest, VlackuSearchOptions, VlackuSearchOutput,
-    dictionary_cards_for_word_likes, dictionary_entry_card, dictionary_matches_for_word_likes,
-    filter_vlacku_cards, format_vote_display, normalize_word_type_filter, run_vlacku_requests,
+    dictionary_cards_for_word_likes, dictionary_entry_card, dictionary_entry_passes_vlacku_filters,
+    dictionary_matches_for_word_likes, format_vote_display, normalize_word_type_filter,
+    run_vlacku_requests,
 };
 use jbotci_semantics::references::ReferenceAnalysis;
 use jbotci_source::SourceId;
@@ -1856,13 +1857,21 @@ fn run_semantic_vlacku(
     let cards = hits
         .into_iter()
         .filter_map(|hit| {
-            dictionary.entries().get(hit.entry_index).map(|entry| {
-                dictionary_entry_card(dictionary, entry, Some(hit.score), options.decompose_lujvo)
-            })
+            dictionary
+                .entries()
+                .get(hit.entry_index)
+                .map(|entry| (hit.score, entry))
+        })
+        .filter(|(score, entry)| {
+            dictionary_entry_passes_vlacku_filters(entry, options, Some(*score), true)
+        })
+        .take(options.count)
+        .map(|(score, entry)| {
+            dictionary_entry_card(dictionary, entry, Some(score), options.decompose_lujvo)
         })
         .collect::<Vec<_>>();
     Ok(VlackuSearchOutput {
-        cards: filter_vlacku_cards(cards, options, true),
+        cards,
         outcome: VlackuOutcome::Found,
         diagnostics: Vec::new(),
     })

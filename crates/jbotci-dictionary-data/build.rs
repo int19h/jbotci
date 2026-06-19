@@ -4,6 +4,7 @@ use std::env;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use bityzba::{invariant, requires};
 use jbotci_dictionary::import::{
@@ -11,13 +12,18 @@ use jbotci_dictionary::import::{
     parse_lensisku_json,
 };
 use jbotci_dictionary::{
-    Dictionary, DictionaryEntry, DictionaryUser, EntryIndex, Keyword, OwnedDictionaryIndexes,
-    OwnedRafsiIndexEntry, OwnedSelmahoIndexEntry, OwnedWordIndexEntry, Rafsi, RafsiIndexEntry,
-    RafsiIndexTarget, RafsiSource, RawSelmaho, SelmahoIndexEntry, WordIndexEntry, WordType,
-    build_owned_indexes,
+    Dictionary, DictionaryEntry, DictionaryLujvoEntry, DictionaryLujvoSegment,
+    DictionaryLujvoSegmentKind, DictionarySoundEntry, DictionaryUser, EntryIndex, Keyword,
+    OwnedDictionaryIndexes, OwnedRafsiIndexEntry, OwnedSelmahoIndexEntry, OwnedWordIndexEntry,
+    Rafsi, RafsiIndexEntry, RafsiIndexTarget, RafsiSource, RawSelmaho, SelmahoIndexEntry,
+    WordIndexEntry, WordType, build_owned_indexes,
 };
+use jbotci_jvozba::decompose_lujvo_like;
+use jbotci_morphology::LujvoPart;
+use jbotci_phonetic::{IpaSegmentId, IpaTokenSequenceView, lojban_text_to_tokenized_ipa};
 use proc_macro2::{Literal, TokenStream};
 use quote::quote;
+use rayon::prelude::*;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
@@ -38,6 +44,31 @@ struct DictionaryMetadata {
     entry_count: usize,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+#[invariant(true)]
+struct GeneratedSoundEntry {
+    entry_index: EntryIndex,
+    ipa: String,
+    segments: Vec<IpaSegmentId>,
+    self_similarity: f64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[invariant(true)]
+struct GeneratedLujvoEntry {
+    entry_index: EntryIndex,
+    segments: Vec<GeneratedLujvoSegment>,
+    source_words: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct GeneratedLujvoSegment {
+    kind: DictionaryLujvoSegmentKind,
+    surface: String,
+    source_word: Option<String>,
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn main() {
@@ -55,24 +86,88 @@ fn run() -> Result<(), Box<dyn Error>> {
     let metadata_path = manifest_dir.join(VENDORED_METADATA);
     println!("cargo:rerun-if-changed={}", dictionary_path.display());
     println!("cargo:rerun-if-changed={}", metadata_path.display());
+    println!("cargo:rerun-if-env-changed=JBOTCI_DICTIONARY_BUILD_TIMINGS");
+    emit_build_timing(format_args!(
+        "rayon threads: {}",
+        rayon::current_num_threads()
+    ));
 
-    let input = fs::read_to_string(&dictionary_path)?;
-    let metadata = load_dictionary_metadata(&metadata_path)?;
-    let imported = parse_lensisku_json(&input)?;
-    validate_dictionary_metadata(&metadata, &imported, input.as_bytes())?;
-    let leaked_entries = leak_entries(&imported);
-    let indexes = build_owned_indexes(leaked_entries);
-    let word_index = leak_word_index(&indexes.word_index);
-    let rafsi_index = leak_rafsi_index(&indexes.rafsi_index);
-    let selmaho_index = leak_selmaho_index(&indexes.selmaho_index);
-    let dictionary =
-        Dictionary::from_static_slices(leaked_entries, word_index, rafsi_index, selmaho_index);
-    dictionary.validate()?;
+    let input = timed_stage("read dictionary json", || {
+        fs::read_to_string(&dictionary_path)
+    })?;
+    let metadata = timed_stage("load dictionary metadata", || {
+        load_dictionary_metadata(&metadata_path)
+    })?;
+    let imported = timed_stage("parse lensisku json", || parse_lensisku_json(&input))?;
+    timed_stage("validate dictionary metadata", || {
+        validate_dictionary_metadata(&metadata, &imported, input.as_bytes())
+    })?;
+    let leaked_entries = timed_stage("leak entries", || leak_entries(&imported));
+    let indexes = timed_stage("build lookup indexes", || {
+        build_owned_indexes(leaked_entries)
+    });
+    let sound_entries = timed_stage("build sound index", || build_sound_index(&imported));
+    let word_index = timed_stage("leak word index", || leak_word_index(&indexes.word_index));
+    let rafsi_index = timed_stage("leak rafsi index", || {
+        leak_rafsi_index(&indexes.rafsi_index)
+    });
+    let selmaho_index = timed_stage("leak selmaho index", || {
+        leak_selmaho_index(&indexes.selmaho_index)
+    });
+    let sound_index = timed_stage("leak sound index", || leak_sound_index(&sound_entries));
+    let generation_dictionary = Dictionary::from_static_slices(
+        leaked_entries,
+        word_index,
+        rafsi_index,
+        selmaho_index,
+        sound_index,
+        &[],
+    );
+    let lujvo_entries = timed_stage("build lujvo index", || {
+        build_lujvo_index(&generation_dictionary)
+    });
+    let lujvo_index = timed_stage("leak lujvo index", || leak_lujvo_index(&lujvo_entries));
+    let dictionary = Dictionary::from_static_slices(
+        leaked_entries,
+        word_index,
+        rafsi_index,
+        selmaho_index,
+        sound_index,
+        lujvo_index,
+    );
+    timed_stage("validate generated dictionary", || dictionary.validate())?;
 
-    let generated = render_dictionary(&imported, &indexes, &metadata)?;
+    let generated = timed_stage("render generated dictionary", || {
+        render_dictionary(
+            &imported,
+            &indexes,
+            &sound_entries,
+            &lujvo_entries,
+            &metadata,
+        )
+    })?;
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
-    fs::write(out_dir.join("dictionary_en.rs"), generated)?;
+    timed_stage("write generated dictionary", || {
+        fs::write(out_dir.join("dictionary_en.rs"), generated)
+    })?;
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn timed_stage<T>(name: &str, stage: impl FnOnce() -> T) -> T {
+    let start = Instant::now();
+    let result = stage();
+    emit_build_timing(format_args!("{name}: {:?}", start.elapsed()));
+    result
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn emit_build_timing(args: std::fmt::Arguments<'_>) {
+    if env::var_os("JBOTCI_DICTIONARY_BUILD_TIMINGS").is_some() {
+        println!("cargo:warning=jbotci-dictionary-data generator {args}");
+    }
 }
 
 #[requires(true)]
@@ -182,6 +277,132 @@ fn leak_selmaho_index(index: &[OwnedSelmahoIndexEntry]) -> &'static [SelmahoInde
 
 #[requires(true)]
 #[ensures(true)]
+fn build_sound_index(dictionary: &ImportedDictionary) -> Vec<GeneratedSoundEntry> {
+    dictionary
+        .entries
+        .par_iter()
+        .enumerate()
+        .map(|(index, entry)| {
+            let tokenized = lojban_text_to_tokenized_ipa(&entry.word).ok()?;
+            Some(GeneratedSoundEntry {
+                entry_index: EntryIndex(index),
+                ipa: tokenized.ipa,
+                segments: tokenized.token_sequence.segments().to_vec(),
+                self_similarity: tokenized.token_sequence.self_similarity(),
+            })
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .flatten()
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn leak_sound_index(entries: &[GeneratedSoundEntry]) -> &'static [DictionarySoundEntry<'static>] {
+    entries
+        .iter()
+        .map(|entry| DictionarySoundEntry {
+            entry_index: entry.entry_index,
+            ipa: leak_str(&entry.ipa),
+            token_sequence: IpaTokenSequenceView {
+                segments: entry.segments.clone().leak(),
+                self_similarity: entry.self_similarity,
+            },
+        })
+        .collect::<Vec<_>>()
+        .leak()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_lujvo_index(dictionary: &Dictionary<'static>) -> Vec<GeneratedLujvoEntry> {
+    dictionary
+        .entries()
+        .par_iter()
+        .enumerate()
+        .map(|(index, entry)| {
+            if !entry.word_type.is_lujvo_like() {
+                return None;
+            }
+            let decomposition = decompose_lujvo_like(dictionary, entry.word)?;
+            Some(GeneratedLujvoEntry {
+                entry_index: EntryIndex(index),
+                segments: decomposition
+                    .segments
+                    .into_iter()
+                    .map(|segment| generated_lujvo_segment(&segment.segment, segment.source))
+                    .collect(),
+                source_words: decomposition
+                    .source_words
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            })
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .flatten()
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(!ret.surface.is_empty())]
+fn generated_lujvo_segment(
+    segment: &LujvoPart,
+    source_word: Option<&str>,
+) -> GeneratedLujvoSegment {
+    match segment {
+        LujvoPart::Rafsi(phonemes) => GeneratedLujvoSegment {
+            kind: DictionaryLujvoSegmentKind::Rafsi,
+            surface: phonemes.as_str().to_owned(),
+            source_word: source_word.map(str::to_owned),
+        },
+        LujvoPart::Hyphen(phonemes) => GeneratedLujvoSegment {
+            kind: DictionaryLujvoSegmentKind::Hyphen,
+            surface: phonemes.as_str().to_owned(),
+            source_word: None,
+        },
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn leak_lujvo_index(entries: &[GeneratedLujvoEntry]) -> &'static [DictionaryLujvoEntry<'static>] {
+    entries
+        .iter()
+        .map(|entry| DictionaryLujvoEntry {
+            entry_index: entry.entry_index,
+            segments: leak_lujvo_segments(&entry.segments),
+            source_words: entry
+                .source_words
+                .iter()
+                .map(|source_word| leak_str(source_word))
+                .collect::<Vec<_>>()
+                .leak(),
+        })
+        .collect::<Vec<_>>()
+        .leak()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn leak_lujvo_segments(
+    segments: &[GeneratedLujvoSegment],
+) -> &'static [DictionaryLujvoSegment<'static>] {
+    segments
+        .iter()
+        .map(|segment| DictionaryLujvoSegment {
+            kind: segment.kind,
+            surface: leak_str(&segment.surface),
+            source_word: segment.source_word.as_deref().map(leak_str),
+        })
+        .collect::<Vec<_>>()
+        .leak()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn leak_str(value: &str) -> &'static str {
     Box::leak(value.to_owned().into_boxed_str())
 }
@@ -226,12 +447,16 @@ fn validate_dictionary_metadata(
 fn render_dictionary(
     dictionary: &ImportedDictionary,
     indexes: &OwnedDictionaryIndexes,
+    sound_index: &[GeneratedSoundEntry],
+    lujvo_index: &[GeneratedLujvoEntry],
     metadata: &DictionaryMetadata,
 ) -> Result<String, Box<dyn Error>> {
     let entries = dictionary.entries.iter().map(render_entry);
     let word_index = indexes.word_index.iter().map(render_word_index_entry);
     let rafsi_index = indexes.rafsi_index.iter().map(render_rafsi_index_entry);
     let selmaho_index = indexes.selmaho_index.iter().map(render_selmaho_index_entry);
+    let sound_index = sound_index.iter().map(render_sound_index_entry);
+    let lujvo_index = lujvo_index.iter().map(render_lujvo_index_entry);
     let rendered_metadata = render_metadata(metadata);
 
     let tokens = quote! {
@@ -251,12 +476,22 @@ fn render_dictionary(
             #(#selmaho_index,)*
         ];
 
+        static SOUND_INDEX: &[jbotci_dictionary::DictionarySoundEntry<'static>] = &[
+            #(#sound_index,)*
+        ];
+
+        static LUJVO_INDEX: &[jbotci_dictionary::DictionaryLujvoEntry<'static>] = &[
+            #(#lujvo_index,)*
+        ];
+
         pub static ENGLISH: jbotci_dictionary::Dictionary<'static> =
             jbotci_dictionary::Dictionary::from_static_slices(
                 ENTRIES,
                 WORD_INDEX,
                 RAFSI_INDEX,
                 SELMAHO_INDEX,
+                SOUND_INDEX,
+                LUJVO_INDEX,
             );
 
         pub static ENGLISH_METADATA: crate::DictionarySnapshotMetadata = #rendered_metadata;
@@ -400,6 +635,78 @@ fn render_selmaho_index_entry(entry: &OwnedSelmahoIndexEntry) -> TokenStream {
 
 #[requires(true)]
 #[ensures(true)]
+fn render_sound_index_entry(entry: &GeneratedSoundEntry) -> TokenStream {
+    let entry_index = render_entry_index(&entry.entry_index);
+    let ipa = string_literal(&entry.ipa);
+    let segments = entry.segments.iter().map(render_ipa_segment_id);
+    let self_similarity = f64_literal(entry.self_similarity);
+    quote! {
+        jbotci_dictionary::DictionarySoundEntry {
+            entry_index: #entry_index,
+            ipa: #ipa,
+            token_sequence: jbotci_phonetic::IpaTokenSequenceView {
+                segments: &[#(#segments,)*],
+                self_similarity: #self_similarity,
+            },
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_lujvo_index_entry(entry: &GeneratedLujvoEntry) -> TokenStream {
+    let entry_index = render_entry_index(&entry.entry_index);
+    let segments = entry.segments.iter().map(render_lujvo_segment);
+    let source_words = entry
+        .source_words
+        .iter()
+        .map(|source_word| string_literal(source_word));
+    quote! {
+        jbotci_dictionary::DictionaryLujvoEntry {
+            entry_index: #entry_index,
+            segments: &[#(#segments,)*],
+            source_words: &[#(#source_words,)*],
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_lujvo_segment(segment: &GeneratedLujvoSegment) -> TokenStream {
+    let kind = render_lujvo_segment_kind(segment.kind);
+    let surface = string_literal(&segment.surface);
+    let source_word = render_optional_str(segment.source_word.as_deref());
+    quote! {
+        jbotci_dictionary::DictionaryLujvoSegment {
+            kind: #kind,
+            surface: #surface,
+            source_word: #source_word,
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_lujvo_segment_kind(kind: DictionaryLujvoSegmentKind) -> TokenStream {
+    match kind {
+        DictionaryLujvoSegmentKind::Rafsi => {
+            quote! { jbotci_dictionary::DictionaryLujvoSegmentKind::Rafsi }
+        }
+        DictionaryLujvoSegmentKind::Hyphen => {
+            quote! { jbotci_dictionary::DictionaryLujvoSegmentKind::Hyphen }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_ipa_segment_id(segment: &IpaSegmentId) -> TokenStream {
+    let value = u16_literal(segment.get());
+    quote! { jbotci_phonetic::IpaSegmentId::from_static_index(#value) }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn render_entry_index(index: &EntryIndex) -> TokenStream {
     let value = usize_literal(index.0);
     quote! { jbotci_dictionary::EntryIndex(#value) }
@@ -492,6 +799,12 @@ fn sha256_hex(bytes: &[u8]) -> String {
 #[ensures(true)]
 fn usize_literal(value: usize) -> Literal {
     Literal::usize_unsuffixed(value)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn u16_literal(value: u16) -> Literal {
+    Literal::u16_unsuffixed(value)
 }
 
 #[requires(true)]

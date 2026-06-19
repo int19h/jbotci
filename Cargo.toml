@@ -19,6 +19,7 @@ members = [
     "crates/jbotci-morphology",
     "crates/jbotci-orthography",
     "crates/jbotci-output",
+    "crates/jbotci-phonetic",
     "crates/jbotci-search",
     "crates/jbotci-semantics",
     "crates/jbotci-source",
@@ -50,6 +51,7 @@ default-members = [
     "crates/jbotci-morphology",
     "crates/jbotci-orthography",
     "crates/jbotci-output",
+    "crates/jbotci-phonetic",
     "crates/jbotci-search",
     "crates/jbotci-semantics",
     "crates/jbotci-source",
@@ -162,6 +164,7 @@ jbotci-jvozba = { path = "crates/jbotci-jvozba" }
 jbotci-morphology = { path = "crates/jbotci-morphology" }
 jbotci-orthography = { path = "crates/jbotci-orthography" }
 jbotci-output = { path = "crates/jbotci-output" }
+jbotci-phonetic = { path = "crates/jbotci-phonetic" }
 jbotci-search = { path = "crates/jbotci-search" }
 jbotci-semantics = { path = "crates/jbotci-semantics" }
 jbotci-source = { path = "crates/jbotci-source" }
@@ -197,6 +200,18 @@ bityzba = { workspace = true, features = ["contract_scanner"] }
 
 [profile.desktop-dev]
 inherits = "dev"
+
+[profile.dev.build-override]
+opt-level = 3
+codegen-units = 16
+
+[profile.release.build-override]
+opt-level = 3
+codegen-units = 16
+
+[profile.desktop-dev.build-override]
+opt-level = 3
+codegen-units = 16
 
 [lints]
 workspace = true

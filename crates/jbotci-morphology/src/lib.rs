@@ -2395,6 +2395,19 @@ pub fn canonicalize_text(text: &str) -> String {
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
+pub fn parse_lujvo_word_parts(word: &str) -> Option<Vec<LujvoPart>> {
+    let normalized = canonicalize_text(word);
+    let shape = normalized.replace(',', "");
+    let (kind, phonemes) =
+        segment::classify_word_with_options(&normalized, &MorphologyOptions::default())?;
+    if kind != WordKind::Lujvo {
+        return None;
+    }
+    segment::parse_lujvo_parts_with_canonical_phonemes(&shape, &phonemes).map(Vec1::into_vec)
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty() || input.is_empty()))]
 pub fn normalize_lojban_input_text(input: &str) -> Option<String> {
     normalize_lojban_input_text_with_options(input, &MorphologyOptions::default())

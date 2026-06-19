@@ -560,55 +560,55 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "web jvozba segment tone is a closed presentation selector with no payload to constrain",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:PhoneticError::Message",
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::Message",
         "error wrapper carries renderer or tokenizer diagnostics without additional semantic state",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Syllabic",
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Syllabic",
         "ALINE feature enum is a closed selector set with no payload invariants",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Place",
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Place",
         "ALINE feature enum is a closed selector set with no payload invariants",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Manner",
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Manner",
         "ALINE feature enum is a closed selector set with no payload invariants",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Voice",
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Voice",
         "ALINE feature enum is a closed selector set with no payload invariants",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Nasal",
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Nasal",
         "ALINE feature enum is a closed selector set with no payload invariants",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Retroflex",
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Retroflex",
         "ALINE feature enum is a closed selector set with no payload invariants",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Lateral",
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Lateral",
         "ALINE feature enum is a closed selector set with no payload invariants",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Aspirated",
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Aspirated",
         "ALINE feature enum is a closed selector set with no payload invariants",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:AlineFeature::High",
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::High",
         "ALINE feature enum is a closed selector set with no payload invariants",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Back",
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Back",
         "ALINE feature enum is a closed selector set with no payload invariants",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Round",
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Round",
         "ALINE feature enum is a closed selector set with no payload invariants",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:AlineFeature::Long",
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Long",
         "ALINE feature enum is a closed selector set with no payload invariants",
     ),
     (
@@ -880,11 +880,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "quoted text chunks preserve source text without an enum-level rule",
     ),
     (
-        "crates/jbotci-output/src/surface.rs:IpaSurfaceChunk::Word",
+        "crates/jbotci-phonetic/src/lib.rs:IpaSurfaceChunk::Word",
         "IPA chunks borrow validated morphology words",
     ),
     (
-        "crates/jbotci-output/src/surface.rs:IpaSurfaceChunk::Text",
+        "crates/jbotci-phonetic/src/lib.rs:IpaSurfaceChunk::Text",
         "IPA text chunks preserve source-derived quote text and may be empty before filtering",
     ),
     (
@@ -930,6 +930,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-dictionary/src/lib.rs:DictionaryValidationError::InvalidEntry",
         "validation error wrapper carries path and entry diagnostics",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryValidationError::InvalidSoundIndexEntry",
+        "validation error wrapper carries the sound index position and structural diagnostic",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryValidationError::InvalidLujvoIndexEntry",
+        "validation error wrapper carries the lujvo index position and structural diagnostic",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryLujvoSegmentKind::Rafsi",
+        "generated lujvo segment kind is a closed selector validated against segment source fields by Dictionary::validate",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryLujvoSegmentKind::Hyphen",
+        "generated lujvo segment kind is a closed selector validated against segment source fields by Dictionary::validate",
     ),
     (
         "crates/jbotci-dictionary/src/import.rs:RafsiField::Text",

@@ -3936,6 +3936,7 @@ name = "jbotci-dictionary"
 version = "0.1.0"
 dependencies = [
  "bityzba",
+ "jbotci-phonetic",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -3947,9 +3948,13 @@ version = "0.1.0"
 dependencies = [
  "bityzba",
  "jbotci-dictionary",
+ "jbotci-jvozba",
+ "jbotci-morphology",
+ "jbotci-phonetic",
  "prettyplease",
  "proc-macro2",
  "quote",
+ "rayon",
  "serde",
  "sha2",
  "syn 2.0.117",
@@ -4077,6 +4082,7 @@ dependencies = [
  "jbotci-dictionary-data",
  "jbotci-morphology",
  "jbotci-orthography",
+ "jbotci-phonetic",
  "jbotci-semantics",
  "jbotci-source",
  "jbotci-syntax",
@@ -4090,6 +4096,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "jbotci-phonetic"
+version = "0.1.0"
+dependencies = [
+ "bityzba",
+ "jbotci-morphology",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "jbotci-search"
 version = "0.1.0"
 dependencies = [
@@ -4098,7 +4113,7 @@ dependencies = [
  "jbotci-dictionary-data",
  "jbotci-jvozba",
  "jbotci-morphology",
- "jbotci-output",
+ "jbotci-phonetic",
  "regex",
  "serde",
  "thiserror 2.0.18",

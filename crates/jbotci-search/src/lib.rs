@@ -1,6 +1,5 @@
 //! Semantic search abstractions.
 
-mod phonetic;
 pub mod vlacku;
 
 use bityzba::{contract_trait, invariant, requires};

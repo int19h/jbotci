@@ -1,12 +1,10 @@
 use bityzba::{data, invariant, requires};
 use jbotci_morphology::{
     GlideMark, MorphologyError, MorphologyOptions, PhonemeRenderOptions, Phonemes, Word, WordKind,
-    WordLike, WordLikeData, pronunciation_syllables, segment_words_for_display_with_options,
+    WordLike, WordLikeData, segment_words_for_display_with_options,
 };
 use jbotci_orthography::{LojbanScript, render_latin_word_surface_for_script};
 use jbotci_syntax::{Token, WithIndicators};
-
-use crate::OutputError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -17,23 +15,6 @@ enum SurfaceChunk {
     Word(String),
     QuotedWords(Vec<String>),
     QuotedText(String),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-#[invariant(::Word(_) => true)]
-#[invariant(::Text(_) => true)]
-enum IpaSurfaceChunk<'word> {
-    Word(&'word Word),
-    Text(&'word str),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-struct IpaRenderedWord {
-    body: String,
-    leading_pause_required: bool,
-    trailing_pause_required: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -138,21 +119,6 @@ pub(crate) fn format_word_like_with_options(
     options: PhonemeRenderOptions,
 ) -> String {
     render_surface_chunks(flatten_word_like_surface(word_like, source, options))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub(crate) fn format_words_ipa(words: &[WordLike], source: &str) -> Result<String, OutputError> {
-    let chunks = words
-        .iter()
-        .flat_map(flatten_word_like_ipa)
-        .collect::<Vec<_>>();
-    if chunks.is_empty() {
-        return Err(OutputError::Ipa(format!(
-            "no pronounceable words in `{source}`"
-        )));
-    }
-    render_ipa_surface_chunks(&chunks, source)
 }
 
 #[requires(true)]
@@ -394,67 +360,11 @@ fn flatten_word_like_surface(
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn flatten_word_like_ipa(word_like: &WordLike) -> Vec<IpaSurfaceChunk<'_>> {
-    match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => vec![IpaSurfaceChunk::Word(word)],
-        data!(WordLike::QuotedWord { zo, word }) => {
-            vec![IpaSurfaceChunk::Word(zo), IpaSurfaceChunk::Word(word)]
-        }
-        data!(WordLike::DelimitedNonLojbanQuote {
-            zoi,
-            opening_delimiter,
-            quoted_text,
-            closing_delimiter,
-        }) => vec![
-            IpaSurfaceChunk::Word(zoi),
-            IpaSurfaceChunk::Word(opening_delimiter),
-            IpaSurfaceChunk::Text(drop_leading_zoi_separator_ref(&quoted_text.text)),
-            IpaSurfaceChunk::Word(closing_delimiter),
-        ],
-        data!(WordLike::QuotedWords {
-            lohu,
-            quoted_words,
-            lehu,
-        }) => {
-            let mut chunks = vec![IpaSurfaceChunk::Word(lohu)];
-            chunks.extend(quoted_words.iter().map(IpaSurfaceChunk::Word));
-            chunks.push(IpaSurfaceChunk::Word(lehu));
-            chunks
-        }
-        data!(WordLike::DelimitedWordQuote {
-            marker,
-            quoted_text,
-        }) => vec![
-            IpaSurfaceChunk::Word(marker),
-            IpaSurfaceChunk::Text(&quoted_text.text),
-        ],
-        data!(WordLike::LerfuWord { base, bu }) => {
-            let mut chunks = flatten_word_like_ipa(base);
-            chunks.push(IpaSurfaceChunk::Word(bu));
-            chunks
-        }
-        data!(WordLike::ZeiCompound { left, zei, right }) => {
-            let mut chunks = flatten_word_like_ipa(left);
-            chunks.push(IpaSurfaceChunk::Word(zei));
-            chunks.push(IpaSurfaceChunk::Word(right));
-            chunks
-        }
-    }
-}
-
-#[requires(true)]
 #[ensures(!ret.starts_with(char::is_whitespace))]
 fn drop_leading_zoi_separator(text: String) -> String {
     text.strip_prefix(char::is_whitespace)
         .unwrap_or(&text)
         .to_owned()
-}
-
-#[requires(true)]
-#[ensures(!ret.starts_with(char::is_whitespace))]
-fn drop_leading_zoi_separator_ref(text: &str) -> &str {
-    text.strip_prefix(char::is_whitespace).unwrap_or(text)
 }
 
 #[requires(true)]
@@ -475,244 +385,6 @@ fn render_surface_chunks(chunks: Vec<SurfaceChunk>) -> String {
         acc.push_str(next);
         acc
     })
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-fn render_ipa_surface_chunks(
-    chunks: &[IpaSurfaceChunk<'_>],
-    source: &str,
-) -> Result<String, OutputError> {
-    let mut rendered = Vec::new();
-    let mut previous_word: Option<IpaRenderedWord> = None;
-    for chunk in chunks {
-        match chunk {
-            IpaSurfaceChunk::Word(word) => {
-                let word = render_word_ipa(word, source)?;
-                let pause_before = previous_word
-                    .as_ref()
-                    .is_some_and(|previous| previous.trailing_pause_required)
-                    || (previous_word.is_some() && word.leading_pause_required);
-                let body = if pause_before {
-                    ipa_body_with_leading_pause(&word.body)
-                } else {
-                    word.body.clone()
-                };
-                rendered.push(body);
-                previous_word = Some(word);
-            }
-            IpaSurfaceChunk::Text(text) => {
-                if !text.is_empty() {
-                    rendered.push((*text).to_owned());
-                }
-                previous_word = None;
-            }
-        }
-    }
-    Ok(rendered.join(" "))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|rendered| !rendered.body.is_empty()) || ret.is_err())]
-fn render_word_ipa(word: &Word, source: &str) -> Result<IpaRenderedWord, OutputError> {
-    let phonemes = word.phonemes();
-    let body = if word.kind() == WordKind::Cmevla {
-        render_cmevla_ipa_body(&phonemes)
-    } else {
-        render_syllabified_ipa_body(&pronunciation_syllables(&phonemes).map_err(OutputError::Ipa)?)
-    };
-    Ok(IpaRenderedWord {
-        body,
-        leading_pause_required: explicit_leading_pause_count(source, word) > 0
-            || required_leading_pause_count(word) > 0,
-        trailing_pause_required: explicit_trailing_pause_count(source, word) > 0
-            || word.kind() == WordKind::Cmevla,
-    })
-}
-
-#[requires(!body.is_empty())]
-#[ensures(!ret.is_empty())]
-fn ipa_body_with_leading_pause(body: &str) -> String {
-    body.strip_prefix('ˈ')
-        .map(|rest| format!("ˈʔ{rest}"))
-        .unwrap_or_else(|| format!("ʔ{body}"))
-}
-
-#[requires(!phonemes.as_str().is_empty())]
-#[ensures(!ret.is_empty())]
-fn render_cmevla_ipa_body(phonemes: &Phonemes) -> String {
-    let text = phonemes.as_str();
-    if text.contains(',') {
-        let syllables = text
-            .split(',')
-            .filter(|syllable| !syllable.is_empty())
-            .map(ToOwned::to_owned)
-            .collect::<Vec<_>>();
-        if !syllables.is_empty() {
-            return render_syllabified_ipa_body(&syllables);
-        }
-    }
-    if text.chars().any(is_explicit_stress_char) {
-        return render_unsyllabified_cmevla_ipa(text);
-    }
-    match pronunciation_syllables(phonemes) {
-        Ok(syllables) => render_syllabified_ipa_body(&syllables),
-        Err(_) => render_unsyllabified_cmevla_ipa(text),
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty() || syllables.is_empty())]
-fn render_syllabified_ipa_body(syllables: &[String]) -> String {
-    let stress_index = explicit_stress_syllable_index(&syllables)
-        .or_else(|| conventional_stress_syllable_index(&syllables));
-
-    let mut rendered = String::new();
-    for (index, syllable) in syllables.iter().enumerate() {
-        if index > 0 {
-            rendered.push('.');
-        }
-        if stress_index == Some(index) {
-            rendered.push('ˈ');
-        }
-        rendered.push_str(&render_ipa_syllable(syllable));
-    }
-    rendered
-}
-
-#[requires(!text.is_empty())]
-#[ensures(!ret.is_empty())]
-fn render_unsyllabified_cmevla_ipa(text: &str) -> String {
-    let mut rendered = String::new();
-    for value in text.chars() {
-        if is_explicit_stress_char(value) {
-            rendered.push('ˈ');
-        }
-        push_ipa_phoneme(&mut rendered, value);
-    }
-    rendered
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn explicit_stress_syllable_index(syllables: &[String]) -> Option<usize> {
-    syllables
-        .iter()
-        .position(|syllable| syllable.chars().any(is_explicit_stress_char))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn conventional_stress_syllable_index(syllables: &[String]) -> Option<usize> {
-    let stressable = syllables
-        .iter()
-        .enumerate()
-        .filter_map(|(index, syllable)| syllable_has_full_vowel(syllable).then_some(index))
-        .collect::<Vec<_>>();
-    stressable.iter().rev().nth(1).copied()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syllable_has_full_vowel(syllable: &str) -> bool {
-    syllable
-        .chars()
-        .any(|value| matches!(strip_vowel_diacritic(value), 'a' | 'e' | 'i' | 'o' | 'u'))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_explicit_stress_char(value: char) -> bool {
-    matches!(
-        value,
-        'á' | 'é' | 'í' | 'ó' | 'ú' | 'ý' | 'à' | 'è' | 'ì' | 'ò' | 'ù' | 'ỳ'
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_ipa_syllable(syllable: &str) -> String {
-    let mut rendered = String::new();
-    for value in syllable.chars() {
-        push_ipa_phoneme(&mut rendered, value);
-    }
-    rendered
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn push_ipa_phoneme(output: &mut String, value: char) {
-    match value {
-        'a' | 'á' | 'à' => output.push('a'),
-        'e' | 'é' | 'è' => output.push('e'),
-        'i' | 'í' | 'ì' => output.push('i'),
-        'o' | 'ó' | 'ò' => output.push('o'),
-        'u' | 'ú' | 'ù' => output.push('u'),
-        'y' | 'ý' | 'ỳ' => output.push('ə'),
-        'ĭ' => output.push('j'),
-        'ŭ' => output.push('w'),
-        '\'' => output.push('h'),
-        '.' => output.push('ʔ'),
-        'c' => output.push('ʃ'),
-        'j' => output.push('ʒ'),
-        other => output.push(other),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn strip_vowel_diacritic(value: char) -> char {
-    match value {
-        'á' | 'à' => 'a',
-        'é' | 'è' => 'e',
-        'í' | 'ì' | 'ĭ' => 'i',
-        'ó' | 'ò' => 'o',
-        'ú' | 'ù' | 'ŭ' => 'u',
-        'ý' | 'ỳ' => 'y',
-        other => other,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn explicit_leading_pause_count(source: &str, word: &Word) -> usize {
-    source
-        .as_bytes()
-        .get(..word.span().byte_start.min(source.len()))
-        .unwrap_or_default()
-        .iter()
-        .rev()
-        .take_while(|value| **value == b'.')
-        .count()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn explicit_trailing_pause_count(source: &str, word: &Word) -> usize {
-    source
-        .as_bytes()
-        .get(word.span().byte_end.min(source.len())..)
-        .unwrap_or_default()
-        .iter()
-        .take_while(|value| **value == b'.')
-        .count()
-}
-
-#[requires(true)]
-#[ensures(ret <= 1)]
-fn required_leading_pause_count(word: &Word) -> usize {
-    usize::from(word.kind() == WordKind::Cmevla || starts_with_vowel_sound(word))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn starts_with_vowel_sound(word: &Word) -> bool {
-    word.phonemes()
-        .as_str()
-        .chars()
-        .next()
-        .map(strip_vowel_diacritic)
-        .is_some_and(|value| matches!(value, 'a' | 'e' | 'i' | 'o' | 'u'))
 }
 
 #[requires(true)]

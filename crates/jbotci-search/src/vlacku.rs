@@ -1,19 +1,17 @@
 use bityzba::{data, invariant, new, requires};
 use jbotci_dictionary::{
-    Dictionary, DictionaryEntry, Keyword, WordType, normalize_lookup_query,
-    universal_gismu_rafsi_forms,
+    Dictionary, DictionaryEntry, DictionaryLujvoEntry, DictionaryLujvoSegmentKind, Keyword,
+    normalize_lookup_query, universal_gismu_rafsi_forms,
 };
 use jbotci_jvozba::{LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
     LujvoPart, Verbatim, Word, WordKind, WordLike, WordLikeData, canonicalize_text,
     normalize_lojban_input_text, segment_words_with_modifiers,
 };
-use regex::Regex;
-
-use crate::phonetic::{
-    PhoneticError, aline_phonetic_similarity, compare_similarity_then_index, lojban_text_to_ipa,
-    sound_query_to_token_sequence, tokenize_ipa_text,
+use jbotci_phonetic::{
+    aline_phonetic_similarity, compare_similarity_then_index, sound_query_to_token_sequence,
 };
+use regex::Regex;
 
 pub const DEFAULT_VLACKU_RESULT_COUNT: usize = 20;
 pub const OFFICIAL_AUTHOR_USERNAME: &str = "officialdata";
@@ -327,6 +325,36 @@ pub fn format_vote_display(value: i32, is_official: bool) -> String {
 
 #[requires(true)]
 #[ensures(true)]
+pub fn dictionary_entry_passes_vlacku_filters(
+    entry: &DictionaryEntry<'_>,
+    options: &VlackuSearchOptions,
+    similarity: Option<f32>,
+    similarity_mode: bool,
+) -> bool {
+    let normalized_type = normalize_word_type_filter(entry.word_type.as_str());
+    let word_type_ok = options.word_types.is_empty()
+        || options
+            .word_types
+            .iter()
+            .any(|wanted| matches_word_type_filter(wanted, &normalized_type));
+    let votes_ok = options
+        .min_votes
+        .is_none_or(|min_votes| entry_vote_count(entry) >= min_votes);
+    let similarity_ok = !similarity_mode
+        || options
+            .min_similarity
+            .is_none_or(|min_similarity| similarity.unwrap_or(0.0) * 100.0 >= min_similarity);
+    word_type_ok && votes_ok && similarity_ok
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn entry_vote_count(entry: &DictionaryEntry<'_>) -> i32 {
+    entry.score.get().round() as i32
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn run_single_request(
     dictionary: &Dictionary<'_>,
     request: &VlackuRequest,
@@ -538,6 +566,9 @@ fn cards_for_valsi(
             query,
             entries
                 .into_iter()
+                .filter(|entry| {
+                    dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false)
+                })
                 .map(|entry| {
                     dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
                 })
@@ -550,6 +581,9 @@ fn cards_for_valsi(
         let cards = filter_and_limit(
             entries
                 .into_iter()
+                .filter(|entry| {
+                    dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false)
+                })
                 .map(|entry| {
                     dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
                 })
@@ -579,6 +613,9 @@ fn cards_for_rafsi(
     let cards = filter_and_limit(
         dictionary
             .lookup_rafsi(query)
+            .filter(|matched| {
+                dictionary_entry_passes_vlacku_filters(matched.entry, options, Some(1.0), false)
+            })
             .map(|matched| {
                 dictionary_entry_card(
                     dictionary,
@@ -604,24 +641,47 @@ fn cards_for_lujvo(
     let query = normalize_exact_lojban_query(query);
     let query = query.as_str();
     let normalized = normalize_lookup_query(query);
-    let decomposition = decompose_lujvo_like(dictionary, query);
     let exact_entries = dictionary.lookup_words(query).collect::<Vec<_>>();
     let exact_found = !exact_entries.is_empty();
+    let mut runtime_decomposition = None;
     let mut cards = if exact_entries.is_empty() {
-        match classify_exact_word(query, &normalized) {
+        let decomposition = decompose_lujvo_like(dictionary, query);
+        let cards = match classify_exact_word(query, &normalized) {
             Some(classification) => vec![unknown_card(classification, decomposition.as_ref())],
             None => {
                 return invalid_output(format!("Invalid Lojban word: {query}"));
             }
-        }
+        };
+        runtime_decomposition = decomposition;
+        cards
     } else {
-        exact_entries
+        let decomposition = exact_entries
+            .iter()
+            .copied()
+            .find_map(|entry| dictionary_lujvo_decomposition_for_entry(dictionary, entry));
+        let mut cards = exact_entries
             .into_iter()
-            .map(|entry| entry_card_with_decomposition(entry, Some(1.0), decomposition.as_ref()))
-            .collect()
+            .filter(|entry| {
+                dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false)
+            })
+            .map(|entry| {
+                entry_card_with_dictionary_decomposition(
+                    entry,
+                    Some(1.0),
+                    dictionary_lujvo_decomposition_for_entry(dictionary, entry),
+                )
+            })
+            .collect();
+        if let Some(decomposition) = decomposition {
+            extend_unique_cards(
+                &mut cards,
+                cards_for_dictionary_lujvo_decomposition(dictionary, decomposition, options),
+            );
+        }
+        cards
     };
 
-    if let Some(decomposition) = &decomposition {
+    if let Some(decomposition) = runtime_decomposition.as_ref() {
         extend_unique_cards(
             &mut cards,
             cards_for_lujvo_decomposition(dictionary, decomposition, options),
@@ -694,13 +754,23 @@ fn cards_for_matching_entries<'dictionary>(
     entries: impl IntoIterator<Item = &'dictionary DictionaryEntry<'dictionary>>,
     options: &VlackuSearchOptions,
 ) -> Vec<VlackuCard> {
+    cards_for_matching_entries_with_builder(entries, options, |entry| {
+        dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= options.count)]
+fn cards_for_matching_entries_with_builder<'dictionary>(
+    entries: impl IntoIterator<Item = &'dictionary DictionaryEntry<'dictionary>>,
+    options: &VlackuSearchOptions,
+    mut build_card: impl FnMut(&'dictionary DictionaryEntry<'dictionary>) -> VlackuCard,
+) -> Vec<VlackuCard> {
     entries
         .into_iter()
-        .filter_map(|entry| {
-            let card = dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo);
-            passes_filters(&card, options, false).then_some(card)
-        })
+        .filter(|entry| dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false))
         .take(options.count)
+        .map(|entry| build_card(entry))
         .collect()
 }
 
@@ -717,35 +787,27 @@ fn cards_for_sound(
     };
 
     let mut scored = dictionary
-        .entries()
+        .sound_index()
         .iter()
-        .enumerate()
-        .filter_map(|(index, entry)| {
-            dictionary_word_sound_entry(entry).map(|entry_sound| {
-                (
-                    index,
-                    aline_phonetic_similarity(&query_sound, &entry_sound) as f32,
-                    entry,
-                )
-            })
+        .filter_map(|sound_entry| {
+            let entry = dictionary.entries().get(sound_entry.entry_index.get())?;
+            let similarity =
+                aline_phonetic_similarity(query_sound.view(), sound_entry.token_sequence) as f32;
+            dictionary_entry_passes_vlacku_filters(entry, options, Some(similarity), true)
+                .then_some((sound_entry.entry_index.get(), similarity, entry))
         })
         .collect::<Vec<_>>();
     scored.sort_by(|left, right| {
         compare_similarity_then_index((left.0, left.1.into()), (right.0, right.1.into()))
     });
 
-    let min_similarity = options.min_similarity.unwrap_or(0.0) / 100.0;
-    let cards = filter_and_limit(
-        scored
-            .into_iter()
-            .filter(|(_, similarity, _)| *similarity >= min_similarity)
-            .map(|(_, similarity, entry)| {
-                dictionary_entry_card(dictionary, entry, Some(similarity), options.decompose_lujvo)
-            })
-            .collect(),
-        options,
-        true,
-    );
+    let cards = scored
+        .into_iter()
+        .take(options.count)
+        .map(|(_, similarity, entry)| {
+            dictionary_entry_card(dictionary, entry, Some(similarity), options.decompose_lujvo)
+        })
+        .collect();
     found_or_missing(cards)
 }
 
@@ -790,8 +852,8 @@ fn missing_exact_output(
     let normalized = normalize_lookup_query(query);
     match classify_exact_word(query, &normalized) {
         Some(classification) => {
-            let decomposition = options
-                .decompose_lujvo
+            let normalized_type = normalize_word_type_filter(&classification.word_type);
+            let decomposition = (options.decompose_lujvo && is_lujvo_like(&normalized_type))
                 .then(|| decompose_lujvo_like(dictionary, query))
                 .flatten();
             let cards = cards_with_optional_lujvo_sources(
@@ -818,15 +880,36 @@ fn cards_with_optional_lujvo_sources(
     mut cards: Vec<VlackuCard>,
     options: &VlackuSearchOptions,
 ) -> Vec<VlackuCard> {
-    if options.decompose_lujvo
-        && let Some(decomposition) = decompose_lujvo_like(dictionary, query)
-    {
-        extend_unique_cards(
-            &mut cards,
-            cards_for_lujvo_decomposition(dictionary, &decomposition, options),
-        );
+    let should_decompose_sources = options.decompose_lujvo
+        && cards.iter().any(|card| {
+            let normalized_type = normalize_word_type_filter(&card.word_type);
+            is_lujvo_like(&normalized_type)
+        });
+    if should_decompose_sources {
+        if let Some(decomposition) = dictionary_lujvo_decomposition_for_query(dictionary, query) {
+            extend_unique_cards(
+                &mut cards,
+                cards_for_dictionary_lujvo_decomposition(dictionary, decomposition, options),
+            );
+        } else if let Some(decomposition) = decompose_lujvo_like(dictionary, query) {
+            extend_unique_cards(
+                &mut cards,
+                cards_for_lujvo_decomposition(dictionary, &decomposition, options),
+            );
+        }
     }
     filter_and_limit(cards, options, false)
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|decomposition| !decomposition.segments.is_empty()))]
+fn dictionary_lujvo_decomposition_for_query<'dictionary>(
+    dictionary: &'dictionary Dictionary<'dictionary>,
+    query: &str,
+) -> Option<&'dictionary DictionaryLujvoEntry<'dictionary>> {
+    dictionary
+        .lookup_words(query)
+        .find_map(|entry| dictionary_lujvo_decomposition_for_entry(dictionary, entry))
 }
 
 #[requires(true)]
@@ -839,6 +922,9 @@ fn cards_for_lujvo_decomposition(
     let mut cards = Vec::new();
     for source_word in &decomposition.source_words {
         if let Some(entry) = dictionary.lookup_word(source_word) {
+            if !dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false) {
+                continue;
+            }
             extend_unique_cards(
                 &mut cards,
                 vec![dictionary_entry_card(
@@ -860,6 +946,39 @@ fn cards_for_lujvo_decomposition(
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn cards_for_dictionary_lujvo_decomposition(
+    dictionary: &Dictionary<'_>,
+    decomposition: &DictionaryLujvoEntry<'_>,
+    options: &VlackuSearchOptions,
+) -> Vec<VlackuCard> {
+    let mut cards = Vec::new();
+    for source_word in decomposition.source_words {
+        if let Some(entry) = dictionary.lookup_word(source_word) {
+            if !dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false) {
+                continue;
+            }
+            extend_unique_cards(
+                &mut cards,
+                vec![dictionary_entry_card(
+                    dictionary,
+                    entry,
+                    Some(1.0),
+                    options.decompose_lujvo,
+                )],
+            );
+        }
+    }
+    if let Some(surface) = final_dictionary_rafsi_surface(decomposition) {
+        extend_unique_cards(
+            &mut cards,
+            exact_word_cards_for_lujvo_final_segment(dictionary, surface, options),
+        );
+    }
+    cards
+}
+
+#[requires(true)]
 #[ensures(ret.is_none_or(|surface| !surface.is_empty()))]
 fn final_rafsi_surface<'a>(decomposition: &'a LujvoDecomposition<'_>) -> Option<&'a str> {
     decomposition
@@ -869,6 +988,21 @@ fn final_rafsi_surface<'a>(decomposition: &'a LujvoDecomposition<'_>) -> Option<
         .find_map(|segment| match &segment.segment {
             LujvoPart::Rafsi(phonemes) => Some(phonemes.as_str()),
             LujvoPart::Hyphen(_) => None,
+        })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|surface| !surface.is_empty()))]
+fn final_dictionary_rafsi_surface<'a>(
+    decomposition: &'a DictionaryLujvoEntry<'_>,
+) -> Option<&'a str> {
+    decomposition
+        .segments
+        .iter()
+        .rev()
+        .find_map(|segment| match segment.kind {
+            DictionaryLujvoSegmentKind::Rafsi => Some(segment.surface),
+            DictionaryLujvoSegmentKind::Hyphen => None,
         })
 }
 
@@ -893,6 +1027,9 @@ fn exact_word_cards_for_lujvo_final_segment(
     } else {
         entries
             .into_iter()
+            .filter(|entry| {
+                dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false)
+            })
             .map(|entry| {
                 dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
             })
@@ -1080,9 +1217,23 @@ pub fn dictionary_entry_card(
     decompose_lujvo: bool,
 ) -> VlackuCard {
     let decomposition = decompose_lujvo
-        .then(|| decompose_lujvo_like(dictionary, entry.word))
+        .then(|| dictionary_lujvo_decomposition_for_entry(dictionary, entry))
         .flatten();
-    entry_card_with_decomposition(entry, similarity, decomposition.as_ref())
+    entry_card_with_dictionary_decomposition(entry, similarity, decomposition)
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|decomposition| !decomposition.segments.is_empty()))]
+fn dictionary_lujvo_decomposition_for_entry<'dictionary>(
+    dictionary: &'dictionary Dictionary<'dictionary>,
+    entry: &'dictionary DictionaryEntry<'dictionary>,
+) -> Option<&'dictionary DictionaryLujvoEntry<'dictionary>> {
+    let normalized_type = normalize_word_type_filter(entry.word_type.as_str());
+    if !is_lujvo_like(&normalized_type) {
+        return None;
+    }
+    let index = dictionary.entry_index_for_entry(entry)?;
+    dictionary.lujvo_decomposition_for_entry_index(index)
 }
 
 #[requires(true)]
@@ -1106,7 +1257,7 @@ fn entry_card_with_decomposition(
         })),
         is_official: entry.user.username == OFFICIAL_AUTHOR_USERNAME,
         similarity,
-        votes: Some(entry.score.get().round() as i32),
+        votes: Some(entry_vote_count(entry)),
         rafsi: entry.rafsi.iter().map(|rafsi| rafsi.0.to_owned()).collect(),
         glosses: entry.gloss_keywords.iter().map(format_keyword).collect(),
         definition: entry.definition.to_owned(),
@@ -1117,6 +1268,42 @@ fn entry_card_with_decomposition(
             .map(str::to_owned),
         decomposition: decomposition
             .map(composition_from_decomposition)
+            .unwrap_or_default(),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.word.is_empty())]
+fn entry_card_with_dictionary_decomposition(
+    entry: &DictionaryEntry<'_>,
+    similarity: Option<f32>,
+    decomposition: Option<&DictionaryLujvoEntry<'_>>,
+) -> VlackuCard {
+    VlackuCard {
+        word: entry.word.to_owned(),
+        word_type: entry.word_type.as_str().to_owned(),
+        selmaho: entry.selmaho.map(|selmaho| selmaho.0.to_owned()),
+        author: Some(new!(VlackuAuthor {
+            username: entry.user.username.to_owned(),
+            realname: entry
+                .user
+                .realname
+                .filter(|realname| !realname.trim().is_empty())
+                .map(str::to_owned),
+        })),
+        is_official: entry.user.username == OFFICIAL_AUTHOR_USERNAME,
+        similarity,
+        votes: Some(entry_vote_count(entry)),
+        rafsi: entry.rafsi.iter().map(|rafsi| rafsi.0.to_owned()).collect(),
+        glosses: entry.gloss_keywords.iter().map(format_keyword).collect(),
+        definition: entry.definition.to_owned(),
+        notes: entry.notes.to_owned(),
+        etymology: entry
+            .etymology
+            .filter(|etymology| !etymology.trim().is_empty())
+            .map(str::to_owned),
+        decomposition: decomposition
+            .map(composition_from_dictionary_decomposition)
             .unwrap_or_default(),
     }
 }
@@ -1163,6 +1350,29 @@ fn composition_from_decomposition(
             LujvoPart::Hyphen(phonemes) => VlackuCompositionPiece {
                 kind: VlackuCompositionKind::Hyphen,
                 surface: phonemes.as_str().to_owned(),
+                source: None,
+            },
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn composition_from_dictionary_decomposition(
+    decomposition: &DictionaryLujvoEntry<'_>,
+) -> Vec<VlackuCompositionPiece> {
+    decomposition
+        .segments
+        .iter()
+        .map(|segment| match segment.kind {
+            DictionaryLujvoSegmentKind::Rafsi => VlackuCompositionPiece {
+                kind: VlackuCompositionKind::Rafsi,
+                surface: segment.surface.to_owned(),
+                source: segment.source_word.map(str::to_owned),
+            },
+            DictionaryLujvoSegmentKind::Hyphen => VlackuCompositionPiece {
+                kind: VlackuCompositionKind::Hyphen,
+                surface: segment.surface.to_owned(),
                 source: None,
             },
         })
@@ -1447,116 +1657,6 @@ fn is_lojban_vowel(value: char) -> bool {
     matches!(value, 'a' | 'e' | 'i' | 'o' | 'u' | 'y')
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn dictionary_word_sound_entry(
-    entry: &DictionaryEntry<'_>,
-) -> Option<crate::phonetic::IpaTokenSequence> {
-    let ipa = dictionary_word_ipa(entry).ok()?;
-    tokenize_ipa_text(&ipa).ok()
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-fn dictionary_word_ipa(entry: &DictionaryEntry<'_>) -> Result<String, PhoneticError> {
-    if entry.word.contains(' ') {
-        lojban_text_to_ipa(entry.word)
-    } else if dictionary_word_type_has_pronunciation(entry.word_type) {
-        Ok(fast_dictionary_word_ipa(
-            matches!(entry.word_type, WordType::Cmevla | WordType::ObsoleteCmevla),
-            entry.word,
-        ))
-    } else {
-        Err(PhoneticError::Message(format!(
-            "Cannot infer morphology kind for dictionary word `{}`.",
-            entry.word
-        )))
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn dictionary_word_type_has_pronunciation(word_type: WordType) -> bool {
-    !matches!(word_type, WordType::Phrase)
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty() || word_text.is_empty())]
-fn fast_dictionary_word_ipa(is_cmevla: bool, word_text: &str) -> String {
-    let normalized = normalize_lookup_query(word_text);
-    let leading_pause = normalized
-        .chars()
-        .next()
-        .is_some_and(|first| is_cmevla || is_fast_vowel_phoneme(first));
-    let mut rendered = String::new();
-    if leading_pause {
-        rendered.push('ʔ');
-    }
-    render_phoneme_chars(&mut rendered, None, &normalized.chars().collect::<Vec<_>>());
-    rendered
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_phoneme_chars(output: &mut String, previous: Option<char>, chars: &[char]) {
-    let Some((&current, rest)) = chars.split_first() else {
-        return;
-    };
-    if current == ',' {
-        render_phoneme_chars(output, previous, rest);
-        return;
-    }
-    push_fast_ipa_phoneme(output, previous, current, next_non_comma(rest));
-    render_phoneme_chars(output, Some(current), rest);
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn next_non_comma(chars: &[char]) -> Option<char> {
-    chars.iter().copied().find(|value| *value != ',')
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn push_fast_ipa_phoneme(
-    output: &mut String,
-    previous: Option<char>,
-    phoneme: char,
-    next: Option<char>,
-) {
-    match phoneme {
-        'i' if is_glide_position(previous, phoneme, next) => output.push('j'),
-        'u' if is_glide_position(previous, phoneme, next) => output.push('w'),
-        'y' => output.push('ə'),
-        '\'' => output.push('h'),
-        'c' => output.push('ʃ'),
-        'j' => output.push('ʒ'),
-        other => output.push(other),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_glide_position(previous: Option<char>, phoneme: char, next: Option<char>) -> bool {
-    previous.is_some_and(|value| is_falling_diphthong_before(value, phoneme))
-        || next.is_some_and(is_fast_vowel_phoneme)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_falling_diphthong_before(previous: char, phoneme: char) -> bool {
-    matches!(
-        (previous, phoneme),
-        ('a', 'i') | ('a', 'u') | ('e', 'i') | ('o', 'i')
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_fast_vowel_phoneme(phoneme: char) -> bool {
-    matches!(phoneme, 'a' | 'e' | 'i' | 'o' | 'u')
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1633,6 +1733,25 @@ mod tests {
 
         let etymology = card.etymology.as_deref().expect("etymology");
         assert!(etymology.contains("ava, people"), "{etymology}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_entry_cards_do_not_decompose_non_lujvo_entries() {
+        let dictionary = jbotci_dictionary_data::english();
+        let entry = dictionary
+            .entries()
+            .iter()
+            .find(|entry| entry.word.starts_with("cu'u'u'u"))
+            .expect("long cmavo entry");
+        assert!(is_cmavo_like(&normalize_word_type_filter(
+            entry.word_type.as_str()
+        )));
+
+        let card = dictionary_entry_card(dictionary, entry, Some(1.0), true);
+
+        assert!(card.decomposition.is_empty());
     }
 
     #[test]
@@ -1741,6 +1860,125 @@ mod tests {
 
         assert_eq!(cards.len(), 1);
         assert_eq!(visited, 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_pattern_filters_entries_before_building_cards() {
+        let dictionary = jbotci_dictionary_data::english();
+        let compiled = compile_exact_pattern("*").expect("match-all glob compiles");
+        let options = VlackuSearchOptions {
+            count: 2,
+            word_types: vec!["cmavo".to_owned()],
+            decompose_lujvo: true,
+            ..VlackuSearchOptions::default()
+        };
+        let mut visited = 0;
+        let mut built = 0;
+
+        let cards = cards_for_matching_entries_with_builder(
+            dictionary
+                .entries()
+                .iter()
+                .inspect(|_| visited += 1)
+                .filter(|entry| compiled.matches(&exact_pattern_target_key(entry.word))),
+            &options,
+            |entry| {
+                built += 1;
+                dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
+            },
+        );
+
+        assert_eq!(cards.len(), 2);
+        assert_eq!(built, cards.len());
+        assert!(visited < dictionary.entries().len());
+        assert!(cards.iter().all(|card| {
+            matches_word_type_filter("cmavo", &normalize_word_type_filter(&card.word_type))
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_pattern_decompose_lujvo_skips_non_lujvo_cards() {
+        let result = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Valsi("/.{10,}/".to_owned())],
+            &VlackuSearchOptions {
+                count: 40,
+                word_types: vec!["cmavo".to_owned()],
+                decompose_lujvo: true,
+                ..VlackuSearchOptions::default()
+            },
+        );
+
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_eq!(result.outcome, VlackuOutcome::Found);
+        assert!(!result.cards.is_empty());
+        assert!(result.cards.iter().all(|card| {
+            matches_word_type_filter("cmavo", &normalize_word_type_filter(&card.word_type))
+        }));
+        assert!(
+            result
+                .cards
+                .iter()
+                .all(|card| card.decomposition.is_empty())
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn entry_filters_match_card_filters_for_dictionary_entries() {
+        let dictionary = jbotci_dictionary_data::english();
+        let entry = dictionary.lookup_word("klama").expect("entry for klama");
+        let card = dictionary_entry_card(dictionary, entry, Some(0.42), false);
+
+        for options in [
+            VlackuSearchOptions {
+                word_types: vec!["brivla".to_owned()],
+                ..VlackuSearchOptions::default()
+            },
+            VlackuSearchOptions {
+                word_types: vec!["cmavo".to_owned()],
+                ..VlackuSearchOptions::default()
+            },
+            VlackuSearchOptions {
+                min_votes: Some(1),
+                ..VlackuSearchOptions::default()
+            },
+            VlackuSearchOptions {
+                min_similarity: Some(50.0),
+                ..VlackuSearchOptions::default()
+            },
+        ] {
+            assert_eq!(
+                dictionary_entry_passes_vlacku_filters(entry, &options, Some(0.42), true),
+                passes_filters(&card, &options, true)
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sound_search_uses_precomputed_dictionary_index() {
+        let result = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Sound("klama".to_owned())],
+            &VlackuSearchOptions {
+                count: 1,
+                ..VlackuSearchOptions::default()
+            },
+        );
+
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_eq!(result.outcome, VlackuOutcome::Found);
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("klama")
+        );
     }
 
     #[test]

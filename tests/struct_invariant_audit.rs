@@ -820,16 +820,24 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "gimfihi output is assembled by compose_gismu from validated candidates and sources",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:AlineFeatures",
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeatures",
         "ALINE feature vectors are derived from a fixed IPA segment table",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:IpaSegmentVector",
-        "IPA segment vectors are constructed from tokenizer table entries and derived feature vectors",
+        "crates/jbotci-phonetic/src/lib.rs:IpaSegmentId",
+        "segment ids are static table ordinals emitted by tokenizer and generated dictionary code then validated by consumers",
     ),
     (
-        "crates/jbotci-search/src/phonetic.rs:IpaTokenSequence",
-        "token sequences are constructed by tokenizer helpers that reject empty segment lists",
+        "crates/jbotci-phonetic/src/lib.rs:IpaTokenSequence",
+        "owned token sequences are constructed by tokenizer helpers that reject empty segment lists",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:IpaTokenSequenceView",
+        "borrowed token sequences must remain static-literal friendly and are validated by the dictionary sound index checker",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:IpaTokenizedText",
+        "tokenized IPA text is assembled from tokenizer output and consumed as an internal paired return value",
     ),
     (
         "crates/jbotci-search/src/vlacku.rs:VlackuSearchOptions",
@@ -968,8 +976,32 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "trace renderer options are caller-selected presentation controls",
     ),
     (
-        "crates/jbotci-output/src/surface.rs:IpaRenderedWord",
+        "crates/jbotci-phonetic/src/lib.rs:IpaRenderedWord",
         "IPA word rendering metadata is produced by render_word_ipa and consumed immediately for boundary merging",
+    ),
+    (
+        "crates/jbotci-dictionary-data/build.rs:GeneratedSoundEntry",
+        "generated sound entries are build-script intermediates created from standard IPA tokenization and checked through Dictionary::validate",
+    ),
+    (
+        "crates/jbotci-dictionary-data/build.rs:GeneratedLujvoEntry",
+        "generated lujvo entries are build-script intermediates created from morphology-backed decomposition and checked through Dictionary::validate",
+    ),
+    (
+        "crates/jbotci-dictionary-data/build.rs:GeneratedLujvoSegment",
+        "generated lujvo segments are build-script intermediates created from validated morphology parts and checked through Dictionary::validate",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:DictionarySoundEntry",
+        "borrowed sound index entries are static generated data validated against dictionary entries and token tables",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryLujvoEntry",
+        "borrowed lujvo index entries are static generated data validated against dictionary entries and segment structure",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryLujvoSegment",
+        "borrowed lujvo index segments are static generated data validated as part of the dictionary-wide lujvo index",
     ),
     (
         "crates/jbotci-dictionary/src/lib.rs:SelmahoIndexEntry",

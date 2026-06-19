@@ -6,6 +6,7 @@ pub mod import;
 use std::collections::BTreeMap;
 
 use bityzba::{expensive_invariant, invariant, requires};
+use jbotci_phonetic::{IpaTokenSequenceView, is_valid_ipa_segment_id};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -20,6 +21,8 @@ pub struct Dictionary<'a> {
     word_index: &'a [WordIndexEntry<'a>],
     rafsi_index: &'a [RafsiIndexEntry<'a>],
     selmaho_index: &'a [SelmahoIndexEntry<'a>],
+    sound_index: &'a [DictionarySoundEntry<'a>],
+    lujvo_index: &'a [DictionaryLujvoEntry<'a>],
 }
 
 impl<'a> Dictionary<'a> {
@@ -35,12 +38,16 @@ impl<'a> Dictionary<'a> {
         word_index: &'a [WordIndexEntry<'a>],
         rafsi_index: &'a [RafsiIndexEntry<'a>],
         selmaho_index: &'a [SelmahoIndexEntry<'a>],
+        sound_index: &'a [DictionarySoundEntry<'a>],
+        lujvo_index: &'a [DictionaryLujvoEntry<'a>],
     ) -> Self {
         Self {
             entries,
             word_index,
             rafsi_index,
             selmaho_index,
+            sound_index,
+            lujvo_index,
         }
     }
 
@@ -62,6 +69,8 @@ impl<'a> Dictionary<'a> {
         if !selmaho_index_matches(self.selmaho_index, &expected.selmaho_index) {
             return Err(DictionaryValidationError::SelmahoIndexMismatch);
         }
+        validate_sound_index(self.entries, self.sound_index)?;
+        validate_lujvo_index(self.entries, self.lujvo_index)?;
         Ok(())
     }
 
@@ -79,6 +88,43 @@ impl<'a> Dictionary<'a> {
     #[ensures(ret.len() == self.entries.len())]
     pub fn entries(&self) -> &'a [DictionaryEntry<'a>] {
         self.entries
+    }
+
+    /// Return the generated sound-search index in dictionary entry order.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn sound_index(&self) -> &'a [DictionarySoundEntry<'a>] {
+        self.sound_index
+    }
+
+    /// Return the generated dictionary-entry lujvo decomposition index.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn lujvo_index(&self) -> &'a [DictionaryLujvoEntry<'a>] {
+        self.lujvo_index
+    }
+
+    /// Return generated lujvo decomposition data for an entry index.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_some_and(|entry| entry.entry_index == index) || ret.is_none())]
+    pub fn lujvo_decomposition_for_entry_index(
+        &self,
+        index: EntryIndex,
+    ) -> Option<&'a DictionaryLujvoEntry<'a>> {
+        self.lujvo_index
+            .binary_search_by(|entry| entry.entry_index.cmp(&index))
+            .ok()
+            .map(|position| &self.lujvo_index[position])
+    }
+
+    /// Return an entry's index when the reference belongs to this dictionary.
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|index| index.0 < self.entries.len()))]
+    pub fn entry_index_for_entry(&self, entry: &DictionaryEntry<'a>) -> Option<EntryIndex> {
+        self.entries
+            .iter()
+            .position(|candidate| std::ptr::eq(candidate, entry))
+            .map(EntryIndex)
     }
 
     /// Return the first entry matching a normalized lookup query.
@@ -182,6 +228,49 @@ pub struct DictionaryEntry<'a> {
     pub user: DictionaryUser<'a>,
 }
 
+/// Precomputed sound-search data for a pronounceable dictionary entry.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[invariant(true)]
+pub struct DictionarySoundEntry<'a> {
+    pub entry_index: EntryIndex,
+    pub ipa: &'a str,
+    pub token_sequence: IpaTokenSequenceView<'a>,
+}
+
+/// Precomputed lujvo decomposition data for a dictionary entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(
+    true,
+    "dictionary lujvo decomposition consistency is checked by Dictionary::validate"
+)]
+pub struct DictionaryLujvoEntry<'a> {
+    pub entry_index: EntryIndex,
+    pub segments: &'a [DictionaryLujvoSegment<'a>],
+    pub source_words: &'a [&'a str],
+}
+
+/// Single precomputed lujvo decomposition segment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(
+    true,
+    "dictionary lujvo decomposition segment consistency is checked by Dictionary::validate"
+)]
+pub struct DictionaryLujvoSegment<'a> {
+    pub kind: DictionaryLujvoSegmentKind,
+    pub surface: &'a str,
+    pub source_word: Option<&'a str>,
+}
+
+/// Segment kind in a precomputed lujvo decomposition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+#[invariant(::Rafsi => true)]
+#[invariant(::Hyphen => true)]
+pub enum DictionaryLujvoSegmentKind {
+    Rafsi,
+    Hyphen,
+}
+
 /// Lensisku dictionary word type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum WordType {
@@ -223,6 +312,13 @@ impl WordType {
     #[ensures(true)]
     pub const fn is_gismu_like(self) -> bool {
         matches!(self, Self::Gismu | Self::ExperimentalGismu)
+    }
+
+    /// Return whether this type is a lujvo-like class.
+    #[requires(true)]
+    #[ensures(matches!(self, Self::Lujvo | Self::ZeiLujvo | Self::ObsoleteZeiLujvo) == ret)]
+    pub const fn is_lujvo_like(self) -> bool {
+        matches!(self, Self::Lujvo | Self::ZeiLujvo | Self::ObsoleteZeiLujvo)
     }
 
     /// Return the Lensisku string representation.
@@ -404,6 +500,8 @@ pub struct OwnedSelmahoIndexEntry {
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::InvalidEntry => true)]
+#[invariant(::InvalidSoundIndexEntry => true)]
+#[invariant(::InvalidLujvoIndexEntry => true)]
 pub enum DictionaryValidationError {
     #[error("invalid dictionary entry at index {index}: {reason}")]
     InvalidEntry { index: usize, reason: &'static str },
@@ -413,6 +511,10 @@ pub enum DictionaryValidationError {
     RafsiIndexMismatch,
     #[error("selma'o index does not match dictionary entries")]
     SelmahoIndexMismatch,
+    #[error("invalid dictionary sound index entry at index {index}: {reason}")]
+    InvalidSoundIndexEntry { index: usize, reason: &'static str },
+    #[error("invalid dictionary lujvo index entry at index {index}: {reason}")]
+    InvalidLujvoIndexEntry { index: usize, reason: &'static str },
 }
 
 /// Build owned indexes for a borrowed entry table.
@@ -653,6 +755,149 @@ fn selmaho_index_matches(
             })
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn validate_sound_index(
+    entries: &[DictionaryEntry<'_>],
+    sound_index: &[DictionarySoundEntry<'_>],
+) -> Result<(), DictionaryValidationError> {
+    let mut previous_index = None;
+    for (index, sound_entry) in sound_index.iter().enumerate() {
+        if sound_entry.entry_index.0 >= entries.len() {
+            return Err(DictionaryValidationError::InvalidSoundIndexEntry {
+                index,
+                reason: "entry index is out of range",
+            });
+        }
+        if previous_index.is_some_and(|previous| sound_entry.entry_index.0 <= previous) {
+            return Err(DictionaryValidationError::InvalidSoundIndexEntry {
+                index,
+                reason: "entry indexes are not strictly ascending",
+            });
+        }
+        if sound_entry.ipa.trim().is_empty() {
+            return Err(DictionaryValidationError::InvalidSoundIndexEntry {
+                index,
+                reason: "IPA text is empty",
+            });
+        }
+        if sound_entry.token_sequence.segments.is_empty() {
+            return Err(DictionaryValidationError::InvalidSoundIndexEntry {
+                index,
+                reason: "token sequence is empty",
+            });
+        }
+        if !sound_entry.token_sequence.self_similarity.is_finite()
+            || sound_entry.token_sequence.self_similarity <= 0.0
+        {
+            return Err(DictionaryValidationError::InvalidSoundIndexEntry {
+                index,
+                reason: "token sequence self-similarity is not positive and finite",
+            });
+        }
+        if sound_entry
+            .token_sequence
+            .segments
+            .iter()
+            .any(|segment| !is_valid_ipa_segment_id(*segment))
+        {
+            return Err(DictionaryValidationError::InvalidSoundIndexEntry {
+                index,
+                reason: "token sequence contains an invalid segment id",
+            });
+        }
+        previous_index = Some(sound_entry.entry_index.0);
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn validate_lujvo_index(
+    entries: &[DictionaryEntry<'_>],
+    lujvo_index: &[DictionaryLujvoEntry<'_>],
+) -> Result<(), DictionaryValidationError> {
+    let mut previous_index = None;
+    for (index, lujvo_entry) in lujvo_index.iter().enumerate() {
+        if lujvo_entry.entry_index.0 >= entries.len() {
+            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index,
+                reason: "entry index is out of range",
+            });
+        }
+        if previous_index.is_some_and(|previous| lujvo_entry.entry_index.0 <= previous) {
+            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index,
+                reason: "entry indexes are not strictly ascending",
+            });
+        }
+        if !entries[lujvo_entry.entry_index.0].word_type.is_lujvo_like() {
+            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index,
+                reason: "entry is not lujvo-like",
+            });
+        }
+        if lujvo_entry.segments.is_empty() {
+            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index,
+                reason: "decomposition has no segments",
+            });
+        }
+        let rafsi_count = lujvo_entry
+            .segments
+            .iter()
+            .filter(|segment| segment.kind == DictionaryLujvoSegmentKind::Rafsi)
+            .count();
+        if rafsi_count < 2 {
+            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index,
+                reason: "decomposition has fewer than two rafsi segments",
+            });
+        }
+        if lujvo_entry
+            .segments
+            .iter()
+            .any(|segment| segment.surface.is_empty())
+        {
+            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index,
+                reason: "decomposition segment surface is empty",
+            });
+        }
+        if lujvo_entry.segments.iter().any(|segment| {
+            segment.kind == DictionaryLujvoSegmentKind::Hyphen && segment.source_word.is_some()
+        }) {
+            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index,
+                reason: "hyphen segment has a source word",
+            });
+        }
+        if lujvo_entry
+            .source_words
+            .iter()
+            .any(|source| source.is_empty())
+        {
+            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index,
+                reason: "source word is empty",
+            });
+        }
+        if lujvo_entry
+            .source_words
+            .iter()
+            .enumerate()
+            .any(|(source_index, source)| lujvo_entry.source_words[..source_index].contains(source))
+        {
+            return Err(DictionaryValidationError::InvalidLujvoIndexEntry {
+                index,
+                reason: "source words contain duplicates",
+            });
+        }
+        previous_index = Some(lujvo_entry.entry_index.0);
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -696,8 +941,14 @@ mod tests {
         let word_index = leak_word_index(&indexes.word_index);
         let rafsi_index = leak_rafsi_index(&indexes.rafsi_index);
         let selmaho_index = leak_selmaho_index(&indexes.selmaho_index);
-        let dictionary =
-            Dictionary::from_static_slices(entries, word_index, rafsi_index, selmaho_index);
+        let dictionary = Dictionary::from_static_slices(
+            entries,
+            word_index,
+            rafsi_index,
+            selmaho_index,
+            &[],
+            &[],
+        );
 
         assert!(dictionary.validate().is_ok());
         assert_eq!(
@@ -723,8 +974,14 @@ mod tests {
         let word_index = leak_word_index(&indexes.word_index);
         let rafsi_index = leak_rafsi_index(&indexes.rafsi_index);
         let selmaho_index = leak_selmaho_index(&indexes.selmaho_index);
-        let dictionary =
-            Dictionary::from_static_slices(entries, word_index, rafsi_index, selmaho_index);
+        let dictionary = Dictionary::from_static_slices(
+            entries,
+            word_index,
+            rafsi_index,
+            selmaho_index,
+            &[],
+            &[],
+        );
 
         assert_eq!(
             dictionary.validate(),

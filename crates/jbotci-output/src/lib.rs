@@ -350,7 +350,8 @@ pub fn compact_morphology_json_string_with_options(
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn ipa_morphology_text(words: &[WordLike], source: &str) -> Result<String, OutputError> {
-    surface::format_words_ipa(words, source)
+    jbotci_phonetic::ipa_morphology_text(words, source)
+        .map_err(|error| OutputError::Ipa(error.to_string()))
 }
 
 #[requires(true)]

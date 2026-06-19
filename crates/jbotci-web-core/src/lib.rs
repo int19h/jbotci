@@ -57,9 +57,10 @@ use jbotci_output::{
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
-    VlackuRequest, VlackuSearchOptions, dictionary_entry_card, dictionary_matches_for_word_likes,
-    filter_vlacku_cards, format_vote_display, grouped_word_type_filter_key, is_brivla_like,
-    normalize_word_type_filter, run_vlacku_requests, vlacku_exact_query_is_pattern,
+    VlackuRequest, VlackuSearchOptions, dictionary_entry_card,
+    dictionary_entry_passes_vlacku_filters, dictionary_matches_for_word_likes, format_vote_display,
+    grouped_word_type_filter_key, is_brivla_like, normalize_word_type_filter, run_vlacku_requests,
+    vlacku_exact_query_is_pattern,
 };
 use jbotci_semantics::references::{
     PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, SelbriPlaceFrameId, SumtiPlaceAssignmentId,
@@ -2045,31 +2046,32 @@ pub fn build_vlacku_semantic_web_result_with_loading(
         };
     }
 
+    let fetch_count = normalized_state
+        .count
+        .saturating_add(1)
+        .min(VLACKU_WEB_MAX_COUNT);
     let dictionary = jbotci_dictionary_data::english();
-    let cards = hits
+    let options = VlackuSearchOptions {
+        count: fetch_count,
+        word_types: normalized_state.word_types.clone(),
+        min_votes: None,
+        min_similarity: None,
+        decompose_lujvo: true,
+    };
+    let filtered = hits
         .iter()
         .filter_map(|hit| {
             dictionary
                 .entries()
                 .get(hit.entry_index)
-                .map(|entry| dictionary_entry_card(dictionary, entry, Some(hit.score), true))
+                .map(|entry| (hit.score, entry))
         })
+        .filter(|(score, entry)| {
+            dictionary_entry_passes_vlacku_filters(entry, &options, Some(*score), true)
+        })
+        .take(fetch_count)
+        .map(|(score, entry)| dictionary_entry_card(dictionary, entry, Some(score), true))
         .collect::<Vec<_>>();
-    let fetch_count = normalized_state
-        .count
-        .saturating_add(1)
-        .min(VLACKU_WEB_MAX_COUNT);
-    let filtered = filter_vlacku_cards(
-        cards,
-        &VlackuSearchOptions {
-            count: fetch_count,
-            word_types: normalized_state.word_types.clone(),
-            min_votes: None,
-            min_similarity: None,
-            decompose_lujvo: true,
-        },
-        true,
-    );
     let has_more = filtered.len() > normalized_state.count;
     let cards = filtered
         .into_iter()
