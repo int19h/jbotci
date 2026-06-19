@@ -758,6 +758,19 @@ where
             return self.build_tanru_formula_for_bridi(bridi, selbri, &units);
         }
         if let Some(selbri) = selbri
+            && let Some(connected) = self.build_connected_selbri_formula_for_frame(
+                selbri,
+                self.bridi_frame(bridi),
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "connected-selbri-formula")),
+                None,
+            )?
+        {
+            return Ok(connected.formula);
+        }
+        if let Some(selbri) = selbri
             && let Some(bound_tanru) = connectorless_bound_selbri_pair(selbri)
         {
             return self.build_bound_selbri_tanru_formula_for_frame(
@@ -950,6 +963,22 @@ where
         )
     }
 
+    #[requires(!children.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_connective_formula(
+        &mut self,
+        operator: FormulaOperator,
+        children: Vec<SemanticObjectId>,
+        connector: Option<Connector>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(operator, children, connector, source, Vec::new()),
+        )
+    }
+
     #[requires(tanru_units_require_lowering(units))]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_tanru_formula_for_tail(
@@ -994,6 +1023,17 @@ where
             && tanru_units_require_lowering(&units)
         {
             return self.build_tanru_formula_for_tail(selbri, &units);
+        }
+        if let Some(connected) = self.build_connected_selbri_formula_for_frame(
+            selbri,
+            self.branch_frame_for_selbri(selbri),
+            self.analysis
+                .syntax_index
+                .selbri_node_id(selbri)
+                .and_then(|node| self.source_for_node(node.0, "connected-selbri-formula")),
+            None,
+        )? {
+            return Ok(connected.formula);
         }
         if let Some(bound_tanru) = connectorless_bound_selbri_pair(selbri) {
             return self.build_bound_selbri_tanru_formula_for_frame(
@@ -1180,6 +1220,123 @@ where
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_connected_selbri_formula_for_frame(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        visible_x1_override: Option<ArgumentValue>,
+    ) -> Result<Option<TanruFormulaForArgument>, SemanticsError> {
+        match selbri.as_data() {
+            data!(SelbriSyntax::SelbriConnection {
+                leading_selbri,
+                connective,
+                trailing_selbri,
+            }) => self
+                .build_connected_selbri_pair_formula_for_frame(
+                    leading_selbri,
+                    connective,
+                    trailing_selbri,
+                    frame,
+                    source,
+                    visible_x1_override,
+                )
+                .map(Some),
+            data!(SelbriSyntax::BoundSelbriConnection {
+                leading_selbri,
+                bo_connective: Some(connective),
+                trailing_selbri,
+                ..
+            }) => self
+                .build_connected_selbri_pair_formula_for_frame(
+                    leading_selbri,
+                    connective,
+                    trailing_selbri,
+                    frame,
+                    source,
+                    visible_x1_override,
+                )
+                .map(Some),
+            data!(SelbriSyntax::ForethoughtSelbriConnection {
+                guhek,
+                leading_bridi,
+                trailing_bridi,
+                ..
+            }) => {
+                let Some(leading_selbri) = main_selbri_for_bridi(leading_bridi) else {
+                    return Ok(None);
+                };
+                let Some(trailing_selbri) = main_selbri_for_bridi(trailing_bridi) else {
+                    return Ok(None);
+                };
+                self.build_connected_selbri_pair_formula_for_frame(
+                    leading_selbri,
+                    guhek,
+                    trailing_selbri,
+                    frame,
+                    source,
+                    visible_x1_override,
+                )
+                .map(Some)
+            }
+            data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+            | data!(SelbriSyntax::TaggedSelbri {
+                inner_selbri: selbri,
+                ..
+            }) => self.build_connected_selbri_formula_for_frame(
+                selbri,
+                frame,
+                source,
+                visible_x1_override,
+            ),
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_connected_selbri_pair_formula_for_frame(
+        &mut self,
+        leading_selbri: &'tree SelbriSyntax,
+        connective: &'tree ConnectiveSyntax,
+        trailing_selbri: &'tree SelbriSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        visible_x1_override: Option<ArgumentValue>,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        let shared_x1 = match visible_x1_override {
+            Some(argument) => Some(argument),
+            None if self.frame_has_numbered_assignment(frame, 1) => None,
+            None => Some(self.build_elided_argument_for_place(1)?),
+        };
+        let leading = self.build_selbri_tanru_formula_for_frame_with_visible_x1_override(
+            leading_selbri,
+            leading_selbri,
+            self.branch_frame_for_selbri(leading_selbri).or(frame),
+            source.clone(),
+            shared_x1.clone(),
+        )?;
+        let trailing = self.build_selbri_tanru_formula_for_frame_with_visible_x1_override(
+            trailing_selbri,
+            trailing_selbri,
+            self.branch_frame_for_selbri(trailing_selbri).or(frame),
+            source.clone(),
+            shared_x1,
+        )?;
+        let formula = self.build_connective_formula(
+            formula_operator_for_connective(connective),
+            vec![leading.formula, trailing.formula],
+            Some(connective_connector(connective, "selbri")),
+            source,
+        )?;
+        Ok(TanruFormulaForArgument {
+            formula,
+            x1_argument: leading.x1_argument,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
     fn build_selbri_tanru_formula_for_frame(
         &mut self,
         selbri: &'tree SelbriSyntax,
@@ -1187,6 +1344,33 @@ where
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        self.build_selbri_tanru_formula_for_frame_with_visible_x1_override(
+            selbri,
+            relation_selbri,
+            frame,
+            source,
+            None,
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_selbri_tanru_formula_for_frame_with_visible_x1_override(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        relation_selbri: &'tree SelbriSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        visible_x1_override: Option<ArgumentValue>,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        if let Some(connected) = self.build_connected_selbri_formula_for_frame(
+            relation_selbri,
+            frame,
+            source.clone(),
+            visible_x1_override.clone(),
+        )? {
+            return Ok(connected);
+        }
         if let Some(bound_tanru) = connectorless_bound_selbri_pair(relation_selbri) {
             return self.build_bound_selbri_tanru_formula_for_argument(
                 selbri,
@@ -1196,25 +1380,24 @@ where
                 source,
             );
         }
-        let predication = self.build_predication_for_frame(
-            frame,
+        let visible_x1_place = visible_x1_place_for_selbri(relation_selbri);
+        let mut overrides = BTreeMap::new();
+        if let Some(argument) = visible_x1_override {
+            overrides.insert(format!("x{visible_x1_place}"), argument);
+        }
+        let predication = self.build_predication_for_frame_with_overrides(
+            self.semantic_predication_frame_for_selbri(relation_selbri, frame),
             source.clone(),
             Some(selbri),
             relation_label_for_selbri(relation_selbri),
+            overrides,
         )?;
         let formula = self.next_formula();
         self.insert(
             formula,
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )?;
-        let x1_argument = self
-            .objects
-            .get(&predication)
-            .and_then(|object| object.arguments.get("x1"))
-            .cloned()
-            .ok_or_else(|| {
-                SemanticsError::invalid_graph("tanru tertau has no x1 argument".to_owned())
-            })?;
+        let x1_argument = self.predication_argument(predication, visible_x1_place)?;
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument,
@@ -1276,17 +1459,60 @@ where
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        self.build_tanru_unit_formula_for_frame_with_visible_x1_override(
+            selbri, unit, frame, source, None,
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_tanru_unit_formula_for_frame_with_visible_x1_override(
+        &mut self,
+        selbri: Option<&'tree SelbriSyntax>,
+        unit: &'tree TanruUnitSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        visible_x1_override: Option<ArgumentValue>,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
         match unit.as_data() {
+            data!(TanruUnitSyntax::BoundTanruUnitConnection {
+                leading_unit,
+                bo_connective: Some(connective),
+                trailing_unit,
+                ..
+            }) => self.build_connected_tanru_unit_formula_for_frame(
+                selbri,
+                leading_unit,
+                connective,
+                trailing_unit,
+                frame,
+                source,
+                visible_x1_override,
+            ),
+            data!(TanruUnitSyntax::TanruUnitConnection {
+                leading_unit,
+                connective,
+                trailing_unit,
+            }) => self.build_connected_tanru_unit_formula_for_frame(
+                selbri,
+                leading_unit,
+                connective,
+                trailing_unit,
+                frame,
+                source,
+                visible_x1_override,
+            ),
             data!(TanruUnitSyntax::BoundTanruUnitConnection {
                 leading_unit,
                 trailing_unit,
                 ..
             }) => {
-                let tertau = self.build_tanru_unit_formula_for_frame(
+                let tertau = self.build_tanru_unit_formula_for_frame_with_visible_x1_override(
                     selbri,
                     trailing_unit,
                     frame,
                     source.clone(),
+                    visible_x1_override,
                 )?;
                 let modifier =
                     self.build_property_abstraction_for_tanru_unit(leading_unit, source.clone())?;
@@ -1328,15 +1554,65 @@ where
                         source,
                     );
                 }
-                self.build_simple_tanru_unit_formula_for_frame(
-                    Some(selbri.as_ref()),
-                    unit,
-                    frame,
+                self.build_selbri_tanru_formula_for_frame_with_visible_x1_override(
+                    selbri.as_ref(),
+                    selbri.as_ref(),
+                    self.branch_frame_for_selbri(selbri).or(frame),
                     source,
+                    visible_x1_override,
                 )
             }
-            _ => self.build_simple_tanru_unit_formula_for_frame(selbri, unit, frame, source),
+            _ => self.build_simple_tanru_unit_formula_for_frame(
+                selbri,
+                unit,
+                frame,
+                source,
+                visible_x1_override,
+            ),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_connected_tanru_unit_formula_for_frame(
+        &mut self,
+        selbri: Option<&'tree SelbriSyntax>,
+        leading_unit: &'tree TanruUnitSyntax,
+        connective: &'tree ConnectiveSyntax,
+        trailing_unit: &'tree TanruUnitSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        visible_x1_override: Option<ArgumentValue>,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        let shared_x1 = match visible_x1_override {
+            Some(argument) => Some(argument),
+            None if self.frame_has_numbered_assignment(frame, 1) => None,
+            None => Some(self.build_elided_argument_for_place(1)?),
+        };
+        let leading = self.build_tanru_unit_formula_for_frame_with_visible_x1_override(
+            selbri,
+            leading_unit,
+            self.branch_frame_for_tanru_unit(leading_unit).or(frame),
+            source.clone(),
+            shared_x1.clone(),
+        )?;
+        let trailing = self.build_tanru_unit_formula_for_frame_with_visible_x1_override(
+            selbri,
+            trailing_unit,
+            self.branch_frame_for_tanru_unit(trailing_unit).or(frame),
+            source.clone(),
+            shared_x1,
+        )?;
+        let formula = self.build_connective_formula(
+            formula_operator_for_connective(connective),
+            vec![leading.formula, trailing.formula],
+            Some(connective_connector(connective, "tanru-unit")),
+            source,
+        )?;
+        Ok(TanruFormulaForArgument {
+            formula,
+            x1_argument: leading.x1_argument,
+        })
     }
 
     #[requires(true)]
@@ -1347,26 +1623,26 @@ where
         unit: &'tree TanruUnitSyntax,
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
+        visible_x1_override: Option<ArgumentValue>,
     ) -> Result<TanruFormulaForArgument, SemanticsError> {
-        let predication = self.build_predication_for_frame(
-            frame,
+        let visible_x1_place = visible_x1_place_for_tanru_unit(unit);
+        let mut overrides = BTreeMap::new();
+        if let Some(argument) = visible_x1_override {
+            overrides.insert(format!("x{visible_x1_place}"), argument);
+        }
+        let predication = self.build_predication_for_frame_with_overrides(
+            self.semantic_predication_frame_for_tanru_unit(unit, frame),
             source.clone(),
             selbri,
             relation_label_for_tanru_unit(unit),
+            overrides,
         )?;
         let formula = self.next_formula();
         self.insert(
             formula,
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )?;
-        let x1_argument = self
-            .objects
-            .get(&predication)
-            .and_then(|object| object.arguments.get("x1"))
-            .cloned()
-            .ok_or_else(|| {
-                SemanticsError::invalid_graph("tanru tertau has no x1 argument".to_owned())
-            })?;
+        let x1_argument = self.predication_argument(predication, visible_x1_place)?;
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument,
@@ -1380,6 +1656,12 @@ where
         units: &[&'tree TanruUnitSyntax],
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if let [single] = units
+            && let Some(composition) =
+                self.build_property_composition_for_tanru_unit(single, source.clone())?
+        {
+            return Ok(composition);
+        }
         let parameter = self.next_parameter();
         self.insert(
             parameter,
@@ -1398,6 +1680,86 @@ where
                 AbstractionKind::Property,
                 body,
                 vec![parameter],
+                source,
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_property_composition_for_tanru_unit(
+        &mut self,
+        unit: &'tree TanruUnitSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match unit.as_data() {
+            data!(TanruUnitSyntax::TanruUnitConnection {
+                leading_unit,
+                connective,
+                trailing_unit,
+            }) if !connective_is_logical(connective) => self
+                .build_property_composition_for_tanru_unit_pair(
+                    leading_unit,
+                    connective,
+                    trailing_unit,
+                    source,
+                )
+                .map(Some),
+            data!(TanruUnitSyntax::BoundTanruUnitConnection {
+                leading_unit,
+                bo_connective: Some(connective),
+                trailing_unit,
+                ..
+            }) if !connective_is_logical(connective) => self
+                .build_property_composition_for_tanru_unit_pair(
+                    leading_unit,
+                    connective.as_ref(),
+                    trailing_unit,
+                    source,
+                )
+                .map(Some),
+            data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+            | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+                if let Some(units) = tanru_units_for_selbri(selbri)
+                    && let [single] = units.as_slice()
+                {
+                    return self.build_property_composition_for_tanru_unit(single, source);
+                }
+                Ok(None)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_property_composition_for_tanru_unit_pair(
+        &mut self,
+        leading_unit: &'tree TanruUnitSyntax,
+        connective: &ConnectiveSyntax,
+        trailing_unit: &'tree TanruUnitSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let leading =
+            self.build_property_abstraction_for_tanru_unit(leading_unit, source.clone())?;
+        let trailing =
+            self.build_property_abstraction_for_tanru_unit(trailing_unit, source.clone())?;
+        let operator = nonlogical_composition_operator(connective);
+        let collective = (operator == "mass").then_some(true);
+        let id = self.next_referent();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Composite,
+                SemanticSort::Concept,
+                None,
+                None,
+                Some(Composition {
+                    operator,
+                    members: vec![leading, trailing],
+                    collective,
+                }),
                 source,
                 Vec::new(),
             ),
@@ -1495,6 +1857,11 @@ where
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(formula) =
+            self.build_connected_property_formula_for_selbri(selbri, parameter, source.clone())?
+        {
+            return Ok(formula);
+        }
         if let Some(units) = tanru_units_for_selbri(selbri)
             && tanru_units_require_lowering(&units)
         {
@@ -1535,6 +1902,94 @@ where
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_connected_property_formula_for_selbri(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        parameter: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match selbri.as_data() {
+            data!(SelbriSyntax::SelbriConnection {
+                leading_selbri,
+                connective,
+                trailing_selbri,
+            }) => self
+                .build_connected_property_formula_for_selbri_pair(
+                    leading_selbri,
+                    connective,
+                    trailing_selbri,
+                    parameter,
+                    source,
+                )
+                .map(Some),
+            data!(SelbriSyntax::BoundSelbriConnection {
+                leading_selbri,
+                bo_connective: Some(connective),
+                trailing_selbri,
+                ..
+            }) => self
+                .build_connected_property_formula_for_selbri_pair(
+                    leading_selbri,
+                    connective,
+                    trailing_selbri,
+                    parameter,
+                    source,
+                )
+                .map(Some),
+            data!(SelbriSyntax::ForethoughtSelbriConnection {
+                guhek,
+                leading_bridi,
+                trailing_bridi,
+                ..
+            }) => {
+                let Some(leading_selbri) = main_selbri_for_bridi(leading_bridi) else {
+                    return Ok(None);
+                };
+                let Some(trailing_selbri) = main_selbri_for_bridi(trailing_bridi) else {
+                    return Ok(None);
+                };
+                self.build_connected_property_formula_for_selbri_pair(
+                    leading_selbri,
+                    guhek,
+                    trailing_selbri,
+                    parameter,
+                    source,
+                )
+                .map(Some)
+            }
+            data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+            | data!(SelbriSyntax::TaggedSelbri {
+                inner_selbri: selbri,
+                ..
+            }) => self.build_connected_property_formula_for_selbri(selbri, parameter, source),
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_connected_property_formula_for_selbri_pair(
+        &mut self,
+        leading_selbri: &'tree SelbriSyntax,
+        connective: &'tree ConnectiveSyntax,
+        trailing_selbri: &'tree SelbriSyntax,
+        parameter: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let leading =
+            self.build_property_formula_for_selbri(leading_selbri, parameter, source.clone())?;
+        let trailing =
+            self.build_property_formula_for_selbri(trailing_selbri, parameter, source.clone())?;
+        self.build_connective_formula(
+            formula_operator_for_connective(connective),
+            vec![leading, trailing],
+            Some(connective_connector(connective, "property-abstraction")),
+            source,
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
     fn build_property_formula_for_tanru_unit(
         &mut self,
         unit: &'tree TanruUnitSyntax,
@@ -1542,6 +1997,29 @@ where
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match unit.as_data() {
+            data!(TanruUnitSyntax::BoundTanruUnitConnection {
+                leading_unit,
+                bo_connective: Some(connective),
+                trailing_unit,
+                ..
+            }) => self.build_connected_property_formula_for_tanru_units(
+                leading_unit,
+                connective,
+                trailing_unit,
+                parameter,
+                source,
+            ),
+            data!(TanruUnitSyntax::TanruUnitConnection {
+                leading_unit,
+                connective,
+                trailing_unit,
+            }) => self.build_connected_property_formula_for_tanru_units(
+                leading_unit,
+                connective,
+                trailing_unit,
+                parameter,
+                source,
+            ),
             data!(TanruUnitSyntax::BoundTanruUnitConnection {
                 leading_unit,
                 trailing_unit,
@@ -1583,11 +2061,7 @@ where
                 {
                     return self.build_property_formula_for_units(&units, parameter, source);
                 }
-                self.build_property_atom_for_relation(
-                    relation_label_for_tanru_unit(unit),
-                    parameter,
-                    source,
-                )
+                self.build_property_formula_for_selbri(selbri, parameter, source)
             }
             _ => self.build_property_atom_for_relation(
                 relation_label_for_tanru_unit(unit),
@@ -1595,6 +2069,28 @@ where
                 source,
             ),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_connected_property_formula_for_tanru_units(
+        &mut self,
+        leading_unit: &'tree TanruUnitSyntax,
+        connective: &'tree ConnectiveSyntax,
+        trailing_unit: &'tree TanruUnitSyntax,
+        parameter: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let leading =
+            self.build_property_formula_for_tanru_unit(leading_unit, parameter, source.clone())?;
+        let trailing =
+            self.build_property_formula_for_tanru_unit(trailing_unit, parameter, source.clone())?;
+        self.build_connective_formula(
+            formula_operator_for_connective(connective),
+            vec![leading, trailing],
+            Some(connective_connector(connective, "property-abstraction")),
+            source,
+        )
     }
 
     #[requires(!relation.is_empty())]
@@ -1702,6 +2198,25 @@ where
         selbri: Option<&'tree SelbriSyntax>,
         relation: String,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_predication_for_frame_with_overrides(
+            frame,
+            source,
+            selbri,
+            relation,
+            BTreeMap::new(),
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_predication_for_frame_with_overrides(
+        &mut self,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        selbri: Option<&'tree SelbriSyntax>,
+        relation: String,
+        argument_overrides: BTreeMap<String, ArgumentValue>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let eventuality = self.next_eventuality();
         let mut event = SemanticObject::eventuality(
             EventualityClass::Event,
@@ -1739,6 +2254,12 @@ where
                 highest_assigned_place = highest_assigned_place.max(place);
                 arguments.insert(format!("x{place}"), argument);
             }
+        }
+        for (place, argument) in argument_overrides {
+            if let Some(place_index) = argument_place_index(&place) {
+                highest_assigned_place = highest_assigned_place.max(place_index);
+            }
+            arguments.entry(place).or_insert(argument);
         }
         let mut diagnostics = if selbri.is_none() {
             vec![diagnostic("bridi tail has no direct selbri relation")]
@@ -1858,6 +2379,100 @@ where
         Ok(ArgumentValue::elided(referent, "zo'e".to_owned(), None))
     }
 
+    #[requires(place > 0)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn predication_argument(
+        &self,
+        predication: SemanticObjectId,
+        place: usize,
+    ) -> Result<ArgumentValue, SemanticsError> {
+        self.objects
+            .get(&predication)
+            .and_then(|object| object.arguments.get(&format!("x{place}")))
+            .cloned()
+            .ok_or_else(|| {
+                SemanticsError::invalid_graph(format!(
+                    "predication has no visible x1 argument at x{place}"
+                ))
+            })
+    }
+
+    #[requires((1..=u8::MAX as usize).contains(&place))]
+    #[ensures(true)]
+    fn frame_has_numbered_assignment(
+        &self,
+        frame: Option<SelbriPlaceFrameId>,
+        place: usize,
+    ) -> bool {
+        let Some(frame) = frame else {
+            return false;
+        };
+        let Some(slot) = PlaceSlot::numbered(place as u8) else {
+            return false;
+        };
+        !self
+            .analysis
+            .place_analysis
+            .assignments_for_frame_slot(frame, slot)
+            .is_empty()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_predication_frame_for_selbri(
+        &self,
+        selbri: &'tree SelbriSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+    ) -> Option<SelbriPlaceFrameId> {
+        match selbri.as_data() {
+            data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. }) => self
+                .semantic_predication_frame_for_selbri(
+                    inner_selbri,
+                    self.branch_frame_for_selbri(inner_selbri).or(frame),
+                ),
+            data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+            | data!(SelbriSyntax::TaggedSelbri {
+                inner_selbri: selbri,
+                ..
+            }) => self.semantic_predication_frame_for_selbri(
+                selbri,
+                self.branch_frame_for_selbri(selbri).or(frame),
+            ),
+            _ => frame,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_predication_frame_for_tanru_unit(
+        &self,
+        unit: &'tree TanruUnitSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+    ) -> Option<SelbriPlaceFrameId> {
+        match unit.as_data() {
+            data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. }) => self
+                .semantic_predication_frame_for_tanru_unit(
+                    inner_unit,
+                    self.branch_frame_for_tanru_unit(inner_unit).or(frame),
+                ),
+            data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+            | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => self
+                .semantic_predication_frame_for_selbri(
+                    selbri,
+                    self.branch_frame_for_selbri(selbri).or(frame),
+                ),
+            data!(TanruUnitSyntax::RelativeClauses { base, .. })
+            | data!(TanruUnitSyntax::LinkedSumtiTanruUnit { base, .. })
+            | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit { base, .. })
+            | data!(TanruUnitSyntax::AssignedProBridi { base, .. }) => self
+                .semantic_predication_frame_for_tanru_unit(
+                    base,
+                    self.branch_frame_for_tanru_unit(base).or(frame),
+                ),
+            _ => frame,
+        }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn bridi_frame(&self, bridi: &'tree BridiSyntax) -> Option<SelbriPlaceFrameId> {
@@ -1882,6 +2497,39 @@ where
         self.analysis
             .place_analysis
             .frames_for_node(selbri_id.0)
+            .iter()
+            .copied()
+            .find(|frame| {
+                self.analysis
+                    .place_analysis
+                    .frame(*frame)
+                    .is_some_and(|frame| {
+                        matches!(
+                            frame.kind,
+                            PlaceFrameKind::BaseSelbri
+                                | PlaceFrameKind::TanruUnit
+                                | PlaceFrameKind::Compound
+                                | PlaceFrameKind::Converted
+                                | PlaceFrameKind::JaiConverted
+                                | PlaceFrameKind::CoInverted
+                                | PlaceFrameKind::Forwarding
+                                | PlaceFrameKind::ConnectiveBranching
+                                | PlaceFrameKind::ProBridi
+                        )
+                    })
+            })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn branch_frame_for_tanru_unit(
+        &self,
+        unit: &'tree TanruUnitSyntax,
+    ) -> Option<SelbriPlaceFrameId> {
+        let unit_id = self.analysis.syntax_index.tanru_unit_node_id(unit)?;
+        self.analysis
+            .place_analysis
+            .frames_for_node(unit_id.0)
             .iter()
             .copied()
             .find(|frame| {
@@ -2371,6 +3019,92 @@ fn sumti_is_elided(sumti: &SumtiSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+fn argument_place_index(place: &str) -> Option<usize> {
+    let digits = place.strip_prefix('x')?;
+    if digits.is_empty() || digits.starts_with('0') {
+        return None;
+    }
+    digits.parse::<usize>().ok()
+}
+
+#[requires(true)]
+#[ensures(ret > 0)]
+fn visible_x1_place_for_selbri(selbri: &SelbriSyntax) -> usize {
+    visible_place_for_selbri(selbri, 1)
+}
+
+#[requires(place > 0)]
+#[ensures(ret > 0)]
+fn visible_place_for_selbri(selbri: &SelbriSyntax, place: usize) -> usize {
+    match selbri.as_data() {
+        data!(SelbriSyntax::ConvertedSelbri { se, inner_selbri }) => {
+            let converted_place = se_conversion_place(se).unwrap_or(2);
+            visible_place_for_selbri(inner_selbri, convert_numbered_place(place, converted_place))
+        }
+        data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+        | data!(SelbriSyntax::TaggedSelbri {
+            inner_selbri: selbri,
+            ..
+        }) => visible_place_for_selbri(selbri, place),
+        _ => place,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret > 0)]
+fn visible_x1_place_for_tanru_unit(unit: &TanruUnitSyntax) -> usize {
+    visible_place_for_tanru_unit(unit, 1)
+}
+
+#[requires(place > 0)]
+#[ensures(ret > 0)]
+fn visible_place_for_tanru_unit(unit: &TanruUnitSyntax, place: usize) -> usize {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::ConvertedTanruUnit { se, inner_unit }) => {
+            let converted_place = se_conversion_place(se).unwrap_or(2);
+            visible_place_for_tanru_unit(inner_unit, convert_numbered_place(place, converted_place))
+        }
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+            visible_place_for_selbri(selbri, place)
+        }
+        data!(TanruUnitSyntax::RelativeClauses { base, .. })
+        | data!(TanruUnitSyntax::LinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::AssignedProBridi { base, .. }) => {
+            visible_place_for_tanru_unit(base, place)
+        }
+        _ => place,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|place| (2..=5).contains(&place)))]
+fn se_conversion_place(se: &WithFreeModifiers<Token>) -> Option<usize> {
+    match se.value.cmavo() {
+        Some(Cmavo::Se) => Some(2),
+        Some(Cmavo::Te) => Some(3),
+        Some(Cmavo::Ve) => Some(4),
+        Some(Cmavo::Xe) => Some(5),
+        _ => None,
+    }
+}
+
+#[requires(place > 0)]
+#[requires(converted_place > 0)]
+#[ensures(ret > 0)]
+fn convert_numbered_place(place: usize, converted_place: usize) -> usize {
+    if place == 1 {
+        converted_place
+    } else if place == converted_place {
+        1
+    } else {
+        place
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn logical_sumti_connection_parts(
     sumti: &SumtiSyntax,
 ) -> Option<(&SumtiSyntax, &ConnectiveSyntax, &SumtiSyntax)> {
@@ -2477,6 +3211,12 @@ fn main_selbri_for_tail(tail: &'_ BridiTailSyntax) -> Option<&'_ SelbriSyntax> {
 
 #[requires(true)]
 #[ensures(true)]
+fn main_selbri_for_bridi(bridi: &'_ BridiSyntax) -> Option<&'_ SelbriSyntax> {
+    main_selbri_for_tail(&bridi.bridi_tail)
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn simple_bo_grouped_tail_selbri(tail: &BoGroupedBridiTailSyntax) -> Option<&SelbriSyntax> {
     match tail.first.as_data() {
         data!(SimpleBridiTailSyntax::SelbriBridiTail { selbri, .. }) => Some(selbri),
@@ -2501,8 +3241,40 @@ fn connective_text(connective: &ConnectiveSyntax) -> String {
 }
 
 #[requires(true)]
+#[ensures(!ret.is_empty())]
+fn full_connective_text(connective: &ConnectiveSyntax) -> String {
+    let mut words = Vec::new();
+    connective.visit_words(&mut |token| words.push(token_text(token)));
+    words.join(" ")
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn connective_label(connective: &ConnectiveSyntax) -> String {
+    full_connective_text(connective).replace(' ', "-")
+}
+
+#[requires(!locus.is_empty())]
+#[ensures(!ret.source.is_empty())]
+#[ensures(ret.truth_table.is_some())]
+fn connective_connector(connective: &ConnectiveSyntax, locus: &str) -> Connector {
+    Connector {
+        source: if connective_is_logical(connective) {
+            "logical-connective".to_owned()
+        } else {
+            "nonlogical-connective".to_owned()
+        },
+        locus: locus.to_owned(),
+        truth_table: Some(full_connective_text(connective)),
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn formula_operator_for_connective(connective: &ConnectiveSyntax) -> FormulaOperator {
+    if connective_is_na_ja(connective) {
+        return FormulaOperator::Implies;
+    }
     match connective.as_data() {
         data!(ConnectiveSyntax::Afterthought { cmavo, .. })
         | data!(ConnectiveSyntax::Selbri { cmavo, .. })
@@ -2552,6 +3324,38 @@ fn formula_operator_for_connective(connective: &ConnectiveSyntax) -> FormulaOper
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn connective_is_na_ja(connective: &ConnectiveSyntax) -> bool {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Afterthought { na, cmavo, .. })
+        | data!(ConnectiveSyntax::Selbri { na, cmavo, .. })
+        | data!(ConnectiveSyntax::BridiTail { na, cmavo, .. })
+        | data!(ConnectiveSyntax::Forethought { na, cmavo, .. })
+        | data!(ConnectiveSyntax::NonLogical { na, cmavo, .. })
+        | data!(ConnectiveSyntax::Interval { na, cmavo, .. }) => {
+            na.is_some()
+                && cmavo
+                    .value
+                    .iter()
+                    .any(|token| matches!(token.cmavo(), Some(Cmavo::Ja)))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn nonlogical_composition_operator(connective: &ConnectiveSyntax) -> String {
+    match connective_text(connective).as_str() {
+        "jo'u" => "joint".to_owned(),
+        "joi" => "mass".to_owned(),
+        "ce" => "set".to_owned(),
+        "ce'o" => "sequence".to_owned(),
+        "fa'u" => "respectively".to_owned(),
+        other => format!("nonlogical:{other}"),
+    }
+}
+
+#[requires(true)]
 #[ensures(!ret.is_empty())]
 fn relation_label_for_selbri(selbri: &SelbriSyntax) -> String {
     match selbri.as_data() {
@@ -2562,7 +3366,7 @@ fn relation_label_for_selbri(selbri: &SelbriSyntax) -> String {
             .collect::<Vec<_>>()
             .join(" "),
         data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. }) => {
-            format!("converted {}", relation_label_for_selbri(inner_selbri))
+            relation_label_for_selbri(inner_selbri)
         }
         data!(SelbriSyntax::Negated { inner_selbri, .. }) => {
             format!("scalar-not {}", relation_label_for_selbri(inner_selbri))
@@ -2583,20 +3387,51 @@ fn relation_label_for_selbri(selbri: &SelbriSyntax) -> String {
         ),
         data!(SelbriSyntax::SelbriConnection {
             leading_selbri,
+            connective,
             trailing_selbri,
             ..
-        })
-        | data!(SelbriSyntax::BoundSelbriConnection {
+        }) => format!(
+            "{} {} {}",
+            relation_label_for_selbri(leading_selbri),
+            connective_label(connective),
+            relation_label_for_selbri(trailing_selbri)
+        ),
+        data!(SelbriSyntax::BoundSelbriConnection {
+            leading_selbri,
+            bo_connective: Some(connective),
+            trailing_selbri,
+            ..
+        }) => format!(
+            "{} {} {}",
+            relation_label_for_selbri(leading_selbri),
+            connective_label(connective),
+            relation_label_for_selbri(trailing_selbri)
+        ),
+        data!(SelbriSyntax::BoundSelbriConnection {
             leading_selbri,
             trailing_selbri,
             ..
         }) => format!(
-            "{} connected {}",
+            "{} bo {}",
             relation_label_for_selbri(leading_selbri),
             relation_label_for_selbri(trailing_selbri)
         ),
         data!(SelbriSyntax::Abstraction(abstraction)) => token_text(&abstraction.nu.value),
-        data!(SelbriSyntax::ForethoughtSelbriConnection { .. }) => "connected-bridi".to_owned(),
+        data!(SelbriSyntax::ForethoughtSelbriConnection {
+            guhek,
+            leading_bridi,
+            trailing_bridi,
+            ..
+        }) => format!(
+            "{} {} {}",
+            connective_label(guhek),
+            main_selbri_for_bridi(leading_bridi)
+                .map(relation_label_for_selbri)
+                .unwrap_or_else(|| "bridi".to_owned()),
+            main_selbri_for_bridi(trailing_bridi)
+                .map(relation_label_for_selbri)
+                .unwrap_or_else(|| "bridi".to_owned())
+        ),
     }
 }
 
@@ -2826,16 +3661,33 @@ fn relation_label_for_tanru_unit(unit: &TanruUnitSyntax) -> String {
         | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => relation_label_for_selbri(selbri),
         data!(TanruUnitSyntax::BoundTanruUnitConnection {
             leading_unit,
+            bo_connective: Some(connective),
             trailing_unit,
             ..
-        })
-        | data!(TanruUnitSyntax::TanruUnitConnection {
+        }) => format!(
+            "{} {} {}",
+            relation_label_for_tanru_unit(leading_unit),
+            connective_label(connective),
+            relation_label_for_tanru_unit(trailing_unit)
+        ),
+        data!(TanruUnitSyntax::BoundTanruUnitConnection {
             leading_unit,
             trailing_unit,
             ..
         }) => format!(
-            "{} connected {}",
+            "{} bo {}",
             relation_label_for_tanru_unit(leading_unit),
+            relation_label_for_tanru_unit(trailing_unit)
+        ),
+        data!(TanruUnitSyntax::TanruUnitConnection {
+            leading_unit,
+            connective,
+            trailing_unit,
+            ..
+        }) => format!(
+            "{} {} {}",
+            relation_label_for_tanru_unit(leading_unit),
+            connective_label(connective),
             relation_label_for_tanru_unit(trailing_unit)
         ),
         data!(TanruUnitSyntax::RelativeClauses { base, .. })
@@ -3192,6 +4044,100 @@ mod tests {
                 .iter()
                 .any(|relation| relation == "R[tanru:melbi-(cmalu-(nixli-ckule))]")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_tanru_connective_lowers_inside_property_abstraction() {
+        let json = semantic_json_for("barda je xunre gerku").expect("semantic JSON");
+        let relations = predication_relations(&json);
+        assert!(relations.iter().any(|relation| relation == "gerku"));
+        assert!(relations.iter().any(|relation| relation == "barda"));
+        assert!(relations.iter().any(|relation| relation == "xunre"));
+        assert!(
+            !relations
+                .iter()
+                .any(|relation| relation.contains("connected"))
+        );
+        assert_eq!(object(&json, "abstraction:a1")["body"], "formula:f4");
+        assert_eq!(object(&json, "formula:f4")["operator"], "and");
+        assert_eq!(
+            object(&json, "formula:f4")["connector"]["locus"],
+            "property-abstraction"
+        );
+        assert_eq!(object(&json, "formula:f4")["connector"]["truthTable"], "je");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nonlogical_tanru_connective_builds_composite_concept_modifier() {
+        let json = semantic_json_for("ti blanu joi xunre bolci").expect("semantic JSON");
+        let modifier = object(&json, "referent:r3");
+        assert_eq!(modifier["category"], "composite");
+        assert_eq!(modifier["sort"], "concept");
+        assert_eq!(modifier["composition"]["operator"], "mass");
+        assert_eq!(modifier["composition"]["members"][0], "abstraction:a1");
+        assert_eq!(modifier["composition"]["members"][1], "abstraction:a2");
+        assert_eq!(modifier["composition"]["collective"], true);
+        assert_eq!(
+            object(&json, "predication:p4")["arguments"]["x2"]["value"],
+            "referent:r3"
+        );
+        assert!(json["objects"].as_object().unwrap().values().all(|object| {
+            object
+                .pointer("/connector/truthTable")
+                .is_none_or(|truth_table| truth_table != "joi")
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_selbri_uses_base_relation_and_converted_place_routing() {
+        let json = semantic_json_for("le bajra cu jinga ja te jinga").expect("semantic JSON");
+        let relations = predication_relations(&json);
+        assert!(
+            !relations
+                .iter()
+                .any(|relation| relation.contains("converted"))
+        );
+        assert_eq!(object(&json, "predication:p2")["relation"], "jinga");
+        assert_eq!(
+            object(&json, "predication:p2")["arguments"]["x1"]["value"],
+            "referent:r1"
+        );
+        assert_eq!(object(&json, "predication:p3")["relation"], "jinga");
+        assert_eq!(
+            object(&json, "predication:p3")["arguments"]["x3"]["value"],
+            "referent:r1"
+        );
+        assert_eq!(object(&json, "formula:f4")["operator"], "or");
+        assert_eq!(object(&json, "formula:f4")["connector"]["truthTable"], "ja");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_selbri_shares_omitted_visible_x1() {
+        let json = semantic_json_for("ricfu je blanu jabo crino").expect("semantic JSON");
+        assert_eq!(
+            object(&json, "predication:p1")["arguments"]["x1"]["value"],
+            "referent:r1"
+        );
+        assert_eq!(
+            object(&json, "predication:p2")["arguments"]["x1"]["value"],
+            "referent:r1"
+        );
+        assert_eq!(
+            object(&json, "predication:p3")["arguments"]["x1"]["value"],
+            "referent:r1"
+        );
+        assert_eq!(object(&json, "formula:f4")["operator"], "or");
+        assert_eq!(object(&json, "formula:f4")["connector"]["truthTable"], "ja");
+        assert_eq!(object(&json, "formula:f5")["operator"], "and");
+        assert_eq!(object(&json, "formula:f5")["connector"]["truthTable"], "je");
     }
 
     #[test]
