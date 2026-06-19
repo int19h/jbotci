@@ -303,6 +303,13 @@ impl AlternativeArgument {
 }
 
 #[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct ModalAssignmentKey {
+    sumti: RawSyntaxNodeId,
+    tag: Option<RawSyntaxNodeId>,
+}
+
+#[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 struct BoundSelbriTanruPair<'tree> {
     leading: &'tree SelbriSyntax,
@@ -373,6 +380,7 @@ where
     math_variable_referents: HashMap<String, SemanticObjectId>,
     sumti_quantities: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     relation_question_parameters: HashMap<RawSyntaxNodeId, SemanticObjectId>,
+    modal_assignment_arguments: HashMap<ModalAssignmentKey, ModalArgument>,
     utterance_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     parameter_slots: Vec<QuestionSlot>,
     abstraction_parameter_stack: Vec<Vec<SemanticObjectId>>,
@@ -403,6 +411,7 @@ where
             math_variable_referents: HashMap::new(),
             sumti_quantities: HashMap::new(),
             relation_question_parameters: HashMap::new(),
+            modal_assignment_arguments: HashMap::new(),
             utterance_objects: HashMap::new(),
             parameter_slots: Vec::new(),
             abstraction_parameter_stack: Vec::new(),
@@ -732,6 +741,20 @@ where
     ) -> Option<crate::model::SemanticSource> {
         let mut spans = Vec::new();
         phrase.visit_words(&mut |token| {
+            spans.extend(token.source_spans().into_iter().cloned());
+        });
+        source_from_spans(&spans, self.options.source_text, Some(construct))
+    }
+
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    fn source_for_tense_modal(
+        &self,
+        tense_modal: &TenseModalSyntax,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        let mut spans = Vec::new();
+        tense_modal.visit_words(&mut |token| {
             spans.extend(token.source_spans().into_iter().cloned());
         });
         source_from_spans(&spans, self.options.source_text, Some(construct))
@@ -1076,9 +1099,19 @@ where
                 let reserved = self.reserve_utterance_for_statement(statement);
                 self.build_bridi_utterance(bridi, truth_question, reserved)
             }
-            data!(StatementSyntax::TextGroup { text, .. }) => {
+            data!(StatementSyntax::TextGroup {
+                tense_modal,
+                text,
+                ..
+            }) => {
                 let reserved = self.reserve_utterance_for_statement(statement);
                 let nested = self.build_text_group_sequence(text)?;
+                if let Some(tense_modal) = tense_modal
+                    && let Some(modal_argument) =
+                        self.modal_argument_for_tense_modal(tense_modal, "modal-argument")?
+                {
+                    self.attach_modal_argument_to_discourse_item(nested, &modal_argument)?;
+                }
                 self.build_utterance(
                     UtteranceForce::Parenthetical,
                     Some(nested),
@@ -1285,11 +1318,13 @@ where
         nested.utterance_objects = std::mem::take(&mut self.utterance_objects);
         nested.relation_question_parameters =
             std::mem::take(&mut self.relation_question_parameters);
+        nested.modal_assignment_arguments = std::mem::take(&mut self.modal_assignment_arguments);
         let graph = nested.build_text(text)?;
         self.counters = nested.counters;
         self.objects = graph.objects;
         self.utterance_objects = nested.utterance_objects;
         self.relation_question_parameters = nested.relation_question_parameters;
+        self.modal_assignment_arguments = nested.modal_assignment_arguments;
         Ok(graph.root)
     }
 
@@ -4087,7 +4122,7 @@ where
         let mut diagnostics = Vec::new();
         match self.place_count_for_relation(&relation) {
             Some(place_count) => {
-                for place in 2..=place_count {
+                for place in 1..=place_count {
                     let key = format!("x{place}");
                     if !arguments.contains_key(&key) {
                         arguments.insert(key, self.build_elided_argument_for_place(place)?);
@@ -5241,7 +5276,10 @@ where
         let mut arguments = BTreeMap::new();
         let mut highest_assigned_place =
             self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
-        let modal_arguments = self.modal_assignment_arguments(frame)?;
+        let mut modal_arguments = self.modal_assignment_arguments(frame)?;
+        if let Some(selbri) = selbri {
+            modal_arguments.extend(self.selbri_modal_arguments(selbri)?);
+        }
         let place_count = self.place_count_for_relation(&relation);
         for (place, argument) in argument_overrides {
             if let Some(place_index) = argument_place_index(&place) {
@@ -5491,6 +5529,14 @@ where
             let PlaceSlot::Modal(tag_node) = assignment.slot else {
                 continue;
             };
+            let key = ModalAssignmentKey {
+                sumti: assignment.sumti.0,
+                tag: tag_node,
+            };
+            if let Some(modal_argument) = self.modal_assignment_arguments.get(&key) {
+                modal_arguments.push(modal_argument.clone());
+                continue;
+            }
             let sumti = self
                 .analysis
                 .syntax_index
@@ -5500,14 +5546,81 @@ where
             let source = tag_node.and_then(|node| self.source_for_node(node, "modal-argument"));
             let (introduced_by, relation, arguments) =
                 self.modal_relation_arguments_for_tag(tag_node, argument)?;
-            modal_arguments.push(ModalArgument::new(
-                relation,
-                introduced_by,
-                arguments,
-                source,
-            ));
+            let modal_argument = ModalArgument::new(relation, introduced_by, arguments, source);
+            self.modal_assignment_arguments
+                .insert(key, modal_argument.clone());
+            modal_arguments.push(modal_argument);
         }
         Ok(modal_arguments)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn selbri_modal_arguments(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+    ) -> Result<Vec<ModalArgument>, SemanticsError> {
+        match selbri.as_data() {
+            data!(SelbriSyntax::TaggedSelbri {
+                tense_modal,
+                inner_selbri,
+            }) => {
+                let mut modal_arguments = Vec::new();
+                if let Some(modal_argument) =
+                    self.modal_argument_for_tense_modal(tense_modal, "modal-argument")?
+                {
+                    modal_arguments.push(modal_argument);
+                }
+                modal_arguments.extend(self.selbri_modal_arguments(inner_selbri)?);
+                Ok(modal_arguments)
+            }
+            data!(SelbriSyntax::GroupedSelbri {
+                ke_tense_modal,
+                selbri,
+                ..
+            }) => {
+                let mut modal_arguments = Vec::new();
+                if let Some(tense_modal) = ke_tense_modal
+                    && let Some(modal_argument) =
+                        self.modal_argument_for_tense_modal(tense_modal, "modal-argument")?
+                {
+                    modal_arguments.push(modal_argument);
+                }
+                modal_arguments.extend(self.selbri_modal_arguments(selbri)?);
+                Ok(modal_arguments)
+            }
+            data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. })
+            | data!(SelbriSyntax::Negated { inner_selbri, .. }) => {
+                self.selbri_modal_arguments(inner_selbri)
+            }
+            _ => Ok(Vec::new()),
+        }
+    }
+
+    #[requires(!construct.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn modal_argument_for_tense_modal(
+        &mut self,
+        tense_modal: &'tree TenseModalSyntax,
+        construct: &str,
+    ) -> Result<Option<ModalArgument>, SemanticsError> {
+        let Some((introduced_by, relation, visible_place)) =
+            modal_relation_spec_for_tense_modal(tense_modal)
+        else {
+            return Ok(None);
+        };
+        let argument = self.build_elided_argument_for_place(visible_place)?;
+        let arguments = self.modal_argument_map_for_visible_place(
+            argument,
+            visible_place,
+            self.place_count_for_relation(&relation),
+        )?;
+        Ok(Some(ModalArgument::new(
+            relation,
+            introduced_by,
+            arguments,
+            self.source_for_tense_modal(tense_modal, construct),
+        )))
     }
 
     #[requires(true)]
@@ -5572,6 +5685,98 @@ where
                 ))
             }
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_modal_argument_to_discourse_item(
+        &mut self,
+        id: SemanticObjectId,
+        modal_argument: &ModalArgument,
+    ) -> Result<(), SemanticsError> {
+        let object =
+            self.objects.get(&id).cloned().ok_or_else(|| {
+                SemanticsError::invalid_graph(format!("missing discourse item {id}"))
+            })?;
+        match object.object_kind() {
+            crate::model::SemanticObjectKind::Utterance => {
+                if let Some(content) = object.content {
+                    self.attach_modal_argument_to_content(content, modal_argument)?;
+                }
+            }
+            crate::model::SemanticObjectKind::Sequence => {
+                for item in object.items {
+                    self.attach_modal_argument_to_discourse_item(item, modal_argument)?;
+                }
+            }
+            crate::model::SemanticObjectKind::Formula => {
+                self.attach_modal_argument_to_formula(id, modal_argument)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_modal_argument_to_content(
+        &mut self,
+        id: SemanticObjectId,
+        modal_argument: &ModalArgument,
+    ) -> Result<(), SemanticsError> {
+        match id.object_kind() {
+            crate::model::SemanticObjectKind::Formula => {
+                self.attach_modal_argument_to_formula(id, modal_argument)
+            }
+            crate::model::SemanticObjectKind::Sequence => {
+                self.attach_modal_argument_to_discourse_item(id, modal_argument)
+            }
+            crate::model::SemanticObjectKind::Question => Ok(()),
+            _ => Ok(()),
+        }
+    }
+
+    #[requires(id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_modal_argument_to_formula(
+        &mut self,
+        id: SemanticObjectId,
+        modal_argument: &ModalArgument,
+    ) -> Result<(), SemanticsError> {
+        let object = self
+            .objects
+            .get(&id)
+            .cloned()
+            .ok_or_else(|| SemanticsError::invalid_graph(format!("missing formula {id}")))?;
+        if let Some(predication) = object.predication {
+            self.attach_modal_argument_to_predication(predication, modal_argument)?;
+        }
+        for child in object.children {
+            self.attach_modal_argument_to_formula(child, modal_argument)?;
+        }
+        if let Some(body) = object.body {
+            self.attach_modal_argument_to_formula(body, modal_argument)?;
+        }
+        Ok(())
+    }
+
+    #[requires(id.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_modal_argument_to_predication(
+        &mut self,
+        id: SemanticObjectId,
+        modal_argument: &ModalArgument,
+    ) -> Result<(), SemanticsError> {
+        let object = self
+            .objects
+            .get_mut(&id)
+            .ok_or_else(|| SemanticsError::invalid_graph(format!("missing predication {id}")))?;
+        if object.mode == Some(PredicationMode::Asserted)
+            && !object.modal_arguments.contains(modal_argument)
+        {
+            object.modal_arguments.push(modal_argument.clone());
+        }
+        Ok(())
     }
 
     #[requires(visible_x1_place > 0)]
@@ -9013,6 +9218,35 @@ fn modal_connection_argument_kind_for_marker(marker: &str) -> ModalConnectionArg
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|(introduced_by, relation, visible_place)| !introduced_by.is_empty() && !relation.is_empty() && *visible_place > 0))]
+fn modal_relation_spec_for_tense_modal(
+    tense_modal: &TenseModalSyntax,
+) -> Option<(String, String, usize)> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::AdHocModal { selbri, .. }) => Some((
+            "fi'o".to_owned(),
+            relation_label_for_selbri(selbri),
+            visible_x1_place_for_selbri(selbri),
+        )),
+        data!(TenseModalSyntax::Modal { se, bai, .. }) => {
+            let marker = token_text(&bai.value);
+            let relation = modal_relation_for_marker(&marker);
+            let visible_x1_place = se
+                .as_ref()
+                .and_then(se_conversion_place)
+                .map(usize::from)
+                .unwrap_or(1);
+            let introduced_by = se
+                .as_ref()
+                .map(|se| format!("{} {marker}", token_text(&se.value)))
+                .unwrap_or(marker);
+            Some((introduced_by, relation, visible_x1_place))
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.is_none_or(|place| (1..=5).contains(&place)))]
 fn numbered_place_for_fa_token(fa: &Token) -> Option<usize> {
     match fa.cmavo() {
@@ -9041,6 +9275,8 @@ fn se_token_conversion_place(se: &Token) -> Option<usize> {
 #[ensures(!ret.is_empty())]
 fn modal_relation_for_marker(marker: &str) -> String {
     match marker {
+        "bai" => "bapli".to_owned(),
+        "bau" => "bangu".to_owned(),
         "do'e" => "unspecified-modal".to_owned(),
         "ga'a" => "zgana".to_owned(),
         "ka'a" => "klama".to_owned(),
@@ -11428,6 +11664,26 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn spread_modal_sumti_shares_complete_modal_relation() {
+        let json = semantic_json_for("mi bai ke ge klama le zarci gi cadzu le bisli ke'e")
+            .expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        let cadzu = predication_with_relation_and_mode(&json, "cadzu", "asserted");
+        assert_eq!(klama["modalArguments"][0]["relation"], "bapli");
+        assert_eq!(cadzu["modalArguments"][0]["relation"], "bapli");
+        assert_eq!(
+            klama["modalArguments"][0]["arguments"]["x1"]["value"],
+            cadzu["modalArguments"][0]["arguments"]["x1"]["value"]
+        );
+        assert_eq!(
+            klama["modalArguments"][0]["arguments"]["x2"]["value"],
+            cadzu["modalArguments"][0]["arguments"]["x2"]["value"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn forethought_modal_termset_connection_pairs_whole_branches() {
         let json = semantic_json_for(
             "nu'i mu'igi la .djan. lei jdini mi gi mi le cukta la .djan. nu'u dunda",
@@ -12110,6 +12366,53 @@ mod tests {
         assert_eq!(modal["arguments"]["x1"]["kind"], "elided");
         assert_eq!(modal["arguments"]["x2"]["value"], "referent:r1");
         assert_eq!(modal["arguments"]["x3"]["kind"], "elided");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn converted_seltau_property_fills_all_known_places() {
+        let json = semantic_json_for("mi se bapli tavla").expect("semantic JSON");
+        let bapli = predication_with_relation_and_mode(&json, "bapli", "restrictive");
+        assert_eq!(bapli["arguments"]["x1"]["kind"], "elided");
+        assert_eq!(bapli["arguments"]["x2"]["kind"], "filled");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn pre_selbri_modals_are_modal_arguments() {
+        let bai = semantic_json_for("mi bai tavla").expect("semantic JSON");
+        let tavla = predication_with_relation_and_mode(&bai, "tavla", "asserted");
+        let modal = &tavla["modalArguments"][0];
+        assert_eq!(modal["relation"], "bapli");
+        assert_eq!(modal["introducedBy"], "bai");
+        assert_eq!(modal["arguments"]["x1"]["kind"], "elided");
+        assert_eq!(modal["arguments"]["x2"]["kind"], "elided");
+
+        let fiho = semantic_json_for("mi fi'o kanla fe'u viska do").expect("semantic JSON");
+        let viska = predication_with_relation_and_mode(&fiho, "viska", "asserted");
+        let modal = &viska["modalArguments"][0];
+        assert_eq!(modal["relation"], "kanla");
+        assert_eq!(modal["introducedBy"], "fi'o");
+        assert_eq!(modal["arguments"]["x1"]["kind"], "elided");
+        assert_eq!(modal["arguments"]["x2"]["kind"], "elided");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn text_group_modal_scopes_over_nested_assertions() {
+        let json = semantic_json_for("bai tu'e mi klama le zarci .i mi cadzu le bisli tu'u")
+            .expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        let cadzu = predication_with_relation_and_mode(&json, "cadzu", "asserted");
+        assert_eq!(klama["modalArguments"][0]["relation"], "bapli");
+        assert_eq!(cadzu["modalArguments"][0]["relation"], "bapli");
+        assert_eq!(
+            klama["modalArguments"][0]["arguments"]["x1"]["value"],
+            cadzu["modalArguments"][0]["arguments"]["x1"]["value"]
+        );
     }
 
     #[test]
