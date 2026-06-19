@@ -1000,6 +1000,8 @@ pub struct Descriptor {
     pub quantity: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operand: Option<SemanticObjectId>,
 }
 
 impl Descriptor {
@@ -1009,6 +1011,7 @@ impl Descriptor {
         extend_optional(out, self.speaker);
         extend_optional(out, self.body);
         extend_optional(out, self.quantity);
+        extend_optional(out, self.operand);
     }
 }
 
@@ -1514,6 +1517,12 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && optional_reference_has_kind(object.restriction, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.body, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.quantity, SemanticObjectKind::Quantity)
+        && object.descriptor.as_ref().is_none_or(|descriptor| {
+            optional_reference_has_kind(descriptor.speaker, SemanticObjectKind::Referent)
+                && optional_reference_has_kind(descriptor.body, SemanticObjectKind::Formula)
+                && optional_reference_has_kind(descriptor.quantity, SemanticObjectKind::Quantity)
+                && optional_reference_has_kind(descriptor.operand, SemanticObjectKind::Referent)
+        })
         && references_have_kind(&object.parameters, SemanticObjectKind::Parameter)
         && references_have_kind(&object.embedded_questions, SemanticObjectKind::Question)
         && optional_reference_has_kind(object.asker, SemanticObjectKind::Referent)

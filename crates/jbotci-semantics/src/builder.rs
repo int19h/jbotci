@@ -1144,7 +1144,7 @@ where
         selbri: &'tree SelbriSyntax,
         units: &[&'tree TanruUnitSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if !tanru_sequence_has_explicit_grouping(units) {
+        if units.len() > 1 && !tanru_sequence_has_explicit_grouping(units) {
             return self.build_flat_tanru_formula_for_bridi(bridi, selbri, units);
         }
         self.build_tanru_sequence_formula_for_frame(
@@ -1740,6 +1740,14 @@ where
                     visible_x1_override,
                 )
             }
+            data!(TanruUnitSyntax::SumtiSelbri { sumti, .. }) => self
+                .build_sumti_selbri_formula_for_frame(
+                    sumti,
+                    frame,
+                    source,
+                    visible_x1_override,
+                    PredicationMode::Asserted,
+                ),
             _ => self.build_simple_tanru_unit_formula_for_frame(
                 selbri,
                 unit,
@@ -1821,6 +1829,58 @@ where
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )?;
         let x1_argument = self.predication_argument(predication, visible_x1_place)?;
+        Ok(TanruFormulaForArgument {
+            formula,
+            x1_argument,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_sumti_selbri_formula_for_frame(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        visible_x1_override: Option<ArgumentValue>,
+        mode: PredicationMode,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        let eventuality = self.next_eventuality();
+        self.insert(
+            eventuality,
+            SemanticObject::eventuality(EventualityClass::Event, None, source.clone()),
+        )?;
+        let source_referent = self.build_sumti_referent(sumti)?;
+        let mut arguments = BTreeMap::new();
+        self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
+        if let Some(argument) = visible_x1_override {
+            arguments.insert("x1".to_owned(), argument);
+        }
+        if !arguments.contains_key("x1") {
+            arguments.insert("x1".to_owned(), self.build_elided_argument_for_place(1)?);
+        }
+        arguments.insert(
+            "x2".to_owned(),
+            ArgumentValue::filled(source_referent, None),
+        );
+        let modal_arguments = self.modal_assignment_arguments(frame)?;
+        let predication = self.next_predication();
+        let mut object = SemanticObject::predication(
+            "referentOf".to_owned(),
+            Some(eventuality),
+            arguments,
+            mode,
+            source.clone(),
+            Vec::new(),
+        );
+        object.modal_arguments = modal_arguments;
+        self.insert(predication, object)?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )?;
+        let x1_argument = self.predication_argument(predication, 1)?;
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument,
@@ -2281,6 +2341,15 @@ where
                 }
                 self.build_property_formula_for_selbri(selbri, parameter, source)
             }
+            data!(TanruUnitSyntax::SumtiSelbri { sumti, .. }) => self
+                .build_sumti_selbri_formula_for_frame(
+                    sumti,
+                    self.branch_frame_for_tanru_unit(unit),
+                    source,
+                    Some(ArgumentValue::filled(parameter, None)),
+                    PredicationMode::Restrictive,
+                )
+                .map(|result| result.formula),
             _ => {
                 let frame = self.semantic_predication_frame_for_tanru_unit(
                     unit,
@@ -3097,12 +3166,18 @@ where
             data!(SumtiSyntax::Description(description)) => {
                 self.build_description_referent(description, raw)?
             }
-            data!(SumtiSyntax::NameDescription { names, .. }) => {
-                self.build_named_referent(raw, word_run_text(&names.value), "la")?
-            }
-            data!(SumtiSyntax::NameWords(names)) => {
-                self.build_named_referent(raw, word_run_text(&names.value), "la")?
-            }
+            data!(SumtiSyntax::NameDescription { la, names }) => self.build_named_referent(
+                raw,
+                word_run_text(&names.value),
+                &token_text(&la.value),
+                gadri_name_sort(la.cmavo()),
+            )?,
+            data!(SumtiSyntax::NameWords(names)) => self.build_named_referent(
+                raw,
+                word_run_text(&names.value),
+                "la",
+                SemanticSort::Entity,
+            )?,
             data!(SumtiSyntax::QuantifiedSumti {
                 quantifier,
                 inner_sumti,
@@ -3128,11 +3203,15 @@ where
                 let trailing = self.build_sumti_referent(trailing_sumti)?;
                 self.build_composite_referent(raw, vec![leading, trailing], "joint")?
             }
+            data!(SumtiSyntax::ReferentSumti {
+                lahe,
+                inner_sumti,
+                ..
+            }) => self.build_qualified_referent(raw, lahe, inner_sumti)?,
             data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
             | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. })
             | data!(SumtiSyntax::ScalarNegatedSumti { inner_sumti, .. })
-            | data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. })
-            | data!(SumtiSyntax::ReferentSumti { inner_sumti, .. }) => {
+            | data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. }) => {
                 self.build_sumti_referent(inner_sumti)?
             }
             _ => self.build_diagnostic_referent(raw, "sumti construct is not fully lowered yet")?,
@@ -3165,6 +3244,7 @@ where
                     body: None,
                     quantity: Some(quantity),
                     name: Some(text),
+                    operand: None,
                 }),
                 None,
                 self.source_for_node(raw, "number-sumti"),
@@ -3203,6 +3283,7 @@ where
             _ => self.build_plain_referent(
                 raw,
                 ReferentCategory::Constant,
+                SemanticSort::Entity,
                 Descriptor {
                     kind: "proSumti".to_owned(),
                     word: token_text(&token.value),
@@ -3210,6 +3291,7 @@ where
                     body: None,
                     quantity: None,
                     name: None,
+                    operand: None,
                 },
                 Vec::new(),
             ),
@@ -3294,6 +3376,7 @@ where
                     body: None,
                     quantity: None,
                     name: None,
+                    operand: None,
                 }),
                 None,
                 raw.and_then(|raw| self.source_for_node(raw, "elided-sumti")),
@@ -3365,6 +3448,7 @@ where
                     body,
                     quantity,
                     name: None,
+                    operand: None,
                 }),
                 None,
                 self.source_for_node(raw, "description"),
@@ -3381,10 +3465,12 @@ where
         raw: RawSyntaxNodeId,
         name: String,
         word: &str,
+        sort: SemanticSort,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_plain_referent(
             raw,
             ReferentCategory::Constant,
+            sort,
             Descriptor {
                 kind: "name".to_owned(),
                 word: word.to_owned(),
@@ -3392,6 +3478,36 @@ where
                 body: None,
                 quantity: None,
                 name: Some(name),
+                operand: None,
+            },
+            Vec::new(),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_qualified_referent(
+        &mut self,
+        raw: RawSyntaxNodeId,
+        qualifier: &WithFreeModifiers<Token>,
+        inner_sumti: &'tree SumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let operand = self.build_sumti_referent(inner_sumti)?;
+        let word = token_text(&qualifier.value);
+        let kind = referent_qualifier_kind(qualifier.cmavo()).to_owned();
+        let sort = referent_qualifier_sort(qualifier.cmavo());
+        self.build_plain_referent(
+            raw,
+            ReferentCategory::Constant,
+            sort,
+            Descriptor {
+                kind,
+                word,
+                speaker: Some(SemanticObjectId::speaker()),
+                body: None,
+                quantity: None,
+                name: None,
+                operand: Some(operand),
             },
             Vec::new(),
         )
@@ -3407,6 +3523,7 @@ where
         self.build_plain_referent(
             raw,
             ReferentCategory::Constant,
+            SemanticSort::Entity,
             Descriptor {
                 kind: "unloweredSumti".to_owned(),
                 word: "sumti".to_owned(),
@@ -3414,6 +3531,7 @@ where
                 body: None,
                 quantity: None,
                 name: None,
+                operand: None,
             },
             vec![diagnostic(message)],
         )
@@ -3425,6 +3543,7 @@ where
         &mut self,
         raw: RawSyntaxNodeId,
         category: ReferentCategory,
+        sort: SemanticSort,
         descriptor: Descriptor,
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -3433,7 +3552,7 @@ where
             id,
             SemanticObject::referent(
                 category,
-                SemanticSort::Entity,
+                sort,
                 None,
                 Some(descriptor),
                 None,
@@ -3595,6 +3714,18 @@ where
                 }
                 self.build_restrictive_formula(grouped, referent)
             }
+            data!(TanruUnitSyntax::SumtiSelbri { sumti, .. }) => self
+                .build_sumti_selbri_formula_for_frame(
+                    sumti,
+                    self.branch_frame_for_tanru_unit(unit),
+                    self.analysis
+                        .syntax_index
+                        .selbri_node_id(selbri)
+                        .and_then(|node| self.source_for_node(node.0, "restrictive-predication")),
+                    Some(ArgumentValue::filled(referent, None)),
+                    PredicationMode::Restrictive,
+                )
+                .map(|result| result.formula),
             _ => {
                 let relation = relation_label_for_tanru_unit(unit);
                 let frame = self.semantic_predication_frame_for_tanru_unit(
@@ -4308,7 +4439,9 @@ fn tanru_units_label(units: &[&TanruUnitSyntax]) -> String {
 #[requires(!units.is_empty())]
 #[ensures(true)]
 fn tanru_units_require_lowering(units: &[&TanruUnitSyntax]) -> bool {
-    units.len() > 1 || tanru_sequence_has_explicit_grouping(units)
+    units.len() > 1
+        || tanru_sequence_has_explicit_grouping(units)
+        || units.iter().any(|unit| tanru_unit_requires_lowering(unit))
 }
 
 #[requires(!units.is_empty())]
@@ -4347,6 +4480,38 @@ fn tanru_unit_has_explicit_grouping(unit: &TanruUnitSyntax) -> bool {
             base: inner_unit,
             ..
         }) => tanru_unit_has_explicit_grouping(inner_unit),
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tanru_unit_requires_lowering(unit: &TanruUnitSyntax) -> bool {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::SumtiSelbri { .. }) => true,
+        data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ModalConversion { inner_unit, .. })
+        | data!(TanruUnitSyntax::RelativeClauses {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::LinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::AssignedProBridi {
+            base: inner_unit,
+            ..
+        }) => tanru_unit_requires_lowering(inner_unit),
+        data!(TanruUnitSyntax::TanruUnitConnection { .. })
+        | data!(TanruUnitSyntax::BoundTanruUnitConnection { .. })
+        | data!(TanruUnitSyntax::GroupedTanruUnit { .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(_)) => tanru_unit_has_explicit_grouping(unit),
         _ => false,
     }
 }
@@ -4402,7 +4567,7 @@ fn relation_label_for_tanru_unit(unit: &TanruUnitSyntax) -> String {
             relation_label_for_tanru_unit(base)
         }
         data!(TanruUnitSyntax::Abstraction(abstraction)) => abstraction_relation_label(abstraction),
-        data!(TanruUnitSyntax::SumtiSelbri { .. }) => "me-sumti".to_owned(),
+        data!(TanruUnitSyntax::SumtiSelbri { .. }) => "referentOf".to_owned(),
         data!(TanruUnitSyntax::QuotedWordSelbri(token))
         | data!(TanruUnitSyntax::QuotedBridiSelbri(token))
         | data!(TanruUnitSyntax::QuotedTextSelbri(token)) => token_text(&token.value),
@@ -4427,7 +4592,9 @@ fn relation_label_for_tanru_unit(unit: &TanruUnitSyntax) -> String {
 #[requires(true)]
 #[ensures(ret.is_some() -> *ret.as_ref().unwrap() > 0)]
 fn constructed_relation_place_count(relation: &str) -> Option<usize> {
-    if relation.starts_with("nu ") {
+    if relation == "referentOf" {
+        Some(2)
+    } else if relation.starts_with("nu ") {
         Some(1)
     } else if relation.ends_with(" moi") || relation.ends_with(" mei") {
         Some(3)
@@ -4439,7 +4606,7 @@ fn constructed_relation_place_count(relation: &str) -> Option<usize> {
 #[requires(true)]
 #[ensures(true)]
 fn relation_has_open_place_structure(relation: &str) -> bool {
-    relation.starts_with("nu'a ")
+    relation == "du" || relation.starts_with("nu'a ")
 }
 
 #[requires(true)]
@@ -4509,6 +4676,44 @@ fn quantifier_text(quantifier: &QuantifierSyntax) -> Option<String> {
             Some(word_run_text(&number.value))
         }
         data!(QuantifierSyntax::MeksoQuantifier { .. }) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gadri_name_sort(cmavo: Option<Cmavo>) -> SemanticSort {
+    match cmavo {
+        Some(Cmavo::Lai) => SemanticSort::Mass,
+        Some(Cmavo::Lahi) => SemanticSort::Set,
+        _ => SemanticSort::Entity,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn referent_qualifier_kind(cmavo: Option<Cmavo>) -> &'static str {
+    match cmavo {
+        Some(Cmavo::Lahe) => "referentOfSymbol",
+        Some(Cmavo::Luhe) => "symbolForReferent",
+        Some(Cmavo::Tuha) => "abstractionAbout",
+        Some(Cmavo::Luha) => "memberOf",
+        Some(Cmavo::Luhi) => "setFrom",
+        Some(Cmavo::Luho) => "massFrom",
+        Some(Cmavo::Vuhi) => "sequenceFrom",
+        _ => "qualifiedSumti",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn referent_qualifier_sort(cmavo: Option<Cmavo>) -> SemanticSort {
+    match cmavo {
+        Some(Cmavo::Luhe) => SemanticSort::Sign,
+        Some(Cmavo::Tuha) => SemanticSort::Proposition,
+        Some(Cmavo::Luhi) => SemanticSort::Set,
+        Some(Cmavo::Luho) => SemanticSort::Mass,
+        Some(Cmavo::Vuhi) => SemanticSort::Sequence,
+        _ => SemanticSort::Entity,
     }
 }
 
@@ -4917,6 +5122,93 @@ mod tests {
         let tanru =
             predication_with_relation_and_mode(&json, "R[tanru:nu'a su'i-nabmi]", "asserted");
         assert_eq!(tanru["arguments"]["x1"]["value"], "referent:r1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn me_sumti_selbri_preserves_source_referent() {
+        let json = semantic_json_for("do me la .djan.").expect("semantic JSON");
+        let referent_of = predication_with_relation_and_mode(&json, "referentOf", "asserted");
+        assert_eq!(
+            referent_of["arguments"]["x1"]["value"],
+            "referent:addressee"
+        );
+        let source = referent_of["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("source referent id");
+        assert_eq!(object(&json, source)["descriptor"]["name"], "djan");
+        assert!(referent_of.get("diagnostics").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn me_sumti_seltau_preserves_lai_mass_name() {
+        let json = semantic_json_for("ta me lai .kraislr. karce").expect("semantic JSON");
+        let referent_of = predication_with_relation_and_mode(&json, "referentOf", "restrictive");
+        let source = referent_of["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("source referent id");
+        assert_eq!(object(&json, source)["sort"], "mass");
+        assert_eq!(object(&json, source)["descriptor"]["word"], "lai");
+        assert_eq!(object(&json, source)["descriptor"]["name"], "kraislr");
+        let tanru =
+            predication_with_relation_and_mode(&json, "R[tanru:referentOf-karce]", "asserted");
+        assert_eq!(tanru["arguments"]["x2"]["value"], "abstraction:a1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lahe_qualified_sumti_preserves_operand_referent() {
+        let json =
+            semantic_json_for("ta me la'e le se cusku be do me'u cukta").expect("semantic JSON");
+        let referent_of = predication_with_relation_and_mode(&json, "referentOf", "restrictive");
+        let source = referent_of["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("source referent id");
+        assert_eq!(
+            object(&json, source)["descriptor"]["kind"],
+            "referentOfSymbol"
+        );
+        assert_eq!(object(&json, source)["descriptor"]["word"], "la'e");
+        let operand = object(&json, source)["descriptor"]["operand"]
+            .as_str()
+            .expect("operand referent id");
+        assert_eq!(object(&json, operand)["descriptor"]["word"], "le");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mehu_changes_sumti_connection_scope() {
+        let no_mehu = semantic_json_for("re me le ci nolraitru .e la .djan. cu blabi")
+            .expect("semantic JSON");
+        let source =
+            predication_with_relation_and_mode(&no_mehu, "referentOf", "restrictive")["arguments"]
+                ["x2"]["value"]
+                .as_str()
+                .expect("source referent id")
+                .to_owned();
+        assert_eq!(object(&no_mehu, &source)["category"], "composite");
+        let no_mehu_blabi = no_mehu["objects"]
+            .as_object()
+            .expect("objects")
+            .values()
+            .filter(|object| object["type"] == "predication" && object["relation"] == "blabi")
+            .count();
+        assert_eq!(no_mehu_blabi, 1);
+
+        let with_mehu = semantic_json_for("re me le ci nolraitru me'u .e la .djan. cu blabi")
+            .expect("semantic JSON");
+        let with_mehu_blabi = with_mehu["objects"]
+            .as_object()
+            .expect("objects")
+            .values()
+            .filter(|object| object["type"] == "predication" && object["relation"] == "blabi")
+            .count();
+        assert_eq!(with_mehu_blabi, 2);
     }
 
     #[test]
