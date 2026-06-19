@@ -745,8 +745,14 @@ where
                 Vec::new(),
             ),
         )?;
-        self.build_utterance(UtteranceForce::Mention, Some(sign), source, Vec::new())
-            .map(Some)
+        self.build_utterance(
+            UtteranceForce::Mention,
+            Some(sign),
+            source,
+            Vec::new(),
+            None,
+        )
+        .map(Some)
     }
 
     #[requires(true)]
@@ -857,6 +863,7 @@ where
             None,
             self.source_for_free_modifier(free_modifier, "vocative"),
             diagnostics,
+            None,
         )?;
         if addressed_or_identified.object_kind() == crate::model::SemanticObjectKind::Referent {
             if vocative_kind == "selfIdentification" {
@@ -880,9 +887,11 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         match statement.as_data() {
             data!(StatementSyntax::Bridi(bridi)) => {
-                self.build_bridi_utterance(bridi, truth_question)
+                let reserved = self.reserve_utterance_for_statement(statement);
+                self.build_bridi_utterance(bridi, truth_question, reserved)
             }
             data!(StatementSyntax::TextGroup { text, .. }) => {
+                let reserved = self.reserve_utterance_for_statement(statement);
                 let nested = self.build_text_group_sequence(text)?;
                 self.build_utterance(
                     UtteranceForce::Parenthetical,
@@ -894,6 +903,7 @@ where
                     vec![diagnostic(
                         "tu'e text group is represented as a nested discourse sequence",
                     )],
+                    reserved,
                 )
             }
             data!(StatementSyntax::Prenex {
@@ -961,9 +971,25 @@ where
                 Ok(id)
             }
             data!(StatementSyntax::Fragment(fragment)) => {
-                self.build_fragment_utterance(statement, fragment)
+                let reserved = self.reserve_utterance_for_statement(statement);
+                self.build_fragment_utterance(statement, fragment, reserved)
             }
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance))]
+    fn reserve_utterance_for_statement(
+        &mut self,
+        statement: &'tree StatementSyntax,
+    ) -> Option<SemanticObjectId> {
+        let raw = self.analysis.syntax_index.statement_node_id(statement)?.0;
+        if let Some(id) = self.utterance_objects.get(&raw) {
+            return Some(*id);
+        }
+        let id = self.next_utterance();
+        self.utterance_objects.insert(raw, id);
+        Some(id)
     }
 
     #[requires(true)]
@@ -972,6 +998,7 @@ where
         &mut self,
         statement: &'tree StatementSyntax,
         fragment: &'tree FragmentSyntax,
+        reserved_utterance: Option<SemanticObjectId>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let source = self
             .analysis
@@ -984,6 +1011,7 @@ where
                 Some(content),
                 source,
                 Vec::new(),
+                reserved_utterance,
             );
         }
         self.build_utterance(
@@ -991,6 +1019,7 @@ where
             None,
             source,
             vec![diagnostic("fragment has no truth-bearing semantic formula")],
+            reserved_utterance,
         )
     }
 
@@ -1049,6 +1078,7 @@ where
         &mut self,
         bridi: &'tree BridiSyntax,
         truth_question: bool,
+        reserved_utterance: Option<SemanticObjectId>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let previous_slots = std::mem::take(&mut self.parameter_slots);
         let previous_asides = std::mem::take(&mut self.pending_asides);
@@ -1101,6 +1131,7 @@ where
                 .bridi_node_id(bridi)
                 .and_then(|node| self.source_for_node(node.0, "bridi")),
             Vec::new(),
+            reserved_utterance,
         )?;
         if let Some(node) = self.analysis.syntax_index.bridi_node_id(bridi) {
             self.utterance_objects.insert(node.0, utterance);
@@ -1266,6 +1297,7 @@ where
         content: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
         diagnostics: Vec<SemanticDiagnostic>,
+        reserved_id: Option<SemanticObjectId>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let eventuality = self.next_eventuality();
         self.insert(
@@ -1278,7 +1310,7 @@ where
                 source.clone(),
             ),
         )?;
-        let id = self.next_utterance();
+        let id = reserved_id.unwrap_or_else(|| self.next_utterance());
         self.insert(
             id,
             SemanticObject::utterance(force, eventuality, content, source, diagnostics),
@@ -4325,9 +4357,16 @@ where
                 self.build_parameter(token, raw, crate::model::ParameterRole::PropertySlot)
             }
             Some(Cmavo::Keha) => self.build_relative_head_referent(token, raw),
-            Some(Cmavo::Dei | Cmavo::Dihu | Cmavo::Dihe) => {
-                self.build_utterance_reference_referent(token, raw)
-            }
+            Some(
+                Cmavo::Dei
+                | Cmavo::Dihu
+                | Cmavo::Dehu
+                | Cmavo::Dahu
+                | Cmavo::Dihe
+                | Cmavo::Dehe
+                | Cmavo::Dahe
+                | Cmavo::Dohi,
+            ) => self.build_utterance_reference_referent(token, raw),
             Some(Cmavo::Zohe) => self.build_elided_referent(Some(raw), "zo'e".to_owned()),
             Some(Cmavo::Ti) => {
                 self.build_demonstrative_referent(raw, IndexicalKind::ProximalDemonstrative)
@@ -4383,7 +4422,7 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         let target = self.resolved_utterance_reference_target(raw);
         let mut diagnostics = Vec::new();
-        if target.is_none() {
+        if target.is_none() && token.cmavo() != Some(Cmavo::Dohi) {
             diagnostics.push(diagnostic(
                 "utterance pro-sumti did not resolve to a concrete discourse item",
             ));
@@ -7662,6 +7701,27 @@ mod tests {
         let lahe = object(&json, "referent:r4");
         assert_eq!(lahe["descriptor"]["kind"], "referentOfSymbol");
         assert_eq!(lahe["descriptor"]["operand"], "referent:r3");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn utterance_pro_sumti_cover_current_and_unspecified_utterances() {
+        let json = semantic_json_for("dei jetnu jufra").expect("semantic JSON");
+        let dei = object(&json, "referent:r1");
+        assert_eq!(dei["descriptor"]["kind"], "utteranceReference");
+        assert_eq!(dei["descriptor"]["word"], "dei");
+        assert_eq!(dei["sort"], "sign");
+        assert_eq!(dei["target"], "utterance:u1");
+        assert!(dei.get("diagnostics").is_none());
+
+        let json = semantic_json_for("do'i jetnu jufra").expect("semantic JSON");
+        let dohi = object(&json, "referent:r1");
+        assert_eq!(dohi["descriptor"]["kind"], "utteranceReference");
+        assert_eq!(dohi["descriptor"]["word"], "do'i");
+        assert_eq!(dohi["sort"], "sign");
+        assert!(dohi.get("target").is_none());
+        assert!(dohi.get("diagnostics").is_none());
     }
 
     #[test]
