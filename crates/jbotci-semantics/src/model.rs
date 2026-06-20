@@ -348,6 +348,8 @@ pub struct SemanticObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time_interval: Option<TimeInterval>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub time_span: Option<TimeSpan>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub aspect: Option<Aspect>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub aspects: Vec<Aspect>,
@@ -505,6 +507,7 @@ impl SemanticObject {
             time: None,
             time_path: Vec::new(),
             time_interval: None,
+            time_span: None,
             aspect: None,
             aspects: Vec::new(),
             recurrence: Vec::new(),
@@ -956,6 +959,9 @@ impl SemanticObject {
         if let Some(time_interval) = &self.time_interval {
             time_interval.references_into(out);
         }
+        if let Some(time_span) = &self.time_span {
+            time_span.references_into(out);
+        }
         if let Some(aspect) = &self.aspect {
             aspect.references_into(out);
         }
@@ -1325,6 +1331,80 @@ impl TimeInterval {
     #[ensures(ret.extent == old(extent.clone()))]
     pub fn new(extent: String, anchor: Option<SemanticObjectId>) -> Self {
         Self::from_data(data!(TimeInterval { extent, anchor }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        extend_optional(out, self.anchor);
+    }
+}
+
+#[invariant(!introduced_by.is_empty(), "time span introducer must be recorded")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimeSpan {
+    pub start: TimeSpanEndpoint,
+    pub end: TimeSpanEndpoint,
+    pub introduced_by: String,
+}
+
+impl TimeSpan {
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.introduced_by == old(introduced_by.clone()))]
+    pub fn new(start: TimeSpanEndpoint, end: TimeSpanEndpoint, introduced_by: String) -> Self {
+        Self::from_data(data!(TimeSpan {
+            start,
+            end,
+            introduced_by,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        self.start.references_into(out);
+        self.end.references_into(out);
+    }
+}
+
+#[invariant(!relation.is_empty(), "time span endpoint relation must be named")]
+#[invariant(!introduced_by.is_empty(), "time span endpoint introducer must be recorded")]
+#[invariant(anchor.is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind())), "time span endpoint anchor must be referent-like")]
+#[invariant(distance.as_ref().is_none_or(|distance| !distance.is_empty()), "time span endpoint distance must be named when present")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimeSpanEndpoint {
+    pub relation: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anchor: Option<SemanticObjectId>,
+    pub introduced_by: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub distance: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scalar_negation: Option<ScalarNegation>,
+}
+
+impl TimeSpanEndpoint {
+    #[requires(!relation.is_empty())]
+    #[requires(anchor.is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind())))]
+    #[requires(!introduced_by.is_empty())]
+    #[requires(distance.as_ref().is_none_or(|distance| !distance.is_empty()))]
+    #[ensures(ret.relation == old(relation.clone()))]
+    pub fn new(
+        relation: String,
+        anchor: Option<SemanticObjectId>,
+        introduced_by: String,
+        distance: Option<String>,
+        scalar_negation: Option<ScalarNegation>,
+    ) -> Self {
+        Self::from_data(data!(TimeSpanEndpoint {
+            relation,
+            anchor,
+            introduced_by,
+            distance,
+            scalar_negation,
+        }))
     }
 
     #[requires(true)]

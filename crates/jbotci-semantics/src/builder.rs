@@ -12,18 +12,19 @@ use jbotci_morphology::{
 use jbotci_syntax::ast::{
     AbstractionSyntax, AfterthoughtBridiTailSyntax, BoGroupedBridiTailSyntax,
     BoundBridiTailConnectionSyntax, BridiSyntax, BridiTailConnectionSyntax, BridiTailSyntax,
-    CompositeTenseModalPartSyntaxData, ConnectiveSyntax, ConnectiveSyntaxData, DescriptionSyntax,
-    DescriptionTailElementSyntax, DescriptionTailElementSyntaxData,
-    ForethoughtBridiConnectionSyntax, ForethoughtBridiConnectionSyntaxData, FragmentSyntax,
-    FragmentSyntaxData, FreeModifierSyntax, FreeModifierSyntaxData,
-    GroupedBridiTailConnectionSyntax, MeksoOperatorSyntax, MeksoOperatorSyntaxData, MeksoSyntax,
-    MeksoSyntaxData, ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData, QuoteSyntax,
-    QuoteSyntaxData, RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax,
-    SelbriSyntaxData, SimpleBridiTailSyntax, SimpleBridiTailSyntaxData, StatementSyntax,
-    StatementSyntaxData, SubbridiSyntax, SubbridiSyntaxData, SumtiAssociationPhraseSyntax,
-    SumtiSyntax, SumtiSyntaxData, SumtiTagSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData,
-    TenseModalSyntax, TenseModalSyntaxData, TermSyntax, TermSyntaxData, TextSyntax, Token,
-    WithFreeModifiers, WordRun,
+    CompositeTenseModalPartSyntax, CompositeTenseModalPartSyntaxData, ConnectiveSyntax,
+    ConnectiveSyntaxData, DescriptionSyntax, DescriptionTailElementSyntax,
+    DescriptionTailElementSyntaxData, ForethoughtBridiConnectionSyntax,
+    ForethoughtBridiConnectionSyntaxData, FragmentSyntax, FragmentSyntaxData, FreeModifierSyntax,
+    FreeModifierSyntaxData, GroupedBridiTailConnectionSyntax, MeksoOperatorSyntax,
+    MeksoOperatorSyntaxData, MeksoSyntax, MeksoSyntaxData, ParagraphStatementSyntax,
+    QuantifierSyntax, QuantifierSyntaxData, QuoteSyntax, QuoteSyntaxData, RelativeClauseSyntax,
+    RelativeClauseSyntaxData, SelbriSyntax, SelbriSyntaxData, SimpleBridiTailSyntax,
+    SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData, SubbridiSyntax,
+    SubbridiSyntaxData, SumtiAssociationPhraseSyntax, SumtiSyntax, SumtiSyntaxData,
+    SumtiTagSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData, TenseModalSyntax,
+    TenseModalSyntaxData, TermSyntax, TermSyntaxData, TextSyntax, Token, WithFreeModifiers,
+    WordRun,
 };
 
 use crate::model::{
@@ -37,7 +38,7 @@ use crate::model::{
     ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId,
     SemanticOperatorData, SemanticSort, SequenceRelation, SignKind, SpaceInterval, SpatialMotion,
     SpatialMotionKind, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval,
-    UtteranceForce, diagnostic, source_from_spans,
+    TimeSpan, TimeSpanEndpoint, UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -1992,6 +1993,23 @@ where
         {
             return Ok(formula);
         }
+        if let Some(selbri) = selbri
+            && let Some(formula) = self.build_connected_event_tense_formula_for_frame(
+                self.bridi_frame(bridi),
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "predication")),
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "bridi-formula")),
+                selbri,
+                relation.clone(),
+            )?
+        {
+            return Ok(formula);
+        }
         let predication = self.build_predication_for_bridi(bridi, selbri, relation)?;
         let id = self.next_formula();
         self.insert(
@@ -3121,6 +3139,102 @@ where
         )
     }
 
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_connected_event_tense_formula_for_frame(
+        &mut self,
+        frame: Option<SelbriPlaceFrameId>,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+        selbri: &'tree SelbriSyntax,
+        relation: String,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(tense_modal) = connected_event_tense_modal_for_selbri(selbri) else {
+            return Ok(None);
+        };
+        let Some(spec) = connected_event_tense_spec_for_tense_modal(tense_modal) else {
+            return Ok(None);
+        };
+        let data!(ConnectedEventTenseSpec {
+            operator,
+            source,
+            truth_table,
+            branches,
+        }) = spec.into_data();
+        let mut children = Vec::new();
+        for branch in branches {
+            let data!(ConnectedEventTenseBranch {
+                tense_modal,
+                negated,
+            }) = branch.into_data();
+            let predication = self.build_predication_for_frame(
+                frame,
+                predication_source.clone(),
+                Some(selbri),
+                relation.clone(),
+            )?;
+            self.replace_predication_event_modifiers(predication, &tense_modal)?;
+            let atom = self.next_formula();
+            let atom = self.insert(
+                atom,
+                SemanticObject::atom_formula(predication, formula_source.clone(), Vec::new()),
+            )?;
+            let branch_formula = if negated {
+                self.build_unary_formula(
+                    FormulaOperator::Not,
+                    atom,
+                    self.source_for_tense_modal(&tense_modal, "tense-negation"),
+                    Vec::new(),
+                )?
+            } else {
+                atom
+            };
+            children.push(branch_formula);
+        }
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                operator,
+                children,
+                Some(Connector {
+                    source,
+                    locus: "tense".to_owned(),
+                    truth_table: Some(truth_table),
+                }),
+                formula_source,
+                Vec::new(),
+            ),
+        )
+        .map(Some)
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn replace_predication_event_modifiers(
+        &mut self,
+        predication: SemanticObjectId,
+        tense_modal: &TenseModalSyntax,
+    ) -> Result<(), SemanticsError> {
+        let eventuality = self
+            .objects
+            .get(&predication)
+            .and_then(|object| object.eventuality)
+            .ok_or_else(|| {
+                SemanticsError::invalid_graph(format!(
+                    "predication {predication} has no event to retune"
+                ))
+            })?;
+        let event = self.objects.get_mut(&eventuality).ok_or_else(|| {
+            SemanticsError::invalid_graph(format!(
+                "predication {predication} points to missing event {eventuality}"
+            ))
+        })?;
+        clear_event_modifiers(event);
+        apply_tense_modal_event_modifiers_to_event(tense_modal, event);
+        Ok(())
+    }
+
     #[requires(tanru_units_require_lowering(units))]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_tanru_formula_for_tail(
@@ -3225,6 +3339,21 @@ where
             );
         }
         let relation = relation_label_for_selbri(selbri);
+        if let Some(formula) = self.build_connected_event_tense_formula_for_frame(
+            self.branch_frame_for_selbri(selbri),
+            self.analysis
+                .syntax_index
+                .selbri_node_id(selbri)
+                .and_then(|node| self.source_for_node(node.0, "predication")),
+            self.analysis
+                .syntax_index
+                .selbri_node_id(selbri)
+                .and_then(|node| self.source_for_node(node.0, "bridi-tail-formula")),
+            selbri,
+            relation.clone(),
+        )? {
+            return Ok(formula);
+        }
         let predication = self.build_predication_for_frame(
             self.branch_frame_for_selbri(selbri),
             self.analysis
@@ -10812,13 +10941,19 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
     if let Some(actuality) = actuality_for_tense_modal(tense_modal) {
         event.actuality = Some(actuality);
     }
-    append_temporal_path_relations_to_event(
-        event,
-        temporal_path_relations_for_tense_modal(tense_modal),
-        anchor,
-    );
+    let time_span = time_span_for_tense_modal_with_anchor(tense_modal, anchor);
+    if time_span.is_none() {
+        append_temporal_path_relations_to_event(
+            event,
+            temporal_path_relations_for_tense_modal(tense_modal),
+            anchor,
+        );
+    }
     if let Some(time_interval) = time_interval_for_tense_modal_with_anchor(tense_modal, anchor) {
         event.time_interval = Some(time_interval);
+    }
+    if let Some(time_span) = time_span {
+        event.time_span = Some(time_span);
     }
     append_space_path_relations_to_event(
         event,
@@ -11072,6 +11207,25 @@ fn clear_event_space_path(event: &mut SemanticObject) {
     event.space_path.clear();
 }
 
+#[requires(event.object_type == crate::model::SemanticObjectKind::Eventuality)]
+#[ensures(true)]
+fn clear_event_modifiers(event: &mut SemanticObject) {
+    event.actuality = None;
+    event.time = None;
+    event.time_path.clear();
+    event.time_interval = None;
+    event.time_span = None;
+    event.aspect = None;
+    event.aspects.clear();
+    event.recurrence.clear();
+    event.space = None;
+    event.space_path.clear();
+    event.space_interval = None;
+    event.spatial_aspect = None;
+    event.spatial_aspects.clear();
+    event.spatial_recurrence.clear();
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn tense_modal_anchors_to_speech_time(tense_modal: &TenseModalSyntax) -> bool {
@@ -11301,7 +11455,9 @@ fn first_contradictory_event_tense_modal_for_selbri(
             tense_modal,
             inner_selbri,
         }) => {
-            if tense_modal_has_contradictory_event_negation(tense_modal) {
+            if connected_event_tense_spec_for_tense_modal(tense_modal).is_some() {
+                first_contradictory_event_tense_modal_for_selbri(inner_selbri)
+            } else if tense_modal_has_contradictory_event_negation(tense_modal) {
                 Some(tense_modal)
             } else {
                 first_contradictory_event_tense_modal_for_selbri(inner_selbri)
@@ -11313,6 +11469,7 @@ fn first_contradictory_event_tense_modal_for_selbri(
             ..
         }) => ke_tense_modal
             .as_deref()
+            .filter(|tense_modal| connected_event_tense_spec_for_tense_modal(tense_modal).is_none())
             .filter(|tense_modal| tense_modal_has_contradictory_event_negation(tense_modal))
             .or_else(|| first_contradictory_event_tense_modal_for_selbri(selbri)),
         data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. })
@@ -11864,6 +12021,61 @@ fn time_interval_extent_for_tense_modal(tense_modal: &TenseModalSyntax) -> Optio
         }
         _ => None,
     }
+}
+
+#[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[ensures(true)]
+fn time_span_for_tense_modal_with_anchor(
+    tense_modal: &TenseModalSyntax,
+    anchor: Option<SemanticObjectId>,
+) -> Option<TimeSpan> {
+    let data!(TenseModalSyntax::Composite { parts }) = tense_modal.as_data() else {
+        return None;
+    };
+    let mut tokens = Vec::new();
+    for part in &parts.value {
+        let data!(CompositeTenseModalPartSyntax::Cmavo(token)) = part.as_data() else {
+            return None;
+        };
+        tokens.push(token.clone());
+    }
+    let connector_index = tokens
+        .iter()
+        .position(|token| matches!(token.cmavo(), Some(Cmavo::Bihi | Cmavo::Biho)))?;
+    let connector = tokens.get(connector_index)?;
+    let start_tokens = tokens[..connector_index].to_vec();
+    let end_tokens = tokens[connector_index + 1..].to_vec();
+    if start_tokens.is_empty() || end_tokens.is_empty() {
+        return None;
+    }
+    let anchor = anchor.or(Some(SemanticObjectId::speech_time()));
+    Some(TimeSpan::new(
+        time_span_endpoint_from_tokens(start_tokens, anchor)?,
+        time_span_endpoint_from_tokens(end_tokens, anchor)?,
+        token_text(connector),
+    ))
+}
+
+#[requires(!tokens.is_empty())]
+#[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[ensures(ret.as_ref().is_none_or(|endpoint| !endpoint.relation.is_empty()))]
+fn time_span_endpoint_from_tokens(
+    tokens: Vec<Token>,
+    anchor: Option<SemanticObjectId>,
+) -> Option<TimeSpanEndpoint> {
+    let tense_modal = composite_tense_modal_from_tokens(tokens)?;
+    let mut relations = temporal_path_relations_for_tense_modal(&tense_modal);
+    if relations.len() != 1 {
+        return None;
+    }
+    let relation = relations.pop()?;
+    Some(TimeSpanEndpoint::new(
+        relation.relation,
+        anchor,
+        relation.introduced_by,
+        relation.distance,
+        relation.scalar_negation,
+    ))
 }
 
 #[requires(true)]
@@ -12467,6 +12679,123 @@ struct LogicalModalConnectionAssignment {
 enum ModalConnectionArgumentKind {
     Eventuality,
     Formula,
+}
+
+#[invariant(branches.len() >= 2)]
+#[invariant(!source.is_empty())]
+#[invariant(!truth_table.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ConnectedEventTenseSpec {
+    operator: FormulaOperator,
+    source: String,
+    truth_table: String,
+    branches: Vec<ConnectedEventTenseBranch>,
+}
+
+#[invariant(tense_modal_has_event_modifier(tense_modal))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ConnectedEventTenseBranch {
+    tense_modal: TenseModalSyntax,
+    negated: bool,
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|tense_modal| tense_modal_has_event_modifier(tense_modal)))]
+fn connected_event_tense_modal_for_selbri(selbri: &SelbriSyntax) -> Option<&TenseModalSyntax> {
+    match selbri.as_data() {
+        data!(SelbriSyntax::TaggedSelbri { tense_modal, .. })
+            if tense_modal_has_event_modifier(tense_modal) =>
+        {
+            Some(tense_modal)
+        }
+        data!(SelbriSyntax::GroupedSelbri {
+            ke_tense_modal: Some(tense_modal),
+            ..
+        }) if tense_modal_has_event_modifier(tense_modal) => Some(tense_modal),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|spec| spec.branches.len() >= 2))]
+fn connected_event_tense_spec_for_tense_modal(
+    tense_modal: &TenseModalSyntax,
+) -> Option<ConnectedEventTenseSpec> {
+    let data!(TenseModalSyntax::Composite { parts }) = tense_modal.as_data() else {
+        return None;
+    };
+    let mut all_tokens = Vec::new();
+    for part in &parts.value {
+        let data!(CompositeTenseModalPartSyntax::Cmavo(token)) = part.as_data() else {
+            return None;
+        };
+        all_tokens.push(token.clone());
+    }
+    let mut branch_tokens = Vec::new();
+    let mut current_branch = Vec::new();
+    let mut operator = None;
+    let mut connector_text = None;
+    for token in &all_tokens {
+        if token.is_selmaho(Selmaho::Ja) {
+            let negated = current_branch
+                .last()
+                .is_some_and(|token: &Token| token.is_cmavo(Cmavo::Na));
+            if negated {
+                current_branch.pop();
+            }
+            if current_branch.is_empty() {
+                return None;
+            }
+            let next_operator = formula_operator_for_logical_connector_token(token)?;
+            if let Some(operator) = operator
+                && operator != next_operator
+            {
+                return None;
+            }
+            operator = Some(next_operator);
+            connector_text = Some(token_text(token));
+            branch_tokens.push((std::mem::take(&mut current_branch), negated));
+            continue;
+        }
+        current_branch.push(token.clone());
+    }
+    let operator = operator?;
+    let truth_table = connector_text?;
+    if current_branch.is_empty() {
+        return None;
+    }
+    branch_tokens.push((current_branch, false));
+    let mut branches = Vec::new();
+    for (tokens, negated) in branch_tokens {
+        let tense_modal = composite_tense_modal_from_tokens(tokens)?;
+        branches.push(ConnectedEventTenseBranch::from_data(data!(
+            ConnectedEventTenseBranch {
+                negated: negated || modal_negation_for_tense_modal(&tense_modal).is_some(),
+                tense_modal,
+            }
+        )));
+    }
+    Some(ConnectedEventTenseSpec::from_data(data!(
+        ConnectedEventTenseSpec {
+            operator,
+            source: token_vec_text(&all_tokens),
+            truth_table,
+            branches,
+        }
+    )))
+}
+
+#[requires(!tokens.is_empty())]
+#[ensures(ret.as_ref().is_none_or(tense_modal_has_event_modifier))]
+fn composite_tense_modal_from_tokens(tokens: Vec<Token>) -> Option<TenseModalSyntax> {
+    let parts = tokens
+        .into_iter()
+        .map(|token| new!(CompositeTenseModalPartSyntax::Cmavo(token)))
+        .collect::<Vec<_>>();
+    let tense_modal = new!(TenseModalSyntax::Composite {
+        parts: WithFreeModifiers::new(parts, Vec::new()),
+    });
+    tense_modal_has_event_modifier(&tense_modal).then_some(tense_modal)
 }
 
 #[requires(true)]
@@ -16567,6 +16896,86 @@ mod tests {
         );
         assert_eq!(morsi_event["time"]["relation"], "at");
         assert_eq!(morsi_event["time"]["anchor"], raised_time);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_tenses_split_into_branch_scoped_event_claims() {
+        let temporal =
+            semantic_json_for("mi punai je canai je ba klama le zarci").expect("semantic JSON");
+        let root = object(
+            &temporal,
+            object(&temporal, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(root["operator"], "and");
+        assert_eq!(root["children"].as_array().expect("children").len(), 3);
+        assert_eq!(
+            object(&temporal, root["children"][0].as_str().unwrap())["operator"],
+            "not"
+        );
+        assert_eq!(
+            object(&temporal, root["children"][1].as_str().unwrap())["operator"],
+            "not"
+        );
+        let klama = predications_with_relation_and_mode(&temporal, "klama", "asserted");
+        assert_eq!(klama.len(), 3);
+        let times = klama
+            .iter()
+            .map(|predication| {
+                let event = object(
+                    &temporal,
+                    predication["eventuality"].as_str().expect("eventuality"),
+                );
+                event["time"]["relation"].as_str().expect("time relation")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(times, ["before", "at", "after"]);
+
+        let spatial = semantic_json_for("mi mo'izu'a naje mo'iri'u cadzu").expect("semantic JSON");
+        let root = object(
+            &spatial,
+            object(&spatial, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(root["operator"], "and");
+        assert_eq!(
+            object(&spatial, root["children"][0].as_str().unwrap())["operator"],
+            "not"
+        );
+        let cadzu = predications_with_relation_and_mode(&spatial, "cadzu", "asserted");
+        assert_eq!(cadzu.len(), 2);
+        let left_event = object(
+            &spatial,
+            cadzu[0]["eventuality"].as_str().expect("eventuality"),
+        );
+        let right_event = object(
+            &spatial,
+            cadzu[1]["eventuality"].as_str().expect("eventuality"),
+        );
+        assert_eq!(left_event["space"]["relation"], "leftOf");
+        assert_eq!(right_event["space"]["relation"], "rightOf");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bihi_temporal_interval_uses_time_span_endpoints() {
+        let json = semantic_json_for("mi puza bi'o bazu vasxu").expect("semantic JSON");
+        let vasxu = predication_with_relation_and_mode(&json, "vasxu", "asserted");
+        let event = object(
+            &json,
+            vasxu["eventuality"].as_str().expect("vasxu eventuality"),
+        );
+        assert!(event.get("timePath").is_none());
+        assert_eq!(event["timeSpan"]["introducedBy"], "bi'o");
+        assert_eq!(event["timeSpan"]["start"]["relation"], "before");
+        assert_eq!(event["timeSpan"]["start"]["distance"], "medium");
+        assert_eq!(event["timeSpan"]["end"]["relation"], "after");
+        assert_eq!(event["timeSpan"]["end"]["distance"], "long");
     }
 
     #[test]
