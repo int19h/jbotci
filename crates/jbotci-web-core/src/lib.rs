@@ -1423,9 +1423,9 @@ pub enum WebRoute {
 
 impl Default for WebRoute {
     #[requires(true)]
-    #[ensures(matches!(ret, WebRoute::Gentufa(_)))]
+    #[ensures(matches!(ret, WebRoute::Vlacku(_)))]
     fn default() -> Self {
-        WebRoute::Gentufa(GentufaWebState::default())
+        WebRoute::Vlacku(VlackuWebState::default())
     }
 }
 
@@ -2329,7 +2329,7 @@ pub fn build_cukta_semantic_web_page_with_loading(
 pub fn parse_web_route(path: &str, query: &str) -> WebRoute {
     let logical = path.trim_start_matches('/').trim_end_matches('/');
     if logical.is_empty() {
-        WebRoute::Gentufa(GentufaWebState::default())
+        WebRoute::default()
     } else if logical == "settings" {
         WebRoute::Settings
     } else if logical == "cukta" || logical.starts_with("cukta/") {
@@ -2341,7 +2341,7 @@ pub fn parse_web_route(path: &str, query: &str) -> WebRoute {
     } else if logical == "gentufa" || logical.starts_with("gentufa/") {
         WebRoute::Gentufa(parse_gentufa_web_route(path, query))
     } else {
-        WebRoute::Gentufa(GentufaWebState::default())
+        WebRoute::default()
     }
 }
 
@@ -6967,6 +6967,22 @@ mod tests {
             let route = parse_web_route(path, "");
             assert!(!matches!(route, WebRoute::Gimfihi(_)), "{path}");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn default_web_route_is_dictionary() {
+        assert!(matches!(WebRoute::default(), WebRoute::Vlacku(_)));
+        assert_eq!(web_route_url("", &parse_web_route("/", "")), "/vlacku");
+        assert_eq!(
+            web_route_url("/jbotci", &parse_web_route("/", "")),
+            "/jbotci/vlacku"
+        );
+        assert_eq!(
+            build_page_meta("", &parse_web_route("/", "")).title,
+            "jbotci vlacku"
+        );
     }
 
     #[test]

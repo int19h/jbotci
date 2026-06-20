@@ -23,6 +23,7 @@ use jbotci_web_core::{
     MANIFEST_ASSET_PATH, META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability,
     WebRoute, build_page_meta, parse_gentufa_for_web, parse_gentufa_web_export_request,
     parse_web_route, render_gentufa_state_web_export, render_page_head_metadata_block,
+    web_route_url,
 };
 use serde::Serialize;
 
@@ -248,7 +249,7 @@ async fn static_or_spa(
         return plain_response(StatusCode::NOT_FOUND, "not found");
     }
     if request_path == "/" || (state.base_path != "/" && request_path == state.base_path) {
-        let location = gentufa_location(&state.base_path);
+        let location = landing_page_location(&state.base_path);
         return redirect_response(&location);
     }
     if let Some(format) = gentufa_export_format_for_request_path(request_path, &state.base_path) {
@@ -411,12 +412,8 @@ fn strip_base_path(path: &str, base_path: &str) -> Option<String> {
 
 #[requires(base_path.starts_with('/'))]
 #[ensures(ret.starts_with('/'))]
-fn gentufa_location(base_path: &str) -> String {
-    if base_path == "/" {
-        "/gentufa".to_owned()
-    } else {
-        format!("{base_path}/gentufa")
-    }
+fn landing_page_location(base_path: &str) -> String {
+    web_route_url(base_path, &WebRoute::default())
 }
 
 #[requires(path.starts_with('/'))]
@@ -1080,7 +1077,7 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    async fn root_redirects_to_gentufa_route() {
+    async fn root_redirects_to_dictionary_route() {
         let app = router(test_config(test_static_dir()));
         let response = app
             .oneshot(
@@ -1097,14 +1094,14 @@ mod tests {
                 .headers()
                 .get(LOCATION)
                 .and_then(|value| value.to_str().ok()),
-            Some("/jbotci/gentufa"),
+            Some("/jbotci/vlacku"),
         );
     }
 
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    async fn root_base_redirects_to_unprefixed_gentufa_route() {
+    async fn root_base_redirects_to_unprefixed_dictionary_route() {
         let app = router(test_config_with_base_path("/", test_static_dir()));
         let response = app
             .oneshot(
@@ -1121,7 +1118,7 @@ mod tests {
                 .headers()
                 .get(LOCATION)
                 .and_then(|value| value.to_str().ok()),
-            Some("/gentufa"),
+            Some("/vlacku"),
         );
     }
 
@@ -1331,7 +1328,7 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    async fn spa_unknown_route_uses_default_gentufa_metadata() {
+    async fn spa_unknown_route_uses_default_dictionary_metadata() {
         let app = router(test_config(test_static_dir()));
         let response = app
             .oneshot(
@@ -1345,9 +1342,7 @@ mod tests {
             .expect("response");
         assert_eq!(response.status(), StatusCode::OK);
         let body = response_text(response).await;
-        assert!(body.contains("<title>jbotci gentufa</title>"));
-        assert!(
-            body.contains("property=\"og:url\" content=\"http://example.test/jbotci/gentufa\"")
-        );
+        assert!(body.contains("<title>jbotci vlacku</title>"));
+        assert!(body.contains("property=\"og:url\" content=\"http://example.test/jbotci/vlacku\""));
     }
 }

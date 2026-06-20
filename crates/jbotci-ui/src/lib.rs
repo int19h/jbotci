@@ -1787,6 +1787,17 @@ struct JbotciRoute {
 
 impl JbotciRoute {
     #[requires(true)]
+    #[ensures(matches!(ret.web_route, WebRoute::Vlacku(_)))]
+    fn default_vlacku() -> Self {
+        new!(JbotciRoute {
+            web_route: WebRoute::Vlacku(VlackuWebState::default()),
+            gentufa_text_explicit: false,
+            settings_query: String::new(),
+            hash: None,
+        })
+    }
+
+    #[requires(true)]
     #[ensures(matches!(ret.web_route, WebRoute::Gentufa(_)))]
     fn default_gentufa() -> Self {
         new!(JbotciRoute {
@@ -1828,9 +1839,9 @@ impl JbotciRoute {
 
 impl Default for JbotciRoute {
     #[requires(true)]
-    #[ensures(matches!(ret.web_route, WebRoute::Gentufa(_)))]
+    #[ensures(matches!(ret.web_route, WebRoute::Vlacku(_)))]
     fn default() -> Self {
-        Self::default_gentufa()
+        Self::default_vlacku()
     }
 }
 
@@ -21313,14 +21324,14 @@ fn current_path() -> String {
     web_sys::window()
         .and_then(|window| window.location().pathname().ok())
         .filter(|path| path.starts_with('/'))
-        .unwrap_or_else(|| "/gentufa".to_owned())
+        .unwrap_or_else(|| "/vlacku".to_owned())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[requires(true)]
 #[ensures(ret.starts_with('/'))]
 fn current_path() -> String {
-    "/gentufa".to_owned()
+    "/vlacku".to_owned()
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -24703,7 +24714,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn typed_routes_preserve_canonical_url_contract() {
-        assert_eq!(parse_test_route("", "/").to_string(), "/gentufa");
+        assert_eq!(parse_test_route("", "/").to_string(), "/vlacku");
 
         let gentufa =
             parse_test_route("/jbotci", "/jbotci/gentufa?text=coi&view=tree&glosses=true");
@@ -24766,7 +24777,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn typed_routes_accept_dioxus_route_strings() {
-        assert_eq!(JbotciRoute::from_str("").unwrap().to_string(), "/gentufa");
+        assert_eq!(JbotciRoute::from_str("").unwrap().to_string(), "/vlacku");
         assert_eq!(
             JbotciRoute::from_str("gentufa?text=coi")
                 .unwrap()
