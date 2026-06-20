@@ -6090,6 +6090,35 @@ where
         Ok((highest_assigned_place, skipped_excluded_source))
     }
 
+    #[requires(place > 0)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn numbered_assignment_argument_for_frame(
+        &mut self,
+        frame: SelbriPlaceFrameId,
+        place: u8,
+    ) -> Result<Option<ArgumentValue>, SemanticsError> {
+        let mut argument = None;
+        let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
+        for assignment_id in assignment_ids {
+            let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
+                continue;
+            };
+            let PlaceSlot::Numbered(assigned_place) = assignment.slot else {
+                continue;
+            };
+            if assigned_place.get() != place {
+                continue;
+            }
+            let sumti = self
+                .analysis
+                .syntax_index
+                .sumti(assignment.sumti)
+                .ok_or_else(SemanticsError::missing_syntax_node)?;
+            argument = Some(self.build_argument_for_sumti(sumti)?);
+        }
+        Ok(argument)
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn syntax_node_contains(&self, outer: RawSyntaxNodeId, inner: RawSyntaxNodeId) -> bool {
@@ -6183,6 +6212,94 @@ where
             data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. })
             | data!(SelbriSyntax::Negated { inner_selbri, .. }) => {
                 self.selbri_modal_arguments(inner_selbri)
+            }
+            data!(SelbriSyntax::Tanru(units)) => {
+                let mut modal_arguments = Vec::new();
+                for unit in units.iter() {
+                    modal_arguments.extend(self.tanru_unit_modal_arguments(unit)?);
+                }
+                Ok(modal_arguments)
+            }
+            _ => Ok(Vec::new()),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn tanru_unit_modal_arguments(
+        &mut self,
+        unit: &'tree TanruUnitSyntax,
+    ) -> Result<Vec<ModalArgument>, SemanticsError> {
+        match unit.as_data() {
+            data!(TanruUnitSyntax::ModalConversion {
+                tense_modal,
+                inner_unit,
+                ..
+            }) => {
+                let mut modal_arguments = Vec::new();
+                if let Some(tense_modal) = tense_modal.as_deref()
+                    && let Some((introduced_by, relation, visible_place)) =
+                        modal_relation_spec_for_tense_modal(tense_modal)
+                {
+                    let argument = match self
+                        .branch_frame_for_tanru_unit(unit)
+                        .map(|frame| self.numbered_assignment_argument_for_frame(frame, 1))
+                        .transpose()?
+                        .flatten()
+                    {
+                        Some(argument) => argument,
+                        None => self.build_elided_argument_for_place(visible_place)?,
+                    };
+                    let arguments = self.modal_argument_map_for_visible_place(
+                        argument,
+                        visible_place,
+                        self.place_count_for_relation(&relation),
+                    )?;
+                    modal_arguments.push(ModalArgument::new(
+                        relation,
+                        introduced_by,
+                        arguments,
+                        self.source_for_tense_modal(tense_modal, "modal-argument"),
+                    ));
+                }
+                modal_arguments.extend(self.tanru_unit_modal_arguments(inner_unit)?);
+                Ok(modal_arguments)
+            }
+            data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+            | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
+            | data!(TanruUnitSyntax::RelativeClauses {
+                base: inner_unit,
+                ..
+            })
+            | data!(TanruUnitSyntax::LinkedSumtiTanruUnit {
+                base: inner_unit,
+                ..
+            })
+            | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
+                base: inner_unit,
+                ..
+            })
+            | data!(TanruUnitSyntax::AssignedProBridi {
+                base: inner_unit,
+                ..
+            }) => self.tanru_unit_modal_arguments(inner_unit),
+            data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+            | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+                self.selbri_modal_arguments(selbri)
+            }
+            data!(TanruUnitSyntax::TanruUnitConnection {
+                leading_unit,
+                trailing_unit,
+                ..
+            })
+            | data!(TanruUnitSyntax::BoundTanruUnitConnection {
+                leading_unit,
+                trailing_unit,
+                ..
+            }) => {
+                let mut modal_arguments = self.tanru_unit_modal_arguments(leading_unit)?;
+                modal_arguments.extend(self.tanru_unit_modal_arguments(trailing_unit)?);
+                Ok(modal_arguments)
             }
             _ => Ok(Vec::new()),
         }
@@ -12529,6 +12646,27 @@ mod tests {
         assert_eq!(rinka["introducedBy"], "se ri'a");
         assert_eq!(rinka["arguments"]["x1"]["value"], dunda_event);
         assert_eq!(rinka["arguments"]["x2"]["value"], banro_event);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn jai_bai_raises_modal_argument_without_replacing_inner_x1() {
+        let json = semantic_json_for("la .lojban. jai bau cusku fai mi").expect("semantic JSON");
+        let cusku = predication_with_relation_and_mode(&json, "cusku", "asserted");
+        assert_eq!(cusku["arguments"]["x1"]["value"], "referent:speaker");
+
+        let lojban = named_referent_id(&json, "lojban");
+        let modal_argument = cusku["modalArguments"]
+            .as_array()
+            .expect("modal arguments")
+            .iter()
+            .find(|argument| argument["relation"] == "bangu")
+            .expect("bau modal argument");
+        assert_eq!(modal_argument["introducedBy"], "bau");
+        assert_eq!(modal_argument["arguments"]["x1"]["value"], lojban);
+        assert_eq!(modal_argument["arguments"]["x2"]["kind"], "elided");
+        assert_eq!(modal_argument["arguments"]["x3"]["kind"], "elided");
     }
 
     #[test]
