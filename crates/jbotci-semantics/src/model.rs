@@ -343,6 +343,8 @@ pub struct SemanticObject {
     pub actuality: Option<Actuality>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time: Option<AnchorRelation>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub time_path: Vec<TemporalPathStep>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time_interval: Option<TimeInterval>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -495,6 +497,7 @@ impl SemanticObject {
             class: None,
             actuality: None,
             time: None,
+            time_path: Vec::new(),
             time_interval: None,
             aspect: None,
             recurrence: Vec::new(),
@@ -932,6 +935,9 @@ impl SemanticObject {
         if let Some(time) = &self.time {
             out.push(time.anchor);
         }
+        for step in &self.time_path {
+            step.references_into(out);
+        }
         if let Some(space) = &self.space {
             out.push(space.anchor);
         }
@@ -1154,6 +1160,83 @@ pub enum ActualityKind {
 pub struct AnchorRelation {
     pub relation: String,
     pub anchor: SemanticObjectId,
+}
+
+#[invariant(!relation.is_empty(), "temporal path relation must be named")]
+#[invariant(!introduced_by.is_empty(), "temporal path source marker must be named")]
+#[invariant(anchor.object_id().is_none_or(|id| argument_object_kind_can_fill(id.object_kind())), "temporal path object anchor must be referent-like")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TemporalPathStep {
+    pub relation: String,
+    pub anchor: TemporalPathAnchor,
+    pub introduced_by: String,
+}
+
+impl TemporalPathStep {
+    #[requires(!relation.is_empty())]
+    #[requires(!introduced_by.is_empty())]
+    #[requires(anchor.object_id().is_none_or(|id| argument_object_kind_can_fill(id.object_kind())))]
+    #[ensures(ret.relation == old(relation.clone()))]
+    pub fn new(relation: String, anchor: TemporalPathAnchor, introduced_by: String) -> Self {
+        Self::from_data(data!(TemporalPathStep {
+            relation,
+            anchor,
+            introduced_by,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        if let Some(anchor) = self.anchor.object_id() {
+            out.push(anchor);
+        }
+    }
+}
+
+#[invariant((*kind == TemporalPathAnchorKind::Object) == value.is_some(), "object anchors carry a value and non-object anchors do not")]
+#[invariant(value.is_none_or(|value| argument_object_kind_can_fill(value.object_kind())), "temporal path object anchor must be referent-like")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TemporalPathAnchor {
+    pub kind: TemporalPathAnchorKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<SemanticObjectId>,
+}
+
+impl TemporalPathAnchor {
+    #[requires(argument_object_kind_can_fill(value.object_kind()))]
+    #[ensures(ret.object_id() == Some(value))]
+    pub fn object(value: SemanticObjectId) -> Self {
+        Self::from_data(data!(TemporalPathAnchor {
+            kind: TemporalPathAnchorKind::Object,
+            value: Some(value),
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_id().is_none())]
+    pub fn previous() -> Self {
+        Self::from_data(data!(TemporalPathAnchor {
+            kind: TemporalPathAnchorKind::Previous,
+            value: None,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|id| argument_object_kind_can_fill(id.object_kind())))]
+    pub fn object_id(&self) -> Option<SemanticObjectId> {
+        self.value
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TemporalPathAnchorKind {
+    Object,
+    Previous,
 }
 
 #[invariant(!extent.is_empty(), "time interval extent must be named")]
@@ -2270,6 +2353,11 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
             .iter()
             .all(|item| sequence_item_kind_is_allowed(item.object_kind()))
         && references_have_kind(&object.connection_claims, SemanticObjectKind::Formula)
+        && object.time_path.iter().all(|step| {
+            step.anchor
+                .object_id()
+                .is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind()))
+        })
         && optional_reference_has_kind(
             object.relation_metadata,
             SemanticObjectKind::RelationMetadata,
