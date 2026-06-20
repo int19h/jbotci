@@ -26,15 +26,15 @@ use jbotci_syntax::ast::{
 };
 
 use crate::model::{
-    AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, AssignedName,
+    AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, Aspect, AssignedName,
     AssignedNameData, Composition, Connector, Descriptor, EventualityClass, FormulaOperator,
     IndexicalKind, MathLiteral, ModalArgument, ModalNegation, ModalNegationKind,
     PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale, QuantityValue,
     QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding,
-    ReciprocalExchange, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
-    ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject,
-    SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation, SignKind,
-    UtteranceForce, diagnostic, source_from_spans,
+    ReciprocalExchange, Recurrence, RecurrenceKind, ReferentCategory, RelationExpansion,
+    RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic,
+    SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort,
+    SequenceRelation, SignKind, UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -5794,7 +5794,7 @@ where
                 self.bridi_frame(target_bridi),
                 recursive_source,
             )?;
-        let event_selbri = if selbri_has_event_anchors(selbri) {
+        let event_selbri = if selbri_has_event_modifiers(selbri) {
             selbri
         } else {
             target_selbri
@@ -5933,9 +5933,9 @@ where
             source.clone(),
         );
         if let Some(selbri) = selbri {
-            apply_selbri_anchors_to_event(selbri, &mut event);
+            apply_selbri_event_modifiers_to_event(selbri, &mut event);
         }
-        self.apply_frame_tense_modal_anchors_to_event(frame, &mut event);
+        self.apply_frame_tense_modal_event_modifiers_to_event(frame, &mut event);
         self.insert(eventuality, event)?;
         self.clear_sticky_modals_for_selbri_if_needed(selbri);
         let mut arguments = BTreeMap::new();
@@ -6012,9 +6012,9 @@ where
             source.clone(),
         );
         if let Some(selbri) = selbri {
-            apply_selbri_anchors_to_event(selbri, &mut event);
+            apply_selbri_event_modifiers_to_event(selbri, &mut event);
         }
-        self.apply_frame_tense_modal_anchors_to_event(frame, &mut event);
+        self.apply_frame_tense_modal_event_modifiers_to_event(frame, &mut event);
         self.insert(eventuality, event)?;
         self.clear_sticky_modals_for_selbri_if_needed(selbri);
         let mut arguments = BTreeMap::new();
@@ -6287,7 +6287,7 @@ where
 
     #[requires(true)]
     #[ensures(true)]
-    fn apply_frame_tense_modal_anchors_to_event(
+    fn apply_frame_tense_modal_event_modifiers_to_event(
         &self,
         frame: Option<SelbriPlaceFrameId>,
         event: &mut SemanticObject,
@@ -6306,18 +6306,7 @@ where
             let Some(tense_modal) = self.analysis.syntax_index.tense_modal(tag_node) else {
                 continue;
             };
-            if let Some(relation) = time_relation_for_tense_modal(tense_modal) {
-                event.time = Some(AnchorRelation {
-                    relation,
-                    anchor: SemanticObjectId::speech_time(),
-                });
-            }
-            if let Some(relation) = space_relation_for_tense_modal(tense_modal) {
-                event.space = Some(AnchorRelation {
-                    relation,
-                    anchor: SemanticObjectId::here(),
-                });
-            }
+            apply_tense_modal_event_modifiers_to_event(tense_modal, event);
         }
     }
 
@@ -6341,7 +6330,7 @@ where
             };
             if tag_node
                 .and_then(|node| self.analysis.syntax_index.tense_modal(node))
-                .is_some_and(tense_modal_has_event_anchor)
+                .is_some_and(tense_modal_has_event_modifier)
             {
                 continue;
             }
@@ -6933,7 +6922,7 @@ where
             source.clone(),
         );
         if let Some(selbri) = selbri {
-            apply_selbri_anchors_to_event(selbri, &mut event);
+            apply_selbri_event_modifiers_to_event(selbri, &mut event);
         }
         self.insert(eventuality, event)?;
         let id = self.next_predication();
@@ -6958,8 +6947,7 @@ where
         selbri: &SelbriSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        if time_relation_for_selbri(selbri).is_none() && space_relation_for_selbri(selbri).is_none()
-        {
+        if !selbri_has_event_modifiers(selbri) {
             return Ok(None);
         }
         let eventuality = self.next_eventuality();
@@ -6970,7 +6958,7 @@ where
             }),
             source,
         );
-        apply_selbri_anchors_to_event(selbri, &mut event);
+        apply_selbri_event_modifiers_to_event(selbri, &mut event);
         self.insert(eventuality, event).map(Some)
     }
 
@@ -10132,73 +10120,85 @@ fn selbri_has_formula_scope(selbri: &SelbriSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn apply_selbri_anchors_to_event(selbri: &SelbriSyntax, event: &mut SemanticObject) {
-    if let Some(relation) = time_relation_for_selbri(selbri) {
+fn apply_selbri_event_modifiers_to_event(selbri: &SelbriSyntax, event: &mut SemanticObject) {
+    match selbri.as_data() {
+        data!(SelbriSyntax::TaggedSelbri {
+            tense_modal,
+            inner_selbri,
+        }) => {
+            apply_tense_modal_event_modifiers_to_event(tense_modal, event);
+            apply_selbri_event_modifiers_to_event(inner_selbri, event);
+        }
+        data!(SelbriSyntax::GroupedSelbri {
+            ke_tense_modal,
+            selbri,
+            ..
+        }) => {
+            if let Some(tense_modal) = ke_tense_modal {
+                apply_tense_modal_event_modifiers_to_event(tense_modal, event);
+            }
+            apply_selbri_event_modifiers_to_event(selbri, event);
+        }
+        _ => {}
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn apply_tense_modal_event_modifiers_to_event(
+    tense_modal: &TenseModalSyntax,
+    event: &mut SemanticObject,
+) {
+    if let Some(relation) = time_relation_for_tense_modal(tense_modal) {
         event.time = Some(AnchorRelation {
             relation,
             anchor: SemanticObjectId::speech_time(),
         });
     }
-    if let Some(relation) = space_relation_for_selbri(selbri) {
+    if let Some(relation) = space_relation_for_tense_modal(tense_modal) {
         event.space = Some(AnchorRelation {
             relation,
             anchor: SemanticObjectId::here(),
         });
     }
+    if let Some(contour) = aspect_contour_for_tense_modal(tense_modal) {
+        event.aspect = Some(Aspect { contour });
+    }
+    event
+        .recurrence
+        .extend(recurrences_for_tense_modal(tense_modal));
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn tense_modal_has_event_anchor(tense_modal: &TenseModalSyntax) -> bool {
+fn tense_modal_has_event_modifier(tense_modal: &TenseModalSyntax) -> bool {
     time_relation_for_tense_modal(tense_modal).is_some()
         || space_relation_for_tense_modal(tense_modal).is_some()
+        || aspect_contour_for_tense_modal(tense_modal).is_some()
+        || !recurrences_for_tense_modal(tense_modal).is_empty()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn time_relation_for_selbri(selbri: &SelbriSyntax) -> Option<String> {
+fn selbri_has_event_modifiers(selbri: &SelbriSyntax) -> bool {
     match selbri.as_data() {
         data!(SelbriSyntax::TaggedSelbri {
             tense_modal,
             inner_selbri,
-        }) => time_relation_for_tense_modal(tense_modal)
-            .or_else(|| time_relation_for_selbri(inner_selbri)),
+        }) => {
+            tense_modal_has_event_modifier(tense_modal) || selbri_has_event_modifiers(inner_selbri)
+        }
         data!(SelbriSyntax::GroupedSelbri {
             ke_tense_modal,
             selbri,
             ..
-        }) => ke_tense_modal
-            .as_deref()
-            .and_then(time_relation_for_tense_modal)
-            .or_else(|| time_relation_for_selbri(selbri)),
-        _ => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn selbri_has_event_anchors(selbri: &SelbriSyntax) -> bool {
-    time_relation_for_selbri(selbri).is_some() || space_relation_for_selbri(selbri).is_some()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn space_relation_for_selbri(selbri: &SelbriSyntax) -> Option<String> {
-    match selbri.as_data() {
-        data!(SelbriSyntax::TaggedSelbri {
-            tense_modal,
-            inner_selbri,
-        }) => space_relation_for_tense_modal(tense_modal)
-            .or_else(|| space_relation_for_selbri(inner_selbri)),
-        data!(SelbriSyntax::GroupedSelbri {
-            ke_tense_modal,
-            selbri,
-            ..
-        }) => ke_tense_modal
-            .as_deref()
-            .and_then(space_relation_for_tense_modal)
-            .or_else(|| space_relation_for_selbri(selbri)),
-        _ => None,
+        }) => {
+            ke_tense_modal
+                .as_deref()
+                .is_some_and(tense_modal_has_event_modifier)
+                || selbri_has_event_modifiers(selbri)
+        }
+        _ => false,
     }
 }
 
@@ -10243,6 +10243,124 @@ fn space_relation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<Stri
             .and_then(|distance| space_relation_for_space_distance_token(&distance.value)),
         _ => None,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn aspect_contour_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<String> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => {
+            parts.value.iter().find_map(|part| match part.as_data() {
+                data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
+                    token
+                )) => aspect_contour_for_zaho_token(token),
+                data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::AdHocModal(..)) => None,
+            })
+        }
+        data!(TenseModalSyntax::EventContour(words)) => {
+            words.value.iter().find_map(aspect_contour_for_zaho_token)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recurrences_for_tense_modal(tense_modal: &TenseModalSyntax) -> Vec<Recurrence> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => {
+            recurrences_for_composite_tense_modal_parts(&parts.value)
+        }
+        data!(TenseModalSyntax::IntervalProperty {
+            number,
+            roi_or_tahe,
+            ..
+        }) => {
+            recurrence_for_interval_marker(&roi_or_tahe.value, number.as_ref().map(word_run_text))
+                .into_iter()
+                .collect()
+        }
+        _ => Vec::new(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recurrences_for_composite_tense_modal_parts(
+    parts: &[jbotci_syntax::ast::CompositeTenseModalPartSyntax],
+) -> Vec<Recurrence> {
+    let mut recurrences = Vec::new();
+    let mut pending_number = None::<String>;
+    for part in parts {
+        let data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
+            token
+        )) = part.as_data()
+        else {
+            pending_number = None;
+            continue;
+        };
+        if token.is_selmaho(Selmaho::Pa) {
+            let text = token_text(token);
+            if let Some(pending) = &mut pending_number {
+                pending.push(' ');
+                pending.push_str(&text);
+            } else {
+                pending_number = Some(text);
+            }
+            continue;
+        }
+        if let Some(recurrence) = recurrence_for_interval_marker(token, pending_number.take()) {
+            recurrences.push(recurrence);
+            continue;
+        }
+        pending_number = None;
+    }
+    recurrences
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn aspect_contour_for_zaho_token(token: &Token) -> Option<String> {
+    match token.cmavo() {
+        Some(Cmavo::Puho) => Some("prospective".to_owned()),
+        Some(Cmavo::Caho) => Some("continuative".to_owned()),
+        Some(Cmavo::Baho) => Some("retrospective".to_owned()),
+        Some(Cmavo::Coha) => Some("initiative".to_owned()),
+        Some(Cmavo::Cohu) => Some("cessitive".to_owned()),
+        Some(Cmavo::Mohu) => Some("completitive".to_owned()),
+        Some(Cmavo::Zaho) => Some("superfective".to_owned()),
+        Some(Cmavo::Cohi) => Some("achievative".to_owned()),
+        Some(Cmavo::Deha) => Some("pausative".to_owned()),
+        Some(Cmavo::Diha) => Some("resumptive".to_owned()),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recurrence_for_interval_marker(
+    marker: &Token,
+    value_text: Option<String>,
+) -> Option<Recurrence> {
+    let kind = match marker.cmavo() {
+        Some(Cmavo::Roi) => RecurrenceKind::OccurrenceCount,
+        Some(Cmavo::Rehu) => RecurrenceKind::OrdinalOccurrence,
+        Some(Cmavo::Dihi) => RecurrenceKind::Regular,
+        Some(Cmavo::Naho) => RecurrenceKind::Typically,
+        Some(Cmavo::Ruhi) => RecurrenceKind::Continuously,
+        Some(Cmavo::Tahe) => RecurrenceKind::Habitually,
+        _ => return None,
+    };
+    let value = value_text.map(quantity_value_for_recurrence_text);
+    Some(Recurrence::new(kind, token_text(marker), value, None))
+}
+
+#[requires(!text.is_empty())]
+#[ensures(true)]
+fn quantity_value_for_recurrence_text(text: String) -> QuantityValue {
+    parse_decimal_integer(&text)
+        .map(QuantityValue::integer)
+        .unwrap_or_else(|| QuantityValue::text(text))
 }
 
 #[requires(true)]
@@ -12776,6 +12894,61 @@ mod tests {
             assert_eq!(event["time"]["relation"], "before", "{text}");
             assert_eq!(event["time"]["anchor"], "referent:speech-time", "{text}");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn event_contours_and_recurrence_are_event_properties() {
+        let prospective = semantic_json_for("mi pu'o damba").expect("semantic JSON");
+        let damba = predication_with_relation_and_mode(&prospective, "damba", "asserted");
+        assert!(damba.get("modalArguments").is_none());
+        let event = object(
+            &prospective,
+            damba["eventuality"].as_str().expect("damba event"),
+        );
+        assert_eq!(event["aspect"]["contour"], "prospective");
+        assert!(event.get("recurrence").is_none());
+
+        let regular_initiative = semantic_json_for("mi ba di'i co'a bajra").expect("semantic JSON");
+        let bajra = predication_with_relation_and_mode(&regular_initiative, "bajra", "asserted");
+        assert!(bajra.get("modalArguments").is_none());
+        let event = object(
+            &regular_initiative,
+            bajra["eventuality"].as_str().expect("bajra event"),
+        );
+        assert_eq!(event["time"]["relation"], "after");
+        assert_eq!(event["aspect"]["contour"], "initiative");
+        assert_eq!(event["recurrence"][0]["kind"], "regular");
+        assert_eq!(event["recurrence"][0]["introducedBy"], "di'i");
+
+        let ordinal_then_count =
+            semantic_json_for("mi pare'u paroi klama le zarci").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&ordinal_then_count, "klama", "asserted");
+        let event = object(
+            &ordinal_then_count,
+            klama["eventuality"].as_str().expect("klama event"),
+        );
+        assert_eq!(event["recurrence"][0]["kind"], "ordinalOccurrence");
+        assert_eq!(event["recurrence"][0]["introducedBy"], "re'u");
+        assert_eq!(event["recurrence"][0]["value"]["integer"], 1);
+        assert_eq!(event["recurrence"][1]["kind"], "occurrenceCount");
+        assert_eq!(event["recurrence"][1]["introducedBy"], "roi");
+        assert_eq!(event["recurrence"][1]["value"]["integer"], 1);
+
+        let count_then_ordinal =
+            semantic_json_for("mi paroi pare'u klama le zarci").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&count_then_ordinal, "klama", "asserted");
+        let event = object(
+            &count_then_ordinal,
+            klama["eventuality"].as_str().expect("klama event"),
+        );
+        assert_eq!(event["recurrence"][0]["kind"], "occurrenceCount");
+        assert_eq!(event["recurrence"][0]["introducedBy"], "roi");
+        assert_eq!(event["recurrence"][0]["value"]["integer"], 1);
+        assert_eq!(event["recurrence"][1]["kind"], "ordinalOccurrence");
+        assert_eq!(event["recurrence"][1]["introducedBy"], "re'u");
+        assert_eq!(event["recurrence"][1]["value"]["integer"], 1);
     }
 
     #[test]

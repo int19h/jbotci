@@ -345,6 +345,8 @@ pub struct SemanticObject {
     pub time: Option<AnchorRelation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub aspect: Option<Aspect>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub recurrence: Vec<Recurrence>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub space: Option<AnchorRelation>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -486,6 +488,7 @@ impl SemanticObject {
             actuality: None,
             time: None,
             aspect: None,
+            recurrence: Vec::new(),
             space: None,
             category: None,
             sort: None,
@@ -920,6 +923,9 @@ impl SemanticObject {
         if let Some(space) = &self.space {
             out.push(space.anchor);
         }
+        for recurrence in &self.recurrence {
+            recurrence.references_into(out);
+        }
         if let Some(descriptor) = &self.descriptor {
             descriptor.references_into(out);
         }
@@ -1128,6 +1134,56 @@ pub struct AnchorRelation {
 #[serde(rename_all = "camelCase")]
 pub struct Aspect {
     pub contour: String,
+}
+
+#[invariant(!introduced_by.is_empty(), "recurrence marker must be named")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Recurrence {
+    pub kind: RecurrenceKind,
+    pub introduced_by: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<QuantityValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SemanticSource>,
+}
+
+impl Recurrence {
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.introduced_by == old(introduced_by.clone()))]
+    pub fn new(
+        kind: RecurrenceKind,
+        introduced_by: String,
+        value: Option<QuantityValue>,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::from_data(data!(Recurrence {
+            kind,
+            introduced_by,
+            value,
+            source,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        if let Some(value) = &self.value {
+            value.references_into(out);
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RecurrenceKind {
+    OccurrenceCount,
+    OrdinalOccurrence,
+    Regular,
+    Typically,
+    Continuously,
+    Habitually,
 }
 
 #[invariant(true)]
