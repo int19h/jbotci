@@ -15525,6 +15525,12 @@ fn render_blocks(
                 div {
                     class: "blocks-scroll-viewport",
                     "data-jbotci-blocks-scroll-viewport": "1",
+                    onscroll: move |_| {
+                        refresh_reference_hover(
+                            reference_hover,
+                            ReferenceHoverRefreshReason::ViewportShift,
+                        )
+                    },
                     div {
                         class: "{container_class}",
                         "data-elided": "0",
