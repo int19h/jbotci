@@ -908,6 +908,16 @@ where
         source_from_spans(&spans, self.options.source_text, Some(construct))
     }
 
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    fn source_for_token(
+        &self,
+        token: &Token,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        self.source_for_tokens(std::slice::from_ref(token), construct)
+    }
+
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
     fn build_text(&mut self, text: &'tree TextSyntax) -> Result<SemanticGraph, SemanticsError> {
@@ -1430,6 +1440,12 @@ where
         term: &'tree TermSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         match term.as_data() {
+            data!(TermSyntax::TaggedSumti {
+                tense_modal: Some(tense_modal),
+                sumti
+            }) => self
+                .build_tense_modal_fragment_content(tense_modal, sumti)
+                .map(Some),
             data!(TermSyntax::Sumti(sumti)) | data!(TermSyntax::PlaceTaggedSumti { sumti, .. }) => {
                 let referent = self.build_sumti_referent(sumti)?;
                 if referent.object_kind() == crate::model::SemanticObjectKind::Referent {
@@ -1439,6 +1455,56 @@ where
             }
             _ => Ok(None),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Eventuality) || ret.is_err())]
+    fn build_tense_modal_fragment_content(
+        &mut self,
+        tense_modal: &'tree TenseModalSyntax,
+        sumti: &'tree SumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_eventuality();
+        let mut event = SemanticObject::eventuality(
+            EventualityClass::Event,
+            None,
+            self.source_for_tense_modal(tense_modal, "tense-modal-fragment"),
+        );
+        if tense_modal_has_event_modifier(tense_modal) {
+            let anchor = if sumti_is_elided(sumti) {
+                None
+            } else {
+                Some(self.build_sumti_referent(sumti)?)
+            };
+            apply_tense_modal_event_modifiers_to_event_with_anchor(tense_modal, &mut event, anchor);
+            if let Some(parameter) =
+                self.build_tense_question_parameter_for_tense_modal(tense_modal)?
+            {
+                event.tense_modal = Some(parameter);
+            }
+        } else if let Some((introduced_by, relation, visible_place)) =
+            modal_relation_spec_for_tense_modal(tense_modal)
+        {
+            let argument = self.build_argument_for_sumti(sumti)?;
+            let arguments = self.modal_argument_map_for_visible_place(
+                argument,
+                visible_place,
+                self.place_count_for_relation(&relation),
+            )?;
+            event.modal_arguments.push(ModalArgument::new_with_polarity(
+                relation,
+                introduced_by,
+                arguments,
+                modal_negation_for_tense_modal(tense_modal),
+                modal_scalar_negation_for_tense_modal(tense_modal),
+                self.source_for_tense_modal(tense_modal, "modal-fragment"),
+            ));
+        } else {
+            event.diagnostics.push(diagnostic(
+                "tense/modal fragment has no implemented semantic value",
+            ));
+        }
+        self.insert(id, event)
     }
 
     #[requires(true)]
@@ -1553,6 +1619,17 @@ where
             self.parameter_role(slot.parameter) == Some(crate::model::ParameterRole::PlaceQuestion)
         }) {
             return (QuestionKind::Place, SemanticSort::Place);
+        }
+        if slots.iter().any(|slot| {
+            self.parameter_role(slot.parameter)
+                == Some(crate::model::ParameterRole::ConnectiveQuestion)
+        }) {
+            return (QuestionKind::Connective, SemanticSort::Connective);
+        }
+        if slots.iter().any(|slot| {
+            self.parameter_role(slot.parameter) == Some(crate::model::ParameterRole::TenseQuestion)
+        }) {
+            return (QuestionKind::Tense, SemanticSort::TenseModal);
         }
         (QuestionKind::Argument, SemanticSort::Entity)
     }
@@ -2212,6 +2289,7 @@ where
                         source: modal_connective_text(connective, tense_modal),
                         locus: "sumti".to_owned(),
                         truth_table: None,
+                        parameter: None,
                     });
                 }
             }
@@ -2474,6 +2552,7 @@ where
                     source: connector_source,
                     locus: "modal".to_owned(),
                     truth_table: Some(truth_table),
+                    parameter: None,
                 }),
                 self.analysis
                     .syntax_index
@@ -2613,6 +2692,7 @@ where
                     source: modal_connective_text(connective, tense_modal),
                     locus: "sumti".to_owned(),
                     truth_table: None,
+                    parameter: None,
                 }),
                 self.analysis
                     .syntax_index
@@ -2760,6 +2840,7 @@ where
                     source: connective_text(gek),
                     locus: "termset".to_owned(),
                     truth_table: None,
+                    parameter: None,
                 }),
                 source,
                 diagnostics,
@@ -2861,6 +2942,7 @@ where
                             source: connective_text(gek),
                             locus: "operand".to_owned(),
                             truth_table: None,
+                            parameter: None,
                         }),
                         source,
                         diagnostics,
@@ -3024,6 +3106,7 @@ where
                     ),
                     locus: "bridiTail".to_owned(),
                     truth_table: None,
+                    parameter: None,
                 });
             }
             let previous_formula = *children
@@ -3050,6 +3133,7 @@ where
                     ),
                     locus: "bridiTail".to_owned(),
                     truth_table: None,
+                    parameter: None,
                 });
             }
             let previous_formula = *children
@@ -3159,9 +3243,11 @@ where
             operator,
             source,
             truth_table,
+            connector_question,
             branches,
         }) = spec.into_data();
         let mut children = Vec::new();
+        let branch_selbri = selbri_without_connected_event_tense(selbri);
         for branch in branches {
             let data!(ConnectedEventTenseBranch {
                 tense_modal,
@@ -3170,7 +3256,7 @@ where
             let predication = self.build_predication_for_frame(
                 frame,
                 predication_source.clone(),
-                Some(selbri),
+                branch_selbri,
                 relation.clone(),
             )?;
             self.replace_predication_event_modifiers(predication, &tense_modal)?;
@@ -3191,6 +3277,10 @@ where
             };
             children.push(branch_formula);
         }
+        let connector_parameter = connector_question
+            .as_ref()
+            .map(|token| self.build_connective_question_parameter_for_token(token))
+            .transpose()?;
         let formula = self.next_formula();
         self.insert(
             formula,
@@ -3200,7 +3290,8 @@ where
                 Some(Connector {
                     source,
                     locus: "tense".to_owned(),
-                    truth_table: Some(truth_table),
+                    truth_table,
+                    parameter: connector_parameter,
                 }),
                 formula_source,
                 Vec::new(),
@@ -3225,6 +3316,8 @@ where
                     "predication {predication} has no event to retune"
                 ))
             })?;
+        let tense_question_parameter =
+            self.build_tense_question_parameter_for_tense_modal(tense_modal)?;
         let event = self.objects.get_mut(&eventuality).ok_or_else(|| {
             SemanticsError::invalid_graph(format!(
                 "predication {predication} points to missing event {eventuality}"
@@ -3232,6 +3325,9 @@ where
         })?;
         clear_event_modifiers(event);
         apply_tense_modal_event_modifiers_to_event(tense_modal, event);
+        if let Some(parameter) = tense_question_parameter {
+            event.tense_modal = Some(parameter);
+        }
         Ok(())
     }
 
@@ -3419,6 +3515,7 @@ where
                     ),
                     locus: "bridiTail".to_owned(),
                     truth_table: None,
+                    parameter: None,
                 }),
                 source,
                 diagnostics,
@@ -3506,6 +3603,7 @@ where
                     source: "tanru".to_owned(),
                     locus: "selbri".to_owned(),
                     truth_table: None,
+                    parameter: None,
                 }),
                 source,
                 Vec::new(),
@@ -3636,6 +3734,7 @@ where
                             source: connective_text(gek),
                             locus: "bridi".to_owned(),
                             truth_table: None,
+                            parameter: None,
                         }),
                         None,
                         diagnostics,
@@ -3903,6 +4002,7 @@ where
                     source: "tanru".to_owned(),
                     locus: "selbri-inversion".to_owned(),
                     truth_table: None,
+                    parameter: None,
                 }),
                 source,
                 Vec::new(),
@@ -3975,6 +4075,7 @@ where
                     source: "tanru".to_owned(),
                     locus: "selbri".to_owned(),
                     truth_table: None,
+                    parameter: None,
                 }),
                 source,
                 Vec::new(),
@@ -4068,6 +4169,7 @@ where
                             source: "tanru".to_owned(),
                             locus: "tanru-unit".to_owned(),
                             truth_table: None,
+                            parameter: None,
                         }),
                         source,
                         Vec::new(),
@@ -4465,6 +4567,7 @@ where
                     source: "tanru".to_owned(),
                     locus: "property-abstraction".to_owned(),
                     truth_table: None,
+                    parameter: None,
                 }),
                 source,
                 Vec::new(),
@@ -4556,6 +4659,7 @@ where
                         source: "tanru".to_owned(),
                         locus: "property-abstraction".to_owned(),
                         truth_table: None,
+                        parameter: None,
                     }),
                     source,
                     Vec::new(),
@@ -4588,6 +4692,7 @@ where
                         source: "tanru".to_owned(),
                         locus: "property-inversion".to_owned(),
                         truth_table: None,
+                        parameter: None,
                     }),
                     source,
                     Vec::new(),
@@ -4769,6 +4874,7 @@ where
                             source: "tanru".to_owned(),
                             locus: "property-abstraction".to_owned(),
                             truth_table: None,
+                            parameter: None,
                         }),
                         source,
                         Vec::new(),
@@ -5755,6 +5861,7 @@ where
                     source: full_connective_text(connective),
                     locus: "statement".to_owned(),
                     truth_table: None,
+                    parameter: None,
                 }),
                 source,
                 Vec::new(),
@@ -6654,6 +6761,11 @@ where
                 anchor,
                 false,
             );
+            if let Some(parameter) =
+                self.build_tense_question_parameter_for_tense_modal(modifier.tense_modal)?
+            {
+                event.tense_modal = Some(parameter);
+            }
             if tense_modal_makes_tense_sticky(modifier.tense_modal) {
                 self.sticky_time_path = event.time_path.clone();
                 application.sticky_temporal_modifier = true;
@@ -9073,15 +9185,11 @@ where
         sort: SemanticSort,
         role: crate::model::ParameterRole,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let id = self.next_parameter();
-        self.insert(
-            id,
-            SemanticObject::parameter(
-                sort,
-                role,
-                token_text(&token.value),
-                self.source_for_node(raw, "parameter"),
-            ),
+        let id = self.build_parameter_with_source(
+            token_text(&token.value),
+            self.source_for_node(raw, "parameter"),
+            sort,
+            role,
         )?;
         if role == crate::model::ParameterRole::PropertySlot
             && token.cmavo() == Some(Cmavo::Cehu)
@@ -9089,6 +9197,23 @@ where
         {
             parameters.push(id);
         }
+        Ok(id)
+    }
+
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter) || ret.is_err())]
+    fn build_parameter_with_source(
+        &mut self,
+        introduced_by: String,
+        source: Option<crate::model::SemanticSource>,
+        sort: SemanticSort,
+        role: crate::model::ParameterRole,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_parameter();
+        self.insert(
+            id,
+            SemanticObject::parameter(sort, role, introduced_by, source),
+        )?;
         Ok(id)
     }
 
@@ -9198,6 +9323,41 @@ where
                 introduced_by,
                 source_node.and_then(|node| self.source_for_node(node, "parameter")),
             ),
+        )?;
+        self.push_question_answer_slot(id);
+        Ok(id)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.as_ref().is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter)) || ret.is_err())]
+    fn build_tense_question_parameter_for_tense_modal(
+        &mut self,
+        tense_modal: &TenseModalSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(token) = tense_question_token_for_tense_modal(tense_modal) else {
+            return Ok(None);
+        };
+        let id = self.build_parameter_with_source(
+            token_text(token),
+            self.source_for_token(token, "parameter"),
+            SemanticSort::TenseModal,
+            crate::model::ParameterRole::TenseQuestion,
+        )?;
+        self.push_question_answer_slot(id);
+        Ok(Some(id))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter) || ret.is_err())]
+    fn build_connective_question_parameter_for_token(
+        &mut self,
+        token: &Token,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.build_parameter_with_source(
+            token_text(token),
+            self.source_for_token(token, "parameter"),
+            SemanticSort::Connective,
+            crate::model::ParameterRole::ConnectiveQuestion,
         )?;
         self.push_question_answer_slot(id);
         Ok(id)
@@ -9771,6 +9931,7 @@ where
                     source: "tanru".to_owned(),
                     locus: "description".to_owned(),
                     truth_table: None,
+                    parameter: None,
                 }),
                 source,
                 Vec::new(),
@@ -10899,6 +11060,7 @@ fn apply_selbri_event_modifiers_to_event_with_anchor(
         _ => {}
     }
     normalize_event_time_path(event);
+    normalize_event_space_path(event);
 }
 
 #[requires(true)]
@@ -11211,6 +11373,7 @@ fn clear_event_space_path(event: &mut SemanticObject) {
 #[ensures(true)]
 fn clear_event_modifiers(event: &mut SemanticObject) {
     event.actuality = None;
+    event.tense_modal = None;
     event.time = None;
     event.time_path.clear();
     event.time_interval = None;
@@ -11245,6 +11408,7 @@ fn tense_modal_anchors_to_speech_time(tense_modal: &TenseModalSyntax) -> bool {
 #[ensures(true)]
 fn tense_modal_has_event_modifier(tense_modal: &TenseModalSyntax) -> bool {
     tense_modal_anchors_to_speech_time(tense_modal)
+        || tense_question_token_for_tense_modal(tense_modal).is_some()
         || actuality_for_tense_modal(tense_modal).is_some()
         || !temporal_path_relations_for_tense_modal(tense_modal).is_empty()
         || time_interval_for_tense_modal(tense_modal).is_some()
@@ -11254,6 +11418,34 @@ fn tense_modal_has_event_modifier(tense_modal: &TenseModalSyntax) -> bool {
         || !temporal_recurrences_for_tense_modal(tense_modal).is_empty()
         || !spatial_aspect_contours_for_tense_modal(tense_modal).is_empty()
         || !spatial_recurrences_for_tense_modal(tense_modal).is_empty()
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|token| token.is_cmavo(Cmavo::Cuhe)))]
+fn tense_question_token_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<&Token> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => parts.value.iter().find_map(|part| {
+            let data!(CompositeTenseModalPartSyntax::Cmavo(token)) = part.as_data() else {
+                return None;
+            };
+            token.is_cmavo(Cmavo::Cuhe).then_some(token)
+        }),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|token| token.is_cmavo(Cmavo::Jehi)))]
+fn connective_question_token_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<&Token> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => parts.value.iter().find_map(|part| {
+            let data!(CompositeTenseModalPartSyntax::Cmavo(token)) = part.as_data() else {
+                return None;
+            };
+            token.is_cmavo(Cmavo::Jehi).then_some(token)
+        }),
+        _ => None,
+    }
 }
 
 #[requires(true)]
@@ -12683,12 +12875,13 @@ enum ModalConnectionArgumentKind {
 
 #[invariant(branches.len() >= 2)]
 #[invariant(!source.is_empty())]
-#[invariant(!truth_table.is_empty())]
+#[invariant(truth_table.is_some() != connector_question.is_some())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ConnectedEventTenseSpec {
     operator: FormulaOperator,
     source: String,
-    truth_table: String,
+    truth_table: Option<String>,
+    connector_question: Option<Token>,
     branches: Vec<ConnectedEventTenseBranch>,
 }
 
@@ -12717,6 +12910,25 @@ fn connected_event_tense_modal_for_selbri(selbri: &SelbriSyntax) -> Option<&Tens
 }
 
 #[requires(true)]
+#[ensures(ret.is_some())]
+fn selbri_without_connected_event_tense(selbri: &SelbriSyntax) -> Option<&SelbriSyntax> {
+    match selbri.as_data() {
+        data!(SelbriSyntax::TaggedSelbri {
+            tense_modal,
+            inner_selbri,
+        }) if connected_event_tense_spec_for_tense_modal(tense_modal).is_some() => {
+            Some(inner_selbri)
+        }
+        data!(SelbriSyntax::GroupedSelbri {
+            ke_tense_modal: Some(tense_modal),
+            selbri,
+            ..
+        }) if connected_event_tense_spec_for_tense_modal(tense_modal).is_some() => Some(selbri),
+        _ => Some(selbri),
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|spec| spec.branches.len() >= 2))]
 fn connected_event_tense_spec_for_tense_modal(
     tense_modal: &TenseModalSyntax,
@@ -12735,8 +12947,9 @@ fn connected_event_tense_spec_for_tense_modal(
     let mut current_branch = Vec::new();
     let mut operator = None;
     let mut connector_text = None;
+    let mut connector_question = None;
     for token in &all_tokens {
-        if token.is_selmaho(Selmaho::Ja) {
+        if token.is_selmaho(Selmaho::Ja) || token.is_cmavo(Cmavo::Jehi) {
             let negated = current_branch
                 .last()
                 .is_some_and(|token: &Token| token.is_cmavo(Cmavo::Na));
@@ -12746,21 +12959,34 @@ fn connected_event_tense_spec_for_tense_modal(
             if current_branch.is_empty() {
                 return None;
             }
-            let next_operator = formula_operator_for_logical_connector_token(token)?;
-            if let Some(operator) = operator
-                && operator != next_operator
-            {
-                return None;
+            if token.is_cmavo(Cmavo::Jehi) {
+                if operator.is_some() || connector_text.is_some() || connector_question.is_some() {
+                    return None;
+                }
+                operator = Some(FormulaOperator::ConnectiveQuestion);
+                connector_question = Some(token.clone());
+            } else {
+                if connector_question.is_some() {
+                    return None;
+                }
+                let next_operator = formula_operator_for_logical_connector_token(token)?;
+                if let Some(operator) = operator
+                    && operator != next_operator
+                {
+                    return None;
+                }
+                operator = Some(next_operator);
+                connector_text = Some(token_text(token));
             }
-            operator = Some(next_operator);
-            connector_text = Some(token_text(token));
             branch_tokens.push((std::mem::take(&mut current_branch), negated));
             continue;
         }
         current_branch.push(token.clone());
     }
     let operator = operator?;
-    let truth_table = connector_text?;
+    if connector_text.is_none() && connector_question.is_none() {
+        return None;
+    }
     if current_branch.is_empty() {
         return None;
     }
@@ -12779,7 +13005,8 @@ fn connected_event_tense_spec_for_tense_modal(
         ConnectedEventTenseSpec {
             operator,
             source: token_vec_text(&all_tokens),
-            truth_table,
+            truth_table: connector_text,
+            connector_question,
             branches,
         }
     )))
@@ -13296,6 +13523,7 @@ fn connective_connector(connective: &ConnectiveSyntax, locus: &str) -> Connector
         },
         locus: locus.to_owned(),
         truth_table: Some(full_connective_text(connective)),
+        parameter: None,
     }
 }
 
@@ -19041,6 +19269,107 @@ mod tests {
         assert_eq!(
             object(&json, "predication:p1")["arguments"]["x1"]["value"],
             "parameter:p1"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cuhe_tense_question_slot_is_inside_eventuality() {
+        let json = semantic_json_for("le nanmu cu'e batci le gerku").expect("semantic JSON");
+        let question = object(&json, "question:q1");
+        assert_eq!(question["kind"], "tense");
+        assert_eq!(question["domain"], "tenseModal");
+        assert_eq!(question["slots"][0]["parameter"], "parameter:p1");
+        assert_eq!(object(&json, "parameter:p1")["sort"], "tenseModal");
+        assert_eq!(object(&json, "parameter:p1")["role"], "tenseQuestion");
+
+        let batci = predication_with_relation_and_mode(&json, "batci", "asserted");
+        let event = object(&json, batci["eventuality"].as_str().expect("batci event"));
+        assert_eq!(event["tenseModal"], "parameter:p1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_cuhe_preserves_one_tense_slot_in_question_branch() {
+        let json = semantic_json_for("do puzi je cu'e sombo le gurni").expect("semantic JSON");
+        let question = object(&json, "question:q1");
+        assert_eq!(question["kind"], "tense");
+        assert_eq!(question["domain"], "tenseModal");
+        assert_eq!(question["slots"].as_array().expect("slots").len(), 1);
+        assert_eq!(question["slots"][0]["parameter"], "parameter:p1");
+        assert!(json.pointer("/objects/parameter:p2").is_none());
+
+        let connective = json["objects"]
+            .as_object()
+            .expect("objects")
+            .values()
+            .find(|object| {
+                object["type"] == "formula"
+                    && object["operator"] == "and"
+                    && object.pointer("/connector/locus") == Some(&Value::String("tense".into()))
+            })
+            .expect("connected tense formula");
+        assert_eq!(connective["connector"]["truthTable"], "je");
+
+        let tense_slot_events = json["objects"]
+            .as_object()
+            .expect("objects")
+            .values()
+            .filter(|object| {
+                object["type"] == "eventuality" && object["tenseModal"] == "parameter:p1"
+            })
+            .count();
+        assert_eq!(tense_slot_events, 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn jehi_tense_connective_question_slot_is_inside_connector() {
+        let json = semantic_json_for("la .artr. pu je'i ba nolraitru").expect("semantic JSON");
+        let question = object(&json, "question:q1");
+        assert_eq!(question["kind"], "connective");
+        assert_eq!(question["domain"], "connective");
+        assert_eq!(question["slots"][0]["parameter"], "parameter:p1");
+        assert_eq!(object(&json, "parameter:p1")["sort"], "connective");
+        assert_eq!(object(&json, "parameter:p1")["role"], "connectiveQuestion");
+
+        let connective = json["objects"]
+            .as_object()
+            .expect("objects")
+            .values()
+            .find(|object| {
+                object["type"] == "formula" && object["operator"] == "connectiveQuestion"
+            })
+            .expect("connective question formula");
+        assert_eq!(connective["connector"]["locus"], "tense");
+        assert_eq!(connective["connector"]["parameter"], "parameter:p1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tense_modal_fragments_expose_answer_eventuality_content() {
+        let spatial = semantic_json_for("vi le lunra").expect("semantic JSON");
+        let content = object(&spatial, "utterance:u1")["content"]
+            .as_str()
+            .expect("fragment content");
+        let event = object(&spatial, content);
+        assert_eq!(event["space"]["relation"], "near");
+        assert_eq!(event["space"]["anchor"], "referent:r1");
+
+        let modal = semantic_json_for("seka'a le briju").expect("semantic JSON");
+        let content = object(&modal, "utterance:u1")["content"]
+            .as_str()
+            .expect("fragment content");
+        let event = object(&modal, content);
+        assert_eq!(event["modalArguments"][0]["relation"], "klama");
+        assert_eq!(event["modalArguments"][0]["introducedBy"], "se ka'a");
+        assert_eq!(
+            event["modalArguments"][0]["arguments"]["x2"]["value"],
+            "referent:r1"
         );
     }
 

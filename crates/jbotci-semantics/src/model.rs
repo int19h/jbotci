@@ -265,9 +265,11 @@ impl SemanticGraph {
         }
         if !semantic_object_arguments_are_valid(&objects) {
             return Err(
-                "predication arguments must use valid numbered places and argument fillers"
-                    .to_owned(),
+                "semantic arguments must use valid numbered places and argument fillers".to_owned(),
             );
+        }
+        if !semantic_object_question_slots_are_valid(&objects) {
+            return Err("semantic question slots must use coherent parameters".to_owned());
         }
         Ok(Self {
             version: SEMANTIC_JSON_VERSION,
@@ -341,6 +343,8 @@ pub struct SemanticObject {
     pub class: Option<EventualityClass>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub actuality: Option<Actuality>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tense_modal: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time: Option<AnchorRelation>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -504,6 +508,7 @@ impl SemanticObject {
             sequence_relation: None,
             class: None,
             actuality: None,
+            tense_modal: None,
             time: None,
             time_path: Vec::new(),
             time_interval: None,
@@ -947,6 +952,7 @@ impl SemanticObject {
         if let Some(time) = &self.time {
             out.push(time.anchor);
         }
+        extend_optional(out, self.tense_modal);
         for step in &self.time_path {
             step.references_into(out);
         }
@@ -1006,6 +1012,9 @@ impl SemanticObject {
         extend_optional(out, self.relation_metadata);
         if let Some(expansion) = &self.expansion {
             expansion.references_into(out);
+        }
+        if let Some(connector) = &self.connector {
+            connector.references_into(out);
         }
         extend_optional(out, self.predication);
         out.extend(self.children.iter().copied());
@@ -1630,6 +1639,8 @@ pub enum SemanticSort {
     Sign,
     Relation,
     Place,
+    Connective,
+    TenseModal,
     ArgumentBundle,
 }
 
@@ -2202,6 +2213,7 @@ pub enum FormulaOperator {
     Iff,
     ExclusiveOr,
     WhetherOrNot,
+    ConnectiveQuestion,
     Exists,
     Forall,
     None,
@@ -2218,6 +2230,16 @@ pub struct Connector {
     pub locus: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub truth_table: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parameter: Option<SemanticObjectId>,
+}
+
+impl Connector {
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        extend_optional(out, self.parameter);
+    }
 }
 
 #[invariant(true)]
@@ -2554,6 +2576,7 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
             .iter()
             .all(|item| sequence_item_kind_is_allowed(item.object_kind()))
         && references_have_kind(&object.connection_claims, SemanticObjectKind::Formula)
+        && optional_reference_has_kind(object.tense_modal, SemanticObjectKind::Parameter)
         && object.time_path.iter().all(|step| {
             step.anchor
                 .object_id()
@@ -2571,6 +2594,9 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && optional_reference_has_kind(object.relation_parameter, SemanticObjectKind::Parameter)
         && optional_reference_has_kind(object.predication, SemanticObjectKind::Predication)
         && references_have_kind(&object.children, SemanticObjectKind::Formula)
+        && object.connector.as_ref().is_none_or(|connector| {
+            optional_reference_has_kind(connector.parameter, SemanticObjectKind::Parameter)
+        })
         && optional_reference_has_kind(object.variable, SemanticObjectKind::Referent)
         && optional_reference_has_kind(object.restriction, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.body, SemanticObjectKind::Formula)
@@ -2613,6 +2639,95 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
                     .all(|place| is_numbered_argument_place(place))
         })
         && optional_reference_has_kind(object.focus, SemanticObjectKind::Parameter)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn semantic_object_question_slots_are_valid(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> bool {
+    objects.iter().all(|(id, object)| {
+        if id.object_kind() == SemanticObjectKind::Parameter
+            && !parameter_role_matches_sort(object.sort, object.role)
+        {
+            return false;
+        }
+
+        if object.tense_modal.is_some_and(|parameter| {
+            !parameter_has_sort_and_role(
+                objects,
+                parameter,
+                SemanticSort::TenseModal,
+                ParameterRole::TenseQuestion,
+            )
+        }) {
+            return false;
+        }
+
+        connector_question_slot_is_valid(objects, object)
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connector_question_slot_is_valid(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+    object: &SemanticObject,
+) -> bool {
+    let operator = object
+        .operator
+        .as_ref()
+        .and_then(|operator| match operator.as_data() {
+            data!(SemanticOperator::Formula(operator)) => Some(*operator),
+            data!(SemanticOperator::Math(_)) => None,
+        });
+    let Some(connector) = &object.connector else {
+        return operator != Some(FormulaOperator::ConnectiveQuestion);
+    };
+    if connector.truth_table.is_some() && connector.parameter.is_some() {
+        return false;
+    }
+    if operator == Some(FormulaOperator::ConnectiveQuestion) {
+        return connector.truth_table.is_none()
+            && connector.parameter.is_some_and(|parameter| {
+                parameter_has_sort_and_role(
+                    objects,
+                    parameter,
+                    SemanticSort::Connective,
+                    ParameterRole::ConnectiveQuestion,
+                )
+            });
+    }
+    connector.parameter.is_none()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parameter_has_sort_and_role(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+    id: SemanticObjectId,
+    sort: SemanticSort,
+    role: ParameterRole,
+) -> bool {
+    objects
+        .get(&id)
+        .is_some_and(|object| object.sort == Some(sort) && object.role == Some(role))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parameter_role_matches_sort(sort: Option<SemanticSort>, role: Option<ParameterRole>) -> bool {
+    match role {
+        Some(ParameterRole::PropertySlot)
+        | Some(ParameterRole::RelativeClauseHead)
+        | Some(ParameterRole::ArgumentQuestion)
+        | Some(ParameterRole::AttitudeQuestion) => sort == Some(SemanticSort::Entity),
+        Some(ParameterRole::RelationQuestion) => sort == Some(SemanticSort::Relation),
+        Some(ParameterRole::PlaceQuestion) => sort == Some(SemanticSort::Place),
+        Some(ParameterRole::ConnectiveQuestion) => sort == Some(SemanticSort::Connective),
+        Some(ParameterRole::TenseQuestion) => sort == Some(SemanticSort::TenseModal),
+        None => false,
+    }
 }
 
 #[requires(true)]
@@ -2734,8 +2849,14 @@ pub fn semantic_object_arguments_are_valid(
     objects: &BTreeMap<SemanticObjectId, SemanticObject>,
 ) -> bool {
     objects.values().all(|object| {
+        let modal_arguments_valid = object.modal_arguments.iter().all(|argument| {
+            argument.arguments.iter().all(|(place, value)| {
+                is_numbered_argument_place(place)
+                    && argument_value_references_allowed_objects(value, objects)
+            })
+        });
         if object.object_kind() != SemanticObjectKind::Predication {
-            return true;
+            return modal_arguments_valid;
         }
         let has_relation = object.relation.is_some() ^ object.relation_parameter.is_some();
         has_relation
@@ -2753,12 +2874,7 @@ pub fn semantic_object_arguments_are_valid(
                         .iter()
                         .all(|place| is_numbered_argument_place(place))
             })
-            && object.modal_arguments.iter().all(|argument| {
-                argument.arguments.iter().all(|(place, value)| {
-                    is_numbered_argument_place(place)
-                        && argument_value_references_allowed_objects(value, objects)
-                })
-            })
+            && modal_arguments_valid
             && object.reciprocity.iter().all(|exchange| {
                 argument_value_references_allowed_objects(&exchange.left, objects)
                     && argument_value_references_allowed_objects(&exchange.right, objects)
@@ -2945,6 +3061,85 @@ mod tests {
 
         let error = SemanticGraph::new(root, objects).expect_err("malformed argument place");
         assert!(error.contains("valid numbered places"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_graph_rejects_incoherent_parameter_sort() {
+        let root = SemanticObjectId::eventuality(1);
+        let parameter = SemanticObjectId::parameter(1);
+        let mut eventuality = SemanticObject::eventuality(EventualityClass::Event, None, None);
+        eventuality.tense_modal = Some(parameter);
+
+        let mut objects = BTreeMap::new();
+        objects.insert(root, eventuality);
+        objects.insert(
+            parameter,
+            SemanticObject::parameter(
+                SemanticSort::Entity,
+                ParameterRole::TenseQuestion,
+                "cu'e".to_owned(),
+                None,
+            ),
+        );
+
+        let error = SemanticGraph::new(root, objects).expect_err("wrong parameter sort");
+        assert!(error.contains("coherent parameters"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_graph_rejects_impossible_connector_question() {
+        let root = SemanticObjectId::formula(1);
+        let child = SemanticObjectId::formula(2);
+        let predication = SemanticObjectId::predication(1);
+        let parameter = SemanticObjectId::parameter(1);
+
+        let mut objects = BTreeMap::new();
+        objects.insert(
+            root,
+            SemanticObject::connective_formula(
+                FormulaOperator::ConnectiveQuestion,
+                vec![child],
+                Some(Connector {
+                    source: "je'i".to_owned(),
+                    locus: "tense".to_owned(),
+                    truth_table: Some("je".to_owned()),
+                    parameter: Some(parameter),
+                }),
+                None,
+                Vec::new(),
+            ),
+        );
+        objects.insert(
+            child,
+            SemanticObject::atom_formula(predication, None, Vec::new()),
+        );
+        objects.insert(
+            predication,
+            SemanticObject::predication(
+                "king".to_owned(),
+                None,
+                BTreeMap::new(),
+                PredicationMode::Asserted,
+                None,
+                Vec::new(),
+            ),
+        );
+        objects.insert(
+            parameter,
+            SemanticObject::parameter(
+                SemanticSort::Connective,
+                ParameterRole::ConnectiveQuestion,
+                "je'i".to_owned(),
+                None,
+            ),
+        );
+
+        let error = SemanticGraph::new(root, objects).expect_err("impossible connector");
+        assert!(error.contains("coherent parameters"));
     }
 
     #[test]
