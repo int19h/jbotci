@@ -934,6 +934,27 @@ impl SemanticObject {
         object
     }
 
+    #[requires(denotes.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::MathExpression)]
+    pub fn math_sumti_operand(
+        denotes: SemanticObjectId,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::math_expression(
+            None,
+            Vec::new(),
+            Some(MathLiteral::text(
+                "sumtiOperand".to_owned(),
+                "mo'e".to_owned(),
+            )),
+            source,
+            diagnostics,
+        );
+        object.denotes = Some(denotes);
+        object
+    }
+
     #[requires(true)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Quantity)]
     pub fn quantity(
@@ -2911,6 +2932,7 @@ fn denotes_reference_matches_role(
             denotes.object_kind(),
             SemanticObjectKind::Referent | SemanticObjectKind::MathExpression
         ),
+        SemanticObjectKind::MathExpression => argument_object_kind_can_fill(denotes.object_kind()),
         _ => true,
     }
 }

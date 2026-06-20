@@ -768,6 +768,20 @@ where
 
     #[requires(true)]
     #[ensures(true)]
+    fn source_for_mekso(
+        &self,
+        expression: &'tree MeksoSyntax,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        let mut spans = Vec::new();
+        expression.visit_words(&mut |token| {
+            spans.extend(token.source_spans().into_iter().cloned());
+        });
+        source_from_spans(&spans, self.options.source_text, Some(construct))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn source_for_selbri(
         &self,
         selbri: &'tree SelbriSyntax,
@@ -3008,7 +3022,7 @@ where
         assignments: &[SumtiPlaceAssignment],
         connected_assignment: SumtiPlaceAssignmentId,
         connected_place: usize,
-        expression: &MeksoSyntax,
+        expression: &'tree MeksoSyntax,
         li: &WithFreeModifiers<Token>,
         raw: RawSyntaxNodeId,
         selbri: &'tree SelbriSyntax,
@@ -9247,7 +9261,7 @@ where
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_number_referent(
         &mut self,
-        expression: &MeksoSyntax,
+        expression: &'tree MeksoSyntax,
         li: &WithFreeModifiers<Token>,
         raw: RawSyntaxNodeId,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -9295,7 +9309,7 @@ where
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_math_expression_sign(
         &mut self,
-        expression: &MeksoSyntax,
+        expression: &'tree MeksoSyntax,
         raw: RawSyntaxNodeId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let expression_id =
@@ -9315,7 +9329,7 @@ where
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_quantity_for_mekso(
         &mut self,
-        expression: &MeksoSyntax,
+        expression: &'tree MeksoSyntax,
         raw: RawSyntaxNodeId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let text = mekso_surface_text(expression);
@@ -9347,7 +9361,7 @@ where
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_math_expression(
         &mut self,
-        expression: &MeksoSyntax,
+        expression: &'tree MeksoSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match expression.as_data() {
@@ -9401,6 +9415,12 @@ where
                     .collect::<Result<Vec<_>, _>>()?;
                 self.build_math_operator_expression("array".to_owned(), operands, source)
             }
+            data!(MeksoSyntax::SumtiOperand { sumti, .. }) => {
+                let referent = self.build_sumti_referent(sumti)?;
+                let operand_source =
+                    source.or_else(|| self.source_for_mekso(expression, "sumti-operand"));
+                self.build_math_sumti_operand(referent, operand_source)
+            }
             _ => self.build_math_literal(
                 MathLiteral::text("expression".to_owned(), mekso_surface_text(expression)),
                 source,
@@ -9412,7 +9432,7 @@ where
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_math_expression_for_quantifier(
         &mut self,
-        quantifier: &QuantifierSyntax,
+        quantifier: &'tree QuantifierSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match quantifier.as_data() {
@@ -9456,6 +9476,20 @@ where
         self.insert(
             id,
             SemanticObject::math_expression(None, Vec::new(), Some(literal), source, Vec::new()),
+        )
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_math_sumti_operand(
+        &mut self,
+        referent: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_math();
+        self.insert(
+            id,
+            SemanticObject::math_sumti_operand(referent, source, Vec::new()),
         )
     }
 
@@ -15388,6 +15422,11 @@ fn mekso_surface_text(expression: &MeksoSyntax) -> String {
             .map(mekso_surface_text)
             .collect::<Vec<_>>()
             .join(" "),
+        data!(MeksoSyntax::SumtiOperand { mohe, sumti, .. }) => {
+            let mut parts = vec![token_text(&mohe.value)];
+            sumti.visit_words(&mut |token| parts.push(token_text(token)));
+            parts.join(" ")
+        }
         _ => "mekso".to_owned(),
     }
 }
@@ -18847,6 +18886,26 @@ mod tests {
         assert_eq!(object(&json, "math:m2")["literal"]["value"], "x");
         assert_eq!(object(&json, "math:m6")["literal"]["value"], "b");
         assert_eq!(object(&json, "math:m10")["literal"]["value"], "c");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mohe_sumti_operand_preserves_referent_inside_math_expression() {
+        let json =
+            semantic_json_for("li pa vu'u mo'e le ni le pixra cu blanu").expect("semantic JSON");
+        assert_eq!(
+            object(&json, "quantity:q1")["value"]["mathExpression"],
+            "math:m3"
+        );
+        assert_eq!(object(&json, "math:m3")["operator"], "subtract");
+        assert_eq!(object(&json, "math:m3")["operands"][1], "math:m2");
+        assert_eq!(object(&json, "math:m2")["literal"]["kind"], "sumtiOperand");
+        assert_eq!(object(&json, "math:m2")["denotes"], "referent:r1");
+        assert_eq!(object(&json, "referent:r1")["sort"], "amount");
+        let amount_of = predication_with_relation_and_mode(&json, "amountOf", "restrictive");
+        assert_eq!(amount_of["arguments"]["x1"]["value"], "referent:r1");
+        assert_eq!(amount_of["arguments"]["x2"]["value"], "abstraction:a1");
     }
 
     #[test]
