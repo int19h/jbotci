@@ -310,6 +310,26 @@ struct ModalAssignmentKey {
     tag: Option<RawSyntaxNodeId>,
 }
 
+#[invariant(!introduced_by.is_empty(), "sticky modal key must preserve its source marker")]
+#[invariant(!relation.is_empty(), "sticky modal key must preserve its source relation")]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct StickyModalKey {
+    introduced_by: String,
+    relation: String,
+}
+
+impl StickyModalKey {
+    #[requires(!modal_argument.introduced_by.is_empty())]
+    #[requires(!modal_argument.relation.is_empty())]
+    #[ensures(ret.introduced_by == modal_argument.introduced_by)]
+    fn for_modal_argument(modal_argument: &ModalArgument) -> Self {
+        Self::from_data(data!(StickyModalKey {
+            introduced_by: modal_argument.introduced_by.clone(),
+            relation: modal_argument.relation.clone(),
+        }))
+    }
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 struct BoundSelbriTanruPair<'tree> {
@@ -382,6 +402,7 @@ where
     sumti_quantities: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     relation_question_parameters: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     modal_assignment_arguments: HashMap<ModalAssignmentKey, ModalArgument>,
+    sticky_modal_arguments: BTreeMap<StickyModalKey, ModalArgument>,
     utterance_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     content_eventualities: HashMap<SemanticObjectId, SemanticObjectId>,
     parameter_slots: Vec<QuestionSlot>,
@@ -414,6 +435,7 @@ where
             sumti_quantities: HashMap::new(),
             relation_question_parameters: HashMap::new(),
             modal_assignment_arguments: HashMap::new(),
+            sticky_modal_arguments: BTreeMap::new(),
             utterance_objects: HashMap::new(),
             content_eventualities: HashMap::new(),
             parameter_slots: Vec::new(),
@@ -1331,12 +1353,14 @@ where
         nested.relation_question_parameters =
             std::mem::take(&mut self.relation_question_parameters);
         nested.modal_assignment_arguments = std::mem::take(&mut self.modal_assignment_arguments);
+        nested.sticky_modal_arguments = std::mem::take(&mut self.sticky_modal_arguments);
         let graph = nested.build_text(text)?;
         self.counters = nested.counters;
         self.objects = graph.objects;
         self.utterance_objects = nested.utterance_objects;
         self.relation_question_parameters = nested.relation_question_parameters;
         self.modal_assignment_arguments = nested.modal_assignment_arguments;
+        self.sticky_modal_arguments = nested.sticky_modal_arguments;
         Ok(graph.root)
     }
 
@@ -5811,10 +5835,12 @@ where
             apply_selbri_anchors_to_event(selbri, &mut event);
         }
         self.insert(eventuality, event)?;
+        self.clear_sticky_modals_for_selbri_if_needed(selbri);
         let mut arguments = BTreeMap::new();
         let mut highest_assigned_place =
             self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
-        let modal_arguments = self.modal_assignment_arguments(frame)?;
+        let mut modal_arguments = self.modal_assignment_arguments(frame)?;
+        self.append_sticky_modal_arguments(&mut modal_arguments);
         for (place, argument) in argument_overrides {
             if let Some(place_index) = argument_place_index(&place) {
                 highest_assigned_place = highest_assigned_place.max(place_index);
@@ -5865,6 +5891,7 @@ where
             apply_selbri_anchors_to_event(selbri, &mut event);
         }
         self.insert(eventuality, event)?;
+        self.clear_sticky_modals_for_selbri_if_needed(selbri);
         let mut arguments = BTreeMap::new();
         let mut highest_assigned_place =
             self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
@@ -5872,6 +5899,7 @@ where
         if let Some(selbri) = selbri {
             modal_arguments.extend(self.selbri_modal_arguments(selbri)?);
         }
+        self.append_sticky_modal_arguments(&mut modal_arguments);
         let place_count = self.place_count_for_relation(&relation);
         for (place, argument) in argument_overrides {
             if let Some(place_index) = argument_place_index(&place) {
@@ -6175,6 +6203,11 @@ where
                 scalar_negation,
                 source,
             );
+            if let Some(tense_modal) =
+                tag_node.and_then(|node| self.analysis.syntax_index.tense_modal(node))
+            {
+                self.record_sticky_modal_argument_if_needed(tense_modal, &modal_argument);
+            }
             self.modal_assignment_arguments
                 .insert(key, modal_argument.clone());
             modal_arguments.push(modal_argument);
@@ -6333,14 +6366,54 @@ where
             visible_place,
             self.place_count_for_relation(&relation),
         )?;
-        Ok(Some(ModalArgument::new_with_polarity(
+        let modal_argument = ModalArgument::new_with_polarity(
             relation,
             introduced_by,
             arguments,
             modal_negation_for_tense_modal(tense_modal),
             modal_scalar_negation_for_tense_modal(tense_modal),
             self.source_for_tense_modal(tense_modal, construct),
-        )))
+        );
+        self.record_sticky_modal_argument_if_needed(tense_modal, &modal_argument);
+        Ok(Some(modal_argument))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn record_sticky_modal_argument_if_needed(
+        &mut self,
+        tense_modal: &TenseModalSyntax,
+        modal_argument: &ModalArgument,
+    ) {
+        if !tense_modal_makes_modal_sticky(tense_modal) {
+            return;
+        }
+        self.sticky_modal_arguments.insert(
+            StickyModalKey::for_modal_argument(modal_argument),
+            modal_argument.clone(),
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn clear_sticky_modals_for_selbri_if_needed(&mut self, selbri: Option<&'tree SelbriSyntax>) {
+        if selbri.is_some_and(selbri_resets_sticky_modals) {
+            self.sticky_modal_arguments.clear();
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn append_sticky_modal_arguments(&self, modal_arguments: &mut Vec<ModalArgument>) {
+        for sticky_modal in self.sticky_modal_arguments.values() {
+            if modal_arguments
+                .iter()
+                .any(|modal_argument| modal_argument == sticky_modal)
+            {
+                continue;
+            }
+            modal_arguments.push(sticky_modal.clone());
+        }
     }
 
     #[requires(true)]
@@ -11902,6 +11975,130 @@ fn modal_scalar_negation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Opti
 
 #[requires(true)]
 #[ensures(true)]
+fn tense_modal_makes_modal_sticky(tense_modal: &TenseModalSyntax) -> bool {
+    matches!(
+        tense_modal.as_data(),
+        data!(TenseModalSyntax::Modal { ki: Some(_), .. })
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn selbri_resets_sticky_modals(selbri: &SelbriSyntax) -> bool {
+    match selbri.as_data() {
+        data!(SelbriSyntax::TaggedSelbri {
+            tense_modal,
+            inner_selbri,
+        }) => {
+            tense_modal_resets_sticky_modals(tense_modal)
+                || selbri_resets_sticky_modals(inner_selbri)
+        }
+        data!(SelbriSyntax::GroupedSelbri {
+            ke_tense_modal,
+            selbri,
+            ..
+        }) => {
+            ke_tense_modal
+                .as_deref()
+                .is_some_and(tense_modal_resets_sticky_modals)
+                || selbri_resets_sticky_modals(selbri)
+        }
+        data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. })
+        | data!(SelbriSyntax::Negated { inner_selbri, .. }) => {
+            selbri_resets_sticky_modals(inner_selbri)
+        }
+        data!(SelbriSyntax::Tanru(units)) => units.iter().any(tanru_unit_resets_sticky_modals),
+        data!(SelbriSyntax::InvertedTanru {
+            leading_selbri,
+            trailing_selbri,
+            ..
+        })
+        | data!(SelbriSyntax::SelbriConnection {
+            leading_selbri,
+            trailing_selbri,
+            ..
+        })
+        | data!(SelbriSyntax::BoundSelbriConnection {
+            leading_selbri,
+            trailing_selbri,
+            ..
+        }) => {
+            selbri_resets_sticky_modals(leading_selbri)
+                || selbri_resets_sticky_modals(trailing_selbri)
+        }
+        data!(SelbriSyntax::ForethoughtSelbriConnection {
+            leading_bridi,
+            trailing_bridi,
+            ..
+        }) => {
+            main_selbri_for_bridi(leading_bridi).is_some_and(selbri_resets_sticky_modals)
+                || main_selbri_for_bridi(trailing_bridi).is_some_and(selbri_resets_sticky_modals)
+        }
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tanru_unit_resets_sticky_modals(unit: &TanruUnitSyntax) -> bool {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+            selbri_resets_sticky_modals(selbri)
+        }
+        data!(TanruUnitSyntax::ModalConversion {
+            tense_modal,
+            inner_unit,
+            ..
+        }) => {
+            tense_modal
+                .as_deref()
+                .is_some_and(tense_modal_resets_sticky_modals)
+                || tanru_unit_resets_sticky_modals(inner_unit)
+        }
+        data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::RelativeClauses {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::LinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::AssignedProBridi {
+            base: inner_unit,
+            ..
+        }) => tanru_unit_resets_sticky_modals(inner_unit),
+        data!(TanruUnitSyntax::TanruUnitConnection {
+            leading_unit,
+            trailing_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::BoundTanruUnitConnection {
+            leading_unit,
+            trailing_unit,
+            ..
+        }) => {
+            tanru_unit_resets_sticky_modals(leading_unit)
+                || tanru_unit_resets_sticky_modals(trailing_unit)
+        }
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tense_modal_resets_sticky_modals(tense_modal: &TenseModalSyntax) -> bool {
+    matches!(tense_modal.as_data(), data!(TenseModalSyntax::Sticky(_)))
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn scalar_negation_kind_for_cmavo(cmavo: Option<Cmavo>) -> ScalarNegationKind {
     match cmavo {
         Some(Cmavo::Tohe) => ScalarNegationKind::Opposite,
@@ -12748,6 +12945,36 @@ mod tests {
         assert!(modal_argument.get("negation").is_none());
         assert_eq!(modal_argument["scalarNegation"]["kind"], "otherThan");
         assert_eq!(modal_argument["scalarNegation"]["introducedBy"], "na'e");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sticky_modal_repeats_until_bare_ki_reset() {
+        let sticky =
+            semantic_json_for("mi tavla bai ki tu'a la .frank. .i mi tavla bau la .lojban.")
+                .expect("semantic JSON");
+        let first = object(&sticky, "predication:p1");
+        let second = object(&sticky, "predication:p2");
+        assert_eq!(first["modalArguments"][0]["relation"], "bapli");
+        assert_eq!(
+            first["modalArguments"][0]["arguments"]["x1"]["value"],
+            "referent:r2"
+        );
+        assert_eq!(second["modalArguments"][0]["relation"], "bangu");
+        assert_eq!(second["modalArguments"][1]["relation"], "bapli");
+        assert_eq!(
+            second["modalArguments"][1]["arguments"]["x1"]["value"],
+            "referent:r2"
+        );
+
+        let reset = semantic_json_for("mi tavla bai ki tu'a la .frank. .i mi ki tavla")
+            .expect("semantic JSON");
+        assert!(
+            object(&reset, "predication:p2")
+                .get("modalArguments")
+                .is_none()
+        );
     }
 
     #[test]
