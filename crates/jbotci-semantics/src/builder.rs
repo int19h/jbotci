@@ -8802,8 +8802,18 @@ where
         place: usize,
         sort: SemanticSort,
     ) -> Result<ArgumentValue, SemanticsError> {
+        self.build_elided_argument_for_place_with_label_and_sort(place, sort)
+    }
+
+    #[requires(surface_place > 0)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_elided_argument_for_place_with_label_and_sort(
+        &mut self,
+        surface_place: usize,
+        sort: SemanticSort,
+    ) -> Result<ArgumentValue, SemanticsError> {
         let referent =
-            self.build_elided_referent_with_sort(None, format!("zo'e x{place}"), sort)?;
+            self.build_elided_referent_with_sort(None, format!("zo'e x{surface_place}"), sort)?;
         Ok(ArgumentValue::elided(referent, "zo'e".to_owned(), None))
     }
 
@@ -10711,6 +10721,7 @@ where
         let mut arguments = BTreeMap::new();
         arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
         arguments.insert("x2".to_owned(), ArgumentValue::filled(abstraction_id, None));
+        self.insert_abstraction_link_extra_arguments(kind, None, &mut arguments)?;
         self.insert(
             predication,
             SemanticObject::predication(
@@ -10787,6 +10798,7 @@ where
         let mut arguments = BTreeMap::new();
         arguments.insert("x1".to_owned(), x1_argument);
         arguments.insert("x2".to_owned(), ArgumentValue::filled(abstraction_id, None));
+        self.insert_abstraction_link_extra_arguments(kind, frame, &mut arguments)?;
         let modal_arguments = self.modal_assignment_arguments(frame)?;
         self.insert(predication, {
             let mut object = SemanticObject::predication(
@@ -10805,6 +10817,36 @@ where
             formula,
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )
+    }
+
+    #[requires(arguments.contains_key("x1"))]
+    #[requires(arguments.contains_key("x2"))]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn insert_abstraction_link_extra_arguments(
+        &mut self,
+        kind: AbstractionKind,
+        frame: Option<SelbriPlaceFrameId>,
+        arguments: &mut BTreeMap<String, ArgumentValue>,
+    ) -> Result<(), SemanticsError> {
+        let Some(surface_place) = abstraction_extra_surface_place(kind) else {
+            return Ok(());
+        };
+        let value = if let Some(frame) = frame {
+            match self.numbered_assignment_argument_for_frame(frame, surface_place)? {
+                Some(argument) => argument,
+                None => self.build_elided_argument_for_place_with_label_and_sort(
+                    usize::from(surface_place),
+                    SemanticSort::Entity,
+                )?,
+            }
+        } else {
+            self.build_elided_argument_for_place_with_label_and_sort(
+                usize::from(surface_place),
+                SemanticSort::Entity,
+            )?
+        };
+        arguments.insert("x3".to_owned(), value);
+        Ok(())
     }
 
     #[requires(true)]
@@ -15066,11 +15108,11 @@ fn abstraction_output_sort(kind: AbstractionKind) -> SemanticSort {
 #[ensures(!ret.is_empty())]
 fn abstraction_link_relation(kind: AbstractionKind) -> &'static str {
     match kind {
-        AbstractionKind::Event
-        | AbstractionKind::Achievement
-        | AbstractionKind::Process
-        | AbstractionKind::Activity
-        | AbstractionKind::State => "eventOf",
+        AbstractionKind::Event => "eventOf",
+        AbstractionKind::Achievement => "achievementOf",
+        AbstractionKind::Process => "processOf",
+        AbstractionKind::Activity => "activityOf",
+        AbstractionKind::State => "stateOf",
         AbstractionKind::Property => "propertyOf",
         AbstractionKind::Amount => "amountOf",
         AbstractionKind::TruthValue => "truthValueOf",
@@ -15078,6 +15120,15 @@ fn abstraction_link_relation(kind: AbstractionKind) -> &'static str {
         AbstractionKind::Concept => "conceptOf",
         AbstractionKind::Experience => "experienceOf",
         AbstractionKind::SentenceSign | AbstractionKind::Unspecified => "abstractionOf",
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|place| place > 0))]
+fn abstraction_extra_surface_place(kind: AbstractionKind) -> Option<u8> {
+    match kind {
+        AbstractionKind::Process | AbstractionKind::Activity => Some(2),
+        _ => None,
     }
 }
 
@@ -18630,6 +18681,25 @@ mod tests {
         assert_eq!(object(&json, event)["sort"], "eventuality");
         assert_eq!(event_of["arguments"]["x2"]["value"], "abstraction:a1");
         assert_eq!(object(&json, "abstraction:a1")["abstractionKind"], "event");
+        let klama = predication_with_relation_and_mode(&json, "klama", "inert");
+        assert_eq!(klama["arguments"]["x1"]["value"], "referent:speaker");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn process_abstraction_exposes_stage_place() {
+        let json = semantic_json_for("le pu'u mi klama").expect("semantic JSON");
+        let process_of = predication_with_relation_and_mode(&json, "processOf", "restrictive");
+        assert_eq!(object(&json, "referent:r1")["sort"], "eventuality");
+        assert_eq!(process_of["arguments"]["x1"]["value"], "referent:r1");
+        assert_eq!(process_of["arguments"]["x2"]["value"], "abstraction:a1");
+        assert_eq!(process_of["arguments"]["x3"]["kind"], "elided");
+        assert_eq!(process_of["arguments"]["x3"]["introducedBy"], "zo'e");
+        assert_eq!(
+            object(&json, "abstraction:a1")["abstractionKind"],
+            "process"
+        );
         let klama = predication_with_relation_and_mode(&json, "klama", "inert");
         assert_eq!(klama["arguments"]["x1"]["value"], "referent:speaker");
     }
