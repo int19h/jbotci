@@ -2139,6 +2139,8 @@ pub struct ModalArgument {
     pub negation: Option<ModalNegation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scalar_negation: Option<ScalarNegation>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub modifiers: Vec<DisplayedContentModifier>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SemanticSource>,
 }
@@ -2177,6 +2179,7 @@ impl ModalArgument {
             arguments,
             negation,
             scalar_negation,
+            modifiers: Vec::new(),
             source,
         }))
     }
@@ -2479,9 +2482,15 @@ pub enum DisplayedContentPolarity {
 pub struct DisplayedContentModifier {
     pub relation: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub family: Option<DisplayedContentFamily>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub polarity: Option<DisplayedContentPolarity>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub intensity: Option<String>,
+    #[serde(rename = "assertionEffect", skip_serializing_if = "Option::is_none")]
+    pub assertion_effect: Option<DisplayedContentAssertionEffect>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SemanticSource>,
 }
 
 #[invariant(true)]

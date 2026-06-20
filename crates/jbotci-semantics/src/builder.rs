@@ -1787,14 +1787,17 @@ where
                 visible_place,
                 self.place_count_for_relation(&relation),
             )?;
-            event.modal_arguments.push(ModalArgument::new_with_polarity(
-                relation,
-                introduced_by,
-                arguments,
-                modal_negation_for_tense_modal(tense_modal),
-                modal_scalar_negation_for_tense_modal(tense_modal),
-                self.source_for_tense_modal(tense_modal, "modal-fragment"),
-            ));
+            event
+                .modal_arguments
+                .push(self.modal_argument_with_tense_modal_modifiers(
+                    tense_modal,
+                    relation,
+                    introduced_by,
+                    arguments,
+                    modal_negation_for_tense_modal(tense_modal),
+                    modal_scalar_negation_for_tense_modal(tense_modal),
+                    "modal-fragment",
+                ));
         } else {
             event.diagnostics.push(diagnostic(
                 "tense/modal fragment has no implemented semantic value",
@@ -3425,13 +3428,14 @@ where
                             visible_place,
                             self.place_count_for_relation(&relation),
                         )?;
-                        modal_arguments.push(ModalArgument::new_with_polarity(
+                        modal_arguments.push(self.modal_argument_with_tense_modal_modifiers(
+                            tense_modal,
                             relation,
                             introduced_by,
                             arguments,
                             modal_negation_for_tense_modal(tense_modal),
                             modal_scalar_negation_for_tense_modal(tense_modal),
-                            self.source_for_tense_modal(tense_modal, "modal-argument"),
+                            "modal-argument",
                         ));
                     } else {
                         diagnostics.push(diagnostic(
@@ -8067,17 +8071,31 @@ where
                 .sumti(assignment.sumti)
                 .ok_or_else(SemanticsError::missing_syntax_node)?;
             let argument = self.build_argument_for_sumti(sumti)?;
-            let source = tag_node.and_then(|node| self.source_for_node(node, "modal-argument"));
             let (introduced_by, relation, arguments, negation, scalar_negation) =
                 self.modal_relation_arguments_for_tag(tag_node, argument)?;
-            let modal_argument = ModalArgument::new_with_polarity(
-                relation,
-                introduced_by,
-                arguments,
-                negation,
-                scalar_negation,
-                source,
-            );
+            let modal_argument = if let Some(tense_modal) =
+                tag_node.and_then(|node| self.analysis.syntax_index.tense_modal(node))
+            {
+                self.modal_argument_with_tense_modal_modifiers(
+                    tense_modal,
+                    relation,
+                    introduced_by,
+                    arguments,
+                    negation,
+                    scalar_negation,
+                    "modal-argument",
+                )
+            } else {
+                let source = tag_node.and_then(|node| self.source_for_node(node, "modal-argument"));
+                ModalArgument::new_with_polarity(
+                    relation,
+                    introduced_by,
+                    arguments,
+                    negation,
+                    scalar_negation,
+                    source,
+                )
+            };
             if let Some(tense_modal) =
                 tag_node.and_then(|node| self.analysis.syntax_index.tense_modal(node))
             {
@@ -8220,13 +8238,14 @@ where
                         visible_place,
                         self.place_count_for_relation(&relation),
                     )?;
-                    modal_arguments.push(ModalArgument::new_with_polarity(
+                    modal_arguments.push(self.modal_argument_with_tense_modal_modifiers(
+                        tense_modal,
                         relation,
                         introduced_by,
                         arguments,
                         modal_negation_for_tense_modal(tense_modal),
                         modal_scalar_negation_for_tense_modal(tense_modal),
-                        self.source_for_tense_modal(tense_modal, "modal-argument"),
+                        "modal-argument",
                     ));
                 }
                 modal_arguments.extend(self.tanru_unit_modal_arguments(inner_unit)?);
@@ -8293,16 +8312,83 @@ where
             visible_place,
             self.place_count_for_relation(&relation),
         )?;
-        let modal_argument = ModalArgument::new_with_polarity(
+        let modal_argument = self.modal_argument_with_tense_modal_modifiers(
+            tense_modal,
             relation,
             introduced_by,
             arguments,
             modal_negation_for_tense_modal(tense_modal),
             modal_scalar_negation_for_tense_modal(tense_modal),
-            self.source_for_tense_modal(tense_modal, construct),
+            construct,
         );
         self.record_sticky_modal_argument_if_needed(tense_modal, &modal_argument);
         Ok(Some(modal_argument))
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(!introduced_by.is_empty())]
+    #[requires(!arguments.is_empty())]
+    #[requires(arguments.keys().all(|place| crate::model::is_numbered_argument_place(place)))]
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    fn modal_argument_with_tense_modal_modifiers(
+        &self,
+        tense_modal: &'tree TenseModalSyntax,
+        relation: String,
+        introduced_by: String,
+        arguments: BTreeMap<String, ArgumentValue>,
+        negation: Option<ModalNegation>,
+        scalar_negation: Option<ScalarNegation>,
+        construct: &str,
+    ) -> ModalArgument {
+        let mut modal_argument = ModalArgument::new_with_polarity(
+            relation,
+            introduced_by,
+            arguments,
+            negation,
+            scalar_negation,
+            self.source_for_tense_modal(tense_modal, construct),
+        );
+        let modifiers = self.modal_argument_modifiers_for_tense_modal(tense_modal);
+        if !modifiers.is_empty() {
+            modal_argument = modal_argument.with_data(data! { modifiers: modifiers });
+        }
+        modal_argument
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_argument_modifiers_for_tense_modal(
+        &self,
+        tense_modal: &'tree TenseModalSyntax,
+    ) -> Vec<DisplayedContentModifier> {
+        let mut parts = Vec::new();
+        tense_modal.visit_words(&mut |token| {
+            parts.extend(indicator_parts_for_token(token));
+        });
+        indicator_display_drafts(parts)
+            .into_iter()
+            .map(|draft| {
+                let source = if draft.source_tokens.is_empty() {
+                    None
+                } else {
+                    self.source_for_tokens(&draft.source_tokens, "modal-indicator")
+                }
+                .or_else(|| self.source_for_tense_modal(tense_modal, "modal-indicator"));
+                new!(DisplayedContentModifier {
+                    relation: if draft.question {
+                        attitude_question_relation(&draft.relation)
+                    } else {
+                        draft.relation
+                    },
+                    family: Some(draft.family),
+                    polarity: Some(draft.polarity),
+                    intensity: draft.intensity,
+                    assertion_effect: Some(draft.assertion_effect),
+                    source,
+                })
+            })
+            .collect()
     }
 
     #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
@@ -8322,13 +8408,14 @@ where
             visible_place,
             self.place_count_for_relation(&relation),
         )?;
-        Ok(Some(ModalArgument::new_with_polarity(
+        Ok(Some(self.modal_argument_with_tense_modal_modifiers(
+            tense_modal,
             relation,
             introduced_by,
             arguments,
             modal_negation_for_tense_modal(tense_modal),
             modal_scalar_negation_for_tense_modal(tense_modal),
-            self.source_for_tense_modal(tense_modal, "modal-argument"),
+            "modal-argument",
         )))
     }
 
@@ -13030,12 +13117,15 @@ fn apply_indicator_modifier_to_draft(
         draft.source_tokens.extend(part.tokens.clone());
         draft.modifiers.push(new!(DisplayedContentModifier {
             relation: relation.to_owned(),
+            family: None,
             polarity: Some(if part.nai {
                 DisplayedContentPolarity::Negative
             } else {
                 DisplayedContentPolarity::Positive
             }),
             intensity: None,
+            assertion_effect: None,
+            source: None,
         }));
         return true;
     }
@@ -20204,6 +20294,20 @@ mod tests {
         assert!(modal_argument.get("negation").is_none());
         assert_eq!(modal_argument["scalarNegation"]["kind"], "otherThan");
         assert_eq!(modal_argument["scalarNegation"]["introducedBy"], "na'e");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_tag_indicators_are_preserved_on_modal_argument() {
+        let json = semantic_json_for("go'i ji'una'iku").expect("semantic JSON");
+        let gohi = predication_with_relation_and_mode(&json, "go'i", "asserted");
+        let modal_argument = &gohi["modalArguments"][0];
+        assert_eq!(modal_argument["relation"], "ji'u");
+        assert_eq!(modal_argument["modifiers"][0]["relation"], "na'i");
+        assert_eq!(modal_argument["modifiers"][0]["family"], "metalinguistic");
+        assert_eq!(modal_argument["modifiers"][0]["assertionEffect"], "none");
+        assert_eq!(modal_argument["modifiers"][0]["source"]["text"], "na'i");
     }
 
     #[test]
