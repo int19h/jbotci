@@ -10,21 +10,21 @@ use jbotci_morphology::{
     Cmavo, LujvoPart, Selmaho, Word, WordData, WordLike, WordLikeData, strip_diacritics,
 };
 use jbotci_syntax::ast::{
-    AbstractionSyntax, AfterthoughtBridiTailSyntax, BoGroupedBridiTailSyntax,
-    BoundBridiTailConnectionSyntax, BridiSyntax, BridiTailConnectionSyntax, BridiTailSyntax,
-    CompositeTenseModalPartSyntax, CompositeTenseModalPartSyntaxData, ConnectiveSyntax,
-    ConnectiveSyntaxData, DescriptionSyntax, DescriptionTailElementSyntax,
-    DescriptionTailElementSyntaxData, ForethoughtBridiConnectionSyntax,
-    ForethoughtBridiConnectionSyntaxData, FragmentSyntax, FragmentSyntaxData, FreeModifierSyntax,
-    FreeModifierSyntaxData, GroupedBridiTailConnectionSyntax, Indicator, MeksoOperatorSyntax,
-    MeksoOperatorSyntaxData, MeksoSyntax, MeksoSyntaxData, ParagraphStatementSyntax,
-    QuantifierSyntax, QuantifierSyntaxData, QuoteSyntax, QuoteSyntaxData, RelativeClauseSyntax,
-    RelativeClauseSyntaxData, SelbriSyntax, SelbriSyntaxData, SimpleBridiTailSyntax,
-    SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData, SubbridiSyntax,
-    SubbridiSyntaxData, SumtiAssociationPhraseSyntax, SumtiSyntax, SumtiSyntaxData,
-    SumtiTagSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData, TenseModalSyntax,
-    TenseModalSyntaxData, TermSyntax, TermSyntaxData, TextSyntax, Token, WithFreeModifiers,
-    WithIndicators, WordRun,
+    AbstractionSyntax, AbstractorConnectionSyntax, AfterthoughtBridiTailSyntax,
+    BoGroupedBridiTailSyntax, BoundBridiTailConnectionSyntax, BridiSyntax,
+    BridiTailConnectionSyntax, BridiTailSyntax, CompositeTenseModalPartSyntax,
+    CompositeTenseModalPartSyntaxData, ConnectiveSyntax, ConnectiveSyntaxData, DescriptionSyntax,
+    DescriptionTailElementSyntax, DescriptionTailElementSyntaxData,
+    ForethoughtBridiConnectionSyntax, ForethoughtBridiConnectionSyntaxData, FragmentSyntax,
+    FragmentSyntaxData, FreeModifierSyntax, FreeModifierSyntaxData,
+    GroupedBridiTailConnectionSyntax, Indicator, MeksoOperatorSyntax, MeksoOperatorSyntaxData,
+    MeksoSyntax, MeksoSyntaxData, ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData,
+    QuoteSyntax, QuoteSyntaxData, RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax,
+    SelbriSyntaxData, SimpleBridiTailSyntax, SimpleBridiTailSyntaxData, StatementSyntax,
+    StatementSyntaxData, SubbridiSyntax, SubbridiSyntaxData, SumtiAssociationPhraseSyntax,
+    SumtiSyntax, SumtiSyntaxData, SumtiTagSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData,
+    TenseModalSyntax, TenseModalSyntaxData, TermSyntax, TermSyntaxData, TextSyntax, Token,
+    WithFreeModifiers, WithIndicators, WordRun,
 };
 
 use crate::model::{
@@ -11106,35 +11106,14 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         let abstraction = description_abstraction.abstraction;
         let kind = abstraction_kind_for_nu(abstraction);
-        let abstraction_id = self.build_abstraction_object(abstraction, kind)?;
-
-        let predication = self.next_predication();
-        let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
-        arguments.insert("x2".to_owned(), ArgumentValue::filled(abstraction_id, None));
-        self.insert_abstraction_link_extra_arguments(kind, frame, &mut arguments)?;
-        self.insert(
-            predication,
-            SemanticObject::predication(
-                description_abstraction.link_relation.to_owned(),
-                None,
-                arguments,
-                PredicationMode::Restrictive,
-                link_source.clone(),
-                Vec::new(),
-            ),
-        )?;
-        let formula = self.next_formula();
-        self.insert(
-            formula,
-            SemanticObject::atom_formula(
-                predication,
-                link_source.map(|mut source| {
-                    source.construct = Some("restrictive-formula".to_owned());
-                    source
-                }),
-                Vec::new(),
-            ),
+        self.build_connected_abstraction_link_formula(
+            abstraction,
+            kind,
+            description_abstraction.link_relation,
+            ArgumentValue::filled(referent, None),
+            frame,
+            link_source,
+            PredicationMode::Restrictive,
         )
     }
 
@@ -11378,6 +11357,98 @@ where
         source: Option<crate::model::SemanticSource>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_connected_abstraction_link_formula(
+            abstraction,
+            kind,
+            abstraction_link_relation(kind),
+            x1_argument,
+            frame,
+            source,
+            mode,
+        )
+    }
+
+    #[requires(!link_relation.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_connected_abstraction_link_formula(
+        &mut self,
+        abstraction: &'tree AbstractionSyntax,
+        kind: AbstractionKind,
+        link_relation: &str,
+        x1_argument: ArgumentValue,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        mode: PredicationMode,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut formula = self.build_abstraction_link_atom_formula(
+            abstraction,
+            kind,
+            link_relation,
+            x1_argument.clone(),
+            frame,
+            source.clone(),
+            mode,
+        )?;
+        for connection in &abstraction.abstractor_connections {
+            let connection_kind = abstraction_kind_for_abstractor_connection(connection);
+            let right_formula = self.build_abstraction_link_atom_formula(
+                abstraction,
+                connection_kind,
+                abstraction_link_relation(connection_kind),
+                x1_argument.clone(),
+                frame,
+                source.clone(),
+                mode,
+            )?;
+            let connection_source =
+                self.source_for_abstraction(abstraction, "abstraction-connection-formula");
+            let left_formula = if connective_negates_left(&connection.connective) {
+                self.build_unary_formula(
+                    FormulaOperator::Not,
+                    formula,
+                    connection_source.clone(),
+                    Vec::new(),
+                )?
+            } else {
+                formula
+            };
+            let right_formula = if connective_negates_right(&connection.connective) {
+                self.build_unary_formula(
+                    FormulaOperator::Not,
+                    right_formula,
+                    connection_source.clone(),
+                    Vec::new(),
+                )?
+            } else {
+                right_formula
+            };
+            formula = self.build_connective_formula(
+                formula_operator_for_connective(&connection.connective),
+                vec![left_formula, right_formula],
+                Some(Connector {
+                    source: full_connective_text(&connection.connective),
+                    locus: "abstraction".to_owned(),
+                    truth_table: None,
+                    parameter: None,
+                }),
+                connection_source,
+            )?;
+        }
+        Ok(formula)
+    }
+
+    #[requires(!link_relation.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_abstraction_link_atom_formula(
+        &mut self,
+        abstraction: &'tree AbstractionSyntax,
+        kind: AbstractionKind,
+        link_relation: &str,
+        x1_argument: ArgumentValue,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        mode: PredicationMode,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let abstraction_id = self.build_abstraction_object(abstraction, kind)?;
         let predication = self.next_predication();
         let mut arguments = BTreeMap::new();
@@ -11387,7 +11458,7 @@ where
         let modal_arguments = self.modal_assignment_arguments(frame)?;
         self.insert(predication, {
             let mut object = SemanticObject::predication(
-                abstraction_link_relation(kind).to_owned(),
+                link_relation.to_owned(),
                 None,
                 arguments,
                 mode,
@@ -11400,7 +11471,11 @@ where
         let formula = self.next_formula();
         self.insert(
             formula,
-            SemanticObject::atom_formula(predication, source, Vec::new()),
+            SemanticObject::atom_formula(
+                predication,
+                abstraction_link_formula_source(source, mode),
+                Vec::new(),
+            ),
         )
     }
 
@@ -15867,7 +15942,21 @@ fn abstraction_relation_label(abstraction: &AbstractionSyntax) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn abstraction_kind_for_nu(abstraction: &AbstractionSyntax) -> AbstractionKind {
-    match abstraction.nu.cmavo() {
+    abstraction_kind_for_cmavo(abstraction.nu.cmavo())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn abstraction_kind_for_abstractor_connection(
+    connection: &AbstractorConnectionSyntax,
+) -> AbstractionKind {
+    abstraction_kind_for_cmavo(connection.nu.cmavo())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn abstraction_kind_for_cmavo(cmavo: Option<Cmavo>) -> AbstractionKind {
+    match cmavo {
         Some(Cmavo::Nu) => AbstractionKind::Event,
         Some(Cmavo::Muhe) => AbstractionKind::Achievement,
         Some(Cmavo::Puhu) => AbstractionKind::Process,
@@ -15881,6 +15970,23 @@ fn abstraction_kind_for_nu(abstraction: &AbstractionSyntax) -> AbstractionKind {
         Some(Cmavo::Lihi) => AbstractionKind::Experience,
         _ => AbstractionKind::Unspecified,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn abstraction_link_formula_source(
+    source: Option<crate::model::SemanticSource>,
+    mode: PredicationMode,
+) -> Option<crate::model::SemanticSource> {
+    if mode != PredicationMode::Restrictive {
+        return source;
+    }
+    source.map(|mut source| {
+        if source.construct.as_deref() == Some("abstraction-description") {
+            source.construct = Some("restrictive-formula".to_owned());
+        }
+        source
+    })
 }
 
 #[requires(true)]
@@ -19635,6 +19741,56 @@ mod tests {
         );
         let klama = predication_with_relation_and_mode(&json, "klama", "inert");
         assert_eq!(klama["arguments"]["x1"]["value"], "referent:speaker");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_abstractors_build_connected_link_formula() {
+        let json = semantic_json_for("le mikce cu se cinri le pu'u jenai za'i mi sipna")
+            .expect("semantic JSON");
+        let process_of = predication_with_relation_and_mode(&json, "processOf", "restrictive");
+        let state_of = predication_with_relation_and_mode(&json, "stateOf", "restrictive");
+        let described_eventuality = process_of["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("process described eventuality");
+        assert_eq!(state_of["arguments"]["x1"]["value"], described_eventuality);
+        assert_eq!(process_of["arguments"]["x3"]["kind"], "elided");
+
+        let description = object(&json, described_eventuality);
+        let body = object(
+            &json,
+            description["descriptor"]["body"]
+                .as_str()
+                .expect("description body"),
+        );
+        assert_eq!(body["operator"], "and");
+        assert_eq!(body["connector"]["source"], "je nai");
+        assert_eq!(body["connector"]["locus"], "abstraction");
+        let children = body["children"].as_array().expect("connected children");
+        let process_formula = object(&json, children[0].as_str().expect("process formula"));
+        let process_predication = object(
+            &json,
+            process_formula["predication"]
+                .as_str()
+                .expect("process predication"),
+        );
+        assert_eq!(process_predication["relation"], "processOf");
+        let negation = object(&json, children[1].as_str().expect("negated state formula"));
+        assert_eq!(negation["operator"], "not");
+        let negated_child = object(
+            &json,
+            negation["children"][0]
+                .as_str()
+                .expect("state formula child"),
+        );
+        let state_predication = object(
+            &json,
+            negated_child["predication"]
+                .as_str()
+                .expect("state predication"),
+        );
+        assert_eq!(state_predication["relation"], "stateOf");
     }
 
     #[test]
