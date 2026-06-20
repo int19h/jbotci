@@ -11445,11 +11445,13 @@ fn temporal_path_relations_for_tense_modal(
     match tense_modal.as_data() {
         data!(TenseModalSyntax::Composite { parts }) => {
             let mut relations = Vec::new();
+            let mut previous_relation_accepts_distance = false;
             for part in &parts.value {
                 let data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
                     token
                 )) = part.as_data()
                 else {
+                    previous_relation_accepts_distance = false;
                     continue;
                 };
                 if let Some(relation) = time_relation_for_pu_token(token) {
@@ -11459,14 +11461,30 @@ fn temporal_path_relations_for_tense_modal(
                         None,
                         tense_modal,
                     ));
+                    previous_relation_accepts_distance = true;
                     continue;
                 }
-                if let Some(distance) = time_distance_for_zi_token(token)
-                    && let Some(relation) = relations.last_mut()
-                    && relation.distance.is_none()
-                {
-                    relation.distance = Some(distance);
+                if let Some(distance) = time_distance_for_zi_token(token) {
+                    if previous_relation_accepts_distance
+                        && let Some(relation) = relations.last_mut()
+                        && relation.distance.is_none()
+                    {
+                        relation.distance = Some(distance);
+                        previous_relation_accepts_distance = false;
+                        continue;
+                    }
+                    if let Some(relation) = time_relation_for_time_distance_token(token) {
+                        relations.push(path_relation_for_tense_modal(
+                            relation,
+                            token_text(token),
+                            None,
+                            tense_modal,
+                        ));
+                    }
+                    previous_relation_accepts_distance = false;
+                    continue;
                 }
+                previous_relation_accepts_distance = false;
             }
             relations
         }
@@ -12003,6 +12021,17 @@ fn time_distance_for_zi_token(token: &Token) -> Option<String> {
         Some(Cmavo::Zi) => Some("short".to_owned()),
         Some(Cmavo::Za) => Some("medium".to_owned()),
         Some(Cmavo::Zu) => Some("long".to_owned()),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn time_relation_for_time_distance_token(token: &Token) -> Option<String> {
+    match token.cmavo() {
+        Some(Cmavo::Zi) => Some("near".to_owned()),
+        Some(Cmavo::Za) => Some("mediumDistance".to_owned()),
+        Some(Cmavo::Zu) => Some("far".to_owned()),
         _ => None,
     }
 }
@@ -15159,6 +15188,31 @@ mod tests {
         assert!(event["timePath"][0].get("distance").is_none());
         assert_eq!(event["timePath"][1]["relation"], "after");
         assert_eq!(event["timePath"][1]["distance"], "medium");
+
+        let remote_time = semantic_json_for("mi zu klama le zarci").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&remote_time, "klama", "asserted");
+        let event = object(
+            &remote_time,
+            klama["eventuality"].as_str().expect("klama event"),
+        );
+        assert_eq!(event["time"]["relation"], "far");
+        assert_eq!(event["time"]["anchor"], "referent:speech-time");
+
+        let near_then_past = semantic_json_for("mi zi pu klama le zarci").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&near_then_past, "klama", "asserted");
+        let event = object(
+            &near_then_past,
+            klama["eventuality"].as_str().expect("klama event"),
+        );
+        assert_eq!(event["timePath"][0]["relation"], "near");
+        assert_eq!(event["timePath"][0]["introducedBy"], "zi");
+        assert_eq!(
+            event["timePath"][0]["anchor"]["value"],
+            "referent:speech-time"
+        );
+        assert_eq!(event["timePath"][1]["relation"], "before");
+        assert_eq!(event["timePath"][1]["introducedBy"], "pu");
+        assert_eq!(event["timePath"][1]["anchor"]["kind"], "previous");
     }
 
     #[test]
