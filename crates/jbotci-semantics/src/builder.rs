@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, WordType, normalize_lookup_query};
 use jbotci_morphology::{
     Cmavo, LujvoPart, Selmaho, Word, WordData, WordLike, WordLikeData, strip_diacritics,
@@ -34,7 +34,8 @@ use crate::model::{
     ReciprocalExchange, Recurrence, RecurrenceKind, ReferentCategory, RelationExpansion,
     RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic,
     SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort,
-    SequenceRelation, SignKind, UtteranceForce, diagnostic, source_from_spans,
+    SequenceRelation, SignKind, SpaceInterval, TimeInterval, UtteranceForce, diagnostic,
+    source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -10155,27 +10156,43 @@ fn apply_tense_modal_event_modifiers_to_event(
             anchor: SemanticObjectId::speech_time(),
         });
     }
+    if let Some(time_interval) = time_interval_for_tense_modal(tense_modal) {
+        event.time_interval = Some(time_interval);
+    }
     if let Some(relation) = space_relation_for_tense_modal(tense_modal) {
         event.space = Some(AnchorRelation {
             relation,
             anchor: SemanticObjectId::here(),
         });
     }
-    if let Some(contour) = aspect_contour_for_tense_modal(tense_modal) {
+    if let Some(space_interval) = space_interval_for_tense_modal(tense_modal) {
+        event.space_interval = Some(space_interval);
+    }
+    if let Some(contour) = temporal_aspect_contour_for_tense_modal(tense_modal) {
         event.aspect = Some(Aspect { contour });
     }
     event
         .recurrence
-        .extend(recurrences_for_tense_modal(tense_modal));
+        .extend(temporal_recurrences_for_tense_modal(tense_modal));
+    if let Some(contour) = spatial_aspect_contour_for_tense_modal(tense_modal) {
+        event.spatial_aspect = Some(Aspect { contour });
+    }
+    event
+        .spatial_recurrence
+        .extend(spatial_recurrences_for_tense_modal(tense_modal));
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn tense_modal_has_event_modifier(tense_modal: &TenseModalSyntax) -> bool {
     time_relation_for_tense_modal(tense_modal).is_some()
+        || time_interval_for_tense_modal(tense_modal).is_some()
         || space_relation_for_tense_modal(tense_modal).is_some()
-        || aspect_contour_for_tense_modal(tense_modal).is_some()
-        || !recurrences_for_tense_modal(tense_modal).is_empty()
+        || space_interval_for_tense_modal(tense_modal).is_some()
+        || temporal_aspect_contour_for_tense_modal(tense_modal).is_some()
+        || !temporal_recurrences_for_tense_modal(tense_modal).is_empty()
+        || spatial_aspect_contour_for_tense_modal(tense_modal).is_some()
+        || !spatial_recurrences_for_tense_modal(tense_modal).is_empty()
 }
 
 #[requires(true)]
@@ -10247,15 +10264,49 @@ fn space_relation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<Stri
 
 #[requires(true)]
 #[ensures(true)]
-fn aspect_contour_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<String> {
+fn time_interval_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<TimeInterval> {
     match tense_modal.as_data() {
         data!(TenseModalSyntax::Composite { parts }) => {
             parts.value.iter().find_map(|part| match part.as_data() {
                 data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
                     token
-                )) => aspect_contour_for_zaho_token(token),
+                )) => time_interval_extent_for_zeha_token(token).map(TimeInterval::new),
                 data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::AdHocModal(..)) => None,
             })
+        }
+        data!(TenseModalSyntax::TimeInterval(word)) => {
+            time_interval_extent_for_zeha_token(&word.value).map(TimeInterval::new)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn space_interval_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<SpaceInterval> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => {
+            space_interval_for_composite_parts(parts.value.iter().filter_map(|part| {
+                match part.as_data() {
+                    data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
+                        token
+                    )) => Some(token),
+                    data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::AdHocModal(..)) => {
+                        None
+                    }
+                }
+            }))
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn temporal_aspect_contour_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<String> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => {
+            scoped_interval_modifiers_for_composite_parts(&parts.value).temporal_aspect
         }
         data!(TenseModalSyntax::EventContour(words)) => {
             words.value.iter().find_map(aspect_contour_for_zaho_token)
@@ -10266,10 +10317,21 @@ fn aspect_contour_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<Stri
 
 #[requires(true)]
 #[ensures(true)]
-fn recurrences_for_tense_modal(tense_modal: &TenseModalSyntax) -> Vec<Recurrence> {
+fn spatial_aspect_contour_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<String> {
     match tense_modal.as_data() {
         data!(TenseModalSyntax::Composite { parts }) => {
-            recurrences_for_composite_tense_modal_parts(&parts.value)
+            scoped_interval_modifiers_for_composite_parts(&parts.value).spatial_aspect
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn temporal_recurrences_for_tense_modal(tense_modal: &TenseModalSyntax) -> Vec<Recurrence> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => {
+            scoped_interval_modifiers_for_composite_parts(&parts.value).temporal_recurrences
         }
         data!(TenseModalSyntax::IntervalProperty {
             number,
@@ -10286,36 +10348,167 @@ fn recurrences_for_tense_modal(tense_modal: &TenseModalSyntax) -> Vec<Recurrence
 
 #[requires(true)]
 #[ensures(true)]
-fn recurrences_for_composite_tense_modal_parts(
+fn spatial_recurrences_for_tense_modal(tense_modal: &TenseModalSyntax) -> Vec<Recurrence> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => {
+            scoped_interval_modifiers_for_composite_parts(&parts.value).spatial_recurrences
+        }
+        _ => Vec::new(),
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Default)]
+struct ScopedIntervalModifiers {
+    temporal_aspect: Option<String>,
+    temporal_recurrences: Vec<Recurrence>,
+    spatial_aspect: Option<String>,
+    spatial_recurrences: Vec<Recurrence>,
+}
+
+#[invariant(!text.is_empty(), "pending recurrence number text must not be empty")]
+#[derive(Debug, Clone)]
+struct PendingRecurrenceNumber {
+    text: String,
+    spatial: bool,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn scoped_interval_modifiers_for_composite_parts(
     parts: &[jbotci_syntax::ast::CompositeTenseModalPartSyntax],
-) -> Vec<Recurrence> {
-    let mut recurrences = Vec::new();
-    let mut pending_number = None::<String>;
+) -> ScopedIntervalModifiers {
+    let mut modifiers = ScopedIntervalModifiers::default();
+    let mut pending_number = None::<PendingRecurrenceNumber>;
+    let mut next_interval_property_is_spatial = false;
     for part in parts {
         let data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
             token
         )) = part.as_data()
         else {
             pending_number = None;
+            next_interval_property_is_spatial = false;
             continue;
         };
+        if token.is_cmavo(Cmavo::Fehe) {
+            pending_number = None;
+            next_interval_property_is_spatial = true;
+            continue;
+        }
         if token.is_selmaho(Selmaho::Pa) {
             let text = token_text(token);
-            if let Some(pending) = &mut pending_number {
-                pending.push(' ');
-                pending.push_str(&text);
+            if let Some(pending) = pending_number.take() {
+                let mut joined = pending.text.clone();
+                joined.push(' ');
+                joined.push_str(&text);
+                pending_number = Some(new!(PendingRecurrenceNumber {
+                    text: joined,
+                    spatial: pending.spatial,
+                }));
             } else {
-                pending_number = Some(text);
+                pending_number = Some(new!(PendingRecurrenceNumber {
+                    text,
+                    spatial: next_interval_property_is_spatial,
+                }));
             }
             continue;
         }
-        if let Some(recurrence) = recurrence_for_interval_marker(token, pending_number.take()) {
-            recurrences.push(recurrence);
+        let pending = pending_number.take();
+        if let Some(recurrence) = recurrence_for_interval_marker(
+            token,
+            pending.as_ref().map(|pending| pending.text.clone()),
+        ) {
+            if pending.as_ref().is_some_and(|pending| pending.spatial)
+                || next_interval_property_is_spatial
+            {
+                modifiers.spatial_recurrences.push(recurrence);
+            } else {
+                modifiers.temporal_recurrences.push(recurrence);
+            }
+            next_interval_property_is_spatial = false;
+            continue;
+        }
+        if let Some(contour) = aspect_contour_for_zaho_token(token) {
+            if next_interval_property_is_spatial {
+                modifiers.spatial_aspect = Some(contour);
+            } else {
+                modifiers.temporal_aspect = Some(contour);
+            }
+            next_interval_property_is_spatial = false;
             continue;
         }
         pending_number = None;
+        next_interval_property_is_spatial = false;
     }
-    recurrences
+    modifiers
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn space_interval_for_composite_parts<'a>(
+    tokens: impl Iterator<Item = &'a Token>,
+) -> Option<SpaceInterval> {
+    let mut extent = None;
+    let mut directions = Vec::new();
+    let mut dimensions = Vec::new();
+    for token in tokens {
+        if extent.is_none() {
+            extent = space_interval_extent_for_veha_token(token);
+        }
+        if let Some(direction) = space_interval_direction_for_faha_token(token) {
+            directions.push(direction);
+        }
+        if let Some(dimension) = space_interval_dimension_for_viha_token(token) {
+            dimensions.push(dimension);
+        }
+    }
+    (extent.is_some() || !directions.is_empty() || !dimensions.is_empty())
+        .then(|| SpaceInterval::new(extent, directions, dimensions))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn time_interval_extent_for_zeha_token(token: &Token) -> Option<String> {
+    match token.cmavo() {
+        Some(Cmavo::Zehi) => Some("short".to_owned()),
+        Some(Cmavo::Zeha) => Some("medium".to_owned()),
+        Some(Cmavo::Zehu) => Some("long".to_owned()),
+        Some(Cmavo::Zehe) => Some("whole".to_owned()),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn space_interval_extent_for_veha_token(token: &Token) -> Option<String> {
+    match token.cmavo() {
+        Some(Cmavo::Vehi) => Some("short".to_owned()),
+        Some(Cmavo::Veha) => Some("medium".to_owned()),
+        Some(Cmavo::Vehu) => Some("long".to_owned()),
+        Some(Cmavo::Vehe) => Some("whole".to_owned()),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn space_interval_dimension_for_viha_token(token: &Token) -> Option<String> {
+    match token.cmavo() {
+        Some(Cmavo::Vihi) => Some("line".to_owned()),
+        Some(Cmavo::Viha) => Some("area".to_owned()),
+        Some(Cmavo::Vihu) => Some("volume".to_owned()),
+        Some(Cmavo::Vihe) => Some("spaceTime".to_owned()),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn space_interval_direction_for_faha_token(token: &Token) -> Option<String> {
+    match token.cmavo() {
+        Some(Cmavo::Beha) => Some("north".to_owned()),
+        _ => None,
+    }
 }
 
 #[requires(true)]
@@ -10358,6 +10551,9 @@ fn recurrence_for_interval_marker(
 #[requires(!text.is_empty())]
 #[ensures(true)]
 fn quantity_value_for_recurrence_text(text: String) -> QuantityValue {
+    if text == "ro" {
+        return QuantityValue::text("all".to_owned());
+    }
     parse_decimal_integer(&text)
         .map(QuantityValue::integer)
         .unwrap_or_else(|| QuantityValue::text(text))
@@ -12949,6 +13145,43 @@ mod tests {
         assert_eq!(event["recurrence"][1]["kind"], "ordinalOccurrence");
         assert_eq!(event["recurrence"][1]["introducedBy"], "re'u");
         assert_eq!(event["recurrence"][1]["value"]["integer"], 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fehe_routes_interval_properties_to_spatial_event_fields() {
+        let line = semantic_json_for("ko vi'i fe'e di'i sombo le gurni").expect("semantic JSON");
+        let sombo = predication_with_relation_and_mode(&line, "sombo", "asserted");
+        let event = object(&line, sombo["eventuality"].as_str().expect("sombo event"));
+        assert!(event.get("recurrence").is_none());
+        assert_eq!(event["spaceInterval"]["dimensions"][0], "line");
+        assert_eq!(event["spatialRecurrence"][0]["kind"], "regular");
+        assert_eq!(event["spatialRecurrence"][0]["introducedBy"], "di'i");
+
+        let everywhere = semantic_json_for("ze'e roroi ve'e fe'e roroi ku li re su'i re du li vo")
+            .expect("semantic JSON");
+        let identity = predication_with_relation_and_mode(&everywhere, "identity", "definitional");
+        let event = object(
+            &everywhere,
+            identity["eventuality"].as_str().expect("identity event"),
+        );
+        assert_eq!(event["timeInterval"]["extent"], "whole");
+        assert_eq!(event["recurrence"][0]["value"]["text"], "all");
+        assert_eq!(event["spaceInterval"]["extent"], "whole");
+        assert_eq!(event["spatialRecurrence"][0]["value"]["text"], "all");
+
+        let spatial_start =
+            semantic_json_for("tu ve'abe'a fe'e co'a rokci").expect("semantic JSON");
+        let rokci = predication_with_relation_and_mode(&spatial_start, "rokci", "asserted");
+        let event = object(
+            &spatial_start,
+            rokci["eventuality"].as_str().expect("rokci event"),
+        );
+        assert!(event.get("aspect").is_none());
+        assert_eq!(event["spaceInterval"]["extent"], "medium");
+        assert_eq!(event["spaceInterval"]["directions"][0], "north");
+        assert_eq!(event["spatialAspect"]["contour"], "initiative");
     }
 
     #[test]

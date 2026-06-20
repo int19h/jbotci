@@ -344,11 +344,19 @@ pub struct SemanticObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time: Option<AnchorRelation>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub time_interval: Option<TimeInterval>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub aspect: Option<Aspect>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub recurrence: Vec<Recurrence>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub space: Option<AnchorRelation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub space_interval: Option<SpaceInterval>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spatial_aspect: Option<Aspect>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub spatial_recurrence: Vec<Recurrence>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<ReferentCategory>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -487,9 +495,13 @@ impl SemanticObject {
             class: None,
             actuality: None,
             time: None,
+            time_interval: None,
             aspect: None,
             recurrence: Vec::new(),
             space: None,
+            space_interval: None,
+            spatial_aspect: None,
+            spatial_recurrence: Vec::new(),
             category: None,
             sort: None,
             indexical: None,
@@ -926,6 +938,9 @@ impl SemanticObject {
         for recurrence in &self.recurrence {
             recurrence.references_into(out);
         }
+        for recurrence in &self.spatial_recurrence {
+            recurrence.references_into(out);
+        }
         if let Some(descriptor) = &self.descriptor {
             descriptor.references_into(out);
         }
@@ -1127,6 +1142,51 @@ pub enum ActualityKind {
 pub struct AnchorRelation {
     pub relation: String,
     pub anchor: SemanticObjectId,
+}
+
+#[invariant(!extent.is_empty(), "time interval extent must be named")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimeInterval {
+    pub extent: String,
+}
+
+impl TimeInterval {
+    #[requires(!extent.is_empty())]
+    #[ensures(ret.extent == old(extent.clone()))]
+    pub fn new(extent: String) -> Self {
+        Self::from_data(data!(TimeInterval { extent }))
+    }
+}
+
+#[invariant(extent.as_ref().is_none_or(|extent| !extent.is_empty()), "space interval extent must be named when present")]
+#[invariant(directions.iter().all(|direction| !direction.is_empty()), "space interval directions must be named")]
+#[invariant(dimensions.iter().all(|dimension| !dimension.is_empty()), "space interval dimensions must be named")]
+#[invariant(extent.is_some() || !directions.is_empty() || !dimensions.is_empty(), "space interval must carry at least one spatial attribute")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpaceInterval {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extent: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub directions: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dimensions: Vec<String>,
+}
+
+impl SpaceInterval {
+    #[requires(extent.as_ref().is_none_or(|extent| !extent.is_empty()))]
+    #[requires(directions.iter().all(|direction| !direction.is_empty()))]
+    #[requires(dimensions.iter().all(|dimension| !dimension.is_empty()))]
+    #[requires(extent.is_some() || !directions.is_empty() || !dimensions.is_empty())]
+    #[ensures(ret.extent == old(extent.clone()))]
+    pub fn new(extent: Option<String>, directions: Vec<String>, dimensions: Vec<String>) -> Self {
+        Self::from_data(data!(SpaceInterval {
+            extent,
+            directions,
+            dimensions,
+        }))
+    }
 }
 
 #[invariant(true)]
