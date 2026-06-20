@@ -2166,6 +2166,7 @@ fn content_reference_matches_role(
         SemanticObjectKind::Utterance => {
             utterance_content_reference_matches_force(utterance_force, content)
         }
+        SemanticObjectKind::Sequence => content.object_kind() == SemanticObjectKind::Formula,
         SemanticObjectKind::Eventuality => matches!(
             content.object_kind(),
             SemanticObjectKind::Formula | SemanticObjectKind::Sequence

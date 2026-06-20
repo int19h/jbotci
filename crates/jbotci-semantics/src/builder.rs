@@ -1159,42 +1159,51 @@ where
                     .syntax_index
                     .statement_node_id(statement)
                     .and_then(|node| self.source_for_node(node.0, "statement-connection"));
-                let (connection_claims, diagnostics) = if let Some(spec) =
-                    modal_statement_connection_spec(connective)
-                {
+                let mut diagnostics = Vec::new();
+                let content = if connective_has_logical_component(connective) {
+                    match self.build_statement_logical_connection_formula(
+                        first,
+                        second,
+                        connective,
+                        source.clone(),
+                    )? {
+                        Some(formula) => Some(formula),
+                        None => {
+                            diagnostics.push(diagnostic(
+                                "logical statement connection could not find formula-bearing statements to connect",
+                            ));
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
+                let mut connection_claims = Vec::new();
+                if let Some(spec) = modal_statement_connection_spec(connective) {
                     match self.build_modal_statement_connection_claim(
                         first,
                         second,
                         &spec,
                         source.clone(),
                     )? {
-                        Some(claim) => (vec![claim], Vec::new()),
-                        None => (
-                            Vec::new(),
-                            vec![diagnostic(
+                        Some(claim) => connection_claims.push(claim),
+                        None => {
+                            diagnostics.push(diagnostic(
                                 "modal statement connection could not find formula-bearing bridi events to relate",
-                            )],
-                        ),
+                            ));
+                        }
                     }
-                } else {
-                    (
-                        Vec::new(),
-                        vec![diagnostic(
-                            "statement connective is preserved as discourse sequencing until truth-functional lowering is implemented",
-                        )],
-                    )
-                };
+                }
                 let id = self.next_sequence();
-                self.insert(
-                    id,
-                    SemanticObject::sequence_with_connection_claims(
-                        vec![first, second],
-                        SequenceRelation::SameTopicContinuation,
-                        connection_claims,
-                        source,
-                        diagnostics,
-                    ),
-                )
+                let mut sequence = SemanticObject::sequence_with_connection_claims(
+                    vec![first, second],
+                    SequenceRelation::SameTopicContinuation,
+                    connection_claims,
+                    source,
+                    diagnostics,
+                );
+                sequence.content = content;
+                self.insert(id, sequence)
             }
             data!(StatementSyntax::Iau {
                 inner_statement,
@@ -5267,6 +5276,59 @@ where
         self.attach_reciprocity_to_formula(formula, bridi, free_modifiers)
     }
 
+    #[requires(connective_has_logical_component(connective))]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn build_statement_logical_connection_formula(
+        &mut self,
+        first_item: SemanticObjectId,
+        second_item: SemanticObjectId,
+        connective: &ConnectiveSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(first_formula) = self.content_formula_for_discourse_item(first_item) else {
+            return Ok(None);
+        };
+        let Some(second_formula) = self.content_formula_for_discourse_item(second_item) else {
+            return Ok(None);
+        };
+        let first_formula = if connective_negates_left(connective) {
+            self.build_unary_formula(
+                FormulaOperator::Not,
+                first_formula,
+                source.clone(),
+                Vec::new(),
+            )?
+        } else {
+            first_formula
+        };
+        let second_formula = if connective_negates_right(connective) {
+            self.build_unary_formula(
+                FormulaOperator::Not,
+                second_formula,
+                source.clone(),
+                Vec::new(),
+            )?
+        } else {
+            second_formula
+        };
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                formula_operator_for_connective(connective),
+                vec![first_formula, second_formula],
+                Some(Connector {
+                    source: full_connective_text(connective),
+                    locus: "statement".to_owned(),
+                    truth_table: None,
+                }),
+                source,
+                Vec::new(),
+            ),
+        )
+        .map(Some)
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn content_formula_for_discourse_item(
@@ -5277,6 +5339,13 @@ where
         let content = object.content?;
         match content.object_kind() {
             crate::model::SemanticObjectKind::Formula => Some(content),
+            crate::model::SemanticObjectKind::Sequence => self
+                .objects
+                .get(&content)
+                .and_then(|sequence| sequence.content)
+                .filter(|content| {
+                    content.object_kind() == crate::model::SemanticObjectKind::Formula
+                }),
             crate::model::SemanticObjectKind::Question => self
                 .objects
                 .get(&content)
@@ -9577,6 +9646,41 @@ fn connective_is_logical(connective: &ConnectiveSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+fn connective_has_logical_component(connective: &ConnectiveSyntax) -> bool {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Afterthought { cmavo, .. })
+        | data!(ConnectiveSyntax::Selbri { cmavo, .. })
+        | data!(ConnectiveSyntax::BridiTail { cmavo, .. })
+        | data!(ConnectiveSyntax::Forethought { cmavo, .. })
+        | data!(ConnectiveSyntax::NonLogical { cmavo, .. })
+        | data!(ConnectiveSyntax::Interval { cmavo, .. }) => cmavo.value.iter().any(|token| {
+            matches!(
+                token.cmavo(),
+                Some(
+                    Cmavo::A
+                        | Cmavo::E
+                        | Cmavo::O
+                        | Cmavo::U
+                        | Cmavo::Ga
+                        | Cmavo::Ge
+                        | Cmavo::Go
+                        | Cmavo::Gu
+                        | Cmavo::Giha
+                        | Cmavo::Gihe
+                        | Cmavo::Giho
+                        | Cmavo::Gihu
+                        | Cmavo::Ja
+                        | Cmavo::Je
+                        | Cmavo::Jo
+                        | Cmavo::Ju
+                )
+            )
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn selbri_has_formula_scope(selbri: &SelbriSyntax) -> bool {
     match selbri.as_data() {
         data!(SelbriSyntax::Negated { .. }) => true,
@@ -12357,16 +12461,16 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn statement_connective_is_not_silently_lowered_to_plain_sequence() {
+    fn statement_connective_adds_sequence_content_formula() {
         let json = semantic_json_for("mi klama .ije do cadzu").expect("semantic JSON");
         let sequence = object(&json, "sequence:s1");
         assert_eq!(json["root"], "sequence:s1");
         assert_eq!(sequence["items"][0], "utterance:u1");
-        assert!(
-            sequence["diagnostics"][0]["message"]
-                .as_str()
-                .is_some_and(|message| message.contains("truth-functional lowering"))
-        );
+        let content = sequence["content"]
+            .as_str()
+            .expect("statement connection content");
+        assert_eq!(object(&json, content)["operator"], "and");
+        assert_eq!(object(&json, content)["connector"]["source"], "je");
     }
 
     #[test]
@@ -12544,6 +12648,11 @@ mod tests {
         let json =
             semantic_json_for("mi nelci do .ijeki'ubo mi nelci la .djein.").expect("semantic JSON");
         let sequence = object(&json, "sequence:s1");
+        let content = sequence["content"]
+            .as_str()
+            .expect("mixed statement logical content");
+        assert_eq!(object(&json, content)["operator"], "and");
+        assert_eq!(object(&json, content)["connector"]["source"], "je ki'u bo");
         let claim = sequence["connectionClaims"][0]
             .as_str()
             .expect("mixed connection claim");
