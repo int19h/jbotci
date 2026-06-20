@@ -1556,20 +1556,68 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "semantic errors are produced by constructors that attach nonempty diagnostic messages",
     ),
     (
+        "crates/jbotci-semantics/src/builder.rs:AlternativeArgument",
+        "alternative argument is a private builder bundle whose IDs are checked when inserted into formulas",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:BoundSelbriTanruPair",
+        "bound tanru pair carries borrowed syntax nodes whose validity is enforced by SelbriSyntax",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:DescriptionAbstraction",
+        "description abstraction carries borrowed syntax and fixed relation text chosen by builder helpers",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:EventModifierApplication",
+        "event modifier application is private builder state assembled from typed formula and eventuality IDs",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:EventTenseModifier",
+        "event tense modifier carries borrowed tense syntax plus optional metadata checked when applied",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:GovernedTermset",
+        "governed termset is private routing state whose optional terms are validated by term builders",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:IndicatorBaseSpec",
+        "indicator base spec is private display routing state derived from already parsed indicator tokens",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:IndicatorDisplayDraft",
+        "indicator display draft is transient builder state completed before displayed-content insertion",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:IndicatorPart",
+        "indicator part carries parsed indicator token metadata and is normalized by indicator helpers",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:ModalAssignmentKey",
+        "modal assignment key is a private map key assembled from typed frame and modal IDs",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:ModalStatementConnectionSpec",
+        "modal statement connection spec uses explicit nonempty field invariants in follow-up connection types",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:RelationVariableScopeSource",
+        "relation variable scope source carries borrowed syntax nodes whose validity is enforced by syntax model types",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:ScopedIntervalModifiers",
+        "scoped interval modifiers are private accumulated tense/modal metadata validated when attached",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:TanruFormulaForArgument",
+        "tanru formula bundle carries typed formula IDs and argument IDs checked by graph validation",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:TemporalPathRelation",
+        "temporal path relation is private builder state from parsed modal tokens and typed scalar-negation values",
+    ),
+    (
         "crates/jbotci-semantics/src/model.rs:Actuality",
         "actuality is a single closed enum field",
-    ),
-    (
-        "crates/jbotci-semantics/src/model.rs:AnchorRelation",
-        "anchor relation DTOs are assembled by typed semantic builders before graph validation",
-    ),
-    (
-        "crates/jbotci-semantics/src/model.rs:Aspect",
-        "aspect DTOs are reserved semantic output fields not externally constructed yet",
-    ),
-    (
-        "crates/jbotci-semantics/src/model.rs:Composition",
-        "composition DTOs are assembled by typed semantic builder helpers before graph validation",
     ),
     (
         "crates/jbotci-semantics/src/model.rs:Connector",
@@ -1584,16 +1632,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "descriptor DTOs are assembled by typed referent builder helpers before graph validation",
     ),
     (
-        "crates/jbotci-semantics/src/model.rs:MathLiteral",
-        "math literal DTOs are reserved semantic output fields not externally constructed yet",
+        "crates/jbotci-semantics/src/model.rs:IntervalEndpointInclusion",
+        "interval endpoint inclusion is a pair of closed endpoint enum values",
     ),
     (
         "crates/jbotci-semantics/src/model.rs:PlaceDescription",
         "relation place descriptions are reserved metadata DTOs not externally constructed yet",
-    ),
-    (
-        "crates/jbotci-semantics/src/model.rs:QuantityValue",
-        "quantity values are produced through typed constructors for integer and text forms",
     ),
     (
         "crates/jbotci-semantics/src/model.rs:QuestionSlot",
@@ -1754,6 +1798,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "tests/support/fixtures/mod.rs:CommandOutputExpectation",
         "fixture expectation payload is checked by fixture runner comparisons",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:TersmuOutputExpectation",
+        "tersmu fixture expectation payload is checked by exact fixture runner comparisons",
     ),
     (
         "tests/support/fixtures/mod.rs:GentufaOutputExpectation",

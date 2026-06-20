@@ -68,6 +68,38 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries reference analysis diagnostics",
     ),
     (
+        "crates/jbotci-semantics/src/builder.rs:DaSeriesScopeSource::Explicit",
+        "scope source variant carries borrowed syntax nodes whose validity is enforced by syntax model types",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:DaSeriesScopeSource::Bare",
+        "bare da-series scope source carries a borrowed syntax node whose validity is enforced by SumtiSyntax",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:PrenexFormulaScope::Negation",
+        "negation scope carries optional source provenance only",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:PrenexFormulaScope::Quantifier",
+        "quantifier scope validity is delegated to QuantifiedProSumtiScope and formula-typed restriction IDs",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:PrenexFormulaScope::RelationQuantifier",
+        "relation quantifier scope validity is delegated to QuantifiedRelationVariableScope",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:MathLiteralValue::Integer",
+        "all i64 values are valid math integer literal payloads",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticOperator::Formula",
+        "formula operators are closed enum values with no additional payload constraint",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceSlot::PlaceQuestion",
+        "place-question slots are unit markers; numbered and modal variants carry the constrained payloads",
+    ),
+    (
         "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Environment",
         "embedding error variant carries only an already formatted diagnostic message",
     ),
