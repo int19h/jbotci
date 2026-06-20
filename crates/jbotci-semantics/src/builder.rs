@@ -28,12 +28,13 @@ use jbotci_syntax::ast::{
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, AssignedName,
     AssignedNameData, Composition, Connector, Descriptor, EventualityClass, FormulaOperator,
-    IndexicalKind, MathLiteral, ModalArgument, PlaceQuestionBinding, PredicationMode, QuantityForm,
-    QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole,
-    Quotation, RafsiBinding, ReciprocalExchange, ReferentCategory, RelationExpansion,
-    RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic,
-    SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort,
-    SequenceRelation, SignKind, UtteranceForce, diagnostic, source_from_spans,
+    IndexicalKind, MathLiteral, ModalArgument, ModalNegation, ModalNegationKind,
+    PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale, QuantityValue,
+    QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding,
+    ReciprocalExchange, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
+    ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject,
+    SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation, SignKind,
+    UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -6164,9 +6165,16 @@ where
                 .ok_or_else(SemanticsError::missing_syntax_node)?;
             let argument = self.build_argument_for_sumti(sumti)?;
             let source = tag_node.and_then(|node| self.source_for_node(node, "modal-argument"));
-            let (introduced_by, relation, arguments) =
+            let (introduced_by, relation, arguments, negation, scalar_negation) =
                 self.modal_relation_arguments_for_tag(tag_node, argument)?;
-            let modal_argument = ModalArgument::new(relation, introduced_by, arguments, source);
+            let modal_argument = ModalArgument::new_with_polarity(
+                relation,
+                introduced_by,
+                arguments,
+                negation,
+                scalar_negation,
+                source,
+            );
             self.modal_assignment_arguments
                 .insert(key, modal_argument.clone());
             modal_arguments.push(modal_argument);
@@ -6255,10 +6263,12 @@ where
                         visible_place,
                         self.place_count_for_relation(&relation),
                     )?;
-                    modal_arguments.push(ModalArgument::new(
+                    modal_arguments.push(ModalArgument::new_with_polarity(
                         relation,
                         introduced_by,
                         arguments,
+                        modal_negation_for_tense_modal(tense_modal),
+                        modal_scalar_negation_for_tense_modal(tense_modal),
                         self.source_for_tense_modal(tense_modal, "modal-argument"),
                     ));
                 }
@@ -6323,10 +6333,12 @@ where
             visible_place,
             self.place_count_for_relation(&relation),
         )?;
-        Ok(Some(ModalArgument::new(
+        Ok(Some(ModalArgument::new_with_polarity(
             relation,
             introduced_by,
             arguments,
+            modal_negation_for_tense_modal(tense_modal),
+            modal_scalar_negation_for_tense_modal(tense_modal),
             self.source_for_tense_modal(tense_modal, construct),
         )))
     }
@@ -6337,7 +6349,16 @@ where
         &mut self,
         tag_node: Option<RawSyntaxNodeId>,
         argument: ArgumentValue,
-    ) -> Result<(String, String, BTreeMap<String, ArgumentValue>), SemanticsError> {
+    ) -> Result<
+        (
+            String,
+            String,
+            BTreeMap<String, ArgumentValue>,
+            Option<ModalNegation>,
+            Option<ScalarNegation>,
+        ),
+        SemanticsError,
+    > {
         let Some(tense_modal) =
             tag_node.and_then(|node| self.analysis.syntax_index.tense_modal(node))
         else {
@@ -6345,6 +6366,8 @@ where
                 "modal".to_owned(),
                 "modal".to_owned(),
                 self.modal_argument_map_for_visible_place(argument, 1, None)?,
+                None,
+                None,
             ));
         };
         match tense_modal.as_data() {
@@ -6356,7 +6379,7 @@ where
                     visible_x1_place,
                     self.place_count_for_relation(&relation),
                 )?;
-                Ok(("fi'o".to_owned(), relation, arguments))
+                Ok(("fi'o".to_owned(), relation, arguments, None, None))
             }
             data!(TenseModalSyntax::Modal { se, bai, .. }) => {
                 let marker = token_text(&bai.value);
@@ -6375,7 +6398,13 @@ where
                     .as_ref()
                     .map(|se| format!("{} {marker}", token_text(&se.value)))
                     .unwrap_or(marker);
-                Ok((introduced_by, relation, arguments))
+                Ok((
+                    introduced_by,
+                    relation,
+                    arguments,
+                    modal_negation_for_tense_modal(tense_modal),
+                    modal_scalar_negation_for_tense_modal(tense_modal),
+                ))
             }
             _ => {
                 let marker = self
@@ -6390,6 +6419,8 @@ where
                     marker,
                     relation,
                     self.modal_argument_map_for_visible_place(argument, 1, None)?,
+                    modal_negation_for_tense_modal(tense_modal),
+                    modal_scalar_negation_for_tense_modal(tense_modal),
                 ))
             }
         }
@@ -11846,6 +11877,30 @@ fn scalar_negation_for_marker(marker: &WithFreeModifiers<Token>) -> ScalarNegati
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
+fn modal_negation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<ModalNegation> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Modal { nai: Some(nai), .. }) => Some(ModalNegation::new(
+            ModalNegationKind::Contradictory,
+            token_text(&nai.value),
+        )),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
+fn modal_scalar_negation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<ScalarNegation> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Modal {
+            nahe: Some(nahe),
+            ..
+        }) => Some(scalar_negation_for_marker(nahe)),
+        _ => None,
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn scalar_negation_kind_for_cmavo(cmavo: Option<Cmavo>) -> ScalarNegationKind {
     match cmavo {
@@ -12667,6 +12722,32 @@ mod tests {
         assert_eq!(modal_argument["arguments"]["x1"]["value"], lojban);
         assert_eq!(modal_argument["arguments"]["x2"]["kind"], "elided");
         assert_eq!(modal_argument["arguments"]["x3"]["kind"], "elided");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_bai_negation_preserves_polarity() {
+        let contradictory =
+            semantic_json_for("mi nelci do mu'inai le nu do nelci mi").expect("semantic JSON");
+        let nelci = predication_with_relation_and_mode(&contradictory, "nelci", "asserted");
+        let modal_argument = &nelci["modalArguments"][0];
+        assert_eq!(modal_argument["relation"], "mukti");
+        assert_eq!(modal_argument["introducedBy"], "mu'i");
+        assert_eq!(modal_argument["negation"]["kind"], "contradictory");
+        assert_eq!(modal_argument["negation"]["introducedBy"], "nai");
+        assert!(modal_argument.get("scalarNegation").is_none());
+
+        let scalar =
+            semantic_json_for("le spati cu banro na'emu'i le nu do djacu dunda fi le spati")
+                .expect("semantic JSON");
+        let banro = predication_with_relation_and_mode(&scalar, "banro", "asserted");
+        let modal_argument = &banro["modalArguments"][0];
+        assert_eq!(modal_argument["relation"], "mukti");
+        assert_eq!(modal_argument["introducedBy"], "mu'i");
+        assert!(modal_argument.get("negation").is_none());
+        assert_eq!(modal_argument["scalarNegation"]["kind"], "otherThan");
+        assert_eq!(modal_argument["scalarNegation"]["introducedBy"], "na'e");
     }
 
     #[test]

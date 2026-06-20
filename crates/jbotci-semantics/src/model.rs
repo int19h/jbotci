@@ -1470,6 +1470,32 @@ impl PlaceQuestionBinding {
     }
 }
 
+#[invariant(!introduced_by.is_empty(), "modal negation source marker must be named")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModalNegation {
+    pub kind: ModalNegationKind,
+    pub introduced_by: String,
+}
+
+impl ModalNegation {
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.introduced_by == old(introduced_by.clone()))]
+    pub fn new(kind: ModalNegationKind, introduced_by: String) -> Self {
+        Self::from_data(data!(ModalNegation {
+            kind,
+            introduced_by,
+        }))
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ModalNegationKind {
+    Contradictory,
+}
+
 #[invariant(!relation.is_empty(), "modal relation must be named")]
 #[invariant(!introduced_by.is_empty(), "modal source marker must be named")]
 #[invariant(!arguments.is_empty(), "modal relation must have at least one explicit place")]
@@ -1480,6 +1506,10 @@ pub struct ModalArgument {
     pub relation: String,
     pub introduced_by: String,
     pub arguments: BTreeMap<String, ArgumentValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub negation: Option<ModalNegation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scalar_negation: Option<ScalarNegation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SemanticSource>,
 }
@@ -1496,10 +1526,28 @@ impl ModalArgument {
         arguments: BTreeMap<String, ArgumentValue>,
         source: Option<SemanticSource>,
     ) -> Self {
+        Self::new_with_polarity(relation, introduced_by, arguments, None, None, source)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(!introduced_by.is_empty())]
+    #[requires(!arguments.is_empty())]
+    #[requires(arguments.keys().all(|place| is_numbered_argument_place(place)))]
+    #[ensures(true)]
+    pub fn new_with_polarity(
+        relation: String,
+        introduced_by: String,
+        arguments: BTreeMap<String, ArgumentValue>,
+        negation: Option<ModalNegation>,
+        scalar_negation: Option<ScalarNegation>,
+        source: Option<SemanticSource>,
+    ) -> Self {
         Self::from_data(data!(ModalArgument {
             relation,
             introduced_by,
             arguments,
+            negation,
+            scalar_negation,
             source,
         }))
     }
