@@ -1154,16 +1154,21 @@ pub enum ActualityKind {
     Demonstrated,
 }
 
-#[invariant(true)]
+#[invariant(!relation.is_empty(), "anchor relation must be named")]
+#[invariant(argument_object_kind_can_fill(anchor.object_kind()), "anchor must be referent-like")]
+#[invariant(distance.as_ref().is_none_or(|distance| !distance.is_empty()), "anchor relation distance must be named when present")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnchorRelation {
     pub relation: String,
     pub anchor: SemanticObjectId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub distance: Option<String>,
 }
 
 #[invariant(!relation.is_empty(), "temporal path relation must be named")]
 #[invariant(!introduced_by.is_empty(), "temporal path source marker must be named")]
+#[invariant(distance.as_ref().is_none_or(|distance| !distance.is_empty()), "temporal path distance must be named when present")]
 #[invariant(anchor.object_id().is_none_or(|id| argument_object_kind_can_fill(id.object_kind())), "temporal path object anchor must be referent-like")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1171,18 +1176,27 @@ pub struct TemporalPathStep {
     pub relation: String,
     pub anchor: TemporalPathAnchor,
     pub introduced_by: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub distance: Option<String>,
 }
 
 impl TemporalPathStep {
     #[requires(!relation.is_empty())]
     #[requires(!introduced_by.is_empty())]
+    #[requires(distance.as_ref().is_none_or(|distance| !distance.is_empty()))]
     #[requires(anchor.object_id().is_none_or(|id| argument_object_kind_can_fill(id.object_kind())))]
     #[ensures(ret.relation == old(relation.clone()))]
-    pub fn new(relation: String, anchor: TemporalPathAnchor, introduced_by: String) -> Self {
+    pub fn new(
+        relation: String,
+        anchor: TemporalPathAnchor,
+        introduced_by: String,
+        distance: Option<String>,
+    ) -> Self {
         Self::from_data(data!(TemporalPathStep {
             relation,
             anchor,
             introduced_by,
+            distance,
         }))
     }
 

@@ -26,9 +26,9 @@ use jbotci_syntax::ast::{
 };
 
 use crate::model::{
-    AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, Aspect, AssignedName,
-    AssignedNameData, Composition, Connector, Descriptor, EventualityClass, FormulaOperator,
-    IndexicalKind, MathLiteral, ModalArgument, ModalNegation, ModalNegationKind,
+    AbstractionKind, Actuality, ActualityKind, AnchorRelation, AnchorRelationData, ArgumentValue,
+    Aspect, AssignedName, AssignedNameData, Composition, Connector, Descriptor, EventualityClass,
+    FormulaOperator, IndexicalKind, MathLiteral, ModalArgument, ModalNegation, ModalNegationKind,
     PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale, QuantityValue,
     QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding,
     ReciprocalExchange, Recurrence, RecurrenceKind, ReferentCategory, RelationExpansion,
@@ -337,6 +337,14 @@ struct EventTenseModifier<'tree> {
     order: usize,
     tense_modal: &'tree TenseModalSyntax,
     anchor: Option<SemanticObjectId>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone)]
+struct TemporalPathRelation {
+    relation: String,
+    introduced_by: String,
+    distance: Option<String>,
 }
 
 #[invariant(true)]
@@ -2002,7 +2010,7 @@ where
         let time_relation = temporal_path_relations_for_tense_modal(tense_modal)
             .into_iter()
             .next()
-            .map(|(relation, _)| relation);
+            .map(|relation| relation.relation);
         let space_relation = space_relation_for_tense_modal(tense_modal);
         let eventuality = if time_relation.is_some() || space_relation.is_some() {
             let eventuality = self.next_eventuality();
@@ -2014,16 +2022,18 @@ where
                 source.clone(),
             );
             if let Some(relation) = time_relation {
-                event.time = Some(AnchorRelation {
+                event.time = Some(new!(AnchorRelation {
                     relation,
                     anchor: SemanticObjectId::speech_time(),
-                });
+                    distance: None,
+                }));
             }
             if let Some(relation) = space_relation {
-                event.space = Some(AnchorRelation {
+                event.space = Some(new!(AnchorRelation {
                     relation,
                     anchor: SemanticObjectId::here(),
-                });
+                    distance: None,
+                }));
             }
             self.insert(eventuality, event)?;
             Some(eventuality)
@@ -10494,10 +10504,11 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
         event.time_interval = Some(time_interval);
     }
     if let Some(relation) = space_relation_for_tense_modal(tense_modal) {
-        event.space = Some(AnchorRelation {
+        event.space = Some(new!(AnchorRelation {
             relation,
             anchor: anchor.unwrap_or_else(SemanticObjectId::here),
-        });
+            distance: None,
+        }));
     }
     if let Some(space_interval) = space_interval_for_tense_modal_with_anchor(tense_modal, anchor) {
         event.space_interval = Some(space_interval);
@@ -10527,21 +10538,27 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
 #[ensures(true)]
 fn append_temporal_path_relations_to_event(
     event: &mut SemanticObject,
-    relations: Vec<(String, String)>,
+    relations: Vec<TemporalPathRelation>,
     anchor: Option<SemanticObjectId>,
 ) {
     if relations.is_empty() {
         return;
     }
     if let Some(time) = event.time.take() {
+        let data!(AnchorRelation {
+            relation,
+            anchor,
+            distance,
+        }) = time.into_data();
         event.time_path.push(TemporalPathStep::new(
-            time.relation,
-            TemporalPathAnchor::object(time.anchor),
+            relation,
+            TemporalPathAnchor::object(anchor),
             "implicit".to_owned(),
+            distance,
         ));
     }
     let mut first_relation = true;
-    for (relation, introduced_by) in relations {
+    for relation in relations {
         let path_anchor = if first_relation && let Some(anchor) = anchor {
             TemporalPathAnchor::object(anchor)
         } else if event.time_path.is_empty() {
@@ -10550,9 +10567,12 @@ fn append_temporal_path_relations_to_event(
             TemporalPathAnchor::previous()
         };
         first_relation = false;
-        event
-            .time_path
-            .push(TemporalPathStep::new(relation, path_anchor, introduced_by));
+        event.time_path.push(TemporalPathStep::new(
+            relation.relation,
+            path_anchor,
+            relation.introduced_by,
+            relation.distance,
+        ));
     }
 }
 
@@ -10570,14 +10590,20 @@ fn normalize_event_time_path(event: &mut SemanticObject) {
         relation,
         anchor,
         introduced_by: _,
+        distance,
     }) = step.into_data();
     if let Some(anchor) = anchor.object_id() {
-        event.time = Some(AnchorRelation { relation, anchor });
+        event.time = Some(new!(AnchorRelation {
+            relation,
+            anchor,
+            distance,
+        }));
     } else {
         event.time_path.push(TemporalPathStep::new(
             relation,
             anchor,
             "implicit".to_owned(),
+            distance,
         ));
     }
 }
@@ -10630,7 +10656,7 @@ fn selbri_has_event_modifiers(selbri: &SelbriSyntax) -> bool {
 #[ensures(true)]
 fn temporal_path_relations_for_tense_modal(
     tense_modal: &TenseModalSyntax,
-) -> Vec<(String, String)> {
+) -> Vec<TemporalPathRelation> {
     match tense_modal.as_data() {
         data!(TenseModalSyntax::Composite { parts }) => {
             let mut relations = Vec::new();
@@ -10642,18 +10668,51 @@ fn temporal_path_relations_for_tense_modal(
                     continue;
                 };
                 if let Some(relation) = time_relation_for_pu_token(token) {
-                    relations.push((relation, token_text(token)));
+                    relations.push(TemporalPathRelation {
+                        relation,
+                        introduced_by: token_text(token),
+                        distance: None,
+                    });
+                    continue;
+                }
+                if let Some(distance) = time_distance_for_zi_token(token)
+                    && let Some(relation) = relations.last_mut()
+                    && relation.distance.is_none()
+                {
+                    relation.distance = Some(distance);
                 }
             }
             relations
         }
         data!(TenseModalSyntax::TimeDirection(word)) => time_relation_for_pu_token(&word.value)
-            .map(|relation| vec![(relation, token_text(&word.value))])
+            .map(|relation| {
+                vec![TemporalPathRelation {
+                    relation,
+                    introduced_by: token_text(&word.value),
+                    distance: None,
+                }]
+            })
             .unwrap_or_default(),
-        data!(TenseModalSyntax::TimeDirectionDistance { pu, .. })
-        | data!(TenseModalSyntax::TimeDirectionActuality { pu, .. }) => {
+        data!(TenseModalSyntax::TimeDirectionDistance { pu, distance }) => {
             time_relation_for_pu_token(pu)
-                .map(|relation| vec![(relation, token_text(pu))])
+                .map(|relation| {
+                    vec![TemporalPathRelation {
+                        relation,
+                        introduced_by: token_text(pu),
+                        distance: time_distance_for_zi_token(&distance.value),
+                    }]
+                })
+                .unwrap_or_default()
+        }
+        data!(TenseModalSyntax::TimeDirectionActuality { pu, .. }) => {
+            time_relation_for_pu_token(pu)
+                .map(|relation| {
+                    vec![TemporalPathRelation {
+                        relation,
+                        introduced_by: token_text(pu),
+                        distance: None,
+                    }]
+                })
                 .unwrap_or_default()
         }
         _ => Vec::new(),
@@ -11025,6 +11084,17 @@ fn time_relation_for_pu_token(token: &Token) -> Option<String> {
         Some(Cmavo::Pu) => Some("before".to_owned()),
         Some(Cmavo::Ca) => Some("at".to_owned()),
         Some(Cmavo::Ba) => Some("after".to_owned()),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn time_distance_for_zi_token(token: &Token) -> Option<String> {
+    match token.cmavo() {
+        Some(Cmavo::Zi) => Some("short".to_owned()),
+        Some(Cmavo::Za) => Some("medium".to_owned()),
+        Some(Cmavo::Zu) => Some("long".to_owned()),
         _ => None,
     }
 }
@@ -13741,6 +13811,32 @@ mod tests {
         assert_eq!(event["timePath"][0]["introducedBy"], "ba");
         assert_eq!(event["timePath"][1]["relation"], "before");
         assert_eq!(event["timePath"][1]["introducedBy"], "pu");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn time_direction_distance_attaches_to_temporal_relation() {
+        let remote_past = semantic_json_for("mi pu zu klama le zarci").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&remote_past, "klama", "asserted");
+        let event = object(
+            &remote_past,
+            klama["eventuality"].as_str().expect("klama event"),
+        );
+        assert_eq!(event["time"]["relation"], "before");
+        assert_eq!(event["time"]["distance"], "long");
+
+        let past_then_future =
+            semantic_json_for("mi pu ba za klama le zarci").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&past_then_future, "klama", "asserted");
+        let event = object(
+            &past_then_future,
+            klama["eventuality"].as_str().expect("klama event"),
+        );
+        assert_eq!(event["timePath"][0]["relation"], "before");
+        assert!(event["timePath"][0].get("distance").is_none());
+        assert_eq!(event["timePath"][1]["relation"], "after");
+        assert_eq!(event["timePath"][1]["distance"], "medium");
     }
 
     #[test]
