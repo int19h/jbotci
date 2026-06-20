@@ -370,6 +370,14 @@ struct EventTenseModifier<'tree> {
 }
 
 #[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+struct DescriptionAbstraction<'tree> {
+    abstraction: &'tree AbstractionSyntax,
+    output_sort: SemanticSort,
+    link_relation: &'static str,
+}
+
+#[invariant(true)]
 #[derive(Debug, Clone, Copy, Default)]
 struct EventModifierApplication {
     temporal_modifier: bool,
@@ -6395,7 +6403,8 @@ where
         }
         modifiers.sort_by_key(|modifier| modifier.order);
         application.temporal_modifier = modifiers.iter().any(|modifier| {
-            !temporal_path_relations_for_tense_modal(modifier.tense_modal).is_empty()
+            tense_modal_anchors_to_speech_time(modifier.tense_modal)
+                || !temporal_path_relations_for_tense_modal(modifier.tense_modal).is_empty()
         });
         let story_anchor = self
             .options
@@ -6416,6 +6425,15 @@ where
                 self.story_time_anchor = None;
                 clear_event_time_path(event);
                 clear_event_space_path(event);
+                continue;
+            }
+            if tense_modal_anchors_to_speech_time(modifier.tense_modal) {
+                clear_event_time_path(event);
+                event.time = Some(new!(AnchorRelation {
+                    relation: "at".to_owned(),
+                    anchor: SemanticObjectId::speech_time(),
+                    distance: None,
+                }));
                 continue;
             }
             let anchor = modifier.anchor.or_else(|| {
@@ -9051,9 +9069,9 @@ where
         let abstraction = description
             .selbri
             .as_deref()
-            .and_then(abstraction_for_description_selbri);
+            .and_then(description_abstraction_for_selbri);
         let sort = abstraction
-            .map(|abstraction| abstraction_output_sort(abstraction_kind_for_nu(abstraction)))
+            .map(|abstraction| abstraction.output_sort)
             .unwrap_or_else(|| {
                 match description
                     .description
@@ -9069,7 +9087,12 @@ where
             });
         let body = if let Some(selbri) = description.selbri.as_deref() {
             Some(if let Some(abstraction) = abstraction {
-                self.build_abstraction_description_formula(abstraction, id)?
+                let link_source = self
+                    .analysis
+                    .syntax_index
+                    .selbri_node_id(selbri)
+                    .and_then(|node| self.source_for_node(node.0, "abstraction-description"));
+                self.build_abstraction_description_formula(abstraction, id, link_source)?
             } else {
                 self.build_restrictive_formula(selbri, id)?
             })
@@ -9700,9 +9723,11 @@ where
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_abstraction_description_formula(
         &mut self,
-        abstraction: &'tree AbstractionSyntax,
+        description_abstraction: DescriptionAbstraction<'tree>,
         referent: SemanticObjectId,
+        link_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        let abstraction = description_abstraction.abstraction;
         let kind = abstraction_kind_for_nu(abstraction);
         self.abstraction_parameter_stack.push(Vec::new());
         let body = match self
@@ -9742,11 +9767,11 @@ where
         self.insert(
             predication,
             SemanticObject::predication(
-                abstraction_link_relation(kind).to_owned(),
+                description_abstraction.link_relation.to_owned(),
                 None,
                 arguments,
                 PredicationMode::Restrictive,
-                self.source_for_abstraction(abstraction, "abstraction-description"),
+                link_source.clone(),
                 Vec::new(),
             ),
         )?;
@@ -9755,7 +9780,10 @@ where
             formula,
             SemanticObject::atom_formula(
                 predication,
-                self.source_for_abstraction(abstraction, "restrictive-formula"),
+                link_source.map(|mut source| {
+                    source.construct = Some("restrictive-formula".to_owned());
+                    source
+                }),
                 Vec::new(),
             ),
         )
@@ -10804,8 +10832,24 @@ fn clear_event_space_path(event: &mut SemanticObject) {
 
 #[requires(true)]
 #[ensures(true)]
+fn tense_modal_anchors_to_speech_time(tense_modal: &TenseModalSyntax) -> bool {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => parts.value.iter().any(|part| {
+            matches!(
+                part.as_data(),
+                data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(token))
+                    if token.cmavo() == Some(Cmavo::Nau)
+            )
+        }),
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn tense_modal_has_event_modifier(tense_modal: &TenseModalSyntax) -> bool {
-    !temporal_path_relations_for_tense_modal(tense_modal).is_empty()
+    tense_modal_anchors_to_speech_time(tense_modal)
+        || !temporal_path_relations_for_tense_modal(tense_modal).is_empty()
         || time_interval_for_tense_modal(tense_modal).is_some()
         || !space_path_relations_for_tense_modal(tense_modal).is_empty()
         || space_interval_for_tense_modal(tense_modal).is_some()
@@ -12195,30 +12239,65 @@ fn tanru_units_for_selbri(selbri: &SelbriSyntax) -> Option<Vec<&TanruUnitSyntax>
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn abstraction_for_description_selbri(selbri: &SelbriSyntax) -> Option<&AbstractionSyntax> {
+#[ensures(ret.is_none_or(|description_abstraction| !description_abstraction.link_relation.is_empty()))]
+fn description_abstraction_for_selbri(selbri: &SelbriSyntax) -> Option<DescriptionAbstraction<'_>> {
     match selbri.as_data() {
-        data!(SelbriSyntax::Abstraction(abstraction)) => Some(abstraction),
+        data!(SelbriSyntax::Abstraction(abstraction)) => {
+            Some(description_abstraction_for_nu(abstraction))
+        }
+        data!(SelbriSyntax::ConvertedSelbri { se, inner_selbri }) => {
+            let converted_place = se_conversion_place(se).unwrap_or(2);
+            let abstraction = match inner_selbri.as_data() {
+                data!(SelbriSyntax::Abstraction(abstraction)) => abstraction.as_ref(),
+                _ => return None,
+            };
+            if converted_place == 2
+                && abstraction_kind_for_nu(abstraction) == AbstractionKind::Proposition
+            {
+                Some(DescriptionAbstraction {
+                    abstraction,
+                    output_sort: SemanticSort::Text,
+                    link_relation: "sentenceExpresses",
+                })
+            } else {
+                None
+            }
+        }
         data!(SelbriSyntax::GroupedSelbri { selbri, .. })
         | data!(SelbriSyntax::TaggedSelbri {
             inner_selbri: selbri,
             ..
-        }) => abstraction_for_description_selbri(selbri),
+        }) => description_abstraction_for_selbri(selbri),
         data!(SelbriSyntax::Tanru(units)) if units.len() == 1 => {
-            abstraction_for_description_tanru_unit(&units[0])
+            description_abstraction_for_tanru_unit(&units[0])
         }
         _ => None,
     }
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn abstraction_for_description_tanru_unit(unit: &TanruUnitSyntax) -> Option<&AbstractionSyntax> {
+#[ensures(!ret.link_relation.is_empty())]
+fn description_abstraction_for_nu(abstraction: &AbstractionSyntax) -> DescriptionAbstraction<'_> {
+    let kind = abstraction_kind_for_nu(abstraction);
+    DescriptionAbstraction {
+        abstraction,
+        output_sort: abstraction_output_sort(kind),
+        link_relation: abstraction_link_relation(kind),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|description_abstraction| !description_abstraction.link_relation.is_empty()))]
+fn description_abstraction_for_tanru_unit(
+    unit: &TanruUnitSyntax,
+) -> Option<DescriptionAbstraction<'_>> {
     match unit.as_data() {
-        data!(TanruUnitSyntax::Abstraction(abstraction)) => Some(abstraction),
+        data!(TanruUnitSyntax::Abstraction(abstraction)) => {
+            Some(description_abstraction_for_nu(abstraction))
+        }
         data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
         | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
-            abstraction_for_description_selbri(selbri)
+            description_abstraction_for_selbri(selbri)
         }
         _ => None,
     }
@@ -14236,6 +14315,26 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn nau_anchors_current_event_without_clearing_sticky_tense() {
+        let json = semantic_json_for(
+            "mi puki klama le zarci .i mi nau citka lo rectu .i mi pinxe lo djacu",
+        )
+        .expect("semantic JSON");
+
+        let citka = predication_with_relation_and_mode(&json, "citka", "asserted");
+        let citka_event = object(&json, citka["eventuality"].as_str().expect("citka event"));
+        assert_eq!(citka_event["time"]["relation"], "at");
+        assert_eq!(citka_event["time"]["anchor"], "referent:speech-time");
+
+        let pinxe = predication_with_relation_and_mode(&json, "pinxe", "asserted");
+        let pinxe_event = object(&json, pinxe["eventuality"].as_str().expect("pinxe event"));
+        assert_eq!(pinxe_event["time"]["relation"], "before");
+        assert_eq!(pinxe_event["time"]["anchor"], "referent:speech-time");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn story_time_advances_tenseless_bridi_after_previous_event() {
         let json = semantic_json_for_options(
             "mi puki klama le zarci .i mi citka lo rectu",
@@ -15305,6 +15404,32 @@ mod tests {
         let body_predication = object(&json, object(&json, body)["predication"].as_str().unwrap());
         assert_eq!(body_predication["relation"], "klama");
         assert_eq!(body_predication["mode"], "inert");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn converted_duhu_description_describes_text_expressing_proposition() {
+        let json = semantic_json_for("la .djan. pu cusku le se du'u la .djordj. ca klama le zarci")
+            .expect("semantic JSON");
+
+        let sentence_link =
+            predication_with_relation_and_mode(&json, "sentenceExpresses", "restrictive");
+        let text = sentence_link["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("text referent");
+        let abstraction = sentence_link["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("proposition abstraction");
+        assert_eq!(object(&json, text)["sort"], "text");
+        assert_eq!(object(&json, abstraction)["abstractionKind"], "proposition");
+
+        let cusku = predication_with_relation_and_mode(&json, "cusku", "asserted");
+        let cusku_event = cusku["eventuality"].as_str().expect("cusku event");
+        let klama = predication_with_relation_and_mode(&json, "klama", "inert");
+        let klama_event = object(&json, klama["eventuality"].as_str().expect("klama event"));
+        assert_eq!(klama_event["time"]["relation"], "at");
+        assert_eq!(klama_event["time"]["anchor"], cusku_event);
     }
 
     #[test]
