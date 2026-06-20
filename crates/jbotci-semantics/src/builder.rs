@@ -32,12 +32,12 @@ use crate::model::{
     FormulaOperator, IndexicalKind, MathLiteral, ModalArgument, ModalNegation, ModalNegationKind,
     PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale, QuantityValue,
     QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding,
-    ReciprocalExchange, Recurrence, RecurrenceKind, ReferentCategory, RelationExpansion,
-    RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic,
-    SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort,
-    SequenceRelation, SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind,
-    TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, UtteranceForce,
-    diagnostic, source_from_spans,
+    ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind,
+    ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind, ScalarNegation,
+    ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId,
+    SemanticOperatorData, SemanticSort, SequenceRelation, SignKind, SpaceInterval, SpatialMotion,
+    SpatialMotionKind, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval,
+    UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -10721,25 +10721,25 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
     if let Some(space_interval) = space_interval_for_tense_modal_with_anchor(tense_modal, anchor) {
         event.space_interval = Some(space_interval);
     }
-    if let Some(contour) = temporal_aspect_contour_for_tense_modal(tense_modal) {
-        event.aspect = Some(Aspect::new_with_polarity(
-            contour,
-            anchor,
-            modal_scalar_negation_for_tense_modal(tense_modal),
-        ));
-    }
+    apply_aspect_contours_to_event(
+        event,
+        temporal_aspect_contours_for_tense_modal(tense_modal),
+        anchor,
+        modal_scalar_negation_for_tense_modal(tense_modal),
+        false,
+    );
     event.recurrence.extend(
         temporal_recurrences_for_tense_modal(tense_modal)
             .into_iter()
             .map(|recurrence| recurrence_with_interval(recurrence, anchor)),
     );
-    if let Some(contour) = spatial_aspect_contour_for_tense_modal(tense_modal) {
-        event.spatial_aspect = Some(Aspect::new_with_polarity(
-            contour,
-            anchor,
-            modal_scalar_negation_for_tense_modal(tense_modal),
-        ));
-    }
+    apply_aspect_contours_to_event(
+        event,
+        spatial_aspect_contours_for_tense_modal(tense_modal),
+        anchor,
+        modal_scalar_negation_for_tense_modal(tense_modal),
+        true,
+    );
     event.spatial_recurrence.extend(
         spatial_recurrences_for_tense_modal(tense_modal)
             .into_iter()
@@ -10842,6 +10842,34 @@ fn normalize_event_time_path(event: &mut SemanticObject) {
 fn clear_event_time_path(event: &mut SemanticObject) {
     event.time = None;
     event.time_path.clear();
+}
+
+#[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[ensures(true)]
+fn apply_aspect_contours_to_event(
+    event: &mut SemanticObject,
+    contours: Vec<String>,
+    anchor: Option<SemanticObjectId>,
+    scalar_negation: Option<ScalarNegation>,
+    spatial: bool,
+) {
+    let mut aspects = contours
+        .into_iter()
+        .map(|contour| Aspect::new_with_polarity(contour, anchor, scalar_negation.clone()))
+        .collect::<Vec<_>>();
+    if aspects.len() == 1 {
+        if spatial {
+            event.spatial_aspect = aspects.pop();
+        } else {
+            event.aspect = aspects.pop();
+        }
+    } else if !aspects.is_empty() {
+        if spatial {
+            event.spatial_aspects.extend(aspects);
+        } else {
+            event.aspects.extend(aspects);
+        }
+    }
 }
 
 #[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
@@ -10961,9 +10989,9 @@ fn tense_modal_has_event_modifier(tense_modal: &TenseModalSyntax) -> bool {
         || time_interval_for_tense_modal(tense_modal).is_some()
         || !space_path_relations_for_tense_modal(tense_modal).is_empty()
         || space_interval_for_tense_modal(tense_modal).is_some()
-        || temporal_aspect_contour_for_tense_modal(tense_modal).is_some()
+        || !temporal_aspect_contours_for_tense_modal(tense_modal).is_empty()
         || !temporal_recurrences_for_tense_modal(tense_modal).is_empty()
-        || spatial_aspect_contour_for_tense_modal(tense_modal).is_some()
+        || !spatial_aspect_contours_for_tense_modal(tense_modal).is_empty()
         || !spatial_recurrences_for_tense_modal(tense_modal).is_empty()
 }
 
@@ -11759,26 +11787,28 @@ fn space_interval_for_tense_modal_with_anchor(
 
 #[requires(true)]
 #[ensures(true)]
-fn temporal_aspect_contour_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<String> {
+fn temporal_aspect_contours_for_tense_modal(tense_modal: &TenseModalSyntax) -> Vec<String> {
     match tense_modal.as_data() {
         data!(TenseModalSyntax::Composite { parts }) => {
-            scoped_interval_modifiers_for_composite_parts(&parts.value).temporal_aspect
+            scoped_interval_modifiers_for_composite_parts(&parts.value).temporal_aspects
         }
-        data!(TenseModalSyntax::EventContour(words)) => {
-            words.value.iter().find_map(aspect_contour_for_zaho_token)
-        }
-        _ => None,
+        data!(TenseModalSyntax::EventContour(words)) => words
+            .value
+            .iter()
+            .filter_map(aspect_contour_for_zaho_token)
+            .collect(),
+        _ => Vec::new(),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn spatial_aspect_contour_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<String> {
+fn spatial_aspect_contours_for_tense_modal(tense_modal: &TenseModalSyntax) -> Vec<String> {
     match tense_modal.as_data() {
         data!(TenseModalSyntax::Composite { parts }) => {
-            scoped_interval_modifiers_for_composite_parts(&parts.value).spatial_aspect
+            scoped_interval_modifiers_for_composite_parts(&parts.value).spatial_aspects
         }
-        _ => None,
+        _ => Vec::new(),
     }
 }
 
@@ -11848,9 +11878,9 @@ fn spatial_recurrences_for_tense_modal(tense_modal: &TenseModalSyntax) -> Vec<Re
 #[invariant(true)]
 #[derive(Debug, Default)]
 struct ScopedIntervalModifiers {
-    temporal_aspect: Option<String>,
+    temporal_aspects: Vec<String>,
     temporal_recurrences: Vec<Recurrence>,
-    spatial_aspect: Option<String>,
+    spatial_aspects: Vec<String>,
     spatial_recurrences: Vec<Recurrence>,
 }
 
@@ -11869,6 +11899,7 @@ fn scoped_interval_modifiers_for_composite_parts(
     let mut modifiers = ScopedIntervalModifiers::default();
     let mut pending_number = None::<PendingRecurrenceNumber>;
     let mut pending_recurrence_index = None::<(bool, usize)>;
+    let mut pending_recurrence_connection = None::<RecurrenceConnection>;
     let mut next_interval_property_is_spatial = false;
     for part in parts {
         let data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
@@ -11877,13 +11908,24 @@ fn scoped_interval_modifiers_for_composite_parts(
         else {
             pending_number = None;
             pending_recurrence_index = None;
+            pending_recurrence_connection = None;
             next_interval_property_is_spatial = false;
             continue;
         };
         if token.is_cmavo(Cmavo::Fehe) {
             pending_number = None;
             pending_recurrence_index = None;
+            pending_recurrence_connection = None;
             next_interval_property_is_spatial = true;
+            continue;
+        }
+        if token.is_cmavo(Cmavo::Pihu) {
+            pending_number = None;
+            pending_recurrence_index = None;
+            pending_recurrence_connection = Some(RecurrenceConnection::new(
+                RecurrenceConnectionKind::Product,
+                token_text(token),
+            ));
             continue;
         }
         if token.is_cmavo(Cmavo::Nai) {
@@ -11904,6 +11946,7 @@ fn scoped_interval_modifiers_for_composite_parts(
                 }
             }
             pending_number = None;
+            pending_recurrence_connection = None;
             next_interval_property_is_spatial = false;
             continue;
         }
@@ -11927,11 +11970,16 @@ fn scoped_interval_modifiers_for_composite_parts(
             continue;
         }
         let pending = pending_number.take();
-        if let Some(recurrence) = recurrence_for_interval_marker(
+        if let Some(mut recurrence) = recurrence_for_interval_marker(
             token,
             pending.as_ref().map(|pending| pending.text.clone()),
             None,
         ) {
+            if let Some(connection) = pending_recurrence_connection.take() {
+                recurrence = recurrence.with_data(data! {
+                    connection: Some(connection),
+                });
+            }
             if pending.as_ref().is_some_and(|pending| pending.spatial)
                 || next_interval_property_is_spatial
             {
@@ -11946,16 +11994,18 @@ fn scoped_interval_modifiers_for_composite_parts(
         }
         if let Some(contour) = aspect_contour_for_zaho_token(token) {
             pending_recurrence_index = None;
+            pending_recurrence_connection = None;
             if next_interval_property_is_spatial {
-                modifiers.spatial_aspect = Some(contour);
+                modifiers.spatial_aspects.push(contour);
             } else {
-                modifiers.temporal_aspect = Some(contour);
+                modifiers.temporal_aspects.push(contour);
             }
             next_interval_property_is_spatial = false;
             continue;
         }
         pending_number = None;
         pending_recurrence_index = None;
+        pending_recurrence_connection = None;
         next_interval_property_is_spatial = false;
     }
     modifiers
@@ -12068,6 +12118,7 @@ fn recurrence_for_interval_marker(
     Some(Recurrence::new(
         kind,
         token_text(marker),
+        None,
         value,
         None,
         negation_marker
@@ -12086,6 +12137,7 @@ fn recurrence_with_interval(
     Recurrence::new(
         data.kind,
         data.introduced_by,
+        data.connection,
         data.value,
         interval,
         data.negation,
@@ -14961,6 +15013,31 @@ mod tests {
         assert_eq!(event["recurrence"][1]["kind"], "ordinalOccurrence");
         assert_eq!(event["recurrence"][1]["introducedBy"], "re'u");
         assert_eq!(event["recurrence"][1]["value"]["integer"], 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ordered_aspects_and_recurrence_products_are_preserved() {
+        let aspect_chain = semantic_json_for("la .djordj. ca'o co'a ciska").expect("semantic JSON");
+        let ciska = predication_with_relation_and_mode(&aspect_chain, "ciska", "asserted");
+        let event = object(
+            &aspect_chain,
+            ciska["eventuality"].as_str().expect("ciska event"),
+        );
+        assert!(event.get("aspect").is_none());
+        assert_eq!(event["aspects"][0]["contour"], "continuative");
+        assert_eq!(event["aspects"][1]["contour"], "initiative");
+
+        let product =
+            semantic_json_for("mi reroi pi'u xaroi celgau le seldanti").expect("semantic JSON");
+        let celgau = predication_with_relation_and_mode(&product, "celgau", "asserted");
+        let event = object(&product, celgau["eventuality"].as_str().expect("event"));
+        assert_eq!(event["recurrence"][0]["value"]["integer"], 2);
+        assert!(event["recurrence"][0].get("connection").is_none());
+        assert_eq!(event["recurrence"][1]["value"]["integer"], 6);
+        assert_eq!(event["recurrence"][1]["connection"]["kind"], "product");
+        assert_eq!(event["recurrence"][1]["connection"]["introducedBy"], "pi'u");
     }
 
     #[test]

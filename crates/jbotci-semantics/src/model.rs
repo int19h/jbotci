@@ -350,6 +350,8 @@ pub struct SemanticObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub aspect: Option<Aspect>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aspects: Vec<Aspect>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub recurrence: Vec<Recurrence>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub space: Option<AnchorRelation>,
@@ -359,6 +361,8 @@ pub struct SemanticObject {
     pub space_interval: Option<SpaceInterval>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub spatial_aspect: Option<Aspect>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub spatial_aspects: Vec<Aspect>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub spatial_recurrence: Vec<Recurrence>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -502,11 +506,13 @@ impl SemanticObject {
             time_path: Vec::new(),
             time_interval: None,
             aspect: None,
+            aspects: Vec::new(),
             recurrence: Vec::new(),
             space: None,
             space_path: Vec::new(),
             space_interval: None,
             spatial_aspect: None,
+            spatial_aspects: Vec::new(),
             spatial_recurrence: Vec::new(),
             category: None,
             sort: None,
@@ -953,10 +959,16 @@ impl SemanticObject {
         if let Some(aspect) = &self.aspect {
             aspect.references_into(out);
         }
+        for aspect in &self.aspects {
+            aspect.references_into(out);
+        }
         if let Some(space_interval) = &self.space_interval {
             space_interval.references_into(out);
         }
         if let Some(aspect) = &self.spatial_aspect {
+            aspect.references_into(out);
+        }
+        for aspect in &self.spatial_aspects {
             aspect.references_into(out);
         }
         for recurrence in &self.recurrence {
@@ -1418,6 +1430,8 @@ pub struct Recurrence {
     pub kind: RecurrenceKind,
     pub introduced_by: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub connection: Option<RecurrenceConnection>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<QuantityValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub interval: Option<SemanticObjectId>,
@@ -1433,6 +1447,7 @@ impl Recurrence {
     pub fn new(
         kind: RecurrenceKind,
         introduced_by: String,
+        connection: Option<RecurrenceConnection>,
         value: Option<QuantityValue>,
         interval: Option<SemanticObjectId>,
         negation: Option<ModalNegation>,
@@ -1441,6 +1456,7 @@ impl Recurrence {
         Self::from_data(data!(Recurrence {
             kind,
             introduced_by,
+            connection,
             value,
             interval,
             negation,
@@ -1456,6 +1472,32 @@ impl Recurrence {
         }
         extend_optional(out, self.interval);
     }
+}
+
+#[invariant(!introduced_by.is_empty(), "recurrence connection source marker must be named")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurrenceConnection {
+    pub kind: RecurrenceConnectionKind,
+    pub introduced_by: String,
+}
+
+impl RecurrenceConnection {
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.introduced_by == old(introduced_by.clone()))]
+    pub fn new(kind: RecurrenceConnectionKind, introduced_by: String) -> Self {
+        Self::from_data(data!(RecurrenceConnection {
+            kind,
+            introduced_by,
+        }))
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RecurrenceConnectionKind {
+    Product,
 }
 
 #[invariant(true)]
