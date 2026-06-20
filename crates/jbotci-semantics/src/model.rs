@@ -353,6 +353,8 @@ pub struct SemanticObject {
     pub recurrence: Vec<Recurrence>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub space: Option<AnchorRelation>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub space_path: Vec<TemporalPathStep>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub space_interval: Option<SpaceInterval>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -502,6 +504,7 @@ impl SemanticObject {
             aspect: None,
             recurrence: Vec::new(),
             space: None,
+            space_path: Vec::new(),
             space_interval: None,
             spatial_aspect: None,
             spatial_recurrence: Vec::new(),
@@ -940,6 +943,9 @@ impl SemanticObject {
         }
         if let Some(space) = &self.space {
             out.push(space.anchor);
+        }
+        for step in &self.space_path {
+            step.references_into(out);
         }
         if let Some(time_interval) = &self.time_interval {
             time_interval.references_into(out);
@@ -2368,6 +2374,11 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
             .all(|item| sequence_item_kind_is_allowed(item.object_kind()))
         && references_have_kind(&object.connection_claims, SemanticObjectKind::Formula)
         && object.time_path.iter().all(|step| {
+            step.anchor
+                .object_id()
+                .is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind()))
+        })
+        && object.space_path.iter().all(|step| {
             step.anchor
                 .object_id()
                 .is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind()))

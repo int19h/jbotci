@@ -442,7 +442,7 @@ pub struct OutputExpectations {
     #[serde(default)]
     pub gentufa: Option<GentufaOutputExpectation>,
     #[serde(default)]
-    pub tersmu: Option<CommandOutputExpectation>,
+    pub tersmu: Option<TersmuOutputExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -479,6 +479,16 @@ pub struct CommandOutputExpectation {
     pub brackets: Option<TextExpectation>,
     #[serde(default)]
     pub tree: Option<TextExpectation>,
+    #[serde(default)]
+    pub json: Option<TextExpectation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[invariant(true)]
+pub struct TersmuOutputExpectation {
+    #[serde(default, rename = "story-time")]
+    pub story_time: bool,
     #[serde(default)]
     pub json: Option<TextExpectation>,
 }

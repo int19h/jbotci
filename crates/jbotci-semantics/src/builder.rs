@@ -114,13 +114,18 @@ pub enum SemanticsErrorKind {
 #[derive(Debug, Clone, Copy)]
 pub struct SemanticBuildOptions<'a> {
     pub source_text: Option<&'a str>,
+    pub story_time: bool,
 }
 
 impl Default for SemanticBuildOptions<'_> {
     #[requires(true)]
     #[ensures(ret.source_text.is_none())]
+    #[ensures(!ret.story_time)]
     fn default() -> Self {
-        Self { source_text: None }
+        Self {
+            source_text: None,
+            story_time: false,
+        }
     }
 }
 
@@ -140,9 +145,26 @@ pub fn build_semantic_graph_with_dictionary(
     source_text: Option<&str>,
     dictionary: &Dictionary<'_>,
 ) -> Result<SemanticGraph, SemanticsError> {
+    build_semantic_graph_with_dictionary_and_options(
+        syntax,
+        SemanticBuildOptions {
+            source_text,
+            story_time: false,
+        },
+        dictionary,
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
+pub fn build_semantic_graph_with_dictionary_and_options<'a>(
+    syntax: &TextSyntax,
+    options: SemanticBuildOptions<'a>,
+    dictionary: &Dictionary<'_>,
+) -> Result<SemanticGraph, SemanticsError> {
     build_semantic_graph_with_resolvers(
         syntax,
-        source_text,
+        options,
         |relation| dictionary_relation_place_count(dictionary, relation),
         |rafsi| {
             dictionary
@@ -163,14 +185,22 @@ pub fn build_semantic_graph_with_place_resolver<F>(
 where
     F: Fn(&str) -> Option<usize>,
 {
-    build_semantic_graph_with_resolvers(syntax, source_text, relation_place_count, |_| None)
+    build_semantic_graph_with_resolvers(
+        syntax,
+        SemanticBuildOptions {
+            source_text,
+            story_time: false,
+        },
+        relation_place_count,
+        |_| None,
+    )
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
-fn build_semantic_graph_with_resolvers<F, R>(
+fn build_semantic_graph_with_resolvers<'a, F, R>(
     syntax: &TextSyntax,
-    source_text: Option<&str>,
+    options: SemanticBuildOptions<'a>,
     relation_place_count: F,
     rafsi_source_word: R,
 ) -> Result<SemanticGraph, SemanticsError>
@@ -181,7 +211,7 @@ where
     let analysis = analyze_references(syntax)?;
     let mut builder = GraphBuilder::new(
         &analysis,
-        SemanticBuildOptions { source_text },
+        options,
         &relation_place_count,
         &rafsi_source_word,
     );
@@ -340,6 +370,13 @@ struct EventTenseModifier<'tree> {
 }
 
 #[invariant(true)]
+#[derive(Debug, Clone, Copy, Default)]
+struct EventModifierApplication {
+    temporal_modifier: bool,
+    sticky_temporal_modifier: bool,
+}
+
+#[invariant(true)]
 #[derive(Debug, Clone)]
 struct TemporalPathRelation {
     relation: String,
@@ -421,11 +458,13 @@ where
     modal_assignment_arguments: HashMap<ModalAssignmentKey, ModalArgument>,
     sticky_modal_arguments: BTreeMap<StickyModalKey, ModalArgument>,
     sticky_time_path: Vec<TemporalPathStep>,
+    sticky_space_path: Vec<TemporalPathStep>,
     utterance_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     content_eventualities: HashMap<SemanticObjectId, SemanticObjectId>,
     parameter_slots: Vec<QuestionSlot>,
     abstraction_parameter_stack: Vec<Vec<SemanticObjectId>>,
     temporal_context_stack: Vec<SemanticObjectId>,
+    story_time_anchor: Option<SemanticObjectId>,
     pending_asides: Vec<SemanticObjectId>,
 }
 
@@ -456,11 +495,13 @@ where
             modal_assignment_arguments: HashMap::new(),
             sticky_modal_arguments: BTreeMap::new(),
             sticky_time_path: Vec::new(),
+            sticky_space_path: Vec::new(),
             utterance_objects: HashMap::new(),
             content_eventualities: HashMap::new(),
             parameter_slots: Vec::new(),
             abstraction_parameter_stack: Vec::new(),
             temporal_context_stack: Vec::new(),
+            story_time_anchor: None,
             pending_asides: Vec::new(),
         };
         builder.insert_deictic_referents();
@@ -2011,7 +2052,9 @@ where
             .into_iter()
             .next()
             .map(|relation| relation.relation);
-        let space_relation = space_relation_for_tense_modal(tense_modal);
+        let space_relation = space_path_relations_for_tense_modal(tense_modal)
+            .into_iter()
+            .next();
         let eventuality = if time_relation.is_some() || space_relation.is_some() {
             let eventuality = self.next_eventuality();
             let mut event = SemanticObject::eventuality(
@@ -2030,9 +2073,9 @@ where
             }
             if let Some(relation) = space_relation {
                 event.space = Some(new!(AnchorRelation {
-                    relation,
+                    relation: relation.relation,
                     anchor: SemanticObjectId::here(),
-                    distance: None,
+                    distance: relation.distance,
                 }));
             }
             self.insert(eventuality, event)?;
@@ -6059,7 +6102,9 @@ where
             }),
             source.clone(),
         );
-        self.apply_ordered_event_modifiers_to_event(frame, selbri, &mut event)?;
+        let modifier_application =
+            self.apply_ordered_event_modifiers_to_event(frame, selbri, &mut event)?;
+        self.apply_story_time_to_event(eventuality, &mut event, modifier_application);
         self.insert(eventuality, event)?;
         self.clear_sticky_modals_for_selbri_if_needed(selbri);
         let (mut arguments, mut highest_assigned_place, modal_arguments) = self
@@ -6341,28 +6386,52 @@ where
         frame: Option<SelbriPlaceFrameId>,
         selbri: Option<&'tree SelbriSyntax>,
         event: &mut SemanticObject,
-    ) -> Result<(), SemanticsError> {
-        if !self.sticky_time_path.is_empty() {
-            event.time_path = self.sticky_time_path.clone();
-        }
+    ) -> Result<EventModifierApplication, SemanticsError> {
+        let mut application = EventModifierApplication::default();
         let mut modifiers = Vec::new();
         self.collect_frame_tense_event_modifiers(frame, &mut modifiers)?;
         if let Some(selbri) = selbri {
             self.collect_selbri_tense_event_modifiers(selbri, &mut modifiers);
         }
         modifiers.sort_by_key(|modifier| modifier.order);
+        application.temporal_modifier = modifiers.iter().any(|modifier| {
+            !temporal_path_relations_for_tense_modal(modifier.tense_modal).is_empty()
+        });
+        let story_anchor = self
+            .options
+            .story_time
+            .then_some(self.story_time_anchor)
+            .flatten();
+        if !self.sticky_time_path.is_empty() && !(self.options.story_time && story_anchor.is_some())
+        {
+            event.time_path = self.sticky_time_path.clone();
+        }
+        if !self.sticky_space_path.is_empty() {
+            event.space_path = self.sticky_space_path.clone();
+        }
         for modifier in modifiers {
             if tense_modal_resets_sticky_tense(modifier.tense_modal) {
                 self.sticky_time_path.clear();
+                self.sticky_space_path.clear();
+                self.story_time_anchor = None;
                 clear_event_time_path(event);
+                clear_event_space_path(event);
                 continue;
             }
             let anchor = modifier.anchor.or_else(|| {
-                event
-                    .time_path
-                    .is_empty()
-                    .then(|| self.current_temporal_context())
-                    .flatten()
+                if self.options.story_time
+                    && application.temporal_modifier
+                    && !temporal_path_relations_for_tense_modal(modifier.tense_modal).is_empty()
+                    && story_anchor.is_some()
+                {
+                    story_anchor
+                } else {
+                    event
+                        .time_path
+                        .is_empty()
+                        .then(|| self.current_temporal_context())
+                        .flatten()
+                }
             });
             apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
                 modifier.tense_modal,
@@ -6372,10 +6441,44 @@ where
             );
             if tense_modal_makes_tense_sticky(modifier.tense_modal) {
                 self.sticky_time_path = event.time_path.clone();
+                application.sticky_temporal_modifier = true;
+            }
+            if tense_modal_makes_space_sticky(modifier.tense_modal) {
+                self.sticky_space_path = event.space_path.clone();
             }
         }
         normalize_event_time_path(event);
-        Ok(())
+        normalize_event_space_path(event);
+        Ok(application)
+    }
+
+    #[requires(eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality)]
+    #[ensures(true)]
+    fn apply_story_time_to_event(
+        &mut self,
+        eventuality: SemanticObjectId,
+        event: &mut SemanticObject,
+        modifier_application: EventModifierApplication,
+    ) {
+        if !self.options.story_time {
+            return;
+        }
+        if let Some(anchor) = self.story_time_anchor
+            && !modifier_application.temporal_modifier
+        {
+            event.time_path.clear();
+            event.time = Some(new!(AnchorRelation {
+                relation: "after".to_owned(),
+                anchor,
+                distance: None,
+            }));
+        }
+        if !modifier_application.temporal_modifier
+            || modifier_application.sticky_temporal_modifier
+            || self.story_time_anchor.is_none()
+        {
+            self.story_time_anchor = Some(eventuality);
+        }
     }
 
     #[requires(true)]
@@ -6401,6 +6504,7 @@ where
             };
             if !tense_modal_has_event_modifier(tense_modal)
                 && !tense_modal_makes_tense_sticky(tense_modal)
+                && !tense_modal_makes_space_sticky(tense_modal)
                 && !tense_modal_resets_sticky_tense(tense_modal)
             {
                 continue;
@@ -6438,6 +6542,7 @@ where
             }) => {
                 if tense_modal_has_event_modifier(tense_modal)
                     || tense_modal_makes_tense_sticky(tense_modal)
+                    || tense_modal_makes_space_sticky(tense_modal)
                     || tense_modal_resets_sticky_tense(tense_modal)
                 {
                     modifiers.push(EventTenseModifier {
@@ -6456,6 +6561,7 @@ where
                 if let Some(tense_modal) = ke_tense_modal
                     && (tense_modal_has_event_modifier(tense_modal)
                         || tense_modal_makes_tense_sticky(tense_modal)
+                        || tense_modal_makes_space_sticky(tense_modal)
                         || tense_modal_resets_sticky_tense(tense_modal))
                 {
                     modifiers.push(EventTenseModifier {
@@ -6529,6 +6635,7 @@ where
                 if let Some(tense_modal) = tense_modal
                     && (tense_modal_has_event_modifier(tense_modal)
                         || tense_modal_makes_tense_sticky(tense_modal)
+                        || tense_modal_makes_space_sticky(tense_modal)
                         || tense_modal_resets_sticky_tense(tense_modal))
                 {
                     modifiers.push(EventTenseModifier {
@@ -10503,13 +10610,11 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
     if let Some(time_interval) = time_interval_for_tense_modal_with_anchor(tense_modal, anchor) {
         event.time_interval = Some(time_interval);
     }
-    if let Some(relation) = space_relation_for_tense_modal(tense_modal) {
-        event.space = Some(new!(AnchorRelation {
-            relation,
-            anchor: anchor.unwrap_or_else(SemanticObjectId::here),
-            distance: None,
-        }));
-    }
+    append_space_path_relations_to_event(
+        event,
+        space_path_relations_for_tense_modal(tense_modal),
+        anchor,
+    );
     if let Some(space_interval) = space_interval_for_tense_modal_with_anchor(tense_modal, anchor) {
         event.space_interval = Some(space_interval);
     }
@@ -10531,6 +10636,7 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
     );
     if normalize_time_path {
         normalize_event_time_path(event);
+        normalize_event_space_path(event);
     }
 }
 
@@ -10615,12 +10721,93 @@ fn clear_event_time_path(event: &mut SemanticObject) {
     event.time_path.clear();
 }
 
+#[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[ensures(true)]
+fn append_space_path_relations_to_event(
+    event: &mut SemanticObject,
+    relations: Vec<TemporalPathRelation>,
+    anchor: Option<SemanticObjectId>,
+) {
+    if relations.is_empty() {
+        return;
+    }
+    if let Some(space) = event.space.take() {
+        let data!(AnchorRelation {
+            relation,
+            anchor,
+            distance,
+        }) = space.into_data();
+        event.space_path.push(TemporalPathStep::new(
+            relation,
+            TemporalPathAnchor::object(anchor),
+            "implicit".to_owned(),
+            distance,
+        ));
+    }
+    let mut first_relation = true;
+    for relation in relations {
+        let path_anchor = if first_relation && let Some(anchor) = anchor {
+            TemporalPathAnchor::object(anchor)
+        } else if event.space_path.is_empty() {
+            TemporalPathAnchor::object(SemanticObjectId::here())
+        } else {
+            TemporalPathAnchor::previous()
+        };
+        first_relation = false;
+        event.space_path.push(TemporalPathStep::new(
+            relation.relation,
+            path_anchor,
+            relation.introduced_by,
+            relation.distance,
+        ));
+    }
+}
+
+#[requires(true)]
+#[ensures(event.space.is_none() || event.space_path.is_empty())]
+fn normalize_event_space_path(event: &mut SemanticObject) {
+    if event.space_path.len() != 1 {
+        if !event.space_path.is_empty() {
+            event.space = None;
+        }
+        return;
+    }
+    let step = event.space_path.pop().expect("single spatial path step");
+    let data!(TemporalPathStep {
+        relation,
+        anchor,
+        introduced_by: _,
+        distance,
+    }) = step.into_data();
+    if let Some(anchor) = anchor.object_id() {
+        event.space = Some(new!(AnchorRelation {
+            relation,
+            anchor,
+            distance,
+        }));
+    } else {
+        event.space_path.push(TemporalPathStep::new(
+            relation,
+            anchor,
+            "implicit".to_owned(),
+            distance,
+        ));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn clear_event_space_path(event: &mut SemanticObject) {
+    event.space = None;
+    event.space_path.clear();
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn tense_modal_has_event_modifier(tense_modal: &TenseModalSyntax) -> bool {
     !temporal_path_relations_for_tense_modal(tense_modal).is_empty()
         || time_interval_for_tense_modal(tense_modal).is_some()
-        || space_relation_for_tense_modal(tense_modal).is_some()
+        || !space_path_relations_for_tense_modal(tense_modal).is_empty()
         || space_interval_for_tense_modal(tense_modal).is_some()
         || temporal_aspect_contour_for_tense_modal(tense_modal).is_some()
         || !temporal_recurrences_for_tense_modal(tense_modal).is_empty()
@@ -10721,23 +10908,89 @@ fn temporal_path_relations_for_tense_modal(
 
 #[requires(true)]
 #[ensures(true)]
-fn space_relation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<String> {
+fn space_path_relations_for_tense_modal(
+    tense_modal: &TenseModalSyntax,
+) -> Vec<TemporalPathRelation> {
     match tense_modal.as_data() {
         data!(TenseModalSyntax::Composite { parts }) => {
-            parts.value.iter().find_map(|part| match part.as_data() {
-                data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
+            let mut relations = Vec::new();
+            let mut previous_relation_accepts_distance = false;
+            for part in &parts.value {
+                let data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
                     token
-                )) => space_relation_for_space_distance_token(token),
-                data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::AdHocModal(..)) => None,
-            })
+                )) = part.as_data()
+                else {
+                    previous_relation_accepts_distance = false;
+                    continue;
+                };
+                if let Some(relation) = space_relation_for_faha_token(token) {
+                    relations.push(TemporalPathRelation {
+                        relation,
+                        introduced_by: token_text(token),
+                        distance: None,
+                    });
+                    previous_relation_accepts_distance = true;
+                    continue;
+                }
+                if let Some(distance) = space_distance_for_va_token(token) {
+                    if previous_relation_accepts_distance
+                        && let Some(relation) = relations.last_mut()
+                        && relation.distance.is_none()
+                    {
+                        relation.distance = Some(distance);
+                        previous_relation_accepts_distance = false;
+                        continue;
+                    }
+                    if let Some(relation) = space_relation_for_space_distance_token(token) {
+                        relations.push(TemporalPathRelation {
+                            relation,
+                            introduced_by: token_text(token),
+                            distance: None,
+                        });
+                    }
+                    previous_relation_accepts_distance = false;
+                    continue;
+                }
+                previous_relation_accepts_distance = false;
+            }
+            relations
         }
         data!(TenseModalSyntax::SpaceDistance(word)) => {
             space_relation_for_space_distance_token(&word.value)
+                .map(|relation| {
+                    vec![TemporalPathRelation {
+                        relation,
+                        introduced_by: token_text(&word.value),
+                        distance: None,
+                    }]
+                })
+                .unwrap_or_default()
         }
-        data!(TenseModalSyntax::SpaceMovement { distance, .. }) => distance
-            .as_ref()
-            .and_then(|distance| space_relation_for_space_distance_token(&distance.value)),
-        _ => None,
+        data!(TenseModalSyntax::SpaceDirection(word)) => space_relation_for_faha_token(&word.value)
+            .map(|relation| {
+                vec![TemporalPathRelation {
+                    relation,
+                    introduced_by: token_text(&word.value),
+                    distance: None,
+                }]
+            })
+            .unwrap_or_default(),
+        data!(TenseModalSyntax::SpaceMovement {
+            direction,
+            distance,
+            ..
+        }) => space_relation_for_faha_token(&direction.value)
+            .map(|relation| {
+                vec![TemporalPathRelation {
+                    relation,
+                    introduced_by: token_text(&direction.value),
+                    distance: distance
+                        .as_ref()
+                        .and_then(|distance| space_distance_for_va_token(&distance.value)),
+                }]
+            })
+            .unwrap_or_default(),
+        _ => Vec::new(),
     }
 }
 
@@ -11095,6 +11348,47 @@ fn time_distance_for_zi_token(token: &Token) -> Option<String> {
         Some(Cmavo::Zi) => Some("short".to_owned()),
         Some(Cmavo::Za) => Some("medium".to_owned()),
         Some(Cmavo::Zu) => Some("long".to_owned()),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn space_distance_for_va_token(token: &Token) -> Option<String> {
+    match token.cmavo() {
+        Some(Cmavo::Vi) => Some("short".to_owned()),
+        Some(Cmavo::Va) => Some("medium".to_owned()),
+        Some(Cmavo::Vu) => Some("long".to_owned()),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn space_relation_for_faha_token(token: &Token) -> Option<String> {
+    match token.cmavo() {
+        Some(Cmavo::Buhu) => Some("coincidentWith".to_owned()),
+        Some(Cmavo::Cahu) => Some("inFrontOf".to_owned()),
+        Some(Cmavo::Tiha) => Some("behind".to_owned()),
+        Some(Cmavo::Zuha) => Some("leftOf".to_owned()),
+        Some(Cmavo::Rihu) => Some("rightOf".to_owned()),
+        Some(Cmavo::Gahu) => Some("above".to_owned()),
+        Some(Cmavo::Niha) => Some("below".to_owned()),
+        Some(Cmavo::Nehi) => Some("within".to_owned()),
+        Some(Cmavo::Ruhu) => Some("surrounding".to_owned()),
+        Some(Cmavo::Paho) => Some("through".to_owned()),
+        Some(Cmavo::Neha) => Some("nextTo".to_owned()),
+        Some(Cmavo::Tehe) => Some("bordering".to_owned()),
+        Some(Cmavo::Reho) => Some("adjacentTo".to_owned()),
+        Some(Cmavo::Faha) => Some("toward".to_owned()),
+        Some(Cmavo::Toho) => Some("awayFrom".to_owned()),
+        Some(Cmavo::Zohi) => Some("inwardFrom".to_owned()),
+        Some(Cmavo::Zeho) => Some("outwardFrom".to_owned()),
+        Some(Cmavo::Zoha) => Some("tangentialTo".to_owned()),
+        Some(Cmavo::Beha) => Some("northOf".to_owned()),
+        Some(Cmavo::Nehu) => Some("southOf".to_owned()),
+        Some(Cmavo::Duha) => Some("eastOf".to_owned()),
+        Some(Cmavo::Vuha) => Some("westOf".to_owned()),
         _ => None,
     }
 }
@@ -13218,6 +13512,13 @@ fn tense_modal_makes_tense_sticky(tense_modal: &TenseModalSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+fn tense_modal_makes_space_sticky(tense_modal: &TenseModalSyntax) -> bool {
+    tense_modal.composite_ki().is_some()
+        && !space_path_relations_for_tense_modal(tense_modal).is_empty()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn tense_modal_resets_sticky_tense(tense_modal: &TenseModalSyntax) -> bool {
     matches!(tense_modal.as_data(), data!(TenseModalSyntax::Sticky(_)))
 }
@@ -13448,6 +13749,15 @@ mod tests {
     #[requires(!source.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|value| value.get("objects").is_some()) || ret.is_err())]
     fn semantic_json_for(source: &str) -> Result<Value, Box<dyn std::error::Error>> {
+        semantic_json_for_options(source, SemanticBuildOptions::default())
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|value| value.get("objects").is_some()) || ret.is_err())]
+    fn semantic_json_for_options(
+        source: &str,
+        options: SemanticBuildOptions<'_>,
+    ) -> Result<Value, Box<dyn std::error::Error>> {
         let words = segment_words_with_modifiers_with_options_and_source_id(
             source,
             &MorphologyOptions::default(),
@@ -13455,9 +13765,12 @@ mod tests {
         )?;
         let parsed =
             parse_syntax_tree_with_source_and_options(&words, source, &ParseOptions::default())?;
-        let graph = build_semantic_graph_with_dictionary(
+        let graph = build_semantic_graph_with_dictionary_and_options(
             &parsed.parse_tree,
-            Some(source),
+            SemanticBuildOptions {
+                source_text: Some(source),
+                story_time: options.story_time,
+            },
             jbotci_dictionary_data::english(),
         )?;
         Ok(serde_json::from_str(&graph.to_json_string(0)?)?)
@@ -13842,6 +14155,55 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn spatial_direction_sumtcita_anchors_event_space() {
+        let json = semantic_json_for("ne'i le kevna mi zutse le rokci").expect("semantic JSON");
+        let zutse = predication_with_relation_and_mode(&json, "zutse", "asserted");
+        let event = object(&json, zutse["eventuality"].as_str().expect("zutse event"));
+        assert_eq!(event["space"]["relation"], "within");
+        assert_eq!(event["space"]["anchor"], "referent:r1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sticky_spatial_direction_applies_to_later_bridi() {
+        let json = semantic_json_for("ne'i ki le kevna mi zutse le rokci .i mi citka lo rectu")
+            .expect("semantic JSON");
+        let zutse = predication_with_relation_and_mode(&json, "zutse", "asserted");
+        let first_event = object(&json, zutse["eventuality"].as_str().expect("zutse event"));
+        assert_eq!(first_event["space"]["relation"], "within");
+        assert_eq!(first_event["space"]["anchor"], "referent:r1");
+
+        let citka = predication_with_relation_and_mode(&json, "citka", "asserted");
+        let second_event = object(&json, citka["eventuality"].as_str().expect("citka event"));
+        assert_eq!(second_event["space"]["relation"], "within");
+        assert_eq!(second_event["space"]["anchor"], "referent:r1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn compound_spatial_path_preserves_order_and_distances() {
+        let json = semantic_json_for("le nanmu ca'u vi ni'a va ri'u vu ne'i batci le gerku")
+            .expect("semantic JSON");
+        let batci = predication_with_relation_and_mode(&json, "batci", "asserted");
+        let event = object(&json, batci["eventuality"].as_str().expect("batci event"));
+        assert!(event.get("space").is_none());
+        assert_eq!(event["spacePath"][0]["relation"], "inFrontOf");
+        assert_eq!(event["spacePath"][0]["distance"], "short");
+        assert_eq!(event["spacePath"][0]["anchor"]["value"], "referent:here");
+        assert_eq!(event["spacePath"][1]["relation"], "below");
+        assert_eq!(event["spacePath"][1]["distance"], "medium");
+        assert_eq!(event["spacePath"][1]["anchor"]["kind"], "previous");
+        assert_eq!(event["spacePath"][2]["relation"], "rightOf");
+        assert_eq!(event["spacePath"][2]["distance"], "long");
+        assert_eq!(event["spacePath"][3]["relation"], "within");
+        assert_eq!(event["spacePath"][3]["anchor"]["kind"], "previous");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn sticky_tense_applies_to_later_bridi_and_composes_with_local_tense() {
         let sticky_then_tenseless =
             semantic_json_for("mi puki klama le zarci .i le nanmu cu batci le gerku")
@@ -13869,6 +14231,51 @@ mod tests {
         assert_eq!(event["timePath"][1]["relation"], "before");
         assert_eq!(event["timePath"][1]["introducedBy"], "pu");
         assert_eq!(event["timePath"][1]["anchor"]["kind"], "previous");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn story_time_advances_tenseless_bridi_after_previous_event() {
+        let json = semantic_json_for_options(
+            "mi puki klama le zarci .i mi citka lo rectu",
+            SemanticBuildOptions {
+                source_text: None,
+                story_time: true,
+            },
+        )
+        .expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        let klama_event = klama["eventuality"].as_str().expect("klama event");
+        let citka = predication_with_relation_and_mode(&json, "citka", "asserted");
+        let citka_event = object(&json, citka["eventuality"].as_str().expect("citka event"));
+        assert_eq!(citka_event["time"]["relation"], "after");
+        assert_eq!(citka_event["time"]["anchor"], klama_event);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn story_time_explicit_flashback_does_not_advance_anchor() {
+        let json = semantic_json_for_options(
+            "mi puki klama le zarci .i mi pu jukpa lo rectu .i mi citka lo rectu",
+            SemanticBuildOptions {
+                source_text: None,
+                story_time: true,
+            },
+        )
+        .expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        let klama_event = klama["eventuality"].as_str().expect("klama event");
+        let jukpa = predication_with_relation_and_mode(&json, "jukpa", "asserted");
+        let jukpa_event = object(&json, jukpa["eventuality"].as_str().expect("jukpa event"));
+        assert_eq!(jukpa_event["time"]["relation"], "before");
+        assert_eq!(jukpa_event["time"]["anchor"], klama_event);
+
+        let citka = predication_with_relation_and_mode(&json, "citka", "asserted");
+        let citka_event = object(&json, citka["eventuality"].as_str().expect("citka event"));
+        assert_eq!(citka_event["time"]["relation"], "after");
+        assert_eq!(citka_event["time"]["anchor"], klama_event);
     }
 
     #[test]

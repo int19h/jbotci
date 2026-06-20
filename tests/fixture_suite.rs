@@ -14,9 +14,10 @@ use support::fixtures::{
     JvozbaFixtureMode, JvozbaOutputExpectation, JvozbaSegmentExpectation,
     JvozbaSegmentKindExpectation, LoadedTestCase, MorphologyExpectation, MuplisForm,
     OutputExpectations, Provenance, ReferenceExpectation, ScriptBracketExpectations,
-    SemanticsExpectations, SyntaxExpectation, TestCase, TextExpectation, VlaseiOutputExpectation,
-    XfailExpectation, filter_fixtures, import_export_file, load_fixture_file, load_fixture_tree,
-    run_fixture_facets, run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
+    SemanticsExpectations, SyntaxExpectation, TersmuOutputExpectation, TestCase, TextExpectation,
+    VlaseiOutputExpectation, XfailExpectation, filter_fixtures, import_export_file,
+    load_fixture_file, load_fixture_tree, run_fixture_facets, run_fixture_facets_parallel,
+    validate_fixture_tree, write_fixture_file,
 };
 
 #[test]
@@ -419,11 +420,12 @@ fn writer_keeps_tree_and_output_values() {
                     }),
                     show_elided: None,
                 }),
-                tersmu: Some(CommandOutputExpectation {
+                tersmu: Some(TersmuOutputExpectation {
+                    story_time: true,
                     json: Some(TextExpectation {
                         text: "{\"version\":\"lojban-semantics-json-1\"}".into(),
                     }),
-                    ..CommandOutputExpectation::default()
+                    ..TersmuOutputExpectation::default()
                 }),
             }),
             morphology: Some(MorphologyExpectation {
@@ -465,7 +467,7 @@ fn writer_keeps_tree_and_output_values() {
     );
     assert!(text.contains("[expectations.output.vlasei]\njson = "));
     assert!(text.contains("[expectations.output.gentufa]\nbrackets = \"[coi]\""));
-    assert!(text.contains("[expectations.output.tersmu]\njson = "));
+    assert!(text.contains("[expectations.output.tersmu]\nstory-time = true\njson = "));
     assert!(text.contains("tree = '\"coi\"'"));
     assert!(text.contains("[expectations.morphology]\nstatus = \"success\"\nraw = "));
     assert!(!text.contains("words = ["));
@@ -629,11 +631,11 @@ fn available_facets_include_tree_expectations() {
                     }),
                     ..GentufaOutputExpectation::default()
                 }),
-                tersmu: Some(CommandOutputExpectation {
+                tersmu: Some(TersmuOutputExpectation {
                     json: Some(TextExpectation {
                         text: "{\"version\":\"lojban-semantics-json-1\"}".into(),
                     }),
-                    ..CommandOutputExpectation::default()
+                    ..TersmuOutputExpectation::default()
                 }),
                 ..OutputExpectations::default()
             }),

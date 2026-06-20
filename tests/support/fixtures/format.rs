@@ -167,6 +167,9 @@ fn push_expectations_toml(
             && tersmu.json.is_some()
         {
             output.push_str("\n[expectations.output.tersmu]\n");
+            if tersmu.story_time {
+                output.push_str("story-time = true\n");
+            }
             push_optional_field(output, "json", &tersmu.json)?;
         }
     }

@@ -68,7 +68,10 @@ use jbotci_search::vlacku::{
     dictionary_matches_for_word_likes, format_vote_display, normalize_word_type_filter,
     run_vlacku_requests,
 };
-use jbotci_semantics::{build_semantic_graph_with_dictionary, references::ReferenceAnalysis};
+use jbotci_semantics::{
+    SemanticBuildOptions, build_semantic_graph_with_dictionary_and_options,
+    references::ReferenceAnalysis,
+};
 use jbotci_source::SourceId;
 use jbotci_syntax::{
     ParseOptions, SYNTAX_TRACE_FILTERS, parse_syntax_tree_with_source_and_options_attempt,
@@ -544,6 +547,8 @@ struct TersmuInput {
     dialect: Option<String>,
     #[arg(long = "no-postproc", alias = "na-velruhe")]
     no_postproc: bool,
+    #[arg(long = "story-time")]
+    story_time: bool,
     #[arg(long = "indent")]
     indent: Option<usize>,
     #[arg()]
@@ -3403,9 +3408,12 @@ fn render_tersmu(
         glyphs,
         diagnostic_terminal_width,
     )?);
-    let graph = match build_semantic_graph_with_dictionary(
+    let graph = match build_semantic_graph_with_dictionary_and_options(
         &parsed.parse_tree,
-        Some(&text),
+        SemanticBuildOptions {
+            source_text: Some(&text),
+            story_time: input.story_time,
+        },
         jbotci_dictionary_data::english(),
     ) {
         Ok(graph) => graph,

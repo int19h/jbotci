@@ -27,7 +27,7 @@ use jbotci_output::{
     pretty_morphology_tree_with_options, pretty_tree_with_options,
 };
 use jbotci_semantics::{
-    build_semantic_graph_with_dictionary,
+    SemanticBuildOptions, build_semantic_graph_with_dictionary_and_options,
     references::{
         FixturePlaceSlot, FixtureReferenceTarget, FixtureSpanKey, ReferenceFixtureProjection,
         analyze_references,
@@ -8918,9 +8918,18 @@ fn run_tersmu_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
     };
-    let graph = match build_semantic_graph_with_dictionary(
+    let graph = match build_semantic_graph_with_dictionary_and_options(
         &parsed.parse_tree,
-        Some(&fixture.test_case.lojban),
+        SemanticBuildOptions {
+            source_text: Some(&fixture.test_case.lojban),
+            story_time: fixture
+                .test_case
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.tersmu.as_ref())
+                .is_some_and(|tersmu| tersmu.story_time),
+        },
         jbotci_dictionary_data::english(),
     ) {
         Ok(graph) => graph,
