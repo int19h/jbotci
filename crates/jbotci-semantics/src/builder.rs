@@ -2099,39 +2099,36 @@ where
         let space_relation = space_path_relations_for_tense_modal(tense_modal)
             .into_iter()
             .next();
-        let eventuality = if time_relation.is_some() || space_relation.is_some() {
-            let eventuality = self.next_eventuality();
-            let mut event = SemanticObject::eventuality(
-                EventualityClass::Event,
-                Some(Actuality {
-                    kind: ActualityKind::Actual,
-                }),
-                source.clone(),
-            );
-            if let Some(relation) = time_relation {
-                event.time = Some(new!(AnchorRelation {
-                    relation: relation.relation,
-                    anchor: SemanticObjectId::speech_time(),
-                    distance: relation.distance,
-                    scalar_negation: relation.scalar_negation,
-                }));
-            }
-            if let Some(relation) = space_relation {
-                event.space = Some(new!(AnchorRelation {
-                    relation: relation.relation,
-                    anchor: SemanticObjectId::here(),
-                    distance: relation.distance,
-                    scalar_negation: relation.scalar_negation,
-                }));
-            }
-            self.insert(eventuality, event)?;
-            Some(eventuality)
-        } else {
-            diagnostics.push(diagnostic(
-                "scoped tense or modal is not fully lowered beyond source preservation",
-            ));
-            None
-        };
+        let actuality = actuality_for_tense_modal(tense_modal);
+        let eventuality =
+            if time_relation.is_some() || space_relation.is_some() || actuality.is_some() {
+                let eventuality = self.next_eventuality();
+                let mut event =
+                    SemanticObject::eventuality(EventualityClass::Event, actuality, source.clone());
+                if let Some(relation) = time_relation {
+                    event.time = Some(new!(AnchorRelation {
+                        relation: relation.relation,
+                        anchor: SemanticObjectId::speech_time(),
+                        distance: relation.distance,
+                        scalar_negation: relation.scalar_negation,
+                    }));
+                }
+                if let Some(relation) = space_relation {
+                    event.space = Some(new!(AnchorRelation {
+                        relation: relation.relation,
+                        anchor: SemanticObjectId::here(),
+                        distance: relation.distance,
+                        scalar_negation: relation.scalar_negation,
+                    }));
+                }
+                self.insert(eventuality, event)?;
+                Some(eventuality)
+            } else {
+                diagnostics.push(diagnostic(
+                    "scoped tense or modal is not fully lowered beyond source preservation",
+                ));
+                None
+            };
         let formula = self.next_formula();
         let mut object = SemanticObject::connective_formula(
             FormulaOperator::Scoped,
@@ -5704,13 +5701,7 @@ where
             return Ok(*eventuality);
         }
         let eventuality = self.next_eventuality();
-        let mut event = SemanticObject::eventuality(
-            EventualityClass::Event,
-            Some(Actuality {
-                kind: ActualityKind::Actual,
-            }),
-            source,
-        );
+        let mut event = SemanticObject::eventuality(EventualityClass::Event, None, source);
         event.content = Some(content);
         self.insert(eventuality, event)?;
         self.content_eventualities.insert(content, eventuality);
@@ -6103,13 +6094,7 @@ where
         argument_overrides: BTreeMap<String, ArgumentValue>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let eventuality = self.next_eventuality();
-        let mut event = SemanticObject::eventuality(
-            EventualityClass::Event,
-            Some(Actuality {
-                kind: ActualityKind::Actual,
-            }),
-            source.clone(),
-        );
+        let mut event = SemanticObject::eventuality(EventualityClass::Event, None, source.clone());
         self.apply_ordered_event_modifiers_to_event(frame, selbri, &mut event)?;
         self.insert(eventuality, event)?;
         self.clear_sticky_modals_for_selbri_if_needed(selbri);
@@ -6183,13 +6168,7 @@ where
         modal_arguments: Vec<ModalArgument>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let eventuality = self.next_eventuality();
-        let mut event = SemanticObject::eventuality(
-            EventualityClass::Event,
-            Some(Actuality {
-                kind: ActualityKind::Actual,
-            }),
-            source.clone(),
-        );
+        let mut event = SemanticObject::eventuality(EventualityClass::Event, None, source.clone());
         let modifier_application =
             self.apply_ordered_event_modifiers_to_event(frame, selbri, &mut event)?;
         self.apply_story_time_to_event(eventuality, &mut event, modifier_application);
@@ -6515,6 +6494,9 @@ where
                     distance: None,
                     scalar_negation: None,
                 }));
+                if let Some(actuality) = actuality_for_tense_modal(modifier.tense_modal) {
+                    event.actuality = Some(actuality);
+                }
                 continue;
             }
             let anchor = modifier.anchor.or_else(|| {
@@ -7405,13 +7387,7 @@ where
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let eventuality = self.next_eventuality();
-        let mut event = SemanticObject::eventuality(
-            EventualityClass::Event,
-            Some(Actuality {
-                kind: ActualityKind::Actual,
-            }),
-            source.clone(),
-        );
+        let mut event = SemanticObject::eventuality(EventualityClass::Event, None, source.clone());
         if let Some(selbri) = selbri {
             apply_selbri_event_modifiers_to_event(selbri, &mut event);
         }
@@ -7442,13 +7418,7 @@ where
             return Ok(None);
         }
         let eventuality = self.next_eventuality();
-        let mut event = SemanticObject::eventuality(
-            EventualityClass::Event,
-            Some(Actuality {
-                kind: ActualityKind::Actual,
-            }),
-            source,
-        );
+        let mut event = SemanticObject::eventuality(EventualityClass::Event, None, source);
         apply_selbri_event_modifiers_to_event_with_anchor(
             selbri,
             &mut event,
@@ -10726,6 +10696,9 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
     anchor: Option<SemanticObjectId>,
     normalize_time_path: bool,
 ) {
+    if let Some(actuality) = actuality_for_tense_modal(tense_modal) {
+        event.actuality = Some(actuality);
+    }
     append_temporal_path_relations_to_event(
         event,
         temporal_path_relations_for_tense_modal(tense_modal),
@@ -10965,6 +10938,7 @@ fn tense_modal_anchors_to_speech_time(tense_modal: &TenseModalSyntax) -> bool {
 #[ensures(true)]
 fn tense_modal_has_event_modifier(tense_modal: &TenseModalSyntax) -> bool {
     tense_modal_anchors_to_speech_time(tense_modal)
+        || actuality_for_tense_modal(tense_modal).is_some()
         || !temporal_path_relations_for_tense_modal(tense_modal).is_empty()
         || time_interval_for_tense_modal(tense_modal).is_some()
         || !space_path_relations_for_tense_modal(tense_modal).is_empty()
@@ -11729,6 +11703,36 @@ fn spatial_aspect_contour_for_tense_modal(tense_modal: &TenseModalSyntax) -> Opt
         }
         _ => None,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn actuality_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<Actuality> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => {
+            parts.value.iter().find_map(|part| match part.as_data() {
+                data!(CompositeTenseModalPartSyntax::Cmavo(token)) => {
+                    actuality_for_caha_token(token)
+                }
+                data!(CompositeTenseModalPartSyntax::AdHocModal(..)) => None,
+            })
+        }
+        data!(TenseModalSyntax::Actuality(token)) => actuality_for_caha_token(&token.value),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn actuality_for_caha_token(token: &Token) -> Option<Actuality> {
+    let kind = match token.cmavo() {
+        Some(Cmavo::Caha) => ActualityKind::Actual,
+        Some(Cmavo::Kahe) => ActualityKind::Capable,
+        Some(Cmavo::Nuho) => ActualityKind::Potential,
+        Some(Cmavo::Puhi) => ActualityKind::Demonstrated,
+        _ => return None,
+    };
+    Some(Actuality { kind })
 }
 
 #[requires(true)]
@@ -14935,6 +14939,76 @@ mod tests {
             aspect_event["aspect"]["scalarNegation"]["kind"],
             "otherThan"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn caha_actuality_is_explicit_not_defaulted() {
+        let tenseless = semantic_json_for("ta jelca").expect("semantic JSON");
+        let jelca = predication_with_relation_and_mode(&tenseless, "jelca", "asserted");
+        let event = object(
+            &tenseless,
+            jelca["eventuality"].as_str().expect("jelca event"),
+        );
+        assert!(event.get("actuality").is_none());
+
+        let present = semantic_json_for("ro datka ca flulimna").expect("semantic JSON");
+        let flulimna = predication_with_relation_and_mode(&present, "flulimna", "asserted");
+        let event = object(
+            &present,
+            flulimna["eventuality"].as_str().expect("flulimna event"),
+        );
+        assert_eq!(event["time"]["relation"], "at");
+        assert!(event.get("actuality").is_none());
+
+        let actual = semantic_json_for("ro datka ca ca'a flulimna").expect("semantic JSON");
+        let flulimna = predication_with_relation_and_mode(&actual, "flulimna", "asserted");
+        let event = object(
+            &actual,
+            flulimna["eventuality"].as_str().expect("flulimna event"),
+        );
+        assert_eq!(event["actuality"]["kind"], "actual");
+        assert_eq!(event["time"]["relation"], "at");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn caha_capability_potential_and_demonstrated_are_event_actuality() {
+        let capable = semantic_json_for("ro datka ka'e flulimna").expect("semantic JSON");
+        let flulimna = predication_with_relation_and_mode(&capable, "flulimna", "asserted");
+        let event = object(
+            &capable,
+            flulimna["eventuality"].as_str().expect("flulimna event"),
+        );
+        assert_eq!(event["actuality"]["kind"], "capable");
+
+        let potential = semantic_json_for("ro cifydatka nu'o flulimna").expect("semantic JSON");
+        let flulimna = predication_with_relation_and_mode(&potential, "flulimna", "asserted");
+        let event = object(
+            &potential,
+            flulimna["eventuality"].as_str().expect("flulimna event"),
+        );
+        assert_eq!(event["actuality"]["kind"], "potential");
+
+        let demonstrated = semantic_json_for("la .frank. pu'i viska").expect("semantic JSON");
+        let viska = predication_with_relation_and_mode(&demonstrated, "viska", "asserted");
+        let event = object(
+            &demonstrated,
+            viska["eventuality"].as_str().expect("viska event"),
+        );
+        assert_eq!(event["actuality"]["kind"], "demonstrated");
+
+        let future_potential =
+            semantic_json_for("la .frank. ba nu'o klama le zarci").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&future_potential, "klama", "asserted");
+        let event = object(
+            &future_potential,
+            klama["eventuality"].as_str().expect("klama event"),
+        );
+        assert_eq!(event["actuality"]["kind"], "potential");
+        assert_eq!(event["time"]["relation"], "after");
     }
 
     #[test]
