@@ -1221,6 +1221,7 @@ where
                 let reserved = self.reserve_utterance_for_statement(statement);
                 let nested = self.build_text_group_sequence(text)?;
                 if let Some(tense_modal) = tense_modal
+                    && tense_relation_spec_for_tense_modal(tense_modal).is_none()
                     && let Some(modal_argument) =
                         self.modal_argument_for_tense_modal(tense_modal, "modal-argument")?
                 {
@@ -1291,12 +1292,23 @@ where
                     None
                 };
                 let mut connection_claims = Vec::new();
-                if let Some(spec) = modal_statement_connection_spec(connective) {
+                let trailing_text_group_tense = text_group_tense_modal(trailing_statement);
+                let modal_connection_spec =
+                    modal_statement_connection_spec(connective).or_else(|| {
+                        trailing_text_group_tense
+                            .and_then(modal_statement_connection_spec_for_tense_modal)
+                    });
+                if let Some(spec) = modal_connection_spec {
+                    let claim_source = trailing_text_group_tense
+                        .and_then(|tense_modal| {
+                            self.source_for_tense_modal(tense_modal, "statement-connection-claim")
+                        })
+                        .or_else(|| source.clone());
                     match self.build_modal_statement_connection_claim(
                         first,
                         second,
                         &spec,
-                        source.clone(),
+                        claim_source,
                     )? {
                         Some(claim) => connection_claims.push(claim),
                         None => {
@@ -2514,10 +2526,11 @@ where
         )?;
         let mut children = vec![leading_formula, trailing_formula];
         let mut diagnostics = Vec::new();
-        let relation_only = modal_tense_relation_spec_for_connective(connective).is_some()
-            || tense_modal.is_some_and(|tense_modal| {
-                tense_relation_spec_for_tense_modal(tense_modal).is_some()
-            });
+        let relation_only = !connective_has_logical_component(connective)
+            && (modal_tense_relation_spec_for_connective(connective).is_some()
+                || tense_modal.is_some_and(|tense_modal| {
+                    tense_relation_spec_for_tense_modal(tense_modal).is_some()
+                }));
         if let Some(spec) = modal_connection_spec_for_connective_and_tense(connective, tense_modal)
         {
             let (visible_formula, other_formula) =
@@ -10530,6 +10543,15 @@ fn logical_sumti_connection_parts_degrouped(
 
 #[requires(true)]
 #[ensures(true)]
+fn text_group_tense_modal(statement: &StatementSyntax) -> Option<&TenseModalSyntax> {
+    match statement.as_data() {
+        data!(StatementSyntax::TextGroup { tense_modal, .. }) => tense_modal.as_deref(),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn connective_is_logical(connective: &ConnectiveSyntax) -> bool {
     !matches!(
         connective.as_data(),
@@ -15202,6 +15224,75 @@ mod tests {
                 before["arguments"]["x2"]["value"],
                 inert_klama[0]["eventuality"]
             );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_tensed_sumti_connection_claims_branches_and_relation() {
+        let json =
+            semantic_json_for("la .teris. satre le mlatu .ebabo le ractu").expect("semantic JSON");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "and");
+        assert_eq!(content["connector"]["source"], "e ba bo");
+        let satre = predications_with_relation_and_mode(&json, "satre", "asserted");
+        assert_eq!(satre.len(), 2);
+        let after = predication_with_relation_and_mode(&json, "after", "asserted");
+        assert_eq!(after["introducedBy"], "ba");
+        assert_eq!(after["arguments"]["x1"]["value"], satre[1]["eventuality"]);
+        assert_eq!(after["arguments"]["x2"]["value"], satre[0]["eventuality"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tensed_grouped_statement_connection_relates_whole_group() {
+        let json = semantic_json_for(
+            "mi bevri le dakli .ije ba tu'e mi bevri le gerku .ija cabo mi bevri le mlatu tu'u",
+        )
+        .expect("semantic JSON");
+        let outer = object(&json, "sequence:s2");
+        let outer_claim = outer["connectionClaims"][0]
+            .as_str()
+            .expect("outer connection claim");
+        let after = object(
+            &json,
+            object(&json, outer_claim)["predication"]
+                .as_str()
+                .expect("after predication"),
+        );
+        assert_eq!(after["relation"], "after");
+        assert_eq!(after["introducedBy"], "ba");
+        let sack_event =
+            predications_with_relation_and_mode(&json, "bevri", "asserted")[0]["eventuality"]
+                .as_str()
+                .expect("sack carrying event");
+        assert_eq!(after["arguments"]["x2"]["value"], sack_event);
+        let grouped_event = after["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("group event");
+        assert_eq!(object(&json, grouped_event)["content"], "sequence:s1");
+
+        let inner = object(&json, "sequence:s1");
+        let inner_claim = inner["connectionClaims"][0]
+            .as_str()
+            .expect("inner connection claim");
+        let at = object(
+            &json,
+            object(&json, inner_claim)["predication"]
+                .as_str()
+                .expect("at predication"),
+        );
+        assert_eq!(at["relation"], "at");
+        assert_eq!(at["introducedBy"], "ca");
+        for bevri in predications_with_relation_and_mode(&json, "bevri", "asserted") {
+            assert!(bevri.get("modalArguments").is_none());
         }
     }
 
