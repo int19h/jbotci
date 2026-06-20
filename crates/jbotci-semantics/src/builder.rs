@@ -6462,7 +6462,7 @@ where
         let mut modifiers = Vec::new();
         self.collect_frame_tense_event_modifiers(frame, &mut modifiers)?;
         if let Some(selbri) = selbri {
-            self.collect_selbri_tense_event_modifiers(selbri, &mut modifiers);
+            self.collect_selbri_tense_event_modifiers(selbri, &mut modifiers)?;
         }
         modifiers.sort_by_key(|modifier| modifier.order);
         application.temporal_modifier = modifiers.iter().any(|modifier| {
@@ -6617,12 +6617,12 @@ where
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
     fn collect_selbri_tense_event_modifiers(
-        &self,
+        &mut self,
         selbri: &'tree SelbriSyntax,
         modifiers: &mut Vec<EventTenseModifier<'tree>>,
-    ) {
+    ) -> Result<(), SemanticsError> {
         match selbri.as_data() {
             data!(SelbriSyntax::TaggedSelbri {
                 tense_modal,
@@ -6639,7 +6639,7 @@ where
                         anchor: None,
                     });
                 }
-                self.collect_selbri_tense_event_modifiers(inner_selbri, modifiers);
+                self.collect_selbri_tense_event_modifiers(inner_selbri, modifiers)?;
             }
             data!(SelbriSyntax::GroupedSelbri {
                 ke_tense_modal,
@@ -6658,15 +6658,15 @@ where
                         anchor: None,
                     });
                 }
-                self.collect_selbri_tense_event_modifiers(selbri, modifiers);
+                self.collect_selbri_tense_event_modifiers(selbri, modifiers)?;
             }
             data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. })
             | data!(SelbriSyntax::Negated { inner_selbri, .. }) => {
-                self.collect_selbri_tense_event_modifiers(inner_selbri, modifiers);
+                self.collect_selbri_tense_event_modifiers(inner_selbri, modifiers)?;
             }
             data!(SelbriSyntax::Tanru(units)) => {
                 for unit in units.iter() {
-                    self.collect_tanru_unit_tense_event_modifiers(unit, modifiers);
+                    self.collect_tanru_unit_tense_event_modifiers(unit, modifiers)?;
                 }
             }
             data!(SelbriSyntax::InvertedTanru {
@@ -6684,8 +6684,8 @@ where
                 trailing_selbri,
                 ..
             }) => {
-                self.collect_selbri_tense_event_modifiers(leading_selbri, modifiers);
-                self.collect_selbri_tense_event_modifiers(trailing_selbri, modifiers);
+                self.collect_selbri_tense_event_modifiers(leading_selbri, modifiers)?;
+                self.collect_selbri_tense_event_modifiers(trailing_selbri, modifiers)?;
             }
             data!(SelbriSyntax::ForethoughtSelbriConnection {
                 leading_bridi,
@@ -6693,27 +6693,28 @@ where
                 ..
             }) => {
                 if let Some(selbri) = main_selbri_for_bridi(leading_bridi) {
-                    self.collect_selbri_tense_event_modifiers(selbri, modifiers);
+                    self.collect_selbri_tense_event_modifiers(selbri, modifiers)?;
                 }
                 if let Some(selbri) = main_selbri_for_bridi(trailing_bridi) {
-                    self.collect_selbri_tense_event_modifiers(selbri, modifiers);
+                    self.collect_selbri_tense_event_modifiers(selbri, modifiers)?;
                 }
             }
             _ => {}
         }
+        Ok(())
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
     fn collect_tanru_unit_tense_event_modifiers(
-        &self,
+        &mut self,
         unit: &'tree TanruUnitSyntax,
         modifiers: &mut Vec<EventTenseModifier<'tree>>,
-    ) {
+    ) -> Result<(), SemanticsError> {
         match unit.as_data() {
             data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
             | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
-                self.collect_selbri_tense_event_modifiers(selbri, modifiers);
+                self.collect_selbri_tense_event_modifiers(selbri, modifiers)?;
             }
             data!(TanruUnitSyntax::ModalConversion {
                 tense_modal,
@@ -6726,13 +6727,19 @@ where
                         || tense_modal_makes_space_sticky(tense_modal)
                         || tense_modal_resets_sticky_tense(tense_modal))
                 {
+                    let anchor = self
+                        .branch_frame_for_tanru_unit(unit)
+                        .map(|frame| self.numbered_assignment_argument_for_frame(frame, 1))
+                        .transpose()?
+                        .flatten()
+                        .and_then(|argument| argument.value);
                     modifiers.push(EventTenseModifier {
                         order: self.source_order_for_tense_modal(tense_modal),
                         tense_modal,
-                        anchor: None,
+                        anchor,
                     });
                 }
-                self.collect_tanru_unit_tense_event_modifiers(inner_unit, modifiers);
+                self.collect_tanru_unit_tense_event_modifiers(inner_unit, modifiers)?;
             }
             data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
             | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
@@ -6751,7 +6758,7 @@ where
             | data!(TanruUnitSyntax::AssignedProBridi {
                 base: inner_unit,
                 ..
-            }) => self.collect_tanru_unit_tense_event_modifiers(inner_unit, modifiers),
+            }) => self.collect_tanru_unit_tense_event_modifiers(inner_unit, modifiers)?,
             data!(TanruUnitSyntax::TanruUnitConnection {
                 leading_unit,
                 trailing_unit,
@@ -6762,11 +6769,12 @@ where
                 trailing_unit,
                 ..
             }) => {
-                self.collect_tanru_unit_tense_event_modifiers(leading_unit, modifiers);
-                self.collect_tanru_unit_tense_event_modifiers(trailing_unit, modifiers);
+                self.collect_tanru_unit_tense_event_modifiers(leading_unit, modifiers)?;
+                self.collect_tanru_unit_tense_event_modifiers(trailing_unit, modifiers)?;
             }
             _ => {}
         }
+        Ok(())
     }
 
     #[requires(true)]
@@ -9516,10 +9524,15 @@ where
         {
             return self.build_restrictive_formula(target_selbri, referent);
         }
-        if let Some(units) = tanru_units_for_selbri(selbri)
-            && tanru_units_require_lowering(&units)
-        {
-            return self.build_restrictive_tanru_formula(selbri, &units, referent);
+        if let Some(units) = tanru_units_for_selbri(selbri) {
+            if let [unit] = units.as_slice()
+                && tanru_unit_is_event_modal_conversion(unit)
+            {
+                return self.build_restrictive_tanru_formula(selbri, &units, referent);
+            }
+            if tanru_units_require_lowering(&units) {
+                return self.build_restrictive_tanru_formula(selbri, &units, referent);
+            }
         }
         let relation = relation_label_for_selbri(selbri);
         let frame = self
@@ -9680,6 +9693,16 @@ where
                 )
                 .map(|result| result.formula),
             _ => {
+                if let Some((inner_unit, tense_modal)) = event_modal_conversion_for_tanru_unit(unit)
+                {
+                    return self.build_restrictive_event_modal_conversion_formula(
+                        selbri,
+                        unit,
+                        inner_unit,
+                        tense_modal,
+                        referent,
+                    );
+                }
                 let relation = relation_label_for_tanru_unit(unit);
                 let frame = self.semantic_predication_frame_for_tanru_unit(
                     unit,
@@ -9701,6 +9724,90 @@ where
                 )
             }
         }
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_restrictive_event_modal_conversion_formula(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        unit: &'tree TanruUnitSyntax,
+        inner_unit: &'tree TanruUnitSyntax,
+        tense_modal: &'tree TenseModalSyntax,
+        referent: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let relation = relation_label_for_tanru_unit(inner_unit);
+        let frame = self.semantic_predication_frame_for_tanru_unit(
+            unit,
+            self.branch_frame_for_tanru_unit(unit),
+        );
+        let mut arguments = BTreeMap::new();
+        let highest_assigned_place =
+            self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
+        let modal_arguments = self.modal_assignment_arguments(frame)?;
+        let mut diagnostics = Vec::new();
+        match self.place_count_for_relation(&relation) {
+            Some(place_count) => {
+                for place in 1..=place_count {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+            }
+            None => {
+                for place in 1..=highest_assigned_place.max(1) {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+                if !relation_has_open_place_structure(&relation) {
+                    diagnostics.push(diagnostic(
+                        "relation place structure is unavailable; only places required by explicit assignments are represented",
+                    ));
+                }
+            }
+        }
+        let source = self
+            .analysis
+            .syntax_index
+            .selbri_node_id(selbri)
+            .and_then(|node| self.source_for_node(node.0, "restrictive-predication"));
+        let eventuality = self.next_eventuality();
+        let mut event = SemanticObject::eventuality(EventualityClass::Event, None, source.clone());
+        apply_tense_modal_event_modifiers_to_event_with_anchor(
+            tense_modal,
+            &mut event,
+            Some(referent),
+        );
+        self.insert(eventuality, event)?;
+        let relation_metadata =
+            self.build_relation_metadata_for_selbri(selbri, &relation, source.clone())?;
+        let predication = self.next_predication();
+        let mut object = SemanticObject::predication(
+            relation,
+            Some(eventuality),
+            arguments,
+            PredicationMode::Restrictive,
+            source.clone(),
+            diagnostics,
+        );
+        object.modal_arguments = modal_arguments;
+        object.relation_metadata = relation_metadata;
+        self.insert(predication, object)?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(
+                predication,
+                self.analysis
+                    .syntax_index
+                    .selbri_node_id(selbri)
+                    .and_then(|node| self.source_for_node(node.0, "restrictive-formula")),
+                Vec::new(),
+            ),
+        )
     }
 
     #[requires(!text.is_empty())]
@@ -13456,6 +13563,54 @@ fn tanru_unit_requires_lowering(unit: &TanruUnitSyntax) -> bool {
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn tanru_unit_is_event_modal_conversion(unit: &TanruUnitSyntax) -> bool {
+    event_modal_conversion_for_tanru_unit(unit).is_some()
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|(_, tense_modal)| tense_modal_has_event_modifier(tense_modal)))]
+fn event_modal_conversion_for_tanru_unit(
+    unit: &TanruUnitSyntax,
+) -> Option<(&TanruUnitSyntax, &TenseModalSyntax)> {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::ModalConversion {
+            tense_modal: Some(tense_modal),
+            inner_unit,
+            ..
+        }) if tense_modal_has_event_modifier(tense_modal) => Some((inner_unit, tense_modal)),
+        data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ModalConversion { inner_unit, .. })
+        | data!(TanruUnitSyntax::RelativeClauses {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::LinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::AssignedProBridi {
+            base: inner_unit,
+            ..
+        }) => event_modal_conversion_for_tanru_unit(inner_unit),
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+            let units = tanru_units_for_selbri(selbri)?;
+            let [unit] = units.as_slice() else {
+                return None;
+            };
+            event_modal_conversion_for_tanru_unit(unit)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
 #[ensures(!ret.is_empty())]
 fn relation_label_for_tanru_unit(unit: &TanruUnitSyntax) -> String {
     match unit.as_data() {
@@ -16373,6 +16528,45 @@ mod tests {
         assert_eq!(modal_argument["arguments"]["x1"]["value"], lojban);
         assert_eq!(modal_argument["arguments"]["x2"]["kind"], "elided");
         assert_eq!(modal_argument["arguments"]["x3"]["kind"], "elided");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn restrictive_jai_tense_raises_anchor_without_replacing_inner_places() {
+        let place_json =
+            semantic_json_for("mi viska le jai vi citka be le cirla").expect("semantic JSON");
+        let viska = predication_with_relation_and_mode(&place_json, "viska", "asserted");
+        let raised_place = viska["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("visible place");
+        let citka = predication_with_relation_and_mode(&place_json, "citka", "restrictive");
+        assert_eq!(citka["arguments"]["x1"]["kind"], "elided");
+        assert_eq!(citka["arguments"]["x2"]["kind"], "filled");
+        let citka_event = object(
+            &place_json,
+            citka["eventuality"].as_str().expect("citka eventuality"),
+        );
+        assert_eq!(citka_event["space"]["relation"], "near");
+        assert_eq!(citka_event["space"]["anchor"], raised_place);
+
+        let time_json = semantic_json_for("mi djuno fi le jai ca morsi be fai la .djan.")
+            .expect("semantic JSON");
+        let djuno = predication_with_relation_and_mode(&time_json, "djuno", "asserted");
+        let raised_time = djuno["arguments"]["x3"]["value"]
+            .as_str()
+            .expect("visible time");
+        let morsi = predication_with_relation_and_mode(&time_json, "morsi", "restrictive");
+        assert_eq!(
+            morsi["arguments"]["x1"]["value"],
+            named_referent_id(&time_json, "djan")
+        );
+        let morsi_event = object(
+            &time_json,
+            morsi["eventuality"].as_str().expect("morsi eventuality"),
+        );
+        assert_eq!(morsi_event["time"]["relation"], "at");
+        assert_eq!(morsi_event["time"]["anchor"], raised_time);
     }
 
     #[test]
