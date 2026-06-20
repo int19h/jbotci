@@ -935,6 +935,18 @@ impl SemanticObject {
         if let Some(space) = &self.space {
             out.push(space.anchor);
         }
+        if let Some(time_interval) = &self.time_interval {
+            time_interval.references_into(out);
+        }
+        if let Some(aspect) = &self.aspect {
+            aspect.references_into(out);
+        }
+        if let Some(space_interval) = &self.space_interval {
+            space_interval.references_into(out);
+        }
+        if let Some(aspect) = &self.spatial_aspect {
+            aspect.references_into(out);
+        }
         for recurrence in &self.recurrence {
             recurrence.references_into(out);
         }
@@ -1145,17 +1157,27 @@ pub struct AnchorRelation {
 }
 
 #[invariant(!extent.is_empty(), "time interval extent must be named")]
+#[invariant(anchor.is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind())), "time interval anchor must be referent-like")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimeInterval {
     pub extent: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anchor: Option<SemanticObjectId>,
 }
 
 impl TimeInterval {
     #[requires(!extent.is_empty())]
+    #[requires(anchor.is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind())))]
     #[ensures(ret.extent == old(extent.clone()))]
-    pub fn new(extent: String) -> Self {
-        Self::from_data(data!(TimeInterval { extent }))
+    pub fn new(extent: String, anchor: Option<SemanticObjectId>) -> Self {
+        Self::from_data(data!(TimeInterval { extent, anchor }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        extend_optional(out, self.anchor);
     }
 }
 
@@ -1163,6 +1185,7 @@ impl TimeInterval {
 #[invariant(directions.iter().all(|direction| !direction.is_empty()), "space interval directions must be named")]
 #[invariant(dimensions.iter().all(|dimension| !dimension.is_empty()), "space interval dimensions must be named")]
 #[invariant(extent.is_some() || !directions.is_empty() || !dimensions.is_empty(), "space interval must carry at least one spatial attribute")]
+#[invariant(anchor.is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind())), "space interval anchor must be referent-like")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpaceInterval {
@@ -1172,6 +1195,8 @@ pub struct SpaceInterval {
     pub directions: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dimensions: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anchor: Option<SemanticObjectId>,
 }
 
 impl SpaceInterval {
@@ -1179,24 +1204,56 @@ impl SpaceInterval {
     #[requires(directions.iter().all(|direction| !direction.is_empty()))]
     #[requires(dimensions.iter().all(|dimension| !dimension.is_empty()))]
     #[requires(extent.is_some() || !directions.is_empty() || !dimensions.is_empty())]
+    #[requires(anchor.is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind())))]
     #[ensures(ret.extent == old(extent.clone()))]
-    pub fn new(extent: Option<String>, directions: Vec<String>, dimensions: Vec<String>) -> Self {
+    pub fn new(
+        extent: Option<String>,
+        directions: Vec<String>,
+        dimensions: Vec<String>,
+        anchor: Option<SemanticObjectId>,
+    ) -> Self {
         Self::from_data(data!(SpaceInterval {
             extent,
             directions,
             dimensions,
+            anchor,
         }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        extend_optional(out, self.anchor);
     }
 }
 
-#[invariant(true)]
+#[invariant(!contour.is_empty(), "aspect contour must be named")]
+#[invariant(anchor.is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind())), "aspect anchor must be referent-like")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Aspect {
     pub contour: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anchor: Option<SemanticObjectId>,
+}
+
+impl Aspect {
+    #[requires(!contour.is_empty())]
+    #[requires(anchor.is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind())))]
+    #[ensures(ret.contour == old(contour.clone()))]
+    pub fn new(contour: String, anchor: Option<SemanticObjectId>) -> Self {
+        Self::from_data(data!(Aspect { contour, anchor }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        extend_optional(out, self.anchor);
+    }
 }
 
 #[invariant(!introduced_by.is_empty(), "recurrence marker must be named")]
+#[invariant(interval.is_none_or(|interval| argument_object_kind_can_fill(interval.object_kind())), "recurrence interval must be referent-like")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Recurrence {
@@ -1204,6 +1261,8 @@ pub struct Recurrence {
     pub introduced_by: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<QuantityValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub interval: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SemanticSource>,
 }
@@ -1215,12 +1274,14 @@ impl Recurrence {
         kind: RecurrenceKind,
         introduced_by: String,
         value: Option<QuantityValue>,
+        interval: Option<SemanticObjectId>,
         source: Option<SemanticSource>,
     ) -> Self {
         Self::from_data(data!(Recurrence {
             kind,
             introduced_by,
             value,
+            interval,
             source,
         }))
     }
@@ -1231,6 +1292,7 @@ impl Recurrence {
         if let Some(value) = &self.value {
             value.references_into(out);
         }
+        extend_optional(out, self.interval);
     }
 }
 
