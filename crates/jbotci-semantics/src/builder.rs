@@ -808,6 +808,19 @@ where
             .and_then(|node| self.source_for_node(node.0, construct))
     }
 
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    fn source_for_tanru_unit(
+        &self,
+        unit: &'tree TanruUnitSyntax,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        self.analysis
+            .syntax_index
+            .tanru_unit_node_id(unit)
+            .and_then(|node| self.source_for_node(node.0, construct))
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn source_for_description(
@@ -6768,6 +6781,13 @@ where
             }
             arguments.entry(place).or_insert(argument);
         }
+        if let Some(selbri) = selbri {
+            self.insert_bare_jai_abstraction_argument_for_selbri(
+                selbri,
+                &mut arguments,
+                &mut highest_assigned_place,
+            )?;
+        }
         let place_questions =
             self.place_question_bindings(frame, &arguments, place_count, highest_assigned_place)?;
         let mut diagnostics = if selbri.is_none() {
@@ -6817,6 +6837,36 @@ where
         object.place_questions = place_questions;
         object.relation_metadata = relation_metadata;
         self.insert(id, object)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn insert_bare_jai_abstraction_argument_for_selbri(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        arguments: &mut BTreeMap<String, ArgumentValue>,
+        highest_assigned_place: &mut usize,
+    ) -> Result<(), SemanticsError> {
+        if arguments.contains_key("x1") {
+            return Ok(());
+        }
+        let Some(unit) = bare_jai_conversion_for_selbri(selbri) else {
+            return Ok(());
+        };
+        let Some(frame) = self.branch_frame_for_tanru_unit(unit) else {
+            return Ok(());
+        };
+        let Some(argument) = self.numbered_assignment_argument_for_frame(frame, 1)? else {
+            return Ok(());
+        };
+        let Some(operand) = argument.value else {
+            return Ok(());
+        };
+        let source = self.source_for_tanru_unit(unit, "abstraction-about");
+        let referent = self.build_abstraction_about_referent("jai", operand, source)?;
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
+        *highest_assigned_place = (*highest_assigned_place).max(1);
+        Ok(())
     }
 
     #[requires(!relation.is_empty())]
@@ -7864,6 +7914,33 @@ where
         Ok(Some(modal_argument))
     }
 
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn modal_argument_for_jai_conversion(
+        &mut self,
+        tense_modal: &'tree TenseModalSyntax,
+        referent: SemanticObjectId,
+    ) -> Result<Option<ModalArgument>, SemanticsError> {
+        let Some((introduced_by, relation, visible_place)) =
+            modal_relation_spec_for_tense_modal(tense_modal)
+        else {
+            return Ok(None);
+        };
+        let arguments = self.modal_argument_map_for_visible_place(
+            ArgumentValue::filled(referent, None),
+            visible_place,
+            self.place_count_for_relation(&relation),
+        )?;
+        Ok(Some(ModalArgument::new_with_polarity(
+            relation,
+            introduced_by,
+            arguments,
+            modal_negation_for_tense_modal(tense_modal),
+            modal_scalar_negation_for_tense_modal(tense_modal),
+            self.source_for_tense_modal(tense_modal, "modal-argument"),
+        )))
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn record_sticky_modal_argument_if_needed(
@@ -8681,11 +8758,13 @@ where
         let frame = self
             .semantic_predication_frame_for_selbri(selbri, self.branch_frame_for_selbri(selbri));
         let visible_x1_place = visible_x1_place_for_selbri(selbri);
+        let intrinsic_modal_arguments = self.selbri_modal_arguments(selbri)?;
         self.build_referent_predication_formula_for_relation(
             relation,
             frame,
             visible_x1_place,
-            referent,
+            ArgumentValue::filled(referent, None),
+            intrinsic_modal_arguments,
             mode,
             source,
         )
@@ -8770,17 +8849,16 @@ where
         relation: String,
         frame: Option<SelbriPlaceFrameId>,
         visible_x1_place: usize,
-        referent: SemanticObjectId,
+        visible_argument: ArgumentValue,
+        intrinsic_modal_arguments: Vec<ModalArgument>,
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut arguments = BTreeMap::new();
         self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
-        let modal_arguments = self.modal_assignment_arguments(frame)?;
-        arguments.insert(
-            format!("x{visible_x1_place}"),
-            ArgumentValue::filled(referent, None),
-        );
+        let mut modal_arguments = intrinsic_modal_arguments;
+        modal_arguments.extend(self.modal_assignment_arguments(frame)?);
+        arguments.insert(format!("x{visible_x1_place}"), visible_argument);
         let mut diagnostics = Vec::new();
         match self.place_count_for_relation(&relation) {
             Some(place_count) => {
@@ -10352,6 +10430,39 @@ where
     }
 
     #[requires(!word.is_empty())]
+    #[requires(crate::model::argument_object_kind_can_fill(operand.object_kind()))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_abstraction_about_referent(
+        &mut self,
+        word: &str,
+        operand: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_referent();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Constant,
+                SemanticSort::Proposition,
+                None,
+                Some(Descriptor {
+                    kind: "abstractionAbout".to_owned(),
+                    word: word.to_owned(),
+                    speaker: Some(SemanticObjectId::speaker()),
+                    body: None,
+                    relative_clauses: Vec::new(),
+                    quantity: None,
+                    name: None,
+                    operand: Some(operand),
+                }),
+                None,
+                source,
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(!word.is_empty())]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_scalar_negated_sumti_referent(
         &mut self,
@@ -10480,7 +10591,8 @@ where
         }
         if let Some(units) = tanru_units_for_selbri(selbri) {
             if let [unit] = units.as_slice()
-                && tanru_unit_is_event_modal_conversion(unit)
+                && (tanru_unit_is_event_modal_conversion(unit)
+                    || tanru_unit_is_jai_conversion(unit))
             {
                 return self.build_restrictive_tanru_formula(selbri, &units, referent);
             }
@@ -10659,6 +10771,20 @@ where
                         referent,
                     );
                 }
+                if let Some((_inner_unit, tense_modal)) =
+                    non_event_modal_jai_conversion_for_tanru_unit(unit)
+                {
+                    return self.build_restrictive_jai_modal_conversion_formula(
+                        selbri,
+                        unit,
+                        tense_modal,
+                        referent,
+                    );
+                }
+                if bare_jai_conversion_for_tanru_unit(unit).is_some() {
+                    return self
+                        .build_restrictive_bare_jai_conversion_formula(selbri, unit, referent);
+                }
                 let relation = relation_label_for_tanru_unit(unit);
                 let frame = self.semantic_predication_frame_for_tanru_unit(
                     unit,
@@ -10670,16 +10796,140 @@ where
                     .syntax_index
                     .selbri_node_id(selbri)
                     .and_then(|node| self.source_for_node(node.0, "restrictive-predication"));
+                let intrinsic_modal_arguments = self.tanru_unit_modal_arguments(unit)?;
                 self.build_referent_predication_formula_for_relation(
                     relation,
                     frame,
                     visible_x1_place,
-                    referent,
+                    ArgumentValue::filled(referent, None),
+                    intrinsic_modal_arguments,
                     PredicationMode::Restrictive,
                     source,
                 )
             }
         }
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_restrictive_bare_jai_conversion_formula(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        unit: &'tree TanruUnitSyntax,
+        referent: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let source = self
+            .analysis
+            .syntax_index
+            .selbri_node_id(selbri)
+            .and_then(|node| self.source_for_node(node.0, "restrictive-predication"));
+        let abstract_referent = self.build_abstraction_about_referent(
+            "jai",
+            referent,
+            self.source_for_tanru_unit(unit, "abstraction-about"),
+        )?;
+        let intrinsic_modal_arguments = self.tanru_unit_modal_arguments(unit)?;
+        self.build_referent_predication_formula_for_relation(
+            relation_label_for_tanru_unit(unit),
+            self.semantic_predication_frame_for_tanru_unit(
+                unit,
+                self.branch_frame_for_tanru_unit(unit),
+            ),
+            visible_x1_place_for_tanru_unit(unit),
+            ArgumentValue::filled(abstract_referent, None),
+            intrinsic_modal_arguments,
+            PredicationMode::Restrictive,
+            source,
+        )
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_restrictive_jai_modal_conversion_formula(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        unit: &'tree TanruUnitSyntax,
+        tense_modal: &'tree TenseModalSyntax,
+        referent: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let relation = relation_label_for_tanru_unit(unit);
+        let frame = self.semantic_predication_frame_for_tanru_unit(
+            unit,
+            self.branch_frame_for_tanru_unit(unit),
+        );
+        let mut arguments = BTreeMap::new();
+        let highest_assigned_place =
+            self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
+        let visible_x1_place = visible_x1_place_for_tanru_unit(unit);
+        let visible_key = format!("x{visible_x1_place}");
+        if !arguments.contains_key(&visible_key) {
+            arguments.insert(
+                visible_key,
+                self.build_elided_argument_for_place(visible_x1_place)?,
+            );
+        }
+        let mut modal_arguments = self.modal_assignment_arguments(frame)?;
+        if let Some(modal_argument) =
+            self.modal_argument_for_jai_conversion(tense_modal, referent)?
+        {
+            modal_arguments.push(modal_argument);
+        }
+        let mut diagnostics = Vec::new();
+        match self.place_count_for_relation(&relation) {
+            Some(place_count) => {
+                for place in 1..=place_count {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+            }
+            None => {
+                for place in 1..=highest_assigned_place.max(visible_x1_place) {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+                if !relation_has_open_place_structure(&relation) {
+                    diagnostics.push(diagnostic(
+                        "relation place structure is unavailable; only places required by explicit assignments are represented",
+                    ));
+                }
+            }
+        }
+        let source = self
+            .analysis
+            .syntax_index
+            .selbri_node_id(selbri)
+            .and_then(|node| self.source_for_node(node.0, "restrictive-predication"));
+        let eventuality = self.build_tagged_eventuality_for_selbri(selbri, source.clone())?;
+        let relation_metadata =
+            self.build_relation_metadata_for_selbri(selbri, &relation, source.clone())?;
+        let predication = self.next_predication();
+        let mut object = SemanticObject::predication(
+            relation,
+            eventuality,
+            arguments,
+            PredicationMode::Restrictive,
+            source.clone(),
+            diagnostics,
+        );
+        object.modal_arguments = modal_arguments;
+        object.relation_metadata = relation_metadata;
+        self.insert(predication, object)?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(
+                predication,
+                self.analysis
+                    .syntax_index
+                    .selbri_node_id(selbri)
+                    .and_then(|node| self.source_for_node(node.0, "restrictive-formula")),
+                Vec::new(),
+            ),
+        )
     }
 
     #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
@@ -11925,6 +12175,9 @@ fn visible_place_for_tanru_unit(unit: &TanruUnitSyntax, place: usize) -> usize {
         | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit { base, .. })
         | data!(TanruUnitSyntax::AssignedProBridi { base, .. }) => {
             visible_place_for_tanru_unit(base, place)
+        }
+        data!(TanruUnitSyntax::ModalConversion { inner_unit, .. }) => {
+            visible_place_for_tanru_unit(inner_unit, place)
         }
         _ => place,
     }
@@ -14625,6 +14878,7 @@ fn modal_relation_for_marker(marker: &str) -> String {
         "du'i" => "dunli".to_owned(),
         "fi'e" => "finti".to_owned(),
         "ga'a" => "zgana".to_owned(),
+        "gau" => "gasnu".to_owned(),
         "ka'a" => "klama".to_owned(),
         "ki'u" => "krinu".to_owned(),
         "ma'i" => "manri".to_owned(),
@@ -15255,6 +15509,112 @@ fn tanru_unit_requires_lowering(unit: &TanruUnitSyntax) -> bool {
 #[ensures(true)]
 fn tanru_unit_is_event_modal_conversion(unit: &TanruUnitSyntax) -> bool {
     event_modal_conversion_for_tanru_unit(unit).is_some()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tanru_unit_is_jai_conversion(unit: &TanruUnitSyntax) -> bool {
+    bare_jai_conversion_for_tanru_unit(unit).is_some()
+        || non_event_modal_jai_conversion_for_tanru_unit(unit).is_some()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bare_jai_conversion_for_selbri(selbri: &SelbriSyntax) -> Option<&TanruUnitSyntax> {
+    match selbri.as_data() {
+        data!(SelbriSyntax::Tanru(units)) if units.len() == 1 => {
+            bare_jai_conversion_for_tanru_unit(&units[0])
+        }
+        data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+        | data!(SelbriSyntax::TaggedSelbri {
+            inner_selbri: selbri,
+            ..
+        }) => bare_jai_conversion_for_selbri(selbri),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn bare_jai_conversion_for_tanru_unit(unit: &TanruUnitSyntax) -> Option<&TanruUnitSyntax> {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::ModalConversion {
+            tense_modal: None,
+            ..
+        }) => Some(unit),
+        data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::RelativeClauses {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::LinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::AssignedProBridi {
+            base: inner_unit,
+            ..
+        }) => bare_jai_conversion_for_tanru_unit(inner_unit),
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+            let units = tanru_units_for_selbri(selbri)?;
+            let [unit] = units.as_slice() else {
+                return None;
+            };
+            bare_jai_conversion_for_tanru_unit(unit)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|(_, tense_modal)| !tense_modal_has_event_modifier(tense_modal)))]
+fn non_event_modal_jai_conversion_for_tanru_unit(
+    unit: &TanruUnitSyntax,
+) -> Option<(&TanruUnitSyntax, &TenseModalSyntax)> {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::ModalConversion {
+            tense_modal: Some(tense_modal),
+            inner_unit,
+            ..
+        }) if !tense_modal_has_event_modifier(tense_modal)
+            && modal_relation_spec_for_tense_modal(tense_modal).is_some() =>
+        {
+            Some((inner_unit, tense_modal))
+        }
+        data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::RelativeClauses {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::LinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::AssignedProBridi {
+            base: inner_unit,
+            ..
+        }) => non_event_modal_jai_conversion_for_tanru_unit(inner_unit),
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+            let units = tanru_units_for_selbri(selbri)?;
+            let [unit] = units.as_slice() else {
+                return None;
+            };
+            non_event_modal_jai_conversion_for_tanru_unit(unit)
+        }
+        _ => None,
+    }
 }
 
 #[requires(true)]
@@ -18287,6 +18647,64 @@ mod tests {
         assert_eq!(modal_argument["arguments"]["x1"]["value"], lojban);
         assert_eq!(modal_argument["arguments"]["x2"]["kind"], "elided");
         assert_eq!(modal_argument["arguments"]["x3"]["kind"], "elided");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn asserted_bare_jai_uses_abstraction_about_raised_operand() {
+        let json = semantic_json_for("mi jai rinka le nu do morsi").expect("semantic JSON");
+        let rinka = predication_with_relation_and_mode(&json, "rinka", "asserted");
+        let raised = rinka["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("raised abstraction referent");
+        let raised = object(&json, raised);
+        assert_eq!(raised["sort"], "proposition");
+        assert_eq!(raised["descriptor"]["kind"], "abstractionAbout");
+        assert_eq!(raised["descriptor"]["word"], "jai");
+        assert_eq!(raised["descriptor"]["operand"], "referent:speaker");
+        assert_eq!(rinka["arguments"]["x2"]["kind"], "filled");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn restrictive_bare_jai_description_uses_abstraction_about_described_referent() {
+        let json = semantic_json_for("le jai rinka be le nu do morsi").expect("semantic JSON");
+        let described = root_object(&json)["content"]
+            .as_str()
+            .expect("mentioned description");
+        let rinka = predication_with_relation_and_mode(&json, "rinka", "restrictive");
+        assert_ne!(rinka["arguments"]["x1"]["value"], described);
+        let raised = rinka["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("raised abstraction referent");
+        let raised = object(&json, raised);
+        assert_eq!(raised["descriptor"]["kind"], "abstractionAbout");
+        assert_eq!(raised["descriptor"]["word"], "jai");
+        assert_eq!(raised["descriptor"]["operand"], described);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn restrictive_jai_bai_description_raises_modal_argument() {
+        let json = semantic_json_for("le jai gau rinka be le nu do morsi").expect("semantic JSON");
+        let described = root_object(&json)["content"]
+            .as_str()
+            .expect("mentioned description");
+        let rinka = predication_with_relation_and_mode(&json, "rinka", "restrictive");
+        assert_eq!(rinka["arguments"]["x1"]["kind"], "elided");
+        assert_eq!(rinka["arguments"]["x2"]["kind"], "filled");
+        let modal_argument = rinka["modalArguments"]
+            .as_array()
+            .expect("modal arguments")
+            .iter()
+            .find(|argument| argument["introducedBy"] == "gau")
+            .expect("gau modal argument");
+        assert_eq!(modal_argument["relation"], "gasnu");
+        assert_eq!(modal_argument["arguments"]["x1"]["value"], described);
+        assert_eq!(modal_argument["arguments"]["x2"]["kind"], "elided");
     }
 
     #[test]
