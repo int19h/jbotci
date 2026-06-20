@@ -5935,6 +5935,7 @@ where
         if let Some(selbri) = selbri {
             apply_selbri_anchors_to_event(selbri, &mut event);
         }
+        self.apply_frame_tense_modal_anchors_to_event(frame, &mut event);
         self.insert(eventuality, event)?;
         self.clear_sticky_modals_for_selbri_if_needed(selbri);
         let mut arguments = BTreeMap::new();
@@ -6013,6 +6014,7 @@ where
         if let Some(selbri) = selbri {
             apply_selbri_anchors_to_event(selbri, &mut event);
         }
+        self.apply_frame_tense_modal_anchors_to_event(frame, &mut event);
         self.insert(eventuality, event)?;
         self.clear_sticky_modals_for_selbri_if_needed(selbri);
         let mut arguments = BTreeMap::new();
@@ -6284,6 +6286,42 @@ where
     }
 
     #[requires(true)]
+    #[ensures(true)]
+    fn apply_frame_tense_modal_anchors_to_event(
+        &self,
+        frame: Option<SelbriPlaceFrameId>,
+        event: &mut SemanticObject,
+    ) {
+        let Some(frame) = frame else {
+            return;
+        };
+        let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
+        for assignment_id in assignment_ids {
+            let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
+                continue;
+            };
+            let PlaceSlot::Modal(Some(tag_node)) = assignment.slot else {
+                continue;
+            };
+            let Some(tense_modal) = self.analysis.syntax_index.tense_modal(tag_node) else {
+                continue;
+            };
+            if let Some(relation) = time_relation_for_tense_modal(tense_modal) {
+                event.time = Some(AnchorRelation {
+                    relation,
+                    anchor: SemanticObjectId::speech_time(),
+                });
+            }
+            if let Some(relation) = space_relation_for_tense_modal(tense_modal) {
+                event.space = Some(AnchorRelation {
+                    relation,
+                    anchor: SemanticObjectId::here(),
+                });
+            }
+        }
+    }
+
+    #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn modal_assignment_arguments(
         &mut self,
@@ -6301,6 +6339,12 @@ where
             let PlaceSlot::Modal(tag_node) = assignment.slot else {
                 continue;
             };
+            if tag_node
+                .and_then(|node| self.analysis.syntax_index.tense_modal(node))
+                .is_some_and(tense_modal_has_event_anchor)
+            {
+                continue;
+            }
             let key = ModalAssignmentKey {
                 sumti: assignment.sumti.0,
                 tag: tag_node,
@@ -10105,6 +10149,13 @@ fn apply_selbri_anchors_to_event(selbri: &SelbriSyntax, event: &mut SemanticObje
 
 #[requires(true)]
 #[ensures(true)]
+fn tense_modal_has_event_anchor(tense_modal: &TenseModalSyntax) -> bool {
+    time_relation_for_tense_modal(tense_modal).is_some()
+        || space_relation_for_tense_modal(tense_modal).is_some()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn time_relation_for_selbri(selbri: &SelbriSyntax) -> Option<String> {
     match selbri.as_data() {
         data!(SelbriSyntax::TaggedSelbri {
@@ -12701,6 +12752,30 @@ mod tests {
             object(&json, "referent:r4")["descriptor"]["word"],
             "zo'e x5"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn moved_pu_terms_anchor_the_event_not_modal_arguments() {
+        for text in [
+            "mi cu pu klama le zarci",
+            "puku mi klama le zarci",
+            "mi klama puku le zarci",
+            "mi klama le zarci pu",
+        ] {
+            let json = semantic_json_for(text).expect("semantic JSON");
+            let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+            assert!(klama.get("modalArguments").is_none(), "{text}");
+            let event = object(
+                &json,
+                klama["eventuality"]
+                    .as_str()
+                    .expect("klama predication eventuality"),
+            );
+            assert_eq!(event["time"]["relation"], "before", "{text}");
+            assert_eq!(event["time"]["anchor"], "referent:speech-time", "{text}");
+        }
     }
 
     #[test]
