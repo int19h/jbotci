@@ -6161,11 +6161,24 @@ where
         let kind = marker
             .and_then(relative_phrase_kind_for_marker)
             .unwrap_or(RelativeClauseKind::Restrictive);
+        let mode = predication_mode_for_relative_clause_kind(kind);
+        let modal_tagged_sumti = tense_modal_tagged_sumti(&phrase.sumti);
+        if let Some((tense_modal, associated_sumti)) = modal_tagged_sumti
+            && let Some(clause) = self.build_modal_sumti_association_phrase_clause(
+                tense_modal,
+                associated_sumti,
+                head,
+                kind,
+                marker_text.clone(),
+                source.clone(),
+            )?
+        {
+            return Ok(Some(clause));
+        }
         let relation = marker
             .and_then(relative_phrase_relation_for_marker)
             .unwrap_or("relativePhrase")
             .to_owned();
-        let mode = predication_mode_for_relative_clause_kind(kind);
         let mut diagnostics = Vec::new();
         if marker
             .and_then(relative_phrase_relation_for_marker)
@@ -6175,7 +6188,15 @@ where
                 "GOI relative phrase marker is not semantically lowered yet",
             ));
         }
-        let associated_argument = self.build_argument_for_sumti(&phrase.sumti)?;
+        if modal_tagged_sumti.is_some() {
+            diagnostics.push(diagnostic(
+                "modal relative phrase source relation is not semantically lowered yet",
+            ));
+        }
+        let associated_sumti = modal_tagged_sumti
+            .map(|(_, associated_sumti)| associated_sumti)
+            .unwrap_or(&phrase.sumti);
+        let associated_argument = self.build_argument_for_sumti(associated_sumti)?;
         let mut arguments = BTreeMap::new();
         arguments.insert("x1".to_owned(), ArgumentValue::filled(head, None));
         arguments.insert("x2".to_owned(), associated_argument);
@@ -6191,6 +6212,79 @@ where
                 diagnostics,
             ),
         )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source.clone(), Vec::new()),
+        )?;
+        Ok(Some(RelativeClause::with_introducer(
+            kind,
+            formula,
+            marker_text,
+            source,
+        )))
+    }
+
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(!marker_text.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_modal_sumti_association_phrase_clause(
+        &mut self,
+        tense_modal: &'tree TenseModalSyntax,
+        associated_sumti: &'tree SumtiSyntax,
+        head: SemanticObjectId,
+        kind: RelativeClauseKind,
+        marker_text: String,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<RelativeClause>, SemanticsError> {
+        let Some((introduced_by, relation, visible_place)) =
+            modal_relation_spec_for_tense_modal(tense_modal)
+        else {
+            return Ok(None);
+        };
+        let Some(head_place) = modal_relative_phrase_head_place(&relation, visible_place) else {
+            return Ok(None);
+        };
+        let mode = predication_mode_for_relative_clause_kind(kind);
+        let associated_argument = self.build_argument_for_sumti(associated_sumti)?;
+        let mut arguments = BTreeMap::new();
+        arguments.insert(format!("x{head_place}"), ArgumentValue::filled(head, None));
+        arguments.insert(format!("x{visible_place}"), associated_argument);
+        let mut diagnostics = Vec::new();
+        match self.place_count_for_relation(&relation) {
+            Some(place_count) => {
+                for place in 1..=place_count.max(head_place).max(visible_place) {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+            }
+            None => {
+                for place in 1..=head_place.max(visible_place) {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+                if !relation_has_open_place_structure(&relation) {
+                    diagnostics.push(diagnostic(
+                        "relation place structure is unavailable; only places required by explicit assignments are represented",
+                    ));
+                }
+            }
+        }
+        let predication = self.next_predication();
+        let mut object = SemanticObject::predication(
+            relation,
+            None,
+            arguments,
+            mode,
+            source.clone(),
+            diagnostics,
+        );
+        object.introduced_by = Some(introduced_by);
+        self.insert(predication, object)?;
         let formula = self.next_formula();
         self.insert(
             formula,
@@ -9277,10 +9371,14 @@ fn modal_relation_for_marker(marker: &str) -> String {
     match marker {
         "bai" => "bapli".to_owned(),
         "bau" => "bangu".to_owned(),
+        "cu'u" => "cusku".to_owned(),
         "do'e" => "unspecified-modal".to_owned(),
+        "fi'e" => "finti".to_owned(),
         "ga'a" => "zgana".to_owned(),
         "ka'a" => "klama".to_owned(),
         "ki'u" => "krinu".to_owned(),
+        "mau" => "zmadu".to_owned(),
+        "me'a" => "mleca".to_owned(),
         "mu'i" => "mukti".to_owned(),
         "ni'i" => "nibli".to_owned(),
         "pi'o" => "pilno".to_owned(),
@@ -10002,6 +10100,31 @@ fn relative_phrase_relation_for_marker(marker: Cmavo) -> Option<&'static str> {
         Cmavo::Po => Some("specificallyAssociatedWith"),
         Cmavo::Pohe => Some("intrinsicallyPossessedBy"),
         Cmavo::Pohu | Cmavo::Nohu => Some("identity"),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|(_, associated_sumti)| !matches!(associated_sumti.as_data(), data!(SumtiSyntax::TaggedSumti { .. }))))]
+fn tense_modal_tagged_sumti(sumti: &SumtiSyntax) -> Option<(&TenseModalSyntax, &SumtiSyntax)> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::TaggedSumti { tag, inner_sumti }) => match tag.as_data() {
+            data!(jbotci_syntax::ast::SumtiTagSyntax::TenseModal(tense_modal)) => {
+                Some((tense_modal, inner_sumti))
+            }
+            data!(jbotci_syntax::ast::SumtiTagSyntax::PlaceTag(..)) => None,
+        },
+        _ => None,
+    }
+}
+
+#[requires(!relation.is_empty())]
+#[requires(visible_place > 0)]
+#[ensures(ret.is_none_or(|place| place > 0 && place != visible_place))]
+fn modal_relative_phrase_head_place(relation: &str, visible_place: usize) -> Option<usize> {
+    match (relation, visible_place) {
+        ("cusku" | "finti", 1) => Some(2),
+        ("zmadu" | "mleca", 2) => Some(1),
         _ => None,
     }
 }
@@ -12660,6 +12783,88 @@ mod tests {
         assert_eq!(
             identity["arguments"]["x1"]["value"],
             terpemci["arguments"]["x1"]["value"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_relative_phrases_lower_to_source_relations() {
+        let expressed_by =
+            semantic_json_for("la .apasonatas pe cu'u la .artr. .rubnstain. cu se nelci mi")
+                .expect("semantic JSON");
+        let nelci = predication_with_relation_and_mode(&expressed_by, "nelci", "asserted");
+        let cusku = predication_with_relation_and_mode(&expressed_by, "cusku", "restrictive");
+        assert_eq!(cusku["introducedBy"], "cu'u");
+        assert_eq!(
+            cusku["arguments"]["x2"]["value"],
+            nelci["arguments"]["x2"]["value"]
+        );
+        assert_eq!(cusku["arguments"]["x3"]["kind"], "elided");
+        assert_eq!(cusku["arguments"]["x4"]["kind"], "elided");
+        assert_eq!(
+            nelci["arguments"]["x2"]["relativeClauses"][0]["introducedBy"],
+            "pe"
+        );
+
+        let created_by = semantic_json_for("la .apasonatas ne fi'e la .betovn. cu se nelci mi")
+            .expect("semantic JSON");
+        let nelci = predication_with_relation_and_mode(&created_by, "nelci", "asserted");
+        let finti = predication_with_relation_and_mode(&created_by, "finti", "incidental");
+        assert_eq!(finti["introducedBy"], "fi'e");
+        assert_eq!(
+            finti["arguments"]["x2"]["value"],
+            nelci["arguments"]["x2"]["value"]
+        );
+        assert_eq!(finti["arguments"]["x3"]["kind"], "elided");
+        assert_eq!(finti["arguments"]["x4"]["kind"], "elided");
+        assert_eq!(
+            nelci["arguments"]["x2"]["relativeClauses"][0]["introducedBy"],
+            "ne"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn comparative_modal_relative_phrases_lower_to_source_relations() {
+        let relative = semantic_json_for("la .frank. nelci la .betis. ne semau la .meiris.")
+            .expect("semantic JSON");
+        let nelci = predication_with_relation_and_mode(&relative, "nelci", "asserted");
+        let zmadu = predication_with_relation_and_mode(&relative, "zmadu", "incidental");
+        assert_eq!(zmadu["introducedBy"], "se mau");
+        assert_eq!(
+            zmadu["arguments"]["x1"]["value"],
+            nelci["arguments"]["x2"]["value"]
+        );
+        assert_eq!(zmadu["arguments"]["x2"]["kind"], "filled");
+        assert_eq!(zmadu["arguments"]["x3"]["kind"], "elided");
+        assert_eq!(zmadu["arguments"]["x4"]["kind"], "elided");
+        assert_eq!(
+            nelci["arguments"]["x2"]["relativeClauses"][0]["kind"],
+            "incidental"
+        );
+
+        let attached_modal = semantic_json_for("la .frank. nelci la .meiris. seme'a la .betis.")
+            .expect("semantic JSON");
+        let nelci = predication_with_relation_and_mode(&attached_modal, "nelci", "asserted");
+        assert_eq!(nelci["modalArguments"][0]["relation"], "mleca");
+        assert_eq!(nelci["modalArguments"][0]["introducedBy"], "se me'a");
+        assert_eq!(
+            nelci["modalArguments"][0]["arguments"]["x1"]["kind"],
+            "elided"
+        );
+        assert_eq!(
+            nelci["modalArguments"][0]["arguments"]["x2"]["kind"],
+            "filled"
+        );
+        assert_eq!(
+            nelci["modalArguments"][0]["arguments"]["x3"]["kind"],
+            "elided"
+        );
+        assert_eq!(
+            nelci["modalArguments"][0]["arguments"]["x4"]["kind"],
+            "elided"
         );
     }
 
