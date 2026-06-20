@@ -413,6 +413,10 @@ pub struct SemanticObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub operator: Option<SemanticOperator>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub operator_parameter: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub endpoint_inclusion: Option<IntervalEndpointInclusion>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub predication: Option<SemanticObjectId>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub children: Vec<SemanticObjectId>,
@@ -556,6 +560,8 @@ impl SemanticObject {
             scalar_negation: None,
             relation_metadata: None,
             operator: None,
+            operator_parameter: None,
+            endpoint_inclusion: None,
             predication: None,
             children: Vec::new(),
             connector: None,
@@ -943,6 +949,44 @@ impl SemanticObject {
         object
     }
 
+    #[requires(operator.ends_with("Interval"))]
+    #[requires(!operands.is_empty())]
+    #[requires(operands
+        .iter()
+        .all(|operand| operand.object_kind() == SemanticObjectKind::MathExpression))]
+    #[ensures(ret.object_kind() == SemanticObjectKind::MathExpression)]
+    pub fn math_interval_expression(
+        operator: String,
+        operands: Vec<SemanticObjectId>,
+        endpoint_inclusion: Option<IntervalEndpointInclusion>,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::math_expression(Some(operator), operands, None, source, diagnostics);
+        object.endpoint_inclusion = endpoint_inclusion;
+        object
+    }
+
+    #[requires(operator_parameter.object_kind() == SemanticObjectKind::Parameter)]
+    #[requires(!operands.is_empty())]
+    #[requires(operands
+        .iter()
+        .all(|operand| operand.object_kind() == SemanticObjectKind::MathExpression))]
+    #[ensures(ret.object_kind() == SemanticObjectKind::MathExpression)]
+    pub fn math_expression_with_operator_parameter(
+        operator_parameter: SemanticObjectId,
+        operands: Vec<SemanticObjectId>,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::MathExpression);
+        object.operator_parameter = Some(operator_parameter);
+        object.operands = operands;
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
     #[requires(denotes.object_kind() == SemanticObjectKind::Referent)]
     #[ensures(ret.object_kind() == SemanticObjectKind::MathExpression)]
     pub fn math_sumti_operand(
@@ -956,6 +1000,27 @@ impl SemanticObject {
             Some(MathLiteral::text(
                 "sumtiOperand".to_owned(),
                 "mo'e".to_owned(),
+            )),
+            source,
+            diagnostics,
+        );
+        object.denotes = Some(denotes);
+        object
+    }
+
+    #[requires(argument_object_kind_can_fill(denotes.object_kind()))]
+    #[ensures(ret.object_kind() == SemanticObjectKind::MathExpression)]
+    pub fn math_selbri_operand(
+        denotes: SemanticObjectId,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::math_expression(
+            None,
+            Vec::new(),
+            Some(MathLiteral::text(
+                "selbriOperand".to_owned(),
+                "ni'e".to_owned(),
             )),
             source,
             diagnostics,
@@ -1083,6 +1148,7 @@ impl SemanticObject {
         }
         extend_optional(out, self.relation_parameter);
         extend_optional(out, self.relation_metadata);
+        extend_optional(out, self.operator_parameter);
         if let Some(expansion) = &self.expansion {
             expansion.references_into(out);
         }
@@ -1768,6 +1834,7 @@ pub enum SemanticSort {
     Place,
     Connective,
     TenseModal,
+    MathOperator,
     ArgumentBundle,
 }
 
@@ -1870,6 +1937,7 @@ pub enum ParameterRole {
     PlaceQuestion,
     ConnectiveQuestion,
     TenseQuestion,
+    MathOperatorQuestion,
     AttitudeQuestion,
 }
 
@@ -2781,6 +2849,7 @@ pub enum QuestionKind {
     Place,
     Connective,
     Tense,
+    MathOperator,
     Attitude,
     Quantity,
 }
@@ -2875,6 +2944,7 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
             SemanticObjectKind::RelationMetadata,
         )
         && optional_reference_has_kind(object.relation_parameter, SemanticObjectKind::Parameter)
+        && optional_reference_has_kind(object.operator_parameter, SemanticObjectKind::Parameter)
         && optional_reference_has_kind(object.predication, SemanticObjectKind::Predication)
         && references_have_kind(&object.children, SemanticObjectKind::Formula)
         && object.connector.as_ref().is_none_or(|connector| {
@@ -2907,6 +2977,8 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         })
         && displayed_content_shape_matches_role(object)
         && references_have_kind(&object.operands, SemanticObjectKind::MathExpression)
+        && math_operator_parameter_matches_role(object)
+        && math_endpoint_inclusion_matches_role(object)
         && object
             .value
             .as_ref()
@@ -2976,6 +3048,17 @@ pub fn semantic_object_question_slots_are_valid(
                 parameter,
                 SemanticSort::TenseModal,
                 ParameterRole::TenseQuestion,
+            )
+        }) {
+            return false;
+        }
+
+        if object.operator_parameter.is_some_and(|parameter| {
+            !parameter_has_sort_and_role(
+                objects,
+                parameter,
+                SemanticSort::MathOperator,
+                ParameterRole::MathOperatorQuestion,
             )
         }) {
             return false;
@@ -3088,8 +3171,37 @@ fn parameter_role_matches_sort(sort: Option<SemanticSort>, role: Option<Paramete
         Some(ParameterRole::PlaceQuestion) => sort == Some(SemanticSort::Place),
         Some(ParameterRole::ConnectiveQuestion) => sort == Some(SemanticSort::Connective),
         Some(ParameterRole::TenseQuestion) => sort == Some(SemanticSort::TenseModal),
+        Some(ParameterRole::MathOperatorQuestion) => sort == Some(SemanticSort::MathOperator),
         None => false,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn math_operator_parameter_matches_role(object: &SemanticObject) -> bool {
+    let Some(parameter) = object.operator_parameter else {
+        return true;
+    };
+    object.object_kind() == SemanticObjectKind::MathExpression
+        && object.operator.is_none()
+        && object.literal.is_none()
+        && !object.operands.is_empty()
+        && parameter.object_kind() == SemanticObjectKind::Parameter
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn math_endpoint_inclusion_matches_role(object: &SemanticObject) -> bool {
+    let Some(_endpoint_inclusion) = object.endpoint_inclusion else {
+        return true;
+    };
+    if object.object_kind() != SemanticObjectKind::MathExpression {
+        return false;
+    }
+    object
+        .operator
+        .as_ref()
+        .is_some_and(|operator| matches!(operator.as_data(), data!(SemanticOperator::Math(operator)) if operator.ends_with("Interval")))
 }
 
 #[requires(true)]

@@ -47,3 +47,6 @@ Text @[0‥5) {
   ],
 }"""
 json = '{"leading_free_modifiers":[{"UtteranceOrdinal":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[0,2]}}}}],"mai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"maĭ","span":[2,5]}}}}}}]}'
+
+[expectations.output.tersmu]
+json = '''{"version":"lojban-semantics-json-1","root":"sequence:s1","objects":{"sequence:s1":{"type":"sequence","relation":"same-topic-continuation","source":{"span":{"byteStart":0,"byteEnd":5},"text":"romai","construct":"text"}},"referent:speaker":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"referent:addressee":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"referent:speech-time":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"speechTime"},"referent:here":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"}}}'''

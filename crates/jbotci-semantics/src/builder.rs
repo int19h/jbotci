@@ -2025,6 +2025,12 @@ where
         }) {
             return (QuestionKind::Tense, SemanticSort::TenseModal);
         }
+        if slots.iter().any(|slot| {
+            self.parameter_role(slot.parameter)
+                == Some(crate::model::ParameterRole::MathOperatorQuestion)
+        }) {
+            return (QuestionKind::MathOperator, SemanticSort::MathOperator);
+        }
         (QuestionKind::Argument, SemanticSort::Entity)
     }
 
@@ -10494,18 +10500,13 @@ where
         raw: RawSyntaxNodeId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let text = mekso_surface_text(expression);
-        let value = parse_decimal_integer(&text)
-            .map(QuantityValue::integer)
-            .map_or_else(
-                || {
-                    self.build_math_expression(
-                        expression,
-                        self.source_for_node(raw, "math-expression"),
-                    )
+        let value = simple_pa_quantity_value_for_mekso(expression).map_or_else(
+            || {
+                self.build_math_expression(expression, self.source_for_node(raw, "math-expression"))
                     .map(QuantityValue::math_expression)
-                },
-                Ok,
-            )?;
+            },
+            Ok,
+        )?;
         let id = self.next_quantity();
         self.insert(
             id,
@@ -10536,11 +10537,18 @@ where
             data!(MeksoSyntax::ParenthesizedMekso {
                 inner_expression,
                 ..
-            })
-            | data!(MeksoSyntax::QualifiedOperand {
+            }) => self.build_math_expression(inner_expression, source),
+            data!(MeksoSyntax::QualifiedOperand {
+                markers,
                 inner_expression,
                 ..
-            }) => self.build_math_expression(inner_expression, source),
+            }) => {
+                let id = self.build_math_expression(inner_expression, source)?;
+                if let Some(marker) = markers.value.first() {
+                    self.set_math_scalar_negation(id, scalar_negation_for_token(marker));
+                }
+                Ok(id)
+            }
             data!(MeksoSyntax::Infix {
                 left_expression,
                 operator,
@@ -10556,7 +10564,7 @@ where
                     self.build_math_expression(left_expression, None)?,
                     self.build_math_expression(right_expression, None)?,
                 ];
-                self.build_math_operator_expression(math_operator_label(operator), operands, source)
+                self.build_math_operator_expression_for_operator(operator, operands, source)
             }
             data!(MeksoSyntax::ForethoughtCall {
                 operator,
@@ -10567,7 +10575,23 @@ where
                     .iter()
                     .map(|operand| self.build_math_expression(operand, None))
                     .collect::<Result<Vec<_>, _>>()?;
-                self.build_math_operator_expression(math_operator_label(operator), operands, source)
+                self.build_math_operator_expression_for_operator(operator, operands, source)
+            }
+            data!(MeksoSyntax::MeksoConnection {
+                left_expression,
+                connective,
+                right_expression,
+            }) if connective_is_interval(connective) => {
+                let operands = vec![
+                    self.build_math_expression(left_expression, None)?,
+                    self.build_math_expression(right_expression, None)?,
+                ];
+                self.build_math_interval_expression(
+                    nonlogical_composition_operator(connective),
+                    operands,
+                    interval_endpoint_inclusion(connective, false),
+                    source,
+                )
             }
             data!(MeksoSyntax::MeksoArray { expressions, .. }) => {
                 let operands = expressions
@@ -10581,6 +10605,11 @@ where
                 let operand_source =
                     source.or_else(|| self.source_for_mekso(expression, "sumti-operand"));
                 self.build_math_sumti_operand(referent, operand_source)
+            }
+            data!(MeksoSyntax::SelbriOperand { selbri, .. }) => {
+                let operand_source =
+                    source.or_else(|| self.source_for_mekso(expression, "selbri-operand"));
+                self.build_math_selbri_operand(selbri, operand_source)
             }
             _ => self.build_math_literal(
                 MathLiteral::text("expression".to_owned(), mekso_surface_text(expression)),
@@ -10599,9 +10628,7 @@ where
         match quantifier.as_data() {
             data!(QuantifierSyntax::NumberQuantifier { number, .. }) => {
                 let text = word_run_text(&number.value);
-                let literal = parse_decimal_integer(&text)
-                    .map(MathLiteral::integer)
-                    .unwrap_or_else(|| MathLiteral::text("number".to_owned(), text));
+                let literal = math_literal_for_pa_text(text);
                 self.build_math_literal(literal, source)
             }
             data!(QuantifierSyntax::MeksoQuantifier { mekso, .. }) => {
@@ -10624,6 +10651,99 @@ where
             id,
             SemanticObject::math_expression(Some(operator), operands, None, source, Vec::new()),
         )
+    }
+
+    #[requires(operator.ends_with("Interval"))]
+    #[requires(!operands.is_empty())]
+    #[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_math_interval_expression(
+        &mut self,
+        operator: String,
+        operands: Vec<SemanticObjectId>,
+        endpoint_inclusion: Option<IntervalEndpointInclusion>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_math();
+        self.insert(
+            id,
+            SemanticObject::math_interval_expression(
+                operator,
+                operands,
+                endpoint_inclusion,
+                source,
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(!operands.is_empty())]
+    #[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_math_operator_expression_for_operator(
+        &mut self,
+        operator: &'tree MeksoOperatorSyntax,
+        operands: Vec<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let operands = math_operands_for_operator(operator, operands);
+        let id = if let Some(parameter) =
+            self.math_operator_question_parameter_for_operator(operator)?
+        {
+            let id = self.next_math();
+            self.insert(
+                id,
+                SemanticObject::math_expression_with_operator_parameter(
+                    parameter,
+                    operands,
+                    source,
+                    Vec::new(),
+                ),
+            )?
+        } else {
+            self.build_math_operator_expression(math_operator_label(operator), operands, source)?
+        };
+        if let Some(scalar_negation) = scalar_negation_for_mekso_operator(operator) {
+            self.set_math_scalar_negation(id, scalar_negation);
+        }
+        Ok(id)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter)) || ret.is_err())]
+    fn math_operator_question_parameter_for_operator(
+        &mut self,
+        operator: &'tree MeksoOperatorSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match operator.as_data() {
+            data!(MeksoOperatorSyntax::SelbriAsOperator { selbri, .. }) => {
+                self.math_operator_question_parameter_for_selbri(selbri)
+            }
+            data!(MeksoOperatorSyntax::GroupedOperator { inner_operator, .. })
+            | data!(MeksoOperatorSyntax::ScalarNegated { inner_operator, .. }) => {
+                self.math_operator_question_parameter_for_operator(inner_operator)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter)) || ret.is_err())]
+    fn math_operator_question_parameter_for_selbri(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match selbri.as_data() {
+            data!(SelbriSyntax::SelbriWord(token)) if token.cmavo() == Some(Cmavo::Mo) => self
+                .build_math_operator_question_parameter_for_token(token)
+                .map(Some),
+            data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+            | data!(SelbriSyntax::TaggedSelbri {
+                inner_selbri: selbri,
+                ..
+            }) => self.math_operator_question_parameter_for_selbri(selbri),
+            _ => Ok(None),
+        }
     }
 
     #[requires(true)]
@@ -10651,6 +10771,34 @@ where
         self.insert(
             id,
             SemanticObject::math_sumti_operand(referent, source, Vec::new()),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_math_selbri_operand(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let denotes = match selbri.as_data() {
+            data!(SelbriSyntax::Abstraction(abstraction)) => {
+                self.build_abstraction_object(abstraction, abstraction_kind_for_nu(abstraction))?
+            }
+            _ => {
+                return self.build_math_literal(
+                    MathLiteral::text(
+                        "selbriOperand".to_owned(),
+                        relation_label_for_selbri(selbri),
+                    ),
+                    source,
+                );
+            }
+        };
+        let id = self.next_math();
+        self.insert(
+            id,
+            SemanticObject::math_selbri_operand(denotes, source, Vec::new()),
         )
     }
 
@@ -11176,6 +11324,22 @@ where
         {
             return Ok(id);
         }
+        self.push_question_answer_slot(id);
+        Ok(id)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter) || ret.is_err())]
+    fn build_math_operator_question_parameter_for_token(
+        &mut self,
+        token: &Token,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.build_parameter_with_source(
+            token_text(token),
+            self.source_for_token(token, "parameter"),
+            SemanticSort::MathOperator,
+            crate::model::ParameterRole::MathOperatorQuestion,
+        )?;
         self.push_question_answer_slot(id);
         Ok(id)
     }
@@ -12336,8 +12500,9 @@ where
         text: String,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let value = parse_decimal_integer(&text)
+        let value = parse_simple_pa_integer(&text)
             .map(QuantityValue::integer)
+            .or_else(|| parse_simple_pa_decimal(&text).map(QuantityValue::text))
             .unwrap_or_else(|| QuantityValue::text(text.clone()));
         let id = self.next_quantity();
         self.insert(
@@ -12972,6 +13137,18 @@ where
         scalar_negation: ScalarNegation,
     ) {
         if let Some(object) = self.objects.get_mut(&predication) {
+            object.scalar_negation = Some(scalar_negation);
+        }
+    }
+
+    #[requires(math_expression.object_kind() == crate::model::SemanticObjectKind::MathExpression)]
+    #[ensures(true)]
+    fn set_math_scalar_negation(
+        &mut self,
+        math_expression: SemanticObjectId,
+        scalar_negation: ScalarNegation,
+    ) {
+        if let Some(object) = self.objects.get_mut(&math_expression) {
             object.scalar_negation = Some(scalar_negation);
         }
     }
@@ -18295,6 +18472,13 @@ fn mekso_surface_text(expression: &MeksoSyntax) -> String {
             sumti.visit_words(&mut |token| parts.push(token_text(token)));
             parts.join(" ")
         }
+        data!(MeksoSyntax::SelbriOperand { nihe, selbri, .. }) => {
+            format!(
+                "{} {}",
+                token_text(&nihe.value),
+                relation_label_for_selbri(selbri)
+            )
+        }
         _ => "mekso".to_owned(),
     }
 }
@@ -18615,7 +18799,68 @@ fn math_operator_label(operator: &MeksoOperatorSyntax) -> String {
         "te'a" => "power".to_owned(),
         "vu'u" => "subtract".to_owned(),
         "fe'i" => "divide".to_owned(),
+        "ju'u" => "base".to_owned(),
         _ => source,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
+fn scalar_negation_for_mekso_operator(operator: &MeksoOperatorSyntax) -> Option<ScalarNegation> {
+    match operator.as_data() {
+        data!(MeksoOperatorSyntax::ScalarNegated { nahe, .. }) => {
+            Some(scalar_negation_for_marker(nahe))
+        }
+        data!(MeksoOperatorSyntax::GroupedOperator { inner_operator, .. }) => {
+            scalar_negation_for_mekso_operator(inner_operator)
+        }
+        _ => None,
+    }
+}
+
+#[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+#[ensures(ret.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+fn math_operands_for_operator(
+    operator: &MeksoOperatorSyntax,
+    operands: Vec<SemanticObjectId>,
+) -> Vec<SemanticObjectId> {
+    match operator.as_data() {
+        data!(MeksoOperatorSyntax::Converted { se, inner_operator }) => {
+            let operands = math_operands_for_operator(inner_operator, operands);
+            converted_math_operands(se.cmavo(), operands)
+        }
+        data!(MeksoOperatorSyntax::ScalarNegated { inner_operator, .. })
+        | data!(MeksoOperatorSyntax::GroupedOperator { inner_operator, .. }) => {
+            math_operands_for_operator(inner_operator, operands)
+        }
+        _ => operands,
+    }
+}
+
+#[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+#[ensures(ret.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+fn converted_math_operands(
+    cmavo: Option<Cmavo>,
+    mut operands: Vec<SemanticObjectId>,
+) -> Vec<SemanticObjectId> {
+    let Some(target_index) = cmavo.and_then(se_conversion_target_index) else {
+        return operands;
+    };
+    if target_index < operands.len() {
+        operands.swap(0, target_index);
+    }
+    operands
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|index| index > 0))]
+fn se_conversion_target_index(cmavo: Cmavo) -> Option<usize> {
+    match cmavo {
+        Cmavo::Se => Some(1),
+        Cmavo::Te => Some(2),
+        Cmavo::Ve => Some(3),
+        Cmavo::Xe => Some(4),
+        _ => None,
     }
 }
 
@@ -19510,7 +19755,86 @@ fn token_vec_text(tokens: &[Token]) -> String {
 #[requires(!text.is_empty())]
 #[ensures(true)]
 fn parse_decimal_integer(text: &str) -> Option<i64> {
-    match text {
+    parse_simple_pa_integer(text)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn simple_pa_quantity_value_for_mekso(expression: &MeksoSyntax) -> Option<QuantityValue> {
+    let data!(MeksoSyntax::NumberMekso(quantifier)) = expression.as_data() else {
+        return None;
+    };
+    let data!(QuantifierSyntax::NumberQuantifier { number, .. }) = quantifier.as_data() else {
+        return None;
+    };
+    let text = word_run_text(&number.value);
+    parse_simple_pa_integer(&text)
+        .map(QuantityValue::integer)
+        .or_else(|| parse_simple_pa_decimal(&text).map(QuantityValue::text))
+}
+
+#[requires(!text.is_empty())]
+#[ensures(true)]
+fn math_literal_for_pa_text(text: String) -> MathLiteral {
+    parse_simple_pa_integer(&text)
+        .map(MathLiteral::integer)
+        .or_else(|| {
+            parse_simple_pa_decimal(&text)
+                .map(|decimal| MathLiteral::text("decimal".to_owned(), decimal))
+        })
+        .unwrap_or_else(|| MathLiteral::text("number".to_owned(), text))
+}
+
+#[requires(!text.is_empty())]
+#[ensures(true)]
+fn parse_simple_pa_integer(text: &str) -> Option<i64> {
+    let mut words = text.split_whitespace();
+    let first = words.next()?;
+    let (sign, first_digit) = match first {
+        "ni'u" => (-1_i64, words.next()?),
+        "ma'u" => (1_i64, words.next()?),
+        _ => (1_i64, first),
+    };
+    let mut value = i64::from(pa_digit_value(first_digit)?);
+    for word in words {
+        let digit = i64::from(pa_digit_value(word)?);
+        value = value.checked_mul(10)?.checked_add(digit)?;
+    }
+    Some(sign * value)
+}
+
+#[requires(!text.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
+fn parse_simple_pa_decimal(text: &str) -> Option<String> {
+    let words = text.split_whitespace().collect::<Vec<_>>();
+    let (sign, words) = match words.as_slice() {
+        ["ni'u", rest @ ..] => ("-", rest),
+        ["ma'u", rest @ ..] => ("", rest),
+        _ => ("", words.as_slice()),
+    };
+    let point = words.iter().position(|word| *word == "pi")?;
+    if words[point + 1..].is_empty() {
+        return None;
+    }
+    let integer = if point == 0 {
+        "0".to_owned()
+    } else {
+        words[..point]
+            .iter()
+            .map(|word| pa_digit_value(word).map(|digit| char::from(b'0' + digit)))
+            .collect::<Option<String>>()?
+    };
+    let fraction = words[point + 1..]
+        .iter()
+        .map(|word| pa_digit_value(word).map(|digit| char::from(b'0' + digit)))
+        .collect::<Option<String>>()?;
+    Some(format!("{sign}{integer}.{fraction}"))
+}
+
+#[requires(!word.is_empty())]
+#[ensures(ret.is_none_or(|digit| digit <= 9))]
+fn pa_digit_value(word: &str) -> Option<u8> {
+    match word {
         "no" => Some(0),
         "pa" => Some(1),
         "re" => Some(2),
@@ -22162,6 +22486,103 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn mekso_intervals_preserve_endpoint_inclusion() {
+        let json = semantic_json_for("li no ga'o bi'o ke'i pa").expect("semantic JSON");
+        assert_eq!(
+            object(&json, "quantity:q1")["value"]["mathExpression"],
+            "math:m3"
+        );
+        assert_eq!(object(&json, "math:m3")["operator"], "orderedInterval");
+        assert_eq!(
+            object(&json, "math:m3")["endpointInclusion"]["left"],
+            "inclusive"
+        );
+        assert_eq!(
+            object(&json, "math:m3")["endpointInclusion"]["right"],
+            "exclusive"
+        );
+        assert_eq!(object(&json, "math:m3")["operands"][0], "math:m1");
+        assert_eq!(object(&json, "math:m3")["operands"][1], "math:m2");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn simple_pa_numbers_parse_multi_digit_signs_and_decimals() {
+        let json = semantic_json_for("li bize").expect("semantic JSON");
+        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 87);
+
+        let json = semantic_json_for("li ni'umu cu nu'a va'a li ma'umu").expect("semantic JSON");
+        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], -5);
+        assert_eq!(object(&json, "quantity:q2")["value"]["integer"], 5);
+
+        let json = semantic_json_for("li pimu ga'o mi'i ke'i pimu").expect("semantic JSON");
+        assert_eq!(object(&json, "math:m1")["literal"]["kind"], "decimal");
+        assert_eq!(object(&json, "math:m1")["literal"]["value"], "0.5");
+        assert_eq!(object(&json, "math:m2")["literal"]["value"], "0.5");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mekso_scalar_negation_preserves_operator_and_operand_scope() {
+        let json = semantic_json_for("li ci se vu'u vo du li pa").expect("semantic JSON");
+        assert_eq!(object(&json, "math:m3")["operator"], "subtract");
+        assert_eq!(object(&json, "math:m3")["operands"][0], "math:m2");
+        assert_eq!(object(&json, "math:m3")["operands"][1], "math:m1");
+
+        let json = semantic_json_for("li ci na'e su'i vo du li pare").expect("semantic JSON");
+        assert_eq!(object(&json, "math:m3")["operator"], "add");
+        assert_eq!(
+            object(&json, "math:m3")["scalarNegation"]["kind"],
+            "otherThan"
+        );
+        assert_eq!(
+            object(&json, "math:m3")["scalarNegation"]["introducedBy"],
+            "na'e"
+        );
+        assert_eq!(object(&json, "quantity:q2")["value"]["integer"], 12);
+
+        let json = semantic_json_for("li re su'i re du li na'e bo mu").expect("semantic JSON");
+        assert_eq!(
+            object(&json, "quantity:q2")["value"]["mathExpression"],
+            "math:m4"
+        );
+        assert_eq!(
+            object(&json, "math:m4")["scalarNegation"]["kind"],
+            "otherThan"
+        );
+        assert_eq!(object(&json, "math:m4")["literal"]["value"], 5);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nahu_mo_inside_mekso_creates_math_operator_question_slot() {
+        let json = semantic_json_for("li re na'u mo re du li vo").expect("semantic JSON");
+        assert_eq!(object(&json, "utterance:u1")["force"], "ask");
+        assert_eq!(object(&json, "utterance:u1")["content"], "question:q1");
+        assert_eq!(object(&json, "question:q1")["kind"], "mathOperator");
+        assert_eq!(object(&json, "question:q1")["domain"], "mathOperator");
+        assert_eq!(
+            object(&json, "question:q1")["slots"][0]["parameter"],
+            "parameter:p1"
+        );
+        assert_eq!(object(&json, "parameter:p1")["sort"], "mathOperator");
+        assert_eq!(
+            object(&json, "parameter:p1")["role"],
+            "mathOperatorQuestion"
+        );
+        assert_eq!(
+            object(&json, "math:m3")["operatorParameter"],
+            "parameter:p1"
+        );
+        assert!(object(&json, "math:m3").get("operator").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn mohe_sumti_operand_preserves_referent_inside_math_expression() {
         let json =
             semantic_json_for("li pa vu'u mo'e le ni le pixra cu blanu").expect("semantic JSON");
@@ -22177,6 +22598,22 @@ mod tests {
         let amount_of = predication_with_relation_and_mode(&json, "amountOf", "restrictive");
         assert_eq!(amount_of["arguments"]["x1"]["value"], "referent:r1");
         assert_eq!(amount_of["arguments"]["x2"]["value"], "abstraction:a1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nihe_selbri_operand_preserves_abstraction_inside_math_expression() {
+        let json = semantic_json_for("li ni'e ni clani pi'i ni'e ni ganra").expect("semantic JSON");
+        assert_eq!(
+            object(&json, "quantity:q1")["value"]["mathExpression"],
+            "math:m3"
+        );
+        assert_eq!(object(&json, "math:m1")["literal"]["kind"], "selbriOperand");
+        assert_eq!(object(&json, "math:m1")["denotes"], "abstraction:a1");
+        assert_eq!(object(&json, "abstraction:a1")["abstractionKind"], "amount");
+        assert_eq!(object(&json, "math:m2")["denotes"], "abstraction:a2");
+        assert_eq!(object(&json, "math:m3")["operator"], "multiply");
     }
 
     #[test]
