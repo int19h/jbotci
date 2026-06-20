@@ -1857,6 +1857,11 @@ where
         {
             return Ok(formula);
         }
+        if let Some(formula) =
+            self.build_logical_modal_connection_formula(bridi, selbri, relation.clone())?
+        {
+            return Ok(formula);
+        }
         let predication = self.build_predication_for_bridi(bridi, selbri, relation)?;
         let id = self.next_formula();
         self.insert(
@@ -2224,6 +2229,102 @@ where
                     .bridi_node_id(bridi)
                     .and_then(|node| self.source_for_node(node.0, "sumti-connection-formula")),
                 diagnostics,
+            ),
+        )
+        .map(Some)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn build_logical_modal_connection_formula(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: Option<&'tree SelbriSyntax>,
+        relation: String,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let frame = selbri
+            .and_then(|selbri| {
+                self.semantic_predication_frame_for_selbri(selbri, self.bridi_frame(bridi))
+            })
+            .or_else(|| self.bridi_frame(bridi));
+        let Some(frame) = frame else {
+            return Ok(None);
+        };
+        let Some(connection) = self.logical_modal_connection_assignment(frame)? else {
+            return Ok(None);
+        };
+        let data!(LogicalModalConnectionAssignment {
+            argument: modal_argument,
+            operator,
+            source: connector_source,
+            truth_table,
+            terms,
+        }) = connection.into_data();
+        let mut children = Vec::new();
+        for term in terms {
+            let data!(ConnectedModalTerm {
+                introduced_by,
+                relation: modal_relation,
+                visible_place,
+                tokens,
+                negation,
+                scalar_negation,
+            }) = term.into_data();
+            let arguments = self.modal_argument_map_for_visible_place(
+                modal_argument.clone(),
+                visible_place,
+                self.place_count_for_relation(&modal_relation),
+            )?;
+            let modal_argument = ModalArgument::new_with_polarity(
+                modal_relation,
+                introduced_by,
+                arguments,
+                negation,
+                scalar_negation,
+                self.source_for_tokens(&tokens, "modal-argument"),
+            );
+            let predication = self.build_predication_for_frame_with_modal_arguments(
+                Some(frame),
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "predication")),
+                selbri,
+                relation.clone(),
+                BTreeMap::new(),
+                vec![modal_argument],
+            )?;
+            self.attach_reciprocity_to_predication(predication, bridi, &[])?;
+            let formula = self.next_formula();
+            self.insert(
+                formula,
+                SemanticObject::atom_formula(
+                    predication,
+                    self.analysis
+                        .syntax_index
+                        .bridi_node_id(bridi)
+                        .and_then(|node| self.source_for_node(node.0, "modal-branch-formula")),
+                    Vec::new(),
+                ),
+            )?;
+            children.push(formula);
+        }
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                operator,
+                children,
+                Some(Connector {
+                    source: connector_source,
+                    locus: "modal".to_owned(),
+                    truth_table: Some(truth_table),
+                }),
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "modal-connection-formula")),
+                Vec::new(),
             ),
         )
         .map(Some)
@@ -5879,6 +5980,28 @@ where
         relation: String,
         argument_overrides: BTreeMap<String, ArgumentValue>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        let modal_arguments = self.modal_assignment_arguments(frame)?;
+        self.build_predication_for_frame_with_modal_arguments(
+            frame,
+            source,
+            selbri,
+            relation,
+            argument_overrides,
+            modal_arguments,
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_predication_for_frame_with_modal_arguments(
+        &mut self,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        selbri: Option<&'tree SelbriSyntax>,
+        relation: String,
+        argument_overrides: BTreeMap<String, ArgumentValue>,
+        modal_arguments: Vec<ModalArgument>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let eventuality = self.next_eventuality();
         let mut event = SemanticObject::eventuality(
             EventualityClass::Event,
@@ -5895,7 +6018,7 @@ where
         let mut arguments = BTreeMap::new();
         let mut highest_assigned_place =
             self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
-        let mut modal_arguments = self.modal_assignment_arguments(frame)?;
+        let mut modal_arguments = modal_arguments;
         if let Some(selbri) = selbri {
             modal_arguments.extend(self.selbri_modal_arguments(selbri)?);
         }
@@ -6213,6 +6336,54 @@ where
             modal_arguments.push(modal_argument);
         }
         Ok(modal_arguments)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|connection| connection.as_ref().is_none_or(|connection| connection.terms.len() >= 2)) || ret.is_err())]
+    fn logical_modal_connection_assignment(
+        &mut self,
+        frame: SelbriPlaceFrameId,
+    ) -> Result<Option<LogicalModalConnectionAssignment>, SemanticsError> {
+        let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
+        let mut connection = None;
+        for assignment_id in assignment_ids {
+            let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
+                continue;
+            };
+            let PlaceSlot::Modal(Some(tag_node)) = assignment.slot else {
+                continue;
+            };
+            let Some(tense_modal) = self.analysis.syntax_index.tense_modal(tag_node) else {
+                continue;
+            };
+            let Some(spec) = logical_modal_connection_spec_for_tense_modal(tense_modal) else {
+                continue;
+            };
+            if connection.is_some() {
+                return Ok(None);
+            }
+            let sumti = self
+                .analysis
+                .syntax_index
+                .sumti(assignment.sumti)
+                .ok_or_else(SemanticsError::missing_syntax_node)?;
+            let data!(LogicalModalConnectionSpec {
+                operator,
+                source,
+                truth_table,
+                terms,
+            }) = spec.into_data();
+            connection = Some(LogicalModalConnectionAssignment::from_data(data!(
+                LogicalModalConnectionAssignment {
+                    argument: self.build_argument_for_sumti(sumti)?,
+                    operator,
+                    source,
+                    truth_table,
+                    terms,
+                }
+            )));
+        }
+        Ok(connection)
     }
 
     #[requires(true)]
@@ -10122,11 +10293,173 @@ struct ModalStatementConnectionSpec {
     argument_kind: ModalConnectionArgumentKind,
 }
 
+#[invariant(!introduced_by.is_empty())]
+#[invariant(!relation.is_empty())]
+#[invariant(*visible_place > 0)]
+#[invariant(!tokens.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ConnectedModalTerm {
+    introduced_by: String,
+    relation: String,
+    visible_place: usize,
+    tokens: Vec<Token>,
+    negation: Option<ModalNegation>,
+    scalar_negation: Option<ScalarNegation>,
+}
+
+#[invariant(terms.len() >= 2)]
+#[invariant(!source.is_empty())]
+#[invariant(!truth_table.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LogicalModalConnectionSpec {
+    operator: FormulaOperator,
+    source: String,
+    truth_table: String,
+    terms: Vec<ConnectedModalTerm>,
+}
+
+#[invariant(terms.len() >= 2)]
+#[invariant(!source.is_empty())]
+#[invariant(!truth_table.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LogicalModalConnectionAssignment {
+    argument: ArgumentValue,
+    operator: FormulaOperator,
+    source: String,
+    truth_table: String,
+    terms: Vec<ConnectedModalTerm>,
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ModalConnectionArgumentKind {
     Eventuality,
     Formula,
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|spec| spec.terms.len() >= 2))]
+fn logical_modal_connection_spec_for_tense_modal(
+    tense_modal: &TenseModalSyntax,
+) -> Option<LogicalModalConnectionSpec> {
+    let data!(TenseModalSyntax::Composite { parts }) = tense_modal.as_data() else {
+        return None;
+    };
+    let mut all_tokens = Vec::new();
+    for part in &parts.value {
+        let data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
+            token
+        )) = part.as_data()
+        else {
+            return None;
+        };
+        all_tokens.push(token.clone());
+    }
+    let mut term_tokens = Vec::new();
+    let mut current_term = Vec::new();
+    let mut connector = None;
+    for token in &all_tokens {
+        if token.is_selmaho(Selmaho::Ja) {
+            if current_term.is_empty() || connector.is_some() {
+                return None;
+            }
+            connector = Some(token.clone());
+            term_tokens.push(std::mem::take(&mut current_term));
+            continue;
+        }
+        current_term.push(token.clone());
+    }
+    if connector.is_none() || current_term.is_empty() {
+        return None;
+    }
+    term_tokens.push(current_term);
+    if term_tokens.len() != 2 {
+        return None;
+    }
+    let connector = connector?;
+    let operator = formula_operator_for_logical_connector_token(&connector)?;
+    let mut terms = Vec::new();
+    for tokens in term_tokens {
+        terms.push(connected_modal_term_from_tokens(tokens)?);
+    }
+    Some(LogicalModalConnectionSpec::from_data(data!(
+        LogicalModalConnectionSpec {
+            operator,
+            source: token_vec_text(&all_tokens),
+            truth_table: token_text(&connector),
+            terms,
+        }
+    )))
+}
+
+#[requires(!tokens.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|term| !term.relation.is_empty() && term.visible_place > 0))]
+fn connected_modal_term_from_tokens(tokens: Vec<Token>) -> Option<ConnectedModalTerm> {
+    let mut index = 0usize;
+    let scalar_negation = match tokens.get(index) {
+        Some(token) if token.is_selmaho(Selmaho::Nahe) => {
+            index += 1;
+            Some(ScalarNegation::new(
+                scalar_negation_kind_for_cmavo(token.cmavo()),
+                token_text(token),
+            ))
+        }
+        _ => None,
+    };
+    let conversion = match tokens.get(index) {
+        Some(token) if token.is_selmaho(Selmaho::Se) => {
+            index += 1;
+            Some(token.clone())
+        }
+        _ => None,
+    };
+    let marker_token = tokens.get(index)?;
+    if !marker_token.is_selmaho(Selmaho::Bai) {
+        return None;
+    }
+    index += 1;
+    let negation = match tokens.get(index) {
+        Some(token) if token.is_cmavo(Cmavo::Nai) => {
+            index += 1;
+            Some(ModalNegation::new(
+                ModalNegationKind::Contradictory,
+                token_text(token),
+            ))
+        }
+        _ => None,
+    };
+    if index != tokens.len() {
+        return None;
+    }
+    let marker = token_text(marker_token);
+    let visible_place = conversion
+        .as_ref()
+        .and_then(se_token_conversion_place)
+        .unwrap_or(1);
+    let introduced_by = conversion
+        .as_ref()
+        .map(|se| format!("{} {marker}", token_text(se)))
+        .unwrap_or_else(|| marker.clone());
+    Some(ConnectedModalTerm::from_data(data!(ConnectedModalTerm {
+        relation: modal_relation_for_marker(&marker),
+        introduced_by,
+        visible_place,
+        tokens,
+        negation,
+        scalar_negation,
+    })))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn formula_operator_for_logical_connector_token(token: &Token) -> Option<FormulaOperator> {
+    match token.cmavo() {
+        Some(Cmavo::Ja) => Some(FormulaOperator::Or),
+        Some(Cmavo::Je) => Some(FormulaOperator::And),
+        Some(Cmavo::Jo) => Some(FormulaOperator::Iff),
+        Some(Cmavo::Ju) => Some(FormulaOperator::WhetherOrNot),
+        _ => None,
+    }
 }
 
 #[requires(true)]
@@ -12975,6 +13308,64 @@ mod tests {
                 .get("modalArguments")
                 .is_none()
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_modal_tag_connection_distributes_host_predication() {
+        let json =
+            semantic_json_for("la .frank. bajra seka'a je teka'a le zdani").expect("semantic JSON");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "and");
+        assert_eq!(content["connector"]["locus"], "modal");
+        assert_eq!(content["connector"]["truthTable"], "je");
+
+        let bajra = predications_with_relation_and_mode(&json, "bajra", "asserted");
+        assert_eq!(bajra.len(), 2);
+        assert_ne!(bajra[0]["eventuality"], bajra[1]["eventuality"]);
+        assert_eq!(bajra[0]["arguments"]["x1"], bajra[1]["arguments"]["x1"]);
+        let destination_modal = bajra
+            .iter()
+            .flat_map(|predication| {
+                predication["modalArguments"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+            })
+            .find(|modal| modal["introducedBy"] == "se ka'a")
+            .expect("destination modal");
+        let origin_modal = bajra
+            .iter()
+            .flat_map(|predication| {
+                predication["modalArguments"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+            })
+            .find(|modal| modal["introducedBy"] == "te ka'a")
+            .expect("origin modal");
+        assert_eq!(destination_modal["relation"], "klama");
+        assert_eq!(origin_modal["relation"], "klama");
+        assert_eq!(
+            destination_modal["arguments"]["x2"]["value"],
+            origin_modal["arguments"]["x3"]["value"]
+        );
+
+        let termset = semantic_json_for("la .frank. bajra seka'a le zdani ce'e teka'a le zdani")
+            .expect("semantic JSON");
+        let shared_bajra = predication_with_relation_and_mode(&termset, "bajra", "asserted");
+        let shared_modals = shared_bajra["modalArguments"]
+            .as_array()
+            .expect("shared modal arguments");
+        assert_eq!(shared_modals.len(), 2);
+        assert_eq!(shared_modals[0]["introducedBy"], "se ka'a");
+        assert_eq!(shared_modals[1]["introducedBy"], "te ka'a");
     }
 
     #[test]
