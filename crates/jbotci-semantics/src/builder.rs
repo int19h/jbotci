@@ -31,16 +31,16 @@ use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorMagnitude, AnchorRelation, AnchorRelationData,
     ArgumentValue, ArgumentValueKind, Aspect, AssignedName, AssignedNameData, Composition,
     Connector, Descriptor, DisplayedContentAssertionEffect, DisplayedContentFamily,
-    DisplayedContentPolarity, EventualityClass, FormulaOperator, IndexicalKind, MathLiteral,
-    ModalArgument, ModalNegation, ModalNegationKind, PlaceQuestionBinding, PredicationMode,
-    QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot,
-    QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, Recurrence,
-    RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
-    RelationExpansion, RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind,
-    SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData,
-    SemanticSort, SequenceRelation, SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind,
-    TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
-    TimeSpanEndpoint, UtteranceForce, diagnostic, source_from_spans,
+    DisplayedContentModifier, DisplayedContentPolarity, EventualityClass, FormulaOperator,
+    IndexicalKind, MathLiteral, ModalArgument, ModalNegation, ModalNegationKind,
+    PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale, QuantityValue,
+    QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding,
+    ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind,
+    ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind, ScalarNegation,
+    ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId,
+    SemanticOperatorData, SemanticSort, SequenceRelation, SignKind, SpaceInterval, SpatialMotion,
+    SpatialMotionKind, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval,
+    TimeSpan, TimeSpanEndpoint, UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -453,6 +453,37 @@ struct IndirectQuestionFocus {
     source: Option<crate::model::SemanticSource>,
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone)]
+struct IndicatorPart {
+    cmavo: Cmavo,
+    nai: bool,
+    tokens: Vec<Token>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone)]
+struct IndicatorDisplayDraft {
+    family: DisplayedContentFamily,
+    relation: String,
+    polarity: DisplayedContentPolarity,
+    assertion_effect: DisplayedContentAssertionEffect,
+    intensity: Option<String>,
+    phase: Option<String>,
+    modifiers: Vec<DisplayedContentModifier>,
+    question: bool,
+    empathy: bool,
+    source_tokens: Vec<Token>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+struct IndicatorBaseSpec {
+    family: DisplayedContentFamily,
+    relation: &'static str,
+    assertion_effect: DisplayedContentAssertionEffect,
+}
+
 impl IdCounters {
     #[requires(true)]
     #[ensures(ret.utterance == 1)]
@@ -506,6 +537,7 @@ where
     temporal_context_stack: Vec<SemanticObjectId>,
     story_time_anchor: Option<SemanticObjectId>,
     pending_asides: Vec<SemanticObjectId>,
+    current_utterance_anchor: Option<SemanticObjectId>,
 }
 
 impl<'analysis, 'tree, 'resolver, F, R> GraphBuilder<'analysis, 'tree, 'resolver, F, R>
@@ -544,6 +576,7 @@ where
             temporal_context_stack: Vec::new(),
             story_time_anchor: None,
             pending_asides: Vec::new(),
+            current_utterance_anchor: None,
         };
         builder.insert_deictic_referents();
         builder
@@ -1035,6 +1068,13 @@ where
                     if statement_truth_question {
                         truth_question_pending = false;
                     }
+                } else if let Some(previous_item) = items.last().copied().filter(|item| {
+                    item.object_kind() == crate::model::SemanticObjectKind::Utterance
+                }) {
+                    self.attach_statement_separator_indicators_to_discourse_item(
+                        previous_item,
+                        statement,
+                    )?;
                 }
             }
             if !paragraph_asides.is_empty() {
@@ -1054,6 +1094,15 @@ where
             } else {
                 items.extend(leading_asides);
             }
+        }
+        if !leading_indicators_attached
+            && !text.leading_indicators.is_empty()
+            && let Some(first_item) = items.first().copied()
+        {
+            self.attach_leading_indicators_to_discourse_item(first_item, &text.leading_indicators)?;
+        }
+        if items.is_empty() && !text.leading_indicators.is_empty() {
+            items.push(self.build_standalone_indicator_utterance(text)?);
         }
         let root = if let [single] = items.as_slice() {
             *single
@@ -1076,6 +1125,67 @@ where
         };
         SemanticGraph::new(root, std::mem::take(&mut self.objects))
             .map_err(SemanticsError::invalid_graph)
+    }
+
+    #[requires(!text.leading_indicators.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance) || ret.is_err())]
+    fn build_standalone_indicator_utterance(
+        &mut self,
+        text: &'tree TextSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let utterance = self.next_utterance();
+        let parts = text
+            .leading_indicators
+            .iter()
+            .flat_map(indicator_parts_for_indicator)
+            .collect::<Vec<_>>();
+        let source_tokens = parts
+            .iter()
+            .flat_map(|part| part.tokens.iter().cloned())
+            .collect::<Vec<_>>();
+        let sign = self.next_sign();
+        let source = self.source_for_tokens(&source_tokens, "indicator-expression");
+        self.insert(
+            sign,
+            SemanticObject::text_sign(
+                SignKind::Text,
+                source_tokens
+                    .iter()
+                    .map(token_text)
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        let mut displays = Vec::new();
+        for draft in indicator_display_drafts(parts) {
+            displays.push(self.insert_indicator_display(draft, sign, utterance, "indicator")?);
+        }
+        let content = if let [display] = displays.as_slice() {
+            *display
+        } else {
+            let sequence = self.next_sequence();
+            self.insert(
+                sequence,
+                SemanticObject::sequence(
+                    displays,
+                    SequenceRelation::SameTopicContinuation,
+                    source.clone(),
+                    Vec::new(),
+                ),
+            )?
+        };
+        self.build_utterance(
+            UtteranceForce::Mention,
+            Some(content),
+            self.analysis
+                .syntax_index
+                .text_node_id(text)
+                .and_then(|node| self.source_for_node(node.0, "indicator-utterance")),
+            Vec::new(),
+            Some(utterance),
+        )
     }
 
     #[requires(true)]
@@ -1460,6 +1570,21 @@ where
     }
 
     #[requires(true)]
+    #[ensures(ret.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance))]
+    fn reserve_utterance_for_bridi(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+    ) -> Option<SemanticObjectId> {
+        let raw = self.analysis.syntax_index.bridi_node_id(bridi)?.0;
+        if let Some(id) = self.utterance_objects.get(&raw) {
+            return Some(*id);
+        }
+        let id = self.next_utterance();
+        self.utterance_objects.insert(raw, id);
+        Some(id)
+    }
+
+    #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_fragment_utterance(
         &mut self,
@@ -1472,7 +1597,12 @@ where
             .syntax_index
             .statement_node_id(statement)
             .and_then(|node| self.source_for_node(node.0, "fragment"));
-        if let Some(content) = self.build_fragment_content(fragment)? {
+        let anchor = reserved_utterance
+            .unwrap_or_else(|| SemanticObjectId::utterance(self.counters.utterance));
+        let previous_anchor = self.current_utterance_anchor.replace(anchor);
+        let content = self.build_fragment_content(fragment);
+        self.current_utterance_anchor = previous_anchor;
+        if let Some(content) = content? {
             return self.build_utterance(
                 UtteranceForce::Mention,
                 Some(content),
@@ -1617,6 +1747,12 @@ where
         truth_question: bool,
         reserved_utterance: Option<SemanticObjectId>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        let reserved_utterance =
+            reserved_utterance.or_else(|| self.reserve_utterance_for_bridi(bridi));
+        let previous_anchor = self.current_utterance_anchor.replace(
+            reserved_utterance
+                .unwrap_or_else(|| SemanticObjectId::utterance(self.counters.utterance)),
+        );
         let previous_slots = std::mem::take(&mut self.parameter_slots);
         let previous_asides = std::mem::take(&mut self.pending_asides);
         let formula = self.build_bridi_formula(bridi)?;
@@ -1646,6 +1782,16 @@ where
         } else {
             formula
         };
+        if let Some(anchor) = reserved_utterance
+            && let Some(selbri) = main_selbri_for_tail(&bridi.bridi_tail)
+        {
+            self.attach_indicator_displays(
+                indicator_parts_for_selbri(selbri),
+                formula,
+                anchor,
+                "indicator",
+            )?;
+        }
         let force = if is_question {
             UtteranceForce::Ask
         } else if bridi_contains_ko(bridi) {
@@ -1663,6 +1809,7 @@ where
             Vec::new(),
             reserved_utterance,
         )?;
+        self.current_utterance_anchor = previous_anchor;
         if let Some(node) = self.analysis.syntax_index.bridi_node_id(bridi) {
             self.utterance_objects.insert(node.0, utterance);
         }
@@ -3753,6 +3900,7 @@ where
             data!(ForethoughtBridiConnectionSyntax::BridiConnection {
                 gek,
                 first,
+                gik,
                 second,
                 tail_terms,
                 free_modifiers,
@@ -3796,6 +3944,24 @@ where
                         ),
                     );
                 };
+                if let Some(anchor) = self.current_utterance_anchor {
+                    let mut first_indicator_parts = indicator_parts_for_connective_cmavo(gek);
+                    first_indicator_parts.extend(indicator_parts_for_connective_nai(gek));
+                    self.attach_indicator_displays(
+                        first_indicator_parts,
+                        first_formula,
+                        anchor,
+                        "indicator",
+                    )?;
+                    let mut second_indicator_parts = indicator_parts_for_connective_cmavo(gik);
+                    second_indicator_parts.extend(indicator_parts_for_connective_nai(gik));
+                    self.attach_indicator_displays(
+                        second_indicator_parts,
+                        second_formula,
+                        anchor,
+                        "indicator",
+                    )?;
+                }
                 let tense_relation = modal_tense_relation_spec_for_connective(gek).is_some();
                 let relation_only = tense_relation && !claim_tense_branches;
                 let mut children = Vec::new();
@@ -4752,6 +4918,7 @@ where
                 Some(Composition {
                     operator,
                     members: vec![leading, trailing],
+                    excluded_members: Vec::new(),
                     collective,
                 }),
                 source,
@@ -6182,46 +6349,97 @@ where
         let Some(target) = self.displayed_content_target_for_utterance(item) else {
             return Ok(());
         };
-        for indicator in indicators {
-            self.attach_leading_indicator_to_discourse_item(item, target, indicator)?;
+        self.attach_indicator_displays(
+            indicators
+                .iter()
+                .flat_map(indicator_parts_for_indicator)
+                .collect(),
+            target,
+            item,
+            "indicator",
+        )
+    }
+
+    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_statement_separator_indicators_to_discourse_item(
+        &mut self,
+        item: SemanticObjectId,
+        paragraph_statement: &'tree ParagraphStatementSyntax,
+    ) -> Result<(), SemanticsError> {
+        let Some(i) = &paragraph_statement.i else {
+            return Ok(());
+        };
+        let parts = indicator_parts_for_token(i);
+        if parts.is_empty() {
+            return Ok(());
+        }
+        let Some(target) = self.displayed_content_target_for_utterance(item) else {
+            return Ok(());
+        };
+        self.attach_indicator_displays(parts, target, item, "indicator")
+    }
+
+    #[requires(target.object_kind() == crate::model::SemanticObjectKind::Utterance || crate::model::argument_object_kind_can_fill(target.object_kind()))]
+    #[requires(anchor.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[requires(!source_construct.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_indicator_displays(
+        &mut self,
+        parts: Vec<IndicatorPart>,
+        target: SemanticObjectId,
+        anchor: SemanticObjectId,
+        source_construct: &str,
+    ) -> Result<(), SemanticsError> {
+        for draft in indicator_display_drafts(parts) {
+            self.insert_indicator_display(draft, target, anchor, source_construct)?;
         }
         Ok(())
     }
 
-    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance)]
-    #[requires(target == item || target.object_kind() != crate::model::SemanticObjectKind::Utterance)]
+    #[requires(target.object_kind() == crate::model::SemanticObjectKind::Utterance || crate::model::argument_object_kind_can_fill(target.object_kind()))]
+    #[requires(anchor.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[requires(!source_construct.is_empty())]
     #[ensures(ret.is_ok() || ret.is_err())]
-    fn attach_leading_indicator_to_discourse_item(
+    fn insert_indicator_display(
         &mut self,
-        item: SemanticObjectId,
+        draft: IndicatorDisplayDraft,
         target: SemanticObjectId,
-        indicator: &'tree Indicator,
-    ) -> Result<(), SemanticsError> {
-        let Some((relation, polarity, assertion_effect)) =
-            leading_attitude_display_for_indicator(indicator)
-        else {
-            return Ok(());
-        };
+        anchor: SemanticObjectId,
+        source_construct: &str,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.next_display();
-        let source = {
-            let words = indicator.words();
-            self.source_for_tokens(&words, "indicator")
+        let source = self.source_for_tokens(&draft.source_tokens, source_construct);
+        let experiencer = if draft.empathy {
+            self.build_elided_referent(None, "dai experiencer".to_owned())?
+        } else {
+            SemanticObjectId::speaker()
         };
-        self.insert(
-            id,
-            SemanticObject::displayed_content(
-                DisplayedContentFamily::PropositionalAttitude,
-                relation.to_owned(),
-                polarity,
-                assertion_effect,
-                SemanticObjectId::speaker(),
-                target,
-                item,
-                source,
-                Vec::new(),
-            ),
-        )?;
-        Ok(())
+        let family = if draft.question {
+            DisplayedContentFamily::QuestionPrompt
+        } else {
+            draft.family
+        };
+        let relation = if draft.question {
+            attitude_question_relation(&draft.relation)
+        } else {
+            draft.relation
+        };
+        let mut object = SemanticObject::displayed_content(
+            family,
+            relation,
+            draft.polarity,
+            draft.assertion_effect,
+            experiencer,
+            target,
+            anchor,
+            source,
+            Vec::new(),
+        );
+        object.intensity = draft.intensity;
+        object.phase = draft.phase;
+        object.modifiers = draft.modifiers;
+        self.insert(id, object)
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -9242,12 +9460,39 @@ where
             }
             data!(SumtiSyntax::SumtiConnection {
                 leading_sumti,
+                connective,
                 trailing_sumti,
-                ..
             }) => {
                 let leading = self.build_sumti_referent(leading_sumti)?;
                 let trailing = self.build_sumti_referent(trailing_sumti)?;
-                self.build_composite_referent(raw, vec![leading, trailing], "joint")?
+                let right_negated = connective_negates_right(connective);
+                let members = if right_negated {
+                    vec![leading]
+                } else {
+                    vec![leading, trailing]
+                };
+                let excluded_members = if right_negated {
+                    vec![trailing]
+                } else {
+                    Vec::new()
+                };
+                let referent =
+                    self.build_composite_referent(raw, members, excluded_members, "joint")?;
+                if let Some(anchor) = self.current_utterance_anchor {
+                    self.attach_indicator_displays(
+                        indicator_parts_for_connective_cmavo(connective),
+                        trailing,
+                        anchor,
+                        "indicator",
+                    )?;
+                    self.attach_indicator_displays(
+                        indicator_parts_for_connective_nai(connective),
+                        referent,
+                        anchor,
+                        "indicator",
+                    )?;
+                }
+                referent
             }
             data!(SumtiSyntax::ReferentSumti {
                 lahe,
@@ -9291,6 +9536,16 @@ where
                 domain: SemanticSort::Entity,
                 source: self.source_for_node(raw, "indirect-question"),
             }));
+        }
+        if let Some(anchor) = self.current_utterance_anchor
+            && !sumti_connection_has_branch_indicator_attachment(sumti)
+        {
+            self.attach_indicator_displays(
+                indicator_parts_for_sumti(sumti),
+                id,
+                anchor,
+                "indicator",
+            )?;
         }
         self.sumti_objects.insert(raw, id);
         Ok(id)
@@ -10551,6 +10806,7 @@ where
         &mut self,
         raw: RawSyntaxNodeId,
         members: Vec<SemanticObjectId>,
+        excluded_members: Vec<SemanticObjectId>,
         operator: &str,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.next_referent();
@@ -10564,6 +10820,7 @@ where
                 Some(Composition {
                     operator: operator.to_owned(),
                     members,
+                    excluded_members,
                     collective: None,
                 }),
                 self.source_for_node(raw, "connected-sumti"),
@@ -12113,32 +12370,497 @@ fn connective_question_token_for_connective(connective: &ConnectiveSyntax) -> Op
 }
 
 #[requires(true)]
-#[ensures(ret.is_none_or(|(relation, _, _)| !relation.is_empty()))]
-fn leading_attitude_display_for_indicator(
-    indicator: &Indicator,
-) -> Option<(
-    &'static str,
-    DisplayedContentPolarity,
-    DisplayedContentAssertionEffect,
-)> {
-    if indicator.indicator.cmavo() != Some(Cmavo::Aho) {
-        return None;
+#[ensures(true)]
+fn indicator_parts_for_indicator(indicator: &Indicator) -> Vec<IndicatorPart> {
+    let mut parts = if let Some(cmavo) = indicator.indicator.core_word().cmavo() {
+        vec![IndicatorPart {
+            cmavo,
+            nai: false,
+            tokens: vec![Token::bare(indicator.indicator.core_word().clone())],
+        }]
+    } else {
+        Vec::new()
+    };
+    parts.extend(indicator_parts_for_token(&indicator.indicator));
+    if let Some(nai) = &indicator.nai
+        && let Some(last) = parts.last_mut()
+    {
+        last.nai = true;
+        last.tokens.push(Token::bare(WordLike::bare(nai.clone())));
     }
-    let polarity = if indicator.nai.is_some() {
-        DisplayedContentPolarity::Negative
+    parts
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn indicator_parts_for_sumti(sumti: &SumtiSyntax) -> Vec<IndicatorPart> {
+    let mut parts = Vec::new();
+    sumti.visit_words(&mut |token| {
+        parts.extend(indicator_parts_for_token(token));
+    });
+    parts
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sumti_connection_has_branch_indicator_attachment(sumti: &SumtiSyntax) -> bool {
+    matches!(
+        sumti.as_data(),
+        data!(SumtiSyntax::SumtiConnection { .. })
+            | data!(SumtiSyntax::BoundSumtiConnection { .. })
+            | data!(SumtiSyntax::ForethoughtSumtiConnection { .. })
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn indicator_parts_for_selbri(selbri: &SelbriSyntax) -> Vec<IndicatorPart> {
+    let mut parts = Vec::new();
+    selbri.visit_words(&mut |token| {
+        parts.extend(indicator_parts_for_token(token));
+    });
+    parts
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn indicator_parts_for_connective_cmavo(connective: &ConnectiveSyntax) -> Vec<IndicatorPart> {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Afterthought { cmavo, .. })
+        | data!(ConnectiveSyntax::Selbri { cmavo, .. })
+        | data!(ConnectiveSyntax::BridiTail { cmavo, .. })
+        | data!(ConnectiveSyntax::Forethought { cmavo, .. })
+        | data!(ConnectiveSyntax::NonLogical { cmavo, .. })
+        | data!(ConnectiveSyntax::Interval { cmavo, .. }) => cmavo
+            .value
+            .iter()
+            .flat_map(indicator_parts_for_token)
+            .collect(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn indicator_parts_for_connective_nai(connective: &ConnectiveSyntax) -> Vec<IndicatorPart> {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Afterthought { nai, .. })
+        | data!(ConnectiveSyntax::Selbri { nai, .. })
+        | data!(ConnectiveSyntax::BridiTail { nai, .. })
+        | data!(ConnectiveSyntax::Forethought { nai, .. })
+        | data!(ConnectiveSyntax::NonLogical { nai, .. })
+        | data!(ConnectiveSyntax::Interval { nai, .. }) => nai
+            .as_ref()
+            .map(|nai| indicator_parts_for_token(&nai.value))
+            .unwrap_or_default(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn indicator_parts_for_token(token: &Token) -> Vec<IndicatorPart> {
+    let mut parts = Vec::new();
+    indicator_parts_for_with_indicators(token.as_indicators(), &mut parts);
+    parts
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn indicator_parts_for_with_indicators(
+    indicators: &WithIndicators<WordLike>,
+    out: &mut Vec<IndicatorPart>,
+) {
+    match indicators {
+        WithIndicators::Plain(_) | WithIndicators::Emphasized { .. } => {}
+        WithIndicators::WithIndicator {
+            base,
+            indicator,
+            nai,
+        } => {
+            indicator_parts_for_with_indicators(base, out);
+            let Some(cmavo) = indicator.cmavo() else {
+                return;
+            };
+            let mut tokens = vec![Token::bare(WordLike::bare(indicator.clone()))];
+            if let Some(nai) = nai {
+                tokens.push(Token::bare(WordLike::bare(nai.clone())));
+            }
+            out.push(IndicatorPart {
+                cmavo,
+                nai: nai.is_some(),
+                tokens,
+            });
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn indicator_display_drafts(parts: Vec<IndicatorPart>) -> Vec<IndicatorDisplayDraft> {
+    let mut drafts = Vec::new();
+    let mut current: Option<IndicatorDisplayDraft> = None;
+    let mut pending_question_tokens = Vec::new();
+    for part in parts {
+        if part.cmavo == Cmavo::Kau {
+            continue;
+        }
+        if part.cmavo == Cmavo::Pei {
+            if let Some(draft) = &mut current {
+                draft.question = true;
+                draft.source_tokens.extend(part.tokens);
+            } else {
+                pending_question_tokens.extend(part.tokens);
+            }
+            continue;
+        }
+        if let Some(draft) = current.as_mut()
+            && apply_indicator_modifier_to_draft(draft, &part)
+        {
+            continue;
+        }
+        if current.is_none()
+            && let Some(relation) = indicator_modifier_relation(part.cmavo)
+        {
+            current = Some(IndicatorDisplayDraft {
+                family: DisplayedContentFamily::AttitudeModifier,
+                relation: relation.to_owned(),
+                polarity: if part.nai {
+                    DisplayedContentPolarity::Negative
+                } else {
+                    DisplayedContentPolarity::Positive
+                },
+                assertion_effect: DisplayedContentAssertionEffect::None,
+                intensity: None,
+                phase: None,
+                modifiers: Vec::new(),
+                question: false,
+                empathy: false,
+                source_tokens: part.tokens,
+            });
+            continue;
+        }
+        if let Some(spec) = indicator_base_spec(part.cmavo) {
+            if let Some(draft) = current.take() {
+                drafts.push(draft);
+            }
+            let mut source_tokens = std::mem::take(&mut pending_question_tokens);
+            source_tokens.extend(part.tokens);
+            current = Some(IndicatorDisplayDraft {
+                family: spec.family,
+                relation: indicator_relation_for_polarity(spec.relation, part.nai).to_owned(),
+                polarity: if part.nai {
+                    DisplayedContentPolarity::Negative
+                } else {
+                    DisplayedContentPolarity::Positive
+                },
+                assertion_effect: spec.assertion_effect,
+                intensity: None,
+                phase: None,
+                modifiers: Vec::new(),
+                question: !source_tokens.is_empty() && source_tokens[0].cmavo() == Some(Cmavo::Pei),
+                empathy: false,
+                source_tokens,
+            });
+            continue;
+        }
+        let Some(draft) = current.as_mut() else {
+            continue;
+        };
+        draft.source_tokens.extend(part.tokens.clone());
+    }
+    if let Some(draft) = current {
+        drafts.push(draft);
+    } else if !pending_question_tokens.is_empty() {
+        drafts.push(IndicatorDisplayDraft {
+            family: DisplayedContentFamily::QuestionPrompt,
+            relation: "attitudeQuestion".to_owned(),
+            polarity: DisplayedContentPolarity::Neutral,
+            assertion_effect: DisplayedContentAssertionEffect::None,
+            intensity: None,
+            phase: None,
+            modifiers: Vec::new(),
+            question: false,
+            empathy: false,
+            source_tokens: pending_question_tokens,
+        });
+    }
+    drafts
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn apply_indicator_modifier_to_draft(
+    draft: &mut IndicatorDisplayDraft,
+    part: &IndicatorPart,
+) -> bool {
+    if let Some(intensity) = indicator_intensity(part.cmavo, part.nai) {
+        draft.source_tokens.extend(part.tokens.clone());
+        draft.intensity = Some(intensity.to_owned());
+        return true;
+    }
+    if let Some(polarity) = indicator_polarity_modifier(part.cmavo, part.nai) {
+        draft.source_tokens.extend(part.tokens.clone());
+        draft.polarity = polarity;
+        return true;
+    }
+    if let Some(phase) = indicator_phase(part.cmavo, part.nai) {
+        draft.source_tokens.extend(part.tokens.clone());
+        draft.phase = Some(phase.to_owned());
+        return true;
+    }
+    if part.cmavo == Cmavo::Dai {
+        draft.source_tokens.extend(part.tokens.clone());
+        draft.empathy = true;
+        return true;
+    }
+    if let Some(relation) = indicator_modifier_relation(part.cmavo) {
+        draft.source_tokens.extend(part.tokens.clone());
+        draft.modifiers.push(new!(DisplayedContentModifier {
+            relation: relation.to_owned(),
+            polarity: Some(if part.nai {
+                DisplayedContentPolarity::Negative
+            } else {
+                DisplayedContentPolarity::Positive
+            }),
+            intensity: None,
+        }));
+        return true;
+    }
+    false
+}
+
+#[requires(!relation.is_empty())]
+#[ensures(!ret.is_empty())]
+fn attitude_question_relation(relation: &str) -> String {
+    if relation.ends_with("Question") {
+        relation.to_owned()
     } else {
-        DisplayedContentPolarity::Positive
+        format!("{relation}Question")
+    }
+}
+
+#[requires(!relation.is_empty())]
+#[ensures(!ret.is_empty())]
+fn indicator_relation_for_polarity(relation: &'static str, nai: bool) -> &'static str {
+    match (relation, nai) {
+        ("hope", true) => "despair",
+        ("belief", true) => "disbelief",
+        ("agreement", true) => "disagreement",
+        ("approval", true) => "disapproval",
+        ("obligation", true) => "freedom",
+        ("permission", true) => "prohibition",
+        ("competence", true) => "incompetence",
+        ("desire", true) => "reluctance",
+        ("interest", true) => "repulsion",
+        ("surprise", true) => "expectation",
+        ("happiness", true) => "unhappiness",
+        ("love", true) => "hatred",
+        ("respect", true) => "disrespect",
+        ("patience", true) => "anger",
+        ("relaxation", true) => "stress",
+        ("caution", true) => "rashness",
+        ("pity", true) => "cruelty",
+        ("repentance", true) => "innocence",
+        ("hypothetical", true) => "factual",
+        ("figurative", true) => "literal",
+        ("newInformation", true) => "oldInformation",
+        _ => relation,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|spec| !spec.relation.is_empty()))]
+fn indicator_base_spec(cmavo: Cmavo) -> Option<IndicatorBaseSpec> {
+    let attitude = DisplayedContentAssertionEffect::HostSubordinated;
+    let none = DisplayedContentAssertionEffect::None;
+    let host = DisplayedContentAssertionEffect::HostAsserted;
+    let performative = DisplayedContentAssertionEffect::Performative;
+    let spec = match cmavo {
+        Cmavo::Ua => (DisplayedContentFamily::Emotion, "discovery", none),
+        Cmavo::Uha => (DisplayedContentFamily::Emotion, "gain", none),
+        Cmavo::Ue => (DisplayedContentFamily::Emotion, "surprise", none),
+        Cmavo::Ui => (DisplayedContentFamily::Emotion, "happiness", none),
+        Cmavo::Uo => (DisplayedContentFamily::Emotion, "completion", none),
+        Cmavo::Uu => (DisplayedContentFamily::Emotion, "pity", none),
+        Cmavo::Uhu => (DisplayedContentFamily::Emotion, "repentance", none),
+        Cmavo::Ii => (DisplayedContentFamily::Emotion, "fear", none),
+        Cmavo::Iu => (DisplayedContentFamily::Emotion, "love", none),
+        Cmavo::Io => (DisplayedContentFamily::Emotion, "respect", none),
+        Cmavo::Oi => (DisplayedContentFamily::Emotion, "complaint", none),
+        Cmavo::Ohi => (DisplayedContentFamily::Emotion, "caution", none),
+        Cmavo::Ohe => (DisplayedContentFamily::Emotion, "detachment", none),
+        Cmavo::Oho => (DisplayedContentFamily::Emotion, "patience", none),
+        Cmavo::Ohu => (DisplayedContentFamily::Emotion, "relaxation", none),
+        Cmavo::Aha => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "attention",
+            attitude,
+        ),
+        Cmavo::Ahe => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "alertness",
+            attitude,
+        ),
+        Cmavo::Ai => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "intent",
+            attitude,
+        ),
+        Cmavo::Ahi => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "effort",
+            attitude,
+        ),
+        Cmavo::Aho => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "hope",
+            attitude,
+        ),
+        Cmavo::Au => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "desire",
+            attitude,
+        ),
+        Cmavo::Ahu => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "interest",
+            attitude,
+        ),
+        Cmavo::Eha => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "permission",
+            attitude,
+        ),
+        Cmavo::Ehe => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "competence",
+            attitude,
+        ),
+        Cmavo::Ei => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "obligation",
+            attitude,
+        ),
+        Cmavo::Eho => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "request",
+            attitude,
+        ),
+        Cmavo::Ehu => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "suggestion",
+            attitude,
+        ),
+        Cmavo::Ia => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "belief",
+            attitude,
+        ),
+        Cmavo::Iha => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "acceptance",
+            attitude,
+        ),
+        Cmavo::Ie => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "agreement",
+            attitude,
+        ),
+        Cmavo::Ihe => (
+            DisplayedContentFamily::PropositionalAttitude,
+            "approval",
+            attitude,
+        ),
+        Cmavo::Cahe => (
+            DisplayedContentFamily::Evidential,
+            "definition",
+            performative,
+        ),
+        Cmavo::Baha => (DisplayedContentFamily::Evidential, "expectation", host),
+        Cmavo::Tihe => (DisplayedContentFamily::Evidential, "hearsay", host),
+        Cmavo::Zaha => (DisplayedContentFamily::Evidential, "observation", host),
+        Cmavo::Pehi => (DisplayedContentFamily::Evidential, "opinion", host),
+        Cmavo::Ruha => (DisplayedContentFamily::Evidential, "presumption", host),
+        Cmavo::Juho => (DisplayedContentFamily::Discursive, "certainty", attitude),
+        Cmavo::Dahi => (DisplayedContentFamily::Discursive, "hypothetical", attitude),
+        Cmavo::Poho => (DisplayedContentFamily::Discursive, "onlyRelevantCase", none),
+        Cmavo::Kiha => (DisplayedContentFamily::Metalinguistic, "confusion", none),
+        Cmavo::Peha => (DisplayedContentFamily::Metalinguistic, "figurative", none),
+        Cmavo::Pau => (
+            DisplayedContentFamily::QuestionPrompt,
+            "questionPrompt",
+            none,
+        ),
+        Cmavo::Xu => (
+            DisplayedContentFamily::QuestionPrompt,
+            "truthQuestionPrompt",
+            none,
+        ),
+        Cmavo::Gehe => (
+            DisplayedContentFamily::Metalinguistic,
+            "unspecifiedAttitude",
+            none,
+        ),
+        _ if cmavo.is_selmaho(jbotci_morphology::Selmaho::Ui) => (
+            DisplayedContentFamily::Metalinguistic,
+            cmavo.canonical_text(),
+            none,
+        ),
+        _ => return None,
     };
-    let relation = if indicator.nai.is_some() {
-        "despair"
-    } else {
-        "hope"
-    };
-    Some((
-        relation,
-        polarity,
-        DisplayedContentAssertionEffect::HostSubordinated,
-    ))
+    Some(IndicatorBaseSpec {
+        family: spec.0,
+        relation: spec.1,
+        assertion_effect: spec.2,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|intensity| !intensity.is_empty()))]
+fn indicator_intensity(cmavo: Cmavo, nai: bool) -> Option<&'static str> {
+    match (cmavo, nai) {
+        (Cmavo::Cai, false) => Some("maximal"),
+        (Cmavo::Sai, false) => Some("strong"),
+        (Cmavo::Ruhe, false) => Some("weak"),
+        (Cmavo::Cai, true) => Some("negativeMaximal"),
+        (Cmavo::Sai, true) => Some("negativeStrong"),
+        (Cmavo::Ruhe, true) => Some("negativeWeak"),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn indicator_polarity_modifier(cmavo: Cmavo, nai: bool) -> Option<DisplayedContentPolarity> {
+    match (cmavo, nai) {
+        (Cmavo::Cuhi, false) => Some(DisplayedContentPolarity::Neutral),
+        (Cmavo::Cuhi, true) => Some(DisplayedContentPolarity::Negative),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|phase| !phase.is_empty()))]
+fn indicator_phase(cmavo: Cmavo, nai: bool) -> Option<&'static str> {
+    match (cmavo, nai) {
+        (Cmavo::Buho, false) => Some("starting"),
+        (Cmavo::Buho, true) => Some("ending"),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|relation| !relation.is_empty()))]
+fn indicator_modifier_relation(cmavo: Cmavo) -> Option<&'static str> {
+    match cmavo {
+        Cmavo::Gahi => Some("rank"),
+        Cmavo::Sehi => Some("selfOrientation"),
+        Cmavo::Rihe => Some("emotionalRelease"),
+        Cmavo::Behu => Some("need"),
+        Cmavo::Seha => Some("selfSufficiency"),
+        Cmavo::Roho => Some("physical"),
+        Cmavo::Rehe => Some("spiritual"),
+        _ => None,
+    }
 }
 
 #[requires(true)]
@@ -21195,6 +21917,166 @@ mod tests {
         assert_eq!(display["anchor"], "utterance:u1");
         assert_eq!(display["target"], utterance["content"]);
         assert_eq!(display["source"]["text"], "a'o");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn post_sumti_indicator_targets_referent() {
+        let json = semantic_json_for("la djan .iu klama").expect("semantic JSON");
+        let display = object(&json, "display:d1");
+        assert_eq!(display["relation"], "love");
+        assert_eq!(display["target"], "referent:r1");
+        assert_eq!(display["anchor"], "utterance:u1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn post_selbri_indicator_targets_formula() {
+        let json = semantic_json_for("la djan klama .iu").expect("semantic JSON");
+        let display = object(&json, "display:d1");
+        assert_eq!(display["relation"], "love");
+        assert_eq!(display["target"], "formula:f1");
+        assert_eq!(display["anchor"], "utterance:u1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn standalone_attitude_question_is_displayed_content_question_prompt() {
+        let json = semantic_json_for(".iepei").expect("semantic JSON");
+        let utterance = object(&json, "utterance:u1");
+        let sign = object(&json, "sign:s1");
+        let display = object(&json, "display:d1");
+        assert_eq!(utterance["force"], "mention");
+        assert_eq!(utterance["content"], "display:d1");
+        assert_eq!(sign["text"], "ie pei");
+        assert_eq!(display["family"], "questionPrompt");
+        assert_eq!(display["relation"], "agreementQuestion");
+        assert_eq!(display["target"], "sign:s1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn leading_indicator_modifiers_attach_to_base_display() {
+        let json = semantic_json_for(".ause'inai la djan klama").expect("semantic JSON");
+        let display = object(&json, "display:d1");
+        assert_eq!(display["relation"], "desire");
+        assert_eq!(display["source"]["text"], "ause'inai");
+        assert_eq!(display["modifiers"][0]["relation"], "selfOrientation");
+        assert_eq!(display["modifiers"][0]["polarity"], "negative");
+        assert!(json.pointer("/objects/display:d2").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dai_changes_displayed_content_experiencer() {
+        let json = semantic_json_for(".oiro'odai la djan klama").expect("semantic JSON");
+        let display = object(&json, "display:d1");
+        assert_eq!(display["relation"], "complaint");
+        assert_eq!(display["modifiers"][0]["relation"], "physical");
+        let experiencer = display["experiencer"]
+            .as_str()
+            .expect("display experiencer");
+        assert_ne!(experiencer, "referent:speaker");
+        assert_eq!(
+            object(&json, experiencer)["descriptor"]["word"],
+            "dai experiencer"
+        );
+        assert!(json.pointer("/objects/display:d2").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn standalone_attitude_modifier_uses_english_relation() {
+        let json = semantic_json_for("ko ga'inai nenri klama le mi zdani").expect("semantic JSON");
+        let display = object(&json, "display:d1");
+        assert_eq!(display["family"], "attitudeModifier");
+        assert_eq!(display["relation"], "rank");
+        assert_eq!(display["polarity"], "negative");
+        assert_eq!(display["target"], "referent:addressee");
+
+        let json = semantic_json_for("le cukta be'u cu zvati ma").expect("semantic JSON");
+        let display = object(&json, "display:d1");
+        assert_eq!(display["family"], "attitudeModifier");
+        assert_eq!(display["relation"], "need");
+        assert_eq!(display["target"], "referent:r1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn standalone_multiple_attitudes_use_display_sequence_content() {
+        let json = semantic_json_for(".iu bu'onai .uinai").expect("semantic JSON");
+        let utterance = object(&json, "utterance:u1");
+        assert_eq!(utterance["content"], "sequence:s1");
+        let sequence = object(&json, "sequence:s1");
+        assert_eq!(sequence["items"][0], "display:d1");
+        assert_eq!(sequence["items"][1], "display:d2");
+        assert_eq!(object(&json, "display:d1")["phase"], "ending");
+        assert_eq!(object(&json, "display:d2")["relation"], "unhappiness");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_sumti_indicators_target_right_branch_or_exclusion() {
+        let json = semantic_json_for("mi .e .ui nai do").expect("semantic JSON");
+        assert_eq!(object(&json, "display:d1")["target"], "referent:addressee");
+        assert_eq!(object(&json, "display:d1")["relation"], "unhappiness");
+        assert!(json.pointer("/objects/display:d2").is_none());
+
+        let json = semantic_json_for("mi .e nai .ui do").expect("semantic JSON");
+        let composition = &object(&json, "referent:r1")["composition"];
+        assert_eq!(composition["members"][0], "referent:speaker");
+        assert_eq!(composition["excludedMembers"][0], "referent:addressee");
+        assert_eq!(object(&json, "display:d1")["target"], "referent:r1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn forethought_bridi_indicators_target_their_branch_formulas() {
+        let json = semantic_json_for(
+            "ganai da'i do viska le mi citno mensi gi ju'o do djuno le du'u ri pazvau",
+        )
+        .expect("semantic JSON");
+        let hypothetical = object(&json, "display:d1");
+        let certainty = object(&json, "display:d2");
+        assert_eq!(hypothetical["relation"], "hypothetical");
+        assert_eq!(certainty["relation"], "certainty");
+        assert_ne!(hypothetical["target"], certainty["target"]);
+        assert_eq!(hypothetical["anchor"], "utterance:u1");
+        assert_eq!(certainty["anchor"], "utterance:u1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn leading_indicator_attaches_to_vocative_only_utterance() {
+        let json = semantic_json_for("ru'a doi .livinston.").expect("semantic JSON");
+        let display = object(&json, "display:d1");
+        assert_eq!(root_object(&json)["force"], "vocative");
+        assert_eq!(display["family"], "evidential");
+        assert_eq!(display["relation"], "presumption");
+        assert_eq!(display["target"], "utterance:u1");
+        assert_eq!(display["anchor"], "utterance:u1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn statement_separator_indicator_targets_previous_content() {
+        let json = semantic_json_for("do sazri le karce .i .e'a").expect("semantic JSON");
+        let display = object(&json, "display:d1");
+        assert_eq!(display["family"], "propositionalAttitude");
+        assert_eq!(display["relation"], "permission");
+        assert_eq!(display["target"], root_object(&json)["content"]);
+        assert_eq!(display["anchor"], "utterance:u1");
     }
 
     #[test]

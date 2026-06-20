@@ -449,6 +449,8 @@ pub struct SemanticObject {
     pub polarity: Option<DisplayedContentPolarity>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub phase: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub modifiers: Vec<DisplayedContentModifier>,
     #[serde(rename = "assertionEffect", skip_serializing_if = "Option::is_none")]
     pub assertion_effect: Option<DisplayedContentAssertionEffect>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -569,6 +571,7 @@ impl SemanticObject {
             intensity: None,
             polarity: None,
             phase: None,
+            modifiers: Vec::new(),
             assertion_effect: None,
             experiencer: None,
             target: None,
@@ -1056,6 +1059,7 @@ impl SemanticObject {
         }
         if let Some(composition) = &self.composition {
             out.extend(composition.members.iter().copied());
+            out.extend(composition.excluded_members.iter().copied());
         }
         out.extend(self.relative_clauses.iter().map(|clause| clause.body));
         for argument in self.arguments.values() {
@@ -1811,6 +1815,8 @@ impl Descriptor {
 pub struct Composition {
     pub operator: String,
     pub members: Vec<SemanticObjectId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub excluded_members: Vec<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub collective: Option<bool>,
 }
@@ -2414,6 +2420,7 @@ impl Quotation {
 #[serde(rename_all = "camelCase")]
 pub enum DisplayedContentFamily {
     Emotion,
+    AttitudeModifier,
     PropositionalAttitude,
     Evidential,
     Discursive,
@@ -2429,6 +2436,17 @@ pub enum DisplayedContentPolarity {
     Positive,
     Neutral,
     Negative,
+}
+
+#[invariant(!relation.is_empty(), "displayed-content modifier relation must be named")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DisplayedContentModifier {
+    pub relation: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub polarity: Option<DisplayedContentPolarity>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub intensity: Option<String>,
 }
 
 #[invariant(true)]
@@ -3007,7 +3025,9 @@ fn references_have_kind(references: &[SemanticObjectId], kind: SemanticObjectKin
 fn sequence_item_kind_is_allowed(kind: SemanticObjectKind) -> bool {
     matches!(
         kind,
-        SemanticObjectKind::Utterance | SemanticObjectKind::Sequence
+        SemanticObjectKind::Utterance
+            | SemanticObjectKind::Sequence
+            | SemanticObjectKind::DisplayedContent
     )
 }
 
