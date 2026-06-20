@@ -950,14 +950,14 @@ impl SemanticObject {
         out.extend(self.items.iter().copied());
         out.extend(self.connection_claims.iter().copied());
         if let Some(time) = &self.time {
-            out.push(time.anchor);
+            time.references_into(out);
         }
         extend_optional(out, self.tense_modal);
         for step in &self.time_path {
             step.references_into(out);
         }
         if let Some(space) = &self.space {
-            out.push(space.anchor);
+            space.references_into(out);
         }
         for step in &self.space_path {
             step.references_into(out);
@@ -1198,9 +1198,56 @@ pub struct AnchorRelation {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distance: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub magnitude: Option<AnchorMagnitude>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub scalar_negation: Option<ScalarNegation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub motion: Option<SpatialMotion>,
+}
+
+impl AnchorRelation {
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        out.push(self.anchor);
+        if let Some(magnitude) = &self.magnitude {
+            magnitude.references_into(out);
+        }
+    }
+}
+
+#[invariant(argument_object_kind_can_fill(value.object_kind()), "anchor magnitude value must be referent-like")]
+#[invariant(!introduced_by.is_empty(), "anchor magnitude source marker must be named")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnchorMagnitude {
+    pub value: SemanticObjectId,
+    pub introduced_by: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SemanticSource>,
+}
+
+impl AnchorMagnitude {
+    #[requires(argument_object_kind_can_fill(value.object_kind()))]
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.value == value)]
+    pub fn new(
+        value: SemanticObjectId,
+        introduced_by: String,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::from_data(data!(AnchorMagnitude {
+            value,
+            introduced_by,
+            source,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        out.push(self.value);
+    }
 }
 
 #[invariant(!introduced_by.is_empty(), "spatial motion source marker must be named")]
@@ -1242,6 +1289,8 @@ pub struct TemporalPathStep {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distance: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub magnitude: Option<AnchorMagnitude>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub scalar_negation: Option<ScalarNegation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub motion: Option<SpatialMotion>,
@@ -1258,6 +1307,7 @@ impl TemporalPathStep {
         anchor: TemporalPathAnchor,
         introduced_by: String,
         distance: Option<String>,
+        magnitude: Option<AnchorMagnitude>,
         scalar_negation: Option<ScalarNegation>,
         motion: Option<SpatialMotion>,
     ) -> Self {
@@ -1266,6 +1316,7 @@ impl TemporalPathStep {
             anchor,
             introduced_by,
             distance,
+            magnitude,
             scalar_negation,
             motion,
         }))
@@ -1276,6 +1327,9 @@ impl TemporalPathStep {
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
         if let Some(anchor) = self.anchor.object_id() {
             out.push(anchor);
+        }
+        if let Some(magnitude) = &self.magnitude {
+            magnitude.references_into(out);
         }
     }
 }

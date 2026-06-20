@@ -28,22 +28,23 @@ use jbotci_syntax::ast::{
 };
 
 use crate::model::{
-    AbstractionKind, Actuality, ActualityKind, AnchorRelation, AnchorRelationData, ArgumentValue,
-    Aspect, AssignedName, AssignedNameData, Composition, Connector, Descriptor, EventualityClass,
-    FormulaOperator, IndexicalKind, MathLiteral, ModalArgument, ModalNegation, ModalNegationKind,
-    PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale, QuantityValue,
-    QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding,
-    ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind,
-    ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind, ScalarNegation,
-    ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId,
-    SemanticOperatorData, SemanticSort, SequenceRelation, SignKind, SpaceInterval, SpatialMotion,
-    SpatialMotionKind, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval,
-    TimeSpan, TimeSpanEndpoint, UtteranceForce, diagnostic, source_from_spans,
+    AbstractionKind, Actuality, ActualityKind, AnchorMagnitude, AnchorRelation, AnchorRelationData,
+    ArgumentValue, Aspect, AssignedName, AssignedNameData, Composition, Connector, Descriptor,
+    EventualityClass, FormulaOperator, IndexicalKind, MathLiteral, ModalArgument, ModalNegation,
+    ModalNegationKind, PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale,
+    QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
+    RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
+    RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
+    ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject,
+    SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation, SignKind,
+    SpaceInterval, SpatialMotion, SpatialMotionKind, TemporalPathAnchor, TemporalPathStep,
+    TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint, UtteranceForce, diagnostic,
+    source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
     ReferenceAnalysisError, ReferenceKind, ReferenceTarget, SelbriPlaceFrameId, SumtiNodeId,
-    SumtiPlaceAssignment, SumtiPlaceAssignmentId, analyze_references,
+    SumtiPlaceAssignment, SumtiPlaceAssignmentId, TermNodeId, analyze_references,
 };
 
 #[invariant(true)]
@@ -365,11 +366,21 @@ impl StickyModalKey {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct EventTenseModifier<'tree> {
     order: usize,
     tense_modal: &'tree TenseModalSyntax,
     anchor: Option<SemanticObjectId>,
+    magnitude: Option<AnchorMagnitude>,
+    consumed_terms: Vec<RawSyntaxNodeId>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Default)]
+struct GovernedTermset {
+    anchor: Option<SemanticObjectId>,
+    magnitude: Option<AnchorMagnitude>,
+    consumed_terms: Vec<RawSyntaxNodeId>,
 }
 
 #[invariant(true)]
@@ -381,10 +392,11 @@ struct DescriptionAbstraction<'tree> {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 struct EventModifierApplication {
     temporal_modifier: bool,
     sticky_temporal_modifier: bool,
+    consumed_terms: HashSet<RawSyntaxNodeId>,
 }
 
 #[invariant(true)]
@@ -2207,6 +2219,7 @@ where
                         relation: relation.relation,
                         anchor: SemanticObjectId::speech_time(),
                         distance: relation.distance,
+                        magnitude: None,
                         scalar_negation: relation.scalar_negation,
                         motion: relation.motion,
                     }));
@@ -2216,6 +2229,7 @@ where
                         relation: relation.relation,
                         anchor: SemanticObjectId::here(),
                         distance: relation.distance,
+                        magnitude: None,
                         scalar_negation: relation.scalar_negation,
                         motion: relation.motion,
                     }));
@@ -2526,6 +2540,7 @@ where
                 relation.clone(),
                 BTreeMap::new(),
                 vec![modal_argument],
+                false,
             )?;
             self.attach_reciprocity_to_predication(predication, bridi, &[])?;
             let formula = self.next_formula();
@@ -6335,15 +6350,22 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         let eventuality = self.next_eventuality();
         let mut event = SemanticObject::eventuality(EventualityClass::Event, None, source.clone());
-        self.apply_ordered_event_modifiers_to_event(frame, selbri, &mut event)?;
+        let modifier_application =
+            self.apply_ordered_event_modifiers_to_event(frame, selbri, &mut event)?;
+        let consumed_terms = modifier_application.consumed_terms.clone();
         self.insert(eventuality, event)?;
         self.clear_sticky_modals_for_selbri_if_needed(selbri);
         let (mut arguments, mut highest_assigned_place, modal_arguments) = self
             .with_temporal_context(eventuality, |builder| {
                 let mut arguments = BTreeMap::new();
-                let highest_assigned_place =
-                    builder.insert_numbered_assignment_arguments(&mut arguments, frame)?;
-                let mut modal_arguments = builder.modal_assignment_arguments(frame)?;
+                let highest_assigned_place = builder
+                    .insert_numbered_assignment_arguments_excluding_terms(
+                        &mut arguments,
+                        frame,
+                        &consumed_terms,
+                    )?;
+                let mut modal_arguments =
+                    builder.modal_assignment_arguments_excluding_terms(frame, &consumed_terms)?;
                 builder.append_sticky_modal_arguments(&mut modal_arguments);
                 Ok((arguments, highest_assigned_place, modal_arguments))
             })?;
@@ -6385,14 +6407,14 @@ where
         relation: String,
         argument_overrides: BTreeMap<String, ArgumentValue>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let modal_arguments = self.modal_assignment_arguments(frame)?;
         self.build_predication_for_frame_with_modal_arguments(
             frame,
             source,
             selbri,
             relation,
             argument_overrides,
-            modal_arguments,
+            Vec::new(),
+            true,
         )
     }
 
@@ -6406,22 +6428,34 @@ where
         relation: String,
         argument_overrides: BTreeMap<String, ArgumentValue>,
         modal_arguments: Vec<ModalArgument>,
+        collect_frame_modal_arguments: bool,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let eventuality = self.next_eventuality();
         let mut event = SemanticObject::eventuality(EventualityClass::Event, None, source.clone());
         let modifier_application =
             self.apply_ordered_event_modifiers_to_event(frame, selbri, &mut event)?;
+        let consumed_terms = modifier_application.consumed_terms.clone();
         self.apply_story_time_to_event(eventuality, &mut event, modifier_application);
         self.insert(eventuality, event)?;
         self.clear_sticky_modals_for_selbri_if_needed(selbri);
         let (mut arguments, mut highest_assigned_place, modal_arguments) = self
             .with_temporal_context(eventuality, |builder| {
                 let mut arguments = BTreeMap::new();
-                let highest_assigned_place =
-                    builder.insert_numbered_assignment_arguments(&mut arguments, frame)?;
+                let highest_assigned_place = builder
+                    .insert_numbered_assignment_arguments_excluding_terms(
+                        &mut arguments,
+                        frame,
+                        &consumed_terms,
+                    )?;
                 let mut modal_arguments = modal_arguments;
                 if let Some(selbri) = selbri {
                     modal_arguments.extend(builder.selbri_modal_arguments(selbri)?);
+                }
+                if collect_frame_modal_arguments {
+                    modal_arguments.extend(
+                        builder
+                            .modal_assignment_arguments_excluding_terms(frame, &consumed_terms)?,
+                    );
                 }
                 builder.append_sticky_modal_arguments(&mut modal_arguments);
                 Ok((arguments, highest_assigned_place, modal_arguments))
@@ -6601,8 +6635,31 @@ where
         arguments: &mut BTreeMap<String, ArgumentValue>,
         frame: Option<SelbriPlaceFrameId>,
     ) -> Result<usize, SemanticsError> {
-        self.insert_numbered_assignment_arguments_excluding_source(arguments, frame, None)
-            .map(|(highest_assigned_place, _)| highest_assigned_place)
+        let excluded_terms = HashSet::new();
+        self.insert_numbered_assignment_arguments_excluding_source_and_terms(
+            arguments,
+            frame,
+            None,
+            &excluded_terms,
+        )
+        .map(|(highest_assigned_place, _)| highest_assigned_place)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn insert_numbered_assignment_arguments_excluding_terms(
+        &mut self,
+        arguments: &mut BTreeMap<String, ArgumentValue>,
+        frame: Option<SelbriPlaceFrameId>,
+        excluded_terms: &HashSet<RawSyntaxNodeId>,
+    ) -> Result<usize, SemanticsError> {
+        self.insert_numbered_assignment_arguments_excluding_source_and_terms(
+            arguments,
+            frame,
+            None,
+            excluded_terms,
+        )
+        .map(|(highest_assigned_place, _)| highest_assigned_place)
     }
 
     #[requires(true)]
@@ -6612,6 +6669,24 @@ where
         arguments: &mut BTreeMap<String, ArgumentValue>,
         frame: Option<SelbriPlaceFrameId>,
         excluded_source: Option<RawSyntaxNodeId>,
+    ) -> Result<(usize, bool), SemanticsError> {
+        let excluded_terms = HashSet::new();
+        self.insert_numbered_assignment_arguments_excluding_source_and_terms(
+            arguments,
+            frame,
+            excluded_source,
+            &excluded_terms,
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn insert_numbered_assignment_arguments_excluding_source_and_terms(
+        &mut self,
+        arguments: &mut BTreeMap<String, ArgumentValue>,
+        frame: Option<SelbriPlaceFrameId>,
+        excluded_source: Option<RawSyntaxNodeId>,
+        excluded_terms: &HashSet<RawSyntaxNodeId>,
     ) -> Result<(usize, bool), SemanticsError> {
         let Some(frame) = frame else {
             return Ok((0, false));
@@ -6628,6 +6703,7 @@ where
             };
             if excluded_source
                 .is_some_and(|source| self.syntax_node_contains(assignment.sumti.0, source))
+                || self.assignment_term_is_consumed(assignment, excluded_terms)
             {
                 skipped_excluded_source = true;
                 continue;
@@ -6687,6 +6763,21 @@ where
     }
 
     #[requires(true)]
+    #[ensures(true)]
+    fn assignment_term_is_consumed(
+        &self,
+        assignment: &SumtiPlaceAssignment,
+        consumed_terms: &HashSet<RawSyntaxNodeId>,
+    ) -> bool {
+        assignment.term.is_some_and(|term| {
+            consumed_terms.iter().any(|consumed| {
+                self.syntax_node_contains(*consumed, term.0)
+                    || self.syntax_node_contains(term.0, *consumed)
+            })
+        })
+    }
+
+    #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn apply_ordered_event_modifiers_to_event(
         &mut self,
@@ -6732,6 +6823,7 @@ where
                     relation: "at".to_owned(),
                     anchor: SemanticObjectId::speech_time(),
                     distance: None,
+                    magnitude: None,
                     scalar_negation: None,
                     motion: None,
                 }));
@@ -6761,11 +6853,17 @@ where
                 anchor,
                 false,
             );
+            if let Some(magnitude) = modifier.magnitude.clone() {
+                attach_magnitude_to_event_modifier(event, modifier.tense_modal, magnitude);
+            }
             if let Some(parameter) =
                 self.build_tense_question_parameter_for_tense_modal(modifier.tense_modal)?
             {
                 event.tense_modal = Some(parameter);
             }
+            application
+                .consumed_terms
+                .extend(modifier.consumed_terms.iter().copied());
             if tense_modal_makes_tense_sticky(modifier.tense_modal) {
                 self.sticky_time_path = event.time_path.clone();
                 application.sticky_temporal_modifier = true;
@@ -6798,6 +6896,7 @@ where
                 relation: "after".to_owned(),
                 anchor,
                 distance: None,
+                magnitude: None,
                 scalar_negation: None,
                 motion: None,
             }));
@@ -6843,7 +6942,14 @@ where
                 .syntax_index
                 .sumti(assignment.sumti)
                 .ok_or_else(SemanticsError::missing_syntax_node)?;
-            let anchor = if sumti_is_omitted_placeholder(sumti) {
+            let governed = if sumti_is_omitted_placeholder(sumti) {
+                self.governed_termset_for_event_modifier(frame, assignment, tag_node)?
+            } else {
+                None
+            };
+            let anchor = if let Some(governed) = &governed {
+                governed.anchor
+            } else if sumti_is_omitted_placeholder(sumti) {
                 None
             } else {
                 self.build_argument_for_sumti(sumti)?.value
@@ -6852,9 +6958,136 @@ where
                 order: self.source_order_for_node(tag_node),
                 tense_modal,
                 anchor,
+                magnitude: governed
+                    .as_ref()
+                    .and_then(|termset| termset.magnitude.clone()),
+                consumed_terms: governed
+                    .map(|termset| termset.consumed_terms)
+                    .unwrap_or_default(),
             });
         }
         Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn governed_termset_for_event_modifier(
+        &mut self,
+        frame: SelbriPlaceFrameId,
+        modifier_assignment: &SumtiPlaceAssignment,
+        tag_node: RawSyntaxNodeId,
+    ) -> Result<Option<GovernedTermset>, SemanticsError> {
+        let Some(termset) =
+            self.nearest_following_termset_for_assignment(frame, modifier_assignment)
+        else {
+            return Ok(None);
+        };
+        let mut governed = GovernedTermset::default();
+        let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
+        for assignment_id in assignment_ids {
+            let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
+                continue;
+            };
+            let Some(term) = assignment.term else {
+                continue;
+            };
+            if self.termset_ancestor_for_term(term.0) != Some(termset) {
+                continue;
+            }
+            governed.consumed_terms.push(term.0);
+            match assignment.slot {
+                PlaceSlot::Numbered(_) if governed.anchor.is_none() => {
+                    let sumti = self
+                        .analysis
+                        .syntax_index
+                        .sumti(assignment.sumti)
+                        .ok_or_else(SemanticsError::missing_syntax_node)?;
+                    governed.anchor = self.build_argument_for_sumti(sumti)?.value;
+                }
+                PlaceSlot::Modal(Some(modal_tag))
+                    if governed.magnitude.is_none()
+                        && self
+                            .analysis
+                            .syntax_index
+                            .tense_modal(modal_tag)
+                            .is_some_and(tense_modal_is_lahu_modal) =>
+                {
+                    let sumti = self
+                        .analysis
+                        .syntax_index
+                        .sumti(assignment.sumti)
+                        .ok_or_else(SemanticsError::missing_syntax_node)?;
+                    if let Some(value) = self.build_argument_for_sumti(sumti)?.value {
+                        governed.magnitude = Some(AnchorMagnitude::new(
+                            value,
+                            "la'u".to_owned(),
+                            self.source_for_node(modal_tag, "exact-magnitude"),
+                        ));
+                    }
+                }
+                _ => {}
+            }
+        }
+        if governed.anchor.is_none() && governed.magnitude.is_none() {
+            Ok(None)
+        } else {
+            governed.consumed_terms.sort();
+            governed.consumed_terms.dedup();
+            let _ = tag_node;
+            Ok(Some(governed))
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn nearest_following_termset_for_assignment(
+        &self,
+        frame: SelbriPlaceFrameId,
+        modifier_assignment: &SumtiPlaceAssignment,
+    ) -> Option<RawSyntaxNodeId> {
+        let modifier_order = modifier_assignment
+            .term
+            .map(|term| self.source_order_for_node(term.0))
+            .unwrap_or_else(|| self.source_order_for_node(modifier_assignment.sumti.0));
+        self.analysis
+            .place_analysis
+            .assignments_for_frame(frame)
+            .iter()
+            .filter_map(|assignment_id| self.analysis.place_analysis.assignment(*assignment_id))
+            .filter_map(|assignment| {
+                let term = assignment.term?;
+                let termset = self.termset_ancestor_for_term(term.0)?;
+                let termset_order = self.source_order_for_node(termset);
+                (termset_order > modifier_order).then_some((termset_order, termset))
+            })
+            .min_by_key(|(order, _)| *order)
+            .map(|(_, termset)| termset)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn termset_ancestor_for_term(&self, term: RawSyntaxNodeId) -> Option<RawSyntaxNodeId> {
+        let mut parent = self
+            .analysis
+            .syntax_index
+            .metadata(term)
+            .and_then(|metadata| metadata.parent);
+        while let Some(node) = parent {
+            if self
+                .analysis
+                .syntax_index
+                .term(TermNodeId(node))
+                .is_some_and(|term| matches!(term.as_data(), data!(TermSyntax::Termset { .. })))
+            {
+                return Some(node);
+            }
+            parent = self
+                .analysis
+                .syntax_index
+                .metadata(node)
+                .and_then(|metadata| metadata.parent);
+        }
+        None
     }
 
     #[requires(true)]
@@ -6878,6 +7111,8 @@ where
                         order: self.source_order_for_tense_modal(tense_modal),
                         tense_modal,
                         anchor: None,
+                        magnitude: None,
+                        consumed_terms: Vec::new(),
                     });
                 }
                 self.collect_selbri_tense_event_modifiers(inner_selbri, modifiers)?;
@@ -6897,6 +7132,8 @@ where
                         order: self.source_order_for_tense_modal(tense_modal),
                         tense_modal,
                         anchor: None,
+                        magnitude: None,
+                        consumed_terms: Vec::new(),
                     });
                 }
                 self.collect_selbri_tense_event_modifiers(selbri, modifiers)?;
@@ -6978,6 +7215,8 @@ where
                         order: self.source_order_for_tense_modal(tense_modal),
                         tense_modal,
                         anchor,
+                        magnitude: None,
+                        consumed_terms: Vec::new(),
                     });
                 }
                 self.collect_tanru_unit_tense_event_modifiers(inner_unit, modifiers)?;
@@ -7040,6 +7279,17 @@ where
         &mut self,
         frame: Option<SelbriPlaceFrameId>,
     ) -> Result<Vec<ModalArgument>, SemanticsError> {
+        let excluded_terms = HashSet::new();
+        self.modal_assignment_arguments_excluding_terms(frame, &excluded_terms)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn modal_assignment_arguments_excluding_terms(
+        &mut self,
+        frame: Option<SelbriPlaceFrameId>,
+        excluded_terms: &HashSet<RawSyntaxNodeId>,
+    ) -> Result<Vec<ModalArgument>, SemanticsError> {
         let Some(frame) = frame else {
             return Ok(Vec::new());
         };
@@ -7049,6 +7299,9 @@ where
             let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
                 continue;
             };
+            if self.assignment_term_is_consumed(assignment, excluded_terms) {
+                continue;
+            }
             let PlaceSlot::Modal(tag_node) = assignment.slot else {
                 continue;
             };
@@ -11155,6 +11408,38 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn attach_magnitude_to_event_modifier(
+    event: &mut SemanticObject,
+    tense_modal: &TenseModalSyntax,
+    magnitude: AnchorMagnitude,
+) {
+    if !space_path_relations_for_tense_modal(tense_modal).is_empty() {
+        if let Some(step) = event.space_path.pop() {
+            event
+                .space_path
+                .push(step.with_data(data! { magnitude: Some(magnitude) }));
+        } else if let Some(space) = event.space.as_mut() {
+            let updated = space
+                .clone()
+                .with_data(data! { magnitude: Some(magnitude) });
+            event.space = Some(updated);
+        }
+        return;
+    }
+    if !temporal_path_relations_for_tense_modal(tense_modal).is_empty() {
+        if let Some(step) = event.time_path.pop() {
+            event
+                .time_path
+                .push(step.with_data(data! { magnitude: Some(magnitude) }));
+        } else if let Some(time) = event.time.as_mut() {
+            let updated = time.clone().with_data(data! { magnitude: Some(magnitude) });
+            event.time = Some(updated);
+        }
+    }
+}
+
 #[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
 #[ensures(true)]
 fn append_temporal_path_relations_to_event(
@@ -11170,6 +11455,7 @@ fn append_temporal_path_relations_to_event(
             relation,
             anchor,
             distance,
+            magnitude,
             scalar_negation,
             motion,
         }) = time.into_data();
@@ -11178,6 +11464,7 @@ fn append_temporal_path_relations_to_event(
             TemporalPathAnchor::object(anchor),
             "implicit".to_owned(),
             distance,
+            magnitude,
             scalar_negation,
             motion,
         ));
@@ -11197,6 +11484,7 @@ fn append_temporal_path_relations_to_event(
             path_anchor,
             relation.introduced_by,
             relation.distance,
+            None,
             relation.scalar_negation,
             relation.motion,
         ));
@@ -11218,6 +11506,7 @@ fn normalize_event_time_path(event: &mut SemanticObject) {
         anchor,
         introduced_by: _,
         distance,
+        magnitude,
         scalar_negation,
         motion,
     }) = step.into_data();
@@ -11226,6 +11515,7 @@ fn normalize_event_time_path(event: &mut SemanticObject) {
             relation,
             anchor,
             distance,
+            magnitude,
             scalar_negation,
             motion,
         }));
@@ -11235,6 +11525,7 @@ fn normalize_event_time_path(event: &mut SemanticObject) {
             anchor,
             "implicit".to_owned(),
             distance,
+            magnitude,
             scalar_negation,
             motion,
         ));
@@ -11291,6 +11582,7 @@ fn append_space_path_relations_to_event(
             relation,
             anchor,
             distance,
+            magnitude,
             scalar_negation,
             motion,
         }) = space.into_data();
@@ -11299,6 +11591,7 @@ fn append_space_path_relations_to_event(
             TemporalPathAnchor::object(anchor),
             "implicit".to_owned(),
             distance,
+            magnitude,
             scalar_negation,
             motion,
         ));
@@ -11318,6 +11611,7 @@ fn append_space_path_relations_to_event(
             path_anchor,
             relation.introduced_by,
             relation.distance,
+            None,
             relation.scalar_negation,
             relation.motion,
         ));
@@ -11339,6 +11633,7 @@ fn normalize_event_space_path(event: &mut SemanticObject) {
         anchor,
         introduced_by: _,
         distance,
+        magnitude,
         scalar_negation,
         motion,
     }) = step.into_data();
@@ -11347,6 +11642,7 @@ fn normalize_event_space_path(event: &mut SemanticObject) {
             relation,
             anchor,
             distance,
+            magnitude,
             scalar_negation,
             motion,
         }));
@@ -11356,6 +11652,7 @@ fn normalize_event_space_path(event: &mut SemanticObject) {
             anchor,
             "implicit".to_owned(),
             distance,
+            magnitude,
             scalar_negation,
             motion,
         ));
@@ -11418,6 +11715,15 @@ fn tense_modal_has_event_modifier(tense_modal: &TenseModalSyntax) -> bool {
         || !temporal_recurrences_for_tense_modal(tense_modal).is_empty()
         || !spatial_aspect_contours_for_tense_modal(tense_modal).is_empty()
         || !spatial_recurrences_for_tense_modal(tense_modal).is_empty()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tense_modal_is_lahu_modal(tense_modal: &TenseModalSyntax) -> bool {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Modal { bai, .. }) => bai.value.is_cmavo(Cmavo::Lahu),
+        _ => false,
+    }
 }
 
 #[requires(true)]
@@ -16781,6 +17087,49 @@ mod tests {
         let event = object(&json, event);
         assert_eq!(event["space"]["relation"], "near");
         assert_eq!(event["space"]["anchor"], "referent:here");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn governed_termset_supplies_spatial_anchor_and_exact_magnitude() {
+        let json =
+            semantic_json_for("la .frank. sanli zu'a nu'i la .djordj. la'u lo mitre be li mu")
+                .expect("semantic JSON");
+        let sanli = predication_with_relation_and_mode(&json, "sanli", "asserted");
+        assert_eq!(sanli["arguments"]["x2"]["kind"], "elided");
+        assert_eq!(sanli["modalArguments"].as_array().map(Vec::len), None);
+
+        let event = object(&json, sanli["eventuality"].as_str().expect("sanli event"));
+        assert_eq!(event["space"]["relation"], "leftOf");
+        let anchor = event["space"]["anchor"].as_str().expect("space anchor");
+        assert_eq!(object(&json, anchor)["descriptor"]["name"], "djordj");
+
+        let magnitude = &event["space"]["magnitude"];
+        assert_eq!(magnitude["introducedBy"], "la'u");
+        let magnitude_value = magnitude["value"].as_str().expect("magnitude value");
+        assert_eq!(
+            object(&json, magnitude_value)["source"]["text"],
+            "lo mitre be li mu"
+        );
+        let mitre = predication_with_relation_and_mode(&json, "mitre", "restrictive");
+        let number = mitre["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("mitre x2 number");
+        let quantity = object(&json, number)["descriptor"]["quantity"]
+            .as_str()
+            .expect("number quantity");
+        assert_eq!(object(&json, quantity)["value"]["integer"], 5);
+
+        let no_origin = semantic_json_for("la .frank. sanli zu'a nu'i la'u lo mitre be li mu")
+            .expect("semantic JSON");
+        let sanli = predication_with_relation_and_mode(&no_origin, "sanli", "asserted");
+        let event = object(
+            &no_origin,
+            sanli["eventuality"].as_str().expect("sanli event"),
+        );
+        assert_eq!(event["space"]["anchor"], "referent:here");
+        assert_eq!(event["space"]["magnitude"]["introducedBy"], "la'u");
     }
 
     #[test]
