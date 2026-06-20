@@ -3704,6 +3704,7 @@ where
             tertau.x1_argument.clone(),
             modifier,
             tanru_relation_name_for_selbri_pair(leading, trailing),
+            PredicationMode::Asserted,
             source.clone(),
         )?;
         let formula = self.next_formula();
@@ -4112,6 +4113,7 @@ where
             tertau_formula.x1_argument.clone(),
             modifier,
             tanru_relation_name_for_selbri_pair(seltau, tertau),
+            PredicationMode::Asserted,
             source.clone(),
         )?;
         let formula = self.next_formula();
@@ -4185,6 +4187,7 @@ where
             tertau.x1_argument.clone(),
             modifier,
             tanru_relation_name(units),
+            PredicationMode::Asserted,
             source.clone(),
         )?;
         let formula = self.next_formula();
@@ -4279,6 +4282,7 @@ where
                     tertau.x1_argument.clone(),
                     modifier,
                     tanru_unit_relation_name(unit),
+                    PredicationMode::Asserted,
                     source.clone(),
                 )?;
                 let formula = self.next_formula();
@@ -4765,6 +4769,7 @@ where
             ArgumentValue::filled(parameter, None),
             modifier,
             tanru_relation_name(units),
+            PredicationMode::Restrictive,
             source.clone(),
         )?;
         let formula = self.next_formula();
@@ -4860,6 +4865,7 @@ where
                 ArgumentValue::filled(parameter, None),
                 modifier,
                 tanru_relation_name_for_selbri_pair(bound_tanru.leading, bound_tanru.trailing),
+                PredicationMode::Restrictive,
                 source.clone(),
             )?;
             let formula = self.next_formula();
@@ -4893,6 +4899,7 @@ where
                 ArgumentValue::filled(parameter, None),
                 modifier,
                 tanru_relation_name_for_selbri_pair(trailing_selbri, leading_selbri),
+                PredicationMode::Restrictive,
                 source.clone(),
             )?;
             let formula = self.next_formula();
@@ -5085,6 +5092,7 @@ where
                     ArgumentValue::filled(parameter, None),
                     modifier,
                     tanru_unit_relation_name(unit),
+                    PredicationMode::Restrictive,
                     source.clone(),
                 )?;
                 let formula = self.next_formula();
@@ -5346,6 +5354,7 @@ where
         x1_argument: ArgumentValue,
         modifier: SemanticObjectId,
         relation: String,
+        mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut arguments = BTreeMap::new();
@@ -5358,7 +5367,7 @@ where
                 relation,
                 None,
                 arguments,
-                PredicationMode::Asserted,
+                mode,
                 source.clone(),
                 Vec::new(),
             ),
@@ -9017,6 +9026,7 @@ where
                                 | PlaceFrameKind::JaiConverted
                                 | PlaceFrameKind::CoInverted
                                 | PlaceFrameKind::Forwarding
+                                | PlaceFrameKind::Abstraction
                                 | PlaceFrameKind::LinkedUnit
                                 | PlaceFrameKind::ConnectiveBranching
                                 | PlaceFrameKind::ProBridi
@@ -9051,6 +9061,7 @@ where
                                 | PlaceFrameKind::JaiConverted
                                 | PlaceFrameKind::CoInverted
                                 | PlaceFrameKind::Forwarding
+                                | PlaceFrameKind::Abstraction
                                 | PlaceFrameKind::LinkedUnit
                                 | PlaceFrameKind::ConnectiveBranching
                                 | PlaceFrameKind::ProBridi
@@ -10102,7 +10113,11 @@ where
                     .syntax_index
                     .selbri_node_id(selbri)
                     .and_then(|node| self.source_for_node(node.0, "abstraction-description"));
-                self.build_abstraction_description_formula(abstraction, id, link_source)?
+                let frame = self.semantic_predication_frame_for_selbri(
+                    selbri,
+                    self.branch_frame_for_selbri(selbri),
+                );
+                self.build_abstraction_description_formula(abstraction, id, frame, link_source)?
             } else {
                 self.build_restrictive_formula(selbri, id)?
             })
@@ -10569,6 +10584,7 @@ where
             ArgumentValue::filled(referent, None),
             modifier,
             tanru_relation_name(units),
+            PredicationMode::Restrictive,
             source.clone(),
         )?;
         let formula = self.next_formula();
@@ -10835,6 +10851,7 @@ where
         &mut self,
         description_abstraction: DescriptionAbstraction<'tree>,
         referent: SemanticObjectId,
+        frame: Option<SelbriPlaceFrameId>,
         link_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let abstraction = description_abstraction.abstraction;
@@ -10845,7 +10862,7 @@ where
         let mut arguments = BTreeMap::new();
         arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
         arguments.insert("x2".to_owned(), ArgumentValue::filled(abstraction_id, None));
-        self.insert_abstraction_link_extra_arguments(kind, None, &mut arguments)?;
+        self.insert_abstraction_link_extra_arguments(kind, frame, &mut arguments)?;
         self.insert(
             predication,
             SemanticObject::predication(
@@ -14981,6 +14998,11 @@ fn description_abstraction_for_tanru_unit(
         | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
             description_abstraction_for_selbri(selbri)
         }
+        data!(TanruUnitSyntax::LinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::RelativeClauses { base, .. }) => {
+            description_abstraction_for_tanru_unit(base)
+        }
         _ => None,
     }
 }
@@ -15366,14 +15388,13 @@ fn constructed_relation_place_count(relation: &str) -> Option<usize> {
             | "amountOf"
             | "truthValueOf"
             | "propositionOf"
-            | "conceptOf"
-            | "experienceOf"
-            | "abstractionOf"
             | "associatedWith"
             | "specificallyAssociatedWith"
             | "intrinsicallyPossessedBy"
     ) {
         Some(2)
+    } else if matches!(relation, "conceptOf" | "experienceOf" | "abstractionOf") {
+        Some(3)
     } else if relation == "describedAs" {
         Some(3)
     } else if relation.starts_with("nu ") {
@@ -15555,7 +15576,11 @@ fn abstraction_link_relation(kind: AbstractionKind) -> &'static str {
 #[ensures(ret.is_none_or(|place| place > 0))]
 fn abstraction_extra_surface_place(kind: AbstractionKind) -> Option<u8> {
     match kind {
-        AbstractionKind::Process | AbstractionKind::Activity => Some(2),
+        AbstractionKind::Process
+        | AbstractionKind::Activity
+        | AbstractionKind::Concept
+        | AbstractionKind::Experience
+        | AbstractionKind::Unspecified => Some(2),
         _ => None,
     }
 }
@@ -19197,6 +19222,62 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn minor_abstraction_links_expose_second_place() {
+        for (source, relation, kind) in [
+            ("mi morji le li'i mi verba", "experienceOf", "experience"),
+            (
+                "mi nelci le si'o la .lojban. cu mulno",
+                "conceptOf",
+                "concept",
+            ),
+            (
+                "ko zgana le su'u le ci smacu cu bajra",
+                "abstractionOf",
+                "unspecified",
+            ),
+        ] {
+            let json = semantic_json_for(source).expect("semantic JSON");
+            let link = predication_with_relation_and_mode(&json, relation, "restrictive");
+            let abstraction = link["arguments"]["x2"]["value"]
+                .as_str()
+                .expect("abstraction argument");
+            assert_eq!(object(&json, abstraction)["abstractionKind"], kind);
+            assert_eq!(link["arguments"]["x3"]["kind"], "elided");
+            assert_eq!(link["arguments"]["x3"]["introducedBy"], "zo'e");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn linked_suhu_description_fills_abstraction_type_place() {
+        let json = semantic_json_for("le su'u mi klama kei be lo fasnu").expect("semantic JSON");
+        let abstraction_of =
+            predication_with_relation_and_mode(&json, "abstractionOf", "restrictive");
+        assert_eq!(abstraction_of["arguments"]["x1"]["value"], "referent:r1");
+        assert_eq!(abstraction_of["arguments"]["x2"]["value"], "abstraction:a1");
+        assert_eq!(abstraction_of["arguments"]["x3"]["kind"], "filled");
+        let type_referent = abstraction_of["arguments"]["x3"]["value"]
+            .as_str()
+            .expect("type referent");
+        assert_eq!(
+            object(&json, type_referent)["descriptor"]["kind"],
+            "veridicalDescription"
+        );
+        assert_eq!(
+            object(&json, "abstraction:a1")["abstractionKind"],
+            "unspecified"
+        );
+        assert!(
+            !predication_relations(&json)
+                .iter()
+                .any(|relation| relation == "su'u klama")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn tanru_inside_description_uses_uniform_lowering() {
         let json = semantic_json_for("mi jimpe tu'a loi nu'a su'i nabmi").expect("semantic JSON");
         assert_eq!(object(&json, "referent:r1")["sort"], "mass");
@@ -19209,7 +19290,7 @@ mod tests {
         let operator = predication_with_relation_and_mode(&json, "nu'a su'i", "restrictive");
         assert_eq!(operator["arguments"]["x1"]["value"], "parameter:p1");
         let tanru =
-            predication_with_relation_and_mode(&json, "R[tanru:nu'a su'i-nabmi]", "asserted");
+            predication_with_relation_and_mode(&json, "R[tanru:nu'a su'i-nabmi]", "restrictive");
         assert_eq!(tanru["arguments"]["x1"]["value"], "referent:r1");
     }
 
