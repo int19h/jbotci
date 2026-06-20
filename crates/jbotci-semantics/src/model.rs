@@ -444,6 +444,14 @@ pub struct SemanticObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub family: Option<DisplayedContentFamily>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub intensity: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub polarity: Option<DisplayedContentPolarity>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phase: Option<String>,
+    #[serde(rename = "assertionEffect", skip_serializing_if = "Option::is_none")]
+    pub assertion_effect: Option<DisplayedContentAssertionEffect>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub experiencer: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<SemanticObjectId>,
@@ -558,6 +566,10 @@ impl SemanticObject {
             quotation: None,
             denotes: None,
             family: None,
+            intensity: None,
+            polarity: None,
+            phase: None,
+            assertion_effect: None,
             experiencer: None,
             target: None,
             anchor: None,
@@ -868,6 +880,35 @@ impl SemanticObject {
     ) -> Self {
         let mut object = Self::sign(sign_kind, None, source, diagnostics);
         object.text = Some(text);
+        object
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(experiencer.object_kind() == SemanticObjectKind::Referent)]
+    #[requires(target.object_kind() == SemanticObjectKind::Utterance || argument_object_kind_can_fill(target.object_kind()))]
+    #[requires(anchor.object_kind() == SemanticObjectKind::Utterance)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::DisplayedContent)]
+    pub fn displayed_content(
+        family: DisplayedContentFamily,
+        relation: String,
+        polarity: DisplayedContentPolarity,
+        assertion_effect: DisplayedContentAssertionEffect,
+        experiencer: SemanticObjectId,
+        target: SemanticObjectId,
+        anchor: SemanticObjectId,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::DisplayedContent);
+        object.family = Some(family);
+        object.relation = Some(relation);
+        object.polarity = Some(polarity);
+        object.assertion_effect = Some(assertion_effect);
+        object.experiencer = Some(experiencer);
+        object.target = Some(target);
+        object.anchor = Some(anchor);
+        object.source = source;
+        object.diagnostics = diagnostics;
         object
     }
 
@@ -2360,6 +2401,25 @@ pub enum DisplayedContentFamily {
     QuestionPrompt,
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DisplayedContentPolarity {
+    Positive,
+    Neutral,
+    Negative,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DisplayedContentAssertionEffect {
+    None,
+    HostAsserted,
+    HostSubordinated,
+    Performative,
+}
+
 #[invariant(!kind.is_empty(), "math literal kind must be named")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -2674,6 +2734,7 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && object.quotation.as_ref().is_none_or(|quotation| {
             optional_reference_has_kind(quotation.utterance, SemanticObjectKind::Utterance)
         })
+        && displayed_content_shape_matches_role(object)
         && references_have_kind(&object.operands, SemanticObjectKind::MathExpression)
         && object
             .value
@@ -2693,6 +2754,27 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
                     .all(|place| is_numbered_argument_place(place))
         })
         && optional_reference_has_kind(object.focus, SemanticObjectKind::Parameter)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn displayed_content_shape_matches_role(object: &SemanticObject) -> bool {
+    if object.object_kind() != SemanticObjectKind::DisplayedContent {
+        return true;
+    }
+    object.family.is_some()
+        && object
+            .relation
+            .as_ref()
+            .is_some_and(|relation| !relation.is_empty())
+        && object.polarity.is_some()
+        && object.assertion_effect.is_some()
+        && optional_reference_has_kind(object.experiencer, SemanticObjectKind::Referent)
+        && object.target.is_some_and(|target| {
+            target.object_kind() == SemanticObjectKind::Utterance
+                || argument_object_kind_can_fill(target.object_kind())
+        })
+        && optional_reference_has_kind(object.anchor, SemanticObjectKind::Utterance)
 }
 
 #[requires(true)]
@@ -3071,6 +3153,23 @@ mod tests {
         );
 
         let error = SemanticGraph::new(root, objects).expect_err("wrong reference kind");
+        assert!(error.contains("match semantic roles"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_graph_rejects_malformed_displayed_content() {
+        let root = SemanticObjectId::displayed_content(1);
+        let mut display = SemanticObject::empty(SemanticObjectKind::DisplayedContent);
+        display.family = Some(DisplayedContentFamily::PropositionalAttitude);
+        display.relation = Some("hope".to_owned());
+        display.polarity = Some(DisplayedContentPolarity::Positive);
+
+        let mut objects = BTreeMap::new();
+        objects.insert(root, display);
+
+        let error = SemanticGraph::new(root, objects).expect_err("malformed displayed content");
         assert!(error.contains("match semantic roles"));
     }
 

@@ -16,7 +16,7 @@ use jbotci_syntax::ast::{
     ConnectiveSyntaxData, DescriptionSyntax, DescriptionTailElementSyntax,
     DescriptionTailElementSyntaxData, ForethoughtBridiConnectionSyntax,
     ForethoughtBridiConnectionSyntaxData, FragmentSyntax, FragmentSyntaxData, FreeModifierSyntax,
-    FreeModifierSyntaxData, GroupedBridiTailConnectionSyntax, MeksoOperatorSyntax,
+    FreeModifierSyntaxData, GroupedBridiTailConnectionSyntax, Indicator, MeksoOperatorSyntax,
     MeksoOperatorSyntaxData, MeksoSyntax, MeksoSyntaxData, ParagraphStatementSyntax,
     QuantifierSyntax, QuantifierSyntaxData, QuoteSyntax, QuoteSyntaxData, RelativeClauseSyntax,
     RelativeClauseSyntaxData, SelbriSyntax, SelbriSyntaxData, SimpleBridiTailSyntax,
@@ -30,6 +30,7 @@ use jbotci_syntax::ast::{
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorMagnitude, AnchorRelation, AnchorRelationData,
     ArgumentValue, Aspect, AssignedName, AssignedNameData, Composition, Connector, Descriptor,
+    DisplayedContentAssertionEffect, DisplayedContentFamily, DisplayedContentPolarity,
     EventualityClass, FormulaOperator, IndexicalKind, MathLiteral, ModalArgument, ModalNegation,
     ModalNegationKind, PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale,
     QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
@@ -698,6 +699,14 @@ where
 
     #[requires(true)]
     #[ensures(true)]
+    fn next_display(&mut self) -> SemanticObjectId {
+        let id = SemanticObjectId::displayed_content(self.counters.display);
+        self.counters.display += 1;
+        id
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn next_math(&mut self) -> SemanticObjectId {
         let id = SemanticObjectId::math_expression(self.counters.math);
         self.counters.math += 1;
@@ -944,6 +953,7 @@ where
         }
         let mut truth_question_pending = truth_question;
         let mut leading_reciprocity_attached = false;
+        let mut leading_indicators_attached = false;
         for paragraph in &text.paragraphs {
             let mut paragraph_asides = self.build_vocative_asides(&paragraph.free_modifiers)?;
             let first_paragraph_item = items.len();
@@ -970,6 +980,13 @@ where
                                 &paragraph.free_modifiers,
                             )?;
                             paragraph_reciprocity_attached = true;
+                        }
+                        if !leading_indicators_attached {
+                            self.attach_leading_indicators_to_discourse_item(
+                                statement_id,
+                                &text.leading_indicators,
+                            )?;
+                            leading_indicators_attached = true;
                         }
                     }
                     items.push(statement_id);
@@ -5908,6 +5925,81 @@ where
                 .and_then(|question| question.body),
             _ => None,
         }
+    }
+
+    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[ensures(ret.is_some() || !self.objects.contains_key(&item))]
+    fn displayed_content_target_for_utterance(
+        &self,
+        item: SemanticObjectId,
+    ) -> Option<SemanticObjectId> {
+        let object = self.objects.get(&item)?;
+        Some(object.content.unwrap_or(item))
+    }
+
+    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_leading_indicators_to_discourse_item(
+        &mut self,
+        item: SemanticObjectId,
+        indicators: &'tree [Indicator],
+    ) -> Result<(), SemanticsError> {
+        if indicators.is_empty() {
+            return Ok(());
+        }
+        if item.object_kind() == crate::model::SemanticObjectKind::Sequence {
+            let first_item = self
+                .objects
+                .get(&item)
+                .and_then(|object| object.items.first().copied());
+            if let Some(first_item) = first_item {
+                self.attach_leading_indicators_to_discourse_item(first_item, indicators)?;
+            }
+            return Ok(());
+        }
+        let Some(target) = self.displayed_content_target_for_utterance(item) else {
+            return Ok(());
+        };
+        for indicator in indicators {
+            self.attach_leading_indicator_to_discourse_item(item, target, indicator)?;
+        }
+        Ok(())
+    }
+
+    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[requires(target == item || target.object_kind() != crate::model::SemanticObjectKind::Utterance)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_leading_indicator_to_discourse_item(
+        &mut self,
+        item: SemanticObjectId,
+        target: SemanticObjectId,
+        indicator: &'tree Indicator,
+    ) -> Result<(), SemanticsError> {
+        let Some((relation, polarity, assertion_effect)) =
+            leading_attitude_display_for_indicator(indicator)
+        else {
+            return Ok(());
+        };
+        let id = self.next_display();
+        let source = {
+            let words = indicator.words();
+            self.source_for_tokens(&words, "indicator")
+        };
+        self.insert(
+            id,
+            SemanticObject::displayed_content(
+                DisplayedContentFamily::PropositionalAttitude,
+                relation.to_owned(),
+                polarity,
+                assertion_effect,
+                SemanticObjectId::speaker(),
+                target,
+                item,
+                source,
+                Vec::new(),
+            ),
+        )?;
+        Ok(())
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -11013,6 +11105,35 @@ fn free_modifiers_have_reciprocity(free_modifiers: &[FreeModifierSyntax]) -> boo
             data!(FreeModifierSyntax::ReciprocalSumti { .. })
         )
     })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|(relation, _, _)| !relation.is_empty()))]
+fn leading_attitude_display_for_indicator(
+    indicator: &Indicator,
+) -> Option<(
+    &'static str,
+    DisplayedContentPolarity,
+    DisplayedContentAssertionEffect,
+)> {
+    if indicator.indicator.cmavo() != Some(Cmavo::Aho) {
+        return None;
+    }
+    let polarity = if indicator.nai.is_some() {
+        DisplayedContentPolarity::Negative
+    } else {
+        DisplayedContentPolarity::Positive
+    };
+    let relation = if indicator.nai.is_some() {
+        "despair"
+    } else {
+        "hope"
+    };
+    Some((
+        relation,
+        polarity,
+        DisplayedContentAssertionEffect::HostSubordinated,
+    ))
 }
 
 #[requires(true)]
@@ -19601,6 +19722,24 @@ mod tests {
         assert_eq!(object(&json, "utterance:u2")["force"], "assert");
         assert_eq!(object(&json, "question:q1")["kind"], "truth");
         assert!(json.pointer("/objects/question:q2").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn leading_aho_attitude_is_displayed_content() {
+        let json = semantic_json_for(".a'o do jimpe").expect("semantic JSON");
+        let utterance = object(&json, "utterance:u1");
+        let display = object(&json, "display:d1");
+        assert_eq!(display["type"], "displayedContent");
+        assert_eq!(display["family"], "propositionalAttitude");
+        assert_eq!(display["relation"], "hope");
+        assert_eq!(display["polarity"], "positive");
+        assert_eq!(display["assertionEffect"], "hostSubordinated");
+        assert_eq!(display["experiencer"], "referent:speaker");
+        assert_eq!(display["anchor"], "utterance:u1");
+        assert_eq!(display["target"], utterance["content"]);
+        assert_eq!(display["source"]["text"], "a'o");
     }
 
     #[test]
