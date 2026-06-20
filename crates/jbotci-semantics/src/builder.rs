@@ -32,16 +32,16 @@ use crate::model::{
     ArgumentValue, ArgumentValueKind, Aspect, AssignedName, AssignedNameData, Composition,
     Connector, Descriptor, DisplayedContentAssertionEffect, DisplayedContentFamily,
     DisplayedContentModifier, DisplayedContentPolarity, EndpointInclusion, EventualityClass,
-    FormulaOperator, IndexicalKind, IntervalEndpointInclusion, MathLiteral, ModalArgument,
-    ModalNegation, ModalNegationKind, PlaceQuestionBinding, PredicationMode, QuantityForm,
-    QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole,
-    Quotation, RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection,
-    RecurrenceConnectionKind, RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause,
-    RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph,
-    SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation,
-    SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind, TemporalPathAnchor,
-    TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint,
-    UtteranceForce, diagnostic, source_from_spans,
+    FormulaOperator, IndexicalKind, IntervalEndpointInclusion, LetteralUnit, LetteralUnitKind,
+    MathLiteral, ModalArgument, ModalNegation, ModalNegationKind, PlaceQuestionBinding,
+    PredicationMode, QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode,
+    QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, Recurrence,
+    RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
+    RelationExpansion, RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind,
+    SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData,
+    SemanticSort, SequenceRelation, SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind,
+    TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
+    TimeSpanEndpoint, UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -1789,6 +1789,11 @@ where
             }) => self
                 .build_tense_modal_fragment_content(tense_modal, sumti)
                 .map(Some),
+            data!(TermSyntax::Sumti(sumti)) | data!(TermSyntax::PlaceTaggedSumti { sumti, .. })
+                if lerfu_string_sumti_letters(sumti).is_some() =>
+            {
+                self.build_letteral_sign_for_sumti(sumti).map(Some)
+            }
             data!(TermSyntax::Sumti(sumti)) | data!(TermSyntax::PlaceTaggedSumti { sumti, .. }) => {
                 let referent = self.build_sumti_referent(sumti)?;
                 if referent.object_kind() == crate::model::SemanticObjectKind::Referent {
@@ -5234,7 +5239,11 @@ where
             eventuality,
             SemanticObject::eventuality(EventualityClass::Event, None, source.clone()),
         )?;
-        let source_referent = self.build_sumti_referent(sumti)?;
+        let source_operand = if lerfu_string_sumti_letters(sumti).is_some() {
+            self.build_letteral_sign_for_sumti(sumti)?
+        } else {
+            self.build_sumti_referent(sumti)?
+        };
         let mut arguments = BTreeMap::new();
         self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
         if let Some(argument) = visible_x1_override {
@@ -5243,10 +5252,7 @@ where
         if !arguments.contains_key("x1") {
             arguments.insert("x1".to_owned(), self.build_elided_argument_for_place(1)?);
         }
-        arguments.insert(
-            "x2".to_owned(),
-            ArgumentValue::filled(source_referent, None),
-        );
+        arguments.insert("x2".to_owned(), ArgumentValue::filled(source_operand, None));
         let modal_arguments = self.modal_assignment_arguments(frame)?;
         let predication = self.next_predication();
         let mut object = SemanticObject::predication(
@@ -10383,6 +10389,10 @@ where
         raw: RawSyntaxNodeId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if li.cmavo() == Some(Cmavo::Meho) {
+            if let Some(letters) = mekso_letteral_word_run(expression) {
+                return self
+                    .build_letteral_sign(letters, self.source_for_mekso(expression, "letteral"));
+            }
             return self.build_math_expression_sign(expression, raw);
         }
 
@@ -10438,6 +10448,40 @@ where
             Vec::new(),
         );
         sign.denotes = Some(expression_id);
+        let id = self.next_sign();
+        self.insert(id, sign)
+    }
+
+    #[requires(lerfu_string_sumti_letters(sumti).is_some())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sign) || ret.is_err())]
+    fn build_letteral_sign_for_sumti(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let raw = self
+            .analysis
+            .syntax_index
+            .sumti_node_id(sumti)
+            .ok_or_else(SemanticsError::missing_syntax_node)?
+            .0;
+        let letters = lerfu_string_sumti_letters(sumti)
+            .expect("precondition guarantees a lerfu-string sumti");
+        self.build_letteral_sign(letters, self.source_for_node(raw, "letteral"))
+    }
+
+    #[requires(!letters.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sign) || ret.is_err())]
+    fn build_letteral_sign(
+        &mut self,
+        letters: &WordRun,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let letterals = letteral_units_for_word_run(letters);
+        let text = letteral_display_text(&letterals)
+            .or_else(|| source.as_ref().and_then(|source| source.text.clone()))
+            .unwrap_or_else(|| word_run_text(letters));
+        let mut sign = SemanticObject::text_sign(SignKind::Letteral, text, source, Vec::new());
+        sign.letterals = letterals;
         let id = self.next_sign();
         self.insert(id, sign)
     }
@@ -18275,6 +18319,293 @@ fn math_variable_name(expression: &MeksoSyntax) -> Option<String> {
 }
 
 #[requires(true)]
+#[ensures(ret.is_some() -> !ret.as_ref().unwrap().is_empty())]
+fn mekso_letteral_word_run(expression: &MeksoSyntax) -> Option<&WordRun> {
+    match expression.as_data() {
+        data!(MeksoSyntax::LerfuStringMekso { letter, .. }) => Some(&letter.value),
+        data!(MeksoSyntax::ParenthesizedMekso {
+            inner_expression,
+            ..
+        })
+        | data!(MeksoSyntax::QualifiedOperand {
+            inner_expression,
+            ..
+        }) => mekso_letteral_word_run(inner_expression),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() -> !ret.as_ref().unwrap().is_empty())]
+fn lerfu_string_sumti_letters(sumti: &SumtiSyntax) -> Option<&WordRun> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::LerfuStringSumti { letter, .. }) => Some(&letter.value),
+        data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. }) => {
+            lerfu_string_sumti_letters(inner_sumti)
+        }
+        _ => None,
+    }
+}
+
+#[requires(!letters.is_empty())]
+#[ensures(!ret.is_empty())]
+fn letteral_units_for_word_run(letters: &WordRun) -> Vec<LetteralUnit> {
+    letteral_units_for_tokens(letters.as_slice())
+}
+
+#[requires(true)]
+#[ensures(tokens.is_empty() || !ret.is_empty())]
+fn letteral_units_for_tokens(tokens: &[Token]) -> Vec<LetteralUnit> {
+    let mut units = Vec::new();
+    let mut index = 0;
+    while index < tokens.len() {
+        match token_cmavo(&tokens[index]) {
+            Some(Cmavo::Tei) => {
+                if let Some(relative_end) = tokens[index + 1..]
+                    .iter()
+                    .position(|token| token_cmavo(token) == Some(Cmavo::Foi))
+                {
+                    let end = index + 1 + relative_end;
+                    let inner = letteral_units_for_tokens(&tokens[index + 1..end]);
+                    if !inner.is_empty() {
+                        let source_words = letteral_source_words_for_tokens(&tokens[index..=end]);
+                        let value = letteral_unit_values_joined(&inner);
+                        units.push(LetteralUnit::compound(source_words, value, inner));
+                        index = end + 1;
+                        continue;
+                    }
+                }
+                units.push(letteral_unit_for_token(&tokens[index]));
+                index += 1;
+            }
+            Some(Cmavo::Sehe) => {
+                let source_words = letteral_source_words_for_tokens(&tokens[index..]);
+                let value = if tokens[index + 1..].is_empty() {
+                    None
+                } else {
+                    Some(
+                        tokens[index + 1..]
+                            .iter()
+                            .map(token_text)
+                            .collect::<Vec<_>>()
+                            .join(""),
+                    )
+                };
+                units.push(LetteralUnit::simple(
+                    LetteralUnitKind::CharacterCode,
+                    source_words,
+                    Some(token_vec_text(&tokens[index..])),
+                    value,
+                    None,
+                    None,
+                ));
+                break;
+            }
+            Some(Cmavo::Tau | Cmavo::Zai | Cmavo::Ceha) if index + 1 < tokens.len() => {
+                let marker = token_text(&tokens[index]);
+                let next = &tokens[index + 1];
+                units.push(LetteralUnit::simple(
+                    LetteralUnitKind::Shift,
+                    letteral_source_words_for_tokens(&tokens[index..=index + 1]),
+                    Some(format!("{marker} {}", token_text(next))),
+                    Some(token_text(next)),
+                    letteral_shift_modifier(&tokens[index]),
+                    None,
+                ));
+                index += 2;
+            }
+            Some(
+                Cmavo::Gahe
+                | Cmavo::Toha
+                | Cmavo::Naha
+                | Cmavo::Loha
+                | Cmavo::Geho
+                | Cmavo::Jeho
+                | Cmavo::Joho
+                | Cmavo::Ruho,
+            ) => {
+                units.push(LetteralUnit::simple(
+                    LetteralUnitKind::Shift,
+                    letteral_source_words_for_token(&tokens[index]),
+                    Some(token_text(&tokens[index])),
+                    None,
+                    letteral_shift_modifier(&tokens[index]),
+                    None,
+                ));
+                index += 1;
+            }
+            _ => {
+                units.push(letteral_unit_for_token(&tokens[index]));
+                index += 1;
+            }
+        }
+    }
+    units
+}
+
+#[requires(true)]
+#[ensures(!ret.source_words.is_empty())]
+fn letteral_unit_for_token(token: &Token) -> LetteralUnit {
+    let source_words = letteral_source_words_for_token(token);
+    let source_text = token_text(token);
+    let bu_depth = letteral_bu_depth(token.core_word());
+    let value = basic_letteral_value(&source_words);
+    let kind = if parse_decimal_integer(&source_text).is_some() && bu_depth == 0 {
+        LetteralUnitKind::Digit
+    } else {
+        LetteralUnitKind::Glyph
+    };
+    LetteralUnit::simple(
+        kind,
+        source_words,
+        Some(source_text),
+        value,
+        None,
+        (bu_depth > 0).then_some(bu_depth),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn letteral_shift_modifier(token: &Token) -> Option<String> {
+    let modifier = match token_cmavo(token)? {
+        Cmavo::Gahe => "upperCase",
+        Cmavo::Toha => "lowerCase",
+        Cmavo::Tau => "singleCaseShift",
+        Cmavo::Zai => "script",
+        Cmavo::Ceha => "font",
+        Cmavo::Naha => "cancel",
+        Cmavo::Loha => "lojbanScript",
+        Cmavo::Geho => "greekScript",
+        Cmavo::Jeho => "hebrewScript",
+        Cmavo::Joho => "arabicScript",
+        Cmavo::Ruho => "cyrillicScript",
+        _ => return None,
+    };
+    Some(modifier.to_owned())
+}
+
+#[requires(true)]
+#[ensures(tokens.is_empty() || !ret.is_empty())]
+fn letteral_source_words_for_tokens(tokens: &[Token]) -> Vec<String> {
+    let mut words = Vec::new();
+    for token in tokens {
+        words.extend(letteral_source_words_for_token(token));
+    }
+    words
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn letteral_source_words_for_token(token: &Token) -> Vec<String> {
+    let mut words = Vec::new();
+    letteral_source_words_for_word_like(token.core_word(), &mut words);
+    if words.is_empty() {
+        words.push(token_text(token));
+    }
+    words
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn letteral_source_words_for_word_like(word_like: &WordLike, out: &mut Vec<String>) {
+    match word_like.as_data() {
+        data!(WordLike::PlainWord(word)) => out.push(word_text(word)),
+        data!(WordLike::LerfuWord { base, bu }) => {
+            letteral_source_words_for_word_like(base, out);
+            out.push(word_text(bu));
+        }
+        _ => out.push(word_like.to_string()),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn token_cmavo(token: &Token) -> Option<Cmavo> {
+    token.core_word().bare_word().and_then(Word::cmavo)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn letteral_bu_depth(word_like: &WordLike) -> usize {
+    match word_like.as_data() {
+        data!(WordLike::LerfuWord { base, .. }) => 1 + letteral_bu_depth(base),
+        _ => 0,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
+fn basic_letteral_value(source_words: &[String]) -> Option<String> {
+    match source_words {
+        [word] => basic_letteral_word_value(word).or_else(|| {
+            parse_decimal_integer(word)
+                .filter(|value| (0..=9).contains(value))
+                .map(|value| value.to_string())
+        }),
+        [base, bu] if bu == "bu" => match base.as_str() {
+            "ky" => Some("q".to_owned()),
+            "vy" => Some("w".to_owned()),
+            "y'y" => Some("h".to_owned()),
+            "a" | "e" | "i" | "o" | "u" | "y" => Some(base.clone()),
+            _ => basic_letteral_word_value(base),
+        },
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
+fn basic_letteral_word_value(word: &str) -> Option<String> {
+    let value = match word {
+        "by" => "b",
+        "cy" => "c",
+        "dy" => "d",
+        "fy" => "f",
+        "gy" => "g",
+        "jy" => "j",
+        "ky" => "k",
+        "ly" => "l",
+        "my" => "m",
+        "ny" => "n",
+        "py" => "p",
+        "ry" => "r",
+        "sy" => "s",
+        "ty" => "t",
+        "vy" => "v",
+        "xy" => "x",
+        "zy" => "z",
+        "y'y" => "'",
+        _ => return None,
+    };
+    Some(value.to_owned())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
+fn letteral_unit_values_joined(units: &[LetteralUnit]) -> Option<String> {
+    let mut value = String::new();
+    for unit in units {
+        value.push_str(unit.value.as_ref()?);
+    }
+    Some(value)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
+fn letteral_display_text(units: &[LetteralUnit]) -> Option<String> {
+    if units.iter().all(|unit| {
+        matches!(unit.kind, LetteralUnitKind::Glyph | LetteralUnitKind::Digit)
+            && unit.value.is_some()
+    }) {
+        letteral_unit_values_joined(units)
+    } else {
+        None
+    }
+}
+
+#[requires(true)]
 #[ensures(!ret.is_empty())]
 fn math_operator_label(operator: &MeksoOperatorSyntax) -> String {
     let source = mekso_operator_label(operator);
@@ -23149,6 +23480,83 @@ mod tests {
             cusku["arguments"]["x1"]["value"],
             viska["arguments"]["x2"]["value"]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn letteral_pro_sumti_resolves_by_multi_name_initials() {
+        let json = semantic_json_for(
+            "la .stivn. .mark. .djonz. cu merko \
+             .i la .aleksandr. .pavlovitc. .kuznetsof. cu rusko \
+             .i symydy. tavla .abupyky. bau la .lojban.",
+        )
+        .expect("semantic JSON");
+        let merko = predication_with_relation_and_mode(&json, "merko", "asserted");
+        let rusko = predication_with_relation_and_mode(&json, "rusko", "asserted");
+        let tavla = predication_with_relation_and_mode(&json, "tavla", "asserted");
+        assert_eq!(
+            tavla["arguments"]["x1"]["value"],
+            merko["arguments"]["x1"]["value"]
+        );
+        assert_eq!(
+            tavla["arguments"]["x2"]["value"],
+            rusko["arguments"]["x1"]["value"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn standalone_lerfu_string_is_letteral_sign() {
+        let json = semantic_json_for("ty. .abu ny. ry. .ubu").expect("semantic JSON");
+        let utterance = object(&json, "utterance:u1");
+        assert_eq!(utterance["force"], "mention");
+        assert_eq!(utterance["content"], "sign:s1");
+        let sign = object(&json, "sign:s1");
+        assert_eq!(sign["kind"], "letteral");
+        assert_eq!(sign["text"], "tanru");
+        assert_eq!(sign["letterals"][0]["value"], "t");
+        assert_eq!(sign["letterals"][1]["sourceWords"][0], "a");
+        assert_eq!(sign["letterals"][1]["sourceWords"][1], "bu");
+        assert_eq!(sign["letterals"][1]["buDepth"], 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn meho_lerfu_string_is_letteral_sign_argument() {
+        let json = semantic_json_for("me'o .abu cu lerfu").expect("semantic JSON");
+        let lerfu = predication_with_relation_and_mode(&json, "lerfu", "asserted");
+        assert_eq!(lerfu["arguments"]["x1"]["value"], "sign:s1");
+        let sign = object(&json, "sign:s1");
+        assert_eq!(sign["kind"], "letteral");
+        assert_eq!(sign["text"], "a");
+        assert!(sign.get("denotes").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn me_lerfu_string_selbri_uses_letteral_sign_source() {
+        let json = semantic_json_for("la me dy ny. .abu").expect("semantic JSON");
+        let referent_of = predication_with_relation_and_mode(&json, "referentOf", "restrictive");
+        assert_eq!(referent_of["arguments"]["x2"]["value"], "sign:s1");
+        assert_eq!(object(&json, "sign:s1")["kind"], "letteral");
+        assert_eq!(object(&json, "sign:s1")["text"], "dna");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn character_code_letteral_preserves_code_source() {
+        let json =
+            semantic_json_for("me'o se'e cixa cu lerfu la .asycy'i'is.").expect("semantic JSON");
+        let sign = object(&json, "sign:s1");
+        assert_eq!(sign["kind"], "letteral");
+        assert_eq!(sign["letterals"][0]["kind"], "characterCode");
+        assert_eq!(sign["letterals"][0]["value"], "cixa");
+        assert_eq!(sign["letterals"][0]["sourceWords"][0], "se'e");
     }
 
     #[test]

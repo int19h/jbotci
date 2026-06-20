@@ -440,6 +440,8 @@ pub struct SemanticObject {
     pub sign_kind: Option<SignKind>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub letterals: Vec<LetteralUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quotation: Option<Quotation>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -568,6 +570,7 @@ impl SemanticObject {
             embedded_questions: Vec::new(),
             sign_kind: None,
             text: None,
+            letterals: Vec::new(),
             quotation: None,
             denotes: None,
             family: None,
@@ -2431,6 +2434,88 @@ pub enum SignKind {
     Connective,
     Word,
     Text,
+}
+
+#[invariant(!source_words.is_empty(), "letteral units must preserve their source words")]
+#[invariant(text.as_ref().is_none_or(|text| !text.is_empty()), "letteral unit display text must not be empty when present")]
+#[invariant(value.as_ref().is_none_or(|value| !value.is_empty()), "letteral unit value must not be empty when present")]
+#[invariant(modifier.as_ref().is_none_or(|modifier| !modifier.is_empty()), "letteral modifier must not be empty when present")]
+#[invariant(bu_depth.is_none_or(|depth| depth > 0), "BU depth is recorded only when positive")]
+#[invariant((*kind == LetteralUnitKind::Compound) == !parts.is_empty(), "only compound letterals have parts")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LetteralUnit {
+    pub kind: LetteralUnitKind,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_words: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub modifier: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bu_depth: Option<usize>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parts: Vec<LetteralUnit>,
+}
+
+impl LetteralUnit {
+    #[requires(!source_words.is_empty())]
+    #[requires(text.as_ref().is_none_or(|text| !text.is_empty()))]
+    #[requires(value.as_ref().is_none_or(|value| !value.is_empty()))]
+    #[requires(modifier.as_ref().is_none_or(|modifier| !modifier.is_empty()))]
+    #[requires(bu_depth.is_none_or(|depth| depth > 0))]
+    #[ensures(ret.kind == old(kind))]
+    pub fn simple(
+        kind: LetteralUnitKind,
+        source_words: Vec<String>,
+        text: Option<String>,
+        value: Option<String>,
+        modifier: Option<String>,
+        bu_depth: Option<usize>,
+    ) -> Self {
+        Self::from_data(data!(LetteralUnit {
+            kind,
+            source_words,
+            text,
+            value,
+            modifier,
+            bu_depth,
+            parts: Vec::new(),
+        }))
+    }
+
+    #[requires(!source_words.is_empty())]
+    #[requires(!parts.is_empty())]
+    #[requires(value.as_ref().is_none_or(|value| !value.is_empty()))]
+    #[ensures(ret.kind == LetteralUnitKind::Compound)]
+    pub fn compound(
+        source_words: Vec<String>,
+        value: Option<String>,
+        parts: Vec<LetteralUnit>,
+    ) -> Self {
+        Self::from_data(data!(LetteralUnit {
+            kind: LetteralUnitKind::Compound,
+            source_words,
+            text: None,
+            value,
+            modifier: None,
+            bu_depth: None,
+            parts,
+        }))
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LetteralUnitKind {
+    Glyph,
+    Digit,
+    Shift,
+    CharacterCode,
+    Compound,
 }
 
 #[invariant(true)]

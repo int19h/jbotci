@@ -5,7 +5,7 @@ use std::num::NonZeroU8;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, requires};
-use jbotci_morphology::{Cmavo, Selmaho, WordLike};
+use jbotci_morphology::{Cmavo, Word, WordLike, WordLikeData};
 use jbotci_source::{SourceId, SourceSpan};
 use jbotci_syntax::ast::{
     AbstractionSyntax, AdditionalLinkedSumtiSyntax, AfterthoughtBridiTailSyntax,
@@ -4317,13 +4317,13 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 }
             }
             data!(SumtiSyntax::LerfuStringSumti { letter, .. }) => {
-                if let Some(base_letter) = letter_pro_sumti_base(letter) {
-                    if let Some(target) = self.resolve_letter_target(&base_letter) {
+                if let Some(initials) = letter_pro_sumti_base(letter) {
+                    if let Some(target) = self.resolve_letter_target(&initials) {
                         self.add_edge(
                             ReferenceKind::Letter,
                             argument_id.0,
                             target_resolved_node(target.0),
-                            "letteral pro-sumti resolves to the latest sumti with the same initial letter",
+                            "letteral pro-sumti resolves to the latest sumti with the same initial string",
                         );
                         self.note_sumti_mention_with_availability(argument_id, target, false);
                     } else {
@@ -5171,19 +5171,19 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn note_letter_sumti_antecedent(&mut self, source: SumtiNodeId, sumti: &'tree SumtiSyntax) {
-        let Some(base_letter) = argument_letter_base(sumti) else {
-            return;
-        };
+        let keys = argument_letter_keys(sumti);
         let position = self.sumti_mention_position(source);
-        self.letter_sumti_mentions
-            .entry(base_letter)
-            .or_default()
-            .push(SumtiMention {
-                source,
-                target: source,
-                position,
-                available_to_ri: false,
-            });
+        for key in keys {
+            self.letter_sumti_mentions
+                .entry(key)
+                .or_default()
+                .push(SumtiMention {
+                    source,
+                    target: source,
+                    position,
+                    available_to_ri: false,
+                });
+        }
     }
 
     #[requires(!base_letter.is_empty())]
@@ -6341,12 +6341,83 @@ fn cmavo_digit(cmavo: Option<Cmavo>) -> Option<usize> {
 fn letter_pro_sumti_base(
     letter: &WithFreeModifiers<jbotci_syntax::ast::WordRun>,
 ) -> Option<String> {
-    let [word] = letter.value.as_slice() else {
+    letter_run_initial_key(&letter.value)
+}
+
+#[requires(true)]
+#[ensures(!ret.iter().any(|key| key.is_empty()))]
+fn argument_letter_keys(sumti: &SumtiSyntax) -> Vec<String> {
+    let mut keys = Vec::new();
+    if let Some(base_letter) = argument_letter_base(sumti) {
+        keys.push(base_letter);
+    }
+    if let Some(initials) = argument_name_initials(sumti)
+        && !keys.iter().any(|key| key == &initials)
+    {
+        keys.push(initials);
+    }
+    keys
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|key| !key.is_empty()))]
+fn argument_name_initials(sumti: &SumtiSyntax) -> Option<String> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::NameDescription { names, .. })
+        | data!(SumtiSyntax::NameWords(names)) => word_run_initial_key(&names.value),
+        data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::ReferentSumti {
+            inner_sumti: base_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::ScalarNegatedSumtiWithBo {
+            inner_sumti: base_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::ScalarNegatedSumti {
+            inner_sumti: base_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::GroupedSumti {
+            inner_sumti: base_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::TaggedSumti {
+            inner_sumti: base_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::QuantifiedSumti {
+            inner_sumti: base_sumti,
+            ..
+        }) => argument_name_initials(base_sumti),
+        _ => None,
+    }
+}
+
+#[requires(!words.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|key| !key.is_empty()))]
+fn word_run_initial_key(words: &jbotci_syntax::ast::WordRun) -> Option<String> {
+    if words.len() <= 1 {
         return None;
-    };
-    word.is_selmaho(Selmaho::By)
-        .then(|| token_base_letter(word))
-        .flatten()
+    }
+    let initials = words
+        .iter()
+        .map(token_base_letter)
+        .collect::<Option<Vec<_>>>()?
+        .join("");
+    (!initials.is_empty()).then_some(initials)
+}
+
+#[requires(!words.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|key| !key.is_empty()))]
+fn letter_run_initial_key(words: &jbotci_syntax::ast::WordRun) -> Option<String> {
+    let initials = words
+        .iter()
+        .map(token_base_letter)
+        .collect::<Option<Vec<_>>>()?
+        .join("");
+    (!initials.is_empty()).then_some(initials)
 }
 
 #[requires(true)]
@@ -6555,7 +6626,23 @@ fn word_base_letter(word: &WithFreeModifiers<Token>) -> Option<String> {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
 fn token_base_letter(word: &Token) -> Option<String> {
-    let text = word.as_ref().core_word().bare_word()?.canonical_phonemes();
+    word_like_base_letter(word.as_ref().core_word())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
+fn word_like_base_letter(word_like: &WordLike) -> Option<String> {
+    match word_like.as_data() {
+        data!(WordLike::PlainWord(word)) => word_phoneme_base_letter(word),
+        data!(WordLike::LerfuWord { base, .. }) => word_like_base_letter(base),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|letter| !letter.is_empty()))]
+fn word_phoneme_base_letter(word: &Word) -> Option<String> {
+    let text = word.canonical_phonemes();
     text.chars()
         .find(|character| character.is_alphabetic())
         .map(|character| character.to_string())
