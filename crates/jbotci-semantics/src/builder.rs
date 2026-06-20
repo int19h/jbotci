@@ -29,18 +29,18 @@ use jbotci_syntax::ast::{
 
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorMagnitude, AnchorRelation, AnchorRelationData,
-    ArgumentValue, Aspect, AssignedName, AssignedNameData, Composition, Connector, Descriptor,
-    DisplayedContentAssertionEffect, DisplayedContentFamily, DisplayedContentPolarity,
-    EventualityClass, FormulaOperator, IndexicalKind, MathLiteral, ModalArgument, ModalNegation,
-    ModalNegationKind, PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale,
-    QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
-    RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
-    RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
-    ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject,
-    SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation, SignKind,
-    SpaceInterval, SpatialMotion, SpatialMotionKind, TemporalPathAnchor, TemporalPathStep,
-    TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint, UtteranceForce, diagnostic,
-    source_from_spans,
+    ArgumentValue, ArgumentValueKind, Aspect, AssignedName, AssignedNameData, Composition,
+    Connector, Descriptor, DisplayedContentAssertionEffect, DisplayedContentFamily,
+    DisplayedContentPolarity, EventualityClass, FormulaOperator, IndexicalKind, MathLiteral,
+    ModalArgument, ModalNegation, ModalNegationKind, PlaceQuestionBinding, PredicationMode,
+    QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot,
+    QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, Recurrence,
+    RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
+    RelationExpansion, RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind,
+    SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData,
+    SemanticSort, SequenceRelation, SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind,
+    TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
+    TimeSpanEndpoint, UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -10771,6 +10771,17 @@ where
             .abstraction_parameter_stack
             .pop()
             .expect("abstraction parameter stack was just pushed");
+        let mut parameters = parameters;
+        if kind == AbstractionKind::Property && parameters.is_empty() {
+            let parameter_source =
+                self.source_for_abstraction(abstraction, "implicit-property-slot");
+            self.insert_implicit_property_slot_parameter(
+                body,
+                &mut parameters,
+                parameter_source,
+                main_selbri_for_subbridi(&abstraction.subbridi),
+            )?;
+        }
         self.set_formula_predication_mode(body, abstraction_body_mode(kind));
 
         let source = self.source_for_abstraction(abstraction, "abstraction");
@@ -10780,6 +10791,153 @@ where
             SemanticObject::abstraction(kind, body, parameters, source.clone(), Vec::new()),
         )?;
         Ok(abstraction_id)
+    }
+
+    #[requires(body.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn insert_implicit_property_slot_parameter(
+        &mut self,
+        body: SemanticObjectId,
+        parameters: &mut Vec<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+        preferred_selbri: Option<&'tree SelbriSyntax>,
+    ) -> Result<(), SemanticsError> {
+        if !parameters.is_empty() {
+            return Ok(());
+        }
+        let parameter = self.build_parameter_with_source(
+            "implicit ce'u".to_owned(),
+            source,
+            SemanticSort::Entity,
+            crate::model::ParameterRole::PropertySlot,
+        )?;
+        if self.replace_first_elided_formula_argument(body, parameter, preferred_selbri)? {
+            parameters.push(parameter);
+        } else {
+            self.objects.remove(&parameter);
+        }
+        Ok(())
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn replace_first_elided_formula_argument(
+        &mut self,
+        formula: SemanticObjectId,
+        parameter: SemanticObjectId,
+        preferred_selbri: Option<&'tree SelbriSyntax>,
+    ) -> Result<bool, SemanticsError> {
+        let Some(object) = self.objects.get(&formula).cloned() else {
+            return Ok(false);
+        };
+        if let Some(predication) = object.predication
+            && self.replace_first_elided_predication_argument(
+                predication,
+                parameter,
+                preferred_selbri,
+            )?
+        {
+            return Ok(true);
+        }
+        for child in object.children {
+            if self.replace_first_elided_formula_argument(child, parameter, preferred_selbri)? {
+                return Ok(true);
+            }
+        }
+        if let Some(restriction) = object.restriction
+            && self.replace_first_elided_formula_argument(
+                restriction,
+                parameter,
+                preferred_selbri,
+            )?
+        {
+            return Ok(true);
+        }
+        if let Some(body) = object.body
+            && self.replace_first_elided_formula_argument(body, parameter, preferred_selbri)?
+        {
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn replace_first_elided_predication_argument(
+        &mut self,
+        predication: SemanticObjectId,
+        parameter: SemanticObjectId,
+        preferred_selbri: Option<&'tree SelbriSyntax>,
+    ) -> Result<bool, SemanticsError> {
+        let Some(object) = self.objects.get(&predication) else {
+            return Ok(false);
+        };
+        let place = object
+            .arguments
+            .iter()
+            .filter(|(_, argument)| argument.kind == ArgumentValueKind::Elided)
+            .filter_map(|(place, _)| {
+                argument_place_index(place).map(|index| {
+                    let visible_rank = preferred_selbri
+                        .map(|selbri| raw_place_visible_rank_for_selbri(selbri, index))
+                        .unwrap_or(index);
+                    (visible_rank, index, place)
+                })
+            })
+            .min_by_key(|(visible_rank, index, _)| (*visible_rank, *index))
+            .map(|(_, _, place)| place.clone());
+        let Some(place) = place else {
+            return Ok(false);
+        };
+        let old_value = {
+            let object = self.objects.get_mut(&predication).ok_or_else(|| {
+                SemanticsError::invalid_graph(format!(
+                    "semantic builder could not find predication {predication}"
+                ))
+            })?;
+            let argument = object.arguments.get_mut(&place).ok_or_else(|| {
+                SemanticsError::invalid_graph(format!(
+                    "semantic builder could not find predication argument {place}"
+                ))
+            })?;
+            let old_value = argument.value;
+            let source = argument.source.clone();
+            *argument = ArgumentValue::filled(parameter, source);
+            old_value
+        };
+        if let Some(old_value) = old_value {
+            self.remove_unreferenced_elided_referent(old_value);
+        }
+        Ok(true)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn remove_unreferenced_elided_referent(&mut self, id: SemanticObjectId) {
+        if id.object_kind() != crate::model::SemanticObjectKind::Referent {
+            return;
+        }
+        let Some(object) = self.objects.get(&id) else {
+            return;
+        };
+        if !object
+            .descriptor
+            .as_ref()
+            .is_some_and(|descriptor| descriptor.kind == "elided")
+        {
+            return;
+        }
+        let mut references = Vec::new();
+        for (object_id, object) in &self.objects {
+            if *object_id != id {
+                object.references_into(&mut references);
+            }
+        }
+        if !references.contains(&id) {
+            self.objects.remove(&id);
+        }
     }
 
     #[requires(true)]
@@ -11453,6 +11611,26 @@ fn visible_place_for_selbri(selbri: &SelbriSyntax, place: usize) -> usize {
             inner_selbri: selbri,
             ..
         }) => visible_place_for_selbri(selbri, place),
+        _ => place,
+    }
+}
+
+#[requires(place > 0)]
+#[ensures(ret > 0)]
+fn raw_place_visible_rank_for_selbri(selbri: &SelbriSyntax, place: usize) -> usize {
+    match selbri.as_data() {
+        data!(SelbriSyntax::ConvertedSelbri { se, inner_selbri }) => {
+            let converted_place = se_conversion_place(se).unwrap_or(2);
+            convert_numbered_place(
+                raw_place_visible_rank_for_selbri(inner_selbri, place),
+                converted_place,
+            )
+        }
+        data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+        | data!(SelbriSyntax::TaggedSelbri {
+            inner_selbri: selbri,
+            ..
+        }) => raw_place_visible_rank_for_selbri(selbri, place),
         _ => place,
     }
 }
@@ -18425,6 +18603,43 @@ mod tests {
         let prami = predication_with_relation_and_mode(&json, "prami", "restrictive");
         assert_eq!(prami["arguments"]["x1"]["value"], parameters[0]);
         assert_eq!(prami["arguments"]["x2"]["value"], parameters[1]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ka_without_cehu_uses_first_omitted_place_as_property_slot() {
+        let loved_json = semantic_json_for("le ka mi prami").expect("semantic JSON");
+        let loved_abstraction = object(&loved_json, "abstraction:a1");
+        assert_eq!(loved_abstraction["abstractionKind"], "property");
+        assert_eq!(loved_abstraction["arity"], 1);
+        assert_eq!(loved_abstraction["parameters"][0], "parameter:p1");
+        let loved = predication_with_relation_and_mode(&loved_json, "prami", "restrictive");
+        assert_eq!(loved["arguments"]["x1"]["value"], "referent:speaker");
+        assert_eq!(loved["arguments"]["x2"]["value"], "parameter:p1");
+
+        let lover_json = semantic_json_for("le ka prami mi").expect("semantic JSON");
+        let lover_abstraction = object(&lover_json, "abstraction:a1");
+        assert_eq!(lover_abstraction["arity"], 1);
+        assert_eq!(lover_abstraction["parameters"][0], "parameter:p1");
+        let lover = predication_with_relation_and_mode(&lover_json, "prami", "restrictive");
+        assert_eq!(lover["arguments"]["x1"]["value"], "parameter:p1");
+        assert_eq!(lover["arguments"]["x2"]["value"], "referent:speaker");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn implicit_ka_slot_uses_converted_visible_place_order() {
+        let json = semantic_json_for("le ka se risna").expect("semantic JSON");
+        let abstraction = object(&json, "abstraction:a1");
+        assert_eq!(abstraction["abstractionKind"], "property");
+        assert_eq!(abstraction["arity"], 1);
+        assert_eq!(abstraction["parameters"][0], "parameter:p1");
+
+        let risna = predication_with_relation_and_mode(&json, "risna", "restrictive");
+        assert_eq!(risna["arguments"]["x1"]["kind"], "elided");
+        assert_eq!(risna["arguments"]["x2"]["value"], "parameter:p1");
     }
 
     #[test]
