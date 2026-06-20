@@ -789,7 +789,7 @@ impl SemanticObject {
             | FormulaOperator::PluralExists
             | FormulaOperator::PluralForall
     ))]
-    #[requires(variable.object_kind() == SemanticObjectKind::Referent)]
+    #[requires(quantifier_variable_kind_is_allowed(variable.object_kind()))]
     #[requires(restriction.is_none_or(|restriction| restriction.object_kind() == SemanticObjectKind::Formula))]
     #[requires(body.object_kind() == SemanticObjectKind::Formula)]
     #[requires(quantity.is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity))]
@@ -1863,6 +1863,7 @@ pub enum ParameterRole {
     RelativeClauseHead,
     ArgumentQuestion,
     RelationQuestion,
+    RelationVariable,
     PlaceQuestion,
     ConnectiveQuestion,
     TenseQuestion,
@@ -2794,7 +2795,9 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && object.connector.as_ref().is_none_or(|connector| {
             optional_reference_has_kind(connector.parameter, SemanticObjectKind::Parameter)
         })
-        && optional_reference_has_kind(object.variable, SemanticObjectKind::Referent)
+        && object
+            .variable
+            .is_none_or(|variable| quantifier_variable_kind_is_allowed(variable.object_kind()))
         && optional_reference_has_kind(object.restriction, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.body, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.quantity, SemanticObjectKind::Quantity)
@@ -2893,6 +2896,18 @@ pub fn semantic_object_question_slots_are_valid(
             return false;
         }
 
+        if object.variable.is_some_and(|variable| {
+            variable.object_kind() == SemanticObjectKind::Parameter
+                && !parameter_has_sort_and_role(
+                    objects,
+                    variable,
+                    SemanticSort::Relation,
+                    ParameterRole::RelationVariable,
+                )
+        }) {
+            return false;
+        }
+
         connector_question_slot_is_valid(objects, object)
     })
 }
@@ -2982,12 +2997,20 @@ fn parameter_role_matches_sort(sort: Option<SemanticSort>, role: Option<Paramete
         Some(ParameterRole::RelativeClauseHead)
         | Some(ParameterRole::ArgumentQuestion)
         | Some(ParameterRole::AttitudeQuestion) => sort == Some(SemanticSort::Entity),
-        Some(ParameterRole::RelationQuestion) => sort == Some(SemanticSort::Relation),
+        Some(ParameterRole::RelationQuestion) | Some(ParameterRole::RelationVariable) => {
+            sort == Some(SemanticSort::Relation)
+        }
         Some(ParameterRole::PlaceQuestion) => sort == Some(SemanticSort::Place),
         Some(ParameterRole::ConnectiveQuestion) => sort == Some(SemanticSort::Connective),
         Some(ParameterRole::TenseQuestion) => sort == Some(SemanticSort::TenseModal),
         None => false,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quantifier_variable_kind_is_allowed(kind: SemanticObjectKind) -> bool {
+    kind == SemanticObjectKind::Referent || kind == SemanticObjectKind::Parameter
 }
 
 #[requires(true)]
