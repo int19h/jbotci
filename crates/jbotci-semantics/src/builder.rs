@@ -1714,8 +1714,9 @@ where
         &mut self,
         bridi: &'tree BridiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if bridi.bridi_tail.ke_continuation.is_none()
-            && !bridi.bridi_tail.first.continuations.is_empty()
+        if bridi.bridi_tail.ke_continuation.is_some()
+            || bridi.bridi_tail.first.first.bo_continuation.is_some()
+            || !bridi.bridi_tail.first.continuations.is_empty()
         {
             return self.build_afterthought_bridi_tail_formula(bridi);
         }
@@ -1981,6 +1982,7 @@ where
         let mut highest_assigned_place = 0usize;
         let mut connector = None;
         let mut modal_connection_spec = None;
+        let mut modal_connection_visible_first = true;
         let mut operator = FormulaOperator::And;
         let mut assigned_sumtis = Vec::new();
         let mut assignment_counts = BTreeMap::<String, usize>::new();
@@ -2000,14 +2002,18 @@ where
             let place = place.get() as usize;
             highest_assigned_place = highest_assigned_place.max(place);
             let key = format!("x{place}");
-            if let Some((_leading_sumti, connective, _trailing_sumti)) =
+            if let Some((_leading_sumti, connective, tense_modal, _trailing_sumti)) =
                 logical_sumti_connection_parts(sumti)
             {
                 if connector.is_none() {
                     operator = formula_operator_for_connective(connective);
-                    modal_connection_spec = modal_statement_connection_spec(connective);
+                    modal_connection_spec = tense_modal
+                        .and_then(modal_statement_connection_spec_for_tense_modal)
+                        .or_else(|| modal_statement_connection_spec(connective));
+                    modal_connection_visible_first =
+                        modal_connection_visible_argument_is_first(connective);
                     connector = Some(Connector {
-                        source: full_connective_text(connective),
+                        source: modal_connective_text(connective, tense_modal),
                         locus: "sumti".to_owned(),
                         truth_table: None,
                     });
@@ -2021,7 +2027,7 @@ where
             return Ok(None);
         }
         for (key, sumti) in assigned_sumtis {
-            if let Some((leading_sumti, connective, trailing_sumti)) =
+            if let Some((leading_sumti, connective, _tense_modal, trailing_sumti)) =
                 logical_sumti_connection_parts(sumti)
             {
                 alternatives.entry(key).or_default().extend([
@@ -2117,10 +2123,15 @@ where
         }
         let mut diagnostics = Vec::new();
         if let Some(spec) = modal_connection_spec {
-            if let [visible_formula, other_formula] = children.as_slice() {
+            if let [first_formula, second_formula] = children.as_slice() {
+                let (visible_formula, other_formula) = if modal_connection_visible_first {
+                    (*first_formula, *second_formula)
+                } else {
+                    (*second_formula, *first_formula)
+                };
                 match self.build_modal_formula_connection_claim(
-                    *visible_formula,
-                    *other_formula,
+                    visible_formula,
+                    other_formula,
                     &spec,
                     self.analysis
                         .syntax_index
@@ -2450,41 +2461,143 @@ where
         )
     }
 
-    #[requires(!bridi.bridi_tail.first.continuations.is_empty())]
+    #[requires(bridi.bridi_tail.ke_continuation.is_some() || bridi.bridi_tail.first.first.bo_continuation.is_some() || !bridi.bridi_tail.first.continuations.is_empty())]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_afterthought_bridi_tail_formula(
         &mut self,
         bridi: &'tree BridiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_connected_bridi_tail_formula(
+            &bridi.bridi_tail,
+            self.analysis
+                .syntax_index
+                .bridi_node_id(bridi)
+                .and_then(|node| self.source_for_node(node.0, "compound-bridi-formula")),
+        )
+    }
+
+    #[requires(tail.ke_continuation.is_some() || tail.first.first.bo_continuation.is_some() || !tail.first.continuations.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_connected_bridi_tail_formula(
+        &mut self,
+        tail: &'tree BridiTailSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if tail.ke_continuation.is_none() && tail.first.continuations.is_empty() {
+            return self.build_bo_grouped_tail_formula(&tail.first.first);
+        }
         let mut children = Vec::new();
-        children.push(self.build_bo_grouped_tail_formula(&bridi.bridi_tail.first.first)?);
+        children.push(self.build_bo_grouped_tail_formula(&tail.first.first)?);
         let mut connector = None;
         let mut operator = FormulaOperator::And;
-        for continuation in &bridi.bridi_tail.first.continuations {
+        let mut diagnostics = Vec::new();
+        for continuation in &tail.first.continuations {
             if connector.is_none() {
                 operator = formula_operator_for_connective(&continuation.connective);
                 connector = Some(Connector {
-                    source: connective_text(&continuation.connective),
+                    source: modal_connective_text(
+                        &continuation.connective,
+                        continuation.tense_modal.as_deref(),
+                    ),
                     locus: "bridiTail".to_owned(),
                     truth_table: None,
                 });
             }
-            children.push(self.build_bo_grouped_tail_formula(&continuation.bridi_tail)?);
+            let previous_formula = *children
+                .last()
+                .expect("connected bridi tail starts with one child");
+            let next_formula = self.build_bo_grouped_tail_formula(&continuation.bridi_tail)?;
+            children.push(next_formula);
+            self.push_modal_bridi_tail_connection_claim(
+                &mut children,
+                &mut diagnostics,
+                &continuation.connective,
+                continuation.tense_modal.as_deref(),
+                next_formula,
+                previous_formula,
+            )?;
+        }
+        if let Some(continuation) = &tail.ke_continuation {
+            if connector.is_none() {
+                operator = formula_operator_for_connective(&continuation.connective);
+                connector = Some(Connector {
+                    source: modal_connective_text(
+                        &continuation.connective,
+                        continuation.tense_modal.as_deref(),
+                    ),
+                    locus: "bridiTail".to_owned(),
+                    truth_table: None,
+                });
+            }
+            let previous_formula = *children
+                .last()
+                .expect("connected bridi tail starts with one child");
+            let next_formula =
+                self.build_connected_or_single_bridi_tail_formula(&continuation.bridi_tail)?;
+            children.push(next_formula);
+            self.push_modal_bridi_tail_connection_claim(
+                &mut children,
+                &mut diagnostics,
+                &continuation.connective,
+                continuation.tense_modal.as_deref(),
+                next_formula,
+                previous_formula,
+            )?;
         }
         let formula = self.next_formula();
         self.insert(
             formula,
-            SemanticObject::connective_formula(
-                operator,
-                children,
-                connector,
-                self.analysis
-                    .syntax_index
-                    .bridi_node_id(bridi)
-                    .and_then(|node| self.source_for_node(node.0, "compound-bridi-formula")),
-                Vec::new(),
-            ),
+            SemanticObject::connective_formula(operator, children, connector, source, diagnostics),
         )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_connected_or_single_bridi_tail_formula(
+        &mut self,
+        tail: &'tree BridiTailSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if tail.ke_continuation.is_some()
+            || tail.first.first.bo_continuation.is_some()
+            || !tail.first.continuations.is_empty()
+        {
+            self.build_connected_bridi_tail_formula(tail, None)
+        } else {
+            self.build_bo_grouped_tail_formula(&tail.first.first)
+        }
+    }
+
+    #[requires(visible_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(other_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn push_modal_bridi_tail_connection_claim(
+        &mut self,
+        children: &mut Vec<SemanticObjectId>,
+        diagnostics: &mut Vec<SemanticDiagnostic>,
+        connective: &ConnectiveSyntax,
+        tense_modal: Option<&TenseModalSyntax>,
+        visible_formula: SemanticObjectId,
+        other_formula: SemanticObjectId,
+    ) -> Result<(), SemanticsError> {
+        let Some(spec) = modal_connection_spec_for_connective_and_tense(connective, tense_modal)
+        else {
+            return Ok(());
+        };
+        let source = tense_modal.and_then(|tense_modal| {
+            self.source_for_tense_modal(tense_modal, "bridi-tail-connection-claim")
+        });
+        match self.build_modal_formula_connection_claim(
+            visible_formula,
+            other_formula,
+            &spec,
+            source,
+        )? {
+            Some(claim) => children.push(claim),
+            None => diagnostics.push(diagnostic(
+                "modal bridi-tail connection could not find formula-bearing bridi events to relate",
+            )),
+        }
+        Ok(())
     }
 
     #[requires(!children.is_empty())]
@@ -2527,6 +2640,18 @@ where
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_bo_grouped_tail_formula(
+        &mut self,
+        tail: &'tree BoGroupedBridiTailSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(continuation) = &tail.bo_continuation {
+            return self.build_bound_bridi_tail_connection_formula(tail, continuation);
+        }
+        self.build_bo_grouped_tail_formula_core(tail)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_bo_grouped_tail_formula_core(
         &mut self,
         tail: &'tree BoGroupedBridiTailSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -2614,6 +2739,55 @@ where
                     .selbri_node_id(selbri)
                     .and_then(|node| self.source_for_node(node.0, "bridi-tail-formula")),
                 Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_bound_bridi_tail_connection_formula(
+        &mut self,
+        leading_tail: &'tree BoGroupedBridiTailSyntax,
+        continuation: &'tree BoundBridiTailConnectionSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let first_formula = self.build_bo_grouped_tail_formula_core(leading_tail)?;
+        let second_formula = self.build_bo_grouped_tail_formula(&continuation.bridi_tail)?;
+        let mut children = vec![first_formula, second_formula];
+        let mut diagnostics = Vec::new();
+        if let Some(tense_modal) = continuation.tense_modal.as_deref()
+            && let Some(spec) = modal_statement_connection_spec_for_tense_modal(tense_modal)
+        {
+            match self.build_modal_formula_connection_claim(
+                second_formula,
+                first_formula,
+                &spec,
+                self.source_for_tense_modal(tense_modal, "bridi-tail-connection-claim"),
+            )? {
+                Some(claim) => children.push(claim),
+                None => diagnostics.push(diagnostic(
+                    "modal bridi-tail connection could not find formula-bearing bridi events to relate",
+                )),
+            }
+        }
+        let source = continuation.tense_modal.as_deref().and_then(|tense_modal| {
+            self.source_for_tense_modal(tense_modal, "bridi-tail-connection-formula")
+        });
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                formula_operator_for_connective(&continuation.connective),
+                children,
+                Some(Connector {
+                    source: modal_connective_text(
+                        &continuation.connective,
+                        continuation.tense_modal.as_deref(),
+                    ),
+                    locus: "bridiTail".to_owned(),
+                    truth_table: None,
+                }),
+                source,
+                diagnostics,
             ),
         )
     }
@@ -8985,30 +9159,43 @@ fn convert_numbered_place(place: usize, converted_place: usize) -> usize {
 #[ensures(true)]
 fn logical_sumti_connection_parts(
     sumti: &SumtiSyntax,
-) -> Option<(&SumtiSyntax, &ConnectiveSyntax, &SumtiSyntax)> {
+) -> Option<(
+    &SumtiSyntax,
+    &ConnectiveSyntax,
+    Option<&TenseModalSyntax>,
+    &SumtiSyntax,
+)> {
     match sumti.as_data() {
         data!(SumtiSyntax::SumtiConnection {
             leading_sumti,
             connective,
             trailing_sumti,
         }) if connective_is_logical(connective) => {
-            Some((leading_sumti, connective, trailing_sumti))
+            Some((leading_sumti, connective, None, trailing_sumti))
         }
         data!(SumtiSyntax::BoundSumtiConnection {
             leading_sumti,
             bo_connective,
+            bo_tense_modal,
             trailing_sumti,
             ..
         }) => bo_connective
             .as_deref()
             .filter(|connective| connective_is_logical(connective))
-            .map(|connective| (leading_sumti.as_ref(), connective, trailing_sumti.as_ref())),
+            .map(|connective| {
+                (
+                    leading_sumti.as_ref(),
+                    connective,
+                    bo_tense_modal.as_deref(),
+                    trailing_sumti.as_ref(),
+                )
+            }),
         data!(SumtiSyntax::ForethoughtSumtiConnection {
             leading_sumti,
             gek,
             trailing_sumti,
             ..
-        }) if connective_is_logical(gek) => Some((leading_sumti, gek, trailing_sumti)),
+        }) if connective_is_logical(gek) => Some((leading_sumti, gek, None, trailing_sumti)),
         _ => None,
     }
 }
@@ -9257,7 +9444,14 @@ fn modal_statement_connection_spec(
     connective: &ConnectiveSyntax,
 ) -> Option<ModalStatementConnectionSpec> {
     let (se, nahe, na, cmavo, nai) = match connective.as_data() {
-        data!(ConnectiveSyntax::Selbri {
+        data!(ConnectiveSyntax::Afterthought {
+            se,
+            nahe,
+            na,
+            cmavo,
+            nai,
+        })
+        | data!(ConnectiveSyntax::Selbri {
             se,
             nahe,
             na,
@@ -9270,23 +9464,69 @@ fn modal_statement_connection_spec(
             na,
             cmavo,
             nai,
+        })
+        | data!(ConnectiveSyntax::BridiTail {
+            se,
+            nahe,
+            na,
+            cmavo,
+            nai,
+        })
+        | data!(ConnectiveSyntax::NonLogical {
+            se,
+            nahe,
+            na,
+            cmavo,
+            nai,
+        })
+        | data!(ConnectiveSyntax::Interval {
+            se,
+            nahe,
+            na,
+            cmavo,
+            nai,
         }) => (se, nahe, na, cmavo, nai),
-        _ => return None,
     };
     if nahe.is_some() || na.is_some() || nai.is_some() {
         return None;
     }
-    let (inline_se, marker_token, bo) = match cmavo.value.as_slice() {
-        [marker_token, bo] => (None, marker_token, bo),
-        [se_token, marker_token, bo] if se_token.is_selmaho(Selmaho::Se) => {
-            (Some(se_token), marker_token, bo)
+    let (inline_se, marker_token, _terminator) = match cmavo.value.as_slice() {
+        [marker_token, terminator]
+            if marker_token.is_selmaho(Selmaho::Bai)
+                && matches!(terminator.cmavo(), Some(Cmavo::Bo | Cmavo::Gi)) =>
+        {
+            (None, marker_token, terminator)
+        }
+        [se_token, marker_token, terminator]
+            if se_token.is_selmaho(Selmaho::Se)
+                && marker_token.is_selmaho(Selmaho::Bai)
+                && matches!(terminator.cmavo(), Some(Cmavo::Bo | Cmavo::Gi)) =>
+        {
+            (Some(se_token), marker_token, terminator)
+        }
+        [_logical_token, marker_token, terminator]
+            if marker_token.is_selmaho(Selmaho::Bai)
+                && matches!(terminator.cmavo(), Some(Cmavo::Bo | Cmavo::Gi)) =>
+        {
+            (None, marker_token, terminator)
+        }
+        [_logical_token, se_token, marker_token, terminator]
+            if se_token.is_selmaho(Selmaho::Se)
+                && marker_token.is_selmaho(Selmaho::Bai)
+                && matches!(terminator.cmavo(), Some(Cmavo::Bo | Cmavo::Gi)) =>
+        {
+            (Some(se_token), marker_token, terminator)
+        }
+        [_logical_token, marker_token] if marker_token.is_selmaho(Selmaho::Bai) => {
+            (None, marker_token, marker_token)
+        }
+        [_logical_token, se_token, marker_token]
+            if se_token.is_selmaho(Selmaho::Se) && marker_token.is_selmaho(Selmaho::Bai) =>
+        {
+            (Some(se_token), marker_token, marker_token)
         }
         _ => return None,
     };
-    if !marker_token.is_selmaho(Selmaho::Bai) || !matches!(bo.cmavo(), Some(Cmavo::Bo | Cmavo::Gi))
-    {
-        return None;
-    }
     let marker = token_text(marker_token);
     let conversion = se.as_ref().or(inline_se);
     let visible_place = conversion.and_then(se_token_conversion_place).unwrap_or(1);
@@ -9300,6 +9540,62 @@ fn modal_statement_connection_spec(
         visible_place,
         argument_kind: modal_connection_argument_kind_for_marker(&marker),
     })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|spec| !spec.relation.is_empty() && spec.visible_place > 0))]
+fn modal_statement_connection_spec_for_tense_modal(
+    tense_modal: &TenseModalSyntax,
+) -> Option<ModalStatementConnectionSpec> {
+    let (introduced_by, relation, visible_place) =
+        modal_relation_spec_for_tense_modal(tense_modal)?;
+    let argument_kind = match tense_modal.as_data() {
+        data!(TenseModalSyntax::Modal { bai, .. }) => {
+            modal_connection_argument_kind_for_marker(&token_text(&bai.value))
+        }
+        _ => ModalConnectionArgumentKind::Eventuality,
+    };
+    Some(ModalStatementConnectionSpec {
+        introduced_by,
+        relation,
+        visible_place,
+        argument_kind,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|spec| !spec.relation.is_empty() && spec.visible_place > 0))]
+fn modal_connection_spec_for_connective_and_tense(
+    connective: &ConnectiveSyntax,
+    tense_modal: Option<&TenseModalSyntax>,
+) -> Option<ModalStatementConnectionSpec> {
+    tense_modal
+        .and_then(modal_statement_connection_spec_for_tense_modal)
+        .or_else(|| modal_statement_connection_spec(connective))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn modal_connection_visible_argument_is_first(connective: &ConnectiveSyntax) -> bool {
+    matches!(
+        connective.as_data(),
+        data!(ConnectiveSyntax::Forethought { .. })
+    )
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn modal_connective_text(
+    connective: &ConnectiveSyntax,
+    tense_modal: Option<&TenseModalSyntax>,
+) -> String {
+    if let Some(tense_modal) = tense_modal
+        && let Some((introduced_by, _relation, _visible_place)) =
+            modal_relation_spec_for_tense_modal(tense_modal)
+    {
+        return format!("{} {introduced_by} bo", connective_text(connective));
+    }
+    full_connective_text(connective)
 }
 
 #[requires(!marker.is_empty())]
@@ -9373,6 +9669,7 @@ fn modal_relation_for_marker(marker: &str) -> String {
         "bau" => "bangu".to_owned(),
         "cu'u" => "cusku".to_owned(),
         "do'e" => "unspecified-modal".to_owned(),
+        "du'i" => "dunli".to_owned(),
         "fi'e" => "finti".to_owned(),
         "ga'a" => "zgana".to_owned(),
         "ka'a" => "klama".to_owned(),
@@ -11858,6 +12155,78 @@ mod tests {
             assert_eq!(object(&json, formula)["type"], "formula");
         }
         assert_eq!(nibli["introducedBy"], "ni'i");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mixed_modal_statement_connection_keeps_modal_claim() {
+        let json =
+            semantic_json_for("mi nelci do .ijeki'ubo mi nelci la .djein.").expect("semantic JSON");
+        let sequence = object(&json, "sequence:s1");
+        let claim = sequence["connectionClaims"][0]
+            .as_str()
+            .expect("mixed connection claim");
+        let krinu = object(
+            &json,
+            object(&json, claim)["predication"]
+                .as_str()
+                .expect("claim predication"),
+        );
+        let nelci = predications_with_relation_and_mode(&json, "nelci", "asserted");
+        assert_eq!(krinu["introducedBy"], "ki'u");
+        assert_eq!(krinu["arguments"]["x1"]["value"], nelci[1]["eventuality"]);
+        assert_eq!(krinu["arguments"]["x2"]["value"], nelci[0]["eventuality"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mixed_modal_sumti_connection_keeps_modal_claim() {
+        let json = semantic_json_for("mi nelci do .eki'ubo la .djein.").expect("semantic JSON");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["connector"]["source"], "e ki'u bo");
+        assert_eq!(content["children"].as_array().expect("children").len(), 3);
+        let krinu = predication_with_relation_and_mode(&json, "krinu", "asserted");
+        let nelci = predications_with_relation_and_mode(&json, "nelci", "asserted");
+        assert_eq!(krinu["arguments"]["x1"]["value"], nelci[1]["eventuality"]);
+        assert_eq!(krinu["arguments"]["x2"]["value"], nelci[0]["eventuality"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mixed_bound_bridi_tail_connection_keeps_modal_claim() {
+        let json =
+            semantic_json_for("mi nelci do gi'eki'ubo nelci la .djein.").expect("semantic JSON");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["connector"]["source"], "gi'e ki'u bo");
+        assert_eq!(content["children"].as_array().expect("children").len(), 3);
+        let krinu = predication_with_relation_and_mode(&json, "krinu", "asserted");
+        let nelci = predications_with_relation_and_mode(&json, "nelci", "asserted");
+        assert_eq!(krinu["arguments"]["x1"]["value"], nelci[1]["eventuality"]);
+        assert_eq!(krinu["arguments"]["x2"]["value"], nelci[0]["eventuality"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn duhi_modal_connection_uses_dunli_source_relation() {
+        let json = semantic_json_for("mi bevri le gerku gi'adu'ibo bevri le mlatu")
+            .expect("semantic JSON");
+        let dunli = predication_with_relation_and_mode(&json, "dunli", "asserted");
+        assert_eq!(dunli["introducedBy"], "du'i");
+        assert_eq!(dunli["arguments"]["x3"]["kind"], "elided");
     }
 
     #[test]
