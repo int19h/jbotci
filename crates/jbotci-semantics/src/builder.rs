@@ -12,17 +12,18 @@ use jbotci_morphology::{
 use jbotci_syntax::ast::{
     AbstractionSyntax, AfterthoughtBridiTailSyntax, BoGroupedBridiTailSyntax,
     BoundBridiTailConnectionSyntax, BridiSyntax, BridiTailConnectionSyntax, BridiTailSyntax,
-    ConnectiveSyntax, ConnectiveSyntaxData, DescriptionSyntax, DescriptionTailElementSyntax,
-    DescriptionTailElementSyntaxData, ForethoughtBridiConnectionSyntax,
-    ForethoughtBridiConnectionSyntaxData, FragmentSyntax, FragmentSyntaxData, FreeModifierSyntax,
-    FreeModifierSyntaxData, GroupedBridiTailConnectionSyntax, MeksoOperatorSyntax,
-    MeksoOperatorSyntaxData, MeksoSyntax, MeksoSyntaxData, ParagraphStatementSyntax,
-    QuantifierSyntax, QuantifierSyntaxData, QuoteSyntax, QuoteSyntaxData, RelativeClauseSyntax,
-    RelativeClauseSyntaxData, SelbriSyntax, SelbriSyntaxData, SimpleBridiTailSyntax,
-    SimpleBridiTailSyntaxData, StatementSyntax, StatementSyntaxData, SubbridiSyntax,
-    SubbridiSyntaxData, SumtiAssociationPhraseSyntax, SumtiSyntax, SumtiSyntaxData,
-    TanruUnitSyntax, TanruUnitSyntaxData, TenseModalSyntax, TenseModalSyntaxData, TermSyntax,
-    TermSyntaxData, TextSyntax, Token, WithFreeModifiers, WordRun,
+    CompositeTenseModalPartSyntaxData, ConnectiveSyntax, ConnectiveSyntaxData, DescriptionSyntax,
+    DescriptionTailElementSyntax, DescriptionTailElementSyntaxData,
+    ForethoughtBridiConnectionSyntax, ForethoughtBridiConnectionSyntaxData, FragmentSyntax,
+    FragmentSyntaxData, FreeModifierSyntax, FreeModifierSyntaxData,
+    GroupedBridiTailConnectionSyntax, MeksoOperatorSyntax, MeksoOperatorSyntaxData, MeksoSyntax,
+    MeksoSyntaxData, ParagraphStatementSyntax, QuantifierSyntax, QuantifierSyntaxData, QuoteSyntax,
+    QuoteSyntaxData, RelativeClauseSyntax, RelativeClauseSyntaxData, SelbriSyntax,
+    SelbriSyntaxData, SimpleBridiTailSyntax, SimpleBridiTailSyntaxData, StatementSyntax,
+    StatementSyntaxData, SubbridiSyntax, SubbridiSyntaxData, SumtiAssociationPhraseSyntax,
+    SumtiSyntax, SumtiSyntaxData, SumtiTagSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData,
+    TenseModalSyntax, TenseModalSyntaxData, TermSyntax, TermSyntaxData, TextSyntax, Token,
+    WithFreeModifiers, WordRun,
 };
 
 use crate::model::{
@@ -390,6 +391,7 @@ struct TemporalPathRelation {
     relation: String,
     introduced_by: String,
     distance: Option<String>,
+    scalar_negation: Option<ScalarNegation>,
 }
 
 #[invariant(true)]
@@ -1479,6 +1481,8 @@ where
         let previous_asides = std::mem::take(&mut self.pending_asides);
         let formula = self.build_bridi_formula(bridi)?;
         let formula = self.wrap_bridi_formula_with_quantified_pro_sumti(bridi, formula)?;
+        let formula =
+            self.wrap_bridi_formula_with_contradictory_event_tense_negation(bridi, formula)?;
         let slots = std::mem::replace(&mut self.parameter_slots, previous_slots);
         let asides = std::mem::replace(&mut self.pending_asides, previous_asides);
         let is_question = truth_question || !slots.is_empty();
@@ -1598,6 +1602,24 @@ where
             body = formula;
         }
         Ok(body)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn wrap_bridi_formula_with_contradictory_event_tense_negation(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        formula: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let Some(tense_modal) = first_contradictory_event_tense_modal_for_bridi(bridi) else {
+            return Ok(formula);
+        };
+        self.build_unary_formula(
+            FormulaOperator::Not,
+            formula,
+            self.source_for_tense_modal(tense_modal, "tense-negation"),
+            Vec::new(),
+        )
     }
 
     #[requires(true)]
@@ -2073,8 +2095,7 @@ where
         let mut diagnostics = Vec::new();
         let time_relation = temporal_path_relations_for_tense_modal(tense_modal)
             .into_iter()
-            .next()
-            .map(|relation| relation.relation);
+            .next();
         let space_relation = space_path_relations_for_tense_modal(tense_modal)
             .into_iter()
             .next();
@@ -2089,9 +2110,10 @@ where
             );
             if let Some(relation) = time_relation {
                 event.time = Some(new!(AnchorRelation {
-                    relation,
+                    relation: relation.relation,
                     anchor: SemanticObjectId::speech_time(),
-                    distance: None,
+                    distance: relation.distance,
+                    scalar_negation: relation.scalar_negation,
                 }));
             }
             if let Some(relation) = space_relation {
@@ -2099,6 +2121,7 @@ where
                     relation: relation.relation,
                     anchor: SemanticObjectId::here(),
                     distance: relation.distance,
+                    scalar_negation: relation.scalar_negation,
                 }));
             }
             self.insert(eventuality, event)?;
@@ -6490,6 +6513,7 @@ where
                     relation: "at".to_owned(),
                     anchor: SemanticObjectId::speech_time(),
                     distance: None,
+                    scalar_negation: None,
                 }));
                 continue;
             }
@@ -6546,6 +6570,7 @@ where
                 relation: "after".to_owned(),
                 anchor,
                 distance: None,
+                scalar_negation: None,
             }));
         }
         if !modifier_application.temporal_modifier
@@ -6945,6 +6970,7 @@ where
             }) => {
                 let mut modal_arguments = Vec::new();
                 if let Some(tense_modal) = tense_modal.as_deref()
+                    && !tense_modal_has_event_modifier(tense_modal)
                     && let Some((introduced_by, relation, visible_place)) =
                         modal_relation_spec_for_tense_modal(tense_modal)
                 {
@@ -7021,6 +7047,9 @@ where
         tense_modal: &'tree TenseModalSyntax,
         construct: &str,
     ) -> Result<Option<ModalArgument>, SemanticsError> {
+        if tense_modal_has_event_modifier(tense_modal) {
+            return Ok(None);
+        }
         let Some((introduced_by, relation, visible_place)) =
             modal_relation_spec_for_tense_modal(tense_modal)
         else {
@@ -7828,7 +7857,8 @@ where
         match subbridi.as_data() {
             data!(SubbridiSyntax::Bridi(bridi)) => {
                 let formula = self.build_bridi_formula(bridi)?;
-                self.wrap_bridi_formula_with_quantified_pro_sumti(bridi, formula)
+                let formula = self.wrap_bridi_formula_with_quantified_pro_sumti(bridi, formula)?;
+                self.wrap_bridi_formula_with_contradictory_event_tense_negation(bridi, formula)
                     .map(Some)
             }
             data!(SubbridiSyntax::Prenex { inner_subbridi, .. }) => {
@@ -10713,7 +10743,11 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
         event.space_interval = Some(space_interval);
     }
     if let Some(contour) = temporal_aspect_contour_for_tense_modal(tense_modal) {
-        event.aspect = Some(Aspect::new(contour, anchor));
+        event.aspect = Some(Aspect::new_with_polarity(
+            contour,
+            anchor,
+            modal_scalar_negation_for_tense_modal(tense_modal),
+        ));
     }
     event.recurrence.extend(
         temporal_recurrences_for_tense_modal(tense_modal)
@@ -10721,7 +10755,11 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
             .map(|recurrence| recurrence_with_interval(recurrence, anchor)),
     );
     if let Some(contour) = spatial_aspect_contour_for_tense_modal(tense_modal) {
-        event.spatial_aspect = Some(Aspect::new(contour, anchor));
+        event.spatial_aspect = Some(Aspect::new_with_polarity(
+            contour,
+            anchor,
+            modal_scalar_negation_for_tense_modal(tense_modal),
+        ));
     }
     event.spatial_recurrence.extend(
         spatial_recurrences_for_tense_modal(tense_modal)
@@ -10749,12 +10787,14 @@ fn append_temporal_path_relations_to_event(
             relation,
             anchor,
             distance,
+            scalar_negation,
         }) = time.into_data();
         event.time_path.push(TemporalPathStep::new(
             relation,
             TemporalPathAnchor::object(anchor),
             "implicit".to_owned(),
             distance,
+            scalar_negation,
         ));
     }
     let mut first_relation = true;
@@ -10772,6 +10812,7 @@ fn append_temporal_path_relations_to_event(
             path_anchor,
             relation.introduced_by,
             relation.distance,
+            relation.scalar_negation,
         ));
     }
 }
@@ -10791,12 +10832,14 @@ fn normalize_event_time_path(event: &mut SemanticObject) {
         anchor,
         introduced_by: _,
         distance,
+        scalar_negation,
     }) = step.into_data();
     if let Some(anchor) = anchor.object_id() {
         event.time = Some(new!(AnchorRelation {
             relation,
             anchor,
             distance,
+            scalar_negation,
         }));
     } else {
         event.time_path.push(TemporalPathStep::new(
@@ -10804,6 +10847,7 @@ fn normalize_event_time_path(event: &mut SemanticObject) {
             anchor,
             "implicit".to_owned(),
             distance,
+            scalar_negation,
         ));
     }
 }
@@ -10830,12 +10874,14 @@ fn append_space_path_relations_to_event(
             relation,
             anchor,
             distance,
+            scalar_negation,
         }) = space.into_data();
         event.space_path.push(TemporalPathStep::new(
             relation,
             TemporalPathAnchor::object(anchor),
             "implicit".to_owned(),
             distance,
+            scalar_negation,
         ));
     }
     let mut first_relation = true;
@@ -10853,6 +10899,7 @@ fn append_space_path_relations_to_event(
             path_anchor,
             relation.introduced_by,
             relation.distance,
+            relation.scalar_negation,
         ));
     }
 }
@@ -10872,12 +10919,14 @@ fn normalize_event_space_path(event: &mut SemanticObject) {
         anchor,
         introduced_by: _,
         distance,
+        scalar_negation,
     }) = step.into_data();
     if let Some(anchor) = anchor.object_id() {
         event.space = Some(new!(AnchorRelation {
             relation,
             anchor,
             distance,
+            scalar_negation,
         }));
     } else {
         event.space_path.push(TemporalPathStep::new(
@@ -10885,6 +10934,7 @@ fn normalize_event_space_path(event: &mut SemanticObject) {
             anchor,
             "implicit".to_owned(),
             distance,
+            scalar_negation,
         ));
     }
 }
@@ -10927,6 +10977,470 @@ fn tense_modal_has_event_modifier(tense_modal: &TenseModalSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+fn tense_modal_has_contradictory_event_negation(tense_modal: &TenseModalSyntax) -> bool {
+    modal_negation_for_tense_modal(tense_modal).is_some()
+        && !matches!(
+            tense_modal.as_data(),
+            data!(TenseModalSyntax::Modal { .. }) | data!(TenseModalSyntax::AdHocModal { .. })
+        )
+        && tense_modal_has_event_modifier(tense_modal)
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_bridi(
+    bridi: &BridiSyntax,
+) -> Option<&TenseModalSyntax> {
+    bridi
+        .leading_terms
+        .iter()
+        .find_map(first_contradictory_event_tense_modal_for_term)
+        .or_else(|| first_contradictory_event_tense_modal_for_bridi_tail(&bridi.bridi_tail))
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_subbridi(
+    subbridi: &SubbridiSyntax,
+) -> Option<&TenseModalSyntax> {
+    match subbridi.as_data() {
+        data!(SubbridiSyntax::Bridi(bridi)) => {
+            first_contradictory_event_tense_modal_for_bridi(bridi)
+        }
+        data!(SubbridiSyntax::Prenex { inner_subbridi, .. }) => {
+            first_contradictory_event_tense_modal_for_subbridi(inner_subbridi)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_bridi_tail(
+    tail: &BridiTailSyntax,
+) -> Option<&TenseModalSyntax> {
+    first_contradictory_event_tense_modal_for_afterthought_bridi_tail(&tail.first).or_else(|| {
+        tail.ke_continuation
+            .as_deref()
+            .and_then(first_contradictory_event_tense_modal_for_grouped_bridi_tail_connection)
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_afterthought_bridi_tail(
+    tail: &AfterthoughtBridiTailSyntax,
+) -> Option<&TenseModalSyntax> {
+    first_contradictory_event_tense_modal_for_bo_grouped_bridi_tail(&tail.first).or_else(|| {
+        tail.continuations
+            .iter()
+            .find_map(first_contradictory_event_tense_modal_for_bridi_tail_connection)
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_bridi_tail_connection(
+    connection: &BridiTailConnectionSyntax,
+) -> Option<&TenseModalSyntax> {
+    connection
+        .tense_modal
+        .as_deref()
+        .filter(|tense_modal| tense_modal_has_contradictory_event_negation(tense_modal))
+        .or_else(|| {
+            first_contradictory_event_tense_modal_for_bo_grouped_bridi_tail(&connection.bridi_tail)
+        })
+        .or_else(|| {
+            connection
+                .tail_terms
+                .iter()
+                .find_map(first_contradictory_event_tense_modal_for_term)
+        })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_grouped_bridi_tail_connection(
+    connection: &GroupedBridiTailConnectionSyntax,
+) -> Option<&TenseModalSyntax> {
+    connection
+        .tense_modal
+        .as_deref()
+        .filter(|tense_modal| tense_modal_has_contradictory_event_negation(tense_modal))
+        .or_else(|| first_contradictory_event_tense_modal_for_bridi_tail(&connection.bridi_tail))
+        .or_else(|| {
+            connection
+                .tail_terms
+                .iter()
+                .find_map(first_contradictory_event_tense_modal_for_term)
+        })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_bo_grouped_bridi_tail(
+    tail: &BoGroupedBridiTailSyntax,
+) -> Option<&TenseModalSyntax> {
+    first_contradictory_event_tense_modal_for_simple_bridi_tail(&tail.first).or_else(|| {
+        tail.bo_continuation
+            .as_deref()
+            .and_then(first_contradictory_event_tense_modal_for_bound_bridi_tail_connection)
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_bound_bridi_tail_connection(
+    connection: &BoundBridiTailConnectionSyntax,
+) -> Option<&TenseModalSyntax> {
+    connection
+        .tense_modal
+        .as_deref()
+        .filter(|tense_modal| tense_modal_has_contradictory_event_negation(tense_modal))
+        .or_else(|| {
+            first_contradictory_event_tense_modal_for_bo_grouped_bridi_tail(&connection.bridi_tail)
+        })
+        .or_else(|| {
+            connection
+                .tail_terms
+                .iter()
+                .find_map(first_contradictory_event_tense_modal_for_term)
+        })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_simple_bridi_tail(
+    tail: &SimpleBridiTailSyntax,
+) -> Option<&TenseModalSyntax> {
+    match tail.as_data() {
+        data!(SimpleBridiTailSyntax::SelbriBridiTail { selbri, terms, .. }) => {
+            first_contradictory_event_tense_modal_for_selbri(selbri).or_else(|| {
+                terms
+                    .iter()
+                    .find_map(first_contradictory_event_tense_modal_for_term)
+            })
+        }
+        data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(
+            connection
+        )) => first_contradictory_event_tense_modal_for_forethought_bridi_connection(connection),
+        data!(SimpleBridiTailSyntax::TermPrefixedBridiTail { terms, bridi_tail }) => terms
+            .iter()
+            .find_map(first_contradictory_event_tense_modal_for_term)
+            .or_else(|| first_contradictory_event_tense_modal_for_bridi_tail(bridi_tail)),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_forethought_bridi_connection(
+    connection: &ForethoughtBridiConnectionSyntax,
+) -> Option<&TenseModalSyntax> {
+    match connection.as_data() {
+        data!(ForethoughtBridiConnectionSyntax::BridiConnection {
+            first,
+            second,
+            tail_terms,
+            ..
+        }) => first_contradictory_event_tense_modal_for_subbridi(first)
+            .or_else(|| first_contradictory_event_tense_modal_for_subbridi(second))
+            .or_else(|| {
+                tail_terms
+                    .iter()
+                    .find_map(first_contradictory_event_tense_modal_for_term)
+            }),
+        data!(ForethoughtBridiConnectionSyntax::GroupedBridiConnection {
+            tense_modal,
+            inner,
+            ..
+        }) => tense_modal
+            .as_deref()
+            .filter(|tense_modal| tense_modal_has_contradictory_event_negation(tense_modal))
+            .or_else(|| {
+                first_contradictory_event_tense_modal_for_forethought_bridi_connection(inner)
+            }),
+        data!(ForethoughtBridiConnectionSyntax::NegatedBridiConnection { inner, .. }) => {
+            first_contradictory_event_tense_modal_for_forethought_bridi_connection(inner)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_selbri(
+    selbri: &SelbriSyntax,
+) -> Option<&TenseModalSyntax> {
+    match selbri.as_data() {
+        data!(SelbriSyntax::TaggedSelbri {
+            tense_modal,
+            inner_selbri,
+        }) => {
+            if tense_modal_has_contradictory_event_negation(tense_modal) {
+                Some(tense_modal)
+            } else {
+                first_contradictory_event_tense_modal_for_selbri(inner_selbri)
+            }
+        }
+        data!(SelbriSyntax::GroupedSelbri {
+            ke_tense_modal,
+            selbri,
+            ..
+        }) => ke_tense_modal
+            .as_deref()
+            .filter(|tense_modal| tense_modal_has_contradictory_event_negation(tense_modal))
+            .or_else(|| first_contradictory_event_tense_modal_for_selbri(selbri)),
+        data!(SelbriSyntax::ConvertedSelbri { inner_selbri, .. })
+        | data!(SelbriSyntax::Negated { inner_selbri, .. }) => {
+            first_contradictory_event_tense_modal_for_selbri(inner_selbri)
+        }
+        data!(SelbriSyntax::Tanru(units)) => units
+            .iter()
+            .find_map(first_contradictory_event_tense_modal_for_tanru_unit),
+        data!(SelbriSyntax::InvertedTanru {
+            leading_selbri,
+            trailing_selbri,
+            ..
+        })
+        | data!(SelbriSyntax::SelbriConnection {
+            leading_selbri,
+            trailing_selbri,
+            ..
+        })
+        | data!(SelbriSyntax::BoundSelbriConnection {
+            leading_selbri,
+            trailing_selbri,
+            ..
+        }) => first_contradictory_event_tense_modal_for_selbri(leading_selbri)
+            .or_else(|| first_contradictory_event_tense_modal_for_selbri(trailing_selbri)),
+        data!(SelbriSyntax::ForethoughtSelbriConnection {
+            leading_bridi,
+            trailing_bridi,
+            ..
+        }) => first_contradictory_event_tense_modal_for_bridi(leading_bridi)
+            .or_else(|| first_contradictory_event_tense_modal_for_bridi(trailing_bridi)),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_tanru_unit(
+    unit: &TanruUnitSyntax,
+) -> Option<&TenseModalSyntax> {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+            first_contradictory_event_tense_modal_for_selbri(selbri)
+        }
+        data!(TanruUnitSyntax::ModalConversion {
+            tense_modal,
+            inner_unit,
+            ..
+        }) => tense_modal
+            .as_deref()
+            .filter(|tense_modal| tense_modal_has_contradictory_event_negation(tense_modal))
+            .or_else(|| first_contradictory_event_tense_modal_for_tanru_unit(inner_unit)),
+        data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
+        | data!(TanruUnitSyntax::RelativeClauses {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::LinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
+            base: inner_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::AssignedProBridi {
+            base: inner_unit,
+            ..
+        }) => first_contradictory_event_tense_modal_for_tanru_unit(inner_unit),
+        data!(TanruUnitSyntax::TanruUnitConnection {
+            leading_unit,
+            trailing_unit,
+            ..
+        })
+        | data!(TanruUnitSyntax::BoundTanruUnitConnection {
+            leading_unit,
+            trailing_unit,
+            ..
+        }) => first_contradictory_event_tense_modal_for_tanru_unit(leading_unit)
+            .or_else(|| first_contradictory_event_tense_modal_for_tanru_unit(trailing_unit)),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_term(term: &TermSyntax) -> Option<&TenseModalSyntax> {
+    match term.as_data() {
+        data!(TermSyntax::Termset { termset, .. }) => termset
+            .iter()
+            .find_map(first_contradictory_event_tense_modal_for_term),
+        data!(TermSyntax::ForethoughtTermsetConnection {
+            terms,
+            gik_terms,
+            ..
+        }) => terms
+            .iter()
+            .find_map(first_contradictory_event_tense_modal_for_term)
+            .or_else(|| {
+                gik_terms
+                    .iter()
+                    .find_map(first_contradictory_event_tense_modal_for_term)
+            }),
+        data!(TermSyntax::TermsetGroup {
+            leading_terms,
+            trailing_terms,
+            ..
+        })
+        | data!(TermSyntax::TermsetConnection {
+            leading_terms,
+            trailing_terms,
+            ..
+        }) => leading_terms
+            .iter()
+            .find_map(first_contradictory_event_tense_modal_for_term)
+            .or_else(|| {
+                trailing_terms
+                    .iter()
+                    .find_map(first_contradictory_event_tense_modal_for_term)
+            }),
+        data!(TermSyntax::Sumti(sumti)) | data!(TermSyntax::PlaceTaggedSumti { sumti, .. }) => {
+            first_contradictory_event_tense_modal_for_sumti(sumti)
+        }
+        data!(TermSyntax::JaiTaggedSumti { tag, sumti, .. }) => tag
+            .as_deref()
+            .filter(|tense_modal| tense_modal_has_contradictory_event_negation(tense_modal))
+            .or_else(|| first_contradictory_event_tense_modal_for_sumti(sumti)),
+        data!(TermSyntax::TaggedSumti { tense_modal, sumti }) => tense_modal
+            .as_deref()
+            .filter(|tense_modal| tense_modal_has_contradictory_event_negation(tense_modal))
+            .or_else(|| first_contradictory_event_tense_modal_for_sumti(sumti)),
+        data!(TermSyntax::RelativeAdverbialTerm {
+            tail_elements,
+            selbri,
+            ..
+        })
+        | data!(TermSyntax::BridiVariableAdverbialTerm {
+            tail_elements,
+            selbri,
+            ..
+        }) => tail_elements
+            .iter()
+            .find_map(first_contradictory_event_tense_modal_for_description_tail_element)
+            .or_else(|| {
+                selbri
+                    .as_deref()
+                    .and_then(first_contradictory_event_tense_modal_for_selbri)
+            }),
+        data!(TermSyntax::AdHocBridiAdverbialTerm { subbridi, .. })
+        | data!(TermSyntax::ReciprocalBridiAdverbialTerm { subbridi, .. }) => {
+            first_contradictory_event_tense_modal_for_subbridi(subbridi)
+        }
+        data!(TermSyntax::TermConnection {
+            leading_terms,
+            trailing_terms,
+            ..
+        }) => leading_terms
+            .iter()
+            .find_map(first_contradictory_event_tense_modal_for_term)
+            .or_else(|| {
+                trailing_terms
+                    .iter()
+                    .find_map(first_contradictory_event_tense_modal_for_term)
+            }),
+        data!(TermSyntax::BoundTermConnection {
+            leading_terms,
+            tense_modal,
+            trailing_term,
+            ..
+        }) => leading_terms
+            .iter()
+            .find_map(first_contradictory_event_tense_modal_for_term)
+            .or_else(|| {
+                tense_modal
+                    .as_deref()
+                    .filter(|tense_modal| tense_modal_has_contradictory_event_negation(tense_modal))
+            })
+            .or_else(|| first_contradictory_event_tense_modal_for_term(trailing_term)),
+        data!(TermSyntax::BridiNegation { .. }) | data!(TermSyntax::BareNegation(_)) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_description_tail_element(
+    element: &DescriptionTailElementSyntax,
+) -> Option<&TenseModalSyntax> {
+    match element.as_data() {
+        data!(DescriptionTailElementSyntax::DescriptionTailSumti(sumti)) => {
+            first_contradictory_event_tense_modal_for_sumti(sumti)
+        }
+        data!(DescriptionTailElementSyntax::DescriptionTailRelativeClauses(_))
+        | data!(DescriptionTailElementSyntax::DescriptionTailQuantifier(_)) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(tense_modal_has_contradictory_event_negation))]
+fn first_contradictory_event_tense_modal_for_sumti(
+    sumti: &SumtiSyntax,
+) -> Option<&TenseModalSyntax> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::TaggedSumti { tag, inner_sumti }) => {
+            let tag_tense = match tag.as_data() {
+                data!(SumtiTagSyntax::TenseModal(tense_modal)) => Some(tense_modal.as_ref()),
+                data!(SumtiTagSyntax::PlaceTag(_)) => None,
+            };
+            tag_tense
+                .filter(|tense_modal| tense_modal_has_contradictory_event_negation(tense_modal))
+                .or_else(|| first_contradictory_event_tense_modal_for_sumti(inner_sumti))
+        }
+        data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::ReferentSumti { inner_sumti, .. }) => {
+            first_contradictory_event_tense_modal_for_sumti(inner_sumti)
+        }
+        data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. }) => {
+            first_contradictory_event_tense_modal_for_sumti(base_sumti)
+        }
+        data!(SumtiSyntax::QualifiedTerm { inner_term, .. }) => {
+            first_contradictory_event_tense_modal_for_term(inner_term)
+        }
+        data!(SumtiSyntax::SumtiConnection {
+            leading_sumti,
+            trailing_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::BoundSumtiConnection {
+            leading_sumti,
+            trailing_sumti,
+            ..
+        }) => first_contradictory_event_tense_modal_for_sumti(leading_sumti)
+            .or_else(|| first_contradictory_event_tense_modal_for_sumti(trailing_sumti)),
+        data!(SumtiSyntax::GroupedSumti { inner_sumti, .. }) => {
+            first_contradictory_event_tense_modal_for_sumti(inner_sumti)
+        }
+        data!(SumtiSyntax::ForethoughtSumtiConnection {
+            leading_sumti,
+            trailing_sumti,
+            ..
+        }) => first_contradictory_event_tense_modal_for_sumti(leading_sumti)
+            .or_else(|| first_contradictory_event_tense_modal_for_sumti(trailing_sumti)),
+        data!(SumtiSyntax::BridiDescription { subbridi, .. }) => {
+            first_contradictory_event_tense_modal_for_subbridi(subbridi)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn selbri_has_event_modifiers(selbri: &SelbriSyntax) -> bool {
     match selbri.as_data() {
         data!(SelbriSyntax::TaggedSelbri {
@@ -10965,11 +11479,12 @@ fn temporal_path_relations_for_tense_modal(
                     continue;
                 };
                 if let Some(relation) = time_relation_for_pu_token(token) {
-                    relations.push(TemporalPathRelation {
+                    relations.push(path_relation_for_tense_modal(
                         relation,
-                        introduced_by: token_text(token),
-                        distance: None,
-                    });
+                        token_text(token),
+                        None,
+                        tense_modal,
+                    ));
                     continue;
                 }
                 if let Some(distance) = time_distance_for_zi_token(token)
@@ -10983,36 +11498,57 @@ fn temporal_path_relations_for_tense_modal(
         }
         data!(TenseModalSyntax::TimeDirection(word)) => time_relation_for_pu_token(&word.value)
             .map(|relation| {
-                vec![TemporalPathRelation {
+                vec![path_relation_for_tense_modal(
                     relation,
-                    introduced_by: token_text(&word.value),
-                    distance: None,
-                }]
+                    token_text(&word.value),
+                    None,
+                    tense_modal,
+                )]
             })
             .unwrap_or_default(),
         data!(TenseModalSyntax::TimeDirectionDistance { pu, distance }) => {
             time_relation_for_pu_token(pu)
                 .map(|relation| {
-                    vec![TemporalPathRelation {
+                    vec![path_relation_for_tense_modal(
                         relation,
-                        introduced_by: token_text(pu),
-                        distance: time_distance_for_zi_token(&distance.value),
-                    }]
+                        token_text(pu),
+                        time_distance_for_zi_token(&distance.value),
+                        tense_modal,
+                    )]
                 })
                 .unwrap_or_default()
         }
         data!(TenseModalSyntax::TimeDirectionActuality { pu, .. }) => {
             time_relation_for_pu_token(pu)
                 .map(|relation| {
-                    vec![TemporalPathRelation {
+                    vec![path_relation_for_tense_modal(
                         relation,
-                        introduced_by: token_text(pu),
-                        distance: None,
-                    }]
+                        token_text(pu),
+                        None,
+                        tense_modal,
+                    )]
                 })
                 .unwrap_or_default()
         }
         _ => Vec::new(),
+    }
+}
+
+#[requires(!relation.is_empty())]
+#[requires(!introduced_by.is_empty())]
+#[requires(distance.as_ref().is_none_or(|distance| !distance.is_empty()))]
+#[ensures(!ret.relation.is_empty())]
+fn path_relation_for_tense_modal(
+    relation: String,
+    introduced_by: String,
+    distance: Option<String>,
+    tense_modal: &TenseModalSyntax,
+) -> TemporalPathRelation {
+    TemporalPathRelation {
+        relation,
+        introduced_by,
+        distance,
+        scalar_negation: modal_scalar_negation_for_tense_modal(tense_modal),
     }
 }
 
@@ -11034,11 +11570,12 @@ fn space_path_relations_for_tense_modal(
                     continue;
                 };
                 if let Some(relation) = space_relation_for_faha_token(token) {
-                    relations.push(TemporalPathRelation {
+                    relations.push(path_relation_for_tense_modal(
                         relation,
-                        introduced_by: token_text(token),
-                        distance: None,
-                    });
+                        token_text(token),
+                        None,
+                        tense_modal,
+                    ));
                     previous_relation_accepts_distance = true;
                     continue;
                 }
@@ -11052,11 +11589,12 @@ fn space_path_relations_for_tense_modal(
                         continue;
                     }
                     if let Some(relation) = space_relation_for_space_distance_token(token) {
-                        relations.push(TemporalPathRelation {
+                        relations.push(path_relation_for_tense_modal(
                             relation,
-                            introduced_by: token_text(token),
-                            distance: None,
-                        });
+                            token_text(token),
+                            None,
+                            tense_modal,
+                        ));
                     }
                     previous_relation_accepts_distance = false;
                     continue;
@@ -11068,21 +11606,23 @@ fn space_path_relations_for_tense_modal(
         data!(TenseModalSyntax::SpaceDistance(word)) => {
             space_relation_for_space_distance_token(&word.value)
                 .map(|relation| {
-                    vec![TemporalPathRelation {
+                    vec![path_relation_for_tense_modal(
                         relation,
-                        introduced_by: token_text(&word.value),
-                        distance: None,
-                    }]
+                        token_text(&word.value),
+                        None,
+                        tense_modal,
+                    )]
                 })
                 .unwrap_or_default()
         }
         data!(TenseModalSyntax::SpaceDirection(word)) => space_relation_for_faha_token(&word.value)
             .map(|relation| {
-                vec![TemporalPathRelation {
+                vec![path_relation_for_tense_modal(
                     relation,
-                    introduced_by: token_text(&word.value),
-                    distance: None,
-                }]
+                    token_text(&word.value),
+                    None,
+                    tense_modal,
+                )]
             })
             .unwrap_or_default(),
         data!(TenseModalSyntax::SpaceMovement {
@@ -11091,13 +11631,14 @@ fn space_path_relations_for_tense_modal(
             ..
         }) => space_relation_for_faha_token(&direction.value)
             .map(|relation| {
-                vec![TemporalPathRelation {
+                vec![path_relation_for_tense_modal(
                     relation,
-                    introduced_by: token_text(&direction.value),
-                    distance: distance
+                    token_text(&direction.value),
+                    distance
                         .as_ref()
                         .and_then(|distance| space_distance_for_va_token(&distance.value)),
-                }]
+                    tense_modal,
+                )]
             })
             .unwrap_or_default(),
         _ => Vec::new(),
@@ -13723,9 +14264,15 @@ fn vocative_kind_for_markers(markers: &WithFreeModifiers<Vec<Token>>) -> String 
 #[requires(true)]
 #[ensures(!ret.introduced_by.is_empty())]
 fn scalar_negation_for_marker(marker: &WithFreeModifiers<Token>) -> ScalarNegation {
+    scalar_negation_for_token(&marker.value)
+}
+
+#[requires(true)]
+#[ensures(!ret.introduced_by.is_empty())]
+fn scalar_negation_for_token(token: &Token) -> ScalarNegation {
     ScalarNegation::new(
-        scalar_negation_kind_for_cmavo(marker.cmavo()),
-        token_text(&marker.value),
+        scalar_negation_kind_for_cmavo(token.cmavo()),
+        token_text(token),
     )
 }
 
@@ -13733,10 +14280,20 @@ fn scalar_negation_for_marker(marker: &WithFreeModifiers<Token>) -> ScalarNegati
 #[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
 fn modal_negation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<ModalNegation> {
     match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => parts.value.iter().find_map(|part| {
+            let data!(CompositeTenseModalPartSyntax::Cmavo(token)) = part.as_data() else {
+                return None;
+            };
+            (token.cmavo() == Some(Cmavo::Nai))
+                .then(|| ModalNegation::new(ModalNegationKind::Contradictory, token_text(token)))
+        }),
         data!(TenseModalSyntax::Modal { nai: Some(nai), .. }) => Some(ModalNegation::new(
             ModalNegationKind::Contradictory,
             token_text(&nai.value),
         )),
+        data!(TenseModalSyntax::IntervalProperty { nai: Some(nai), .. }) => Some(
+            ModalNegation::new(ModalNegationKind::Contradictory, token_text(&nai.value)),
+        ),
         _ => None,
     }
 }
@@ -13745,6 +14302,16 @@ fn modal_negation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<Moda
 #[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
 fn modal_scalar_negation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<ScalarNegation> {
     match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => parts.value.iter().find_map(|part| {
+            let data!(CompositeTenseModalPartSyntax::Cmavo(token)) = part.as_data() else {
+                return None;
+            };
+            matches!(
+                token.cmavo(),
+                Some(Cmavo::Nahe | Cmavo::Tohe | Cmavo::Nohe | Cmavo::Jeha)
+            )
+            .then(|| scalar_negation_for_token(token))
+        }),
         data!(TenseModalSyntax::Modal {
             nahe: Some(nahe),
             ..
@@ -14259,6 +14826,115 @@ mod tests {
         assert_eq!(event["recurrence"][1]["kind"], "ordinalOccurrence");
         assert_eq!(event["recurrence"][1]["introducedBy"], "re'u");
         assert_eq!(event["recurrence"][1]["value"]["integer"], 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn contradictory_tense_negation_wraps_positive_event_relation() {
+        let json = semantic_json_for("mi punai klama le zarci").expect("semantic JSON");
+        let root = object(&json, json["root"].as_str().expect("root id"));
+        let content = object(&json, root["content"].as_str().expect("utterance content"));
+        assert_eq!(content["operator"], "not");
+        assert_eq!(content["source"]["text"], "punai");
+
+        let child = object(
+            &json,
+            content["children"][0]
+                .as_str()
+                .expect("negated child formula"),
+        );
+        let klama = object(
+            &json,
+            child["predication"]
+                .as_str()
+                .expect("negated atom predication"),
+        );
+        assert!(klama.get("modalArguments").is_none());
+        let event = object(&json, klama["eventuality"].as_str().expect("klama event"));
+        assert_eq!(event["time"]["relation"], "before");
+        assert_eq!(event["time"]["anchor"], "referent:speech-time");
+        assert!(event["time"].get("negation").is_none());
+        assert!(event["time"].get("scalarNegation").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn contradictory_sumtcita_and_aspect_negation_wrap_formula_only() {
+        let spatial = semantic_json_for("le nanmu cu batci le gerku ne'inai le kumfa")
+            .expect("semantic JSON");
+        let spatial_root = object(&spatial, spatial["root"].as_str().expect("root id"));
+        let spatial_content = object(
+            &spatial,
+            spatial_root["content"].as_str().expect("utterance content"),
+        );
+        assert_eq!(spatial_content["operator"], "not");
+        assert_eq!(spatial_content["source"]["text"], "ne'inai");
+        let batci = predication_with_relation_and_mode(&spatial, "batci", "asserted");
+        let spatial_event = object(
+            &spatial,
+            batci["eventuality"].as_str().expect("batci event"),
+        );
+        assert_eq!(spatial_event["space"]["relation"], "within");
+        assert!(spatial_event["space"].get("negation").is_none());
+
+        let aspect = semantic_json_for("mi morsi ca'onai le nu mi jmive").expect("semantic JSON");
+        let aspect_root = object(&aspect, aspect["root"].as_str().expect("root id"));
+        let aspect_content = object(
+            &aspect,
+            aspect_root["content"].as_str().expect("utterance content"),
+        );
+        assert_eq!(aspect_content["operator"], "not");
+        assert_eq!(aspect_content["source"]["text"], "ca'onai");
+        let morsi = predication_with_relation_and_mode(&aspect, "morsi", "asserted");
+        let aspect_event = object(&aspect, morsi["eventuality"].as_str().expect("morsi event"));
+        assert_eq!(aspect_event["aspect"]["contour"], "continuative");
+        assert!(aspect_event["aspect"].get("negation").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn scalar_tense_negation_marks_event_relation_or_aspect() {
+        let temporal = semantic_json_for("mi na'e pu klama le zarci").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&temporal, "klama", "asserted");
+        let temporal_event = object(
+            &temporal,
+            klama["eventuality"].as_str().expect("klama event"),
+        );
+        assert_eq!(temporal_event["time"]["relation"], "before");
+        assert_eq!(
+            temporal_event["time"]["scalarNegation"]["kind"],
+            "otherThan"
+        );
+        assert_eq!(
+            temporal_event["time"]["scalarNegation"]["introducedBy"],
+            "na'e"
+        );
+
+        let spatial = semantic_json_for("le nanmu cu batci le gerku to'e ne'i le kumfa")
+            .expect("semantic JSON");
+        let batci = predication_with_relation_and_mode(&spatial, "batci", "asserted");
+        let spatial_event = object(
+            &spatial,
+            batci["eventuality"].as_str().expect("batci event"),
+        );
+        assert_eq!(spatial_event["space"]["relation"], "within");
+        assert_eq!(spatial_event["space"]["scalarNegation"]["kind"], "opposite");
+        assert_eq!(
+            spatial_event["space"]["scalarNegation"]["introducedBy"],
+            "to'e"
+        );
+
+        let aspect = semantic_json_for("mi morsi na'e ca'o le nu mi jmive").expect("semantic JSON");
+        let morsi = predication_with_relation_and_mode(&aspect, "morsi", "asserted");
+        let aspect_event = object(&aspect, morsi["eventuality"].as_str().expect("morsi event"));
+        assert_eq!(aspect_event["aspect"]["contour"], "continuative");
+        assert_eq!(
+            aspect_event["aspect"]["scalarNegation"]["kind"],
+            "otherThan"
+        );
     }
 
     #[test]

@@ -1170,6 +1170,8 @@ pub struct AnchorRelation {
     pub anchor: SemanticObjectId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distance: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scalar_negation: Option<ScalarNegation>,
 }
 
 #[invariant(!relation.is_empty(), "temporal path relation must be named")]
@@ -1184,6 +1186,8 @@ pub struct TemporalPathStep {
     pub introduced_by: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distance: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scalar_negation: Option<ScalarNegation>,
 }
 
 impl TemporalPathStep {
@@ -1197,12 +1201,14 @@ impl TemporalPathStep {
         anchor: TemporalPathAnchor,
         introduced_by: String,
         distance: Option<String>,
+        scalar_negation: Option<ScalarNegation>,
     ) -> Self {
         Self::from_data(data!(TemporalPathStep {
             relation,
             anchor,
             introduced_by,
             distance,
+            scalar_negation,
         }))
     }
 
@@ -1338,6 +1344,8 @@ pub struct Aspect {
     pub contour: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub anchor: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scalar_negation: Option<ScalarNegation>,
 }
 
 impl Aspect {
@@ -1345,7 +1353,22 @@ impl Aspect {
     #[requires(anchor.is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind())))]
     #[ensures(ret.contour == old(contour.clone()))]
     pub fn new(contour: String, anchor: Option<SemanticObjectId>) -> Self {
-        Self::from_data(data!(Aspect { contour, anchor }))
+        Self::new_with_polarity(contour, anchor, None)
+    }
+
+    #[requires(!contour.is_empty())]
+    #[requires(anchor.is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind())))]
+    #[ensures(ret.contour == old(contour.clone()))]
+    pub fn new_with_polarity(
+        contour: String,
+        anchor: Option<SemanticObjectId>,
+        scalar_negation: Option<ScalarNegation>,
+    ) -> Self {
+        Self::from_data(data!(Aspect {
+            contour,
+            anchor,
+            scalar_negation,
+        }))
     }
 
     #[requires(true)]
