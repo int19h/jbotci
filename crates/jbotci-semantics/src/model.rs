@@ -2854,8 +2854,8 @@ fn parameter_has_sort_and_role(
 #[ensures(true)]
 fn parameter_role_matches_sort(sort: Option<SemanticSort>, role: Option<ParameterRole>) -> bool {
     match role {
-        Some(ParameterRole::PropertySlot)
-        | Some(ParameterRole::RelativeClauseHead)
+        Some(ParameterRole::PropertySlot) => sort.is_some(),
+        Some(ParameterRole::RelativeClauseHead)
         | Some(ParameterRole::ArgumentQuestion)
         | Some(ParameterRole::AttitudeQuestion) => sort == Some(SemanticSort::Entity),
         Some(ParameterRole::RelationQuestion) => sort == Some(SemanticSort::Relation),

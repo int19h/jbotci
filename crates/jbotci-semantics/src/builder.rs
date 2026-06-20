@@ -2071,6 +2071,22 @@ where
             );
         }
         if let Some(selbri) = selbri
+            && let data!(SelbriSyntax::Abstraction(_)) = selbri.as_data()
+        {
+            return self
+                .build_selbri_tanru_formula_for_frame_with_visible_x1_override(
+                    selbri,
+                    selbri,
+                    self.bridi_frame(bridi),
+                    self.analysis
+                        .syntax_index
+                        .bridi_node_id(bridi)
+                        .and_then(|node| self.source_for_node(node.0, "bridi-formula")),
+                    None,
+                )
+                .map(|result| result.formula);
+        }
+        if let Some(selbri) = selbri
             && selbri_is_single_relation_question(selbri)
         {
             return self.build_relation_question_formula_for_bridi(bridi, selbri);
@@ -3466,6 +3482,20 @@ where
                     .and_then(|node| self.source_for_node(node.0, "tanru-inversion-formula")),
             );
         }
+        if let data!(SelbriSyntax::Abstraction(_)) = selbri.as_data() {
+            return self
+                .build_selbri_tanru_formula_for_frame_with_visible_x1_override(
+                    selbri,
+                    selbri,
+                    self.branch_frame_for_selbri(selbri),
+                    self.analysis
+                        .syntax_index
+                        .selbri_node_id(selbri)
+                        .and_then(|node| self.source_for_node(node.0, "bridi-tail-formula")),
+                    None,
+                )
+                .map(|result| result.formula);
+        }
         let relation = relation_label_for_selbri(selbri);
         if let Some(formula) = self.build_connected_event_tense_formula_for_frame(
             self.branch_frame_for_selbri(selbri),
@@ -3975,6 +4005,15 @@ where
                 visible_x1_override,
             );
         }
+        if let data!(SelbriSyntax::Abstraction(abstraction)) = relation_selbri.as_data() {
+            return self.build_abstraction_tanru_unit_formula_for_frame(
+                abstraction,
+                frame,
+                source,
+                visible_x1_override,
+                PredicationMode::Asserted,
+            );
+        }
         let visible_x1_place = visible_x1_place_for_selbri(relation_selbri);
         let mut overrides = BTreeMap::new();
         if let Some(argument) = visible_x1_override {
@@ -4251,6 +4290,14 @@ where
                     visible_x1_override,
                     PredicationMode::Asserted,
                 ),
+            data!(TanruUnitSyntax::Abstraction(abstraction)) => self
+                .build_abstraction_tanru_unit_formula_for_frame(
+                    abstraction,
+                    frame,
+                    source,
+                    visible_x1_override,
+                    PredicationMode::Asserted,
+                ),
             _ => self.build_simple_tanru_unit_formula_for_frame(
                 selbri,
                 unit,
@@ -4413,6 +4460,42 @@ where
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_abstraction_tanru_unit_formula_for_frame(
+        &mut self,
+        abstraction: &'tree AbstractionSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        visible_x1_override: Option<ArgumentValue>,
+        mode: PredicationMode,
+    ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        let kind = abstraction_kind_for_nu(abstraction);
+        let x1_argument = if let Some(argument) = visible_x1_override {
+            argument
+        } else if let Some(frame) = frame {
+            match self.numbered_assignment_argument_for_frame(frame, 1)? {
+                Some(argument) => argument,
+                None => self
+                    .build_elided_argument_for_place_with_sort(1, abstraction_output_sort(kind))?,
+            }
+        } else {
+            self.build_elided_argument_for_place_with_sort(1, abstraction_output_sort(kind))?
+        };
+        let formula = self.build_abstraction_link_formula_for_argument(
+            abstraction,
+            kind,
+            x1_argument.clone(),
+            frame,
+            source,
+            mode,
+        )?;
+        Ok(TanruFormulaForArgument {
+            formula,
+            x1_argument,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
     fn build_scalar_negated_tanru_unit_formula_for_frame(
         &mut self,
         selbri: Option<&'tree SelbriSyntax>,
@@ -4456,6 +4539,11 @@ where
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if let [single] = units
+            && let data!(TanruUnitSyntax::Abstraction(abstraction)) = single.as_data()
+        {
+            return self.build_property_abstraction_for_abstraction_tanru_unit(abstraction, source);
+        }
+        if let [single] = units
             && let Some(composition) =
                 self.build_property_composition_for_tanru_unit(single, source.clone())?
         {
@@ -4475,6 +4563,45 @@ where
         let abstraction = self.next_abstraction();
         self.insert(
             abstraction,
+            SemanticObject::abstraction(
+                AbstractionKind::Property,
+                body,
+                vec![parameter],
+                source,
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Abstraction) || ret.is_err())]
+    fn build_property_abstraction_for_abstraction_tanru_unit(
+        &mut self,
+        abstraction: &'tree AbstractionSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let kind = abstraction_kind_for_nu(abstraction);
+        let parameter = self.next_parameter();
+        self.insert(
+            parameter,
+            SemanticObject::parameter(
+                abstraction_output_sort(kind),
+                crate::model::ParameterRole::PropertySlot,
+                "ce'u".to_owned(),
+                source.clone(),
+            ),
+        )?;
+        let body = self.build_abstraction_link_formula_for_argument(
+            abstraction,
+            kind,
+            ArgumentValue::filled(parameter, None),
+            None,
+            source.clone(),
+            PredicationMode::Restrictive,
+        )?;
+        let property = self.next_abstraction();
+        self.insert(
+            property,
             SemanticObject::abstraction(
                 AbstractionKind::Property,
                 body,
@@ -4625,6 +4752,9 @@ where
         selbri: &'tree SelbriSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if let data!(SelbriSyntax::Abstraction(abstraction)) = selbri.as_data() {
+            return self.build_property_abstraction_for_abstraction_tanru_unit(abstraction, source);
+        }
         let parameter = self.next_parameter();
         self.insert(
             parameter,
@@ -4733,6 +4863,16 @@ where
         }
         let frame = self
             .semantic_predication_frame_for_selbri(selbri, self.branch_frame_for_selbri(selbri));
+        if let data!(SelbriSyntax::Abstraction(abstraction)) = selbri.as_data() {
+            return self.build_abstraction_link_formula_for_argument(
+                abstraction,
+                abstraction_kind_for_nu(abstraction),
+                ArgumentValue::filled(parameter, None),
+                frame,
+                source,
+                PredicationMode::Restrictive,
+            );
+        }
         if selbri_is_single_relation_question(selbri)
             && let Some(relation_parameter) =
                 self.build_relation_question_parameter_for_selbri(selbri)?
@@ -4931,6 +5071,15 @@ where
                     PredicationMode::Restrictive,
                 )
                 .map(|result| result.formula),
+            data!(TanruUnitSyntax::Abstraction(abstraction)) => self
+                .build_abstraction_link_formula_for_argument(
+                    abstraction,
+                    abstraction_kind_for_nu(abstraction),
+                    ArgumentValue::filled(parameter, None),
+                    self.branch_frame_for_tanru_unit(unit),
+                    source,
+                    PredicationMode::Restrictive,
+                ),
             data!(TanruUnitSyntax::ScalarNegatedTanruUnit { nahe, inner_unit }) => {
                 let frame = self.semantic_predication_frame_for_tanru_unit(
                     unit,
@@ -8643,7 +8792,18 @@ where
         &mut self,
         place: usize,
     ) -> Result<ArgumentValue, SemanticsError> {
-        let referent = self.build_elided_referent(None, format!("zo'e x{place}"))?;
+        self.build_elided_argument_for_place_with_sort(place, SemanticSort::Entity)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_elided_argument_for_place_with_sort(
+        &mut self,
+        place: usize,
+        sort: SemanticSort,
+    ) -> Result<ArgumentValue, SemanticsError> {
+        let referent =
+            self.build_elided_referent_with_sort(None, format!("zo'e x{place}"), sort)?;
         Ok(ArgumentValue::elided(referent, "zo'e".to_owned(), None))
     }
 
@@ -9715,12 +9875,23 @@ where
         raw: Option<RawSyntaxNodeId>,
         label: String,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_elided_referent_with_sort(raw, label, SemanticSort::Entity)
+    }
+
+    #[requires(!label.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_elided_referent_with_sort(
+        &mut self,
+        raw: Option<RawSyntaxNodeId>,
+        label: String,
+        sort: SemanticSort,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.next_referent();
         self.insert(
             id,
             SemanticObject::referent(
                 ReferentCategory::Constant,
-                SemanticSort::Entity,
+                sort,
                 None,
                 Some(Descriptor {
                     kind: "elided".to_owned(),
@@ -10534,36 +10705,7 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         let abstraction = description_abstraction.abstraction;
         let kind = abstraction_kind_for_nu(abstraction);
-        self.abstraction_parameter_stack.push(Vec::new());
-        let body = match self
-            .build_subbridi_formula(&abstraction.subbridi)
-            .and_then(|body| {
-                body.map(Ok)
-                    .unwrap_or_else(|| self.build_diagnostic_abstraction_body_formula(abstraction))
-            }) {
-            Ok(body) => body,
-            Err(error) => {
-                let _ = self.abstraction_parameter_stack.pop();
-                return Err(error);
-            }
-        };
-        let parameters = self
-            .abstraction_parameter_stack
-            .pop()
-            .expect("abstraction parameter stack was just pushed");
-        let body_mode = if kind == AbstractionKind::Property {
-            PredicationMode::Restrictive
-        } else {
-            PredicationMode::Inert
-        };
-        self.set_formula_predication_mode(body, body_mode);
-
-        let source = self.source_for_abstraction(abstraction, "abstraction");
-        let abstraction_id = self.next_abstraction();
-        self.insert(
-            abstraction_id,
-            SemanticObject::abstraction(kind, body, parameters, source.clone(), Vec::new()),
-        )?;
+        let abstraction_id = self.build_abstraction_object(abstraction, kind)?;
 
         let predication = self.next_predication();
         let mut arguments = BTreeMap::new();
@@ -10591,6 +10733,77 @@ where
                 }),
                 Vec::new(),
             ),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Abstraction) || ret.is_err())]
+    fn build_abstraction_object(
+        &mut self,
+        abstraction: &'tree AbstractionSyntax,
+        kind: AbstractionKind,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.abstraction_parameter_stack.push(Vec::new());
+        let body = match self
+            .build_subbridi_formula(&abstraction.subbridi)
+            .and_then(|body| {
+                body.map(Ok)
+                    .unwrap_or_else(|| self.build_diagnostic_abstraction_body_formula(abstraction))
+            }) {
+            Ok(body) => body,
+            Err(error) => {
+                let _ = self.abstraction_parameter_stack.pop();
+                return Err(error);
+            }
+        };
+        let parameters = self
+            .abstraction_parameter_stack
+            .pop()
+            .expect("abstraction parameter stack was just pushed");
+        self.set_formula_predication_mode(body, abstraction_body_mode(kind));
+
+        let source = self.source_for_abstraction(abstraction, "abstraction");
+        let abstraction_id = self.next_abstraction();
+        self.insert(
+            abstraction_id,
+            SemanticObject::abstraction(kind, body, parameters, source.clone(), Vec::new()),
+        )?;
+        Ok(abstraction_id)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_abstraction_link_formula_for_argument(
+        &mut self,
+        abstraction: &'tree AbstractionSyntax,
+        kind: AbstractionKind,
+        x1_argument: ArgumentValue,
+        frame: Option<SelbriPlaceFrameId>,
+        source: Option<crate::model::SemanticSource>,
+        mode: PredicationMode,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let abstraction_id = self.build_abstraction_object(abstraction, kind)?;
+        let predication = self.next_predication();
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), x1_argument);
+        arguments.insert("x2".to_owned(), ArgumentValue::filled(abstraction_id, None));
+        let modal_arguments = self.modal_assignment_arguments(frame)?;
+        self.insert(predication, {
+            let mut object = SemanticObject::predication(
+                abstraction_link_relation(kind).to_owned(),
+                None,
+                arguments,
+                mode,
+                source.clone(),
+                Vec::new(),
+            );
+            object.modal_arguments = modal_arguments;
+            object
+        })?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
         )
     }
 
@@ -14821,6 +15034,16 @@ fn abstraction_kind_for_nu(abstraction: &AbstractionSyntax) -> AbstractionKind {
 
 #[requires(true)]
 #[ensures(true)]
+fn abstraction_body_mode(kind: AbstractionKind) -> PredicationMode {
+    if kind == AbstractionKind::Property {
+        PredicationMode::Restrictive
+    } else {
+        PredicationMode::Inert
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn abstraction_output_sort(kind: AbstractionKind) -> SemanticSort {
     match kind {
         AbstractionKind::Event
@@ -18385,13 +18608,30 @@ mod tests {
     #[ensures(true)]
     fn abstraction_tanru_unit_preserves_embedded_relation_label() {
         let json = semantic_json_for("ti nu zdile kei kumfa").expect("semantic JSON");
-        let event_property = predication_with_relation_and_mode(&json, "nu zdile", "restrictive");
+        let event_property = predication_with_relation_and_mode(&json, "eventOf", "restrictive");
+        assert_eq!(object(&json, "parameter:p1")["sort"], "eventuality");
         assert_eq!(event_property["arguments"]["x1"]["value"], "parameter:p1");
-        assert!(event_property["arguments"].get("x2").is_none());
+        assert_eq!(event_property["arguments"]["x2"]["value"], "abstraction:a1");
         assert!(event_property.get("diagnostics").is_none());
         let tanru =
             predication_with_relation_and_mode(&json, "R[tanru:nu zdile-kumfa]", "asserted");
-        assert_eq!(tanru["arguments"]["x2"]["value"], "abstraction:a1");
+        assert_eq!(tanru["arguments"]["x2"]["value"], "abstraction:a2");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_abstraction_selbri_reifies_body_formula() {
+        let json = semantic_json_for("nu mi klama le zarci").expect("semantic JSON");
+        let event_of = predication_with_relation_and_mode(&json, "eventOf", "asserted");
+        let event = event_of["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("event x1");
+        assert_eq!(object(&json, event)["sort"], "eventuality");
+        assert_eq!(event_of["arguments"]["x2"]["value"], "abstraction:a1");
+        assert_eq!(object(&json, "abstraction:a1")["abstractionKind"], "event");
+        let klama = predication_with_relation_and_mode(&json, "klama", "inert");
+        assert_eq!(klama["arguments"]["x1"]["value"], "referent:speaker");
     }
 
     #[test]
