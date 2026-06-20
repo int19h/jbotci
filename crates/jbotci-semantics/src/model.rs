@@ -2774,7 +2774,17 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
                     .iter()
                     .all(|place| is_numbered_argument_place(place))
         })
-        && optional_reference_has_kind(object.focus, SemanticObjectKind::Parameter)
+        && question_focus_matches_role(object.focus)
+        && question_focus_matches_role(object.presupposed_answer)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn question_focus_matches_role(focus: Option<SemanticObjectId>) -> bool {
+    focus.is_none_or(|focus| {
+        focus.object_kind() == SemanticObjectKind::Parameter
+            || focus.object_kind() == SemanticObjectKind::Referent
+    })
 }
 
 #[requires(true)]

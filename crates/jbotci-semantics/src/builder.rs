@@ -24,7 +24,7 @@ use jbotci_syntax::ast::{
     SubbridiSyntaxData, SumtiAssociationPhraseSyntax, SumtiSyntax, SumtiSyntaxData,
     SumtiTagSyntaxData, TanruUnitSyntax, TanruUnitSyntaxData, TenseModalSyntax,
     TenseModalSyntaxData, TermSyntax, TermSyntaxData, TextSyntax, Token, WithFreeModifiers,
-    WordRun,
+    WithIndicators, WordRun,
 };
 
 use crate::model::{
@@ -440,6 +440,19 @@ struct QuantifiedProSumtiScope {
     source: Option<crate::model::SemanticSource>,
 }
 
+#[invariant(focus.object_kind() == crate::model::SemanticObjectKind::Parameter || focus.object_kind() == crate::model::SemanticObjectKind::Referent)]
+#[invariant(presupposed_answer.is_none_or(|answer| answer.object_kind() == crate::model::SemanticObjectKind::Referent || answer.object_kind() == crate::model::SemanticObjectKind::Parameter))]
+#[invariant(slots.iter().all(|slot| slot.parameter.object_kind() == crate::model::SemanticObjectKind::Parameter))]
+#[derive(Debug, Clone)]
+struct IndirectQuestionFocus {
+    focus: SemanticObjectId,
+    presupposed_answer: Option<SemanticObjectId>,
+    slots: Vec<QuestionSlot>,
+    kind: QuestionKind,
+    domain: SemanticSort,
+    source: Option<crate::model::SemanticSource>,
+}
+
 impl IdCounters {
     #[requires(true)]
     #[ensures(ret.utterance == 1)]
@@ -488,6 +501,7 @@ where
     utterance_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     content_eventualities: HashMap<SemanticObjectId, SemanticObjectId>,
     parameter_slots: Vec<QuestionSlot>,
+    indirect_question_stack: Vec<Vec<IndirectQuestionFocus>>,
     abstraction_parameter_stack: Vec<Vec<SemanticObjectId>>,
     temporal_context_stack: Vec<SemanticObjectId>,
     story_time_anchor: Option<SemanticObjectId>,
@@ -525,6 +539,7 @@ where
             utterance_objects: HashMap::new(),
             content_eventualities: HashMap::new(),
             parameter_slots: Vec::new(),
+            indirect_question_stack: Vec::new(),
             abstraction_parameter_stack: Vec::new(),
             temporal_context_stack: Vec::new(),
             story_time_anchor: None,
@@ -2315,6 +2330,7 @@ where
         let mut alternatives = BTreeMap::<String, Vec<AlternativeArgument>>::new();
         let mut highest_assigned_place = 0usize;
         let mut connector = None;
+        let mut connector_question_token = None;
         let mut modal_connection_spec = None;
         let mut modal_connection_visible_first = true;
         let mut operator = FormulaOperator::And;
@@ -2340,12 +2356,18 @@ where
                 logical_sumti_connection_parts(sumti)
             {
                 if connector.is_none() {
-                    operator = formula_operator_for_connective(connective);
+                    let connector_question = connective_question_token_for_connective(connective);
+                    operator = if connector_question.is_some() {
+                        FormulaOperator::ConnectiveQuestion
+                    } else {
+                        formula_operator_for_connective(connective)
+                    };
                     modal_connection_spec = tense_modal
                         .and_then(modal_statement_connection_spec_for_tense_modal)
                         .or_else(|| modal_statement_connection_spec(connective));
                     modal_connection_visible_first =
                         modal_connection_visible_argument_is_first(connective, tense_modal);
+                    connector_question_token = connector_question.cloned();
                     connector = Some(Connector {
                         source: modal_connective_text(connective, tense_modal),
                         locus: "sumti".to_owned(),
@@ -2510,6 +2532,13 @@ where
                     "modal sumti connection with more than two distributed branches is not fully lowered yet",
                 ));
             }
+        }
+        let connector_parameter = connector_question_token
+            .as_ref()
+            .map(|token| self.build_connective_question_parameter_for_token(token))
+            .transpose()?;
+        if let Some(connector) = connector.as_mut() {
+            connector.parameter = connector_parameter;
         }
         let formula = self.next_formula();
         self.insert(
@@ -2745,16 +2774,24 @@ where
             }
         }
         let formula = self.next_formula();
+        let connector_question = connective_question_token_for_connective(connective);
+        let connector_parameter = connector_question
+            .map(|token| self.build_connective_question_parameter_for_token(token))
+            .transpose()?;
         self.insert(
             formula,
             SemanticObject::connective_formula(
-                formula_operator_for_connective(connective),
+                if connector_question.is_some() {
+                    FormulaOperator::ConnectiveQuestion
+                } else {
+                    formula_operator_for_connective(connective)
+                },
                 children,
                 Some(Connector {
                     source: modal_connective_text(connective, tense_modal),
                     locus: "sumti".to_owned(),
                     truth_table: None,
-                    parameter: None,
+                    parameter: connector_parameter,
                 }),
                 self.analysis
                     .syntax_index
@@ -9154,6 +9191,18 @@ where
             )?,
             _ => self.build_diagnostic_referent(raw, "sumti construct is not fully lowered yet")?,
         };
+        if id.object_kind() == crate::model::SemanticObjectKind::Referent
+            && sumti_has_current_kau_focus(sumti)
+        {
+            self.record_indirect_question_focus(new!(IndirectQuestionFocus {
+                focus: id,
+                presupposed_answer: Some(id),
+                slots: Vec::new(),
+                kind: QuestionKind::Argument,
+                domain: SemanticSort::Entity,
+                source: self.source_for_node(raw, "indirect-question"),
+            }));
+        }
         self.sumti_objects.insert(raw, id);
         Ok(id)
     }
@@ -9710,8 +9759,33 @@ where
         raw: RawSyntaxNodeId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.build_parameter(token, raw, crate::model::ParameterRole::ArgumentQuestion)?;
+        if with_free_modifiers_has_indicator_cmavo(token, Cmavo::Kau)
+            && self.record_indirect_question_focus(new!(IndirectQuestionFocus {
+                focus: id,
+                presupposed_answer: None,
+                slots: vec![QuestionSlot {
+                    parameter: id,
+                    role: QuestionSlotRole::Answer,
+                }],
+                kind: QuestionKind::Argument,
+                domain: SemanticSort::Entity,
+                source: self.source_for_node(raw, "indirect-question"),
+            }))
+        {
+            return Ok(id);
+        }
         self.push_question_answer_slot(id);
         Ok(id)
+    }
+
+    #[requires(focus.focus.object_kind() == crate::model::SemanticObjectKind::Parameter || focus.focus.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret == old(self.indirect_question_stack.last().is_some()) || (!ret && self.indirect_question_stack.last().is_none()))]
+    fn record_indirect_question_focus(&mut self, focus: IndirectQuestionFocus) -> bool {
+        let Some(foci) = self.indirect_question_stack.last_mut() else {
+            return false;
+        };
+        foci.push(focus);
+        true
     }
 
     #[requires(true)]
@@ -9902,12 +9976,28 @@ where
         &mut self,
         token: &Token,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        let source = self.source_for_token(token, "parameter");
         let id = self.build_parameter_with_source(
             token_text(token),
-            self.source_for_token(token, "parameter"),
+            source.clone(),
             SemanticSort::Connective,
             crate::model::ParameterRole::ConnectiveQuestion,
         )?;
+        if token_has_indicator_cmavo(token, Cmavo::Kau)
+            && self.record_indirect_question_focus(new!(IndirectQuestionFocus {
+                focus: id,
+                presupposed_answer: None,
+                slots: vec![QuestionSlot {
+                    parameter: id,
+                    role: QuestionSlotRole::Answer,
+                }],
+                kind: QuestionKind::Connective,
+                domain: SemanticSort::Connective,
+                source: self.source_for_token(token, "indirect-question"),
+            }))
+        {
+            return Ok(id);
+        }
         self.push_question_answer_slot(id);
         Ok(id)
     }
@@ -10789,6 +10879,7 @@ where
         kind: AbstractionKind,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.abstraction_parameter_stack.push(Vec::new());
+        self.indirect_question_stack.push(Vec::new());
         let body = match self
             .build_subbridi_formula(&abstraction.subbridi)
             .and_then(|body| {
@@ -10798,9 +10889,14 @@ where
             Ok(body) => body,
             Err(error) => {
                 let _ = self.abstraction_parameter_stack.pop();
+                let _ = self.indirect_question_stack.pop();
                 return Err(error);
             }
         };
+        let indirect_questions = self
+            .indirect_question_stack
+            .pop()
+            .expect("indirect question stack was just pushed");
         let parameters = self
             .abstraction_parameter_stack
             .pop()
@@ -10817,14 +10913,44 @@ where
             )?;
         }
         self.set_formula_predication_mode(body, abstraction_body_mode(kind));
+        let embedded_questions =
+            self.build_embedded_indirect_questions(body, indirect_questions)?;
 
         let source = self.source_for_abstraction(abstraction, "abstraction");
         let abstraction_id = self.next_abstraction();
-        self.insert(
-            abstraction_id,
-            SemanticObject::abstraction(kind, body, parameters, source.clone(), Vec::new()),
-        )?;
+        let mut object =
+            SemanticObject::abstraction(kind, body, parameters, source.clone(), Vec::new());
+        object.embedded_questions = embedded_questions;
+        self.insert(abstraction_id, object)?;
         Ok(abstraction_id)
+    }
+
+    #[requires(body.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|questions| questions.iter().all(|question| question.object_kind() == crate::model::SemanticObjectKind::Question)) || ret.is_err())]
+    fn build_embedded_indirect_questions(
+        &mut self,
+        body: SemanticObjectId,
+        foci: Vec<IndirectQuestionFocus>,
+    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+        let mut questions = Vec::new();
+        for focus in foci {
+            let data!(IndirectQuestionFocus {
+                focus,
+                presupposed_answer,
+                slots,
+                kind,
+                domain,
+                source,
+            }) = focus.into_data();
+            let id = self.next_question();
+            let mut object =
+                SemanticObject::question(kind, QuestionMode::Indirect, domain, body, slots, source);
+            object.focus = Some(focus);
+            object.presupposed_answer = presupposed_answer;
+            self.insert(id, object)?;
+            questions.push(id);
+        }
+        Ok(questions)
     }
 
     #[requires(body.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -11552,6 +11678,96 @@ fn free_modifiers_have_reciprocity(free_modifiers: &[FreeModifierSyntax]) -> boo
             data!(FreeModifierSyntax::ReciprocalSumti { .. })
         )
     })
+}
+
+#[requires(true)]
+#[ensures(ret == indicators_have_indicator_cmavo(token.as_indicators(), cmavo))]
+fn token_has_indicator_cmavo(token: &Token, cmavo: Cmavo) -> bool {
+    indicators_have_indicator_cmavo(token.as_indicators(), cmavo)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn indicators_have_indicator_cmavo(indicators: &WithIndicators<WordLike>, cmavo: Cmavo) -> bool {
+    match indicators {
+        WithIndicators::Plain(_) | WithIndicators::Emphasized { .. } => false,
+        WithIndicators::WithIndicator {
+            base, indicator, ..
+        } => indicator.cmavo() == Some(cmavo) || indicators_have_indicator_cmavo(base, cmavo),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn with_free_modifiers_has_indicator_cmavo(token: &WithFreeModifiers<Token>, cmavo: Cmavo) -> bool {
+    token_has_indicator_cmavo(&token.value, cmavo)
+        || free_modifiers_have_indicator_cmavo(&token.free_modifiers, cmavo)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_run_has_indicator_cmavo(words: &WithFreeModifiers<WordRun>, cmavo: Cmavo) -> bool {
+    let mut found = false;
+    words.visit_words(&mut |token| {
+        found |= token_has_indicator_cmavo(token, cmavo);
+    });
+    found
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn free_modifiers_have_indicator_cmavo(
+    free_modifiers: &[FreeModifierSyntax],
+    cmavo: Cmavo,
+) -> bool {
+    let mut found = false;
+    for free_modifier in free_modifiers {
+        free_modifier.visit_words(&mut |token| {
+            found |= token.cmavo() == Some(cmavo) || token_has_indicator_cmavo(token, cmavo);
+        });
+    }
+    found
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sumti_has_current_kau_focus(sumti: &SumtiSyntax) -> bool {
+    match sumti.as_data() {
+        data!(SumtiSyntax::ProSumti(token)) => {
+            with_free_modifiers_has_indicator_cmavo(token, Cmavo::Kau)
+        }
+        data!(SumtiSyntax::NameDescription { names, .. })
+        | data!(SumtiSyntax::NameWords(names)) => word_run_has_indicator_cmavo(names, Cmavo::Kau),
+        data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithRelativeClauses {
+            base_sumti: inner_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
+            base_sumti: inner_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. }) => {
+            sumti_has_current_kau_focus(inner_sumti)
+        }
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|token| token.cmavo() == Some(Cmavo::Ji) && token_has_indicator_cmavo(token, Cmavo::Kau)))]
+fn connective_question_token_for_connective(connective: &ConnectiveSyntax) -> Option<&Token> {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Afterthought { cmavo, .. })
+        | data!(ConnectiveSyntax::Selbri { cmavo, .. })
+        | data!(ConnectiveSyntax::BridiTail { cmavo, .. })
+        | data!(ConnectiveSyntax::Forethought { cmavo, .. })
+        | data!(ConnectiveSyntax::NonLogical { cmavo, .. })
+        | data!(ConnectiveSyntax::Interval { cmavo, .. }) => cmavo.value.iter().find(|token| {
+            token.cmavo() == Some(Cmavo::Ji) && token_has_indicator_cmavo(token, Cmavo::Kau)
+        }),
+    }
 }
 
 #[requires(true)]
@@ -20342,6 +20558,95 @@ mod tests {
             object(&json, "predication:p1")["arguments"]["x1"]["value"],
             "parameter:p1"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ma_kau_is_embedded_indirect_question_inside_duhu() {
+        let json =
+            semantic_json_for("mi djuno le du'u ma kau pu klama le zarci").expect("semantic JSON");
+        let utterance = object(&json, "utterance:u1");
+        assert_eq!(utterance["force"], "assert");
+        assert_eq!(
+            object(&json, utterance["content"].as_str().unwrap())["type"],
+            "formula"
+        );
+
+        let abstraction = object(&json, "abstraction:a1");
+        assert_eq!(abstraction["embeddedQuestions"][0], "question:q1");
+
+        let question = object(&json, "question:q1");
+        assert_eq!(question["kind"], "argument");
+        assert_eq!(question["mode"], "indirect");
+        assert_eq!(question["body"], abstraction["body"]);
+        assert_eq!(question["slots"][0]["parameter"], "parameter:p1");
+        assert_eq!(question["focus"], "parameter:p1");
+
+        let klama = predication_with_relation_and_mode(&json, "klama", "inert");
+        assert_eq!(klama["arguments"]["x1"]["value"], "parameter:p1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_ma_inside_duhu_remains_direct_outer_question() {
+        let json =
+            semantic_json_for("mi djuno le du'u ma pu klama le zarci").expect("semantic JSON");
+        assert_eq!(object(&json, "utterance:u1")["force"], "ask");
+        assert_eq!(object(&json, "utterance:u1")["content"], "question:q1");
+        assert_eq!(object(&json, "question:q1")["mode"], "direct");
+        assert!(
+            object(&json, "abstraction:a1")
+                .get("embeddedQuestions")
+                .is_none()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn concrete_kau_focus_records_presupposed_answer() {
+        let json = semantic_json_for("mi djuno le du'u la .djan. kau pu klama le zarci")
+            .expect("semantic JSON");
+        let djan = named_referent_id(&json, "djan");
+        let question = object(&json, "question:q1");
+        assert_eq!(object(&json, "utterance:u1")["force"], "assert");
+        assert_eq!(question["mode"], "indirect");
+        assert_eq!(question["focus"], djan);
+        assert_eq!(question["presupposedAnswer"], djan);
+        assert!(question.get("slots").is_none());
+        assert_eq!(
+            object(&json, "abstraction:a1")["embeddedQuestions"][0],
+            "question:q1"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn jikau_is_embedded_indirect_connective_question_inside_duhu() {
+        let json =
+            semantic_json_for("mi ba zgana le du'u la .djan. jikau la .djordj. cu zvati le panka")
+                .expect("semantic JSON");
+        let question = object(&json, "question:q1");
+        assert_eq!(object(&json, "utterance:u1")["force"], "assert");
+        assert_eq!(question["kind"], "connective");
+        assert_eq!(question["mode"], "indirect");
+        assert_eq!(question["domain"], "connective");
+        assert_eq!(question["slots"][0]["parameter"], "parameter:p1");
+        assert_eq!(question["focus"], "parameter:p1");
+        assert_eq!(
+            object(&json, "abstraction:a1")["embeddedQuestions"][0],
+            "question:q1"
+        );
+
+        let connective = object(&json, "formula:f4");
+        assert_eq!(connective["operator"], "connectiveQuestion");
+        assert_eq!(connective["connector"]["locus"], "sumti");
+        assert_eq!(connective["connector"]["parameter"], "parameter:p1");
+        assert_eq!(object(&json, "parameter:p1")["role"], "connectiveQuestion");
+        assert!(json.pointer("/objects/question:q2").is_none());
     }
 
     #[test]
