@@ -31,16 +31,17 @@ use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorMagnitude, AnchorRelation, AnchorRelationData,
     ArgumentValue, ArgumentValueKind, Aspect, AssignedName, AssignedNameData, Composition,
     Connector, Descriptor, DisplayedContentAssertionEffect, DisplayedContentFamily,
-    DisplayedContentModifier, DisplayedContentPolarity, EventualityClass, FormulaOperator,
-    IndexicalKind, MathLiteral, ModalArgument, ModalNegation, ModalNegationKind,
-    PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale, QuantityValue,
-    QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding,
-    ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind,
-    ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind, ScalarNegation,
-    ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId,
-    SemanticOperatorData, SemanticSort, SequenceRelation, SignKind, SpaceInterval, SpatialMotion,
-    SpatialMotionKind, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval,
-    TimeSpan, TimeSpanEndpoint, UtteranceForce, diagnostic, source_from_spans,
+    DisplayedContentModifier, DisplayedContentPolarity, EndpointInclusion, EventualityClass,
+    FormulaOperator, IndexicalKind, IntervalEndpointInclusion, MathLiteral, ModalArgument,
+    ModalNegation, ModalNegationKind, PlaceQuestionBinding, PredicationMode, QuantityForm,
+    QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole,
+    Quotation, RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection,
+    RecurrenceConnectionKind, RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause,
+    RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph,
+    SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation,
+    SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind, TemporalPathAnchor,
+    TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint,
+    UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -1034,6 +1035,11 @@ where
             let first_paragraph_item = items.len();
             let mut paragraph_reciprocity_attached = false;
             for statement in &paragraph.statements {
+                if let Some(statement) = statement.statement.as_deref() {
+                    self.reserve_forward_reference_utterance_for_statement(statement);
+                }
+            }
+            for statement in &paragraph.statements {
                 let statement_truth_question =
                     truth_question_pending && statement.statement.is_some();
                 if let Some(statement_id) =
@@ -1060,6 +1066,7 @@ where
                             self.attach_leading_indicators_to_discourse_item(
                                 statement_id,
                                 &text.leading_indicators,
+                                statement_truth_question,
                             )?;
                             leading_indicators_attached = true;
                         }
@@ -1099,10 +1106,19 @@ where
             && !text.leading_indicators.is_empty()
             && let Some(first_item) = items.first().copied()
         {
-            self.attach_leading_indicators_to_discourse_item(first_item, &text.leading_indicators)?;
+            self.attach_leading_indicators_to_discourse_item(
+                first_item,
+                &text.leading_indicators,
+                truth_question,
+            )?;
         }
         if items.is_empty() && !text.leading_indicators.is_empty() {
             items.push(self.build_standalone_indicator_utterance(text)?);
+        }
+        if items.is_empty()
+            && let Some(connective) = &text.leading_connective
+        {
+            items.push(self.build_standalone_connective_utterance(text, connective)?);
         }
         let root = if let [single] = items.as_slice() {
             *single
@@ -1185,6 +1201,51 @@ where
                 .and_then(|node| self.source_for_node(node.0, "indicator-utterance")),
             Vec::new(),
             Some(utterance),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance) || ret.is_err())]
+    fn build_standalone_connective_utterance(
+        &mut self,
+        text: &'tree TextSyntax,
+        connective: &'tree ConnectiveSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let sign = self.build_connective_sign(None, connective, "connective-expression")?;
+        self.build_utterance(
+            UtteranceForce::Mention,
+            Some(sign),
+            self.analysis
+                .syntax_index
+                .text_node_id(text)
+                .and_then(|node| self.source_for_node(node.0, "connective-utterance")),
+            Vec::new(),
+            None,
+        )
+    }
+
+    #[requires(!source_construct.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sign) || ret.is_err())]
+    fn build_connective_sign(
+        &mut self,
+        prefix: Option<&Token>,
+        connective: &ConnectiveSyntax,
+        source_construct: &str,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut tokens = Vec::new();
+        if let Some(prefix) = prefix {
+            tokens.push(prefix.clone());
+        }
+        connective.visit_words(&mut |token| tokens.push(token.clone()));
+        let id = self.next_sign();
+        self.insert(
+            id,
+            SemanticObject::text_sign(
+                SignKind::Connective,
+                tokens.iter().map(token_text).collect::<Vec<_>>().join(" "),
+                self.source_for_tokens(&tokens, source_construct),
+                Vec::new(),
+            ),
         )
     }
 
@@ -1415,7 +1476,20 @@ where
                 ..
             }) => {
                 let reserved = self.reserve_utterance_for_statement(statement);
+                let source = self
+                    .analysis
+                    .syntax_index
+                    .statement_node_id(statement)
+                    .and_then(|node| self.source_for_node(node.0, "statement"));
+                let utterance = self.build_utterance(
+                    UtteranceForce::Parenthetical,
+                    None,
+                    source,
+                    Vec::new(),
+                    reserved,
+                )?;
                 let nested = self.build_text_group_sequence(text)?;
+                let nested = self.ensure_text_group_sequence_content(nested, text)?;
                 if let Some(tense_modal) = tense_modal
                     && tense_relation_spec_for_tense_modal(tense_modal).is_none()
                     && let Some(modal_argument) =
@@ -1423,18 +1497,16 @@ where
                 {
                     self.attach_modal_argument_to_discourse_item(nested, &modal_argument)?;
                 }
-                self.build_utterance(
-                    UtteranceForce::Parenthetical,
-                    Some(nested),
-                    self.analysis
-                        .syntax_index
-                        .statement_node_id(statement)
-                        .and_then(|node| self.source_for_node(node.0, "statement")),
-                    vec![diagnostic(
-                        "tu'e text group is represented as a nested discourse sequence",
-                    )],
-                    reserved,
-                )
+                let object = self.objects.get_mut(&utterance).ok_or_else(|| {
+                    SemanticsError::invalid_graph(format!(
+                        "missing text-group utterance {utterance}"
+                    ))
+                })?;
+                object.content = Some(nested);
+                object.diagnostics.push(diagnostic(
+                    "tu'e text group is represented as a nested discourse sequence",
+                ));
+                Ok(utterance)
             }
             data!(StatementSyntax::Prenex {
                 inner_statement,
@@ -1570,6 +1642,22 @@ where
     }
 
     #[requires(true)]
+    #[ensures(true)]
+    fn reserve_forward_reference_utterance_for_statement(
+        &mut self,
+        statement: &'tree StatementSyntax,
+    ) {
+        match statement.as_data() {
+            data!(StatementSyntax::Bridi(_))
+            | data!(StatementSyntax::TextGroup { .. })
+            | data!(StatementSyntax::Fragment(_)) => {
+                let _ = self.reserve_utterance_for_statement(statement);
+            }
+            _ => {}
+        }
+    }
+
+    #[requires(true)]
     #[ensures(ret.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance))]
     fn reserve_utterance_for_bridi(
         &mut self,
@@ -1627,6 +1715,13 @@ where
         fragment: &'tree FragmentSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         match fragment.as_data() {
+            data!(FragmentSyntax::Ek(connective))
+            | data!(FragmentSyntax::BridiTailConnective(connective)) => self
+                .build_connective_sign(None, connective, "connective-fragment")
+                .map(Some),
+            data!(FragmentSyntax::BridiConnective { i, connective }) => self
+                .build_connective_sign(Some(i), connective, "connective-fragment")
+                .map(Some),
             data!(FragmentSyntax::Terms { terms, .. }) if terms.len() == 1 => {
                 self.build_fragment_term_content(&terms[0])
             }
@@ -1737,6 +1832,31 @@ where
         self.sticky_modal_arguments = nested.sticky_modal_arguments;
         self.sticky_time_path = nested.sticky_time_path;
         Ok(graph.root)
+    }
+
+    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
+    fn ensure_text_group_sequence_content(
+        &mut self,
+        item: SemanticObjectId,
+        text: &'tree TextSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if item.object_kind() == crate::model::SemanticObjectKind::Sequence {
+            return Ok(item);
+        }
+        let sequence = self.next_sequence();
+        self.insert(
+            sequence,
+            SemanticObject::sequence(
+                vec![item],
+                SequenceRelation::SameTopicContinuation,
+                self.analysis
+                    .syntax_index
+                    .text_node_id(text)
+                    .and_then(|node| self.source_for_node(node.0, "text-group-sequence")),
+                Vec::new(),
+            ),
+        )
     }
 
     #[requires(true)]
@@ -3272,6 +3392,7 @@ where
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut arguments = BTreeMap::new();
+        let mut modal_arguments = Vec::new();
         let mut diagnostics = Vec::new();
         let mut next_sequential_place = 1usize;
         for term in terms {
@@ -3291,6 +3412,39 @@ where
                         ));
                     }
                 }
+                data!(TermSyntax::TaggedSumti {
+                    tense_modal: Some(tense_modal),
+                    sumti,
+                }) => {
+                    if let Some((introduced_by, relation, visible_place)) =
+                        modal_relation_spec_for_tense_modal(tense_modal)
+                    {
+                        let argument = self.build_argument_for_sumti(sumti)?;
+                        let arguments = self.modal_argument_map_for_visible_place(
+                            argument,
+                            visible_place,
+                            self.place_count_for_relation(&relation),
+                        )?;
+                        modal_arguments.push(ModalArgument::new_with_polarity(
+                            relation,
+                            introduced_by,
+                            arguments,
+                            modal_negation_for_tense_modal(tense_modal),
+                            modal_scalar_negation_for_tense_modal(tense_modal),
+                            self.source_for_tense_modal(tense_modal, "modal-argument"),
+                        ));
+                    } else {
+                        diagnostics.push(diagnostic(
+                            "forethought termset branch tagged term is not fully lowered yet",
+                        ));
+                    }
+                }
+                data!(TermSyntax::TaggedSumti {
+                    tense_modal: None,
+                    ..
+                }) => diagnostics.push(diagnostic(
+                    "forethought termset branch tagged term is missing its tag",
+                )),
                 _ => diagnostics.push(diagnostic(
                     "forethought termset branch term is not fully lowered yet",
                 )),
@@ -3318,6 +3472,15 @@ where
             arguments,
             diagnostics,
         )?;
+        if !modal_arguments.is_empty() {
+            self.objects
+                .get_mut(&predication)
+                .ok_or_else(|| {
+                    SemanticsError::invalid_graph(format!("missing predication {predication}"))
+                })?
+                .modal_arguments
+                .extend(modal_arguments);
+        }
         let formula = self.next_formula();
         self.insert(
             formula,
@@ -4915,12 +5078,16 @@ where
                 SemanticSort::Concept,
                 None,
                 None,
-                Some(Composition {
+                Some(new!(Composition {
                     operator,
+                    operator_parameter: None,
                     members: vec![leading, trailing],
                     excluded_members: Vec::new(),
                     collective,
-                }),
+                    scalar_negated: None,
+                    complement: None,
+                    endpoint_inclusion: interval_endpoint_inclusion(connective, false),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -6323,7 +6490,12 @@ where
         item: SemanticObjectId,
     ) -> Option<SemanticObjectId> {
         let object = self.objects.get(&item)?;
-        Some(object.content.unwrap_or(item))
+        let content = object.content.unwrap_or(item);
+        let content_object = self.objects.get(&content)?;
+        if content_object.object_type == crate::model::SemanticObjectKind::Question {
+            return content_object.body;
+        }
+        Some(content)
     }
 
     #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
@@ -6332,6 +6504,7 @@ where
         &mut self,
         item: SemanticObjectId,
         indicators: &'tree [Indicator],
+        truth_question_consumed: bool,
     ) -> Result<(), SemanticsError> {
         if indicators.is_empty() {
             return Ok(());
@@ -6342,22 +6515,22 @@ where
                 .get(&item)
                 .and_then(|object| object.items.first().copied());
             if let Some(first_item) = first_item {
-                self.attach_leading_indicators_to_discourse_item(first_item, indicators)?;
+                self.attach_leading_indicators_to_discourse_item(
+                    first_item,
+                    indicators,
+                    truth_question_consumed,
+                )?;
             }
+            return Ok(());
+        }
+        let parts = leading_indicator_parts(indicators, truth_question_consumed);
+        if parts.is_empty() {
             return Ok(());
         }
         let Some(target) = self.displayed_content_target_for_utterance(item) else {
             return Ok(());
         };
-        self.attach_indicator_displays(
-            indicators
-                .iter()
-                .flat_map(indicator_parts_for_indicator)
-                .collect(),
-            target,
-            item,
-            "indicator",
-        )
+        self.attach_indicator_displays(parts, target, item, "indicator")
     }
 
     #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance)]
@@ -9463,37 +9636,23 @@ where
                 connective,
                 trailing_sumti,
             }) => {
-                let leading = self.build_sumti_referent(leading_sumti)?;
-                let trailing = self.build_sumti_referent(trailing_sumti)?;
-                let right_negated = connective_negates_right(connective);
-                let members = if right_negated {
-                    vec![leading]
-                } else {
-                    vec![leading, trailing]
-                };
-                let excluded_members = if right_negated {
-                    vec![trailing]
-                } else {
-                    Vec::new()
-                };
-                let referent =
-                    self.build_composite_referent(raw, members, excluded_members, "joint")?;
-                if let Some(anchor) = self.current_utterance_anchor {
-                    self.attach_indicator_displays(
-                        indicator_parts_for_connective_cmavo(connective),
-                        trailing,
-                        anchor,
-                        "indicator",
-                    )?;
-                    self.attach_indicator_displays(
-                        indicator_parts_for_connective_nai(connective),
-                        referent,
-                        anchor,
-                        "indicator",
-                    )?;
-                }
-                referent
+                self.build_connected_sumti_referent(raw, leading_sumti, connective, trailing_sumti)?
             }
+            data!(SumtiSyntax::BoundSumtiConnection {
+                leading_sumti,
+                bo_connective: Some(connective),
+                bo_tense_modal: None,
+                trailing_sumti,
+                ..
+            }) => {
+                self.build_connected_sumti_referent(raw, leading_sumti, connective, trailing_sumti)?
+            }
+            data!(SumtiSyntax::ForethoughtSumtiConnection {
+                gek,
+                leading_sumti,
+                trailing_sumti,
+                ..
+            }) => self.build_connected_sumti_referent(raw, leading_sumti, gek, trailing_sumti)?,
             data!(SumtiSyntax::ReferentSumti {
                 lahe,
                 inner_sumti,
@@ -10800,14 +10959,97 @@ where
         )
     }
 
-    #[requires(!operator.is_empty())]
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_connected_sumti_referent(
+        &mut self,
+        raw: RawSyntaxNodeId,
+        leading_sumti: &'tree SumtiSyntax,
+        connective: &ConnectiveSyntax,
+        trailing_sumti: &'tree SumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let leading = self.build_sumti_referent(leading_sumti)?;
+        let trailing = self.build_sumti_referent(trailing_sumti)?;
+        let interval_connective = connective_is_interval(connective);
+        let logical_connective = connective_is_logical(connective);
+        let operator_parameter =
+            if let Some(token) = direct_connective_question_token_for_connective(connective) {
+                Some(self.build_connective_question_parameter_for_token(token)?)
+            } else {
+                None
+            };
+        let right_negated = operator_parameter.is_none()
+            && connective_negates_right(connective)
+            && logical_connective;
+        let complement = (operator_parameter.is_none()
+            && interval_connective
+            && connective_negates_right(connective))
+        .then_some(true);
+        let scalar_negated = (operator_parameter.is_none()
+            && !logical_connective
+            && !interval_connective
+            && connective_negates_right(connective))
+        .then_some(true);
+        let operator = if operator_parameter.is_some() {
+            "connectiveQuestion".to_owned()
+        } else if logical_connective {
+            "joint".to_owned()
+        } else {
+            nonlogical_composition_operator(connective)
+        };
+        let reverse_members = connective_reverses_composition_members(connective);
+        let (first, second) = if reverse_members {
+            (trailing, leading)
+        } else {
+            (leading, trailing)
+        };
+        let members = if right_negated {
+            vec![leading]
+        } else {
+            vec![first, second]
+        };
+        let excluded_members = if right_negated {
+            vec![trailing]
+        } else {
+            Vec::new()
+        };
+        let collective = (operator == "mass").then_some(true);
+        let referent = self.build_composite_referent(
+            raw,
+            new!(Composition {
+                operator,
+                operator_parameter,
+                members,
+                excluded_members,
+                collective,
+                scalar_negated,
+                complement,
+                endpoint_inclusion: interval_endpoint_inclusion(connective, reverse_members),
+            }),
+        )?;
+        if let Some(anchor) = self.current_utterance_anchor {
+            self.attach_indicator_displays(
+                indicator_parts_for_connective_cmavo(connective),
+                trailing,
+                anchor,
+                "indicator",
+            )?;
+            self.attach_indicator_displays(
+                indicator_parts_for_connective_nai(connective),
+                referent,
+                anchor,
+                "indicator",
+            )?;
+        }
+        Ok(referent)
+    }
+
+    #[requires(!composition.operator.is_empty())]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_composite_referent(
         &mut self,
         raw: RawSyntaxNodeId,
-        members: Vec<SemanticObjectId>,
-        excluded_members: Vec<SemanticObjectId>,
-        operator: &str,
+        composition: Composition,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.next_referent();
         self.insert(
@@ -10817,12 +11059,7 @@ where
                 SemanticSort::Entity,
                 None,
                 None,
-                Some(Composition {
-                    operator: operator.to_owned(),
-                    members,
-                    excluded_members,
-                    collective: None,
-                }),
+                Some(composition),
                 self.source_for_node(raw, "connected-sumti"),
                 Vec::new(),
             ),
@@ -10845,6 +11082,11 @@ where
             && let Some(target_selbri) = main_selbri_for_bridi(target_bridi)
         {
             return self.build_restrictive_formula(target_selbri, referent);
+        }
+        if let Some(formula) =
+            self.build_connected_restrictive_formula_for_selbri(selbri, referent)?
+        {
+            return Ok(formula);
         }
         if let Some(units) = tanru_units_for_selbri(selbri) {
             if let [unit] = units.as_slice()
@@ -10975,6 +11217,96 @@ where
     }
 
     #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn build_connected_restrictive_formula_for_selbri(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        referent: SemanticObjectId,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let source = self
+            .analysis
+            .syntax_index
+            .selbri_node_id(selbri)
+            .and_then(|node| self.source_for_node(node.0, "restrictive-selbri-formula"));
+        match selbri.as_data() {
+            data!(SelbriSyntax::SelbriConnection {
+                leading_selbri,
+                connective,
+                trailing_selbri,
+            }) => self
+                .build_connected_restrictive_formula_for_selbri_pair(
+                    leading_selbri,
+                    connective,
+                    trailing_selbri,
+                    referent,
+                    source,
+                )
+                .map(Some),
+            data!(SelbriSyntax::BoundSelbriConnection {
+                leading_selbri,
+                bo_connective: Some(connective),
+                trailing_selbri,
+                ..
+            }) => self
+                .build_connected_restrictive_formula_for_selbri_pair(
+                    leading_selbri,
+                    connective,
+                    trailing_selbri,
+                    referent,
+                    source,
+                )
+                .map(Some),
+            data!(SelbriSyntax::ForethoughtSelbriConnection {
+                guhek,
+                leading_bridi,
+                trailing_bridi,
+                ..
+            }) => {
+                let Some(leading_selbri) = main_selbri_for_bridi(leading_bridi) else {
+                    return Ok(None);
+                };
+                let Some(trailing_selbri) = main_selbri_for_bridi(trailing_bridi) else {
+                    return Ok(None);
+                };
+                self.build_connected_restrictive_formula_for_selbri_pair(
+                    leading_selbri,
+                    guhek,
+                    trailing_selbri,
+                    referent,
+                    source,
+                )
+                .map(Some)
+            }
+            data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+            | data!(SelbriSyntax::TaggedSelbri {
+                inner_selbri: selbri,
+                ..
+            }) => self.build_connected_restrictive_formula_for_selbri(selbri, referent),
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_connected_restrictive_formula_for_selbri_pair(
+        &mut self,
+        leading_selbri: &'tree SelbriSyntax,
+        connective: &'tree ConnectiveSyntax,
+        trailing_selbri: &'tree SelbriSyntax,
+        referent: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let leading = self.build_restrictive_formula(leading_selbri, referent)?;
+        let trailing = self.build_restrictive_formula(trailing_selbri, referent)?;
+        self.build_connective_formula(
+            formula_operator_for_connective(connective),
+            vec![leading, trailing],
+            Some(connective_connector(connective, "selbri")),
+            source,
+        )
+    }
+
+    #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_restrictive_tanru_unit_formula(
         &mut self,
@@ -10993,6 +11325,29 @@ where
             return self.build_restrictive_formula(target_selbri, referent);
         }
         match unit.as_data() {
+            data!(TanruUnitSyntax::TanruUnitConnection {
+                leading_unit,
+                connective,
+                trailing_unit,
+            }) => self.build_connected_restrictive_formula_for_tanru_units(
+                selbri,
+                leading_unit,
+                connective,
+                trailing_unit,
+                referent,
+            ),
+            data!(TanruUnitSyntax::BoundTanruUnitConnection {
+                leading_unit,
+                bo_connective: Some(connective),
+                trailing_unit,
+                ..
+            }) => self.build_connected_restrictive_formula_for_tanru_units(
+                selbri,
+                leading_unit,
+                connective,
+                trailing_unit,
+                referent,
+            ),
             data!(TanruUnitSyntax::GroupedTanruUnit {
                 selbri: grouped,
                 ..
@@ -11065,6 +11420,32 @@ where
                 )
             }
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_connected_restrictive_formula_for_tanru_units(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        leading_unit: &'tree TanruUnitSyntax,
+        connective: &'tree ConnectiveSyntax,
+        trailing_unit: &'tree TanruUnitSyntax,
+        referent: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let leading = self.build_restrictive_tanru_unit_formula(selbri, leading_unit, referent)?;
+        let trailing =
+            self.build_restrictive_tanru_unit_formula(selbri, trailing_unit, referent)?;
+        let source = self
+            .analysis
+            .syntax_index
+            .selbri_node_id(selbri)
+            .and_then(|node| self.source_for_node(node.0, "restrictive-tanru-formula"));
+        self.build_connective_formula(
+            formula_operator_for_connective(connective),
+            vec![leading, trailing],
+            Some(connective_connector(connective, "tanru-unit")),
+            source,
+        )
     }
 
     #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
@@ -12370,6 +12751,26 @@ fn connective_question_token_for_connective(connective: &ConnectiveSyntax) -> Op
 }
 
 #[requires(true)]
+#[ensures(ret.is_none_or(|token| matches!(token.cmavo(), Some(Cmavo::Ji | Cmavo::Gehi | Cmavo::Gihi | Cmavo::Guhi | Cmavo::Jehi))))]
+fn direct_connective_question_token_for_connective(
+    connective: &ConnectiveSyntax,
+) -> Option<&Token> {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Afterthought { cmavo, .. })
+        | data!(ConnectiveSyntax::Selbri { cmavo, .. })
+        | data!(ConnectiveSyntax::BridiTail { cmavo, .. })
+        | data!(ConnectiveSyntax::Forethought { cmavo, .. })
+        | data!(ConnectiveSyntax::NonLogical { cmavo, .. })
+        | data!(ConnectiveSyntax::Interval { cmavo, .. }) => cmavo.value.iter().find(|token| {
+            matches!(
+                token.cmavo(),
+                Some(Cmavo::Ji | Cmavo::Gehi | Cmavo::Gihi | Cmavo::Guhi | Cmavo::Jehi)
+            )
+        }),
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn indicator_parts_for_indicator(indicator: &Indicator) -> Vec<IndicatorPart> {
     let mut parts = if let Some(cmavo) = indicator.indicator.core_word().cmavo() {
@@ -12389,6 +12790,19 @@ fn indicator_parts_for_indicator(indicator: &Indicator) -> Vec<IndicatorPart> {
         last.tokens.push(Token::bare(WordLike::bare(nai.clone())));
     }
     parts
+}
+
+#[requires(true)]
+#[ensures(!truth_question_consumed || ret.iter().all(|part| part.cmavo != Cmavo::Xu))]
+fn leading_indicator_parts(
+    indicators: &[Indicator],
+    truth_question_consumed: bool,
+) -> Vec<IndicatorPart> {
+    indicators
+        .iter()
+        .flat_map(indicator_parts_for_indicator)
+        .filter(|part| !truth_question_consumed || part.cmavo != Cmavo::Xu)
+        .collect()
 }
 
 #[requires(true)]
@@ -13084,6 +13498,55 @@ fn connective_is_logical(connective: &ConnectiveSyntax) -> bool {
         connective.as_data(),
         data!(ConnectiveSyntax::NonLogical { .. }) | data!(ConnectiveSyntax::Interval { .. })
     )
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, Some(Cmavo::Bihi | Cmavo::Biho | Cmavo::Mihi)) == connective_is_interval(connective))]
+fn connective_primary_cmavo(connective: &ConnectiveSyntax) -> Option<Cmavo> {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Afterthought { cmavo, .. })
+        | data!(ConnectiveSyntax::Selbri { cmavo, .. })
+        | data!(ConnectiveSyntax::BridiTail { cmavo, .. })
+        | data!(ConnectiveSyntax::Forethought { cmavo, .. })
+        | data!(ConnectiveSyntax::NonLogical { cmavo, .. })
+        | data!(ConnectiveSyntax::Interval { cmavo, .. }) => cmavo
+            .value
+            .iter()
+            .filter_map(Token::cmavo)
+            .find(|cmavo| Selmaho::Joi.contains(*cmavo) || Selmaho::Bihi.contains(*cmavo)),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connective_is_interval(connective: &ConnectiveSyntax) -> bool {
+    matches!(
+        connective.as_data(),
+        data!(ConnectiveSyntax::Interval { .. })
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connective_has_se_conversion(connective: &ConnectiveSyntax) -> bool {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Afterthought { se, .. })
+        | data!(ConnectiveSyntax::Selbri { se, .. })
+        | data!(ConnectiveSyntax::BridiTail { se, .. })
+        | data!(ConnectiveSyntax::Forethought { se, .. })
+        | data!(ConnectiveSyntax::NonLogical { se, .. })
+        | data!(ConnectiveSyntax::Interval { se, .. }) => se.is_some(),
+    }
+}
+
+#[requires(true)]
+#[ensures(!connective_has_se_conversion(connective) -> !ret)]
+fn connective_reverses_composition_members(connective: &ConnectiveSyntax) -> bool {
+    connective_has_se_conversion(connective)
+        && matches!(
+            connective_primary_cmavo(connective),
+            Some(Cmavo::Ceho | Cmavo::Fahu | Cmavo::Pihu | Cmavo::Biho | Cmavo::Mihi)
+        )
 }
 
 #[requires(true)]
@@ -15810,13 +16273,64 @@ fn connective_negates_right(connective: &ConnectiveSyntax) -> bool {
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn nonlogical_composition_operator(connective: &ConnectiveSyntax) -> String {
-    match connective_text(connective).as_str() {
-        "jo'u" => "joint".to_owned(),
-        "joi" => "mass".to_owned(),
-        "ce" => "set".to_owned(),
-        "ce'o" => "sequence".to_owned(),
-        "fa'u" => "respectively".to_owned(),
-        other => format!("nonlogical:{other}"),
+    match connective_primary_cmavo(connective) {
+        Some(Cmavo::Johu) => "joint".to_owned(),
+        Some(Cmavo::Joi) => "mass".to_owned(),
+        Some(Cmavo::Ce) => "set".to_owned(),
+        Some(Cmavo::Ceho) => "sequence".to_owned(),
+        Some(Cmavo::Fahu) => "respectively".to_owned(),
+        Some(Cmavo::Johe) => "union".to_owned(),
+        Some(Cmavo::Kuha) => "intersection".to_owned(),
+        Some(Cmavo::Pihu) => "crossProduct".to_owned(),
+        Some(Cmavo::Bihi) => "unorderedInterval".to_owned(),
+        Some(Cmavo::Biho) => "orderedInterval".to_owned(),
+        Some(Cmavo::Mihi) => "centeredInterval".to_owned(),
+        _ => format!("nonlogical:{}", full_connective_text(connective)),
+    }
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, Some(EndpointInclusion::Inclusive)) == (cmavo == Cmavo::Gaho))]
+fn endpoint_inclusion_for_cmavo(cmavo: Cmavo) -> Option<EndpointInclusion> {
+    match cmavo {
+        Cmavo::Gaho => Some(EndpointInclusion::Inclusive),
+        Cmavo::Kehi => Some(EndpointInclusion::Exclusive),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() -> connective_is_interval(connective))]
+fn interval_endpoint_inclusion(
+    connective: &ConnectiveSyntax,
+    reverse_members: bool,
+) -> Option<IntervalEndpointInclusion> {
+    if !connective_is_interval(connective) {
+        return None;
+    }
+    let (left, right) = match connective.as_data() {
+        data!(ConnectiveSyntax::Interval { cmavo, .. }) => {
+            let mut inclusions = cmavo
+                .value
+                .iter()
+                .filter_map(Token::cmavo)
+                .filter_map(endpoint_inclusion_for_cmavo);
+            let left = inclusions.next()?;
+            let right = inclusions.next()?;
+            if inclusions.next().is_some() {
+                return None;
+            }
+            (left, right)
+        }
+        _ => return None,
+    };
+    if reverse_members {
+        Some(IntervalEndpointInclusion {
+            left: right,
+            right: left,
+        })
+    } else {
+        Some(IntervalEndpointInclusion { left, right })
     }
 }
 
@@ -16294,8 +16808,8 @@ fn tanru_unit_requires_lowering(unit: &TanruUnitSyntax) -> bool {
             base: inner_unit,
             ..
         }) => tanru_unit_requires_lowering(inner_unit),
-        data!(TanruUnitSyntax::TanruUnitConnection { .. })
-        | data!(TanruUnitSyntax::BoundTanruUnitConnection { .. })
+        data!(TanruUnitSyntax::TanruUnitConnection { .. }) => true,
+        data!(TanruUnitSyntax::BoundTanruUnitConnection { .. })
         | data!(TanruUnitSyntax::GroupedTanruUnit { .. })
         | data!(TanruUnitSyntax::SelbriGroupTanruUnit(_)) => tanru_unit_has_explicit_grouping(unit),
         _ => false,
@@ -17859,6 +18373,18 @@ mod tests {
     #[ensures(true)]
     fn root_object(json: &Value) -> &Value {
         object(json, json["root"].as_str().expect("root object ID"))
+    }
+
+    #[requires(!operator.is_empty())]
+    #[ensures(ret["operator"] == operator)]
+    fn composition_with_operator<'a>(json: &'a Value, operator: &str) -> &'a Value {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .filter_map(|object| object.get("composition"))
+            .find(|composition| composition["operator"] == operator)
+            .unwrap_or_else(|| panic!("missing composition with operator {operator}"))
     }
 
     #[requires(true)]
@@ -21648,6 +22174,30 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn logical_tanru_connective_lowers_inside_description_restriction() {
+        let json = semantic_json_for("mi viska pa mlatu je gerku").expect("semantic JSON");
+        let relations = predication_relations(&json);
+        assert!(relations.iter().any(|relation| relation == "mlatu"));
+        assert!(relations.iter().any(|relation| relation == "gerku"));
+        assert!(
+            !relations
+                .iter()
+                .any(|relation| relation == "mlatu je gerku")
+        );
+        let description = object(&json, "referent:r1");
+        let body = object(
+            &json,
+            description["descriptor"]["body"]
+                .as_str()
+                .expect("description body"),
+        );
+        assert_eq!(body["operator"], "and");
+        assert_eq!(body["connector"]["locus"], "selbri");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn logical_tanru_connective_lowers_when_tertau_is_connected() {
         let json = semantic_json_for("melbi cmalu nixli je ckule").expect("semantic JSON");
         let relations = predication_relations(&json);
@@ -22035,6 +22585,152 @@ mod tests {
         assert_eq!(composition["members"][0], "referent:speaker");
         assert_eq!(composition["excludedMembers"][0], "referent:addressee");
         assert_eq!(object(&json, "display:d1")["target"], "referent:r1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nonlogical_sumti_composition_uses_cll_operator() {
+        let json =
+            semantic_json_for("la djan. joi la .alis. cu bevri le pipno").expect("semantic JSON");
+        let mass = composition_with_operator(&json, "mass");
+        assert_eq!(mass["collective"], true);
+        assert_eq!(mass["members"].as_array().expect("members").len(), 2);
+
+        let json =
+            semantic_json_for("lo'i ricfu ku jo'e lo'i dotco cu barda").expect("semantic JSON");
+        let union = composition_with_operator(&json, "union");
+        assert_eq!(union["members"].as_array().expect("members").len(), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn joi_nai_is_scalar_negation_not_right_exclusion() {
+        let json = semantic_json_for("mi jo'u nai do cu remei").expect("semantic JSON");
+        let joint = composition_with_operator(&json, "joint");
+        assert_eq!(joint["scalarNegated"], true);
+        assert_eq!(joint["members"][0], "referent:speaker");
+        assert_eq!(joint["members"][1], "referent:addressee");
+        assert!(joint.get("excludedMembers").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn se_ordered_nonlogical_connective_reverses_members() {
+        let json = semantic_json_for("ti liste do se ce'o mi").expect("semantic JSON");
+        let sequence = composition_with_operator(&json, "sequence");
+        assert_eq!(sequence["members"][0], "referent:speaker");
+        assert_eq!(sequence["members"][1], "referent:addressee");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn interval_composition_records_bounds_and_complement() {
+        let json = semantic_json_for("mi ca sanli la drezdn. ga'o bi'i ke'i la frankfurt.")
+            .expect("semantic JSON");
+        let interval = composition_with_operator(&json, "unorderedInterval");
+        assert_eq!(interval["endpointInclusion"]["left"], "inclusive");
+        assert_eq!(interval["endpointInclusion"]["right"], "exclusive");
+
+        let json =
+            semantic_json_for("mi sanli la drezdn. bi'i nai la frankfurt.").expect("semantic JSON");
+        let complement = composition_with_operator(&json, "unorderedInterval");
+        assert_eq!(complement["complement"], true);
+        assert!(complement.get("excludedMembers").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sumti_connective_questions_use_composition_operator_parameter() {
+        let json =
+            semantic_json_for("do djica tu'a loi ckafi ji loi tcati").expect("semantic JSON");
+        assert_eq!(object(&json, "utterance:u1")["force"], "ask");
+        let composition = composition_with_operator(&json, "connectiveQuestion");
+        assert_eq!(composition["operatorParameter"], "parameter:p1");
+        assert_eq!(object(&json, "parameter:p1")["role"], "connectiveQuestion");
+
+        let json =
+            semantic_json_for("do djica tu'a ge'i loi ckafi gi loi tcati").expect("semantic JSON");
+        let composition = composition_with_operator(&json, "connectiveQuestion");
+        assert_eq!(composition["operatorParameter"], "parameter:p1");
+        assert_eq!(object(&json, "parameter:p1")["introducedBy"], "ge'i");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bound_and_forethought_nonlogical_sumti_connections_lower_to_compositions() {
+        let json = semantic_json_for(
+            "la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei",
+        )
+        .expect("semantic JSON");
+        assert_eq!(
+            composition_with_operator(&json, "crossProduct")["operator"],
+            "crossProduct"
+        );
+        let set_count = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .filter_map(|object| object.get("composition"))
+            .filter(|composition| composition["operator"] == "set")
+            .count();
+        assert_eq!(set_count, 2);
+
+        let json =
+            semantic_json_for("joigi la djan. gi la .alis. bevri le pipno").expect("semantic JSON");
+        assert_eq!(composition_with_operator(&json, "mass")["collective"], true);
+
+        let json = semantic_json_for("mi ca sanli ke'i bi'i ga'o gi la drezdn. gi la frankfurt.")
+            .expect("semantic JSON");
+        let interval = composition_with_operator(&json, "unorderedInterval");
+        assert_eq!(interval["endpointInclusion"]["left"], "exclusive");
+        assert_eq!(interval["endpointInclusion"]["right"], "inclusive");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connective_answer_fragments_mention_connective_signs() {
+        let json = semantic_json_for("gi'enai").expect("semantic JSON");
+        let utterance = object(&json, "utterance:u1");
+        let sign = object(&json, "sign:s1");
+        assert_eq!(utterance["force"], "mention");
+        assert_eq!(utterance["content"], "sign:s1");
+        assert_eq!(sign["kind"], "connective");
+        assert_eq!(sign["text"], "gi'e nai");
+        assert!(utterance.get("diagnostics").is_none());
+
+        let json = semantic_json_for("joi").expect("semantic JSON");
+        let utterance = object(&json, "utterance:u1");
+        let sign = object(&json, "sign:s1");
+        assert_eq!(utterance["content"], "sign:s1");
+        assert_eq!(sign["kind"], "connective");
+        assert_eq!(sign["text"], "joi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn future_utterance_reference_resolves_to_following_text_group() {
+        let json = semantic_json_for("mi ba gasnu la'e di'e .i tu'e kanji lo ni cteki tu'u")
+            .expect("semantic JSON");
+        let dihe = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| {
+                object["type"] == "referent"
+                    && object["descriptor"]["kind"] == "utteranceReference"
+                    && object["descriptor"]["word"] == "di'e"
+            })
+            .expect("di'e referent");
+        assert_eq!(dihe["target"], "utterance:u2");
+        assert!(dihe.get("diagnostics").is_none());
     }
 
     #[test]

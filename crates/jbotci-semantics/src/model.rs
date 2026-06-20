@@ -268,6 +268,9 @@ impl SemanticGraph {
                 "semantic arguments must use valid numbered places and argument fillers".to_owned(),
             );
         }
+        if !semantic_object_compositions_are_valid(&objects) {
+            return Err("semantic compositions must use coherent parameters".to_owned());
+        }
         if !semantic_object_question_slots_are_valid(&objects) {
             return Err("semantic question slots must use coherent parameters".to_owned());
         }
@@ -1060,6 +1063,7 @@ impl SemanticObject {
         if let Some(composition) = &self.composition {
             out.extend(composition.members.iter().copied());
             out.extend(composition.excluded_members.iter().copied());
+            extend_optional(out, composition.operator_parameter);
         }
         out.extend(self.relative_clauses.iter().map(|clause| clause.body));
         for argument in self.arguments.values() {
@@ -1809,16 +1813,46 @@ impl Descriptor {
     }
 }
 
-#[invariant(true)]
+#[invariant(!operator.is_empty(), "composition operator must be named")]
+#[invariant(members.iter().all(|member| argument_object_kind_can_fill(member.object_kind())), "composition members must be semantic objects that can fill an argument")]
+#[invariant(excluded_members.iter().all(|member| argument_object_kind_can_fill(member.object_kind())), "excluded composition members must be semantic objects that can fill an argument")]
+#[invariant(endpoint_inclusion.is_none() || operator.ends_with("Interval"), "endpoint inclusion only applies to interval compositions")]
+#[invariant(*complement != Some(true) || operator.ends_with("Interval"), "composition complements are interval complements")]
+#[invariant((operator == "connectiveQuestion") == operator_parameter.is_some(), "connective-question compositions must carry exactly one operator parameter")]
+#[invariant(operator_parameter.is_none_or(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter), "composition operator parameter must be a parameter object")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Composition {
     pub operator: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operator_parameter: Option<SemanticObjectId>,
     pub members: Vec<SemanticObjectId>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub excluded_members: Vec<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub collective: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scalar_negated: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub complement: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub endpoint_inclusion: Option<IntervalEndpointInclusion>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntervalEndpointInclusion {
+    pub left: EndpointInclusion,
+    pub right: EndpointInclusion,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum EndpointInclusion {
+    Inclusive,
+    Exclusive,
 }
 
 #[invariant(true)]
@@ -2390,6 +2424,7 @@ pub enum SignKind {
     Quotation,
     Letteral,
     MathExpression,
+    Connective,
     Word,
     Text,
 }
@@ -2851,6 +2886,37 @@ pub fn semantic_object_question_slots_are_valid(
 
         connector_question_slot_is_valid(objects, object)
     })
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn semantic_object_compositions_are_valid(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> bool {
+    objects.values().all(|object| {
+        object
+            .composition
+            .as_ref()
+            .is_none_or(|composition| composition_operator_parameter_is_valid(objects, composition))
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn composition_operator_parameter_is_valid(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+    composition: &Composition,
+) -> bool {
+    let Some(parameter) = composition.operator_parameter else {
+        return composition.operator != "connectiveQuestion";
+    };
+    composition.operator == "connectiveQuestion"
+        && parameter_has_sort_and_role(
+            objects,
+            parameter,
+            SemanticSort::Connective,
+            ParameterRole::ConnectiveQuestion,
+        )
 }
 
 #[requires(true)]
