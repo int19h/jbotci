@@ -1172,6 +1172,34 @@ pub struct AnchorRelation {
     pub distance: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scalar_negation: Option<ScalarNegation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub motion: Option<SpatialMotion>,
+}
+
+#[invariant(!introduced_by.is_empty(), "spatial motion source marker must be named")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpatialMotion {
+    pub kind: SpatialMotionKind,
+    pub introduced_by: String,
+}
+
+impl SpatialMotion {
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.introduced_by == old(introduced_by.clone()))]
+    pub fn new(kind: SpatialMotionKind, introduced_by: String) -> Self {
+        Self::from_data(data!(SpatialMotion {
+            kind,
+            introduced_by,
+        }))
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SpatialMotionKind {
+    Toward,
 }
 
 #[invariant(!relation.is_empty(), "temporal path relation must be named")]
@@ -1188,6 +1216,8 @@ pub struct TemporalPathStep {
     pub distance: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scalar_negation: Option<ScalarNegation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub motion: Option<SpatialMotion>,
 }
 
 impl TemporalPathStep {
@@ -1202,6 +1232,7 @@ impl TemporalPathStep {
         introduced_by: String,
         distance: Option<String>,
         scalar_negation: Option<ScalarNegation>,
+        motion: Option<SpatialMotion>,
     ) -> Self {
         Self::from_data(data!(TemporalPathStep {
             relation,
@@ -1209,6 +1240,7 @@ impl TemporalPathStep {
             introduced_by,
             distance,
             scalar_negation,
+            motion,
         }))
     }
 
@@ -1390,6 +1422,8 @@ pub struct Recurrence {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub interval: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub negation: Option<ModalNegation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SemanticSource>,
 }
 
@@ -1401,6 +1435,7 @@ impl Recurrence {
         introduced_by: String,
         value: Option<QuantityValue>,
         interval: Option<SemanticObjectId>,
+        negation: Option<ModalNegation>,
         source: Option<SemanticSource>,
     ) -> Self {
         Self::from_data(data!(Recurrence {
@@ -1408,6 +1443,7 @@ impl Recurrence {
             introduced_by,
             value,
             interval,
+            negation,
             source,
         }))
     }

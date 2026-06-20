@@ -35,8 +35,9 @@ use crate::model::{
     ReciprocalExchange, Recurrence, RecurrenceKind, ReferentCategory, RelationExpansion,
     RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticDiagnostic,
     SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort,
-    SequenceRelation, SignKind, SpaceInterval, TemporalPathAnchor, TemporalPathStep,
-    TemporalPathStepData, TimeInterval, UtteranceForce, diagnostic, source_from_spans,
+    SequenceRelation, SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind,
+    TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, UtteranceForce,
+    diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -392,6 +393,7 @@ struct TemporalPathRelation {
     introduced_by: String,
     distance: Option<String>,
     scalar_negation: Option<ScalarNegation>,
+    motion: Option<SpatialMotion>,
 }
 
 #[invariant(true)]
@@ -2111,6 +2113,7 @@ where
                         anchor: SemanticObjectId::speech_time(),
                         distance: relation.distance,
                         scalar_negation: relation.scalar_negation,
+                        motion: relation.motion,
                     }));
                 }
                 if let Some(relation) = space_relation {
@@ -2119,6 +2122,7 @@ where
                         anchor: SemanticObjectId::here(),
                         distance: relation.distance,
                         scalar_negation: relation.scalar_negation,
+                        motion: relation.motion,
                     }));
                 }
                 self.insert(eventuality, event)?;
@@ -6493,6 +6497,7 @@ where
                     anchor: SemanticObjectId::speech_time(),
                     distance: None,
                     scalar_negation: None,
+                    motion: None,
                 }));
                 if let Some(actuality) = actuality_for_tense_modal(modifier.tense_modal) {
                     event.actuality = Some(actuality);
@@ -6553,6 +6558,7 @@ where
                 anchor,
                 distance: None,
                 scalar_negation: None,
+                motion: None,
             }));
         }
         if !modifier_application.temporal_modifier
@@ -10761,6 +10767,7 @@ fn append_temporal_path_relations_to_event(
             anchor,
             distance,
             scalar_negation,
+            motion,
         }) = time.into_data();
         event.time_path.push(TemporalPathStep::new(
             relation,
@@ -10768,6 +10775,7 @@ fn append_temporal_path_relations_to_event(
             "implicit".to_owned(),
             distance,
             scalar_negation,
+            motion,
         ));
     }
     let mut first_relation = true;
@@ -10786,6 +10794,7 @@ fn append_temporal_path_relations_to_event(
             relation.introduced_by,
             relation.distance,
             relation.scalar_negation,
+            relation.motion,
         ));
     }
 }
@@ -10806,6 +10815,7 @@ fn normalize_event_time_path(event: &mut SemanticObject) {
         introduced_by: _,
         distance,
         scalar_negation,
+        motion,
     }) = step.into_data();
     if let Some(anchor) = anchor.object_id() {
         event.time = Some(new!(AnchorRelation {
@@ -10813,6 +10823,7 @@ fn normalize_event_time_path(event: &mut SemanticObject) {
             anchor,
             distance,
             scalar_negation,
+            motion,
         }));
     } else {
         event.time_path.push(TemporalPathStep::new(
@@ -10821,6 +10832,7 @@ fn normalize_event_time_path(event: &mut SemanticObject) {
             "implicit".to_owned(),
             distance,
             scalar_negation,
+            motion,
         ));
     }
 }
@@ -10848,6 +10860,7 @@ fn append_space_path_relations_to_event(
             anchor,
             distance,
             scalar_negation,
+            motion,
         }) = space.into_data();
         event.space_path.push(TemporalPathStep::new(
             relation,
@@ -10855,6 +10868,7 @@ fn append_space_path_relations_to_event(
             "implicit".to_owned(),
             distance,
             scalar_negation,
+            motion,
         ));
     }
     let mut first_relation = true;
@@ -10873,6 +10887,7 @@ fn append_space_path_relations_to_event(
             relation.introduced_by,
             relation.distance,
             relation.scalar_negation,
+            relation.motion,
         ));
     }
 }
@@ -10893,6 +10908,7 @@ fn normalize_event_space_path(event: &mut SemanticObject) {
         introduced_by: _,
         distance,
         scalar_negation,
+        motion,
     }) = step.into_data();
     if let Some(anchor) = anchor.object_id() {
         event.space = Some(new!(AnchorRelation {
@@ -10900,6 +10916,7 @@ fn normalize_event_space_path(event: &mut SemanticObject) {
             anchor,
             distance,
             scalar_negation,
+            motion,
         }));
     } else {
         event.space_path.push(TemporalPathStep::new(
@@ -10908,6 +10925,7 @@ fn normalize_event_space_path(event: &mut SemanticObject) {
             "implicit".to_owned(),
             distance,
             scalar_negation,
+            motion,
         ));
     }
 }
@@ -11541,6 +11559,30 @@ fn path_relation_for_tense_modal(
         introduced_by,
         distance,
         scalar_negation: modal_scalar_negation_for_tense_modal(tense_modal),
+        motion: None,
+    }
+}
+
+#[requires(!relation.is_empty())]
+#[requires(!introduced_by.is_empty())]
+#[requires(distance.as_ref().is_none_or(|distance| !distance.is_empty()))]
+#[ensures(!ret.relation.is_empty())]
+fn spatial_motion_path_relation_for_tense_modal(
+    relation: String,
+    introduced_by: String,
+    distance: Option<String>,
+    tense_modal: &TenseModalSyntax,
+    motion_introduced_by: String,
+) -> TemporalPathRelation {
+    TemporalPathRelation {
+        relation,
+        introduced_by,
+        distance,
+        scalar_negation: modal_scalar_negation_for_tense_modal(tense_modal),
+        motion: Some(SpatialMotion::new(
+            SpatialMotionKind::Toward,
+            motion_introduced_by,
+        )),
     }
 }
 
@@ -11553,21 +11595,34 @@ fn space_path_relations_for_tense_modal(
         data!(TenseModalSyntax::Composite { parts }) => {
             let mut relations = Vec::new();
             let mut previous_relation_accepts_distance = false;
+            let mut pending_motion = None::<String>;
             for part in &parts.value {
                 let data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
                     token
                 )) = part.as_data()
                 else {
                     previous_relation_accepts_distance = false;
+                    pending_motion = None;
                     continue;
                 };
+                if token.is_cmavo(Cmavo::Mohi) {
+                    previous_relation_accepts_distance = false;
+                    pending_motion = Some(token_text(token));
+                    continue;
+                }
                 if let Some(relation) = space_relation_for_faha_token(token) {
-                    relations.push(path_relation_for_tense_modal(
-                        relation,
-                        token_text(token),
-                        None,
-                        tense_modal,
-                    ));
+                    let introduced_by = token_text(token);
+                    relations.push(if let Some(motion_introduced_by) = pending_motion.take() {
+                        spatial_motion_path_relation_for_tense_modal(
+                            relation,
+                            introduced_by,
+                            None,
+                            tense_modal,
+                            motion_introduced_by,
+                        )
+                    } else {
+                        path_relation_for_tense_modal(relation, introduced_by, None, tense_modal)
+                    });
                     previous_relation_accepts_distance = true;
                     continue;
                 }
@@ -11589,9 +11644,11 @@ fn space_path_relations_for_tense_modal(
                         ));
                     }
                     previous_relation_accepts_distance = false;
+                    pending_motion = None;
                     continue;
                 }
                 previous_relation_accepts_distance = false;
+                pending_motion = None;
             }
             relations
         }
@@ -11618,18 +11675,20 @@ fn space_path_relations_for_tense_modal(
             })
             .unwrap_or_default(),
         data!(TenseModalSyntax::SpaceMovement {
+            mohi,
             direction,
             distance,
             ..
         }) => space_relation_for_faha_token(&direction.value)
             .map(|relation| {
-                vec![path_relation_for_tense_modal(
+                vec![spatial_motion_path_relation_for_tense_modal(
                     relation,
                     token_text(&direction.value),
                     distance
                         .as_ref()
                         .and_then(|distance| space_distance_for_va_token(&distance.value)),
                     tense_modal,
+                    token_text(mohi),
                 )]
             })
             .unwrap_or_default(),
@@ -11763,12 +11822,14 @@ fn temporal_recurrences_for_tense_modal(tense_modal: &TenseModalSyntax) -> Vec<R
         data!(TenseModalSyntax::IntervalProperty {
             number,
             roi_or_tahe,
-            ..
-        }) => {
-            recurrence_for_interval_marker(&roi_or_tahe.value, number.as_ref().map(word_run_text))
-                .into_iter()
-                .collect()
-        }
+            nai,
+        }) => recurrence_for_interval_marker(
+            &roi_or_tahe.value,
+            number.as_ref().map(word_run_text),
+            nai.as_ref().map(|nai| &nai.value),
+        )
+        .into_iter()
+        .collect(),
         _ => Vec::new(),
     }
 }
@@ -11807,6 +11868,7 @@ fn scoped_interval_modifiers_for_composite_parts(
 ) -> ScopedIntervalModifiers {
     let mut modifiers = ScopedIntervalModifiers::default();
     let mut pending_number = None::<PendingRecurrenceNumber>;
+    let mut pending_recurrence_index = None::<(bool, usize)>;
     let mut next_interval_property_is_spatial = false;
     for part in parts {
         let data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
@@ -11814,12 +11876,35 @@ fn scoped_interval_modifiers_for_composite_parts(
         )) = part.as_data()
         else {
             pending_number = None;
+            pending_recurrence_index = None;
             next_interval_property_is_spatial = false;
             continue;
         };
         if token.is_cmavo(Cmavo::Fehe) {
             pending_number = None;
+            pending_recurrence_index = None;
             next_interval_property_is_spatial = true;
+            continue;
+        }
+        if token.is_cmavo(Cmavo::Nai) {
+            if let Some((spatial, index)) = pending_recurrence_index.take() {
+                let target = if spatial {
+                    modifiers.spatial_recurrences.get_mut(index)
+                } else {
+                    modifiers.temporal_recurrences.get_mut(index)
+                };
+                if let Some(recurrence) = target {
+                    *recurrence = recurrence.clone().with_data(data! {
+                        negation: Some(ModalNegation::new(
+                            ModalNegationKind::Contradictory,
+                            token_text(token),
+                        )),
+                    });
+                    continue;
+                }
+            }
+            pending_number = None;
+            next_interval_property_is_spatial = false;
             continue;
         }
         if token.is_selmaho(Selmaho::Pa) {
@@ -11838,24 +11923,29 @@ fn scoped_interval_modifiers_for_composite_parts(
                     spatial: next_interval_property_is_spatial,
                 }));
             }
+            pending_recurrence_index = None;
             continue;
         }
         let pending = pending_number.take();
         if let Some(recurrence) = recurrence_for_interval_marker(
             token,
             pending.as_ref().map(|pending| pending.text.clone()),
+            None,
         ) {
             if pending.as_ref().is_some_and(|pending| pending.spatial)
                 || next_interval_property_is_spatial
             {
                 modifiers.spatial_recurrences.push(recurrence);
+                pending_recurrence_index = Some((true, modifiers.spatial_recurrences.len() - 1));
             } else {
                 modifiers.temporal_recurrences.push(recurrence);
+                pending_recurrence_index = Some((false, modifiers.temporal_recurrences.len() - 1));
             }
             next_interval_property_is_spatial = false;
             continue;
         }
         if let Some(contour) = aspect_contour_for_zaho_token(token) {
+            pending_recurrence_index = None;
             if next_interval_property_is_spatial {
                 modifiers.spatial_aspect = Some(contour);
             } else {
@@ -11865,6 +11955,7 @@ fn scoped_interval_modifiers_for_composite_parts(
             continue;
         }
         pending_number = None;
+        pending_recurrence_index = None;
         next_interval_property_is_spatial = false;
     }
     modifiers
@@ -11962,6 +12053,7 @@ fn aspect_contour_for_zaho_token(token: &Token) -> Option<String> {
 fn recurrence_for_interval_marker(
     marker: &Token,
     value_text: Option<String>,
+    negation_marker: Option<&Token>,
 ) -> Option<Recurrence> {
     let kind = match marker.cmavo() {
         Some(Cmavo::Roi) => RecurrenceKind::OccurrenceCount,
@@ -11973,7 +12065,15 @@ fn recurrence_for_interval_marker(
         _ => return None,
     };
     let value = value_text.map(quantity_value_for_recurrence_text);
-    Some(Recurrence::new(kind, token_text(marker), value, None, None))
+    Some(Recurrence::new(
+        kind,
+        token_text(marker),
+        value,
+        None,
+        negation_marker
+            .map(|marker| ModalNegation::new(ModalNegationKind::Contradictory, token_text(marker))),
+        None,
+    ))
 }
 
 #[requires(interval.is_none_or(|interval| crate::model::argument_object_kind_can_fill(interval.object_kind())))]
@@ -11988,6 +12088,7 @@ fn recurrence_with_interval(
         data.introduced_by,
         data.value,
         interval,
+        data.negation,
         data.source,
     )
 }
@@ -12684,6 +12785,7 @@ fn modal_relation_for_marker(marker: &str) -> String {
         "ga'a" => "zgana".to_owned(),
         "ka'a" => "klama".to_owned(),
         "ki'u" => "krinu".to_owned(),
+        "ma'i" => "manri".to_owned(),
         "mau" => "zmadu".to_owned(),
         "me'a" => "mleca".to_owned(),
         "mu'i" => "mukti".to_owned(),
@@ -14859,6 +14961,81 @@ mod tests {
         assert_eq!(event["recurrence"][1]["kind"], "ordinalOccurrence");
         assert_eq!(event["recurrence"][1]["introducedBy"], "re'u");
         assert_eq!(event["recurrence"][1]["value"]["integer"], 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recurrence_nai_marks_interval_property_negation() {
+        let intermittent =
+            semantic_json_for("le verba ru'inai cadzu le bisli").expect("semantic JSON");
+        let cadzu = predication_with_relation_and_mode(&intermittent, "cadzu", "asserted");
+        let event = object(
+            &intermittent,
+            cadzu["eventuality"].as_str().expect("cadzu event"),
+        );
+        assert_eq!(event["recurrence"][0]["kind"], "continuously");
+        assert_eq!(event["recurrence"][0]["introducedBy"], "ru'i");
+        assert_eq!(event["recurrence"][0]["negation"]["kind"], "contradictory");
+        assert_eq!(event["recurrence"][0]["negation"]["introducedBy"], "nai");
+
+        let not_twice =
+            semantic_json_for("le ratcu reroinai citka le cirla").expect("semantic JSON");
+        let citka = predication_with_relation_and_mode(&not_twice, "citka", "asserted");
+        let event = object(
+            &not_twice,
+            citka["eventuality"].as_str().expect("citka event"),
+        );
+        assert_eq!(event["recurrence"][0]["kind"], "occurrenceCount");
+        assert_eq!(event["recurrence"][0]["value"]["integer"], 2);
+        assert_eq!(event["recurrence"][0]["negation"]["introducedBy"], "nai");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn spatial_mohi_marks_directed_motion() {
+        let moving_right =
+            semantic_json_for("le verba mo'i ri'u cadzu le bisli").expect("semantic JSON");
+        let cadzu = predication_with_relation_and_mode(&moving_right, "cadzu", "asserted");
+        let event = object(
+            &moving_right,
+            cadzu["eventuality"].as_str().expect("cadzu event"),
+        );
+        assert_eq!(event["space"]["relation"], "rightOf");
+        assert_eq!(event["space"]["motion"]["kind"], "toward");
+        assert_eq!(event["space"]["motion"]["introducedBy"], "mo'i");
+
+        let static_right =
+            semantic_json_for("le verba ri'u cadzu le bisli").expect("semantic JSON");
+        let cadzu = predication_with_relation_and_mode(&static_right, "cadzu", "asserted");
+        let event = object(
+            &static_right,
+            cadzu["eventuality"].as_str().expect("cadzu event"),
+        );
+        assert_eq!(event["space"]["relation"], "rightOf");
+        assert!(event["space"].get("motion").is_none());
+
+        let static_then_motion =
+            semantic_json_for("le verba zu'avu mo'i ri'uvi cadzu le bisli").expect("semantic JSON");
+        let cadzu = predication_with_relation_and_mode(&static_then_motion, "cadzu", "asserted");
+        let event = object(
+            &static_then_motion,
+            cadzu["eventuality"].as_str().expect("cadzu event"),
+        );
+        assert_eq!(event["spacePath"][0]["relation"], "leftOf");
+        assert!(event["spacePath"][0].get("motion").is_none());
+        assert_eq!(event["spacePath"][1]["relation"], "rightOf");
+        assert_eq!(event["spacePath"][1]["motion"]["introducedBy"], "mo'i");
+
+        let reference_frame = semantic_json_for("le verba mo'i ri'u cadzu le bisli ma'i vo'a")
+            .expect("semantic JSON");
+        let cadzu = predication_with_relation_and_mode(&reference_frame, "cadzu", "asserted");
+        assert_eq!(cadzu["modalArguments"][0]["relation"], "manri");
+        assert_eq!(
+            cadzu["modalArguments"][0]["arguments"]["x1"]["value"],
+            "referent:r1"
+        );
     }
 
     #[test]
