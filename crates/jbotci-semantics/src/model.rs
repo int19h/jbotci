@@ -2033,7 +2033,7 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
     optional_reference_has_kind(object.speaker, SemanticObjectKind::Referent)
         && optional_reference_has_kind(object.audience, SemanticObjectKind::Referent)
         && optional_reference_has_kind(object.eventuality, SemanticObjectKind::Eventuality)
-        && utterance_content_reference_matches_force(object.force, object.content)
+        && content_reference_matches_role(object.object_kind(), object.force, object.content)
         && object.deictic_ground.is_none_or(|ground| {
             ground.time.object_kind() == SemanticObjectKind::Referent
                 && ground.place.object_kind() == SemanticObjectKind::Referent
@@ -2154,13 +2154,32 @@ fn quantity_value_references_match_roles(value: &QuantityValue) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn utterance_content_reference_matches_force(
-    force: Option<UtteranceForce>,
+fn content_reference_matches_role(
+    object_kind: SemanticObjectKind,
+    utterance_force: Option<UtteranceForce>,
     content: Option<SemanticObjectId>,
 ) -> bool {
     let Some(content) = content else {
         return true;
     };
+    match object_kind {
+        SemanticObjectKind::Utterance => {
+            utterance_content_reference_matches_force(utterance_force, content)
+        }
+        SemanticObjectKind::Eventuality => matches!(
+            content.object_kind(),
+            SemanticObjectKind::Formula | SemanticObjectKind::Sequence
+        ),
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn utterance_content_reference_matches_force(
+    force: Option<UtteranceForce>,
+    content: SemanticObjectId,
+) -> bool {
     let ordinary_content = matches!(
         content.object_kind(),
         SemanticObjectKind::Formula | SemanticObjectKind::Sequence | SemanticObjectKind::Question

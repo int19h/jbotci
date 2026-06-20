@@ -382,6 +382,7 @@ where
     relation_question_parameters: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     modal_assignment_arguments: HashMap<ModalAssignmentKey, ModalArgument>,
     utterance_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
+    content_eventualities: HashMap<SemanticObjectId, SemanticObjectId>,
     parameter_slots: Vec<QuestionSlot>,
     abstraction_parameter_stack: Vec<Vec<SemanticObjectId>>,
     pending_asides: Vec<SemanticObjectId>,
@@ -413,6 +414,7 @@ where
             relation_question_parameters: HashMap::new(),
             modal_assignment_arguments: HashMap::new(),
             utterance_objects: HashMap::new(),
+            content_eventualities: HashMap::new(),
             parameter_slots: Vec::new(),
             abstraction_parameter_stack: Vec::new(),
             pending_asides: Vec::new(),
@@ -2026,6 +2028,33 @@ where
         if connector.is_none() && !has_duplicate_numbered_assignments {
             return Ok(None);
         }
+        let recursive_connection = (!has_duplicate_numbered_assignments)
+            .then(|| {
+                assigned_sumtis
+                    .iter()
+                    .filter(|(_key, sumti)| {
+                        logical_sumti_connection_parts_degrouped(sumti).is_some()
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .and_then(|connections| match connections.as_slice() {
+                [(key, sumti)] => Some((key.clone(), *sumti)),
+                _ => None,
+            });
+        if let Some((connected_place, connected_sumti)) = recursive_connection {
+            let fill_through = self
+                .place_count_for_relation(&relation)
+                .unwrap_or_else(|| highest_assigned_place.max(1));
+            return self.build_recursive_logical_sumti_connection_formula(
+                bridi,
+                selbri,
+                relation,
+                &connected_place,
+                connected_sumti,
+                &assigned_sumtis,
+                fill_through,
+            );
+        }
         for (key, sumti) in assigned_sumtis {
             if let Some((leading_sumti, connective, _tense_modal, trailing_sumti)) =
                 logical_sumti_connection_parts(sumti)
@@ -2164,6 +2193,198 @@ where
             ),
         )
         .map(Some)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(argument_place_index(connected_place).is_some())]
+    #[requires(assigned_sumtis.iter().any(|(place, _sumti)| place == connected_place))]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.is_some_and(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn build_recursive_logical_sumti_connection_formula(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: Option<&'tree SelbriSyntax>,
+        relation: String,
+        connected_place: &str,
+        connected_sumti: &'tree SumtiSyntax,
+        assigned_sumtis: &[(String, &'tree SumtiSyntax)],
+        fill_through: usize,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let mut base_arguments = BTreeMap::new();
+        for (place, sumti) in assigned_sumtis {
+            if place == connected_place {
+                continue;
+            }
+            base_arguments.insert(place.clone(), self.build_argument_for_sumti(sumti)?);
+        }
+        for place in 1..=fill_through {
+            let key = format!("x{place}");
+            if key != connected_place && !base_arguments.contains_key(&key) {
+                base_arguments.insert(key, self.build_elided_argument_for_place(place)?);
+            }
+        }
+        self.build_sumti_connection_formula_for_place(
+            bridi,
+            selbri,
+            &relation,
+            connected_place,
+            &base_arguments,
+            connected_sumti,
+        )
+        .map(Some)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(argument_place_index(connected_place).is_some())]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_sumti_connection_formula_for_place(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: Option<&'tree SelbriSyntax>,
+        relation: &str,
+        connected_place: &str,
+        base_arguments: &BTreeMap<String, ArgumentValue>,
+        sumti: &'tree SumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let Some((leading_sumti, connective, tense_modal, trailing_sumti)) =
+            logical_sumti_connection_parts_degrouped(sumti)
+        else {
+            return self.build_sumti_connection_branch_formula(
+                bridi,
+                selbri,
+                relation,
+                connected_place,
+                base_arguments,
+                sumti,
+                false,
+            );
+        };
+        let leading_formula = self.build_sumti_connection_branch_formula(
+            bridi,
+            selbri,
+            relation,
+            connected_place,
+            base_arguments,
+            leading_sumti,
+            connective_negates_left(connective),
+        )?;
+        let trailing_formula = self.build_sumti_connection_branch_formula(
+            bridi,
+            selbri,
+            relation,
+            connected_place,
+            base_arguments,
+            trailing_sumti,
+            connective_negates_right(connective),
+        )?;
+        let mut children = vec![leading_formula, trailing_formula];
+        let mut diagnostics = Vec::new();
+        if let Some(spec) = modal_connection_spec_for_connective_and_tense(connective, tense_modal)
+        {
+            let (visible_formula, other_formula) =
+                if modal_connection_visible_argument_is_first(connective) {
+                    (leading_formula, trailing_formula)
+                } else {
+                    (trailing_formula, leading_formula)
+                };
+            match self.build_modal_formula_connection_claim(
+                visible_formula,
+                other_formula,
+                &spec,
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "sumti-connection-claim")),
+            )? {
+                Some(claim) => children.push(claim),
+                None => diagnostics.push(diagnostic(
+                    "modal sumti connection could not find formula-bearing bridi events to relate",
+                )),
+            }
+        }
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                formula_operator_for_connective(connective),
+                children,
+                Some(Connector {
+                    source: modal_connective_text(connective, tense_modal),
+                    locus: "sumti".to_owned(),
+                    truth_table: None,
+                }),
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "sumti-connection-formula")),
+                diagnostics,
+            ),
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(argument_place_index(connected_place).is_some())]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_sumti_connection_branch_formula(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: Option<&'tree SelbriSyntax>,
+        relation: &str,
+        connected_place: &str,
+        base_arguments: &BTreeMap<String, ArgumentValue>,
+        sumti: &'tree SumtiSyntax,
+        negated: bool,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let formula = if logical_sumti_connection_parts_degrouped(sumti).is_some() {
+            self.build_sumti_connection_formula_for_place(
+                bridi,
+                selbri,
+                relation,
+                connected_place,
+                base_arguments,
+                sumti,
+            )?
+        } else {
+            let mut arguments = base_arguments.clone();
+            arguments.insert(
+                connected_place.to_owned(),
+                self.build_argument_for_sumti(sumti)?,
+            );
+            let predication = self.build_predication_from_arguments(
+                relation.to_owned(),
+                selbri,
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "distributed-predication")),
+                arguments,
+                Vec::new(),
+            )?;
+            let formula = self.next_formula();
+            self.insert(
+                formula,
+                SemanticObject::atom_formula(
+                    predication,
+                    self.analysis
+                        .syntax_index
+                        .bridi_node_id(bridi)
+                        .and_then(|node| self.source_for_node(node.0, "distributed-formula")),
+                    Vec::new(),
+                ),
+            )?
+        };
+        if negated {
+            self.build_unary_formula(
+                FormulaOperator::Not,
+                formula,
+                self.analysis
+                    .syntax_index
+                    .bridi_node_id(bridi)
+                    .and_then(|node| self.source_for_node(node.0, "distributed-negation")),
+                Vec::new(),
+            )
+        } else {
+            Ok(formula)
+        }
     }
 
     #[requires(!relation.is_empty())]
@@ -5064,23 +5285,16 @@ where
         }
     }
 
-    #[requires(true)]
-    #[ensures(ret.is_none_or(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality))]
-    fn asserted_eventuality_for_discourse_item(
-        &self,
-        item: SemanticObjectId,
-    ) -> Option<SemanticObjectId> {
-        let formula = self.content_formula_for_discourse_item(item)?;
-        self.asserted_eventuality_for_formula(formula)
-    }
-
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[ensures(ret.is_none_or(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality))]
-    fn asserted_eventuality_for_formula(
+    fn primary_eventuality_for_formula(
         &self,
         formula: SemanticObjectId,
     ) -> Option<SemanticObjectId> {
         let object = self.objects.get(&formula)?;
+        if let Some(eventuality) = object.eventuality {
+            return Some(eventuality);
+        }
         match object.operator.as_ref()?.as_data() {
             data!(SemanticOperator::Formula(FormulaOperator::Atom)) => {
                 let predication = self.objects.get(&object.predication?)?;
@@ -5088,11 +5302,104 @@ where
                     .then_some(predication.eventuality)
                     .flatten()
             }
-            data!(SemanticOperator::Formula(_)) => object
-                .children
-                .iter()
-                .find_map(|child| self.asserted_eventuality_for_formula(*child)),
-            data!(SemanticOperator::Math(_)) => None,
+            data!(SemanticOperator::Formula(_))
+                if object
+                    .connector
+                    .as_ref()
+                    .is_some_and(|connector| connector.source == "tanru") =>
+            {
+                object
+                    .children
+                    .first()
+                    .and_then(|child| self.primary_eventuality_for_formula(*child))
+            }
+            data!(SemanticOperator::Formula(_)) | data!(SemanticOperator::Math(_)) => None,
+        }
+    }
+
+    #[requires(matches!(
+        content.object_kind(),
+        crate::model::SemanticObjectKind::Formula | crate::model::SemanticObjectKind::Sequence
+    ))]
+    #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality) || ret.is_err())]
+    fn reified_eventuality_for_content(
+        &mut self,
+        content: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(eventuality) = self.content_eventualities.get(&content) {
+            return Ok(*eventuality);
+        }
+        let eventuality = self.next_eventuality();
+        let mut event = SemanticObject::eventuality(
+            EventualityClass::Event,
+            Some(Actuality {
+                kind: ActualityKind::Actual,
+            }),
+            source,
+        );
+        event.content = Some(content);
+        self.insert(eventuality, event)?;
+        self.content_eventualities.insert(content, eventuality);
+        Ok(eventuality)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality) || ret.is_err())]
+    fn modal_eventuality_argument_for_formula(
+        &mut self,
+        formula: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(eventuality) = self.primary_eventuality_for_formula(formula) {
+            return Ok(eventuality);
+        }
+        self.reified_eventuality_for_content(formula, source)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.is_none_or(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality)) || ret.is_err())]
+    fn modal_eventuality_argument_for_discourse_item(
+        &mut self,
+        item: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(object) = self.objects.get(&item) else {
+            return Ok(None);
+        };
+        let object_kind = object.object_kind();
+        let content = object.content;
+        match object_kind {
+            crate::model::SemanticObjectKind::Sequence => {
+                self.reified_eventuality_for_content(item, source).map(Some)
+            }
+            crate::model::SemanticObjectKind::Utterance => {
+                let Some(content) = content else {
+                    return Ok(None);
+                };
+                match content.object_kind() {
+                    crate::model::SemanticObjectKind::Formula => self
+                        .modal_eventuality_argument_for_formula(content, source)
+                        .map(Some),
+                    crate::model::SemanticObjectKind::Sequence => self
+                        .reified_eventuality_for_content(content, source)
+                        .map(Some),
+                    crate::model::SemanticObjectKind::Question => {
+                        let body = self
+                            .objects
+                            .get(&content)
+                            .and_then(|question| question.body);
+                        match body {
+                            Some(body) => self
+                                .modal_eventuality_argument_for_formula(body, source)
+                                .map(Some),
+                            None => Ok(None),
+                        }
+                    }
+                    _ => Ok(None),
+                }
+            }
+            _ => Ok(None),
         }
     }
 
@@ -5105,13 +5412,42 @@ where
         spec: &ModalStatementConnectionSpec,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let Some(leading_formula) = self.content_formula_for_discourse_item(leading_item) else {
-            return Ok(None);
-        };
-        let Some(trailing_formula) = self.content_formula_for_discourse_item(trailing_item) else {
-            return Ok(None);
-        };
-        self.build_modal_formula_connection_claim(trailing_formula, leading_formula, spec, source)
+        match spec.argument_kind {
+            ModalConnectionArgumentKind::Eventuality => {
+                let Some(leading_eventuality) = self
+                    .modal_eventuality_argument_for_discourse_item(leading_item, source.clone())?
+                else {
+                    return Ok(None);
+                };
+                let Some(trailing_eventuality) = self
+                    .modal_eventuality_argument_for_discourse_item(trailing_item, source.clone())?
+                else {
+                    return Ok(None);
+                };
+                self.build_modal_connection_claim_from_arguments(
+                    trailing_eventuality,
+                    leading_eventuality,
+                    spec,
+                    source,
+                )
+            }
+            ModalConnectionArgumentKind::Formula => {
+                let Some(leading_formula) = self.content_formula_for_discourse_item(leading_item)
+                else {
+                    return Ok(None);
+                };
+                let Some(trailing_formula) = self.content_formula_for_discourse_item(trailing_item)
+                else {
+                    return Ok(None);
+                };
+                self.build_modal_formula_connection_claim(
+                    trailing_formula,
+                    leading_formula,
+                    spec,
+                    source,
+                )
+            }
+        }
     }
 
     #[requires(visible_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -5125,23 +5461,35 @@ where
         spec: &ModalStatementConnectionSpec,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let Some((visible_argument, other_argument)) = (match spec.argument_kind {
+        let (visible_argument, other_argument) = match spec.argument_kind {
             ModalConnectionArgumentKind::Eventuality => {
-                let Some(visible_eventuality) =
-                    self.asserted_eventuality_for_formula(visible_formula)
-                else {
-                    return Ok(None);
-                };
-                let Some(other_eventuality) = self.asserted_eventuality_for_formula(other_formula)
-                else {
-                    return Ok(None);
-                };
-                Some((visible_eventuality, other_eventuality))
+                let visible_eventuality =
+                    self.modal_eventuality_argument_for_formula(visible_formula, source.clone())?;
+                let other_eventuality =
+                    self.modal_eventuality_argument_for_formula(other_formula, source.clone())?;
+                (visible_eventuality, other_eventuality)
             }
-            ModalConnectionArgumentKind::Formula => Some((visible_formula, other_formula)),
-        }) else {
-            return Ok(None);
+            ModalConnectionArgumentKind::Formula => (visible_formula, other_formula),
         };
+        self.build_modal_connection_claim_from_arguments(
+            visible_argument,
+            other_argument,
+            spec,
+            source,
+        )
+    }
+
+    #[requires(visible_argument.object_kind() == crate::model::SemanticObjectKind::Eventuality || visible_argument.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(other_argument.object_kind() == crate::model::SemanticObjectKind::Eventuality || other_argument.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(spec.visible_place > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|claim| claim.is_none_or(|claim| claim.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn build_modal_connection_claim_from_arguments(
+        &mut self,
+        visible_argument: SemanticObjectId,
+        other_argument: SemanticObjectId,
+        spec: &ModalStatementConnectionSpec,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         let other_place = convert_numbered_place(2, spec.visible_place);
         let highest_place = self
             .place_count_for_relation(&spec.relation)
@@ -9202,6 +9550,24 @@ fn logical_sumti_connection_parts(
 
 #[requires(true)]
 #[ensures(true)]
+fn logical_sumti_connection_parts_degrouped(
+    sumti: &SumtiSyntax,
+) -> Option<(
+    &SumtiSyntax,
+    &ConnectiveSyntax,
+    Option<&TenseModalSyntax>,
+    &SumtiSyntax,
+)> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::GroupedSumti { inner_sumti, .. }) => {
+            logical_sumti_connection_parts_degrouped(inner_sumti)
+        }
+        _ => logical_sumti_connection_parts(sumti),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn connective_is_logical(connective: &ConnectiveSyntax) -> bool {
     !matches!(
         connective.as_data(),
@@ -11479,6 +11845,20 @@ mod tests {
             .unwrap_or_else(|| panic!("missing referent descriptor kind {kind}"))
     }
 
+    #[requires(!name.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn named_referent_id<'a>(json: &'a Value, name: &str) -> &'a str {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .iter()
+            .find(|(_id, object)| {
+                object["type"] == "referent" && object["descriptor"]["name"] == name
+            })
+            .map(|(id, _object)| id.as_str())
+            .unwrap_or_else(|| panic!("missing named referent {name}"))
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -12196,6 +12576,49 @@ mod tests {
         let nelci = predications_with_relation_and_mode(&json, "nelci", "asserted");
         assert_eq!(krinu["arguments"]["x1"]["value"], nelci[1]["eventuality"]);
         assert_eq!(krinu["arguments"]["x2"]["value"], nelci[0]["eventuality"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nested_grouped_modal_sumti_connection_reifies_group_effect() {
+        let json =
+            semantic_json_for("mi bevri le dakli .eseri'ake le gerku .adu'ibo le mlatu ke'e")
+                .expect("semantic JSON");
+        let content_id = object(&json, "utterance:u1")["content"]
+            .as_str()
+            .expect("utterance content");
+        let content = object(&json, content_id);
+        assert_eq!(content["connector"]["source"], "e se ri'a");
+        let inner_id = content["children"][1]
+            .as_str()
+            .expect("inner grouped sumti formula");
+        let inner = object(&json, inner_id);
+        assert_eq!(inner["connector"]["source"], "a du'i bo");
+
+        let carries = predications_with_relation_and_mode(&json, "bevri", "asserted");
+        let dunli = predication_with_relation_and_mode(&json, "dunli", "asserted");
+        assert_eq!(dunli["introducedBy"], "du'i");
+        assert_eq!(dunli["arguments"]["x1"]["value"], carries[2]["eventuality"]);
+        assert_eq!(dunli["arguments"]["x2"]["value"], carries[1]["eventuality"]);
+
+        let rinka = predication_with_relation_and_mode(&json, "rinka", "asserted");
+        assert_eq!(rinka["introducedBy"], "se ri'a");
+        assert_eq!(rinka["arguments"]["x1"]["value"], carries[0]["eventuality"]);
+        let effect_event = rinka["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("effect eventuality");
+        assert_eq!(object(&json, effect_event)["content"], inner_id);
+        for place in ["x3", "x4", "x5"] {
+            assert_eq!(
+                carries[0]["arguments"][place]["value"],
+                carries[1]["arguments"][place]["value"]
+            );
+            assert_eq!(
+                carries[1]["arguments"][place]["value"],
+                carries[2]["arguments"][place]["value"]
+            );
+        }
     }
 
     #[test]
@@ -13808,16 +14231,18 @@ mod tests {
     #[ensures(true)]
     fn logical_sumti_connection_distributes_and_shares_elided_places() {
         let json = semantic_json_for("la djan .e la alis klama le zarci").expect("semantic JSON");
+        let djan = named_referent_id(&json, "djan");
+        let alis = named_referent_id(&json, "alis");
         assert_eq!(object(&json, "utterance:u1")["content"], "formula:f4");
         assert_eq!(object(&json, "formula:f4")["operator"], "and");
         assert_eq!(object(&json, "formula:f4")["connector"]["source"], "e");
         assert_eq!(
             object(&json, "predication:p2")["arguments"]["x1"]["value"],
-            "referent:r1"
+            djan
         );
         assert_eq!(
             object(&json, "predication:p3")["arguments"]["x1"]["value"],
-            "referent:r2"
+            alis
         );
         assert_eq!(
             object(&json, "predication:p2")["arguments"]["x3"]["value"],
