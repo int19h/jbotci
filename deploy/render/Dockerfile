@@ -5,7 +5,7 @@ FROM rust:1-bookworm AS build
 WORKDIR /src
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates clang libclang-dev nodejs npm \
+    && apt-get install -y --no-install-recommends ca-certificates clang cmake libclang-dev nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 
 RUN rustup target add wasm32-unknown-unknown
