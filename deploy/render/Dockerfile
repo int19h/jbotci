@@ -5,7 +5,7 @@ FROM rust:1-bookworm AS build
 WORKDIR /src
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates nodejs npm \
+    && apt-get install -y --no-install-recommends ca-certificates clang libclang-dev nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 
 RUN rustup target add wasm32-unknown-unknown
@@ -42,7 +42,7 @@ RUN --mount=type=cache,id=jbotci-cargo-registry,target=/usr/local/cargo/registry
 FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
+    && apt-get install -y --no-install-recommends ca-certificates libstdc++6 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --uid 10001 --home /opt/jbotci --shell /usr/sbin/nologin jbotci
 

@@ -12,7 +12,7 @@ LABEL org.opencontainers.image.title="jbotci" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
+    && apt-get install -y --no-install-recommends ca-certificates libstdc++6 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --uid 10001 --home /opt/jbotci --shell /usr/sbin/nologin jbotci
 
