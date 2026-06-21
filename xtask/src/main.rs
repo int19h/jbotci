@@ -25,6 +25,7 @@ const DESKTOP_BUNDLE_WINDOWS_ARTIFACT: &str = "jbotci.msi";
 const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
+const DEFAULT_SERVER_EMBEDDING_MODEL_KEY: &str = "f2llm-v2-80m-q4-k-m-320";
 static WEB_ASSET_COPY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug, Parser)]
@@ -93,6 +94,8 @@ struct RenderDockerBuildArgs {
     base_path: String,
     #[arg(long, default_value = "https://assets.jbotci.app/embeddings/web/v1")]
     web_embeddings_base_url: String,
+    #[arg(long, default_value = DEFAULT_SERVER_EMBEDDING_MODEL_KEY)]
+    server_embedding_model_key: String,
     #[arg(long)]
     no_cache: bool,
 }
@@ -112,6 +115,8 @@ struct RenderDockerRunArgs {
     base_path: String,
     #[arg(long, default_value = "https://assets.jbotci.app/embeddings/web/v1")]
     web_embeddings_base_url: String,
+    #[arg(long, default_value = DEFAULT_SERVER_EMBEDDING_MODEL_KEY)]
+    server_embedding_model_key: String,
     #[arg(long)]
     no_build: bool,
 }
@@ -1116,6 +1121,7 @@ fn server_bundle_path(out_dir: &Path) -> Result<PathBuf> {
 
 #[requires(!args.image.trim().is_empty())]
 #[requires(!args.web_embeddings_base_url.trim().is_empty())]
+#[requires(!args.server_embedding_model_key.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn render_docker_build(args: RenderDockerBuildArgs) -> Result<()> {
     let engine = args.engine.resolve()?;
@@ -1137,6 +1143,11 @@ fn render_docker_build(args: RenderDockerBuildArgs) -> Result<()> {
         .arg(format!(
             "WEB_EMBEDDINGS_BASE_URL={}",
             args.web_embeddings_base_url
+        ))
+        .arg("--build-arg")
+        .arg(format!(
+            "SERVER_EMBEDDING_MODEL_KEY={}",
+            args.server_embedding_model_key
         ))
         .arg("--build-arg")
         .arg(format!("RENDER_GIT_COMMIT={git_commit}"))
@@ -1181,6 +1192,7 @@ fn is_git_commit_hash(value: &str) -> bool {
 
 #[requires(!args.image.trim().is_empty())]
 #[requires(!args.web_embeddings_base_url.trim().is_empty())]
+#[requires(!args.server_embedding_model_key.trim().is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn render_docker_run(args: RenderDockerRunArgs) -> Result<()> {
     if !args.no_build {
@@ -1189,6 +1201,7 @@ fn render_docker_run(args: RenderDockerRunArgs) -> Result<()> {
             image: args.image.clone(),
             base_path: args.base_path.clone(),
             web_embeddings_base_url: args.web_embeddings_base_url.clone(),
+            server_embedding_model_key: args.server_embedding_model_key.clone(),
             no_cache: false,
         })?;
     }
@@ -1219,6 +1232,11 @@ fn render_docker_run(args: RenderDockerRunArgs) -> Result<()> {
         .arg(format!(
             "JBOTCI_WEB_EMBEDDINGS_BASE_URL={}",
             args.web_embeddings_base_url
+        ))
+        .arg("-e")
+        .arg(format!(
+            "JBOTCI_SERVER_EMBEDDING_MODEL_KEY={}",
+            args.server_embedding_model_key
         ))
         .arg(&args.image)
         .status()

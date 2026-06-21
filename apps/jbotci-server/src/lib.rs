@@ -23,10 +23,11 @@ use axum::{Json, Router};
 use bityzba::{ensures, invariant, new, requires};
 use dioxus::server::{DioxusRouterExt, FullstackState};
 use jbotci_cli::{
-    TOOL_DEFAULT_EMBEDDING_MODEL_KEY, ToolCuktaRequest, ToolEmbeddingSearchService,
-    ToolExecutionContext, ToolRenderedOutput, ToolVlackuRequest, run_tool_cukta,
-    run_tool_cukta_with_context, run_tool_vlacku, run_tool_vlacku_with_context,
+    ToolCuktaRequest, ToolEmbeddingSearchService, ToolExecutionContext, ToolRenderedOutput,
+    ToolVlackuRequest, run_tool_cukta, run_tool_cukta_with_context, run_tool_vlacku,
+    run_tool_vlacku_with_context,
 };
+use jbotci_embeddings::{load_latest_pack, model_spec};
 use jbotci_web_core::{
     FAVICON_ASSET_PATH, GentufaError, GentufaExportFormat, GentufaWebRequest, GentufaWebResult,
     MANIFEST_ASSET_PATH, META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability,
@@ -85,12 +86,26 @@ struct CachedEmbeddingError {
     message: String,
 }
 
-#[invariant(::Unloaded => true)]
+#[invariant(!value.trim().is_empty())]
+#[derive(Debug, Clone)]
+struct ServerEmbeddingModelKey {
+    value: String,
+}
+
+impl ServerEmbeddingModelKey {
+    #[requires(true)]
+    #[ensures(!ret.trim().is_empty())]
+    fn as_str(&self) -> &str {
+        &self.value
+    }
+}
+
+#[invariant(::Unloaded { .. } => true)]
 #[invariant(::Loaded { .. } => true)]
 #[invariant(::Unavailable { .. } => true)]
 #[derive(Debug)]
 enum EmbeddingSearchCache {
-    Unloaded,
+    Unloaded { model_key: ServerEmbeddingModelKey },
     Loaded { service: ToolEmbeddingSearchService },
     Unavailable { error: CachedEmbeddingError },
 }
@@ -100,7 +115,7 @@ impl ToolServices {
     #[ensures(true)]
     fn new() -> Self {
         let (sender, receiver) = mpsc::channel();
-        spawn_embedding_worker(receiver);
+        spawn_embedding_worker(receiver, configured_embedding_search_startup());
         Self {
             embedding_worker: Arc::new(Mutex::new(sender)),
         }
@@ -144,23 +159,72 @@ impl ToolServices {
 
 #[requires(true)]
 #[ensures(true)]
-fn spawn_embedding_worker(receiver: mpsc::Receiver<EmbeddingToolJob>) {
+fn spawn_embedding_worker(
+    receiver: mpsc::Receiver<EmbeddingToolJob>,
+    startup: std::result::Result<ServerEmbeddingModelKey, CachedEmbeddingError>,
+) {
     thread::Builder::new()
         .name("jbotci-embedding-search".to_owned())
-        .spawn(move || embedding_worker_loop(receiver))
+        .spawn(move || embedding_worker_loop(receiver, startup))
         .expect("embedding search worker thread starts");
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn embedding_worker_loop(receiver: mpsc::Receiver<EmbeddingToolJob>) {
-    let mut cache = EmbeddingSearchCache::Unloaded;
+fn embedding_worker_loop(
+    receiver: mpsc::Receiver<EmbeddingToolJob>,
+    startup: std::result::Result<ServerEmbeddingModelKey, CachedEmbeddingError>,
+) {
+    let mut cache = embedding_search_cache_from_startup(startup);
     for job in receiver {
         let EmbeddingToolJob { request, response } = job;
         let output = run_embedding_tool_request(request, &mut cache);
         if response.send(output).is_err() {
             continue;
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(
+    ret.as_ref().is_ok_and(|model_key| !model_key.as_str().trim().is_empty())
+        || ret.as_ref().err().is_some_and(|error| !error.message.trim().is_empty())
+)]
+fn configured_embedding_search_startup()
+-> std::result::Result<ServerEmbeddingModelKey, CachedEmbeddingError> {
+    match configured_embedding_model_key() {
+        Ok(model_key) => Ok(model_key),
+        Err(message) => Err(new!(CachedEmbeddingError { message })),
+    }
+}
+
+#[requires(true)]
+#[ensures(
+    ret.as_ref().is_ok_and(|model_key| !model_key.as_str().trim().is_empty())
+        || ret.as_ref().err().is_some_and(|message| !message.trim().is_empty())
+)]
+fn configured_embedding_model_key() -> std::result::Result<ServerEmbeddingModelKey, String> {
+    let model_key = std::env::var(SERVER_EMBEDDING_MODEL_KEY_ENV)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| SERVER_DEFAULT_EMBEDDING_MODEL_KEY.to_owned());
+    if model_spec(&model_key).is_none() {
+        return Err(format!(
+            "unsupported server embedding model `{model_key}` from {SERVER_EMBEDDING_MODEL_KEY_ENV}"
+        ));
+    }
+    Ok(new!(ServerEmbeddingModelKey { value: model_key }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn embedding_search_cache_from_startup(
+    startup: std::result::Result<ServerEmbeddingModelKey, CachedEmbeddingError>,
+) -> EmbeddingSearchCache {
+    match startup {
+        Ok(model_key) => EmbeddingSearchCache::Unloaded { model_key },
+        Err(error) => EmbeddingSearchCache::Unavailable { error },
     }
 }
 
@@ -186,16 +250,19 @@ fn run_with_embedding_cache(
     cache: &mut EmbeddingSearchCache,
     runner: impl FnOnce(&mut ToolExecutionContext<'_>) -> Result<ToolRenderedOutput>,
 ) -> Result<ToolRenderedOutput> {
-    if matches!(cache, EmbeddingSearchCache::Unloaded) {
-        *cache =
-            match ToolEmbeddingSearchService::load(TOOL_DEFAULT_EMBEDDING_MODEL_KEY, None, None) {
-                Ok(service) => EmbeddingSearchCache::Loaded { service },
-                Err(error) => EmbeddingSearchCache::Unavailable {
-                    error: new!(CachedEmbeddingError {
-                        message: error.to_string(),
-                    }),
-                },
-            };
+    if let EmbeddingSearchCache::Unloaded { model_key } = cache {
+        let model_key = model_key.clone();
+        *cache = match load_server_embedding_search_service(model_key.as_str()) {
+            Ok(service) => EmbeddingSearchCache::Loaded { service },
+            Err(error) => EmbeddingSearchCache::Unavailable {
+                error: new!(CachedEmbeddingError {
+                    message: format!(
+                        "server embedding artifacts for `{}` are unavailable: {error}",
+                        model_key.as_str()
+                    ),
+                }),
+            },
+        };
     }
     match cache {
         EmbeddingSearchCache::Loaded { service } => {
@@ -207,8 +274,18 @@ fn run_with_embedding_cache(
                 ToolExecutionContext::embedding_search_unavailable(error.message.clone());
             runner(&mut context)
         }
-        EmbeddingSearchCache::Unloaded => unreachable!("embedding search cache is initialized"),
+        EmbeddingSearchCache::Unloaded { .. } => {
+            unreachable!("embedding search cache is initialized")
+        }
     }
+}
+
+#[requires(!model_key.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|service| service.model_key() == model_key) || ret.is_err())]
+fn load_server_embedding_search_service(model_key: &str) -> Result<ToolEmbeddingSearchService> {
+    let service = ToolEmbeddingSearchService::load(model_key, None, None)?;
+    load_latest_pack(service.index_root(), service.model_key())?;
+    Ok(service)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -220,6 +297,8 @@ struct HealthResponse {
 
 const SERVICE_WORKER_ASSET_PATH: &str = "/service-worker.js";
 const DIOXUS_PUBLIC_PATH_ENV: &str = "DIOXUS_PUBLIC_PATH";
+const SERVER_EMBEDDING_MODEL_KEY_ENV: &str = "JBOTCI_SERVER_EMBEDDING_MODEL_KEY";
+const SERVER_DEFAULT_EMBEDDING_MODEL_KEY: &str = "f2llm-v2-80m-q4-k-m-320";
 
 #[requires(true)]
 #[ensures(ret.base_path.starts_with('/'))]
@@ -948,6 +1027,19 @@ mod tests {
     }
 
     #[requires(true)]
+    #[ensures(true)]
+    fn set_server_embedding_model_key_env(value: Option<&str>) {
+        // SAFETY: Server embedding env tests hold TEST_ENV_LOCK while mutating process-wide env vars.
+        unsafe {
+            if let Some(value) = value {
+                std::env::set_var(SERVER_EMBEDDING_MODEL_KEY_ENV, value);
+            } else {
+                std::env::remove_var(SERVER_EMBEDDING_MODEL_KEY_ENV);
+            }
+        }
+    }
+
+    #[requires(true)]
     #[ensures(ret.len() == bytes.len() * 2)]
     fn hex_bytes(bytes: &[u8]) -> String {
         bytes
@@ -1031,6 +1123,73 @@ mod tests {
         assert_eq!(normalize_base_path(""), "/");
         assert_eq!(normalize_base_path("/"), "/");
         assert_eq!(normalize_base_path("jbotci/"), "/jbotci");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn server_embedding_model_defaults_to_80m() {
+        let _env_guard = lock_test_env();
+        set_server_embedding_model_key_env(None);
+
+        assert_eq!(
+            configured_embedding_model_key()
+                .expect("server default model key")
+                .as_str(),
+            SERVER_DEFAULT_EMBEDDING_MODEL_KEY
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn server_embedding_model_env_overrides_default() {
+        let _env_guard = lock_test_env();
+        set_server_embedding_model_key_env(Some(" f2llm-v2-160m-q4-k-m-640 "));
+
+        assert_eq!(
+            configured_embedding_model_key()
+                .expect("server configured model key")
+                .as_str(),
+            "f2llm-v2-160m-q4-k-m-640"
+        );
+
+        set_server_embedding_model_key_env(None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_server_embedding_model_key_returns_cached_semantic_error() {
+        let _env_guard = lock_test_env();
+        set_server_embedding_model_key_env(Some("not-a-model"));
+        let mut cache = embedding_search_cache_from_startup(configured_embedding_search_startup());
+        set_server_embedding_model_key_env(None);
+
+        let output = run_embedding_tool_request(
+            EmbeddingToolRequest::Vlacku {
+                request: jbotci_cli::ToolVlackuRequest {
+                    mode: jbotci_cli::ToolVlackuMode::Meaning,
+                    query: "go".to_owned(),
+                    count: Some(1),
+                    word_types: Vec::new(),
+                    min_votes: None,
+                    min_similarity: None,
+                    decompose_lujvo: true,
+                    show_etymology: false,
+                },
+            },
+            &mut cache,
+        )
+        .expect("tool output");
+
+        assert_eq!(output.status, jbotci_cli::ToolStatus::InvalidInput);
+        assert!(
+            output
+                .stderr
+                .contains("unsupported server embedding model `not-a-model`")
+        );
+        assert!(matches!(cache, EmbeddingSearchCache::Unavailable { .. }));
     }
 
     #[test]

@@ -4,6 +4,7 @@ FROM debian:bookworm-slim AS runtime
 
 ARG VCS_REF=
 ARG IMAGE_SOURCE=https://github.com/int19h/jbotci
+ARG SERVER_EMBEDDING_MODEL_KEY=f2llm-v2-80m-q4-k-m-320
 
 LABEL org.opencontainers.image.title="jbotci" \
       org.opencontainers.image.description="Lojban tool web server" \
@@ -19,6 +20,7 @@ RUN apt-get update \
 WORKDIR /opt/jbotci
 
 COPY --chown=jbotci:jbotci --chmod=0755 server ./server
+COPY --chown=jbotci:jbotci --chmod=0755 jbotci ./jbotci
 COPY --chown=jbotci:jbotci public ./public
 
 ENV IP=0.0.0.0
@@ -26,6 +28,18 @@ ENV PORT=10000
 ENV DIOXUS_ASSET_ROOT=/
 ENV DIOXUS_PUBLIC_PATH=/opt/jbotci/public
 ENV JBOTCI_WEB_EMBEDDINGS_BASE_URL=https://assets.jbotci.app/embeddings/web/v1
+ENV JBOTCI_SERVER_EMBEDDING_MODEL_KEY=${SERVER_EMBEDDING_MODEL_KEY}
+ENV JBOTCI_EMBEDDING_MODEL_DIR=/opt/jbotci/embeddings/models
+ENV JBOTCI_EMBEDDING_INDEX_DIR=/opt/jbotci/embeddings/indexes
+
+RUN set -eux; \
+    ./jbotci setup \
+        --embedding \
+        --model "${JBOTCI_SERVER_EMBEDDING_MODEL_KEY}" \
+        --use-precomputed always \
+        --skip-validation; \
+    rm ./jbotci; \
+    chown -R jbotci:jbotci /opt/jbotci/embeddings
 
 EXPOSE 10000
 

@@ -24,7 +24,7 @@ use crate::{
 
 const N_BATCH: u32 = 2048;
 const N_UBATCH: u32 = 2048;
-const N_CTX: u32 = 2048 * 32;
+const N_CTX: u32 = 2048;
 const N_PARALLEL: usize = 32;
 
 static BACKEND: OnceLock<Result<LlamaBackend, String>> = OnceLock::new();

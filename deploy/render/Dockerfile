@@ -20,6 +20,7 @@ COPY . .
 
 ARG BASE_PATH=/
 ARG WEB_EMBEDDINGS_BASE_URL=https://assets.jbotci.app/embeddings/web/v1
+ARG SERVER_EMBEDDING_MODEL_KEY=f2llm-v2-80m-q4-k-m-320
 ARG RENDER_GIT_COMMIT=
 ARG JBOTCI_GIT_COMMIT=
 
@@ -37,9 +38,22 @@ RUN --mount=type=cache,id=jbotci-cargo-registry,target=/usr/local/cargo/registry
     cargo run -p xtask -- dist-server \
         --out-dir /opt/jbotci \
         --base-path "${BASE_PATH}" \
-        --skip-web-embeddings
+        --skip-web-embeddings; \
+    cargo build --release -p jbotci; \
+    install -m 0755 target/release/jbotci /opt/jbotci/jbotci; \
+    export JBOTCI_SERVER_EMBEDDING_MODEL_KEY="${SERVER_EMBEDDING_MODEL_KEY}"; \
+    export JBOTCI_EMBEDDING_MODEL_DIR=/opt/jbotci/embeddings/models; \
+    export JBOTCI_EMBEDDING_INDEX_DIR=/opt/jbotci/embeddings/indexes; \
+    /opt/jbotci/jbotci setup \
+        --embedding \
+        --model "${JBOTCI_SERVER_EMBEDDING_MODEL_KEY}" \
+        --use-precomputed always \
+        --skip-validation; \
+    rm /opt/jbotci/jbotci
 
 FROM debian:bookworm-slim AS runtime
+
+ARG SERVER_EMBEDDING_MODEL_KEY=f2llm-v2-80m-q4-k-m-320
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates libstdc++6 \
@@ -50,12 +64,16 @@ WORKDIR /opt/jbotci
 
 COPY --from=build /opt/jbotci/server ./server
 COPY --from=build /opt/jbotci/public ./public
+COPY --from=build --chown=jbotci:jbotci /opt/jbotci/embeddings ./embeddings
 
 ENV IP=0.0.0.0
 ENV PORT=10000
 ENV DIOXUS_ASSET_ROOT=/
 ENV DIOXUS_PUBLIC_PATH=/opt/jbotci/public
 ENV JBOTCI_WEB_EMBEDDINGS_BASE_URL=https://assets.jbotci.app/embeddings/web/v1
+ENV JBOTCI_SERVER_EMBEDDING_MODEL_KEY=${SERVER_EMBEDDING_MODEL_KEY}
+ENV JBOTCI_EMBEDDING_MODEL_DIR=/opt/jbotci/embeddings/models
+ENV JBOTCI_EMBEDDING_INDEX_DIR=/opt/jbotci/embeddings/indexes
 
 EXPOSE 10000
 
