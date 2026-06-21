@@ -844,7 +844,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "collection frame permits empty values while traversal is in progress",
     ),
     (
-        "apps/jbotci/src/main.rs:Command::Gerna",
+        "apps/jbotci/src/lib.rs:Command::Gerna",
         "cfg-gated nightly command delegates payload validity to GernaInput; stable builds cannot reference the variant in a stronger invariant",
     ),
     (
@@ -1216,60 +1216,228 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "wrapped tanru unit is exactly a validated SelbriSyntax payload",
     ),
     (
-        "apps/jbotci/src/main.rs:Command::Vlasei",
+        "apps/jbotci/src/lib.rs:Command::Vlasei",
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
-        "apps/jbotci/src/main.rs:Command::Vlatai",
+        "apps/jbotci/src/lib.rs:Command::Vlatai",
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
-        "apps/jbotci/src/main.rs:Command::Gentufa",
+        "apps/jbotci/src/lib.rs:Command::Gentufa",
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
-        "apps/jbotci/src/main.rs:Command::Mulgau",
+        "apps/jbotci/src/lib.rs:Command::Mulgau",
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
-        "apps/jbotci/src/main.rs:Command::Tersmu",
+        "apps/jbotci/src/lib.rs:Command::Tersmu",
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
-        "apps/jbotci/src/main.rs:Command::Vlacku",
+        "apps/jbotci/src/lib.rs:Command::Vlacku",
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
-        "apps/jbotci/src/main.rs:Command::Jvozba",
+        "apps/jbotci/src/lib.rs:Command::Jvozba",
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
-        "apps/jbotci/src/main.rs:Command::Gimfihi",
+        "apps/jbotci/src/lib.rs:Command::Gimfihi",
         "CLI enum delegates validation to clap and gimfihi option handling",
     ),
     (
-        "apps/jbotci/src/main.rs:Command::Cukta",
+        "apps/jbotci/src/lib.rs:Command::Cukta",
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
-        "apps/jbotci/src/main.rs:Command::Zbasu",
+        "apps/jbotci/src/lib.rs:Command::Zbasu",
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
-        "apps/jbotci/src/main.rs:Command::Setup",
+        "apps/jbotci/src/lib.rs:Command::Setup",
         "CLI enum delegates validation to clap and setup option handling",
     ),
     (
-        "apps/jbotci/src/main.rs:CliUsePrecomputed::Auto",
+        "apps/jbotci/src/lib.rs:CliUsePrecomputed::Auto",
         "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
     ),
     (
-        "apps/jbotci/src/main.rs:CliUsePrecomputed::Always",
+        "apps/jbotci/src/lib.rs:CliUsePrecomputed::Always",
         "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
     ),
     (
-        "apps/jbotci/src/main.rs:CliUsePrecomputed::Never",
+        "apps/jbotci/src/lib.rs:CliUsePrecomputed::Never",
         "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Brackets",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Blocks",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Tree",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Raw",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Json",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Svg",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Png",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Brackets",
+        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Tree",
+        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Ipa",
+        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Raw",
+        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Json",
+        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Markdown",
+        "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Html",
+        "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Raw",
+        "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaMode::Default",
+        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaMode::Toc",
+        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaMode::Section",
+        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaMode::Example",
+        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaMode::Word",
+        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaMode::Meaning",
+        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::Word",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::Rafsi",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::Lujvo",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::Sound",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::Meaning",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::Regex",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::RafsiRegex",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::Glob",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::RafsiGlob",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolJvozbaMode::Lujvo",
+        "MCP/Discord jvozba mode is a closed selector mapped directly to CLI composition modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolJvozbaMode::Cmevla",
+        "MCP/Discord jvozba mode is a closed selector mapped directly to CLI composition modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolJvozbaPartKind::Word",
+        "MCP/Discord jvozba part kind is a closed selector whose payload text is carried by ToolJvozbaPart",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolJvozbaPartKind::FixedRafsi",
+        "MCP/Discord jvozba part kind is a closed selector whose payload text is carried by ToolJvozbaPart",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGimfihiFormat::Table",
+        "MCP/Discord gimfi'i output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGimfihiFormat::Json",
+        "MCP/Discord gimfi'i output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci-server/src/discord.rs:DiscordCommand::Gentufa",
+        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord.rs:DiscordCommand::Vlasei",
+        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord.rs:DiscordCommand::Vlacku",
+        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord.rs:DiscordCommand::Cukta",
+        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord.rs:DiscordCommand::Jvozba",
+        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord.rs:DiscordCommand::Gimfihi",
+        "Discord command wrapper delegates payload validity to the parsed typed tool request",
     ),
     (
         "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::UnknownPreset",

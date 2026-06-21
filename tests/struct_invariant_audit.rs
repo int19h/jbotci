@@ -20,7 +20,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "server config is normalized by ServerConfig::from_cli",
     ),
     (
-        "apps/jbotci/src/main.rs:GimfihiInput",
+        "apps/jbotci-server/src/mcp.rs:JsonRpcMessage",
+        "MCP JSON-RPC message DTO intentionally accepts malformed field combinations so protocol errors can be returned",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:GimfihiInput",
         "gimfihi CLI input is raw clap transport state and is validated by gimfihi_request_from_input",
     ),
     (
@@ -332,68 +336,100 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "cukta semantic result state mirrors browser worker hits and is keyed by the committed search state",
     ),
     (
-        "apps/jbotci/src/main.rs:Cli",
+        "apps/jbotci/src/lib.rs:Cli",
         "CLI root delegates input validation to clap",
     ),
     (
-        "apps/jbotci/src/main.rs:GentufaInput",
+        "apps/jbotci/src/lib.rs:GentufaInput",
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
     (
-        "apps/jbotci/src/main.rs:GernaInput",
+        "apps/jbotci/src/lib.rs:GernaInput",
         "nightly grammar-export CLI args delegate validation to clap and command code",
     ),
     (
-        "apps/jbotci/src/main.rs:JvozbaInput",
+        "apps/jbotci/src/lib.rs:JvozbaInput",
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
     (
-        "apps/jbotci/src/main.rs:CuktaInput",
+        "apps/jbotci/src/lib.rs:CuktaInput",
         "CLI cukta input delegates raw mode and target validation to validate_cukta_input",
     ),
     (
-        "apps/jbotci/src/main.rs:TextInput",
+        "apps/jbotci/src/lib.rs:TextInput",
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
     (
-        "apps/jbotci/src/main.rs:VlackuInput",
+        "apps/jbotci/src/lib.rs:VlackuInput",
         "custom clap parser preserves ordered request flags and command validation checks mode combinations",
     ),
     (
-        "apps/jbotci/src/main.rs:SetupInput",
+        "apps/jbotci/src/lib.rs:SetupInput",
         "setup CLI input delegates model and directory validation to setup command execution",
     ),
     (
-        "apps/jbotci/src/main.rs:CliProgressPolicy",
+        "apps/jbotci/src/lib.rs:CliProgressPolicy",
         "CLI progress policy is derived from terminal capability and caller-selected verbosity",
     ),
     (
-        "apps/jbotci/src/main.rs:CliSetupProgressReporter",
+        "apps/jbotci/src/lib.rs:CliSetupProgressReporter",
         "CLI setup progress reporter owns rendering state derived from the selected progress policy",
     ),
     (
-        "apps/jbotci/src/main.rs:VlaseiInput",
+        "apps/jbotci/src/lib.rs:VlaseiInput",
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
     (
-        "apps/jbotci/src/main.rs:VlataiInput",
+        "apps/jbotci/src/lib.rs:VlataiInput",
         "CLI input selector is validated by clap and vlatai command execution",
     ),
     (
-        "apps/jbotci/src/main.rs:CapturedCliRun",
+        "apps/jbotci/src/lib.rs:CapturedCliRun",
         "test helper records CLI process output after run_cli returns a status",
     ),
     (
-        "apps/jbotci/src/main.rs:CliColorPolicy",
+        "apps/jbotci/src/lib.rs:CliColorPolicy",
         "resolved color policy is two independent stream decisions",
     ),
     (
-        "apps/jbotci/src/main.rs:CliParsedTraceSpec",
+        "apps/jbotci/src/lib.rs:CliParsedTraceSpec",
         "trace spec parsing validates level and filter shape before constructing this transport value",
     ),
     (
-        "apps/jbotci/src/main.rs:CliTraceConfig",
+        "apps/jbotci/src/lib.rs:CliTraceConfig",
         "trace limit is validated once at CLI entry and phase is a closed enum",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolRenderedOutput",
+        "shared tool output is a transport envelope produced by run_tool_command from validated CLI status and byte output",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaRequest",
+        "shared gentufa tool request is API transport state validated by the CLI option validator during execution",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlaseiRequest",
+        "shared vlasei tool request is API transport state validated by the CLI option validator during execution",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaRequest",
+        "shared cukta tool request is API transport state normalized into CuktaInput and validated during execution",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuRequest",
+        "shared vlacku tool request is API transport state normalized into explicit dictionary search requests",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolJvozbaPart",
+        "shared jvozba part is API transport state whose value is interpreted according to the closed part-kind enum",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolJvozbaRequest",
+        "shared jvozba tool request is API transport state normalized into the CLI source list before composition",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGimfihiRequest",
+        "shared gimfi'i tool request is API transport state normalized into GimfihiInput and validated during execution",
     ),
     (
         "apps/jbotci/src/benchmark.rs:BenchmarkMeasurement",
@@ -1536,7 +1572,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "v0 compatibility relation-place entry is derived from typed place assignments",
     ),
     (
-        "apps/jbotci/src/main.rs:TersmuInput",
+        "apps/jbotci/src/lib.rs:TersmuInput",
         "tersmu CLI input is clap transport state validated by render_tersmu before semantic building",
     ),
     (

@@ -1,5 +1,8 @@
 //! HTTP server for the jbotci web app and API integrations.
 
+mod discord;
+mod mcp;
+
 use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
@@ -130,6 +133,8 @@ pub fn router(config: ServerConfig) -> Router {
         .route("/api/health", get(health))
         .route("/api/features", get(features))
         .route("/api/gentufa", post(gentufa))
+        .route("/mcp", get(mcp::mcp_get).post(mcp::mcp_post))
+        .route("/discord", post(discord::discord_post))
         .fallback(static_or_spa)
         .layer(Extension(Arc::clone(&state)));
     let router = if use_dioxus_static_assets {
@@ -390,10 +395,12 @@ fn is_spa_route_path(path: &str) -> bool {
 #[requires(base_path.starts_with('/'))]
 #[ensures(true)]
 fn is_api_request_path(path: &str, base_path: &str) -> bool {
-    if path.starts_with("/api/") {
+    if path == "/mcp" || path == "/discord" || path.starts_with("/api/") {
         return true;
     }
-    strip_base_path(path, base_path).is_some_and(|stripped| stripped.starts_with("/api/"))
+    strip_base_path(path, base_path).is_some_and(|stripped| {
+        stripped == "/mcp" || stripped == "/discord" || stripped.starts_with("/api/")
+    })
 }
 
 #[requires(path.starts_with('/'))]
@@ -665,10 +672,12 @@ mod tests {
     use axum::http::{Method, Request};
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
+    use ed25519_dalek::{Signer, SigningKey};
     use std::sync::atomic::{AtomicU64, Ordering};
     use tower::ServiceExt;
 
     static TEST_STATIC_DIR_COUNTER: AtomicU64 = AtomicU64::new(0);
+    static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[requires(true)]
     #[ensures(ret.is_dir())]
@@ -723,6 +732,129 @@ mod tests {
             .await
             .expect("body")
             .to_vec()
+    }
+
+    #[requires(uri.starts_with('/'))]
+    #[ensures(true)]
+    async fn post_json(app: Router, uri: &str, value: serde_json::Value) -> Response<Body> {
+        app.oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri(uri)
+                .header(CONTENT_TYPE, "application/json")
+                .body(Body::from(value.to_string()))
+                .expect("request"),
+        )
+        .await
+        .expect("response")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    async fn response_json(response: Response<Body>) -> serde_json::Value {
+        serde_json::from_str(&response_text(response).await).expect("response JSON")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn test_discord_signing_key() -> SigningKey {
+        SigningKey::from_bytes(&[7u8; 32])
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn lock_test_env() -> std::sync::MutexGuard<'static, ()> {
+        TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    #[requires(!public_key_hex.is_empty())]
+    #[ensures(true)]
+    fn configure_discord_test_env(public_key_hex: &str) {
+        // SAFETY: Discord route tests hold TEST_ENV_LOCK while mutating process-wide env vars.
+        unsafe {
+            std::env::set_var("DISCORD_PUBLIC_KEY", public_key_hex);
+            std::env::set_var("JBOTCI_DISCORD_DISABLE_FOLLOWUP", "1");
+            std::env::set_var("JBOTCI_PUBLIC_BASE_URL", "https://jbotci.app");
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.len() == bytes.len() * 2)]
+    fn hex_bytes(bytes: &[u8]) -> String {
+        bytes
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    }
+
+    #[requires(!body.is_empty())]
+    #[requires(!timestamp.is_empty())]
+    #[ensures(!ret.0.is_empty() && !ret.1.is_empty())]
+    fn discord_signature_headers(
+        key: &SigningKey,
+        body: &str,
+        timestamp: &str,
+    ) -> (String, String) {
+        let mut signed = Vec::with_capacity(timestamp.len() + body.len());
+        signed.extend_from_slice(timestamp.as_bytes());
+        signed.extend_from_slice(body.as_bytes());
+        let signature = key.sign(&signed);
+        (timestamp.to_owned(), hex_bytes(&signature.to_bytes()))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    async fn post_signed_discord(
+        app: Router,
+        value: serde_json::Value,
+        key: &SigningKey,
+    ) -> Response<Body> {
+        let body = value.to_string();
+        let (timestamp, signature) = discord_signature_headers(key, &body, "1710000000");
+        app.oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/discord")
+                .header("X-Signature-Timestamp", timestamp)
+                .header("X-Signature-Ed25519", signature)
+                .body(Body::from(body))
+                .expect("request"),
+        )
+        .await
+        .expect("response")
+    }
+
+    #[requires(!name.is_empty())]
+    #[requires(!value.is_empty())]
+    #[ensures(ret.is_object())]
+    fn discord_string_option(name: &str, value: &str) -> serde_json::Value {
+        serde_json::json!({
+            "name": name,
+            "type": 3,
+            "value": value
+        })
+    }
+
+    #[requires(!subcommand.is_empty())]
+    #[ensures(ret.is_object())]
+    fn discord_interaction(subcommand: &str, options: Vec<serde_json::Value>) -> serde_json::Value {
+        serde_json::json!({
+            "type": 2,
+            "application_id": "123456789",
+            "token": "test-token",
+            "data": {
+                "name": "jbotci",
+                "options": [
+                    {
+                        "name": subcommand,
+                        "type": 1,
+                        "options": options
+                    }
+                ]
+            }
+        })
     }
 
     #[test]
@@ -886,6 +1018,377 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn mcp_initialize_and_tool_listing_follow_protocol_shape() {
+        let app = router(test_config(test_static_dir()));
+        let initialize = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-06-18",
+                    "clientInfo": {
+                        "name": "test",
+                        "version": "0"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(initialize.status(), StatusCode::OK);
+        let initialize_json = response_json(initialize).await;
+        assert_eq!(initialize_json["result"]["protocolVersion"], "2025-06-18");
+        assert!(initialize_json["result"]["capabilities"]["tools"].is_object());
+
+        let tools = post_json(
+            app,
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/list"
+            }),
+        )
+        .await;
+        assert_eq!(tools.status(), StatusCode::OK);
+        let tools_json = response_json(tools).await;
+        let names = tools_json["result"]["tools"]
+            .as_array()
+            .expect("tools array")
+            .iter()
+            .map(|tool| tool["name"].as_str().expect("tool name"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            names,
+            vec!["cukta", "vlacku", "jvozba", "vlasei", "gentufa", "gimfi'i"]
+        );
+        assert!(!names.contains(&"tersmu"));
+        for tool in tools_json["result"]["tools"]
+            .as_array()
+            .expect("tools array")
+        {
+            assert_eq!(tool["inputSchema"]["additionalProperties"], false);
+            assert_eq!(tool["annotations"]["readOnlyHint"], true);
+            assert_eq!(tool["annotations"]["destructiveHint"], false);
+            assert_eq!(tool["annotations"]["openWorldHint"], false);
+        }
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn mcp_calls_return_text_structured_json_images_and_tool_errors() {
+        let app = router(test_config(test_static_dir()));
+        let text = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "text",
+                "method": "tools/call",
+                "params": {
+                    "name": "gentufa",
+                    "arguments": {
+                        "text": "mi klama"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(text.status(), StatusCode::OK);
+        let text_json = response_json(text).await;
+        assert_eq!(text_json["result"]["content"][0]["type"], "text");
+        assert!(
+            text_json["result"]["content"][0]["text"]
+                .as_str()
+                .expect("text content")
+                .trim()
+                .len()
+                > 0
+        );
+
+        for (id, mode, query, expected_text) in [
+            ("vlacku-word", "word", "klama", "klama"),
+            ("vlacku-regex", "regex", "/^klama$/", "klama"),
+            ("vlacku-rafsi-glob", "rafsi-glob", "kla*", "kla"),
+            ("vlacku-sound", "sound", "klama", "klama"),
+        ] {
+            let vlacku = post_json(
+                app.clone(),
+                "/mcp",
+                serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "vlacku",
+                        "arguments": {
+                            "mode": mode,
+                            "query": query,
+                            "count": 1
+                        }
+                    }
+                }),
+            )
+            .await;
+            assert_eq!(vlacku.status(), StatusCode::OK);
+            let vlacku_json = response_json(vlacku).await;
+            assert_ne!(vlacku_json["result"]["isError"], true);
+            assert!(
+                vlacku_json["result"]["content"][0]["text"]
+                    .as_str()
+                    .expect("vlacku text")
+                    .contains(expected_text)
+            );
+        }
+
+        let structured = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "json",
+                "method": "tools/call",
+                "params": {
+                    "name": "gentufa",
+                    "arguments": {
+                        "text": "mi klama",
+                        "format": "json"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(structured.status(), StatusCode::OK);
+        let structured_json = response_json(structured).await;
+        assert_eq!(structured_json["result"]["content"][0]["type"], "text");
+        assert!(structured_json["result"]["structuredContent"].is_object());
+
+        let image = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "png",
+                "method": "tools/call",
+                "params": {
+                    "name": "gentufa",
+                    "arguments": {
+                        "text": "mi klama",
+                        "format": "png"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(image.status(), StatusCode::OK);
+        let image_json = response_json(image).await;
+        assert_eq!(image_json["result"]["content"][0]["type"], "image");
+        assert_eq!(image_json["result"]["content"][0]["mimeType"], "image/png");
+        assert!(
+            image_json["result"]["content"][0]["data"]
+                .as_str()
+                .expect("image data")
+                .len()
+                > 100
+        );
+
+        let unknown = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "unknown",
+                "method": "tools/call",
+                "params": {
+                    "name": "tersmu",
+                    "arguments": {}
+                }
+            }),
+        )
+        .await;
+        assert_eq!(unknown.status(), StatusCode::OK);
+        let unknown_json = response_json(unknown).await;
+        assert_eq!(unknown_json["result"]["isError"], true);
+        assert!(
+            unknown_json["result"]["content"][0]["text"]
+                .as_str()
+                .expect("error text")
+                .contains("Unknown tool")
+        );
+
+        let invalid_args = post_json(
+            app,
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "invalid",
+                "method": "tools/call",
+                "params": {
+                    "name": "vlacku",
+                    "arguments": {
+                        "query": "klama",
+                        "unexpected": true
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(invalid_args.status(), StatusCode::OK);
+        let invalid_args_json = response_json(invalid_args).await;
+        assert_eq!(invalid_args_json["result"]["isError"], true);
+        assert!(
+            invalid_args_json["result"]["content"][0]["text"]
+                .as_str()
+                .expect("error text")
+                .contains("unknown field")
+        );
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn mcp_routes_do_not_fall_back_to_spa() {
+        let app = router(test_config(test_static_dir()));
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/mcp")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/jbotci/mcp")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/jbotci/discord")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn discord_rejects_missing_and_invalid_signatures() {
+        let _env_guard = lock_test_env();
+        let key = test_discord_signing_key();
+        let public_key = hex_bytes(&key.verifying_key().to_bytes());
+        configure_discord_test_env(&public_key);
+        let app = router(test_config(test_static_dir()));
+
+        let missing = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/discord")
+                    .body(Body::from(serde_json::json!({ "type": 1 }).to_string()))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
+
+        let invalid = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/discord")
+                    .header("X-Signature-Timestamp", "1710000000")
+                    .header("X-Signature-Ed25519", "00".repeat(64))
+                    .body(Body::from(serde_json::json!({ "type": 1 }).to_string()))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(invalid.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn discord_accepts_signed_ping_and_subcommands() {
+        let _env_guard = lock_test_env();
+        let key = test_discord_signing_key();
+        let public_key = hex_bytes(&key.verifying_key().to_bytes());
+        configure_discord_test_env(&public_key);
+        let app = router(test_config(test_static_dir()));
+
+        let ping = post_signed_discord(app.clone(), serde_json::json!({ "type": 1 }), &key).await;
+        assert_eq!(ping.status(), StatusCode::OK);
+        let ping_json = response_json(ping).await;
+        assert_eq!(ping_json["type"], 1);
+
+        for interaction in [
+            discord_interaction("gentufa", vec![discord_string_option("text", "mi klama")]),
+            discord_interaction("vlasei", vec![discord_string_option("text", "mi klama")]),
+            discord_interaction("vlacku", vec![discord_string_option("query", "klama")]),
+            discord_interaction(
+                "cukta",
+                vec![
+                    discord_string_option("mode", "word"),
+                    discord_string_option("query", "klama"),
+                ],
+            ),
+            discord_interaction(
+                "jvozba",
+                vec![discord_string_option("parts", "klama bajra")],
+            ),
+            discord_interaction("gimfi'i", vec![discord_string_option("sources", "en:go")]),
+        ] {
+            let response = post_signed_discord(app.clone(), interaction, &key).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            let json = response_json(response).await;
+            assert_eq!(json["type"], 5);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn discord_command_registration_payload_matches_public_script_shape() {
+        let registration = discord::discord_command_registration();
+        assert_eq!(registration.payload["name"], "jbotci");
+        let subcommands = registration.payload["options"]
+            .as_array()
+            .expect("subcommand array")
+            .iter()
+            .map(|option| option["name"].as_str().expect("subcommand name"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            subcommands,
+            vec!["gentufa", "vlasei", "vlacku", "cukta", "jvozba", "gimfi'i"]
+        );
     }
 
     #[tokio::test]
