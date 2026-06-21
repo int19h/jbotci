@@ -84,6 +84,9 @@ use unicode_width::UnicodeWidthStr;
 #[cfg(test)]
 use jbotci_search::vlacku::VlackuAuthor;
 
+pub use jbotci_embeddings::native::NativeEmbeddingSearchService as ToolEmbeddingSearchService;
+pub const TOOL_DEFAULT_EMBEDDING_MODEL_KEY: &str = DEFAULT_MODEL_KEY;
+
 const VLACKU_DETAIL_INDENT: &str = "    ";
 
 #[derive(Debug, Clone, Parser)]
@@ -211,6 +214,51 @@ impl ToolRenderedOutput {
     #[ensures(true)]
     pub fn stdout_text(&self) -> std::result::Result<&str, std::str::Utf8Error> {
         std::str::from_utf8(&self.stdout)
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug)]
+pub struct ToolExecutionContext<'a> {
+    embedding_search: Option<&'a mut ToolEmbeddingSearchService>,
+    embedding_search_error: Option<String>,
+}
+
+impl<'a> ToolExecutionContext<'a> {
+    #[requires(true)]
+    #[ensures(ret.embedding_search.is_none())]
+    pub fn stateless() -> Self {
+        Self {
+            embedding_search: None,
+            embedding_search_error: None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.embedding_search.is_some())]
+    pub fn with_embedding_search(embedding_search: &'a mut ToolEmbeddingSearchService) -> Self {
+        Self {
+            embedding_search: Some(embedding_search),
+            embedding_search_error: None,
+        }
+    }
+
+    #[requires(!message.trim().is_empty())]
+    #[ensures(ret.embedding_search.is_none())]
+    pub fn embedding_search_unavailable(message: String) -> Self {
+        Self {
+            embedding_search: None,
+            embedding_search_error: Some(message),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn embedding_search(&mut self) -> Result<Option<&mut ToolEmbeddingSearchService>> {
+        if let Some(error) = self.embedding_search_error.as_deref() {
+            bail!("{error}");
+        }
+        Ok(self.embedding_search.as_deref_mut())
     }
 }
 
@@ -366,6 +414,14 @@ pub struct ToolCuktaRequest {
     pub format: ToolCuktaFormat,
 }
 
+impl ToolCuktaRequest {
+    #[requires(true)]
+    #[ensures(ret == (self.mode == ToolCuktaMode::Meaning))]
+    pub fn uses_semantic_search(&self) -> bool {
+        self.mode == ToolCuktaMode::Meaning
+    }
+}
+
 #[invariant(::Word => true)]
 #[invariant(::Rafsi => true)]
 #[invariant(::Lujvo => true)]
@@ -416,6 +472,14 @@ pub struct ToolVlackuRequest {
     pub decompose_lujvo: bool,
     #[serde(default)]
     pub show_etymology: bool,
+}
+
+impl ToolVlackuRequest {
+    #[requires(true)]
+    #[ensures(ret == (self.mode == ToolVlackuMode::Meaning))]
+    pub fn uses_semantic_search(&self) -> bool {
+        self.mode == ToolVlackuMode::Meaning
+    }
 }
 
 #[invariant(::Lujvo => true)]
@@ -1690,6 +1754,34 @@ fn run_cli_command<WOut: Write, WErr: Write>(
     progress_policy: CliProgressPolicy,
     stdin_text: Option<&str>,
 ) -> Result<CliStatus> {
+    run_cli_command_with_tool_context(
+        command,
+        stdout,
+        stderr,
+        color_policy,
+        diagnostic_terminal_width,
+        output_terminal_width,
+        progress_policy,
+        stdin_text,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(diagnostic_terminal_width > 0)]
+#[requires(output_terminal_width.is_none_or(|width| width > 0))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
+    command: Command,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color_policy: CliColorPolicy,
+    diagnostic_terminal_width: usize,
+    output_terminal_width: Option<usize>,
+    progress_policy: CliProgressPolicy,
+    stdin_text: Option<&str>,
+    mut tool_context: Option<&mut ToolExecutionContext<'_>>,
+) -> Result<CliStatus> {
     match command {
         Command::Vlasei(mut input) => {
             let glyphs = cli_glyph_style(input.ascii);
@@ -1974,11 +2066,12 @@ fn run_cli_command<WOut: Write, WErr: Write>(
                 color_policy.stdout,
                 glyphs,
                 output_terminal_width,
+                tool_context.as_deref_mut(),
             )
         }
         Command::Jvozba(input) => run_jvozba(input, stdout, color_policy.stdout),
         Command::Gimfihi(input) => run_gimfihi(input, stdout),
-        Command::Cukta(input) => run_cukta(input, stdout, stderr),
+        Command::Cukta(input) => run_cukta(input, stdout, stderr, tool_context.as_deref_mut()),
         Command::Zbasu(input) => {
             validate_trace_controls_for_unsupported_command(
                 "zbasu",
@@ -2094,6 +2187,24 @@ pub fn run_tool_vlasei(request: ToolVlaseiRequest) -> Result<ToolRenderedOutput>
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run_tool_cukta(request: ToolCuktaRequest) -> Result<ToolRenderedOutput> {
+    run_tool_cukta_inner(request, None)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub fn run_tool_cukta_with_context(
+    request: ToolCuktaRequest,
+    context: &mut ToolExecutionContext<'_>,
+) -> Result<ToolRenderedOutput> {
+    run_tool_cukta_inner(request, Some(context))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_tool_cukta_inner(
+    request: ToolCuktaRequest,
+    tool_context: Option<&mut ToolExecutionContext<'_>>,
+) -> Result<ToolRenderedOutput> {
     let tool_format = request.format;
     let format = match tool_format {
         ToolCuktaFormat::Markdown => CuktaCliFormat::Markdown,
@@ -2186,12 +2297,30 @@ pub fn run_tool_cukta(request: ToolCuktaRequest) -> Result<ToolRenderedOutput> {
             query: vec![query],
         },
     };
-    run_tool_command(Command::Cukta(input), Some(content_type))
+    run_tool_command_with_context(Command::Cukta(input), Some(content_type), tool_context)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run_tool_vlacku(request: ToolVlackuRequest) -> Result<ToolRenderedOutput> {
+    run_tool_vlacku_inner(request, None)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub fn run_tool_vlacku_with_context(
+    request: ToolVlackuRequest,
+    context: &mut ToolExecutionContext<'_>,
+) -> Result<ToolRenderedOutput> {
+    run_tool_vlacku_inner(request, Some(context))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_tool_vlacku_inner(
+    request: ToolVlackuRequest,
+    tool_context: Option<&mut ToolExecutionContext<'_>>,
+) -> Result<ToolRenderedOutput> {
     let query = request.query;
     let (requests, query_text) = match request.mode {
         ToolVlackuMode::Word => (vec![VlackuRequest::Valsi(query)], Vec::new()),
@@ -2210,7 +2339,7 @@ pub fn run_tool_vlacku(request: ToolVlackuRequest) -> Result<ToolRenderedOutput>
         ToolVlackuMode::Glob => (vec![VlackuRequest::Valsi(query)], Vec::new()),
         ToolVlackuMode::RafsiGlob => (vec![VlackuRequest::Rafsi(query)], Vec::new()),
     };
-    run_tool_command(
+    run_tool_command_with_context(
         Command::Vlacku(VlackuInput {
             count: request.count,
             ascii: false,
@@ -2224,6 +2353,7 @@ pub fn run_tool_vlacku(request: ToolVlackuRequest) -> Result<ToolRenderedOutput>
             query: query_text,
         }),
         Some(TEXT_PLAIN_CONTENT_TYPE),
+        tool_context,
     )
 }
 
@@ -2306,9 +2436,19 @@ fn run_tool_command(
     command: Command,
     content_type: Option<&'static str>,
 ) -> Result<ToolRenderedOutput> {
+    run_tool_command_with_context(command, content_type, None)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_tool_command_with_context(
+    command: Command,
+    content_type: Option<&'static str>,
+    tool_context: Option<&mut ToolExecutionContext<'_>>,
+) -> Result<ToolRenderedOutput> {
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
-    let status = run_cli_command(
+    let status = run_cli_command_with_tool_context(
         command,
         &mut stdout,
         &mut stderr,
@@ -2317,6 +2457,7 @@ fn run_tool_command(
         None,
         CliProgressPolicy::disabled(),
         None,
+        tool_context,
     )?;
     let stderr =
         String::from_utf8(stderr).context("jbotci tool diagnostics were not valid UTF-8")?;
@@ -2568,11 +2709,12 @@ fn run_vlacku<WOut: Write, WErr: Write>(
     color: bool,
     glyphs: GlyphStyle,
     output_terminal_width: Option<usize>,
+    tool_context: Option<&mut ToolExecutionContext<'_>>,
 ) -> Result<CliStatus> {
     validate_vlacku_input(&input)?;
     let options = vlacku_search_options(&input)?;
     let output = if input.requests.is_empty() {
-        match run_semantic_vlacku(&input, &options) {
+        match run_semantic_vlacku(&input, &options, tool_context) {
             Ok(output) => output,
             Err(error) => {
                 writeln!(stderr, "vlacku: {error}")?;
@@ -2609,23 +2751,24 @@ fn run_vlacku<WOut: Write, WErr: Write>(
 fn run_semantic_vlacku(
     input: &VlackuInput,
     options: &VlackuSearchOptions,
+    tool_context: Option<&mut ToolExecutionContext<'_>>,
 ) -> Result<VlackuSearchOutput> {
     let query = joined_query_text(&input.query).trim().to_owned();
     if query.is_empty() {
         bail!("vlacku query text must be non-empty.");
     }
-    let index_root = default_index_root().map_err(|error| anyhow!(error.to_string()))?;
-    let mut backend = load_backend_for_search(DEFAULT_MODEL_KEY, None)
-        .map_err(|error| anyhow!(error.to_string()))?;
     let dictionary = jbotci_dictionary_data::english();
-    let hits = semantic_vlacku_hits(
-        &mut backend,
-        &query,
-        dictionary.entries().len(),
-        &index_root,
-        DEFAULT_MODEL_KEY,
-    )
-    .map_err(|error| anyhow!(error.to_string()))?;
+    let hits = if let Some(context) = tool_context {
+        if let Some(service) = context.embedding_search()? {
+            service
+                .semantic_vlacku_hits(&query, dictionary.entries().len())
+                .map_err(|error| anyhow!(error.to_string()))?
+        } else {
+            semantic_vlacku_hits_with_new_backend(&query, dictionary.entries().len())?
+        }
+    } else {
+        semantic_vlacku_hits_with_new_backend(&query, dictionary.entries().len())?
+    };
     let cards = hits
         .into_iter()
         .filter_map(|hit| {
@@ -2651,14 +2794,29 @@ fn run_semantic_vlacku(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn semantic_vlacku_hits_with_new_backend(
+    query: &str,
+    count: usize,
+) -> Result<Vec<jbotci_embeddings::DictionarySemanticHit>> {
+    let index_root = default_index_root().map_err(|error| anyhow!(error.to_string()))?;
+    let mut backend = load_backend_for_search(DEFAULT_MODEL_KEY, None)
+        .map_err(|error| anyhow!(error.to_string()))?;
+    semantic_vlacku_hits(&mut backend, query, count, &index_root, DEFAULT_MODEL_KEY)
+        .map_err(|error| anyhow!(error.to_string()))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn run_cukta<WOut: Write, WErr: Write>(
     input: CuktaInput,
     stdout: &mut WOut,
     stderr: &mut WErr,
+    tool_context: Option<&mut ToolExecutionContext<'_>>,
 ) -> Result<CliStatus> {
     validate_cukta_input(&input)?;
     let request = cukta_request_from_input(&input)?;
     let site = embedded_cll_site().map_err(|error| anyhow!(error.to_string()))?;
+    let mut tool_context = tool_context;
     let rendered = match &request {
         CuktaRequest::Search {
             mode: CuktaSearchMode::Meaning,
@@ -2666,25 +2824,19 @@ fn run_cukta<WOut: Write, WErr: Write>(
             count,
             targets,
         } => {
-            let index_root = default_index_root().map_err(|error| anyhow!(error.to_string()))?;
-            let output =
-                match load_backend_for_search(DEFAULT_MODEL_KEY, None).and_then(|mut backend| {
-                    semantic_cukta_output(
-                        &mut backend,
-                        jbotci_cll::cll_search_all_chunks(site),
-                        query,
-                        *count,
-                        *targets,
-                        &index_root,
-                        DEFAULT_MODEL_KEY,
-                    )
-                }) {
-                    Ok(output) => output,
-                    Err(error) => {
-                        writeln!(stderr, "{error}")?;
-                        return Ok(CliStatus::InvalidInput);
-                    }
-                };
+            let output = match run_semantic_cukta(
+                tool_context.as_deref_mut(),
+                site,
+                query,
+                *count,
+                *targets,
+            ) {
+                Ok(output) => output,
+                Err(error) => {
+                    writeln!(stderr, "{error}")?;
+                    return Ok(CliStatus::InvalidInput);
+                }
+            };
             render_search_output(&output, input.format.into())
         }
         _ => match render_cukta_request(site, &request, input.format.into()) {
@@ -2701,6 +2853,39 @@ fn run_cukta<WOut: Write, WErr: Write>(
         writeln!(stdout)?;
     }
     Ok(CliStatus::Success)
+}
+
+#[requires(!query.trim().is_empty())]
+#[requires(count > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_semantic_cukta(
+    tool_context: Option<&mut ToolExecutionContext<'_>>,
+    site: &jbotci_cll::CllSite,
+    query: &str,
+    count: usize,
+    targets: CuktaTargetFilter,
+) -> Result<jbotci_cll::CuktaSearchOutput> {
+    let chunks = jbotci_cll::cll_search_all_chunks(site);
+    if let Some(context) = tool_context
+        && let Some(service) = context.embedding_search()?
+    {
+        return service
+            .semantic_cukta_output(chunks, query, count, targets)
+            .map_err(|error| anyhow!(error.to_string()));
+    }
+    let index_root = default_index_root().map_err(|error| anyhow!(error.to_string()))?;
+    let mut backend = load_backend_for_search(DEFAULT_MODEL_KEY, None)
+        .map_err(|error| anyhow!(error.to_string()))?;
+    semantic_cukta_output(
+        &mut backend,
+        chunks,
+        query,
+        count,
+        targets,
+        &index_root,
+        DEFAULT_MODEL_KEY,
+    )
+    .map_err(|error| anyhow!(error.to_string()))
 }
 
 #[requires(true)]
@@ -5648,6 +5833,57 @@ mod tests {
         let error = Cli::try_parse_from(["jbotci", "vlasei", "--benchmark", "0", "coi"])
             .expect_err("zero benchmark iteration count is rejected");
         assert_eq!(error.kind(), ErrorKind::ValueValidation);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tool_vlacku_semantic_uses_supplied_embedding_context_error() {
+        let mut context = ToolExecutionContext::embedding_search_unavailable(
+            "cached embedding load failed".into(),
+        );
+        let output = run_tool_vlacku_with_context(
+            ToolVlackuRequest {
+                mode: ToolVlackuMode::Meaning,
+                query: "goer".to_owned(),
+                count: Some(1),
+                word_types: Vec::new(),
+                min_votes: None,
+                min_similarity: None,
+                decompose_lujvo: true,
+                show_etymology: false,
+            },
+            &mut context,
+        )
+        .expect("tool output");
+
+        assert_eq!(output.status, ToolStatus::InvalidInput);
+        assert!(output.stdout.is_empty());
+        assert_eq!(output.stderr, "vlacku: cached embedding load failed\n");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tool_cukta_semantic_uses_supplied_embedding_context_error() {
+        let mut context = ToolExecutionContext::embedding_search_unavailable(
+            "cached embedding load failed".into(),
+        );
+        let output = run_tool_cukta_with_context(
+            ToolCuktaRequest {
+                mode: ToolCuktaMode::Meaning,
+                query: Some("goer".to_owned()),
+                count: Some(1),
+                targets: Vec::new(),
+                format: ToolCuktaFormat::Markdown,
+            },
+            &mut context,
+        )
+        .expect("tool output");
+
+        assert_eq!(output.status, ToolStatus::InvalidInput);
+        assert!(output.stdout.is_empty());
+        assert_eq!(output.stderr, "cached embedding load failed\n");
     }
 
     #[test]

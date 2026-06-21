@@ -5,9 +5,10 @@ mod mcp;
 
 use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, mpsc};
+use std::thread;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use axum::body::Body;
 use axum::extract::Extension;
 use axum::http::header::{
@@ -19,8 +20,13 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{ensures, invariant, new, requires};
 use dioxus::server::{DioxusRouterExt, FullstackState};
+use jbotci_cli::{
+    TOOL_DEFAULT_EMBEDDING_MODEL_KEY, ToolCuktaRequest, ToolEmbeddingSearchService,
+    ToolExecutionContext, ToolRenderedOutput, ToolVlackuRequest, run_tool_cukta,
+    run_tool_cukta_with_context, run_tool_vlacku, run_tool_vlacku_with_context,
+};
 use jbotci_web_core::{
     FAVICON_ASSET_PATH, GentufaError, GentufaExportFormat, GentufaWebRequest, GentufaWebResult,
     MANIFEST_ASSET_PATH, META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability,
@@ -40,9 +46,169 @@ pub struct ServerConfig {
 
 #[derive(Debug, Clone)]
 #[invariant(true)]
-struct AppState {
+pub(crate) struct AppState {
     base_path: String,
     public_dir: PathBuf,
+    tool_services: ToolServices,
+}
+
+impl AppState {
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn tool_services(&self) -> ToolServices {
+        self.tool_services.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+pub(crate) struct ToolServices {
+    embedding_worker: Arc<Mutex<mpsc::Sender<EmbeddingToolJob>>>,
+}
+
+#[invariant(true)]
+struct EmbeddingToolJob {
+    request: EmbeddingToolRequest,
+    response: mpsc::SyncSender<Result<ToolRenderedOutput>>,
+}
+
+#[invariant(::Cukta { .. } => true)]
+#[invariant(::Vlacku { .. } => true)]
+enum EmbeddingToolRequest {
+    Cukta { request: ToolCuktaRequest },
+    Vlacku { request: ToolVlackuRequest },
+}
+
+#[invariant(!message.trim().is_empty())]
+#[derive(Debug, Clone)]
+struct CachedEmbeddingError {
+    message: String,
+}
+
+#[invariant(::Unloaded => true)]
+#[invariant(::Loaded { .. } => true)]
+#[invariant(::Unavailable { .. } => true)]
+#[derive(Debug)]
+enum EmbeddingSearchCache {
+    Unloaded,
+    Loaded { service: ToolEmbeddingSearchService },
+    Unavailable { error: CachedEmbeddingError },
+}
+
+impl ToolServices {
+    #[requires(true)]
+    #[ensures(true)]
+    fn new() -> Self {
+        let (sender, receiver) = mpsc::channel();
+        spawn_embedding_worker(receiver);
+        Self {
+            embedding_worker: Arc::new(Mutex::new(sender)),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    pub(crate) fn run_cukta(&self, request: ToolCuktaRequest) -> Result<ToolRenderedOutput> {
+        if request.uses_semantic_search() {
+            self.run_embedding_request(EmbeddingToolRequest::Cukta { request })
+        } else {
+            run_tool_cukta(request)
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    pub(crate) fn run_vlacku(&self, request: ToolVlackuRequest) -> Result<ToolRenderedOutput> {
+        if request.uses_semantic_search() {
+            self.run_embedding_request(EmbeddingToolRequest::Vlacku { request })
+        } else {
+            run_tool_vlacku(request)
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn run_embedding_request(&self, request: EmbeddingToolRequest) -> Result<ToolRenderedOutput> {
+        let (response, received) = mpsc::sync_channel(1);
+        let job = EmbeddingToolJob { request, response };
+        self.embedding_worker
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .send(job)
+            .map_err(|_| anyhow!("embedding search worker is not running"))?;
+        received
+            .recv()
+            .map_err(|_| anyhow!("embedding search worker stopped before returning output"))?
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn spawn_embedding_worker(receiver: mpsc::Receiver<EmbeddingToolJob>) {
+    thread::Builder::new()
+        .name("jbotci-embedding-search".to_owned())
+        .spawn(move || embedding_worker_loop(receiver))
+        .expect("embedding search worker thread starts");
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn embedding_worker_loop(receiver: mpsc::Receiver<EmbeddingToolJob>) {
+    let mut cache = EmbeddingSearchCache::Unloaded;
+    for job in receiver {
+        let EmbeddingToolJob { request, response } = job;
+        let output = run_embedding_tool_request(request, &mut cache);
+        if response.send(output).is_err() {
+            continue;
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_embedding_tool_request(
+    request: EmbeddingToolRequest,
+    cache: &mut EmbeddingSearchCache,
+) -> Result<ToolRenderedOutput> {
+    match request {
+        EmbeddingToolRequest::Cukta { request } => run_with_embedding_cache(cache, |context| {
+            run_tool_cukta_with_context(request, context)
+        }),
+        EmbeddingToolRequest::Vlacku { request } => run_with_embedding_cache(cache, |context| {
+            run_tool_vlacku_with_context(request, context)
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_with_embedding_cache(
+    cache: &mut EmbeddingSearchCache,
+    runner: impl FnOnce(&mut ToolExecutionContext<'_>) -> Result<ToolRenderedOutput>,
+) -> Result<ToolRenderedOutput> {
+    if matches!(cache, EmbeddingSearchCache::Unloaded) {
+        *cache =
+            match ToolEmbeddingSearchService::load(TOOL_DEFAULT_EMBEDDING_MODEL_KEY, None, None) {
+                Ok(service) => EmbeddingSearchCache::Loaded { service },
+                Err(error) => EmbeddingSearchCache::Unavailable {
+                    error: new!(CachedEmbeddingError {
+                        message: error.to_string(),
+                    }),
+                },
+            };
+    }
+    match cache {
+        EmbeddingSearchCache::Loaded { service } => {
+            let mut context = ToolExecutionContext::with_embedding_search(service);
+            runner(&mut context)
+        }
+        EmbeddingSearchCache::Unavailable { error } => {
+            let mut context =
+                ToolExecutionContext::embedding_search_unavailable(error.message.clone());
+            runner(&mut context)
+        }
+        EmbeddingSearchCache::Unloaded => unreachable!("embedding search cache is initialized"),
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -125,6 +291,7 @@ pub fn router(config: ServerConfig) -> Router {
     let state = Arc::new(AppState {
         base_path: normalize_base_path(&config.base_path),
         public_dir: config.public_dir,
+        tool_services: ToolServices::new(),
     });
     let use_dioxus_static_assets = dioxus_public_dir()
         .as_ref()
@@ -864,6 +1031,60 @@ mod tests {
         assert_eq!(normalize_base_path(""), "/");
         assert_eq!(normalize_base_path("/"), "/");
         assert_eq!(normalize_base_path("jbotci/"), "/jbotci");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn embedding_cache_reuses_cached_unavailable_state() {
+        let mut cache = EmbeddingSearchCache::Unavailable {
+            error: new!(CachedEmbeddingError {
+                message: "cached embedding load failed".to_owned(),
+            }),
+        };
+        let output = run_embedding_tool_request(
+            EmbeddingToolRequest::Vlacku {
+                request: jbotci_cli::ToolVlackuRequest {
+                    mode: jbotci_cli::ToolVlackuMode::Meaning,
+                    query: "goer".to_owned(),
+                    count: Some(1),
+                    word_types: Vec::new(),
+                    min_votes: None,
+                    min_similarity: None,
+                    decompose_lujvo: true,
+                    show_etymology: false,
+                },
+            },
+            &mut cache,
+        )
+        .expect("tool output");
+
+        assert_eq!(output.status, jbotci_cli::ToolStatus::InvalidInput);
+        assert_eq!(output.stderr, "vlacku: cached embedding load failed\n");
+        assert!(matches!(cache, EmbeddingSearchCache::Unavailable { .. }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tool_services_runs_nonsemantic_vlacku_without_embedding_context() {
+        let services = ToolServices::new();
+        let output = services
+            .run_vlacku(jbotci_cli::ToolVlackuRequest {
+                mode: jbotci_cli::ToolVlackuMode::Word,
+                query: "klama".to_owned(),
+                count: Some(1),
+                word_types: Vec::new(),
+                min_votes: None,
+                min_similarity: None,
+                decompose_lujvo: true,
+                show_etymology: false,
+            })
+            .expect("tool output");
+
+        assert_eq!(output.status, jbotci_cli::ToolStatus::Success);
+        assert!(output.stderr.is_empty());
+        assert!(output.stdout_text().expect("text").contains("klama"));
     }
 
     #[test]

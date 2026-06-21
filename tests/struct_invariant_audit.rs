@@ -12,6 +12,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "server state is assembled by ServerConfig and contains shared immutable assets",
     ),
     (
+        "apps/jbotci-server/src/lib.rs:ToolServices",
+        "tool services owns a channel to the dedicated embedding worker thread",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingToolJob",
+        "embedding worker jobs pair a typed request with the response channel for that request",
+    ),
+    (
         "apps/jbotci-server/src/lib.rs:HealthResponse",
         "health payload is a fixed transport shape",
     ),
@@ -26,6 +34,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci/src/lib.rs:GimfihiInput",
         "gimfihi CLI input is raw clap transport state and is validated by gimfihi_request_from_input",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolExecutionContext",
+        "tool execution context is constructed only as stateless, borrowed embedding service, or cached embedding error",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:UserSettings",

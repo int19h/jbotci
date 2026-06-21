@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use axum::body::{Body, Bytes};
+use axum::extract::Extension;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{HeaderMap, Response, StatusCode};
 use bityzba::{invariant, new, requires};
@@ -7,8 +10,7 @@ use jbotci_cli::{
     ToolCuktaMode, ToolCuktaRequest, ToolGentufaFormat, ToolGentufaRequest, ToolGimfihiFormat,
     ToolGimfihiRequest, ToolJvozbaMode, ToolJvozbaPart, ToolJvozbaPartKind, ToolJvozbaRequest,
     ToolRenderedOutput, ToolVlackuMode, ToolVlackuRequest, ToolVlaseiFormat, ToolVlaseiRequest,
-    run_tool_cukta, run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba, run_tool_vlacku,
-    run_tool_vlasei,
+    run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba, run_tool_vlasei,
 };
 use jbotci_web_core::{
     CUKTA_WEB_DEFAULT_COUNT, CuktaWebMode, CuktaWebSearchState, CuktaWebState, CuktaWebView,
@@ -16,6 +18,8 @@ use jbotci_web_core::{
     WebRoute, web_route_url,
 };
 use serde_json::{Value, json};
+
+use crate::{AppState, ToolServices};
 
 const DISCORD_SIGNATURE_HEADER: &str = "x-signature-ed25519";
 const DISCORD_TIMESTAMP_HEADER: &str = "x-signature-timestamp";
@@ -48,7 +52,11 @@ enum DiscordCommand {
 
 #[requires(true)]
 #[ensures(true)]
-pub async fn discord_post(headers: HeaderMap, body: Bytes) -> Response<Body> {
+pub(crate) async fn discord_post(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response<Body> {
     if let Err(error) = verify_discord_signature(&headers, &body) {
         return plain_response(StatusCode::UNAUTHORIZED, &error);
     }
@@ -66,7 +74,7 @@ pub async fn discord_post(headers: HeaderMap, body: Bytes) -> Response<Body> {
     };
     match value.get("type").and_then(Value::as_i64) {
         Some(1) => json_response(StatusCode::OK, json!({ "type": 1 })),
-        Some(2) => handle_application_command(value).await,
+        Some(2) => handle_application_command(value, state.tool_services()).await,
         _ => json_response(
             StatusCode::OK,
             json!({
@@ -79,7 +87,7 @@ pub async fn discord_post(headers: HeaderMap, body: Bytes) -> Response<Body> {
 
 #[requires(true)]
 #[ensures(true)]
-async fn handle_application_command(value: Value) -> Response<Body> {
+async fn handle_application_command(value: Value, tool_services: ToolServices) -> Response<Body> {
     let application_id = value
         .get("application_id")
         .and_then(Value::as_str)
@@ -114,7 +122,8 @@ async fn handle_application_command(value: Value) -> Response<Body> {
     if discord_followup_enabled() {
         tokio::spawn(async move {
             let rendered =
-                tokio::task::spawn_blocking(move || render_discord_command(command)).await;
+                tokio::task::spawn_blocking(move || render_discord_command(command, tool_services))
+                    .await;
             let message = match rendered {
                 Ok(Ok(message)) => message,
                 Ok(Err(error)) => discord_message_data(&format!("jbotci command failed: {error}")),
@@ -409,7 +418,10 @@ fn parse_discord_gimfihi(options: &[Value]) -> Result<ToolGimfihiRequest, String
 
 #[requires(true)]
 #[ensures(true)]
-fn render_discord_command(command: DiscordCommand) -> anyhow::Result<Value> {
+fn render_discord_command(
+    command: DiscordCommand,
+    tool_services: ToolServices,
+) -> anyhow::Result<Value> {
     let (output, link) = match command {
         DiscordCommand::Gentufa(request) => {
             let link = gentufa_link(&request);
@@ -418,11 +430,11 @@ fn render_discord_command(command: DiscordCommand) -> anyhow::Result<Value> {
         DiscordCommand::Vlasei(request) => (run_tool_vlasei(request)?, None),
         DiscordCommand::Vlacku(request) => {
             let link = vlacku_link(&request);
-            (run_tool_vlacku(request)?, link)
+            (tool_services.run_vlacku(request)?, link)
         }
         DiscordCommand::Cukta(request) => {
             let link = cukta_link(&request);
-            (run_tool_cukta(request)?, link)
+            (tool_services.run_cukta(request)?, link)
         }
         DiscordCommand::Jvozba(request) => {
             (run_tool_jvozba(request)?, Some(absolute_web_url("/vlacku")))

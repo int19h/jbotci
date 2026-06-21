@@ -1,14 +1,19 @@
+use std::sync::Arc;
+
 use axum::body::{Body, Bytes};
+use axum::extract::Extension;
 use axum::http::header::{CONTENT_TYPE, HOST, ORIGIN};
 use axum::http::{HeaderMap, Response, StatusCode};
 use base64::Engine;
 use bityzba::{invariant, requires};
 use jbotci_cli::{
-    ToolRenderedOutput, ToolStatus, run_tool_cukta, run_tool_gentufa, run_tool_gimfihi,
-    run_tool_jvozba, run_tool_vlacku, run_tool_vlasei,
+    ToolRenderedOutput, ToolStatus, run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba,
+    run_tool_vlasei,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
+
+use crate::{AppState, ToolServices};
 
 const MCP_PROTOCOL_VERSION: &str = "2025-06-18";
 const SERVER_NAME: &str = "jbotci";
@@ -37,7 +42,7 @@ struct ToolCallParams {
 
 #[requires(true)]
 #[ensures(true)]
-pub async fn mcp_get() -> Response<Body> {
+pub(crate) async fn mcp_get() -> Response<Body> {
     plain_response(
         StatusCode::METHOD_NOT_ALLOWED,
         "MCP Streamable HTTP SSE is not supported by this stateless endpoint.",
@@ -46,7 +51,11 @@ pub async fn mcp_get() -> Response<Body> {
 
 #[requires(true)]
 #[ensures(true)]
-pub async fn mcp_post(headers: HeaderMap, body: Bytes) -> Response<Body> {
+pub(crate) async fn mcp_post(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response<Body> {
     if !origin_is_allowed(&headers) {
         return plain_response(StatusCode::FORBIDDEN, "invalid Origin for MCP request");
     }
@@ -95,7 +104,7 @@ pub async fn mcp_post(headers: HeaderMap, body: Bytes) -> Response<Body> {
                 }
             };
             match serde_json::from_value::<ToolCallParams>(params) {
-                Ok(params) => call_tool(params).await,
+                Ok(params) => call_tool(params, state.tool_services()).await,
                 Err(error) => {
                     return json_response(
                         StatusCode::OK,
@@ -335,13 +344,17 @@ fn gimfihi_schema() -> Value {
 
 #[requires(!params.name.trim().is_empty())]
 #[ensures(true)]
-async fn call_tool(params: ToolCallParams) -> Value {
+async fn call_tool(params: ToolCallParams, tool_services: ToolServices) -> Value {
     let params = params.into_data();
     let name = params.name;
     let arguments = params.arguments;
     match name.as_str() {
-        "cukta" => call_typed_tool(arguments, run_tool_cukta).await,
-        "vlacku" => call_typed_tool(arguments, run_tool_vlacku).await,
+        "cukta" => {
+            call_typed_tool(arguments, move |request| tool_services.run_cukta(request)).await
+        }
+        "vlacku" => {
+            call_typed_tool(arguments, move |request| tool_services.run_vlacku(request)).await
+        }
         "jvozba" => call_typed_tool(arguments, run_tool_jvozba).await,
         "vlasei" => call_typed_tool(arguments, run_tool_vlasei).await,
         "gentufa" => call_typed_tool(arguments, run_tool_gentufa).await,

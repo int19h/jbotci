@@ -1440,6 +1440,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "Discord command wrapper delegates payload validity to the parsed typed tool request",
     ),
     (
+        "apps/jbotci-server/src/lib.rs:EmbeddingSearchCache::Unloaded",
+        "embedding search cache starts empty and is initialized on first semantic tool use",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingSearchCache::Loaded",
+        "loaded embedding cache validity is owned by the native embedding service type",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingSearchCache::Unavailable",
+        "unavailable embedding cache stores a validated cached error message",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::Cukta",
+        "embedding worker request delegates payload validity to the typed cukta tool request",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::Vlacku",
+        "embedding worker request delegates payload validity to the typed vlacku tool request",
+    ),
+    (
         "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::UnknownPreset",
         "gimfihi error variant carries raw invalid user input, including possible empty text",
     ),
