@@ -11,7 +11,8 @@ use jbotci_cli::{
     ToolRenderedOutput, ToolStatus, ToolTersmuRequest, ToolVlackuRequest, ToolVlaseiRequest,
     run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba, run_tool_tersmu, run_tool_vlasei,
 };
-use schemars::JsonSchema;
+use schemars::transform::{Transform, transform_subschemas};
+use schemars::{JsonSchema, Schema};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -332,26 +333,35 @@ where
     // nested struct must be expanded in place. The tool request types are all
     // non-recursive, so full inlining terminates. This also keeps every field's
     // and enum variant's doc comment as an inline `description`.
+    //
+    // `StringEnumTypeTransform` then restores an explicit `type: "string"` on the
+    // inlined enums (schemars omits it on a documented `oneOf` of consts).
     let mut settings = schemars::generate::SchemaSettings::default();
     settings.inline_subschemas = true;
+    settings.transforms.push(Box::new(StringEnumTypeTransform));
     let generator = schemars::generate::SchemaGenerator::new(settings);
-    let mut schema = serde_json::to_value(generator.into_root_schema_for::<T>())
-        .expect("generated MCP tool schema serializes to JSON");
-    annotate_string_enum_types(&mut schema);
-    schema
+    serde_json::to_value(generator.into_root_schema_for::<T>())
+        .expect("generated MCP tool schema serializes to JSON")
 }
 
-/// A documented enum renders as a `oneOf` of `{ "type": "string", "const": … }`
-/// with no `type` at the enclosing property level. Some schema viewers and tool
-/// layers read the property-level `type` and, finding none, show the field as
-/// untyped ("any"). Declaring `"type": "string"` alongside the `oneOf` keeps the
-/// per-variant descriptions while making the field unambiguously a string enum.
-#[requires(true)]
-#[ensures(true)]
-fn annotate_string_enum_types(value: &mut Value) {
-    match value {
-        Value::Object(map) => {
-            let is_string_const_enum = map
+/// schemars renders a *documented* unit enum as a `oneOf` of
+/// `{ "type": "string", "const": … }` — and, unlike the plain `{ "type":
+/// "string", "enum": [...] }` it emits for an *undocumented* enum, it omits the
+/// `type` at the enclosing level. The schema is still valid (the string type is
+/// implied by every branch), but schema viewers and tool layers that read the
+/// property-level `type` find none and present the field as untyped ("any").
+/// This schemars [`Transform`] declares an explicit `type: "string"` alongside
+/// the `oneOf`, keeping the per-variant descriptions.
+#[invariant(true)]
+#[derive(Clone, Debug)]
+struct StringEnumTypeTransform;
+
+impl Transform for StringEnumTypeTransform {
+    #[requires(true)]
+    #[ensures(true)]
+    fn transform(&mut self, schema: &mut Schema) {
+        if let Some(object) = schema.as_object_mut() {
+            let is_string_const_enum = object
                 .get("oneOf")
                 .and_then(Value::as_array)
                 .is_some_and(|variants| {
@@ -361,15 +371,12 @@ fn annotate_string_enum_types(value: &mut Value) {
                                 && variant.get("type").and_then(Value::as_str) == Some("string")
                         })
                 });
-            if is_string_const_enum && !map.contains_key("type") {
-                map.insert("type".to_owned(), Value::String("string".to_owned()));
-            }
-            for sub in map.values_mut() {
-                annotate_string_enum_types(sub);
+            if is_string_const_enum && !object.contains_key("type") {
+                object.insert("type".to_owned(), Value::String("string".to_owned()));
             }
         }
-        Value::Array(items) => items.iter_mut().for_each(annotate_string_enum_types),
-        _ => {}
+        // Recurse through nested subschemas (properties, array items, …).
+        transform_subschemas(self, schema);
     }
 }
 

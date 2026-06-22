@@ -32,6 +32,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "MCP JSON-RPC message DTO intentionally accepts malformed field combinations so protocol errors can be returned",
     ),
     (
+        "apps/jbotci-server/src/mcp.rs:StringEnumTypeTransform",
+        "stateless unit transform; all instances are equivalent so there is no invariant to enforce",
+    ),
+    (
         "apps/jbotci/src/lib.rs:GimfihiInput",
         "gimfihi CLI input is raw clap transport state and is validated by gimfihi_request_from_input",
     ),
