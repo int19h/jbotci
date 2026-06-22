@@ -326,9 +326,10 @@ pub struct ToolGentufaRequest {
     /// Annotate each node with its source byte span. Off by default.
     #[serde(default)]
     pub show_spans: bool,
-    /// Show place-structure cross-references, e.g. `k⟨1⟩` marking which sumti
-    /// fills place 1 of selbri `k`. On by default — usually what you want when
-    /// inspecting a parse.
+    /// Show place-structure cross-references in the `tree` output, e.g. `k⟨1⟩`
+    /// marking which sumti fills place 1 of selbri `k`. On by default for `tree`
+    /// (usually what you want when inspecting a parse); only the `tree` format
+    /// supports it.
     #[serde(default)]
     #[schemars(
         schema_with = "tool_show_refs_schema",
@@ -1130,8 +1131,6 @@ struct VlaseiInput {
     mark_glides: Option<CliGlideMark>,
     #[arg(long = "show-spans")]
     show_spans: bool,
-    #[arg(long = "show-refs")]
-    show_refs: bool,
     #[arg(long = "decompose-lujvo")]
     decompose_lujvo: bool,
     #[arg()]
@@ -2205,7 +2204,8 @@ fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
                             phonemes: phoneme_options,
                             glyphs,
                             show_spans: input.show_spans,
-                            show_refs: input.show_refs,
+                            // Morphology has no place-structure references.
+                            show_refs: false,
                             decompose_lujvo: input.decompose_lujvo,
                             show_elided: false,
                         },
@@ -2459,9 +2459,6 @@ pub fn run_tool_vlasei(request: ToolVlaseiRequest) -> Result<ToolRenderedOutput>
             mark_stress: None,
             mark_glides: None,
             show_spans: request.show_spans,
-            // Morphology has no place-structure references; the renderer ignores
-            // this flag, so it is not exposed on the vlasei tool request.
-            show_refs: false,
             decompose_lujvo: request.decompose_lujvo,
             text: vec![request.text],
         }),
@@ -5504,6 +5501,8 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
         return Err(anyhow!("`--ascii` is not compatible with `--turtai ipa`"));
     }
     validate_ascii_phoneme_projection(input.mark_stress, input.mark_glides, glyphs)?;
+    // `--show-refs` is intentionally absent from vlasei: morphology has no
+    // place-structure references, so the flag is only defined for `gentufa`.
     match input.format {
         VlaseiFormat::Raw => {
             validate_raw_indent(input.indent)?;
@@ -5515,10 +5514,6 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
                 "`--show-spans` is only supported with `--turtai tree`",
             )?;
             validate_not_present(
-                input.show_refs,
-                "`--show-refs` is only supported with `--turtai tree`",
-            )?;
-            validate_not_present(
                 input.decompose_lujvo,
                 "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
             )?;
@@ -5527,10 +5522,6 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
             validate_not_present(
                 input.show_spans,
                 "`--show-spans` is only supported with `--turtai tree`",
-            )?;
-            validate_not_present(
-                input.show_refs,
-                "`--show-refs` is only supported with `--turtai tree`",
             )?;
             validate_not_present(
                 input.decompose_lujvo,
@@ -5549,10 +5540,6 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
                 "`--show-spans` is only supported with `--turtai tree`",
             )?;
             validate_not_present(
-                input.show_refs,
-                "`--show-refs` is only supported with `--turtai tree`",
-            )?;
-            validate_not_present(
                 input.decompose_lujvo,
                 "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
             )?;
@@ -5565,10 +5552,6 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
             validate_not_present(
                 input.show_spans,
                 "`--show-spans` is only supported with `--turtai tree`",
-            )?;
-            validate_not_present(
-                input.show_refs,
-                "`--show-refs` is only supported with `--turtai tree`",
             )?;
         }
     }
