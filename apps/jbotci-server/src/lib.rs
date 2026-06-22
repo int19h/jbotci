@@ -298,7 +298,7 @@ struct HealthResponse {
 const SERVICE_WORKER_ASSET_PATH: &str = "/service-worker.js";
 const DIOXUS_PUBLIC_PATH_ENV: &str = "DIOXUS_PUBLIC_PATH";
 const SERVER_EMBEDDING_MODEL_KEY_ENV: &str = "JBOTCI_SERVER_EMBEDDING_MODEL_KEY";
-const SERVER_DEFAULT_EMBEDDING_MODEL_KEY: &str = "f2llm-v2-80m-q4-k-m-320";
+pub const SERVER_DEFAULT_EMBEDDING_MODEL_KEY: &str = "f2llm-v2-80m-q4-k-m-320";
 
 #[requires(true)]
 #[ensures(ret.base_path.starts_with('/'))]

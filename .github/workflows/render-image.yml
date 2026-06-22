@@ -53,9 +53,8 @@ jobs:
             .github-cache/cargo-target/dioxus-cli-${{ env.DIOXUS_CLI_VERSION }}
             .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
             .github-cache/home/.dx
-          key: jbotci-render-${{ runner.os }}-${{ env.DIOXUS_CLI_VERSION }}-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: jbotci-render-${{ runner.os }}-${{ env.DIOXUS_CLI_VERSION }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            jbotci-render-${{ runner.os }}-${{ env.DIOXUS_CLI_VERSION }}-${{ github.ref_name }}-
             jbotci-render-${{ runner.os }}-${{ env.DIOXUS_CLI_VERSION }}-
 
       - name: Install Rust wasm target
@@ -83,17 +82,13 @@ jobs:
         run: |
           set -eux
           export PATH="${DIOXUS_CLI_ROOT}/bin:${PATH}"
-          cargo xtask dist-server \
+          cargo run --release -p xtask -- dist-server \
             --out-dir .jbotci-build/render \
             --base-path / \
             --skip-web-embeddings
-          cargo build --release -p jbotci
-          install -m 0755 "${CARGO_TARGET_DIR}/release/jbotci" .jbotci-build/render/jbotci
           test -x .jbotci-build/render/server
-          test -x .jbotci-build/render/jbotci
           test -f .jbotci-build/render/public/index.html
           file .jbotci-build/render/server
-          file .jbotci-build/render/jbotci
 
       - name: Smoke test bundle
         env:
@@ -117,7 +112,7 @@ jobs:
       - name: Archive deployment bundle
         run: |
           set -eux
-          tar -C .jbotci-build/render -czf .jbotci-build/render-bundle.tar.gz server public jbotci
+          tar -C .jbotci-build/render -czf .jbotci-build/render-bundle.tar.gz server public
 
       - name: Upload deployment bundle
         uses: actions/upload-artifact@v6
@@ -128,7 +123,7 @@ jobs:
           retention-days: 7
 
       - name: Save build cache
-        if: success()
+        if: success() && steps.build-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: |
@@ -159,7 +154,6 @@ jobs:
           mkdir -p .jbotci-build/render
           tar -xzf .jbotci-build/render-bundle.tar.gz -C .jbotci-build/render
           test -x .jbotci-build/render/server
-          test -x .jbotci-build/render/jbotci
           test -f .jbotci-build/render/public/index.html
 
       - name: Set up Docker Buildx
@@ -250,6 +244,30 @@ jobs:
             exit 1
           fi
           docker logs "${container_id}" 2>&1
+
+      - name: Trigger Render deploy
+        if: ${{ github.ref == 'refs/heads/main' }}
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          IMAGE_URL: ${{ env.IMAGE_NAME }}:main
+        run: |
+          set -euo pipefail
+          if [ -z "${RENDER_DEPLOY_HOOK_URL}" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL is not set; skipping Render deploy trigger."
+            exit 0
+          fi
+          deploy_url="$(python3 - <<'PY'
+          import os
+          from urllib.parse import urlencode
+
+          hook_url = os.environ["RENDER_DEPLOY_HOOK_URL"]
+          image_url = os.environ["IMAGE_URL"]
+          separator = "&" if "?" in hook_url else "?"
+          print(f"{hook_url}{separator}{urlencode({'imgURL': image_url})}")
+          PY
+          )"
+          curl --fail --show-error --silent --request POST --output /tmp/render-deploy-response.txt "${deploy_url}"
+          echo "Render deploy hook accepted the published GHCR image."
 
       - name: Summarize image
         run: |

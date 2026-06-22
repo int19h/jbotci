@@ -35,21 +35,18 @@ RUN --mount=type=cache,id=jbotci-cargo-registry,target=/usr/local/cargo/registry
     fi; \
     export JBOTCI_GIT_COMMIT="${build_commit}"; \
     export JBOTCI_WEB_EMBEDDINGS_BASE_URL="${WEB_EMBEDDINGS_BASE_URL}"; \
-    cargo run -p xtask -- dist-server \
+    cargo run --release -p xtask -- dist-server \
         --out-dir /opt/jbotci \
         --base-path "${BASE_PATH}" \
         --skip-web-embeddings; \
-    cargo build --release -p jbotci; \
-    install -m 0755 target/release/jbotci /opt/jbotci/jbotci; \
     export JBOTCI_SERVER_EMBEDDING_MODEL_KEY="${SERVER_EMBEDDING_MODEL_KEY}"; \
     export JBOTCI_EMBEDDING_MODEL_DIR=/opt/jbotci/embeddings/models; \
     export JBOTCI_EMBEDDING_INDEX_DIR=/opt/jbotci/embeddings/indexes; \
-    /opt/jbotci/jbotci setup \
+    /opt/jbotci/server setup \
         --embedding \
         --model "${JBOTCI_SERVER_EMBEDDING_MODEL_KEY}" \
         --use-precomputed always \
-        --skip-validation; \
-    rm /opt/jbotci/jbotci
+        --skip-validation
 
 FROM debian:bookworm-slim AS runtime
 

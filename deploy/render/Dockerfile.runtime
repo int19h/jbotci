@@ -20,7 +20,6 @@ RUN apt-get update \
 WORKDIR /opt/jbotci
 
 COPY --chown=jbotci:jbotci --chmod=0755 server ./server
-COPY --chown=jbotci:jbotci --chmod=0755 jbotci ./jbotci
 COPY --chown=jbotci:jbotci public ./public
 
 ENV IP=0.0.0.0
@@ -33,12 +32,11 @@ ENV JBOTCI_EMBEDDING_MODEL_DIR=/opt/jbotci/embeddings/models
 ENV JBOTCI_EMBEDDING_INDEX_DIR=/opt/jbotci/embeddings/indexes
 
 RUN set -eux; \
-    ./jbotci setup \
+    ./server setup \
         --embedding \
         --model "${JBOTCI_SERVER_EMBEDDING_MODEL_KEY}" \
         --use-precomputed always \
         --skip-validation; \
-    rm ./jbotci; \
     chown -R jbotci:jbotci /opt/jbotci/embeddings
 
 EXPOSE 10000
