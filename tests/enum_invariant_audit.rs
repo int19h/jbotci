@@ -1416,6 +1416,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "MCP/Discord gimfi'i output format is a closed selector mapped directly to CLI render formats",
     ),
     (
+        "apps/jbotci/src/lib.rs:ToolTersmuFormat::Json",
+        "MCP tersmu output format is a closed selector mapped directly to CLI semantic JSON output",
+    ),
+    (
         "apps/jbotci-server/src/discord.rs:DiscordCommand::Gentufa",
         "Discord command wrapper delegates payload validity to the parsed typed tool request",
     ),

@@ -270,6 +270,7 @@ impl<'a> ToolExecutionContext<'a> {
 #[invariant(::Svg => true)]
 #[invariant(::Png => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolGentufaFormat {
     Brackets,
@@ -303,6 +304,10 @@ pub struct ToolGentufaRequest {
     #[serde(default)]
     pub show_spans: bool,
     #[serde(default)]
+    #[schemars(
+        schema_with = "tool_show_refs_schema",
+        default = "tool_show_refs_default"
+    )]
     pub show_refs: Option<bool>,
     #[serde(default)]
     pub show_elided: bool,
@@ -318,6 +323,7 @@ pub struct ToolGentufaRequest {
 #[invariant(::Raw => true)]
 #[invariant(::Json => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolVlaseiFormat {
     Brackets,
@@ -347,6 +353,10 @@ pub struct ToolVlaseiRequest {
     #[serde(default)]
     pub show_spans: bool,
     #[serde(default)]
+    #[schemars(
+        schema_with = "tool_show_refs_schema",
+        default = "tool_show_refs_default"
+    )]
     pub show_refs: Option<bool>,
     #[serde(default)]
     pub decompose_lujvo: bool,
@@ -358,6 +368,7 @@ pub struct ToolVlaseiRequest {
 #[invariant(::Html => true)]
 #[invariant(::Raw => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolCuktaFormat {
     Markdown,
@@ -380,6 +391,7 @@ impl Default for ToolCuktaFormat {
 #[invariant(::Word => true)]
 #[invariant(::Meaning => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolCuktaMode {
     Default,
@@ -433,6 +445,7 @@ impl ToolCuktaRequest {
 #[invariant(::Glob => true)]
 #[invariant(::RafsiGlob => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolVlackuMode {
     Word,
@@ -488,6 +501,7 @@ impl ToolVlackuRequest {
 #[invariant(::Lujvo => true)]
 #[invariant(::Cmevla => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolJvozbaMode {
     Lujvo,
@@ -505,6 +519,7 @@ impl Default for ToolJvozbaMode {
 #[invariant(::Word => true)]
 #[invariant(::FixedRafsi => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolJvozbaPartKind {
     Word,
@@ -513,6 +528,7 @@ pub enum ToolJvozbaPartKind {
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(inline)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolJvozbaPart {
     pub kind: ToolJvozbaPartKind,
@@ -532,6 +548,7 @@ pub struct ToolJvozbaRequest {
 #[invariant(::Table => true)]
 #[invariant(::Json => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolGimfihiFormat {
     Table,
@@ -571,6 +588,54 @@ pub struct ToolGimfihiRequest {
     pub highlight: Option<String>,
     #[serde(default)]
     pub format: ToolGimfihiFormat,
+}
+
+#[invariant(::Json => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(inline)]
+#[serde(rename_all = "kebab-case")]
+pub enum ToolTersmuFormat {
+    Json,
+}
+
+impl Default for ToolTersmuFormat {
+    #[requires(true)]
+    #[ensures(ret == ToolTersmuFormat::Json)]
+    fn default() -> Self {
+        Self::Json
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct ToolTersmuRequest {
+    pub text: String,
+    #[serde(default)]
+    pub format: ToolTersmuFormat,
+    #[serde(default)]
+    pub dialect: Option<String>,
+    #[serde(default)]
+    pub no_postproc: bool,
+    #[serde(default)]
+    pub story_time: bool,
+    #[serde(default)]
+    pub indent: Option<usize>,
+}
+
+#[requires(true)]
+#[ensures(ret.as_object().is_some())]
+fn tool_show_refs_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "type": "boolean",
+        "default": true
+    })
+}
+
+#[requires(true)]
+#[ensures(ret == Some(true))]
+fn tool_show_refs_default() -> Option<bool> {
+    Some(true)
 }
 
 #[invariant(true)]
@@ -2418,6 +2483,27 @@ pub fn run_tool_gimfihi(request: ToolGimfihiRequest) -> Result<ToolRenderedOutpu
             format,
         }),
         Some(content_type),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub fn run_tool_tersmu(request: ToolTersmuRequest) -> Result<ToolRenderedOutput> {
+    let format = match request.format {
+        ToolTersmuFormat::Json => TersmuFormat::Json,
+    };
+    run_tool_command(
+        Command::Tersmu(TersmuInput {
+            file: None,
+            format,
+            trace: None,
+            dialect: request.dialect,
+            no_postproc: request.no_postproc,
+            story_time: request.story_time,
+            indent: request.indent,
+            text: vec![request.text],
+        }),
+        Some(APPLICATION_JSON_CONTENT_TYPE),
     )
 }
 

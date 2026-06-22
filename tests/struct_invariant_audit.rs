@@ -444,6 +444,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "shared gimfi'i tool request is API transport state normalized into GimfihiInput and validated during execution",
     ),
     (
+        "apps/jbotci/src/lib.rs:ToolTersmuRequest",
+        "shared tersmu tool request is API transport state normalized into TersmuInput and validated during execution",
+    ),
+    (
         "apps/jbotci/src/benchmark.rs:BenchmarkMeasurement",
         "benchmark measurement is mutable accumulator state bounded by NonZeroUsize and record_iteration contracts",
     ),

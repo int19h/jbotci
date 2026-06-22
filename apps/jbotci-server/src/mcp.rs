@@ -8,8 +8,8 @@ use base64::Engine;
 use bityzba::{invariant, requires};
 use jbotci_cli::{
     ToolCuktaRequest, ToolGentufaRequest, ToolGimfihiRequest, ToolJvozbaRequest,
-    ToolRenderedOutput, ToolStatus, ToolVlackuRequest, ToolVlaseiRequest, run_tool_gentufa,
-    run_tool_gimfihi, run_tool_jvozba, run_tool_vlasei,
+    ToolRenderedOutput, ToolStatus, ToolTersmuRequest, ToolVlackuRequest, ToolVlaseiRequest,
+    run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba, run_tool_tersmu, run_tool_vlasei,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -202,6 +202,11 @@ fn mcp_tools() -> Vec<Value> {
             "Compose candidate gismu from source words. Defaults to the compact table output; JSON is available for programmatic use.",
             tool_request_schema::<ToolGimfihiRequest>(),
         ),
+        tool_definition(
+            "tersmu",
+            "Build Lojban semantic JSON. Defaults to JSON for programmatic use; prefer other tools' default text formats when semantics JSON is not specifically needed.",
+            tool_request_schema::<ToolTersmuRequest>(),
+        ),
     ]
 }
 
@@ -250,6 +255,7 @@ async fn call_tool(params: ToolCallParams, tool_services: ToolServices) -> Value
         "vlasei" => call_typed_tool(arguments, run_tool_vlasei).await,
         "gentufa" => call_typed_tool(arguments, run_tool_gentufa).await,
         "gimfihi" => call_typed_tool(arguments, run_tool_gimfihi).await,
+        "tersmu" => call_typed_tool(arguments, run_tool_tersmu).await,
         _ => tool_error_result(format!("Unknown tool: {name}")),
     }
 }

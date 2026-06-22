@@ -1013,6 +1013,61 @@ mod tests {
                 .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
     }
 
+    #[requires(!name.is_empty())]
+    #[ensures(ret.is_object())]
+    fn tool_input_schema<'a>(tools: &'a [serde_json::Value], name: &str) -> &'a serde_json::Value {
+        &tools
+            .iter()
+            .find(|tool| tool["name"] == name)
+            .unwrap_or_else(|| panic!("missing tool `{name}`"))["inputSchema"]
+    }
+
+    #[requires(true)]
+    #[requires(!key.is_empty())]
+    #[ensures(true)]
+    fn json_contains_key(value: &serde_json::Value, key: &str) -> bool {
+        match value {
+            serde_json::Value::Object(object) => object.iter().any(|(object_key, object_value)| {
+                object_key == key || json_contains_key(object_value, key)
+            }),
+            serde_json::Value::Array(items) => {
+                items.iter().any(|item| json_contains_key(item, key))
+            }
+            _ => false,
+        }
+    }
+
+    #[requires(schema.is_object())]
+    #[requires(!property.is_empty())]
+    #[ensures(true)]
+    fn assert_string_enum_property(schema: &serde_json::Value, property: &str, expected: &[&str]) {
+        let property_schema = &schema["properties"][property];
+        assert_eq!(property_schema["type"], "string", "{property_schema}");
+        let actual = property_schema["enum"]
+            .as_array()
+            .expect("enum values")
+            .iter()
+            .map(|value| value.as_str().expect("enum string"))
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected, "{property}");
+        assert!(property_schema.get("$ref").is_none(), "{property_schema}");
+    }
+
+    #[requires(schema.is_object())]
+    #[requires(!property.is_empty())]
+    #[ensures(true)]
+    fn assert_boolean_default_property(schema: &serde_json::Value, property: &str, default: bool) {
+        let property_schema = &schema["properties"][property];
+        assert_eq!(property_schema["type"], "boolean", "{property_schema}");
+        assert_eq!(property_schema["default"], default, "{property_schema}");
+        assert!(
+            !serde_json::to_string(property_schema)
+                .expect("schema JSON")
+                .contains("null"),
+            "{property_schema}"
+        );
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn test_discord_signing_key() -> SigningKey {
@@ -1460,29 +1515,36 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             names,
-            vec!["cukta", "vlacku", "jvozba", "vlasei", "gentufa", "gimfihi"]
+            vec![
+                "cukta", "vlacku", "jvozba", "vlasei", "gentufa", "gimfihi", "tersmu"
+            ]
         );
         assert!(
             names
                 .iter()
                 .all(|name| external_api_identifier_is_safe(name))
         );
-        assert!(!names.contains(&"tersmu"));
         for tool in tools_array {
             assert_eq!(tool["inputSchema"]["additionalProperties"], false);
             assert_eq!(tool["annotations"]["readOnlyHint"], true);
             assert_eq!(tool["annotations"]["destructiveHint"], false);
             assert_eq!(tool["annotations"]["openWorldHint"], false);
+            assert!(
+                !json_contains_key(&tool["inputSchema"], "$ref"),
+                "{}",
+                tool["inputSchema"]
+            );
         }
 
-        let gentufa_schema = tools_array
-            .iter()
-            .find(|tool| tool["name"] == "gentufa")
-            .expect("gentufa tool")["inputSchema"]
-            .clone();
+        let gentufa_schema = tool_input_schema(tools_array, "gentufa");
         assert!(gentufa_schema["properties"]["text"].is_object());
-        assert!(gentufa_schema["properties"]["format"].is_object());
         assert!(gentufa_schema["properties"]["show-defs"].is_object());
+        assert_string_enum_property(
+            gentufa_schema,
+            "format",
+            &["brackets", "blocks", "tree", "raw", "json", "svg", "png"],
+        );
+        assert_boolean_default_property(gentufa_schema, "show-refs", true);
         let gentufa_schema_text = serde_json::to_string(&gentufa_schema).expect("schema JSON");
         for stale_name in [
             "lojban",
@@ -1493,12 +1555,21 @@ mod tests {
             assert!(!gentufa_schema_text.contains(stale_name), "{stale_name}");
         }
 
-        let cukta_schema = tools_array
-            .iter()
-            .find(|tool| tool["name"] == "cukta")
-            .expect("cukta tool")["inputSchema"]
-            .clone();
-        assert!(cukta_schema["properties"]["mode"].is_object());
+        let vlasei_schema = tool_input_schema(tools_array, "vlasei");
+        assert_string_enum_property(
+            vlasei_schema,
+            "format",
+            &["brackets", "tree", "ipa", "raw", "json"],
+        );
+        assert_boolean_default_property(vlasei_schema, "show-refs", true);
+
+        let cukta_schema = tool_input_schema(tools_array, "cukta");
+        assert_string_enum_property(
+            cukta_schema,
+            "mode",
+            &["default", "toc", "section", "example", "word", "meaning"],
+        );
+        assert_string_enum_property(cukta_schema, "format", &["markdown", "html", "raw"]);
         assert!(cukta_schema["properties"]["query"].is_object());
         assert!(
             !serde_json::to_string(&cukta_schema)
@@ -1506,12 +1577,22 @@ mod tests {
                 .contains("action")
         );
 
-        let vlacku_schema = tools_array
-            .iter()
-            .find(|tool| tool["name"] == "vlacku")
-            .expect("vlacku tool")["inputSchema"]
-            .clone();
-        assert!(vlacku_schema["properties"]["mode"].is_object());
+        let vlacku_schema = tool_input_schema(tools_array, "vlacku");
+        assert_string_enum_property(
+            vlacku_schema,
+            "mode",
+            &[
+                "word",
+                "rafsi",
+                "lujvo",
+                "sound",
+                "meaning",
+                "regex",
+                "rafsi-regex",
+                "glob",
+                "rafsi-glob",
+            ],
+        );
         assert!(vlacku_schema["properties"]["query"].is_object());
         let vlacku_schema_text = serde_json::to_string(&vlacku_schema).expect("schema JSON");
         for stale_name in [
@@ -1522,6 +1603,20 @@ mod tests {
         ] {
             assert!(!vlacku_schema_text.contains(stale_name), "{stale_name}");
         }
+
+        let jvozba_schema = tool_input_schema(tools_array, "jvozba");
+        assert_string_enum_property(jvozba_schema, "mode", &["lujvo", "cmevla"]);
+        assert_string_enum_property(
+            &jvozba_schema["properties"]["parts"]["items"],
+            "kind",
+            &["word", "fixed-rafsi"],
+        );
+
+        let gimfihi_schema = tool_input_schema(tools_array, "gimfihi");
+        assert_string_enum_property(gimfihi_schema, "format", &["table", "json"]);
+
+        let tersmu_schema = tool_input_schema(tools_array, "tersmu");
+        assert_string_enum_property(tersmu_schema, "format", &["json"]);
     }
 
     #[tokio::test]
@@ -1759,6 +1854,35 @@ mod tests {
                 > 100
         );
 
+        let tersmu = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "tersmu",
+                "method": "tools/call",
+                "params": {
+                    "name": "tersmu",
+                    "arguments": {
+                        "text": "mi klama",
+                        "format": "json"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(tersmu.status(), StatusCode::OK);
+        let tersmu_json = response_json(tersmu).await;
+        assert_eq!(tersmu_json["result"]["content"][0]["type"], "text");
+        assert_eq!(
+            tersmu_json["result"]["structuredContent"]["version"],
+            "lojban-semantics-json-1"
+        );
+        assert_eq!(
+            tersmu_json["result"]["structuredContent"]["root"],
+            "utterance:u1"
+        );
+
         let unknown = post_json(
             app.clone(),
             "/mcp",
@@ -1767,7 +1891,7 @@ mod tests {
                 "id": "unknown",
                 "method": "tools/call",
                 "params": {
-                    "name": "tersmu",
+                    "name": "not-a-tool",
                     "arguments": {}
                 }
             }),
