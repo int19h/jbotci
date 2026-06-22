@@ -288,6 +288,23 @@ pub struct GimfihiSourceInput {
     pub word: String,
 }
 
+impl GimfihiSourceInput {
+    /// Build a source from already-structured fields, applying the same
+    /// language/word normalization that [`parse_source_spec`] performs on the
+    /// `LANG[:WEIGHT]:WORD` CLI spec. This lets callers that already have the
+    /// pieces separated (e.g. the MCP tool layer) skip the spec-string round
+    /// trip while staying consistent with the parsed form.
+    #[requires(explicit_weight.is_none_or(|weight| (GIMFIHI_MIN_WEIGHT..=GIMFIHI_MAX_WEIGHT).contains(&weight)))]
+    #[ensures(ret.explicit_weight == explicit_weight)]
+    pub fn from_fields(language: &str, word: &str, explicit_weight: Option<u16>) -> Self {
+        Self {
+            language: normalize_language(language),
+            explicit_weight,
+            word: normalize_source_word(word),
+        }
+    }
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]

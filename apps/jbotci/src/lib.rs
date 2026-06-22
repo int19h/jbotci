@@ -36,9 +36,9 @@ use jbotci_gentufa::{
     elided_terminators, render_gentufa_blocks_png, render_gentufa_blocks_svg, rendered_leaves,
 };
 use jbotci_gimfihi::{
-    CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GimfihiCandidate, GimfihiOutput,
-    GimfihiRequest, RafsiAvailability, compose_gismu, default_shapes, parse_preset, parse_shape,
-    parse_source_spec,
+    CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
+    GIMFIHI_MIN_WEIGHT, GimfihiCandidate, GimfihiOutput, GimfihiRequest, GimfihiSourceInput,
+    RafsiAvailability, compose_gismu, default_shapes, parse_preset, parse_shape, parse_source_spec,
 };
 use jbotci_jvozba::{
     JvozbaBuildResult, JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegmentKind,
@@ -262,23 +262,32 @@ impl<'a> ToolExecutionContext<'a> {
     }
 }
 
-#[invariant(::Brackets => true)]
-#[invariant(::Blocks => true)]
+/// Output format for a `gentufa` syntax parse. Text formats are the most
+/// readable and token-efficient; `svg`/`png` return a rendered diagram image.
 #[invariant(::Tree => true)]
+#[invariant(::Brackets => true)]
 #[invariant(::Raw => true)]
 #[invariant(::Json => true)]
 #[invariant(::Svg => true)]
 #[invariant(::Png => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolGentufaFormat {
-    Brackets,
-    Blocks,
+    /// Indented, labelled syntax tree (the default). Shows every grammatical
+    /// node (bridi, sumti, selbri, …) and is the clearest format for reasoning
+    /// about structure.
     Tree,
+    /// Compact nested-bracket notation on one line, e.g. `([lo nánmu] cu
+    /// kláma)`. Most token-efficient; omits node-type labels.
+    Brackets,
+    /// Verbose debug dump of the raw parser AST. For troubleshooting the parser
+    /// itself, not normal use.
     Raw,
+    /// The full parse tree as structured JSON, for programmatic consumers.
     Json,
+    /// Constituency diagram rendered as an SVG image (vector source).
     Svg,
+    /// Constituency diagram rendered as a PNG image (best for visual inspection).
     Png,
 }
 
@@ -290,46 +299,74 @@ impl Default for ToolGentufaFormat {
     }
 }
 
+/// Parse Lojban text into a syntax (grammar) tree. This runs the full grammar
+/// parser, so it is the authoritative way to see how a sentence is structured
+/// and where each word fits. For word-level (morphology) analysis only, use
+/// `vlasei` instead.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolGentufaRequest {
+    /// The Lojban text to parse. May be a word, a sentence, or several
+    /// sentences.
     pub text: String,
+    /// How to render the parse. Defaults to the readable `tree`.
     #[serde(default)]
     pub format: ToolGentufaFormat,
+    /// Optional dialect/grammar-variant selector (a dialect formula). Omit for
+    /// standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,
+    /// Prepend the full dictionary definition of every word before the tree.
+    /// Informative but verbose; off by default.
     #[serde(default)]
     pub show_defs: bool,
+    /// Annotate each node with its source byte span. Off by default.
     #[serde(default)]
     pub show_spans: bool,
+    /// Show place-structure cross-references, e.g. `k⟨1⟩` marking which sumti
+    /// fills place 1 of selbri `k`. On by default — usually what you want when
+    /// inspecting a parse.
     #[serde(default)]
     #[schemars(
         schema_with = "tool_show_refs_schema",
         default = "tool_show_refs_default"
     )]
     pub show_refs: Option<bool>,
+    /// Show terminators/words that the grammar elides (omits implicitly). Off by
+    /// default.
     #[serde(default)]
     pub show_elided: bool,
+    /// Break compound words (lujvo) into their component rafsi in the output.
+    /// Off by default.
     #[serde(default)]
     pub decompose_lujvo: bool,
+    /// Spaces per indent level for `tree`/`json`. Omit for the standard width.
     #[serde(default)]
     pub indent: Option<usize>,
 }
 
-#[invariant(::Brackets => true)]
+/// Output format for `vlasei` morphology analysis. `tree` is the readable
+/// default; `ipa` gives pronunciation.
 #[invariant(::Tree => true)]
+#[invariant(::Brackets => true)]
 #[invariant(::Ipa => true)]
 #[invariant(::Raw => true)]
 #[invariant(::Json => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolVlaseiFormat {
-    Brackets,
+    /// Indented list of classified words with their word-class (the default),
+    /// e.g. `Cmavo "lo"`, `Gismu "nánmu"`.
     Tree,
+    /// Compact bracket notation on one line, e.g. `(lo nánmu cu kláma)`.
+    Brackets,
+    /// IPA phonetic transcription showing syllabification and stress, e.g.
+    /// `lo ˈnan.mu ʃu ˈkla.ma`.
     Ipa,
+    /// Verbose debug dump of the raw morphology result. For troubleshooting.
     Raw,
+    /// Structured JSON of the classified words, for programmatic consumers.
     Json,
 }
 
@@ -341,38 +378,55 @@ impl Default for ToolVlaseiFormat {
     }
 }
 
+/// Run Lojban morphology: split text into words and classify each one
+/// (gismu, cmavo, lujvo, cmevla, fu'ivla, …). Word boundaries in Lojban cannot
+/// be found reliably from spaces alone — this runs the real morphology parser.
+/// For full sentence grammar, use `gentufa` instead.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolVlaseiRequest {
+    /// The Lojban text to analyze. May be a single word or a longer stream.
     pub text: String,
+    /// How to render the analysis. Defaults to the readable `tree`.
     #[serde(default)]
     pub format: ToolVlaseiFormat,
+    /// Optional dialect/grammar-variant selector. Omit for standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,
+    /// Annotate each word with its source byte span. Off by default.
     #[serde(default)]
     pub show_spans: bool,
+    /// Show place-structure cross-references where applicable. On by default.
     #[serde(default)]
     #[schemars(
         schema_with = "tool_show_refs_schema",
         default = "tool_show_refs_default"
     )]
     pub show_refs: Option<bool>,
+    /// Break compound words (lujvo) into their component rafsi. Off by default.
     #[serde(default)]
     pub decompose_lujvo: bool,
+    /// Spaces per indent level for `tree`/`json`. Omit for the standard width.
     #[serde(default)]
     pub indent: Option<usize>,
 }
 
+/// Output format for `cukta` (the CLL reference book). `markdown` is the
+/// readable default.
 #[invariant(::Markdown => true)]
 #[invariant(::Html => true)]
 #[invariant(::Raw => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolCuktaFormat {
+    /// Markdown (the default): readable prose with headings, tables, and
+    /// cross-reference links.
     Markdown,
+    /// Rendered HTML of the same content.
     Html,
+    /// The raw underlying DocBook source. For tooling that needs the original
+    /// markup.
     Raw,
 }
 
@@ -384,45 +438,92 @@ impl Default for ToolCuktaFormat {
     }
 }
 
-#[invariant(::Default => true)]
-#[invariant(::Toc => true)]
+/// What kind of CLL lookup to perform. The `query` field is interpreted
+/// according to this mode.
+#[invariant(::Meaning => true)]
+#[invariant(::Word => true)]
 #[invariant(::Section => true)]
 #[invariant(::Example => true)]
-#[invariant(::Word => true)]
-#[invariant(::Meaning => true)]
+#[invariant(::Toc => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolCuktaMode {
-    Default,
-    Toc,
-    Section,
-    Example,
-    Word,
+    /// Semantic search (the default): `query` is a natural-language description
+    /// and the best-matching passages are returned. Best for finding where a
+    /// concept is explained. Requires the embedding model.
     Meaning,
+    /// Keyword search: `query` is a literal term (e.g. a cmavo like `lo`) and
+    /// passages containing it are returned. Works without the embedding model.
+    Word,
+    /// Retrieve one numbered section by reference, e.g. `query: "5.7"`.
+    Section,
+    /// Retrieve one numbered example by reference, e.g. `query: "6.8"`.
+    Example,
+    /// Return the book's full table of contents. `query` is ignored.
+    Toc,
 }
 
 impl Default for ToolCuktaMode {
     #[requires(true)]
-    #[ensures(ret == ToolCuktaMode::Default)]
+    #[ensures(ret == ToolCuktaMode::Meaning)]
     fn default() -> Self {
-        Self::Default
+        Self::Meaning
     }
 }
 
+/// One kind of CLL content that a search may return.
+#[invariant(::Section => true)]
+#[invariant(::Paragraph => true)]
+#[invariant(::Example => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ToolCuktaTarget {
+    /// Whole sections (a heading and its prose).
+    Section,
+    /// Individual paragraphs.
+    Paragraph,
+    /// Worked examples (Lojban with interlinear glosses).
+    Example,
+}
+
+impl ToolCuktaTarget {
+    /// The canonical lowercase name, matching the CLI `--target` vocabulary.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Section => "section",
+            Self::Paragraph => "paragraph",
+            Self::Example => "example",
+        }
+    }
+}
+
+/// Read or search the CLL — *The Complete Lojban Language*, the canonical
+/// reference book. Use this to look up grammar rules, find where a concept is
+/// explained, or pull a specific section or example.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolCuktaRequest {
+    /// How to interpret `query`. Defaults to `meaning` (semantic search).
     #[serde(default)]
     pub mode: ToolCuktaMode,
+    /// The query, interpreted per `mode`: a natural-language description
+    /// (`meaning`), a literal term (`word`), or a section/example reference
+    /// (`section`/`example`). Ignored for `toc`; required otherwise.
     #[serde(default)]
     pub query: Option<String>,
+    /// Maximum number of results for the search modes (`meaning`, `word`).
+    /// Ignored by `section`/`example`/`toc`.
     #[serde(default)]
     #[schemars(range(min = 1))]
     pub count: Option<usize>,
+    /// Restrict search results (`meaning`, `word`) to these content kinds. Empty
+    /// means all kinds.
     #[serde(default)]
-    pub targets: Vec<String>,
+    pub targets: Vec<ToolCuktaTarget>,
+    /// Output format. Defaults to the readable `markdown`.
     #[serde(default)]
     pub format: ToolCuktaFormat,
 }
@@ -435,28 +536,34 @@ impl ToolCuktaRequest {
     }
 }
 
+/// Which field of a dictionary entry the `query` matches against.
+///
+/// The `word` and `rafsi` modes accept three query syntaxes: a plain substring,
+/// a shell-style glob using `*` and `?` (e.g. `kl*ma`), or a regular expression
+/// wrapped in slashes (e.g. `/^kl.ma$/`). The other modes take a plain query.
 #[invariant(::Word => true)]
 #[invariant(::Rafsi => true)]
 #[invariant(::Lujvo => true)]
 #[invariant(::Sound => true)]
 #[invariant(::Meaning => true)]
-#[invariant(::Regex => true)]
-#[invariant(::RafsiRegex => true)]
-#[invariant(::Glob => true)]
-#[invariant(::RafsiGlob => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolVlackuMode {
+    /// Match the word itself (the default). Accepts plain text, `*`/`?` globs,
+    /// or `/regex/`.
     Word,
+    /// Match by rafsi (a word's short affix forms). Accepts plain text, globs,
+    /// or `/regex/`.
     Rafsi,
+    /// Treat `query` as a lujvo (compound word) and find/analyze it, including
+    /// its decomposition into component words.
     Lujvo,
+    /// Phonetic search: find words that sound like `query` (given as text or
+    /// `[IPA]`).
     Sound,
+    /// Semantic search: `query` is a natural-language meaning and the
+    /// closest-matching definitions are returned. Requires the embedding model.
     Meaning,
-    Regex,
-    RafsiRegex,
-    Glob,
-    RafsiGlob,
 }
 
 impl Default for ToolVlackuMode {
@@ -467,25 +574,41 @@ impl Default for ToolVlackuMode {
     }
 }
 
+/// Search the Lojban dictionary (jbovlaste). Returns cards with each entry's
+/// word class, rafsi, glosses, place structure, definition, and notes.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolVlackuRequest {
+    /// Which field to search. Defaults to `word`.
     #[serde(default)]
     pub mode: ToolVlackuMode,
+    /// The query, interpreted per `mode`. For `word`/`rafsi` it may be plain
+    /// text, a `*`/`?` glob, or a `/regex/`.
     pub query: String,
+    /// Maximum number of entries to return.
     #[serde(default)]
     #[schemars(range(min = 1))]
     pub count: Option<usize>,
+    /// Restrict to these word classes (e.g. `gismu`, `cmavo`, `lujvo`,
+    /// `fu'ivla`, `cmevla`, `experimental`). Empty means all classes.
     #[serde(default)]
     pub word_types: Vec<String>,
+    /// Only return entries whose net community vote count is at least this.
+    /// Official words have effectively infinite votes.
     #[serde(default)]
     pub min_votes: Option<i32>,
+    /// For `sound`/`meaning` search, only return entries scoring at least this
+    /// similarity percentage (0–100).
     #[serde(default)]
     #[schemars(range(min = 0, max = 100))]
     pub min_similarity: Option<f32>,
+    /// For lujvo results, show the decomposition into component rafsi. Off by
+    /// default.
     #[serde(default)]
     pub decompose_lujvo: bool,
+    /// Show etymology details (source words/rafsi) where available. Off by
+    /// default.
     #[serde(default)]
     pub show_etymology: bool,
 }
@@ -498,13 +621,15 @@ impl ToolVlackuRequest {
     }
 }
 
+/// What kind of word `jvozba` should assemble.
 #[invariant(::Lujvo => true)]
 #[invariant(::Cmevla => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolJvozbaMode {
+    /// Build a lujvo — an ordinary compound predicate word (the default).
     Lujvo,
+    /// Build a cmevla — a name word (ends in a consonant).
     Cmevla,
 }
 
@@ -516,42 +641,56 @@ impl Default for ToolJvozbaMode {
     }
 }
 
+/// How one source part of a compound is supplied.
 #[invariant(::Word => true)]
 #[invariant(::FixedRafsi => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolJvozbaPartKind {
+    /// A whole word (e.g. a gismu like `bratu`); jvozba picks its best rafsi.
     Word,
+    /// A specific rafsi to use verbatim (e.g. `brat`), not chosen by jvozba.
     FixedRafsi,
 }
 
+/// One component of the compound, in the order it should appear.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(inline)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolJvozbaPart {
+    /// Whether `value` is a whole word or a fixed rafsi.
     pub kind: ToolJvozbaPartKind,
+    /// The word or rafsi text for this part.
     pub value: String,
 }
 
+/// Assemble a lujvo (compound word) or cmevla (name) from source parts, applying
+/// the standard rafsi-selection and hyphenation rules. Provide at least two
+/// rafsi-producing parts, in order. The inverse operation — taking a lujvo apart
+/// — is `vlacku` with `mode: "lujvo"`.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolJvozbaRequest {
+    /// Whether to build a lujvo or a cmevla. Defaults to `lujvo`.
     #[serde(default)]
     pub mode: ToolJvozbaMode,
+    /// The source components, in order. Each is a whole word or a fixed rafsi.
     #[serde(default)]
     pub parts: Vec<ToolJvozbaPart>,
 }
 
+/// Output format for `gimfihi` candidate gismu.
 #[invariant(::Table => true)]
 #[invariant(::Json => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(inline)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolGimfihiFormat {
+    /// Compact ranked table (the default): one row per candidate with score and
+    /// per-rafsi collision notes.
     Table,
+    /// Full structured JSON of all candidates and their scoring, for
+    /// programmatic use.
     Json,
 }
 
@@ -563,62 +702,147 @@ impl Default for ToolGimfihiFormat {
     }
 }
 
+/// Which existing gismu a candidate is checked against for rafsi collisions.
+#[invariant(::All => true)]
+#[invariant(::Official => true)]
+#[invariant(::None => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ToolCollisionScope {
+    /// Check against every gismu, official and experimental (the default).
+    All,
+    /// Check only against official gismu.
+    Official,
+    /// Skip collision checking entirely.
+    None,
+}
+
+impl Default for ToolCollisionScope {
+    #[requires(true)]
+    #[ensures(ret == ToolCollisionScope::All)]
+    fn default() -> Self {
+        Self::All
+    }
+}
+
+impl From<ToolCollisionScope> for CliCollisionScope {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(value: ToolCollisionScope) -> Self {
+        match value {
+            ToolCollisionScope::All => Self::All,
+            ToolCollisionScope::Official => Self::Official,
+            ToolCollisionScope::None => Self::None,
+        }
+    }
+}
+
+/// One source word feeding the gismu-composition algorithm: the word from a
+/// natural language, optionally with a custom blending weight.
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct ToolGimfihiSource {
+    /// Language code for this source (e.g. `en`, `zh`, `es`). Each language may
+    /// appear only once.
+    pub language: String,
+    /// The source word, Lojbanized into gismu-scoring letters (the consonants
+    /// and vowels gismu are built from) plus apostrophe — e.g. `mlatu`, not
+    /// `cat`.
+    pub word: String,
+    /// Optional blending weight (1–999). Required for every source unless
+    /// `preset` supplies the weights.
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 999))]
+    pub weight: Option<u16>,
+}
+
+impl ToolGimfihiSource {
+    /// Parse the CLI `LANG[:WEIGHT]:WORD` source spec into a typed source. This
+    /// is a convenience for delivery vehicles whose input is inherently a flat
+    /// string (the Discord slash command); MCP callers pass the fields directly.
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+    pub fn from_spec(spec: &str) -> std::result::Result<Self, String> {
+        let parsed = parse_source_spec(spec).map_err(|error| error.to_string())?;
+        Ok(Self {
+            language: parsed.language,
+            word: parsed.word,
+            weight: parsed.explicit_weight,
+        })
+    }
+}
+
+/// Propose candidate gismu (root words) from a set of source-language words,
+/// using the standard gismu-creation algorithm: score every legal CVC-shape
+/// candidate by how well its letters recall the weighted sources, then rank
+/// them. This *creates new root words*; it does not look up existing ones.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolGimfihiRequest {
+    /// The source words, one per language. Provide weights here, or via
+    /// `preset`.
     #[serde(default)]
-    pub sources: Vec<String>,
+    pub sources: Vec<ToolGimfihiSource>,
+    /// Use a named weight preset instead of per-source weights. One of: `1985`,
+    /// `1987`, `1994`, `1995`, `1999`, `evenly`, `ilmen6`, `ilmen8`, `ilmen12`.
     #[serde(default)]
     pub preset: Option<String>,
+    /// Candidate letter shapes to generate. Each is `ccvcv` or `cvccv`; empty
+    /// means both (the standard gismu shapes).
     #[serde(default)]
     pub shapes: Vec<String>,
+    /// Which gismu to check rafsi collisions against. Defaults to `all`.
     #[serde(default)]
-    pub check_collisions: Option<String>,
+    pub check_collisions: ToolCollisionScope,
+    /// Score using all letters rather than only the rafsi-relevant ones. Off by
+    /// default.
     #[serde(default)]
     pub all_letters: bool,
+    /// Include the per-candidate rafsi collision detail in the output. Off by
+    /// default.
     #[serde(default)]
     pub show_collisions: bool,
+    /// Only keep candidates that have at least one free (unclaimed) short rafsi.
+    /// Off by default.
     #[serde(default)]
     pub require_free_short_rafsi: bool,
+    /// Maximum number of ranked candidates to return (1–512).
     #[serde(default)]
     #[schemars(range(min = 1, max = 512))]
     pub count: Option<usize>,
+    /// Highlight this specific gismu in the output if it appears among the
+    /// candidates.
     #[serde(default)]
     pub highlight: Option<String>,
+    /// Output format. Defaults to the readable `table`.
     #[serde(default)]
     pub format: ToolGimfihiFormat,
 }
 
-#[invariant(::Json => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(inline)]
-#[serde(rename_all = "kebab-case")]
-pub enum ToolTersmuFormat {
-    Json,
-}
-
-impl Default for ToolTersmuFormat {
-    #[requires(true)]
-    #[ensures(ret == ToolTersmuFormat::Json)]
-    fn default() -> Self {
-        Self::Json
-    }
-}
-
+/// Build the semantic representation of Lojban text as a JSON graph
+/// (`lojban-semantics-json-1`): the utterances, eventualities, referents,
+/// predications, and formulas that make up its meaning, with full argument
+/// structure. This is the deepest analysis jbotci offers — reach for it when you
+/// need the actual logical meaning, beyond morphology (`vlasei`) or grammar
+/// (`gentufa`). The result is always this JSON graph.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolTersmuRequest {
+    /// The Lojban text to interpret.
     pub text: String,
-    #[serde(default)]
-    pub format: ToolTersmuFormat,
+    /// Optional dialect/grammar-variant selector. Omit for standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,
-    #[serde(default)]
-    pub no_postproc: bool,
+    /// Carry tense forward across sentences as an advancing narrative "story
+    /// time", instead of anchoring every sentence to speech time. Off by
+    /// default.
     #[serde(default)]
     pub story_time: bool,
+    /// Spaces per indent level. Defaults to 2 (pretty-printed for readability);
+    /// set `0` for compact single-line JSON to save tokens.
     #[serde(default)]
     pub indent: Option<usize>,
 }
@@ -899,8 +1123,6 @@ struct VlaseiInput {
     trace: Option<Option<String>>,
     #[arg(long = "dialect")]
     dialect: Option<String>,
-    #[arg(long = "no-postproc", alias = "na-velruhe")]
-    no_postproc: bool,
     #[arg(long = "indent")]
     indent: Option<usize>,
     #[arg(long = "mark-stress", value_enum)]
@@ -986,8 +1208,6 @@ struct TextInput {
     trace: Option<Option<String>>,
     #[arg(long = "dialect")]
     dialect: Option<String>,
-    #[arg(long = "no-postproc", alias = "na-velruhe")]
-    no_postproc: bool,
     #[arg(long = "indent")]
     indent: Option<usize>,
     #[arg()]
@@ -1035,8 +1255,6 @@ struct TersmuInput {
     trace: Option<Option<String>>,
     #[arg(long = "dialect")]
     dialect: Option<String>,
-    #[arg(long = "no-postproc", alias = "na-velruhe")]
-    no_postproc: bool,
     #[arg(long = "story-time")]
     story_time: bool,
     #[arg(long = "indent")]
@@ -1091,8 +1309,6 @@ struct GentufaInput {
     trace: Option<Option<String>>,
     #[arg(long = "dialect")]
     dialect: Option<String>,
-    #[arg(long = "no-postproc", alias = "na-velruhe")]
-    no_postproc: bool,
     #[arg(long = "show-defs")]
     show_defs: bool,
     #[arg(long = "indent")]
@@ -1212,8 +1428,13 @@ struct CuktaInput {
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
 struct GimfihiInput {
-    #[arg(long = "source", value_name = "LANG[:WEIGHT]:WORD", action = ArgAction::Append)]
-    sources: Vec<String>,
+    #[arg(
+        long = "source",
+        value_name = "LANG[:WEIGHT]:WORD",
+        value_parser = parse_source_spec,
+        action = ArgAction::Append
+    )]
+    sources: Vec<GimfihiSourceInput>,
     #[arg(long = "preset", value_name = "PRESET")]
     preset: Option<String>,
     #[arg(long = "shape", value_name = "SHAPE", action = ArgAction::Append)]
@@ -2168,7 +2389,6 @@ pub fn run_tool_gentufa(request: ToolGentufaRequest) -> Result<ToolRenderedOutpu
         .unwrap_or(matches!(tool_format, ToolGentufaFormat::Tree));
     let (format, output_type, content_type) = match tool_format {
         ToolGentufaFormat::Brackets => (GentufaFormat::Brackets, None, TEXT_PLAIN_CONTENT_TYPE),
-        ToolGentufaFormat::Blocks => (GentufaFormat::Blocks, None, "image/svg+xml; charset=utf-8"),
         ToolGentufaFormat::Tree => (GentufaFormat::Tree, None, TEXT_PLAIN_CONTENT_TYPE),
         ToolGentufaFormat::Raw => (GentufaFormat::Raw, None, TEXT_PLAIN_CONTENT_TYPE),
         ToolGentufaFormat::Json => (GentufaFormat::Json, None, APPLICATION_JSON_CONTENT_TYPE),
@@ -2194,7 +2414,6 @@ pub fn run_tool_gentufa(request: ToolGentufaRequest) -> Result<ToolRenderedOutpu
             format,
             trace: None,
             dialect: request.dialect,
-            no_postproc: false,
             show_defs: request.show_defs,
             indent: request.indent,
             mark_stress: None,
@@ -2240,7 +2459,6 @@ pub fn run_tool_vlasei(request: ToolVlaseiRequest) -> Result<ToolRenderedOutput>
             format,
             trace: None,
             dialect: request.dialect,
-            no_postproc: false,
             indent: request.indent,
             mark_stress: None,
             mark_glides: None,
@@ -2286,86 +2504,29 @@ fn run_tool_cukta_inner(
         ToolCuktaFormat::Raw => TEXT_PLAIN_CONTENT_TYPE,
     };
     let query = request.query.unwrap_or_default();
-    let input = match request.mode {
-        ToolCuktaMode::Default => CuktaInput {
-            count: request.count,
-            toc: false,
-            section: None,
-            example: None,
-            valsi: None,
-            targets: request.targets,
-            target_sections: false,
-            target_paragraphs: false,
-            target_examples: false,
-            format,
-            query: Vec::new(),
-        },
-        ToolCuktaMode::Toc => CuktaInput {
-            count: request.count,
-            toc: true,
-            section: None,
-            example: None,
-            valsi: None,
-            targets: request.targets,
-            target_sections: false,
-            target_paragraphs: false,
-            target_examples: false,
-            format,
-            query: Vec::new(),
-        },
-        ToolCuktaMode::Section => CuktaInput {
-            count: request.count,
-            toc: false,
-            section: Some(query),
-            example: None,
-            valsi: None,
-            targets: request.targets,
-            target_sections: false,
-            target_paragraphs: false,
-            target_examples: false,
-            format,
-            query: Vec::new(),
-        },
-        ToolCuktaMode::Example => CuktaInput {
-            count: request.count,
-            toc: false,
-            section: None,
-            example: Some(query),
-            valsi: None,
-            targets: request.targets,
-            target_sections: false,
-            target_paragraphs: false,
-            target_examples: false,
-            format,
-            query: Vec::new(),
-        },
-        ToolCuktaMode::Word => CuktaInput {
-            count: request.count,
-            toc: false,
-            section: None,
-            example: None,
-            valsi: Some(query),
-            targets: request.targets,
-            target_sections: false,
-            target_paragraphs: false,
-            target_examples: false,
-            format,
-            query: Vec::new(),
-        },
-        ToolCuktaMode::Meaning => CuktaInput {
-            count: request.count,
-            toc: false,
-            section: None,
-            example: None,
-            valsi: None,
-            targets: request.targets,
-            target_sections: false,
-            target_paragraphs: false,
-            target_examples: false,
-            format,
-            query: vec![query],
-        },
+    // The typed `targets` enum set maps directly onto the CLI's per-kind flags;
+    // the string `targets` channel stays empty. Filters only apply to the search
+    // modes and are rejected (downstream) for the navigation modes.
+    let mut input = CuktaInput {
+        count: request.count,
+        toc: false,
+        section: None,
+        example: None,
+        valsi: None,
+        targets: Vec::new(),
+        target_sections: request.targets.contains(&ToolCuktaTarget::Section),
+        target_paragraphs: request.targets.contains(&ToolCuktaTarget::Paragraph),
+        target_examples: request.targets.contains(&ToolCuktaTarget::Example),
+        format,
+        query: Vec::new(),
     };
+    match request.mode {
+        ToolCuktaMode::Meaning => input.query = vec![query],
+        ToolCuktaMode::Word => input.valsi = Some(query),
+        ToolCuktaMode::Section => input.section = Some(query),
+        ToolCuktaMode::Example => input.example = Some(query),
+        ToolCuktaMode::Toc => input.toc = true,
+    }
     run_tool_command_with_context(Command::Cukta(input), Some(content_type), tool_context)
 }
 
@@ -2397,16 +2558,6 @@ fn run_tool_vlacku_inner(
         ToolVlackuMode::Lujvo => (vec![VlackuRequest::Lujvo(query)], Vec::new()),
         ToolVlackuMode::Sound => (vec![VlackuRequest::Sound(query)], Vec::new()),
         ToolVlackuMode::Meaning => (Vec::new(), vec![query]),
-        ToolVlackuMode::Regex => (
-            vec![VlackuRequest::Valsi(regex_pattern_query(&query))],
-            Vec::new(),
-        ),
-        ToolVlackuMode::RafsiRegex => (
-            vec![VlackuRequest::Rafsi(regex_pattern_query(&query))],
-            Vec::new(),
-        ),
-        ToolVlackuMode::Glob => (vec![VlackuRequest::Valsi(query)], Vec::new()),
-        ToolVlackuMode::RafsiGlob => (vec![VlackuRequest::Rafsi(query)], Vec::new()),
     };
     run_tool_command_with_context(
         Command::Vlacku(VlackuInput {
@@ -2424,17 +2575,6 @@ fn run_tool_vlacku_inner(
         Some(TEXT_PLAIN_CONTENT_TYPE),
         tool_context,
     )
-}
-
-#[requires(true)]
-#[ensures(ret.starts_with('/'))]
-fn regex_pattern_query(query: &str) -> String {
-    let trimmed = query.trim();
-    if trimmed.starts_with('/') {
-        trimmed.to_owned()
-    } else {
-        format!("/{trimmed}/")
-    }
 }
 
 #[requires(true)]
@@ -2469,12 +2609,17 @@ pub fn run_tool_gimfihi(request: ToolGimfihiRequest) -> Result<ToolRenderedOutpu
         ToolGimfihiFormat::Json => APPLICATION_JSON_CONTENT_TYPE,
         ToolGimfihiFormat::Table => TEXT_PLAIN_CONTENT_TYPE,
     };
+    let sources = request
+        .sources
+        .into_iter()
+        .map(tool_gimfihi_source_to_input)
+        .collect::<Result<Vec<_>>>()?;
     run_tool_command(
         Command::Gimfihi(GimfihiInput {
-            sources: request.sources,
+            sources,
             preset: request.preset,
             shapes: request.shapes,
-            check_collisions: parse_tool_collision_scope(request.check_collisions.as_deref())?,
+            check_collisions: request.check_collisions.into(),
             all_letters: request.all_letters,
             show_collisions: request.show_collisions,
             require_free_short_rafsi: request.require_free_short_rafsi,
@@ -2488,36 +2633,38 @@ pub fn run_tool_gimfihi(request: ToolGimfihiRequest) -> Result<ToolRenderedOutpu
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-pub fn run_tool_tersmu(request: ToolTersmuRequest) -> Result<ToolRenderedOutput> {
-    let format = match request.format {
-        ToolTersmuFormat::Json => TersmuFormat::Json,
-    };
-    run_tool_command(
-        Command::Tersmu(TersmuInput {
-            file: None,
-            format,
-            trace: None,
-            dialect: request.dialect,
-            no_postproc: request.no_postproc,
-            story_time: request.story_time,
-            indent: request.indent,
-            text: vec![request.text],
-        }),
-        Some(APPLICATION_JSON_CONTENT_TYPE),
-    )
+fn tool_gimfihi_source_to_input(source: ToolGimfihiSource) -> Result<GimfihiSourceInput> {
+    if let Some(weight) = source.weight
+        && !(GIMFIHI_MIN_WEIGHT..=GIMFIHI_MAX_WEIGHT).contains(&weight)
+    {
+        bail!(
+            "source weight for `{}` must be from {GIMFIHI_MIN_WEIGHT} to {GIMFIHI_MAX_WEIGHT}, got {weight}",
+            source.language
+        );
+    }
+    Ok(GimfihiSourceInput::from_fields(
+        &source.language,
+        &source.word,
+        source.weight,
+    ))
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn parse_tool_collision_scope(value: Option<&str>) -> Result<CliCollisionScope> {
-    match value.map(str::trim).filter(|value| !value.is_empty()) {
-        None | Some("all") => Ok(CliCollisionScope::All),
-        Some("official") => Ok(CliCollisionScope::Official),
-        Some("none") => Ok(CliCollisionScope::None),
-        Some(other) => Err(anyhow!(
-            "Unknown check-collisions value `{other}`. Use all, official, or none."
-        )),
-    }
+pub fn run_tool_tersmu(request: ToolTersmuRequest) -> Result<ToolRenderedOutput> {
+    run_tool_command(
+        Command::Tersmu(TersmuInput {
+            file: None,
+            format: TersmuFormat::Json,
+            trace: None,
+            dialect: request.dialect,
+            story_time: request.story_time,
+            // Default to pretty-printed JSON for readability; `0` opts into compact.
+            indent: Some(request.indent.unwrap_or(2)),
+            text: vec![request.text],
+        }),
+        Some(APPLICATION_JSON_CONTENT_TYPE),
+    )
 }
 
 #[requires(true)]
@@ -3204,11 +3351,7 @@ fn gimfihi_request_from_input(input: &GimfihiInput) -> Result<GimfihiRequest> {
         .map(parse_preset)
         .transpose()
         .map_err(|error| anyhow!(error.to_string()))?;
-    let sources = input
-        .sources
-        .iter()
-        .map(|source| parse_source_spec(source).map_err(|error| anyhow!(error.to_string())))
-        .collect::<Result<Vec<_>>>()?;
+    let sources = input.sources.clone();
     let shapes = if input.shapes.is_empty() {
         default_shapes()
     } else {
@@ -6140,7 +6283,14 @@ mod tests {
             panic!("expected gimfihi command");
         };
         assert_eq!(primary_input.preset.as_deref(), Some("1995"));
-        assert_eq!(primary_input.sources, vec!["eng::ekspekt".to_owned()]);
+        assert_eq!(
+            primary_input.sources,
+            vec![GimfihiSourceInput {
+                language: "eng".to_owned(),
+                explicit_weight: None,
+                word: "ekspekt".to_owned(),
+            }]
+        );
 
         let Command::Gimfihi(alias_input) =
             Cli::try_parse_from(["jbotci", "gimfi'i", "--source", "eng:1:ekspekt"])
@@ -6150,7 +6300,14 @@ mod tests {
             panic!("expected gimfihi command");
         };
         assert_eq!(alias_input.preset, None);
-        assert_eq!(alias_input.sources, vec!["eng:1:ekspekt".to_owned()]);
+        assert_eq!(
+            alias_input.sources,
+            vec![GimfihiSourceInput {
+                language: "eng".to_owned(),
+                explicit_weight: Some(1),
+                word: "ekspekt".to_owned(),
+            }]
+        );
     }
 
     #[test]
@@ -9309,7 +9466,6 @@ mod tests {
             file: None,
             trace: None,
             dialect: None,
-            no_postproc: false,
             indent: None,
             text: vec!["coi".into(), "rodo".into()],
         };

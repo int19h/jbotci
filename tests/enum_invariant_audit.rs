@@ -1276,10 +1276,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Blocks",
-        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
         "apps/jbotci/src/lib.rs:ToolGentufaFormat::Tree",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
@@ -1332,10 +1328,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Default",
-        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
-    ),
-    (
         "apps/jbotci/src/lib.rs:ToolCuktaMode::Toc",
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
@@ -1356,6 +1348,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
     (
+        "apps/jbotci/src/lib.rs:ToolCuktaTarget::Section",
+        "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaTarget::Paragraph",
+        "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaTarget::Example",
+        "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
+    ),
+    (
         "apps/jbotci/src/lib.rs:ToolVlackuMode::Word",
         "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
     ),
@@ -1373,22 +1377,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "apps/jbotci/src/lib.rs:ToolVlackuMode::Meaning",
-        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Regex",
-        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::RafsiRegex",
-        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Glob",
-        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::RafsiGlob",
         "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
     ),
     (
@@ -1416,8 +1404,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "MCP/Discord gimfi'i output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolTersmuFormat::Json",
-        "MCP tersmu output format is a closed selector mapped directly to CLI semantic JSON output",
+        "apps/jbotci/src/lib.rs:ToolCollisionScope::All",
+        "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCollisionScope::Official",
+        "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCollisionScope::None",
+        "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
     ),
     (
         "apps/jbotci-server/src/discord.rs:DiscordCommand::Gentufa",

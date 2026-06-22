@@ -444,6 +444,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "shared gimfi'i tool request is API transport state normalized into GimfihiInput and validated during execution",
     ),
     (
+        "apps/jbotci/src/lib.rs:ToolGimfihiSource",
+        "MCP gimfi'i source carries free-form language/word/weight fields validated downstream by the gimfi'i engine",
+    ),
+    (
         "apps/jbotci/src/lib.rs:ToolTersmuRequest",
         "shared tersmu tool request is API transport state normalized into TersmuInput and validated during execution",
     ),

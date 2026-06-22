@@ -21,6 +21,18 @@ const MCP_PROTOCOL_VERSION: &str = "2025-06-18";
 const SERVER_NAME: &str = "jbotci";
 const SERVER_TITLE: &str = "jbotci";
 
+/// The Lojban formal grammar, embedded so the server is self-contained and the
+/// resource works on any transport without a reachable base URL.
+const LOJBAN_GRAMMAR_EBNF: &str = include_str!("../resources/lojban-grammar.ebnf");
+const LOJBAN_GRAMMAR_URI: &str = "jbotci:///grammar/lojban.ebnf";
+const LOJBAN_GRAMMAR_NAME: &str = "lojban-grammar";
+const LOJBAN_GRAMMAR_TITLE: &str = "Lojban EBNF grammar";
+const LOJBAN_GRAMMAR_MIME: &str = "text/plain; charset=utf-8";
+const LOJBAN_GRAMMAR_DESCRIPTION: &str =
+    "The formal EBNF grammar of Lojban — the official machine grammar that `gentufa` implements, \
+     prefixed with a guide to its non-standard notation (`&`, `...`, `//`, `#`). Read this to \
+     understand or generate Lojban syntax.";
+
 #[invariant(true)]
 #[derive(Debug, Deserialize)]
 struct JsonRpcMessage {
@@ -95,6 +107,30 @@ pub(crate) async fn mcp_post(
         "initialize" => initialize_result(),
         "ping" => json!({}),
         "tools/list" => json!({ "tools": mcp_tools() }),
+        "resources/list" => json!({ "resources": mcp_resources() }),
+        "resources/templates/list" => json!({ "resourceTemplates": [] }),
+        "resources/read" => {
+            let uri = message
+                .params
+                .as_ref()
+                .and_then(|params| params.get("uri"))
+                .and_then(Value::as_str);
+            match uri {
+                Some(LOJBAN_GRAMMAR_URI) => grammar_resource_contents(),
+                Some(other) => {
+                    return json_response(
+                        StatusCode::OK,
+                        json_rpc_error(id, -32602, &format!("Unknown resource URI: {other}")),
+                    );
+                }
+                None => {
+                    return json_response(
+                        StatusCode::OK,
+                        json_rpc_error(id, -32602, "`resources/read` requires a `uri`"),
+                    );
+                }
+            }
+        }
         "tools/call" => {
             let params = match message.params {
                 Some(params) => params,
@@ -151,6 +187,10 @@ fn initialize_result() -> Value {
         "capabilities": {
             "tools": {
                 "listChanged": false
+            },
+            "resources": {
+                "subscribe": false,
+                "listChanged": false
             }
         },
         "serverInfo": {
@@ -158,7 +198,7 @@ fn initialize_result() -> Value {
             "title": SERVER_TITLE,
             "version": env!("CARGO_PKG_VERSION")
         },
-        "instructions": "Use the default non-JSON formats unless a programmatic JSON result is specifically needed."
+        "instructions": "jbotci is a Lojban toolkit. Choose a tool by task: `cukta` for the reference grammar (CLL), `vlacku` for dictionary word lookups, `gentufa` to parse a sentence's grammar, `vlasei` for word-level morphology, `tersmu` for deep logical meaning, `jvozba` to build a compound word, `gimfihi` to invent a new root word. Every tool defaults to a readable text (or image) format; request a JSON format only when you specifically need machine-parseable output."
     })
 }
 
@@ -174,52 +214,103 @@ fn mcp_tools() -> Vec<Value> {
     vec![
         tool_definition(
             "cukta",
-            "Read or search the CLL. Defaults to Markdown; prefer default text output for token efficiency unless HTML/raw is needed.",
+            "Lojban reference book (CLL)",
+            "Read or search *The Complete Lojban Language* (CLL), the canonical reference grammar. \
+             Use it for grammar rules, explanations of how constructs work, and worked examples — \
+             not for plain word definitions (use `vlacku` for those). Defaults to semantic search; \
+             output is readable Markdown.",
             tool_request_schema::<ToolCuktaRequest>(),
         ),
         tool_definition(
             "vlacku",
-            "Search dictionary cards by word, rafsi, lujvo, meaning, sound, regex, or glob. Default CLI-style cards are usually more token efficient than JSON-like alternatives.",
+            "Lojban dictionary lookup",
+            "Look up words in the Lojban dictionary (jbovlaste): definitions, place structure, \
+             rafsi, glosses, and notes. Use it for \"what does this word mean\" or \"what's the word \
+             for X\" — not for grammar rules (use `cukta`). Returns readable cards.",
             tool_request_schema::<ToolVlackuRequest>(),
         ),
         tool_definition(
             "jvozba",
-            "Build a lujvo or cmevla from source words and fixed rafsi.",
+            "Build a compound word",
+            "Assemble a lujvo (compound word) or cmevla (name) from source words and/or fixed rafsi. \
+             This is the *construction* tool; to take an existing lujvo apart, use `vlacku` with \
+             `mode: lujvo`.",
             tool_request_schema::<ToolJvozbaRequest>(),
         ),
         tool_definition(
             "vlasei",
-            "Run Lojban morphology. Defaults to format=tree with refs; use JSON only for programmatic consumers.",
+            "Lojban morphology",
+            "Split Lojban text into words and classify each one (gismu, cmavo, lujvo, cmevla, \
+             fu'ivla, …). This is word-level analysis — for the grammar of a whole sentence use \
+             `gentufa`, and for its meaning use `tersmu`. Defaults to a readable tree.",
             tool_request_schema::<ToolVlaseiRequest>(),
         ),
         tool_definition(
             "gentufa",
-            "Parse Lojban syntax. Defaults to format=tree with refs and detailed errors; use JSON only for programmatic consumers.",
+            "Parse Lojban grammar",
+            "Parse Lojban text into its grammar (syntax) tree — the authoritative way to see how a \
+             sentence is structured and which word fills each role. For word-level analysis only use \
+             `vlasei`; for logical meaning use `tersmu`. Defaults to a readable tree with place \
+             references.",
             tool_request_schema::<ToolGentufaRequest>(),
         ),
         tool_definition(
             "gimfihi",
-            "Compose candidate gismu from source words. Defaults to the compact table output; JSON is available for programmatic use.",
+            "Invent candidate gismu",
+            "Propose new candidate gismu (root words) from source-language words using the standard \
+             gismu-creation algorithm. This *creates* roots; it does not look up existing words (use \
+             `vlacku`). Returns a ranked table.",
             tool_request_schema::<ToolGimfihiRequest>(),
         ),
         tool_definition(
             "tersmu",
-            "Build Lojban semantic JSON. Defaults to JSON for programmatic use; prefer other tools' default text formats when semantics JSON is not specifically needed.",
+            "Lojban semantics",
+            "Compute the deep semantic/logical meaning of Lojban text as a JSON graph (referents, \
+             predications, eventualities, formulas). This is the deepest analysis jbotci offers — \
+             for grammar use `gentufa`, for morphology use `vlasei`. Output is indented JSON.",
             tool_request_schema::<ToolTersmuRequest>(),
         ),
     ]
 }
 
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn mcp_resources() -> Vec<Value> {
+    vec![json!({
+        "uri": LOJBAN_GRAMMAR_URI,
+        "name": LOJBAN_GRAMMAR_NAME,
+        "title": LOJBAN_GRAMMAR_TITLE,
+        "description": LOJBAN_GRAMMAR_DESCRIPTION,
+        "mimeType": LOJBAN_GRAMMAR_MIME,
+    })]
+}
+
+#[requires(true)]
+#[ensures(ret.is_object())]
+fn grammar_resource_contents() -> Value {
+    json!({
+        "contents": [{
+            "uri": LOJBAN_GRAMMAR_URI,
+            "name": LOJBAN_GRAMMAR_NAME,
+            "title": LOJBAN_GRAMMAR_TITLE,
+            "mimeType": LOJBAN_GRAMMAR_MIME,
+            "text": LOJBAN_GRAMMAR_EBNF,
+        }]
+    })
+}
+
 #[requires(!name.trim().is_empty())]
+#[requires(!title.trim().is_empty())]
 #[requires(!description.trim().is_empty())]
 #[ensures(true)]
-fn tool_definition(name: &str, description: &str, input_schema: Value) -> Value {
+fn tool_definition(name: &str, title: &str, description: &str, input_schema: Value) -> Value {
     json!({
         "name": name,
-        "title": name,
+        "title": title,
         "description": description,
         "inputSchema": input_schema,
         "annotations": {
+            "title": title,
             "readOnlyHint": true,
             "destructiveHint": false,
             "idempotentHint": true,
@@ -230,12 +321,34 @@ fn tool_definition(name: &str, description: &str, input_schema: Value) -> Value 
 
 #[requires(true)]
 #[ensures(ret.is_object())]
+#[ensures(!json_value_contains_key(&ret, "$ref"))]
+#[ensures(!json_value_contains_key(&ret, "$defs"))]
 fn tool_request_schema<T>() -> Value
 where
     T: JsonSchema,
 {
-    serde_json::to_value(schemars::schema_for!(T))
+    // Inline every subschema. The MCP clients we target (including chatbot
+    // harnesses) do not resolve `$ref`/`$defs`, so each referenced enum and
+    // nested struct must be expanded in place. The tool request types are all
+    // non-recursive, so full inlining terminates. This also keeps every field's
+    // and enum variant's doc comment as an inline `description`.
+    let mut settings = schemars::generate::SchemaSettings::default();
+    settings.inline_subschemas = true;
+    let generator = schemars::generate::SchemaGenerator::new(settings);
+    serde_json::to_value(generator.into_root_schema_for::<T>())
         .expect("generated MCP tool schema serializes to JSON")
+}
+
+#[requires(!key.is_empty())]
+#[ensures(true)]
+fn json_value_contains_key(value: &Value, key: &str) -> bool {
+    match value {
+        Value::Object(object) => object
+            .iter()
+            .any(|(object_key, object_value)| object_key == key || json_value_contains_key(object_value, key)),
+        Value::Array(items) => items.iter().any(|item| json_value_contains_key(item, key)),
+        _ => false,
+    }
 }
 
 #[requires(!params.name.trim().is_empty())]
@@ -304,31 +417,17 @@ fn tool_output_result(output: ToolRenderedOutput) -> Value {
         }));
         return json!({ "content": content });
     }
+    // A single readable text representation. For JSON formats the text is itself
+    // valid JSON, so we deliberately do not also emit a duplicate
+    // `structuredContent` block: this server is consumed by models that read the
+    // text content, and no tool declares an `outputSchema`, so a structured copy
+    // would only cost tokens without adding schema-validated value.
     let text = output
         .stdout_text()
         .map(str::to_owned)
         .unwrap_or_else(|_| String::from_utf8_lossy(&output.stdout).into_owned());
     content.push(json!({ "type": "text", "text": text }));
-    if content_type_is_json(output.content_type.as_deref()) {
-        if let Ok(structured) = serde_json::from_slice::<Value>(&output.stdout) {
-            let structured = structured_content_value(structured);
-            return json!({
-                "content": content,
-                "structuredContent": structured
-            });
-        }
-    }
     json!({ "content": content })
-}
-
-#[requires(true)]
-#[ensures(ret.is_object())]
-fn structured_content_value(value: Value) -> Value {
-    if value.is_object() {
-        value
-    } else {
-        json!({ "result": value })
-    }
 }
 
 #[requires(true)]
@@ -357,14 +456,6 @@ fn tool_error_result(message: String) -> Value {
         ],
         "isError": true
     })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn content_type_is_json(content_type: Option<&str>) -> bool {
-    content_type
-        .and_then(|value| value.split(';').next())
-        .is_some_and(|value| value.trim().eq_ignore_ascii_case("application/json"))
 }
 
 #[requires(true)]

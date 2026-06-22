@@ -1042,13 +1042,25 @@ mod tests {
     #[ensures(true)]
     fn assert_string_enum_property(schema: &serde_json::Value, property: &str, expected: &[&str]) {
         let property_schema = &schema["properties"][property];
-        assert_eq!(property_schema["type"], "string", "{property_schema}");
-        let actual = property_schema["enum"]
-            .as_array()
-            .expect("enum values")
-            .iter()
-            .map(|value| value.as_str().expect("enum string"))
-            .collect::<Vec<_>>();
+        // Documented enums render as an inline `oneOf` of `{const, description}`
+        // (per-variant docs); a plain `enum` array is the undocumented fallback.
+        let actual = if let Some(variants) = property_schema["oneOf"].as_array() {
+            variants
+                .iter()
+                .map(|variant| {
+                    assert_eq!(variant["type"], "string", "{variant}");
+                    variant["const"].as_str().expect("const string")
+                })
+                .collect::<Vec<_>>()
+        } else {
+            assert_eq!(property_schema["type"], "string", "{property_schema}");
+            property_schema["enum"]
+                .as_array()
+                .expect("enum values")
+                .iter()
+                .map(|value| value.as_str().expect("enum string"))
+                .collect::<Vec<_>>()
+        };
         assert_eq!(actual, expected, "{property}");
         assert!(property_schema.get("$ref").is_none(), "{property_schema}");
     }
@@ -1542,7 +1554,7 @@ mod tests {
         assert_string_enum_property(
             gentufa_schema,
             "format",
-            &["brackets", "blocks", "tree", "raw", "json", "svg", "png"],
+            &["tree", "brackets", "raw", "json", "svg", "png"],
         );
         assert_boolean_default_property(gentufa_schema, "show-refs", true);
         let gentufa_schema_text = serde_json::to_string(&gentufa_schema).expect("schema JSON");
@@ -1559,7 +1571,7 @@ mod tests {
         assert_string_enum_property(
             vlasei_schema,
             "format",
-            &["brackets", "tree", "ipa", "raw", "json"],
+            &["tree", "brackets", "ipa", "raw", "json"],
         );
         assert_boolean_default_property(vlasei_schema, "show-refs", true);
 
@@ -1567,7 +1579,7 @@ mod tests {
         assert_string_enum_property(
             cukta_schema,
             "mode",
-            &["default", "toc", "section", "example", "word", "meaning"],
+            &["meaning", "word", "section", "example", "toc"],
         );
         assert_string_enum_property(cukta_schema, "format", &["markdown", "html", "raw"]);
         assert!(cukta_schema["properties"]["query"].is_object());
@@ -1581,17 +1593,7 @@ mod tests {
         assert_string_enum_property(
             vlacku_schema,
             "mode",
-            &[
-                "word",
-                "rafsi",
-                "lujvo",
-                "sound",
-                "meaning",
-                "regex",
-                "rafsi-regex",
-                "glob",
-                "rafsi-glob",
-            ],
+            &["word", "rafsi", "lujvo", "sound", "meaning"],
         );
         assert!(vlacku_schema["properties"]["query"].is_object());
         let vlacku_schema_text = serde_json::to_string(&vlacku_schema).expect("schema JSON");
@@ -1614,9 +1616,21 @@ mod tests {
 
         let gimfihi_schema = tool_input_schema(tools_array, "gimfihi");
         assert_string_enum_property(gimfihi_schema, "format", &["table", "json"]);
+        assert_string_enum_property(
+            gimfihi_schema,
+            "check-collisions",
+            &["all", "official", "none"],
+        );
+        // Sources are a typed array of objects, fully inlined (no `$ref`).
+        let gimfihi_source = &gimfihi_schema["properties"]["sources"]["items"];
+        assert!(gimfihi_source["properties"]["language"].is_object());
+        assert!(gimfihi_source["properties"]["word"].is_object());
+        assert!(gimfihi_source["properties"]["weight"].is_object());
 
         let tersmu_schema = tool_input_schema(tools_array, "tersmu");
-        assert_string_enum_property(tersmu_schema, "format", &["json"]);
+        assert!(tersmu_schema["properties"]["text"].is_object());
+        // tersmu has a single output format, so it exposes no `format` field.
+        assert!(tersmu_schema["properties"]["format"].is_null());
     }
 
     #[tokio::test]
@@ -1652,10 +1666,12 @@ mod tests {
                 > 0
         );
 
+        // `word`/`rafsi` modes accept plain text, `*`/`?` globs, and `/regex/`;
+        // there are no separate glob/regex modes.
         for (id, mode, query, expected_text) in [
             ("vlacku-word", "word", "klama", "klama"),
-            ("vlacku-regex", "regex", "/^klama$/", "klama"),
-            ("vlacku-rafsi-glob", "rafsi-glob", "kla*", "kla"),
+            ("vlacku-word-regex", "word", "/^klama$/", "klama"),
+            ("vlacku-rafsi-glob", "rafsi", "kla*", "kla"),
             ("vlacku-sound", "sound", "klama", "klama"),
         ] {
             let vlacku = post_json(
@@ -1707,7 +1723,16 @@ mod tests {
         assert_eq!(structured.status(), StatusCode::OK);
         let structured_json = response_json(structured).await;
         assert_eq!(structured_json["result"]["content"][0]["type"], "text");
-        assert!(structured_json["result"]["structuredContent"].is_object());
+        // JSON formats are returned as readable text only (no duplicate
+        // `structuredContent`); the text itself parses as JSON.
+        assert!(structured_json["result"]["structuredContent"].is_null());
+        let gentufa_parsed: serde_json::Value = serde_json::from_str(
+            structured_json["result"]["content"][0]["text"]
+                .as_str()
+                .expect("gentufa json text"),
+        )
+        .expect("gentufa json content parses");
+        assert!(gentufa_parsed.is_object(), "{gentufa_parsed}");
 
         let vlasei_structured = post_json(
             app.clone(),
@@ -1732,16 +1757,19 @@ mod tests {
             vlasei_structured_json["result"]["content"][0]["type"],
             "text"
         );
+        // Text-only JSON; the content parses as the morphology array.
         assert!(
-            vlasei_structured_json["result"]["structuredContent"].is_object(),
+            vlasei_structured_json["result"]["structuredContent"].is_null(),
             "{}",
             vlasei_structured_json["result"]
         );
-        assert!(
-            vlasei_structured_json["result"]["structuredContent"]["result"].is_array(),
-            "{}",
-            vlasei_structured_json["result"]["structuredContent"]
-        );
+        let vlasei_parsed: serde_json::Value = serde_json::from_str(
+            vlasei_structured_json["result"]["content"][0]["text"]
+                .as_str()
+                .expect("vlasei json text"),
+        )
+        .expect("vlasei json content parses");
+        assert!(vlasei_parsed.is_array(), "{vlasei_parsed}");
 
         let vlasei = post_json(
             app.clone(),
@@ -1803,12 +1831,12 @@ mod tests {
                     "arguments": {
                         "preset": "1995",
                         "sources": [
-                            "cmn::uan",
-                            "hin::rakan",
-                            "eng::ekspekt",
-                            "spa::esper",
-                            "rus::predpologa",
-                            "ara::mulud"
+                            {"language": "cmn", "word": "uan"},
+                            {"language": "hin", "word": "rakan"},
+                            {"language": "eng", "word": "ekspekt"},
+                            {"language": "spa", "word": "esper"},
+                            {"language": "rus", "word": "predpologa"},
+                            {"language": "ara", "word": "mulud"}
                         ],
                         "check-collisions": "none",
                         "count": 1,
@@ -1864,8 +1892,7 @@ mod tests {
                 "params": {
                     "name": "tersmu",
                     "arguments": {
-                        "text": "mi klama",
-                        "format": "json"
+                        "text": "mi klama"
                     }
                 }
             }),
@@ -1874,14 +1901,16 @@ mod tests {
         assert_eq!(tersmu.status(), StatusCode::OK);
         let tersmu_json = response_json(tersmu).await;
         assert_eq!(tersmu_json["result"]["content"][0]["type"], "text");
-        assert_eq!(
-            tersmu_json["result"]["structuredContent"]["version"],
-            "lojban-semantics-json-1"
-        );
-        assert_eq!(
-            tersmu_json["result"]["structuredContent"]["root"],
-            "utterance:u1"
-        );
+        // tersmu returns indented JSON as text only (no `structuredContent`).
+        assert!(tersmu_json["result"]["structuredContent"].is_null());
+        let tersmu_text = tersmu_json["result"]["content"][0]["text"]
+            .as_str()
+            .expect("tersmu json text");
+        assert!(tersmu_text.contains('\n'), "tersmu output should be indented");
+        let tersmu_parsed: serde_json::Value =
+            serde_json::from_str(tersmu_text).expect("tersmu json content parses");
+        assert_eq!(tersmu_parsed["version"], "lojban-semantics-json-1");
+        assert_eq!(tersmu_parsed["root"], "utterance:u1");
 
         let unknown = post_json(
             app.clone(),
@@ -1958,6 +1987,79 @@ mod tests {
             .expect("error text");
         assert!(old_vlacku_union_text.contains("unknown field"));
         assert!(!old_vlacku_union_text.contains("Invalid Lojban word"));
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn mcp_exposes_lojban_grammar_resource() {
+        let app = router(test_config(test_static_dir()));
+
+        let initialize = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": { "protocolVersion": "2025-06-18" }
+            }),
+        )
+        .await;
+        let initialize_json = response_json(initialize).await;
+        assert!(initialize_json["result"]["capabilities"]["resources"].is_object());
+
+        let list = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({ "jsonrpc": "2.0", "id": 2, "method": "resources/list" }),
+        )
+        .await;
+        assert_eq!(list.status(), StatusCode::OK);
+        let list_json = response_json(list).await;
+        let resources = list_json["result"]["resources"]
+            .as_array()
+            .expect("resources array");
+        let grammar = resources
+            .iter()
+            .find(|resource| resource["name"] == "lojban-grammar")
+            .expect("grammar resource listed");
+        let uri = grammar["uri"].as_str().expect("resource uri");
+        assert!(grammar["description"].as_str().is_some_and(|d| !d.is_empty()));
+
+        let read = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "resources/read",
+                "params": { "uri": uri }
+            }),
+        )
+        .await;
+        assert_eq!(read.status(), StatusCode::OK);
+        let read_json = response_json(read).await;
+        let contents = &read_json["result"]["contents"][0];
+        assert_eq!(contents["uri"], uri);
+        let text = contents["text"].as_str().expect("grammar text");
+        // Spot-check that the real grammar made it through verbatim.
+        assert!(text.contains("bridi-tail ="), "{}", &text[..text.len().min(200)]);
+        assert!(text.contains("selma'o"));
+
+        let unknown = post_json(
+            app,
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "resources/read",
+                "params": { "uri": "jbotci:///grammar/does-not-exist" }
+            }),
+        )
+        .await;
+        let unknown_json = response_json(unknown).await;
+        assert_eq!(unknown_json["error"]["code"], -32602);
     }
 
     #[tokio::test]

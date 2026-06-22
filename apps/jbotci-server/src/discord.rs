@@ -7,10 +7,11 @@ use axum::http::{HeaderMap, Response, StatusCode};
 use bityzba::{invariant, new, requires};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use jbotci_cli::{
-    ToolCuktaMode, ToolCuktaRequest, ToolGentufaFormat, ToolGentufaRequest, ToolGimfihiFormat,
-    ToolGimfihiRequest, ToolJvozbaMode, ToolJvozbaPart, ToolJvozbaPartKind, ToolJvozbaRequest,
-    ToolRenderedOutput, ToolVlackuMode, ToolVlackuRequest, ToolVlaseiFormat, ToolVlaseiRequest,
-    run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba, run_tool_vlasei,
+    ToolCollisionScope, ToolCuktaMode, ToolCuktaRequest, ToolGentufaFormat, ToolGentufaRequest,
+    ToolGimfihiFormat, ToolGimfihiRequest, ToolGimfihiSource, ToolJvozbaMode, ToolJvozbaPart,
+    ToolJvozbaPartKind, ToolJvozbaRequest, ToolRenderedOutput, ToolVlackuMode, ToolVlackuRequest,
+    ToolVlaseiFormat, ToolVlaseiRequest, run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba,
+    run_tool_vlasei,
 };
 use jbotci_web_core::{
     CUKTA_WEB_DEFAULT_COUNT, CuktaWebMode, CuktaWebSearchState, CuktaWebState, CuktaWebView,
@@ -186,8 +187,8 @@ fn discord_command_options() -> Vec<Value> {
             "description": "Search dictionary cards",
             "type": 1,
             "options": [
-                string_option("query", "Search query", true),
-                string_choices_option("mode", "Search mode", false, &["word", "rafsi", "lujvo", "sound", "meaning", "regex", "rafsi-regex", "glob", "rafsi-glob"]),
+                string_option("query", "Search query (word/rafsi accept * ? globs and /regex/)", true),
+                string_choices_option("mode", "Search mode", false, &["word", "rafsi", "lujvo", "sound", "meaning"]),
                 integer_option("count", "Maximum result count", false),
                 string_option("word-type", "Word type filter", false)
             ]
@@ -197,7 +198,7 @@ fn discord_command_options() -> Vec<Value> {
             "description": "Read or search the CLL",
             "type": 1,
             "options": [
-                string_choices_option("mode", "Read/search mode", false, &["default", "toc", "section", "example", "word", "meaning"]),
+                string_choices_option("mode", "Read/search mode", false, &["meaning", "word", "section", "example", "toc"]),
                 string_option("query", "Reference or search query", false),
                 integer_option("count", "Maximum result count", false),
                 string_choices_option("format", "Output format", false, &["markdown", "html", "raw"])
@@ -399,14 +400,18 @@ fn parse_discord_jvozba(options: &[Value]) -> Result<ToolJvozbaRequest, String> 
 #[requires(true)]
 #[ensures(true)]
 fn parse_discord_gimfihi(options: &[Value]) -> Result<ToolGimfihiRequest, String> {
+    let sources = optional_string_option(options, "sources")
+        .as_deref()
+        .map(split_discord_sources)
+        .unwrap_or_default()
+        .iter()
+        .map(|spec| ToolGimfihiSource::from_spec(spec))
+        .collect::<Result<Vec<_>, String>>()?;
     Ok(ToolGimfihiRequest {
-        sources: optional_string_option(options, "sources")
-            .as_deref()
-            .map(split_discord_sources)
-            .unwrap_or_default(),
+        sources,
         preset: optional_string_option(options, "preset"),
         shapes: Vec::new(),
-        check_collisions: None,
+        check_collisions: ToolCollisionScope::default(),
         all_letters: false,
         show_collisions: false,
         require_free_short_rafsi: false,
@@ -469,12 +474,10 @@ fn gentufa_link(request: &ToolGentufaRequest) -> Option<String> {
 #[ensures(true)]
 fn vlacku_link(request: &ToolVlackuRequest) -> Option<String> {
     let mode = match request.mode {
-        ToolVlackuMode::Rafsi | ToolVlackuMode::RafsiRegex | ToolVlackuMode::RafsiGlob => {
-            VlackuWebMode::Rafsi
-        }
+        ToolVlackuMode::Rafsi => VlackuWebMode::Rafsi,
         ToolVlackuMode::Sound => VlackuWebMode::Sound,
         ToolVlackuMode::Meaning => VlackuWebMode::Meaning,
-        _ => VlackuWebMode::Word,
+        ToolVlackuMode::Word | ToolVlackuMode::Lujvo => VlackuWebMode::Word,
     };
     Some(absolute_web_url(&web_route_url(
         "",
@@ -508,10 +511,14 @@ fn cukta_link(request: &ToolCuktaRequest) -> Option<String> {
                 },
                 query: request.query.clone().unwrap_or_default(),
                 count: request.count.unwrap_or(CUKTA_WEB_DEFAULT_COUNT),
-                targets: request.targets.clone(),
+                targets: request
+                    .targets
+                    .iter()
+                    .map(|target| target.as_str().to_owned())
+                    .collect(),
             }),
         }),
-        ToolCuktaMode::Default | ToolCuktaMode::Example => return Some(absolute_web_url("/cukta")),
+        ToolCuktaMode::Example => return Some(absolute_web_url("/cukta")),
     };
     Some(absolute_web_url(&web_route_url("", &route)))
 }
@@ -726,10 +733,6 @@ fn parse_vlacku_mode(value: Option<&str>) -> Result<ToolVlackuMode, String> {
         "lujvo" => Ok(ToolVlackuMode::Lujvo),
         "sound" => Ok(ToolVlackuMode::Sound),
         "meaning" => Ok(ToolVlackuMode::Meaning),
-        "regex" => Ok(ToolVlackuMode::Regex),
-        "rafsi-regex" => Ok(ToolVlackuMode::RafsiRegex),
-        "glob" => Ok(ToolVlackuMode::Glob),
-        "rafsi-glob" => Ok(ToolVlackuMode::RafsiGlob),
         other => Err(format!("Unknown vlacku mode `{other}`.")),
     }
 }
@@ -737,13 +740,12 @@ fn parse_vlacku_mode(value: Option<&str>) -> Result<ToolVlackuMode, String> {
 #[requires(true)]
 #[ensures(true)]
 fn parse_cukta_mode(value: Option<&str>) -> Result<ToolCuktaMode, String> {
-    match value.unwrap_or("default") {
-        "default" => Ok(ToolCuktaMode::Default),
-        "toc" => Ok(ToolCuktaMode::Toc),
+    match value.unwrap_or("meaning") {
+        "meaning" => Ok(ToolCuktaMode::Meaning),
+        "word" => Ok(ToolCuktaMode::Word),
         "section" => Ok(ToolCuktaMode::Section),
         "example" => Ok(ToolCuktaMode::Example),
-        "word" => Ok(ToolCuktaMode::Word),
-        "meaning" => Ok(ToolCuktaMode::Meaning),
+        "toc" => Ok(ToolCuktaMode::Toc),
         other => Err(format!("Unknown cukta mode `{other}`.")),
     }
 }
