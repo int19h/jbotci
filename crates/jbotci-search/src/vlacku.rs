@@ -1543,7 +1543,12 @@ fn compile_regex_pattern(pattern: &str) -> Result<Regex, String> {
         ));
     }
 
-    let pattern_source = format!("(?i)^(?:{body})$");
+    // Regex is matched as an unanchored substring (like grep), so the caller's
+    // own `^`/`$` anchors are meaningful: `/kla/` matches anywhere, `/^kla/`
+    // anchors to the start, `/^kla$/` requires the whole word. (Glob patterns,
+    // by contrast, always describe the whole word.) Case-insensitive by default;
+    // the caller can override with an inline `(?-i)` flag.
+    let pattern_source = format!("(?i){body}");
     Regex::new(&pattern_source)
         .map_err(|error| format!("Invalid regex pattern `{pattern}`: {error}"))
 }
@@ -2074,24 +2079,23 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn exact_valsi_regex_is_full_match_and_case_insensitive_by_default() {
-        let insensitive = run_vlacku_requests(
+    fn exact_valsi_regex_is_substring_and_case_insensitive_by_default() {
+        // Fully anchored and upper-case: still resolves to exactly "klama"
+        // (anchors honored, case-insensitive by default).
+        let exact = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Valsi("/KLAMA/".to_owned())],
+            &[VlackuRequest::Valsi("/^KLAMA$/".to_owned())],
             &VlackuSearchOptions::default(),
         );
-
-        assert!(
-            insensitive.diagnostics.is_empty(),
-            "{:?}",
-            insensitive.diagnostics
-        );
-        assert_eq!(insensitive.outcome, VlackuOutcome::Found);
+        assert!(exact.diagnostics.is_empty(), "{:?}", exact.diagnostics);
+        assert_eq!(exact.outcome, VlackuOutcome::Found);
         assert_eq!(
-            insensitive.cards.first().map(|card| card.word.as_str()),
+            exact.cards.first().map(|card| card.word.as_str()),
             Some("klama")
         );
 
+        // Unanchored substring: `/lam/` matches words that merely contain "lam"
+        // (e.g. "klama"), which the old full-match behavior would have rejected.
         let substring = run_vlacku_requests(
             jbotci_dictionary_data::english(),
             &[VlackuRequest::Valsi("/lam/".to_owned())],
@@ -2102,8 +2106,32 @@ mod tests {
             "{:?}",
             substring.diagnostics
         );
-        assert_eq!(substring.outcome, VlackuOutcome::ValidMissing);
-        assert!(substring.cards.is_empty());
+        assert_eq!(substring.outcome, VlackuOutcome::Found);
+        assert!(
+            substring
+                .cards
+                .iter()
+                .all(|card| card.word.to_lowercase().contains("lam")),
+            "{:?}",
+            substring.cards.iter().map(|c| &c.word).collect::<Vec<_>>()
+        );
+
+        // The caller's own anchors are honored: `/^kla/` restricts the match to
+        // words that START with "kla".
+        let prefix = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Valsi("/^kla/".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        assert_eq!(prefix.outcome, VlackuOutcome::Found);
+        assert!(
+            prefix
+                .cards
+                .iter()
+                .all(|card| card.word.to_lowercase().starts_with("kla")),
+            "{:?}",
+            prefix.cards.iter().map(|c| &c.word).collect::<Vec<_>>()
+        );
     }
 
     #[test]

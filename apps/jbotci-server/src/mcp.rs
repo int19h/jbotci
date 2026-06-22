@@ -404,7 +404,13 @@ fn tool_output_result(output: ToolRenderedOutput) -> Value {
     if !output.stderr.is_empty() {
         content.push(json!({ "type": "text", "text": output.stderr }));
     }
-    if content_type_is_image(output.content_type.as_deref()) {
+    // Raster images (PNG, …) are returned as image content for direct display.
+    // SVG is deliberately NOT treated as an image here: it is XML text, and the
+    // chatbot harnesses that consume this server cannot render an SVG *image*,
+    // so it falls through to the text branch below — the model receives the SVG
+    // source and can read or reuse it (e.g. embed it in a page). Use the `png`
+    // format when a displayable raster image is wanted.
+    if content_type_is_raster_image(output.content_type.as_deref()) {
         let mime_type = output
             .content_type
             .as_deref()
@@ -417,11 +423,11 @@ fn tool_output_result(output: ToolRenderedOutput) -> Value {
         }));
         return json!({ "content": content });
     }
-    // A single readable text representation. For JSON formats the text is itself
-    // valid JSON, so we deliberately do not also emit a duplicate
-    // `structuredContent` block: this server is consumed by models that read the
-    // text content, and no tool declares an `outputSchema`, so a structured copy
-    // would only cost tokens without adding schema-validated value.
+    // A single readable text representation (also the SVG source, per above). For
+    // JSON formats the text is itself valid JSON, so we deliberately do not also
+    // emit a duplicate `structuredContent` block: this server is consumed by
+    // models that read the text content, and no tool declares an `outputSchema`,
+    // so a structured copy would only cost tokens without adding value.
     let text = output
         .stdout_text()
         .map(str::to_owned)
@@ -460,10 +466,13 @@ fn tool_error_result(message: String) -> Value {
 
 #[requires(true)]
 #[ensures(true)]
-fn content_type_is_image(content_type: Option<&str>) -> bool {
+fn content_type_is_raster_image(content_type: Option<&str>) -> bool {
     content_type
         .and_then(|value| value.split(';').next())
-        .is_some_and(|value| value.trim().starts_with("image/"))
+        .map(str::trim)
+        // SVG is XML text, not a raster image, so it is excluded here and served
+        // as text instead (the harnesses we target cannot render SVG images).
+        .is_some_and(|value| value.starts_with("image/") && value != "image/svg+xml")
 }
 
 #[requires(true)]

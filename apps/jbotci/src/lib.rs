@@ -285,9 +285,10 @@ pub enum ToolGentufaFormat {
     Raw,
     /// The full parse tree as structured JSON, for programmatic consumers.
     Json,
-    /// Constituency diagram rendered as an SVG image (vector source).
+    /// Constituency diagram as SVG source, returned as text (XML you can read or
+    /// embed in a page). Use `png` if you want a directly displayable image.
     Svg,
-    /// Constituency diagram rendered as a PNG image (best for visual inspection).
+    /// Constituency diagram rendered as a PNG image (best for direct display).
     Png,
 }
 
@@ -313,8 +314,9 @@ pub struct ToolGentufaRequest {
     /// How to render the parse. Defaults to the readable `tree`.
     #[serde(default)]
     pub format: ToolGentufaFormat,
-    /// Optional dialect/grammar-variant selector (a dialect formula). Omit for
-    /// standard Lojban.
+    /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
+    /// `gadganzu`, `ce-ki-tau`) or a parenthesized formula combining them, e.g.
+    /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,
     /// Prepend the full dictionary definition of every word before the tree.
@@ -391,19 +393,14 @@ pub struct ToolVlaseiRequest {
     /// How to render the analysis. Defaults to the readable `tree`.
     #[serde(default)]
     pub format: ToolVlaseiFormat,
-    /// Optional dialect/grammar-variant selector. Omit for standard Lojban.
+    /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
+    /// `gadganzu`, `ce-ki-tau`) or a parenthesized formula combining them, e.g.
+    /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,
     /// Annotate each word with its source byte span. Off by default.
     #[serde(default)]
     pub show_spans: bool,
-    /// Show place-structure cross-references where applicable. On by default.
-    #[serde(default)]
-    #[schemars(
-        schema_with = "tool_show_refs_schema",
-        default = "tool_show_refs_default"
-    )]
-    pub show_refs: Option<bool>,
     /// Break compound words (lujvo) into their component rafsi. Off by default.
     #[serde(default)]
     pub decompose_lujvo: bool,
@@ -536,11 +533,9 @@ impl ToolCuktaRequest {
     }
 }
 
-/// Which field of a dictionary entry the `query` matches against.
-///
-/// The `word` and `rafsi` modes accept three query syntaxes: a plain substring,
-/// a shell-style glob using `*` and `?` (e.g. `kl*ma`), or a regular expression
-/// wrapped in slashes (e.g. `/^kl.ma$/`). The other modes take a plain query.
+/// Which field of a dictionary entry the `query` matches against. See the
+/// `query` field for the syntaxes (plain text, glob, and regex) accepted by the
+/// `word` and `rafsi` modes.
 #[invariant(::Word => true)]
 #[invariant(::Rafsi => true)]
 #[invariant(::Lujvo => true)]
@@ -584,7 +579,9 @@ pub struct ToolVlackuRequest {
     #[serde(default)]
     pub mode: ToolVlackuMode,
     /// The query, interpreted per `mode`. For `word`/`rafsi` it may be plain
-    /// text, a `*`/`?` glob, or a `/regex/`.
+    /// text, a `*`/`?` glob that describes the whole word, or a `/regex/` matched
+    /// as an unanchored substring — so `/^kla/` matches a prefix, `/kla/` matches
+    /// anywhere, and `/^klama$/` matches the exact word.
     pub query: String,
     /// Maximum number of entries to return.
     #[serde(default)]
@@ -833,7 +830,9 @@ pub struct ToolGimfihiRequest {
 pub struct ToolTersmuRequest {
     /// The Lojban text to interpret.
     pub text: String,
-    /// Optional dialect/grammar-variant selector. Omit for standard Lojban.
+    /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
+    /// `gadganzu`, `ce-ki-tau`) or a parenthesized formula combining them, e.g.
+    /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,
     /// Carry tense forward across sentences as an advancing narrative "story
@@ -2434,9 +2433,6 @@ pub fn run_tool_gentufa(request: ToolGentufaRequest) -> Result<ToolRenderedOutpu
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run_tool_vlasei(request: ToolVlaseiRequest) -> Result<ToolRenderedOutput> {
     let tool_format = request.format;
-    let show_refs = request
-        .show_refs
-        .unwrap_or(matches!(tool_format, ToolVlaseiFormat::Tree));
     let format = match tool_format {
         ToolVlaseiFormat::Brackets => VlaseiFormat::Brackets,
         ToolVlaseiFormat::Tree => VlaseiFormat::Tree,
@@ -2463,7 +2459,9 @@ pub fn run_tool_vlasei(request: ToolVlaseiRequest) -> Result<ToolRenderedOutput>
             mark_stress: None,
             mark_glides: None,
             show_spans: request.show_spans,
-            show_refs,
+            // Morphology has no place-structure references; the renderer ignores
+            // this flag, so it is not exposed on the vlasei tool request.
+            show_refs: false,
             decompose_lujvo: request.decompose_lujvo,
             text: vec![request.text],
         }),

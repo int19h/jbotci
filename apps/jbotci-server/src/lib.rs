@@ -1573,7 +1573,9 @@ mod tests {
             "format",
             &["tree", "brackets", "ipa", "raw", "json"],
         );
-        assert_boolean_default_property(vlasei_schema, "show-refs", true);
+        // Morphology has no place-structure references, so vlasei exposes no
+        // `show-refs` field (it is meaningful only for the syntax parse).
+        assert!(vlasei_schema["properties"]["show-refs"].is_null());
 
         let cukta_schema = tool_input_schema(tools_array, "cukta");
         assert_string_enum_property(
@@ -1880,6 +1882,35 @@ mod tests {
                 .expect("image data")
                 .len()
                 > 100
+        );
+
+        // SVG is served as text (its XML source), not an image content block, so
+        // harnesses that cannot render SVG images can still read/reuse it.
+        let svg = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "svg",
+                "method": "tools/call",
+                "params": {
+                    "name": "gentufa",
+                    "arguments": {
+                        "text": "mi klama",
+                        "format": "svg"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(svg.status(), StatusCode::OK);
+        let svg_json = response_json(svg).await;
+        let svg_block = &svg_json["result"]["content"][0];
+        assert_eq!(svg_block["type"], "text");
+        assert!(svg_block.get("data").is_none(), "{svg_block}");
+        assert!(
+            svg_block["text"].as_str().expect("svg text").contains("<svg"),
+            "{svg_block}"
         );
 
         let tersmu = post_json(

@@ -336,7 +336,6 @@ fn parse_discord_vlasei(options: &[Value]) -> Result<ToolVlaseiRequest, String> 
         format: parse_vlasei_format(optional_string_option(options, "format").as_deref())?,
         dialect: None,
         show_spans: false,
-        show_refs: Some(true),
         decompose_lujvo: false,
         indent: None,
     })
