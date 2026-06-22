@@ -107,7 +107,7 @@ const payload = {
       ],
     },
     {
-      name: "gimfi'i",
+      name: "gimfihi",
       description: "Compose candidate gismu",
       type: 1,
       options: [

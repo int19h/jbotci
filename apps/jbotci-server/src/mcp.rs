@@ -196,7 +196,7 @@ fn mcp_tools() -> Vec<Value> {
             gentufa_schema(),
         ),
         tool_definition(
-            "gimfi'i",
+            "gimfihi",
             "Compose candidate gismu from source words. Defaults to the compact table output; JSON is available for programmatic use.",
             gimfihi_schema(),
         ),
@@ -358,7 +358,7 @@ async fn call_tool(params: ToolCallParams, tool_services: ToolServices) -> Value
         "jvozba" => call_typed_tool(arguments, run_tool_jvozba).await,
         "vlasei" => call_typed_tool(arguments, run_tool_vlasei).await,
         "gentufa" => call_typed_tool(arguments, run_tool_gentufa).await,
-        "gimfi'i" => call_typed_tool(arguments, run_tool_gimfihi).await,
+        "gimfihi" => call_typed_tool(arguments, run_tool_gimfihi).await,
         _ => tool_error_result(format!("Unknown tool: {name}")),
     }
 }

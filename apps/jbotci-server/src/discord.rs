@@ -214,7 +214,7 @@ fn discord_command_options() -> Vec<Value> {
             ]
         }),
         json!({
-            "name": "gimfi'i",
+            "name": "gimfihi",
             "description": "Compose candidate gismu",
             "type": 1,
             "options": [
@@ -306,7 +306,7 @@ fn parse_discord_command(value: &Value) -> Result<DiscordCommand, String> {
         "vlacku" => parse_discord_vlacku(sub_options).map(DiscordCommand::Vlacku),
         "cukta" => parse_discord_cukta(sub_options).map(DiscordCommand::Cukta),
         "jvozba" => parse_discord_jvozba(sub_options).map(DiscordCommand::Jvozba),
-        "gimfi'i" => parse_discord_gimfihi(sub_options).map(DiscordCommand::Gimfihi),
+        "gimfihi" => parse_discord_gimfihi(sub_options).map(DiscordCommand::Gimfihi),
         other => Err(format!("Unsupported jbotci subcommand `{other}`.")),
     }
 }

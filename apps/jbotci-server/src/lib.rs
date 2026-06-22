@@ -1002,6 +1002,18 @@ mod tests {
     }
 
     #[requires(true)]
+    #[ensures(ret == (!name.is_empty()
+        && name.len() <= 64
+        && name.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')))]
+    fn external_api_identifier_is_safe(name: &str) -> bool {
+        !name.is_empty()
+            && name.len() <= 64
+            && name
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+    }
+
+    #[requires(true)]
     #[ensures(true)]
     fn test_discord_signing_key() -> SigningKey {
         SigningKey::from_bytes(&[7u8; 32])
@@ -1447,7 +1459,12 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             names,
-            vec!["cukta", "vlacku", "jvozba", "vlasei", "gentufa", "gimfi'i"]
+            vec!["cukta", "vlacku", "jvozba", "vlasei", "gentufa", "gimfihi"]
+        );
+        assert!(
+            names
+                .iter()
+                .all(|name| external_api_identifier_is_safe(name))
         );
         assert!(!names.contains(&"tersmu"));
         for tool in tools_json["result"]["tools"]
@@ -1744,7 +1761,7 @@ mod tests {
                 "jvozba",
                 vec![discord_string_option("parts", "klama bajra")],
             ),
-            discord_interaction("gimfi'i", vec![discord_string_option("sources", "en:go")]),
+            discord_interaction("gimfihi", vec![discord_string_option("sources", "en:go")]),
         ] {
             let response = post_signed_discord(app.clone(), interaction, &key).await;
             assert_eq!(response.status(), StatusCode::OK);
@@ -1767,7 +1784,12 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             subcommands,
-            vec!["gentufa", "vlasei", "vlacku", "cukta", "jvozba", "gimfi'i"]
+            vec!["gentufa", "vlasei", "vlacku", "cukta", "jvozba", "gimfihi"]
+        );
+        assert!(
+            subcommands
+                .iter()
+                .all(|name| external_api_identifier_is_safe(name))
         );
     }
 
