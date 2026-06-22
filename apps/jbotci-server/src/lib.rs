@@ -1045,6 +1045,9 @@ mod tests {
         // Documented enums render as an inline `oneOf` of `{const, description}`
         // (per-variant docs); a plain `enum` array is the undocumented fallback.
         let actual = if let Some(variants) = property_schema["oneOf"].as_array() {
+            // Documented enums must also declare a top-level `type: string`, so
+            // schema viewers do not present the field as untyped ("any").
+            assert_eq!(property_schema["type"], "string", "{property_schema}");
             variants
                 .iter()
                 .map(|variant| {

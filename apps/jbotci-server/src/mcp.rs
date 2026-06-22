@@ -335,8 +335,42 @@ where
     let mut settings = schemars::generate::SchemaSettings::default();
     settings.inline_subschemas = true;
     let generator = schemars::generate::SchemaGenerator::new(settings);
-    serde_json::to_value(generator.into_root_schema_for::<T>())
-        .expect("generated MCP tool schema serializes to JSON")
+    let mut schema = serde_json::to_value(generator.into_root_schema_for::<T>())
+        .expect("generated MCP tool schema serializes to JSON");
+    annotate_string_enum_types(&mut schema);
+    schema
+}
+
+/// A documented enum renders as a `oneOf` of `{ "type": "string", "const": … }`
+/// with no `type` at the enclosing property level. Some schema viewers and tool
+/// layers read the property-level `type` and, finding none, show the field as
+/// untyped ("any"). Declaring `"type": "string"` alongside the `oneOf` keeps the
+/// per-variant descriptions while making the field unambiguously a string enum.
+#[requires(true)]
+#[ensures(true)]
+fn annotate_string_enum_types(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            let is_string_const_enum = map
+                .get("oneOf")
+                .and_then(Value::as_array)
+                .is_some_and(|variants| {
+                    !variants.is_empty()
+                        && variants.iter().all(|variant| {
+                            variant.get("const").is_some()
+                                && variant.get("type").and_then(Value::as_str) == Some("string")
+                        })
+                });
+            if is_string_const_enum && !map.contains_key("type") {
+                map.insert("type".to_owned(), Value::String("string".to_owned()));
+            }
+            for sub in map.values_mut() {
+                annotate_string_enum_types(sub);
+            }
+        }
+        Value::Array(items) => items.iter_mut().for_each(annotate_string_enum_types),
+        _ => {}
+    }
 }
 
 #[requires(!key.is_empty())]
