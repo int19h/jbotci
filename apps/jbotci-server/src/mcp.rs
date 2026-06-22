@@ -29,8 +29,7 @@ const LOJBAN_GRAMMAR_URI: &str = "jbotci:///grammar/lojban.ebnf";
 const LOJBAN_GRAMMAR_NAME: &str = "lojban-grammar";
 const LOJBAN_GRAMMAR_TITLE: &str = "Lojban EBNF grammar";
 const LOJBAN_GRAMMAR_MIME: &str = "text/plain; charset=utf-8";
-const LOJBAN_GRAMMAR_DESCRIPTION: &str =
-    "The formal EBNF grammar of Lojban — the official machine grammar that `gentufa` implements, \
+const LOJBAN_GRAMMAR_DESCRIPTION: &str = "The formal EBNF grammar of Lojban — the official machine grammar that `gentufa` implements, \
      prefixed with a guide to its non-standard notation (`&`, `...`, `//`, `#`). Read this to \
      understand or generate Lojban syntax.";
 
@@ -361,16 +360,17 @@ impl Transform for StringEnumTypeTransform {
     #[ensures(true)]
     fn transform(&mut self, schema: &mut Schema) {
         if let Some(object) = schema.as_object_mut() {
-            let is_string_const_enum = object
-                .get("oneOf")
-                .and_then(Value::as_array)
-                .is_some_and(|variants| {
-                    !variants.is_empty()
-                        && variants.iter().all(|variant| {
-                            variant.get("const").is_some()
-                                && variant.get("type").and_then(Value::as_str) == Some("string")
-                        })
-                });
+            let is_string_const_enum =
+                object
+                    .get("oneOf")
+                    .and_then(Value::as_array)
+                    .is_some_and(|variants| {
+                        !variants.is_empty()
+                            && variants.iter().all(|variant| {
+                                variant.get("const").is_some()
+                                    && variant.get("type").and_then(Value::as_str) == Some("string")
+                            })
+                    });
             if is_string_const_enum && !object.contains_key("type") {
                 object.insert("type".to_owned(), Value::String("string".to_owned()));
             }
@@ -384,9 +384,9 @@ impl Transform for StringEnumTypeTransform {
 #[ensures(true)]
 fn json_value_contains_key(value: &Value, key: &str) -> bool {
     match value {
-        Value::Object(object) => object
-            .iter()
-            .any(|(object_key, object_value)| object_key == key || json_value_contains_key(object_value, key)),
+        Value::Object(object) => object.iter().any(|(object_key, object_value)| {
+            object_key == key || json_value_contains_key(object_value, key)
+        }),
         Value::Array(items) => items.iter().any(|item| json_value_contains_key(item, key)),
         _ => false,
     }

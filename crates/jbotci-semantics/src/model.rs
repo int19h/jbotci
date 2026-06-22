@@ -610,19 +610,23 @@ impl SemanticObject {
         }
     }
 
-    #[requires(true)]
+    #[requires(eventuality.object_kind() == SemanticObjectKind::Eventuality)]
+    #[requires(speaker.object_kind() == SemanticObjectKind::Referent)]
+    #[requires(audience.object_kind() == SemanticObjectKind::Referent)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Utterance)]
     pub fn utterance(
         force: UtteranceForce,
         eventuality: SemanticObjectId,
         content: Option<SemanticObjectId>,
+        speaker: SemanticObjectId,
+        audience: SemanticObjectId,
         source: Option<SemanticSource>,
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Self {
         let mut object = Self::empty(SemanticObjectKind::Utterance);
         object.force = Some(force);
-        object.speaker = Some(SemanticObjectId::speaker());
-        object.audience = Some(SemanticObjectId::addressee());
+        object.speaker = Some(speaker);
+        object.audience = Some(audience);
         object.eventuality = Some(eventuality);
         object.content = content;
         object.deictic_ground = Some(DeicticGround {
@@ -846,7 +850,10 @@ impl SemanticObject {
         object
     }
 
-    #[requires(true)]
+    #[requires(body.object_kind() == SemanticObjectKind::Formula)]
+    #[requires(slots.iter().all(|slot| slot.parameter.object_kind() == SemanticObjectKind::Parameter))]
+    #[requires(asker.object_kind() == SemanticObjectKind::Referent)]
+    #[requires(respondent.object_kind() == SemanticObjectKind::Referent)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Question)]
     pub fn question(
         kind: QuestionKind,
@@ -854,13 +861,15 @@ impl SemanticObject {
         domain: SemanticSort,
         body: SemanticObjectId,
         slots: Vec<QuestionSlot>,
+        asker: SemanticObjectId,
+        respondent: SemanticObjectId,
         source: Option<SemanticSource>,
     ) -> Self {
         let mut object = Self::empty(SemanticObjectKind::Question);
         object.question_kind = Some(kind);
         object.question_mode = Some(mode);
-        object.asker = Some(SemanticObjectId::speaker());
-        object.respondent = Some(SemanticObjectId::addressee());
+        object.asker = Some(asker);
+        object.respondent = Some(respondent);
         object.domain = Some(domain);
         object.body = Some(body);
         object.slots = slots;

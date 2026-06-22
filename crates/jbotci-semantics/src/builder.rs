@@ -520,6 +520,26 @@ struct IndicatorBaseSpec {
     assertion_effect: DisplayedContentAssertionEffect,
 }
 
+#[invariant(speaker.object_kind() == crate::model::SemanticObjectKind::Referent)]
+#[invariant(audience.object_kind() == crate::model::SemanticObjectKind::Referent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct UtteranceRoles {
+    speaker: SemanticObjectId,
+    audience: SemanticObjectId,
+}
+
+impl UtteranceRoles {
+    #[requires(true)]
+    #[ensures(ret.speaker == SemanticObjectId::speaker())]
+    #[ensures(ret.audience == SemanticObjectId::addressee())]
+    fn first_utterance_defaults() -> Self {
+        Self::from_data(data!(UtteranceRoles {
+            speaker: SemanticObjectId::speaker(),
+            audience: SemanticObjectId::addressee(),
+        }))
+    }
+}
+
 impl IdCounters {
     #[requires(true)]
     #[ensures(ret.utterance == 1)]
@@ -558,6 +578,7 @@ where
     objects: BTreeMap<SemanticObjectId, SemanticObject>,
     counters: IdCounters,
     sumti_objects: HashMap<RawSyntaxNodeId, SemanticObjectId>,
+    scoped_argument_variables: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     math_variable_referents: HashMap<String, SemanticObjectId>,
     sumti_quantities: HashMap<RawSyntaxNodeId, SemanticObjectId>,
     relation_question_parameters: HashMap<RawSyntaxNodeId, SemanticObjectId>,
@@ -575,6 +596,8 @@ where
     story_time_anchor: Option<SemanticObjectId>,
     pending_asides: Vec<SemanticObjectId>,
     current_utterance_anchor: Option<SemanticObjectId>,
+    utterance_roles: HashMap<SemanticObjectId, UtteranceRoles>,
+    current_utterance_roles: UtteranceRoles,
 }
 
 impl<'analysis, 'tree, 'resolver, F, R> GraphBuilder<'analysis, 'tree, 'resolver, F, R>
@@ -598,6 +621,7 @@ where
             objects: BTreeMap::new(),
             counters: IdCounters::new(),
             sumti_objects: HashMap::new(),
+            scoped_argument_variables: HashMap::new(),
             math_variable_referents: HashMap::new(),
             sumti_quantities: HashMap::new(),
             relation_question_parameters: HashMap::new(),
@@ -615,6 +639,8 @@ where
             story_time_anchor: None,
             pending_asides: Vec::new(),
             current_utterance_anchor: None,
+            utterance_roles: HashMap::new(),
+            current_utterance_roles: UtteranceRoles::first_utterance_defaults(),
         };
         builder.insert_deictic_referents();
         builder
@@ -684,12 +710,76 @@ where
     fn insert(
         &mut self,
         id: SemanticObjectId,
-        object: SemanticObject,
+        mut object: SemanticObject,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if object.object_kind() == crate::model::SemanticObjectKind::Predication
+            && let Some(eventuality) = object.eventuality
+        {
+            for modal_argument in &mut object.modal_arguments {
+                bind_modal_argument_to_host_event(modal_argument, eventuality);
+            }
+        }
         if self.objects.insert(id, object).is_some() {
             return Err(SemanticsError::duplicate_object(id));
         }
         Ok(id)
+    }
+
+    #[requires(utterance.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[ensures(ret.as_ref().is_ok_and(|roles| roles.speaker.object_kind() == crate::model::SemanticObjectKind::Referent && roles.audience.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn ensure_utterance_roles(
+        &mut self,
+        utterance: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<UtteranceRoles, SemanticsError> {
+        if let Some(roles) = self.utterance_roles.get(&utterance).copied() {
+            return Ok(roles);
+        }
+        let roles = if self.utterance_roles.is_empty() {
+            UtteranceRoles::first_utterance_defaults()
+        } else {
+            UtteranceRoles::from_data(data!(UtteranceRoles {
+                speaker: self
+                    .build_utterance_role_referent(IndexicalKind::Speaker, source.clone(),)?,
+                audience: self.build_utterance_role_referent(IndexicalKind::Audience, source)?,
+            }))
+        };
+        self.utterance_roles.insert(utterance, roles);
+        Ok(roles)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_utterance_role_referent(
+        &mut self,
+        indexical: IndexicalKind,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_referent();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Indexical,
+                SemanticSort::Entity,
+                Some(indexical),
+                None,
+                None,
+                source,
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    fn current_speaker(&self) -> SemanticObjectId {
+        self.current_utterance_roles.speaker
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    fn current_audience(&self) -> SemanticObjectId {
+        self.current_utterance_roles.audience
     }
 
     #[requires(anchor.object_kind() == crate::model::SemanticObjectKind::Eventuality)]
@@ -1431,7 +1521,7 @@ where
             }
             referent
         } else {
-            SemanticObjectId::addressee()
+            self.current_audience()
         };
         let nested_asides = std::mem::replace(&mut self.pending_asides, previous_pending_asides);
         let slots = std::mem::replace(&mut self.parameter_slots, previous_slots);
@@ -1463,10 +1553,10 @@ where
         )?;
         if addressed_or_identified.object_kind() == crate::model::SemanticObjectKind::Referent {
             if vocative_kind == "selfIdentification" {
-                self.set_referent_target(addressed_or_identified, SemanticObjectId::speaker());
+                self.set_referent_target(addressed_or_identified, self.current_speaker());
             } else {
                 self.set_utterance_audience(id, addressed_or_identified);
-                self.set_referent_target(addressed_or_identified, SemanticObjectId::addressee());
+                self.set_referent_target(addressed_or_identified, self.current_audience());
             }
         }
         self.add_utterance_asides(id, nested_asides);
@@ -1505,7 +1595,16 @@ where
         let question = self.next_question();
         self.insert(
             question,
-            SemanticObject::question(kind, QuestionMode::Direct, domain, formula, slots, source),
+            SemanticObject::question(
+                kind,
+                QuestionMode::Direct,
+                domain,
+                formula,
+                slots,
+                self.current_speaker(),
+                self.current_audience(),
+                source,
+            ),
         )
     }
 
@@ -1734,9 +1833,12 @@ where
             .and_then(|node| self.source_for_node(node.0, "fragment"));
         let anchor = reserved_utterance
             .unwrap_or_else(|| SemanticObjectId::utterance(self.counters.utterance));
+        let roles = self.ensure_utterance_roles(anchor, source.clone())?;
         let previous_anchor = self.current_utterance_anchor.replace(anchor);
+        let previous_roles = std::mem::replace(&mut self.current_utterance_roles, roles);
         let content = self.build_fragment_content(fragment);
         self.current_utterance_anchor = previous_anchor;
+        self.current_utterance_roles = previous_roles;
         if let Some(content) = content? {
             return self.build_utterance(
                 UtteranceForce::Mention,
@@ -1873,6 +1975,8 @@ where
         nested.counters = self.counters;
         nested.objects = std::mem::take(&mut self.objects);
         nested.utterance_objects = std::mem::take(&mut self.utterance_objects);
+        nested.utterance_roles = std::mem::take(&mut self.utterance_roles);
+        nested.scoped_argument_variables = std::mem::take(&mut self.scoped_argument_variables);
         nested.relation_question_parameters =
             std::mem::take(&mut self.relation_question_parameters);
         nested.modal_assignment_arguments = std::mem::take(&mut self.modal_assignment_arguments);
@@ -1882,6 +1986,8 @@ where
         self.counters = nested.counters;
         self.objects = graph.objects;
         self.utterance_objects = nested.utterance_objects;
+        self.utterance_roles = nested.utterance_roles;
+        self.scoped_argument_variables = nested.scoped_argument_variables;
         self.relation_question_parameters = nested.relation_question_parameters;
         self.modal_assignment_arguments = nested.modal_assignment_arguments;
         self.sticky_modal_arguments = nested.sticky_modal_arguments;
@@ -1924,15 +2030,20 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         let reserved_utterance =
             reserved_utterance.or_else(|| self.reserve_utterance_for_bridi(bridi));
-        let previous_anchor = self.current_utterance_anchor.replace(
-            reserved_utterance
-                .unwrap_or_else(|| SemanticObjectId::utterance(self.counters.utterance)),
-        );
+        let anchor = reserved_utterance
+            .unwrap_or_else(|| SemanticObjectId::utterance(self.counters.utterance));
+        let source = self
+            .analysis
+            .syntax_index
+            .bridi_node_id(bridi)
+            .and_then(|node| self.source_for_node(node.0, "bridi"));
+        let roles = self.ensure_utterance_roles(anchor, source.clone())?;
+        let previous_anchor = self.current_utterance_anchor.replace(anchor);
+        let previous_roles = std::mem::replace(&mut self.current_utterance_roles, roles);
         let previous_slots = std::mem::take(&mut self.parameter_slots);
         let previous_asides = std::mem::take(&mut self.pending_asides);
         let formula = self.build_bridi_formula(bridi)?;
         let formula = self.wrap_bridi_formula_with_quantified_pro_sumti(bridi, formula)?;
-        let formula = self.wrap_bridi_formula_with_internal_naku_negations(bridi, formula)?;
         let formula =
             self.wrap_bridi_formula_with_contradictory_event_tense_negation(bridi, formula)?;
         let slots = std::mem::replace(&mut self.parameter_slots, previous_slots);
@@ -1949,6 +2060,8 @@ where
                     domain,
                     formula,
                     slots,
+                    self.current_speaker(),
+                    self.current_audience(),
                     self.analysis
                         .syntax_index
                         .bridi_node_id(bridi)
@@ -1975,17 +2088,10 @@ where
         } else {
             UtteranceForce::Assert
         };
-        let utterance = self.build_utterance(
-            force,
-            Some(content),
-            self.analysis
-                .syntax_index
-                .bridi_node_id(bridi)
-                .and_then(|node| self.source_for_node(node.0, "bridi")),
-            Vec::new(),
-            reserved_utterance,
-        )?;
+        let utterance =
+            self.build_utterance(force, Some(content), source, Vec::new(), reserved_utterance)?;
         self.current_utterance_anchor = previous_anchor;
+        self.current_utterance_roles = previous_roles;
         if let Some(node) = self.analysis.syntax_index.bridi_node_id(bridi) {
             self.utterance_objects.insert(node.0, utterance);
         }
@@ -2050,41 +2156,29 @@ where
         let mut scopes = self.quantified_pro_sumti_scopes_for_bridi(bridi)?;
         let mut scoped_variables = scopes
             .iter()
-            .map(|scope| scope.variable)
+            .filter_map(|scope| match scope {
+                PrenexFormulaScope::Quantifier { scope, .. } => Some(scope.variable),
+                PrenexFormulaScope::RelationQuantifier { scope } => Some(scope.variable),
+                PrenexFormulaScope::Negation { .. } => None,
+            })
             .collect::<HashSet<_>>();
+        let mut bare_scopes = Vec::new();
         self.collect_bare_da_series_scopes_from_formula(
             formula,
             &mut scoped_variables,
-            &mut scopes,
+            &mut bare_scopes,
+        );
+        scopes.extend(
+            bare_scopes
+                .into_iter()
+                .map(|scope| PrenexFormulaScope::Quantifier {
+                    scope,
+                    restrictions: Vec::new(),
+                }),
         );
         let mut body = formula;
         while let Some(scope) = scopes.pop() {
-            let data!(QuantifiedProSumtiScope {
-                variable,
-                quantity,
-                operator,
-                source,
-            }) = scope.into_data();
-            let restriction = self
-                .restriction_formula_for_variable_in_formula_with_explicit_restrictions(
-                    body,
-                    variable,
-                    Vec::new(),
-                )?;
-            let formula = self.next_formula();
-            self.insert(
-                formula,
-                SemanticObject::quantified_formula(
-                    operator,
-                    variable,
-                    restriction,
-                    body,
-                    quantity,
-                    source,
-                    Vec::new(),
-                ),
-            )?;
-            body = formula;
+            body = self.wrap_formula_with_prenex_scope(body, scope)?;
         }
         Ok(body)
     }
@@ -2381,33 +2475,12 @@ where
         )
     }
 
-    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    fn wrap_bridi_formula_with_internal_naku_negations(
-        &mut self,
-        bridi: &'tree BridiSyntax,
-        formula: SemanticObjectId,
-    ) -> Result<SemanticObjectId, SemanticsError> {
-        let mut terms = Vec::new();
-        collect_bridi_negation_terms_for_bridi(bridi, &mut terms);
-        let mut body = formula;
-        for term in terms.into_iter().rev() {
-            body = self.build_unary_formula(
-                FormulaOperator::Not,
-                body,
-                self.source_for_term(term, "bridi-negation-boundary"),
-                Vec::new(),
-            )?;
-        }
-        Ok(body)
-    }
-
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn quantified_pro_sumti_scopes_for_bridi(
         &mut self,
         bridi: &'tree BridiSyntax,
-    ) -> Result<Vec<QuantifiedProSumtiScope>, SemanticsError> {
+    ) -> Result<Vec<PrenexFormulaScope>, SemanticsError> {
         let Some(frame) = self.bridi_frame(bridi) else {
             return Ok(Vec::new());
         };
@@ -2426,16 +2499,74 @@ where
                 .syntax_index
                 .sumti(assignment.sumti)
                 .ok_or_else(SemanticsError::missing_syntax_node)?;
-            let Some(scope) = self.quantified_pro_sumti_scope_for_sumti(sumti)? else {
+            let Some(scope) = self.quantified_argument_prenex_scope_for_sumti(sumti)? else {
                 continue;
             };
-            let variable = scope.variable;
+            let Some(variable) = prenex_formula_scope_variable(&scope) else {
+                continue;
+            };
             if !scoped_variables.insert(variable) {
                 continue;
             }
-            scopes.push(scope);
+            let raw = self
+                .analysis
+                .syntax_index
+                .sumti_node_id(sumti)
+                .ok_or_else(SemanticsError::missing_syntax_node)?
+                .0;
+            let order = self
+                .source_for_node(raw, "quantifier-scope")
+                .map(|source| source.span.byte_start)
+                .unwrap_or(usize::MAX);
+            scopes.push((order, scope));
         }
-        Ok(scopes)
+        let mut negation_terms = Vec::new();
+        collect_bridi_negation_terms_for_bridi(bridi, &mut negation_terms);
+        for term in negation_terms {
+            let source = self.source_for_term(term, "bridi-negation-boundary");
+            let order = source
+                .as_ref()
+                .map(|source| source.span.byte_start)
+                .unwrap_or(usize::MAX);
+            scopes.push((order, PrenexFormulaScope::Negation { source }));
+        }
+        scopes.sort_by_key(|(order, _scope)| *order);
+        Ok(scopes.into_iter().map(|(_order, scope)| scope).collect())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|scope| scope.as_ref().is_none_or(|scope| prenex_formula_scope_variable(scope).is_some())) || ret.is_err())]
+    fn quantified_argument_prenex_scope_for_sumti(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+    ) -> Result<Option<PrenexFormulaScope>, SemanticsError> {
+        if let Some(scope) = self.quantified_pro_sumti_scope_for_sumti(sumti)? {
+            return Ok(Some(PrenexFormulaScope::Quantifier {
+                scope,
+                restrictions: Vec::new(),
+            }));
+        }
+        let Some(quantifier) = argument_quantifier_for_sumti(sumti) else {
+            return Ok(None);
+        };
+        let raw = self
+            .analysis
+            .syntax_index
+            .sumti_node_id(sumti)
+            .ok_or_else(SemanticsError::missing_syntax_node)?
+            .0;
+        let variable = self.build_scoped_argument_variable_for_sumti(sumti)?;
+        let restrictions = self.quantified_argument_restrictions_for_sumti(sumti, variable)?;
+        let scope = QuantifiedProSumtiScope::from_data(data!(QuantifiedProSumtiScope {
+            variable,
+            quantity: Some(self.build_quantity_for_sumti_quantifier(raw, quantifier)?),
+            operator: quantified_pro_sumti_formula_operator(quantifier),
+            source: self.source_for_node(raw, "quantifier-scope"),
+        }));
+        Ok(Some(PrenexFormulaScope::Quantifier {
+            scope,
+            restrictions,
+        }))
     }
 
     #[requires(true)]
@@ -2702,9 +2833,18 @@ where
             ),
         )?;
         let id = reserved_id.unwrap_or_else(|| self.next_utterance());
+        let roles = self.ensure_utterance_roles(id, source.clone())?;
         self.insert(
             id,
-            SemanticObject::utterance(force, eventuality, content, source, diagnostics),
+            SemanticObject::utterance(
+                force,
+                eventuality,
+                content,
+                roles.speaker,
+                roles.audience,
+                source,
+                diagnostics,
+            ),
         )
     }
 
@@ -7058,12 +7198,17 @@ where
         anchor: SemanticObjectId,
         source_construct: &str,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if draft.assertion_effect == DisplayedContentAssertionEffect::HostSubordinated
+            && target.object_kind() == crate::model::SemanticObjectKind::Formula
+        {
+            self.set_formula_predication_mode(target, PredicationMode::Inert);
+        }
         let id = self.next_display();
         let source = self.source_for_tokens(&draft.source_tokens, source_construct);
         let experiencer = if draft.empathy {
             self.build_elided_referent(None, "dai experiencer".to_owned())?
         } else {
-            SemanticObjectId::speaker()
+            self.current_speaker()
         };
         let family = if draft.question {
             DisplayedContentFamily::QuestionPrompt
@@ -9106,10 +9251,14 @@ where
             .objects
             .get_mut(&id)
             .ok_or_else(|| SemanticsError::invalid_graph(format!("missing predication {id}")))?;
-        if object.mode == Some(PredicationMode::Asserted)
-            && !object.modal_arguments.contains(modal_argument)
-        {
-            object.modal_arguments.push(modal_argument.clone());
+        if object.mode == Some(PredicationMode::Asserted) {
+            let mut modal_argument = modal_argument.clone();
+            if let Some(eventuality) = object.eventuality {
+                bind_modal_argument_to_host_event(&mut modal_argument, eventuality);
+            }
+            if !object.modal_arguments.contains(&modal_argument) {
+                object.modal_arguments.push(modal_argument);
+            }
         }
         Ok(())
     }
@@ -9292,7 +9441,11 @@ where
             ));
         }
         let explicit_quantity = self.build_argument_quantity_for_sumti(raw, sumti)?;
-        let referent = self.build_sumti_referent(sumti)?;
+        let referent = if sumti_has_in_situ_argument_quantifier(sumti) {
+            self.build_scoped_argument_variable_for_sumti(sumti)?
+        } else {
+            self.build_sumti_referent(sumti)?
+        };
         let mut argument = if sumti_is_elided(sumti) {
             ArgumentValue::elided(
                 referent,
@@ -9310,6 +9463,152 @@ where
             }
         }
         self.attach_relative_clauses_to_argument(argument, sumti, referent)
+    }
+
+    #[requires(sumti_has_in_situ_argument_quantifier(sumti))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_scoped_argument_variable_for_sumti(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let raw = self
+            .analysis
+            .syntax_index
+            .sumti_node_id(sumti)
+            .ok_or_else(SemanticsError::missing_syntax_node)?
+            .0;
+        if let Some(id) = self.scoped_argument_variables.get(&raw) {
+            return Ok(*id);
+        }
+        let id = self.next_referent();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Variable,
+                sumti_quantified_variable_sort(sumti),
+                None,
+                None,
+                None,
+                self.source_for_node(raw, "bound-argument"),
+                Vec::new(),
+            ),
+        )?;
+        self.scoped_argument_variables.insert(raw, id);
+        Ok(id)
+    }
+
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn quantified_argument_restrictions_for_sumti(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+        variable: SemanticObjectId,
+    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+        match sumti.as_data() {
+            data!(SumtiSyntax::Description(description))
+                if !description_is_veridical_or_bare(description) =>
+            {
+                let base = self.build_sumti_referent(sumti)?;
+                self.build_membership_restriction_formula(variable, base)
+                    .map(|restriction| vec![restriction])
+            }
+            data!(SumtiSyntax::Description(description)) => {
+                let mut restrictions = Vec::new();
+                if let Some(selbri) = description.selbri.as_deref() {
+                    restrictions.push(self.build_restrictive_formula(selbri, variable)?);
+                }
+                Ok(restrictions)
+            }
+            data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. }) => {
+                self.quantified_argument_restrictions_for_inner_sumti(inner_sumti, variable)
+            }
+            data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+            | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. })
+            | data!(SumtiSyntax::GroupedSumti {
+                inner_sumti: base_sumti,
+                ..
+            })
+            | data!(SumtiSyntax::TaggedSumti {
+                inner_sumti: base_sumti,
+                ..
+            })
+            | data!(SumtiSyntax::ScalarNegatedSumtiWithBo {
+                inner_sumti: base_sumti,
+                ..
+            })
+            | data!(SumtiSyntax::ScalarNegatedSumti {
+                inner_sumti: base_sumti,
+                ..
+            })
+            | data!(SumtiSyntax::ReferentSumti {
+                inner_sumti: base_sumti,
+                ..
+            }) => self.quantified_argument_restrictions_for_sumti(base_sumti, variable),
+            _ => Ok(Vec::new()),
+        }
+    }
+
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn quantified_argument_restrictions_for_inner_sumti(
+        &mut self,
+        inner_sumti: &'tree SumtiSyntax,
+        variable: SemanticObjectId,
+    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+        match inner_sumti.as_data() {
+            data!(SumtiSyntax::Description(description))
+                if !description_is_veridical_or_bare(description) =>
+            {
+                let base = self.build_sumti_referent(inner_sumti)?;
+                self.build_membership_restriction_formula(variable, base)
+                    .map(|restriction| vec![restriction])
+            }
+            data!(SumtiSyntax::Description(_))
+            | data!(SumtiSyntax::SumtiWithRelativeClauses { .. })
+            | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { .. })
+            | data!(SumtiSyntax::GroupedSumti { .. })
+            | data!(SumtiSyntax::TaggedSumti { .. })
+            | data!(SumtiSyntax::ScalarNegatedSumtiWithBo { .. })
+            | data!(SumtiSyntax::ScalarNegatedSumti { .. })
+            | data!(SumtiSyntax::ReferentSumti { .. }) => {
+                self.quantified_argument_restrictions_for_sumti(inner_sumti, variable)
+            }
+            _ => {
+                let base = self.build_sumti_referent(inner_sumti)?;
+                self.build_membership_restriction_formula(variable, base)
+                    .map(|restriction| vec![restriction])
+            }
+        }
+    }
+
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(base.object_kind()))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_membership_restriction_formula(
+        &mut self,
+        variable: SemanticObjectId,
+        base: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(variable, None));
+        arguments.insert("x2".to_owned(), ArgumentValue::filled(base, None));
+        let predication = self.next_predication();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                "memberOf".to_owned(),
+                None,
+                arguments,
+                PredicationMode::Restrictive,
+                None,
+                Vec::new(),
+            ),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, None, Vec::new()),
+        )
     }
 
     #[requires(argument.kind != crate::model::ArgumentValueKind::Deleted)]
@@ -9448,7 +9747,7 @@ where
         let mut arguments = BTreeMap::new();
         arguments.insert(
             "x1".to_owned(),
-            ArgumentValue::filled(SemanticObjectId::speaker(), None),
+            ArgumentValue::filled(self.current_speaker(), None),
         );
         arguments.insert("x2".to_owned(), ArgumentValue::filled(head, None));
         arguments.insert("x3".to_owned(), ArgumentValue::filled(property, None));
@@ -10185,9 +10484,11 @@ where
                 quantifier,
                 inner_sumti,
             }) => {
-                let quantity = self.build_quantity_for_sumti_quantifier(raw, quantifier)?;
                 let referent = self.build_sumti_referent(inner_sumti)?;
-                self.add_quantity_to_referent(referent, quantity);
+                if da_series_scope_source(sumti).is_none() {
+                    let quantity = self.build_quantity_for_sumti_quantifier(raw, quantifier)?;
+                    self.add_quantity_to_referent(referent, quantity);
+                }
                 referent
             }
             data!(SumtiSyntax::SumtiWithRelativeClauses {
@@ -10811,9 +11112,9 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.queue_vocative_asides(&token.free_modifiers)?;
         match token.cmavo() {
-            Some(Cmavo::Mi) => Ok(SemanticObjectId::speaker()),
-            Some(Cmavo::Do) => Ok(SemanticObjectId::addressee()),
-            Some(Cmavo::Ko) => Ok(SemanticObjectId::addressee()),
+            Some(Cmavo::Mi) => Ok(self.current_speaker()),
+            Some(Cmavo::Do) => Ok(self.current_audience()),
+            Some(Cmavo::Ko) => Ok(self.current_audience()),
             Some(Cmavo::Ma) => self.build_argument_parameter(token, raw),
             Some(Cmavo::Cehu) => {
                 self.build_parameter(token, raw, crate::model::ParameterRole::PropertySlot)
@@ -10839,6 +11140,27 @@ where
             }
             Some(Cmavo::Tu) => {
                 self.build_demonstrative_referent(raw, IndexicalKind::DistalDemonstrative)
+            }
+            Some(Cmavo::Da | Cmavo::De | Cmavo::Di) => {
+                if let Some(referent) = self.build_resolved_sumti_reference(raw)? {
+                    return Ok(referent);
+                }
+                self.build_plain_referent(
+                    raw,
+                    ReferentCategory::Variable,
+                    SemanticSort::Entity,
+                    Descriptor {
+                        kind: "proSumti".to_owned(),
+                        word: token_text(&token.value),
+                        speaker: None,
+                        body: None,
+                        relative_clauses: Vec::new(),
+                        quantity: None,
+                        name: None,
+                        operand: None,
+                    },
+                    Vec::new(),
+                )
             }
             _ => {
                 if let Some(referent) = self.build_resolved_sumti_reference(raw)? {
@@ -10878,7 +11200,7 @@ where
             Descriptor {
                 kind: "typicalPlaceValue".to_owned(),
                 word: token_text(&token.value),
-                speaker: Some(SemanticObjectId::speaker()),
+                speaker: Some(self.current_speaker()),
                 body: None,
                 relative_clauses: Vec::new(),
                 quantity: None,
@@ -10924,7 +11246,7 @@ where
             Some(Descriptor {
                 kind: "utteranceReference".to_owned(),
                 word: token_text(&token.value),
-                speaker: Some(SemanticObjectId::speaker()),
+                speaker: Some(self.current_speaker()),
                 body: None,
                 relative_clauses: Vec::new(),
                 quantity: None,
@@ -11467,7 +11789,7 @@ where
             Some(Descriptor {
                 kind,
                 word,
-                speaker: Some(SemanticObjectId::speaker()),
+                speaker: Some(self.current_speaker()),
                 body,
                 relative_clauses: Vec::new(),
                 quantity,
@@ -11600,7 +11922,7 @@ where
             Descriptor {
                 kind: kind.to_owned(),
                 word: word.to_owned(),
-                speaker: Some(SemanticObjectId::speaker()),
+                speaker: Some(self.current_speaker()),
                 body: None,
                 relative_clauses: Vec::new(),
                 quantity: None,
@@ -11638,7 +11960,7 @@ where
                 Some(Descriptor {
                     kind: "speakerDescription".to_owned(),
                     word: "le".to_owned(),
-                    speaker: Some(SemanticObjectId::speaker()),
+                    speaker: Some(self.current_speaker()),
                     body: Some(body),
                     relative_clauses,
                     quantity: None,
@@ -11671,7 +11993,7 @@ where
             Descriptor {
                 kind,
                 word,
-                speaker: Some(SemanticObjectId::speaker()),
+                speaker: Some(self.current_speaker()),
                 body: None,
                 relative_clauses: Vec::new(),
                 quantity: None,
@@ -11701,7 +12023,7 @@ where
                 Some(Descriptor {
                     kind: "abstractionAbout".to_owned(),
                     word: word.to_owned(),
-                    speaker: Some(SemanticObjectId::speaker()),
+                    speaker: Some(self.current_speaker()),
                     body: None,
                     relative_clauses: Vec::new(),
                     quantity: None,
@@ -11737,7 +12059,7 @@ where
             Descriptor {
                 kind: scalar_negated_sumti_qualifier_kind(cmavo).to_owned(),
                 word,
-                speaker: Some(SemanticObjectId::speaker()),
+                speaker: Some(self.current_speaker()),
                 body: None,
                 relative_clauses: Vec::new(),
                 quantity: None,
@@ -12523,7 +12845,7 @@ where
         raw: RawSyntaxNodeId,
         sumti: &'tree SumtiSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        if da_series_scope_source(sumti).is_some() {
+        if da_series_scope_source(sumti).is_some() || sumti_has_in_situ_argument_quantifier(sumti) {
             return Ok(None);
         }
         let quantifier = argument_quantifier_for_sumti(sumti);
@@ -12667,8 +12989,16 @@ where
                 source,
             }) = focus.into_data();
             let id = self.next_question();
-            let mut object =
-                SemanticObject::question(kind, QuestionMode::Indirect, domain, body, slots, source);
+            let mut object = SemanticObject::question(
+                kind,
+                QuestionMode::Indirect,
+                domain,
+                body,
+                slots,
+                self.current_speaker(),
+                self.current_audience(),
+                source,
+            );
             object.focus = Some(focus);
             object.presupposed_answer = presupposed_answer;
             self.insert(id, object)?;
@@ -13201,6 +13531,84 @@ fn argument_quantifier_for_sumti(sumti: &SumtiSyntax) -> Option<&QuantifierSynta
             .or_else(|| bare_description_tail_quantifier(description)),
         _ => None,
     }
+}
+
+#[requires(true)]
+#[ensures(ret == (argument_quantifier_for_sumti(sumti).is_some() && da_series_scope_source(sumti).is_none()))]
+fn sumti_has_in_situ_argument_quantifier(sumti: &SumtiSyntax) -> bool {
+    argument_quantifier_for_sumti(sumti).is_some() && da_series_scope_source(sumti).is_none()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn prenex_formula_scope_variable(scope: &PrenexFormulaScope) -> Option<SemanticObjectId> {
+    match scope {
+        PrenexFormulaScope::Quantifier { scope, .. } => Some(scope.variable),
+        PrenexFormulaScope::RelationQuantifier { scope } => Some(scope.variable),
+        PrenexFormulaScope::Negation { .. } => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sumti_quantified_variable_sort(sumti: &SumtiSyntax) -> SemanticSort {
+    match sumti.as_data() {
+        data!(SumtiSyntax::QuotedSumti(_)) => SemanticSort::Sign,
+        data!(SumtiSyntax::NumberSumti { .. }) => SemanticSort::Number,
+        data!(SumtiSyntax::Description(description)) => description_referent_sort(description),
+        data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithRelativeClauses {
+            base_sumti: inner_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
+            base_sumti: inner_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumtiWithBo { inner_sumti, .. })
+        | data!(SumtiSyntax::ScalarNegatedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::ReferentSumti { inner_sumti, .. }) => {
+            sumti_quantified_variable_sort(inner_sumti)
+        }
+        _ => SemanticSort::Entity,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn description_referent_sort(description: &DescriptionSyntax) -> SemanticSort {
+    description
+        .selbri
+        .as_deref()
+        .and_then(description_abstraction_for_selbri)
+        .map(|abstraction| abstraction.output_sort)
+        .unwrap_or_else(|| {
+            match description
+                .description
+                .as_ref()
+                .and_then(|word| word.cmavo())
+            {
+                Some(Cmavo::Loi | Cmavo::Lei) => SemanticSort::Mass,
+                Some(Cmavo::Lohi | Cmavo::Lehi) => SemanticSort::Set,
+                Some(Cmavo::Lai) => SemanticSort::Mass,
+                Some(Cmavo::Lahi) => SemanticSort::Set,
+                _ => SemanticSort::Entity,
+            }
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn description_is_veridical_or_bare(description: &DescriptionSyntax) -> bool {
+    matches!(
+        description
+            .description
+            .as_ref()
+            .and_then(|word| word.cmavo()),
+        None | Some(Cmavo::Lo | Cmavo::Loi | Cmavo::Lohi)
+    )
 }
 
 #[requires(true)]
@@ -18162,6 +18570,7 @@ fn constructed_relation_place_count(relation: &str) -> Option<usize> {
             | "truthValueOf"
             | "propositionOf"
             | "associatedWith"
+            | "memberOf"
             | "specificallyAssociatedWith"
             | "intrinsicallyPossessedBy"
     ) {
@@ -19424,7 +19833,44 @@ fn quantified_pro_sumti_formula_operator(quantifier: &QuantifierSyntax) -> Formu
 fn quantity_form_for_text(text: &str) -> QuantityForm {
     match text {
         "ro" => QuantityForm::All,
+        text if text.starts_with("su'o") => QuantityForm::AtLeast,
         _ => QuantityForm::Exact,
+    }
+}
+
+#[requires(eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality)]
+#[ensures(true)]
+fn bind_modal_argument_to_host_event(
+    modal_argument: &mut ModalArgument,
+    eventuality: SemanticObjectId,
+) {
+    if modal_argument.introduced_by == "fi'o" {
+        return;
+    }
+    let Some(place) = modal_relation_host_event_place(&modal_argument.relation) else {
+        return;
+    };
+    let key = format!("x{place}");
+    if modal_argument
+        .arguments
+        .get(&key)
+        .is_some_and(|argument| argument.kind != ArgumentValueKind::Elided)
+    {
+        return;
+    }
+    let mut data = modal_argument.clone().into_data();
+    data.arguments
+        .insert(key, ArgumentValue::filled(eventuality, None));
+    *modal_argument = ModalArgument::from_data(data);
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|place| place > 0))]
+fn modal_relation_host_event_place(relation: &str) -> Option<usize> {
+    match relation {
+        "bapli" | "gasnu" | "krinu" | "mukti" | "nibli" | "rinka" => Some(2),
+        "pilno" => Some(3),
+        _ => None,
     }
 }
 
@@ -20998,6 +21444,15 @@ mod tests {
             predication_with_relation_and_mode(&json, "cusku", "asserted")["arguments"]["x2"]["value"],
             sign_id.as_str()
         );
+        let quoted_utterance = sign["quotation"]["utterance"]
+            .as_str()
+            .expect("quoted utterance");
+        let quoted_speaker = object(&json, quoted_utterance)["speaker"]
+            .as_str()
+            .expect("quoted speaker");
+        assert_ne!(quoted_speaker, "referent:speaker");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        assert_eq!(klama["arguments"]["x1"]["value"], quoted_speaker);
     }
 
     #[test]
@@ -21140,8 +21595,8 @@ mod tests {
             let audience = vocative["audience"].as_str().expect("vocative audience");
             assert_eq!(object(&json, audience)["descriptor"]["name"], "djan");
             let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
-            assert_eq!(klama["arguments"]["x1"]["value"], "referent:addressee");
-            assert_eq!(klama["arguments"]["x2"]["value"], "referent:speaker");
+            assert_eq!(klama["arguments"]["x1"]["value"], utterance["audience"]);
+            assert_eq!(klama["arguments"]["x2"]["value"], utterance["speaker"]);
         }
     }
 
@@ -21926,7 +22381,11 @@ mod tests {
         );
         assert_eq!(
             klama["modalArguments"][0]["arguments"]["x2"]["value"],
-            cadzu["modalArguments"][0]["arguments"]["x2"]["value"]
+            klama["eventuality"].as_str().expect("klama eventuality")
+        );
+        assert_eq!(
+            cadzu["modalArguments"][0]["arguments"]["x2"]["value"],
+            cadzu["eventuality"].as_str().expect("cadzu eventuality")
         );
     }
 
@@ -23095,7 +23554,10 @@ mod tests {
         assert_eq!(modal["relation"], "bapli");
         assert_eq!(modal["introducedBy"], "bai");
         assert_eq!(modal["arguments"]["x1"]["kind"], "elided");
-        assert_eq!(modal["arguments"]["x2"]["kind"], "elided");
+        assert_eq!(
+            modal["arguments"]["x2"]["value"],
+            tavla["eventuality"].as_str().expect("tavla eventuality")
+        );
 
         let fiho = semantic_json_for("mi fi'o kanla fe'u viska do").expect("semantic JSON");
         let viska = predication_with_relation_and_mode(&fiho, "viska", "asserted");
@@ -23305,16 +23767,20 @@ mod tests {
     fn internal_naku_is_preserved_as_negation_boundary() {
         let json = semantic_json_for("su'o verba naku klama su'o ckule").expect("semantic JSON");
         let root = root_object(&json);
-        let negation = object(&json, root["content"].as_str().expect("root content"));
+        let first = object(&json, root["content"].as_str().expect("root content"));
+        assert_eq!(first["operator"], "cardinality");
+        assert_eq!(first["variable"], "referent:r1");
+        let negation = object(&json, first["body"].as_str().expect("first body"));
         assert_eq!(negation["operator"], "not");
         assert_eq!(negation["source"]["construct"], "bridi-negation-boundary");
-        let atom = object(
+        let second = object(
             &json,
             negation["children"][0]
                 .as_str()
                 .expect("negation child formula"),
         );
-        assert_eq!(atom["operator"], "atom");
+        assert_eq!(second["operator"], "cardinality");
+        assert_eq!(second["variable"], "referent:r2");
     }
 
     #[test]
@@ -23786,15 +24252,29 @@ mod tests {
     fn metalinguistic_pro_sumti_targets_previous_utterance() {
         let json =
             semantic_json_for("li re su'i re du li vo .i la'e di'u jetnu").expect("semantic JSON");
-        let dihu = object(&json, "referent:r3");
+        let (dihu_id, dihu) = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .iter()
+            .find(|(_id, object)| {
+                object["type"] == "referent" && object["descriptor"]["word"] == "di'u"
+            })
+            .expect("di'u referent");
         assert_eq!(dihu["descriptor"]["kind"], "utteranceReference");
         assert_eq!(dihu["descriptor"]["word"], "di'u");
         assert_eq!(dihu["target"], "utterance:u1");
         assert!(dihu.get("diagnostics").is_none());
 
-        let lahe = object(&json, "referent:r4");
+        let lahe = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| {
+                object["type"] == "referent" && object["descriptor"]["kind"] == "referentOfSymbol"
+            })
+            .expect("la'e referent");
         assert_eq!(lahe["descriptor"]["kind"], "referentOfSymbol");
-        assert_eq!(lahe["descriptor"]["operand"], "referent:r3");
+        assert_eq!(lahe["descriptor"]["operand"], dihu_id.as_str());
     }
 
     #[test]
@@ -23856,7 +24336,7 @@ mod tests {
             .expect("pro-bridi klama");
         assert_eq!(
             second_klama["arguments"]["x1"]["value"],
-            "referent:addressee"
+            object(&json, "utterance:u2")["audience"]
         );
         assert_eq!(
             second_klama["arguments"]["x2"]["value"],
@@ -23875,7 +24355,10 @@ mod tests {
             .filter(|object| object["type"] == "predication" && object["relation"] == "klama")
             .collect::<Vec<_>>();
         assert_eq!(klama.len(), 2);
-        assert_eq!(klama[1]["arguments"]["x1"]["value"], "referent:addressee");
+        assert_eq!(
+            klama[1]["arguments"]["x1"]["value"],
+            object(&json, "utterance:u2")["audience"]
+        );
         assert_eq!(
             klama[1]["arguments"]["x2"]["value"],
             klama[0]["arguments"]["x2"]["value"]
@@ -24154,12 +24637,11 @@ mod tests {
                 .iter()
                 .any(|relation| relation == "mlatu je gerku")
         );
-        let description = object(&json, "referent:r1");
         let body = object(
             &json,
-            description["descriptor"]["body"]
+            object(&json, root_object(&json)["content"].as_str().unwrap())["restriction"]
                 .as_str()
-                .expect("description body"),
+                .expect("scope restriction"),
         );
         assert_eq!(body["operator"], "and");
         assert_eq!(body["connector"]["locus"], "selbri");
@@ -24436,6 +24918,10 @@ mod tests {
         assert_eq!(display["experiencer"], "referent:speaker");
         assert_eq!(display["anchor"], "utterance:u1");
         assert_eq!(display["target"], utterance["content"]);
+        assert_eq!(
+            predication_with_relation_and_mode(&json, "jimpe", "inert")["relation"],
+            "jimpe"
+        );
         assert_eq!(display["source"]["text"], "a'o");
     }
 
@@ -25035,11 +25521,29 @@ mod tests {
     #[ensures(true)]
     fn quantified_pro_sumti_quantity_is_argument_scoped() {
         let json = semantic_json_for("re do cadzu le bisli").expect("semantic JSON");
-        let cadzu = predication_with_relation_and_mode(&json, "cadzu", "asserted");
-        assert_eq!(cadzu["arguments"]["x1"]["value"], "referent:addressee");
-        assert_eq!(cadzu["arguments"]["x1"]["quantity"], "quantity:q1");
+        let utterance = root_object(&json);
+        let scope = object(
+            &json,
+            utterance["content"]
+                .as_str()
+                .expect("utterance content formula"),
+        );
+        assert_eq!(scope["operator"], "cardinality");
+        assert_eq!(scope["quantity"], "quantity:q1");
         assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 2);
         assert_eq!(object(&json, "quantity:q1")["source"]["text"], "re");
+        let cadzu = predication_with_relation_and_mode(&json, "cadzu", "asserted");
+        assert_eq!(cadzu["arguments"]["x1"]["value"], scope["variable"]);
+        assert!(cadzu["arguments"]["x1"].get("quantity").is_none());
+        assert_eq!(
+            object(&json, scope["variable"].as_str().unwrap())["category"],
+            "variable"
+        );
+        let restriction = object(&json, scope["restriction"].as_str().unwrap());
+        let member = object(&json, restriction["predication"].as_str().unwrap());
+        assert_eq!(member["relation"], "memberOf");
+        assert_eq!(member["arguments"]["x1"]["value"], scope["variable"]);
+        assert_eq!(member["arguments"]["x2"]["value"], "referent:addressee");
     }
 
     #[test]
@@ -25048,11 +25552,25 @@ mod tests {
     fn quantified_quotation_quantity_is_argument_scoped() {
         let json =
             semantic_json_for("mi cusku re lu do cadzu le bisli li'u").expect("semantic JSON");
-        let cusku = predication_with_relation_and_mode(&json, "cusku", "asserted");
-        assert_eq!(cusku["arguments"]["x2"]["value"], "sign:s1");
-        assert_eq!(cusku["arguments"]["x2"]["quantity"], "quantity:q1");
+        let utterance = root_object(&json);
+        let scope = object(
+            &json,
+            utterance["content"]
+                .as_str()
+                .expect("utterance content formula"),
+        );
+        assert_eq!(scope["operator"], "cardinality");
+        assert_eq!(scope["quantity"], "quantity:q1");
         assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 2);
         assert_eq!(object(&json, "quantity:q1")["source"]["text"], "re");
+        let cusku = predication_with_relation_and_mode(&json, "cusku", "asserted");
+        assert_eq!(cusku["arguments"]["x2"]["value"], scope["variable"]);
+        assert!(cusku["arguments"]["x2"].get("quantity").is_none());
+        let restriction = object(&json, scope["restriction"].as_str().unwrap());
+        let member = object(&json, restriction["predication"].as_str().unwrap());
+        assert_eq!(member["relation"], "memberOf");
+        assert_eq!(member["arguments"]["x1"]["value"], scope["variable"]);
+        assert_eq!(member["arguments"]["x2"]["value"], "sign:s1");
     }
 
     #[test]
@@ -25060,15 +25578,23 @@ mod tests {
     #[ensures(true)]
     fn bare_quantified_description_quantity_is_argument_scoped() {
         let json = semantic_json_for("mi ponse su'o ci cutci").expect("semantic JSON");
-        let ponse = predication_with_relation_and_mode(&json, "ponse", "asserted");
-        let shoes = ponse["arguments"]["x2"]["value"]
-            .as_str()
-            .expect("shoe referent ID");
-        assert_eq!(ponse["arguments"]["x2"]["quantity"], "quantity:q1");
-        assert!(object(&json, shoes)["descriptor"].get("quantity").is_none());
-        assert_eq!(object(&json, shoes)["source"]["text"], "cutci");
+        let utterance = root_object(&json);
+        let scope = object(
+            &json,
+            utterance["content"]
+                .as_str()
+                .expect("utterance content formula"),
+        );
+        assert_eq!(scope["operator"], "cardinality");
+        assert_eq!(scope["quantity"], "quantity:q1");
+        assert_eq!(object(&json, "quantity:q1")["form"], "atLeast");
         assert_eq!(object(&json, "quantity:q1")["value"]["text"], "su'o ci");
         assert_eq!(object(&json, "quantity:q1")["source"]["text"], "su'o ci");
+        let ponse = predication_with_relation_and_mode(&json, "ponse", "asserted");
+        assert_eq!(ponse["arguments"]["x2"]["value"], scope["variable"]);
+        assert!(ponse["arguments"]["x2"].get("quantity").is_none());
+        let cutci = predication_with_relation_and_mode(&json, "cutci", "restrictive");
+        assert_eq!(cutci["arguments"]["x1"]["value"], scope["variable"]);
     }
 
     #[test]
@@ -25076,19 +25602,33 @@ mod tests {
     #[ensures(true)]
     fn inner_and_outer_description_quantifiers_are_distinct() {
         let json = semantic_json_for("re le ci gerku cu blabi").expect("semantic JSON");
+        let scope = object(
+            &json,
+            root_object(&json)["content"]
+                .as_str()
+                .expect("utterance content formula"),
+        );
+        assert_eq!(scope["operator"], "cardinality");
+        let outer_quantity = scope["quantity"].as_str().expect("outer quantity");
         let blabi = predication_with_relation_and_mode(&json, "blabi", "asserted");
-        let dogs = blabi["arguments"]["x1"].as_object().expect("dog argument");
-        assert_eq!(dogs["quantity"], "quantity:q1");
-        let dog_referent = dogs["value"].as_str().expect("dog referent ID");
+        assert_eq!(blabi["arguments"]["x1"]["value"], scope["variable"]);
+        assert!(blabi["arguments"]["x1"].get("quantity").is_none());
+        let restriction = object(&json, scope["restriction"].as_str().unwrap());
+        let member = object(&json, restriction["predication"].as_str().unwrap());
+        assert_eq!(member["relation"], "memberOf");
+        assert_eq!(member["arguments"]["x1"]["value"], scope["variable"]);
+        let dog_referent = member["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("dog domain referent");
         assert_eq!(
             object(&json, dog_referent)["descriptor"]["quantity"],
-            "quantity:q2"
+            "quantity:q1"
         );
         assert_eq!(object(&json, dog_referent)["source"]["text"], "le ci gerku");
-        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 2);
-        assert_eq!(object(&json, "quantity:q1")["source"]["text"], "re");
-        assert_eq!(object(&json, "quantity:q2")["value"]["integer"], 3);
-        assert_eq!(object(&json, "quantity:q2")["source"]["text"], "ci");
+        assert_eq!(object(&json, outer_quantity)["value"]["integer"], 2);
+        assert_eq!(object(&json, outer_quantity)["source"]["text"], "re");
+        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 3);
+        assert_eq!(object(&json, "quantity:q1")["source"]["text"], "ci");
     }
 
     #[test]
@@ -25114,14 +25654,23 @@ mod tests {
     #[ensures(true)]
     fn nested_sumti_based_description_preserves_all_quantities() {
         let json = semantic_json_for("pa le re le ci cribe cu bunre").expect("semantic JSON");
+        let scope = object(
+            &json,
+            root_object(&json)["content"]
+                .as_str()
+                .expect("utterance content formula"),
+        );
+        assert_eq!(scope["operator"], "cardinality");
+        let outermost_quantity = scope["quantity"].as_str().expect("outermost quantity");
         let bunre = predication_with_relation_and_mode(&json, "bunre", "asserted");
-        let outer_argument = bunre["arguments"]["x1"]
-            .as_object()
-            .expect("brown argument");
-        assert_eq!(outer_argument["quantity"], "quantity:q1");
-        let outer_referent = outer_argument["value"]
+        assert_eq!(bunre["arguments"]["x1"]["value"], scope["variable"]);
+        assert!(bunre["arguments"]["x1"].get("quantity").is_none());
+        let restriction = object(&json, scope["restriction"].as_str().unwrap());
+        let member = object(&json, restriction["predication"].as_str().unwrap());
+        assert_eq!(member["relation"], "memberOf");
+        let outer_referent = member["arguments"]["x2"]["value"]
             .as_str()
-            .expect("outer description referent");
+            .expect("outer domain referent");
         let outer_descriptor = &object(&json, outer_referent)["descriptor"];
         let outer_quantity = outer_descriptor["quantity"]
             .as_str()
@@ -25133,8 +25682,15 @@ mod tests {
         let inner_quantity = inner_descriptor["quantity"]
             .as_str()
             .expect("inner descriptor quantity");
-        assert_eq!(inner_descriptor["body"], "formula:f1");
-        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 1);
+        let inner_body = object(
+            &json,
+            inner_descriptor["body"]
+                .as_str()
+                .expect("inner descriptor body"),
+        );
+        let inner_body_predication = object(&json, inner_body["predication"].as_str().unwrap());
+        assert_eq!(inner_body_predication["relation"], "cribe");
+        assert_eq!(object(&json, outermost_quantity)["value"]["integer"], 1);
         assert_eq!(object(&json, outer_quantity)["value"]["integer"], 2);
         assert_eq!(object(&json, inner_quantity)["value"]["integer"], 3);
     }
@@ -25199,17 +25755,50 @@ mod tests {
     fn post_ku_relative_clause_preserves_outer_quantifier() {
         let json = semantic_json_for("re le mu prenu ku poi ninmu cu klama le zarci")
             .expect("semantic JSON");
+        let scope = object(
+            &json,
+            root_object(&json)["content"]
+                .as_str()
+                .expect("utterance content formula"),
+        );
+        assert_eq!(scope["operator"], "cardinality");
+        let outer_quantity = scope["quantity"].as_str().expect("outer quantity");
         let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
         let argument = &klama["arguments"]["x1"];
-        assert_eq!(argument["quantity"], "quantity:q1");
+        assert_eq!(argument["value"], scope["variable"]);
+        assert!(argument.get("quantity").is_none());
         assert_eq!(argument["relativeClauses"][0]["kind"], "restrictive");
-        assert_eq!(argument["relativeClauses"][0]["body"], "formula:f2");
-        assert_eq!(object(&json, "quantity:q1")["source"]["text"], "re");
-        assert_eq!(
-            object(&json, "referent:r1")["descriptor"]["quantity"],
-            "quantity:q2"
+        let clause_body = object(
+            &json,
+            argument["relativeClauses"][0]["body"]
+                .as_str()
+                .expect("relative clause body"),
         );
-        assert_eq!(object(&json, "quantity:q2")["source"]["text"], "mu");
+        let clause_predication = object(&json, clause_body["predication"].as_str().unwrap());
+        assert_eq!(clause_predication["relation"], "ninmu");
+        assert_eq!(object(&json, outer_quantity)["source"]["text"], "re");
+        let restriction = object(&json, scope["restriction"].as_str().unwrap());
+        let member = if restriction["operator"] == "and" {
+            restriction["children"]
+                .as_array()
+                .expect("restriction children")
+                .iter()
+                .filter_map(|child| child.as_str())
+                .map(|child| object(&json, child))
+                .filter_map(|child| child["predication"].as_str())
+                .map(|predication| object(&json, predication))
+                .find(|predication| predication["relation"] == "memberOf")
+                .expect("memberOf restriction")
+        } else {
+            object(&json, restriction["predication"].as_str().unwrap())
+        };
+        let domain = member["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("domain referent");
+        let inner_quantity = object(&json, domain)["descriptor"]["quantity"]
+            .as_str()
+            .expect("inner quantity");
+        assert_eq!(object(&json, inner_quantity)["source"]["text"], "mu");
     }
 
     #[test]
@@ -25217,17 +25806,28 @@ mod tests {
     #[ensures(true)]
     fn bare_indefinite_relative_clause_is_occurrence_scoped() {
         let json = semantic_json_for("mi ponse re karce poi xekri").expect("semantic JSON");
+        let scope = object(
+            &json,
+            root_object(&json)["content"]
+                .as_str()
+                .expect("utterance content formula"),
+        );
+        assert_eq!(scope["operator"], "cardinality");
+        assert_eq!(scope["quantity"], "quantity:q1");
         let ponse = predication_with_relation_and_mode(&json, "ponse", "asserted");
         let argument = &ponse["arguments"]["x2"];
-        assert_eq!(argument["quantity"], "quantity:q1");
+        assert_eq!(argument["value"], scope["variable"]);
+        assert!(argument.get("quantity").is_none());
         assert_eq!(argument["relativeClauses"][0]["kind"], "restrictive");
-        assert_eq!(argument["relativeClauses"][0]["body"], "formula:f2");
-        let described = argument["value"].as_str().expect("car referent");
-        assert!(
-            object(&json, described)["descriptor"]
-                .get("relativeClauses")
-                .is_none()
+        let clause_body = object(
+            &json,
+            argument["relativeClauses"][0]["body"]
+                .as_str()
+                .expect("relative clause body"),
         );
+        let clause_predication = object(&json, clause_body["predication"].as_str().unwrap());
+        assert_eq!(clause_predication["relation"], "xekri");
+        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 2);
     }
 
     #[test]

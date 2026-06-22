@@ -1912,7 +1912,10 @@ mod tests {
         assert_eq!(svg_block["type"], "text");
         assert!(svg_block.get("data").is_none(), "{svg_block}");
         assert!(
-            svg_block["text"].as_str().expect("svg text").contains("<svg"),
+            svg_block["text"]
+                .as_str()
+                .expect("svg text")
+                .contains("<svg"),
             "{svg_block}"
         );
 
@@ -1940,7 +1943,10 @@ mod tests {
         let tersmu_text = tersmu_json["result"]["content"][0]["text"]
             .as_str()
             .expect("tersmu json text");
-        assert!(tersmu_text.contains('\n'), "tersmu output should be indented");
+        assert!(
+            tersmu_text.contains('\n'),
+            "tersmu output should be indented"
+        );
         let tersmu_parsed: serde_json::Value =
             serde_json::from_str(tersmu_text).expect("tersmu json content parses");
         assert_eq!(tersmu_parsed["version"], "lojban-semantics-json-1");
@@ -2059,7 +2065,11 @@ mod tests {
             .find(|resource| resource["name"] == "lojban-grammar")
             .expect("grammar resource listed");
         let uri = grammar["uri"].as_str().expect("resource uri");
-        assert!(grammar["description"].as_str().is_some_and(|d| !d.is_empty()));
+        assert!(
+            grammar["description"]
+                .as_str()
+                .is_some_and(|d| !d.is_empty())
+        );
 
         let read = post_json(
             app.clone(),
@@ -2078,7 +2088,11 @@ mod tests {
         assert_eq!(contents["uri"], uri);
         let text = contents["text"].as_str().expect("grammar text");
         // Spot-check that the real grammar made it through verbatim.
-        assert!(text.contains("bridi-tail ="), "{}", &text[..text.len().min(200)]);
+        assert!(
+            text.contains("bridi-tail ="),
+            "{}",
+            &text[..text.len().min(200)]
+        );
         assert!(text.contains("selma'o"));
 
         let unknown = post_json(
