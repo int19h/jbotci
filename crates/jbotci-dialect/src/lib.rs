@@ -1943,8 +1943,9 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn rejects_legacy_no_cgv_alias() {
+    fn rejects_removed_cgv_aliases() {
         assert!(parse_dialect_definition("(no-cgv)").is_err());
+        assert!(parse_dialect_definition("(allow-cgv)").is_err());
     }
 
     #[test]

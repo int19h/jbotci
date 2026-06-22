@@ -7,9 +7,11 @@ use axum::http::{HeaderMap, Response, StatusCode};
 use base64::Engine;
 use bityzba::{invariant, requires};
 use jbotci_cli::{
-    ToolRenderedOutput, ToolStatus, run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba,
-    run_tool_vlasei,
+    ToolCuktaRequest, ToolGentufaRequest, ToolGimfihiRequest, ToolJvozbaRequest,
+    ToolRenderedOutput, ToolStatus, ToolVlackuRequest, ToolVlaseiRequest, run_tool_gentufa,
+    run_tool_gimfihi, run_tool_jvozba, run_tool_vlasei,
 };
+use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -173,32 +175,32 @@ fn mcp_tools() -> Vec<Value> {
         tool_definition(
             "cukta",
             "Read or search the CLL. Defaults to Markdown; prefer default text output for token efficiency unless HTML/raw is needed.",
-            cukta_schema(),
+            tool_request_schema::<ToolCuktaRequest>(),
         ),
         tool_definition(
             "vlacku",
             "Search dictionary cards by word, rafsi, lujvo, meaning, sound, regex, or glob. Default CLI-style cards are usually more token efficient than JSON-like alternatives.",
-            vlacku_schema(),
+            tool_request_schema::<ToolVlackuRequest>(),
         ),
         tool_definition(
             "jvozba",
             "Build a lujvo or cmevla from source words and fixed rafsi.",
-            jvozba_schema(),
+            tool_request_schema::<ToolJvozbaRequest>(),
         ),
         tool_definition(
             "vlasei",
             "Run Lojban morphology. Defaults to format=tree with refs; use JSON only for programmatic consumers.",
-            vlasei_schema(),
+            tool_request_schema::<ToolVlaseiRequest>(),
         ),
         tool_definition(
             "gentufa",
             "Parse Lojban syntax. Defaults to format=tree with refs and detailed errors; use JSON only for programmatic consumers.",
-            gentufa_schema(),
+            tool_request_schema::<ToolGentufaRequest>(),
         ),
         tool_definition(
             "gimfihi",
             "Compose candidate gismu from source words. Defaults to the compact table output; JSON is available for programmatic use.",
-            gimfihi_schema(),
+            tool_request_schema::<ToolGimfihiRequest>(),
         ),
     ]
 }
@@ -222,124 +224,13 @@ fn tool_definition(name: &str, description: &str, input_schema: Value) -> Value 
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn gentufa_schema() -> Value {
-    json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["text"],
-        "properties": {
-            "text": {"type": "string", "description": "Lojban text to parse."},
-            "format": {"type": "string", "enum": ["tree", "brackets", "blocks", "raw", "json", "svg", "png"], "default": "tree"},
-            "dialect": {"type": "string", "description": "Optional dialect formula."},
-            "show-defs": {"type": "boolean", "default": false},
-            "show-spans": {"type": "boolean", "default": false},
-            "show-refs": {"type": "boolean", "default": true},
-            "show-elided": {"type": "boolean", "default": false},
-            "decompose-lujvo": {"type": "boolean", "default": false},
-            "indent": {"type": "integer", "minimum": 0}
-        }
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn vlasei_schema() -> Value {
-    json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["text"],
-        "properties": {
-            "text": {"type": "string", "description": "Lojban text to segment morphologically."},
-            "format": {"type": "string", "enum": ["tree", "brackets", "ipa", "raw", "json"], "default": "tree"},
-            "dialect": {"type": "string", "description": "Optional dialect formula."},
-            "show-spans": {"type": "boolean", "default": false},
-            "show-refs": {"type": "boolean", "default": true},
-            "decompose-lujvo": {"type": "boolean", "default": false},
-            "indent": {"type": "integer", "minimum": 0}
-        }
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn cukta_schema() -> Value {
-    json!({
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-            "mode": {"type": "string", "enum": ["default", "toc", "section", "example", "word", "meaning"], "default": "default"},
-            "query": {"type": "string", "description": "Section/example reference or search query, depending on mode."},
-            "count": {"type": "integer", "minimum": 1},
-            "targets": {"type": "array", "items": {"type": "string", "enum": ["section", "paragraph", "example"]}},
-            "format": {"type": "string", "enum": ["markdown", "html", "raw"], "default": "markdown"}
-        }
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn vlacku_schema() -> Value {
-    json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["query"],
-        "properties": {
-            "mode": {"type": "string", "enum": ["word", "rafsi", "lujvo", "sound", "meaning", "regex", "rafsi-regex", "glob", "rafsi-glob"], "default": "word"},
-            "query": {"type": "string", "description": "Search text. Sound mode accepts [IPA] for IPA input."},
-            "count": {"type": "integer", "minimum": 1},
-            "word-types": {"type": "array", "items": {"type": "string"}},
-            "min-votes": {"type": "integer"},
-            "min-similarity": {"type": "number", "minimum": 0, "maximum": 100},
-            "decompose-lujvo": {"type": "boolean", "default": false},
-            "show-etymology": {"type": "boolean", "default": false}
-        }
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn jvozba_schema() -> Value {
-    json!({
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-            "mode": {"type": "string", "enum": ["lujvo", "cmevla"], "default": "lujvo"},
-            "parts": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["kind", "value"],
-                    "properties": {
-                        "kind": {"type": "string", "enum": ["word", "fixed-rafsi"]},
-                        "value": {"type": "string"}
-                    }
-                }
-            }
-        }
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn gimfihi_schema() -> Value {
-    json!({
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-            "sources": {"type": "array", "items": {"type": "string"}, "description": "Source specs in LANG[:WEIGHT]:WORD form."},
-            "preset": {"type": "string"},
-            "shapes": {"type": "array", "items": {"type": "string"}},
-            "check-collisions": {"type": "string", "enum": ["all", "official", "none"], "default": "all"},
-            "all-letters": {"type": "boolean", "default": false},
-            "show-collisions": {"type": "boolean", "default": false},
-            "require-free-short-rafsi": {"type": "boolean", "default": false},
-            "count": {"type": "integer", "minimum": 1},
-            "highlight": {"type": "string"},
-            "format": {"type": "string", "enum": ["table", "json"], "default": "table"}
-        }
-    })
+#[ensures(ret.is_object())]
+fn tool_request_schema<T>() -> Value
+where
+    T: JsonSchema,
+{
+    serde_json::to_value(schemars::schema_for!(T))
+        .expect("generated MCP tool schema serializes to JSON")
 }
 
 #[requires(!params.name.trim().is_empty())]
@@ -414,6 +305,7 @@ fn tool_output_result(output: ToolRenderedOutput) -> Value {
     content.push(json!({ "type": "text", "text": text }));
     if content_type_is_json(output.content_type.as_deref()) {
         if let Ok(structured) = serde_json::from_slice::<Value>(&output.stdout) {
+            let structured = structured_content_value(structured);
             return json!({
                 "content": content,
                 "structuredContent": structured
@@ -421,6 +313,16 @@ fn tool_output_result(output: ToolRenderedOutput) -> Value {
         }
     }
     json!({ "content": content })
+}
+
+#[requires(true)]
+#[ensures(ret.is_object())]
+fn structured_content_value(value: Value) -> Value {
+    if value.is_object() {
+        value
+    } else {
+        json!({ "result": value })
+    }
 }
 
 #[requires(true)]

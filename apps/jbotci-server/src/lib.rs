@@ -1451,9 +1451,10 @@ mod tests {
         .await;
         assert_eq!(tools.status(), StatusCode::OK);
         let tools_json = response_json(tools).await;
-        let names = tools_json["result"]["tools"]
+        let tools_array = tools_json["result"]["tools"]
             .as_array()
-            .expect("tools array")
+            .expect("tools array");
+        let names = tools_array
             .iter()
             .map(|tool| tool["name"].as_str().expect("tool name"))
             .collect::<Vec<_>>();
@@ -1467,14 +1468,59 @@ mod tests {
                 .all(|name| external_api_identifier_is_safe(name))
         );
         assert!(!names.contains(&"tersmu"));
-        for tool in tools_json["result"]["tools"]
-            .as_array()
-            .expect("tools array")
-        {
+        for tool in tools_array {
             assert_eq!(tool["inputSchema"]["additionalProperties"], false);
             assert_eq!(tool["annotations"]["readOnlyHint"], true);
             assert_eq!(tool["annotations"]["destructiveHint"], false);
             assert_eq!(tool["annotations"]["openWorldHint"], false);
+        }
+
+        let gentufa_schema = tools_array
+            .iter()
+            .find(|tool| tool["name"] == "gentufa")
+            .expect("gentufa tool")["inputSchema"]
+            .clone();
+        assert!(gentufa_schema["properties"]["text"].is_object());
+        assert!(gentufa_schema["properties"]["format"].is_object());
+        assert!(gentufa_schema["properties"]["show-defs"].is_object());
+        let gentufa_schema_text = serde_json::to_string(&gentufa_schema).expect("schema JSON");
+        for stale_name in [
+            "lojban",
+            "outputFormat",
+            "includeWordDefinitions",
+            "lojbanDialect",
+        ] {
+            assert!(!gentufa_schema_text.contains(stale_name), "{stale_name}");
+        }
+
+        let cukta_schema = tools_array
+            .iter()
+            .find(|tool| tool["name"] == "cukta")
+            .expect("cukta tool")["inputSchema"]
+            .clone();
+        assert!(cukta_schema["properties"]["mode"].is_object());
+        assert!(cukta_schema["properties"]["query"].is_object());
+        assert!(
+            !serde_json::to_string(&cukta_schema)
+                .expect("schema JSON")
+                .contains("action")
+        );
+
+        let vlacku_schema = tools_array
+            .iter()
+            .find(|tool| tool["name"] == "vlacku")
+            .expect("vlacku tool")["inputSchema"]
+            .clone();
+        assert!(vlacku_schema["properties"]["mode"].is_object());
+        assert!(vlacku_schema["properties"]["query"].is_object());
+        let vlacku_schema_text = serde_json::to_string(&vlacku_schema).expect("schema JSON");
+        for stale_name in [
+            "exactLojbanWord",
+            "semanticallySimilarTo",
+            "soundsLike",
+            "exactRafsi",
+        ] {
+            assert!(!vlacku_schema_text.contains(stale_name), "{stale_name}");
         }
     }
 
@@ -1568,6 +1614,122 @@ mod tests {
         assert_eq!(structured_json["result"]["content"][0]["type"], "text");
         assert!(structured_json["result"]["structuredContent"].is_object());
 
+        let vlasei_structured = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "vlasei-json",
+                "method": "tools/call",
+                "params": {
+                    "name": "vlasei",
+                    "arguments": {
+                        "text": "coi",
+                        "format": "json"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(vlasei_structured.status(), StatusCode::OK);
+        let vlasei_structured_json = response_json(vlasei_structured).await;
+        assert_eq!(
+            vlasei_structured_json["result"]["content"][0]["type"],
+            "text"
+        );
+        assert!(
+            vlasei_structured_json["result"]["structuredContent"].is_object(),
+            "{}",
+            vlasei_structured_json["result"]
+        );
+        assert!(
+            vlasei_structured_json["result"]["structuredContent"]["result"].is_array(),
+            "{}",
+            vlasei_structured_json["result"]["structuredContent"]
+        );
+
+        let vlasei = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "vlasei-bare-dialect",
+                "method": "tools/call",
+                "params": {
+                    "name": "vlasei",
+                    "arguments": {
+                        "text": "coi",
+                        "dialect": "gadganzu"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(vlasei.status(), StatusCode::OK);
+        let vlasei_json = response_json(vlasei).await;
+        assert_ne!(vlasei_json["result"]["isError"], true, "{vlasei_json}");
+
+        let removed_cgv_alias = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "vlasei-removed-cgv-alias",
+                "method": "tools/call",
+                "params": {
+                    "name": "vlasei",
+                    "arguments": {
+                        "text": "coi",
+                        "dialect": "(allow-cgv)"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(removed_cgv_alias.status(), StatusCode::OK);
+        let removed_cgv_alias_json = response_json(removed_cgv_alias).await;
+        assert_eq!(removed_cgv_alias_json["result"]["isError"], true);
+        assert!(
+            removed_cgv_alias_json["result"]["content"][0]["text"]
+                .as_str()
+                .expect("error text")
+                .contains("Unknown dialect reference: allow-cgv")
+        );
+
+        let gimfihi_highlight = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "gimfihi-highlight",
+                "method": "tools/call",
+                "params": {
+                    "name": "gimfihi",
+                    "arguments": {
+                        "preset": "1995",
+                        "sources": [
+                            "cmn::uan",
+                            "hin::rakan",
+                            "eng::ekspekt",
+                            "spa::esper",
+                            "rus::predpologa",
+                            "ara::mulud"
+                        ],
+                        "check-collisions": "none",
+                        "count": 1,
+                        "highlight": "nanpe"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(gimfihi_highlight.status(), StatusCode::OK);
+        let gimfihi_highlight_json = response_json(gimfihi_highlight).await;
+        let gimfihi_text = gimfihi_highlight_json["result"]["content"][0]["text"]
+            .as_str()
+            .expect("gimfihi text");
+        assert!(gimfihi_text.contains("*     nanpe"), "{gimfihi_text}");
+
         let image = post_json(
             app.clone(),
             "/mcp",
@@ -1622,7 +1784,7 @@ mod tests {
         );
 
         let invalid_args = post_json(
-            app,
+            app.clone(),
             "/mcp",
             serde_json::json!({
                 "jsonrpc": "2.0",
@@ -1647,6 +1809,31 @@ mod tests {
                 .expect("error text")
                 .contains("unknown field")
         );
+
+        let old_vlacku_union_args = post_json(
+            app,
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "old-vlacku-union",
+                "method": "tools/call",
+                "params": {
+                    "name": "vlacku",
+                    "arguments": {
+                        "exactLojbanWord": "klama"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(old_vlacku_union_args.status(), StatusCode::OK);
+        let old_vlacku_union_json = response_json(old_vlacku_union_args).await;
+        assert_eq!(old_vlacku_union_json["result"]["isError"], true);
+        let old_vlacku_union_text = old_vlacku_union_json["result"]["content"][0]["text"]
+            .as_str()
+            .expect("error text");
+        assert!(old_vlacku_union_text.contains("unknown field"));
+        assert!(!old_vlacku_union_text.contains("Invalid Lojban word"));
     }
 
     #[tokio::test]

@@ -22,7 +22,7 @@ use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, DiagnosticLabel, DiagnosticPhase, DiagnosticSeverity,
     TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport, source_span_from_char_offsets,
 };
-use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
+use jbotci_dialect::{DialectDefinition, DialectSettings, parse_dialect_selection_formula};
 use jbotci_embeddings::native::{
     load_backend_for_search, setup_embeddings_with_progress, suppress_llama_logs_for_cli,
 };
@@ -269,7 +269,7 @@ impl<'a> ToolExecutionContext<'a> {
 #[invariant(::Json => true)]
 #[invariant(::Svg => true)]
 #[invariant(::Png => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolGentufaFormat {
     Brackets,
@@ -290,7 +290,7 @@ impl Default for ToolGentufaFormat {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolGentufaRequest {
     pub text: String,
@@ -317,7 +317,7 @@ pub struct ToolGentufaRequest {
 #[invariant(::Ipa => true)]
 #[invariant(::Raw => true)]
 #[invariant(::Json => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolVlaseiFormat {
     Brackets,
@@ -336,7 +336,7 @@ impl Default for ToolVlaseiFormat {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolVlaseiRequest {
     pub text: String,
@@ -357,7 +357,7 @@ pub struct ToolVlaseiRequest {
 #[invariant(::Markdown => true)]
 #[invariant(::Html => true)]
 #[invariant(::Raw => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolCuktaFormat {
     Markdown,
@@ -379,7 +379,7 @@ impl Default for ToolCuktaFormat {
 #[invariant(::Example => true)]
 #[invariant(::Word => true)]
 #[invariant(::Meaning => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolCuktaMode {
     Default,
@@ -399,7 +399,7 @@ impl Default for ToolCuktaMode {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolCuktaRequest {
     #[serde(default)]
@@ -407,6 +407,7 @@ pub struct ToolCuktaRequest {
     #[serde(default)]
     pub query: Option<String>,
     #[serde(default)]
+    #[schemars(range(min = 1))]
     pub count: Option<usize>,
     #[serde(default)]
     pub targets: Vec<String>,
@@ -431,7 +432,7 @@ impl ToolCuktaRequest {
 #[invariant(::RafsiRegex => true)]
 #[invariant(::Glob => true)]
 #[invariant(::RafsiGlob => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolVlackuMode {
     Word,
@@ -454,19 +455,21 @@ impl Default for ToolVlackuMode {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolVlackuRequest {
     #[serde(default)]
     pub mode: ToolVlackuMode,
     pub query: String,
     #[serde(default)]
+    #[schemars(range(min = 1))]
     pub count: Option<usize>,
     #[serde(default)]
     pub word_types: Vec<String>,
     #[serde(default)]
     pub min_votes: Option<i32>,
     #[serde(default)]
+    #[schemars(range(min = 0, max = 100))]
     pub min_similarity: Option<f32>,
     #[serde(default)]
     pub decompose_lujvo: bool,
@@ -484,7 +487,7 @@ impl ToolVlackuRequest {
 
 #[invariant(::Lujvo => true)]
 #[invariant(::Cmevla => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolJvozbaMode {
     Lujvo,
@@ -501,7 +504,7 @@ impl Default for ToolJvozbaMode {
 
 #[invariant(::Word => true)]
 #[invariant(::FixedRafsi => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolJvozbaPartKind {
     Word,
@@ -509,7 +512,7 @@ pub enum ToolJvozbaPartKind {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolJvozbaPart {
     pub kind: ToolJvozbaPartKind,
@@ -517,7 +520,7 @@ pub struct ToolJvozbaPart {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolJvozbaRequest {
     #[serde(default)]
@@ -528,7 +531,7 @@ pub struct ToolJvozbaRequest {
 
 #[invariant(::Table => true)]
 #[invariant(::Json => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolGimfihiFormat {
     Table,
@@ -544,7 +547,7 @@ impl Default for ToolGimfihiFormat {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolGimfihiRequest {
     #[serde(default)]
@@ -562,6 +565,7 @@ pub struct ToolGimfihiRequest {
     #[serde(default)]
     pub require_free_short_rafsi: bool,
     #[serde(default)]
+    #[schemars(range(min = 1, max = 512))]
     pub count: Option<usize>,
     #[serde(default)]
     pub highlight: Option<String>,
@@ -5215,7 +5219,10 @@ fn render_cli_trace(
 fn dialect_definition(source: Option<&str>) -> Result<DialectDefinition> {
     source.map_or_else(
         || Ok(DialectDefinition::default()),
-        |source| parse_dialect_definition(source).map_err(|error| anyhow!(error)),
+        |source| {
+            parse_dialect_selection_formula(&DialectSettings::default(), source)
+                .map_err(|error| anyhow!(error))
+        },
     )
 }
 
@@ -6302,6 +6309,21 @@ mod tests {
                 .features
                 .contains(&DialectFeature::ZantufaConnectives)
         );
+
+        let Command::Gentufa(bare_dialect_input) =
+            Cli::try_parse_from(["jbotci", "gentufa", "--dialect", "gadganzu", "coi"])
+                .expect("bare dialect name parses")
+                .command
+        else {
+            panic!("expected gentufa command")
+        };
+        assert!(
+            bare_dialect_input
+                .dialect_definition()
+                .expect("bare dialect definition")
+                .features
+                .contains(&DialectFeature::Gadganzu)
+        );
     }
 
     #[test]
@@ -6469,6 +6491,21 @@ mod tests {
             panic!("expected vlasei command")
         };
         assert_eq!(ipa_input.format, VlaseiFormat::Ipa);
+
+        let Command::Vlasei(bare_dialect_input) =
+            Cli::try_parse_from(["jbotci", "vlasei", "--dialect", "gadganzu", "coi"])
+                .expect("bare vlasei dialect")
+                .command
+        else {
+            panic!("expected vlasei command")
+        };
+        assert!(
+            bare_dialect_input
+                .dialect_definition()
+                .expect("bare vlasei dialect definition")
+                .features
+                .contains(&DialectFeature::Gadganzu)
+        );
 
         assert_eq!(
             Cli::try_parse_from(["jbotci", "vlasei", "--turtai", "xml", "coi"])
