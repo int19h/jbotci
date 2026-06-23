@@ -597,6 +597,7 @@ where
     pending_asides: Vec<SemanticObjectId>,
     current_utterance_anchor: Option<SemanticObjectId>,
     utterance_roles: HashMap<SemanticObjectId, UtteranceRoles>,
+    deictic_context_roles: UtteranceRoles,
     current_utterance_roles: UtteranceRoles,
 }
 
@@ -640,6 +641,7 @@ where
             pending_asides: Vec::new(),
             current_utterance_anchor: None,
             utterance_roles: HashMap::new(),
+            deictic_context_roles: UtteranceRoles::first_utterance_defaults(),
             current_utterance_roles: UtteranceRoles::first_utterance_defaults(),
         };
         builder.insert_deictic_referents();
@@ -730,22 +732,26 @@ where
     fn ensure_utterance_roles(
         &mut self,
         utterance: SemanticObjectId,
-        source: Option<crate::model::SemanticSource>,
+        _source: Option<crate::model::SemanticSource>,
     ) -> Result<UtteranceRoles, SemanticsError> {
         if let Some(roles) = self.utterance_roles.get(&utterance).copied() {
             return Ok(roles);
         }
-        let roles = if self.utterance_roles.is_empty() {
-            UtteranceRoles::first_utterance_defaults()
-        } else {
-            UtteranceRoles::from_data(data!(UtteranceRoles {
-                speaker: self
-                    .build_utterance_role_referent(IndexicalKind::Speaker, source.clone(),)?,
-                audience: self.build_utterance_role_referent(IndexicalKind::Audience, source)?,
-            }))
-        };
+        let roles = self.deictic_context_roles;
         self.utterance_roles.insert(utterance, roles);
         Ok(roles)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|roles| roles.speaker.object_kind() == crate::model::SemanticObjectKind::Referent && roles.audience.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_fresh_utterance_roles(
+        &mut self,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<UtteranceRoles, SemanticsError> {
+        Ok(UtteranceRoles::from_data(data!(UtteranceRoles {
+            speaker: self.build_utterance_role_referent(IndexicalKind::Speaker, source.clone(),)?,
+            audience: self.build_utterance_role_referent(IndexicalKind::Audience, source)?,
+        })))
     }
 
     #[requires(true)]
@@ -1966,6 +1972,47 @@ where
         &mut self,
         text: &'tree TextSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut nested = self.nested_builder_with_roles(self.deictic_context_roles);
+        let graph = nested.build_text(text)?;
+        let root = graph.root;
+        nested.objects = graph.objects;
+        self.absorb_nested_builder(nested);
+        Ok(root)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_quoted_text_group(
+        &mut self,
+        text: &'tree TextSyntax,
+        marker_free_modifiers: &'tree [FreeModifierSyntax],
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let has_semantic_text = text_has_semantic_content(text);
+        if !has_semantic_text && !free_modifiers_have_vocative(marker_free_modifiers) {
+            return Ok(None);
+        }
+        let quoted_roles = self.build_fresh_utterance_roles(source)?;
+        let mut nested = self.nested_builder_with_roles(quoted_roles);
+        let mut marker_asides = nested.build_vocative_asides(marker_free_modifiers)?;
+        let root = if has_semantic_text {
+            let graph = nested.build_text(text)?;
+            let root = graph.root;
+            nested.objects = graph.objects;
+            if !marker_asides.is_empty() {
+                nested.add_asides_to_discourse_item(root, std::mem::take(&mut marker_asides));
+            }
+            Some(root)
+        } else {
+            nested.build_standalone_asides(marker_asides)?
+        };
+        self.absorb_nested_builder(nested);
+        Ok(root)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.deictic_context_roles.speaker == deictic_context_roles.speaker && ret.deictic_context_roles.audience == deictic_context_roles.audience)]
+    fn nested_builder_with_roles(&mut self, deictic_context_roles: UtteranceRoles) -> Self {
         let mut nested = GraphBuilder::new(
             self.analysis,
             self.options,
@@ -1982,9 +2029,16 @@ where
         nested.modal_assignment_arguments = std::mem::take(&mut self.modal_assignment_arguments);
         nested.sticky_modal_arguments = std::mem::take(&mut self.sticky_modal_arguments);
         nested.sticky_time_path = std::mem::take(&mut self.sticky_time_path);
-        let graph = nested.build_text(text)?;
+        nested.deictic_context_roles = deictic_context_roles;
+        nested.current_utterance_roles = nested.deictic_context_roles;
+        nested
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn absorb_nested_builder(&mut self, nested: Self) {
         self.counters = nested.counters;
-        self.objects = graph.objects;
+        self.objects = nested.objects;
         self.utterance_objects = nested.utterance_objects;
         self.utterance_roles = nested.utterance_roles;
         self.scoped_argument_variables = nested.scoped_argument_variables;
@@ -1992,7 +2046,6 @@ where
         self.modal_assignment_arguments = nested.modal_assignment_arguments;
         self.sticky_modal_arguments = nested.sticky_modal_arguments;
         self.sticky_time_path = nested.sticky_time_path;
-        Ok(graph.root)
     }
 
     #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
@@ -10650,19 +10703,8 @@ where
         let source_text = source.as_ref().and_then(|source| source.text.clone());
         let quotation = match quote.as_data() {
             data!(QuoteSyntax::TextQuote { lu, text, .. }) => {
-                let mut marker_asides = self.build_vocative_asides(&lu.free_modifiers)?;
-                let utterance = if text_has_semantic_content(text) {
-                    let utterance = self.build_text_group_sequence(text)?;
-                    self.add_asides_to_discourse_item(
-                        utterance,
-                        std::mem::take(&mut marker_asides),
-                    );
-                    Some(utterance)
-                } else if marker_asides.is_empty() {
-                    None
-                } else {
-                    self.build_standalone_asides(marker_asides)?
-                };
+                let utterance =
+                    self.build_quoted_text_group(text, &lu.free_modifiers, source.clone())?;
                 Quotation {
                     mode: "parsed".to_owned(),
                     utterance,
@@ -13964,6 +14006,17 @@ fn free_modifiers_have_reciprocity(free_modifiers: &[FreeModifierSyntax]) -> boo
         matches!(
             free_modifier.as_data(),
             data!(FreeModifierSyntax::ReciprocalSumti { .. })
+        )
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn free_modifiers_have_vocative(free_modifiers: &[FreeModifierSyntax]) -> bool {
+    free_modifiers.iter().any(|free_modifier| {
+        matches!(
+            free_modifier.as_data(),
+            data!(FreeModifierSyntax::Vocative { .. })
         )
     })
 }
@@ -21426,6 +21479,45 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn top_level_statement_sequence_shares_deictic_roles() {
+        let mi = semantic_json_for("mi klama .i mi cliva").expect("semantic JSON");
+        assert_eq!(
+            object(&mi, "utterance:u2")["speaker"],
+            object(&mi, "utterance:u1")["speaker"]
+        );
+        assert_eq!(
+            object(&mi, "utterance:u2")["audience"],
+            object(&mi, "utterance:u1")["audience"]
+        );
+        assert_eq!(
+            predication_with_relation_and_mode(&mi, "klama", "asserted")["arguments"]["x1"]["value"],
+            "referent:speaker"
+        );
+        assert_eq!(
+            predication_with_relation_and_mode(&mi, "cliva", "asserted")["arguments"]["x1"]["value"],
+            "referent:speaker"
+        );
+
+        let do_sequence = semantic_json_for("do barda .i do cmalu").expect("semantic JSON");
+        assert_eq!(
+            object(&do_sequence, "utterance:u2")["audience"],
+            object(&do_sequence, "utterance:u1")["audience"]
+        );
+        assert_eq!(
+            predication_with_relation_and_mode(&do_sequence, "barda", "asserted")["arguments"]["x1"]
+                ["value"],
+            "referent:addressee"
+        );
+        assert_eq!(
+            predication_with_relation_and_mode(&do_sequence, "cmalu", "asserted")["arguments"]["x1"]
+                ["value"],
+            "referent:addressee"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn quoted_sumti_are_sign_arguments_with_parsed_utterances() {
         let json = semantic_json_for("mi cusku lu mi klama li'u do").expect("semantic JSON");
         let objects = json["objects"].as_object().expect("semantic objects");
@@ -21468,6 +21560,16 @@ mod tests {
         let utterance = object(&json, quoted_utterance);
         assert_eq!(utterance["force"], "vocative");
         assert_eq!(utterance["vocativeKind"], "selfIdentification");
+        let quoted_speaker = utterance["speaker"]
+            .as_str()
+            .expect("quoted vocative speaker");
+        let quoted_audience = utterance["audience"]
+            .as_str()
+            .expect("quoted vocative audience");
+        assert_ne!(quoted_speaker, "referent:speaker");
+        assert_ne!(quoted_audience, "referent:addressee");
+        assert_eq!(object(&json, quoted_speaker)["indexical"], "speaker");
+        assert_eq!(object(&json, quoted_audience)["indexical"], "audience");
     }
 
     #[test]
