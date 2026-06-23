@@ -469,13 +469,14 @@ impl Default for ToolCuktaMode {
     }
 }
 
-/// One kind of CLL content that a search may return.
+/// One kind of CLL content a `meaning`/`word` search can keep. These are content
+/// *kinds*, not references — see `search_result_kinds` on the request.
 #[invariant(::Section => true)]
 #[invariant(::Paragraph => true)]
 #[invariant(::Example => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
-pub enum ToolCuktaTarget {
+pub enum ToolCuktaSearchResultKind {
     /// Whole sections (a heading and its prose).
     Section,
     /// Individual paragraphs.
@@ -484,7 +485,7 @@ pub enum ToolCuktaTarget {
     Example,
 }
 
-impl ToolCuktaTarget {
+impl ToolCuktaSearchResultKind {
     /// The canonical lowercase name, matching the CLI `--target` vocabulary.
     #[requires(true)]
     #[ensures(!ret.is_empty())]
@@ -500,6 +501,13 @@ impl ToolCuktaTarget {
 /// Read or search the CLL — *The Complete Lojban Language*, the canonical
 /// reference book. Use this to look up grammar rules, find where a concept is
 /// explained, or pull a specific section or example.
+///
+/// To fetch a specific section or example, set `mode` and put the reference in
+/// `query` — e.g. `{"mode": "section", "query": "5.2"}` or `{"mode": "example",
+/// "query": "6.8"}`. To search, use `mode: "meaning"` (natural language) or
+/// `"word"` (literal term), optionally narrowing the kinds of hits with
+/// `search_result_kinds` — e.g. `{"mode": "meaning", "query": "tanru",
+/// "search-result-kinds": ["section"]}`.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
@@ -508,8 +516,9 @@ pub struct ToolCuktaRequest {
     #[serde(default)]
     pub mode: ToolCuktaMode,
     /// The query, interpreted per `mode`: a natural-language description
-    /// (`meaning`), a literal term (`word`), or a section/example reference
-    /// (`section`/`example`). Ignored for `toc`; required otherwise.
+    /// (`meaning`), a literal term (`word`), or a section/example reference such
+    /// as `5.2` (`section`) or `6.8` (`example`). Ignored for `toc`; required
+    /// otherwise.
     #[serde(default)]
     pub query: Option<String>,
     /// Maximum number of results for the search modes (`meaning`, `word`).
@@ -517,10 +526,13 @@ pub struct ToolCuktaRequest {
     #[serde(default)]
     #[schemars(range(min = 1))]
     pub count: Option<usize>,
-    /// Restrict search results (`meaning`, `word`) to these content kinds. Empty
-    /// means all kinds.
+    /// Narrow the results of a `meaning`/`word` search to these content kinds —
+    /// the literal values `section`, `paragraph`, and/or `example`. Empty means
+    /// all kinds. This is NOT how you fetch a specific section or example and it
+    /// does NOT take references like `5.2`: for that, use `mode: section`/
+    /// `example` with the reference in `query`.
     #[serde(default)]
-    pub targets: Vec<ToolCuktaTarget>,
+    pub search_result_kinds: Vec<ToolCuktaSearchResultKind>,
     /// Output format. Defaults to the readable `markdown`.
     #[serde(default)]
     pub format: ToolCuktaFormat,
@@ -2499,9 +2511,9 @@ fn run_tool_cukta_inner(
         ToolCuktaFormat::Raw => TEXT_PLAIN_CONTENT_TYPE,
     };
     let query = request.query.unwrap_or_default();
-    // The typed `targets` enum set maps directly onto the CLI's per-kind flags;
-    // the string `targets` channel stays empty. Filters only apply to the search
-    // modes and are rejected (downstream) for the navigation modes.
+    // The typed `search_result_kinds` set maps directly onto the CLI's per-kind
+    // target flags; the CLI's string `targets` channel stays empty. Filters only
+    // apply to the search modes and are rejected (downstream) for navigation.
     let mut input = CuktaInput {
         count: request.count,
         toc: false,
@@ -2509,9 +2521,15 @@ fn run_tool_cukta_inner(
         example: None,
         valsi: None,
         targets: Vec::new(),
-        target_sections: request.targets.contains(&ToolCuktaTarget::Section),
-        target_paragraphs: request.targets.contains(&ToolCuktaTarget::Paragraph),
-        target_examples: request.targets.contains(&ToolCuktaTarget::Example),
+        target_sections: request
+            .search_result_kinds
+            .contains(&ToolCuktaSearchResultKind::Section),
+        target_paragraphs: request
+            .search_result_kinds
+            .contains(&ToolCuktaSearchResultKind::Paragraph),
+        target_examples: request
+            .search_result_kinds
+            .contains(&ToolCuktaSearchResultKind::Example),
         format,
         query: Vec::new(),
     };
@@ -6091,7 +6109,7 @@ mod tests {
                 mode: ToolCuktaMode::Meaning,
                 query: Some("goer".to_owned()),
                 count: Some(1),
-                targets: Vec::new(),
+                search_result_kinds: Vec::new(),
                 format: ToolCuktaFormat::Markdown,
             },
             &mut context,

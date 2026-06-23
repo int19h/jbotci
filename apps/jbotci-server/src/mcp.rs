@@ -44,10 +44,15 @@ struct JsonRpcMessage {
     params: Option<Value>,
 }
 
+// Deliberately NOT `deny_unknown_fields`: the MCP spec reserves a sibling
+// `_meta` object inside `tools/call` params (e.g. `progressToken`, sent by the
+// Claude Agent SDK and other clients) that a conformant server must tolerate,
+// and the protocol may add further params fields over time. Rejecting them would
+// break interop on every tool call. The tool *arguments* are still validated
+// strictly by each tool's request type.
 #[invariant(!name.trim().is_empty(), "MCP tool call name must be present")]
 #[invariant(arguments.is_object(), "MCP tool call arguments must be an object")]
 #[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 struct ToolCallParams {
     name: String,
     #[serde(default = "empty_json_object")]

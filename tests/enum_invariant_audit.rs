@@ -1348,15 +1348,15 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaTarget::Section",
+        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Section",
         "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaTarget::Paragraph",
+        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Paragraph",
         "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaTarget::Example",
+        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Example",
         "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
     ),
     (
