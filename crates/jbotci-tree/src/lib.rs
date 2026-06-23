@@ -2,13 +2,442 @@
 
 extern crate self as jbotci_tree;
 
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use serde::{Deserialize, Serialize};
+use vec1::Vec1;
 
 pub use jbotci_tree_macros::tree_model;
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RecoveryItemKind {
+    Missing,
+    Invalid,
+}
+
+#[contract_trait]
+pub trait RecoveredFieldState {
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_error_slots(&self) -> usize;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_error_slots(&self) -> usize {
+        0
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.recovery_error_slots().saturating_sub(self.missing_error_slots()))]
+    fn invalid_error_slots(&self) -> usize {
+        self.recovery_error_slots()
+            .saturating_sub(self.missing_error_slots())
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.missing_error_slots())]
+    fn unconsumed_missing_error_slots(&self) -> usize {
+        self.missing_error_slots()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self.recovery_error_slots() > 0 && self.recovery_error_slots() == self.missing_error_slots()))]
+    fn is_unconsumed_missing_error(&self) -> bool {
+        let error_slots = self.recovery_error_slots();
+        error_slots > 0 && error_slots == self.missing_error_slots()
+    }
+}
+
+#[contract_trait]
+pub trait RecoveryItemState {
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_item_kind(&self) -> RecoveryItemKind;
+
+    #[requires(true)]
+    #[ensures(ret == (self.recovery_item_kind() == RecoveryItemKind::Missing))]
+    fn is_unconsumed_missing_error(&self) -> bool {
+        self.recovery_item_kind() == RecoveryItemKind::Missing
+    }
+}
+
+#[invariant(true)]
+#[invariant(::Valid(_) => true)]
+#[invariant(::Error(_) => true)]
+#[invariant(::Prefix(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "kebab-case")]
+pub enum Recovered<T, E> {
+    Valid(Box<T>),
+    Error(E),
+    Prefix(RecoveredPrefix<T, E>),
+}
+
+/// A recovered value parsed after one or more prefix recovery items.
+///
+/// The non-empty error-list invariant is encoded by `Vec1`.
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveredPrefix<T, E> {
+    pub errors: Vec1<E>,
+    pub value: Box<T>,
+}
+
+#[contract_trait]
+impl<T, E> RecoveredFieldState for Recovered<T, E>
+where
+    T: RecoveredFieldState,
+    E: RecoveryItemState,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_error_slots(&self) -> usize {
+        match self {
+            Self::Valid(value) => value.recovery_error_slots(),
+            Self::Error(_) => 1,
+            Self::Prefix(prefix) => prefix.errors.len() + prefix.value.recovery_error_slots(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_error_slots(&self) -> usize {
+        match self {
+            Self::Valid(value) => value.missing_error_slots(),
+            Self::Error(item) => {
+                usize::from(item.recovery_item_kind() == RecoveryItemKind::Missing)
+            }
+            Self::Prefix(prefix) => {
+                prefix
+                    .errors
+                    .iter()
+                    .filter(|item| item.recovery_item_kind() == RecoveryItemKind::Missing)
+                    .count()
+                    + prefix.value.missing_error_slots()
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.recovery_error_slots().saturating_sub(self.missing_error_slots()))]
+    fn invalid_error_slots(&self) -> usize {
+        match self {
+            Self::Valid(value) => value.invalid_error_slots(),
+            Self::Error(item) => {
+                usize::from(item.recovery_item_kind() == RecoveryItemKind::Invalid)
+            }
+            Self::Prefix(prefix) => {
+                prefix
+                    .errors
+                    .iter()
+                    .filter(|item| item.recovery_item_kind() == RecoveryItemKind::Invalid)
+                    .count()
+                    + prefix.value.invalid_error_slots()
+            }
+        }
+    }
+}
+
+#[contract_trait]
+impl<T> RecoveredFieldState for Box<T>
+where
+    T: RecoveredFieldState,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_error_slots(&self) -> usize {
+        self.as_ref().recovery_error_slots()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.as_ref().missing_error_slots())]
+    fn missing_error_slots(&self) -> usize {
+        self.as_ref().missing_error_slots()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.as_ref().invalid_error_slots())]
+    fn invalid_error_slots(&self) -> usize {
+        self.as_ref().invalid_error_slots()
+    }
+}
+
+#[contract_trait]
+impl<T> RecoveredFieldState for Arc<T>
+where
+    T: RecoveredFieldState,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_error_slots(&self) -> usize {
+        self.as_ref().recovery_error_slots()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.as_ref().missing_error_slots())]
+    fn missing_error_slots(&self) -> usize {
+        self.as_ref().missing_error_slots()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.as_ref().invalid_error_slots())]
+    fn invalid_error_slots(&self) -> usize {
+        self.as_ref().invalid_error_slots()
+    }
+}
+
+#[contract_trait]
+impl<T> RecoveredFieldState for Option<T>
+where
+    T: RecoveredFieldState,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_error_slots(&self) -> usize {
+        self.as_ref()
+            .map_or(0, RecoveredFieldState::recovery_error_slots)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_error_slots(&self) -> usize {
+        self.as_ref()
+            .map_or(0, RecoveredFieldState::missing_error_slots)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_error_slots(&self) -> usize {
+        self.as_ref()
+            .map_or(0, RecoveredFieldState::invalid_error_slots)
+    }
+}
+
+#[contract_trait]
+impl<T> RecoveredFieldState for Vec<T>
+where
+    T: RecoveredFieldState,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_error_slots(&self) -> usize {
+        self.iter()
+            .map(RecoveredFieldState::recovery_error_slots)
+            .sum()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_error_slots(&self) -> usize {
+        self.iter()
+            .map(RecoveredFieldState::missing_error_slots)
+            .sum()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_error_slots(&self) -> usize {
+        self.iter()
+            .map(RecoveredFieldState::invalid_error_slots)
+            .sum()
+    }
+}
+
+#[contract_trait]
+impl<A> RecoveredFieldState for smallvec::SmallVec<A>
+where
+    A: smallvec::Array,
+    A::Item: RecoveredFieldState,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_error_slots(&self) -> usize {
+        self.iter()
+            .map(RecoveredFieldState::recovery_error_slots)
+            .sum()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_error_slots(&self) -> usize {
+        self.iter()
+            .map(RecoveredFieldState::missing_error_slots)
+            .sum()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_error_slots(&self) -> usize {
+        self.iter()
+            .map(RecoveredFieldState::invalid_error_slots)
+            .sum()
+    }
+}
+
+#[contract_trait]
+impl<T> RecoveredFieldState for Vec1<T>
+where
+    T: RecoveredFieldState,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_error_slots(&self) -> usize {
+        self.iter()
+            .map(RecoveredFieldState::recovery_error_slots)
+            .sum()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_error_slots(&self) -> usize {
+        self.iter()
+            .map(RecoveredFieldState::missing_error_slots)
+            .sum()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_error_slots(&self) -> usize {
+        self.iter()
+            .map(RecoveredFieldState::invalid_error_slots)
+            .sum()
+    }
+}
+
+#[contract_trait]
+impl RecoveredFieldState for String {
+    #[requires(true)]
+    #[ensures(ret == 0)]
+    fn recovery_error_slots(&self) -> usize {
+        0
+    }
+}
+
+#[contract_trait]
+impl RecoveredFieldState for jbotci_source::SourceSpan {
+    #[requires(true)]
+    #[ensures(ret == 0)]
+    fn recovery_error_slots(&self) -> usize {
+        0
+    }
+}
+
+#[contract_trait]
+impl RecoveryItemState for () {
+    #[requires(true)]
+    #[ensures(ret == RecoveryItemKind::Invalid)]
+    fn recovery_item_kind(&self) -> RecoveryItemKind {
+        RecoveryItemKind::Invalid
+    }
+}
+
+impl<T, E> Recovered<T, E> {
+    #[requires(true)]
+    #[ensures(matches!(ret, Self::Valid(_)))]
+    pub fn valid(value: T) -> Self {
+        Self::Valid(Box::new(value))
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret, Self::Valid(_)))]
+    pub fn valid_boxed(value: Box<T>) -> Self {
+        Self::Valid(value)
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret, Self::Error(_)))]
+    pub fn error(item: E) -> Self {
+        Self::Error(item)
+    }
+
+    #[requires(!errors.is_empty())]
+    #[ensures(matches!(ret, Self::Prefix(_)))]
+    pub fn prefix(errors: Vec<E>, value: T) -> Self {
+        let errors =
+            Vec1::try_from_vec(errors).expect("precondition guarantees non-empty error list");
+        Self::Prefix(RecoveredPrefix {
+            errors,
+            value: Box::new(value),
+        })
+    }
+
+    #[requires(!errors.is_empty())]
+    #[ensures(matches!(ret, Self::Prefix(_)))]
+    pub fn prefix_boxed(errors: Vec<E>, value: Box<T>) -> Self {
+        let errors =
+            Vec1::try_from_vec(errors).expect("precondition guarantees non-empty error list");
+        Self::Prefix(RecoveredPrefix { errors, value })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn try_into_valid_with<V>(
+        self,
+        path: &mut TreePath,
+        convert: impl FnOnce(T, &mut TreePath) -> Result<V, RecoveryError<E>>,
+    ) -> Result<V, RecoveryError<E>> {
+        match self {
+            Self::Valid(value) => convert(*value, path),
+            Self::Error(item) => Err(RecoveryError::new(path.clone(), item)),
+            Self::Prefix(prefix) => {
+                let mut errors = prefix.errors.into_vec();
+                Err(RecoveryError::new(path.clone(), errors.remove(0)))
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn try_into_valid_boxed_with<V>(
+        self,
+        path: &mut TreePath,
+        convert: impl FnOnce(Box<T>, &mut TreePath) -> Result<V, RecoveryError<E>>,
+    ) -> Result<V, RecoveryError<E>> {
+        match self {
+            Self::Valid(value) => convert(value, path),
+            Self::Error(item) => Err(RecoveryError::new(path.clone(), item)),
+            Self::Prefix(prefix) => {
+                let mut errors = prefix.errors.into_vec();
+                Err(RecoveryError::new(path.clone(), errors.remove(0)))
+            }
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryError<E> {
+    pub path: TreePath,
+    pub item: E,
+}
+
+impl<E> RecoveryError<E> {
+    #[requires(true)]
+    #[ensures(ret.path == old(path.clone()))]
+    pub fn new(path: TreePath, item: E) -> Self {
+        Self { path, item }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn path(&self) -> &TreePath {
+        &self.path
+    }
+}
+
+impl<E> fmt::Display for RecoveryError<E> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "recovered tree error item at {}", self.path)
+    }
+}
+
+impl<E: fmt::Debug> std::error::Error for RecoveryError<E> {}
 
 #[invariant(true)]
 #[invariant(::Field => name.as_ref().is_none_or(|name| !name.is_empty()))]
@@ -201,6 +630,10 @@ pub trait TreeVisitor<'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn visit_atom(&mut self, _atom: Self::Atom) {}
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_recovered_error<E: Serialize>(&mut self, _item: &'tree E) {}
 }
 
 #[cfg(test)]
@@ -214,7 +647,28 @@ mod tests {
     use smallvec::SmallVec;
     use vec1::Vec1;
 
+    #[invariant(true)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+    pub(crate) enum RecoveryTreeItem {
+        Missing,
+        Invalid,
+    }
+
+    #[contract_trait]
+    impl RecoveryItemState for RecoveryTreeItem {
+        #[requires(true)]
+        #[ensures(true)]
+        fn recovery_item_kind(&self) -> RecoveryItemKind {
+            match self {
+                RecoveryTreeItem::Missing => RecoveryItemKind::Missing,
+                RecoveryTreeItem::Invalid => RecoveryItemKind::Invalid,
+            }
+        }
+    }
+
     tree_model! {
+        #![tree_recovered]
+
         pub type LeafAlias = LeafNode;
         pub type LeafList = Vec<LeafNode>;
 
@@ -240,6 +694,7 @@ mod tests {
         }
 
         #[derive(Debug, Clone, PartialEq, Eq)]
+        #[allow(dead_code)]
         #[invariant(true)]
         #[invariant(::Tuple(_) => true)]
         #[invariant(::Named => true)]
@@ -298,6 +753,50 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Default)]
+    #[invariant(true)]
+    struct RecoveredRecordingVisitor {
+        events: Vec<String>,
+    }
+
+    impl<'tree> TreeVisitor<'tree> for RecoveredRecordingVisitor {
+        type Node = recovered::NodeRef<'tree>;
+        type Atom = recovered::AtomRef<'tree>;
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn enter_node(&mut self, node: Self::Node) {
+            self.events
+                .push(format!("enter:{}", node.constructor_name()));
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn exit_node(&mut self, node: Self::Node) {
+            self.events
+                .push(format!("exit:{}", node.constructor_name()));
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn enter_field(&mut self, field: FieldRef) {
+            self.events.push(format!(
+                "field:{}:{}:{}",
+                field.name.unwrap_or("<tuple>"),
+                field.index,
+                field.primary
+            ));
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn visit_atom(&mut self, atom: Self::Atom) {
+            match atom {
+                recovered::AtomRef::String(text) => self.events.push(format!("atom:{text}")),
+            }
+        }
+    }
+
     #[requires(true)]
     #[ensures(ret.rest.is_some())]
     #[ensures(ret.many.len() == 1)]
@@ -328,6 +827,14 @@ mod tests {
                 text: "small".to_owned(),
             }]),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret, recovered::Recovered::Valid(_)))]
+    fn recovered_leaf(text: &str) -> recovered::Recovered<recovered::LeafNode> {
+        recovered::Recovered::valid(recovered::LeafNode {
+            text: recovered::Recovered::valid(text.to_owned()),
+        })
     }
 
     #[derive(Debug, Default)]
@@ -508,6 +1015,105 @@ mod tests {
         set.insert(repeated_first_ref);
         set.insert(second_ref);
         assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_from_valid_converts_back_to_valid_tree() {
+        let tree = sample_pair_node();
+        let recovered = recovered::PairNode::from_valid(tree.clone());
+
+        assert_eq!(recovered.recovery_error_slots(), 0);
+        assert_eq!(recovered.missing_error_slots(), 0);
+        assert_eq!(recovered.invalid_error_slots(), 0);
+        assert_eq!(recovered.try_into_valid(), Ok(tree));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_conversion_reports_first_error_path() {
+        let mut recovered = recovered::PairNode::from_valid(sample_pair_node());
+        recovered
+            .many
+            .push(recovered::Recovered::error(RecoveryTreeItem::Missing));
+        recovered
+            .aliases
+            .push(recovered::Recovered::error(RecoveryTreeItem::Invalid));
+
+        assert_eq!(recovered.recovery_error_slots(), 2);
+        assert_eq!(recovered.missing_error_slots(), 1);
+        assert_eq!(recovered.invalid_error_slots(), 1);
+
+        let error = recovered
+            .try_into_valid()
+            .expect_err("recovered errors block conversion to a valid tree");
+        assert_eq!(error.item, RecoveryTreeItem::Missing);
+        assert_eq!(
+            error.path,
+            TreePath::from_steps(vec![
+                TreePathStep::field(Some("many"), 3),
+                TreePathStep::sequence_index(1),
+            ])
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_tree_traversal_visits_valid_fields_in_order() {
+        let tree = recovered::PairNode {
+            first: recovered_leaf("first"),
+            ignored: recovered::Recovered::valid("ignored".to_owned()),
+            rest: None,
+            many: vec![recovered_leaf("many")],
+            aliases: vec![recovered_leaf("aliases")],
+            alias: Some(recovered_leaf("alias")),
+            vec1: Vec1::new(recovered_leaf("vec1")),
+            small: SmallVec::from_vec(vec![recovered_leaf("small")]),
+        };
+        let mut visitor = RecoveredRecordingVisitor::default();
+        recovered::TreeNode::visit_in_order(&tree, &mut visitor);
+
+        assert_eq!(
+            visitor.events,
+            vec![
+                "enter:PairNode",
+                "field:first:0:false",
+                "enter:LeafNode",
+                "field:text:0:false",
+                "atom:first",
+                "exit:LeafNode",
+                "field:rest:2:true",
+                "field:many:3:false",
+                "enter:LeafNode",
+                "field:text:0:false",
+                "atom:many",
+                "exit:LeafNode",
+                "field:aliases:4:false",
+                "enter:LeafNode",
+                "field:text:0:false",
+                "atom:aliases",
+                "exit:LeafNode",
+                "field:alias:5:false",
+                "enter:LeafNode",
+                "field:text:0:false",
+                "atom:alias",
+                "exit:LeafNode",
+                "field:vec1:6:false",
+                "enter:LeafNode",
+                "field:text:0:false",
+                "atom:vec1",
+                "exit:LeafNode",
+                "field:small:7:false",
+                "enter:LeafNode",
+                "field:text:0:false",
+                "atom:small",
+                "exit:LeafNode",
+                "exit:PairNode",
+            ]
+        );
     }
 
     #[test]

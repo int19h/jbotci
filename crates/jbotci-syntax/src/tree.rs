@@ -7,11 +7,46 @@
 use std::{fmt, sync::Arc};
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
 use jbotci_tree::FieldRef;
 use serde::{Deserialize, Serialize};
 use vec1::Vec1;
+
+#[invariant(::Missing => span.char_len() == 0
+    && !expected.is_empty()
+    && !diagnostic_code.is_empty())]
+#[invariant(::Invalid => span.char_len() > 0
+    && !text.is_empty()
+    && !expected.is_empty()
+    && !diagnostic_code.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum RecoveryTreeItem {
+    Missing {
+        span: Arc<jbotci_source::SourceSpan>,
+        expected: Vec<String>,
+        diagnostic_code: String,
+    },
+    Invalid {
+        span: Arc<jbotci_source::SourceSpan>,
+        text: String,
+        expected: Vec<String>,
+        diagnostic_code: String,
+    },
+}
+
+#[contract_trait]
+impl jbotci_tree::RecoveryItemState for RecoveryTreeItem {
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_item_kind(&self) -> jbotci_tree::RecoveryItemKind {
+        match self.as_data() {
+            data!(RecoveryTreeItem::Missing { .. }) => jbotci_tree::RecoveryItemKind::Missing,
+            data!(RecoveryTreeItem::Invalid { .. }) => jbotci_tree::RecoveryItemKind::Invalid,
+        }
+    }
+}
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -495,6 +530,8 @@ pub fn elidable_terminator_for_absent_field(_node: NodeRef<'_>, field: FieldRef)
 }
 
 jbotci_tree::tree_model! {
+#![tree_recovered]
+
 pub type WordRun = Vec1<Token>;
 pub type MeksoVec = Vec1<MeksoSyntax>;
 

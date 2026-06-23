@@ -36,7 +36,7 @@ use jbotci_semantics::{
 use jbotci_source::SourceId;
 use jbotci_syntax::{
     ParseOptions, SyntaxError, SyntaxWarning, parse_syntax_tree_with_source_and_options,
-    syntax_tree_eq_ignoring_spans,
+    syntax_tree_eq_ignoring_spans, syntax_tree_partial_valid_round_trip,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -278,6 +278,8 @@ struct FixtureRunArgs {
     failure_samples: Option<usize>,
     #[arg(long, hide = true)]
     chunk_worker: bool,
+    #[arg(long)]
+    syntax_strict_only: bool,
 }
 
 #[derive(Debug, Args)]
@@ -7796,7 +7798,9 @@ fn syntax_accepts_success_tree_refresh(syntax: &fixtures::SyntaxExpectation) -> 
 #[ensures(true)]
 fn fixture_test(args: FixtureRunArgs) -> Result<()> {
     let profile = merged_profile(&args)?;
-    let backend = NotImplementedBackend;
+    let backend = NotImplementedBackend {
+        syntax_strict_only: args.syntax_strict_only,
+    };
     let mut paths = fixture_paths(&args.root)
         .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
     let jobs = args.jobs.unwrap_or_else(default_fixture_jobs);
@@ -7946,6 +7950,9 @@ fn fixture_test_chunk_output(
         command
             .arg("--failure-samples")
             .arg(failure_samples.to_string());
+    }
+    if args.syntax_strict_only {
+        command.arg("--syntax-strict-only");
     }
     for facet in &profile.facets {
         command.arg("--facet").arg(facet.to_string());
@@ -8360,6 +8367,9 @@ fn merged_profile(args: &FixtureRunArgs) -> Result<FixtureProfile> {
     if !args.facets.is_empty() {
         profile.facets = args.facets.clone();
     }
+    if args.syntax_strict_only {
+        profile.facets = vec![Facet::Syntax];
+    }
     Ok(profile)
 }
 
@@ -8459,7 +8469,9 @@ fn check_status(status: ExitStatus, command: &str) -> Result<()> {
 }
 
 #[invariant(true)]
-struct NotImplementedBackend;
+struct NotImplementedBackend {
+    syntax_strict_only: bool,
+}
 
 #[contract_trait]
 impl FixtureBackend for NotImplementedBackend {
@@ -8478,6 +8490,7 @@ impl FixtureBackend for NotImplementedBackend {
         match facet {
             Facet::Morphology => run_morphology_fixture(fixture),
             Facet::Jvozba => run_jvozba_fixture(fixture),
+            Facet::Syntax if self.syntax_strict_only => run_syntax_strict_only_fixture(fixture),
             Facet::Syntax => run_syntax_fixture(fixture),
             Facet::SemanticsRefs => run_semantics_refs_fixture(fixture),
             Facet::VlaseiBrackets => {
@@ -9425,6 +9438,65 @@ fn normalize_cll_bracket_char(ch: char) -> Option<char> {
         'ĭ' | 'Ĭ' => Some('i'),
         'ŭ' | 'Ŭ' => Some('u'),
         other => Some(other),
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_syntax_strict_only_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let Some(expectation) = &fixture.test_case.expectations.syntax else {
+        return FacetResult::skipped("fixture has no syntax expectation");
+    };
+    if !syntax_accepts_success_tree_refresh(expectation) {
+        return FacetResult::skipped(format!(
+            "syntax strict-only skips expectation whose accepted status is not success: {:?}",
+            expectation.status
+        ));
+    }
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let words = match segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    ) {
+        Ok(words) => words,
+        Err(error) => {
+            return FacetResult::failed(format!(
+                "syntax strict-only blocked by morphology error: {error}"
+            ));
+        }
+    };
+
+    let strict = match parse_syntax_tree_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    ) {
+        Ok(parsed) => parsed,
+        Err(error) => return FacetResult::failed(format!("strict syntax error: {error}")),
+    };
+
+    let partial_valid = match syntax_tree_partial_valid_round_trip(&strict.parse_tree) {
+        Ok(parse_tree) => parse_tree,
+        Err(error) => {
+            return FacetResult::failed(format!(
+                "partial-valid syntax tree did not convert to strict tree: {error}"
+            ));
+        }
+    };
+    if partial_valid == strict.parse_tree {
+        FacetResult::passed()
+    } else {
+        FacetResult::failed(format_text_mismatch(
+            "partial-valid syntax tree",
+            &format_debug_value(&strict.parse_tree),
+            &format_debug_prefix(&partial_valid),
+        ))
     }
 }
 

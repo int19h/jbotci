@@ -1832,6 +1832,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "tree paths are any ordered sequence of validated path steps; tree-relative validity is checked during lookup",
     ),
     (
+        "crates/jbotci-tree/src/lib.rs:RecoveredPrefix",
+        "generic recovery prefix stores a non-empty Vec1 of typed recovery items plus a boxed recovered value",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:RecoveryError",
+        "generic recovery error pairs a validated tree path with a typed recovery item",
+    ),
+    (
         "crates/jbotci-tree/src/lib.rs:LeafNode",
         "tree macro test fixture intentionally has no extra field invariant",
     ),
@@ -1846,6 +1854,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-tree/src/lib.rs:RecordingVisitor",
         "tree macro test visitor stores traversal events",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:RecoveredRecordingVisitor",
+        "tree macro recovered test visitor stores traversal events",
     ),
     (
         "tests/fixture_suite.rs:FakeBackend",

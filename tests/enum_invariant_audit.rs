@@ -68,6 +68,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries reference analysis diagnostics",
     ),
     (
+        "crates/jbotci-tree/src/lib.rs:Recovered::Valid",
+        "generic recovery slot wrapper delegates semantic validity to the contained recovered field state",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:Recovered::Error",
+        "generic recovery slot wrapper delegates missing versus invalid classification to the typed recovery item",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:Recovered::Prefix",
+        "generic recovery slot wrapper delegates prefix error validity to Vec1 and typed recovery items",
+    ),
+    (
         "crates/jbotci-semantics/src/builder.rs:DaSeriesScopeSource::Explicit",
         "scope source variant carries borrowed syntax nodes whose validity is enforced by syntax model types",
     ),

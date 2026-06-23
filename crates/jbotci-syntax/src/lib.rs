@@ -2055,6 +2055,17 @@ pub fn parse_syntax_tree_with_source_and_options_attempt(
 
 #[requires(true)]
 #[ensures(true)]
+#[expensive_ensures(ret.as_ref().map_or(true, |tree| syntax_tree_eq_ignoring_spans(parse_tree, tree)))]
+pub fn syntax_tree_partial_valid_round_trip(
+    parse_tree: &TextSyntax,
+) -> Result<Box<TextSyntax>, jbotci_tree::RecoveryError<tree::RecoveryTreeItem>> {
+    tree::recovered::TextSyntax::from_valid(parse_tree.clone())
+        .try_into_valid()
+        .map(Box::new)
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub fn syntax_tree_eq_ignoring_spans(left: &TextSyntax, right: &TextSyntax) -> bool {
     let Ok(mut left) = serde_json::to_value(left) else {
         return false;
