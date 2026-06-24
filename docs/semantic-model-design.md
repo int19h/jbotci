@@ -204,7 +204,7 @@ All **logical** connectives, wherever they sit grammatically, desugar to the **s
 
 Realization algebra: four vowels **A=`or`(TTTF), E=`and`(TFFF), O=`iff`(TFFT), U=`whether-or-not`(TTFF)**, plus **`na`** (negate first), **`nai`** (negate second), **`se`** (exchange) generate 14 of the 16 functions. Mapping: `naCONN`→`C(not p, q)`, `CONNnai`→`C(p, not q)`, `seCONN`→`C(q, p)`; e.g. `na.a` is emitted as `or(not p, q)` while its truth table is implication. **U** asserts the first and marks the second `mode=inert` (truth-vacuous but discourse-present, import-bearing).
 
-**Connective questions** (`ji`/`je'i`/`gi'i`/`ge'i`) = a `PAR role=ma, tier=connective` at the connective node. **Non-logical connectives** (JOI/JOhI) do **not** enter `FRM` — they build **composite referents**: `jo'u`→`⊕`, `joi`→a `gunma` mass, `ce`→a `selcmi` set, `ce'o`→an ordered sequence, `fa'u`→a respectively-pairing.
+**Connective questions** (`ji`/`je'i`/`gi'i`/`ge'i`) = a `PAR role=ma, tier=connective` at the connective node. **Non-logical connectives** (JOI/JOhI) do **not** enter `FRM` — they build **composite referents**: `jo'u`→`⊕`, `joi`→a `gunma` mass, `ce`→a `selcmi` set, `ce'o`→an ordered sequence, `fa'u`→a respectively-pairing. When a non-logical termset associates tagged terms with different composite members, the modal relation records the relevant member via `component`.
 
 ## 0.M Letterals are signs used as handles
 

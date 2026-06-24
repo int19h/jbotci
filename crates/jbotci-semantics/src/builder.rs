@@ -1,6 +1,6 @@
 //! Syntax-to-semantic-graph builder for the public JSON semantics model.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
 
 #[allow(unused_imports)]
@@ -460,6 +460,14 @@ struct QuantifiedRelationVariableScope {
     quantity: Option<SemanticObjectId>,
     operator: FormulaOperator,
     source: Option<crate::model::SemanticSource>,
+}
+
+#[invariant(arguments.keys().all(|place| crate::model::is_numbered_argument_place(place)))]
+#[derive(Debug, Clone)]
+struct TermsetBranchSemantics {
+    arguments: BTreeMap<String, ArgumentValue>,
+    modal_arguments: Vec<ModalArgument>,
+    diagnostics: Vec<SemanticDiagnostic>,
 }
 
 #[invariant(::Negation => true)]
@@ -4083,6 +4091,21 @@ where
             .syntax_index
             .term_node_id(term)
             .and_then(|node| self.source_for_node(node.0, "termset-connection-formula"));
+        if connective_primary_cmavo(gek) == Some(Cmavo::Joi) {
+            return self
+                .build_nonlogical_termset_connection_formula(
+                    term,
+                    gek,
+                    before_terms,
+                    leading_terms,
+                    trailing_terms,
+                    after_terms,
+                    selbri,
+                    relation,
+                    source,
+                )
+                .map(Some);
+        }
         let leading = self.build_termset_branch_formula_from_term_runs(
             before_terms,
             leading_terms,
@@ -4169,6 +4192,21 @@ where
             .syntax_index
             .term_node_id(term)
             .and_then(|node| self.source_for_node(node.0, "termset-connection-formula"));
+        if connective_primary_cmavo(connective) == Some(Cmavo::Joi) {
+            return self
+                .build_nonlogical_termset_connection_formula(
+                    term,
+                    connective,
+                    before_terms,
+                    leading_terms,
+                    trailing_terms,
+                    after_terms,
+                    selbri,
+                    relation,
+                    source,
+                )
+                .map(Some);
+        }
         let leading = self.build_termset_branch_formula_from_term_runs(
             before_terms,
             leading_terms,
@@ -4233,6 +4271,135 @@ where
             ),
         )
         .map(Some)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_nonlogical_termset_connection_formula(
+        &mut self,
+        term: &'tree TermSyntax,
+        connective: &'tree ConnectiveSyntax,
+        before_terms: &[&'tree TermSyntax],
+        leading_terms: &'tree [TermSyntax],
+        trailing_terms: &'tree [TermSyntax],
+        after_terms: &[&'tree TermSyntax],
+        selbri: Option<&'tree SelbriSyntax>,
+        relation: String,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let data!(TermsetBranchSemantics {
+            arguments: leading_arguments,
+            modal_arguments: leading_modal_arguments,
+            diagnostics: mut leading_diagnostics,
+        }) = self
+            .collect_termset_branch_semantics(before_terms, leading_terms, after_terms)?
+            .into_data();
+        let data!(TermsetBranchSemantics {
+            arguments: trailing_arguments,
+            modal_arguments: trailing_modal_arguments,
+            diagnostics: trailing_diagnostics,
+        }) = self
+            .collect_termset_branch_semantics(before_terms, trailing_terms, after_terms)?
+            .into_data();
+        leading_diagnostics.extend(trailing_diagnostics);
+        let mut arguments = BTreeMap::new();
+        let mut places = leading_arguments.keys().cloned().collect::<BTreeSet<_>>();
+        places.extend(trailing_arguments.keys().cloned());
+        let raw = self
+            .analysis
+            .syntax_index
+            .term_node_id(term)
+            .ok_or_else(SemanticsError::missing_syntax_node)?
+            .0;
+        for place in places {
+            match (
+                leading_arguments.get(&place),
+                trailing_arguments.get(&place),
+            ) {
+                (Some(leading), Some(trailing)) if leading.value == trailing.value => {
+                    arguments.insert(place, leading.clone());
+                }
+                (Some(leading), Some(trailing)) => {
+                    let Some(leading_value) = leading.value else {
+                        leading_diagnostics.push(diagnostic(
+                            "non-logical termset branch deleted place cannot be composed",
+                        ));
+                        continue;
+                    };
+                    let Some(trailing_value) = trailing.value else {
+                        leading_diagnostics.push(diagnostic(
+                            "non-logical termset branch deleted place cannot be composed",
+                        ));
+                        continue;
+                    };
+                    let reverse_members = connective_reverses_composition_members(connective);
+                    let (first, second) = if reverse_members {
+                        (trailing_value, leading_value)
+                    } else {
+                        (leading_value, trailing_value)
+                    };
+                    let operator = nonlogical_composition_operator(connective);
+                    let composite = self.build_composite_referent(
+                        raw,
+                        new!(Composition {
+                            operator: operator.clone(),
+                            operator_parameter: None,
+                            members: vec![first, second],
+                            excluded_members: Vec::new(),
+                            collective: (operator == "mass").then_some(true),
+                            scalar_negated: connective_negates_right(connective).then_some(true),
+                            complement: None,
+                            endpoint_inclusion: None,
+                        }),
+                    )?;
+                    arguments.insert(place, ArgumentValue::filled(composite, None));
+                }
+                (Some(argument), None) | (None, Some(argument)) => {
+                    arguments.insert(place, argument.clone());
+                }
+                (None, None) => {}
+            }
+        }
+        let leading_component = leading_arguments
+            .get("x1")
+            .and_then(|argument| argument.value);
+        let trailing_component = trailing_arguments
+            .get("x1")
+            .and_then(|argument| argument.value);
+        let modal_arguments = leading_modal_arguments
+            .into_iter()
+            .map(|argument| {
+                leading_component.map_or(argument.clone(), |component| {
+                    argument.with_component(component)
+                })
+            })
+            .chain(trailing_modal_arguments.into_iter().map(|argument| {
+                trailing_component.map_or(argument.clone(), |component| {
+                    argument.with_component(component)
+                })
+            }))
+            .collect::<Vec<_>>();
+        let predication = self.build_predication_from_arguments(
+            relation,
+            selbri,
+            source.clone(),
+            arguments,
+            leading_diagnostics,
+        )?;
+        if !modal_arguments.is_empty() {
+            self.objects
+                .get_mut(&predication)
+                .ok_or_else(|| {
+                    SemanticsError::invalid_graph(format!("missing predication {predication}"))
+                })?
+                .modal_arguments
+                .extend(modal_arguments);
+        }
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )
     }
 
     #[requires(true)]
@@ -4412,37 +4579,13 @@ where
         relation: String,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let mut arguments = BTreeMap::new();
-        let mut modal_arguments = Vec::new();
-        let mut diagnostics = Vec::new();
-        let mut next_sequential_place = 1usize;
-        for term in before_terms {
-            self.append_termset_branch_term(
-                term,
-                &mut arguments,
-                &mut modal_arguments,
-                &mut diagnostics,
-                &mut next_sequential_place,
-            )?;
-        }
-        for term in terms {
-            self.append_termset_branch_term(
-                term,
-                &mut arguments,
-                &mut modal_arguments,
-                &mut diagnostics,
-                &mut next_sequential_place,
-            )?;
-        }
-        for term in after_terms {
-            self.append_termset_branch_term(
-                term,
-                &mut arguments,
-                &mut modal_arguments,
-                &mut diagnostics,
-                &mut next_sequential_place,
-            )?;
-        }
+        let data!(TermsetBranchSemantics {
+            mut arguments,
+            modal_arguments,
+            diagnostics,
+        }) = self
+            .collect_termset_branch_semantics(before_terms, terms, after_terms)?
+            .into_data();
         let highest_place = arguments
             .keys()
             .filter_map(|place| argument_place_index(place))
@@ -4479,6 +4622,54 @@ where
             formula,
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn collect_termset_branch_semantics(
+        &mut self,
+        before_terms: &[&'tree TermSyntax],
+        terms: &'tree [TermSyntax],
+        after_terms: &[&'tree TermSyntax],
+    ) -> Result<TermsetBranchSemantics, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        let mut modal_arguments = Vec::new();
+        let mut diagnostics = Vec::new();
+        let mut next_sequential_place = 1usize;
+        for term in before_terms {
+            self.append_termset_branch_term(
+                term,
+                &mut arguments,
+                &mut modal_arguments,
+                &mut diagnostics,
+                &mut next_sequential_place,
+            )?;
+        }
+        for term in terms {
+            self.append_termset_branch_term(
+                term,
+                &mut arguments,
+                &mut modal_arguments,
+                &mut diagnostics,
+                &mut next_sequential_place,
+            )?;
+        }
+        for term in after_terms {
+            self.append_termset_branch_term(
+                term,
+                &mut arguments,
+                &mut modal_arguments,
+                &mut diagnostics,
+                &mut next_sequential_place,
+            )?;
+        }
+        Ok(TermsetBranchSemantics::from_data(data!(
+            TermsetBranchSemantics {
+                arguments,
+                modal_arguments,
+                diagnostics,
+            }
+        )))
     }
 
     #[requires(*next_sequential_place > 0)]
@@ -24183,6 +24374,66 @@ mod tests {
         assert_eq!(content["operator"], "and");
         assert_eq!(content["connector"]["source"], "ge");
         assert_eq!(content["connector"]["locus"], "termset");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nonlogical_joi_termset_builds_mass_with_component_modals() {
+        for text in [
+            "mi ce'e bau la .lojban. pe'e joi do ce'e bau la .gliban. casnu",
+            "nu'i joigi mi bau la .lojban. gi do bau la .gliban. nu'u casnu",
+        ] {
+            let json = semantic_json_for(text).expect("semantic JSON");
+            let casnus = predications_with_relation_and_mode(&json, "casnu", "asserted");
+            assert_eq!(casnus.len(), 1, "{text}");
+            let x1 = casnus[0]["arguments"]["x1"]["value"]
+                .as_str()
+                .expect("casnu x1");
+            let composition = &object(&json, x1)["composition"];
+            assert_eq!(composition["operator"], "mass", "{text}");
+            assert_eq!(composition["members"][0], "referent:speaker", "{text}");
+            assert_eq!(composition["members"][1], "referent:addressee", "{text}");
+            assert_eq!(composition["collective"], true, "{text}");
+            assert_eq!(casnus[0]["modalArguments"].as_array().unwrap().len(), 2);
+            let component_languages = casnus[0]["modalArguments"]
+                .as_array()
+                .expect("modal arguments")
+                .iter()
+                .map(|argument| {
+                    (
+                        argument["component"]
+                            .as_str()
+                            .expect("modal component")
+                            .to_owned(),
+                        object(
+                            &json,
+                            argument["arguments"]["x1"]["value"]
+                                .as_str()
+                                .expect("language referent"),
+                        )["descriptor"]["name"]
+                            .as_str()
+                            .expect("language name")
+                            .to_owned(),
+                    )
+                })
+                .collect::<BTreeSet<_>>();
+            assert_eq!(
+                component_languages,
+                BTreeSet::from([
+                    ("referent:speaker".to_owned(), "lojban".to_owned()),
+                    ("referent:addressee".to_owned(), "gliban".to_owned())
+                ]),
+                "{text}"
+            );
+            let content = object(
+                &json,
+                object(&json, "utterance:u1")["content"]
+                    .as_str()
+                    .expect("utterance content"),
+            );
+            assert_eq!(content["operator"], "atom", "{text}");
+        }
     }
 
     #[test]

@@ -2397,12 +2397,15 @@ pub enum ModalNegationKind {
 #[invariant(!introduced_by.is_empty(), "modal source marker must be named")]
 #[invariant(!arguments.is_empty(), "modal relation must have at least one explicit place")]
 #[invariant(arguments.keys().all(|place| is_numbered_argument_place(place)))]
+#[invariant(component.is_none_or(|component| argument_object_kind_can_fill(component.object_kind())))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModalArgument {
     pub relation: String,
     pub introduced_by: String,
     pub arguments: BTreeMap<String, ArgumentValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub component: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub negation: Option<ModalNegation>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -2445,10 +2448,21 @@ impl ModalArgument {
             relation,
             introduced_by,
             arguments,
+            component: None,
             negation,
             scalar_negation,
             modifiers: Vec::new(),
             source,
+        }))
+    }
+
+    #[requires(argument_object_kind_can_fill(component.object_kind()))]
+    #[ensures(ret.component == Some(component))]
+    pub fn with_component(self, component: SemanticObjectId) -> Self {
+        let data = self.into_data();
+        Self::from_data(data!(ModalArgument {
+            component: Some(component),
+            ..data
         }))
     }
 
@@ -2458,6 +2472,7 @@ impl ModalArgument {
         for argument in self.arguments.values() {
             argument.references_into(out);
         }
+        extend_optional(out, self.component);
     }
 }
 

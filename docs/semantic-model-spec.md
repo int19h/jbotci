@@ -1582,6 +1582,14 @@ Reference-frame tags such as `ma'i vo'a` use the source relation `manri` in
 `modalArguments`, with the resolved reference-frame sumti filling the visible
 place.
 
+`modalArguments[].component`, when present, identifies the component of a
+composite argument that the modal applies to.  CLL 14.131/14.132 requires this:
+`mi ce'e bau la .lojban. pe'e joi do ce'e bau la .gliban. casnu` has one
+`casnu` predication whose x1 is the mass of `mi` and `do`, but the `bau` modal
+for Lojban applies to the speaker component and the `bau` modal for English
+applies to the addressee component.  Without `component`, the two language
+modals would incorrectly describe the whole mass uniformly.
+
 Ad-hoc modal tags with `fi'o` use the tagged selbri's relation and public place
 structure.  The modal sumti fills the tag relation's visible x1, after
 conversion if any, and any dictionary-known omitted places are explicit
