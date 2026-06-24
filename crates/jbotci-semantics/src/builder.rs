@@ -480,6 +480,8 @@ struct QuantifiedProSumtiScope {
 struct ConnectedQuantifierQuantityScope {
     left_quantity: SemanticObjectId,
     right_quantity: SemanticObjectId,
+    left_negated: bool,
+    right_negated: bool,
     operator: FormulaOperator,
     connector: Connector,
     source: Option<crate::model::SemanticSource>,
@@ -2790,6 +2792,8 @@ where
             let data!(ConnectedQuantifierQuantityScope {
                 left_quantity,
                 right_quantity,
+                left_negated,
+                right_negated,
                 operator: connection_operator,
                 connector,
                 source: connection_source,
@@ -2807,6 +2811,11 @@ where
                     Vec::new(),
                 ),
             )?;
+            let left = if left_negated {
+                self.build_unary_formula(FormulaOperator::Not, left, source.clone(), Vec::new())?
+            } else {
+                left
+            };
             let right = self.next_formula();
             self.insert(
                 right,
@@ -2816,10 +2825,15 @@ where
                     restriction,
                     formula,
                     Some(right_quantity),
-                    source,
+                    source.clone(),
                     Vec::new(),
                 ),
             )?;
+            let right = if right_negated {
+                self.build_unary_formula(FormulaOperator::Not, right, source, Vec::new())?
+            } else {
+                right
+            };
             let connected = self.next_formula();
             return self.insert(
                 connected,
@@ -4510,16 +4524,24 @@ where
         relation: String,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         let primary_terms = primary_bridi_place_terms(bridi);
-        let Some((position, term, gek, leading_terms, trailing_terms)) = primary_terms
+        let Some((position, term, gek, leading_terms, gik, trailing_terms)) = primary_terms
             .iter()
             .enumerate()
             .find_map(|(position, term)| match term.as_data() {
                 data!(TermSyntax::ForethoughtTermsetConnection {
                     gek,
                     terms,
+                    gik,
                     gik_terms,
                     ..
-                }) => Some((position, *term, gek, terms.as_slice(), gik_terms.as_slice())),
+                }) => Some((
+                    position,
+                    *term,
+                    gek,
+                    terms.as_slice(),
+                    gik,
+                    gik_terms.as_slice(),
+                )),
                 _ => None,
             })
         else {
@@ -4584,8 +4606,19 @@ where
             relation,
             source.clone(),
         )?;
-        let mut children = vec![leading, trailing];
+        let leading = if connective_primary_negates_left(gek) {
+            self.build_unary_formula(FormulaOperator::Not, leading, source.clone(), Vec::new())?
+        } else {
+            leading
+        };
+        let trailing = if connective_negates_right(gik) {
+            self.build_unary_formula(FormulaOperator::Not, trailing, source.clone(), Vec::new())?
+        } else {
+            trailing
+        };
+        let mut children = ordered_connective_children(gek, leading, trailing);
         let mut diagnostics = Vec::new();
+        self.mark_whether_or_not_inert_operand(gek, leading, trailing);
         let operator = if let Some(spec) = modal_statement_connection_spec(gek) {
             match self.build_modal_formula_connection_claim(leading, trailing, &spec, source.clone())?
             {
@@ -4604,10 +4637,15 @@ where
             SemanticObject::connective_formula(
                 operator,
                 children,
-                Some(connective_connector_with_source(
+                Some(forethought_pair_connector_with_source(
                     gek,
+                    gik,
                     "termset",
-                    connective_text(gek),
+                    format!(
+                        "{} {}",
+                        full_connective_text(gek),
+                        full_connective_text(gik)
+                    ),
                     None,
                 )),
                 source,
@@ -4974,8 +5012,8 @@ where
             let data!(MeksoSyntax::ForethoughtMeksoConnection {
                 gek,
                 left_expression,
+                gik,
                 right_expression,
-                ..
             }) = expression.as_data()
             else {
                 continue;
@@ -5005,8 +5043,19 @@ where
                 selbri,
                 source.clone(),
             )?;
-            let mut children = vec![left, right];
+            let left = if connective_primary_negates_left(gek) {
+                self.build_unary_formula(FormulaOperator::Not, left, source.clone(), Vec::new())?
+            } else {
+                left
+            };
+            let right = if connective_negates_right(gik) {
+                self.build_unary_formula(FormulaOperator::Not, right, source.clone(), Vec::new())?
+            } else {
+                right
+            };
+            let mut children = ordered_connective_children(gek, left, right);
             let mut diagnostics = Vec::new();
+            self.mark_whether_or_not_inert_operand(gek, left, right);
             let operator = if let Some(spec) = modal_statement_connection_spec(gek) {
                 match self.build_modal_formula_connection_claim(
                     left,
@@ -5030,10 +5079,15 @@ where
                     SemanticObject::connective_formula(
                         operator,
                         children,
-                        Some(connective_connector_with_source(
+                        Some(forethought_pair_connector_with_source(
                             gek,
+                            gik,
                             "operand",
-                            connective_text(gek),
+                            format!(
+                                "{} {}",
+                                full_connective_text(gek),
+                                full_connective_text(gik)
+                            ),
                             None,
                         )),
                         source,
@@ -5709,12 +5763,12 @@ where
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let left_formula = if connective_negates_left(connective) {
+        let left_formula = if connective_primary_negates_left(connective) {
             self.build_unary_formula(FormulaOperator::Not, left, source.clone(), Vec::new())?
         } else {
             left
         };
-        let right_formula = if connective_negates_right(connective) {
+        let right_formula = if connective_primary_negates_right(connective) {
             self.build_unary_formula(FormulaOperator::Not, right, source.clone(), Vec::new())?
         } else {
             right
@@ -5732,7 +5786,7 @@ where
         self.build_connective_formula(
             operator,
             ordered_connective_children(connective, left_formula, right_formula),
-            Some(connective_connector_with_source(
+            Some(primary_connective_connector_with_source(
                 connective,
                 locus,
                 full_connective_text(connective),
@@ -6197,7 +6251,7 @@ where
                 }
                 let tense_relation = modal_tense_relation_spec_for_connective(gek).is_some();
                 let relation_only = tense_relation && !claim_tense_branches;
-                let first_formula = if connective_negates_left(gek) {
+                let first_formula = if connective_primary_negates_left(gek) {
                     self.build_unary_formula(FormulaOperator::Not, first_formula, None, Vec::new())?
                 } else {
                     first_formula
@@ -6275,10 +6329,15 @@ where
                     SemanticObject::connective_formula(
                         operator,
                         children,
-                        Some(connective_connector_with_source(
+                        Some(forethought_pair_connector_with_source(
                             gek,
+                            gik,
                             "bridi",
-                            format!("{} {}", connective_text(gek), connective_text(gik)),
+                            format!(
+                                "{} {}",
+                                full_connective_text(gek),
+                                full_connective_text(gik)
+                            ),
                             None,
                         )),
                         None,
@@ -14928,8 +14987,10 @@ where
             ConnectedQuantifierQuantityScope {
                 left_quantity,
                 right_quantity,
+                left_negated: connective_primary_negates_left(connective),
+                right_negated: connective_primary_negates_right(connective),
                 operator: formula_operator_for_connective(connective),
-                connector: connective_connector_with_source(
+                connector: primary_connective_connector_with_source(
                     connective,
                     locus,
                     full_connective_text(connective),
@@ -20112,6 +20173,55 @@ fn connective_connector_with_source(
     }
 }
 
+#[requires(!locus.is_empty())]
+#[requires(!source.is_empty())]
+#[requires(parameter.is_none_or(|parameter| parameter.object_kind() == crate::model::SemanticObjectKind::Parameter))]
+#[ensures(!ret.source.is_empty())]
+fn primary_connective_connector_with_source(
+    connective: &ConnectiveSyntax,
+    locus: &str,
+    source: String,
+    parameter: Option<SemanticObjectId>,
+) -> Connector {
+    Connector {
+        source,
+        locus: locus.to_owned(),
+        truth_table: if parameter.is_some() {
+            None
+        } else {
+            connective_primary_truth_table(connective)
+        },
+        parameter,
+    }
+}
+
+#[requires(!locus.is_empty())]
+#[requires(!source.is_empty())]
+#[requires(parameter.is_none_or(|parameter| parameter.object_kind() == crate::model::SemanticObjectKind::Parameter))]
+#[ensures(!ret.source.is_empty())]
+fn forethought_pair_connector_with_source(
+    gek: &ConnectiveSyntax,
+    gik: &ConnectiveSyntax,
+    locus: &str,
+    source: String,
+    parameter: Option<SemanticObjectId>,
+) -> Connector {
+    Connector {
+        source,
+        locus: locus.to_owned(),
+        truth_table: if parameter.is_some() {
+            None
+        } else {
+            connective_truth_table_with_operand_negation(
+                gek,
+                connective_primary_negates_left(gek),
+                connective_negates_right(gik),
+            )
+        },
+        parameter,
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn formula_operator_for_connective(connective: &ConnectiveSyntax) -> FormulaOperator {
@@ -20189,6 +20299,30 @@ fn connective_negates_left(connective: &ConnectiveSyntax) -> bool {
 #[requires(true)]
 #[ensures(ret.is_none() || ret.as_ref().is_some_and(|table| table.len() == 4))]
 fn connective_truth_table(connective: &ConnectiveSyntax) -> Option<String> {
+    connective_truth_table_with_operand_negation(
+        connective,
+        connective_negates_left(connective),
+        connective_negates_right(connective),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.is_none() || ret.as_ref().is_some_and(|table| table.len() == 4))]
+fn connective_primary_truth_table(connective: &ConnectiveSyntax) -> Option<String> {
+    connective_truth_table_with_operand_negation(
+        connective,
+        connective_primary_negates_left(connective),
+        connective_primary_negates_right(connective),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.is_none() || ret.as_ref().is_some_and(|table| table.len() == 4))]
+fn connective_truth_table_with_operand_negation(
+    connective: &ConnectiveSyntax,
+    left_negated: bool,
+    right_negated: bool,
+) -> Option<String> {
     if !connective_is_logical(connective)
         || direct_connective_question_token_for_connective(connective).is_some()
     {
@@ -20196,14 +20330,12 @@ fn connective_truth_table(connective: &ConnectiveSyntax) -> Option<String> {
     }
     let base = connective_primary_logical_kind(connective)?;
     let se = connective_has_se_conversion(connective);
-    let na = connective_negates_left(connective);
-    let nai = connective_negates_right(connective);
     Some(
         [(true, true), (true, false), (false, true), (false, false)]
             .into_iter()
             .map(|(left, right)| {
-                let left = if na { !left } else { left };
-                let right = if nai { !right } else { right };
+                let left = if left_negated { !left } else { left };
+                let right = if right_negated { !right } else { right };
                 let result = if se {
                     connective_truth_value(base, right, left)
                 } else {
@@ -20213,6 +20345,24 @@ fn connective_truth_table(connective: &ConnectiveSyntax) -> Option<String> {
             })
             .collect(),
     )
+}
+
+#[requires(true)]
+#[ensures(ret -> matches!(connective.as_data(), data!(ConnectiveSyntax::Forethought { .. })) || connective_negates_left(connective))]
+fn connective_primary_negates_left(connective: &ConnectiveSyntax) -> bool {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Forethought { na, nai, .. }) => na.is_some() || nai.is_some(),
+        _ => connective_negates_left(connective),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret -> !matches!(connective.as_data(), data!(ConnectiveSyntax::Forethought { nai: Some(_), .. })) || connective_negates_right(connective))]
+fn connective_primary_negates_right(connective: &ConnectiveSyntax) -> bool {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Forethought { .. }) => false,
+        _ => connective_negates_right(connective),
+    }
 }
 
 #[requires(true)]
@@ -25410,7 +25560,7 @@ mod tests {
                 .as_str()
                 .expect("utterance content"),
         );
-        assert_eq!(content["connector"]["source"], "mu'i gi");
+        assert_eq!(content["connector"]["source"], "mu'i gi gi");
         assert_eq!(content["connector"]["locus"], "termset");
     }
 
@@ -25539,7 +25689,7 @@ mod tests {
                 .expect("utterance content"),
         );
         assert_eq!(content["operator"], "and");
-        assert_eq!(content["connector"]["source"], "ge");
+        assert_eq!(content["connector"]["source"], "ge gi");
         assert_eq!(content["connector"]["locus"], "termset");
     }
 
@@ -25650,6 +25800,101 @@ mod tests {
         assert_eq!(krinu["introducedBy"], "ki'u");
         assert_eq!(krinu["arguments"]["x1"]["value"], nelci[1]["eventuality"]);
         assert_eq!(krinu["arguments"]["x2"]["value"], nelci[0]["eventuality"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn forethought_leading_nai_negates_first_bridi_operand() {
+        let json =
+            semantic_json_for("ganai la djan. nanmu gi la djeimyz. ninmu").expect("semantic JSON");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "or");
+        assert_eq!(content["connector"]["source"], "ga nai gi");
+        assert_eq!(content["connector"]["truthTable"], "TFTT");
+        let children = content["children"].as_array().expect("children");
+        let first = object(&json, children[0].as_str().expect("first child"));
+        let second = object(&json, children[1].as_str().expect("second child"));
+        assert_eq!(first["operator"], "not");
+        assert_eq!(second["operator"], "atom");
+        let first_atom = object(&json, first["children"][0].as_str().expect("negated atom"));
+        let first_predication = object(
+            &json,
+            first_atom["predication"]
+                .as_str()
+                .expect("first predication"),
+        );
+        let second_predication = object(
+            &json,
+            second["predication"].as_str().expect("second predication"),
+        );
+        assert_eq!(first_predication["relation"], "nanmu");
+        assert_eq!(second_predication["relation"], "ninmu");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn forethought_leading_and_trailing_nai_negate_their_own_operands() {
+        let json = semantic_json_for("ganai la djan. nanmu ginai la djeimyz. ninmu")
+            .expect("semantic JSON");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "or");
+        assert_eq!(content["connector"]["source"], "ga nai gi nai");
+        assert_eq!(content["connector"]["truthTable"], "FTTT");
+        let children = content["children"].as_array().expect("children");
+        assert_eq!(
+            object(&json, children[0].as_str().expect("first child"))["operator"],
+            "not"
+        );
+        assert_eq!(
+            object(&json, children[1].as_str().expect("second child"))["operator"],
+            "not"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn forethought_leading_nai_negates_first_selbri_operand() {
+        let json = semantic_json_for("gu'enai broda gi brode").expect("semantic JSON");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "and");
+        assert_eq!(content["connector"]["source"], "gu'e nai");
+        assert_eq!(content["connector"]["truthTable"], "FFTF");
+        let children = content["children"].as_array().expect("children");
+        let first = object(&json, children[0].as_str().expect("first child"));
+        let second = object(&json, children[1].as_str().expect("second child"));
+        assert_eq!(first["operator"], "not");
+        assert_eq!(second["operator"], "atom");
+        let first_atom = object(&json, first["children"][0].as_str().expect("negated atom"));
+        let first_predication = object(
+            &json,
+            first_atom["predication"]
+                .as_str()
+                .expect("first predication"),
+        );
+        let second_predication = object(
+            &json,
+            second["predication"].as_str().expect("second predication"),
+        );
+        assert_eq!(first_predication["relation"], "broda");
+        assert_eq!(second_predication["relation"], "brode");
     }
 
     #[test]
@@ -25780,7 +26025,7 @@ mod tests {
                 .expect("utterance content"),
         );
         assert_eq!(content["children"].as_array().expect("children").len(), 3);
-        assert_eq!(content["connector"]["source"], "ni'i gi");
+        assert_eq!(content["connector"]["source"], "ni'i gi gi");
         assert_eq!(content["connector"]["locus"], "operand");
     }
 
