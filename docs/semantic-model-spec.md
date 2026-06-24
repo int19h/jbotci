@@ -874,6 +874,14 @@ CLL 17.11's treatment of lerfu strings as mathematical variables.  This is not
 arithmetic normalization: `li vo` and `li re su'i re` remain distinct unless an
 explicit bridi, connective, or later math solver relates them.
 
+When a parenthesized mekso used as a sumti quantifier has a logical operand
+connective, the connective has formula scope over the resulting quantified
+claims.  For CLL 14.149/14.150, `vei ci .a vo prenu cu klama le zarci` is not a
+single cardinality formula with an opaque quantity; it is an `or` formula with
+`connector.locus = "mekso-operand"` whose children are the two cardinality
+formulas using quantities 3 and 4.  Shared surrounding semantic material such as
+`le zarci` remains shared by id.
+
 `me'o` is different: it refers to the written/expression sign, not to the
 numeric value.  Its sumti therefore emits a `sign` object:
 
@@ -1928,6 +1936,40 @@ connective between arguments can have the same truth table but different
 sharing behavior for eventualities, arguments, or quantifier scope.  This is an
 amendment from the earlier model.
 
+`respectivelyDistribution` records the truth-conditional zip introduced by
+`fa'u` when multiple parallel streams co-vary by index.  Its `body` is the
+formula being distributed.  Each entry in `streams` has a `slot` parameter with
+`role = "respectiveSlot"` and an ordered `items` list.  Streams that correspond
+to quantified witnesses can also carry the source `quantity` and a `restriction`
+template over the slot; use `distinctPartition = true` when the quantified stream
+is partitioned into distinct witnesses.
+
+```json
+{
+  "type": "formula",
+  "operator": "respectivelyDistribution",
+  "body": "formula:f-template",
+  "streams": [
+    {
+      "slot": "parameter:p-lover",
+      "items": ["referent:james", "referent:george"]
+    },
+    {
+      "slot": "parameter:p-loved",
+      "items": ["referent:sister-1", "referent:sister-2"],
+      "restriction": "formula:f-sister-slot",
+      "quantity": "quantity:q-two"
+    }
+  ],
+  "distinctPartition": true
+}
+```
+
+For termset cases where the second parallel stream is a complete branch formula
+such as CLL 14.133, the branch stream's items may be formulas rather than entity
+referents; this preserves the modal/tag content associated with each index while
+still exposing the zip.
+
 For logical connectives, `connector.truthTable` is the canonical four-bit truth
 table in row order `TT`, `TF`, `FT`, `FF`, using `T` and `F` characters.  It
 records the truth function after applying operand negation (`na`/`nai`) and
@@ -2852,6 +2894,13 @@ semantic abstraction supplied by that selbri when one is explicit:
 SE conversion on mekso operators is reflected by the operand order in the
 resulting math expression.  For example, `ci se vu'u vo` is subtraction with
 the first two operands swapped, representing `4 - 3`, not `3 - 4`.
+
+Logical connectives between mekso operators are not serialized as fused operator
+strings.  When such a connected operator occurs in a `li ... du ...` identity
+claim, the identity claim branches at formula level.  For CLL 14.151/14.152,
+`li re su'i je pi'i re du li vo` becomes an `and` formula with
+`connector.locus = "mekso-operator"` over two identity atoms: one for
+`re su'i re = vo` and one for `re pi'i re = vo`.
 
 ### quantity
 
@@ -4602,7 +4651,7 @@ implementation gaps are listed separately in “Known Implementation Divergences
     (14.133). Add a declarative `respectivelyDistribution` FRM node: a reference-by-id
     `body` template + N parallel `streams`, a distinctness/partition flag for the
     quantifier-witness case, and `parameter.role="respectiveSlot"` placeholders.
-    Keeps one reading; does not pre-flatten.
+    Keeps one reading; does not pre-flatten. Implemented in `tersmu` v1.
 
 15. **`vau`-distributed shared terms (#20) — extend.** Coreference is shared id (0.B,
     no binder node). Make id-reuse for grammatically shared tail/head terms

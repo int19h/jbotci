@@ -3122,26 +3122,58 @@ pub enum QuestionSlotRole {
     RespectiveSlot,
 }
 
+#[invariant(slot.object_kind() == SemanticObjectKind::Parameter)]
 #[invariant(!items.is_empty(), "respectively stream cannot be empty")]
 #[invariant(items.iter().all(|item| argument_object_kind_can_fill(item.object_kind())))]
+#[invariant(restriction.is_none_or(|restriction| restriction.object_kind() == SemanticObjectKind::Formula))]
+#[invariant(quantity.is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RespectivelyStream {
+    pub slot: SemanticObjectId,
     pub items: Vec<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restriction: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantity: Option<SemanticObjectId>,
 }
 
 impl RespectivelyStream {
+    #[requires(slot.object_kind() == SemanticObjectKind::Parameter)]
     #[requires(!items.is_empty())]
     #[requires(items.iter().all(|item| argument_object_kind_can_fill(item.object_kind())))]
     #[ensures(ret.items == old(items.clone()))]
-    pub fn new(items: Vec<SemanticObjectId>) -> Self {
-        Self::from_data(data!(RespectivelyStream { items }))
+    pub fn new(slot: SemanticObjectId, items: Vec<SemanticObjectId>) -> Self {
+        Self::new_with_details(slot, items, None, None)
+    }
+
+    #[requires(slot.object_kind() == SemanticObjectKind::Parameter)]
+    #[requires(!items.is_empty())]
+    #[requires(items.iter().all(|item| argument_object_kind_can_fill(item.object_kind())))]
+    #[requires(restriction.is_none_or(|restriction| restriction.object_kind() == SemanticObjectKind::Formula))]
+    #[requires(quantity.is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity))]
+    #[ensures(ret.slot == old(slot))]
+    pub fn new_with_details(
+        slot: SemanticObjectId,
+        items: Vec<SemanticObjectId>,
+        restriction: Option<SemanticObjectId>,
+        quantity: Option<SemanticObjectId>,
+    ) -> Self {
+        Self::from_data(data!(RespectivelyStream {
+            slot,
+            items,
+            restriction,
+            quantity,
+        }))
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        out.push(self.slot);
         out.extend(self.items.iter().copied());
+        extend_optional(out, self.restriction);
+        extend_optional(out, self.quantity);
     }
 }
 
@@ -3257,10 +3289,13 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && optional_reference_has_kind(object.body, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.quantity, SemanticObjectKind::Quantity)
         && object.streams.iter().all(|stream| {
-            stream
-                .items
-                .iter()
-                .all(|item| argument_object_kind_can_fill(item.object_kind()))
+            stream.slot.object_kind() == SemanticObjectKind::Parameter
+                && stream
+                    .items
+                    .iter()
+                    .all(|item| argument_object_kind_can_fill(item.object_kind()))
+                && optional_reference_has_kind(stream.restriction, SemanticObjectKind::Formula)
+                && optional_reference_has_kind(stream.quantity, SemanticObjectKind::Quantity)
         })
         && target_reference_matches_role(object.object_kind(), object.target)
         && denotes_reference_matches_role(object.object_kind(), object.denotes)

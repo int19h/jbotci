@@ -39,11 +39,11 @@ use crate::model::{
     QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
     RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
     RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
-    ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject,
-    SemanticObjectId, SemanticObjectKind, SemanticOperatorData, SemanticSort, SequenceRelation,
-    SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind, TanruLink, TemporalPathAnchor,
-    TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint,
-    UtteranceForce, diagnostic, source_from_spans,
+    RespectivelyStream, ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph,
+    SemanticObject, SemanticObjectId, SemanticObjectKind, SemanticOperatorData, SemanticSort,
+    SequenceRelation, SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind, TanruLink,
+    TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
+    TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic, source_from_spans,
 };
 use crate::references::{
     AssignmentSource, BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -463,11 +463,24 @@ struct RelationVariableScopeSource<'tree> {
 
 #[invariant(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
 #[invariant(quantity.is_none_or(|quantity| quantity.object_kind() == crate::model::SemanticObjectKind::Quantity))]
+#[invariant(quantity_connection.as_ref().is_none_or(|connection| quantity.is_none() && connection.left_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity && connection.right_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity))]
 #[derive(Debug, Clone)]
 struct QuantifiedProSumtiScope {
     variable: SemanticObjectId,
     quantity: Option<SemanticObjectId>,
+    quantity_connection: Option<ConnectedQuantifierQuantityScope>,
     operator: FormulaOperator,
+    source: Option<crate::model::SemanticSource>,
+}
+
+#[invariant(left_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)]
+#[invariant(right_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)]
+#[derive(Debug, Clone)]
+struct ConnectedQuantifierQuantityScope {
+    left_quantity: SemanticObjectId,
+    right_quantity: SemanticObjectId,
+    operator: FormulaOperator,
+    connector: Connector,
     source: Option<crate::model::SemanticSource>,
 }
 
@@ -2753,6 +2766,7 @@ where
         let data!(QuantifiedProSumtiScope {
             variable,
             quantity,
+            quantity_connection,
             operator,
             source,
         }) = scope.into_data();
@@ -2762,6 +2776,61 @@ where
                 variable,
                 explicit_restrictions,
             )?;
+        if let Some(distribution) = self.build_quantified_respectively_distribution_formula(
+            formula,
+            variable,
+            quantity,
+            restriction,
+            source.clone(),
+        )? {
+            return Ok(distribution);
+        }
+        if let Some(connection) = quantity_connection {
+            let data!(ConnectedQuantifierQuantityScope {
+                left_quantity,
+                right_quantity,
+                operator: connection_operator,
+                connector,
+                source: connection_source,
+            }) = connection.into_data();
+            let left = self.next_formula();
+            self.insert(
+                left,
+                SemanticObject::quantified_formula(
+                    operator,
+                    variable,
+                    restriction,
+                    formula,
+                    Some(left_quantity),
+                    source.clone(),
+                    Vec::new(),
+                ),
+            )?;
+            let right = self.next_formula();
+            self.insert(
+                right,
+                SemanticObject::quantified_formula(
+                    operator,
+                    variable,
+                    restriction,
+                    formula,
+                    Some(right_quantity),
+                    source,
+                    Vec::new(),
+                ),
+            )?;
+            let connected = self.next_formula();
+            return self.insert(
+                connected,
+                SemanticObject::connective_formula(
+                    connection_operator,
+                    vec![left, right],
+                    Some(connector),
+                    connection_source,
+                    Vec::new(),
+                ),
+            );
+        }
         let scoped = self.next_formula();
         self.insert(
             scoped,
@@ -2803,6 +2872,304 @@ where
                 Vec::new(),
             ),
         )
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(quantity.is_none_or(|quantity| quantity.object_kind() == crate::model::SemanticObjectKind::Quantity))]
+    #[requires(restriction.is_none_or(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula))]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn build_quantified_respectively_distribution_formula(
+        &mut self,
+        formula: SemanticObjectId,
+        variable: SemanticObjectId,
+        quantity: Option<SemanticObjectId>,
+        restriction: Option<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(quantity) = quantity else {
+            return Ok(None);
+        };
+        let Some(count) = self.exact_integer_quantity_value(quantity) else {
+            return Ok(None);
+        };
+        let Some((composite, members)) =
+            self.respectively_composite_argument_paired_with_variable(formula, variable)
+        else {
+            return Ok(None);
+        };
+        if members.len() != count {
+            return Ok(None);
+        }
+
+        let composite_slot = self.build_parameter_with_source(
+            "fa'u".to_owned(),
+            source.clone(),
+            SemanticSort::Entity,
+            crate::model::ParameterRole::RespectiveSlot,
+        )?;
+        let witness_slot = self.build_parameter_with_source(
+            "fa'u".to_owned(),
+            source.clone(),
+            SemanticSort::Entity,
+            crate::model::ParameterRole::RespectiveSlot,
+        )?;
+        let mut replacements = BTreeMap::new();
+        replacements.insert(composite, composite_slot);
+        replacements.insert(variable, witness_slot);
+        let Some(body) = self.clone_formula_with_argument_replacements(formula, &replacements)?
+        else {
+            return Ok(None);
+        };
+
+        let restriction = restriction
+            .map(|restriction| {
+                let mut replacements = BTreeMap::new();
+                replacements.insert(variable, witness_slot);
+                self.clone_formula_with_argument_replacements(restriction, &replacements)
+                    .and_then(|cloned| {
+                        cloned.ok_or_else(|| {
+                            SemanticsError::invalid_graph(
+                                "respectively witness restriction could not be templated"
+                                    .to_owned(),
+                            )
+                        })
+                    })
+            })
+            .transpose()?;
+
+        let witness_items = (0..count)
+            .map(|_| self.build_respective_witness_referent(source.clone()))
+            .collect::<Result<Vec<_>, _>>()?;
+        let streams = vec![
+            RespectivelyStream::new(composite_slot, members),
+            RespectivelyStream::new_with_details(
+                witness_slot,
+                witness_items,
+                restriction,
+                Some(quantity),
+            ),
+        ];
+        let distribution = self.next_formula();
+        self.insert(
+            distribution,
+            SemanticObject::respectively_distribution_formula(
+                body,
+                streams,
+                Some(true),
+                source,
+                Vec::new(),
+            ),
+        )
+        .map(Some)
+    }
+
+    #[requires(quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)]
+    #[ensures(ret.is_none_or(|count| count > 0))]
+    fn exact_integer_quantity_value(&self, quantity: SemanticObjectId) -> Option<usize> {
+        let object = self.objects.get(&quantity)?;
+        if object.object_kind() != crate::model::SemanticObjectKind::Quantity {
+            return None;
+        }
+        let value = object.value.as_ref()?;
+        value
+            .integer
+            .and_then(|integer| usize::try_from(integer).ok())
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_none_or(|(_composite, members)| !members.is_empty()))]
+    fn respectively_composite_argument_paired_with_variable(
+        &self,
+        formula: SemanticObjectId,
+        variable: SemanticObjectId,
+    ) -> Option<(SemanticObjectId, Vec<SemanticObjectId>)> {
+        let formula_object = self.objects.get(&formula)?;
+        if !matches!(
+            formula_object.operator.as_ref()?.as_data(),
+            data!(SemanticOperator::Formula(FormulaOperator::Atom))
+        ) {
+            return None;
+        }
+        let predication = self.objects.get(&formula_object.predication?)?;
+        let has_variable_argument = predication
+            .arguments
+            .values()
+            .any(|argument| argument.value == Some(variable));
+        if !has_variable_argument {
+            return None;
+        }
+        predication.arguments.values().find_map(|argument| {
+            let value = argument.value?;
+            self.respectively_composite_members(value)
+                .map(|members| (value, members))
+        })
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_none_or(|members| !members.is_empty()))]
+    fn respectively_composite_members(
+        &self,
+        referent: SemanticObjectId,
+    ) -> Option<Vec<SemanticObjectId>> {
+        let object = self.objects.get(&referent)?;
+        if object.object_kind() != crate::model::SemanticObjectKind::Referent
+            || object.category != Some(ReferentCategory::Composite)
+        {
+            return None;
+        }
+        let composition = object.composition.as_ref()?;
+        (composition.operator == "respectively" && !composition.members.is_empty())
+            .then(|| composition.members.clone())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_respective_witness_referent(
+        &mut self,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_referent();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Variable,
+                SemanticSort::Entity,
+                None,
+                None,
+                None,
+                source,
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(replacements.values().all(|replacement| argument_object_kind_can_fill(replacement.object_kind())))]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn clone_formula_with_argument_replacements(
+        &mut self,
+        formula: SemanticObjectId,
+        replacements: &BTreeMap<SemanticObjectId, SemanticObjectId>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(object) = self.objects.get(&formula).cloned() else {
+            return Ok(None);
+        };
+        match object.operator.as_ref().map(|operator| operator.as_data()) {
+            Some(data!(SemanticOperator::Formula(FormulaOperator::Atom))) => {
+                let Some(predication) = object.predication else {
+                    return Ok(None);
+                };
+                let Some(cloned_predication) =
+                    self.clone_predication_with_argument_replacements(predication, replacements)?
+                else {
+                    return Ok(None);
+                };
+                let cloned_formula = self.next_formula();
+                self.insert(
+                    cloned_formula,
+                    SemanticObject::atom_formula(
+                        cloned_predication,
+                        object.source,
+                        object.diagnostics,
+                    ),
+                )
+                .map(Some)
+            }
+            Some(
+                data!(
+                    SemanticOperator::Formula(
+                        operator @ (FormulaOperator::And
+                        | FormulaOperator::Or
+                        | FormulaOperator::Iff
+                        | FormulaOperator::WhetherOrNot),
+                    )
+                ),
+            ) => {
+                let mut children = Vec::with_capacity(object.children.len());
+                for child in object.children {
+                    let Some(cloned_child) =
+                        self.clone_formula_with_argument_replacements(child, replacements)?
+                    else {
+                        return Ok(None);
+                    };
+                    children.push(cloned_child);
+                }
+                let cloned_formula = self.next_formula();
+                self.insert(
+                    cloned_formula,
+                    SemanticObject::connective_formula(
+                        *operator,
+                        children,
+                        object.connector,
+                        object.source,
+                        object.diagnostics,
+                    ),
+                )
+                .map(Some)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[requires(replacements.values().all(|replacement| argument_object_kind_can_fill(replacement.object_kind())))]
+    #[ensures(ret.as_ref().is_ok_and(|predication| predication.is_none_or(|predication| predication.object_kind() == crate::model::SemanticObjectKind::Predication)) || ret.is_err())]
+    fn clone_predication_with_argument_replacements(
+        &mut self,
+        predication: SemanticObjectId,
+        replacements: &BTreeMap<SemanticObjectId, SemanticObjectId>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(object) = self.objects.get(&predication).cloned() else {
+            return Ok(None);
+        };
+        let Some(relation) = object.relation else {
+            return Ok(None);
+        };
+        let mut arguments = object.arguments;
+        for argument in arguments.values_mut() {
+            self.replace_argument_value_object(argument, replacements);
+        }
+        let mut modal_arguments = object.modal_arguments;
+        for modal_argument in &mut modal_arguments {
+            let mut arguments = modal_argument.arguments.clone();
+            for argument in arguments.values_mut() {
+                self.replace_argument_value_object(argument, replacements);
+            }
+            if arguments != modal_argument.arguments {
+                *modal_argument = modal_argument
+                    .clone()
+                    .with_data(data! { arguments: arguments });
+            }
+        }
+        let id = self.next_predication();
+        let mut cloned = SemanticObject::predication(
+            relation,
+            None,
+            arguments,
+            object.mode.unwrap_or(PredicationMode::Inert),
+            object.source,
+            object.diagnostics,
+        );
+        cloned.modal_arguments = modal_arguments;
+        self.insert(id, cloned).map(Some)
+    }
+
+    #[requires(replacements.values().all(|replacement| argument_object_kind_can_fill(replacement.object_kind())))]
+    #[ensures(true)]
+    fn replace_argument_value_object(
+        &self,
+        argument: &mut ArgumentValue,
+        replacements: &BTreeMap<SemanticObjectId, SemanticObjectId>,
+    ) {
+        if let Some(value) = argument.value
+            && let Some(replacement) = replacements.get(&value)
+        {
+            let mut data = argument.clone().into_data();
+            data.value = Some(*replacement);
+            *argument = ArgumentValue::from_data(data);
+        }
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -2905,9 +3272,16 @@ where
             .0;
         let variable = self.build_scoped_argument_variable_for_sumti(sumti)?;
         let restrictions = self.quantified_argument_restrictions_for_sumti(sumti, variable)?;
+        let quantity_connection =
+            self.connected_quantifier_quantity_scope(quantifier, "mekso-operand")?;
         let scope = QuantifiedProSumtiScope::from_data(data!(QuantifiedProSumtiScope {
             variable,
-            quantity: Some(self.build_quantity_for_sumti_quantifier(raw, quantifier)?),
+            quantity: if quantity_connection.is_some() {
+                None
+            } else {
+                Some(self.build_quantity_for_sumti_quantifier(raw, quantifier)?)
+            },
+            quantity_connection,
             operator: quantified_pro_sumti_formula_operator(quantifier),
             source: self.source_for_node(raw, "quantifier-scope"),
         }));
@@ -2927,7 +3301,7 @@ where
             return Ok(None);
         };
         let variable = self.build_sumti_referent(sumti)?;
-        let (quantity, operator, source) = match scope_source {
+        let (quantity, quantity_connection, operator, source) = match scope_source {
             DaSeriesScopeSource::Explicit {
                 quantified_sumti,
                 quantifier,
@@ -2938,8 +3312,15 @@ where
                     .sumti_node_id(quantified_sumti)
                     .ok_or_else(SemanticsError::missing_syntax_node)?
                     .0;
+                let quantity_connection =
+                    self.connected_quantifier_quantity_scope(quantifier, "mekso-operand")?;
                 (
-                    Some(self.build_quantity_for_sumti_quantifier(raw, quantifier)?),
+                    if quantity_connection.is_some() {
+                        None
+                    } else {
+                        Some(self.build_quantity_for_sumti_quantifier(raw, quantifier)?)
+                    },
+                    quantity_connection,
                     quantified_pro_sumti_formula_operator(quantifier),
                     self.source_for_node(raw, "quantifier-scope"),
                 )
@@ -2953,6 +3334,7 @@ where
                     .0;
                 (
                     None,
+                    None,
                     FormulaOperator::Exists,
                     self.source_for_node(raw, "quantifier-scope"),
                 )
@@ -2962,6 +3344,7 @@ where
             QuantifiedProSumtiScope {
                 variable,
                 quantity,
+                quantity_connection,
                 operator,
                 source,
             }
@@ -3073,6 +3456,7 @@ where
             QuantifiedProSumtiScope {
                 variable: referent,
                 quantity: None,
+                quantity_connection: None,
                 operator: FormulaOperator::Exists,
                 source,
             }
@@ -4137,6 +4521,27 @@ where
             .syntax_index
             .term_node_id(term)
             .and_then(|node| self.source_for_node(node.0, "termset-connection-formula"));
+        if connective_primary_cmavo(gek) == Some(Cmavo::Fahu) {
+            let leading = self.build_termset_branch_formula_from_term_runs(
+                before_terms,
+                leading_terms,
+                after_terms,
+                selbri,
+                relation.clone(),
+                source.clone(),
+            )?;
+            let trailing = self.build_termset_branch_formula_from_term_runs(
+                before_terms,
+                trailing_terms,
+                after_terms,
+                selbri,
+                relation,
+                source.clone(),
+            )?;
+            return self
+                .build_fahu_termset_distribution_formula(gek, leading, trailing, source)
+                .map(Some);
+        }
         if connective_primary_cmavo(gek) == Some(Cmavo::Joi) {
             return self
                 .build_nonlogical_termset_connection_formula(
@@ -4238,6 +4643,27 @@ where
             .syntax_index
             .term_node_id(term)
             .and_then(|node| self.source_for_node(node.0, "termset-connection-formula"));
+        if connective_primary_cmavo(connective) == Some(Cmavo::Fahu) {
+            let leading = self.build_termset_branch_formula_from_term_runs(
+                before_terms,
+                leading_terms,
+                after_terms,
+                selbri,
+                relation.clone(),
+                source.clone(),
+            )?;
+            let trailing = self.build_termset_branch_formula_from_term_runs(
+                before_terms,
+                trailing_terms,
+                after_terms,
+                selbri,
+                relation,
+                source.clone(),
+            )?;
+            return self
+                .build_fahu_termset_distribution_formula(connective, leading, trailing, source)
+                .map(Some);
+        }
         if connective_primary_cmavo(connective) == Some(Cmavo::Joi) {
             return self
                 .build_nonlogical_termset_connection_formula(
@@ -4478,6 +4904,62 @@ where
             else {
                 continue;
             };
+            if let Some((
+                left_expression,
+                connective,
+                right_expression,
+                left_operator,
+                right_operator,
+            )) = connected_mekso_operator_parts(expression)
+            {
+                let source = self
+                    .analysis
+                    .syntax_index
+                    .sumti_node_id(connected_sumti)
+                    .and_then(|node| self.source_for_node(node.0, "operator-connection-formula"));
+                let left = self.build_connected_mekso_operator_identity_branch_formula(
+                    &assignments,
+                    connected_assignment.id,
+                    connected_place.get() as usize,
+                    left_expression,
+                    left_operator,
+                    right_expression,
+                    li,
+                    connected_assignment.sumti.0,
+                    selbri,
+                    source.clone(),
+                )?;
+                let right = self.build_connected_mekso_operator_identity_branch_formula(
+                    &assignments,
+                    connected_assignment.id,
+                    connected_place.get() as usize,
+                    left_expression,
+                    right_operator,
+                    right_expression,
+                    li,
+                    connected_assignment.sumti.0,
+                    selbri,
+                    source.clone(),
+                )?;
+                let formula = self.next_formula();
+                return self
+                    .insert(
+                        formula,
+                        SemanticObject::connective_formula(
+                            formula_operator_for_connective(connective),
+                            vec![left, right],
+                            Some(connective_connector_with_source(
+                                connective,
+                                "mekso-operator",
+                                full_connective_text(connective),
+                                None,
+                            )),
+                            source,
+                            Vec::new(),
+                        ),
+                    )
+                    .map(Some);
+            }
             let data!(MeksoSyntax::ForethoughtMeksoConnection {
                 gek,
                 left_expression,
@@ -4602,6 +5084,64 @@ where
         )
     }
 
+    #[requires(connected_place > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_connected_mekso_operator_identity_branch_formula(
+        &mut self,
+        assignments: &[SumtiPlaceAssignment],
+        connected_assignment: SumtiPlaceAssignmentId,
+        connected_place: usize,
+        left_expression: &'tree MeksoSyntax,
+        operator: &'tree MeksoOperatorSyntax,
+        right_expression: &'tree MeksoSyntax,
+        li: &WithFreeModifiers<Token>,
+        raw: RawSyntaxNodeId,
+        selbri: &'tree SelbriSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        for assignment in assignments {
+            let PlaceSlot::Numbered(place) = assignment.slot else {
+                continue;
+            };
+            if assignment.id == connected_assignment {
+                continue;
+            }
+            let sumti = self
+                .analysis
+                .syntax_index
+                .sumti(assignment.sumti)
+                .ok_or_else(SemanticsError::missing_syntax_node)?;
+            arguments.insert(
+                format!("x{}", place.get()),
+                self.build_argument_for_sumti(sumti)?,
+            );
+        }
+        let branch_referent = self.build_number_referent_for_infix_operator_branch(
+            left_expression,
+            operator,
+            right_expression,
+            li,
+            raw,
+        )?;
+        arguments.insert(
+            format!("x{connected_place}"),
+            ArgumentValue::filled(branch_referent, None),
+        );
+        let predication = self.build_predication_from_arguments(
+            "identity".to_owned(),
+            Some(selbri),
+            source.clone(),
+            arguments,
+            Vec::new(),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )
+    }
+
     #[requires(!relation.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     fn build_termset_branch_formula(
@@ -4668,6 +5208,126 @@ where
             formula,
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )
+    }
+
+    #[requires(leading.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(trailing.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(connective_primary_cmavo(connective) == Some(Cmavo::Fahu))]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_fahu_termset_distribution_formula(
+        &mut self,
+        connective: &ConnectiveSyntax,
+        leading: SemanticObjectId,
+        trailing: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let Some((composite, members)) = self.first_respectively_composite_argument(leading) else {
+            return self.build_binary_formula_for_connective(
+                connective, "termset", leading, trailing, source,
+            );
+        };
+        if members.len() != 2 {
+            return self.build_binary_formula_for_connective(
+                connective, "termset", leading, trailing, source,
+            );
+        }
+        let reverse_members = connective_reverses_composition_members(connective);
+        let (first, second) = if reverse_members {
+            (members[1], members[0])
+        } else {
+            (members[0], members[1])
+        };
+        let leading_replaced = self
+            .clone_formula_with_argument_replacements(
+                leading,
+                &BTreeMap::from([(composite, first)]),
+            )?
+            .ok_or_else(|| {
+                SemanticsError::invalid_graph(
+                    "fa'u termset leading branch could not be distributed".to_owned(),
+                )
+            })?;
+        let trailing_replaced = self
+            .clone_formula_with_argument_replacements(
+                trailing,
+                &BTreeMap::from([(composite, second)]),
+            )?
+            .ok_or_else(|| {
+                SemanticsError::invalid_graph(
+                    "fa'u termset trailing branch could not be distributed".to_owned(),
+                )
+            })?;
+        let body = self.next_formula();
+        self.insert(
+            body,
+            SemanticObject::connective_formula(
+                FormulaOperator::And,
+                vec![leading_replaced, trailing_replaced],
+                Some(connective_connector_with_source(
+                    connective,
+                    "termset",
+                    full_connective_text(connective),
+                    None,
+                )),
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        let subject_slot = self.build_parameter_with_source(
+            "fa'u".to_owned(),
+            source.clone(),
+            SemanticSort::Entity,
+            crate::model::ParameterRole::RespectiveSlot,
+        )?;
+        let branch_slot = self.build_parameter_with_source(
+            "fa'u".to_owned(),
+            source.clone(),
+            SemanticSort::Proposition,
+            crate::model::ParameterRole::RespectiveSlot,
+        )?;
+        let stream_members = if reverse_members {
+            vec![members[1], members[0]]
+        } else {
+            members
+        };
+        let distribution = self.next_formula();
+        self.insert(
+            distribution,
+            SemanticObject::respectively_distribution_formula(
+                body,
+                vec![
+                    RespectivelyStream::new(subject_slot, stream_members),
+                    RespectivelyStream::new(branch_slot, vec![leading_replaced, trailing_replaced]),
+                ],
+                None,
+                source,
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_none_or(|(_composite, members)| !members.is_empty()))]
+    fn first_respectively_composite_argument(
+        &self,
+        formula: SemanticObjectId,
+    ) -> Option<(SemanticObjectId, Vec<SemanticObjectId>)> {
+        let object = self.objects.get(&formula)?;
+        match object.operator.as_ref()?.as_data() {
+            data!(SemanticOperator::Formula(FormulaOperator::Atom)) => {
+                let predication = self.objects.get(&object.predication?)?;
+                predication.arguments.values().find_map(|argument| {
+                    let value = argument.value?;
+                    self.respectively_composite_members(value)
+                        .map(|members| (value, members))
+                })
+            }
+            data!(SemanticOperator::Formula(_)) => object
+                .children
+                .iter()
+                .find_map(|child| self.first_respectively_composite_argument(*child)),
+            data!(SemanticOperator::Math(_)) => None,
+        }
     }
 
     #[requires(true)]
@@ -11705,8 +12365,29 @@ where
         }
         let text = mekso_surface_text(expression);
         let quantity = self.build_quantity_for_mekso(expression, raw)?;
+        let referent = self.build_number_referent_with_quantity(
+            li,
+            text,
+            quantity,
+            self.source_for_node(raw, "number-sumti"),
+        )?;
+        if let Some(variable_name) = variable_name {
+            self.math_variable_referents.insert(variable_name, referent);
+        }
+        Ok(referent)
+    }
+
+    #[requires(quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_number_referent_with_quantity(
+        &mut self,
+        li: &WithFreeModifiers<Token>,
+        text: String,
+        quantity: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.next_referent();
-        let referent = self.insert(
+        self.insert(
             id,
             SemanticObject::referent(
                 ReferentCategory::Constant,
@@ -11724,14 +12405,51 @@ where
                     operand: None,
                 }),
                 None,
-                self.source_for_node(raw, "number-sumti"),
+                source,
                 Vec::new(),
             ),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_number_referent_for_infix_operator_branch(
+        &mut self,
+        left_expression: &'tree MeksoSyntax,
+        operator: &'tree MeksoOperatorSyntax,
+        right_expression: &'tree MeksoSyntax,
+        li: &WithFreeModifiers<Token>,
+        raw: RawSyntaxNodeId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let left = self.build_math_expression(left_expression, None)?;
+        let right = self.build_math_expression(right_expression, None)?;
+        let math = self.build_math_operator_expression_for_operator(
+            operator,
+            vec![left, right],
+            self.source_for_node(raw, "math-expression"),
         )?;
-        if let Some(variable_name) = variable_name {
-            self.math_variable_referents.insert(variable_name, referent);
-        }
-        Ok(referent)
+        let name = format!(
+            "{} {} {}",
+            mekso_surface_text(left_expression),
+            mekso_operator_label(operator),
+            mekso_surface_text(right_expression)
+        );
+        let quantity = self.next_quantity();
+        self.insert(
+            quantity,
+            SemanticObject::quantity(
+                quantity_form_for_text(&name),
+                QuantityValue::math_expression(math),
+                QuantityScale::Count,
+                self.source_for_node(raw, "quantity"),
+            ),
+        )?;
+        self.build_number_referent_with_quantity(
+            li,
+            name,
+            quantity,
+            self.source_for_node(raw, "number-sumti"),
+        )
     }
 
     #[requires(true)]
@@ -11795,11 +12513,27 @@ where
         expression: &'tree MeksoSyntax,
         raw: RawSyntaxNodeId,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_quantity_for_mekso_with_source(expression, self.source_for_node(raw, "quantity"))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_quantity_for_mekso_with_source(
+        &mut self,
+        expression: &'tree MeksoSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let text = mekso_surface_text(expression);
         let value = simple_pa_quantity_value_for_mekso(expression).map_or_else(
             || {
-                self.build_math_expression(expression, self.source_for_node(raw, "math-expression"))
-                    .map(QuantityValue::math_expression)
+                self.build_math_expression(
+                    expression,
+                    source.clone().map(|source| crate::model::SemanticSource {
+                        construct: Some("math-expression".to_owned()),
+                        ..source
+                    }),
+                )
+                .map(QuantityValue::math_expression)
             },
             Ok,
         )?;
@@ -11810,7 +12544,7 @@ where
                 quantity_form_for_text(&text),
                 value,
                 QuantityScale::Count,
-                self.source_for_node(raw, "quantity"),
+                source,
             ),
         )
     }
@@ -13909,18 +14643,117 @@ where
     fn build_quantity_for_sumti_quantifier(
         &mut self,
         raw: RawSyntaxNodeId,
-        quantifier: &QuantifierSyntax,
+        quantifier: &'tree QuantifierSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if let Some(quantity) = self.sumti_quantities.get(&raw) {
             return Ok(*quantity);
         }
-        let quantity = self.build_quantity_for_words(
-            quantifier_text(quantifier).unwrap_or_else(|| "xo'e".to_owned()),
-            self.source_for_quantifier(quantifier, "quantity")
-                .or_else(|| self.source_for_node(raw, "quantity")),
-        )?;
+        let source = self
+            .source_for_quantifier(quantifier, "quantity")
+            .or_else(|| self.source_for_node(raw, "quantity"));
+        let quantity = match quantifier.as_data() {
+            data!(QuantifierSyntax::NumberQuantifier { .. }) => self.build_quantity_for_words(
+                quantifier_text(quantifier).unwrap_or_else(|| "xo'e".to_owned()),
+                source,
+            )?,
+            data!(QuantifierSyntax::MeksoQuantifier { mekso, .. }) => {
+                self.build_quantity_for_mekso_with_source(mekso, source)?
+            }
+        };
         self.sumti_quantities.insert(raw, quantity);
         Ok(quantity)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|connection| connection.as_ref().is_none_or(|connection| connection.left_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity && connection.right_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)) || ret.is_err())]
+    fn connected_quantifier_quantity_scope(
+        &mut self,
+        quantifier: &'tree QuantifierSyntax,
+        locus: &str,
+    ) -> Result<Option<ConnectedQuantifierQuantityScope>, SemanticsError> {
+        let data!(QuantifierSyntax::MeksoQuantifier { mekso, .. }) = quantifier.as_data() else {
+            return Ok(None);
+        };
+        self.connected_quantifier_quantity_scope_for_mekso(mekso, locus)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|connection| connection.as_ref().is_none_or(|connection| connection.left_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity && connection.right_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)) || ret.is_err())]
+    fn connected_quantifier_quantity_scope_for_mekso(
+        &mut self,
+        expression: &'tree MeksoSyntax,
+        locus: &str,
+    ) -> Result<Option<ConnectedQuantifierQuantityScope>, SemanticsError> {
+        match expression.as_data() {
+            data!(MeksoSyntax::ParenthesizedMekso {
+                inner_expression,
+                ..
+            }) => self.connected_quantifier_quantity_scope_for_mekso(inner_expression, locus),
+            data!(MeksoSyntax::MeksoConnection {
+                left_expression,
+                connective,
+                right_expression,
+            }) if connective_is_logical(connective) && !connective_is_interval(connective) => self
+                .build_connected_quantifier_quantity_scope(
+                    left_expression,
+                    connective,
+                    right_expression,
+                    locus,
+                    self.source_for_mekso(expression, "mekso-operand-connection"),
+                )
+                .map(Some),
+            data!(MeksoSyntax::ForethoughtMeksoConnection {
+                gek,
+                left_expression,
+                right_expression,
+                ..
+            }) if connective_is_logical(gek) && !connective_is_interval(gek) => self
+                .build_connected_quantifier_quantity_scope(
+                    left_expression,
+                    gek,
+                    right_expression,
+                    locus,
+                    self.source_for_mekso(expression, "mekso-operand-connection"),
+                )
+                .map(Some),
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(connective_is_logical(connective))]
+    #[requires(!connective_is_interval(connective))]
+    #[requires(!locus.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|connection| connection.left_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity && connection.right_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity) || ret.is_err())]
+    fn build_connected_quantifier_quantity_scope(
+        &mut self,
+        left_expression: &'tree MeksoSyntax,
+        connective: &'tree ConnectiveSyntax,
+        right_expression: &'tree MeksoSyntax,
+        locus: &str,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<ConnectedQuantifierQuantityScope, SemanticsError> {
+        let left_quantity = self.build_quantity_for_mekso_with_source(
+            left_expression,
+            self.source_for_mekso(left_expression, "quantity"),
+        )?;
+        let right_quantity = self.build_quantity_for_mekso_with_source(
+            right_expression,
+            self.source_for_mekso(right_expression, "quantity"),
+        )?;
+        Ok(ConnectedQuantifierQuantityScope::from_data(data!(
+            ConnectedQuantifierQuantityScope {
+                left_quantity,
+                right_quantity,
+                operator: formula_operator_for_connective(connective),
+                connector: connective_connector_with_source(
+                    connective,
+                    locus,
+                    full_connective_text(connective),
+                    None,
+                ),
+                source,
+            }
+        )))
     }
 
     #[requires(true)]
@@ -20330,6 +21163,76 @@ fn mekso_operator_label(operator: &MeksoOperatorSyntax) -> String {
 }
 
 #[requires(true)]
+#[ensures(ret.is_none_or(|(_, connective, _, _, _)| connective_is_logical(connective) && !connective_is_interval(connective)))]
+fn connected_mekso_operator_parts(
+    expression: &MeksoSyntax,
+) -> Option<(
+    &MeksoSyntax,
+    &ConnectiveSyntax,
+    &MeksoSyntax,
+    &MeksoOperatorSyntax,
+    &MeksoOperatorSyntax,
+)> {
+    match expression.as_data() {
+        data!(MeksoSyntax::Infix {
+            left_expression,
+            operator,
+            right_expression,
+        })
+        | data!(MeksoSyntax::PrecedenceInfix {
+            left_expression,
+            operator,
+            right_expression,
+            ..
+        }) => {
+            let (connective, left_operator, right_operator) = connected_mekso_operator(operator)?;
+            Some((
+                left_expression,
+                connective,
+                right_expression,
+                left_operator,
+                right_operator,
+            ))
+        }
+        data!(MeksoSyntax::ParenthesizedMekso {
+            inner_expression,
+            ..
+        }) => connected_mekso_operator_parts(inner_expression),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|(connective, _, _)| connective_is_logical(connective) && !connective_is_interval(connective)))]
+fn connected_mekso_operator(
+    operator: &MeksoOperatorSyntax,
+) -> Option<(
+    &ConnectiveSyntax,
+    &MeksoOperatorSyntax,
+    &MeksoOperatorSyntax,
+)> {
+    match operator.as_data() {
+        data!(MeksoOperatorSyntax::OperatorConnection {
+            left_operator,
+            connective,
+            right_operator,
+        })
+        | data!(MeksoOperatorSyntax::BoundOperatorConnection {
+            left_operator,
+            connective,
+            right_operator,
+            ..
+        }) if connective_is_logical(connective) && !connective_is_interval(connective) => {
+            Some((connective, left_operator, right_operator))
+        }
+        data!(MeksoOperatorSyntax::GroupedOperator { inner_operator, .. }) => {
+            connected_mekso_operator(inner_operator)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
 #[ensures(!ret.is_empty())]
 fn mekso_surface_text(expression: &MeksoSyntax) -> String {
     match expression.as_data() {
@@ -24666,6 +25569,74 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn connected_mekso_operators_expand_to_connected_identity_formulas() {
+        for (source, connector_source) in [
+            ("li re su'i je pi'i re du li vo", "je"),
+            ("li re gu'e su'i gi pi'i re du li vo", "gu'e gi"),
+        ] {
+            let json = semantic_json_for(source).expect("semantic JSON");
+            let content = object(
+                &json,
+                object(&json, "utterance:u1")["content"]
+                    .as_str()
+                    .expect("utterance content"),
+            );
+            assert_eq!(content["operator"], "and");
+            assert_eq!(content["connector"]["source"], connector_source);
+            assert_eq!(content["connector"]["locus"], "mekso-operator");
+
+            let identities = predications_with_relation_and_mode(&json, "identity", "definitional");
+            assert_eq!(identities.len(), 2);
+            let operators = json["objects"]
+                .as_object()
+                .expect("objects")
+                .values()
+                .filter(|object| object["type"] == "mathExpression")
+                .filter_map(|object| object["operator"].as_str())
+                .collect::<Vec<_>>();
+            assert!(operators.contains(&"add"));
+            assert!(operators.contains(&"multiply"));
+            assert!(!operators.contains(&"su'i pi'i"));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_mekso_quantifier_wraps_each_quantity_branch() {
+        for (source, connector_source) in [
+            ("vei ci .a vo prenu cu klama le zarci", "a"),
+            ("vei ga ci gi vo prenu cu klama le zarci", "ga"),
+        ] {
+            let json = semantic_json_for(source).expect("semantic JSON");
+            let content = object(
+                &json,
+                object(&json, "utterance:u1")["content"]
+                    .as_str()
+                    .expect("utterance content"),
+            );
+            assert_eq!(content["operator"], "or");
+            assert_eq!(content["connector"]["source"], connector_source);
+            assert_eq!(content["connector"]["locus"], "mekso-operand");
+            let children = content["children"].as_array().expect("branch formulas");
+            assert_eq!(children.len(), 2);
+
+            let left = object(&json, children[0].as_str().expect("left formula"));
+            let right = object(&json, children[1].as_str().expect("right formula"));
+            assert_eq!(left["operator"], "cardinality");
+            assert_eq!(right["operator"], "cardinality");
+            assert_eq!(left["restriction"], right["restriction"]);
+            assert_eq!(left["body"], right["body"]);
+            let left_quantity = object(&json, left["quantity"].as_str().expect("left quantity"));
+            let right_quantity = object(&json, right["quantity"].as_str().expect("right quantity"));
+            assert_eq!(left_quantity["value"]["integer"], 3);
+            assert_eq!(right_quantity["value"]["integer"], 4);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn uniform_tanru_reifies_seltau_as_property_modifier() {
         let json = semantic_json_for("ti barda nanla").expect("semantic JSON");
         assert_eq!(object(&json, "utterance:u1")["content"], "formula:f4");
@@ -27280,6 +28251,110 @@ mod tests {
             semantic_json_for("lo'i ricfu ku jo'e lo'i dotco cu barda").expect("semantic JSON");
         let union = composition_with_operator(&json, "union");
         assert_eq!(union["members"].as_array().expect("members").len(), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fahu_quantified_witnesses_use_respectively_distribution() {
+        let json =
+            semantic_json_for("la djeimyz. fa'u la djordj. prami re mensi").expect("semantic JSON");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "respectivelyDistribution");
+        assert_eq!(content["distinctPartition"], true);
+        let body = object(&json, content["body"].as_str().expect("distribution body"));
+        let prami = object(
+            &json,
+            body["predication"].as_str().expect("body predication"),
+        );
+        let lover_slot = content["streams"][0]["slot"].as_str().expect("lover slot");
+        let loved_slot = content["streams"][1]["slot"].as_str().expect("loved slot");
+        assert_eq!(object(&json, lover_slot)["role"], "respectiveSlot");
+        assert_eq!(object(&json, loved_slot)["role"], "respectiveSlot");
+        assert_eq!(prami["arguments"]["x1"]["value"], lover_slot);
+        assert_eq!(prami["arguments"]["x2"]["value"], loved_slot);
+        assert_eq!(content["streams"][0]["items"][0], "referent:r1");
+        assert_eq!(content["streams"][0]["items"][1], "referent:r2");
+        assert_eq!(
+            object(
+                &json,
+                content["streams"][1]["quantity"]
+                    .as_str()
+                    .expect("witness quantity")
+            )["value"]["integer"],
+            2
+        );
+        let restriction = object(
+            &json,
+            content["streams"][1]["restriction"]
+                .as_str()
+                .expect("witness restriction"),
+        );
+        let mensi = object(
+            &json,
+            restriction["predication"]
+                .as_str()
+                .expect("restriction predication"),
+        );
+        assert_eq!(mensi["relation"], "mensi");
+        assert_eq!(mensi["arguments"]["x1"]["value"], loved_slot);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fahu_modal_termset_pairs_subjects_with_branch_formulas() {
+        let json = semantic_json_for(
+            "la .djan. fa'u la .frank. cusku nu'i fa'ugi bau la .lojban. nu'u gi bai tu'a la .djordj.",
+        )
+        .expect("semantic JSON");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "respectivelyDistribution");
+        assert_eq!(content["streams"][0]["items"][0], "referent:r1");
+        assert_eq!(content["streams"][0]["items"][1], "referent:r2");
+        assert_eq!(
+            object(&json, content["streams"][0]["slot"].as_str().unwrap())["role"],
+            "respectiveSlot"
+        );
+        assert_eq!(
+            object(&json, content["streams"][1]["slot"].as_str().unwrap())["sort"],
+            "proposition"
+        );
+
+        let branch_formulas = content["streams"][1]["items"]
+            .as_array()
+            .expect("branch formulas");
+        let first_branch = object(&json, branch_formulas[0].as_str().expect("first branch"));
+        let second_branch = object(&json, branch_formulas[1].as_str().expect("second branch"));
+        let first_predication = object(
+            &json,
+            first_branch["predication"]
+                .as_str()
+                .expect("first predication"),
+        );
+        let second_predication = object(
+            &json,
+            second_branch["predication"]
+                .as_str()
+                .expect("second predication"),
+        );
+        assert_eq!(first_predication["arguments"]["x1"]["value"], "referent:r1");
+        assert_eq!(
+            second_predication["arguments"]["x1"]["value"],
+            "referent:r2"
+        );
+        assert_eq!(first_predication["modalArguments"][0]["relation"], "bangu");
+        assert_eq!(second_predication["modalArguments"][0]["relation"], "bapli");
     }
 
     #[test]
