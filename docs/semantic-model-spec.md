@@ -1961,6 +1961,13 @@ The sharing rules are semantic, not only syntactic:
   non-`zo'e` term to share.
 - Sentence connectives such as `.ije` join complete formulas; they do not
   inherit the elided-place sharing behavior of sumti connection.
+- Logical termset connectives (`pe'e` afterthought and `nu'i` forethought)
+  expand into one formula branch per connected termset.  Each branch replays the
+  surrounding non-connected terms in surface place order, then fills all omitted
+  places independently.  This is why CLL 14.74 has the shared `le briju` in x2
+  for the shorter `mi` branch but in x3 for the longer `do ce'e le zarci`
+  branch.  Equal-length termsets simply zip their corresponding terms; they do
+  not form a Cartesian product.
 - Whether-or-not connectives (`.u`/`ju`) keep children in surface order.  The
   truth table records which operand is asserted; the non-asserted operand's
   predications use `mode = "inert"`.  `se ju` therefore makes the first

@@ -3295,6 +3295,11 @@ where
         {
             return Ok(formula);
         }
+        if let Some(formula) =
+            self.build_afterthought_termset_connection_formula(bridi, selbri, relation.clone())?
+        {
+            return Ok(formula);
+        }
         if let Some(selbri) = selbri
             && relation == "identity"
             && let Some(formula) = self.build_connected_mekso_identity_formula(bridi, selbri)?
@@ -4055,47 +4060,47 @@ where
         selbri: Option<&'tree SelbriSyntax>,
         relation: String,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let Some((term, gek, leading_terms, trailing_terms)) =
-            bridi
-                .leading_terms
-                .iter()
-                .find_map(|term| match term.as_data() {
-                    data!(TermSyntax::ForethoughtTermsetConnection {
-                        gek,
-                        terms,
-                        gik_terms,
-                        ..
-                    }) => Some((term, gek, terms.as_slice(), gik_terms.as_slice())),
-                    _ => None,
-                })
+        let primary_terms = primary_bridi_place_terms(bridi);
+        let Some((position, term, gek, leading_terms, trailing_terms)) = primary_terms
+            .iter()
+            .enumerate()
+            .find_map(|(position, term)| match term.as_data() {
+                data!(TermSyntax::ForethoughtTermsetConnection {
+                    gek,
+                    terms,
+                    gik_terms,
+                    ..
+                }) => Some((position, *term, gek, terms.as_slice(), gik_terms.as_slice())),
+                _ => None,
+            })
         else {
             return Ok(None);
         };
+        let before_terms = &primary_terms[..position];
+        let after_terms = &primary_terms[position + 1..];
         let source = self
             .analysis
             .syntax_index
             .term_node_id(term)
             .and_then(|node| self.source_for_node(node.0, "termset-connection-formula"));
-        let leading = self.build_termset_branch_formula(
+        let leading = self.build_termset_branch_formula_from_term_runs(
+            before_terms,
             leading_terms,
+            after_terms,
             selbri,
             relation.clone(),
             source.clone(),
         )?;
-        let trailing =
-            self.build_termset_branch_formula(trailing_terms, selbri, relation, source.clone())?;
+        let trailing = self.build_termset_branch_formula_from_term_runs(
+            before_terms,
+            trailing_terms,
+            after_terms,
+            selbri,
+            relation,
+            source.clone(),
+        )?;
         let mut children = vec![leading, trailing];
         let mut diagnostics = Vec::new();
-        if bridi
-            .leading_terms
-            .iter()
-            .filter(|candidate| !std::ptr::eq(*candidate, term))
-            .any(|candidate| !matches!(candidate.as_data(), data!(TermSyntax::Termset { .. })))
-        {
-            diagnostics.push(diagnostic(
-                "forethought termset connection with extra outer terms is not fully lowered yet",
-            ));
-        }
         let operator = if let Some(spec) = modal_statement_connection_spec(gek) {
             match self.build_modal_formula_connection_claim(leading, trailing, &spec, source.clone())?
             {
@@ -4119,6 +4124,109 @@ where
                     "termset",
                     connective_text(gek),
                     None,
+                )),
+                source,
+                diagnostics,
+            ),
+        )
+        .map(Some)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_afterthought_termset_connection_formula(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: Option<&'tree SelbriSyntax>,
+        relation: String,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let primary_terms = primary_bridi_place_terms(bridi);
+        let Some((position, term, connective, leading_terms, trailing_terms)) = primary_terms
+            .iter()
+            .enumerate()
+            .find_map(|(position, term)| match term.as_data() {
+                data!(TermSyntax::TermsetConnection {
+                    leading_terms,
+                    connective,
+                    trailing_terms,
+                    ..
+                }) => Some((
+                    position,
+                    *term,
+                    connective,
+                    leading_terms.as_slice(),
+                    trailing_terms.as_slice(),
+                )),
+                _ => None,
+            })
+        else {
+            return Ok(None);
+        };
+        let before_terms = &primary_terms[..position];
+        let after_terms = &primary_terms[position + 1..];
+        let source = self
+            .analysis
+            .syntax_index
+            .term_node_id(term)
+            .and_then(|node| self.source_for_node(node.0, "termset-connection-formula"));
+        let leading = self.build_termset_branch_formula_from_term_runs(
+            before_terms,
+            leading_terms,
+            after_terms,
+            selbri,
+            relation.clone(),
+            source.clone(),
+        )?;
+        let trailing = self.build_termset_branch_formula_from_term_runs(
+            before_terms,
+            trailing_terms,
+            after_terms,
+            selbri,
+            relation,
+            source.clone(),
+        )?;
+        let leading = if connective_negates_left(connective) {
+            self.build_unary_formula(FormulaOperator::Not, leading, source.clone(), Vec::new())?
+        } else {
+            leading
+        };
+        let trailing = if connective_negates_right(connective) {
+            self.build_unary_formula(FormulaOperator::Not, trailing, source.clone(), Vec::new())?
+        } else {
+            trailing
+        };
+        let mut children = ordered_connective_children(connective, leading, trailing);
+        let mut diagnostics = Vec::new();
+        self.mark_whether_or_not_inert_operand(connective, leading, trailing);
+        let connector_question = direct_connective_question_token_for_connective(connective);
+        let connector_parameter = connector_question
+            .map(|token| self.build_connective_question_parameter_for_token(token))
+            .transpose()?;
+        let operator = if connector_question.is_some() {
+            FormulaOperator::ConnectiveQuestion
+        } else if let Some(spec) = modal_statement_connection_spec(connective) {
+            match self.build_modal_formula_connection_claim(leading, trailing, &spec, source.clone())?
+            {
+                Some(claim) => children.push(claim),
+                None => diagnostics.push(diagnostic(
+                    "modal termset connection could not find formula-bearing bridi events or propositions to relate",
+                )),
+            }
+            FormulaOperator::And
+        } else {
+            formula_operator_for_connective(connective)
+        };
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                operator,
+                children,
+                Some(connective_connector_with_source(
+                    connective,
+                    "termset",
+                    format!("pe'e {}", connective_text(connective)),
+                    connector_parameter,
                 )),
                 source,
                 diagnostics,
@@ -4290,65 +4398,50 @@ where
         relation: String,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_termset_branch_formula_from_term_runs(&[], terms, &[], selbri, relation, source)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_termset_branch_formula_from_term_runs(
+        &mut self,
+        before_terms: &[&'tree TermSyntax],
+        terms: &'tree [TermSyntax],
+        after_terms: &[&'tree TermSyntax],
+        selbri: Option<&'tree SelbriSyntax>,
+        relation: String,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let mut arguments = BTreeMap::new();
         let mut modal_arguments = Vec::new();
         let mut diagnostics = Vec::new();
         let mut next_sequential_place = 1usize;
+        for term in before_terms {
+            self.append_termset_branch_term(
+                term,
+                &mut arguments,
+                &mut modal_arguments,
+                &mut diagnostics,
+                &mut next_sequential_place,
+            )?;
+        }
         for term in terms {
-            match term.as_data() {
-                data!(TermSyntax::Sumti(sumti)) => {
-                    let argument = self.build_argument_for_sumti(sumti)?;
-                    arguments.insert(format!("x{next_sequential_place}"), argument);
-                    next_sequential_place += 1;
-                }
-                data!(TermSyntax::PlaceTaggedSumti { fa, sumti, .. }) => {
-                    if let Some(place) = numbered_place_for_fa_token(&fa.value) {
-                        arguments
-                            .insert(format!("x{place}"), self.build_argument_for_sumti(sumti)?);
-                    } else {
-                        diagnostics.push(diagnostic(
-                            "forethought termset branch place question is not fully lowered yet",
-                        ));
-                    }
-                }
-                data!(TermSyntax::TaggedSumti {
-                    tense_modal: Some(tense_modal),
-                    sumti,
-                }) => {
-                    if let Some((introduced_by, relation, visible_place)) =
-                        modal_relation_spec_for_tense_modal(tense_modal)
-                    {
-                        let argument = self.build_argument_for_sumti(sumti)?;
-                        let arguments = self.modal_argument_map_for_visible_place(
-                            argument,
-                            visible_place,
-                            self.place_count_for_relation(&relation),
-                        )?;
-                        modal_arguments.push(self.modal_argument_with_tense_modal_modifiers(
-                            tense_modal,
-                            relation,
-                            introduced_by,
-                            arguments,
-                            modal_negation_for_tense_modal(tense_modal),
-                            modal_scalar_negation_for_tense_modal(tense_modal),
-                            "modal-argument",
-                        ));
-                    } else {
-                        diagnostics.push(diagnostic(
-                            "forethought termset branch tagged term is not fully lowered yet",
-                        ));
-                    }
-                }
-                data!(TermSyntax::TaggedSumti {
-                    tense_modal: None,
-                    ..
-                }) => diagnostics.push(diagnostic(
-                    "forethought termset branch tagged term is missing its tag",
-                )),
-                _ => diagnostics.push(diagnostic(
-                    "forethought termset branch term is not fully lowered yet",
-                )),
-            }
+            self.append_termset_branch_term(
+                term,
+                &mut arguments,
+                &mut modal_arguments,
+                &mut diagnostics,
+                &mut next_sequential_place,
+            )?;
+        }
+        for term in after_terms {
+            self.append_termset_branch_term(
+                term,
+                &mut arguments,
+                &mut modal_arguments,
+                &mut diagnostics,
+                &mut next_sequential_place,
+            )?;
         }
         let highest_place = arguments
             .keys()
@@ -4386,6 +4479,130 @@ where
             formula,
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )
+    }
+
+    #[requires(*next_sequential_place > 0)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn append_termset_branch_term(
+        &mut self,
+        term: &'tree TermSyntax,
+        arguments: &mut BTreeMap<String, ArgumentValue>,
+        modal_arguments: &mut Vec<ModalArgument>,
+        diagnostics: &mut Vec<SemanticDiagnostic>,
+        next_sequential_place: &mut usize,
+    ) -> Result<(), SemanticsError> {
+        match term.as_data() {
+            data!(TermSyntax::Termset { termset, .. }) => {
+                for term in termset {
+                    self.append_termset_branch_term(
+                        term,
+                        arguments,
+                        modal_arguments,
+                        diagnostics,
+                        next_sequential_place,
+                    )?;
+                }
+            }
+            data!(TermSyntax::TermsetGroup {
+                leading_terms,
+                trailing_terms,
+                ..
+            }) => {
+                for term in leading_terms {
+                    self.append_termset_branch_term(
+                        term,
+                        arguments,
+                        modal_arguments,
+                        diagnostics,
+                        next_sequential_place,
+                    )?;
+                }
+                for term in trailing_terms {
+                    self.append_termset_branch_term(
+                        term,
+                        arguments,
+                        modal_arguments,
+                        diagnostics,
+                        next_sequential_place,
+                    )?;
+                }
+            }
+            data!(TermSyntax::Sumti(sumti)) => {
+                self.append_termset_branch_sumti(sumti, arguments, next_sequential_place)?
+            }
+            data!(TermSyntax::PlaceTaggedSumti { fa, sumti, .. }) => {
+                if let Some(place) = numbered_place_for_fa_token(&fa.value) {
+                    arguments.insert(format!("x{place}"), self.build_argument_for_sumti(sumti)?);
+                } else {
+                    diagnostics.push(diagnostic(
+                        "termset branch place question is not fully lowered yet",
+                    ));
+                }
+            }
+            data!(TermSyntax::TaggedSumti {
+                tense_modal: Some(tense_modal),
+                sumti,
+            }) => {
+                if let Some((introduced_by, relation, visible_place)) =
+                    modal_relation_spec_for_tense_modal(tense_modal)
+                {
+                    let argument = self.build_argument_for_sumti(sumti)?;
+                    let arguments = self.modal_argument_map_for_visible_place(
+                        argument,
+                        visible_place,
+                        self.place_count_for_relation(&relation),
+                    )?;
+                    modal_arguments.push(self.modal_argument_with_tense_modal_modifiers(
+                        tense_modal,
+                        relation,
+                        introduced_by,
+                        arguments,
+                        modal_negation_for_tense_modal(tense_modal),
+                        modal_scalar_negation_for_tense_modal(tense_modal),
+                        "modal-argument",
+                    ));
+                } else {
+                    diagnostics.push(diagnostic(
+                        "termset branch tagged term is not fully lowered yet",
+                    ));
+                }
+            }
+            data!(TermSyntax::TaggedSumti {
+                tense_modal: None,
+                ..
+            }) => diagnostics.push(diagnostic("termset branch tagged term is missing its tag")),
+            _ => diagnostics.push(diagnostic("termset branch term is not fully lowered yet")),
+        }
+        Ok(())
+    }
+
+    #[requires(*next_sequential_place > 0)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn append_termset_branch_sumti(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+        arguments: &mut BTreeMap<String, ArgumentValue>,
+        next_sequential_place: &mut usize,
+    ) -> Result<(), SemanticsError> {
+        match sumti.as_data() {
+            data!(SumtiSyntax::SumtiConnection {
+                leading_sumti,
+                connective,
+                trailing_sumti,
+            }) if connective_contains_cmavo(connective, Cmavo::Cehe) => {
+                self.append_termset_branch_sumti(leading_sumti, arguments, next_sequential_place)?;
+                self.append_termset_branch_sumti(trailing_sumti, arguments, next_sequential_place)?;
+            }
+            data!(SumtiSyntax::GroupedSumti { inner_sumti, .. }) => {
+                self.append_termset_branch_sumti(inner_sumti, arguments, next_sequential_place)?;
+            }
+            _ => {
+                let argument = self.build_argument_for_sumti(sumti)?;
+                arguments.insert(format!("x{next_sequential_place}"), argument);
+                *next_sequential_place += 1;
+            }
+        }
+        Ok(())
     }
 
     #[requires(bridi.bridi_tail.ke_continuation.is_some() || bridi.bridi_tail.first.first.bo_continuation.is_some() || !bridi.bridi_tail.first.continuations.is_empty())]
@@ -15438,6 +15655,93 @@ fn logical_sumti_connection_parts_degrouped(
 
 #[requires(true)]
 #[ensures(true)]
+fn primary_bridi_place_terms(bridi: &BridiSyntax) -> Vec<&TermSyntax> {
+    let mut terms = Vec::new();
+    terms.extend(bridi.leading_terms.iter());
+    append_primary_bridi_tail_place_terms(&bridi.bridi_tail, &mut terms);
+    terms
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_primary_bridi_tail_place_terms<'a>(
+    tail: &'a BridiTailSyntax,
+    out: &mut Vec<&'a TermSyntax>,
+) {
+    append_primary_afterthought_tail_place_terms(&tail.first, out);
+    if let Some(continuation) = &tail.ke_continuation {
+        append_primary_bridi_tail_place_terms(&continuation.bridi_tail, out);
+        out.extend(continuation.tail_terms.iter());
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_primary_afterthought_tail_place_terms<'a>(
+    tail: &'a AfterthoughtBridiTailSyntax,
+    out: &mut Vec<&'a TermSyntax>,
+) {
+    append_primary_bo_tail_place_terms(&tail.first, out);
+    for continuation in &tail.continuations {
+        append_primary_bo_tail_place_terms(&continuation.bridi_tail, out);
+        out.extend(continuation.tail_terms.iter());
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_primary_bo_tail_place_terms<'a>(
+    tail: &'a BoGroupedBridiTailSyntax,
+    out: &mut Vec<&'a TermSyntax>,
+) {
+    append_primary_simple_tail_place_terms(&tail.first, out);
+    if let Some(continuation) = &tail.bo_continuation {
+        append_primary_bo_tail_place_terms(&continuation.bridi_tail, out);
+        out.extend(continuation.tail_terms.iter());
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_primary_simple_tail_place_terms<'a>(
+    tail: &'a SimpleBridiTailSyntax,
+    out: &mut Vec<&'a TermSyntax>,
+) {
+    match tail.as_data() {
+        data!(SimpleBridiTailSyntax::SelbriBridiTail { terms, .. }) => {
+            out.extend(terms.iter());
+        }
+        data!(SimpleBridiTailSyntax::TermPrefixedBridiTail { terms, bridi_tail }) => {
+            out.extend(terms.iter());
+            append_primary_bridi_tail_place_terms(bridi_tail, out);
+        }
+        data!(SimpleBridiTailSyntax::ForethoughtBridiTailConnection(
+            connection
+        )) => {
+            append_primary_forethought_connection_place_terms(connection, out);
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_primary_forethought_connection_place_terms<'a>(
+    connection: &'a ForethoughtBridiConnectionSyntax,
+    out: &mut Vec<&'a TermSyntax>,
+) {
+    match connection.as_data() {
+        data!(ForethoughtBridiConnectionSyntax::BridiConnection { tail_terms, .. }) => {
+            out.extend(tail_terms.iter());
+        }
+        data!(ForethoughtBridiConnectionSyntax::GroupedBridiConnection { inner, .. })
+        | data!(ForethoughtBridiConnectionSyntax::NegatedBridiConnection { inner, .. }) => {
+            append_primary_forethought_connection_place_terms(inner, out);
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn text_group_tense_modal(statement: &StatementSyntax) -> Option<&TenseModalSyntax> {
     match statement.as_data() {
         data!(StatementSyntax::TextGroup { tense_modal, .. }) => tense_modal.as_deref(),
@@ -15468,6 +15772,21 @@ fn connective_primary_cmavo(connective: &ConnectiveSyntax) -> Option<Cmavo> {
             .iter()
             .filter_map(Token::cmavo)
             .find(|cmavo| Selmaho::Joi.contains(*cmavo) || Selmaho::Bihi.contains(*cmavo)),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connective_contains_cmavo(connective: &ConnectiveSyntax, expected: Cmavo) -> bool {
+    match connective.as_data() {
+        data!(ConnectiveSyntax::Afterthought { cmavo, .. })
+        | data!(ConnectiveSyntax::Selbri { cmavo, .. })
+        | data!(ConnectiveSyntax::BridiTail { cmavo, .. })
+        | data!(ConnectiveSyntax::Forethought { cmavo, .. })
+        | data!(ConnectiveSyntax::NonLogical { cmavo, .. })
+        | data!(ConnectiveSyntax::Interval { cmavo, .. }) => {
+            cmavo.value.iter().any(|token| token.is_cmavo(expected))
+        }
     }
 }
 
@@ -21641,6 +21960,20 @@ mod tests {
             .unwrap_or_else(|| panic!("missing named referent {name}"))
     }
 
+    #[requires(!source_text.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn referent_id_with_source_text<'a>(json: &'a Value, source_text: &str) -> &'a str {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .iter()
+            .find(|(_id, object)| {
+                object["type"] == "referent" && object["source"]["text"] == source_text
+            })
+            .map(|(id, _object)| id.as_str())
+            .unwrap_or_else(|| panic!("missing referent with source text {source_text}"))
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -23720,6 +24053,135 @@ mod tests {
                 .expect("utterance content"),
         );
         assert_eq!(content["connector"]["source"], "mu'i gi");
+        assert_eq!(content["connector"]["locus"], "termset");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn afterthought_logical_termset_connection_pairs_whole_branches() {
+        let json =
+            semantic_json_for("mi klama le zarci ce'e le briju pe'e je le zdani ce'e le ckule")
+                .expect("semantic JSON");
+        let zarci = referent_id_with_source_text(&json, "le zarci");
+        let briju = referent_id_with_source_text(&json, "le briju");
+        let zdani = referent_id_with_source_text(&json, "le zdani");
+        let ckule = referent_id_with_source_text(&json, "le ckule");
+        let klamas = predications_with_relation_and_mode(&json, "klama", "asserted");
+        assert_eq!(klamas.len(), 2);
+        let branch_places = klamas
+            .iter()
+            .map(|predication| {
+                assert_eq!(predication["arguments"]["x1"]["value"], "referent:speaker");
+                (
+                    predication["arguments"]["x2"]["value"]
+                        .as_str()
+                        .expect("x2 value")
+                        .to_owned(),
+                    predication["arguments"]["x3"]["value"]
+                        .as_str()
+                        .expect("x3 value")
+                        .to_owned(),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            branch_places,
+            BTreeSet::from([
+                (zarci.to_owned(), briju.to_owned()),
+                (zdani.to_owned(), ckule.to_owned())
+            ])
+        );
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "and");
+        assert_eq!(content["connector"]["source"], "pe'e je");
+        assert_eq!(content["connector"]["locus"], "termset");
+        assert_eq!(content["connector"]["truthTable"], "TFFF");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unequal_afterthought_termset_connection_places_following_terms_per_branch() {
+        let json = semantic_json_for("mi pe'e ja do ce'e le zarci cu klama le briju")
+            .expect("semantic JSON");
+        let zarci = referent_id_with_source_text(&json, "le zarci");
+        let briju = referent_id_with_source_text(&json, "le briju");
+        let klamas = predications_with_relation_and_mode(&json, "klama", "asserted");
+        assert_eq!(klamas.len(), 2);
+        let speaker_branch = klamas
+            .iter()
+            .find(|predication| predication["arguments"]["x1"]["value"] == "referent:speaker")
+            .expect("speaker branch");
+        assert_eq!(speaker_branch["arguments"]["x2"]["value"], briju);
+        assert_ne!(speaker_branch["arguments"]["x3"]["value"], briju);
+        let addressee_branch = klamas
+            .iter()
+            .find(|predication| predication["arguments"]["x1"]["value"] == "referent:addressee")
+            .expect("addressee branch");
+        assert_eq!(addressee_branch["arguments"]["x2"]["value"], zarci);
+        assert_eq!(addressee_branch["arguments"]["x3"]["value"], briju);
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "or");
+        assert_eq!(content["connector"]["source"], "pe'e ja");
+        assert_eq!(content["connector"]["locus"], "termset");
+        assert_eq!(content["connector"]["truthTable"], "TTTF");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn forethought_logical_termset_connection_keeps_surrounding_terms() {
+        let json =
+            semantic_json_for("mi klama nu'i ge le zarci le briju nu'u gi le zdani le ckule")
+                .expect("semantic JSON");
+        let zarci = referent_id_with_source_text(&json, "le zarci");
+        let briju = referent_id_with_source_text(&json, "le briju");
+        let zdani = referent_id_with_source_text(&json, "le zdani");
+        let ckule = referent_id_with_source_text(&json, "le ckule");
+        let klamas = predications_with_relation_and_mode(&json, "klama", "asserted");
+        assert_eq!(klamas.len(), 2);
+        let branch_places = klamas
+            .iter()
+            .map(|predication| {
+                assert_eq!(predication["arguments"]["x1"]["value"], "referent:speaker");
+                (
+                    predication["arguments"]["x2"]["value"]
+                        .as_str()
+                        .expect("x2 value")
+                        .to_owned(),
+                    predication["arguments"]["x3"]["value"]
+                        .as_str()
+                        .expect("x3 value")
+                        .to_owned(),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            branch_places,
+            BTreeSet::from([
+                (zarci.to_owned(), briju.to_owned()),
+                (zdani.to_owned(), ckule.to_owned())
+            ])
+        );
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "and");
+        assert_eq!(content["connector"]["source"], "ge");
         assert_eq!(content["connector"]["locus"], "termset");
     }
 
