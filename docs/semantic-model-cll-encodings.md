@@ -500,15 +500,15 @@ REF z3 : kind=const, flavor=zo'e, sort=Obj
 REF z4 : kind=const, flavor=zo'e, sort=Obj
 FRM f1 : and(pA, pB)
 ```
-Writing `da` in x1 (14.59) replaces `zA`/`zB` with **one** bound `var` (`EX(X, and(pA[zA:=X], pB[zB:=X]))`) — forcing x1 identity while leaving the routes distinct. This is the whole "elided place = its own `zo'e`, never silently shared" discipline, and why **`X .e Y cu P ≠ X cu P .ije Y cu P`** in general: the `.e` (sumti) form is **one** predication whose other elided places are shared ids, while the `.ije` expansion is **two** predications each with its own `zo'e`.
+Writing `da` in x1 (14.59) replaces `zA`/`zB` with **one** bound `var` (`EX(X, and(pA[zA:=X], pB[zB:=X]))`) — forcing x1 identity while leaving the routes distinct. This is the whole "elided place = its own `zo'e`, never silently shared" discipline. Logical sumti connection distributes one surface predication, but it does not make omitted non-connected places corefer: overt non-connected terms stay shared by id, while omitted places get branch-local `zo'e` referents.
 
 **14.x sumti connection `do .e mi`** — one shared predication, distributing.
 ```
-PRD p1 : rel=R…, ev=e1, args=[a2, …shared zo'e…], mode=asserted        -- the `do` instance
-PRD p2 : rel=R…, ev=e2, args=[a1, …SAME shared zo'e ids…], mode=asserted -- the `mi` instance, differing ONLY in x1
+PRD p1 : rel=R…, ev=e1, args=[a2, overt-shared-args, branch zo'e…], mode=asserted -- the `do` instance
+PRD p2 : rel=R…, ev=e2, args=[a1, overt-shared-args, branch zo'e…], mode=asserted -- the `mi` instance
 FRM f1 : and(p1, p2)
 ```
-The two predications **share** every elided place (same `zo'e` ids), differing only in the connected argument — contrast the fully-independent `.ije` form above.
+The two predications share overt non-connected arguments, but omitted places are separate branch-local `zo'e` referents. This keeps CLL 14.26 equivalent to the corresponding `.ije` expansion with respect to unspecified origins, routes, and means.
 
 **Realization algebra (one `FRM` node per connection):** `.a`→`or`, `.e`→`and`, `.o`→`iff`, `.u`→ first asserted + second `mode=inert`; `na`/`nai`/`se` transform structurally — `na.a`→`or(not p,q)` (truth-functionally implication), `.enai`→`and(p, not q)`, `se.u`→`inert(p), assert(q)`. **Connective question `ji`** (`do ji mi`) → `PAR role=ma, tier=connective` at the connective node, `UTT force=ask`. **Forethought `ge…gi`** = same `FRM` nodes, prefix order. **Termset `nu'i…nu'u`** = parallel connection of several places. **Non-logical `joi`/`ce`/`ce'o`/`fa'u` (14.15)** do **not** enter `FRM`: `joi`→a `gunma` composite, `ce`→a `selcmi` set, `ce'o`→an ordered sequence, `fa'u`→a respectively-pairing — all **composite referents** fed to one predication.
 

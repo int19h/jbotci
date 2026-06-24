@@ -46,7 +46,7 @@ use crate::model::{
     UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
-    BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
+    AssignmentSource, BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
     ReferenceAnalysisError, ReferenceKind, ReferenceTarget, SelbriPlaceFrameId, SumtiNodeId,
     SumtiPlaceAssignment, SumtiPlaceAssignmentId, TermNodeId, analyze_references,
 };
@@ -3609,18 +3609,6 @@ where
         let fill_through = self
             .place_count_for_relation(&relation)
             .unwrap_or_else(|| highest_assigned_place.max(1));
-        for place in 1..=fill_through {
-            let key = format!("x{place}");
-            if !alternatives.contains_key(&key) {
-                alternatives.insert(
-                    key,
-                    vec![AlternativeArgument::new(
-                        self.build_elided_argument_for_place(place)?,
-                        false,
-                    )],
-                );
-            }
-        }
         let mut branches = vec![BTreeMap::new()];
         for (place, values) in alternatives {
             let mut next = Vec::new();
@@ -3634,8 +3622,20 @@ where
             branches = next;
         }
         let mut children = Vec::new();
-        for branch in branches {
+        for mut branch in branches {
             let branch_negated = branch.values().any(|value| value.negated);
+            for place in 1..=fill_through {
+                let key = format!("x{place}");
+                if !branch.contains_key(&key) {
+                    branch.insert(
+                        key,
+                        AlternativeArgument::new(
+                            self.build_elided_argument_for_place(place)?,
+                            false,
+                        ),
+                    );
+                }
+            }
             let arguments = branch
                 .into_iter()
                 .map(|(place, value)| (place, value.argument))
@@ -3848,12 +3848,6 @@ where
             }
             base_arguments.insert(place.clone(), self.build_argument_for_sumti(sumti)?);
         }
-        for place in 1..=fill_through {
-            let key = format!("x{place}");
-            if key != connected_place && !base_arguments.contains_key(&key) {
-                base_arguments.insert(key, self.build_elided_argument_for_place(place)?);
-            }
-        }
         self.build_sumti_connection_formula_for_place(
             bridi,
             selbri,
@@ -3861,6 +3855,7 @@ where
             connected_place,
             &base_arguments,
             connected_sumti,
+            fill_through,
         )
         .map(Some)
     }
@@ -3876,6 +3871,7 @@ where
         connected_place: &str,
         base_arguments: &BTreeMap<String, ArgumentValue>,
         sumti: &'tree SumtiSyntax,
+        fill_through: usize,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let Some((leading_sumti, connective, tense_modal, trailing_sumti)) =
             logical_sumti_connection_parts_degrouped(sumti)
@@ -3887,6 +3883,7 @@ where
                 connected_place,
                 base_arguments,
                 sumti,
+                fill_through,
                 false,
             );
         };
@@ -3897,6 +3894,7 @@ where
             connected_place,
             base_arguments,
             leading_sumti,
+            fill_through,
             connective_negates_left(connective),
         )?;
         let trailing_formula = self.build_sumti_connection_branch_formula(
@@ -3906,6 +3904,7 @@ where
             connected_place,
             base_arguments,
             trailing_sumti,
+            fill_through,
             connective_negates_right(connective),
         )?;
         let mut children = vec![leading_formula, trailing_formula];
@@ -3985,6 +3984,7 @@ where
         connected_place: &str,
         base_arguments: &BTreeMap<String, ArgumentValue>,
         sumti: &'tree SumtiSyntax,
+        fill_through: usize,
         negated: bool,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let formula = if logical_sumti_connection_parts_degrouped(sumti).is_some() {
@@ -3995,6 +3995,7 @@ where
                 connected_place,
                 base_arguments,
                 sumti,
+                fill_through,
             )?
         } else {
             let mut arguments = base_arguments.clone();
@@ -4002,6 +4003,12 @@ where
                 connected_place.to_owned(),
                 self.build_argument_for_sumti(sumti)?,
             );
+            for place in 1..=fill_through {
+                let key = format!("x{place}");
+                if !arguments.contains_key(&key) {
+                    arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                }
+            }
             let predication = self.build_predication_from_arguments(
                 relation.to_owned(),
                 selbri,
@@ -8574,6 +8581,7 @@ where
                 .sumti(assignment.sumti)
                 .ok_or_else(SemanticsError::missing_syntax_node)?;
             let argument = self.build_argument_for_sumti(sumti)?;
+            let argument = self.argument_with_shared_source(argument, assignment);
             let place = place.get() as usize;
             highest_assigned_place = highest_assigned_place.max(place);
             arguments.insert(format!("x{place}"), argument);
@@ -8605,9 +8613,38 @@ where
                 .syntax_index
                 .sumti(assignment.sumti)
                 .ok_or_else(SemanticsError::missing_syntax_node)?;
-            argument = Some(self.build_argument_for_sumti(sumti)?);
+            let built_argument = self.build_argument_for_sumti(sumti)?;
+            argument = Some(self.argument_with_shared_source(built_argument, assignment));
         }
         Ok(argument)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn argument_with_shared_source(
+        &self,
+        argument: ArgumentValue,
+        assignment: &SumtiPlaceAssignment,
+    ) -> ArgumentValue {
+        let construct = match assignment.source {
+            AssignmentSource::SharedHeadTerm => "shared-head-term",
+            AssignmentSource::SharedTailTerm => "shared-tail-term",
+            AssignmentSource::SequentialTerm
+            | AssignmentSource::FaTerm
+            | AssignmentSource::ModalTerm
+            | AssignmentSource::LinkedSumti
+            | AssignmentSource::CoSeltauTerm
+            | AssignmentSource::TermsetBranch
+            | AssignmentSource::Propagated => return argument,
+        };
+        let raw = assignment
+            .term
+            .map(|term| term.0)
+            .unwrap_or(assignment.sumti.0);
+        let Some(source) = self.source_for_node(raw, construct) else {
+            return argument;
+        };
+        argument.with_data(data! { source: Some(source) })
     }
 
     #[requires(true)]
@@ -23758,15 +23795,28 @@ mod tests {
             .as_str()
             .expect("effect eventuality");
         assert_eq!(object(&json, effect_event)["content"], inner_id);
+        for predication in &carries {
+            assert_eq!(predication["arguments"]["x1"]["value"], "referent:speaker");
+        }
+        let x2_values = carries
+            .iter()
+            .map(|predication| {
+                predication["arguments"]["x2"]["value"]
+                    .as_str()
+                    .expect("connected x2 value")
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(x2_values.len(), carries.len());
         for place in ["x3", "x4", "x5"] {
-            assert_eq!(
-                carries[0]["arguments"][place]["value"],
-                carries[1]["arguments"][place]["value"]
-            );
-            assert_eq!(
-                carries[1]["arguments"][place]["value"],
-                carries[2]["arguments"][place]["value"]
-            );
+            let values = carries
+                .iter()
+                .map(|predication| {
+                    predication["arguments"][place]["value"]
+                        .as_str()
+                        .expect("branch-local elided value")
+                })
+                .collect::<BTreeSet<_>>();
+            assert_eq!(values.len(), carries.len());
         }
     }
 
@@ -26082,7 +26132,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn logical_sumti_connection_distributes_and_shares_elided_places() {
+    fn logical_sumti_connection_distributes_without_sharing_omitted_places() {
         let json = semantic_json_for("la djan .e la alis klama le zarci").expect("semantic JSON");
         let djan = named_referent_id(&json, "djan");
         let alis = named_referent_id(&json, "alis");
@@ -26098,17 +26148,40 @@ mod tests {
             alis
         );
         assert_eq!(
-            object(&json, "predication:p2")["arguments"]["x3"]["value"],
-            object(&json, "predication:p3")["arguments"]["x3"]["value"]
+            object(&json, "predication:p2")["arguments"]["x2"]["value"],
+            object(&json, "predication:p3")["arguments"]["x2"]["value"]
         );
-        assert_eq!(
-            object(&json, "predication:p2")["arguments"]["x4"]["value"],
-            object(&json, "predication:p3")["arguments"]["x4"]["value"]
-        );
-        assert_eq!(
-            object(&json, "predication:p2")["arguments"]["x5"]["value"],
-            object(&json, "predication:p3")["arguments"]["x5"]["value"]
-        );
+        for place in ["x3", "x4", "x5"] {
+            assert_ne!(
+                object(&json, "predication:p2")["arguments"][place]["value"],
+                object(&json, "predication:p3")["arguments"][place]["value"]
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn compound_bridi_marks_shared_head_and_tail_terms() {
+        let json = semantic_json_for("mi dunda le cukta gi'e lebna lo jdini vau do")
+            .expect("semantic JSON");
+        let dunda = predication_with_relation_and_mode(&json, "dunda", "asserted");
+        let lebna = predication_with_relation_and_mode(&json, "lebna", "asserted");
+        for predication in [dunda, lebna] {
+            assert_eq!(predication["arguments"]["x1"]["value"], "referent:speaker");
+            assert_eq!(
+                predication["arguments"]["x1"]["source"]["construct"],
+                "shared-head-term"
+            );
+            assert_eq!(
+                predication["arguments"]["x3"]["value"],
+                "referent:addressee"
+            );
+            assert_eq!(
+                predication["arguments"]["x3"]["source"]["construct"],
+                "shared-tail-term"
+            );
+        }
     }
 
     #[test]
@@ -26149,7 +26222,7 @@ mod tests {
             })
             .collect::<BTreeSet<_>>();
         assert_eq!(x2_values.len(), 2);
-        let shared_x3_values = klamas
+        let branch_x3_values = klamas
             .iter()
             .map(|predication| {
                 predication["arguments"]["x3"]["value"]
@@ -26157,7 +26230,7 @@ mod tests {
                     .expect("x3 value")
             })
             .collect::<BTreeSet<_>>();
-        assert_eq!(shared_x3_values.len(), 1);
+        assert_eq!(branch_x3_values.len(), 4);
     }
 
     #[test]

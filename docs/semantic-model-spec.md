@@ -1944,10 +1944,15 @@ The sharing rules are semantic, not only syntactic:
 
 - `gi'e` connects bridi tails.  An explicit shared x1, including one supplied
   before the first tail, is shared by all connected tails; an omitted x1 is not
-  shared and each tail receives its own `zo'e` referent.
+  shared and each tail receives its own `zo'e` referent.  Tail terms after the
+  connected bridi tail, separated by `vau` when needed, are shared overt terms;
+  their argument sources may use `construct = "shared-tail-term"`.  Terms before
+  the first connected tail may analogously use `construct = "shared-head-term"`.
 - Logical sumti `.e` distributes over the shared predication.  The connected
-  argument differs between branches, but all other elided places are the same
-  `zo'e` referents in every branch.
+  argument differs between branches, and overt non-connected arguments are shared
+  by id.  Omitted or explicitly elided non-connected places are not shared by
+  default; each branch receives its own `zo'e` referent unless the surface gives a
+  non-`zo'e` term to share.
 - Sentence connectives such as `.ije` join complete formulas; they do not
   inherit the elided-place sharing behavior of sumti connection.
 - Whether-or-not connectives (`.u`/`ju`) keep children in surface order.  The
@@ -3273,7 +3278,8 @@ These are the semantic object-model changes relative to
 12. Corrected connective sharing.
    `gi'e` shares an explicit x1 only; omitted x1 places are separate `zo'e`
    referents per tail.  Logical sumti `.e` distributes over one shared
-   predication and shares the non-connected elided places.
+   predication, shares overt non-connected arguments, and gives omitted
+   non-connected places branch-local `zo'e` referents.
 
 13. Refined eventuality anchors.
    Temporal and spatial tags should point to structured anchors for moments,
@@ -4579,6 +4585,7 @@ implementation gaps are listed separately in “Known Implementation Divergences
     **normative** so an id-**inequality** becomes a detectable defect; add an optional
     provenance tag via the existing `ArgumentValue.source.construct`
     (`"shared-tail-term"`/`"shared-head-term"`). No new semantic node (Not-Adopted #3).
+    Implemented in `tersmu` v1.
 
 16. **`fi'o se pilno` place numbering (#17) — model correct; doc only.** Per 0.H the
     `ModalArgument.relation` carries the **unconverted** root (`pilno`) and the tagged

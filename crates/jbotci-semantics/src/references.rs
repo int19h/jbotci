@@ -313,7 +313,27 @@ pub enum AssignmentSource {
     LinkedSumti,
     CoSeltauTerm,
     TermsetBranch,
+    SharedHeadTerm,
+    SharedTailTerm,
     Propagated,
+}
+
+#[requires(true)]
+#[ensures(matches!(
+    ret,
+    AssignmentSource::SharedHeadTerm | AssignmentSource::SharedTailTerm | AssignmentSource::Propagated
+))]
+fn propagated_assignment_source(source: AssignmentSource) -> AssignmentSource {
+    match source {
+        AssignmentSource::SharedHeadTerm | AssignmentSource::SharedTailTerm => source,
+        AssignmentSource::SequentialTerm
+        | AssignmentSource::FaTerm
+        | AssignmentSource::ModalTerm
+        | AssignmentSource::LinkedSumti
+        | AssignmentSource::CoSeltauTerm
+        | AssignmentSource::TermsetBranch
+        | AssignmentSource::Propagated => AssignmentSource::Propagated,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1221,6 +1241,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             next_place_after_common_terms(initial_place, &bridi.leading_terms);
         let tail = self.analyze_bridi_tail(&bridi.bridi_tail, branch_initial_place);
         let predicate_raw = self.raw_for(SyntaxNodeRef::BridiSyntax(bridi));
+        let shared_branch_terms = tail.branch_cursors.is_some() || tail.frames.len() > 1;
         let predicate_frame = self.add_frame(
             predicate_raw,
             PlaceFrameKind::Bridi,
@@ -1230,16 +1251,22 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         );
         let mut cursors =
             vec![self.cursor_with_existing_assignments(predicate_frame, initial_place)];
-        self.assign_terms(
-            &mut cursors,
-            &bridi.leading_terms,
-            AssignmentSource::SequentialTerm,
-        );
+        let leading_source = if shared_branch_terms {
+            AssignmentSource::SharedHeadTerm
+        } else {
+            AssignmentSource::SequentialTerm
+        };
+        self.assign_terms(&mut cursors, &bridi.leading_terms, leading_source);
         for cursor in &mut cursors {
             cursor.ensure_next_place_at_least(2);
             self.apply_linked_argument_cursor(cursor);
         }
-        self.assign_term_refs(&mut cursors, &tail.terms, AssignmentSource::SequentialTerm);
+        let tail_source = if shared_branch_terms {
+            AssignmentSource::SharedTailTerm
+        } else {
+            AssignmentSource::SequentialTerm
+        };
+        self.assign_term_refs(&mut cursors, &tail.terms, tail_source);
         self.analyze_free_modifiers_nested(&bridi.free_modifiers);
         predicate_frame
     }
@@ -1494,7 +1521,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             self.assign_terms(
                 &mut first_branch_cursors,
                 &ke_continuation.tail_terms,
-                AssignmentSource::SequentialTerm,
+                AssignmentSource::SharedTailTerm,
             );
             branch_cursors = Some(first_branch_cursors);
             self.analyze_free_modifiers_nested(&ke_continuation.free_modifiers);
@@ -1539,7 +1566,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.assign_terms(
                     cursors,
                     &continuation.tail_terms,
-                    AssignmentSource::SequentialTerm,
+                    AssignmentSource::SharedTailTerm,
                 );
             }
             analysis.frames.extend(next.frames);
@@ -1586,7 +1613,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             self.assign_terms(
                 &mut active_cursors,
                 &continuation.tail_terms,
-                AssignmentSource::SequentialTerm,
+                AssignmentSource::SharedTailTerm,
             );
             branch_cursors = Some(active_cursors);
             self.analyze_free_modifiers_nested(&continuation.free_modifiers);
@@ -1701,7 +1728,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     self.cursor_with_existing_assignments(first_frame, branch_initial_place),
                     self.cursor_with_existing_assignments(second_frame, branch_initial_place),
                 ];
-                self.assign_terms(&mut cursors, tail_terms, AssignmentSource::SequentialTerm);
+                self.assign_terms(&mut cursors, tail_terms, AssignmentSource::SharedTailTerm);
                 self.analyze_free_modifiers_nested(free_modifiers);
                 vec![first_frame, second_frame]
             }
@@ -3050,7 +3077,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     slot,
                     sumti,
                     term,
-                    AssignmentSource::Propagated,
+                    propagated_assignment_source(source),
                     visited,
                 );
             }
@@ -3064,7 +3091,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     mapped,
                     sumti,
                     term,
-                    AssignmentSource::Propagated,
+                    propagated_assignment_source(source),
                     visited,
                 );
             }
@@ -3074,7 +3101,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     numbered_slot(NonZeroU8::new(1).expect("literal is non-zero")),
                     sumti,
                     term,
-                    AssignmentSource::Propagated,
+                    propagated_assignment_source(source),
                     visited,
                 ),
                 PlaceSlot::Numbered(place) if place.get() > 1 => self.add_assignment_recursive(
@@ -3082,7 +3109,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     numbered_slot(place),
                     sumti,
                     term,
-                    AssignmentSource::Propagated,
+                    propagated_assignment_source(source),
                     visited,
                 ),
                 PlaceSlot::Numbered(_) | PlaceSlot::Modal(_) | PlaceSlot::PlaceQuestion => {}
@@ -3094,7 +3121,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                         slot,
                         sumti,
                         term,
-                        AssignmentSource::Propagated,
+                        propagated_assignment_source(source),
                         visited,
                     );
                 }
@@ -3105,7 +3132,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     slot,
                     sumti,
                     term,
-                    AssignmentSource::Propagated,
+                    propagated_assignment_source(source),
                     visited,
                 );
             }
@@ -3115,12 +3142,11 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     slot,
                     sumti,
                     term,
-                    AssignmentSource::Propagated,
+                    propagated_assignment_source(source),
                     visited,
                 );
             }
         }
-        let _ = source;
     }
 
     #[requires(true)]
