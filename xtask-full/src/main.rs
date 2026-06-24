@@ -178,6 +178,7 @@ struct Cli {
 #[invariant(::RefsV0Parity(..) => true)]
 #[invariant(::FixtureVectorStats(..) => true)]
 #[invariant(::FixtureTest(..) => true)]
+#[invariant(::SyntaxParserBenchmark(..) => true)]
 #[invariant(::VendorDictionary(..) => true)]
 #[invariant(::VendorWiki(..) => true)]
 #[invariant(::BuildWebRelease(..) => true)]
@@ -212,6 +213,8 @@ enum Command {
     RefsV0Parity(RefsV0ParityArgs),
     FixtureVectorStats(FixtureVectorStatsArgs),
     FixtureTest(FixtureRunArgs),
+    #[command(name = "syntax-parser-benchmark")]
+    SyntaxParserBenchmark(SyntaxParserBenchmarkArgs),
     VendorDictionary(VendorDictionaryArgs),
     VendorWiki(VendorWikiArgs),
     BuildWebRelease(BuildWebReleaseArgs),
@@ -285,6 +288,34 @@ struct FixtureRunArgs {
     syntax_strict_only: bool,
     #[arg(long, hide = true)]
     syntax_tree_oracle: bool,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct SyntaxParserBenchmarkArgs {
+    #[arg(long, default_value = "tests/fixtures")]
+    root: PathBuf,
+    #[arg(long)]
+    profile: Option<String>,
+    #[arg(long = "path-prefix")]
+    path_prefixes: Vec<String>,
+    #[arg(long = "id")]
+    ids: Vec<String>,
+    #[arg(long, default_value_t = 1)]
+    iterations: usize,
+    #[arg(long, hide = true)]
+    worker: bool,
+    #[arg(long, hide = true, value_enum)]
+    parser: Option<SyntaxParserBenchmarkParser>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[invariant(true)]
+#[invariant(::Handwritten => true)]
+#[invariant(::Generated => true)]
+enum SyntaxParserBenchmarkParser {
+    Handwritten,
+    Generated,
 }
 
 #[derive(Debug, Args)]
@@ -1030,6 +1061,7 @@ fn main() -> Result<()> {
         Command::RefsV0Parity(args) => refs_v0_parity(args),
         Command::FixtureVectorStats(args) => fixture_vector_stats(args),
         Command::FixtureTest(args) => fixture_test(args),
+        Command::SyntaxParserBenchmark(args) => syntax_parser_benchmark(args),
         Command::VendorDictionary(args) => vendor_dictionary(args),
         Command::VendorWiki(args) => vendor_wiki(args),
         Command::BuildWebRelease(args) => build_web_release(args),
@@ -8019,6 +8051,622 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
         bail!("fixture-test failed {} facet(s)", summary.failed);
     }
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn syntax_parser_benchmark(args: SyntaxParserBenchmarkArgs) -> Result<()> {
+    if args.iterations == 0 {
+        bail!("--iterations must be positive");
+    }
+    if args.worker {
+        return syntax_parser_benchmark_worker(args);
+    }
+    if args.parser.is_some() {
+        bail!("--parser is only valid with internal --worker mode");
+    }
+
+    let exe = std::env::current_exe().context("resolving xtask executable")?;
+    let mut all_results = Vec::new();
+    for parser in [
+        SyntaxParserBenchmarkParser::Handwritten,
+        SyntaxParserBenchmarkParser::Generated,
+    ] {
+        let mut parser_results = Vec::new();
+        for iteration in 0..args.iterations {
+            let output =
+                syntax_parser_benchmark_worker_output(&exe, &args, parser).with_context(|| {
+                    format!(
+                        "running {} parser benchmark iteration {}",
+                        parser.as_str(),
+                        iteration + 1
+                    )
+                })?;
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if !output.status.success() {
+                bail!(
+                    "{} parser benchmark worker failed with status {}; stdout: {}",
+                    parser.as_str(),
+                    output.status,
+                    stdout.trim()
+                );
+            }
+            parser_results.push(parse_syntax_parser_benchmark_summary(&stdout)?);
+        }
+        all_results.push((parser, parser_results));
+    }
+
+    print_syntax_parser_benchmark_report(&args, &all_results);
+    Ok(())
+}
+
+#[requires(args.worker)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn syntax_parser_benchmark_worker(args: SyntaxParserBenchmarkArgs) -> Result<()> {
+    let parser = args
+        .parser
+        .ok_or_else(|| anyhow::anyhow!("internal --worker mode requires --parser"))?;
+    let profile = syntax_parser_benchmark_profile(&args)?;
+    let mut paths = fixture_paths(&args.root)
+        .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
+    paths.retain(|path| path_matches_prefix_selector(&args.root, path, &profile.selector));
+
+    let resource_start = sample_benchmark_resource_usage();
+    let started_at = Instant::now();
+    let mut selected = 0usize;
+    let mut benchmarked = 0usize;
+    let mut parsed = 0usize;
+    let mut skipped = 0usize;
+    let mut morphology_errors = 0usize;
+    let mut syntax_errors = 0usize;
+    for path in paths {
+        let fixture =
+            load_fixture_path(&path).with_context(|| format!("loading `{}`", path.display()))?;
+        if !fixture_matches_selector(&args.root, &fixture, &profile.selector) {
+            continue;
+        }
+        selected += 1;
+        let Some(expectation) = &fixture.test_case.expectations.syntax else {
+            skipped += 1;
+            continue;
+        };
+        if !syntax_accepts_success_tree_refresh(expectation) {
+            skipped += 1;
+            continue;
+        }
+        benchmarked += 1;
+        let dialect = fixture
+            .test_case
+            .dialect_definition()
+            .with_context(|| format!("resolving dialect for `{}`", fixture.test_case.id))?;
+        let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+        let words = match segment_words_with_modifiers_with_options_and_source_id(
+            &fixture.test_case.lojban,
+            &morphology_options,
+            Some(SourceId("<fixture>".to_owned())),
+        ) {
+            Ok(words) => words,
+            Err(_) => {
+                morphology_errors += 1;
+                continue;
+            }
+        };
+        let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+        let parsed_tree = match parser {
+            SyntaxParserBenchmarkParser::Handwritten => {
+                parse_syntax_tree_handwritten_with_source_and_options(
+                    &words,
+                    &fixture.test_case.lojban,
+                    &syntax_options,
+                )
+            }
+            SyntaxParserBenchmarkParser::Generated => parse_syntax_tree_with_source_and_options(
+                &words,
+                &fixture.test_case.lojban,
+                &syntax_options,
+            ),
+        };
+        match parsed_tree {
+            Ok(tree) => {
+                drop(tree);
+                parsed += 1;
+            }
+            Err(_) => {
+                syntax_errors += 1;
+            }
+        }
+    }
+    let wall_time = started_at.elapsed();
+    let resources =
+        BenchmarkResourceDelta::between(resource_start, sample_benchmark_resource_usage());
+    let summary = SyntaxParserBenchmarkSummary {
+        parser,
+        selected,
+        benchmarked,
+        parsed,
+        skipped,
+        morphology_errors,
+        syntax_errors,
+        wall_time,
+        resources,
+    };
+    println!("{}", summary.worker_line());
+    if morphology_errors > 0 || syntax_errors > 0 {
+        bail!(
+            "{} parser benchmark saw morphology_errors={} syntax_errors={}",
+            parser.as_str(),
+            morphology_errors,
+            syntax_errors
+        );
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn syntax_parser_benchmark_profile(args: &SyntaxParserBenchmarkArgs) -> Result<FixtureProfile> {
+    let run_args = FixtureRunArgs {
+        root: args.root.clone(),
+        profile: args.profile.clone(),
+        facets: vec![Facet::Syntax],
+        provenance: Vec::new(),
+        tags: Vec::new(),
+        ids: args.ids.clone(),
+        path_prefixes: args.path_prefixes.clone(),
+        cll_chapter: None,
+        cll_section: None,
+        cll_example: None,
+        muplis_collection: None,
+        muplis_item: None,
+        muplis_form: None,
+        jobs: None,
+        failure_samples: None,
+        chunk_worker: false,
+        syntax_strict_only: false,
+        syntax_tree_oracle: false,
+    };
+    merged_profile(&run_args)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn syntax_parser_benchmark_worker_output(
+    exe: &Path,
+    args: &SyntaxParserBenchmarkArgs,
+    parser: SyntaxParserBenchmarkParser,
+) -> Result<std::process::Output> {
+    let mut command = ProcessCommand::new(exe);
+    command
+        .arg("syntax-parser-benchmark")
+        .arg("--root")
+        .arg(&args.root)
+        .arg("--iterations")
+        .arg("1")
+        .arg("--worker")
+        .arg("--parser")
+        .arg(parser.as_str());
+    if let Some(profile) = &args.profile {
+        command.arg("--profile").arg(profile);
+    }
+    for id in &args.ids {
+        command.arg("--id").arg(id);
+    }
+    for path_prefix in &args.path_prefixes {
+        command.arg("--path-prefix").arg(path_prefix);
+    }
+    command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .output()
+        .context("running syntax parser benchmark worker")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|summary| !summary.parser.as_str().is_empty()) || ret.is_err())]
+fn parse_syntax_parser_benchmark_summary(stdout: &str) -> Result<SyntaxParserBenchmarkSummary> {
+    let line = stdout
+        .lines()
+        .rev()
+        .find(|line| line.starts_with(SYNTAX_PARSER_BENCHMARK_WORKER_PREFIX))
+        .ok_or_else(|| anyhow::anyhow!("syntax parser benchmark worker did not print a summary"))?;
+    let mut parser = None;
+    let mut selected = None;
+    let mut benchmarked = None;
+    let mut parsed = None;
+    let mut skipped = None;
+    let mut morphology_errors = None;
+    let mut syntax_errors = None;
+    let mut wall_ns = None;
+    let mut user_cpu_ns = None;
+    let mut system_cpu_ns = None;
+    let mut peak_rss_bytes = None;
+    for part in line[SYNTAX_PARSER_BENCHMARK_WORKER_PREFIX.len()..].split_ascii_whitespace() {
+        let Some((key, value)) = part.split_once('=') else {
+            continue;
+        };
+        match key {
+            "parser" => parser = Some(parse_syntax_parser_benchmark_parser(value)?),
+            "selected" => selected = Some(parse_usize_field(key, value)?),
+            "benchmarked" => benchmarked = Some(parse_usize_field(key, value)?),
+            "parsed" => parsed = Some(parse_usize_field(key, value)?),
+            "skipped" => skipped = Some(parse_usize_field(key, value)?),
+            "morphology_errors" => morphology_errors = Some(parse_usize_field(key, value)?),
+            "syntax_errors" => syntax_errors = Some(parse_usize_field(key, value)?),
+            "wall_ns" => wall_ns = Some(parse_u128_field(key, value)?),
+            "user_cpu_ns" => user_cpu_ns = parse_optional_u128_field(key, value)?,
+            "system_cpu_ns" => system_cpu_ns = parse_optional_u128_field(key, value)?,
+            "peak_rss_bytes" => peak_rss_bytes = parse_optional_u64_field(key, value)?,
+            _ => {}
+        }
+    }
+    Ok(SyntaxParserBenchmarkSummary {
+        parser: parser.ok_or_else(|| anyhow::anyhow!("missing parser in benchmark summary"))?,
+        selected: selected.ok_or_else(|| anyhow::anyhow!("missing selected count"))?,
+        benchmarked: benchmarked.ok_or_else(|| anyhow::anyhow!("missing benchmarked count"))?,
+        parsed: parsed.ok_or_else(|| anyhow::anyhow!("missing parsed count"))?,
+        skipped: skipped.ok_or_else(|| anyhow::anyhow!("missing skipped count"))?,
+        morphology_errors: morphology_errors
+            .ok_or_else(|| anyhow::anyhow!("missing morphology error count"))?,
+        syntax_errors: syntax_errors
+            .ok_or_else(|| anyhow::anyhow!("missing syntax error count"))?,
+        wall_time: duration_from_nanos_saturating(
+            wall_ns.ok_or_else(|| anyhow::anyhow!("missing wall time"))?,
+        ),
+        resources: BenchmarkResourceDelta {
+            user_cpu: user_cpu_ns.map(duration_from_nanos_saturating),
+            system_cpu: system_cpu_ns.map(duration_from_nanos_saturating),
+            peak_rss_bytes,
+        },
+    })
+}
+
+#[requires(!name.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|_| true) || ret.is_err())]
+fn parse_usize_field(name: &str, value: &str) -> Result<usize> {
+    value
+        .parse()
+        .with_context(|| format!("parsing {name} value `{value}`"))
+}
+
+#[requires(!name.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|_| true) || ret.is_err())]
+fn parse_u128_field(name: &str, value: &str) -> Result<u128> {
+    value
+        .parse()
+        .with_context(|| format!("parsing {name} value `{value}`"))
+}
+
+#[requires(!name.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|_| true) || ret.is_err())]
+fn parse_optional_u128_field(name: &str, value: &str) -> Result<Option<u128>> {
+    if value == "none" {
+        return Ok(None);
+    }
+    parse_u128_field(name, value).map(Some)
+}
+
+#[requires(!name.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|_| true) || ret.is_err())]
+fn parse_optional_u64_field(name: &str, value: &str) -> Result<Option<u64>> {
+    if value == "none" {
+        return Ok(None);
+    }
+    value
+        .parse()
+        .map(Some)
+        .with_context(|| format!("parsing {name} value `{value}`"))
+}
+
+#[requires(!value.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|parser| parser.as_str() == value) || ret.is_err())]
+fn parse_syntax_parser_benchmark_parser(value: &str) -> Result<SyntaxParserBenchmarkParser> {
+    match value {
+        "handwritten" => Ok(SyntaxParserBenchmarkParser::Handwritten),
+        "generated" => Ok(SyntaxParserBenchmarkParser::Generated),
+        _ => bail!("unknown syntax parser benchmark parser `{value}`"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn print_syntax_parser_benchmark_report(
+    args: &SyntaxParserBenchmarkArgs,
+    results: &[(
+        SyntaxParserBenchmarkParser,
+        Vec<SyntaxParserBenchmarkSummary>,
+    )],
+) {
+    println!("syntax parser benchmark:");
+    println!("  root: {}", args.root.display());
+    println!(
+        "  profile: {}",
+        args.profile.as_deref().unwrap_or("<default>")
+    );
+    if !args.path_prefixes.is_empty() {
+        println!("  path-prefixes: {}", args.path_prefixes.join(", "));
+    }
+    if !args.ids.is_empty() {
+        println!("  ids: {}", args.ids.join(", "));
+    }
+    println!("  iterations: {}", args.iterations);
+    for (parser, summaries) in results {
+        print_syntax_parser_benchmark_parser_report(*parser, summaries);
+    }
+    if let Some(ratio) = syntax_parser_benchmark_wall_ratio(results) {
+        println!("  generated/handwritten wall ratio: {ratio:.3}x");
+    }
+}
+
+#[requires(!summaries.is_empty())]
+#[ensures(true)]
+fn print_syntax_parser_benchmark_parser_report(
+    parser: SyntaxParserBenchmarkParser,
+    summaries: &[SyntaxParserBenchmarkSummary],
+) {
+    let first = &summaries[0];
+    println!("  {}:", parser.as_str());
+    println!(
+        "    fixtures: selected={} benchmarked={} parsed={} skipped={} morphology-errors={} syntax-errors={}",
+        first.selected,
+        first.benchmarked,
+        first.parsed,
+        first.skipped,
+        first.morphology_errors,
+        first.syntax_errors
+    );
+    for (index, summary) in summaries.iter().enumerate() {
+        println!(
+            "    iteration {}: wall={} throughput={} cpu={} peak-rss={}",
+            index + 1,
+            format_benchmark_duration(summary.wall_time),
+            format_benchmark_throughput(summary.parsed, summary.wall_time),
+            format_benchmark_cpu(&summary.resources),
+            format_optional_bytes(summary.resources.peak_rss_bytes)
+        );
+    }
+    println!(
+        "    mean: wall={} throughput={}",
+        format_benchmark_duration(mean_duration(
+            summaries.iter().map(|summary| summary.wall_time)
+        )),
+        format_benchmark_throughput(
+            first.parsed,
+            mean_duration(summaries.iter().map(|summary| summary.wall_time))
+        )
+    );
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|ratio| ratio.is_finite()))]
+fn syntax_parser_benchmark_wall_ratio(
+    results: &[(
+        SyntaxParserBenchmarkParser,
+        Vec<SyntaxParserBenchmarkSummary>,
+    )],
+) -> Option<f64> {
+    let handwritten = results
+        .iter()
+        .find(|(parser, _)| *parser == SyntaxParserBenchmarkParser::Handwritten)
+        .map(|(_, summaries)| mean_duration(summaries.iter().map(|summary| summary.wall_time)))?;
+    let generated = results
+        .iter()
+        .find(|(parser, _)| *parser == SyntaxParserBenchmarkParser::Generated)
+        .map(|(_, summaries)| mean_duration(summaries.iter().map(|summary| summary.wall_time)))?;
+    (handwritten > Duration::ZERO)
+        .then_some(generated.as_secs_f64() / handwritten.as_secs_f64())
+        .filter(|ratio| ratio.is_finite())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn mean_duration<I>(durations: I) -> Duration
+where
+    I: IntoIterator<Item = Duration>,
+{
+    let mut total = 0u128;
+    let mut count = 0u128;
+    for duration in durations {
+        total = total.saturating_add(duration.as_nanos());
+        count += 1;
+    }
+    if count == 0 {
+        return Duration::ZERO;
+    }
+    duration_from_nanos_saturating(total / count)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn format_benchmark_duration(duration: Duration) -> String {
+    format!("{:.3} ms", duration.as_secs_f64() * 1000.0)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn format_benchmark_throughput(count: usize, duration: Duration) -> String {
+    if duration == Duration::ZERO {
+        return "unavailable".to_owned();
+    }
+    format!("{:.1} fixtures/s", count as f64 / duration.as_secs_f64())
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn format_benchmark_cpu(resources: &BenchmarkResourceDelta) -> String {
+    let Some(user_cpu) = resources.user_cpu else {
+        return "unavailable".to_owned();
+    };
+    let Some(system_cpu) = resources.system_cpu else {
+        return "unavailable".to_owned();
+    };
+    format!(
+        "total={} user={} system={}",
+        format_benchmark_duration(user_cpu.saturating_add(system_cpu)),
+        format_benchmark_duration(user_cpu),
+        format_benchmark_duration(system_cpu)
+    )
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn format_optional_bytes(bytes: Option<u64>) -> String {
+    bytes
+        .map(|bytes| format!("{:.1} MiB", bytes as f64 / 1_048_576.0))
+        .unwrap_or_else(|| "unavailable".to_owned())
+}
+
+const SYNTAX_PARSER_BENCHMARK_WORKER_PREFIX: &str = "syntax-parser-benchmark-worker ";
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct SyntaxParserBenchmarkSummary {
+    parser: SyntaxParserBenchmarkParser,
+    selected: usize,
+    benchmarked: usize,
+    parsed: usize,
+    skipped: usize,
+    morphology_errors: usize,
+    syntax_errors: usize,
+    wall_time: Duration,
+    resources: BenchmarkResourceDelta,
+}
+
+impl SyntaxParserBenchmarkSummary {
+    #[requires(true)]
+    #[ensures(ret.starts_with(SYNTAX_PARSER_BENCHMARK_WORKER_PREFIX))]
+    fn worker_line(&self) -> String {
+        format!(
+            "{SYNTAX_PARSER_BENCHMARK_WORKER_PREFIX}parser={} selected={} benchmarked={} parsed={} skipped={} morphology_errors={} syntax_errors={} wall_ns={} user_cpu_ns={} system_cpu_ns={} peak_rss_bytes={}",
+            self.parser.as_str(),
+            self.selected,
+            self.benchmarked,
+            self.parsed,
+            self.skipped,
+            self.morphology_errors,
+            self.syntax_errors,
+            self.wall_time.as_nanos(),
+            format_optional_nanos(self.resources.user_cpu),
+            format_optional_nanos(self.resources.system_cpu),
+            self.resources
+                .peak_rss_bytes
+                .map(|bytes| bytes.to_string())
+                .unwrap_or_else(|| "none".to_owned())
+        )
+    }
+}
+
+impl SyntaxParserBenchmarkParser {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Handwritten => "handwritten",
+            Self::Generated => "generated",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+#[invariant(true)]
+struct BenchmarkResourceUsage {
+    user_cpu: Option<Duration>,
+    system_cpu: Option<Duration>,
+    peak_rss_bytes: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[invariant(true)]
+struct BenchmarkResourceDelta {
+    user_cpu: Option<Duration>,
+    system_cpu: Option<Duration>,
+    peak_rss_bytes: Option<u64>,
+}
+
+impl BenchmarkResourceDelta {
+    #[requires(true)]
+    #[ensures(true)]
+    fn between(start: BenchmarkResourceUsage, end: BenchmarkResourceUsage) -> Self {
+        Self {
+            user_cpu: benchmark_duration_delta(start.user_cpu, end.user_cpu),
+            system_cpu: benchmark_duration_delta(start.system_cpu, end.system_cpu),
+            peak_rss_bytes: end.peak_rss_bytes,
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn benchmark_duration_delta(start: Option<Duration>, end: Option<Duration>) -> Option<Duration> {
+    Some(end?.saturating_sub(start?))
+}
+
+#[cfg(unix)]
+#[requires(true)]
+#[ensures(true)]
+fn sample_benchmark_resource_usage() -> BenchmarkResourceUsage {
+    use std::mem::MaybeUninit;
+
+    let mut usage = MaybeUninit::<libc::rusage>::uninit();
+    // getrusage initializes the rusage buffer when it returns 0.
+    let status = unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) };
+    if status != 0 {
+        return BenchmarkResourceUsage::default();
+    }
+    let usage = unsafe { usage.assume_init() };
+    BenchmarkResourceUsage {
+        user_cpu: duration_from_timeval(usage.ru_utime),
+        system_cpu: duration_from_timeval(usage.ru_stime),
+        peak_rss_bytes: peak_rss_bytes_from_ru_maxrss(usage.ru_maxrss),
+    }
+}
+
+#[cfg(not(unix))]
+#[requires(true)]
+#[ensures(true)]
+fn sample_benchmark_resource_usage() -> BenchmarkResourceUsage {
+    BenchmarkResourceUsage::default()
+}
+
+#[cfg(unix)]
+#[requires(true)]
+#[ensures(true)]
+fn duration_from_timeval(value: libc::timeval) -> Option<Duration> {
+    let seconds = u64::try_from(value.tv_sec).ok()?;
+    let microseconds = u32::try_from(value.tv_usec).ok()?;
+    if microseconds >= 1_000_000 {
+        return None;
+    }
+    Some(Duration::new(seconds, microseconds * 1_000))
+}
+
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+#[requires(true)]
+#[ensures(true)]
+fn peak_rss_bytes_from_ru_maxrss(value: libc::c_long) -> Option<u64> {
+    u64::try_from(value).ok()
+}
+
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "ios"))))]
+#[requires(true)]
+#[ensures(true)]
+fn peak_rss_bytes_from_ru_maxrss(value: libc::c_long) -> Option<u64> {
+    u64::try_from(value)
+        .ok()
+        .and_then(|kib| kib.checked_mul(1024))
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn format_optional_nanos(duration: Option<Duration>) -> String {
+    duration
+        .map(|duration| duration.as_nanos().to_string())
+        .unwrap_or_else(|| "none".to_owned())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn duration_from_nanos_saturating(nanos: u128) -> Duration {
+    Duration::from_nanos(u64::try_from(nanos).unwrap_or(u64::MAX))
 }
 
 #[requires(profile.is_valid())]
