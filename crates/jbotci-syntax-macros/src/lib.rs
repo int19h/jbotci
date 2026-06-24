@@ -73,8 +73,16 @@ impl SyntaxGrammar {
         };
         let env = compact_tokens(env);
         let recovered_module = self.recovered_module_tokens();
-        let helper_outputs = self.product_helper_outputs();
-        let product_helpers = self.expand_product_helpers(&helper_outputs, &type_env);
+        let helper_outputs = if self.generate_model {
+            BTreeSet::new()
+        } else {
+            self.product_helper_outputs()
+        };
+        let product_helpers = if self.generate_model {
+            Vec::new()
+        } else {
+            self.expand_product_helpers(&helper_outputs, &type_env)
+        };
         let recursive = self.recursive.iter().map(RecursiveRule::expand);
         let rules = self.rules.iter().map(Rule::expand_metadata);
         let rule_lookup_arms = self.rules.iter().enumerate().map(|(index, rule)| {
@@ -84,7 +92,9 @@ impl SyntaxGrammar {
         let parser_functions = if self.generate_parsers {
             self.rules
                 .iter()
-                .filter_map(|rule| rule.expand_strict_parser(&helper_outputs, &type_env))
+                .filter_map(|rule| {
+                    rule.expand_strict_parser(&helper_outputs, &type_env, self.generate_model)
+                })
                 .collect::<Vec<_>>()
         } else {
             Vec::new()
@@ -762,11 +772,17 @@ impl Rule {
         &self,
         helper_outputs: &BTreeSet<String>,
         type_env: &GrammarTypeEnv,
+        use_model_construction: bool,
     ) -> Option<TokenStream2> {
         match self {
             Rule::Alias(rule) => rule.expand_strict_parser(type_env),
-            Rule::Node(rule) => rule.expand_strict_parser(helper_outputs, type_env),
-            Rule::Product(rule) => rule.0.expand_strict_parser(helper_outputs, type_env),
+            Rule::Node(rule) => {
+                rule.expand_strict_parser(helper_outputs, type_env, use_model_construction)
+            }
+            Rule::Product(rule) => {
+                rule.0
+                    .expand_strict_parser(helper_outputs, type_env, use_model_construction)
+            }
         }
     }
 
@@ -1064,6 +1080,7 @@ impl NodeRule {
         &self,
         helper_outputs: &BTreeSet<String>,
         type_env: &GrammarTypeEnv,
+        use_model_construction: bool,
     ) -> Option<TokenStream2> {
         let argument_types = self.argument_types(type_env)?;
         let argument_names = self.argument_name_set();
@@ -1098,17 +1115,19 @@ impl NodeRule {
             quote!(#argument: BoxedParser<'tokens, #ty>)
         });
         let hidden_free_modifier = strict_free_modifier_param_tokens();
-        let body = if let Some(build) = &self.build {
+        let body = if !use_model_construction && let Some(build) = &self.build {
             build.body.to_token_stream()
-        } else if simple_type_ident(output).is_some_and(|output| {
-            helper_outputs.contains(&output.to_string())
-                && self.fields.iter().all(|field| {
-                    !matches!(
-                        field.kind,
-                        FieldKind::Default | FieldKind::Let | FieldKind::Scratch
-                    )
-                })
-        }) {
+        } else if !use_model_construction
+            && simple_type_ident(output).is_some_and(|output| {
+                helper_outputs.contains(&output.to_string())
+                    && self.fields.iter().all(|field| {
+                        !matches!(
+                            field.kind,
+                            FieldKind::Default | FieldKind::Let | FieldKind::Scratch
+                        )
+                    })
+            })
+        {
             let field_names = fields
                 .iter()
                 .map(|field| field.name.as_ref().expect("field items have names"));
