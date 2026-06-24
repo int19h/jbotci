@@ -1697,6 +1697,20 @@ fn strict_call_parser_expr_tokens(
             )?;
             Some(quote!(generated_runtime::strict_greedy_many1_parser(#inner.boxed())))
         }
+        ("vec1", 1) => {
+            let inner = strict_parser_expr_tokens(
+                call.args.first().expect("length checked"),
+                arguments,
+                type_env,
+                free_modifier_parser,
+            )?;
+            Some(quote! {
+                generated_runtime::strict_greedy_many1_parser(#inner.boxed()).map(|items| {
+                    vec1::Vec1::try_from_vec(items)
+                        .expect("strict_greedy_many1_parser guarantees a non-empty vector")
+                })
+            })
+        }
         ("singleton", 1) => {
             let inner = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
@@ -1984,6 +1998,14 @@ fn call_parser_output_type(
                 arguments,
             )?;
             Some(quote!(Vec<#inner>))
+        }
+        ("vec1", 1) => {
+            let inner = parser_output_type(
+                call.args.first().expect("length checked"),
+                type_env,
+                arguments,
+            )?;
+            Some(quote!(vec1::Vec1<#inner>))
         }
         ("singleton", 1) => {
             let inner = parser_output_type(
@@ -2644,6 +2666,9 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
             RecoveryExpr::Many(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }
         ("many1", 1) | ("nonempty", 1) => {
+            RecoveryExpr::Many1(Box::new(classify_recovery_expr(&call.args[0], arguments)))
+        }
+        ("vec1", 1) => {
             RecoveryExpr::Many1(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }
         ("singleton", 1) => {

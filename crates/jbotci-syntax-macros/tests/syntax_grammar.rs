@@ -206,6 +206,7 @@ mod generated_model {
         node pair(item) -> PairSyntax {
             fields {
                 field head = cmavo(Be);
+                field nonempty = vec1(cmavo(Be));
                 require cmavo(Bo).not();
                 scratch parser_only = cmavo(Bo).ignored();
                 default tail: Vec<Token> = Vec::new();
@@ -241,6 +242,7 @@ mod generated_model {
         let item = ItemSyntax { token: Token };
         let pair = PairSyntax {
             head: Token,
+            nonempty: vec1::Vec1::new(Token),
             tail: Vec::new(),
             computed: 0,
             child: Box::new(item.clone()),

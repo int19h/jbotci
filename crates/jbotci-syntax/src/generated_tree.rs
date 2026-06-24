@@ -33,6 +33,7 @@ jbotci_syntax_macros::syntax_grammar! {
     node generated_pair_node(generated_item) -> GeneratedPairSyntax {
         fields {
             field head = cmavo(Be);
+            field nonempty = vec1(cmavo(Be));
             require cmavo(Bo).not();
             scratch parser_only = cmavo(Bo).ignored();
             #[tree_child(primary)]
@@ -71,6 +72,7 @@ mod tests {
         };
         let pair = GeneratedPairSyntax {
             head: token.clone(),
+            nonempty: vec1::Vec1::new(token.clone()),
             child: Box::new(item),
             trailing: vec![token],
         };
