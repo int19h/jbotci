@@ -9,10 +9,10 @@ use bityzba::{data, ensures, invariant, new, requires};
 use serde::Serialize;
 use serde::ser::{SerializeSeq, Serializer};
 
-impl<T> WithFreeModifiers<T> {
+impl<T, F> WithFreeModifiers<T, F> {
     #[requires(true)]
     #[ensures(true)]
-    pub fn new(value: T, free_modifiers: Vec<FreeModifierSyntax>) -> Self {
+    pub fn new(value: T, free_modifiers: Vec<F>) -> Self {
         Self {
             value,
             free_modifiers,
@@ -20,7 +20,7 @@ impl<T> WithFreeModifiers<T> {
     }
 }
 
-impl<T: Serialize> Serialize for WithFreeModifiers<T> {
+impl<T: Serialize, F: Serialize> Serialize for WithFreeModifiers<T, F> {
     #[requires(true)]
     #[ensures(true)]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

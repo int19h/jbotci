@@ -1954,7 +1954,7 @@ fn method_parser_output_type(
         && method.args.is_empty()
     {
         let inner = parser_output_type(&method.receiver, type_env, arguments)?;
-        Some(quote!(WithFreeModifiers<#inner>))
+        Some(quote!(WithFreeModifiers<#inner, FreeModifierSyntax>))
     } else {
         None
     }

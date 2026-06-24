@@ -50,9 +50,9 @@ impl jbotci_tree::RecoveryItemState for RecoveryTreeItem {
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WithFreeModifiers<T> {
+pub struct WithFreeModifiers<T, F = FreeModifierSyntax> {
     pub value: T,
-    pub free_modifiers: Vec<FreeModifierSyntax>,
+    pub free_modifiers: Vec<F>,
 }
 
 #[invariant(true)]
@@ -2069,7 +2069,7 @@ pub(crate) fn is_valid_tense_modal_word(word: &Token) -> bool {
     ]) || crate::grammar::tokens::is_letter_word(word)
 }
 
-impl<T: TreeNode> TreeNode for WithFreeModifiers<T> {
+impl<T: TreeNode, F: TreeNode> TreeNode for WithFreeModifiers<T, F> {
     #[requires(true)]
     #[ensures(true)]
     fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
