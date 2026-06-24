@@ -29,7 +29,7 @@ EV  eT : tense=?, caha=ca'a
 PRD pT : rel=nanla, ev=eT, args=[d1, z2, z3], mode=asserted         -- tertau (primary): d1 is a boy; supplies the one event
 EV  eK : tense=?, caha=ca'a
 RFY k1 : kind=ka, body=⟨barda(eK; ce'u, z4, z5)⟩, abstracted=[ce'u]  -- seltau reified as the kind "being big"
-PRD pR : rel=R[tanru: bigness-as-of-boys], args=[d1, k1], mode=asserted   -- vague tanru link: d1 stands to the "big" kind
+PRD pR : rel=tanru, tanruLink={head:pT, modifier:k1, label:barda-nanla}, args=[d1, k1], mode=asserted   -- vague tanru link: d1 stands to the "big" kind
 REF z2 : kind=const, flavor=zo'e, sort=Obj
 REF z3 : kind=const, flavor=zo'e, sort=Obj
 REF z4 : kind=const, flavor=zo'e, sort=Obj
@@ -46,13 +46,13 @@ EV  eT : tense=?, caha=ca'a
 PRD pT : rel=kerfa, ev=eT, args=[t1, z1, z2], mode=asserted         -- tertau (primary): t1 is a mane (of body z1); the one event
 EV  eK : tense=?, caha=ca'a
 RFY k1 : kind=ka, body=⟨cinfo(eK; ce'u, z3)⟩, abstracted=[ce'u]      -- seltau reified as the kind "being a lion"
-PRD pR : rel=R[tanru: mane-of-a], args=[t1, k1], mode=asserted       -- vague link: t1 stands to the "lion" kind
+PRD pR : rel=tanru, tanruLink={head:pT, modifier:k1, label:cinfo-kerfa}, args=[t1, k1], mode=asserted       -- vague link: t1 stands to the "lion" kind
 REF z1 : kind=const, flavor=zo'e, sort=Obj
 REF z2 : kind=const, flavor=zo'e, sort=Obj
 REF z3 : kind=const, flavor=zo'e, sort=Obj
 FRM f1 : and(pT, pR)
 ```
-Under 0.F's uniform schema **no lion referent is introduced at all**: the seltau `cinfo` is the reified kind `k1`, and `R[tanru]` links the mane `t1` to that kind. Nothing asserts a lion exists — the selbri alone doesn't entail one — so neither the intersective `cinfo(t1)` (the mane is not a lion) nor a concrete `cinfo(y1)` is claimed; the lion-relationship lives entirely in the unresolved `R`. (Same shape handles `junla dadysli`, `rokci cinfo`, etc. — the reading is just which `R`.)
+Under 0.F's uniform schema **no lion referent is introduced at all**: the seltau `cinfo` is the reified kind `k1`, and the typed `tanru` link connects the mane `t1` to that kind. Nothing asserts a lion exists — the selbri alone doesn't entail one — so neither the intersective `cinfo(t1)` (the mane is not a lion) nor a concrete `cinfo(y1)` is claimed; the lion-relationship lives entirely in the unresolved `R`. (Same shape handles `junla dadysli`, `rokci cinfo`, etc. — the reading is just which `R`.)
 
 **Deltas for the other chapter-5 constructs** (each changes only a little):
 - **`je` (5.6-style symmetrical, `remna nakni` "man")** — intersective, **drop `R`**: `f1 : and(pA, pB)` with `remna(eA; x, …)`, `nakni(eB; x, …)` sharing `x`. **`ja`/`jo`/`naja`** → same two `PRD`s under `or`/`iff`/`imp` in `f1`.
@@ -149,7 +149,7 @@ REF z2 : kind=const, flavor=zo'e, sort=Obj
 REF z3 : kind=const, flavor=zo'e, sort=Obj
 FRM f1 : p1
 ```
-`barda` predicates of the set object `S1`; `bunre(S1)` would be a sortal mismatch the model exposes rather than forbids. **6.26 `lo'e cinfo cu xabju le fi'ortu'a`** (typical lion): `REF T:const, flavor=lo'e` + `cinfo(T) incidental` + `xabju(T, …)`; `T` is the intensional generic.
+`barda` predicates of the set object `S1`; `bunre(S1)` would be a sortal mismatch the model exposes rather than forbids. **6.26 `lo'e cinfo cu xabju le fi'ortu'a`** (typical lion): `REF T:const, flavor=lo'e, descriptor.veridical=false` + a non-veridical `cinfo(T)` descriptor body + `xabju(T, …)`; `T` is the intensional generic.
 
 **6.31 `re do cadzu le bisli`** — "two of you walk on the ice" (outer quantifier ⇒ restricted distributive variable; reference-by-id).
 ```

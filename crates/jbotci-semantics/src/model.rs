@@ -2054,6 +2054,8 @@ pub struct Descriptor {
     pub speaker: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub veridical: Option<bool>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub relative_clauses: Vec<RelativeClause>,
     #[serde(skip_serializing_if = "Option::is_none")]

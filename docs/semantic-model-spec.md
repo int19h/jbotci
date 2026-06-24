@@ -744,6 +744,11 @@ Descriptor examples:
 }
 ```
 
+Descriptor bodies are veridical by default and omit the field in that case.
+When the body is explicitly characterizing rather than veridical, the
+descriptor carries `"veridical": false`. The schema deliberately omits
+`"veridical": true`.
+
 ```json
 {
   "kind": "speakerDescription",
@@ -4449,16 +4454,14 @@ The review also clarified what not to copy.
 These amendments were adopted after a CLL-wide review of `jbotci gentufa`/`tersmu`
 (chapters 9, 10, 11, 14 + pilots; baseline = CLL as amended by xorlo). Each entry
 states the decision, the concrete JSON shape, whether it **implements** an already-
-prescribed treatment or **extends** the model, and the tracking issue. Where an
-entry says *Current impl* it records the divergence to be closed (see also “Known
-Implementation Divergences”).
+prescribed treatment or **extends** the model, and the tracking issue. Remaining
+implementation gaps are listed separately in “Known Implementation Divergences”.
 
 1. **`ni` amount-abstraction scale place (#2) — implement.** The `ni` abstraction’s
    x2 (the measurement scale, CLL 11.5) is the **x3 of the constructed `amountOf`
    link**, exactly as a NU abstraction’s extra surface places shift to x3 of the
    abstraction link (cf. `su'u … be`). Emit the overt `be`-scale referent there;
-   elided ⇒ its own `zo'e`. No schema change. *Current impl:* the overt scale is
-   dropped.
+   elided ⇒ its own `zo'e`. No schema change. Implemented in `tersmu` v1.
 
 2. **Stacked / interleaved aspect-recurrence operators (#3) — extend.** Introduce a
    single ordered `intervalModifiers` stack on `eventuality`: a heterogeneous
@@ -4483,7 +4486,7 @@ Implementation Divergences”).
    plus an optional `inherited: bool` to distinguish a copied-forward frame from a
    freshly-stated one. No separate discourse-level register object — sticky state
    stays resolved-in-place (per design 0.B, mirroring resolved-anaphora-as-id).
-   *Current impl:* `pu zu ki ku` and `pu zu ku` are byte-identical.
+   Implemented in `tersmu` v1.
 
 5. **whether-or-not asserted operand (#10) — implement (per design 0.L).** `U`
    (`u`/`ju`) asserts the first operand and marks the second `mode=inert`; `se`
@@ -4549,18 +4552,18 @@ Implementation Divergences”).
     predication: `head` → tertau predication id, `modifier` → the `ka`/composite id,
     plus a display-only `relationLabel`. Same graph shape, same (deliberately vague)
     truth conditions, but head/modifier roles become machine-readable (removes an
-    untyped-blob strong-typing violation). *Current impl:* an opaque relation string.
+    untyped-blob strong-typing violation). Implemented in `tersmu` v1: the link
+    predication uses `relation:"tanru"` and the constituent label lives only in
+    `tanruLink.relationLabel`.
 
 13. **`lo'e`/`le'e` body non-veridicality (#9) — implement (the narrow real bug).**
     The kind/archetype **ontology** and matrix **genericity** asks are **not adopted**
     — design 0.D deliberately keeps `lo'e`’s relation to `lo` open and uses the
     `typicalDescription` descriptor kind as the sole marker (no `Kind`/`Archetype`
     sort, no generic predication mode: that would fabricate determinate structure the
-    language underspecifies). But the body must be **non-veridical**: route
-    `lo'e`/`le'e` through the existing non-veridical body path (`veridical:false`),
-    as `le` (`skicu`) and `voi` already are. *Current impl:* `lo'e cinfo`’s body is
-    byte-identical to `lo cinfo` (`cinfo(r1)` veridical-restrictive), which CLL §6.5
-    says is actually false of the archetype.
+    language underspecifies). But the body must be **non-veridical**: emit
+    `veridical:false` on the descriptor for `lo'e`/`le'e`, marking the body as
+    characterizing rather than veridically restrictive. Implemented in `tersmu` v1.
 
 14. **`fa'u` respectively-distribution (#4) — extend.** A respectively-pairing is a
     **zip across parallel sequences**, whose correspondence is its entire truth-
@@ -4605,12 +4608,7 @@ each is tracked. (Pure builder-correctness crashes/bugs — e.g. the connective
 `na`/`nai` drops, termset Cartesian product, the `vo'a`-in-description stack overflow
 — are tracked as `bug` issues, not here.)
 
-- Tanru lower to an **opaque relation string** instead of the prescribed
-  `T ∧ S ∧ R` desugaring with a vague `R` (#8, amendment 12).
-- `lo'e`/`le'e` bodies are **veridical** (identical to `lo`) (#9, amendment 13).
-- `ki` sticky state is **not serialized** (#6, amendment 4).
-- `ni` drops its **scale place** (#2, amendment 1); `fa'u` correspondence is
-  unrepresentable (#4, amendment 14).
+- `fa'u` correspondence is unrepresentable (#4, amendment 14).
 
 **Why the primer is a separate document.** `review/tersmu_schema_primer.md` is a
 consumer/agent-facing cheat-sheet of the *current* JSON shape (used by the review

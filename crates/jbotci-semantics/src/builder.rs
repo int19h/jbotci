@@ -41,7 +41,7 @@ use crate::model::{
     RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
     ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject,
     SemanticObjectId, SemanticObjectKind, SemanticOperatorData, SemanticSort, SequenceRelation,
-    SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind, TemporalPathAnchor,
+    SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind, TanruLink, TemporalPathAnchor,
     TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint,
     UtteranceForce, diagnostic, source_from_spans,
 };
@@ -325,6 +325,7 @@ struct IdCounters {
 struct TanruFormulaForArgument {
     formula: SemanticObjectId,
     x1_argument: ArgumentValue,
+    head_predication: SemanticObjectId,
 }
 
 #[invariant(true)]
@@ -4962,6 +4963,7 @@ where
             tertau.x1_argument.clone(),
             modifier,
             tanru_relation_name_for_selbri_pair(leading, trailing),
+            tertau.head_predication,
             PredicationMode::Asserted,
             source.clone(),
         )?;
@@ -4984,6 +4986,7 @@ where
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument: tertau.x1_argument,
+            head_predication: tertau.head_predication,
         })
     }
 
@@ -5277,6 +5280,7 @@ where
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument: leading.x1_argument,
+            head_predication: leading.head_predication,
         })
     }
 
@@ -5384,6 +5388,7 @@ where
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument,
+            head_predication: predication,
         })
     }
 
@@ -5410,6 +5415,7 @@ where
             tertau_formula.x1_argument.clone(),
             modifier,
             tanru_relation_name_for_selbri_pair(seltau, tertau),
+            tertau_formula.head_predication,
             PredicationMode::Asserted,
             source.clone(),
         )?;
@@ -5432,6 +5438,7 @@ where
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument: tertau_formula.x1_argument,
+            head_predication: tertau_formula.head_predication,
         })
     }
 
@@ -5484,6 +5491,7 @@ where
             tertau.x1_argument.clone(),
             modifier,
             tanru_relation_name(units),
+            tertau.head_predication,
             PredicationMode::Asserted,
             source.clone(),
         )?;
@@ -5506,6 +5514,7 @@ where
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument: tertau.x1_argument,
+            head_predication: tertau.head_predication,
         })
     }
 
@@ -5579,6 +5588,7 @@ where
                     tertau.x1_argument.clone(),
                     modifier,
                     tanru_unit_relation_name(unit),
+                    tertau.head_predication,
                     PredicationMode::Asserted,
                     source.clone(),
                 )?;
@@ -5601,6 +5611,7 @@ where
                 Ok(TanruFormulaForArgument {
                     formula,
                     x1_argument: tertau.x1_argument,
+                    head_predication: tertau.head_predication,
                 })
             }
             data!(TanruUnitSyntax::ScalarNegatedTanruUnit { nahe, inner_unit }) => self
@@ -5701,6 +5712,7 @@ where
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument: leading.x1_argument,
+            head_predication: leading.head_predication,
         })
     }
 
@@ -5738,6 +5750,7 @@ where
             return Ok(TanruFormulaForArgument {
                 formula,
                 x1_argument,
+                head_predication: predication,
             });
         }
         let predication = self.build_predication_for_frame_with_overrides(
@@ -5756,6 +5769,7 @@ where
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument,
+            head_predication: predication,
         })
     }
 
@@ -5809,6 +5823,7 @@ where
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument,
+            head_predication: predication,
         })
     }
 
@@ -5842,9 +5857,11 @@ where
             source,
             mode,
         )?;
+        let head_predication = self.primary_predication_for_formula(formula)?;
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument,
+            head_predication,
         })
     }
 
@@ -5882,6 +5899,7 @@ where
         Ok(TanruFormulaForArgument {
             formula,
             x1_argument,
+            head_predication: predication,
         })
     }
 
@@ -6067,12 +6085,14 @@ where
             .expect("precondition guarantees at least one tanru unit");
         let tertau_formula =
             self.build_property_formula_for_tanru_unit(tertau, parameter, source.clone())?;
+        let head_predication = self.primary_predication_for_formula(tertau_formula)?;
         let modifier =
             self.build_property_abstraction_for_units(&units[..units.len() - 1], source.clone())?;
         let relation_formula = self.build_tanru_relation_formula(
             ArgumentValue::filled(parameter, None),
             modifier,
             tanru_relation_name(units),
+            head_predication,
             PredicationMode::Restrictive,
             source.clone(),
         )?;
@@ -6163,12 +6183,14 @@ where
                 parameter,
                 source.clone(),
             )?;
+            let head_predication = self.primary_predication_for_formula(tertau_formula)?;
             let modifier =
                 self.build_property_abstraction_for_selbri(bound_tanru.leading, source.clone())?;
             let relation_formula = self.build_tanru_relation_formula(
                 ArgumentValue::filled(parameter, None),
                 modifier,
                 tanru_relation_name_for_selbri_pair(bound_tanru.leading, bound_tanru.trailing),
+                head_predication,
                 PredicationMode::Restrictive,
                 source.clone(),
             )?;
@@ -6197,12 +6219,14 @@ where
         {
             let tertau_formula =
                 self.build_property_formula_for_selbri(leading_selbri, parameter, source.clone())?;
+            let head_predication = self.primary_predication_for_formula(tertau_formula)?;
             let modifier =
                 self.build_property_abstraction_for_selbri(trailing_selbri, source.clone())?;
             let relation_formula = self.build_tanru_relation_formula(
                 ArgumentValue::filled(parameter, None),
                 modifier,
                 tanru_relation_name_for_selbri_pair(trailing_selbri, leading_selbri),
+                head_predication,
                 PredicationMode::Restrictive,
                 source.clone(),
             )?;
@@ -6391,12 +6415,14 @@ where
                     parameter,
                     source.clone(),
                 )?;
+                let head_predication = self.primary_predication_for_formula(tertau_formula)?;
                 let modifier =
                     self.build_property_abstraction_for_tanru_unit(leading_unit, source.clone())?;
                 let relation_formula = self.build_tanru_relation_formula(
                     ArgumentValue::filled(parameter, None),
                     modifier,
                     tanru_unit_relation_name(unit),
+                    head_predication,
                     PredicationMode::Restrictive,
                     source.clone(),
                 )?;
@@ -6653,13 +6679,16 @@ where
         )
     }
 
-    #[requires(!relation.is_empty())]
+    #[requires(!relation_label.is_empty())]
+    #[requires(head_predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[requires(crate::model::argument_object_kind_can_fill(modifier.object_kind()))]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_tanru_relation_formula(
         &mut self,
         x1_argument: ArgumentValue,
         modifier: SemanticObjectId,
-        relation: String,
+        relation_label: String,
+        head_predication: SemanticObjectId,
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -6669,10 +6698,11 @@ where
         let predication = self.next_predication();
         self.insert(
             predication,
-            SemanticObject::predication(
-                relation,
+            SemanticObject::tanru_link_predication(
+                "tanru".to_owned(),
                 None,
                 arguments,
+                TanruLink::new(head_predication, modifier, relation_label),
                 mode,
                 source.clone(),
                 Vec::new(),
@@ -6683,6 +6713,40 @@ where
             formula,
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Predication) || ret.is_err())]
+    fn primary_predication_for_formula(
+        &self,
+        formula: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let Some(object) = self.objects.get(&formula) else {
+            return Err(SemanticsError::invalid_graph(format!(
+                "semantic builder could not find formula {formula}"
+            )));
+        };
+        if let Some(predication) = object.predication {
+            return Ok(predication);
+        }
+        for child in &object.children {
+            if let Ok(predication) = self.primary_predication_for_formula(*child) {
+                return Ok(predication);
+            }
+        }
+        if let Some(restriction) = object.restriction {
+            if let Ok(predication) = self.primary_predication_for_formula(restriction) {
+                return Ok(predication);
+            }
+        }
+        if let Some(body) = object.body {
+            if let Ok(predication) = self.primary_predication_for_formula(body) {
+                return Ok(predication);
+            }
+        }
+        Err(SemanticsError::invalid_graph(format!(
+            "formula {formula} has no primary predication"
+        )))
     }
 
     #[requires(!relation.is_empty())]
@@ -11162,6 +11226,7 @@ where
                     word: token_text(&li.value),
                     speaker: None,
                     body: None,
+                    veridical: None,
                     relative_clauses: Vec::new(),
                     quantity: Some(quantity),
                     name: Some(text),
@@ -11593,6 +11658,7 @@ where
                         word: token_text(&token.value),
                         speaker: None,
                         body: None,
+                        veridical: None,
                         relative_clauses: Vec::new(),
                         quantity: None,
                         name: None,
@@ -11614,6 +11680,7 @@ where
                         word: token_text(&token.value),
                         speaker: None,
                         body: None,
+                        veridical: None,
                         relative_clauses: Vec::new(),
                         quantity: None,
                         name: None,
@@ -11641,6 +11708,7 @@ where
                 word: token_text(&token.value),
                 speaker: Some(self.current_speaker()),
                 body: None,
+                veridical: None,
                 relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
@@ -11687,6 +11755,7 @@ where
                 word: token_text(&token.value),
                 speaker: Some(self.current_speaker()),
                 body: None,
+                veridical: None,
                 relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
@@ -12135,6 +12204,7 @@ where
                     word: label,
                     speaker: None,
                     body: None,
+                    veridical: None,
                     relative_clauses: Vec::new(),
                     quantity: None,
                     name: None,
@@ -12207,6 +12277,12 @@ where
                 word,
                 speaker: Some(self.current_speaker()),
                 body: None,
+                veridical: description
+                    .description
+                    .as_ref()
+                    .and_then(|word| word.cmavo())
+                    .is_some_and(|cmavo| matches!(cmavo, Cmavo::Lohe | Cmavo::Lehe))
+                    .then_some(false),
                 relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
@@ -12382,6 +12458,7 @@ where
                     word: word.to_owned(),
                     speaker: Some(self.current_speaker()),
                     body: None,
+                    veridical: None,
                     relative_clauses: Vec::new(),
                     quantity: None,
                     name: Some(name),
@@ -12423,6 +12500,7 @@ where
                     word: "le".to_owned(),
                     speaker: Some(self.current_speaker()),
                     body: Some(body),
+                    veridical: None,
                     relative_clauses,
                     quantity: None,
                     name: None,
@@ -12456,6 +12534,7 @@ where
                 word,
                 speaker: Some(self.current_speaker()),
                 body: None,
+                veridical: None,
                 relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
@@ -12486,6 +12565,7 @@ where
                     word: word.to_owned(),
                     speaker: Some(self.current_speaker()),
                     body: None,
+                    veridical: None,
                     relative_clauses: Vec::new(),
                     quantity: None,
                     name: None,
@@ -12522,6 +12602,7 @@ where
                 word,
                 speaker: Some(self.current_speaker()),
                 body: None,
+                veridical: None,
                 relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
@@ -12547,6 +12628,7 @@ where
                 word: "sumti".to_owned(),
                 speaker: None,
                 body: None,
+                veridical: None,
                 relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
@@ -12811,6 +12893,7 @@ where
             .last()
             .expect("precondition guarantees at least one tanru unit");
         let tertau_formula = self.build_restrictive_tanru_unit_formula(selbri, tertau, referent)?;
+        let head_predication = self.primary_predication_for_formula(tertau_formula)?;
         let source = self
             .analysis
             .syntax_index
@@ -12822,6 +12905,7 @@ where
             ArgumentValue::filled(referent, None),
             modifier,
             tanru_relation_name(units),
+            head_predication,
             PredicationMode::Restrictive,
             source.clone(),
         )?;
@@ -18935,15 +19019,14 @@ fn connectorless_bound_selbri_pair(selbri: &SelbriSyntax) -> Option<BoundSelbriT
 #[requires(!units.is_empty())]
 #[ensures(!ret.is_empty())]
 fn tanru_relation_name(units: &[&TanruUnitSyntax]) -> String {
-    let labels = units
+    units
         .iter()
         .enumerate()
         .map(|(index, unit)| {
             tanru_sequence_unit_label(unit, index + 1 == units.len() && units.len() > 1)
         })
         .collect::<Vec<_>>()
-        .join("-");
-    format!("R[tanru:{labels}]")
+        .join("-")
 }
 
 #[requires(true)]
@@ -18955,17 +19038,13 @@ fn tanru_relation_name_for_selbri_pair(leading: &SelbriSyntax, trailing: &Selbri
     } else {
         trailing_label
     };
-    format!(
-        "R[tanru:{}-{}]",
-        tanru_label_for_selbri(leading),
-        trailing_label
-    )
+    format!("{}-{}", tanru_label_for_selbri(leading), trailing_label)
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn tanru_unit_relation_name(unit: &TanruUnitSyntax) -> String {
-    format!("R[tanru:{}]", tanru_unit_label(unit))
+    tanru_unit_label(unit)
 }
 
 #[requires(true)]
@@ -19618,6 +19697,7 @@ fn abstraction_extra_surface_place(kind: AbstractionKind) -> Option<u8> {
     match kind {
         AbstractionKind::Process
         | AbstractionKind::Activity
+        | AbstractionKind::Amount
         | AbstractionKind::Concept
         | AbstractionKind::Experience
         | AbstractionKind::Unspecified => Some(2),
@@ -21384,6 +21464,19 @@ mod tests {
             .collect()
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn tanru_relation_labels(json: &Value) -> Vec<String> {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .filter(|object| object["type"] == "predication" && object["relation"] == "tanru")
+            .filter_map(|object| object["tanruLink"]["relationLabel"].as_str())
+            .map(ToOwned::to_owned)
+            .collect()
+    }
+
     #[requires(!relation.is_empty())]
     #[requires(!mode.is_empty())]
     #[ensures(true)]
@@ -21422,6 +21515,23 @@ mod tests {
                     && object["mode"] == mode
             })
             .collect()
+    }
+
+    #[requires(!label.is_empty())]
+    #[requires(!mode.is_empty())]
+    #[ensures(ret["relation"] == "tanru")]
+    fn tanru_predication_with_label<'a>(json: &'a Value, label: &str, mode: &str) -> &'a Value {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| {
+                object["type"] == "predication"
+                    && object["relation"] == "tanru"
+                    && object["mode"] == mode
+                    && object["tanruLink"]["relationLabel"] == label
+            })
+            .unwrap_or_else(|| panic!("missing {mode} tanru predication for label {label}"))
     }
 
     #[requires(!relation_parameter.is_empty())]
@@ -22380,11 +22490,19 @@ mod tests {
             object(&json, "referent:r1")["descriptor"]["kind"],
             "typicalDescription"
         );
+        assert_eq!(
+            object(&json, "referent:r1")["descriptor"]["veridical"],
+            false
+        );
 
         let json = semantic_json_for("le'e skina cu finti").expect("semantic JSON");
         assert_eq!(
             object(&json, "referent:r1")["descriptor"]["kind"],
             "speakerStereotypeDescription"
+        );
+        assert_eq!(
+            object(&json, "referent:r1")["descriptor"]["veridical"],
+            false
         );
     }
 
@@ -23732,9 +23850,10 @@ mod tests {
             object(&json, "abstraction:a1")["parameters"][0],
             "parameter:p1"
         );
+        assert_eq!(object(&json, "predication:p3")["relation"], "tanru");
         assert_eq!(
-            object(&json, "predication:p3")["relation"],
-            "R[tanru:barda-nanla]"
+            object(&json, "predication:p3")["tanruLink"]["relationLabel"],
+            "barda-nanla"
         );
         assert_eq!(
             object(&json, "predication:p3")["arguments"]["x2"]["value"],
@@ -23942,8 +24061,7 @@ mod tests {
         let blanu = predication_with_relation_and_mode(&json, "blanu", "restrictive");
         assert_eq!(blanu["arguments"]["x1"]["value"], "parameter:p1");
 
-        let relation =
-            predication_with_relation_and_mode(&json, "R[tanru:blanu-zdani]", "asserted");
+        let relation = tanru_predication_with_label(&json, "blanu-zdani", "asserted");
         assert_eq!(relation["arguments"]["x1"]["value"], "referent:r1");
         assert_eq!(relation["arguments"]["x2"]["value"], "abstraction:a1");
         assert_eq!(
@@ -23969,8 +24087,7 @@ mod tests {
         assert_eq!(klama["arguments"]["x4"]["kind"], "elided");
         assert_eq!(klama["arguments"]["x5"]["kind"], "elided");
 
-        let relation =
-            predication_with_relation_and_mode(&json, "R[tanru:klama-troci]", "asserted");
+        let relation = tanru_predication_with_label(&json, "klama-troci", "asserted");
         assert_eq!(relation["arguments"]["x1"]["value"], "referent:speaker");
     }
 
@@ -23979,26 +24096,13 @@ mod tests {
     #[ensures(true)]
     fn multiple_inverted_tanru_lower_in_non_inverted_order() {
         let json = semantic_json_for("ckule co nixli co cmalu").expect("semantic JSON");
-        let relations = json["objects"]
-            .as_object()
-            .expect("semantic objects")
-            .values()
-            .filter(|object| object["type"] == "predication")
-            .filter_map(|object| object["relation"].as_str())
-            .collect::<Vec<_>>();
+        let relations = predication_relations(&json);
+        let labels = tanru_relation_labels(&json);
         assert!(relations.iter().any(|relation| *relation == "ckule"));
         assert!(relations.iter().any(|relation| *relation == "nixli"));
         assert!(relations.iter().any(|relation| *relation == "cmalu"));
-        assert!(
-            relations
-                .iter()
-                .any(|relation| *relation == "R[tanru:cmalu-nixli]")
-        );
-        assert!(
-            relations
-                .iter()
-                .any(|relation| *relation == "R[tanru:cmalu-nixli-ckule]")
-        );
+        assert!(labels.iter().any(|label| label == "cmalu-nixli"));
+        assert!(labels.iter().any(|label| label == "cmalu-nixli-ckule"));
     }
 
     #[test]
@@ -24175,6 +24279,22 @@ mod tests {
         let amount_of = predication_with_relation_and_mode(&json, "amountOf", "restrictive");
         assert_eq!(amount_of["arguments"]["x1"]["value"], "referent:r1");
         assert_eq!(amount_of["arguments"]["x2"]["value"], "abstraction:a1");
+        assert_eq!(amount_of["arguments"]["x3"]["kind"], "elided");
+        assert_eq!(amount_of["arguments"]["x3"]["introducedBy"], "zo'e");
+
+        let scaled =
+            semantic_json_for("le ni le pixra cu blanu kei be lo merli").expect("semantic JSON");
+        let scaled_amount_of =
+            predication_with_relation_and_mode(&scaled, "amountOf", "restrictive");
+        assert_eq!(scaled_amount_of["arguments"]["x3"]["kind"], "filled");
+        let scale = scaled_amount_of["arguments"]["x3"]["value"]
+            .as_str()
+            .expect("scale referent id");
+        assert_eq!(
+            object(&scaled, scale)["descriptor"]["kind"],
+            "veridicalDescription"
+        );
+        assert!(object(&scaled, scale)["descriptor"]["body"].is_string());
     }
 
     #[test]
@@ -24223,8 +24343,7 @@ mod tests {
         assert_eq!(event_property["arguments"]["x1"]["value"], "parameter:p1");
         assert_eq!(event_property["arguments"]["x2"]["value"], "abstraction:a1");
         assert!(event_property.get("diagnostics").is_none());
-        let tanru =
-            predication_with_relation_and_mode(&json, "R[tanru:nu zdile-kumfa]", "asserted");
+        let tanru = tanru_predication_with_label(&json, "nu zdile-kumfa", "asserted");
         assert_eq!(tanru["arguments"]["x2"]["value"], "abstraction:a2");
     }
 
@@ -24383,8 +24502,7 @@ mod tests {
         assert_eq!(nabmi["arguments"]["x1"]["value"], "referent:r1");
         let operator = predication_with_relation_and_mode(&json, "nu'a su'i", "restrictive");
         assert_eq!(operator["arguments"]["x1"]["value"], "parameter:p1");
-        let tanru =
-            predication_with_relation_and_mode(&json, "R[tanru:nu'a su'i-nabmi]", "restrictive");
+        let tanru = tanru_predication_with_label(&json, "nu'a su'i-nabmi", "restrictive");
         assert_eq!(tanru["arguments"]["x1"]["value"], "referent:r1");
     }
 
@@ -24418,8 +24536,7 @@ mod tests {
         assert_eq!(object(&json, source)["descriptor"]["kind"], "massName");
         assert_eq!(object(&json, source)["descriptor"]["word"], "lai");
         assert_eq!(object(&json, source)["descriptor"]["name"], "kraislr");
-        let tanru =
-            predication_with_relation_and_mode(&json, "R[tanru:referentOf-karce]", "asserted");
+        let tanru = tanru_predication_with_label(&json, "referentOf-karce", "asserted");
         assert_eq!(tanru["arguments"]["x2"]["value"], "abstraction:a1");
     }
 
@@ -25697,19 +25814,12 @@ mod tests {
     fn bo_grouped_tanru_uses_nested_uniform_tanru_lowering() {
         let right_grouped = semantic_json_for("ta cmalu nixli bo ckule").expect("semantic JSON");
         let relations = predication_relations(&right_grouped);
+        let labels = tanru_relation_labels(&right_grouped);
         assert!(relations.iter().any(|relation| relation == "ckule"));
         assert!(relations.iter().any(|relation| relation == "nixli"));
         assert!(relations.iter().any(|relation| relation == "cmalu"));
-        assert!(
-            relations
-                .iter()
-                .any(|relation| relation == "R[tanru:nixli-ckule]")
-        );
-        assert!(
-            relations
-                .iter()
-                .any(|relation| relation == "R[tanru:cmalu-(nixli-ckule)]")
-        );
+        assert!(labels.iter().any(|label| label == "nixli-ckule"));
+        assert!(labels.iter().any(|label| label == "cmalu-(nixli-ckule)"));
         assert!(
             !relations
                 .iter()
@@ -25718,16 +25828,9 @@ mod tests {
 
         let left_grouped = semantic_json_for("ta cmalu bo nixli ckule").expect("semantic JSON");
         let relations = predication_relations(&left_grouped);
-        assert!(
-            relations
-                .iter()
-                .any(|relation| relation == "R[tanru:cmalu-nixli]")
-        );
-        assert!(
-            relations
-                .iter()
-                .any(|relation| relation == "R[tanru:cmalu-nixli-ckule]")
-        );
+        let labels = tanru_relation_labels(&left_grouped);
+        assert!(labels.iter().any(|label| label == "cmalu-nixli"));
+        assert!(labels.iter().any(|label| label == "cmalu-nixli-ckule"));
         assert!(
             !relations
                 .iter()
@@ -25737,11 +25840,8 @@ mod tests {
         let simple_bo = semantic_json_for("ta klama bo jubme").expect("semantic JSON");
         let relations = predication_relations(&simple_bo);
         assert!(relations.iter().any(|relation| relation == "jubme"));
-        assert!(
-            relations
-                .iter()
-                .any(|relation| relation == "R[tanru:klama-jubme]")
-        );
+        let labels = tanru_relation_labels(&simple_bo);
+        assert!(labels.iter().any(|label| label == "klama-jubme"));
         assert!(
             !relations
                 .iter()
@@ -25750,17 +25850,10 @@ mod tests {
 
         let repeated_bo = semantic_json_for("ta cmalu bo nixli bo ckule").expect("semantic JSON");
         let relations = predication_relations(&repeated_bo);
+        let labels = tanru_relation_labels(&repeated_bo);
         assert!(relations.iter().any(|relation| relation == "ckule"));
-        assert!(
-            relations
-                .iter()
-                .any(|relation| relation == "R[tanru:nixli-ckule]")
-        );
-        assert!(
-            relations
-                .iter()
-                .any(|relation| relation == "R[tanru:cmalu-(nixli-ckule)]")
-        );
+        assert!(labels.iter().any(|label| label == "nixli-ckule"));
+        assert!(labels.iter().any(|label| label == "cmalu-(nixli-ckule)"));
         assert!(
             !relations
                 .iter()
@@ -25769,16 +25862,12 @@ mod tests {
 
         let nested_unit_bo =
             semantic_json_for("ta melbi cmalu bo nixli bo ckule").expect("semantic JSON");
-        let relations = predication_relations(&nested_unit_bo);
+        let labels = tanru_relation_labels(&nested_unit_bo);
+        assert!(labels.iter().any(|label| label == "cmalu-(nixli-ckule)"));
         assert!(
-            relations
+            labels
                 .iter()
-                .any(|relation| relation == "R[tanru:cmalu-(nixli-ckule)]")
-        );
-        assert!(
-            relations
-                .iter()
-                .any(|relation| relation == "R[tanru:melbi-(cmalu-(nixli-ckule))]")
+                .any(|label| label == "melbi-(cmalu-(nixli-ckule))")
         );
     }
 
@@ -25918,8 +26007,7 @@ mod tests {
         let whole_klama = predication_with_relation_and_mode(&whole, "klama", "asserted");
         assert_eq!(whole_klama["arguments"]["x1"]["value"], "referent:r4");
         assert_eq!(whole_klama["arguments"]["x2"]["value"], "referent:r1");
-        let whole_tanru =
-            predication_with_relation_and_mode(&whole, "R[tanru:cadzu-klama]", "asserted");
+        let whole_tanru = tanru_predication_with_label(&whole, "cadzu-klama", "asserted");
         assert_eq!(whole_tanru["arguments"]["x1"]["value"], "referent:r4");
 
         let tertau =
@@ -25927,8 +26015,7 @@ mod tests {
         let tertau_klama = predication_with_relation_and_mode(&tertau, "klama", "asserted");
         assert_eq!(tertau_klama["arguments"]["x1"]["value"], "referent:r4");
         assert_eq!(tertau_klama["arguments"]["x2"]["value"], "referent:r1");
-        let tertau_tanru =
-            predication_with_relation_and_mode(&tertau, "R[tanru:cadzu-klama]", "asserted");
+        let tertau_tanru = tanru_predication_with_label(&tertau, "cadzu-klama", "asserted");
         assert_eq!(tertau_tanru["arguments"]["x1"]["value"], "referent:r1");
     }
 
