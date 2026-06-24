@@ -6,8 +6,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
-    Expr, ExprCall, ExprClosure, ExprMethodCall, ExprPath, ExprTuple, Ident, LitStr, Path, Result,
-    Token, Type, braced, parenthesized,
+    Attribute, Expr, ExprCall, ExprClosure, ExprMethodCall, ExprPath, ExprTuple, Ident, LitStr,
+    Path, Result, Token, Type, braced, parenthesized,
     parse::{Parse, ParseStream},
     parse_macro_input,
 };
@@ -482,21 +482,24 @@ impl ToTokens for GeneratedVariantModel {
 }
 
 struct GeneratedFieldModel {
+    attrs: Vec<Attribute>,
     name: Ident,
     ty: TokenStream2,
 }
 
 impl GeneratedFieldModel {
     fn expand_struct(&self) -> TokenStream2 {
+        let attrs = &self.attrs;
         let name = &self.name;
         let ty = &self.ty;
-        quote!(pub #name: #ty)
+        quote!(#(#attrs)* pub #name: #ty)
     }
 
     fn expand_variant_named(&self) -> TokenStream2 {
+        let attrs = &self.attrs;
         let name = &self.name;
         let ty = &self.ty;
-        quote!(#name: #ty)
+        quote!(#(#attrs)* #name: #ty)
     }
 
     fn expand_tuple(&self) -> TokenStream2 {
@@ -2233,6 +2236,7 @@ fn parse_fields_block(input: ParseStream<'_>) -> Result<Vec<FieldItem>> {
 }
 
 struct FieldItem {
+    attrs: Vec<Attribute>,
     conditions: Vec<Condition>,
     kind: FieldKind,
     name: Option<Ident>,
@@ -2298,12 +2302,17 @@ impl FieldItem {
                 unreachable!("parser-only fields are filtered before model field generation")
             }
         };
-        Ok(GeneratedFieldModel { name, ty })
+        Ok(GeneratedFieldModel {
+            attrs: self.attrs.clone(),
+            name,
+            ty,
+        })
     }
 }
 
 impl Parse for FieldItem {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let attrs = input.call(Attribute::parse_outer)?;
         let mut conditions = Vec::new();
         while input.peek(kw::when) {
             conditions.push(input.parse()?);
@@ -2339,6 +2348,7 @@ impl Parse for FieldItem {
         let parser = input.parse()?;
         input.parse::<Token![;]>()?;
         Ok(Self {
+            attrs,
             conditions,
             kind,
             name,

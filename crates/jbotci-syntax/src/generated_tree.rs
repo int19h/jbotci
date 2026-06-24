@@ -35,6 +35,7 @@ jbotci_syntax_macros::syntax_grammar! {
             field head = cmavo(Be);
             require cmavo(Bo).not();
             scratch parser_only = cmavo(Bo).ignored();
+            #[tree_child(primary)]
             field child = boxed(generated_item);
             default trailing: Vec<Token> = Vec::new();
         }
@@ -50,6 +51,7 @@ jbotci_syntax_macros::syntax_grammar! {
     node generated_choice_second(generated_item) -> GeneratedChoiceSyntax {
         construct variant Second;
         fields {
+            #[tree_child(primary)]
             field item = boxed(generated_item);
         }
     }

@@ -210,6 +210,7 @@ mod generated_model {
                 scratch parser_only = cmavo(Bo).ignored();
                 default tail: Vec<Token> = Vec::new();
                 let computed: usize = 0usize;
+                #[tree_child(primary)]
                 field child = boxed(item);
             }
         }
