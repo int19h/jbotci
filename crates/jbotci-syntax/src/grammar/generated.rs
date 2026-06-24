@@ -69,9 +69,10 @@ struct ReversePolishPartsSyntax {
     operators: Vec<MeksoOperatorSyntax>,
 }
 
-jbotci_syntax_macros::syntax_grammar! {
-    env generated_runtime::SyntaxGrammarEnv;
-    parsers;
+macro_rules! declare_generated_syntax_grammar {
+    ($($prefix:tt)*) => {
+        jbotci_syntax_macros::syntax_grammar! {
+            $($prefix)*
 
     recursive {
         text: TextSyntax;
@@ -5446,6 +5447,13 @@ jbotci_syntax_macros::syntax_grammar! {
             field nai = opt(cmavo(Nai).wf());
         }
     }
+        }
+    };
+}
+
+declare_generated_syntax_grammar! {
+    env generated_runtime::SyntaxGrammarEnv;
+    parsers;
 }
 
 #[bityzba::requires(true)]
