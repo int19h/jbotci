@@ -180,3 +180,79 @@ fn grammar_macro_exports_rule_lookup() {
     assert_eq!(rule.output, "LinkedSumtiListSyntax");
     assert!(syntax_grammar_rule_by_name("missing").is_none());
 }
+
+mod generated_model {
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+    pub struct Token;
+
+    jbotci_syntax_macros::syntax_grammar! {
+        tree_model {
+            #[bityzba::invariant(true)]
+            #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+            pub struct ItemSyntax {
+                pub token: Token,
+            }
+        }
+        model;
+
+        recursive {
+            item: ItemSyntax;
+        }
+
+        alias item_alias(item) -> ItemSyntax {
+            item;
+        }
+
+        node pair(item) -> PairSyntax {
+            fields {
+                field head = cmavo(Be);
+                require cmavo(Bo).not();
+                scratch parser_only = cmavo(Bo).ignored();
+                default tail: Vec<Token> = Vec::new();
+                let computed: usize = 0usize;
+                field child = boxed(item);
+            }
+        }
+
+        node first_choice -> ChoiceSyntax {
+            construct variant First;
+            fields {
+                field token = cmavo(Be);
+            }
+        }
+
+        node second_choice(item) -> ChoiceSyntax {
+            construct variant Second;
+            fields {
+                field item = boxed(item);
+            }
+        }
+
+        product helper_product -> HelperSyntax {
+            fields {
+                field token = cmavo(Be);
+            }
+        }
+    }
+
+    #[test]
+    fn grammar_macro_emits_model_items_from_type_bearing_rules() {
+        let item = ItemSyntax { token: Token };
+        let pair = PairSyntax {
+            head: Token,
+            tail: Vec::new(),
+            computed: 0,
+            child: Box::new(item.clone()),
+        };
+        let first = ChoiceSyntax::First { token: Token };
+        let second = ChoiceSyntax::Second {
+            item: Box::new(item),
+        };
+        let helper = HelperSyntax { token: Token };
+
+        assert!(matches!(first, ChoiceSyntax::First { .. }));
+        assert!(matches!(second, ChoiceSyntax::Second { .. }));
+        assert_eq!(pair.tail.len(), 0);
+        assert_eq!(helper.token, Token);
+    }
+}

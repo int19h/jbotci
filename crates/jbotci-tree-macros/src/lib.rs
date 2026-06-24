@@ -687,13 +687,18 @@ fn atom_has_builtin_recovered_field_state(ty: &Type) -> bool {
     let Type::Path(path) = ty else {
         return false;
     };
-    path.qself.is_none()
-        && path.path.segments.last().is_some_and(|segment| {
-            matches!(
-                segment.ident.to_string().as_str(),
-                "String" | "SourceSpan" | "Word"
-            )
-        })
+    if path.qself.is_some() {
+        return false;
+    }
+    if path.path.segments.len() > 1 {
+        return true;
+    }
+    path.path.segments.last().is_some_and(|segment| {
+        matches!(
+            segment.ident.to_string().as_str(),
+            "String" | "SourceSpan" | "Word"
+        )
+    })
 }
 
 fn recovered_struct_field_state_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStream> {

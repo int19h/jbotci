@@ -6,8 +6,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
-    Expr, ExprCall, ExprClosure, ExprMethodCall, ExprPath, ExprTuple, Ident, LitStr, Result, Token,
-    Type, braced, parenthesized,
+    Expr, ExprCall, ExprClosure, ExprMethodCall, ExprPath, ExprTuple, Ident, LitStr, Path, Result,
+    Token, Type, braced, parenthesized,
     parse::{Parse, ParseStream},
     parse_macro_input,
 };
@@ -29,9 +29,11 @@ mod kw {
     syn::custom_keyword!(feature);
     syn::custom_keyword!(field);
     syn::custom_keyword!(fields);
+    syn::custom_keyword!(model);
     syn::custom_keyword!(node);
     syn::custom_keyword!(policy);
     syn::custom_keyword!(product);
+    syn::custom_keyword!(recovered);
     syn::custom_keyword!(recovered_build);
     syn::custom_keyword!(recursive);
     syn::custom_keyword!(require);
@@ -45,7 +47,9 @@ mod kw {
 
 struct SyntaxGrammar {
     tree_model: Option<syn::File>,
+    generate_model: bool,
     env: Option<Type>,
+    recovered_module: Option<Path>,
     generate_parsers: bool,
     recursive: Vec<RecursiveRule>,
     rules: Vec<Rule>,
@@ -53,14 +57,22 @@ struct SyntaxGrammar {
 
 impl SyntaxGrammar {
     fn expand(&self) -> TokenStream2 {
-        let tree_model = self.tree_model.as_ref().map(expand_tree_model_block);
+        let type_env = GrammarTypeEnv::new(&self.recursive, &self.rules);
+        let tree_model = if self.generate_model {
+            match self.expand_generated_tree_model(&type_env) {
+                Ok(tree_model) => Some(tree_model),
+                Err(error) => return error.into_compile_error(),
+            }
+        } else {
+            self.tree_model.as_ref().map(expand_tree_model_block)
+        };
         let Some(env) = &self.env else {
             return quote! {
                 #tree_model
             };
         };
         let env = compact_tokens(env);
-        let type_env = GrammarTypeEnv::new(&self.recursive, &self.rules);
+        let recovered_module = self.recovered_module_tokens();
         let helper_outputs = self.product_helper_outputs();
         let product_helpers = self.expand_product_helpers(&helper_outputs, &type_env);
         let recursive = self.recursive.iter().map(RecursiveRule::expand);
@@ -80,7 +92,9 @@ impl SyntaxGrammar {
         let partial_valid_parser_functions = if self.generate_parsers {
             self.rules
                 .iter()
-                .filter_map(|rule| rule.expand_partial_valid_parser(&helper_outputs, &type_env))
+                .filter_map(|rule| {
+                    rule.expand_partial_valid_parser(&helper_outputs, &type_env, &recovered_module)
+                })
                 .collect::<Vec<_>>()
         } else {
             Vec::new()
@@ -91,7 +105,7 @@ impl SyntaxGrammar {
             None
         };
         let recursive_partial_valid = if self.generate_parsers {
-            self.expand_partial_valid_recursive_roots()
+            self.expand_partial_valid_recursive_roots(&recovered_module)
         } else {
             Vec::new()
         };
@@ -205,11 +219,28 @@ impl Parse for SyntaxGrammar {
             None
         };
 
+        let generate_model = if input.peek(kw::model) {
+            input.parse::<kw::model>()?;
+            input.parse::<Token![;]>()?;
+            true
+        } else {
+            false
+        };
+
         let env = if input.peek(kw::env) {
             input.parse::<kw::env>()?;
             let env = input.parse()?;
             input.parse::<Token![;]>()?;
             Some(env)
+        } else {
+            None
+        };
+
+        let recovered_module = if input.peek(kw::recovered) {
+            input.parse::<kw::recovered>()?;
+            let path = input.parse()?;
+            input.parse::<Token![;]>()?;
+            Some(path)
         } else {
             None
         };
@@ -240,7 +271,9 @@ impl Parse for SyntaxGrammar {
 
         Ok(Self {
             tree_model,
+            generate_model,
             env,
+            recovered_module,
             generate_parsers,
             recursive,
             rules,
@@ -276,6 +309,209 @@ fn expand_tree_model_block(file: &syn::File) -> TokenStream2 {
 }
 
 impl SyntaxGrammar {
+    fn expand_generated_tree_model(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
+        let attrs = self
+            .tree_model
+            .as_ref()
+            .map(|file| file.attrs.as_slice())
+            .unwrap_or(&[]);
+        let manual_items = self
+            .tree_model
+            .as_ref()
+            .map(|file| file.items.as_slice())
+            .unwrap_or(&[]);
+        let generated_items = self.generated_tree_model_items(type_env)?;
+        Ok(quote! {
+            jbotci_tree::tree_model! {
+                #(#attrs)*
+                #(#manual_items)*
+                #(#generated_items)*
+            }
+        })
+    }
+
+    fn generated_tree_model_items(&self, type_env: &GrammarTypeEnv) -> Result<Vec<TokenStream2>> {
+        let mut structs = BTreeMap::<String, GeneratedStructModel>::new();
+        let mut enums = BTreeMap::<String, Vec<GeneratedVariantModel>>::new();
+        for rule in &self.rules {
+            let (rule_kind, rule) = match rule {
+                Rule::Alias(_) => continue,
+                Rule::Node(rule) => (GeneratedModelRuleKind::Node, rule),
+                Rule::Product(rule) => (GeneratedModelRuleKind::Product, &rule.0),
+            };
+            let Some(output) = simple_type_ident(&rule.output) else {
+                continue;
+            };
+            match &rule.construction {
+                ConstructionMode::NamedVariant(variant) => {
+                    let fields = rule.generated_model_fields(type_env)?;
+                    enums
+                        .entry(output.to_string())
+                        .or_default()
+                        .push(GeneratedVariantModel {
+                            variant: variant.clone(),
+                            fields,
+                            tuple: false,
+                        });
+                }
+                ConstructionMode::TupleVariant(variant) => {
+                    let fields = rule.generated_model_fields(type_env)?;
+                    enums
+                        .entry(output.to_string())
+                        .or_default()
+                        .push(GeneratedVariantModel {
+                            variant: variant.clone(),
+                            fields,
+                            tuple: true,
+                        });
+                }
+                ConstructionMode::Validated | ConstructionMode::Direct => {
+                    let key = output.to_string();
+                    if let Some(existing) = structs.get(&key) {
+                        return Err(syn::Error::new_spanned(
+                            &rule.name,
+                            format!(
+                                "cannot generate one struct `{key}` from both `{}` and `{}`; use alias rules for delegation or construct variants for alternatives",
+                                existing.rule_name, rule.name
+                            ),
+                        ));
+                    }
+                    let fields = rule.generated_model_fields(type_env)?;
+                    structs.insert(
+                        key,
+                        GeneratedStructModel {
+                            visibility: rule_kind.visibility_tokens(),
+                            ident: output.clone(),
+                            rule_name: rule.name.clone(),
+                            fields,
+                        },
+                    );
+                }
+            }
+        }
+        for output in enums.keys() {
+            if structs.contains_key(output) {
+                return Err(syn::Error::new_spanned(
+                    format_ident!("{output}"),
+                    format!(
+                        "cannot generate `{output}` as both a struct and an enum; use construct variants consistently"
+                    ),
+                ));
+            }
+        }
+
+        let mut items = Vec::new();
+        items.extend(structs.values().map(GeneratedStructModel::expand));
+        items.extend(enums.iter().map(|(name, variants)| {
+            let ident = format_ident!("{name}");
+            let invariants = variants.iter().map(|variant| {
+                let variant = &variant.variant;
+                quote!(#[bityzba::invariant(::#variant => true)])
+            });
+            quote! {
+                #[bityzba::invariant(true)]
+                #(#invariants)*
+                #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize)]
+                pub enum #ident {
+                    #(#variants,)*
+                }
+            }
+        }));
+        Ok(items)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GeneratedModelRuleKind {
+    Node,
+    Product,
+}
+
+impl GeneratedModelRuleKind {
+    fn visibility_tokens(self) -> TokenStream2 {
+        match self {
+            Self::Node => quote!(pub),
+            Self::Product => quote!(pub),
+        }
+    }
+}
+
+struct GeneratedStructModel {
+    visibility: TokenStream2,
+    ident: Ident,
+    rule_name: Ident,
+    fields: Vec<GeneratedFieldModel>,
+}
+
+impl GeneratedStructModel {
+    fn expand(&self) -> TokenStream2 {
+        let visibility = &self.visibility;
+        let ident = &self.ident;
+        let fields = self.fields.iter().map(GeneratedFieldModel::expand_struct);
+        quote! {
+            #[bityzba::invariant(true)]
+            #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize)]
+            #visibility struct #ident {
+                #(#fields,)*
+            }
+        }
+    }
+}
+
+struct GeneratedVariantModel {
+    variant: Ident,
+    fields: Vec<GeneratedFieldModel>,
+    tuple: bool,
+}
+
+impl ToTokens for GeneratedVariantModel {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let variant = &self.variant;
+        let expanded = if self.tuple {
+            let types = self.fields.iter().map(GeneratedFieldModel::expand_tuple);
+            quote!(#variant(#(#types),*))
+        } else {
+            let fields = self
+                .fields
+                .iter()
+                .map(GeneratedFieldModel::expand_variant_named);
+            quote!(#variant { #(#fields,)* })
+        };
+        tokens.extend(expanded);
+    }
+}
+
+struct GeneratedFieldModel {
+    name: Ident,
+    ty: TokenStream2,
+}
+
+impl GeneratedFieldModel {
+    fn expand_struct(&self) -> TokenStream2 {
+        let name = &self.name;
+        let ty = &self.ty;
+        quote!(pub #name: #ty)
+    }
+
+    fn expand_variant_named(&self) -> TokenStream2 {
+        let name = &self.name;
+        let ty = &self.ty;
+        quote!(#name: #ty)
+    }
+
+    fn expand_tuple(&self) -> TokenStream2 {
+        self.ty.clone()
+    }
+}
+
+impl SyntaxGrammar {
+    fn recovered_module_tokens(&self) -> TokenStream2 {
+        self.recovered_module.as_ref().map_or_else(
+            || quote!(crate::tree::recovered),
+            |recovered_module| quote!(#recovered_module),
+        )
+    }
+
     fn product_helper_outputs(&self) -> BTreeSet<String> {
         let mut output_counts = BTreeMap::new();
         for rule in &self.rules {
@@ -417,14 +653,17 @@ impl SyntaxGrammar {
         })
     }
 
-    fn expand_partial_valid_recursive_roots(&self) -> Vec<TokenStream2> {
+    fn expand_partial_valid_recursive_roots(
+        &self,
+        recovered_module: &TokenStream2,
+    ) -> Vec<TokenStream2> {
         self.recursive
             .iter()
             .filter_map(|rule| {
                 let output = simple_type_ident(&rule.output)?;
                 let function = format_ident!("partial_valid_generated_{}_parser", rule.name);
                 let strict_function = format_ident!("strict_generated_{}_parser", rule.name);
-                let recovered_output = quote!(crate::tree::recovered::#output);
+                let recovered_output = quote!(#recovered_module::#output);
                 Some(quote! {
                     #[allow(dead_code)]
                     pub(crate) fn #function<'tokens>() -> BoxedParser<'tokens, #recovered_output> {
@@ -532,11 +771,17 @@ impl Rule {
         &self,
         helper_outputs: &BTreeSet<String>,
         type_env: &GrammarTypeEnv,
+        recovered_module: &TokenStream2,
     ) -> Option<TokenStream2> {
         match self {
-            Rule::Alias(rule) => rule.expand_partial_valid_parser(type_env),
-            Rule::Node(rule) => rule.expand_partial_valid_parser(helper_outputs, type_env),
-            Rule::Product(rule) => rule.0.expand_partial_valid_parser(helper_outputs, type_env),
+            Rule::Alias(rule) => rule.expand_partial_valid_parser(type_env, recovered_module),
+            Rule::Node(rule) => {
+                rule.expand_partial_valid_parser(helper_outputs, type_env, recovered_module)
+            }
+            Rule::Product(rule) => {
+                rule.0
+                    .expand_partial_valid_parser(helper_outputs, type_env, recovered_module)
+            }
         }
     }
 }
@@ -654,12 +899,16 @@ impl AliasRule {
         })
     }
 
-    fn expand_partial_valid_parser(&self, type_env: &GrammarTypeEnv) -> Option<TokenStream2> {
+    fn expand_partial_valid_parser(
+        &self,
+        type_env: &GrammarTypeEnv,
+        recovered_module: &TokenStream2,
+    ) -> Option<TokenStream2> {
         let argument_types = self.argument_types(type_env)?;
         let output = simple_type_ident(&self.output)?;
         let name = format_ident!("partial_valid_{}_parser", self.name);
         let strict_name = format_ident!("strict_{}_parser", self.name);
-        let recovered_output = quote!(crate::tree::recovered::#output);
+        let recovered_output = quote!(#recovered_module::#output);
         let argument_params = self.arguments.iter().map(|argument| {
             let ty = argument_types
                 .get(&argument.to_string())
@@ -756,6 +1005,26 @@ struct NodeRule {
 }
 
 impl NodeRule {
+    fn generated_model_fields(
+        &self,
+        type_env: &GrammarTypeEnv,
+    ) -> Result<Vec<GeneratedFieldModel>> {
+        let argument_types = self.argument_types(type_env).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.name,
+                "cannot infer generated model field types because a rule argument is not a declared recursive rule",
+            )
+        })?;
+        self.fields
+            .iter()
+            .filter_map(|field| match field.kind {
+                FieldKind::Field | FieldKind::Let | FieldKind::Default => Some(field),
+                FieldKind::Scratch | FieldKind::Require => None,
+            })
+            .map(|field| field.generated_model_field(type_env, &argument_types))
+            .collect()
+    }
+
     fn expand_metadata(&self, kind: &'static str) -> TokenStream2 {
         let name = self.name.to_string();
         let arguments = self.arguments.iter().map(Ident::to_string);
@@ -939,6 +1208,7 @@ impl NodeRule {
         &self,
         helper_outputs: &BTreeSet<String>,
         type_env: &GrammarTypeEnv,
+        recovered_module: &TokenStream2,
     ) -> Option<TokenStream2> {
         let can_generate_strict = if self.build.is_none() {
             let has_default = self
@@ -978,7 +1248,7 @@ impl NodeRule {
         }
         let name = format_ident!("partial_valid_{}_parser", self.name);
         let strict_name = format_ident!("strict_{}_parser", self.name);
-        let recovered_output = quote!(crate::tree::recovered::#output);
+        let recovered_output = quote!(#recovered_module::#output);
         let argument_params = self.arguments.iter().map(|argument| {
             let ty = argument_types
                 .get(&argument.to_string())
@@ -1966,6 +2236,7 @@ struct FieldItem {
     conditions: Vec<Condition>,
     kind: FieldKind,
     name: Option<Ident>,
+    ty: Option<Type>,
     parser: Expr,
 }
 
@@ -1988,6 +2259,46 @@ impl FieldItem {
                 conditions: &[#(#conditions),*],
             }
         }
+    }
+
+    fn generated_model_field(
+        &self,
+        type_env: &GrammarTypeEnv,
+        argument_types: &BTreeMap<String, Type>,
+    ) -> Result<GeneratedFieldModel> {
+        if !self.conditions.is_empty() {
+            return Err(syn::Error::new_spanned(
+                self.name
+                    .as_ref()
+                    .map_or_else(|| self.parser.to_token_stream(), Ident::to_token_stream),
+                "conditional generated model fields need explicit model support before they can be emitted",
+            ));
+        }
+        let name = self
+            .name
+            .clone()
+            .ok_or_else(|| syn::Error::new_spanned(&self.parser, "model fields need a name"))?;
+        let ty = match (&self.ty, &self.kind) {
+            (Some(ty), _) => quote!(#ty),
+            (None, FieldKind::Field) => {
+                parser_output_type(&self.parser, type_env, argument_types).ok_or_else(|| {
+                    syn::Error::new_spanned(
+                        &self.parser,
+                        "cannot infer generated model field type from parser expression; add an explicit `: Type` annotation",
+                    )
+                })?
+            }
+            (None, FieldKind::Let | FieldKind::Default) => {
+                return Err(syn::Error::new_spanned(
+                    &self.parser,
+                    "computed/default generated model fields require an explicit `: Type` annotation",
+                ));
+            }
+            (None, FieldKind::Scratch | FieldKind::Require) => {
+                unreachable!("parser-only fields are filtered before model field generation")
+            }
+        };
+        Ok(GeneratedFieldModel { name, ty })
     }
 }
 
@@ -2016,6 +2327,12 @@ impl Parse for FieldItem {
         } else {
             return Err(input.error("expected `field`, `scratch`, `let`, `default`, or `require`"));
         };
+        let ty = if !matches!(kind, FieldKind::Require) && input.peek(Token![:]) {
+            input.parse::<Token![:]>()?;
+            Some(input.parse()?)
+        } else {
+            None
+        };
         if !matches!(kind, FieldKind::Require) {
             input.parse::<Token![=]>()?;
         }
@@ -2025,6 +2342,7 @@ impl Parse for FieldItem {
             conditions,
             kind,
             name,
+            ty,
             parser,
         })
     }

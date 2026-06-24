@@ -3,6 +3,9 @@
 pub mod tree;
 pub use tree::{Token, WithIndicators, elidable_terminator_for_absent_field};
 
+#[doc(hidden)]
+pub mod generated_tree;
+
 mod grammar;
 
 extern crate self as jbotci_syntax;
