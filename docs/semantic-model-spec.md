@@ -1596,6 +1596,12 @@ there is no explicit modal sumti, the tag relation's visible modal place is an
 also explicit elisions.  This preserves the CLL 9.9 "modal selbri" reading
 without inventing a compeller, tool, eye, or other participant.
 
+When a BAI source relation links two events or propositions, the host
+predication's eventuality fills the complementary source-relation place that is
+not occupied by the tagged sumti after SE conversion.  Thus `ri'a X` fills
+`rinka` x2 with the host event and x1 with `X`, while `se ri'a X` fills x1 with
+the host event and x2 with `X`.
+
 `jai` with a BAI modal conversion, such as `la .lojban. jai bau cusku fai mi`,
 uses the same `modalArguments` shape.  The base predication remains the inner
 source relation (`cusku`), `fai` supplies the original x1 when present, and the

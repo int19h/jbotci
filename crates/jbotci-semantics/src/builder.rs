@@ -20822,7 +20822,7 @@ fn bind_modal_argument_to_host_event(
     if modal_argument.introduced_by == "fi'o" {
         return;
     }
-    let Some(place) = modal_relation_host_event_place(&modal_argument.relation) else {
+    let Some(place) = modal_relation_host_event_place_for_argument(modal_argument) else {
         return;
     };
     let key = format!("x{place}");
@@ -20840,9 +20840,36 @@ fn bind_modal_argument_to_host_event(
 }
 
 #[requires(true)]
-#[ensures(ret == modal_relation_host_event_place(&modal_argument.relation).is_some())]
+#[ensures(ret == modal_relation_host_event_place_for_argument(modal_argument).is_some())]
 fn modal_argument_needs_host_event(modal_argument: &ModalArgument) -> bool {
-    modal_relation_host_event_place(&modal_argument.relation).is_some()
+    modal_relation_host_event_place_for_argument(modal_argument).is_some()
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|place| place > 0))]
+fn modal_relation_host_event_place_for_argument(modal_argument: &ModalArgument) -> Option<usize> {
+    if modal_relation_has_complementary_event_places(&modal_argument.relation)
+        && modal_argument_place_is_filled(modal_argument, 2)
+        && !modal_argument_place_is_filled(modal_argument, 1)
+    {
+        return Some(1);
+    }
+    modal_relation_host_event_place(&modal_argument.relation)
+}
+
+#[requires(place > 0)]
+#[ensures(true)]
+fn modal_argument_place_is_filled(modal_argument: &ModalArgument, place: usize) -> bool {
+    modal_argument
+        .arguments
+        .get(&format!("x{place}"))
+        .is_some_and(|argument| argument.kind != ArgumentValueKind::Elided)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn modal_relation_has_complementary_event_places(relation: &str) -> bool {
+    matches!(relation, "krinu" | "mukti" | "nibli" | "rinka")
 }
 
 #[requires(true)]
@@ -24851,6 +24878,26 @@ mod tests {
         assert_eq!(modal["introducedBy"], "fi'o");
         assert_eq!(modal["arguments"]["x1"]["kind"], "elided");
         assert_eq!(modal["arguments"]["x2"]["kind"], "elided");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn se_converted_causal_modal_binds_host_event_to_complement_place() {
+        let json = semantic_json_for("mi klama se ri'a le nu do cadzu").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        let modal = &klama["modalArguments"][0];
+        assert_eq!(modal["relation"], "rinka");
+        assert_eq!(modal["introducedBy"], "se ri'a");
+        assert_eq!(
+            modal["arguments"]["x1"]["value"],
+            klama["eventuality"].as_str().expect("klama eventuality")
+        );
+        assert_ne!(
+            modal["arguments"]["x2"]["value"],
+            klama["eventuality"].as_str().expect("klama eventuality")
+        );
+        assert_eq!(modal["arguments"]["x3"]["kind"], "elided");
     }
 
     #[test]

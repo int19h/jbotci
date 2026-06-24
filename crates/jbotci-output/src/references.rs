@@ -7,7 +7,8 @@ use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_morphology::canonicalize_text;
 use jbotci_semantics::references::{
     PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, ReferenceEdgeId, ReferenceKind,
-    ReferenceTarget, SelbriPlaceFrame, SelbriPlaceFrameId, SumtiPlaceAssignmentId, SyntaxIndex,
+    ReferenceTarget, SelbriPlaceFrame, SelbriPlaceFrameId, SumtiPlaceAssignment,
+    SumtiPlaceAssignmentId, SyntaxIndex,
 };
 use jbotci_syntax::ast::{
     AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, SelbriSyntax, TenseModalSyntax,
@@ -251,8 +252,9 @@ impl ReferenceDisplayModel {
                     continue;
                 };
                 let mut place_name = base_name.clone();
-                place_name.slot = Some(reference_slot_name_for_place_slot(
-                    assignment.slot,
+                place_name.slot = Some(reference_slot_name_for_assignment(
+                    analysis,
+                    assignment,
                     &analysis.syntax_index,
                     source,
                     options,
@@ -541,6 +543,110 @@ pub fn reference_slot_name_for_place_slot(
         PlaceSlot::PlaceQuestion => ReferenceSlotName::PlaceQuestion,
         PlaceSlot::Fai => ReferenceSlotName::Fai,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reference_slot_name_for_assignment(
+    analysis: &ReferenceAnalysis<'_>,
+    assignment: &SumtiPlaceAssignment,
+    index: &SyntaxIndex<'_>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> ReferenceSlotName {
+    let slot = governed_termset_display_slot(analysis, assignment).unwrap_or(assignment.slot);
+    reference_slot_name_for_place_slot(slot, index, source, options)
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|slot| matches!(slot, PlaceSlot::Modal(Some(_)))))]
+fn governed_termset_display_slot(
+    analysis: &ReferenceAnalysis<'_>,
+    assignment: &SumtiPlaceAssignment,
+) -> Option<PlaceSlot> {
+    let PlaceSlot::Numbered(_) = assignment.slot else {
+        return None;
+    };
+    let term = assignment.term?;
+    let termset = termset_ancestor_for_term(&analysis.syntax_index, term.0)?;
+    let termset_order = source_order_for_node(&analysis.syntax_index, termset)?;
+    analysis
+        .place_analysis
+        .assignments_for_frame(assignment.frame)
+        .iter()
+        .filter_map(|assignment_id| {
+            let modal_assignment = analysis.place_analysis.assignment(*assignment_id)?;
+            let PlaceSlot::Modal(Some(tag)) = modal_assignment.slot else {
+                return None;
+            };
+            if !sumti_is_omitted_placeholder(&analysis.syntax_index, modal_assignment.sumti.0) {
+                return None;
+            }
+            let modal_order = source_order_for_node(&analysis.syntax_index, tag)?;
+            if modal_order >= termset_order {
+                return None;
+            }
+            let following =
+                nearest_following_termset_for_assignment(analysis, modal_assignment, modal_order)?;
+            (following == termset).then_some((modal_order, tag))
+        })
+        .max_by_key(|(order, _tag)| *order)
+        .map(|(_order, tag)| PlaceSlot::Modal(Some(tag)))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn nearest_following_termset_for_assignment(
+    analysis: &ReferenceAnalysis<'_>,
+    assignment: &SumtiPlaceAssignment,
+    assignment_order: usize,
+) -> Option<RawSyntaxNodeId> {
+    analysis
+        .place_analysis
+        .assignments_for_frame(assignment.frame)
+        .iter()
+        .filter_map(|assignment_id| {
+            let candidate = analysis.place_analysis.assignment(*assignment_id)?;
+            let term = candidate.term?;
+            let termset = termset_ancestor_for_term(&analysis.syntax_index, term.0)?;
+            let termset_order = source_order_for_node(&analysis.syntax_index, termset)?;
+            (termset_order > assignment_order).then_some((termset_order, termset))
+        })
+        .min_by_key(|(order, _termset)| *order)
+        .map(|(_order, termset)| termset)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn termset_ancestor_for_term(
+    index: &SyntaxIndex<'_>,
+    term: RawSyntaxNodeId,
+) -> Option<RawSyntaxNodeId> {
+    let mut current = Some(term);
+    while let Some(node) = current {
+        if index
+            .node(node)
+            .is_some_and(|syntax| matches!(syntax, SyntaxNodeRef::TermSyntaxTermset(_)))
+        {
+            return Some(node);
+        }
+        current = index.metadata(node).and_then(|metadata| metadata.parent);
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn source_order_for_node(index: &SyntaxIndex<'_>, node: RawSyntaxNodeId) -> Option<usize> {
+    index.metadata(node).map(|metadata| metadata.leaf_start)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sumti_is_omitted_placeholder(index: &SyntaxIndex<'_>, sumti: RawSyntaxNodeId) -> bool {
+    index
+        .node(sumti)
+        .is_some_and(|node| matches!(node, SyntaxNodeRef::SumtiSyntaxElidedSumti(_)))
 }
 
 #[requires(true)]
