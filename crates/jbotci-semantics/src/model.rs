@@ -486,6 +486,8 @@ pub struct SemanticObject {
     pub experiencer: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<SemanticObjectId>,
+    #[serde(rename = "targetFocus", skip_serializing_if = "Option::is_none")]
+    pub target_focus: Option<DisplayedContentTargetFocus>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub anchor: Option<SemanticObjectId>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -613,6 +615,7 @@ impl SemanticObject {
             assertion_effect: None,
             experiencer: None,
             target: None,
+            target_focus: None,
             anchor: None,
             operands: Vec::new(),
             literal: None,
@@ -1012,6 +1015,7 @@ impl SemanticObject {
         object.assertion_effect = Some(assertion_effect);
         object.experiencer = Some(experiencer);
         object.target = Some(target);
+        object.target_focus = None;
         object.anchor = Some(anchor);
         object.source = source;
         object.diagnostics = diagnostics;
@@ -1242,6 +1246,9 @@ impl SemanticObject {
         }
         for argument in &self.modal_arguments {
             argument.references_into(out);
+        }
+        if let Some(scalar_negation) = &self.scalar_negation {
+            scalar_negation.references_into(out);
         }
         for exchange in &self.reciprocity {
             exchange.references_into(out);
@@ -1488,6 +1495,9 @@ impl AnchorRelation {
         if let Some(magnitude) = &self.magnitude {
             magnitude.references_into(out);
         }
+        if let Some(scalar_negation) = &self.scalar_negation {
+            scalar_negation.references_into(out);
+        }
     }
 }
 
@@ -1611,6 +1621,9 @@ impl TemporalPathStep {
         }
         if let Some(magnitude) = &self.magnitude {
             magnitude.references_into(out);
+        }
+        if let Some(scalar_negation) = &self.scalar_negation {
+            scalar_negation.references_into(out);
         }
     }
 }
@@ -1843,6 +1856,9 @@ impl Aspect {
     #[ensures(true)]
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
         extend_optional(out, self.anchor);
+        if let Some(scalar_negation) = &self.scalar_negation {
+            scalar_negation.references_into(out);
+        }
     }
 }
 
@@ -2020,6 +2036,7 @@ pub enum SemanticSort {
     Amount,
     Quantity,
     Number,
+    Scale,
     Text,
     Sign,
     Relation,
@@ -2063,6 +2080,10 @@ pub struct Descriptor {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub scale: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub definiteness: Option<DescriptorDefiniteness>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub operand: Option<SemanticObjectId>,
 }
 
@@ -2074,8 +2095,19 @@ impl Descriptor {
         extend_optional(out, self.body);
         out.extend(self.relative_clauses.iter().map(|clause| clause.body));
         extend_optional(out, self.quantity);
+        extend_optional(out, self.scale);
         extend_optional(out, self.operand);
     }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DescriptorDefiniteness {
+    AffirmedPoint,
+    IndefiniteAlternative,
+    NeutralPoint,
+    UniqueExtreme,
 }
 
 #[invariant(!operator.is_empty(), "composition operator must be named")]
@@ -2391,6 +2423,7 @@ impl ModalNegation {
 #[serde(rename_all = "camelCase")]
 pub enum ModalNegationKind {
     Contradictory,
+    OtherThan,
 }
 
 #[invariant(!relation.is_empty(), "modal relation must be named")]
@@ -2473,6 +2506,9 @@ impl ModalArgument {
             argument.references_into(out);
         }
         extend_optional(out, self.component);
+        if let Some(scalar_negation) = &self.scalar_negation {
+            scalar_negation.references_into(out);
+        }
     }
 }
 
@@ -2578,11 +2614,17 @@ pub enum PredicationMode {
 }
 
 #[invariant(!introduced_by.is_empty(), "scalar negation source marker must be named")]
+#[invariant(scale.is_none_or(|scale| scale.object_kind() == SemanticObjectKind::Referent), "scalar negation scale must be a referent")]
+#[invariant(argument_scope.iter().all(|place| is_numbered_argument_place(place)), "scalar negation argument scope must use numbered argument places")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScalarNegation {
     pub kind: ScalarNegationKind,
     pub introduced_by: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scale: Option<SemanticObjectId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub argument_scope: Vec<String>,
 }
 
 impl ScalarNegation {
@@ -2592,7 +2634,27 @@ impl ScalarNegation {
         Self::from_data(data!(ScalarNegation {
             kind,
             introduced_by,
+            scale: None,
+            argument_scope: Vec::new(),
         }))
+    }
+
+    #[requires(scale.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.scale == Some(scale))]
+    pub fn with_scale(self, scale: SemanticObjectId) -> Self {
+        self.with_data(data! { scale: Some(scale) })
+    }
+
+    #[requires(argument_scope.iter().all(|place| is_numbered_argument_place(place)))]
+    #[ensures(ret.argument_scope == argument_scope)]
+    pub fn with_argument_scope(self, argument_scope: Vec<String>) -> Self {
+        self.with_data(data! { argument_scope: argument_scope.clone() })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        extend_optional(out, self.scale);
     }
 }
 
@@ -2647,6 +2709,7 @@ impl Serialize for SemanticOperator {
 #[serde(rename_all = "camelCase")]
 pub enum FormulaOperator {
     Atom,
+    Affirmed,
     Not,
     Scoped,
     And,
@@ -2874,6 +2937,14 @@ pub enum DisplayedContentPolarity {
     Negative,
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DisplayedContentTargetFocus {
+    Bridi,
+    Selbri,
+}
+
 #[invariant(!relation.is_empty(), "displayed-content modifier relation must be named")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -2898,6 +2969,7 @@ pub enum DisplayedContentAssertionEffect {
     None,
     HostAsserted,
     HostSubordinated,
+    MetalinguisticallyVoided,
     Performative,
 }
 
@@ -3307,6 +3379,7 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
             optional_reference_has_kind(descriptor.speaker, SemanticObjectKind::Referent)
                 && optional_reference_has_kind(descriptor.body, SemanticObjectKind::Formula)
                 && optional_reference_has_kind(descriptor.quantity, SemanticObjectKind::Quantity)
+                && optional_reference_has_kind(descriptor.scale, SemanticObjectKind::Referent)
                 && descriptor
                     .operand
                     .is_none_or(|operand| argument_object_kind_can_fill(operand.object_kind()))
@@ -3811,6 +3884,36 @@ mod tests {
         );
 
         let error = SemanticGraph::new(root, objects).expect_err("dangling reference");
+        assert!(error.contains("must not dangle"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_graph_rejects_dangling_scalar_negation_scale() {
+        let root = SemanticObjectId::formula(1);
+        let predication = SemanticObjectId::predication(1);
+        let mut object = SemanticObject::predication(
+            "klama".to_owned(),
+            None,
+            BTreeMap::new(),
+            PredicationMode::Asserted,
+            None,
+            Vec::new(),
+        );
+        object.scalar_negation = Some(
+            ScalarNegation::new(ScalarNegationKind::OtherThan, "na'e".to_owned())
+                .with_scale(SemanticObjectId::referent(1)),
+        );
+
+        let mut objects = BTreeMap::new();
+        objects.insert(
+            root,
+            SemanticObject::atom_formula(predication, None, Vec::new()),
+        );
+        objects.insert(predication, object);
+
+        let error = SemanticGraph::new(root, objects).expect_err("dangling scale reference");
         assert!(error.contains("must not dangle"));
     }
 

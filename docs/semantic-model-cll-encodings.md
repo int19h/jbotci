@@ -525,7 +525,7 @@ REF z2 : kind=const, flavor=zo'e, sort=Obj
 REF z3 : kind=const, flavor=zo'e, sort=Obj
 FRM f1 : not(p1)
 ```
-**`na'e` (scalar)** `mi na'e klama` → `rel=na'e:klama` (a *positive* claim: I relate to the store by some other motion-relation). **`na'i` (metalinguistic)** → `DSP d : kind=metalinguistic, rel=na'i, target=⟨the bridi/term⟩` (flags a false presupposition; no truth value, not a `not`).
+**`na'e` (scalar)** `mi na'e klama` → `rel=na'e:klama` (a *positive* claim: I relate to the store by some other motion-relation) with a `Scale` referent; `be ci'u ...` supplies that scale's definition. **`na'i` (metalinguistic)** → `DSP d : kind=metalinguistic, rel=na'i, target=⟨the bridi/term⟩, targetFocus=bridi|selbri, assertionEffect=metalinguisticallyVoided` (flags a false presupposition; no truth value, not a `not`).
 
 **16.x `naku` boundary inversion — `naku ro da poi gerku cu blabi`** ≡ `su'o da poi gerku cu na blabi` ("not all dogs are white" = "some dog is not white").
 ```

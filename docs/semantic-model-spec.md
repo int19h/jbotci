@@ -518,8 +518,11 @@ ROI counts reference full `quantity` objects.  The quantity uses
 `form = "atLeast"`, `value.text = "su'o"`; `ro roi` is `form = "all"`,
 `value.text = "ro"`.  Do not encode ROI counts as untyped recurrence strings.
 
-`nai` after an interval property negates that recurrence property, not the
-whole predication.  The recurrence entry carries `negation` so the source value
+`nai` after a **TAhE/ROI** interval property negates that recurrence property,
+not the whole predication. (A ZAhO contour `-nai`, e.g. `ca'onai`, is *not*
+recorded here — it is a bridi-level contradictory `not`-formula over the atom,
+per the tense-negation prose above and CLL 10.18; see review-pass amendment 19.)
+The recurrence entry carries `negation` so the source value
 remains visible: `ru'inai` is a `continuously` recurrence with
 `negation.introducedBy = "nai"`, and `reroinai` is an
 `occurrenceCount` recurrence with a frequency `quantity` plus the same
@@ -725,6 +728,7 @@ rather than as opaque pro-sumti constants.
 - `amount`
 - `quantity`
 - `number`
+- `scale`
 - `text`
 - `sign`
 - `relation`
@@ -966,12 +970,26 @@ warning:
 
 NAhE+BO sumti qualifiers such as `na'ebo le gerku` also create a qualified
 referent rather than modifying the inner referent in place.  They reuse
-`descriptor.operand` and use semantic descriptor kinds:
+`descriptor.operand`, point at a first-class scale referent with
+`descriptor.scale`, and use semantic descriptor kinds:
 
 - `otherThan` for `na'e bo`
 - `oppositeOf` for `to'e bo`
 - `neutralOf` for `no'e bo`
 - `affirmedAs` for `je'a bo`
+
+The scale referent is sorted as `scale`.  If the surface supplies an explicit
+scale definition, such as with `ci'u`, the scale descriptor's `operand` points
+at that definition.  If no scale definition is overt, the scale referent is
+opaque: consumers know that the scalar operator is scale-relative, but not what
+the contextual scale is.
+
+`descriptor.definiteness` records which point on the scale is selected:
+
+- `indefiniteAlternative` for `na'e bo`
+- `uniqueExtreme` for `to'e bo`
+- `neutralPoint` for `no'e bo`
+- `affirmedPoint` for `je'a bo`
 
 ```json
 {
@@ -982,7 +1000,23 @@ referent rather than modifying the inner referent in place.  They reuse
     "kind": "otherThan",
     "word": "na'e bo",
     "speaker": "referent:speaker",
+    "scale": "referent:scale1",
+    "definiteness": "indefiniteAlternative",
     "operand": "referent:the-dog"
+  }
+}
+```
+
+```json
+{
+  "type": "referent",
+  "category": "constant",
+  "sort": "scale",
+  "descriptor": {
+    "kind": "scale",
+    "word": "implicit scalar scale",
+    "speaker": "referent:speaker",
+    "name": "na'e bo"
   }
 }
 ```
@@ -1672,10 +1706,10 @@ attitudinal modifiers.  This is needed for CLL 15.10 `go'i ji'una'iku`, where
       },
       "modifiers": [
         {
-          "relation": "na'i",
+          "relation": "metalinguisticNegation",
           "family": "metalinguistic",
           "polarity": "positive",
-          "assertionEffect": "none"
+          "assertionEffect": "metalinguisticallyVoided"
         }
       ]
     }
@@ -1725,6 +1759,56 @@ relation is something other than walking, not that the walking predication is
 false.  `kind` values include `otherThan` for `na'e`, `opposite` for `to'e`,
 `neutral` for `no'e`, and `affirmed` for `je'a`; `introducedBy` preserves the
 surface marker.
+
+`scalarNegation.scale` points at the first-class scale referent used by the
+scalar operator.  With `be ci'u ...`, the scale referent's descriptor uses
+`word:"ci'u"` and `operand` points at the overt scale definition.  Without an
+overt scale, the scale referent is opaque (`word:"implicit scalar scale"`).
+
+```json
+{
+  "type": "predication",
+  "relation": "xunre",
+  "scalarNegation": {
+    "kind": "otherThan",
+    "introducedBy": "na'e",
+    "scale": "referent:scale1"
+  }
+}
+```
+
+```json
+{
+  "type": "referent",
+  "category": "constant",
+  "sort": "scale",
+  "descriptor": {
+    "kind": "scale",
+    "word": "ci'u",
+    "speaker": "referent:speaker",
+    "name": "na'e",
+    "operand": "referent:color-property"
+  }
+}
+```
+
+`scalarNegation.argumentScope`, when present, lists the numbered places that
+are syntactically inside the scalar-negated selbri unit.  This distinguishes
+CLL 15.53 `na'e ke sutra cadzu ke'e lemi birka`, where the arm sumti is a
+trailing bridi argument outside the scalar operator, from 15.54
+`na'e ke sutra cadzu be lemi birka ke'e`, where the `be`-attached x2 is inside
+the scalar-negated unit:
+
+```json
+{
+  "scalarNegation": {
+    "kind": "otherThan",
+    "introducedBy": "na'e",
+    "scale": "referent:scale1",
+    "argumentScope": ["x1", "x2"]
+  }
+}
+```
 
 Relative clauses on a sumti occurrence appear inside that occurrence's argument
 filler:
@@ -1853,6 +1937,20 @@ Atomic:
   "type": "formula",
   "operator": "atom",
   "predication": "predication:p1"
+}
+```
+
+Bridi-level `ja'a` affirmation wraps its child formula with
+`operator:"affirmed"`.  This is a formula-layer marker for explicit assertion;
+it is distinct from scalar `je'a`, which remains `scalarNegation.kind:"affirmed"`
+on a predication or related scalar carrier.
+
+```json
+{
+  "type": "formula",
+  "operator": "affirmed",
+  "children": ["formula:f-atom"],
+  "source": { "text": "ja'a", "construct": "bridi-affirmation" }
 }
 ```
 
@@ -2683,6 +2781,7 @@ acts performatively:
 - `none`
 - `hostAsserted`
 - `hostSubordinated`
+- `metalinguisticallyVoided`
 - `performative`
 
 Leading propositional attitudinals such as `.a'o` target the host formula and
@@ -2709,6 +2808,26 @@ that utterance's `asides` so the graph remains reachable from `root`.
       "construct": "indicator"
     }
   }
+}
+```
+
+Metalinguistic `na'i` uses `family:"metalinguistic"` and
+`assertionEffect:"metalinguisticallyVoided"`.  It does not emit formula
+negation; the host predication is marked inert because the utterance is being
+challenged as mis-posed rather than asserted as true or false.  When the same
+formula can be targeted at different levels, `targetFocus` records the intended
+surface focus: leading `na'i go'i` has `targetFocus:"bridi"`, while post-selbri
+`go'i na'i` has `targetFocus:"selbri"`.
+
+```json
+{
+  "type": "displayedContent",
+  "relation": "metalinguisticNegation",
+  "family": "metalinguistic",
+  "target": "formula:f-goi",
+  "targetFocus": "selbri",
+  "anchor": "utterance:u1",
+  "assertionEffect": "metalinguisticallyVoided"
 }
 ```
 
@@ -4294,7 +4413,11 @@ These are the semantic object-model changes relative to
      whole host formula would lose the fact that the error is specifically in
      the modal assumption, while dropping it from `modalArguments` would lose
      the metalinguistic force entirely.  Modal arguments now carry nested
-     displayed-content modifiers for indicators attached to the tag word.
+     displayed-content modifiers for indicators attached to the tag word.  The
+     modifier still carries `assertionEffect:"metalinguisticallyVoided"`, because
+     CLL 15.10 says `na'i` anywhere in the sentence makes it a non-assertion;
+     the modifier location records that the presupposition/modal assumption is
+     the offending part.
 
 123. Added relation-variable parameters for `bu'a`-series selbri variables.
      CLL 16.13 uses `su'o bu'a zo'u la .djim. bu'a la .djan.` and
@@ -4701,6 +4824,67 @@ implementation gaps are listed separately in “Known Implementation Divergences
     table; fix the `operand` field description). `tu'a` and bare `jai` raised
     abstractions carry the **`eventuality`** sort: they stand for an unspecified
     event/state/process abstraction about the operand, not for a proposition. Closed.
+
+19. **Interval-modifier `-nai`: scalar (TAhE/ROI) vs contradictory (PU/FAhA/ZAhO)
+    (#62) — implement TAhE/ROI; ZAhO already correct; reconcile a CLL erratum.** CLL is
+    internally inconsistent: **CLL 15.7** lists "TAhE, ROI, **or ZAhO**" `-nai` as
+    *scalar*, but **CLL 10.18** treats PU/FAhA/**ZAhO** `-nai` as *contradictory* (Ex
+    10.132 `ca'onai` = "not-during …") and gives the *scalar* ZAhO form as the explicit
+    `na'e ca'o`; 10.18's closing sentence lists only **TAhE and ROI** as the
+    `-nai`-is-scalar case. We follow **10.18** (the more specific, self-consistent
+    treatment).
+    - **PU/FAhA/ZAhO `-nai` → contradictory** — a bridi-level `FRM` `not` over the atom
+      (0.K), *not* a recurrence/interval scalar; *scalar* negation of such a tense is the
+      explicit `na'e`-prefixed form (`na'e ca'o` → `scalarNegation: otherThan` on the
+      aspect). **Already implemented correctly** (`ca'onai`/`ca'o nai` emit a `not`
+      formula over the atom; `na'e ca'o` emits the scalar aspect) — no change needed.
+    - **TAhE/ROI `-nai` → scalar.** Add a scalar variant (e.g. `otherThan`) usable on the
+      `recurrence`/`intervalModifiers` negation, keeping the base recurrence kind and the
+      count intact (`paroinai` = "other than once", CLL 15.79). *Current impl:* mislabeled
+      `contradictory` (#62) — the single `contradictory` kind is never correct for TAhE/ROI.
+    - *Type note:* `Recurrence.negation` is typed `ModalNegation`/`ModalNegationKind`; if a
+      scalar variant is added there, rename/generalize it or document it as a **shared
+      negation-shape type**, since interval-modifier negation is not a "modal" negation.
+    - *Scale note:* the scalar reading is **scale-relative** — ROI `-nai` = "other
+      than N" on a frequency scale, TAhE `-nai` = "other than this recurrence/distribution
+      class" on a distribution scale.  Predication scalar negation now uses
+      `scalarNegation.scale` for explicit or opaque scale referents; recurrence
+      negation keeps the shared `negation` shape and its scale is the recurrence
+      quantity/distribution itself.
+
+20. **Metalinguistic `na'i` target and assertion effect (#53, #54) — extend.**
+    `na'i` is displayed content, not formula negation.  Add
+    `DisplayedContent.targetFocus` so leading `na'i go'i` can target the whole
+    bridi while post-selbri `go'i na'i` targets the selbri/formula surface, and
+    add `assertionEffect:"metalinguisticallyVoided"` so consumers know the host
+    is not asserted true or false.  The affected host predications are inert.
+    Implemented in `tersmu` v1.
+
+21. **Statement-connective indicators (#55) — implement.** UI and related
+    indicators attached to `.i je`/`.i ja` target the statement-connection
+    formula, not either operand alone.  No new object type is needed; the
+    displayed-content target points at the combined formula and uses
+    `targetFocus:"bridi"`.  Implemented in `tersmu` v1.
+
+22. **Scalar-negation argument scope (#57) — extend.** Add optional
+    `scalarNegation.argumentScope`, a list of numbered places syntactically
+    inside the scalar-negated selbri unit.  This distinguishes CLL 15.53
+    trailing `lemi birka` from 15.54 `be lemi birka` without changing the
+    predication's ordinary argument fillers.  Implemented in `tersmu` v1.
+
+23. **First-class scalar scales and NAhE+BO definiteness (#61) — extend.**
+    Add `scale` as a referent sort, `scalarNegation.scale`, `Descriptor.scale`,
+    and `Descriptor.definiteness`.  `ci'u` supplies a scale definition via the
+    scale referent's `descriptor.operand`; omitted scales are opaque scale
+    referents.  NAhE+BO descriptors distinguish `indefiniteAlternative`
+    (`na'e bo`) from `uniqueExtreme` (`to'e bo`), with `neutralPoint` and
+    `affirmedPoint` for `no'e bo` and `je'a bo`.  Implemented in `tersmu` v1.
+
+24. **Bridi-level `ja'a` affirmation (#65, #66) — extend.** Add
+    `Formula.operator:"affirmed"` for NA selma'o `ja'a`.  This is a
+    formula-layer affirmation wrapper and is deliberately distinct from
+    predication-level scalar `je'a` (`scalarNegation.kind:"affirmed"`).
+    Implemented in `tersmu` v1.
 
 ## Known Implementation Divergences (2026-06-23)
 

@@ -31,20 +31,20 @@ use jbotci_syntax::ast::{
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorMagnitude, AnchorRelation, AnchorRelationData,
     ArgumentValue, ArgumentValueKind, Aspect, AssignedName, AssignedNameData, Composition,
-    Connector, Descriptor, DisplayedContentAssertionEffect, DisplayedContentFamily,
-    DisplayedContentModifier, DisplayedContentPolarity, EndpointInclusion, EventualityClass,
-    FormulaOperator, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
-    IntervalModifierData, LetteralUnit, LetteralUnitKind, MathLiteral, ModalArgument,
-    ModalNegation, ModalNegationKind, NonlogicalConnection, PlaceQuestionBinding, PredicationMode,
-    QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot,
-    QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, Recurrence,
-    RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
-    RelationExpansion, RelativeClause, RelativeClauseKind, RespectivelyStream, ScalarNegation,
-    ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId,
-    SemanticObjectKind, SemanticOperatorData, SemanticSort, SequenceRelation, SignKind,
-    SpaceInterval, SpatialMotion, SpatialMotionKind, TanruLink, TemporalPathAnchor,
-    TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint,
-    UtteranceForce, argument_object_kind_can_fill, diagnostic, source_from_spans,
+    Connector, Descriptor, DescriptorDefiniteness, DisplayedContentAssertionEffect,
+    DisplayedContentFamily, DisplayedContentModifier, DisplayedContentPolarity,
+    DisplayedContentTargetFocus, EndpointInclusion, EventualityClass, FormulaOperator,
+    IndexicalKind, IntervalEndpointInclusion, IntervalModifier, IntervalModifierData, LetteralUnit,
+    LetteralUnitKind, MathLiteral, ModalArgument, ModalNegation, ModalNegationKind,
+    NonlogicalConnection, PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale,
+    QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
+    RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
+    RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
+    RespectivelyStream, ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph,
+    SemanticObject, SemanticObjectId, SemanticObjectKind, SemanticOperatorData, SemanticSort,
+    SequenceRelation, SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind, TanruLink,
+    TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
+    TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic, source_from_spans,
 };
 use crate::references::{
     AssignmentSource, BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -388,6 +388,15 @@ impl StickyModalKey {
             relation: modal_argument.relation.clone(),
         }))
     }
+}
+
+#[invariant(crate::model::argument_object_kind_can_fill(value.object_kind()))]
+#[invariant(!introduced_by.is_empty(), "scale definition source marker must be named")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ScalarScaleDefinition {
+    value: SemanticObjectId,
+    introduced_by: String,
+    source: Option<crate::model::SemanticSource>,
 }
 
 #[invariant(true)]
@@ -1348,6 +1357,12 @@ where
                 if let Some(statement_id) =
                     self.build_paragraph_statement(statement, statement_truth_question)?
                 {
+                    if statement_id.object_kind() == crate::model::SemanticObjectKind::Utterance {
+                        self.attach_statement_separator_indicators_to_discourse_item(
+                            statement_id,
+                            statement,
+                        )?;
+                    }
                     if let Some(statement) = statement.statement.as_deref() {
                         if !leading_reciprocity_attached {
                             self.attach_statement_reciprocity_to_discourse_item(
@@ -1513,7 +1528,13 @@ where
         )?;
         let mut displays = Vec::new();
         for draft in indicator_display_drafts(parts) {
-            displays.push(self.insert_indicator_display(draft, sign, utterance, "indicator")?);
+            displays.push(self.insert_indicator_display(
+                draft,
+                sign,
+                utterance,
+                "indicator",
+                None,
+            )?);
         }
         let content = if let [display] = displays.as_slice() {
             *display
@@ -1950,7 +1971,23 @@ where
                         connective_connector(connective, "statement"),
                     ));
                 }
-                self.insert(id, sequence)
+                let id = self.insert(id, sequence)?;
+                if let Some(target) = content
+                    && let Some(anchor) = [second, first].into_iter().find(|item| {
+                        item.object_kind() == crate::model::SemanticObjectKind::Utterance
+                    })
+                {
+                    let mut parts = indicator_parts_for_connective_cmavo(connective);
+                    parts.extend(indicator_parts_for_connective_nai(connective));
+                    self.attach_indicator_displays_with_target_focus(
+                        parts,
+                        target,
+                        anchor,
+                        "indicator",
+                        Some(DisplayedContentTargetFocus::Bridi),
+                    )?;
+                }
+                Ok(id)
             }
             data!(StatementSyntax::Iau {
                 inner_statement,
@@ -2351,11 +2388,12 @@ where
         let utterance =
             self.build_utterance(force, Some(content), source, Vec::new(), reserved_utterance)?;
         if let Some(selbri) = main_selbri_for_tail(&bridi.bridi_tail) {
-            self.attach_indicator_displays(
+            self.attach_indicator_displays_with_target_focus(
                 indicator_parts_for_selbri(selbri),
                 formula,
                 utterance,
                 "indicator",
+                Some(DisplayedContentTargetFocus::Selbri),
             )?;
         }
         self.current_utterance_anchor = previous_anchor;
@@ -2421,7 +2459,13 @@ where
         bridi: &'tree BridiSyntax,
         formula: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let mut scopes = self.quantified_pro_sumti_scopes_for_bridi(bridi)?;
+        let mut scopes = if let Some(eventuality) = self.primary_eventuality_for_formula(formula) {
+            self.with_temporal_context(eventuality, |builder| {
+                builder.quantified_pro_sumti_scopes_for_bridi(bridi)
+            })?
+        } else {
+            self.quantified_pro_sumti_scopes_for_bridi(bridi)?
+        };
         let mut scoped_variables = scopes
             .iter()
             .filter_map(|scope| match scope {
@@ -3629,17 +3673,32 @@ where
             && let Some(target_bridi) = self.resolved_goha_target_bridi_for_selbri(selbri)
             && !self.bridi_nodes_equal(bridi, target_bridi)
         {
-            return self.build_resolved_pro_bridi_formula(bridi, selbri, target_bridi);
+            return self.build_resolved_pro_bridi_formula(
+                bridi,
+                selbri,
+                target_bridi,
+                scalar_negation_for_selbri(selbri).is_none(),
+            );
         }
         if let Some(selbri) = selbri
             && let Some(target_bridi) = self.resolved_broda_target_bridi_for_selbri(selbri)
         {
-            return self.build_resolved_pro_bridi_formula(bridi, selbri, target_bridi);
+            return self.build_resolved_pro_bridi_formula(
+                bridi,
+                selbri,
+                target_bridi,
+                scalar_negation_for_selbri(selbri).is_none(),
+            );
         }
         if let Some(selbri) = selbri
             && let Some(units) = tanru_units_for_selbri(selbri)
             && tanru_units_require_lowering(&units)
         {
+            if let Some(formula) =
+                self.build_tanru_logical_sumti_connection_formula_for_bridi(bridi, selbri, &units)?
+            {
+                return Ok(formula);
+            }
             return self.build_tanru_formula_for_bridi(bridi, selbri, &units);
         }
         if let Some(selbri) = selbri
@@ -3794,10 +3853,11 @@ where
         match selbri.as_data() {
             data!(SelbriSyntax::Negated { inner_selbri, .. }) => {
                 let child = self.build_selbri_formula_for_bridi_scope_child(bridi, inner_selbri)?;
+                let operator = bridi_negation_operator_for_selbri(selbri);
                 self.build_unary_formula(
-                    FormulaOperator::Not,
+                    operator,
                     child,
-                    self.source_for_selbri(selbri, "bridi-negation"),
+                    self.source_for_selbri(selbri, bridi_negation_source_construct(operator)),
                     Vec::new(),
                 )
                 .map(Some)
@@ -3827,6 +3887,14 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         if let Some(scoped) = self.build_scoped_selbri_formula_for_bridi(bridi, selbri)? {
             return Ok(scoped);
+        }
+        if let Some(target_bridi) = self.resolved_goha_target_bridi_for_selbri(selbri)
+            && !self.bridi_nodes_equal(bridi, target_bridi)
+        {
+            return self.build_resolved_pro_bridi_formula(bridi, selbri, target_bridi, false);
+        }
+        if let Some(target_bridi) = self.resolved_broda_target_bridi_for_selbri(selbri) {
+            return self.build_resolved_pro_bridi_formula(bridi, selbri, target_bridi, false);
         }
         let relation = relation_label_for_selbri(selbri);
         if let Some(formula) =
@@ -6083,6 +6151,188 @@ where
 
     #[requires(tanru_units_require_lowering(units))]
     #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_tanru_logical_sumti_connection_formula_for_bridi(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: &'tree SelbriSyntax,
+        units: &[&'tree TanruUnitSyntax],
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let frame = self
+            .semantic_predication_frame_for_selbri(selbri, self.bridi_frame(bridi))
+            .or_else(|| self.bridi_frame(bridi));
+        let Some(frame) = frame else {
+            return Ok(None);
+        };
+        let mut alternatives = BTreeMap::<String, Vec<AlternativeArgument>>::new();
+        let mut connector = None;
+        let mut connector_question_token = None;
+        let mut modal_connection_spec = None;
+        let mut modal_connection_visible_first = true;
+        let mut operator = FormulaOperator::And;
+        let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
+        for assignment_id in assignment_ids {
+            let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
+                continue;
+            };
+            let PlaceSlot::Numbered(place) = assignment.slot else {
+                continue;
+            };
+            let sumti = self
+                .analysis
+                .syntax_index
+                .sumti(assignment.sumti)
+                .ok_or_else(SemanticsError::missing_syntax_node)?;
+            let key = format!("x{}", place.get());
+            if let Some((leading_sumti, connective, tense_modal, trailing_sumti)) =
+                logical_sumti_connection_parts_degrouped(sumti)
+            {
+                if connector.is_none() {
+                    let connector_question =
+                        direct_connective_question_token_for_connective(connective);
+                    operator = if connector_question.is_some() {
+                        FormulaOperator::ConnectiveQuestion
+                    } else {
+                        formula_operator_for_connective(connective)
+                    };
+                    modal_connection_spec = tense_modal
+                        .and_then(modal_statement_connection_spec_for_tense_modal)
+                        .or_else(|| modal_statement_connection_spec(connective));
+                    modal_connection_visible_first =
+                        modal_connection_visible_argument_is_first(connective, tense_modal);
+                    connector_question_token = connector_question.cloned();
+                    connector = Some(connective_connector_with_source(
+                        connective,
+                        "sumti",
+                        modal_connective_text(connective, tense_modal),
+                        None,
+                    ));
+                }
+                alternatives.entry(key).or_default().extend([
+                    self.connected_sumti_alternative_argument(
+                        leading_sumti,
+                        connective_negates_left(connective),
+                    )?,
+                    self.connected_sumti_alternative_argument(
+                        trailing_sumti,
+                        connective_negates_right(connective),
+                    )?,
+                ]);
+            } else {
+                alternatives
+                    .entry(key)
+                    .or_default()
+                    .push(AlternativeArgument::new(
+                        self.build_argument_for_sumti(sumti)?,
+                        false,
+                    ));
+            }
+        }
+        let Some(mut connector) = connector else {
+            return Ok(None);
+        };
+        let mut branches = vec![BTreeMap::new()];
+        for (place, values) in alternatives {
+            let mut next = Vec::new();
+            for branch in &branches {
+                for value in &values {
+                    let mut branch = branch.clone();
+                    branch.insert(place.clone(), value.clone());
+                    next.push(branch);
+                }
+            }
+            branches = next;
+        }
+        let source = self
+            .analysis
+            .syntax_index
+            .bridi_node_id(bridi)
+            .and_then(|node| self.source_for_node(node.0, "sumti-connection-formula"));
+        let mut children = Vec::new();
+        for branch in branches {
+            let branch_negated = branch.values().any(|value| value.negated);
+            let branch_scopes = branch
+                .values()
+                .flat_map(|value| value.scopes.iter().cloned())
+                .collect::<Vec<_>>();
+            let argument_overrides = branch
+                .into_iter()
+                .map(|(place, value)| (place, value.argument))
+                .collect::<BTreeMap<_, _>>();
+            let result = self.build_tanru_sequence_formula_for_frame_with_visible_x1_override(
+                Some(selbri),
+                units,
+                Some(frame),
+                source.clone(),
+                None,
+                &argument_overrides,
+            )?;
+            let mut formula = result.formula;
+            for scope in branch_scopes {
+                formula = self.wrap_formula_with_prenex_scope(formula, scope)?;
+            }
+            let formula = if branch_negated {
+                self.build_unary_formula(
+                    FormulaOperator::Not,
+                    formula,
+                    self.analysis
+                        .syntax_index
+                        .bridi_node_id(bridi)
+                        .and_then(|node| self.source_for_node(node.0, "distributed-negation")),
+                    Vec::new(),
+                )?
+            } else {
+                formula
+            };
+            children.push(formula);
+        }
+        let mut diagnostics = Vec::new();
+        if let Some(spec) = modal_connection_spec {
+            if let [first_formula, second_formula] = children.as_slice() {
+                let (visible_formula, other_formula) = if modal_connection_visible_first {
+                    (*first_formula, *second_formula)
+                } else {
+                    (*second_formula, *first_formula)
+                };
+                match self.build_modal_formula_connection_claim(
+                    visible_formula,
+                    other_formula,
+                    &spec,
+                    self.analysis
+                        .syntax_index
+                        .bridi_node_id(bridi)
+                        .and_then(|node| self.source_for_node(node.0, "sumti-connection-claim")),
+                )? {
+                    Some(claim) => children.push(claim),
+                    None => diagnostics.push(diagnostic(
+                        "modal sumti connection could not find formula-bearing bridi events to relate",
+                    )),
+                }
+            } else {
+                diagnostics.push(diagnostic(
+                    "modal sumti connection with more than two distributed branches is not fully lowered yet",
+                ));
+            }
+        }
+        connector.parameter = connector_question_token
+            .as_ref()
+            .map(|token| self.build_connective_question_parameter_for_token(token))
+            .transpose()?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                operator,
+                children,
+                Some(connector),
+                source,
+                diagnostics,
+            ),
+        )
+        .map(Some)
+    }
+
+    #[requires(tanru_units_require_lowering(units))]
+    #[ensures(ret.is_ok() || ret.is_err())]
     fn build_tanru_formula_for_bridi(
         &mut self,
         bridi: &'tree BridiSyntax,
@@ -6517,12 +6767,14 @@ where
             let frame = self
                 .semantic_predication_frame_for_selbri(relation_selbri, frame)
                 .or(frame);
+            let argument_overrides = BTreeMap::new();
             return self.build_tanru_sequence_formula_for_frame_with_visible_x1_override(
                 Some(relation_selbri),
                 &units,
                 frame,
                 source,
                 visible_x1_override,
+                &argument_overrides,
             );
         }
         if let Some(bound_tanru) = connectorless_bound_selbri_pair(relation_selbri) {
@@ -6647,8 +6899,14 @@ where
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        let argument_overrides = BTreeMap::new();
         self.build_tanru_sequence_formula_for_frame_with_visible_x1_override(
-            selbri, units, frame, source, None,
+            selbri,
+            units,
+            frame,
+            source,
+            None,
+            &argument_overrides,
         )
     }
 
@@ -6661,6 +6919,7 @@ where
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
         visible_x1_override: Option<ArgumentValue>,
+        argument_overrides: &BTreeMap<String, ArgumentValue>,
     ) -> Result<TanruFormulaForArgument, SemanticsError> {
         if let [single] = units {
             return self.build_tanru_unit_formula_for_frame_with_visible_x1_override(
@@ -6669,6 +6928,7 @@ where
                 frame,
                 source,
                 visible_x1_override,
+                argument_overrides,
             );
         }
         let tertau = units
@@ -6680,6 +6940,7 @@ where
             frame,
             source.clone(),
             visible_x1_override,
+            argument_overrides,
         )?;
         let modifier =
             self.build_property_abstraction_for_units(&units[..units.len() - 1], source.clone())?;
@@ -6723,8 +6984,14 @@ where
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<TanruFormulaForArgument, SemanticsError> {
+        let argument_overrides = BTreeMap::new();
         self.build_tanru_unit_formula_for_frame_with_visible_x1_override(
-            selbri, unit, frame, source, None,
+            selbri,
+            unit,
+            frame,
+            source,
+            None,
+            &argument_overrides,
         )
     }
 
@@ -6737,6 +7004,7 @@ where
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
         visible_x1_override: Option<ArgumentValue>,
+        argument_overrides: &BTreeMap<String, ArgumentValue>,
     ) -> Result<TanruFormulaForArgument, SemanticsError> {
         match unit.as_data() {
             data!(TanruUnitSyntax::BoundTanruUnitConnection {
@@ -6752,6 +7020,7 @@ where
                 frame,
                 source,
                 visible_x1_override,
+                argument_overrides,
             ),
             data!(TanruUnitSyntax::TanruUnitConnection {
                 leading_unit,
@@ -6765,6 +7034,7 @@ where
                 frame,
                 source,
                 visible_x1_override,
+                argument_overrides,
             ),
             data!(TanruUnitSyntax::BoundTanruUnitConnection {
                 leading_unit,
@@ -6777,6 +7047,7 @@ where
                     frame,
                     source.clone(),
                     visible_x1_override,
+                    argument_overrides,
                 )?;
                 let modifier =
                     self.build_property_abstraction_for_tanru_unit(leading_unit, source.clone())?;
@@ -6819,6 +7090,7 @@ where
                     frame,
                     source,
                     visible_x1_override,
+                    argument_overrides,
                 ),
             data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
             | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
@@ -6831,6 +7103,7 @@ where
                         frame,
                         source,
                         visible_x1_override,
+                        argument_overrides,
                     );
                 }
                 self.build_selbri_tanru_formula_for_frame_with_visible_x1_override(
@@ -6863,6 +7136,7 @@ where
                 frame,
                 source,
                 visible_x1_override,
+                argument_overrides,
             ),
         }
     }
@@ -6878,6 +7152,7 @@ where
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
         visible_x1_override: Option<ArgumentValue>,
+        argument_overrides: &BTreeMap<String, ArgumentValue>,
     ) -> Result<TanruFormulaForArgument, SemanticsError> {
         let shared_x1 = match visible_x1_override {
             Some(argument) => Some(argument),
@@ -6890,6 +7165,7 @@ where
             self.branch_frame_for_tanru_unit(leading_unit).or(frame),
             source.clone(),
             shared_x1.clone(),
+            argument_overrides,
         )?;
         let trailing = self.build_tanru_unit_formula_for_frame_with_visible_x1_override(
             selbri,
@@ -6897,6 +7173,7 @@ where
             self.branch_frame_for_tanru_unit(trailing_unit).or(frame),
             source.clone(),
             shared_x1,
+            argument_overrides,
         )?;
         let formula = self.build_binary_formula_for_connective(
             connective,
@@ -6921,9 +7198,10 @@ where
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
         visible_x1_override: Option<ArgumentValue>,
+        argument_overrides: &BTreeMap<String, ArgumentValue>,
     ) -> Result<TanruFormulaForArgument, SemanticsError> {
         let visible_x1_place = visible_x1_place_for_tanru_unit(unit);
-        let mut overrides = BTreeMap::new();
+        let mut overrides = argument_overrides.clone();
         if let Some(argument) = visible_x1_override {
             overrides.insert(format!("x{visible_x1_place}"), argument);
         }
@@ -6958,6 +7236,9 @@ where
             relation_label_for_tanru_unit(unit),
             overrides,
         )?;
+        if let Some(scalar_negation) = scalar_negation_for_tanru_unit(unit) {
+            self.set_scalar_negation(predication, scalar_negation)?;
+        }
         let formula = self.next_formula();
         self.insert(
             formula,
@@ -7076,9 +7357,10 @@ where
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
         visible_x1_override: Option<ArgumentValue>,
+        argument_overrides: &BTreeMap<String, ArgumentValue>,
     ) -> Result<TanruFormulaForArgument, SemanticsError> {
         let visible_x1_place = visible_x1_place_for_tanru_unit(inner_unit);
-        let mut overrides = BTreeMap::new();
+        let mut overrides = argument_overrides.clone();
         if let Some(argument) = visible_x1_override {
             overrides.insert(format!("x{visible_x1_place}"), argument);
         }
@@ -7089,7 +7371,12 @@ where
             relation_label_for_tanru_unit(inner_unit),
             overrides,
         )?;
-        self.set_scalar_negation(predication, scalar_negation_for_marker(marker));
+        let scalar_scope =
+            self.scalar_negation_argument_scope_for_tanru_unit(inner_unit, frame, visible_x1_place);
+        self.set_scalar_negation(
+            predication,
+            scalar_negation_for_marker(marker).with_argument_scope(scalar_scope),
+        )?;
         let formula = self.next_formula();
         self.insert(
             formula,
@@ -7101,6 +7388,41 @@ where
             x1_argument,
             head_predication: predication,
         })
+    }
+
+    #[requires(visible_x1_place > 0)]
+    #[ensures(ret.iter().all(|place| crate::model::is_numbered_argument_place(place)))]
+    fn scalar_negation_argument_scope_for_tanru_unit(
+        &self,
+        inner_unit: &'tree TanruUnitSyntax,
+        frame: Option<SelbriPlaceFrameId>,
+        visible_x1_place: usize,
+    ) -> Vec<String> {
+        let mut places = BTreeSet::new();
+        places.insert(format!("x{visible_x1_place}"));
+        let Some(frame) = frame else {
+            return places.into_iter().collect();
+        };
+        let Some(inner_raw) = self
+            .analysis
+            .syntax_index
+            .tanru_unit_node_id(inner_unit)
+            .map(|node| node.0)
+        else {
+            return places.into_iter().collect();
+        };
+        for assignment_id in self.analysis.place_analysis.assignments_for_frame(frame) {
+            let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
+                continue;
+            };
+            let PlaceSlot::Numbered(place) = assignment.slot else {
+                continue;
+            };
+            if self.syntax_node_contains(inner_raw, assignment.sumti.0) {
+                places.insert(format!("x{}", place.get()));
+            }
+        }
+        places.into_iter().collect()
     }
 
     #[requires(!units.is_empty())]
@@ -7870,7 +8192,15 @@ where
         );
         object.modal_arguments = modal_arguments;
         object.relation_metadata = relation_metadata;
-        object.scalar_negation = scalar_negation;
+        object.scalar_negation = scalar_negation
+            .map(|scalar_negation| {
+                self.scalar_negation_with_scale_for_modal_arguments(
+                    scalar_negation,
+                    &object.modal_arguments,
+                    object.source.clone(),
+                )
+            })
+            .transpose()?;
         self.insert(predication, object)?;
         let formula = self.next_formula();
         self.insert(
@@ -8812,7 +9142,13 @@ where
         let Some(target) = self.displayed_content_target_for_utterance(item) else {
             return Ok(());
         };
-        self.attach_indicator_displays(parts, target, item, "indicator")
+        self.attach_indicator_displays_with_target_focus(
+            parts,
+            target,
+            item,
+            "indicator",
+            Some(DisplayedContentTargetFocus::Bridi),
+        )
     }
 
     #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance)]
@@ -8825,14 +9161,24 @@ where
         let Some(i) = &paragraph_statement.i else {
             return Ok(());
         };
-        let parts = indicator_parts_for_token(i);
+        let mut parts = indicator_parts_for_token(i);
+        if let Some(connective) = paragraph_statement.connective.as_deref() {
+            parts.extend(indicator_parts_for_connective_cmavo(connective));
+            parts.extend(indicator_parts_for_connective_nai(connective));
+        }
         if parts.is_empty() {
             return Ok(());
         }
         let Some(target) = self.displayed_content_target_for_utterance(item) else {
             return Ok(());
         };
-        self.attach_indicator_displays(parts, target, item, "indicator")
+        self.attach_indicator_displays_with_target_focus(
+            parts,
+            target,
+            item,
+            "indicator",
+            Some(DisplayedContentTargetFocus::Bridi),
+        )
     }
 
     #[requires(target.object_kind() == crate::model::SemanticObjectKind::Utterance || crate::model::argument_object_kind_can_fill(target.object_kind()))]
@@ -8846,8 +9192,29 @@ where
         anchor: SemanticObjectId,
         source_construct: &str,
     ) -> Result<(), SemanticsError> {
+        self.attach_indicator_displays_with_target_focus(
+            parts,
+            target,
+            anchor,
+            source_construct,
+            None,
+        )
+    }
+
+    #[requires(target.object_kind() == crate::model::SemanticObjectKind::Utterance || crate::model::argument_object_kind_can_fill(target.object_kind()))]
+    #[requires(anchor.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[requires(!source_construct.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_indicator_displays_with_target_focus(
+        &mut self,
+        parts: Vec<IndicatorPart>,
+        target: SemanticObjectId,
+        anchor: SemanticObjectId,
+        source_construct: &str,
+        target_focus: Option<DisplayedContentTargetFocus>,
+    ) -> Result<(), SemanticsError> {
         for draft in indicator_display_drafts(parts) {
-            self.insert_indicator_display(draft, target, anchor, source_construct)?;
+            self.insert_indicator_display(draft, target, anchor, source_construct, target_focus)?;
         }
         Ok(())
     }
@@ -8862,9 +9229,13 @@ where
         target: SemanticObjectId,
         anchor: SemanticObjectId,
         source_construct: &str,
+        target_focus: Option<DisplayedContentTargetFocus>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if draft.assertion_effect == DisplayedContentAssertionEffect::HostSubordinated
-            && target.object_kind() == crate::model::SemanticObjectKind::Formula
+        if matches!(
+            draft.assertion_effect,
+            DisplayedContentAssertionEffect::HostSubordinated
+                | DisplayedContentAssertionEffect::MetalinguisticallyVoided
+        ) && target.object_kind() == crate::model::SemanticObjectKind::Formula
         {
             self.set_formula_predication_mode(target, PredicationMode::Inert);
         }
@@ -8896,6 +9267,7 @@ where
             source,
             Vec::new(),
         );
+        object.target_focus = target_focus;
         object.intensity = draft.intensity;
         object.phase = draft.phase;
         object.modifiers = draft.modifiers;
@@ -9199,6 +9571,30 @@ where
         bridi: &'tree BridiSyntax,
         selbri: &'tree SelbriSyntax,
         target_bridi: &'tree BridiSyntax,
+        inherit_target_na: bool,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let formula = self.build_resolved_pro_bridi_atom_formula(bridi, selbri, target_bridi)?;
+        if inherit_target_na
+            && let Some(target_selbri) = main_selbri_for_bridi(target_bridi)
+            && let Some(operator) = bridi_negation_operator_in_selbri(target_selbri)
+        {
+            return self.build_unary_formula(
+                operator,
+                formula,
+                self.source_for_selbri(target_selbri, bridi_negation_source_construct(operator)),
+                Vec::new(),
+            );
+        }
+        Ok(formula)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_resolved_pro_bridi_atom_formula(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: &'tree SelbriSyntax,
+        target_bridi: &'tree BridiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let Some(target_selbri) = main_selbri_for_bridi(target_bridi) else {
             return self
@@ -9232,6 +9628,21 @@ where
                 self.bridi_frame(target_bridi),
                 recursive_source,
             )?;
+        if let Some(current_frame) = self.bridi_frame(bridi) {
+            for assignment_id in self
+                .analysis
+                .place_analysis
+                .assignments_for_frame(current_frame)
+            {
+                let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id)
+                else {
+                    continue;
+                };
+                if let PlaceSlot::Numbered(place) = assignment.slot {
+                    inherited_arguments.remove(&format!("x{}", place.get()));
+                }
+            }
+        }
         let event_selbri = if selbri_has_event_modifiers(selbri) {
             selbri
         } else {
@@ -9247,6 +9658,9 @@ where
             relation_label_for_selbri(target_selbri),
             inherited_arguments,
         )?;
+        if let Some(scalar_negation) = scalar_negation_for_selbri(selbri) {
+            self.set_scalar_negation(predication, scalar_negation)?;
+        }
         if skipped_recursive_argument && let Some(object) = self.objects.get_mut(&predication) {
             object.diagnostics.push(diagnostic(
                 "recursive inherited pro-bridi argument was elided to keep the semantic graph finite",
@@ -9292,8 +9706,30 @@ where
         &self,
         selbri: &'tree SelbriSyntax,
     ) -> Option<&'tree BridiSyntax> {
-        let raw = self.analysis.syntax_index.selbri_node_id(selbri)?.0;
-        self.resolved_target_bridi_for_raw(raw, ReferenceKind::GohaSeries)
+        let direct = self
+            .analysis
+            .syntax_index
+            .selbri_node_id(selbri)
+            .and_then(|node| self.resolved_target_bridi_for_raw(node.0, ReferenceKind::GohaSeries));
+        direct.or_else(|| match selbri.as_data() {
+            data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+            | data!(SelbriSyntax::TaggedSelbri {
+                inner_selbri: selbri,
+                ..
+            })
+            | data!(SelbriSyntax::Negated {
+                inner_selbri: selbri,
+                ..
+            })
+            | data!(SelbriSyntax::ConvertedSelbri {
+                inner_selbri: selbri,
+                ..
+            }) => self.resolved_goha_target_bridi_for_selbri(selbri),
+            data!(SelbriSyntax::Tanru(units)) if units.len() == 1 => {
+                self.resolved_goha_target_bridi_for_tanru_unit(units.first())
+            }
+            _ => None,
+        })
     }
 
     #[requires(true)]
@@ -9302,8 +9738,37 @@ where
         &self,
         unit: &'tree TanruUnitSyntax,
     ) -> Option<&'tree BridiSyntax> {
-        let raw = self.analysis.syntax_index.tanru_unit_node_id(unit)?.0;
-        self.resolved_target_bridi_for_raw(raw, ReferenceKind::GohaSeries)
+        let direct = self
+            .analysis
+            .syntax_index
+            .tanru_unit_node_id(unit)
+            .and_then(|node| self.resolved_target_bridi_for_raw(node.0, ReferenceKind::GohaSeries));
+        direct.or_else(|| match unit.as_data() {
+            data!(TanruUnitSyntax::ConvertedTanruUnit { inner_unit, .. })
+            | data!(TanruUnitSyntax::ScalarNegatedTanruUnit { inner_unit, .. })
+            | data!(TanruUnitSyntax::ModalConversion { inner_unit, .. })
+            | data!(TanruUnitSyntax::RelativeClauses {
+                base: inner_unit,
+                ..
+            })
+            | data!(TanruUnitSyntax::LinkedSumtiTanruUnit {
+                base: inner_unit,
+                ..
+            })
+            | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
+                base: inner_unit,
+                ..
+            })
+            | data!(TanruUnitSyntax::AssignedProBridi {
+                base: inner_unit,
+                ..
+            }) => self.resolved_goha_target_bridi_for_tanru_unit(inner_unit),
+            data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+            | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+                self.resolved_goha_target_bridi_for_selbri(selbri)
+            }
+            _ => None,
+        })
     }
 
     #[requires(true)]
@@ -9396,7 +9861,7 @@ where
             if let Some(place_index) = argument_place_index(&place) {
                 highest_assigned_place = highest_assigned_place.max(place_index);
             }
-            arguments.entry(place).or_insert(argument);
+            arguments.insert(place, argument);
         }
         let place_questions =
             self.place_question_bindings(frame, &arguments, None, highest_assigned_place)?;
@@ -9488,7 +9953,7 @@ where
             if let Some(place_index) = argument_place_index(&place) {
                 highest_assigned_place = highest_assigned_place.max(place_index);
             }
-            arguments.entry(place).or_insert(argument);
+            arguments.insert(place, argument);
         }
         if let Some(selbri) = selbri {
             self.insert_bare_jai_abstraction_argument_for_selbri(
@@ -12645,6 +13110,8 @@ where
                     relative_clauses: Vec::new(),
                     quantity: Some(quantity),
                     name: Some(text),
+                    scale: None,
+                    definiteness: None,
                     operand: None,
                 }),
                 None,
@@ -13130,6 +13597,8 @@ where
                         relative_clauses: Vec::new(),
                         quantity: None,
                         name: None,
+                        scale: None,
+                        definiteness: None,
                         operand: None,
                     },
                     Vec::new(),
@@ -13152,6 +13621,8 @@ where
                         relative_clauses: Vec::new(),
                         quantity: None,
                         name: None,
+                        scale: None,
+                        definiteness: None,
                         operand: None,
                     },
                     Vec::new(),
@@ -13180,6 +13651,8 @@ where
                 relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
+                scale: None,
+                definiteness: None,
                 operand: None,
             },
             Vec::new(),
@@ -13227,6 +13700,8 @@ where
                 relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
+                scale: None,
+                definiteness: None,
                 operand: None,
             }),
             None,
@@ -13676,6 +14151,8 @@ where
                     relative_clauses: Vec::new(),
                     quantity: None,
                     name: None,
+                    scale: None,
+                    definiteness: None,
                     operand: None,
                 }),
                 None,
@@ -13754,6 +14231,8 @@ where
                 relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
+                scale: None,
+                definiteness: None,
                 operand: None,
             }),
             None,
@@ -13930,6 +14409,8 @@ where
                     relative_clauses: Vec::new(),
                     quantity: None,
                     name: Some(name),
+                    scale: None,
+                    definiteness: None,
                     operand: None,
                 }),
                 None,
@@ -13972,6 +14453,8 @@ where
                     relative_clauses,
                     quantity: None,
                     name: None,
+                    scale: None,
+                    definiteness: None,
                     operand: None,
                 }),
                 None,
@@ -14006,6 +14489,8 @@ where
                 relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
+                scale: None,
+                definiteness: None,
                 operand: Some(operand),
             },
             Vec::new(),
@@ -14037,6 +14522,8 @@ where
                     relative_clauses: Vec::new(),
                     quantity: None,
                     name: None,
+                    scale: None,
+                    definiteness: None,
                     operand: Some(operand),
                 }),
                 None,
@@ -14061,6 +14548,7 @@ where
             .get(&operand)
             .and_then(|object| object.sort)
             .unwrap_or(SemanticSort::Entity);
+        let scale = self.build_scalar_negation_scale_referent(raw, &word)?;
         self.build_plain_referent(
             raw,
             ReferentCategory::Constant,
@@ -14074,10 +14562,98 @@ where
                 relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
+                scale: Some(scale),
+                definiteness: descriptor_definiteness_for_scalar_negated_sumti(cmavo),
                 operand: Some(operand),
             },
             Vec::new(),
         )
+    }
+
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_scalar_negation_scale_referent(
+        &mut self,
+        raw: RawSyntaxNodeId,
+        introduced_by: &str,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.insert_scalar_negation_scale_referent(
+            introduced_by,
+            "implicit scalar scale",
+            None,
+            self.source_for_node(raw, "scalar-scale"),
+        )
+    }
+
+    #[requires(!introduced_by.is_empty())]
+    #[requires(!word.is_empty())]
+    #[requires(definition.is_none_or(|id| crate::model::argument_object_kind_can_fill(id.object_kind())))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn insert_scalar_negation_scale_referent(
+        &mut self,
+        introduced_by: &str,
+        word: &str,
+        definition: Option<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_referent();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Constant,
+                SemanticSort::Scale,
+                None,
+                Some(Descriptor {
+                    kind: "scale".to_owned(),
+                    word: word.to_owned(),
+                    speaker: Some(self.current_speaker()),
+                    body: None,
+                    veridical: None,
+                    relative_clauses: Vec::new(),
+                    quantity: None,
+                    name: Some(introduced_by.to_owned()),
+                    scale: None,
+                    definiteness: None,
+                    operand: definition,
+                }),
+                None,
+                source,
+                Vec::new(),
+            ),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|negation| negation.scale.is_some()) || ret.is_err())]
+    fn scalar_negation_with_scale_for_modal_arguments(
+        &mut self,
+        scalar_negation: ScalarNegation,
+        modal_arguments: &[ModalArgument],
+        fallback_source: Option<crate::model::SemanticSource>,
+    ) -> Result<ScalarNegation, SemanticsError> {
+        if scalar_negation.scale.is_some() {
+            return Ok(scalar_negation);
+        }
+        let scale_definition = modal_arguments
+            .iter()
+            .find_map(scalar_scale_definition_for_modal_argument);
+        let definition = scale_definition.as_ref().map(|definition| definition.value);
+        let word = scale_definition
+            .as_ref()
+            .map(|definition| definition.introduced_by.as_str())
+            .unwrap_or("implicit scalar scale");
+        let source = scale_definition
+            .as_ref()
+            .and_then(|definition| definition.source.clone())
+            .or(fallback_source)
+            .map(source_as_scalar_scale);
+        let scale = self.insert_scalar_negation_scale_referent(
+            &scalar_negation.introduced_by,
+            word,
+            definition,
+            source,
+        )?;
+        Ok(scalar_negation.with_scale(scale))
     }
 
     #[requires(!message.is_empty())]
@@ -14100,6 +14676,8 @@ where
                 relative_clauses: Vec::new(),
                 quantity: None,
                 name: None,
+                scale: None,
+                definiteness: None,
                 operand: None,
             },
             vec![diagnostic(message)],
@@ -14245,6 +14823,16 @@ where
         selbri: &'tree SelbriSyntax,
         referent: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if let data!(SelbriSyntax::Negated { inner_selbri, .. }) = selbri.as_data() {
+            let child = self.build_restrictive_formula(inner_selbri, referent)?;
+            let operator = bridi_negation_operator_for_selbri(selbri);
+            return self.build_unary_formula(
+                operator,
+                child,
+                self.source_for_selbri(selbri, bridi_negation_source_construct(operator)),
+                Vec::new(),
+            );
+        }
         if let Some(target_bridi) = self.resolved_goha_target_bridi_for_selbri(selbri)
             && let Some(target_selbri) = main_selbri_for_bridi(target_bridi)
         {
@@ -15564,15 +16152,28 @@ where
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
     fn set_scalar_negation(
         &mut self,
         predication: SemanticObjectId,
         scalar_negation: ScalarNegation,
-    ) {
+    ) -> Result<(), SemanticsError> {
+        let Some((modal_arguments, source)) = self
+            .objects
+            .get(&predication)
+            .map(|object| (object.modal_arguments.clone(), object.source.clone()))
+        else {
+            return Ok(());
+        };
+        let scalar_negation = self.scalar_negation_with_scale_for_modal_arguments(
+            scalar_negation,
+            &modal_arguments,
+            source,
+        )?;
         if let Some(object) = self.objects.get_mut(&predication) {
             object.scalar_negation = Some(scalar_negation);
         }
+        Ok(())
     }
 
     #[requires(math_expression.object_kind() == crate::model::SemanticObjectKind::MathExpression)]
@@ -16574,6 +17175,7 @@ fn indicator_base_spec(cmavo: Cmavo) -> Option<IndicatorBaseSpec> {
     let none = DisplayedContentAssertionEffect::None;
     let host = DisplayedContentAssertionEffect::HostAsserted;
     let performative = DisplayedContentAssertionEffect::Performative;
+    let metalinguistically_voided = DisplayedContentAssertionEffect::MetalinguisticallyVoided;
     let spec = match cmavo {
         Cmavo::Ua => (DisplayedContentFamily::Emotion, "discovery", none),
         Cmavo::Uha => (DisplayedContentFamily::Emotion, "gain", none),
@@ -16685,6 +17287,11 @@ fn indicator_base_spec(cmavo: Cmavo) -> Option<IndicatorBaseSpec> {
         Cmavo::Poho => (DisplayedContentFamily::Discursive, "onlyRelevantCase", none),
         Cmavo::Kiha => (DisplayedContentFamily::Metalinguistic, "confusion", none),
         Cmavo::Peha => (DisplayedContentFamily::Metalinguistic, "figurative", none),
+        Cmavo::Nahi => (
+            DisplayedContentFamily::Metalinguistic,
+            "metalinguisticNegation",
+            metalinguistically_voided,
+        ),
         Cmavo::Pau => (
             DisplayedContentFamily::QuestionPrompt,
             "questionPrompt",
@@ -19048,7 +19655,7 @@ fn scoped_interval_modifiers_for_composite_parts(
                 if let Some(recurrence) = target {
                     *recurrence = recurrence.clone().with_data(data! {
                         negation: Some(ModalNegation::new(
-                            ModalNegationKind::Contradictory,
+                            ModalNegationKind::OtherThan,
                             token_text(token),
                         )),
                     });
@@ -19287,7 +19894,7 @@ fn recurrence_for_interval_marker(
         value,
         None,
         negation_marker
-            .map(|marker| ModalNegation::new(ModalNegationKind::Contradictory, token_text(marker))),
+            .map(|marker| ModalNegation::new(ModalNegationKind::OtherThan, token_text(marker))),
         None,
     ))
 }
@@ -19301,6 +19908,43 @@ fn recurrence_with_interval(
     recurrence.with_data(data! {
         interval: interval,
     })
+}
+
+#[requires(matches!(selbri.as_data(), data!(SelbriSyntax::Negated { .. })))]
+#[ensures(matches!(ret, FormulaOperator::Affirmed | FormulaOperator::Not))]
+fn bridi_negation_operator_for_selbri(selbri: &SelbriSyntax) -> FormulaOperator {
+    let data!(SelbriSyntax::Negated { na, .. }) = selbri.as_data() else {
+        unreachable!("precondition requires a NA-scoped selbri")
+    };
+    if na.cmavo() == Some(Cmavo::Jaha) {
+        FormulaOperator::Affirmed
+    } else {
+        FormulaOperator::Not
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|operator| matches!(operator, FormulaOperator::Affirmed | FormulaOperator::Not)))]
+fn bridi_negation_operator_in_selbri(selbri: &SelbriSyntax) -> Option<FormulaOperator> {
+    match selbri.as_data() {
+        data!(SelbriSyntax::Negated { .. }) => Some(bridi_negation_operator_for_selbri(selbri)),
+        data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+        | data!(SelbriSyntax::TaggedSelbri {
+            inner_selbri: selbri,
+            ..
+        }) => bridi_negation_operator_in_selbri(selbri),
+        _ => None,
+    }
+}
+
+#[requires(matches!(operator, FormulaOperator::Affirmed | FormulaOperator::Not))]
+#[ensures(!ret.is_empty())]
+fn bridi_negation_source_construct(operator: FormulaOperator) -> &'static str {
+    match operator {
+        FormulaOperator::Affirmed => "bridi-affirmation",
+        FormulaOperator::Not => "bridi-negation",
+        _ => unreachable!("precondition restricts bridi NA operators"),
+    }
 }
 
 #[requires(!text.is_empty())]
@@ -22669,6 +23313,33 @@ fn modal_argument_place_is_filled(modal_argument: &ModalArgument, place: usize) 
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|definition| crate::model::argument_object_kind_can_fill(definition.value.object_kind())))]
+fn scalar_scale_definition_for_modal_argument(
+    modal_argument: &ModalArgument,
+) -> Option<ScalarScaleDefinition> {
+    if modal_argument.introduced_by != "ci'u" {
+        return None;
+    }
+    let value = modal_argument.arguments.get("x1")?.value?;
+    Some(ScalarScaleDefinition::from_data(data!(
+        ScalarScaleDefinition {
+            value,
+            introduced_by: modal_argument.introduced_by.clone(),
+            source: modal_argument.source.clone(),
+        }
+    )))
+}
+
+#[requires(true)]
+#[ensures(ret.construct.as_deref() == Some("scalar-scale"))]
+fn source_as_scalar_scale(source: crate::model::SemanticSource) -> crate::model::SemanticSource {
+    crate::model::SemanticSource {
+        construct: Some("scalar-scale".to_owned()),
+        ..source
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn modal_relation_has_complementary_event_places(relation: &str) -> bool {
     matches!(relation, "krinu" | "mukti" | "nibli" | "rinka")
@@ -22735,6 +23406,19 @@ fn scalar_negated_sumti_qualifier_kind(cmavo: Option<Cmavo>) -> &'static str {
 
 #[requires(true)]
 #[ensures(true)]
+fn descriptor_definiteness_for_scalar_negated_sumti(
+    cmavo: Option<Cmavo>,
+) -> Option<DescriptorDefiniteness> {
+    match cmavo {
+        Some(Cmavo::Tohe) => Some(DescriptorDefiniteness::UniqueExtreme),
+        Some(Cmavo::Nohe) => Some(DescriptorDefiniteness::NeutralPoint),
+        Some(Cmavo::Jeha) => Some(DescriptorDefiniteness::AffirmedPoint),
+        _ => Some(DescriptorDefiniteness::IndefiniteAlternative),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn sumti_reference_kind_is_direct_reference(kind: &ReferenceKind) -> bool {
     matches!(
         kind,
@@ -22779,6 +23463,39 @@ fn scalar_negation_for_token(token: &Token) -> ScalarNegation {
         scalar_negation_kind_for_cmavo(token.cmavo()),
         token_text(token),
     )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn scalar_negation_for_tanru_unit(unit: &TanruUnitSyntax) -> Option<ScalarNegation> {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::ScalarNegatedTanruUnit { nahe, .. }) => {
+            Some(scalar_negation_for_marker(nahe))
+        }
+        data!(TanruUnitSyntax::RelativeClauses { base, .. })
+        | data!(TanruUnitSyntax::LinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::AssignedProBridi { base, .. }) => {
+            scalar_negation_for_tanru_unit(base)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn scalar_negation_for_selbri(selbri: &SelbriSyntax) -> Option<ScalarNegation> {
+    match selbri.as_data() {
+        data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+        | data!(SelbriSyntax::TaggedSelbri {
+            inner_selbri: selbri,
+            ..
+        }) => scalar_negation_for_selbri(selbri),
+        data!(SelbriSyntax::Tanru(units)) if units.len() == 1 => {
+            scalar_negation_for_tanru_unit(units.first())
+        }
+        _ => None,
+    }
 }
 
 #[requires(true)]
@@ -23457,6 +24174,17 @@ mod tests {
             .unwrap_or_else(|| panic!("missing referent with source text {source_text}"))
     }
 
+    #[requires(!relation.is_empty())]
+    #[ensures(ret["type"] == "displayedContent")]
+    fn displayed_content_with_relation<'a>(json: &'a Value, relation: &str) -> &'a Value {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| object["type"] == "displayedContent" && object["relation"] == relation)
+            .unwrap_or_else(|| panic!("missing displayed content for relation {relation}"))
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -23638,7 +24366,7 @@ mod tests {
         );
         assert_eq!(event["recurrence"][0]["kind"], "continuously");
         assert_eq!(event["recurrence"][0]["introducedBy"], "ru'i");
-        assert_eq!(event["recurrence"][0]["negation"]["kind"], "contradictory");
+        assert_eq!(event["recurrence"][0]["negation"]["kind"], "otherThan");
         assert_eq!(event["recurrence"][0]["negation"]["introducedBy"], "nai");
         assert_ne!(
             object(
@@ -23663,6 +24391,7 @@ mod tests {
             .expect("quantity");
         assert_eq!(object(&not_twice, quantity)["value"]["integer"], 2);
         assert_eq!(event["recurrence"][0]["negation"]["introducedBy"], "nai");
+        assert_eq!(event["recurrence"][0]["negation"]["kind"], "otherThan");
         assert_ne!(
             object(
                 &not_twice,
@@ -25378,9 +26107,15 @@ mod tests {
         let gohi = predication_with_relation_and_mode(&json, "go'i", "asserted");
         let modal_argument = &gohi["modalArguments"][0];
         assert_eq!(modal_argument["relation"], "ji'u");
-        assert_eq!(modal_argument["modifiers"][0]["relation"], "na'i");
+        assert_eq!(
+            modal_argument["modifiers"][0]["relation"],
+            "metalinguisticNegation"
+        );
         assert_eq!(modal_argument["modifiers"][0]["family"], "metalinguistic");
-        assert_eq!(modal_argument["modifiers"][0]["assertionEffect"], "none");
+        assert_eq!(
+            modal_argument["modifiers"][0]["assertionEffect"],
+            "metalinguisticallyVoided"
+        );
         assert_eq!(modal_argument["modifiers"][0]["source"]["text"], "na'i");
     }
 
@@ -26278,6 +27013,64 @@ mod tests {
         assert_eq!(cadzu["arguments"]["x1"]["value"], "referent:speaker");
         assert_eq!(cadzu["scalarNegation"]["kind"], "otherThan");
         assert_eq!(cadzu["scalarNegation"]["introducedBy"], "na'e");
+        let scale = cadzu["scalarNegation"]["scale"]
+            .as_str()
+            .expect("scalar scale");
+        assert_eq!(object(&json, scale)["sort"], "scale");
+        assert_eq!(
+            object(&json, scale)["descriptor"]["word"],
+            "implicit scalar scale"
+        );
+        assert_eq!(object(&json, scale)["descriptor"]["name"], "na'e");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn scalar_negation_scale_uses_cihu_definition_when_present() {
+        let json =
+            semantic_json_for("le stizu cu na'e xunre be ci'u loka skari").expect("semantic JSON");
+        let xunre = predication_with_relation_and_mode(&json, "xunre", "asserted");
+        let modal_scale = xunre["modalArguments"][0]["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("ci'u scale definition");
+        let scale = xunre["scalarNegation"]["scale"]
+            .as_str()
+            .expect("scalar scale");
+        let scale_object = object(&json, scale);
+        assert_eq!(scale_object["sort"], "scale");
+        assert_eq!(scale_object["descriptor"]["word"], "ci'u");
+        assert_eq!(scale_object["descriptor"]["name"], "na'e");
+        assert_eq!(scale_object["descriptor"]["operand"], modal_scale);
+        assert_eq!(scale_object["source"]["construct"], "scalar-scale");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nahe_bo_descriptions_record_scale_and_definiteness() {
+        let other = semantic_json_for("mi klama na'ebo la bastn.").expect("semantic JSON");
+        let other_than = referent_with_descriptor_kind(&other, "otherThan");
+        assert_eq!(
+            other_than["descriptor"]["definiteness"],
+            "indefiniteAlternative"
+        );
+        let other_scale = other_than["descriptor"]["scale"]
+            .as_str()
+            .expect("other-than scale");
+        assert_eq!(object(&other, other_scale)["sort"], "scale");
+
+        let opposite = semantic_json_for("mi klama to'ebo la bastn.").expect("semantic JSON");
+        let opposite_of = referent_with_descriptor_kind(&opposite, "oppositeOf");
+        assert_eq!(opposite_of["descriptor"]["definiteness"], "uniqueExtreme");
+        let opposite_scale = opposite_of["descriptor"]["scale"]
+            .as_str()
+            .expect("opposite scale");
+        assert_eq!(object(&opposite, opposite_scale)["sort"], "scale");
+        assert_eq!(
+            object(&opposite, opposite_scale)["descriptor"]["name"],
+            "to'e bo"
+        );
     }
 
     #[test]
@@ -26317,6 +27110,35 @@ mod tests {
         assert_eq!(whole_group["arguments"]["x4"]["kind"], "filled");
         assert_eq!(whole_group["scalarNegation"]["kind"], "otherThan");
         assert_eq!(whole_group["scalarNegation"]["introducedBy"], "na'e");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn scalar_negation_argument_scope_distinguishes_trailing_and_linked_sumti() {
+        let trailing =
+            semantic_json_for("mi na'e ke sutra cadzu ke'e lemi birka").expect("semantic JSON");
+        let trailing_cadzu =
+            predication_with_relation_and_mode(&trailing, "sutra cadzu", "asserted");
+        assert_eq!(
+            trailing_cadzu["scalarNegation"]["argumentScope"]
+                .as_array()
+                .expect("argument scope"),
+            &vec![Value::String("x1".to_owned())]
+        );
+
+        let linked =
+            semantic_json_for("mi na'e ke sutra cadzu be lemi birka ke'e").expect("semantic JSON");
+        let linked_cadzu = predication_with_relation_and_mode(&linked, "sutra cadzu", "asserted");
+        assert_eq!(
+            linked_cadzu["scalarNegation"]["argumentScope"]
+                .as_array()
+                .expect("argument scope"),
+            &vec![
+                Value::String("x1".to_owned()),
+                Value::String("x2".to_owned())
+            ]
+        );
     }
 
     #[test]
@@ -27979,6 +28801,61 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn gohi_pro_bridi_inherits_target_bridi_negation_only_when_bare() {
+        let inherited = semantic_json_for("mi na klama .i go'i").expect("semantic JSON");
+        let second = object(&inherited, "utterance:u2");
+        let second_content = object(
+            &inherited,
+            second["content"].as_str().expect("second content"),
+        );
+        assert_eq!(second_content["operator"], "not");
+        let atom = object(
+            &inherited,
+            second_content["children"][0]
+                .as_str()
+                .expect("negated atom"),
+        );
+        let predication = object(
+            &inherited,
+            atom["predication"].as_str().expect("atom predication"),
+        );
+        assert_eq!(predication["relation"], "klama");
+
+        let scalar = semantic_json_for("mi klama .i na'e go'i").expect("semantic JSON");
+        let repeated = scalar["objects"]
+            .as_object()
+            .expect("objects")
+            .values()
+            .find(|object| {
+                object["type"] == "predication"
+                    && object["relation"] == "klama"
+                    && object["source"]["text"] == "na'e go'i"
+            })
+            .expect("scalar repeated predication");
+        assert_eq!(repeated["source"]["text"], "na'e go'i");
+        assert_eq!(repeated["scalarNegation"]["kind"], "otherThan");
+
+        let scalar_after_negated =
+            semantic_json_for("mi na klama .i na'e go'i").expect("semantic JSON");
+        let second = object(&scalar_after_negated, "utterance:u2");
+        let second_content = object(
+            &scalar_after_negated,
+            second["content"].as_str().expect("second content"),
+        );
+        assert_eq!(second_content["operator"], "atom");
+        let repeated = object(
+            &scalar_after_negated,
+            second_content["predication"]
+                .as_str()
+                .expect("scalar predication"),
+        );
+        assert_eq!(repeated["relation"], "klama");
+        assert_eq!(repeated["scalarNegation"]["kind"], "otherThan");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn letteral_pro_sumti_resolves_by_initial_letter() {
         let json =
             semantic_json_for("mi viska le gerku .i gy. cusku zo .arf.").expect("semantic JSON");
@@ -28258,6 +29135,63 @@ mod tests {
                 .pointer("/connector/truthTable")
                 .is_none_or(|truth_table| truth_table != "joi")
         }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_sumti_connection_distributes_through_tanru_lowering() {
+        let json =
+            semantic_json_for("la djan. sutra klama la paris. .e la rom.").expect("semantic JSON");
+        let content = object(
+            &json,
+            root_object(&json)["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "and");
+        assert_eq!(content["connector"]["locus"], "sumti");
+        let klama = predications_with_relation_and_mode(&json, "klama", "asserted");
+        assert_eq!(klama.len(), 2);
+        let destinations = klama
+            .iter()
+            .map(|predication| {
+                predication["arguments"]["x2"]["value"]
+                    .as_str()
+                    .expect("destination")
+                    .to_owned()
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(destinations.len(), 2);
+        assert_eq!(
+            predications_with_relation_and_mode(&json, "tanru", "asserted").len(),
+            2
+        );
+        assert!(json["objects"].as_object().unwrap().values().all(|object| {
+            object
+                .pointer("/composition/operator")
+                .is_none_or(|operator| operator != "joint")
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_sumti_connection_distributes_through_scalar_negation() {
+        let json = semantic_json_for("mi na'e klama la paris. .e la rom.").expect("semantic JSON");
+        let klama = predications_with_relation_and_mode(&json, "klama", "asserted");
+        assert_eq!(klama.len(), 2);
+        let destinations = klama
+            .iter()
+            .map(|predication| {
+                assert_eq!(predication["scalarNegation"]["kind"], "otherThan");
+                predication["arguments"]["x2"]["value"]
+                    .as_str()
+                    .expect("destination")
+                    .to_owned()
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(destinations.len(), 2);
     }
 
     #[test]
@@ -28580,6 +29514,79 @@ mod tests {
             "jimpe"
         );
         assert_eq!(display["source"]["text"], "a'o");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn metalinguistic_nahi_distinguishes_bridi_and_selbri_focus() {
+        let bridi = semantic_json_for("na'i go'i").expect("semantic JSON");
+        let bridi_display = displayed_content_with_relation(&bridi, "metalinguisticNegation");
+        assert_eq!(bridi_display["targetFocus"], "bridi");
+        assert_eq!(bridi_display["assertionEffect"], "metalinguisticallyVoided");
+        let target = object(
+            &bridi,
+            bridi_display["target"].as_str().expect("bridi target"),
+        );
+        let predication = object(
+            &bridi,
+            target["predication"]
+                .as_str()
+                .expect("bridi target predication"),
+        );
+        assert_eq!(predication["mode"], "inert");
+
+        let selbri = semantic_json_for("go'i na'i").expect("semantic JSON");
+        let selbri_display = displayed_content_with_relation(&selbri, "metalinguisticNegation");
+        assert_eq!(selbri_display["targetFocus"], "selbri");
+        assert_eq!(
+            selbri_display["assertionEffect"],
+            "metalinguisticallyVoided"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sentence_connective_indicators_target_statement_connection_formula() {
+        let json = semantic_json_for("mi klama .i je .ui do cadzu").expect("semantic JSON");
+        let display = displayed_content_with_relation(&json, "happiness");
+        assert_eq!(display["targetFocus"], "bridi");
+        let target = object(
+            &json,
+            display["target"]
+                .as_str()
+                .expect("statement connection target"),
+        );
+        assert_eq!(target["type"], "formula");
+        assert_eq!(target["connector"]["locus"], "statement");
+        assert_eq!(target["operator"], "and");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ja_a_bridi_affirmation_wraps_atom_without_negating() {
+        let json = semantic_json_for("mi ja'a klama").expect("semantic JSON");
+        let utterance = root_object(&json);
+        let content = object(
+            &json,
+            utterance["content"].as_str().expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "affirmed");
+        assert_eq!(content["source"]["construct"], "bridi-affirmation");
+        let child = object(
+            &json,
+            content["children"][0]
+                .as_str()
+                .expect("affirmed child formula"),
+        );
+        let predication = object(
+            &json,
+            child["predication"].as_str().expect("child predication"),
+        );
+        assert_eq!(predication["relation"], "klama");
+        assert_eq!(predication["mode"], "asserted");
     }
 
     #[test]

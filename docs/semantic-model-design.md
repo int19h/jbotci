@@ -36,14 +36,14 @@ KIND id : attr=val, attr=val, …
 |---|---|---|
 | `UTT` | an utterance / locution | `force` (assert/ask/command/mentioned/parenthetical), `content`=⟨FRM-id⟩, `ev`=⟨EV-id⟩, `speaker`=⟨REF-id⟩, `audience`=⟨REF-id⟩, optionally `deictic-ground`, `asides`=[nested ⟨UTT-id⟩ or anchored ⟨DSP-id⟩…] |
 | `EV` | an eventuality (event/state) | `tense`, `caha`; as needed `aspect`(ZAhO), `distrib`(TAhE), `freq`(ROI), `dist`(ZI), `extent`(ZEhA), spatial `place`(FAhA)/`sdist`(VA)/`sextent`(VEhA)/`dims`(VIhA)/`motion`(MOhI) |
-| `REF` | a referent | `kind`=const\|var; `sort`=Obj\|Ev\|Rel\|Proposition\|TruthValue\|Quantity\|Sign; if const: `flavor`=lo\|le\|la\|lo'e\|le'e\|ko'a\|zo'e\|… or `indexical`=⟨role of an UTT⟩; if var: bound by a quantifier FRM-node (0.E); optional `handle`=⟨SGN-id⟩, `subscript`=n |
+| `REF` | a referent | `kind`=const\|var; `sort`=Obj\|Ev\|Rel\|Proposition\|TruthValue\|Quantity\|Scale\|Sign; if const: `flavor`=lo\|le\|la\|lo'e\|le'e\|ko'a\|zo'e\|… or `indexical`=⟨role of an UTT⟩; if var: bound by a quantifier FRM-node (0.E); optional `handle`=⟨SGN-id⟩, `subscript`=n |
 | `PAR` | a free variable / gap | `sort`, `role`=ce'u\|ke'a\|ma\|kau; optional `tier`=connective\|displayed\|mekso-var |
 | `PRD` | a predication (atomic proposition) | `rel`, `ev`=⟨EV-id⟩, `args`=[…], `mode`=asserted\|incidental\|displayed\|restrictive\|inert\|performative |
 | `FRM` | a logical formula | an atom ⟨PRD-id⟩, or a connective/quantifier node over **other FRM-ids** (0.E, 0.L) |
 | `RFY` | a reification (NU-family abstraction) | `kind`(nu/mu'e/pu'u/zu'o/za'i/ka/ni/jei/du'u/si'o/li'i/su'u), `body`=⟨FRM-id⟩, `abstracted`=[⟨PAR/EV-id⟩…], optional `mind`=⟨REF-id⟩, `focus`=[⟨PAR-id⟩…] |
 | `SGN` | a sign / word / quotation / lerfu | `kind`(word/grammatical/error/foreign/quotation/lerfu), `text` or `tokens`=[…]; for lerfu: `source`=⟨GLYPH/REL/QUOTATION⟩, `denotes`; for structured quotation: `utt`=⟨UTT-id⟩ |
 | `SEQ` | a discourse sequence (juxtaposition) | `items`=[⟨FRM/UTT-id, optional ordinal⟩…], `rel`=discourse-juxtaposition (**truth-valueless by construction**) |
-| `DSP` | a displayed object (attitudinal/evidential/metalinguistic/emphasis) | `kind`(emotion/prop-attitude/evidential/metalinguistic/emphasis), `rel`, `experiencer`=⟨REF-id⟩, `target`=⟨id⟩, `anchor`=⟨EV-id⟩, `intensity`, `polarity`, `phase` |
+| `DSP` | a displayed object (attitudinal/evidential/metalinguistic/emphasis) | `kind`(emotion/prop-attitude/evidential/metalinguistic/emphasis), `rel`, `experiencer`=⟨REF-id⟩, `target`=⟨id⟩, optional `targetFocus`=bridi\|selbri, `anchor`=⟨EV-id⟩, `intensity`, `polarity`, `phase`, `assertionEffect` |
 | `MEX` | a mathematical expression (mekso operand language) | `op`(VUhU), `operands`=[…]; or a literal number / special number |
 | `REL` | relation-level metadata (for lujvo) | `veljvo`, `r`(place-identifications), `places`, `expansion` — **documentation of a `rel`, never part of any `FRM`** |
 
@@ -192,7 +192,7 @@ DSP id : kind=⟨emotion|prop-attitude|evidential|metalinguistic|emphasis⟩,
 ## 0.K Negation has three kinds, in three strata
 
 - **Contradictory** — `na` (pre-selbri) / `naku` = `FRM`-level **`not(⟨FRM⟩)`**, always whole-bridi, always contradictory, doubling cancels. It lives at the `FRM` node of **whichever bridi it sits in**, including embedded `RFY` bodies and `LE`-clauses (so *where* the `not` attaches is the whole meaning — the causal-mistranslation point). Internal **`naku`** is a **negation boundary**: crossing a quantifier inverts it (`∀↔∃`), crossing a connective forces **DeMorgan**; these are truth-preserving equivalences, and the model records the surface reading.
-- **Scalar** — `na'e`/`no'e`/`to'e`/`je'a` = **relation-level** scalar operators on `rel` (`na'e:R` other-than-R on a scale, `to'e:R` polar opposite, `no'e:R` midpoint, `je'a:R` affirmed). These are **positive assertions** (select a different scale-point), strictly distinct from contradictory `na`.
+- **Scalar** — `na'e`/`no'e`/`to'e`/`je'a` = **relation-level** scalar operators on `rel` (`na'e:R` other-than-R on a scale, `to'e:R` polar opposite, `no'e:R` midpoint, `je'a:R` affirmed). These are **positive assertions** (select a different scale-point), strictly distinct from contradictory `na`.  The scale is a first-class `REF sort=Scale`: `ci'u` can supply its definition, while an omitted scale remains opaque.
 - **Metalinguistic** — `na'i` (a UI discursive) = a **`DSP kind=metalinguistic`** marker, **not** a `FRM` `not`. It flags the bridi/term as mis-posed / resting on a false presupposition; no truth value.
 
 **Existential import (formula-positional).** Import attaches to a **predication-occurrence** (an implicit `su'oi da poi me x` introduced at the predication's node) and propagates through `FRM` exactly as that predication's truth value does. A bare `REF` is **inert**. `zi'o` (a deleted place, ∅) and `PAR` carry no import; a bound `var` carries it only through its own quantifier, at its formula position. `incidental`/`displayed` predications **do** carry import but **project past** at-issue operators.
