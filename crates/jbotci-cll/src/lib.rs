@@ -1017,7 +1017,7 @@ fn parse_block(
         || node.has_tag_name("screen")
         || node.has_tag_name("literallayout")
     {
-        let text = normalized_plain_text(&raw_text(node));
+        let text = preformatted_text(&raw_text(node));
         return (!text.is_empty())
             .then_some(CllBlock::Code {
                 language: attr_string(node, "language"),
@@ -5986,6 +5986,42 @@ fn normalized_plain_text(text: &str) -> String {
 }
 
 #[requires(true)]
+#[ensures(!ret.starts_with('\n'))]
+#[ensures(!ret.ends_with('\n'))]
+fn preformatted_text(text: &str) -> String {
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+    let lines = text.split('\n').collect::<Vec<_>>();
+    let Some(start) = lines.iter().position(|line| !line.trim().is_empty()) else {
+        return String::new();
+    };
+    let end = lines
+        .iter()
+        .rposition(|line| !line.trim().is_empty())
+        .map(|index| index + 1)
+        .expect("start proves at least one non-empty line is present");
+    let body = &lines[start..end];
+    let common_indent = body
+        .iter()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| line.bytes().take_while(|byte| *byte == b' ').count())
+        .min()
+        .unwrap_or(0);
+
+    // Literal blocks are nested in pretty-printed XML; remove that common source
+    // margin while preserving the layout inside the block.
+    body.iter()
+        .map(|line| {
+            if line.trim().is_empty() {
+                String::new()
+            } else {
+                line[common_indent..].to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn inline_plain_text(inlines: &[CllInline]) -> String {
     let mut output = String::new();
@@ -6369,6 +6405,43 @@ mod tests {
         assert!(example_html.contains("cll-interlinear-itemized"));
         assert!(example_html.contains("cll-ig-line cll-ig-inline cll-ig-jbo"));
         assert!(!example_html.contains("cll-interlinear-table"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn literal_layout_blocks_preserve_lines_and_alignment() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section =
+            cll_lookup_section(site, "section-scalar-negation").expect("section should exist");
+        let expected = concat!(
+            "Affirmations (positive)      Negations (negative)\n",
+            "|-----------|-----------|-----------|-----------|\n",
+            "All       Most        Some         Few       None\n",
+            "Excellent Good        Fair         Poor     Awful",
+        );
+        let code_text = section
+            .blocks
+            .iter()
+            .find_map(|block| match block {
+                CllBlock::Code { text, .. } if text.contains("Affirmations") => Some(text),
+                _ => None,
+            })
+            .expect("scale literal layout should be a code block");
+
+        assert_eq!(code_text, expected);
+
+        let markdown = render_section(site, section, CllRenderFormat::Markdown);
+        assert!(markdown.contains(&format!("```\n{expected}\n```")));
+        assert!(
+            !markdown
+                .contains("Affirmations (positive) Negations (negative) |-----------|-----------|")
+        );
+
+        let html = render_section(site, section, CllRenderFormat::Html);
+        assert!(html.contains(&format!(
+            "<pre class=\"cll-code\"><code>{expected}</code></pre>"
+        )));
     }
 
     #[test]
