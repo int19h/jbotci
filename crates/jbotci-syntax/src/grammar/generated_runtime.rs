@@ -424,6 +424,22 @@ where
 
 #[requires(true)]
 #[ensures(true)]
+pub(crate) fn append<'tokens, O, L, R>(left: L, right: R) -> BoxedParser<'tokens, Vec<O>>
+where
+    O: 'tokens,
+    L: Parser<'tokens, ParserInput<'tokens>, Vec<O>, ParseExtra<'tokens>> + 'tokens,
+    R: Parser<'tokens, ParserInput<'tokens>, Vec<O>, ParseExtra<'tokens>> + 'tokens,
+{
+    left.then(right)
+        .map(|(mut left, mut right)| {
+            left.append(&mut right);
+            left
+        })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub(crate) fn concat<'tokens, O, H, T>(head: H, tail: T) -> BoxedParser<'tokens, Vec<O>>
 where
     O: 'tokens,

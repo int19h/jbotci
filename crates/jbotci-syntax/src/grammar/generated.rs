@@ -225,19 +225,15 @@ jbotci_syntax_macros::syntax_grammar! {
         }
     }
 
-    product paragraph_statement_sequence(statement_or_fragment, free_modifier) -> std::vec::Vec<ParagraphStatementSyntax> {
+    alias paragraph_statement_sequence(statement_or_fragment, free_modifier) -> std::vec::Vec<ParagraphStatementSyntax> {
         context "paragraph";
-        fields {
-            field first_statement = initial_paragraph_statement(statement_or_fragment);
-            field following_statements = many(following_paragraph_statement(statement_or_fragment, free_modifier));
-            field trailing_ijek_statements = many(trailing_ijek_paragraph_statement());
-        }
-        build |first_statement, following_statements, trailing_ijek_statements| {
-            std::iter::once(first_statement)
-                .chain(following_statements)
-                .chain(trailing_ijek_statements)
-                .collect()
-        };
+        append(
+            prepend(
+                initial_paragraph_statement(statement_or_fragment),
+                many(following_paragraph_statement(statement_or_fragment, free_modifier)),
+            ),
+            many(trailing_ijek_paragraph_statement()),
+        );
     }
 
     node i_niho_paragraph(statement_or_fragment, free_modifier) -> ParagraphSyntax {
@@ -4360,22 +4356,15 @@ jbotci_syntax_macros::syntax_grammar! {
         };
     }
 
-    product interval_property_number_words -> std::vec::Vec<Token> {
+    alias interval_property_number_words -> std::vec::Vec<Token> {
         context "number";
-        fields {
-            field first = pa_word();
-            field rest = many(choice((
+        concat(
+            singleton(pa_word()),
+            many(choice((
                 pa_word_as_words(),
                 plain_letter_word_as_words(),
-            )));
-        }
-        build |first, rest| {
-            let mut words = vec![first];
-            for mut group in rest {
-                words.append(&mut group);
-            }
-            words
-        };
+            ))),
+        );
     }
 
     node tahe_interval_property_tense -> TenseModalSyntax {

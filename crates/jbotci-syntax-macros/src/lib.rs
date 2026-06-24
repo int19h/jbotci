@@ -1448,6 +1448,21 @@ fn strict_call_parser_expr_tokens(
             )?;
             Some(quote!(generated_runtime::prepend(#head, #tail)))
         }
+        ("append", 2) => {
+            let left = strict_parser_expr_tokens(
+                call.args.first().expect("length checked"),
+                arguments,
+                type_env,
+                free_modifier_parser,
+            )?;
+            let right = strict_parser_expr_tokens(
+                call.args.iter().nth(1).expect("length checked"),
+                arguments,
+                type_env,
+                free_modifier_parser,
+            )?;
+            Some(quote!(generated_runtime::append(#left, #right)))
+        }
         ("concat", 2) => {
             let head = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
@@ -1713,6 +1728,11 @@ fn call_parser_output_type(
             )?;
             Some(quote!(Vec<#head>))
         }
+        ("append", 2) => parser_output_type(
+            call.args.first().expect("length checked"),
+            type_env,
+            arguments,
+        ),
         ("concat", 2) => parser_output_type(
             call.args.first().expect("length checked"),
             type_env,
@@ -2301,7 +2321,7 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
         ("singleton", 1) => {
             RecoveryExpr::Some(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }
-        ("prepend" | "concat", 2) => RecoveryExpr::Sequence(
+        ("prepend" | "append" | "concat", 2) => RecoveryExpr::Sequence(
             call.args
                 .iter()
                 .map(|expr| classify_recovery_expr(expr, arguments))
