@@ -32,16 +32,17 @@ use crate::model::{
     ArgumentValue, ArgumentValueKind, Aspect, AssignedName, AssignedNameData, Composition,
     Connector, Descriptor, DisplayedContentAssertionEffect, DisplayedContentFamily,
     DisplayedContentModifier, DisplayedContentPolarity, EndpointInclusion, EventualityClass,
-    FormulaOperator, IndexicalKind, IntervalEndpointInclusion, LetteralUnit, LetteralUnitKind,
-    MathLiteral, ModalArgument, ModalNegation, ModalNegationKind, PlaceQuestionBinding,
-    PredicationMode, QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode,
-    QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, Recurrence,
-    RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
-    RelationExpansion, RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind,
-    SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData,
-    SemanticSort, SequenceRelation, SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind,
-    TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
-    TimeSpanEndpoint, UtteranceForce, diagnostic, source_from_spans,
+    FormulaOperator, IndexicalKind, IntervalEndpointInclusion, IntervalModifier, LetteralUnit,
+    LetteralUnitKind, MathLiteral, ModalArgument, ModalNegation, ModalNegationKind,
+    NonlogicalConnection, PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale,
+    QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
+    RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
+    RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
+    ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject,
+    SemanticObjectId, SemanticObjectKind, SemanticOperatorData, SemanticSort, SequenceRelation,
+    SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind, TemporalPathAnchor,
+    TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint,
+    UtteranceForce, diagnostic, source_from_spans,
 };
 use crate::references::{
     BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -714,6 +715,9 @@ where
         id: SemanticObjectId,
         mut object: SemanticObject,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if object.object_kind() == crate::model::SemanticObjectKind::Eventuality {
+            self.normalize_eventuality_before_insert(&mut object)?;
+        }
         if object.object_kind() == crate::model::SemanticObjectKind::Predication
             && let Some(eventuality) = object.eventuality
         {
@@ -725,6 +729,92 @@ where
             return Err(SemanticsError::duplicate_object(id));
         }
         Ok(id)
+    }
+
+    #[requires(object.object_kind() == crate::model::SemanticObjectKind::Eventuality)]
+    #[ensures(true)]
+    fn normalize_eventuality_before_insert(
+        &mut self,
+        object: &mut SemanticObject,
+    ) -> Result<(), SemanticsError> {
+        let mut quantity_cache = HashMap::new();
+        self.promote_recurrence_quantities(&mut object.recurrence, &mut quantity_cache)?;
+        self.promote_recurrence_quantities(&mut object.spatial_recurrence, &mut quantity_cache)?;
+        self.promote_interval_modifier_quantities(
+            &mut object.interval_modifiers,
+            &mut quantity_cache,
+        )?;
+        self.promote_interval_modifier_quantities(
+            &mut object.spatial_interval_modifiers,
+            &mut quantity_cache,
+        )?;
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn promote_interval_modifier_quantities(
+        &mut self,
+        modifiers: &mut [IntervalModifier],
+        quantity_cache: &mut HashMap<String, SemanticObjectId>,
+    ) -> Result<(), SemanticsError> {
+        for modifier in modifiers {
+            if let IntervalModifier::Recurrence(recurrence) = modifier {
+                let mut recurrence = recurrence.clone();
+                self.promote_recurrence_quantity(&mut recurrence, quantity_cache)?;
+                *modifier = IntervalModifier::Recurrence(recurrence);
+            }
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn promote_recurrence_quantities(
+        &mut self,
+        recurrences: &mut [Recurrence],
+        quantity_cache: &mut HashMap<String, SemanticObjectId>,
+    ) -> Result<(), SemanticsError> {
+        for recurrence in recurrences {
+            self.promote_recurrence_quantity(recurrence, quantity_cache)?;
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn promote_recurrence_quantity(
+        &mut self,
+        recurrence: &mut Recurrence,
+        quantity_cache: &mut HashMap<String, SemanticObjectId>,
+    ) -> Result<(), SemanticsError> {
+        if recurrence.quantity.is_some() || recurrence.value.is_none() {
+            return Ok(());
+        }
+        let key = recurrence_quantity_cache_key(recurrence);
+        if let Some(quantity) = quantity_cache.get(&key).copied() {
+            *recurrence = recurrence.clone().with_data(data! {
+                quantity: Some(quantity),
+                value: None,
+            });
+            return Ok(());
+        }
+        let value = recurrence
+            .value
+            .clone()
+            .expect("checked above that recurrence has a value");
+        let form = quantity_form_for_value(&value);
+        let id = self.next_quantity();
+        let quantity = SemanticObject::quantity(form, value, QuantityScale::Frequency, None);
+        if self.objects.insert(id, quantity).is_some() {
+            return Err(SemanticsError::duplicate_object(id));
+        }
+        *recurrence = recurrence.clone().with_data(data! {
+            quantity: Some(id),
+            value: None,
+        });
+        quantity_cache.insert(key, id);
+        Ok(())
     }
 
     #[requires(utterance.object_kind() == crate::model::SemanticObjectKind::Utterance)]
@@ -1711,6 +1801,10 @@ where
                 } else {
                     None
                 };
+                if content.is_some() {
+                    self.mark_discourse_item_subordinated(first);
+                    self.mark_discourse_item_subordinated(second);
+                }
                 let mut connection_claims = Vec::new();
                 let trailing_text_group_tense = text_group_tense_modal(trailing_statement);
                 let modal_connection_spec =
@@ -1747,6 +1841,12 @@ where
                     diagnostics,
                 );
                 sequence.content = content;
+                if !connective_has_logical_component(connective) {
+                    sequence.nonlogical_connection = Some(NonlogicalConnection::new(
+                        nonlogical_composition_operator(connective),
+                        connective_connector(connective, "statement"),
+                    ));
+                }
                 self.insert(id, sequence)
             }
             data!(StatementSyntax::Iau {
@@ -1775,6 +1875,14 @@ where
                 let reserved = self.reserve_utterance_for_statement(statement);
                 self.build_fragment_utterance(statement, fragment, reserved)
             }
+        }
+    }
+
+    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[ensures(true)]
+    fn mark_discourse_item_subordinated(&mut self, item: SemanticObjectId) {
+        if let Some(object) = self.objects.get_mut(&item) {
+            object.force = Some(UtteranceForce::Subordinated);
         }
     }
 
@@ -3179,6 +3287,8 @@ where
                     event.time = Some(new!(AnchorRelation {
                         relation: relation.relation,
                         anchor: SemanticObjectId::speech_time(),
+                        sticky: false,
+                        inherited: None,
                         distance: relation.distance,
                         magnitude: None,
                         scalar_negation: relation.scalar_negation,
@@ -3189,6 +3299,8 @@ where
                     event.space = Some(new!(AnchorRelation {
                         relation: relation.relation,
                         anchor: SemanticObjectId::here(),
+                        sticky: false,
+                        inherited: None,
                         distance: relation.distance,
                         magnitude: None,
                         scalar_negation: relation.scalar_negation,
@@ -3255,7 +3367,8 @@ where
                 logical_sumti_connection_parts(sumti)
             {
                 if connector.is_none() {
-                    let connector_question = connective_question_token_for_connective(connective);
+                    let connector_question =
+                        direct_connective_question_token_for_connective(connective);
                     operator = if connector_question.is_some() {
                         FormulaOperator::ConnectiveQuestion
                     } else {
@@ -3267,12 +3380,12 @@ where
                     modal_connection_visible_first =
                         modal_connection_visible_argument_is_first(connective, tense_modal);
                     connector_question_token = connector_question.cloned();
-                    connector = Some(Connector {
-                        source: modal_connective_text(connective, tense_modal),
-                        locus: "sumti".to_owned(),
-                        truth_table: None,
-                        parameter: None,
-                    });
+                    connector = Some(connective_connector_with_source(
+                        connective,
+                        "sumti",
+                        modal_connective_text(connective, tense_modal),
+                        None,
+                    ));
                 }
             }
             assigned_sumtis.push((key.clone(), sumti));
@@ -3673,7 +3786,7 @@ where
             }
         }
         let formula = self.next_formula();
-        let connector_question = connective_question_token_for_connective(connective);
+        let connector_question = direct_connective_question_token_for_connective(connective);
         let connector_parameter = connector_question
             .map(|token| self.build_connective_question_parameter_for_token(token))
             .transpose()?;
@@ -3686,12 +3799,12 @@ where
                     formula_operator_for_connective(connective)
                 },
                 children,
-                Some(Connector {
-                    source: modal_connective_text(connective, tense_modal),
-                    locus: "sumti".to_owned(),
-                    truth_table: None,
-                    parameter: connector_parameter,
-                }),
+                Some(connective_connector_with_source(
+                    connective,
+                    "sumti",
+                    modal_connective_text(connective, tense_modal),
+                    connector_parameter,
+                )),
                 self.analysis
                     .syntax_index
                     .bridi_node_id(bridi)
@@ -3834,12 +3947,12 @@ where
             SemanticObject::connective_formula(
                 operator,
                 children,
-                Some(Connector {
-                    source: connective_text(gek),
-                    locus: "termset".to_owned(),
-                    truth_table: None,
-                    parameter: None,
-                }),
+                Some(connective_connector_with_source(
+                    gek,
+                    "termset",
+                    connective_text(gek),
+                    None,
+                )),
                 source,
                 diagnostics,
             ),
@@ -3936,12 +4049,12 @@ where
                     SemanticObject::connective_formula(
                         operator,
                         children,
-                        Some(Connector {
-                            source: connective_text(gek),
-                            locus: "operand".to_owned(),
-                            truth_table: None,
-                            parameter: None,
-                        }),
+                        Some(connective_connector_with_source(
+                            gek,
+                            "operand",
+                            connective_text(gek),
+                            None,
+                        )),
                         source,
                         diagnostics,
                     ),
@@ -4133,70 +4246,97 @@ where
         if tail.ke_continuation.is_none() && tail.first.continuations.is_empty() {
             return self.build_bo_grouped_tail_formula(&tail.first.first);
         }
-        let mut children = Vec::new();
-        children.push(self.build_bo_grouped_tail_formula(&tail.first.first)?);
-        let mut connector = None;
-        let mut operator = FormulaOperator::And;
-        let mut diagnostics = Vec::new();
+        let mut current = self.build_bo_grouped_tail_formula(&tail.first.first)?;
         for continuation in &tail.first.continuations {
-            if connector.is_none() {
-                operator = formula_operator_for_connective(&continuation.connective);
-                connector = Some(Connector {
-                    source: modal_connective_text(
-                        &continuation.connective,
-                        continuation.tense_modal.as_deref(),
-                    ),
-                    locus: "bridiTail".to_owned(),
-                    truth_table: None,
-                    parameter: None,
-                });
-            }
-            let previous_formula = *children
-                .last()
-                .expect("connected bridi tail starts with one child");
             let next_formula = self.build_bo_grouped_tail_formula(&continuation.bridi_tail)?;
-            children.push(next_formula);
-            self.push_modal_bridi_tail_connection_claim(
-                &mut children,
-                &mut diagnostics,
+            current = self.build_binary_bridi_tail_connection_formula(
+                current,
+                next_formula,
                 &continuation.connective,
                 continuation.tense_modal.as_deref(),
-                next_formula,
-                previous_formula,
+                source.clone(),
             )?;
         }
         if let Some(continuation) = &tail.ke_continuation {
-            if connector.is_none() {
-                operator = formula_operator_for_connective(&continuation.connective);
-                connector = Some(Connector {
-                    source: modal_connective_text(
-                        &continuation.connective,
-                        continuation.tense_modal.as_deref(),
-                    ),
-                    locus: "bridiTail".to_owned(),
-                    truth_table: None,
-                    parameter: None,
-                });
-            }
-            let previous_formula = *children
-                .last()
-                .expect("connected bridi tail starts with one child");
             let next_formula =
                 self.build_connected_or_single_bridi_tail_formula(&continuation.bridi_tail)?;
-            children.push(next_formula);
-            self.push_modal_bridi_tail_connection_claim(
-                &mut children,
-                &mut diagnostics,
+            current = self.build_binary_bridi_tail_connection_formula(
+                current,
+                next_formula,
                 &continuation.connective,
                 continuation.tense_modal.as_deref(),
-                next_formula,
-                previous_formula,
+                source,
             )?;
         }
+        Ok(current)
+    }
+
+    #[requires(previous_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(next_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_binary_bridi_tail_connection_formula(
+        &mut self,
+        previous_formula: SemanticObjectId,
+        next_formula: SemanticObjectId,
+        connective: &ConnectiveSyntax,
+        tense_modal: Option<&TenseModalSyntax>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let left_formula = if connective_negates_left(connective) {
+            self.build_unary_formula(
+                FormulaOperator::Not,
+                previous_formula,
+                source.clone(),
+                Vec::new(),
+            )?
+        } else {
+            previous_formula
+        };
+        let right_formula = if connective_negates_right(connective) {
+            self.build_unary_formula(
+                FormulaOperator::Not,
+                next_formula,
+                source.clone(),
+                Vec::new(),
+            )?
+        } else {
+            next_formula
+        };
+        let mut children = ordered_connective_children(connective, left_formula, right_formula);
+        let mut diagnostics = Vec::new();
+        self.mark_whether_or_not_inert_operand(connective, previous_formula, next_formula);
+        self.push_modal_bridi_tail_connection_claim(
+            &mut children,
+            &mut diagnostics,
+            connective,
+            tense_modal,
+            next_formula,
+            previous_formula,
+        )?;
+        let connector_question = direct_connective_question_token_for_connective(connective);
+        let connector_parameter = connector_question
+            .map(|token| self.build_connective_question_parameter_for_token(token))
+            .transpose()?;
+        let operator = if connector_question.is_some() {
+            FormulaOperator::ConnectiveQuestion
+        } else {
+            formula_operator_for_connective(connective)
+        };
         let formula = self.next_formula();
         self.insert(
             formula,
-            SemanticObject::connective_formula(operator, children, connector, source, diagnostics),
+            SemanticObject::connective_formula(
+                operator,
+                children,
+                Some(connective_connector_with_source(
+                    connective,
+                    "bridiTail",
+                    modal_connective_text(connective, tense_modal),
+                    connector_parameter,
+                )),
+                source,
+                diagnostics,
+            ),
         )
     }
 
@@ -4262,6 +4402,51 @@ where
         self.insert(
             formula,
             SemanticObject::connective_formula(operator, children, connector, source, Vec::new()),
+        )
+    }
+
+    #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(!locus.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_binary_formula_for_connective(
+        &mut self,
+        connective: &ConnectiveSyntax,
+        locus: &str,
+        left: SemanticObjectId,
+        right: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let left_formula = if connective_negates_left(connective) {
+            self.build_unary_formula(FormulaOperator::Not, left, source.clone(), Vec::new())?
+        } else {
+            left
+        };
+        let right_formula = if connective_negates_right(connective) {
+            self.build_unary_formula(FormulaOperator::Not, right, source.clone(), Vec::new())?
+        } else {
+            right
+        };
+        self.mark_whether_or_not_inert_operand(connective, left, right);
+        let connector_question = direct_connective_question_token_for_connective(connective);
+        let connector_parameter = connector_question
+            .map(|token| self.build_connective_question_parameter_for_token(token))
+            .transpose()?;
+        let operator = if connector_question.is_some() {
+            FormulaOperator::ConnectiveQuestion
+        } else {
+            formula_operator_for_connective(connective)
+        };
+        self.build_connective_formula(
+            operator,
+            ordered_connective_children(connective, left_formula, right_formula),
+            Some(connective_connector_with_source(
+                connective,
+                locus,
+                full_connective_text(connective),
+                connector_parameter,
+            )),
+            source,
         )
     }
 
@@ -4538,44 +4723,15 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         let first_formula = self.build_bo_grouped_tail_formula_core(leading_tail)?;
         let second_formula = self.build_bo_grouped_tail_formula(&continuation.bridi_tail)?;
-        let mut children = vec![first_formula, second_formula];
-        let mut diagnostics = Vec::new();
-        if let Some(tense_modal) = continuation.tense_modal.as_deref()
-            && let Some(spec) = modal_statement_connection_spec_for_tense_modal(tense_modal)
-        {
-            match self.build_modal_formula_connection_claim(
-                second_formula,
-                first_formula,
-                &spec,
-                self.source_for_tense_modal(tense_modal, "bridi-tail-connection-claim"),
-            )? {
-                Some(claim) => children.push(claim),
-                None => diagnostics.push(diagnostic(
-                    "modal bridi-tail connection could not find formula-bearing bridi events to relate",
-                )),
-            }
-        }
         let source = continuation.tense_modal.as_deref().and_then(|tense_modal| {
             self.source_for_tense_modal(tense_modal, "bridi-tail-connection-formula")
         });
-        let formula = self.next_formula();
-        self.insert(
-            formula,
-            SemanticObject::connective_formula(
-                formula_operator_for_connective(&continuation.connective),
-                children,
-                Some(Connector {
-                    source: modal_connective_text(
-                        &continuation.connective,
-                        continuation.tense_modal.as_deref(),
-                    ),
-                    locus: "bridiTail".to_owned(),
-                    truth_table: None,
-                    parameter: None,
-                }),
-                source,
-                diagnostics,
-            ),
+        self.build_binary_bridi_tail_connection_formula(
+            first_formula,
+            second_formula,
+            &continuation.connective,
+            continuation.tense_modal.as_deref(),
+            source,
         )
     }
 
@@ -4747,10 +4903,29 @@ where
                 }
                 let tense_relation = modal_tense_relation_spec_for_connective(gek).is_some();
                 let relation_only = tense_relation && !claim_tense_branches;
+                let first_formula = if connective_negates_left(gek) {
+                    self.build_unary_formula(FormulaOperator::Not, first_formula, None, Vec::new())?
+                } else {
+                    first_formula
+                };
+                let second_formula = if connective_negates_right(gik) {
+                    self.build_unary_formula(
+                        FormulaOperator::Not,
+                        second_formula,
+                        None,
+                        Vec::new(),
+                    )?
+                } else {
+                    second_formula
+                };
+                self.mark_whether_or_not_inert_operand(gek, first_formula, second_formula);
                 let mut children = Vec::new();
                 if !relation_only {
-                    children.push(first_formula);
-                    children.push(second_formula);
+                    children.extend(ordered_connective_children(
+                        gek,
+                        first_formula,
+                        second_formula,
+                    ));
                 }
                 let mut diagnostics = Vec::new();
                 let operator = if let Some(spec) = modal_statement_connection_spec(gek) {
@@ -4806,12 +4981,12 @@ where
                     SemanticObject::connective_formula(
                         operator,
                         children,
-                        Some(Connector {
-                            source: connective_text(gek),
-                            locus: "bridi".to_owned(),
-                            truth_table: None,
-                            parameter: None,
-                        }),
+                        Some(connective_connector_with_source(
+                            gek,
+                            "bridi",
+                            format!("{} {}", connective_text(gek), connective_text(gik)),
+                            None,
+                        )),
                         None,
                         diagnostics,
                     ),
@@ -4933,10 +5108,11 @@ where
             source.clone(),
             shared_x1,
         )?;
-        let formula = self.build_connective_formula(
-            formula_operator_for_connective(connective),
-            vec![leading.formula, trailing.formula],
-            Some(connective_connector(connective, "selbri")),
+        let formula = self.build_binary_formula_for_connective(
+            connective,
+            "selbri",
+            leading.formula,
+            trailing.formula,
             source,
         )?;
         Ok(TanruFormulaForArgument {
@@ -5356,10 +5532,11 @@ where
             source.clone(),
             shared_x1,
         )?;
-        let formula = self.build_connective_formula(
-            formula_operator_for_connective(connective),
-            vec![leading.formula, trailing.formula],
-            Some(connective_connector(connective, "tanru-unit")),
+        let formula = self.build_binary_formula_for_connective(
+            connective,
+            "tanru-unit",
+            leading.formula,
+            trailing.formula,
             source,
         )?;
         Ok(TanruFormulaForArgument {
@@ -6004,10 +6181,11 @@ where
             self.build_property_formula_for_selbri(leading_selbri, parameter, source.clone())?;
         let trailing =
             self.build_property_formula_for_selbri(trailing_selbri, parameter, source.clone())?;
-        self.build_connective_formula(
-            formula_operator_for_connective(connective),
-            vec![leading, trailing],
-            Some(connective_connector(connective, "property-abstraction")),
+        self.build_binary_formula_for_connective(
+            connective,
+            "property-abstraction",
+            leading,
+            trailing,
             source,
         )
     }
@@ -6164,10 +6342,11 @@ where
             self.build_property_formula_for_tanru_unit(leading_unit, parameter, source.clone())?;
         let trailing =
             self.build_property_formula_for_tanru_unit(trailing_unit, parameter, source.clone())?;
-        self.build_connective_formula(
-            formula_operator_for_connective(connective),
-            vec![leading, trailing],
-            Some(connective_connector(connective, "property-abstraction")),
+        self.build_binary_formula_for_connective(
+            connective,
+            "property-abstraction",
+            leading,
+            trailing,
             source,
         )
     }
@@ -7109,18 +7288,28 @@ where
         } else {
             second_formula
         };
+        self.mark_whether_or_not_inert_operand(connective, first_formula, second_formula);
+        let connector_question = direct_connective_question_token_for_connective(connective);
+        let connector_parameter = connector_question
+            .map(|token| self.build_connective_question_parameter_for_token(token))
+            .transpose()?;
+        let operator = if connector_question.is_some() {
+            FormulaOperator::ConnectiveQuestion
+        } else {
+            formula_operator_for_connective(connective)
+        };
         let formula = self.next_formula();
         self.insert(
             formula,
             SemanticObject::connective_formula(
-                formula_operator_for_connective(connective),
-                vec![first_formula, second_formula],
-                Some(Connector {
-                    source: full_connective_text(connective),
-                    locus: "statement".to_owned(),
-                    truth_table: None,
-                    parameter: None,
-                }),
+                operator,
+                ordered_connective_children(connective, first_formula, second_formula),
+                Some(connective_connector_with_source(
+                    connective,
+                    "statement",
+                    full_connective_text(connective),
+                    connector_parameter,
+                )),
                 source,
                 Vec::new(),
             ),
@@ -8229,10 +8418,10 @@ where
             .flatten();
         if !self.sticky_time_path.is_empty() && !(self.options.story_time && story_anchor.is_some())
         {
-            event.time_path = self.sticky_time_path.clone();
+            event.time_path = inherited_temporal_path(&self.sticky_time_path);
         }
         if !self.sticky_space_path.is_empty() {
-            event.space_path = self.sticky_space_path.clone();
+            event.space_path = inherited_temporal_path(&self.sticky_space_path);
         }
         for modifier in modifiers {
             if tense_modal_resets_sticky_tense(modifier.tense_modal) {
@@ -8248,6 +8437,8 @@ where
                 event.time = Some(new!(AnchorRelation {
                     relation: "at".to_owned(),
                     anchor: SemanticObjectId::speech_time(),
+                    sticky: false,
+                    inherited: None,
                     distance: None,
                     magnitude: None,
                     scalar_negation: None,
@@ -8291,10 +8482,12 @@ where
                 .consumed_terms
                 .extend(modifier.consumed_terms.iter().copied());
             if tense_modal_makes_tense_sticky(modifier.tense_modal) {
+                mark_event_time_sticky(event, None);
                 self.sticky_time_path = event.time_path.clone();
                 application.sticky_temporal_modifier = true;
             }
             if tense_modal_makes_space_sticky(modifier.tense_modal) {
+                mark_event_space_sticky(event, None);
                 self.sticky_space_path = event.space_path.clone();
             }
         }
@@ -8321,6 +8514,8 @@ where
             event.time = Some(new!(AnchorRelation {
                 relation: "after".to_owned(),
                 anchor,
+                sticky: false,
+                inherited: None,
                 distance: None,
                 magnitude: None,
                 scalar_negation: None,
@@ -10063,6 +10258,28 @@ where
         if let Some(body) = object.body {
             self.set_formula_predication_mode(body, mode);
         }
+    }
+
+    #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(true)]
+    fn mark_whether_or_not_inert_operand(
+        &mut self,
+        connective: &ConnectiveSyntax,
+        left: SemanticObjectId,
+        right: SemanticObjectId,
+    ) {
+        if formula_operator_for_connective(connective) != FormulaOperator::WhetherOrNot
+            || direct_connective_question_token_for_connective(connective).is_some()
+        {
+            return;
+        }
+        let inert = if connective_has_se_conversion(connective) {
+            left
+        } else {
+            right
+        };
+        self.set_formula_predication_mode(inert, PredicationMode::Inert);
     }
 
     #[requires(true)]
@@ -12517,12 +12734,7 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         let leading = self.build_restrictive_formula(leading_selbri, referent)?;
         let trailing = self.build_restrictive_formula(trailing_selbri, referent)?;
-        self.build_connective_formula(
-            formula_operator_for_connective(connective),
-            vec![leading, trailing],
-            Some(connective_connector(connective, "selbri")),
-            source,
-        )
+        self.build_binary_formula_for_connective(connective, "selbri", leading, trailing, source)
     }
 
     #[requires(true)]
@@ -12659,10 +12871,11 @@ where
             .syntax_index
             .selbri_node_id(selbri)
             .and_then(|node| self.source_for_node(node.0, "restrictive-tanru-formula"));
-        self.build_connective_formula(
-            formula_operator_for_connective(connective),
-            vec![leading, trailing],
-            Some(connective_connector(connective, "tanru-unit")),
+        self.build_binary_formula_for_connective(
+            connective,
+            "tanru-unit",
+            leading,
+            trailing,
             source,
         )
     }
@@ -13268,35 +13481,11 @@ where
             )?;
             let connection_source =
                 self.source_for_abstraction(abstraction, "abstraction-connection-formula");
-            let left_formula = if connective_negates_left(&connection.connective) {
-                self.build_unary_formula(
-                    FormulaOperator::Not,
-                    formula,
-                    connection_source.clone(),
-                    Vec::new(),
-                )?
-            } else {
-                formula
-            };
-            let right_formula = if connective_negates_right(&connection.connective) {
-                self.build_unary_formula(
-                    FormulaOperator::Not,
-                    right_formula,
-                    connection_source.clone(),
-                    Vec::new(),
-                )?
-            } else {
-                right_formula
-            };
-            formula = self.build_connective_formula(
-                formula_operator_for_connective(&connection.connective),
-                vec![left_formula, right_formula],
-                Some(Connector {
-                    source: full_connective_text(&connection.connective),
-                    locus: "abstraction".to_owned(),
-                    truth_table: None,
-                    parameter: None,
-                }),
+            formula = self.build_binary_formula_for_connective(
+                &connection.connective,
+                "abstraction",
+                formula,
+                right_formula,
                 connection_source,
             )?;
         }
@@ -15104,6 +15293,11 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
             .into_iter()
             .map(|recurrence| recurrence_with_interval(recurrence, anchor)),
     );
+    event.interval_modifiers.extend(
+        temporal_interval_modifiers_for_tense_modal(tense_modal)
+            .into_iter()
+            .map(|modifier| interval_modifier_with_interval(modifier, anchor)),
+    );
     apply_aspect_contours_to_event(
         event,
         spatial_aspect_contours_for_tense_modal(tense_modal),
@@ -15115,6 +15309,11 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
         spatial_recurrences_for_tense_modal(tense_modal)
             .into_iter()
             .map(|recurrence| recurrence_with_interval(recurrence, anchor)),
+    );
+    event.spatial_interval_modifiers.extend(
+        spatial_interval_modifiers_for_tense_modal(tense_modal)
+            .into_iter()
+            .map(|modifier| interval_modifier_with_interval(modifier, anchor)),
     );
     if normalize_time_path {
         normalize_event_time_path(event);
@@ -15168,12 +15367,14 @@ fn append_temporal_path_relations_to_event(
         let data!(AnchorRelation {
             relation,
             anchor,
+            sticky,
+            inherited,
             distance,
             magnitude,
             scalar_negation,
             motion,
         }) = time.into_data();
-        event.time_path.push(TemporalPathStep::new(
+        let mut step = TemporalPathStep::new(
             relation,
             TemporalPathAnchor::object(anchor),
             "implicit".to_owned(),
@@ -15181,7 +15382,11 @@ fn append_temporal_path_relations_to_event(
             magnitude,
             scalar_negation,
             motion,
-        ));
+        );
+        if sticky {
+            step = mark_temporal_path_step_sticky(step, inherited);
+        }
+        event.time_path.push(step);
     }
     let mut first_relation = true;
     for relation in relations {
@@ -15219,6 +15424,8 @@ fn normalize_event_time_path(event: &mut SemanticObject) {
         relation,
         anchor,
         introduced_by: _,
+        sticky,
+        inherited,
         distance,
         magnitude,
         scalar_negation,
@@ -15228,6 +15435,8 @@ fn normalize_event_time_path(event: &mut SemanticObject) {
         event.time = Some(new!(AnchorRelation {
             relation,
             anchor,
+            sticky,
+            inherited,
             distance,
             magnitude,
             scalar_negation,
@@ -15251,6 +15460,65 @@ fn normalize_event_time_path(event: &mut SemanticObject) {
 fn clear_event_time_path(event: &mut SemanticObject) {
     event.time = None;
     event.time_path.clear();
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|step| step.sticky && step.inherited == Some(true)))]
+fn inherited_temporal_path(path: &[TemporalPathStep]) -> Vec<TemporalPathStep> {
+    path.iter()
+        .cloned()
+        .map(|step| mark_temporal_path_step_sticky(step, Some(true)))
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(ret.sticky)]
+fn mark_anchor_relation_sticky(
+    relation: AnchorRelation,
+    inherited: Option<bool>,
+) -> AnchorRelation {
+    relation.with_data(data! {
+        sticky: true,
+        inherited: inherited,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.sticky)]
+fn mark_temporal_path_step_sticky(
+    step: TemporalPathStep,
+    inherited: Option<bool>,
+) -> TemporalPathStep {
+    step.with_data(data! {
+        sticky: true,
+        inherited: inherited,
+    })
+}
+
+#[requires(event.object_type == SemanticObjectKind::Eventuality)]
+#[ensures(true)]
+fn mark_event_time_sticky(event: &mut SemanticObject, inherited: Option<bool>) {
+    if let Some(time) = event.time.take() {
+        event.time = Some(mark_anchor_relation_sticky(time, inherited));
+    }
+    event.time_path = event
+        .time_path
+        .drain(..)
+        .map(|step| mark_temporal_path_step_sticky(step, inherited))
+        .collect();
+}
+
+#[requires(event.object_type == SemanticObjectKind::Eventuality)]
+#[ensures(true)]
+fn mark_event_space_sticky(event: &mut SemanticObject, inherited: Option<bool>) {
+    if let Some(space) = event.space.take() {
+        event.space = Some(mark_anchor_relation_sticky(space, inherited));
+    }
+    event.space_path = event
+        .space_path
+        .drain(..)
+        .map(|step| mark_temporal_path_step_sticky(step, inherited))
+        .collect();
 }
 
 #[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
@@ -15295,12 +15563,14 @@ fn append_space_path_relations_to_event(
         let data!(AnchorRelation {
             relation,
             anchor,
+            sticky,
+            inherited,
             distance,
             magnitude,
             scalar_negation,
             motion,
         }) = space.into_data();
-        event.space_path.push(TemporalPathStep::new(
+        let mut step = TemporalPathStep::new(
             relation,
             TemporalPathAnchor::object(anchor),
             "implicit".to_owned(),
@@ -15308,7 +15578,11 @@ fn append_space_path_relations_to_event(
             magnitude,
             scalar_negation,
             motion,
-        ));
+        );
+        if sticky {
+            step = mark_temporal_path_step_sticky(step, inherited);
+        }
+        event.space_path.push(step);
     }
     let mut first_relation = true;
     for relation in relations {
@@ -15346,6 +15620,8 @@ fn normalize_event_space_path(event: &mut SemanticObject) {
         relation,
         anchor,
         introduced_by: _,
+        sticky,
+        inherited,
         distance,
         magnitude,
         scalar_negation,
@@ -15355,6 +15631,8 @@ fn normalize_event_space_path(event: &mut SemanticObject) {
         event.space = Some(new!(AnchorRelation {
             relation,
             anchor,
+            sticky,
+            inherited,
             distance,
             magnitude,
             scalar_negation,
@@ -15392,12 +15670,14 @@ fn clear_event_modifiers(event: &mut SemanticObject) {
     event.aspect = None;
     event.aspects.clear();
     event.recurrence.clear();
+    event.interval_modifiers.clear();
     event.space = None;
     event.space_path.clear();
     event.space_interval = None;
     event.spatial_aspect = None;
     event.spatial_aspects.clear();
     event.spatial_recurrence.clear();
+    event.spatial_interval_modifiers.clear();
 }
 
 #[requires(true)]
@@ -16605,13 +16885,77 @@ fn spatial_recurrences_for_tense_modal(tense_modal: &TenseModalSyntax) -> Vec<Re
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn temporal_interval_modifiers_for_tense_modal(
+    tense_modal: &TenseModalSyntax,
+) -> Vec<IntervalModifier> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => {
+            scoped_interval_modifiers_for_composite_parts(&parts.value).temporal_modifiers
+        }
+        data!(TenseModalSyntax::EventContour(words)) => words
+            .value
+            .iter()
+            .filter_map(aspect_contour_for_zaho_token)
+            .map(|contour| IntervalModifier::Aspect(Aspect::new(contour, None)))
+            .collect(),
+        data!(TenseModalSyntax::IntervalProperty {
+            number,
+            roi_or_tahe,
+            nai,
+        }) => recurrence_for_interval_marker(
+            &roi_or_tahe.value,
+            number.as_ref().map(word_run_text),
+            nai.as_ref().map(|nai| &nai.value),
+        )
+        .map(IntervalModifier::Recurrence)
+        .into_iter()
+        .collect(),
+        _ => Vec::new(),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn spatial_interval_modifiers_for_tense_modal(
+    tense_modal: &TenseModalSyntax,
+) -> Vec<IntervalModifier> {
+    match tense_modal.as_data() {
+        data!(TenseModalSyntax::Composite { parts }) => {
+            scoped_interval_modifiers_for_composite_parts(&parts.value).spatial_modifiers
+        }
+        _ => Vec::new(),
+    }
+}
+
+#[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[ensures(true)]
+fn interval_modifier_with_interval(
+    modifier: IntervalModifier,
+    anchor: Option<SemanticObjectId>,
+) -> IntervalModifier {
+    match modifier {
+        IntervalModifier::Aspect(aspect) => {
+            IntervalModifier::Aspect(aspect.clone().with_data(data! {
+                anchor: anchor,
+            }))
+        }
+        IntervalModifier::Recurrence(recurrence) => {
+            IntervalModifier::Recurrence(recurrence_with_interval(recurrence, anchor))
+        }
+    }
+}
+
 #[invariant(true)]
 #[derive(Debug, Default)]
 struct ScopedIntervalModifiers {
     temporal_aspects: Vec<String>,
     temporal_recurrences: Vec<Recurrence>,
+    temporal_modifiers: Vec<IntervalModifier>,
     spatial_aspects: Vec<String>,
     spatial_recurrences: Vec<Recurrence>,
+    spatial_modifiers: Vec<IntervalModifier>,
 }
 
 #[invariant(!text.is_empty(), "pending recurrence number text must not be empty")]
@@ -16672,6 +17016,18 @@ fn scoped_interval_modifiers_for_composite_parts(
                             token_text(token),
                         )),
                     });
+                    let stack = if spatial {
+                        &mut modifiers.spatial_modifiers
+                    } else {
+                        &mut modifiers.temporal_modifiers
+                    };
+                    if let Some(modifier) = stack
+                        .iter_mut()
+                        .rev()
+                        .find(|modifier| matches!(modifier, IntervalModifier::Recurrence(_)))
+                    {
+                        *modifier = IntervalModifier::Recurrence(recurrence.clone());
+                    }
                     continue;
                 }
             }
@@ -16715,9 +17071,27 @@ fn scoped_interval_modifiers_for_composite_parts(
             {
                 modifiers.spatial_recurrences.push(recurrence);
                 pending_recurrence_index = Some((true, modifiers.spatial_recurrences.len() - 1));
+                modifiers
+                    .spatial_modifiers
+                    .push(IntervalModifier::Recurrence(
+                        modifiers
+                            .spatial_recurrences
+                            .last()
+                            .expect("just pushed spatial recurrence")
+                            .clone(),
+                    ));
             } else {
                 modifiers.temporal_recurrences.push(recurrence);
                 pending_recurrence_index = Some((false, modifiers.temporal_recurrences.len() - 1));
+                modifiers
+                    .temporal_modifiers
+                    .push(IntervalModifier::Recurrence(
+                        modifiers
+                            .temporal_recurrences
+                            .last()
+                            .expect("just pushed temporal recurrence")
+                            .clone(),
+                    ));
             }
             next_interval_property_is_spatial = false;
             continue;
@@ -16726,9 +17100,15 @@ fn scoped_interval_modifiers_for_composite_parts(
             pending_recurrence_index = None;
             pending_recurrence_connection = None;
             if next_interval_property_is_spatial {
-                modifiers.spatial_aspects.push(contour);
+                modifiers.spatial_aspects.push(contour.clone());
+                modifiers
+                    .spatial_modifiers
+                    .push(IntervalModifier::Aspect(Aspect::new(contour, None)));
             } else {
-                modifiers.temporal_aspects.push(contour);
+                modifiers.temporal_aspects.push(contour.clone());
+                modifiers
+                    .temporal_modifiers
+                    .push(IntervalModifier::Aspect(Aspect::new(contour, None)));
             }
             next_interval_property_is_spatial = false;
             continue;
@@ -16818,8 +17198,8 @@ fn aspect_contour_for_zaho_token(token: &Token) -> Option<String> {
         Some(Cmavo::Caho) => Some("continuative".to_owned()),
         Some(Cmavo::Baho) => Some("retrospective".to_owned()),
         Some(Cmavo::Coha) => Some("initiative".to_owned()),
-        Some(Cmavo::Cohu) => Some("cessitive".to_owned()),
-        Some(Cmavo::Mohu) => Some("completitive".to_owned()),
+        Some(Cmavo::Cohu) => Some("cessative".to_owned()),
+        Some(Cmavo::Mohu) => Some("completive".to_owned()),
         Some(Cmavo::Zaho) => Some("superfective".to_owned()),
         Some(Cmavo::Cohi) => Some("achievative".to_owned()),
         Some(Cmavo::Deha) => Some("pausative".to_owned()),
@@ -16863,24 +17243,14 @@ fn recurrence_with_interval(
     recurrence: Recurrence,
     interval: Option<SemanticObjectId>,
 ) -> Recurrence {
-    let data = recurrence.into_data();
-    Recurrence::new(
-        data.kind,
-        data.introduced_by,
-        data.connection,
-        data.value,
-        interval,
-        data.negation,
-        data.source,
-    )
+    recurrence.with_data(data! {
+        interval: interval,
+    })
 }
 
 #[requires(!text.is_empty())]
 #[ensures(true)]
 fn quantity_value_for_recurrence_text(text: String) -> QuantityValue {
-    if text == "ro" {
-        return QuantityValue::text("all".to_owned());
-    }
     parse_decimal_integer(&text)
         .map(QuantityValue::integer)
         .unwrap_or_else(|| QuantityValue::text(text))
@@ -17165,7 +17535,7 @@ fn connected_event_tense_spec_for_tense_modal(
     let mut branch_tokens = Vec::new();
     let mut current_branch = Vec::new();
     let mut operator = None;
-    let mut connector_text = None;
+    let mut has_logical_connector = false;
     let mut connector_question = None;
     for token in &all_tokens {
         if token.is_selmaho(Selmaho::Ja) || token.is_cmavo(Cmavo::Jehi) {
@@ -17179,7 +17549,7 @@ fn connected_event_tense_spec_for_tense_modal(
                 return None;
             }
             if token.is_cmavo(Cmavo::Jehi) {
-                if operator.is_some() || connector_text.is_some() || connector_question.is_some() {
+                if operator.is_some() || has_logical_connector || connector_question.is_some() {
                     return None;
                 }
                 operator = Some(FormulaOperator::ConnectiveQuestion);
@@ -17195,7 +17565,7 @@ fn connected_event_tense_spec_for_tense_modal(
                     return None;
                 }
                 operator = Some(next_operator);
-                connector_text = Some(token_text(token));
+                has_logical_connector = true;
             }
             branch_tokens.push((std::mem::take(&mut current_branch), negated));
             continue;
@@ -17203,7 +17573,7 @@ fn connected_event_tense_spec_for_tense_modal(
         current_branch.push(token.clone());
     }
     let operator = operator?;
-    if connector_text.is_none() && connector_question.is_none() {
+    if !has_logical_connector && connector_question.is_none() {
         return None;
     }
     if current_branch.is_empty() {
@@ -17224,7 +17594,7 @@ fn connected_event_tense_spec_for_tense_modal(
         ConnectedEventTenseSpec {
             operator,
             source: token_vec_text(&all_tokens),
-            truth_table: connector_text,
+            truth_table: has_logical_connector.then(|| truth_table_for_formula_operator(operator)),
             connector_question,
             branches,
         }
@@ -17293,7 +17663,7 @@ fn logical_modal_connection_spec_for_tense_modal(
         LogicalModalConnectionSpec {
             operator,
             source: token_vec_text(&all_tokens),
-            truth_table: token_text(&connector),
+            truth_table: truth_table_for_formula_operator(operator),
             terms,
         }
     )))
@@ -17733,26 +18103,35 @@ fn modal_relation_for_marker(marker: &str) -> String {
 
 #[requires(!locus.is_empty())]
 #[ensures(!ret.source.is_empty())]
-#[ensures(ret.truth_table.is_some())]
 fn connective_connector(connective: &ConnectiveSyntax, locus: &str) -> Connector {
+    connective_connector_with_source(connective, locus, full_connective_text(connective), None)
+}
+
+#[requires(!locus.is_empty())]
+#[requires(!source.is_empty())]
+#[requires(parameter.is_none_or(|parameter| parameter.object_kind() == crate::model::SemanticObjectKind::Parameter))]
+#[ensures(!ret.source.is_empty())]
+fn connective_connector_with_source(
+    connective: &ConnectiveSyntax,
+    locus: &str,
+    source: String,
+    parameter: Option<SemanticObjectId>,
+) -> Connector {
     Connector {
-        source: if connective_is_logical(connective) {
-            "logical-connective".to_owned()
-        } else {
-            "nonlogical-connective".to_owned()
-        },
+        source,
         locus: locus.to_owned(),
-        truth_table: Some(full_connective_text(connective)),
-        parameter: None,
+        truth_table: if parameter.is_some() {
+            None
+        } else {
+            connective_truth_table(connective)
+        },
+        parameter,
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn formula_operator_for_connective(connective: &ConnectiveSyntax) -> FormulaOperator {
-    if connective_is_na_ja(connective) {
-        return FormulaOperator::Implies;
-    }
     match connective.as_data() {
         data!(ConnectiveSyntax::Afterthought { cmavo, .. })
         | data!(ConnectiveSyntax::Selbri { cmavo, .. })
@@ -17803,29 +18182,17 @@ fn formula_operator_for_connective(connective: &ConnectiveSyntax) -> FormulaOper
 
 #[requires(true)]
 #[ensures(true)]
-fn connective_is_na_ja(connective: &ConnectiveSyntax) -> bool {
-    match connective.as_data() {
-        data!(ConnectiveSyntax::Afterthought { na, cmavo, .. })
-        | data!(ConnectiveSyntax::Selbri { na, cmavo, .. })
-        | data!(ConnectiveSyntax::BridiTail { na, cmavo, .. })
-        | data!(ConnectiveSyntax::Forethought { na, cmavo, .. })
-        | data!(ConnectiveSyntax::NonLogical { na, cmavo, .. })
-        | data!(ConnectiveSyntax::Interval { na, cmavo, .. }) => {
-            na.is_some()
-                && cmavo
-                    .value
-                    .iter()
-                    .any(|token| matches!(token.cmavo(), Some(Cmavo::Ja)))
-        }
+fn formula_operator_for_connective_or_question(connective: &ConnectiveSyntax) -> FormulaOperator {
+    if direct_connective_question_token_for_connective(connective).is_some() {
+        FormulaOperator::ConnectiveQuestion
+    } else {
+        formula_operator_for_connective(connective)
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn connective_negates_left(connective: &ConnectiveSyntax) -> bool {
-    if connective_is_na_ja(connective) {
-        return false;
-    }
     match connective.as_data() {
         data!(ConnectiveSyntax::Afterthought { na, .. })
         | data!(ConnectiveSyntax::Selbri { na, .. })
@@ -17833,6 +18200,106 @@ fn connective_negates_left(connective: &ConnectiveSyntax) -> bool {
         | data!(ConnectiveSyntax::Forethought { na, .. })
         | data!(ConnectiveSyntax::NonLogical { na, .. })
         | data!(ConnectiveSyntax::Interval { na, .. }) => na.is_some(),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none() || ret.as_ref().is_some_and(|table| table.len() == 4))]
+fn connective_truth_table(connective: &ConnectiveSyntax) -> Option<String> {
+    if !connective_is_logical(connective)
+        || direct_connective_question_token_for_connective(connective).is_some()
+    {
+        return None;
+    }
+    let base = connective_primary_logical_kind(connective)?;
+    let se = connective_has_se_conversion(connective);
+    let na = connective_negates_left(connective);
+    let nai = connective_negates_right(connective);
+    Some(
+        [(true, true), (true, false), (false, true), (false, false)]
+            .into_iter()
+            .map(|(left, right)| {
+                let left = if na { !left } else { left };
+                let right = if nai { !right } else { right };
+                let result = if se {
+                    connective_truth_value(base, right, left)
+                } else {
+                    connective_truth_value(base, left, right)
+                };
+                if result { 'T' } else { 'F' }
+            })
+            .collect(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connective_primary_logical_kind(connective: &ConnectiveSyntax) -> Option<FormulaOperator> {
+    if !connective_is_logical(connective) {
+        return None;
+    }
+    match formula_operator_for_connective(connective) {
+        operator @ (FormulaOperator::And
+        | FormulaOperator::Or
+        | FormulaOperator::Iff
+        | FormulaOperator::WhetherOrNot) => Some(operator),
+        _ => None,
+    }
+}
+
+#[requires(matches!(
+    operator,
+    FormulaOperator::And
+        | FormulaOperator::Or
+        | FormulaOperator::Iff
+        | FormulaOperator::WhetherOrNot
+))]
+#[ensures(true)]
+fn connective_truth_value(operator: FormulaOperator, left: bool, right: bool) -> bool {
+    match operator {
+        FormulaOperator::And => left && right,
+        FormulaOperator::Or => left || right,
+        FormulaOperator::Iff => left == right,
+        FormulaOperator::WhetherOrNot => left,
+        _ => unreachable!("precondition restricts connective truth operators"),
+    }
+}
+
+#[requires(matches!(
+    operator,
+    FormulaOperator::And
+        | FormulaOperator::Or
+        | FormulaOperator::Iff
+        | FormulaOperator::WhetherOrNot
+))]
+#[ensures(ret.len() == 4)]
+fn truth_table_for_formula_operator(operator: FormulaOperator) -> String {
+    [(true, true), (true, false), (false, true), (false, false)]
+        .into_iter()
+        .map(|(left, right)| {
+            if connective_truth_value(operator, left, right) {
+                'T'
+            } else {
+                'F'
+            }
+        })
+        .collect()
+}
+
+#[requires(first.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[requires(second.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[ensures(ret.len() == 2)]
+fn ordered_connective_children(
+    connective: &ConnectiveSyntax,
+    first: SemanticObjectId,
+    second: SemanticObjectId,
+) -> Vec<SemanticObjectId> {
+    if connective_has_se_conversion(connective)
+        && formula_operator_for_connective(connective) != FormulaOperator::WhetherOrNot
+    {
+        vec![second, first]
+    } else {
+        vec![first, second]
     }
 }
 
@@ -19903,8 +20370,39 @@ fn quantity_form_for_text(text: &str) -> QuantityForm {
     match text {
         "ro" => QuantityForm::All,
         text if text.starts_with("su'o") => QuantityForm::AtLeast,
+        text if text.starts_with("su'e") => QuantityForm::AtMost,
+        text if text.starts_with("za'u") => QuantityForm::MoreThan,
+        text if text.starts_with("me'i") => QuantityForm::LessThan,
+        text if text.starts_with("ji'i") => QuantityForm::Approximate,
+        "so'a" => QuantityForm::TooFew,
+        "so'e" => QuantityForm::Enough,
+        "so'i" | "so'o" | "so'u" => QuantityForm::Indefinite,
+        "du'e" => QuantityForm::TooMany,
         _ => QuantityForm::Exact,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quantity_form_for_value(value: &QuantityValue) -> QuantityForm {
+    value
+        .text
+        .as_deref()
+        .map(quantity_form_for_text)
+        .unwrap_or(QuantityForm::Exact)
+}
+
+#[requires(recurrence.value.is_some())]
+#[ensures(!ret.is_empty())]
+fn recurrence_quantity_cache_key(recurrence: &Recurrence) -> String {
+    format!(
+        "{:?}|{}|{:?}|{:?}|{:?}",
+        recurrence.kind,
+        recurrence.introduced_by,
+        recurrence.connection,
+        recurrence.value,
+        recurrence.negation,
+    )
 }
 
 #[requires(eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality)]
@@ -20663,10 +21161,16 @@ mod tests {
         );
         assert_eq!(event["recurrence"][0]["kind"], "ordinalOccurrence");
         assert_eq!(event["recurrence"][0]["introducedBy"], "re'u");
-        assert_eq!(event["recurrence"][0]["value"]["integer"], 1);
+        let quantity = event["recurrence"][0]["quantity"]
+            .as_str()
+            .expect("quantity");
+        assert_eq!(object(&ordinal_then_count, quantity)["value"]["integer"], 1);
         assert_eq!(event["recurrence"][1]["kind"], "occurrenceCount");
         assert_eq!(event["recurrence"][1]["introducedBy"], "roi");
-        assert_eq!(event["recurrence"][1]["value"]["integer"], 1);
+        let quantity = event["recurrence"][1]["quantity"]
+            .as_str()
+            .expect("quantity");
+        assert_eq!(object(&ordinal_then_count, quantity)["value"]["integer"], 1);
 
         let count_then_ordinal =
             semantic_json_for("mi paroi pare'u klama le zarci").expect("semantic JSON");
@@ -20677,10 +21181,16 @@ mod tests {
         );
         assert_eq!(event["recurrence"][0]["kind"], "occurrenceCount");
         assert_eq!(event["recurrence"][0]["introducedBy"], "roi");
-        assert_eq!(event["recurrence"][0]["value"]["integer"], 1);
+        let quantity = event["recurrence"][0]["quantity"]
+            .as_str()
+            .expect("quantity");
+        assert_eq!(object(&count_then_ordinal, quantity)["value"]["integer"], 1);
         assert_eq!(event["recurrence"][1]["kind"], "ordinalOccurrence");
         assert_eq!(event["recurrence"][1]["introducedBy"], "re'u");
-        assert_eq!(event["recurrence"][1]["value"]["integer"], 1);
+        let quantity = event["recurrence"][1]["quantity"]
+            .as_str()
+            .expect("quantity");
+        assert_eq!(object(&count_then_ordinal, quantity)["value"]["integer"], 1);
     }
 
     #[test]
@@ -20701,9 +21211,15 @@ mod tests {
             semantic_json_for("mi reroi pi'u xaroi celgau le seldanti").expect("semantic JSON");
         let celgau = predication_with_relation_and_mode(&product, "celgau", "asserted");
         let event = object(&product, celgau["eventuality"].as_str().expect("event"));
-        assert_eq!(event["recurrence"][0]["value"]["integer"], 2);
+        let quantity = event["recurrence"][0]["quantity"]
+            .as_str()
+            .expect("quantity");
+        assert_eq!(object(&product, quantity)["value"]["integer"], 2);
         assert!(event["recurrence"][0].get("connection").is_none());
-        assert_eq!(event["recurrence"][1]["value"]["integer"], 6);
+        let quantity = event["recurrence"][1]["quantity"]
+            .as_str()
+            .expect("quantity");
+        assert_eq!(object(&product, quantity)["value"]["integer"], 6);
         assert_eq!(event["recurrence"][1]["connection"]["kind"], "product");
         assert_eq!(event["recurrence"][1]["connection"]["introducedBy"], "pi'u");
     }
@@ -20732,7 +21248,10 @@ mod tests {
             citka["eventuality"].as_str().expect("citka event"),
         );
         assert_eq!(event["recurrence"][0]["kind"], "occurrenceCount");
-        assert_eq!(event["recurrence"][0]["value"]["integer"], 2);
+        let quantity = event["recurrence"][0]["quantity"]
+            .as_str()
+            .expect("quantity");
+        assert_eq!(object(&not_twice, quantity)["value"]["integer"], 2);
         assert_eq!(event["recurrence"][0]["negation"]["introducedBy"], "nai");
     }
 
@@ -20982,9 +21501,17 @@ mod tests {
             identity["eventuality"].as_str().expect("identity event"),
         );
         assert_eq!(event["timeInterval"]["extent"], "whole");
-        assert_eq!(event["recurrence"][0]["value"]["text"], "all");
+        let quantity = event["recurrence"][0]["quantity"]
+            .as_str()
+            .expect("quantity");
+        assert_eq!(object(&everywhere, quantity)["form"], "all");
+        assert_eq!(object(&everywhere, quantity)["value"]["text"], "ro");
         assert_eq!(event["spaceInterval"]["extent"], "whole");
-        assert_eq!(event["spatialRecurrence"][0]["value"]["text"], "all");
+        let quantity = event["spatialRecurrence"][0]["quantity"]
+            .as_str()
+            .expect("quantity");
+        assert_eq!(object(&everywhere, quantity)["form"], "all");
+        assert_eq!(object(&everywhere, quantity)["value"]["text"], "ro");
 
         let spatial_start =
             semantic_json_for("tu ve'abe'a fe'e co'a rokci").expect("semantic JSON");
@@ -21038,7 +21565,10 @@ mod tests {
             klama["eventuality"].as_str().expect("klama event"),
         );
         assert_eq!(event["recurrence"][0]["kind"], "occurrenceCount");
-        assert_eq!(event["recurrence"][0]["value"]["integer"], 2);
+        let quantity = event["recurrence"][0]["quantity"]
+            .as_str()
+            .expect("quantity");
+        assert_eq!(object(&twice_today, quantity)["value"]["integer"], 2);
         assert!(event["recurrence"][0].get("interval").is_some());
 
         let long_winter =
@@ -21158,11 +21688,15 @@ mod tests {
         let first_event = object(&json, zutse["eventuality"].as_str().expect("zutse event"));
         assert_eq!(first_event["space"]["relation"], "within");
         assert_eq!(first_event["space"]["anchor"], "referent:r1");
+        assert_eq!(first_event["space"]["sticky"], true);
+        assert!(first_event["space"].get("inherited").is_none());
 
         let citka = predication_with_relation_and_mode(&json, "citka", "asserted");
         let second_event = object(&json, citka["eventuality"].as_str().expect("citka event"));
         assert_eq!(second_event["space"]["relation"], "within");
         assert_eq!(second_event["space"]["anchor"], "referent:r1");
+        assert_eq!(second_event["space"]["sticky"], true);
+        assert_eq!(second_event["space"]["inherited"], true);
     }
 
     #[test]
@@ -21200,6 +21734,8 @@ mod tests {
         );
         assert_eq!(event["time"]["relation"], "before");
         assert_eq!(event["time"]["anchor"], "referent:speech-time");
+        assert_eq!(event["time"]["sticky"], true);
+        assert_eq!(event["time"]["inherited"], true);
 
         let sticky_then_past =
             semantic_json_for("mi puki klama le zarci .i le nanmu pu batci le gerku")
@@ -21213,9 +21749,13 @@ mod tests {
         assert_eq!(event["timePath"][0]["relation"], "before");
         assert_eq!(event["timePath"][0]["introducedBy"], "pu");
         assert_eq!(event["timePath"][0]["anchor"]["kind"], "object");
+        assert_eq!(event["timePath"][0]["sticky"], true);
+        assert_eq!(event["timePath"][0]["inherited"], true);
         assert_eq!(event["timePath"][1]["relation"], "before");
         assert_eq!(event["timePath"][1]["introducedBy"], "pu");
         assert_eq!(event["timePath"][1]["anchor"]["kind"], "previous");
+        assert!(event["timePath"][1].get("sticky").is_none());
+        assert!(event["timePath"][1].get("inherited").is_none());
     }
 
     #[test]
@@ -22007,7 +22547,7 @@ mod tests {
                 .expect("utterance content"),
         );
         assert_eq!(content["operator"], "and");
-        assert_eq!(content["connector"]["source"], "pu gi");
+        assert_eq!(content["connector"]["source"], "pu gi gi");
         let klama = predications_with_relation_and_mode(&json, "klama", "asserted");
         assert_eq!(klama.len(), 2);
         let before = predication_with_relation_and_mode(&json, "before", "asserted");
@@ -22405,7 +22945,7 @@ mod tests {
         );
         assert_eq!(content["operator"], "and");
         assert_eq!(content["connector"]["locus"], "modal");
-        assert_eq!(content["connector"]["truthTable"], "je");
+        assert_eq!(content["connector"]["truthTable"], "TFFF");
 
         let bajra = predications_with_relation_and_mode(&json, "bajra", "asserted");
         assert_eq!(bajra.len(), 2);
@@ -22479,7 +23019,7 @@ mod tests {
                 .as_str()
                 .expect("utterance content"),
         );
-        assert_eq!(content["connector"]["source"], "mu'i gi");
+        assert_eq!(content["connector"]["source"], "mu'i gi gi");
         assert_eq!(content["connector"]["locus"], "bridi");
     }
 
@@ -24739,7 +25279,10 @@ mod tests {
             object(&json, "formula:f4")["connector"]["locus"],
             "property-abstraction"
         );
-        assert_eq!(object(&json, "formula:f4")["connector"]["truthTable"], "je");
+        assert_eq!(
+            object(&json, "formula:f4")["connector"]["truthTable"],
+            "TFFF"
+        );
     }
 
     #[test]
@@ -24837,7 +25380,10 @@ mod tests {
             "referent:r1"
         );
         assert_eq!(object(&json, "formula:f4")["operator"], "or");
-        assert_eq!(object(&json, "formula:f4")["connector"]["truthTable"], "ja");
+        assert_eq!(
+            object(&json, "formula:f4")["connector"]["truthTable"],
+            "TTTF"
+        );
     }
 
     #[test]
@@ -24881,9 +25427,15 @@ mod tests {
             "referent:r1"
         );
         assert_eq!(object(&json, "formula:f4")["operator"], "or");
-        assert_eq!(object(&json, "formula:f4")["connector"]["truthTable"], "ja");
+        assert_eq!(
+            object(&json, "formula:f4")["connector"]["truthTable"],
+            "TTTF"
+        );
         assert_eq!(object(&json, "formula:f5")["operator"], "and");
-        assert_eq!(object(&json, "formula:f5")["connector"]["truthTable"], "je");
+        assert_eq!(
+            object(&json, "formula:f5")["connector"]["truthTable"],
+            "TFFF"
+        );
     }
 
     #[test]
@@ -25495,7 +26047,7 @@ mod tests {
                     && object.pointer("/connector/locus") == Some(&Value::String("tense".into()))
             })
             .expect("connected tense formula");
-        assert_eq!(connective["connector"]["truthTable"], "je");
+        assert_eq!(connective["connector"]["truthTable"], "TFFF");
 
         let tense_slot_events = json["objects"]
             .as_object()

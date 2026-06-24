@@ -510,7 +510,7 @@ FRM f1 : and(p1, p2)
 ```
 The two predications **share** every elided place (same `zo'e` ids), differing only in the connected argument — contrast the fully-independent `.ije` form above.
 
-**Realization algebra (one `FRM` node per connection):** `.a`→`or`, `.e`→`and`, `.o`→`iff`, `.u`→ first asserted + second `mode=inert`; `na`/`nai`/`se` transform — `na.a`→`imp(p,q)`, `.enai`→`and(p, not q)`, `se.u`→`inert(p), assert(q)`. **Connective question `ji`** (`do ji mi`) → `PAR role=ma, tier=connective` at the connective node, `UTT force=ask`. **Forethought `ge…gi`** = same `FRM` nodes, prefix order. **Termset `nu'i…nu'u`** = parallel connection of several places. **Non-logical `joi`/`ce`/`ce'o`/`fa'u` (14.15)** do **not** enter `FRM`: `joi`→a `gunma` composite, `ce`→a `selcmi` set, `ce'o`→an ordered sequence, `fa'u`→a respectively-pairing — all **composite referents** fed to one predication.
+**Realization algebra (one `FRM` node per connection):** `.a`→`or`, `.e`→`and`, `.o`→`iff`, `.u`→ first asserted + second `mode=inert`; `na`/`nai`/`se` transform structurally — `na.a`→`or(not p,q)` (truth-functionally implication), `.enai`→`and(p, not q)`, `se.u`→`inert(p), assert(q)`. **Connective question `ji`** (`do ji mi`) → `PAR role=ma, tier=connective` at the connective node, `UTT force=ask`. **Forethought `ge…gi`** = same `FRM` nodes, prefix order. **Termset `nu'i…nu'u`** = parallel connection of several places. **Non-logical `joi`/`ce`/`ce'o`/`fa'u` (14.15)** do **not** enter `FRM`: `joi`→a `gunma` composite, `ce`→a `selcmi` set, `ce'o`→an ordered sequence, `fa'u`→a respectively-pairing — all **composite referents** fed to one predication.
 
 ## Chapters 15–16 — negation & quantifier scope (reference-by-id)
 

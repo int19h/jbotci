@@ -314,6 +314,12 @@ where
     map.end()
 }
 
+#[requires(true)]
+#[ensures(ret == !*value)]
+fn bool_is_false(value: &bool) -> bool {
+    !*value
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -343,6 +349,8 @@ pub struct SemanticObject {
     #[serde(rename = "relation", skip_serializing_if = "Option::is_none")]
     pub sequence_relation: Option<SequenceRelation>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub nonlogical_connection: Option<NonlogicalConnection>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub class: Option<EventualityClass>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub actuality: Option<Actuality>,
@@ -362,6 +370,8 @@ pub struct SemanticObject {
     pub aspects: Vec<Aspect>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub recurrence: Vec<Recurrence>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub interval_modifiers: Vec<IntervalModifier>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub space: Option<AnchorRelation>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -374,6 +384,8 @@ pub struct SemanticObject {
     pub spatial_aspects: Vec<Aspect>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub spatial_recurrence: Vec<Recurrence>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub spatial_interval_modifiers: Vec<IntervalModifier>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<ReferentCategory>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -396,6 +408,8 @@ pub struct SemanticObject {
     pub relation: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub relation_parameter: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tanru_link: Option<TanruLink>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub arguments: BTreeMap<String, ArgumentValue>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -430,6 +444,10 @@ pub struct SemanticObject {
     pub body: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quantity: Option<SemanticObjectId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub streams: Vec<RespectivelyStream>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub distinct_partition: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub abstraction_kind: Option<AbstractionKind>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -525,6 +543,7 @@ impl SemanticObject {
             items: Vec::new(),
             connection_claims: Vec::new(),
             sequence_relation: None,
+            nonlogical_connection: None,
             class: None,
             actuality: None,
             tense_modal: None,
@@ -535,12 +554,14 @@ impl SemanticObject {
             aspect: None,
             aspects: Vec::new(),
             recurrence: Vec::new(),
+            interval_modifiers: Vec::new(),
             space: None,
             space_path: Vec::new(),
             space_interval: None,
             spatial_aspect: None,
             spatial_aspects: Vec::new(),
             spatial_recurrence: Vec::new(),
+            spatial_interval_modifiers: Vec::new(),
             category: None,
             sort: None,
             indexical: None,
@@ -552,6 +573,7 @@ impl SemanticObject {
             introduced_by: None,
             relation: None,
             relation_parameter: None,
+            tanru_link: None,
             arguments: BTreeMap::new(),
             place_questions: Vec::new(),
             modal_arguments: Vec::new(),
@@ -569,6 +591,8 @@ impl SemanticObject {
             restriction: None,
             body: None,
             quantity: None,
+            streams: Vec::new(),
+            distinct_partition: None,
             abstraction_kind: None,
             abstracted: None,
             parameters: Vec::new(),
@@ -635,6 +659,20 @@ impl SemanticObject {
         });
         object.source = source;
         object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Sequence)]
+    pub fn sequence_with_nonlogical_connection(
+        items: Vec<SemanticObjectId>,
+        relation: SequenceRelation,
+        nonlogical_connection: NonlogicalConnection,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::sequence(items, relation, source, diagnostics);
+        object.nonlogical_connection = Some(nonlogical_connection);
         object
     }
 
@@ -740,6 +778,25 @@ impl SemanticObject {
         object
     }
 
+    #[requires(!relation.is_empty())]
+    #[requires(tanru_link.head.object_kind() == SemanticObjectKind::Predication)]
+    #[requires(argument_object_kind_can_fill(tanru_link.modifier.object_kind()))]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Predication)]
+    pub fn tanru_link_predication(
+        relation: String,
+        eventuality: Option<SemanticObjectId>,
+        arguments: BTreeMap<String, ArgumentValue>,
+        tanru_link: TanruLink,
+        mode: PredicationMode,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object =
+            Self::predication(relation, eventuality, arguments, mode, source, diagnostics);
+        object.tanru_link = Some(tanru_link);
+        object
+    }
+
     #[requires(relation_parameter.object_kind() == SemanticObjectKind::Parameter)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Predication)]
     pub fn relation_parameter_predication(
@@ -822,6 +879,29 @@ impl SemanticObject {
         object.restriction = restriction;
         object.body = Some(body);
         object.quantity = quantity;
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(body.object_kind() == SemanticObjectKind::Formula)]
+    #[requires(!streams.is_empty())]
+    #[requires(streams.iter().all(|stream| !stream.items.is_empty()))]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Formula)]
+    pub fn respectively_distribution_formula(
+        body: SemanticObjectId,
+        streams: Vec<RespectivelyStream>,
+        distinct_partition: Option<bool>,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Formula);
+        object.operator = Some(SemanticOperator::formula(
+            FormulaOperator::RespectivelyDistribution,
+        ));
+        object.body = Some(body);
+        object.streams = streams;
+        object.distinct_partition = distinct_partition;
         object.source = source;
         object.diagnostics = diagnostics;
         object
@@ -1094,6 +1174,9 @@ impl SemanticObject {
         out.extend(self.asides.iter().copied());
         out.extend(self.items.iter().copied());
         out.extend(self.connection_claims.iter().copied());
+        if let Some(connection) = &self.nonlogical_connection {
+            connection.references_into(out);
+        }
         if let Some(time) = &self.time {
             time.references_into(out);
         }
@@ -1131,8 +1214,14 @@ impl SemanticObject {
         for recurrence in &self.recurrence {
             recurrence.references_into(out);
         }
+        for modifier in &self.interval_modifiers {
+            modifier.references_into(out);
+        }
         for recurrence in &self.spatial_recurrence {
             recurrence.references_into(out);
+        }
+        for modifier in &self.spatial_interval_modifiers {
+            modifier.references_into(out);
         }
         if let Some(descriptor) = &self.descriptor {
             descriptor.references_into(out);
@@ -1156,6 +1245,9 @@ impl SemanticObject {
             exchange.references_into(out);
         }
         extend_optional(out, self.relation_parameter);
+        if let Some(tanru_link) = &self.tanru_link {
+            tanru_link.references_into(out);
+        }
         extend_optional(out, self.relation_metadata);
         extend_optional(out, self.operator_parameter);
         if let Some(expansion) = &self.expansion {
@@ -1170,6 +1262,9 @@ impl SemanticObject {
         extend_optional(out, self.restriction);
         extend_optional(out, self.body);
         extend_optional(out, self.quantity);
+        for stream in &self.streams {
+            stream.references_into(out);
+        }
         extend_optional(out, self.abstracted);
         out.extend(self.parameters.iter().copied());
         out.extend(self.embedded_questions.iter().copied());
@@ -1296,6 +1391,7 @@ pub enum UtteranceForce {
     Mention,
     Quote,
     Parenthetical,
+    Subordinated,
     Vocative,
 }
 
@@ -1304,6 +1400,31 @@ pub enum UtteranceForce {
 #[serde(rename_all = "kebab-case")]
 pub enum SequenceRelation {
     SameTopicContinuation,
+}
+
+#[invariant(!operator.is_empty(), "nonlogical sequence operator must be named")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NonlogicalConnection {
+    pub operator: String,
+    pub connector: Connector,
+}
+
+impl NonlogicalConnection {
+    #[requires(!operator.is_empty())]
+    #[ensures(ret.operator == old(operator.clone()))]
+    pub fn new(operator: String, connector: Connector) -> Self {
+        Self::from_data(data!(NonlogicalConnection {
+            operator,
+            connector,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        self.connector.references_into(out);
+    }
 }
 
 #[invariant(true)]
@@ -1343,6 +1464,10 @@ pub enum ActualityKind {
 pub struct AnchorRelation {
     pub relation: String,
     pub anchor: SemanticObjectId,
+    #[serde(default, skip_serializing_if = "bool_is_false")]
+    pub sticky: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inherited: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distance: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1434,6 +1559,10 @@ pub struct TemporalPathStep {
     pub relation: String,
     pub anchor: TemporalPathAnchor,
     pub introduced_by: String,
+    #[serde(default, skip_serializing_if = "bool_is_false")]
+    pub sticky: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inherited: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distance: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1463,6 +1592,8 @@ impl TemporalPathStep {
             relation,
             anchor,
             introduced_by,
+            sticky: false,
+            inherited: None,
             distance,
             magnitude,
             scalar_negation,
@@ -1714,6 +1845,7 @@ impl Aspect {
 }
 
 #[invariant(!introduced_by.is_empty(), "recurrence marker must be named")]
+#[invariant(quantity.is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity), "recurrence quantity must be a quantity object")]
 #[invariant(interval.is_none_or(|interval| argument_object_kind_can_fill(interval.object_kind())), "recurrence interval must be referent-like")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1722,6 +1854,8 @@ pub struct Recurrence {
     pub introduced_by: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub connection: Option<RecurrenceConnection>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantity: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<QuantityValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1748,7 +1882,32 @@ impl Recurrence {
             kind,
             introduced_by,
             connection,
+            quantity: None,
             value,
+            interval,
+            negation,
+            source,
+        }))
+    }
+
+    #[requires(!introduced_by.is_empty())]
+    #[requires(quantity.object_kind() == SemanticObjectKind::Quantity)]
+    #[ensures(ret.quantity == Some(quantity))]
+    pub fn new_with_quantity(
+        kind: RecurrenceKind,
+        introduced_by: String,
+        connection: Option<RecurrenceConnection>,
+        quantity: SemanticObjectId,
+        interval: Option<SemanticObjectId>,
+        negation: Option<ModalNegation>,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::from_data(data!(Recurrence {
+            kind,
+            introduced_by,
+            connection,
+            quantity: Some(quantity),
+            value: None,
             interval,
             negation,
             source,
@@ -1758,10 +1917,31 @@ impl Recurrence {
     #[requires(true)]
     #[ensures(true)]
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        extend_optional(out, self.quantity);
         if let Some(value) = &self.value {
             value.references_into(out);
         }
         extend_optional(out, self.interval);
+    }
+}
+
+#[invariant(::Aspect(_) => true)]
+#[invariant(::Recurrence(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase", tag = "kind", content = "value")]
+pub enum IntervalModifier {
+    Aspect(Aspect),
+    Recurrence(Recurrence),
+}
+
+impl IntervalModifier {
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        match self {
+            Self::Aspect(aspect) => aspect.references_into(out),
+            Self::Recurrence(recurrence) => recurrence.references_into(out),
+        }
     }
 }
 
@@ -1829,6 +2009,7 @@ pub enum SemanticSort {
     Mass,
     Set,
     Sequence,
+    Time,
     Eventuality,
     Predication,
     TruthValue,
@@ -1845,6 +2026,7 @@ pub enum SemanticSort {
     TenseModal,
     MathOperator,
     ArgumentBundle,
+    Unspecified,
 }
 
 #[invariant(true)]
@@ -1948,6 +2130,7 @@ pub enum ParameterRole {
     TenseQuestion,
     MathOperatorQuestion,
     AttitudeQuestion,
+    RespectiveSlot,
 }
 
 #[invariant(argument_value_shape_is_valid(*kind, *value, introduced_by.as_deref()))]
@@ -2460,6 +2643,7 @@ pub enum FormulaOperator {
     Cardinality,
     PluralExists,
     PluralForall,
+    RespectivelyDistribution,
 }
 
 #[invariant(true)]
@@ -2479,6 +2663,38 @@ impl Connector {
     #[ensures(true)]
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
         extend_optional(out, self.parameter);
+    }
+}
+
+#[invariant(head.object_kind() == SemanticObjectKind::Predication)]
+#[invariant(argument_object_kind_can_fill(modifier.object_kind()), "tanru modifier must be a semantic argument value")]
+#[invariant(!relation_label.is_empty(), "tanru relation label must be displayable")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TanruLink {
+    pub head: SemanticObjectId,
+    pub modifier: SemanticObjectId,
+    pub relation_label: String,
+}
+
+impl TanruLink {
+    #[requires(head.object_kind() == SemanticObjectKind::Predication)]
+    #[requires(argument_object_kind_can_fill(modifier.object_kind()))]
+    #[requires(!relation_label.is_empty())]
+    #[ensures(ret.head == head)]
+    pub fn new(head: SemanticObjectId, modifier: SemanticObjectId, relation_label: String) -> Self {
+        Self::from_data(data!(TanruLink {
+            head,
+            modifier,
+            relation_label,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        out.push(self.head);
+        out.push(self.modifier);
     }
 }
 
@@ -2884,6 +3100,30 @@ pub struct QuestionSlot {
 #[serde(rename_all = "camelCase")]
 pub enum QuestionSlotRole {
     Answer,
+    RespectiveSlot,
+}
+
+#[invariant(!items.is_empty(), "respectively stream cannot be empty")]
+#[invariant(items.iter().all(|item| argument_object_kind_can_fill(item.object_kind())))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RespectivelyStream {
+    pub items: Vec<SemanticObjectId>,
+}
+
+impl RespectivelyStream {
+    #[requires(!items.is_empty())]
+    #[requires(items.iter().all(|item| argument_object_kind_can_fill(item.object_kind())))]
+    #[ensures(ret.items == old(items.clone()))]
+    pub fn new(items: Vec<SemanticObjectId>) -> Self {
+        Self::from_data(data!(RespectivelyStream { items }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        out.extend(self.items.iter().copied());
+    }
 }
 
 #[requires(true)]
@@ -2937,6 +3177,15 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
             .iter()
             .all(|item| sequence_item_kind_is_allowed(item.object_kind()))
         && references_have_kind(&object.connection_claims, SemanticObjectKind::Formula)
+        && object
+            .nonlogical_connection
+            .as_ref()
+            .is_none_or(|connection| {
+                optional_reference_has_kind(
+                    connection.connector.parameter,
+                    SemanticObjectKind::Parameter,
+                )
+            })
         && optional_reference_has_kind(object.tense_modal, SemanticObjectKind::Parameter)
         && object.time_path.iter().all(|step| {
             step.anchor
@@ -2953,6 +3202,10 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
             SemanticObjectKind::RelationMetadata,
         )
         && optional_reference_has_kind(object.relation_parameter, SemanticObjectKind::Parameter)
+        && object.tanru_link.as_ref().is_none_or(|tanru_link| {
+            tanru_link.head.object_kind() == SemanticObjectKind::Predication
+                && argument_object_kind_can_fill(tanru_link.modifier.object_kind())
+        })
         && optional_reference_has_kind(object.operator_parameter, SemanticObjectKind::Parameter)
         && optional_reference_has_kind(object.predication, SemanticObjectKind::Predication)
         && references_have_kind(&object.children, SemanticObjectKind::Formula)
@@ -2965,6 +3218,12 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && optional_reference_has_kind(object.restriction, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.body, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.quantity, SemanticObjectKind::Quantity)
+        && object.streams.iter().all(|stream| {
+            stream
+                .items
+                .iter()
+                .all(|item| argument_object_kind_can_fill(item.object_kind()))
+        })
         && target_reference_matches_role(object.object_kind(), object.target)
         && denotes_reference_matches_role(object.object_kind(), object.denotes)
         && object.relative_clauses.iter().all(|clause| {
@@ -3181,6 +3440,7 @@ fn parameter_role_matches_sort(sort: Option<SemanticSort>, role: Option<Paramete
         Some(ParameterRole::ConnectiveQuestion) => sort == Some(SemanticSort::Connective),
         Some(ParameterRole::TenseQuestion) => sort == Some(SemanticSort::TenseModal),
         Some(ParameterRole::MathOperatorQuestion) => sort == Some(SemanticSort::MathOperator),
+        Some(ParameterRole::RespectiveSlot) => sort.is_some(),
         None => false,
     }
 }

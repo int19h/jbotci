@@ -136,7 +136,14 @@ locution eventuality, and content.
 - `mention`
 - `quote`
 - `parenthetical`
+- `subordinated`
 - `vocative`
+
+`subordinated` is used for surface utterance items whose truth is carried by
+a single combined formula.  For example, `.ije` creates one asserted connected
+formula on the sequence; the two sequence items are retained for discourse
+order and provenance, but their force is `subordinated` so consumers do not
+double-assert the operands.
 
 For vocatives, use `vocativeKind` when known:
 
@@ -276,14 +283,14 @@ that a predication, utterance, or abstraction is about.
     "introducedBy": "bi'o"
   },
   "aspect": {
-    "contour": "completitive",
+    "contour": "completive",
     "anchor": "referent:r1"
   },
   "recurrence": [
     {
       "kind": "ordinalOccurrence",
       "introducedBy": "re'u",
-      "value": { "integer": 1 },
+      "quantity": "quantity:q1",
       "interval": "referent:r1"
     },
     {
@@ -383,18 +390,25 @@ unspecified" reading instead of dropping the distance marker.
 markers occur in the same tense, `aspects` is an ordered list and the scalar
 `aspect` field is omitted.  Use semantically transparent English contour
 labels: `pu'o` is `prospective`, `ca'o` is `continuative`, `ba'o` is
-`retrospective`, `co'a` is `initiative`, `co'u` is `cessitive`, `mo'u` is
-`completitive`, `za'o` is `superfective`, `co'i` is `achievative`, `de'a` is
-`pausative`, and `di'a` is `resumptive`.
+`retrospective`, `co'a` is `initiative`, `co'u` is `cessative`, `mo'u` is
+`completive`, `za'o` is `superfective`, `co'i` is `achievative`, `de'a` is
+`pausative`, and `di'a` is `resumptive`.  The `co'u`/`mo'u` schema names
+deliberately use the standard event-contour terms `cessative` and
+`completive`; do not spell them as the English paraphrases "ceasing" or
+"completed".
 
 Contradictory tense negation with `nai` is formula-level negation of the
-positive tensed predication.  For `mi punai klama le zarci`, the utterance
-content is `operator = "not"` whose child is the `klama` atom with
+positive tensed predication for temporal/spatial relations and modal
+attachments.  For `mi punai klama le zarci`, the utterance content is
+`operator = "not"` whose child is the `klama` atom with
 `time.relation = "before"`.  The event-time relation itself does not carry a
 `negation` field, because that would double-count the contradiction.  The same
 shape applies to sumtcita and aspects: `ne'inai le kumfa` wraps the atom whose
 event has `space.relation = "within"` anchored to the room, and `ca'onai`
-wraps the atom whose event has `aspect.contour = "continuative"`.
+wraps the atom whose event has `aspect.contour = "continuative"`.  `nai`
+after a ROI/TAhE interval property is different: it negates only that
+recurrence property and is recorded on the recurrence entry, not as bridi
+negation.
 
 Scalar tense negation with `NAhE` asserts the predication with a modified
 event relation or aspect.  `time`, `timePath[]`, `space`, `spacePath[]`,
@@ -451,18 +465,56 @@ When a compound spatial tense mixes static and moving steps, only the
 static and whose `rightOf`/`short` step has `motion.kind = "toward"`.
 
 `recurrence` is an ordered list of recurrence and interval-property markers
-that modify the eventuality.  The order is semantic: CLL 10.10 contrasts
-`mi pare'u paroi klama le zarci` with `mi paroi pare'u klama le zarci`, so the
-JSON must preserve whether `ordinalOccurrence` wraps `occurrenceCount` or vice
-versa.  Known recurrence kinds include `ordinalOccurrence` for `re'u`,
-`occurrenceCount` for `roi`, `regular` for `di'i`, `typically` for `na'o`,
-`continuously` for `ru'i`, and `habitually` for `ta'e`.
+that modify the eventuality.  Known recurrence kinds include
+`ordinalOccurrence` for `re'u`, `occurrenceCount` for `roi`, `regular` for
+`di'i`, `typically` for `na'o`, `continuously` for `ru'i`, and `habitually`
+for `ta'e`.  `recurrence` is a summary projection for consumers that only need
+the recurrence layer.
+
+`intervalModifiers` is the canonical ordered stack for interleaved ROI/TAhE
+recurrences and ZAhO contours.  It is a heterogeneous list whose entries are
+serialized as tagged wrappers such as:
+
+```json
+{
+  "intervalModifiers": [
+    {
+      "kind": "recurrence",
+      "value": {
+        "kind": "occurrenceCount",
+        "introducedBy": "roi",
+        "quantity": "quantity:q1"
+      }
+    },
+    {
+      "kind": "aspect",
+      "value": {
+        "contour": "cessative"
+      }
+    }
+  ]
+}
+```
+
+The order is semantic and follows surface order, outermost first: CLL 10.10
+contrasts `mi pare'u paroi klama le zarci` with
+`mi paroi pare'u klama le zarci`, so the JSON must preserve whether
+`ordinalOccurrence` wraps `occurrenceCount` or vice versa.  When a temporal
+stack contains only recurrences, `recurrence` and `intervalModifiers` agree
+except for the wrapper shape.  When it mixes recurrences and aspects,
+`intervalModifiers` is authoritative for cross-operator order.
+
+ROI counts reference full `quantity` objects.  The quantity uses
+`scale = "frequency"` and preserves the PA form: `su'o roi` is
+`form = "atLeast"`, `value.text = "su'o"`; `ro roi` is `form = "all"`,
+`value.text = "ro"`.  Do not encode ROI counts as untyped recurrence strings.
 
 `nai` after an interval property negates that recurrence property, not the
 whole predication.  The recurrence entry carries `negation` so the source value
 remains visible: `ru'inai` is a `continuously` recurrence with
 `negation.introducedBy = "nai"`, and `reroinai` is an
-`occurrenceCount` recurrence with value `2` plus the same negation field.
+`occurrenceCount` recurrence with a frequency `quantity` plus the same
+negation field.
 
 Non-logical connections between recurrence properties are recorded on the
 following recurrence entry.  For `reroi pi'u xaroi`, the second
@@ -483,8 +535,9 @@ labels such as `north`.
 
 When `fe'e` prefixes an interval property or ZAhO contour, the property is
 spatial rather than temporal.  Such properties go in `spatialRecurrence`,
-`spatialAspect`, and `spatialAspects`, leaving `recurrence`, `aspect`, and
-`aspects` for non-`fe'e` event/time interpretations.  For example,
+`spatialAspect`, `spatialAspects`, and the canonical
+`spatialIntervalModifiers` stack, leaving `recurrence`, `aspect`, `aspects`,
+and `intervalModifiers` for non-`fe'e` event/time interpretations.  For example,
 `vi'i fe'e di'i` yields
 `spaceInterval.dimensions = ["line"]` plus a `spatialRecurrence` entry with
 `kind = "regular"`, while `fe'e co'a` yields
@@ -571,8 +624,13 @@ sumti.
 Sticky spatial tenses use the same `ki` mechanism as sticky temporal tenses.
 In `ne'i ki le kevna ... .i ...`, later predications inherit
 `space.relation = "within"` anchored to the cave until a bare `ki` reset or a
-new sticky spatial tense changes the spatial setting.  This is distinct from a
-BAI modal argument; FAhA/VA tenses are event-location attributes.
+new sticky spatial tense changes the spatial setting.  Anchor relations and
+path steps produced by the marked tense carry `sticky = true`; copied-forward
+relations carry `inherited = true` as well.  Bare `ki` reset clears the
+sticky context for following predications; because it has no tense or space
+relation of its own, it does not fabricate an anchor/path object.  This is
+distinct from a BAI modal argument; FAhA/VA tenses are event-location
+attributes.
 
 When a modal relation's place structure calls for an event or state but the
 connected side is a grouped formula or discourse sequence, reify an
@@ -1765,7 +1823,7 @@ Connective:
   "connector": {
     "source": "je",
     "locus": "predicate",
-    "truthTable": "TTTF"
+    "truthTable": "TFFF"
   }
 }
 ```
@@ -1827,6 +1885,7 @@ Operators include:
 - `exclusiveOr`
 - `whetherOrNot`
 - `connectiveQuestion`
+- `respectivelyDistribution`
 - `exists`
 - `forall`
 - `none`
@@ -1840,8 +1899,16 @@ connective between arguments can have the same truth table but different
 sharing behavior for eventualities, arguments, or quantifier scope.  This is an
 amendment from the earlier model.
 
-When the connective itself is questioned with `je'i`, the formula operator is
-`connectiveQuestion`.  Its `connector` has `parameter` instead of
+For logical connectives, `connector.truthTable` is the canonical four-bit truth
+table in row order `TT`, `TF`, `FT`, `FF`, using `T` and `F` characters.  It
+records the truth function after applying operand negation (`na`/`nai`) and
+SE conversion.  Thus `je` is `TFFF`, `ja` is `TTTF`, `jo` is `TFFT`, `ju` is
+the left projection `TTFF`, and `se ju` is the right projection `TFTF`.
+When the connective itself is questioned, omit `truthTable` and use
+`connector.parameter`.
+
+When the connective itself is questioned with `je'i`/`gi'i`, the formula
+operator is `connectiveQuestion`.  Its `connector` has `parameter` instead of
 `truthTable`; the referenced parameter has `sort = "connective"` and
 `role = "connectiveQuestion"`.  For example, a tensed connective question such
 as `pu je'i ba` has `connector.locus = "tense"`, two child formulas for the
@@ -1868,6 +1935,27 @@ The sharing rules are semantic, not only syntactic:
   `zo'e` referents in every branch.
 - Sentence connectives such as `.ije` join complete formulas; they do not
   inherit the elided-place sharing behavior of sumti connection.
+- Whether-or-not connectives (`.u`/`ju`) keep children in surface order.  The
+  truth table records which operand is asserted; the non-asserted operand's
+  predications use `mode = "inert"`.  `se ju` therefore makes the first
+  surface branch inert and the second asserted.
+
+Non-logical statement connectives such as `.i joi` and `.i ce'o` do not create
+formula connectives.  They stay on the `sequence` as:
+
+```json
+{
+  "type": "sequence",
+  "items": ["utterance:u1", "utterance:u2"],
+  "nonlogicalConnection": {
+    "operator": "mass",
+    "connector": {
+      "source": "joi",
+      "locus": "statement"
+    }
+  }
+}
+```
 
 ### tanru lowering
 
@@ -1923,7 +2011,12 @@ For `ta cinfo kerfa`:
 ```json
 {
   "type": "predication",
-  "relation": "R[tanru:cinfo-kerfa]",
+  "relation": "tanru",
+  "tanruLink": {
+    "head": "predication:p-kerfa",
+    "modifier": "abstraction:a-cinfo-property",
+    "relationLabel": "cinfo-kerfa"
+  },
   "arguments": {
     "x1": { "kind": "filled", "value": "referent:that" },
     "x2": { "kind": "filled", "value": "abstraction:a-cinfo-property" }
@@ -1983,7 +2076,12 @@ and the tanru link points to a composite concept:
 ```json
 {
   "type": "predication",
-  "relation": "R[tanru:blanu joi xunre-bolci]",
+  "relation": "tanru",
+  "tanruLink": {
+    "head": "predication:p-bolci",
+    "modifier": "referent:blue-red-mass-concept",
+    "relationLabel": "blanu joi xunre-bolci"
+  },
   "arguments": {
     "x1": { "kind": "filled", "value": "referent:that" },
     "x2": { "kind": "filled", "value": "referent:blue-red-mass-concept" }
@@ -2012,8 +2110,8 @@ place structures rather than collapsing to generic placeholders:
 
 Tanru inside descriptions use the same uniform lowering as asserted selbri.
 Thus `loi nu'a su'i nabmi` has a description body equivalent to
-`nabmi(x) AND R[tanru:nu'a su'i-nabmi](x, ka nu'a su'i ce'u)`, with the `loi`
-referent sorted as `mass`.
+`nabmi(x) AND tanruLink(x, ka nu'a su'i ce'u)`, with the `loi` referent
+sorted as `mass`.
 
 ### assigned pro-bridi
 
@@ -3137,9 +3235,9 @@ These are the semantic object-model changes relative to
 
 9. Replaced the earlier tanru split with a uniform tanru schema.
    The tertau predication is asserted, the seltau is reified as a `ka`
-   property, and an unresolved `R[tanru:...]` links the tertau x1 to that
-   property.  This avoids asserting either `S(x)` or a fabricated concrete
-   seltau referent.
+   property, and an unresolved tanru link predication links the tertau x1 to
+   that property.  This avoids asserting either `S(x)` or a fabricated
+   concrete seltau referent.
 
 10. Added tanru inversion lowering for `co`.
    `B co A` is serialized with the same tertau-plus-property schema as `A B`.
@@ -4348,13 +4446,14 @@ Implementation Divergences”).
    This makes `di'i co'a`, `ro roi … su'o roi`, and `ca'o` between two `roi`
    reorder-sensitive instead of byte-identical. (Within-collection order is already
    builder-preserved but undocumented — document it.)
+   Implemented in `tersmu` v1.
 
 3. **ROI count carries a QuantityForm (#5) — implement.** Route ROI counts through
    the existing first-class `quantity` object (`form` ∈ exact/atLeast/atMost/…,
    `scale:"frequency"`), referenced by id, instead of a bare `QuantityValue`.
    Retire the bespoke `recurrence.value` string path (which currently smuggles a
    form-name like `"all"` into the value slot — the rejected anti-pattern).
-   *Current impl:* `du'e roi`/`su'o roi`/`ro roi` degrade to untyped strings.
+   Implemented in `tersmu` v1.
 
 4. **`ki` sticky tense/space (#6) — extend.** Add an additive `sticky: bool` to the
    shared anchor-relation / temporal-path-step object (covers temporal and spatial),
@@ -4370,14 +4469,14 @@ Implementation Divergences”).
    existing predication `mode=inert` value (left-inert vs right-inert); keep children
    in surface order and the surface marker in `connector.source`. Do **not** add an
    `assertedChild` field — `inert` is the model’s existing carrier.
+   Implemented in `tersmu` v1.
 
 6. **SE operand-swap on logical connectives (#12) — implement.** `se CONN` →
    `C(q,p)` uniformly across loci: exchange the children for symmetric operators
    (`and`/`or`/`iff`); for `U`, move the `inert` side (ties to #5). Stop writing the
    bare connective word into `truthTable`; either emit a genuine composed 4-bit truth
    table at **all** loci or drop the field as redundant with `operator` +
-   `connector.source`. *Current impl:* SE survives only as free text in
-   `connector.source`.
+   `connector.source`. `tersmu` v1 emits the composed four-bit table.
 
 7. **Canonical form for negated logical connectives (#14, #15) — implement; one
    change.** The design 0.L gloss “`na .a` = `imp`” describes the **truth function**,
@@ -4388,6 +4487,7 @@ Implementation Divergences”).
    wrapped in a `not` formula; the surface (`na ja`, `ja nai`, `ge … ginai`, …)
    is recorded in `connector.source`. This makes `na ja` and `ja nai` structurally
    parallel and removes the cross-locus inconsistency.
+   Implemented in `tersmu` v1.
 
 8. **Connective run grouping is binary and surface-mirroring (#18) — extend /
    document.** Associative runs of the **same** operator may be rendered as nested
@@ -4395,22 +4495,22 @@ Implementation Divergences”).
    operators (a `gi'e … gi'a` run is `(A∧B)∨C`, not a 3-child `and`). Pin binary,
    surface-mirroring nesting in the spec and align the afterthought builder with the
    already-correct forethought shape. (Pairs with the connective-correctness bugs.)
+   Implemented in `tersmu` v1.
 
 9. **Non-logical statement connectives (#7) — extend.** `.i joi` / `.i ce'o` etc.
    attach a **truth-valueless** `nonlogicalConnection` descriptor to the `sequence`:
    `{ operator, connector:{ source, locus:"statement" } }`, reusing the existing
    non-logical composition vocabulary (`joi`→mass, `ce`→set, `ce'o`→sequence,
    `fa'u`→respectively). It stays **out of `content`/FRM** (0.L: non-logical
-   connectives never enter FRM) and out of `connectionClaims`. *Current impl:* lowers
-   to a bare `sequence` with only `relation:same-topic-continuation`, losing the
-   connective.
+   connectives never enter FRM) and out of `connectionClaims`. Implemented in
+   `tersmu` v1.
 
 10. **Assertoric subordination of connected operands (#11) — extend.** On items of a
     `content`-bearing `sequence`, emit `force:"subordinated"` so a consumer never
     double-asserts the operands of `.ija`/`.ijo`/implications; the single assertion
     lives in `content`. Operand predication `mode` need not change (the `content`
     edge already encodes subordination). Add a §sequence sentence making the
-    “single combined claim” guarantee explicit.
+    “single combined claim” guarantee explicit. Implemented in `tersmu` v1.
 
 11. **Modal over a connected formula / group (#16) — NOT adopted; closed.** JSON
     amendment #71 already specifies that one modal over a connected bridi-tail or
@@ -4486,18 +4586,7 @@ each is tracked. (Pure builder-correctness crashes/bugs — e.g. the connective
 - Tanru lower to an **opaque relation string** instead of the prescribed
   `T ∧ S ∧ R` desugaring with a vague `R` (#8, amendment 12).
 - `lo'e`/`le'e` bodies are **veridical** (identical to `lo`) (#9, amendment 13).
-- ROI counts serialize as **untyped strings**, not `quantity` objects (#5,
-  amendment 3).
 - `ki` sticky state is **not serialized** (#6, amendment 4).
-- Stacked/interleaved aspect operators lose **cross-operator order/scope** (#3,
-  amendment 2).
-- whether-or-not does not mark the **inert** operand; SE-swap on connectives lives
-  only in `connector.source` (#10/#12, amendments 5–6).
-- Negated logical connectives are **inconsistently** canonicalized (`na ja`→`implies`
-  vs `or(not·,·)`); spec now pins `or`+`not` everywhere (#14/#15, amendment 7).
-- Same-level connective runs may **flatten across distinct operators** (#18,
-  amendment 8).
-- `.i joi`/`.i ce'o` lose the **non-logical connective** (#7, amendment 9).
 - `ni` drops its **scale place** (#2, amendment 1); `fa'u` correspondence is
   unrepresentable (#4, amendment 14).
 
