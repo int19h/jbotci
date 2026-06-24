@@ -293,3 +293,32 @@ mod generated_model_filter {
         assert_eq!(kept.token, Token);
     }
 }
+
+mod generated_model_with_env {
+    use crate::{Cmavo, Selmaho};
+
+    #[allow(dead_code)]
+    struct SyntaxGrammarEnv;
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+    pub struct Token;
+
+    jbotci_syntax_macros::syntax_grammar! {
+        tree_model {}
+        model { EnvNodeSyntax };
+        env SyntaxGrammarEnv;
+
+        node env_node -> EnvNodeSyntax {
+            fields {
+                field token = cmavo(Be);
+            }
+        }
+    }
+
+    #[test]
+    fn grammar_macro_emits_model_items_when_env_is_present() {
+        let node = EnvNodeSyntax { token: Token };
+        assert_eq!(node.token, Token);
+        assert_eq!(SYNTAX_GRAMMAR_ENV, "SyntaxGrammarEnv");
+    }
+}

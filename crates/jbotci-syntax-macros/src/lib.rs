@@ -30,6 +30,7 @@ mod kw {
     syn::custom_keyword!(field);
     syn::custom_keyword!(fields);
     syn::custom_keyword!(model);
+    syn::custom_keyword!(model_path);
     syn::custom_keyword!(node);
     syn::custom_keyword!(policy);
     syn::custom_keyword!(product);
@@ -39,6 +40,7 @@ mod kw {
     syn::custom_keyword!(require);
     syn::custom_keyword!(parsers);
     syn::custom_keyword!(scratch);
+    syn::custom_keyword!(strict_parsers);
     syn::custom_keyword!(tree_model);
     syn::custom_keyword!(tuple_variant);
     syn::custom_keyword!(variant);
@@ -49,9 +51,11 @@ struct SyntaxGrammar {
     tree_model: Option<syn::File>,
     generate_model: bool,
     model_outputs: Option<BTreeSet<String>>,
+    model_path: Option<Path>,
     env: Option<Type>,
     recovered_module: Option<Path>,
     generate_parsers: bool,
+    generate_partial_valid_parsers: bool,
     recursive: Vec<RecursiveRule>,
     rules: Vec<Rule>,
 }
@@ -92,6 +96,9 @@ impl SyntaxGrammar {
                     rule.expand_strict_parser(
                         &helper_outputs,
                         &type_env,
+                        self.generate_model,
+                        &self.model_outputs,
+                        self.model_path.as_ref(),
                         self.generates_model_output(rule.output()),
                     )
                 })
@@ -99,7 +106,7 @@ impl SyntaxGrammar {
         } else {
             Vec::new()
         };
-        let partial_valid_parser_functions = if self.generate_parsers {
+        let partial_valid_parser_functions = if self.generate_partial_valid_parsers {
             self.rules
                 .iter()
                 .filter_map(|rule| {
@@ -114,13 +121,15 @@ impl SyntaxGrammar {
         } else {
             None
         };
-        let recursive_partial_valid = if self.generate_parsers {
+        let recursive_partial_valid = if self.generate_partial_valid_parsers {
             self.expand_partial_valid_recursive_roots(&recovered_module)
         } else {
             Vec::new()
         };
 
         quote! {
+            #tree_model
+
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             pub(crate) struct SyntaxGrammarRecursiveRule {
                 pub name: &'static str,
@@ -242,6 +251,15 @@ impl Parse for SyntaxGrammar {
             (false, None)
         };
 
+        let model_path = if input.peek(kw::model_path) {
+            input.parse::<kw::model_path>()?;
+            let path = input.parse()?;
+            input.parse::<Token![;]>()?;
+            Some(path)
+        } else {
+            None
+        };
+
         let env = if input.peek(kw::env) {
             input.parse::<kw::env>()?;
             let env = input.parse()?;
@@ -260,13 +278,18 @@ impl Parse for SyntaxGrammar {
             None
         };
 
-        let generate_parsers = if env.is_some() && input.peek(kw::parsers) {
-            input.parse::<kw::parsers>()?;
-            input.parse::<Token![;]>()?;
-            true
-        } else {
-            false
-        };
+        let (generate_parsers, generate_partial_valid_parsers) =
+            if env.is_some() && input.peek(kw::parsers) {
+                input.parse::<kw::parsers>()?;
+                input.parse::<Token![;]>()?;
+                (true, true)
+            } else if env.is_some() && input.peek(kw::strict_parsers) {
+                input.parse::<kw::strict_parsers>()?;
+                input.parse::<Token![;]>()?;
+                (true, false)
+            } else {
+                (false, false)
+            };
 
         let mut recursive = Vec::new();
         let mut rules = Vec::new();
@@ -288,9 +311,11 @@ impl Parse for SyntaxGrammar {
             tree_model,
             generate_model,
             model_outputs,
+            model_path,
             env,
             recovered_module,
             generate_parsers,
+            generate_partial_valid_parsers,
             recursive,
             rules,
         })
@@ -357,6 +382,15 @@ impl SyntaxGrammar {
                 .model_outputs
                 .as_ref()
                 .is_none_or(|outputs| outputs.contains(output))
+    }
+
+    fn parser_type_tokens(&self, output: &Type) -> TokenStream2 {
+        parser_type_tokens(
+            output,
+            self.generate_model,
+            &self.model_outputs,
+            self.model_path.as_ref(),
+        )
     }
 
     fn expand_generated_tree_model(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
@@ -637,7 +671,7 @@ impl SyntaxGrammar {
         let family_ident = format_ident!("StrictGeneratedParserFamily");
         let fields = self.recursive.iter().map(|rule| {
             let name = &rule.name;
-            let output = &rule.output;
+            let output = self.parser_type_tokens(&rule.output);
             quote!(#name: BoxedParser<'tokens, #output>)
         });
         let declarations = self.recursive.iter().map(|rule| {
@@ -681,7 +715,7 @@ impl SyntaxGrammar {
         let root_functions = self.recursive.iter().map(|rule| {
             let root_name = &rule.name;
             let function = format_ident!("strict_generated_{}_parser", root_name);
-            let output = &rule.output;
+            let output = self.parser_type_tokens(&rule.output);
             quote! {
                 #[allow(dead_code, unused_variables)]
                 pub(crate) fn #function<'tokens>() -> BoxedParser<'tokens, #output> {
@@ -815,17 +849,31 @@ impl Rule {
         &self,
         helper_outputs: &BTreeSet<String>,
         type_env: &GrammarTypeEnv,
+        generate_model: bool,
+        model_outputs: &Option<BTreeSet<String>>,
+        model_path: Option<&Path>,
         use_model_construction: bool,
     ) -> Option<TokenStream2> {
         match self {
-            Rule::Alias(rule) => rule.expand_strict_parser(type_env),
-            Rule::Node(rule) => {
-                rule.expand_strict_parser(helper_outputs, type_env, use_model_construction)
+            Rule::Alias(rule) => {
+                rule.expand_strict_parser(type_env, generate_model, model_outputs, model_path)
             }
-            Rule::Product(rule) => {
-                rule.0
-                    .expand_strict_parser(helper_outputs, type_env, use_model_construction)
-            }
+            Rule::Node(rule) => rule.expand_strict_parser(
+                helper_outputs,
+                type_env,
+                generate_model,
+                model_outputs,
+                model_path,
+                use_model_construction,
+            ),
+            Rule::Product(rule) => rule.0.expand_strict_parser(
+                helper_outputs,
+                type_env,
+                generate_model,
+                model_outputs,
+                model_path,
+                use_model_construction,
+            ),
         }
     }
 
@@ -910,7 +958,13 @@ impl AliasRule {
         }
     }
 
-    fn expand_strict_parser(&self, type_env: &GrammarTypeEnv) -> Option<TokenStream2> {
+    fn expand_strict_parser(
+        &self,
+        type_env: &GrammarTypeEnv,
+        generate_model: bool,
+        model_outputs: &Option<BTreeSet<String>>,
+        model_path: Option<&Path>,
+    ) -> Option<TokenStream2> {
         let argument_types = self.argument_types(type_env)?;
         let argument_names = self.argument_name_set();
         let free_modifier_parser = format_ident!("__generated_free_modifier");
@@ -934,11 +988,12 @@ impl AliasRule {
                 Some(quote!(#require.ignore_then(#parser)))
             })?;
         let name = format_ident!("strict_{}_parser", self.name);
-        let output = &self.output;
+        let output = parser_type_tokens(&self.output, generate_model, model_outputs, model_path);
         let argument_params = self.arguments.iter().map(|argument| {
             let ty = argument_types
                 .get(&argument.to_string())
                 .expect("argument types are populated from recursive declarations");
+            let ty = parser_type_tokens(ty, generate_model, model_outputs, model_path);
             quote!(#argument: BoxedParser<'tokens, #ty>)
         });
         let hidden_free_modifier = strict_free_modifier_param_tokens();
@@ -1123,6 +1178,9 @@ impl NodeRule {
         &self,
         helper_outputs: &BTreeSet<String>,
         type_env: &GrammarTypeEnv,
+        generate_model: bool,
+        model_outputs: &Option<BTreeSet<String>>,
+        model_path: Option<&Path>,
         use_model_construction: bool,
     ) -> Option<TokenStream2> {
         let argument_types = self.argument_types(type_env)?;
@@ -1151,10 +1209,12 @@ impl NodeRule {
         )?;
         let name = format_ident!("strict_{}_parser", self.name);
         let output = &self.output;
+        let output_tokens = parser_type_tokens(output, generate_model, model_outputs, model_path);
         let argument_params = self.arguments.iter().map(|argument| {
             let ty = argument_types
                 .get(&argument.to_string())
                 .expect("argument types are populated from recursive declarations");
+            let ty = parser_type_tokens(ty, generate_model, model_outputs, model_path);
             quote!(#argument: BoxedParser<'tokens, #ty>)
         });
         let hidden_free_modifier = strict_free_modifier_param_tokens();
@@ -1174,7 +1234,7 @@ impl NodeRule {
             let field_names = fields
                 .iter()
                 .map(|field| field.name.as_ref().expect("field items have names"));
-            quote!(#output { #(#field_names,)* })
+            quote!(#output_tokens { #(#field_names,)* })
         } else if is_unit_type(output) {
             let let_bindings = self.fields.iter().filter_map(|field| {
                 matches!(field.kind, FieldKind::Let).then(|| {
@@ -1207,22 +1267,34 @@ impl NodeRule {
                 }
             });
             match &self.construction {
+                ConstructionMode::Validated if use_model_construction => {
+                    quote!({
+                        #(#let_bindings)*
+                        #output_tokens { #(#assignments)* }
+                    })
+                }
                 ConstructionMode::Validated => {
                     quote!({
                         #(#let_bindings)*
-                        bityzba::new!(#output { #(#assignments)* })
+                        bityzba::new!(#output_tokens { #(#assignments)* })
                     })
                 }
                 ConstructionMode::Direct => {
                     quote!({
                         #(#let_bindings)*
-                        #output { #(#assignments)* }
+                        #output_tokens { #(#assignments)* }
+                    })
+                }
+                ConstructionMode::NamedVariant(variant) if use_model_construction => {
+                    quote!({
+                        #(#let_bindings)*
+                        #output_tokens::#variant { #(#assignments)* }
                     })
                 }
                 ConstructionMode::NamedVariant(variant) => {
                     quote!({
                         #(#let_bindings)*
-                        bityzba::new!(#output::#variant { #(#assignments)* })
+                        bityzba::new!(#output_tokens::#variant { #(#assignments)* })
                     })
                 }
                 ConstructionMode::TupleVariant(variant) => {
@@ -1237,10 +1309,17 @@ impl NodeRule {
                             FieldKind::Scratch | FieldKind::Require => None,
                         }
                     });
-                    quote!({
-                        #(#let_bindings)*
-                        bityzba::new!(#output::#variant(#(#values,)*))
-                    })
+                    if use_model_construction {
+                        quote!({
+                            #(#let_bindings)*
+                            #output_tokens::#variant(#(#values,)*)
+                        })
+                    } else {
+                        quote!({
+                            #(#let_bindings)*
+                            bityzba::new!(#output_tokens::#variant(#(#values,)*))
+                        })
+                    }
                 }
             }
         } else {
@@ -1260,7 +1339,7 @@ impl NodeRule {
             pub(crate) fn #name<'tokens>(
                 #(#argument_params,)*
                 #hidden_free_modifier
-            ) -> BoxedParser<'tokens, #output> {
+            ) -> BoxedParser<'tokens, #output_tokens> {
                 generated_runtime::memoized_rule(
                     #rule_name,
                     #parser_body
@@ -2219,6 +2298,27 @@ fn simple_type_ident(output: &Type) -> Option<&Ident> {
         return None;
     }
     Some(&path.path.segments.first()?.ident)
+}
+
+fn parser_type_tokens(
+    output: &Type,
+    generate_model: bool,
+    model_outputs: &Option<BTreeSet<String>>,
+    model_path: Option<&Path>,
+) -> TokenStream2 {
+    if generate_model
+        && let Some(output_ident) = simple_type_ident(output)
+        && model_outputs
+            .as_ref()
+            .is_none_or(|outputs| outputs.contains(&output_ident.to_string()))
+    {
+        model_path.map_or_else(
+            || quote!(self::#output_ident),
+            |model_path| quote!(#model_path::#output_ident),
+        )
+    } else {
+        quote!(#output)
+    }
 }
 
 fn is_path_type(output: &Type) -> bool {
