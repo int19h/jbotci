@@ -15,6 +15,7 @@ use crate::{
 #[invariant(true)]
 #[derive(Debug, Clone)]
 pub(super) struct SyntaxParseError<'tokens> {
+    span: Span,
     inner: Rich<'tokens, Token, Span>,
     expected_groups: Vec<ExpectedTokenGroup>,
     context_paths: Vec<Vec<SyntaxConstructContext>>,
@@ -68,6 +69,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[ensures(ret.expected_groups.is_empty())]
     pub(super) fn custom(span: Span, message: String) -> Self {
         Self {
+            span,
             inner: Rich::custom(span, message),
             expected_groups: Vec::new(),
             context_paths: empty_context_paths(),
@@ -84,6 +86,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         custom_kind: SyntaxParseCustomKind,
     ) -> Self {
         Self {
+            span,
             inner: Rich::custom(span, message),
             expected_groups: Vec::new(),
             context_paths: empty_context_paths(),
@@ -96,6 +99,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[ensures(ret.expected_groups.len() == 1)]
     pub(super) fn expected(span: Span, tokens: Vec<SyntaxExpectedToken>) -> Self {
         Self {
+            span,
             inner: Rich::custom(span, "unexpected input".to_owned()),
             expected_groups: vec![ExpectedTokenGroup::new(tokens)],
             context_paths: empty_context_paths(),
@@ -112,6 +116,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         found: SyntaxFound,
     ) -> Self {
         Self {
+            span,
             inner: Rich::custom(span, "unexpected input".to_owned()),
             expected_groups: vec![ExpectedTokenGroup::new(tokens)],
             context_paths: empty_context_paths(),
@@ -123,7 +128,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn span(&self) -> &Span {
-        self.inner.span()
+        &self.span
     }
 
     #[requires(true)]
@@ -228,12 +233,18 @@ where
     #[ensures(true)]
     fn merge(self, other: Self) -> Self {
         let mut merged = self;
+        let other_inner = other.inner;
+        let other_expected_groups = other.expected_groups;
+        let other_context_paths = other.context_paths;
+        let other_found = other.found;
+        let other_custom_kind = other.custom_kind;
         merged.inner =
-            <Rich<'tokens, Token, Span> as Error<'tokens, I>>::merge(merged.inner, other.inner);
-        append_unique_groups(&mut merged.expected_groups, other.expected_groups);
-        append_unique_context_paths(&mut merged.context_paths, other.context_paths);
-        merged.found = merge_optional_equal(merged.found, other.found);
-        merged.custom_kind = merge_optional_equal(merged.custom_kind, other.custom_kind);
+            <Rich<'tokens, Token, Span> as Error<'tokens, I>>::merge(merged.inner, other_inner);
+        merged.span = *merged.inner.span();
+        append_unique_groups(&mut merged.expected_groups, other_expected_groups);
+        append_unique_context_paths(&mut merged.context_paths, other_context_paths);
+        merged.found = merge_optional_equal(merged.found, other_found);
+        merged.custom_kind = merge_optional_equal(merged.custom_kind, other_custom_kind);
         merged
     }
 }
@@ -260,6 +271,7 @@ where
         );
         let expected_groups = expected_token_groups_from_labels(expected);
         Self {
+            span,
             inner,
             expected_groups,
             context_paths: empty_context_paths(),
@@ -285,10 +297,15 @@ where
             expected_token_groups_from_labels(expected.clone()),
         );
         let syntax_found = syntax_found_from_maybe(found.clone());
+        let inner = std::mem::replace(
+            &mut self.inner,
+            Rich::custom(span, "unexpected input".to_owned()),
+        );
         self.inner =
             <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::merge_expected_found(
-                self.inner, expected, found, span,
+                inner, expected, found, span,
             );
+        self.span = *self.inner.span();
         self.found = merge_optional_equal(self.found, Some(syntax_found));
         self.custom_kind = None;
         self
@@ -305,10 +322,15 @@ where
         let expected = expected.into_iter().collect::<Vec<_>>();
         self.expected_groups = expected_token_groups_from_labels(expected.clone());
         let syntax_found = syntax_found_from_maybe(found.clone());
+        let inner = std::mem::replace(
+            &mut self.inner,
+            Rich::custom(span, "unexpected input".to_owned()),
+        );
         self.inner =
             <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::replace_expected_found(
-                self.inner, expected, found, span,
+                inner, expected, found, span,
             );
+        self.span = *self.inner.span();
         self.context_paths = empty_context_paths();
         self.found = Some(syntax_found);
         self.custom_kind = None;

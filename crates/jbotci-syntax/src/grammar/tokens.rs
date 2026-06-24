@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use crate::{ExperimentalConstruct, Indicator, Token, WithIndicators};
-use bityzba::{data, new, requires};
+use bityzba::{data, invariant, new, requires};
 use chumsky::error::RichReason;
 use chumsky::input::MapExtra;
 use chumsky::prelude::*;
@@ -18,7 +18,8 @@ use super::{
 };
 use crate::{
     SyntaxConstructContext, SyntaxError, SyntaxErrorKind, SyntaxExpectation, SyntaxExpectedToken,
-    SyntaxExpectedTokenData, SyntaxWordCategory, syntax_construct_is_descendant_of,
+    SyntaxExpectedTokenData, SyntaxWordCategory, syntax_construct_depth,
+    syntax_construct_is_descendant_of, syntax_construct_is_known,
     syntax_expectation_summary_message,
 };
 
@@ -29,7 +30,7 @@ pub(super) fn cmavo<'tokens>(cmavo: Cmavo) -> BoxedParser<'tokens, Token> {
         "cmavo",
         cmavo.canonical_text(),
         vec![new!(SyntaxExpectedToken::Cmavo(cmavo))],
-        move |word| parser_word_is_cmavo(word, cmavo),
+        move |word, state| parser_word_is_cmavo(state, word, cmavo),
     )
 }
 
@@ -40,7 +41,7 @@ pub(super) fn selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens, Token> 
         selmaho.name(),
         selmaho.name(),
         vec![new!(SyntaxExpectedToken::Selmaho(selmaho))],
-        move |word| parser_word_is_selmaho(word, selmaho),
+        move |word, state| parser_word_is_selmaho(state, word, selmaho),
     )
 }
 
@@ -59,7 +60,7 @@ pub(super) fn cmavo_one_of<'tokens>(
             .copied()
             .map(|cmavo| new!(SyntaxExpectedToken::Cmavo(cmavo)))
             .collect(),
-        move |word| parser_word_is_one_of_cmavo(word, cmavo),
+        move |word, state| parser_word_is_one_of_cmavo(state, word, cmavo),
     )
 }
 
@@ -119,7 +120,7 @@ pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, Token> {
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::ProSumti,
         ))],
-        is_koha_argument,
+        |word, state| parser_word_is_selmaho(state, word, Selmaho::Koha),
     )
 }
 
@@ -132,7 +133,7 @@ pub(super) fn relation_word<'tokens>() -> BoxedParser<'tokens, Token> {
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::SelbriWord,
         ))],
-        is_relation_word,
+        |word, _state| is_relation_word(word),
     )
 }
 
@@ -145,7 +146,7 @@ pub(super) fn brivla_relation_word<'tokens>(cbm_enabled: bool) -> BoxedParser<'t
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::Brivla
         ))],
-        is_brivla_relation_word,
+        |word, state| is_relation_word(word) && !parser_word_is_selmaho(state, word, Selmaho::Goha),
     );
     if cbm_enabled {
         brivla
@@ -179,7 +180,7 @@ pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, Token> {
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::Cmevla
         ))],
-        is_cmevla_word,
+        |word, _state| is_cmevla_word(word),
     )
 }
 
@@ -192,7 +193,7 @@ pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, Token> {
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::LetterWord,
         ))],
-        is_letter_word,
+        |word, _state| is_letter_word(word),
     )
 }
 
@@ -203,7 +204,7 @@ pub(super) fn token_matching<'tokens>(
     label: &'static str,
     debug_label: &'static str,
     expected: Vec<SyntaxExpectedToken>,
-    bridi: impl Fn(&Token) -> bool + Clone + 'tokens,
+    bridi: impl Fn(&Token, &mut ParserState) -> bool + Clone + 'tokens,
 ) -> BoxedParser<'tokens, Token> {
     assert!(
         !expected.is_empty(),
@@ -213,7 +214,12 @@ pub(super) fn token_matching<'tokens>(
         let checkpoint = input.save();
         let cursor = input.cursor();
         match input.next() {
-            Some(word) if bridi(&word) => {
+            Some(word)
+                if {
+                    let state = input.state();
+                    bridi(&word, state)
+                } =>
+            {
                 let span = word.core_word().byte_range().unwrap_or(0..0);
                 let state: &mut ParserState = input.state();
                 warn_experimental_cmavo(state, label, &word);
@@ -288,7 +294,7 @@ fn expected_token_detail(expected: &[SyntaxExpectedToken]) -> String {
 #[requires(!label.is_empty())]
 #[ensures(true)]
 fn warn_experimental_cmavo(state: &mut ParserState, label: &str, word: &Token) {
-    if let Some(cmavo) = parser_word_cmavo(word)
+    if let Some(cmavo) = parser_word_cmavo(state, word)
         && let Some(construct) = experimental_construct_for_cmavo(label, cmavo)
     {
         state.warn(construct, word);
@@ -381,7 +387,9 @@ fn warn_experimental_indicators_inner(
 #[ensures(ret.is_none_or(|label| !label.is_empty()))]
 fn indicator_cmavo_context(indicator: &Word) -> Option<&'static str> {
     let cmavo = indicator.cmavo()?;
-    if cmavo.is_selmaho(Selmaho::Ui) {
+    if cmavo.is_selmaho(Selmaho::Noi) {
+        Some("NOI")
+    } else if cmavo.is_selmaho(Selmaho::Ui) {
         Some("UI")
     } else if cmavo.is_selmaho(Selmaho::Cai) {
         Some("CAI")
@@ -393,27 +401,27 @@ fn indicator_cmavo_context(indicator: &Word) -> Option<&'static str> {
 }
 
 #[requires(true)]
-#[ensures(ret == word.core_word().cmavo())]
-fn parser_word_cmavo(word: &Token) -> Option<Cmavo> {
-    word.core_word().cmavo()
+#[ensures(true)]
+fn parser_word_cmavo(state: &mut ParserState, word: &Token) -> Option<Cmavo> {
+    state.token_cmavo(word)
 }
 
 #[requires(true)]
-#[ensures(ret == (parser_word_cmavo(word) == Some(cmavo)))]
-fn parser_word_is_cmavo(word: &Token, cmavo: Cmavo) -> bool {
-    parser_word_cmavo(word) == Some(cmavo)
+#[ensures(true)]
+fn parser_word_is_cmavo(state: &mut ParserState, word: &Token, cmavo: Cmavo) -> bool {
+    parser_word_cmavo(state, word) == Some(cmavo)
 }
 
 #[requires(!cmavo.is_empty())]
-#[ensures(ret == parser_word_cmavo(word).is_some_and(|actual| cmavo.contains(&actual)))]
-fn parser_word_is_one_of_cmavo(word: &Token, cmavo: &[Cmavo]) -> bool {
-    parser_word_cmavo(word).is_some_and(|actual| cmavo.contains(&actual))
+#[ensures(true)]
+fn parser_word_is_one_of_cmavo(state: &mut ParserState, word: &Token, cmavo: &[Cmavo]) -> bool {
+    parser_word_cmavo(state, word).is_some_and(|actual| cmavo.contains(&actual))
 }
 
 #[requires(true)]
-#[ensures(ret == parser_word_cmavo(word).is_some_and(|cmavo| selmaho.contains(cmavo)))]
-fn parser_word_is_selmaho(word: &Token, selmaho: Selmaho) -> bool {
-    parser_word_cmavo(word).is_some_and(|cmavo| selmaho.contains(cmavo))
+#[ensures(true)]
+fn parser_word_is_selmaho(state: &mut ParserState, word: &Token, selmaho: Selmaho) -> bool {
+    parser_word_cmavo(state, word).is_some_and(|cmavo| selmaho.contains(cmavo))
 }
 
 #[requires(!label.is_empty())]
@@ -877,7 +885,7 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn is_koha_argument(word: &Token) -> bool {
-    parser_word_is_selmaho(word, Selmaho::Koha)
+    word.is_selmaho(Selmaho::Koha)
 }
 
 #[requires(true)]
@@ -906,9 +914,9 @@ fn is_relation_indicators(word: &WithIndicators<WordLike>) -> bool {
 }
 
 #[requires(true)]
-#[ensures(ret == (is_relation_word(word) && !parser_word_is_selmaho(word, Selmaho::Goha)))]
+#[ensures(ret == (is_relation_word(word) && !word.is_selmaho(Selmaho::Goha)))]
 pub(crate) fn is_brivla_relation_word(word: &Token) -> bool {
-    is_relation_word(word) && !parser_word_is_selmaho(word, Selmaho::Goha)
+    is_relation_word(word) && !word.is_selmaho(Selmaho::Goha)
 }
 
 #[requires(true)]
@@ -1186,6 +1194,9 @@ fn syntax_incomplete_kind(
     context: Option<&SyntaxConstructContext>,
     expectations: &[SyntaxExpectation],
 ) -> SyntaxErrorKind {
+    if let Some(kind) = syntax_incomplete_kind_from_committed_expectations(expectations) {
+        return kind;
+    }
     if let Some(context) = context
         && let Some(kind) = syntax_incomplete_kind_for_construct(&context.construct)
     {
@@ -1196,22 +1207,34 @@ fn syntax_incomplete_kind(
 
 #[requires(true)]
 #[ensures(true)]
+fn syntax_incomplete_kind_from_committed_expectations(
+    expectations: &[SyntaxExpectation],
+) -> Option<SyntaxErrorKind> {
+    let mut selected = None;
+    for expectation in expectations {
+        let data!(crate::SyntaxExpectationReason::ContinueCurrent { construct }) =
+            expectation.reason.as_data()
+        else {
+            continue;
+        };
+        let candidate = syntax_incomplete_kind_candidate_for_construct(construct)?;
+        selected = select_committed_incomplete_kind_candidate(selected, candidate);
+    }
+    selected.map(|candidate| candidate.kind)
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn syntax_incomplete_kind_from_expectations(
     expectations: &[SyntaxExpectation],
 ) -> Option<SyntaxErrorKind> {
-    let mut shared_kind = None;
+    let mut selected = None;
     for expectation in expectations {
-        let reason_kind = syntax_incomplete_kind_for_expectation_reason(&expectation.reason)?;
-        if is_high_priority_incomplete_kind(reason_kind) {
-            return Some(reason_kind);
-        }
-        match shared_kind {
-            None => shared_kind = Some(reason_kind),
-            Some(kind) if kind == reason_kind => {}
-            Some(_) => return None,
-        }
+        let candidate =
+            syntax_incomplete_kind_candidate_for_expectation_reason(&expectation.reason)?;
+        selected = select_incomplete_kind_candidate(selected, candidate);
     }
-    shared_kind
+    selected.map(|candidate| candidate.kind)
 }
 
 #[requires(true)]
@@ -1219,16 +1242,24 @@ fn syntax_incomplete_kind_from_expectations(
 fn syntax_incomplete_kind_for_expectation_reason(
     reason: &crate::SyntaxExpectationReason,
 ) -> Option<SyntaxErrorKind> {
+    syntax_incomplete_kind_candidate_for_expectation_reason(reason).map(|candidate| candidate.kind)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_incomplete_kind_candidate_for_expectation_reason(
+    reason: &crate::SyntaxExpectationReason,
+) -> Option<IncompleteKindCandidate> {
     match reason.as_data() {
         data!(crate::SyntaxExpectationReason::ContinueCurrent { construct })
         | data!(crate::SyntaxExpectationReason::StartNested { construct }) => {
-            syntax_incomplete_kind_for_construct(construct)
+            syntax_incomplete_kind_candidate_for_construct(construct)
         }
         data!(crate::SyntaxExpectationReason::EndThenStart { starts, ends }) => {
             if starts == "end of input" {
-                syntax_incomplete_kind_for_constructs(ends.iter().map(String::as_str))
+                syntax_incomplete_kind_candidate_for_constructs(ends.iter().map(String::as_str))
             } else {
-                syntax_incomplete_kind_for_construct(starts)
+                syntax_incomplete_kind_candidate_for_construct(starts)
             }
         }
     }
@@ -1239,19 +1270,67 @@ fn syntax_incomplete_kind_for_expectation_reason(
 fn syntax_incomplete_kind_for_constructs<'a>(
     constructs: impl Iterator<Item = &'a str>,
 ) -> Option<SyntaxErrorKind> {
-    let mut shared_kind = None;
+    syntax_incomplete_kind_candidate_for_constructs(constructs).map(|candidate| candidate.kind)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_incomplete_kind_candidate_for_constructs<'a>(
+    constructs: impl Iterator<Item = &'a str>,
+) -> Option<IncompleteKindCandidate> {
+    let mut selected = None;
     for construct in constructs {
-        let kind = syntax_incomplete_kind_for_construct(construct)?;
-        if is_high_priority_incomplete_kind(kind) {
-            return Some(kind);
-        }
-        match shared_kind {
-            None => shared_kind = Some(kind),
-            Some(shared) if shared == kind => {}
-            Some(_) => return None,
-        }
+        let candidate = syntax_incomplete_kind_candidate_for_construct(construct)?;
+        selected = select_incomplete_kind_candidate(selected, candidate);
     }
-    shared_kind
+    selected
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct IncompleteKindCandidate {
+    kind: SyntaxErrorKind,
+    depth: usize,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn select_incomplete_kind_candidate(
+    selected: Option<IncompleteKindCandidate>,
+    candidate: IncompleteKindCandidate,
+) -> Option<IncompleteKindCandidate> {
+    match selected {
+        None => Some(candidate),
+        Some(selected) if candidate.depth < selected.depth => Some(candidate),
+        Some(selected) => Some(selected),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn select_committed_incomplete_kind_candidate(
+    selected: Option<IncompleteKindCandidate>,
+    candidate: IncompleteKindCandidate,
+) -> Option<IncompleteKindCandidate> {
+    match selected {
+        None => Some(candidate),
+        Some(selected) if candidate.depth > selected.depth => Some(candidate),
+        Some(selected) => Some(selected),
+    }
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(true)]
+fn syntax_incomplete_kind_candidate_for_construct(
+    construct: &str,
+) -> Option<IncompleteKindCandidate> {
+    let kind = syntax_incomplete_kind_for_construct(construct)?;
+    let depth = if syntax_construct_is_known(construct) {
+        syntax_construct_depth(construct)
+    } else {
+        usize::MAX
+    };
+    Some(IncompleteKindCandidate { kind, depth })
 }
 
 #[requires(!construct.is_empty())]
@@ -1311,17 +1390,6 @@ fn syntax_incomplete_kind_for_construct(construct: &str) -> Option<SyntaxErrorKi
 fn is_forethought_connection_construct(construct: &str) -> bool {
     construct == "forethought mex"
         || (construct.starts_with("forethought ") && construct.ends_with(" connection"))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_high_priority_incomplete_kind(kind: SyntaxErrorKind) -> bool {
-    matches!(
-        kind,
-        SyntaxErrorKind::IncompleteForethoughtConnection
-            | SyntaxErrorKind::IncompleteMekso
-            | SyntaxErrorKind::IncompleteQuote
-    )
 }
 
 #[requires(true)]

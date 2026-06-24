@@ -1788,12 +1788,40 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax attempt combines parser result with optional trace report without extra cross-field constraints",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/mod.rs:ParsedPartialValidStatementAttempt",
+        "partial-valid syntax attempt combines parser result with collected warnings and optional trace report",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParserCheckpoint",
         "checkpoint mirrors Chumsky save state with warning count plus whether trace would record the save",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParserStateFinish",
         "parser finish value carries deduplicated warnings and optional trace report from ParserState",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoSuccess",
+        "syntax memo entries are written only after successful parser advancement and replayed by memoized_rule",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoValue",
+        "syntax memo values are type-erased parser outputs validated by typed downcast on lookup",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarDialect",
+        "generated grammar dialect flags are independent booleans projected from ParseOptions",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarEnv",
+        "generated grammar environment pairs independent dialect and policy snapshots",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarPolicy",
+        "generated grammar policy flags are independent parser behavior switches",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/tokens.rs:IncompleteKindCandidate",
+        "diagnostic incomplete-kind candidates are copied ranking tuples built only from syntax metadata",
     ),
     (
         "crates/jbotci-syntax/src/lib.rs:SyntaxParseAttempt",

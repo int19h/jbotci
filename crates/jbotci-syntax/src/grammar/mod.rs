@@ -1,6 +1,12 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
-use std::collections::VecDeque;
+use std::{
+    any::Any,
+    collections::{HashMap, VecDeque},
+    fmt,
+    marker::PhantomData,
+    sync::Arc,
+};
 
 use chumsky::Boxed;
 use chumsky::input::MappedInput;
@@ -14,12 +20,14 @@ use jbotci_diagnostics::{
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike, WordLikeData};
 
 use crate::{
-    ExperimentalConstruct, ParseOptions, SyntaxError, SyntaxExpectedToken, SyntaxParse,
-    SyntaxParseAttempt, SyntaxWarning, SyntaxWordCategory, Token,
+    ExperimentalConstruct, ParseOptions, SyntaxError, SyntaxErrorKind, SyntaxExpectedToken,
+    SyntaxParse, SyntaxParseAttempt, SyntaxWarning, SyntaxWordCategory, Token,
 };
 
 pub(crate) mod ast;
 use ast::*;
+mod generated;
+mod generated_runtime;
 mod parse_error;
 mod parser;
 mod tense;
@@ -29,7 +37,7 @@ use parse_error::{SyntaxFound, SyntaxFoundData, SyntaxParseCustomKind, SyntaxPar
 type Span = SimpleSpan;
 type SpannedToken = Spanned<Token, Span>;
 type ParserInput<'tokens> = MappedInput<'tokens, Token, Span, &'tokens [SpannedToken]>;
-type ParseExtra<'tokens> = extra::Full<SyntaxParseError<'tokens>, ParserState, ()>;
+type ParseExtra<'tokens> = extra::Full<SyntaxParseError<'tokens>, ParserState<'tokens>, ()>;
 type BoxedParser<'tokens, O> =
     Boxed<'tokens, 'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>>;
 
@@ -49,6 +57,14 @@ pub(super) struct ParsedStatementAttempt {
 
 #[derive(Debug, Clone)]
 #[invariant(true)]
+pub(super) struct ParsedPartialValidStatementAttempt {
+    pub result: Result<crate::tree::recovered::TextSyntax, SyntaxError>,
+    pub warnings: Vec<SyntaxWarning>,
+    pub trace: Option<TraceReport>,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
 pub(super) struct ParserStateFinish {
     pub warnings: Vec<SyntaxWarning>,
     pub trace: Option<TraceReport>,
@@ -61,23 +77,142 @@ pub(crate) struct ParserCheckpoint {
     trace_save: bool,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone)]
 #[invariant(true)]
-pub(super) struct ParserState {
-    anchor_byte_starts: Vec<Option<usize>>,
-    warnings: Vec<SyntaxWarning>,
-    trace: TraceRecorder,
+pub(super) struct SyntaxMemoValue {
+    value: Arc<dyn Any>,
 }
 
-impl ParserState {
+impl fmt::Debug for SyntaxMemoValue {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("SyntaxMemoValue(..)")
+    }
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+pub(super) struct SyntaxMemoSuccess {
+    end_location: usize,
+    value: SyntaxMemoValue,
+    warnings: Vec<SyntaxWarning>,
+}
+
+#[derive(Debug, Clone, Default)]
+#[invariant(true)]
+pub(super) struct ParserState<'tokens> {
+    anchor_byte_starts: Vec<Option<usize>>,
+    cmavo_cache: HashMap<(usize, usize), Option<Cmavo>>,
+    syntax_memo: HashMap<(&'static str, usize), SyntaxMemoSuccess>,
+    warnings: Vec<SyntaxWarning>,
+    trace: TraceRecorder,
+    syntax_grammar_env: generated_runtime::SyntaxGrammarEnv,
+    _tokens: PhantomData<&'tokens ()>,
+}
+
+impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
     #[ensures(ret.anchor_byte_starts.len() == words.len())]
     pub(super) fn new(words: &[Token], options: &ParseOptions) -> Self {
         Self {
             anchor_byte_starts: words.iter().map(word_anchor_byte_start).collect(),
+            cmavo_cache: HashMap::new(),
+            syntax_memo: HashMap::new(),
             warnings: Vec::new(),
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
+            syntax_grammar_env: generated_runtime::SyntaxGrammarEnv::from_options(options),
+            _tokens: PhantomData,
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn token_cmavo(&mut self, token: &Token) -> Option<Cmavo> {
+        let range = token
+            .core_word()
+            .byte_range()
+            .expect("syntax tokens have source byte ranges");
+        let key = (range.start, range.end);
+        if let Some(cmavo) = self.cmavo_cache.get(&key) {
+            *cmavo
+        } else {
+            let cmavo = token.core_word().cmavo();
+            self.cmavo_cache.insert(key, cmavo);
+            cmavo
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn syntax_grammar_env(&self) -> generated_runtime::SyntaxGrammarEnv {
+        self.syntax_grammar_env
+    }
+
+    #[requires(!rule_name.is_empty())]
+    #[ensures(true)]
+    pub(super) fn syntax_memo_success<O: Clone + 'static>(
+        &self,
+        rule_name: &'static str,
+        start_location: usize,
+    ) -> Option<(O, usize, Vec<SyntaxWarning>)> {
+        let memo = self
+            .active_syntax_memo()
+            .get(&(rule_name, start_location))?;
+        let value = memo.value.value.downcast_ref::<O>()?.clone();
+        Some((value, memo.end_location, memo.warnings.clone()))
+    }
+
+    #[requires(!rule_name.is_empty())]
+    #[requires(end_location >= start_location)]
+    #[ensures(true)]
+    pub(super) fn store_syntax_memo_success<O: Clone + 'static>(
+        &mut self,
+        rule_name: &'static str,
+        start_location: usize,
+        end_location: usize,
+        value: O,
+        warnings: Vec<SyntaxWarning>,
+    ) {
+        let success = SyntaxMemoSuccess {
+            end_location,
+            value: SyntaxMemoValue {
+                value: Arc::new(value),
+            },
+            warnings,
+        };
+        self.active_syntax_memo_mut()
+            .insert((rule_name, start_location), success);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn active_syntax_memo(&self) -> &HashMap<(&'static str, usize), SyntaxMemoSuccess> {
+        &self.syntax_memo
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn active_syntax_memo_mut(&mut self) -> &mut HashMap<(&'static str, usize), SyntaxMemoSuccess> {
+        &mut self.syntax_memo
+    }
+
+    #[requires(true)]
+    #[ensures(ret <= self.warnings.len())]
+    pub(super) fn warning_count(&self) -> usize {
+        self.warnings.len()
+    }
+
+    #[requires(start <= self.warnings.len())]
+    #[ensures(ret.len() + start == self.warnings.len())]
+    pub(super) fn warnings_since(&self, start: usize) -> Vec<SyntaxWarning> {
+        self.warnings[start..].to_vec()
+    }
+
+    #[requires(true)]
+    #[ensures(self.warnings.len() == old(self.warnings.len()) + warnings.len())]
+    pub(super) fn extend_warnings(&mut self, warnings: &[SyntaxWarning]) {
+        self.warnings.extend_from_slice(warnings);
     }
 
     #[requires(true)]
@@ -199,7 +334,7 @@ impl ParserState {
     }
 }
 
-impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState {
+impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> {
     type Checkpoint = ParserCheckpoint;
 
     #[requires(true)]
@@ -317,16 +452,115 @@ pub(crate) fn parse_syntax_tree_with_source_attempt(
     options: &ParseOptions,
 ) -> SyntaxParseAttempt {
     let tokens = syntax_tokens(words);
+    let parsed = generated::parse_statement_attempt_partial_valid(&tokens, source, options);
+    let result = parsed
+        .result
+        .and_then(|parse_tree| {
+            parse_tree
+                .try_into_valid()
+                .map_err(|error| generated_partial_conversion_error(&tokens, error.to_string()))
+        })
+        .map(|parse_tree| {
+            new!(SyntaxParse {
+                parse_tree: Box::new(parse_tree),
+                warnings: parsed.warnings,
+            })
+        });
+    SyntaxParseAttempt {
+        result,
+        trace: parsed.trace,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
+    crate::syntax_parse_leaf_spans_match_words(words, parse)
+}))]
+pub(crate) fn parse_handwritten_syntax_tree_with_source(
+    words: &[WordLike],
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> Result<SyntaxParse, SyntaxError> {
+    let tokens = syntax_tokens(words);
     let parsed = parser::parse_statement_attempt(&tokens, source, options);
-    let result = parsed.result.map(|parsed| {
+    let ParsedStatementAttempt {
+        result,
+        trace: _trace,
+    } = parsed;
+    result.map(|parsed| {
         new!(SyntaxParse {
             parse_tree: Box::new(parsed.text),
             warnings: parsed.warnings,
         })
-    });
-    SyntaxParseAttempt {
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
+    crate::syntax_parse_leaf_spans_match_words(words, parse)
+}))]
+pub(crate) fn parse_generated_strict_syntax_tree_with_source(
+    words: &[WordLike],
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> Result<SyntaxParse, SyntaxError> {
+    let tokens = syntax_tokens(words);
+    let parsed = generated::parse_statement_attempt(&tokens, source, options);
+    let ParsedStatementAttempt {
         result,
-        trace: parsed.trace,
+        trace: _trace,
+    } = parsed;
+    result.map(|parsed| {
+        new!(SyntaxParse {
+            parse_tree: Box::new(parsed.text),
+            warnings: parsed.warnings,
+        })
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn parse_generated_partial_valid_syntax_tree_with_source(
+    words: &[WordLike],
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> Result<SyntaxParse, SyntaxError> {
+    let tokens = syntax_tokens(words);
+    let parsed = generated::parse_statement_attempt_partial_valid(&tokens, source, options);
+    let recovered = parsed.result?;
+    let parse_tree = recovered
+        .try_into_valid()
+        .map_err(|error| generated_partial_conversion_error(&tokens, error.to_string()))?;
+    Ok(new!(SyntaxParse {
+        parse_tree: Box::new(parse_tree),
+        warnings: parsed.warnings,
+    }))
+}
+
+#[requires(!reason.is_empty())]
+#[ensures(matches!(ret, SyntaxError::Parse { kind: SyntaxErrorKind::InvalidConstruct, .. }))]
+fn generated_partial_conversion_error(tokens: &[Token], reason: String) -> SyntaxError {
+    let byte_start = tokens
+        .iter()
+        .filter_map(word_anchor_byte_start)
+        .min()
+        .unwrap_or(0);
+    let byte_end = tokens
+        .iter()
+        .flat_map(|token| token.core_word().source_spans())
+        .map(|span| span.byte_end)
+        .max()
+        .unwrap_or(byte_start);
+    SyntaxError::Parse {
+        kind: SyntaxErrorKind::InvalidConstruct,
+        byte_start,
+        byte_end,
+        reason,
+        expected: Vec::new(),
+        expectations: Vec::new(),
+        context: None,
     }
 }
 
@@ -794,6 +1028,24 @@ mod tests {
             assert_eq!(warning.anchor_index, 0);
             assert_eq!(warning_span(warning), [3, 8]);
             assert!(warning.anchor.is_cmavo(Cmavo::Lihoi));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_noi_indicator_uses_noi_warning_context() {
+        run_on_normal_stack(|| {
+            let parsed = parse_source("mi klama no'oi bajra", &ParseOptions::default());
+            let warning = parsed
+                .warnings
+                .iter()
+                .find(|warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaCmavo)
+                .expect("Zantufa NOI indicator warning");
+
+            assert_eq!(warning.anchor_index, 1);
+            assert_eq!(warning_span(warning), [9, 14]);
+            assert!(warning.anchor.is_cmavo(Cmavo::Nohoi));
         });
     }
 

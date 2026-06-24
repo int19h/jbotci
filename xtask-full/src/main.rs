@@ -35,8 +35,11 @@ use jbotci_semantics::{
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
-    ParseOptions, SyntaxError, SyntaxWarning, parse_syntax_tree_with_source_and_options,
-    syntax_tree_eq_ignoring_spans, syntax_tree_partial_valid_round_trip,
+    ParseOptions, SyntaxError, SyntaxWarning,
+    parse_syntax_tree_generated_partial_valid_with_source_and_options,
+    parse_syntax_tree_generated_strict_with_source_and_options,
+    parse_syntax_tree_handwritten_with_source_and_options,
+    parse_syntax_tree_with_source_and_options, syntax_tree_eq_ignoring_spans,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -280,6 +283,8 @@ struct FixtureRunArgs {
     chunk_worker: bool,
     #[arg(long)]
     syntax_strict_only: bool,
+    #[arg(long, hide = true)]
+    syntax_tree_oracle: bool,
 }
 
 #[derive(Debug, Args)]
@@ -316,6 +321,8 @@ struct FixtureRewriteArgs {
     migrate_morphology_diagnostics: bool,
     #[arg(long)]
     add_semantics_refs: bool,
+    #[arg(long, hide = true)]
+    syntax_failure_diagnostics_only: bool,
     #[arg(long, hide = true)]
     chunk_worker: bool,
     #[arg(long = "path", hide = true)]
@@ -6837,12 +6844,20 @@ fn fixture_rewrite(args: FixtureRewriteArgs) -> Result<()> {
 #[requires(true)]
 #[ensures(true)]
 fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
+    if args.syntax_failure_diagnostics_only
+        && (args.migrate_morphology_diagnostics || args.add_semantics_refs)
+    {
+        bail!(
+            "`--syntax-failure-diagnostics-only` cannot be combined with other fixture rewrite modes"
+        );
+    }
     if args.chunk_worker {
         let summary = fixture_rewrite_paths(
             args.paths,
             false,
             args.migrate_morphology_diagnostics,
             args.add_semantics_refs,
+            args.syntax_failure_diagnostics_only,
         )?;
         println!(
             "fixtures={}, rewritten={}",
@@ -6856,6 +6871,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
             true,
             args.migrate_morphology_diagnostics,
             args.add_semantics_refs,
+            args.syntax_failure_diagnostics_only,
         )?;
         println!("rewrote {} fixture(s)", summary.rewritten);
         return Ok(());
@@ -6864,6 +6880,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         args.roots,
         args.migrate_morphology_diagnostics,
         args.add_semantics_refs,
+        args.syntax_failure_diagnostics_only,
     )
 }
 
@@ -6873,6 +6890,7 @@ fn fixture_rewrite_subprocess_chunks(
     roots: Vec<PathBuf>,
     migrate_morphology_diagnostics: bool,
     add_semantics_refs: bool,
+    syntax_failure_diagnostics_only: bool,
 ) -> Result<()> {
     let mut paths = Vec::new();
     for root in &roots {
@@ -6890,6 +6908,7 @@ fn fixture_rewrite_subprocess_chunks(
             chunk,
             migrate_morphology_diagnostics,
             add_semantics_refs,
+            syntax_failure_diagnostics_only,
         )?;
         if !output.stderr.is_empty() {
             eprint!("{}", String::from_utf8_lossy(&output.stderr));
@@ -6922,6 +6941,7 @@ fn fixture_rewrite_chunk_output(
     chunk: &[PathBuf],
     migrate_morphology_diagnostics: bool,
     add_semantics_refs: bool,
+    syntax_failure_diagnostics_only: bool,
 ) -> Result<std::process::Output> {
     let mut command = ProcessCommand::new(exe);
     command.arg("fixture-rewrite").arg("--chunk-worker");
@@ -6930,6 +6950,9 @@ fn fixture_rewrite_chunk_output(
     }
     if add_semantics_refs {
         command.arg("--add-semantics-refs");
+    }
+    if syntax_failure_diagnostics_only {
+        command.arg("--syntax-failure-diagnostics-only");
     }
     for path in chunk {
         command.arg("--path").arg(path);
@@ -6985,6 +7008,7 @@ fn fixture_rewrite_paths(
     report_progress: bool,
     migrate_morphology_diagnostics: bool,
     add_semantics_refs: bool,
+    syntax_failure_diagnostics_only: bool,
 ) -> Result<RewriteSummary> {
     let mut rewritten = 0usize;
     let total = paths.len();
@@ -6998,7 +7022,21 @@ fn fixture_rewrite_paths(
             .with_context(|| format!("reading fixture `{}`", path.display()))?;
         let mut fixture = load_fixture_path(&path)
             .with_context(|| format!("loading fixture `{}`", path.display()))?;
-        if migrate_morphology_diagnostics {
+        if syntax_failure_diagnostics_only {
+            if let Some(after) = refresh_syntax_failure_diagnostics_text(&fixture, &before)
+                .with_context(|| {
+                    format!(
+                        "refreshing syntax diagnostics in fixture `{}`",
+                        path.display()
+                    )
+                })?
+            {
+                fs::write(&path, after)
+                    .with_context(|| format!("rewriting fixture `{}`", path.display()))?;
+                rewritten += 1;
+            }
+            continue;
+        } else if migrate_morphology_diagnostics {
             migrate_legacy_morphology_diagnostics(&mut fixture).with_context(|| {
                 format!(
                     "migrating morphology diagnostics in fixture `{}`",
@@ -7355,6 +7393,145 @@ fn is_legacy_morphology_placeholder(diagnostics: &[fixtures::DiagnosticExpectati
                 && diagnostic.message.as_deref() == Some("invalid morphology")
                 && diagnostic.word_index.is_none()
     )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn refresh_syntax_failure_diagnostics_text(
+    fixture: &LoadedTestCase,
+    contents: &str,
+) -> Result<Option<String>> {
+    let should_refresh = fixture
+        .test_case
+        .expectations
+        .syntax
+        .as_ref()
+        .is_some_and(|syntax| {
+            syntax.status == ExpectationStatus::Failure
+                && syntax
+                    .xfail
+                    .as_ref()
+                    .is_none_or(|xfail| xfail.accepted_status == ExpectationStatus::Failure)
+        });
+    if !should_refresh {
+        return Ok(None);
+    }
+    let diagnostics = current_syntax_failure_diagnostics(fixture)?;
+    let diagnostics_value = format_fixture_toml_value(&diagnostics)
+        .context("formatting syntax diagnostics TOML value")?;
+    let replacement = format!("diagnostics = {diagnostics_value}");
+    let updated = replace_syntax_diagnostics_line(contents, &replacement)?;
+    Ok((updated != contents).then_some(updated))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn current_syntax_failure_diagnostics(
+    fixture: &LoadedTestCase,
+) -> Result<Vec<fixtures::DiagnosticExpectation>> {
+    let dialect = fixture.test_case.dialect_definition()?;
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+        &fixture.test_case.lojban,
+        &morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    )
+    .into_data();
+    let morphology_warning_diagnostics = morphology_warning_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &attempt.warnings,
+    );
+    let diagnostics = match attempt.result {
+        Err(error) => {
+            let diagnostic = error.to_diagnostic(
+                Some(SourceId("<fixture>".to_owned())),
+                &fixture.test_case.lojban,
+            );
+            let mut diagnostics = morphology_warning_diagnostics;
+            diagnostics.extend(diagnostic_expectation_items(
+                &fixture.test_case.lojban,
+                std::slice::from_ref(&diagnostic),
+            ));
+            diagnostics
+        }
+        Ok(words) => match parse_syntax_tree_with_source_and_options(
+            &words,
+            &fixture.test_case.lojban,
+            &syntax_options,
+        ) {
+            Ok(_) => {
+                bail!(
+                    "syntax expectation for fixture `{}` is failure, but generated parser succeeded",
+                    fixture.test_case.id
+                );
+            }
+            Err(error) => {
+                let diagnostic = error.to_diagnostic(
+                    Some(SourceId("<fixture>".to_owned())),
+                    &fixture.test_case.lojban,
+                );
+                let mut diagnostics = morphology_warning_diagnostics;
+                diagnostics.extend(diagnostic_expectation_items(
+                    &fixture.test_case.lojban,
+                    std::slice::from_ref(&diagnostic),
+                ));
+                diagnostics
+            }
+        },
+    };
+    Ok(diagnostics)
+}
+
+#[requires(!diagnostics_line.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn replace_syntax_diagnostics_line(contents: &str, diagnostics_line: &str) -> Result<String> {
+    let mut output = String::with_capacity(contents.len().max(diagnostics_line.len()));
+    let mut in_syntax_section = false;
+    let mut saw_syntax_section = false;
+    let mut replaced = false;
+    for line in contents.split_inclusive('\n') {
+        let line_without_newline = line.strip_suffix('\n').unwrap_or(line);
+        let line_without_ending = line_without_newline
+            .strip_suffix('\r')
+            .unwrap_or(line_without_newline);
+        let trimmed = line_without_ending.trim();
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            in_syntax_section = trimmed == "[expectations.syntax]";
+            saw_syntax_section |= in_syntax_section;
+        }
+        if in_syntax_section && trimmed.starts_with("diagnostics") {
+            let line_ending = if line.ends_with("\r\n") {
+                "\r\n"
+            } else if line.ends_with('\n') {
+                "\n"
+            } else {
+                ""
+            };
+            output.push_str(diagnostics_line);
+            output.push_str(line_ending);
+            replaced = true;
+        } else {
+            output.push_str(line);
+        }
+    }
+    if !saw_syntax_section {
+        bail!("fixture has no [expectations.syntax] section");
+    }
+    if !replaced {
+        bail!("fixture syntax expectation has no diagnostics line");
+    }
+    Ok(output)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn format_fixture_toml_value<T: Serialize + ?Sized>(value: &T) -> Result<String> {
+    let mut output = String::new();
+    value
+        .serialize(toml::ser::ValueSerializer::new(&mut output))
+        .context("serializing fixture TOML value")?;
+    Ok(output)
 }
 
 #[requires(true)]
@@ -7797,9 +7974,13 @@ fn syntax_accepts_success_tree_refresh(syntax: &fixtures::SyntaxExpectation) -> 
 #[requires(true)]
 #[ensures(true)]
 fn fixture_test(args: FixtureRunArgs) -> Result<()> {
+    if args.syntax_strict_only && args.syntax_tree_oracle {
+        bail!("`--syntax-strict-only` and `--syntax-tree-oracle` cannot be combined");
+    }
     let profile = merged_profile(&args)?;
     let backend = NotImplementedBackend {
         syntax_strict_only: args.syntax_strict_only,
+        syntax_tree_oracle: args.syntax_tree_oracle,
     };
     let mut paths = fixture_paths(&args.root)
         .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
@@ -7953,6 +8134,9 @@ fn fixture_test_chunk_output(
     }
     if args.syntax_strict_only {
         command.arg("--syntax-strict-only");
+    }
+    if args.syntax_tree_oracle {
+        command.arg("--syntax-tree-oracle");
     }
     for facet in &profile.facets {
         command.arg("--facet").arg(facet.to_string());
@@ -8367,7 +8551,7 @@ fn merged_profile(args: &FixtureRunArgs) -> Result<FixtureProfile> {
     if !args.facets.is_empty() {
         profile.facets = args.facets.clone();
     }
-    if args.syntax_strict_only {
+    if args.syntax_strict_only || args.syntax_tree_oracle {
         profile.facets = vec![Facet::Syntax];
     }
     Ok(profile)
@@ -8471,6 +8655,7 @@ fn check_status(status: ExitStatus, command: &str) -> Result<()> {
 #[invariant(true)]
 struct NotImplementedBackend {
     syntax_strict_only: bool,
+    syntax_tree_oracle: bool,
 }
 
 #[contract_trait]
@@ -8491,6 +8676,7 @@ impl FixtureBackend for NotImplementedBackend {
             Facet::Morphology => run_morphology_fixture(fixture),
             Facet::Jvozba => run_jvozba_fixture(fixture),
             Facet::Syntax if self.syntax_strict_only => run_syntax_strict_only_fixture(fixture),
+            Facet::Syntax if self.syntax_tree_oracle => run_syntax_tree_oracle_fixture(fixture),
             Facet::Syntax => run_syntax_fixture(fixture),
             Facet::SemanticsRefs => run_semantics_refs_fixture(fixture),
             Facet::VlaseiBrackets => {
@@ -9472,7 +9658,7 @@ fn run_syntax_strict_only_fixture(fixture: &LoadedTestCase) -> FacetResult {
         }
     };
 
-    let strict = match parse_syntax_tree_with_source_and_options(
+    let strict = match parse_syntax_tree_handwritten_with_source_and_options(
         &words,
         &fixture.test_case.lojban,
         &syntax_options,
@@ -9481,11 +9667,33 @@ fn run_syntax_strict_only_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Err(error) => return FacetResult::failed(format!("strict syntax error: {error}")),
     };
 
-    let partial_valid = match syntax_tree_partial_valid_round_trip(&strict.parse_tree) {
-        Ok(parse_tree) => parse_tree,
+    let generated_strict = match parse_syntax_tree_generated_strict_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    ) {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            return FacetResult::failed(format!("generated strict syntax error: {error}"));
+        }
+    };
+    if generated_strict.parse_tree != strict.parse_tree {
+        return FacetResult::failed(format_text_mismatch(
+            "generated strict syntax tree",
+            &format_debug_value(&strict.parse_tree),
+            &format_debug_prefix(&generated_strict.parse_tree),
+        ));
+    }
+
+    let partial_valid = match parse_syntax_tree_generated_partial_valid_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    ) {
+        Ok(parsed) => parsed.parse_tree.clone(),
         Err(error) => {
             return FacetResult::failed(format!(
-                "partial-valid syntax tree did not convert to strict tree: {error}"
+                "generated partial-valid syntax tree did not convert to strict tree: {error}"
             ));
         }
     };
@@ -9498,6 +9706,96 @@ fn run_syntax_strict_only_fixture(fixture: &LoadedTestCase) -> FacetResult {
             &format_debug_prefix(&partial_valid),
         ))
     }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_syntax_tree_oracle_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let Some(expectation) = &fixture.test_case.expectations.syntax else {
+        return FacetResult::skipped("fixture has no syntax expectation");
+    };
+    if !syntax_accepts_success_tree_refresh(expectation) {
+        return FacetResult::skipped(format!(
+            "syntax tree oracle skips expectation whose accepted status is not success: {:?}",
+            expectation.status
+        ));
+    }
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let words = match segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    ) {
+        Ok(words) => words,
+        Err(error) => {
+            return FacetResult::failed(format!(
+                "syntax tree oracle blocked by morphology error: {error}"
+            ));
+        }
+    };
+
+    let legacy = match parse_syntax_tree_handwritten_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    ) {
+        Ok(parsed) => parsed,
+        Err(error) => return FacetResult::failed(format!("legacy syntax error: {error}")),
+    };
+    let generated = match parse_syntax_tree_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    ) {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            return FacetResult::failed(format!("generated production syntax error: {error}"));
+        }
+    };
+
+    for show_refs in [false, true] {
+        let options = TreeRenderOptions {
+            color: false,
+            indent: 2,
+            show_spans: true,
+            show_refs,
+            ..TreeRenderOptions::default()
+        };
+        let legacy_tree =
+            match pretty_tree_with_options(&legacy.parse_tree, &fixture.test_case.lojban, options) {
+                Ok(tree) => tree,
+                Err(error) => {
+                    return FacetResult::failed(format!(
+                        "legacy tree render error with show_refs={show_refs}: {error}"
+                    ));
+                }
+            };
+        let generated_tree = match pretty_tree_with_options(
+            &generated.parse_tree,
+            &fixture.test_case.lojban,
+            options,
+        ) {
+            Ok(tree) => tree,
+            Err(error) => {
+                return FacetResult::failed(format!(
+                    "generated tree render error with show_refs={show_refs}: {error}"
+                ));
+            }
+        };
+        if legacy_tree != generated_tree {
+            return FacetResult::failed(format_text_mismatch(
+                &format!("syntax tree oracle show_refs={show_refs}"),
+                &legacy_tree,
+                &generated_tree,
+            ));
+        }
+    }
+    FacetResult::passed()
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]

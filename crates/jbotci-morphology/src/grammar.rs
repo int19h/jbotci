@@ -1265,7 +1265,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(start <= end && end <= self.chars.len())]
-    #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty() || start == end))]
+    #[ensures(ret.as_ref().is_none_or(|text| text.chars().all(crate::segment::is_valid_normalized_char)))]
     fn checked_normalized_slice(&self, start: usize, end: usize) -> Option<String> {
         crate::segment::normalize_word_checked_with_options(self.slice(start, end), self.options)
     }

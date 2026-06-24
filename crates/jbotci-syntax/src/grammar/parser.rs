@@ -2661,7 +2661,7 @@ fn raw_words_until<'tokens>(terminators: &'static [Cmavo]) -> BoxedParser<'token
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::ReplacementWord,
         ))],
-        move |word| !word.is_one_of_cmavo(terminators),
+        move |word, _state| !word.is_one_of_cmavo(terminators),
     )
     .repeated()
     .collect::<Vec<_>>()

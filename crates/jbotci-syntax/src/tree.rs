@@ -529,7 +529,8 @@ pub fn elidable_terminator_for_absent_field(_node: NodeRef<'_>, field: FieldRef)
     }
 }
 
-jbotci_tree::tree_model! {
+jbotci_syntax_macros::syntax_grammar! {
+tree_model {
 #![tree_recovered]
 
 pub type WordRun = Vec1<Token>;
@@ -1895,6 +1896,7 @@ pub struct ProBridiAssignmentSyntax {
     pub tanru_unit: Box<TanruUnitSyntax>,
 }
 
+}
 }
 
 pub(crate) const RESTRICTIVE_RELATIVE_CLAUSE_CMAVO: &[Cmavo] = &[Cmavo::Poi, Cmavo::Pohoi];

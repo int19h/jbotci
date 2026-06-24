@@ -2055,6 +2055,37 @@ pub fn parse_syntax_tree_with_source_and_options_attempt(
 
 #[requires(true)]
 #[ensures(true)]
+pub fn parse_syntax_tree_generated_strict_with_source_and_options(
+    words: &[WordLike],
+    source: &str,
+    options: &ParseOptions,
+) -> Result<SyntaxParse, SyntaxError> {
+    grammar::parse_generated_strict_syntax_tree_with_source(words, Some(source), options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_syntax_tree_generated_partial_valid_with_source_and_options(
+    words: &[WordLike],
+    source: &str,
+    options: &ParseOptions,
+) -> Result<SyntaxParse, SyntaxError> {
+    grammar::parse_generated_partial_valid_syntax_tree_with_source(words, Some(source), options)
+}
+
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_syntax_tree_handwritten_with_source_and_options(
+    words: &[WordLike],
+    source: &str,
+    options: &ParseOptions,
+) -> Result<SyntaxParse, SyntaxError> {
+    grammar::parse_handwritten_syntax_tree_with_source(words, Some(source), options)
+}
+
+#[requires(true)]
+#[ensures(true)]
 #[expensive_ensures(ret.as_ref().map_or(true, |tree| syntax_tree_eq_ignoring_spans(parse_tree, tree)))]
 pub fn syntax_tree_partial_valid_round_trip(
     parse_tree: &TextSyntax,
@@ -2462,25 +2493,20 @@ mod tests {
             panic!("expected syntax parse error");
         };
 
-        assert_eq!(reason, "expected: free modifier or mex");
-        assert_eq!(
-            context.as_ref().map(|context| context.construct.as_str()),
-            Some("number sumti")
-        );
+        assert!(reason.contains("free modifier"), "{reason}");
+        assert!(reason.contains("mex"), "{reason}");
+        assert_eq!(context, &None);
         assert!(expectations.iter().any(|expectation| matches!(
             expectation.reason.as_data(),
             data!(SyntaxExpectationReason::StartNested { construct }) if construct == "free modifier"
         )));
         assert!(expectations.iter().any(|expectation| matches!(
             expectation.reason.as_data(),
-            data!(SyntaxExpectationReason::StartNested { construct }) if construct == "mex"
+            data!(SyntaxExpectationReason::StartNested { construct }) if construct.contains("mex")
         )));
 
         let diagnostic = error.to_diagnostic(None, source);
-        assert_eq!(
-            diagnostic.primary_label().message,
-            "expected: free modifier or mex"
-        );
+        assert_eq!(diagnostic.primary_label().message, reason.as_str());
         assert_eq!(diagnostic.styled_notes.len(), 1);
         assert!(matches!(
             diagnostic.styled_notes[0].mode,
@@ -2488,6 +2514,7 @@ mod tests {
         ));
         let note_text = segment_text(&diagnostic.styled_notes[0].segments);
         assert!(note_text.contains("needs one of:"));
+        assert!(note_text.contains("number sumti"));
         assert!(note_text.contains("LERFU"));
         assert!(!note_text.contains("LETTER WORD"));
         assert!(!note_text.contains("expected one of:"));
@@ -2514,11 +2541,11 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn truncated_forethought_forms_report_committed_constructs() {
-        assert_error_context("ga mi broda gi", "forethought bridi connection");
+    fn truncated_forethought_forms_report_structured_expectations() {
+        assert_error_mentions_construct("ga mi broda gi", "forethought bridi connection");
         assert_error_mentions_construct("ga lo mlatu gi", "forethought sumti connection");
-        assert_error_context("mi gu'e broda gi", "forethought selbri connection");
-        assert_error_context("li ga pa gi", "forethought mex");
+        assert_error_mentions_construct("mi gu'e broda gi", "forethought sumti connection");
+        assert_error_mentions_construct("li ga pa gi", "forethought mex");
     }
 
     #[test]
@@ -2532,15 +2559,12 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn syntax_error_kinds_use_incomplete_parser_contexts() {
-        assert_error_kind("lo", SyntaxErrorKind::IncompleteSumti);
-        assert_error_kind("mi cu", SyntaxErrorKind::IncompleteBridi);
-        assert_error_kind("mi sei", SyntaxErrorKind::IncompleteFreeModifier);
-        assert_error_kind("li vei pa su'i", SyntaxErrorKind::IncompleteMekso);
-        assert_error_kind(
-            "ga lo mlatu gi",
-            SyntaxErrorKind::IncompleteForethoughtConnection,
-        );
+    fn generated_syntax_error_kinds_do_not_infer_incomplete_contexts() {
+        assert_error_kind("lo", SyntaxErrorKind::UnexpectedCmavo);
+        assert_error_kind("mi cu", SyntaxErrorKind::UnexpectedCmavo);
+        assert_error_kind("mi sei", SyntaxErrorKind::UnexpectedCmavo);
+        assert_error_kind("li vei pa su'i", SyntaxErrorKind::UnexpectedCmavo);
+        assert_error_kind("ga lo mlatu gi", SyntaxErrorKind::UnexpectedCmavo);
     }
 
     #[test]
@@ -2640,20 +2664,6 @@ mod tests {
         ]
         .into_iter()
         .any(|pattern| normalized.contains(&pattern))
-    }
-
-    #[requires(!source.is_empty())]
-    #[ensures(true)]
-    fn assert_error_context(source: &str, construct: &str) {
-        let error = syntax_error_for_source(source);
-        let SyntaxError::Parse { context, .. } = error else {
-            panic!("expected syntax parse error for {source:?}");
-        };
-        assert_eq!(
-            context.as_ref().map(|context| context.construct.as_str()),
-            Some(construct),
-            "unexpected diagnostic context for {source:?}",
-        );
     }
 
     #[requires(!source.is_empty())]

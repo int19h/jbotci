@@ -1601,7 +1601,7 @@ fn stress_vowel(value: char) -> Option<char> {
 
 #[requires(true)]
 #[ensures(true)]
-fn is_valid_normalized_char(value: char) -> bool {
+pub(crate) fn is_valid_normalized_char(value: char) -> bool {
     is_vowel(value)
         || is_consonant(value)
         || matches!(value, 'y' | 'ý' | '\'' | ',' | 'ĭ' | 'ŭ' | '0'..='9')
