@@ -1978,9 +1978,13 @@ still exposing the zip.
 
 For logical connectives, `connector.truthTable` is the canonical four-bit truth
 table in row order `TT`, `TF`, `FT`, `FF`, using `T` and `F` characters.  It
-records the truth function after applying operand negation (`na`/`nai`) and
-SE conversion.  Thus `je` is `TFFF`, `ja` is `TTTF`, `jo` is `TFFT`, `ju` is
-the left projection `TTFF`, and `se ju` is the right projection `TFTF`.
+records the truth function after applying operand negation and SE conversion.
+Operand negation is position-sensitive: `na` negates the first operand,
+afterthought `nai` negates the second operand, forethought head `nai`
+(`ganai ... gi`, `gu'enai ... gi`) negates the first operand, and `gik.nai`
+(`... ginai ...`) negates the second operand.  Thus `je` is `TFFF`, `ja` is
+`TTTF`, `jo` is `TFFT`, `ju` is the left projection `TTFF`, and `se ju` is the
+right projection `TFTF`.
 When the connective itself is questioned, omit `truthTable` and use
 `connector.parameter`.
 
@@ -3476,6 +3480,8 @@ These are the semantic object-model changes relative to
    A plain `operator = "and"` over both branches loses that semantics.  JSON now
    represents explicit branch negation with a formula-level `not` wrapper around
    the affected child and keeps the full connective marker in `connector.source`.
+   For forethought forms, head-side `nai` is first-branch negation (`ganai X gi
+   Y`), while `gik.nai` remains second-branch negation (`ge X ginai Y`).
 
 32. Added occurrence-scoped quantities on argument fillers.
    CLL 6.6 uses quantified pro-sumti and quantified quotations such as
@@ -4598,12 +4604,15 @@ implementation gaps are listed separately in “Known Implementation Divergences
 7. **Canonical form for negated logical connectives (#14, #15) — implement; one
    change.** The design 0.L gloss “`na .a` = `imp`” describes the **truth function**,
    not a directive to emit an `implies` node; the canonical FRM is `C(not p, q)`.
-   **Delete the `na ja` → `implies` special case.** All left-/right-negated logical
+   **Delete the `na ja` → `implies` special case.** All operand-negated logical
    connectives, at **every** locus (statement, sumti, bridi-tail, forethought),
    lower to the base-vowel operator (`or`/`and`/`iff`) with the relevant operand
-   wrapped in a `not` formula; the surface (`na ja`, `ja nai`, `ge … ginai`, …)
-   is recorded in `connector.source`. This makes `na ja` and `ja nai` structurally
-   parallel and removes the cross-locus inconsistency.
+   wrapped in a `not` formula.  Surface position determines the operand:
+   `na ja` and forethought head `ganai` negate the first operand, while `ja nai`
+   and forethought separator `ginai` negate the second.  The surface (`na ja`,
+   `ja nai`, `ganai … gi`, `ge … ginai`, …) is recorded in `connector.source`.
+   This makes the truth-table variants structurally parallel and removes the
+   cross-locus inconsistency.
    Implemented in `tersmu` v1.
 
 8. **Connective run grouping is binary and surface-mirroring (#18) — extend /
