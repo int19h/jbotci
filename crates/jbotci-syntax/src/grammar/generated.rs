@@ -54,14 +54,6 @@ struct VuhoSumtiAttachmentSyntax {
     sumti_connection: Option<Box<SumtiConnectionSyntax>>,
 }
 
-#[bityzba::invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct BareNaTermForbiddenFollowSyntax;
-
-#[bityzba::invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct LeadingTermTagFollowerSyntax;
-
 #[bityzba::invariant(i.is_cmavo(Cmavo::I))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct LeadingIStatementSyntax {
@@ -534,51 +526,40 @@ jbotci_syntax_macros::syntax_grammar! {
         };
     }
 
-    product bridi_statement_continuation(subbridi, tense_modal) -> BridiStatementContinuationSyntax {
+    alias bridi_statement_continuation(subbridi, tense_modal) -> BridiStatementContinuationSyntax {
         context "bridi continuation";
-        fields {
-            field continuation = choice((
-                bo_bridi_statement_continuation(subbridi, tense_modal),
-                ke_bridi_statement_continuation(subbridi, tense_modal),
-            ));
-        }
-        build |continuation| continuation;
+        choice((
+            bo_bridi_statement_continuation(subbridi, tense_modal),
+            ke_bridi_statement_continuation(subbridi, tense_modal),
+        ));
     }
 
     product bo_bridi_statement_continuation(subbridi, tense_modal) -> BridiStatementContinuationSyntax {
         context "bridi continuation";
+        construct direct;
         fields {
             field connective = bridi_tail_connective;
             field tense_modal = opt(boxed(tense_modal));
-            field bo = cmavo(Bo).wf();
+            scratch bo = cmavo(Bo).wf();
+            let marker = bityzba::new!(BridiStatementContinuationMarkerSyntax::BoGrouped(bo));
             field trailing_subbridi = boxed(subbridi);
         }
-        build |connective, tense_modal, bo, trailing_subbridi| BridiStatementContinuationSyntax {
-            connective,
-            tense_modal,
-            marker: bityzba::new!(BridiStatementContinuationMarkerSyntax::BoGrouped(bo)),
-            trailing_subbridi,
-        };
     }
 
     product ke_bridi_statement_continuation(subbridi, tense_modal) -> BridiStatementContinuationSyntax {
         context "bridi continuation";
+        construct direct;
         fields {
             field connective = relation_afterthought_connective;
             field tense_modal = opt(boxed(tense_modal));
-            field ke = cmavo(Ke).wf();
+            scratch ke = cmavo(Ke).wf();
             field trailing_subbridi = boxed(subbridi);
-            field kehe = opt(cmavo(Kehe).wf());
-        }
-        build |connective, tense_modal, ke, trailing_subbridi, kehe| BridiStatementContinuationSyntax {
-            connective,
-            tense_modal,
-            marker: bityzba::new!(BridiStatementContinuationMarkerSyntax::KeGrouped {
+            scratch kehe = opt(cmavo(Kehe).wf());
+            let marker = bityzba::new!(BridiStatementContinuationMarkerSyntax::KeGrouped {
                 ke,
                 kehe,
-            }),
-            trailing_subbridi,
-        };
+            });
+        }
     }
 
     node selbri_fragment(selbri) -> StatementSyntax {
@@ -1215,65 +1196,51 @@ jbotci_syntax_macros::syntax_grammar! {
 
     node forethought_termset(term, tense_modal) -> TermSyntax {
         context "termset";
+        construct variant ForethoughtTermsetConnection;
         fields {
             field m_nuhi = opt(cmavo(Nuhi).wf());
             field gek = modal_forethought_connective(tense_modal);
-            field terms = many1(boxed(term));
+            scratch term_boxes = many1(boxed(term));
+            let terms = unbox_terms(term_boxes);
             field nuhu = opt(cmavo(Nuhu).wf());
             field gik = gik_connective;
-            field gik_terms = many1(boxed(term));
+            scratch gik_term_boxes = many1(boxed(term));
+            let gik_terms = unbox_terms(gik_term_boxes);
             field gihi = opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
             field gik_nuhu = opt(cmavo(Nuhu).wf());
         }
-        build |m_nuhi, gek, terms, nuhu, gik, gik_terms, gihi, gik_nuhu| bityzba::new!(TermSyntax::ForethoughtTermsetConnection {
-            m_nuhi,
-            gek,
-            terms: unbox_terms(terms),
-            nuhu,
-            gik,
-            gik_terms: unbox_terms(gik_terms),
-            gihi,
-            gik_nuhu,
-        });
     }
 
     node nuhi_termset(term) -> TermSyntax {
         context "termset";
+        construct variant Termset;
         fields {
             field nuhi = cmavo(Nuhi).wf();
-            field termset = many1(boxed(term));
+            scratch term_boxes = many1(boxed(term));
+            let termset = unbox_terms(term_boxes);
             field nuhu = opt(cmavo(Nuhu).wf());
         }
-        build |nuhi, termset, nuhu| bityzba::new!(TermSyntax::Termset {
-            nuhi,
-            termset: unbox_terms(termset),
-            nuhu,
-        });
     }
 
     node ke_termset(term) -> TermSyntax {
         context "termset";
+        construct variant Termset;
         fields {
-            field ke = cmavo(Ke).warn(ExperimentalKeTermset).wf();
-            field termset = many1(boxed(term));
-            field kehe = opt(cmavo(Kehe).wf());
+            scratch ke = cmavo(Ke).warn(ExperimentalKeTermset).wf();
+            let nuhi = ke;
+            scratch term_boxes = many1(boxed(term));
+            let termset = unbox_terms(term_boxes);
+            scratch kehe = opt(cmavo(Kehe).wf());
+            let nuhu = kehe;
         }
-        build |ke, termset, kehe| bityzba::new!(TermSyntax::Termset {
-            nuhi: ke,
-            termset: unbox_terms(termset),
-            nuhu: kehe,
-        });
     }
 
-    node noiha_adverbial_term(selbri) -> TermSyntax {
+    alias noiha_adverbial_term(selbri) -> TermSyntax {
         context "NOIhA adverbial";
-        fields {
-            field term = choice((
-                noiha_variable_adverbial_term(selbri),
-                noiha_relative_adverbial_term(selbri),
-            ));
-        }
-        build |term| term;
+        choice((
+            noiha_variable_adverbial_term(selbri),
+            noiha_relative_adverbial_term(selbri),
+        ));
     }
 
     node noiha_variable_adverbial_term(selbri) -> TermSyntax {
@@ -1359,60 +1326,52 @@ jbotci_syntax_macros::syntax_grammar! {
         }
     }
 
-    product bare_na_term_forbidden_follow(selbri, tense_modal) -> self::BareNaTermForbiddenFollowSyntax {
+    alias bare_na_term_forbidden_follow(selbri, tense_modal) -> () {
         context "NA term";
-        fields {
-            field follow = choice((
-                bare_na_selbri_follow(selbri),
-                bare_na_modal_forethought_follow(tense_modal),
-                bare_na_ja_follow(),
-                bare_na_a_follow(),
-                bare_na_giha_follow(),
-            ));
-        }
-        build |follow| follow;
+        choice((
+            bare_na_selbri_follow(selbri),
+            bare_na_modal_forethought_follow(tense_modal),
+            bare_na_ja_follow(),
+            bare_na_a_follow(),
+            bare_na_giha_follow(),
+        ));
     }
 
-    product bare_na_selbri_follow(selbri) -> self::BareNaTermForbiddenFollowSyntax {
+    product bare_na_selbri_follow(selbri) -> () {
         context "NA term";
         fields {
             require selbri;
         }
-        build || BareNaTermForbiddenFollowSyntax;
     }
 
-    product bare_na_modal_forethought_follow(tense_modal) -> self::BareNaTermForbiddenFollowSyntax {
+    product bare_na_modal_forethought_follow(tense_modal) -> () {
         context "NA term";
         fields {
             require modal_forethought_connective(tense_modal);
         }
-        build || BareNaTermForbiddenFollowSyntax;
     }
 
-    product bare_na_ja_follow -> self::BareNaTermForbiddenFollowSyntax {
+    product bare_na_ja_follow -> () {
         context "NA term";
         fields {
             require selmaho(Ja);
         }
-        build || BareNaTermForbiddenFollowSyntax;
     }
 
-    product bare_na_a_follow -> self::BareNaTermForbiddenFollowSyntax {
+    product bare_na_a_follow -> () {
         context "NA term";
         fields {
             require opt(selmaho(Se));
             require selmaho(A);
         }
-        build || BareNaTermForbiddenFollowSyntax;
     }
 
-    product bare_na_giha_follow -> self::BareNaTermForbiddenFollowSyntax {
+    product bare_na_giha_follow -> () {
         context "NA term";
         fields {
             require opt(selmaho(Se));
             require selmaho(Giha);
         }
-        build || BareNaTermForbiddenFollowSyntax;
     }
 
     node tagged_sumti_before_tag_term(tense_modal, selbri) -> TermSyntax {
@@ -1448,21 +1407,18 @@ jbotci_syntax_macros::syntax_grammar! {
         }
     }
 
-    node leading_term_tag_tense_modal(tense_modal, selbri) -> TenseModalSyntax {
+    alias leading_term_tag_tense_modal(tense_modal, selbri) -> TenseModalSyntax {
         context "tag";
-        fields {
-            field tense_modal = choice((
-                pu_before_nahe_leading_term_tag_tense(),
-                pu_distance_before_tag_leading_term_tag_tense(),
-                zi_before_zi_leading_term_tag_tense(),
-                va_before_va_leading_term_tag_tense(),
-                mohi_before_mohi_leading_term_tag_tense(),
-                caha_before_tag_leading_term_tag_tense(tense_modal),
-                interval_property_leading_term_tag_tense(selbri),
-                tense_modal,
-            ));
-        }
-        build |tense_modal| tense_modal;
+        choice((
+            pu_before_nahe_leading_term_tag_tense(),
+            pu_distance_before_tag_leading_term_tag_tense(),
+            zi_before_zi_leading_term_tag_tense(),
+            va_before_va_leading_term_tag_tense(),
+            mohi_before_mohi_leading_term_tag_tense(),
+            caha_before_tag_leading_term_tag_tense(tense_modal),
+            interval_property_leading_term_tag_tense(selbri),
+            tense_modal,
+        ));
     }
 
     node pu_before_nahe_leading_term_tag_tense -> TenseModalSyntax {
@@ -1541,109 +1497,70 @@ jbotci_syntax_macros::syntax_grammar! {
 
     node caha_before_tag_leading_term_tag_tense(tense_modal) -> TenseModalSyntax {
         context "tag";
+        construct tuple_variant Actuality;
         fields {
-            field caha = selmaho(Caha).wf();
-            field next = tense_modal.lookahead();
+            field caha = selmaho(Caha).wf().followed_by(tense_modal.lookahead());
         }
-        build |caha, next| {
-            let _ = next;
-            bityzba::new!(TenseModalSyntax::Actuality(caha))
-        };
     }
 
-    node interval_property_leading_term_tag_tense(selbri) -> TenseModalSyntax {
+    alias interval_property_leading_term_tag_tense(selbri) -> TenseModalSyntax {
         context "interval property";
-        fields {
-            field property = interval_property_tense();
-            field follower = leading_interval_property_follower(selbri).lookahead();
-        }
-        build |property, follower| {
-            let _ = follower;
-            property
-        };
+        interval_property_tense().followed_by(leading_interval_property_follower(selbri).lookahead());
     }
 
-    product leading_interval_property_follower(selbri) -> self::LeadingTermTagFollowerSyntax {
+    alias leading_interval_property_follower(selbri) -> () {
+        context "tag";
+        choice((
+            pu_leading_interval_property_follower(),
+            zi_leading_interval_property_follower(),
+            zeha_leading_interval_property_follower(),
+            nahe_caha_leading_interval_property_follower(),
+            modal_leading_interval_property_follower(),
+            fiho_leading_interval_property_follower(selbri),
+        ));
+    }
+
+    product pu_leading_interval_property_follower -> () {
         context "tag";
         fields {
-            field follower = choice((
-                pu_leading_interval_property_follower(),
-                zi_leading_interval_property_follower(),
-                zeha_leading_interval_property_follower(),
-                nahe_caha_leading_interval_property_follower(),
-                modal_leading_interval_property_follower(),
-                fiho_leading_interval_property_follower(selbri),
-            ));
+            require selmaho(Pu);
         }
-        build |follower| follower;
     }
 
-    product pu_leading_interval_property_follower -> self::LeadingTermTagFollowerSyntax {
+    product zi_leading_interval_property_follower -> () {
         context "tag";
         fields {
-            field pu = selmaho(Pu);
+            require selmaho(Zi);
         }
-        build |pu| {
-            let _ = pu;
-            LeadingTermTagFollowerSyntax
-        };
     }
 
-    product zi_leading_interval_property_follower -> self::LeadingTermTagFollowerSyntax {
+    product zeha_leading_interval_property_follower -> () {
         context "tag";
         fields {
-            field zi = selmaho(Zi);
+            require selmaho(Zeha);
         }
-        build |zi| {
-            let _ = zi;
-            LeadingTermTagFollowerSyntax
-        };
     }
 
-    product zeha_leading_interval_property_follower -> self::LeadingTermTagFollowerSyntax {
+    product nahe_caha_leading_interval_property_follower -> () {
         context "tag";
         fields {
-            field zeha = selmaho(Zeha);
+            require selmaho(Nahe);
+            require selmaho(Caha);
         }
-        build |zeha| {
-            let _ = zeha;
-            LeadingTermTagFollowerSyntax
-        };
     }
 
-    product nahe_caha_leading_interval_property_follower -> self::LeadingTermTagFollowerSyntax {
-        context "tag";
-        fields {
-            field nahe = selmaho(Nahe);
-            field caha = selmaho(Caha);
-        }
-        build |nahe, caha| {
-            let _ = nahe;
-            let _ = caha;
-            LeadingTermTagFollowerSyntax
-        };
-    }
-
-    product modal_leading_interval_property_follower -> self::LeadingTermTagFollowerSyntax {
+    product modal_leading_interval_property_follower -> () {
         context "modal tag";
         fields {
-            field modal = modal_tense();
+            require modal_tense();
         }
-        build |modal| {
-            let _ = modal;
-            LeadingTermTagFollowerSyntax
-        };
     }
 
-    product fiho_leading_interval_property_follower(selbri) -> self::LeadingTermTagFollowerSyntax {
+    product fiho_leading_interval_property_follower(selbri) -> () {
         context "FIhO modal";
         fields {
-            field fiho = fiho_tense(selbri);
+            require fiho_tense(selbri);
         }
-        build |fiho| {
-            let _ = fiho;
-            LeadingTermTagFollowerSyntax
-        };
     }
 
     node tagged_elided_sumti -> SumtiSyntax {
@@ -1940,17 +1857,15 @@ jbotci_syntax_macros::syntax_grammar! {
 
     node pa_run_quantifier(letter_tokens) -> QuantifierSyntax {
         context "quantifier";
+        construct variant NumberQuantifier;
         fields {
-            field number = number_words(letter_tokens).wf();
+            scratch number_words = number_words(letter_tokens).wf();
+            let number = WithFreeModifiers::new(
+                WordRun::try_from_vec(number_words.value).expect("many1 guarantees non-empty number words"),
+                number_words.free_modifiers,
+            );
             field boi = opt(cmavo(Boi).wf());
         }
-        build |number, boi| bityzba::new!(QuantifierSyntax::NumberQuantifier {
-            number: WithFreeModifiers::new(
-                WordRun::try_from_vec(number.value).expect("many1 guarantees non-empty number words"),
-                number.free_modifiers,
-            ),
-            boi,
-        });
     }
 
     node mekso_quantifier(mekso) -> QuantifierSyntax {
@@ -2146,20 +2061,15 @@ jbotci_syntax_macros::syntax_grammar! {
 
     node bound_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> MeksoSyntax {
         context "operand connective";
+        construct variant MeksoConnection;
         fields {
             field left_expression = boxed(simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
-            field connective = operand_connective;
-            field tense_modal = opt(boxed(tense_modal));
-            field bo = cmavo(Bo).wf();
+            scratch operand_connective = operand_connective;
+            scratch tense_modal = opt(boxed(tense_modal));
+            scratch bo = cmavo(Bo).wf();
+            let connective = append_optional_tense_modal_and_bo_to_connective(operand_connective, tense_modal, bo);
             field right_expression = boxed(mekso_operand);
         }
-        build |left_expression, connective, tense_modal, bo, right_expression| {
-            bityzba::new!(MeksoSyntax::MeksoConnection {
-                left_expression,
-                connective: append_optional_tense_modal_and_bo_to_connective(connective, tense_modal, bo),
-                right_expression,
-            })
-        };
     }
 
     alias simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> MeksoSyntax {
@@ -2178,17 +2088,14 @@ jbotci_syntax_macros::syntax_grammar! {
 
     node qualified_mekso_operand(mekso_operand) -> MeksoSyntax {
         context "qualified operand";
+        construct variant QualifiedOperand;
         fields {
-            field nahe = selmaho(Nahe);
-            field bo = cmavo(Bo);
+            scratch nahe = selmaho(Nahe);
+            scratch bo = cmavo(Bo);
+            let markers = WithFreeModifiers::new(vec![nahe, bo], Vec::new());
             field inner_expression = boxed(mekso_operand);
             field luhu = opt(cmavo(Luhu).wf());
         }
-        build |nahe, bo, inner_expression, luhu| bityzba::new!(MeksoSyntax::QualifiedOperand {
-            markers: WithFreeModifiers::new(vec![nahe, bo], Vec::new()),
-            inner_expression,
-            luhu,
-        });
     }
 
     node forethought_mekso_operand(mekso_operand, tense_modal) -> MeksoSyntax {
@@ -2234,16 +2141,14 @@ jbotci_syntax_macros::syntax_grammar! {
 
     node array_mekso_operand(mekso) -> MeksoSyntax {
         context "mekso array";
+        construct variant MeksoArray;
         fields {
             field johi = cmavo(Johi).wf();
-            field expressions = many1(mekso);
+            scratch expression_items = many1(mekso);
+            let expressions = MeksoVec::try_from_vec(expression_items)
+                .expect("many1 guarantees non-empty mex array");
             field tehu = opt(cmavo(Tehu).wf());
         }
-        build |johi, expressions, tehu| bityzba::new!(MeksoSyntax::MeksoArray {
-            johi,
-            expressions: MeksoVec::try_from_vec(expressions).expect("many1 guarantees non-empty mex array"),
-            tehu,
-        });
     }
 
     node letter_string(letter_tokens) -> std::vec::Vec<Token> {
@@ -2282,15 +2187,12 @@ jbotci_syntax_macros::syntax_grammar! {
         };
     }
 
-    product number_or_letter_words(letter_tokens, letter_string) -> std::vec::Vec<Token> {
+    alias number_or_letter_words(letter_tokens, letter_string) -> std::vec::Vec<Token> {
         context "number or lerfu string";
-        fields {
-            field words = choice((
-                number_words(letter_tokens),
-                letter_string,
-            ));
-        }
-        build |words| words;
+        choice((
+            number_words(letter_tokens),
+            letter_string,
+        ));
     }
 
     product number_or_letter_mekso(letter_tokens, letter_string, free_modifier) -> MeksoSyntax {
@@ -2314,16 +2216,13 @@ jbotci_syntax_macros::syntax_grammar! {
         };
     }
 
-    node letter_tokens(letter_string, letter_tokens) -> std::vec::Vec<Token> {
+    alias letter_tokens(letter_string, letter_tokens) -> std::vec::Vec<Token> {
         context "lerfu word";
-        fields {
-            field words = choice((
-                plain_letter_word_as_words(),
-                lau_letter_tokens(letter_tokens),
-                tei_letter_tokens(letter_string),
-            ));
-        }
-        build |words| words;
+        choice((
+            plain_letter_word_as_words(),
+            lau_letter_tokens(letter_tokens),
+            tei_letter_tokens(letter_string),
+        ));
     }
 
     product pa_word_as_words -> std::vec::Vec<Token> {
@@ -2387,15 +2286,12 @@ jbotci_syntax_macros::syntax_grammar! {
         };
     }
 
-    node mekso_base(mekso_base, mekso_operand, mekso_operator) -> MeksoSyntax {
+    alias mekso_base(mekso_base, mekso_operand, mekso_operator) -> MeksoSyntax {
         context "mex";
-        fields {
-            field expression = choice((
-                mekso_operand,
-                forethought_call_mekso(mekso_base, mekso_operator),
-            ));
-        }
-        build |expression| expression;
+        choice((
+            mekso_operand,
+            forethought_call_mekso(mekso_base, mekso_operator),
+        ));
     }
 
     node mekso_precedence(mekso_base, mekso_precedence, mekso_operator) -> MeksoSyntax {
@@ -2437,29 +2333,21 @@ jbotci_syntax_macros::syntax_grammar! {
 
     node forethought_call_mekso(mekso_base, mekso_operator) -> MeksoSyntax {
         context "forethought mex";
+        construct variant ForethoughtCall;
         fields {
             field peho = opt(cmavo(Peho).wf());
             field operator = boxed(mekso_operator);
             field operands = many1(mekso_base);
             field kuhe = opt(cmavo(Kuhe).wf());
         }
-        build |peho, operator, operands, kuhe| bityzba::new!(MeksoSyntax::ForethoughtCall {
-            peho,
-            operator,
-            operands,
-            kuhe,
-        });
     }
 
-    node mekso(mekso_base, mekso_precedence, mekso_operator, reverse_polish_parts) -> MeksoSyntax {
+    alias mekso(mekso_base, mekso_precedence, mekso_operator, reverse_polish_parts) -> MeksoSyntax {
         context "mex";
-        fields {
-            field expression = choice((
-                infix_mekso(mekso_base, mekso_precedence, mekso_operator),
-                reverse_polish_mekso(reverse_polish_parts),
-            ));
-        }
-        build |expression| expression;
+        choice((
+            infix_mekso(mekso_base, mekso_precedence, mekso_operator),
+            reverse_polish_mekso(reverse_polish_parts),
+        ));
     }
 
     product reverse_polish_parts(reverse_polish_parts, mekso_operand, mekso_operator) -> self::ReversePolishPartsSyntax {
@@ -3641,53 +3529,44 @@ jbotci_syntax_macros::syntax_grammar! {
 
     product ek_connective -> ConnectiveSyntax {
         context "ek";
+        construct variant Afterthought;
         fields {
             field na = opt(selmaho(Na));
             field se = opt(selmaho(Se));
-            field a = selmaho(A).wf();
-            field nai = opt(cmavo(Nai).wf());
+            default nahe = None;
+            scratch a = selmaho(A).wf();
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![a.value], a.free_modifiers));
+            scratch nai_token = opt(cmavo(Nai).wf());
+            let nai = nai_token.map(std::sync::Arc::new);
         }
-        build |na, se, a, nai| bityzba::new!(ConnectiveSyntax::Afterthought {
-            se,
-            nahe: None,
-            na,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![a.value], a.free_modifiers)),
-            nai: nai.map(std::sync::Arc::new),
-        });
     }
 
     product jehi_connective -> ConnectiveSyntax {
         context "ek";
+        construct variant Afterthought;
         fields {
             field na = opt(selmaho(Na));
             field se = opt(selmaho(Se));
-            field jehi = selmaho(Jehi).wf();
-            field nai = opt(cmavo(Nai).wf());
+            default nahe = None;
+            scratch jehi = selmaho(Jehi).wf();
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![jehi.value], jehi.free_modifiers));
+            scratch nai_token = opt(cmavo(Nai).wf());
+            let nai = nai_token.map(std::sync::Arc::new);
         }
-        build |na, se, jehi, nai| bityzba::new!(ConnectiveSyntax::Afterthought {
-            se,
-            nahe: None,
-            na,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![jehi.value], jehi.free_modifiers)),
-            nai: nai.map(std::sync::Arc::new),
-        });
     }
 
     product jek_connective -> ConnectiveSyntax {
         context "jek";
+        construct variant Selbri;
         fields {
             field na = opt(selmaho(Na));
             field se = opt(selmaho(Se));
-            field ja = selmaho(Ja).wf();
-            field nai = opt(cmavo(Nai).wf());
+            default nahe = None;
+            scratch ja = selmaho(Ja).wf();
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![ja.value], ja.free_modifiers));
+            scratch nai_token = opt(cmavo(Nai).wf());
+            let nai = nai_token.map(std::sync::Arc::new);
         }
-        build |na, se, ja, nai| bityzba::new!(ConnectiveSyntax::Selbri {
-            se,
-            nahe: None,
-            na,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![ja.value], ja.free_modifiers)),
-            nai: nai.map(std::sync::Arc::new),
-        });
     }
 
     alias joik_connective -> ConnectiveSyntax {
@@ -3701,70 +3580,63 @@ jbotci_syntax_macros::syntax_grammar! {
 
     product joi_connective -> ConnectiveSyntax {
         context "joik";
+        construct variant NonLogical;
         fields {
             field se = opt(selmaho(Se));
-            field joi = selmaho(Joi).wf();
-            field nai = opt(cmavo(Nai).wf());
+            default nahe = None;
+            default na = None;
+            scratch joi = selmaho(Joi).wf();
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![joi.value], joi.free_modifiers));
+            scratch nai_token = opt(cmavo(Nai).wf());
+            let nai = nai_token.map(std::sync::Arc::new);
         }
-        build |se, joi, nai| bityzba::new!(ConnectiveSyntax::NonLogical {
-            se,
-            nahe: None,
-            na: None,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![joi.value], joi.free_modifiers)),
-            nai: nai.map(std::sync::Arc::new),
-        });
     }
 
     product simple_interval_connective -> ConnectiveSyntax {
         context "interval";
+        construct variant Interval;
         fields {
             field se = opt(selmaho(Se));
-            field bihi = selmaho(Bihi).wf();
-            field nai = opt(cmavo(Nai).wf());
+            default nahe = None;
+            default na = None;
+            scratch bihi = selmaho(Bihi).wf();
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![bihi.value], bihi.free_modifiers));
+            scratch nai_token = opt(cmavo(Nai).wf());
+            let nai = nai_token.map(std::sync::Arc::new);
         }
-        build |se, bihi, nai| bityzba::new!(ConnectiveSyntax::Interval {
-            se,
-            nahe: None,
-            na: None,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![bihi.value], bihi.free_modifiers)),
-            nai: nai.map(std::sync::Arc::new),
-        });
     }
 
     product closed_interval_connective -> ConnectiveSyntax {
         context "interval";
+        construct variant Interval;
         fields {
-            field left_interval = selmaho(Gaho);
+            scratch left_interval = selmaho(Gaho);
             field se = opt(selmaho(Se));
-            field bihi = selmaho(Bihi);
-            field nai = opt(cmavo(Nai));
-            field right_interval = selmaho(Gaho).wf();
+            default nahe = None;
+            default na = None;
+            scratch bihi = selmaho(Bihi);
+            scratch nai_token = opt(cmavo(Nai));
+            scratch right_interval = selmaho(Gaho).wf();
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(
+                vec![left_interval, bihi, right_interval.value],
+                right_interval.free_modifiers,
+            ));
+            let nai = nai_token
+                .map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
         }
-        build |left_interval, se, bihi, nai, right_interval| {
-            let mut cmavo = vec![left_interval, bihi];
-            cmavo.push(right_interval.value);
-            bityzba::new!(ConnectiveSyntax::Interval {
-                se,
-                nahe: None,
-                na: None,
-                cmavo: std::sync::Arc::new(WithFreeModifiers::new(cmavo, right_interval.free_modifiers)),
-                nai: nai.map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new()))),
-            })
-        };
     }
 
     product vuhu_nonlogical_connective -> ConnectiveSyntax {
         context "non-logical connective";
+        construct variant NonLogical;
         fields {
-            field vuhu = selmaho(Vuhu).wf();
+            default se = None;
+            default nahe = None;
+            default na = None;
+            scratch vuhu = selmaho(Vuhu).wf();
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![vuhu.value], vuhu.free_modifiers));
+            default nai = None;
         }
-        build |vuhu| bityzba::new!(ConnectiveSyntax::NonLogical {
-            se: None,
-            nahe: None,
-            na: None,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![vuhu.value], vuhu.free_modifiers)),
-            nai: None,
-        });
     }
 
     alias argument_connective -> ConnectiveSyntax {
@@ -3909,55 +3781,52 @@ jbotci_syntax_macros::syntax_grammar! {
 
     product paragraph_joi_connective -> ConnectiveSyntax {
         context "joik";
+        construct variant NonLogical;
         fields {
             field se = opt(selmaho(Se));
-            field joi = selmaho(Joi);
-            field nai = opt(cmavo(Nai));
+            default nahe = None;
+            default na = None;
+            scratch joi = selmaho(Joi);
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![joi], Vec::new()));
+            scratch nai_token = opt(cmavo(Nai));
+            let nai = nai_token
+                .map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
         }
-        build |se, joi, nai| bityzba::new!(ConnectiveSyntax::NonLogical {
-            se,
-            nahe: None,
-            na: None,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![joi], Vec::new())),
-            nai: nai.map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new()))),
-        });
     }
 
     product paragraph_simple_interval_connective -> ConnectiveSyntax {
         context "interval";
+        construct variant Interval;
         fields {
             field se = opt(selmaho(Se));
-            field bihi = selmaho(Bihi);
-            field nai = opt(cmavo(Nai));
+            default nahe = None;
+            default na = None;
+            scratch bihi = selmaho(Bihi);
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![bihi], Vec::new()));
+            scratch nai_token = opt(cmavo(Nai));
+            let nai = nai_token
+                .map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
         }
-        build |se, bihi, nai| bityzba::new!(ConnectiveSyntax::Interval {
-            se,
-            nahe: None,
-            na: None,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![bihi], Vec::new())),
-            nai: nai.map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new()))),
-        });
     }
 
     product paragraph_closed_interval_connective -> ConnectiveSyntax {
         context "interval";
+        construct variant Interval;
         fields {
-            field left_interval = selmaho(Gaho);
+            scratch left_interval = selmaho(Gaho);
             field se = opt(selmaho(Se));
-            field bihi = selmaho(Bihi);
-            field nai = opt(cmavo(Nai));
-            field right_interval = selmaho(Gaho);
-        }
-        build |left_interval, se, bihi, nai, right_interval| bityzba::new!(ConnectiveSyntax::Interval {
-            se,
-            nahe: None,
-            na: None,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(
+            default nahe = None;
+            default na = None;
+            scratch bihi = selmaho(Bihi);
+            scratch nai_token = opt(cmavo(Nai));
+            scratch right_interval = selmaho(Gaho);
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(
                 vec![left_interval, bihi, right_interval],
                 Vec::new(),
-            )),
-            nai: nai.map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new()))),
-        });
+            ));
+            let nai = nai_token
+                .map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
+        }
     }
 
     product i_tag_bo_paragraph_statement_connective(tense_modal) -> ConnectiveSyntax {
@@ -3983,51 +3852,44 @@ jbotci_syntax_macros::syntax_grammar! {
 
     product cehe_connective -> ConnectiveSyntax {
         context "termset connective";
+        construct variant NonLogical;
         fields {
-            field cehe = cmavo(Cehe).wf();
-            field nai = opt(cmavo(Nai).wf());
+            default se = None;
+            default nahe = None;
+            default na = None;
+            scratch cehe = cmavo(Cehe).wf();
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![cehe.value], cehe.free_modifiers));
+            scratch nai_token = opt(cmavo(Nai).wf());
+            let nai = nai_token.map(std::sync::Arc::new);
         }
-        build |cehe, nai| bityzba::new!(ConnectiveSyntax::NonLogical {
-            se: None,
-            nahe: None,
-            na: None,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![cehe.value], cehe.free_modifiers)),
-            nai: nai.map(std::sync::Arc::new),
-        });
     }
 
     product gihek_connective -> ConnectiveSyntax {
         context "gihek";
+        construct variant BridiTail;
         fields {
             field na = opt(selmaho(Na));
             field se = opt(selmaho(Se));
-            field giha = selmaho(Giha).wf();
-            field nai = opt(cmavo(Nai).wf());
+            default nahe = None;
+            scratch giha = selmaho(Giha).wf();
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![giha.value], giha.free_modifiers));
+            scratch nai_token = opt(cmavo(Nai).wf());
+            let nai = nai_token.map(std::sync::Arc::new);
         }
-        build |na, se, giha, nai| bityzba::new!(ConnectiveSyntax::BridiTail {
-            se,
-            nahe: None,
-            na,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![giha.value], giha.free_modifiers)),
-            nai: nai.map(std::sync::Arc::new),
-        });
     }
 
     product guhek_connective -> ConnectiveSyntax {
         context "forethought selbri connective";
+        construct variant Forethought;
         fields {
             field nahe = opt(selmaho(Nahe));
             field se = opt(selmaho(Se));
-            field guha = selmaho(Guha).wf();
-            field nai = opt(cmavo(Nai).wf());
+            default na = None;
+            scratch guha = selmaho(Guha).wf();
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![guha.value], guha.free_modifiers));
+            scratch nai_token = opt(cmavo(Nai).wf());
+            let nai = nai_token.map(std::sync::Arc::new);
         }
-        build |nahe, se, guha, nai| bityzba::new!(ConnectiveSyntax::Forethought {
-            se,
-            nahe,
-            na: None,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![guha.value], guha.free_modifiers)),
-            nai: nai.map(std::sync::Arc::new),
-        });
     }
 
     alias bridi_tail_connective -> ConnectiveSyntax {
@@ -4077,18 +3939,16 @@ jbotci_syntax_macros::syntax_grammar! {
 
     product ga_forethought_connective -> ConnectiveSyntax {
         context "forethought connective";
+        construct variant Forethought;
         fields {
             field se = opt(selmaho(Se));
-            field ga = selmaho(Ga).wf();
-            field nai = opt(cmavo(Nai).wf());
+            default nahe = None;
+            default na = None;
+            scratch ga = selmaho(Ga).wf();
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![ga.value], ga.free_modifiers));
+            scratch nai_token = opt(cmavo(Nai).wf());
+            let nai = nai_token.map(std::sync::Arc::new);
         }
-        build |se, ga, nai| bityzba::new!(ConnectiveSyntax::Forethought {
-            se,
-            nahe: None,
-            na: None,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![ga.value], ga.free_modifiers)),
-            nai: nai.map(std::sync::Arc::new),
-        });
     }
 
     product zantufa_initial_gi_forethought_connective -> ConnectiveSyntax {
@@ -4148,17 +4008,16 @@ jbotci_syntax_macros::syntax_grammar! {
 
     product gik_connective -> ConnectiveSyntax {
         context "forethought connective";
+        construct variant Forethought;
         fields {
-            field gi = cmavo(Gi).wf();
-            field nai = opt(cmavo(Nai).wf());
+            default se = None;
+            default nahe = None;
+            default na = None;
+            scratch gi = cmavo(Gi).wf();
+            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![gi.value], gi.free_modifiers));
+            scratch nai_token = opt(cmavo(Nai).wf());
+            let nai = nai_token.map(std::sync::Arc::new);
         }
-        build |gi, nai| bityzba::new!(ConnectiveSyntax::Forethought {
-            se: None,
-            nahe: None,
-            na: None,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![gi.value], gi.free_modifiers)),
-            nai: nai.map(std::sync::Arc::new),
-        });
     }
 
     alias tense_modal(selbri) -> TenseModalSyntax {
