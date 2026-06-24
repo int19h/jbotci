@@ -8072,32 +8072,68 @@ fn syntax_parser_benchmark(args: SyntaxParserBenchmarkArgs) -> Result<()> {
         SyntaxParserBenchmarkParser::Handwritten,
         SyntaxParserBenchmarkParser::Generated,
     ] {
+        let chunks = syntax_parser_benchmark_path_chunks(&args)?;
         let mut parser_results = Vec::new();
         for iteration in 0..args.iterations {
-            let output =
-                syntax_parser_benchmark_worker_output(&exe, &args, parser).with_context(|| {
-                    format!(
-                        "running {} parser benchmark iteration {}",
+            let mut chunk_results = Vec::new();
+            for (chunk_index, chunk) in chunks.iter().enumerate() {
+                let output = syntax_parser_benchmark_worker_output(&exe, &args, parser, chunk)
+                    .with_context(|| {
+                        format!(
+                            "running {} parser benchmark iteration {} chunk {}",
+                            parser.as_str(),
+                            iteration + 1,
+                            chunk_index + 1
+                        )
+                    })?;
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                if !output.status.success() {
+                    bail!(
+                        "{} parser benchmark worker failed with status {}; stdout: {}",
                         parser.as_str(),
-                        iteration + 1
-                    )
-                })?;
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            if !output.status.success() {
-                bail!(
-                    "{} parser benchmark worker failed with status {}; stdout: {}",
-                    parser.as_str(),
-                    output.status,
-                    stdout.trim()
-                );
+                        output.status,
+                        stdout.trim()
+                    );
+                }
+                chunk_results.push(parse_syntax_parser_benchmark_summary(&stdout)?);
             }
-            parser_results.push(parse_syntax_parser_benchmark_summary(&stdout)?);
+            parser_results.push(SyntaxParserBenchmarkSummary::combine(
+                parser,
+                &chunk_results,
+            ));
         }
         all_results.push((parser, parser_results));
     }
 
     print_syntax_parser_benchmark_report(&args, &all_results);
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|chunks| !chunks.is_empty()) || ret.is_err())]
+fn syntax_parser_benchmark_path_chunks(
+    args: &SyntaxParserBenchmarkArgs,
+) -> Result<Vec<Vec<String>>> {
+    let profile = syntax_parser_benchmark_profile(args)?;
+    let mut paths = fixture_paths(&args.root)
+        .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
+    paths.retain(|path| path_matches_prefix_selector(&args.root, path, &profile.selector));
+    let selected = paths
+        .into_iter()
+        .map(|path| {
+            path.strip_prefix(&args.root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+    if selected.is_empty() {
+        bail!("syntax parser benchmark selector matched no fixture files");
+    }
+    Ok(selected
+        .chunks(SYNTAX_PARSER_BENCHMARK_CHUNK_SIZE)
+        .map(|chunk| chunk.to_vec())
+        .collect())
 }
 
 #[requires(args.worker)]
@@ -8175,6 +8211,7 @@ fn syntax_parser_benchmark_worker(args: SyntaxParserBenchmarkArgs) -> Result<()>
                 syntax_errors += 1;
             }
         }
+        trim_fixture_worker_heap();
     }
     let wall_time = started_at.elapsed();
     let resources =
@@ -8234,6 +8271,7 @@ fn syntax_parser_benchmark_worker_output(
     exe: &Path,
     args: &SyntaxParserBenchmarkArgs,
     parser: SyntaxParserBenchmarkParser,
+    chunk_path_prefixes: &[String],
 ) -> Result<std::process::Output> {
     let mut command = ProcessCommand::new(exe);
     command
@@ -8251,7 +8289,7 @@ fn syntax_parser_benchmark_worker_output(
     for id in &args.ids {
         command.arg("--id").arg(id);
     }
-    for path_prefix in &args.path_prefixes {
+    for path_prefix in chunk_path_prefixes {
         command.arg("--path-prefix").arg(path_prefix);
     }
     command
@@ -8532,6 +8570,33 @@ struct SyntaxParserBenchmarkSummary {
 }
 
 impl SyntaxParserBenchmarkSummary {
+    #[requires(!chunks.is_empty())]
+    #[ensures(ret.parser == parser)]
+    fn combine(parser: SyntaxParserBenchmarkParser, chunks: &[Self]) -> Self {
+        let mut summary = Self {
+            parser,
+            selected: 0,
+            benchmarked: 0,
+            parsed: 0,
+            skipped: 0,
+            morphology_errors: 0,
+            syntax_errors: 0,
+            wall_time: Duration::ZERO,
+            resources: BenchmarkResourceDelta::default(),
+        };
+        for chunk in chunks {
+            summary.selected += chunk.selected;
+            summary.benchmarked += chunk.benchmarked;
+            summary.parsed += chunk.parsed;
+            summary.skipped += chunk.skipped;
+            summary.morphology_errors += chunk.morphology_errors;
+            summary.syntax_errors += chunk.syntax_errors;
+            summary.wall_time = summary.wall_time.saturating_add(chunk.wall_time);
+            summary.resources = summary.resources.combine_sequential(chunk.resources);
+        }
+        summary
+    }
+
     #[requires(true)]
     #[ensures(ret.starts_with(SYNTAX_PARSER_BENCHMARK_WORKER_PREFIX))]
     fn worker_line(&self) -> String {
@@ -8574,7 +8639,7 @@ struct BenchmarkResourceUsage {
     peak_rss_bytes: Option<u64>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 #[invariant(true)]
 struct BenchmarkResourceDelta {
     user_cpu: Option<Duration>,
@@ -8591,6 +8656,38 @@ impl BenchmarkResourceDelta {
             system_cpu: benchmark_duration_delta(start.system_cpu, end.system_cpu),
             peak_rss_bytes: end.peak_rss_bytes,
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn combine_sequential(self, other: Self) -> Self {
+        Self {
+            user_cpu: combine_optional_duration(self.user_cpu, other.user_cpu),
+            system_cpu: combine_optional_duration(self.system_cpu, other.system_cpu),
+            peak_rss_bytes: combine_optional_max(self.peak_rss_bytes, other.peak_rss_bytes),
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn combine_optional_duration(left: Option<Duration>, right: Option<Duration>) -> Option<Duration> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(left.saturating_add(right)),
+        (Some(left), None) => Some(left),
+        (None, Some(right)) => Some(right),
+        (None, None) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn combine_optional_max(left: Option<u64>, right: Option<u64>) -> Option<u64> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(left.max(right)),
+        (Some(left), None) => Some(left),
+        (None, Some(right)) => Some(right),
+        (None, None) => None,
     }
 }
 
@@ -9183,6 +9280,7 @@ fn default_fixture_jobs() -> usize {
 const FIXTURE_TEST_CHUNK_SIZE: usize = 8;
 const FIXTURE_TEST_SUBPROCESS_CHUNK_SIZE: usize = 64;
 const FIXTURE_REWRITE_SUBPROCESS_CHUNK_SIZE: usize = 64;
+const SYNTAX_PARSER_BENCHMARK_CHUNK_SIZE: usize = 256;
 const DEBUG_LARGE_FIXTURE_TEST_WARNING_THRESHOLD: usize = 100;
 const DEFAULT_TEST_JOBS: usize = 16;
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
