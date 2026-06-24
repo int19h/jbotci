@@ -18,6 +18,7 @@ use super::{
     ParsedStatementAttempt, ParserInput, ParserState,
 };
 use crate::{ExperimentalConstruct, ParseOptions, SyntaxWordCategory, Token};
+use serde::Serialize;
 
 #[bityzba::invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,8 +56,8 @@ struct VuhoSumtiAttachmentSyntax {
 }
 
 #[bityzba::invariant(i.is_cmavo(Cmavo::I))]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct LeadingIStatementSyntax {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct LeadingIStatementSyntax {
     i: Token,
     connective: Option<Box<ConnectiveSyntax>>,
     free_modifiers: Vec<FreeModifierSyntax>,
@@ -131,6 +132,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     product explicit_xauha_lohoi_text(paragraph, statement_or_fragment, free_modifier) -> TextSyntax {
         context "text";
+        construct variant ExplicitXauhaLohoi;
         fields {
             require explicit_xauha_lohoi_lookahead().lookahead();
             field paragraphs = text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier);
@@ -149,6 +151,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     product regular_text(paragraph, statement_or_fragment, free_modifier, tense_modal) -> TextSyntax {
         context "text";
+        construct variant Regular;
         fields {
             field leading_nai = many(cmavo(Nai));
             field leading_cmevla = many(text_leading_cmevla_word());
@@ -5454,6 +5457,17 @@ macro_rules! declare_generated_syntax_grammar {
 declare_generated_syntax_grammar! {
     env generated_runtime::SyntaxGrammarEnv;
     parsers;
+}
+
+pub(crate) mod generated_model {
+    #![allow(dead_code)]
+
+    use super::*;
+
+    declare_generated_syntax_grammar! {
+        tree_model {}
+        model { TextSyntax };
+    }
 }
 
 #[bityzba::requires(true)]
