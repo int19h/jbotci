@@ -48,6 +48,7 @@ mod kw {
 struct SyntaxGrammar {
     tree_model: Option<syn::File>,
     generate_model: bool,
+    model_outputs: Option<BTreeSet<String>>,
     env: Option<Type>,
     recovered_module: Option<Path>,
     generate_parsers: bool,
@@ -73,16 +74,11 @@ impl SyntaxGrammar {
         };
         let env = compact_tokens(env);
         let recovered_module = self.recovered_module_tokens();
-        let helper_outputs = if self.generate_model {
-            BTreeSet::new()
-        } else {
-            self.product_helper_outputs()
-        };
-        let product_helpers = if self.generate_model {
-            Vec::new()
-        } else {
-            self.expand_product_helpers(&helper_outputs, &type_env)
-        };
+        let mut helper_outputs = self.product_helper_outputs();
+        if self.generate_model {
+            helper_outputs.retain(|output| !self.generates_model_output_name(output));
+        }
+        let product_helpers = self.expand_product_helpers(&helper_outputs, &type_env);
         let recursive = self.recursive.iter().map(RecursiveRule::expand);
         let rules = self.rules.iter().map(Rule::expand_metadata);
         let rule_lookup_arms = self.rules.iter().enumerate().map(|(index, rule)| {
@@ -93,7 +89,11 @@ impl SyntaxGrammar {
             self.rules
                 .iter()
                 .filter_map(|rule| {
-                    rule.expand_strict_parser(&helper_outputs, &type_env, self.generate_model)
+                    rule.expand_strict_parser(
+                        &helper_outputs,
+                        &type_env,
+                        self.generates_model_output(rule.output()),
+                    )
                 })
                 .collect::<Vec<_>>()
         } else {
@@ -229,12 +229,17 @@ impl Parse for SyntaxGrammar {
             None
         };
 
-        let generate_model = if input.peek(kw::model) {
+        let (generate_model, model_outputs) = if input.peek(kw::model) {
             input.parse::<kw::model>()?;
+            let model_outputs = if input.peek(syn::token::Brace) {
+                Some(parse_model_output_filter(input)?)
+            } else {
+                None
+            };
             input.parse::<Token![;]>()?;
-            true
+            (true, model_outputs)
         } else {
-            false
+            (false, None)
         };
 
         let env = if input.peek(kw::env) {
@@ -282,6 +287,7 @@ impl Parse for SyntaxGrammar {
         Ok(Self {
             tree_model,
             generate_model,
+            model_outputs,
             env,
             recovered_module,
             generate_parsers,
@@ -307,6 +313,25 @@ fn parse_tree_model_block(input: ParseStream<'_>) -> Result<syn::File> {
     })
 }
 
+fn parse_model_output_filter(input: ParseStream<'_>) -> Result<BTreeSet<String>> {
+    let content;
+    braced!(content in input);
+    let mut outputs = BTreeSet::new();
+    while !content.is_empty() {
+        let ident: Ident = content.parse()?;
+        outputs.insert(ident.to_string());
+        if content.peek(Token![,]) {
+            content.parse::<Token![,]>()?;
+        } else if !content.is_empty() {
+            return Err(content.error("expected `,` between generated model output names"));
+        }
+    }
+    if outputs.is_empty() {
+        return Err(content.error("generated model output filter cannot be empty"));
+    }
+    Ok(outputs)
+}
+
 fn expand_tree_model_block(file: &syn::File) -> TokenStream2 {
     let attrs = &file.attrs;
     let items = &file.items;
@@ -319,6 +344,21 @@ fn expand_tree_model_block(file: &syn::File) -> TokenStream2 {
 }
 
 impl SyntaxGrammar {
+    fn generates_model_output(&self, output: &Type) -> bool {
+        let Some(output) = simple_type_ident(output) else {
+            return false;
+        };
+        self.generates_model_output_name(&output.to_string())
+    }
+
+    fn generates_model_output_name(&self, output: &str) -> bool {
+        self.generate_model
+            && self
+                .model_outputs
+                .as_ref()
+                .is_none_or(|outputs| outputs.contains(output))
+    }
+
     fn expand_generated_tree_model(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
         let attrs = self
             .tree_model
@@ -352,6 +392,9 @@ impl SyntaxGrammar {
             let Some(output) = simple_type_ident(&rule.output) else {
                 continue;
             };
+            if !self.generates_model_output_name(&output.to_string()) {
+                continue;
+            }
             match &rule.construction {
                 ConstructionMode::NamedVariant(variant) => {
                     let fields = rule.generated_model_fields(type_env)?;

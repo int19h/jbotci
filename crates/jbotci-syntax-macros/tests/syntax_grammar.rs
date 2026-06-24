@@ -259,3 +259,37 @@ mod generated_model {
         assert_eq!(helper.token, Token);
     }
 }
+
+mod generated_model_filter {
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+    pub struct Token;
+
+    jbotci_syntax_macros::syntax_grammar! {
+        tree_model {}
+        model { KeptSyntax };
+
+        node kept -> KeptSyntax {
+            fields {
+                field token = cmavo(Be);
+            }
+        }
+
+        node skipped_first -> SkippedSyntax {
+            fields {
+                field token = cmavo(Be);
+            }
+        }
+
+        node skipped_second -> SkippedSyntax {
+            fields {
+                field token = cmavo(Bo);
+            }
+        }
+    }
+
+    #[test]
+    fn grammar_macro_filters_generated_model_outputs() {
+        let kept = KeptSyntax { token: Token };
+        assert_eq!(kept.token, Token);
+    }
+}
