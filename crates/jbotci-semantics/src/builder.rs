@@ -11801,6 +11801,28 @@ where
                     _ => SemanticSort::Entity,
                 }
             });
+        let mut object = SemanticObject::referent(
+            ReferentCategory::Constant,
+            sort,
+            None,
+            Some(Descriptor {
+                kind,
+                word,
+                speaker: Some(self.current_speaker()),
+                body: None,
+                relative_clauses: Vec::new(),
+                quantity: None,
+                name: None,
+                operand: None,
+            }),
+            None,
+            self.source_for_description(description, raw, "description"),
+            Vec::new(),
+        );
+        self.push_goi_assigned_names_to_referent(&mut object, &description.relative_clauses);
+        self.insert(id, object)?;
+        self.sumti_objects.insert(raw, id);
+
         let body = if let Some(selbri) = description.selbri.as_deref() {
             Some(if let Some(abstraction) = abstraction {
                 let link_source = self
@@ -11824,27 +11846,21 @@ where
             .map(|sumti| self.build_sumti_referent(sumti))
             .transpose()?;
         let quantity = self.build_description_quantity(description, raw)?;
-        let mut object = SemanticObject::referent(
-            ReferentCategory::Constant,
-            sort,
-            None,
-            Some(Descriptor {
-                kind,
-                word,
-                speaker: Some(self.current_speaker()),
-                body,
-                relative_clauses: Vec::new(),
-                quantity,
-                name: None,
-                operand,
-            }),
-            None,
-            self.source_for_description(description, raw, "description"),
-            Vec::new(),
-        );
-        self.push_goi_assigned_names_to_referent(&mut object, &description.relative_clauses);
-        self.insert(id, object)?;
-        self.sumti_objects.insert(raw, id);
+        {
+            let object = self.objects.get_mut(&id).ok_or_else(|| {
+                SemanticsError::invalid_graph(format!(
+                    "semantic builder could not find description referent {id}"
+                ))
+            })?;
+            let Some(descriptor) = object.descriptor.as_mut() else {
+                return Err(SemanticsError::invalid_graph(format!(
+                    "semantic builder description referent {id} has no descriptor"
+                )));
+            };
+            descriptor.body = body;
+            descriptor.operand = operand;
+            descriptor.quantity = quantity;
+        }
         let mut relative_clauses = if description.description.is_some() {
             let mut clauses = Vec::new();
             descriptor_relative_clauses_for_description_tail(
@@ -25749,6 +25765,30 @@ mod tests {
         assert_eq!(object(&json, described)["source"]["text"], "le re do");
         assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 2);
         assert_eq!(object(&json, "quantity:q1")["source"]["text"], "re");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn description_linked_voha_can_corefer_to_description_head() {
+        let json = semantic_json_for("le prami be vo'a cu blanu").expect("semantic JSON");
+        let blanu = predication_with_relation_and_mode(&json, "blanu", "asserted");
+        let described = blanu["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("outer description argument");
+        let descriptor_body = object(&json, described)["descriptor"]["body"]
+            .as_str()
+            .expect("description body");
+        let body = object(&json, descriptor_body);
+        let prami = object(
+            &json,
+            body["predication"]
+                .as_str()
+                .expect("description body predication"),
+        );
+        assert_eq!(prami["relation"], "prami");
+        assert_eq!(prami["arguments"]["x1"]["value"], described);
+        assert_eq!(prami["arguments"]["x2"]["value"], described);
     }
 
     #[test]
