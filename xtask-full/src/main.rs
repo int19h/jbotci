@@ -9766,15 +9766,18 @@ fn run_syntax_tree_oracle_fixture(fixture: &LoadedTestCase) -> FacetResult {
             show_refs,
             ..TreeRenderOptions::default()
         };
-        let legacy_tree =
-            match pretty_tree_with_options(&legacy.parse_tree, &fixture.test_case.lojban, options) {
-                Ok(tree) => tree,
-                Err(error) => {
-                    return FacetResult::failed(format!(
-                        "legacy tree render error with show_refs={show_refs}: {error}"
-                    ));
-                }
-            };
+        let legacy_tree = match pretty_tree_with_options(
+            &legacy.parse_tree,
+            &fixture.test_case.lojban,
+            options,
+        ) {
+            Ok(tree) => tree,
+            Err(error) => {
+                return FacetResult::failed(format!(
+                    "legacy tree render error with show_refs={show_refs}: {error}"
+                ));
+            }
+        };
         let generated_tree = match pretty_tree_with_options(
             &generated.parse_tree,
             &fixture.test_case.lojban,

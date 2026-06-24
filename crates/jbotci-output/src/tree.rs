@@ -96,16 +96,11 @@ pub(crate) fn pretty_tree_with_options(
     let references = reference_analysis
         .as_ref()
         .map(|analysis| ReferenceDisplayModel::new(analysis, &value, source, options));
-    let mut renderer = TreeRenderer {
-        color: options.color,
-        glyphs: options.glyphs,
-        indent_step: options.indent,
-        show_spans: options.show_spans,
-        references: references.as_ref(),
-        output: String::new(),
-    };
-    renderer.render_value(&value, 0);
-    Ok(renderer.output)
+    Ok(render_tree_value_with_options(
+        &value,
+        options,
+        references.as_ref(),
+    ))
 }
 
 #[requires(true)]
@@ -138,16 +133,26 @@ pub(crate) fn pretty_morphology_tree_with_options(
             .map(|word_like| morphology_tree_value(word_like, source, options))
             .collect(),
     ));
+    Ok(render_tree_value_with_options(&value, options, None))
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn render_tree_value_with_options(
+    value: &TreeValue,
+    options: TreeRenderOptions,
+    references: Option<&ReferenceDisplayModel>,
+) -> String {
     let mut renderer = TreeRenderer {
         color: options.color,
         glyphs: options.glyphs,
         indent_step: options.indent,
         show_spans: options.show_spans,
-        references: None,
+        references,
         output: String::new(),
     };
     renderer.render_value(&value, 0);
-    Ok(renderer.output)
+    renderer.output
 }
 
 #[requires(true)]

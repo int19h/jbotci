@@ -282,16 +282,12 @@ impl SyntaxGrammar {
             if let Rule::Product(rule) = rule
                 && rule.0.build.is_none()
                 && matches!(&rule.0.construction, ConstructionMode::Validated)
-                && rule
-                    .0
-                    .fields
-                    .iter()
-                    .all(|field| {
-                        !matches!(
-                            field.kind,
-                            FieldKind::Default | FieldKind::Let | FieldKind::Scratch
-                        )
-                    })
+                && rule.0.fields.iter().all(|field| {
+                    !matches!(
+                        field.kind,
+                        FieldKind::Default | FieldKind::Let | FieldKind::Scratch
+                    )
+                })
                 && let Some(output) = simple_type_ident(&rule.0.output)
             {
                 *output_counts.entry(output.to_string()).or_insert(0usize) += 1;
@@ -307,16 +303,12 @@ impl SyntaxGrammar {
                 (rule.0.build.is_none()
                     && matches!(&rule.0.construction, ConstructionMode::Validated)
                     && output_counts.get(&output.to_string()).copied() == Some(1)
-                    && rule
-                        .0
-                        .fields
-                        .iter()
-                        .all(|field| {
-                            !matches!(
-                                field.kind,
-                                FieldKind::Default | FieldKind::Let | FieldKind::Scratch
-                            )
-                        }))
+                    && rule.0.fields.iter().all(|field| {
+                        !matches!(
+                            field.kind,
+                            FieldKind::Default | FieldKind::Let | FieldKind::Scratch
+                        )
+                    }))
                 .then(|| output.to_string())
             })
             .collect()
@@ -621,11 +613,19 @@ impl AliasRule {
             type_env,
             &free_modifier_parser,
         )?;
-        let parser = self.requires.iter().rev().try_fold(parser, |parser, require| {
-            let require =
-                strict_parser_expr_tokens(require, &argument_names, type_env, &free_modifier_parser)?;
-            Some(quote!(#require.ignore_then(#parser)))
-        })?;
+        let parser = self
+            .requires
+            .iter()
+            .rev()
+            .try_fold(parser, |parser, require| {
+                let require = strict_parser_expr_tokens(
+                    require,
+                    &argument_names,
+                    type_env,
+                    &free_modifier_parser,
+                )?;
+                Some(quote!(#require.ignore_then(#parser)))
+            })?;
         let name = format_ident!("strict_{}_parser", self.name);
         let output = &self.output;
         let argument_params = self.arguments.iter().map(|argument| {
@@ -731,7 +731,8 @@ impl Parse for AliasRule {
                 content.parse::<Token![;]>()?;
             }
         }
-        let parser = parser.ok_or_else(|| input.error("alias rule requires a parser expression"))?;
+        let parser =
+            parser.ok_or_else(|| input.error("alias rule requires a parser expression"))?;
         Ok(Self {
             name,
             arguments,
@@ -829,15 +830,12 @@ impl NodeRule {
             build.body.to_token_stream()
         } else if simple_type_ident(output).is_some_and(|output| {
             helper_outputs.contains(&output.to_string())
-                && self
-                    .fields
-                    .iter()
-                    .all(|field| {
-                        !matches!(
-                            field.kind,
-                            FieldKind::Default | FieldKind::Let | FieldKind::Scratch
-                        )
-                    })
+                && self.fields.iter().all(|field| {
+                    !matches!(
+                        field.kind,
+                        FieldKind::Default | FieldKind::Let | FieldKind::Scratch
+                    )
+                })
         }) {
             let field_names = fields
                 .iter()
@@ -958,19 +956,19 @@ impl NodeRule {
             if is_unit_type(&self.output) {
                 true
             } else {
-            is_path_type(&self.output) && simple_type_ident(&self.output).is_none_or(|output| {
-                if helper_outputs.contains(&output.to_string()) {
-                    !has_default && !has_let && !has_scratch
-                } else {
-                    true
-                }
-                })
+                is_path_type(&self.output)
+                    && simple_type_ident(&self.output).is_none_or(|output| {
+                        if helper_outputs.contains(&output.to_string()) {
+                            !has_default && !has_let && !has_scratch
+                        } else {
+                            true
+                        }
+                    })
             }
         } else {
             true
         };
-        if !can_generate_strict
-        {
+        if !can_generate_strict {
             return None;
         }
         let argument_types = self.argument_types(type_env)?;
@@ -1884,9 +1882,8 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
                 content.parse::<kw::tuple_variant>()?;
                 construction = ConstructionMode::TupleVariant(content.parse()?);
             } else {
-                return Err(
-                    content.error("expected `direct`, `variant`, or `tuple_variant` construction mode")
-                );
+                return Err(content
+                    .error("expected `direct`, `variant`, or `tuple_variant` construction mode"));
             }
             content.parse::<Token![;]>()?;
         } else if content.peek(kw::fields) {
@@ -1900,9 +1897,9 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
             recovered_build = Some(content.parse()?);
             content.parse::<Token![;]>()?;
         } else {
-            return Err(
-                content.error("expected `context`, `construct`, `fields`, `build`, or `recovered_build`")
-            );
+            return Err(content.error(
+                "expected `context`, `construct`, `fields`, `build`, or `recovered_build`",
+            ));
         }
     }
 

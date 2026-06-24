@@ -1716,27 +1716,24 @@ jbotci_syntax_macros::syntax_grammar! {
         ));
     }
 
-    node sumti_base(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier) -> SumtiSyntax {
+    alias sumti_base(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier) -> SumtiSyntax {
         context "sumti";
-        fields {
-            field sumti = choice((
-                scalar_negated_sumti_with_bo(sumti),
-                scalar_negated_sumti(sumti),
-                lahe_sumti(sumti, subbridi, tense_modal),
-                lahe_term_wrapper(term),
-                scalar_negated_term_wrapper_with_bo(term),
-                scalar_negated_term_wrapper(term),
-                bridi_description_sumti(subbridi),
-                name_sumti(),
-                description_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
-                number_sumti(mekso),
-                lerfu_string_sumti(letter_string, free_modifier),
-                compound_quote_sumti(),
-                pro_sumti(),
-                text_quote_sumti(text),
-            ));
-        }
-        build |sumti| sumti;
+        choice((
+            scalar_negated_sumti_with_bo(sumti),
+            scalar_negated_sumti(sumti),
+            lahe_sumti(sumti, subbridi, tense_modal),
+            lahe_term_wrapper(term),
+            scalar_negated_term_wrapper_with_bo(term),
+            scalar_negated_term_wrapper(term),
+            bridi_description_sumti(subbridi),
+            name_sumti(),
+            description_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
+            number_sumti(mekso),
+            lerfu_string_sumti(letter_string, free_modifier),
+            compound_quote_sumti(),
+            pro_sumti(),
+            text_quote_sumti(text),
+        ));
     }
 
     node quantified_sumti(sumti_base, mekso, letter_tokens) -> SumtiSyntax {
@@ -4020,19 +4017,16 @@ jbotci_syntax_macros::syntax_grammar! {
         build |first, continuations| combine_connected_tense_modal(first, continuations);
     }
 
-    node tense_modal_atom(selbri) -> TenseModalSyntax {
+    alias tense_modal_atom(selbri) -> TenseModalSyntax {
         context "tag";
-        fields {
-            field tense_modal = choice((
-                composite_tense(),
-                fiho_tense(selbri),
-                modal_tense(),
-                flat_prefixed_tense(),
-                feature(ZantufaTags, zantufa_recursive_tag_tense()),
-                sticky_tense(),
-            ));
-        }
-        build |tense_modal| tense_modal;
+        choice((
+            composite_tense(),
+            fiho_tense(selbri),
+            modal_tense(),
+            flat_prefixed_tense(),
+            feature(ZantufaTags, zantufa_recursive_tag_tense()),
+            sticky_tense(),
+        ));
     }
 
     node fiho_tense(selbri) -> TenseModalSyntax {
@@ -4049,16 +4043,13 @@ jbotci_syntax_macros::syntax_grammar! {
         });
     }
 
-    node flat_prefixed_tense -> TenseModalSyntax {
+    alias flat_prefixed_tense -> TenseModalSyntax {
         context "tag";
-        fields {
-            field tense_modal = choice((
-                nahe_se_flat_prefixed_tense(),
-                se_flat_prefixed_tense(),
-                fa_flat_tag_tense(),
-            ));
-        }
-        build |tense_modal| tense_modal;
+        choice((
+            nahe_se_flat_prefixed_tense(),
+            se_flat_prefixed_tense(),
+            fa_flat_tag_tense(),
+        ));
     }
 
     node fa_flat_tag_tense -> TenseModalSyntax {
@@ -4069,16 +4060,13 @@ jbotci_syntax_macros::syntax_grammar! {
         build |fa| composite_from_wf_tokens(vec![fa]);
     }
 
-    product flat_tag_atom -> (std::vec::Vec<Token>, std::vec::Vec<FreeModifierSyntax>) {
+    alias flat_tag_atom -> (std::vec::Vec<Token>, std::vec::Vec<FreeModifierSyntax>) {
         context "tag";
-        fields {
-            field atom = choice((
-                fa_flat_tag_atom(),
-                modal_flat_tag_atom(),
-                composite_flat_tag_atom(),
-            ));
-        }
-        build |atom| atom;
+        choice((
+            fa_flat_tag_atom(),
+            modal_flat_tag_atom(),
+            composite_flat_tag_atom(),
+        ));
     }
 
     product fa_flat_tag_atom -> (std::vec::Vec<Token>, std::vec::Vec<FreeModifierSyntax>) {
@@ -4187,16 +4175,13 @@ jbotci_syntax_macros::syntax_grammar! {
         };
     }
 
-    node composite_tense -> TenseModalSyntax {
+    alias composite_tense -> TenseModalSyntax {
         context "tag";
-        fields {
-            field tense_modal = choice((
-                prefixed_time_space_caha_tense(),
-                time_space_caha_ki_tense(),
-                cuhe_tense(),
-            ));
-        }
-        build |tense_modal| tense_modal;
+        choice((
+            prefixed_time_space_caha_tense(),
+            time_space_caha_ki_tense(),
+            cuhe_tense(),
+        ));
     }
 
     node prefixed_time_space_caha_tense -> TenseModalSyntax {
@@ -4226,16 +4211,13 @@ jbotci_syntax_macros::syntax_grammar! {
         };
     }
 
-    node time_space_caha_tense -> TenseModalSyntax {
+    alias time_space_caha_tense -> TenseModalSyntax {
         context "tag";
-        fields {
-            field tense = choice((
-                time_then_space_caha_tense(),
-                space_then_time_caha_tense(),
-                caha_tense(),
-            ));
-        }
-        build |tense| tense;
+        choice((
+            time_then_space_caha_tense(),
+            space_then_time_caha_tense(),
+            caha_tense(),
+        ));
     }
 
     node time_then_space_caha_tense -> TenseModalSyntax {
@@ -4268,17 +4250,14 @@ jbotci_syntax_macros::syntax_grammar! {
         };
     }
 
-    node time_tense -> TenseModalSyntax {
+    alias time_tense -> TenseModalSyntax {
         context "time tense";
-        fields {
-            field tense = choice((
-                time_tense_with_zi(),
-                time_tense_with_offset(),
-                time_tense_with_interval(),
-                time_tense_with_properties(),
-            ));
-        }
-        build |tense| tense;
+        choice((
+            time_tense_with_zi(),
+            time_tense_with_offset(),
+            time_tense_with_interval(),
+            time_tense_with_properties(),
+        ));
     }
 
     node time_tense_with_zi -> TenseModalSyntax {
@@ -4352,16 +4331,13 @@ jbotci_syntax_macros::syntax_grammar! {
         };
     }
 
-    node interval_property_tense -> TenseModalSyntax {
+    alias interval_property_tense -> TenseModalSyntax {
         context "interval property";
-        fields {
-            field tense = choice((
-                numbered_interval_property_tense(),
-                tahe_interval_property_tense(),
-                zaho_interval_property_tense(),
-            ));
-        }
-        build |tense| tense;
+        choice((
+            numbered_interval_property_tense(),
+            tahe_interval_property_tense(),
+            zaho_interval_property_tense(),
+        ));
     }
 
     node numbered_interval_property_tense -> TenseModalSyntax {
@@ -4467,17 +4443,14 @@ jbotci_syntax_macros::syntax_grammar! {
         };
     }
 
-    node space_tense -> TenseModalSyntax {
+    alias space_tense -> TenseModalSyntax {
         context "space tense";
-        fields {
-            field tense = choice((
-                space_tense_with_va(),
-                space_tense_with_offset(),
-                space_tense_with_interval(),
-                space_tense_with_mohi(),
-            ));
-        }
-        build |tense| tense;
+        choice((
+            space_tense_with_va(),
+            space_tense_with_offset(),
+            space_tense_with_interval(),
+            space_tense_with_mohi(),
+        ));
     }
 
     node space_tense_with_va -> TenseModalSyntax {
@@ -4587,15 +4560,12 @@ jbotci_syntax_macros::syntax_grammar! {
         };
     }
 
-    node space_interval_tense -> TenseModalSyntax {
+    alias space_interval_tense -> TenseModalSyntax {
         context "space interval";
-        fields {
-            field tense = choice((
-                space_interval_with_extent_tense(),
-                space_interval_properties_tense(),
-            ));
-        }
-        build |tense| tense;
+        choice((
+            space_interval_with_extent_tense(),
+            space_interval_properties_tense(),
+        ));
     }
 
     node space_interval_with_extent_tense -> TenseModalSyntax {
@@ -4626,15 +4596,12 @@ jbotci_syntax_macros::syntax_grammar! {
         };
     }
 
-    node veha_viha_space_interval_tense -> TenseModalSyntax {
+    alias veha_viha_space_interval_tense -> TenseModalSyntax {
         context "space interval";
-        fields {
-            field tense = choice((
-                veha_space_interval_tense(),
-                viha_space_interval_tense(),
-            ));
-        }
-        build |tense| tense;
+        choice((
+            veha_space_interval_tense(),
+            viha_space_interval_tense(),
+        ));
     }
 
     node veha_space_interval_tense -> TenseModalSyntax {
