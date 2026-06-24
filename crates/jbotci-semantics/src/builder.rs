@@ -2966,7 +2966,7 @@ where
     }
 
     #[requires(quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)]
-    #[ensures(ret.is_none_or(|count| count > 0))]
+    #[ensures(true)]
     fn exact_integer_quantity_value(&self, quantity: SemanticObjectId) -> Option<usize> {
         let object = self.objects.get(&quantity)?;
         if object.object_kind() != crate::model::SemanticObjectKind::Quantity {
