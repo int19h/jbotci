@@ -333,13 +333,32 @@ struct TanruFormulaForArgument {
 struct AlternativeArgument {
     argument: ArgumentValue,
     negated: bool,
+    scopes: Vec<PrenexFormulaScope>,
 }
 
 impl AlternativeArgument {
     #[requires(true)]
     #[ensures(ret.negated == negated)]
     fn new(argument: ArgumentValue, negated: bool) -> Self {
-        Self { argument, negated }
+        Self {
+            argument,
+            negated,
+            scopes: Vec::new(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.negated == negated)]
+    fn with_scopes(
+        argument: ArgumentValue,
+        negated: bool,
+        scopes: Vec<PrenexFormulaScope>,
+    ) -> Self {
+        Self {
+            argument,
+            negated,
+            scopes,
+        }
     }
 }
 
@@ -3600,14 +3619,14 @@ where
                 logical_sumti_connection_parts(sumti)
             {
                 alternatives.entry(key).or_default().extend([
-                    AlternativeArgument::new(
-                        self.build_argument_for_sumti(leading_sumti)?,
+                    self.connected_sumti_alternative_argument(
+                        leading_sumti,
                         connective_negates_left(connective),
-                    ),
-                    AlternativeArgument::new(
-                        self.build_argument_for_sumti(trailing_sumti)?,
+                    )?,
+                    self.connected_sumti_alternative_argument(
+                        trailing_sumti,
                         connective_negates_right(connective),
-                    ),
+                    )?,
                 ]);
             } else {
                 alternatives
@@ -3637,6 +3656,10 @@ where
         let mut children = Vec::new();
         for mut branch in branches {
             let branch_negated = branch.values().any(|value| value.negated);
+            let branch_scopes = branch
+                .values()
+                .flat_map(|value| value.scopes.iter().cloned())
+                .collect::<Vec<_>>();
             for place in 1..=fill_through {
                 let key = format!("x{place}");
                 if !branch.contains_key(&key) {
@@ -3663,7 +3686,7 @@ where
                 arguments,
                 Vec::new(),
             )?;
-            let formula = self.next_formula();
+            let mut formula = self.next_formula();
             self.insert(
                 formula,
                 SemanticObject::atom_formula(
@@ -3675,6 +3698,9 @@ where
                     Vec::new(),
                 ),
             )?;
+            for scope in branch_scopes {
+                formula = self.wrap_formula_with_prenex_scope(formula, scope)?;
+            }
             let formula = if branch_negated {
                 self.build_unary_formula(
                     FormulaOperator::Not,
@@ -3740,6 +3766,21 @@ where
             ),
         )
         .map(Some)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn connected_sumti_alternative_argument(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+        negated: bool,
+    ) -> Result<AlternativeArgument, SemanticsError> {
+        let argument = self.build_argument_for_sumti(sumti)?;
+        let scopes = self
+            .quantified_argument_prenex_scope_for_sumti(sumti)?
+            .into_iter()
+            .collect();
+        Ok(AlternativeArgument::with_scopes(argument, negated, scopes))
     }
 
     #[requires(!relation.is_empty())]
@@ -4000,7 +4041,7 @@ where
         fill_through: usize,
         negated: bool,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let formula = if logical_sumti_connection_parts_degrouped(sumti).is_some() {
+        let mut formula = if logical_sumti_connection_parts_degrouped(sumti).is_some() {
             self.build_sumti_connection_formula_for_place(
                 bridi,
                 selbri,
@@ -4045,6 +4086,11 @@ where
                 ),
             )?
         };
+        if logical_sumti_connection_parts_degrouped(sumti).is_none()
+            && let Some(scope) = self.quantified_argument_prenex_scope_for_sumti(sumti)?
+        {
+            formula = self.wrap_formula_with_prenex_scope(formula, scope)?;
+        }
         if negated {
             self.build_unary_formula(
                 FormulaOperator::Not,
@@ -26917,6 +26963,70 @@ mod tests {
                 object(&json, "predication:p3")["arguments"][place]["value"]
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quantified_connected_sumti_wrap_each_distributed_branch() {
+        let json = semantic_json_for("mi viska pa mlatu .e pa gerku").expect("semantic JSON");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "and");
+        assert_eq!(content["connector"]["source"], "e");
+        let children = content["children"].as_array().expect("children");
+        assert_eq!(children.len(), 2);
+        let branch_relations =
+            children
+                .iter()
+                .map(|child| {
+                    let quantifier = object(&json, child.as_str().expect("child formula"));
+                    assert_eq!(quantifier["operator"], "cardinality");
+                    let restriction = object(
+                        &json,
+                        quantifier["restriction"]
+                            .as_str()
+                            .expect("restriction formula"),
+                    );
+                    let restriction_predication = object(
+                        &json,
+                        restriction["predication"]
+                            .as_str()
+                            .expect("restriction predication"),
+                    );
+                    let body = object(&json, quantifier["body"].as_str().expect("body formula"));
+                    let body_predication = object(
+                        &json,
+                        body["predication"].as_str().expect("body predication"),
+                    );
+                    assert_eq!(body_predication["relation"], "viska");
+                    assert_eq!(
+                        body_predication["arguments"]["x2"]["value"],
+                        quantifier["variable"]
+                    );
+                    assert_eq!(
+                        restriction_predication["arguments"]["x1"]["value"],
+                        quantifier["variable"]
+                    );
+                    assert_eq!(
+                        object(&json, quantifier["quantity"].as_str().expect("quantity"))["value"]
+                            ["integer"],
+                        1
+                    );
+                    restriction_predication["relation"]
+                        .as_str()
+                        .expect("restriction relation")
+                        .to_owned()
+                })
+                .collect::<BTreeSet<_>>();
+        assert_eq!(
+            branch_relations,
+            BTreeSet::from(["gerku".to_owned(), "mlatu".to_owned()])
+        );
     }
 
     #[test]

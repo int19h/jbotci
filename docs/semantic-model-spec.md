@@ -1966,7 +1966,10 @@ The sharing rules are semantic, not only syntactic:
   argument differs between branches, and overt non-connected arguments are shared
   by id.  Omitted or explicitly elided non-connected places are not shared by
   default; each branch receives its own `zo'e` referent unless the surface gives a
-  non-`zo'e` term to share.
+  non-`zo'e` term to share.  If a connected operand is quantified, the
+  corresponding distributed branch is wrapped in that operand's quantifier and
+  restriction, so `pa mlatu .e pa gerku` preserves both the `pa` cardinalities
+  and the `mlatu`/`gerku` restrictions.
 - Sentence connectives such as `.ije` join complete formulas; they do not
   inherit the elided-place sharing behavior of sumti connection.
 - Logical termset connectives (`pe'e` afterthought and `nu'i` forethought)
