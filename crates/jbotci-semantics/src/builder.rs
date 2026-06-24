@@ -3756,7 +3756,17 @@ where
                     .and_then(|node| self.source_for_node(node.0, "bridi-formula")),
                 Vec::new(),
             ),
-        )
+        )?;
+        if let Some(selbri) = selbri {
+            self.add_bare_jai_raised_participant_formula_for_bridi_if_needed(
+                bridi,
+                selbri,
+                predication,
+                id,
+            )
+        } else {
+            Ok(id)
+        }
     }
 
     #[requires(true)]
@@ -6505,6 +6515,11 @@ where
             formula,
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )?;
+        let formula = if let Some(unit) = single_tanru_unit_for_selbri(relation_selbri) {
+            self.add_bare_jai_raised_participant_formula_if_needed(unit, predication, formula)?
+        } else {
+            formula
+        };
         let x1_argument = self.predication_argument(predication, visible_x1_place)?;
         Ok(TanruFormulaForArgument {
             formula,
@@ -6867,6 +6882,8 @@ where
                 formula,
                 SemanticObject::atom_formula(predication, source, Vec::new()),
             )?;
+            let formula =
+                self.add_bare_jai_raised_participant_formula_if_needed(unit, predication, formula)?;
             let x1_argument = self.predication_argument(predication, visible_x1_place)?;
             return Ok(TanruFormulaForArgument {
                 formula,
@@ -6886,6 +6903,8 @@ where
             formula,
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )?;
+        let formula =
+            self.add_bare_jai_raised_participant_formula_if_needed(unit, predication, formula)?;
         let x1_argument = self.predication_argument(predication, visible_x1_place)?;
         Ok(TanruFormulaForArgument {
             formula,
@@ -9497,6 +9516,170 @@ where
         arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
         *highest_assigned_place = (*highest_assigned_place).max(1);
         Ok(())
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[requires(atom_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn add_bare_jai_raised_participant_formula_if_needed(
+        &mut self,
+        unit: &'tree TanruUnitSyntax,
+        predication: SemanticObjectId,
+        atom_formula: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let Some(jai_unit) = bare_jai_conversion_for_tanru_unit(unit) else {
+            return Ok(atom_formula);
+        };
+        let Some(frame) = self.branch_frame_for_tanru_unit(unit) else {
+            return Ok(atom_formula);
+        };
+        let Some(raised_argument) = self.numbered_assignment_argument_for_frame(frame, 1)? else {
+            return Ok(atom_formula);
+        };
+        let Some(raised_operand) = raised_argument.value else {
+            return Ok(atom_formula);
+        };
+        let moved_place = visible_x1_place_for_tanru_unit(unit);
+        let moved_argument = self.predication_argument(predication, moved_place)?;
+        let Some(moved_abstraction) = moved_argument.value else {
+            return Ok(atom_formula);
+        };
+        if moved_abstraction == raised_operand
+            || self.referent_is_abstraction_about_operand(moved_abstraction, "jai", raised_operand)
+        {
+            return Ok(atom_formula);
+        }
+        let source = self.source_for_tanru_unit(jai_unit, "bare-jai-raised-participant");
+        self.conjoin_bare_jai_involvement_formula(
+            atom_formula,
+            moved_abstraction,
+            raised_operand,
+            source,
+        )
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(true)]
+    fn referent_is_abstraction_about_operand(
+        &self,
+        referent: SemanticObjectId,
+        word: &str,
+        operand: SemanticObjectId,
+    ) -> bool {
+        self.objects.get(&referent).is_some_and(|object| {
+            object.descriptor.as_ref().is_some_and(|descriptor| {
+                descriptor.kind == "abstractionAbout"
+                    && descriptor.word == word
+                    && descriptor.operand == Some(operand)
+            })
+        })
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(crate::model::argument_object_kind_can_fill(x1.object_kind()))]
+    #[requires(crate::model::argument_object_kind_can_fill(x2.object_kind()))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_binary_constructed_relation_formula(
+        &mut self,
+        relation: &str,
+        x1: SemanticObjectId,
+        x2: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(x1, None));
+        arguments.insert("x2".to_owned(), ArgumentValue::filled(x2, None));
+        let predication = self.build_predication_from_arguments(
+            relation.to_owned(),
+            None,
+            source.clone(),
+            arguments,
+            Vec::new(),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[requires(atom_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn add_bare_jai_raised_participant_formula_for_bridi_if_needed(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: &'tree SelbriSyntax,
+        predication: SemanticObjectId,
+        atom_formula: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let Some(unit) = single_tanru_unit_for_selbri(selbri) else {
+            return Ok(atom_formula);
+        };
+        let Some(jai_unit) = bare_jai_conversion_for_tanru_unit(unit) else {
+            return Ok(atom_formula);
+        };
+        let Some(frame) = self.bridi_frame(bridi) else {
+            return Ok(atom_formula);
+        };
+        let Some(raised_argument) = self.numbered_assignment_argument_for_frame(frame, 1)? else {
+            return Ok(atom_formula);
+        };
+        let Some(raised_operand) = raised_argument.value else {
+            return Ok(atom_formula);
+        };
+        let moved_place = visible_x1_place_for_tanru_unit(unit);
+        let moved_argument = self.predication_argument(predication, moved_place)?;
+        let Some(moved_abstraction) = moved_argument.value else {
+            return Ok(atom_formula);
+        };
+        if moved_abstraction == raised_operand
+            || self.referent_is_abstraction_about_operand(moved_abstraction, "jai", raised_operand)
+        {
+            return Ok(atom_formula);
+        }
+        let source = self.source_for_tanru_unit(jai_unit, "bare-jai-raised-participant");
+        self.conjoin_bare_jai_involvement_formula(
+            atom_formula,
+            moved_abstraction,
+            raised_operand,
+            source,
+        )
+    }
+
+    #[requires(atom_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(crate::model::argument_object_kind_can_fill(moved_abstraction.object_kind()))]
+    #[requires(crate::model::argument_object_kind_can_fill(raised_operand.object_kind()))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn conjoin_bare_jai_involvement_formula(
+        &mut self,
+        atom_formula: SemanticObjectId,
+        moved_abstraction: SemanticObjectId,
+        raised_operand: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let involvement = self.build_binary_constructed_relation_formula(
+            "involves",
+            moved_abstraction,
+            raised_operand,
+            source.clone(),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                FormulaOperator::And,
+                vec![atom_formula, involvement],
+                Some(Connector {
+                    source: "jai".to_owned(),
+                    locus: "bare-jai-raised-participant".to_owned(),
+                    truth_table: None,
+                    parameter: None,
+                }),
+                source,
+                Vec::new(),
+            ),
+        )
     }
 
     #[requires(!relation.is_empty())]
@@ -20350,6 +20533,16 @@ fn tanru_units_for_selbri(selbri: &SelbriSyntax) -> Option<Vec<&TanruUnitSyntax>
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn single_tanru_unit_for_selbri(selbri: &SelbriSyntax) -> Option<&TanruUnitSyntax> {
+    let units = tanru_units_for_selbri(selbri)?;
+    let [unit] = units.as_slice() else {
+        return None;
+    };
+    Some(*unit)
+}
+
+#[requires(true)]
 #[ensures(ret.is_none_or(|description_abstraction| !description_abstraction.link_relation.is_empty()))]
 fn description_abstraction_for_selbri(selbri: &SelbriSyntax) -> Option<DescriptionAbstraction<'_>> {
     match selbri.as_data() {
@@ -20902,6 +21095,7 @@ fn constructed_relation_place_count(relation: &str) -> Option<usize> {
             | "truthValueOf"
             | "propositionOf"
             | "associatedWith"
+            | "involves"
             | "memberOf"
             | "specificallyAssociatedWith"
             | "intrinsicallyPossessedBy"
@@ -24808,6 +25002,31 @@ mod tests {
         assert_eq!(raised["descriptor"]["word"], "jai");
         assert_eq!(raised["descriptor"]["operand"], "referent:speaker");
         assert_eq!(rinka["arguments"]["x2"]["kind"], "filled");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_jai_with_fai_preserves_noncoincident_raised_operand() {
+        let json = semantic_json_for(
+            "do jai se krinu le nu mi viska le cukta kei fai le nu mi lebna le cukta",
+        )
+        .expect("semantic JSON");
+        let content_id = root_object(&json)["content"]
+            .as_str()
+            .expect("root content");
+        let content = object(&json, content_id);
+        assert_eq!(content["operator"], "and");
+        assert_eq!(content["connector"]["source"], "jai");
+        assert_eq!(content["connector"]["locus"], "bare-jai-raised-participant");
+
+        let krinu = predication_with_relation_and_mode(&json, "krinu", "asserted");
+        let taking_event = krinu["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("justified event");
+        let involves = predication_with_relation_and_mode(&json, "involves", "asserted");
+        assert_eq!(involves["arguments"]["x1"]["value"], taking_event);
+        assert_eq!(involves["arguments"]["x2"]["value"], "referent:addressee");
     }
 
     #[test]

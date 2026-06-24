@@ -1629,11 +1629,17 @@ abstraction involving the surface x1.  Public JSON represents that implicit
 abstraction with a normal `referent` descriptor
 `{"kind":"abstractionAbout","word":"jai","operand":...}` and uses that
 referent in the inner predicate's appropriate place.  This parallels explicit
-`tu'a`, whose descriptor uses `word = "tu'a"`.  When `jai` has a BAI marker,
-as in `le jai gau rinka ...`, the described referent fills the BAI source
-relation in `modalArguments` (`gasnu` for `gau`), while the inner predicate's
-old x1 remains filled by `fai` if present or is otherwise an explicit `zo'e`
-elision.
+`tu'a`, whose descriptor uses `word = "tu'a"`.  If the base relation's moved
+place is already filled, as with `do jai se krinu ... fai le nu mi lebna ...`,
+the base predicate keeps its ordinary place routing and an asserted constructed
+relation `involves(x1 = moved abstraction/event, x2 = raised participant)` is
+conjoined with it.  This preserves both the underlying relation
+`krinu(reason, justified-event)` and the bare-`jai` claim that the raised
+surface x1 participates in the abstraction moved to `fai`.  When `jai` has a
+BAI marker, as in `le jai gau rinka ...`, the described referent fills the BAI
+source relation in `modalArguments` (`gasnu` for `gau`), while the inner
+predicate's old x1 remains filled by `fai` if present or is otherwise an
+explicit `zo'e` elision.
 
 Modal negation belongs to the modal relation, not to the host predication.
 `BAI nai` adds `negation` with `kind = "contradictory"` to the
@@ -4507,6 +4513,13 @@ These are the semantic object-model changes relative to
      utterance's `asides`; self-identification vocatives use the identified
      referent as `content`; and primary eventualities used as modal relation
      arguments point back to their defining formula through `content`.
+
+133. Preserved bare-`jai` raised participants when `fai` fills the moved place.
+     In examples like `do jai se krinu ... fai le nu mi lebna ...`, replacing
+     the base relation's moved place with `abstractionAbout(do)` would erase the
+     ordinary `krinu(reason, justified-event)` routing, but dropping `do` loses
+     the surface x1 entirely.  The graph now keeps the base predication intact
+     and conjoins an asserted constructed relation `involves(fai-event, do)`.
 
 ## Not Adopted From v0
 
