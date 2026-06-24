@@ -1927,8 +1927,8 @@ impl Recurrence {
     }
 }
 
-#[invariant(::Aspect(_) => true)]
-#[invariant(::Recurrence(_) => true)]
+#[invariant(::Aspect(aspect) => !aspect.contour.is_empty(), "aspect interval modifier must carry a named contour")]
+#[invariant(::Recurrence(recurrence) => !recurrence.introduced_by.is_empty(), "recurrence interval modifier must carry its source marker")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase", tag = "kind", content = "value")]
 pub enum IntervalModifier {
@@ -1940,9 +1940,9 @@ impl IntervalModifier {
     #[requires(true)]
     #[ensures(true)]
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
-        match self {
-            Self::Aspect(aspect) => aspect.references_into(out),
-            Self::Recurrence(recurrence) => recurrence.references_into(out),
+        match self.as_data() {
+            data!(IntervalModifier::Aspect(aspect)) => aspect.references_into(out),
+            data!(IntervalModifier::Recurrence(recurrence)) => recurrence.references_into(out),
         }
     }
 }

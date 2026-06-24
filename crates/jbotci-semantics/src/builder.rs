@@ -33,17 +33,18 @@ use crate::model::{
     ArgumentValue, ArgumentValueKind, Aspect, AssignedName, AssignedNameData, Composition,
     Connector, Descriptor, DisplayedContentAssertionEffect, DisplayedContentFamily,
     DisplayedContentModifier, DisplayedContentPolarity, EndpointInclusion, EventualityClass,
-    FormulaOperator, IndexicalKind, IntervalEndpointInclusion, IntervalModifier, LetteralUnit,
-    LetteralUnitKind, MathLiteral, ModalArgument, ModalNegation, ModalNegationKind,
-    NonlogicalConnection, PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale,
-    QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
-    RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
-    RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
-    RespectivelyStream, ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph,
-    SemanticObject, SemanticObjectId, SemanticObjectKind, SemanticOperatorData, SemanticSort,
-    SequenceRelation, SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind, TanruLink,
-    TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
-    TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic, source_from_spans,
+    FormulaOperator, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
+    IntervalModifierData, LetteralUnit, LetteralUnitKind, MathLiteral, ModalArgument,
+    ModalNegation, ModalNegationKind, NonlogicalConnection, PlaceQuestionBinding, PredicationMode,
+    QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot,
+    QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, Recurrence,
+    RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
+    RelationExpansion, RelativeClause, RelativeClauseKind, RespectivelyStream, ScalarNegation,
+    ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId,
+    SemanticObjectKind, SemanticOperatorData, SemanticSort, SequenceRelation, SignKind,
+    SpaceInterval, SpatialMotion, SpatialMotionKind, TanruLink, TemporalPathAnchor,
+    TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint,
+    UtteranceForce, argument_object_kind_can_fill, diagnostic, source_from_spans,
 };
 use crate::references::{
     AssignmentSource, BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -801,10 +802,10 @@ where
         quantity_cache: &mut HashMap<String, SemanticObjectId>,
     ) -> Result<(), SemanticsError> {
         for modifier in modifiers {
-            if let IntervalModifier::Recurrence(recurrence) = modifier {
+            if let data!(IntervalModifier::Recurrence(recurrence)) = modifier.as_data() {
                 let mut recurrence = recurrence.clone();
                 self.promote_recurrence_quantity(&mut recurrence, quantity_cache)?;
-                *modifier = IntervalModifier::Recurrence(recurrence);
+                *modifier = new!(IntervalModifier::Recurrence(recurrence));
             }
         }
         Ok(())
@@ -18872,7 +18873,7 @@ fn temporal_interval_modifiers_for_tense_modal(
             .value
             .iter()
             .filter_map(aspect_contour_for_zaho_token)
-            .map(|contour| IntervalModifier::Aspect(Aspect::new(contour, None)))
+            .map(|contour| new!(IntervalModifier::Aspect(Aspect::new(contour, None))))
             .collect(),
         data!(TenseModalSyntax::IntervalProperty {
             number,
@@ -18883,7 +18884,7 @@ fn temporal_interval_modifiers_for_tense_modal(
             number.as_ref().map(word_run_text),
             nai.as_ref().map(|nai| &nai.value),
         )
-        .map(IntervalModifier::Recurrence)
+        .map(|recurrence| new!(IntervalModifier::Recurrence(recurrence)))
         .into_iter()
         .collect(),
         _ => Vec::new(),
@@ -18909,15 +18910,15 @@ fn interval_modifier_with_interval(
     modifier: IntervalModifier,
     anchor: Option<SemanticObjectId>,
 ) -> IntervalModifier {
-    match modifier {
-        IntervalModifier::Aspect(aspect) => {
-            IntervalModifier::Aspect(aspect.clone().with_data(data! {
+    match modifier.into_data() {
+        data!(IntervalModifier::Aspect(aspect)) => {
+            new!(IntervalModifier::Aspect(aspect.with_data(data! {
                 anchor: anchor,
-            }))
+            })))
         }
-        IntervalModifier::Recurrence(recurrence) => {
-            IntervalModifier::Recurrence(recurrence_with_interval(recurrence, anchor))
-        }
+        data!(IntervalModifier::Recurrence(recurrence)) => new!(IntervalModifier::Recurrence(
+            recurrence_with_interval(recurrence, anchor),
+        )),
     }
 }
 
@@ -18995,12 +18996,10 @@ fn scoped_interval_modifiers_for_composite_parts(
                     } else {
                         &mut modifiers.temporal_modifiers
                     };
-                    if let Some(modifier) = stack
-                        .iter_mut()
-                        .rev()
-                        .find(|modifier| matches!(modifier, IntervalModifier::Recurrence(_)))
-                    {
-                        *modifier = IntervalModifier::Recurrence(recurrence.clone());
+                    if let Some(modifier) = stack.iter_mut().rev().find(|modifier| {
+                        matches!(modifier.as_data(), data!(IntervalModifier::Recurrence(_)))
+                    }) {
+                        *modifier = new!(IntervalModifier::Recurrence(recurrence.clone()));
                     }
                     continue;
                 }
@@ -19047,25 +19046,25 @@ fn scoped_interval_modifiers_for_composite_parts(
                 pending_recurrence_index = Some((true, modifiers.spatial_recurrences.len() - 1));
                 modifiers
                     .spatial_modifiers
-                    .push(IntervalModifier::Recurrence(
+                    .push(new!(IntervalModifier::Recurrence(
                         modifiers
                             .spatial_recurrences
                             .last()
                             .expect("just pushed spatial recurrence")
                             .clone(),
-                    ));
+                    )));
             } else {
                 modifiers.temporal_recurrences.push(recurrence);
                 pending_recurrence_index = Some((false, modifiers.temporal_recurrences.len() - 1));
                 modifiers
                     .temporal_modifiers
-                    .push(IntervalModifier::Recurrence(
+                    .push(new!(IntervalModifier::Recurrence(
                         modifiers
                             .temporal_recurrences
                             .last()
                             .expect("just pushed temporal recurrence")
                             .clone(),
-                    ));
+                    )));
             }
             next_interval_property_is_spatial = false;
             continue;
@@ -19077,12 +19076,12 @@ fn scoped_interval_modifiers_for_composite_parts(
                 modifiers.spatial_aspects.push(contour.clone());
                 modifiers
                     .spatial_modifiers
-                    .push(IntervalModifier::Aspect(Aspect::new(contour, None)));
+                    .push(new!(IntervalModifier::Aspect(Aspect::new(contour, None))));
             } else {
                 modifiers.temporal_aspects.push(contour.clone());
                 modifiers
                     .temporal_modifiers
-                    .push(IntervalModifier::Aspect(Aspect::new(contour, None)));
+                    .push(new!(IntervalModifier::Aspect(Aspect::new(contour, None))));
             }
             next_interval_property_is_spatial = false;
             continue;
