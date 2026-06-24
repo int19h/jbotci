@@ -1426,6 +1426,45 @@ fn strict_call_parser_expr_tokens(
             )?;
             Some(quote!(generated_runtime::strict_greedy_many1_parser(#inner.boxed())))
         }
+        ("singleton", 1) => {
+            let inner = strict_parser_expr_tokens(
+                call.args.first().expect("length checked"),
+                arguments,
+                type_env,
+                free_modifier_parser,
+            )?;
+            Some(quote!(generated_runtime::singleton(#inner)))
+        }
+        ("prepend", 2) => {
+            let head = strict_parser_expr_tokens(
+                call.args.first().expect("length checked"),
+                arguments,
+                type_env,
+                free_modifier_parser,
+            )?;
+            let tail = strict_parser_expr_tokens(
+                call.args.iter().nth(1).expect("length checked"),
+                arguments,
+                type_env,
+                free_modifier_parser,
+            )?;
+            Some(quote!(generated_runtime::prepend(#head, #tail)))
+        }
+        ("concat", 2) => {
+            let head = strict_parser_expr_tokens(
+                call.args.first().expect("length checked"),
+                arguments,
+                type_env,
+                free_modifier_parser,
+            )?;
+            let tail = strict_parser_expr_tokens(
+                call.args.iter().nth(1).expect("length checked"),
+                arguments,
+                type_env,
+                free_modifier_parser,
+            )?;
+            Some(quote!(generated_runtime::concat(#head, #tail)))
+        }
         ("boxed", 1) => {
             let inner = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
@@ -1660,6 +1699,27 @@ fn call_parser_output_type(
             )?;
             Some(quote!(Vec<#inner>))
         }
+        ("singleton", 1) => {
+            let inner = parser_output_type(
+                call.args.first().expect("length checked"),
+                type_env,
+                arguments,
+            )?;
+            Some(quote!(Vec<#inner>))
+        }
+        ("prepend", 2) => {
+            let head = parser_output_type(
+                call.args.first().expect("length checked"),
+                type_env,
+                arguments,
+            )?;
+            Some(quote!(Vec<#head>))
+        }
+        ("concat", 2) => parser_output_type(
+            call.args.first().expect("length checked"),
+            type_env,
+            arguments,
+        ),
         ("boxed", 1) => {
             let inner = parser_output_type(
                 call.args.first().expect("length checked"),
@@ -2241,6 +2301,15 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
         ("many1", 1) | ("nonempty", 1) => {
             RecoveryExpr::Many1(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }
+        ("singleton", 1) => {
+            RecoveryExpr::Some(Box::new(classify_recovery_expr(&call.args[0], arguments)))
+        }
+        ("prepend" | "concat", 2) => RecoveryExpr::Sequence(
+            call.args
+                .iter()
+                .map(|expr| classify_recovery_expr(expr, arguments))
+                .collect(),
+        ),
         ("boxed", 1) => {
             RecoveryExpr::Boxed(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }

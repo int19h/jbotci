@@ -173,26 +173,20 @@ jbotci_syntax_macros::syntax_grammar! {
         };
     }
 
-    product text_paragraphs(paragraph, statement_or_fragment, free_modifier) -> std::vec::Vec<ParagraphSyntax> {
+    alias text_paragraphs(paragraph, statement_or_fragment, free_modifier) -> std::vec::Vec<ParagraphSyntax> {
         context "paragraphs";
-        fields {
-            field paragraphs = opt(choice((
-                text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier),
-                many1(niho_paragraph(statement_or_fragment, free_modifier)),
-            )));
-        }
-        build |paragraphs| paragraphs.unwrap_or_default();
+        opt_or_default(choice((
+            text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier),
+            many1(niho_paragraph(statement_or_fragment, free_modifier)),
+        )));
     }
 
-    product text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier) -> std::vec::Vec<ParagraphSyntax> {
+    alias text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier) -> std::vec::Vec<ParagraphSyntax> {
         context "paragraphs";
-        fields {
-            field paragraph = paragraph;
-            field additional_paragraphs = many(niho_paragraph(statement_or_fragment, free_modifier));
-        }
-        build |paragraph, additional_paragraphs| {
-            std::iter::once(paragraph).chain(additional_paragraphs).collect()
-        };
+        prepend(
+            paragraph,
+            many(niho_paragraph(statement_or_fragment, free_modifier)),
+        );
     }
 
     alias text_leading_connective(tense_modal) -> ConnectiveSyntax {
@@ -599,17 +593,12 @@ jbotci_syntax_macros::syntax_grammar! {
         )));
     }
 
-    product relative_clause_list(sumti, subbridi, tense_modal) -> std::vec::Vec<RelativeClauseSyntax> {
+    alias relative_clause_list(sumti, subbridi, tense_modal) -> std::vec::Vec<RelativeClauseSyntax> {
         context "relative clauses";
-        fields {
-            field first_relative_clause = relative_clause_atom(sumti, subbridi, tense_modal);
-            field additional_relative_clauses = many(relative_clause_tail(sumti, subbridi, tense_modal));
-        }
-        build |first_relative_clause, additional_relative_clauses| {
-            std::iter::once(first_relative_clause)
-                .chain(additional_relative_clauses)
-                .collect()
-        };
+        prepend(
+            relative_clause_atom(sumti, subbridi, tense_modal),
+            many(relative_clause_tail(sumti, subbridi, tense_modal)),
+        );
     }
 
     node relative_clause_fragment(sumti, subbridi, tense_modal) -> StatementSyntax {
@@ -2151,40 +2140,26 @@ jbotci_syntax_macros::syntax_grammar! {
         }
     }
 
-    node letter_string(letter_tokens) -> std::vec::Vec<Token> {
+    alias letter_string(letter_tokens) -> std::vec::Vec<Token> {
         context "lerfu string";
-        fields {
-            field first = letter_tokens;
-            field rest = many(choice((
+        concat(
+            letter_tokens,
+            many(choice((
                 pa_word_as_words(),
                 letter_tokens,
-            )));
-        }
-        build |first, rest| {
-            let mut words = first;
-            for mut group in rest {
-                words.append(&mut group);
-            }
-            words
-        };
+            ))),
+        );
     }
 
-    product number_words(letter_tokens) -> std::vec::Vec<Token> {
+    alias number_words(letter_tokens) -> std::vec::Vec<Token> {
         context "number";
-        fields {
-            field first = pa_word();
-            field rest = many(choice((
+        concat(
+            pa_word_as_words(),
+            many(choice((
                 pa_word_as_words(),
                 letter_tokens,
-            )));
-        }
-        build |first, rest| {
-            let mut words = vec![first];
-            for mut group in rest {
-                words.append(&mut group);
-            }
-            words
-        };
+            ))),
+        );
     }
 
     alias number_or_letter_words(letter_tokens, letter_string) -> std::vec::Vec<Token> {
@@ -2225,33 +2200,19 @@ jbotci_syntax_macros::syntax_grammar! {
         ));
     }
 
-    product pa_word_as_words -> std::vec::Vec<Token> {
+    alias pa_word_as_words -> std::vec::Vec<Token> {
         context "number";
-        fields {
-            field word = pa_word();
-        }
-        build |word| vec![word];
+        singleton(pa_word());
     }
 
-    product plain_letter_word_as_words -> std::vec::Vec<Token> {
+    alias plain_letter_word_as_words -> std::vec::Vec<Token> {
         context "lerfu word";
-        fields {
-            field word = word_category(LetterWord);
-        }
-        build |word| vec![word];
+        singleton(word_category(LetterWord));
     }
 
-    product lau_letter_tokens(letter_tokens) -> std::vec::Vec<Token> {
+    alias lau_letter_tokens(letter_tokens) -> std::vec::Vec<Token> {
         context "lerfu word";
-        fields {
-            field lau = selmaho(Lau);
-            field rest = letter_tokens;
-        }
-        build |lau, rest| {
-            let mut words = vec![lau];
-            words.extend(rest);
-            words
-        };
+        prepend(selmaho(Lau), letter_tokens);
     }
 
     product tei_letter_tokens(letter_string) -> std::vec::Vec<Token> {
