@@ -34,7 +34,7 @@ KIND id : attr=val, attr=val, …
 
 | KIND | what it is | principal attributes |
 |---|---|---|
-| `UTT` | an utterance / locution | `force` (assert/ask/command/mentioned/parenthetical), `content`=⟨FRM-id⟩, `ev`=⟨EV-id⟩, `speaker`=⟨REF-id⟩, `audience`=⟨REF-id⟩, optionally `deictic-ground`, `asides`=[⟨UTT-id⟩…] |
+| `UTT` | an utterance / locution | `force` (assert/ask/command/mentioned/parenthetical), `content`=⟨FRM-id⟩, `ev`=⟨EV-id⟩, `speaker`=⟨REF-id⟩, `audience`=⟨REF-id⟩, optionally `deictic-ground`, `asides`=[nested ⟨UTT-id⟩ or anchored ⟨DSP-id⟩…] |
 | `EV` | an eventuality (event/state) | `tense`, `caha`; as needed `aspect`(ZAhO), `distrib`(TAhE), `freq`(ROI), `dist`(ZI), `extent`(ZEhA), spatial `place`(FAhA)/`sdist`(VA)/`sextent`(VEhA)/`dims`(VIhA)/`motion`(MOhI) |
 | `REF` | a referent | `kind`=const\|var; `sort`=Obj\|Ev\|Rel\|Proposition\|TruthValue\|Quantity\|Sign; if const: `flavor`=lo\|le\|la\|lo'e\|le'e\|ko'a\|zo'e\|… or `indexical`=⟨role of an UTT⟩; if var: bound by a quantifier FRM-node (0.E); optional `handle`=⟨SGN-id⟩, `subscript`=n |
 | `PAR` | a free variable / gap | `sort`, `role`=ce'u\|ke'a\|ma\|kau; optional `tier`=connective\|displayed\|mekso-var |

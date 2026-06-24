@@ -9,6 +9,7 @@ use jbotci_dictionary::{Dictionary, WordType, normalize_lookup_query};
 use jbotci_morphology::{
     Cmavo, LujvoPart, Selmaho, Word, WordData, WordLike, WordLikeData, strip_diacritics,
 };
+use jbotci_source::SourceSpan;
 use jbotci_syntax::ast::{
     AbstractionSyntax, AbstractorConnectionSyntax, AfterthoughtBridiTailSyntax,
     BoGroupedBridiTailSyntax, BoundBridiTailConnectionSyntax, BridiSyntax,
@@ -1017,11 +1018,22 @@ where
         construct: &str,
     ) -> Option<crate::model::SemanticSource> {
         let metadata = self.analysis.syntax_index.metadata(node)?;
-        source_from_spans(
+        let spans = source_spans_with_following_cmevla_period(
             &metadata.source_spans,
             self.options.source_text,
-            Some(construct),
-        )
+        );
+        source_from_spans(&spans, self.options.source_text, Some(construct))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn source_for_named_node(&self, node: RawSyntaxNodeId) -> Option<crate::model::SemanticSource> {
+        let metadata = self.analysis.syntax_index.metadata(node)?;
+        let spans = source_spans_with_following_cmevla_period(
+            &metadata.source_spans,
+            self.options.source_text,
+        );
+        source_from_spans(&spans, self.options.source_text, Some("sumti"))
     }
 
     #[requires(true)]
@@ -1255,6 +1267,16 @@ where
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
     fn build_text(&mut self, text: &'tree TextSyntax) -> Result<SemanticGraph, SemanticsError> {
+        self.build_text_with_pruning(text, true)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
+    fn build_text_with_pruning(
+        &mut self,
+        text: &'tree TextSyntax,
+        prune_unreachable: bool,
+    ) -> Result<SemanticGraph, SemanticsError> {
         let truth_question = text
             .leading_indicators
             .iter()
@@ -1376,8 +1398,42 @@ where
                 ),
             )?
         };
+        if prune_unreachable {
+            self.prune_unreachable_objects(root);
+        }
         SemanticGraph::new(root, std::mem::take(&mut self.objects))
             .map_err(SemanticsError::invalid_graph)
+    }
+
+    #[requires(self.objects.contains_key(&root))]
+    #[ensures(self.objects.contains_key(&root))]
+    #[ensures(self.objects.keys().all(|id| {
+        let mut reachable = HashSet::new();
+        let mut stack = vec![root];
+        while let Some(next) = stack.pop() {
+            if reachable.insert(next)
+                && let Some(object) = self.objects.get(&next)
+            {
+                let mut references = Vec::new();
+                object.references_into(&mut references);
+                stack.extend(references);
+            }
+        }
+        reachable.contains(id)
+    }))]
+    fn prune_unreachable_objects(&mut self, root: SemanticObjectId) {
+        let mut reachable = HashSet::new();
+        let mut stack = vec![root];
+        while let Some(next) = stack.pop() {
+            if reachable.insert(next)
+                && let Some(object) = self.objects.get(&next)
+            {
+                let mut references = Vec::new();
+                object.references_into(&mut references);
+                stack.extend(references);
+            }
+        }
+        self.objects.retain(|id, _object| reachable.contains(id));
     }
 
     #[requires(!text.leading_indicators.is_empty())]
@@ -1622,7 +1678,10 @@ where
         let nested_asides = std::mem::replace(&mut self.pending_asides, previous_pending_asides);
         let slots = std::mem::replace(&mut self.parameter_slots, previous_slots);
         let content = if slots.is_empty() {
-            None
+            (vocative_kind == "selfIdentification"
+                && addressed_or_identified.object_kind()
+                    == crate::model::SemanticObjectKind::Referent)
+                .then_some(addressed_or_identified)
         } else {
             Some(self.build_vocative_question_content(
                 addressed_or_identified,
@@ -1728,7 +1787,7 @@ where
                     .statement_node_id(statement)
                     .and_then(|node| self.source_for_node(node.0, "statement"));
                 let utterance = self.build_utterance(
-                    UtteranceForce::Parenthetical,
+                    UtteranceForce::Assert,
                     None,
                     source,
                     Vec::new(),
@@ -1950,25 +2009,31 @@ where
         let roles = self.ensure_utterance_roles(anchor, source.clone())?;
         let previous_anchor = self.current_utterance_anchor.replace(anchor);
         let previous_roles = std::mem::replace(&mut self.current_utterance_roles, roles);
+        let previous_asides = std::mem::take(&mut self.pending_asides);
         let content = self.build_fragment_content(fragment);
+        let asides = std::mem::replace(&mut self.pending_asides, previous_asides);
         self.current_utterance_anchor = previous_anchor;
         self.current_utterance_roles = previous_roles;
         if let Some(content) = content? {
-            return self.build_utterance(
+            let utterance = self.build_utterance(
                 UtteranceForce::Mention,
                 Some(content),
                 source,
                 Vec::new(),
                 reserved_utterance,
-            );
+            )?;
+            self.add_utterance_asides(utterance, asides);
+            return Ok(utterance);
         }
-        self.build_utterance(
+        let utterance = self.build_utterance(
             UtteranceForce::Mention,
             None,
             source,
             vec![diagnostic("fragment has no truth-bearing semantic formula")],
             reserved_utterance,
-        )
+        )?;
+        self.add_utterance_asides(utterance, asides);
+        Ok(utterance)
     }
 
     #[requires(true)]
@@ -2081,7 +2146,7 @@ where
         text: &'tree TextSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut nested = self.nested_builder_with_roles(self.deictic_context_roles);
-        let graph = nested.build_text(text)?;
+        let graph = nested.build_text_with_pruning(text, false)?;
         let root = graph.root;
         nested.objects = graph.objects;
         self.absorb_nested_builder(nested);
@@ -2104,7 +2169,7 @@ where
         let mut nested = self.nested_builder_with_roles(quoted_roles);
         let mut marker_asides = nested.build_vocative_asides(marker_free_modifiers)?;
         let root = if has_semantic_text {
-            let graph = nested.build_text(text)?;
+            let graph = nested.build_text_with_pruning(text, false)?;
             let root = graph.root;
             nested.objects = graph.objects;
             if !marker_asides.is_empty() {
@@ -2232,16 +2297,6 @@ where
         } else {
             formula
         };
-        if let Some(anchor) = reserved_utterance
-            && let Some(selbri) = main_selbri_for_tail(&bridi.bridi_tail)
-        {
-            self.attach_indicator_displays(
-                indicator_parts_for_selbri(selbri),
-                formula,
-                anchor,
-                "indicator",
-            )?;
-        }
         let force = if is_question {
             UtteranceForce::Ask
         } else if bridi_contains_ko(bridi) {
@@ -2251,6 +2306,14 @@ where
         };
         let utterance =
             self.build_utterance(force, Some(content), source, Vec::new(), reserved_utterance)?;
+        if let Some(selbri) = main_selbri_for_tail(&bridi.bridi_tail) {
+            self.attach_indicator_displays(
+                indicator_parts_for_selbri(selbri),
+                formula,
+                utterance,
+                "indicator",
+            )?;
+        }
         self.current_utterance_anchor = previous_anchor;
         self.current_utterance_roles = previous_roles;
         if let Some(node) = self.analysis.syntax_index.bridi_node_id(bridi) {
@@ -2455,10 +2518,13 @@ where
                 .is_some_and(|variable| variables.contains(&variable));
         if is_implicit_target && let Some(body) = object.body {
             let stripped = self.strip_implicit_quantifiers_for_variables(body, variables)?;
+            self.replace_formula_reference_everywhere(formula, stripped);
             self.objects.remove(&formula);
             return Ok(stripped);
         }
         let body = object.body;
+        let restriction = object.restriction;
+        let children = object.children.clone();
         if let Some(body) = body {
             let stripped = self.strip_implicit_quantifiers_for_variables(body, variables)?;
             if stripped != body
@@ -2467,7 +2533,100 @@ where
                 object.body = Some(stripped);
             }
         }
+        if let Some(restriction) = restriction {
+            let stripped = self.strip_implicit_quantifiers_for_variables(restriction, variables)?;
+            if stripped != restriction
+                && let Some(object) = self.objects.get_mut(&formula)
+            {
+                object.restriction = Some(stripped);
+            }
+        }
+        if !children.is_empty() {
+            let mut stripped_children = Vec::with_capacity(children.len());
+            let mut changed = false;
+            for child in children {
+                let stripped = self.strip_implicit_quantifiers_for_variables(child, variables)?;
+                changed |= stripped != child;
+                stripped_children.push(stripped);
+            }
+            if changed && let Some(object) = self.objects.get_mut(&formula) {
+                object.children = stripped_children;
+            }
+        }
         Ok(formula)
+    }
+
+    #[requires(old_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(new_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(true)]
+    fn replace_formula_reference_everywhere(
+        &mut self,
+        old_id: SemanticObjectId,
+        new_id: SemanticObjectId,
+    ) {
+        if old_id == new_id {
+            return;
+        }
+        for object in self.objects.values_mut() {
+            replace_formula_option(&mut object.content, old_id, new_id);
+            replace_formula_vec(&mut object.connection_claims, old_id, new_id);
+            if let Some(descriptor) = &mut object.descriptor {
+                replace_formula_option(&mut descriptor.body, old_id, new_id);
+                replace_relative_clause_formula_references(
+                    &mut descriptor.relative_clauses,
+                    old_id,
+                    new_id,
+                );
+            }
+            replace_relative_clause_formula_references(
+                &mut object.relative_clauses,
+                old_id,
+                new_id,
+            );
+            for argument in object.arguments.values_mut() {
+                replace_argument_value_formula_references(argument, old_id, new_id);
+            }
+            for question in &mut object.place_questions {
+                let mut argument = question.argument.clone();
+                replace_argument_value_formula_references(&mut argument, old_id, new_id);
+                if argument != question.argument {
+                    *question = question.clone().with_data(data! { argument: argument });
+                }
+            }
+            for modal_argument in &mut object.modal_arguments {
+                let mut arguments = modal_argument.arguments.clone();
+                for argument in arguments.values_mut() {
+                    replace_argument_value_formula_references(argument, old_id, new_id);
+                }
+                if arguments != modal_argument.arguments {
+                    *modal_argument = modal_argument
+                        .clone()
+                        .with_data(data! { arguments: arguments });
+                }
+            }
+            for exchange in &mut object.reciprocity {
+                let mut left = exchange.left.clone();
+                let mut right = exchange.right.clone();
+                replace_argument_value_formula_references(&mut left, old_id, new_id);
+                replace_argument_value_formula_references(&mut right, old_id, new_id);
+                if left != exchange.left || right != exchange.right {
+                    *exchange = exchange.clone().with_data(data! {
+                        left: left,
+                        right: right,
+                    });
+                }
+            }
+            replace_formula_option(&mut object.predication, old_id, new_id);
+            replace_formula_vec(&mut object.children, old_id, new_id);
+            replace_formula_option(&mut object.restriction, old_id, new_id);
+            replace_formula_option(&mut object.body, old_id, new_id);
+            replace_formula_option(&mut object.abstracted, old_id, new_id);
+            replace_formula_option(&mut object.target, old_id, new_id);
+            replace_formula_option(&mut object.presupposed_answer, old_id, new_id);
+        }
+        if let Some(eventuality) = self.content_eventualities.remove(&old_id) {
+            self.content_eventualities.insert(new_id, eventuality);
+        }
     }
 
     #[requires(true)]
@@ -7476,7 +7635,13 @@ where
         object.intensity = draft.intensity;
         object.phase = draft.phase;
         object.modifiers = draft.modifiers;
-        self.insert(id, object)
+        self.insert(id, object)?;
+        if self.objects.contains_key(&anchor) {
+            self.add_utterance_asides(anchor, vec![id]);
+        } else {
+            self.pending_asides.push(id);
+        }
+        Ok(id)
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -7540,9 +7705,25 @@ where
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if let Some(eventuality) = self.primary_eventuality_for_formula(formula) {
+            self.set_eventuality_content_if_absent(eventuality, formula);
             return Ok(eventuality);
         }
         self.reified_eventuality_for_content(formula, source)
+    }
+
+    #[requires(eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality)]
+    #[requires(content.object_kind() == crate::model::SemanticObjectKind::Formula || content.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[ensures(true)]
+    fn set_eventuality_content_if_absent(
+        &mut self,
+        eventuality: SemanticObjectId,
+        content: SemanticObjectId,
+    ) {
+        if let Some(object) = self.objects.get_mut(&eventuality)
+            && object.content.is_none()
+        {
+            object.content = Some(content);
+        }
     }
 
     #[requires(true)]
@@ -10487,8 +10668,7 @@ where
         surface_place: usize,
         sort: SemanticSort,
     ) -> Result<ArgumentValue, SemanticsError> {
-        let referent =
-            self.build_elided_referent_with_sort(None, format!("zo'e x{surface_place}"), sort)?;
+        let referent = self.build_elided_referent_with_sort(None, "zo'e".to_owned(), sort)?;
         Ok(ArgumentValue::elided(referent, "zo'e".to_owned(), None))
     }
 
@@ -12075,7 +12255,7 @@ where
                 )));
             };
             descriptor.body = body;
-            descriptor.operand = operand;
+            descriptor.operand = description.selbri.is_none().then_some(operand).flatten();
             descriptor.quantity = quantity;
         }
         let mut relative_clauses = if description.description.is_some() {
@@ -12190,21 +12370,27 @@ where
             SemanticSort::Set => "setName",
             _ => "name",
         };
-        self.build_plain_referent(
-            raw,
-            ReferentCategory::Constant,
-            sort,
-            Descriptor {
-                kind: kind.to_owned(),
-                word: word.to_owned(),
-                speaker: Some(self.current_speaker()),
-                body: None,
-                relative_clauses: Vec::new(),
-                quantity: None,
-                name: Some(name),
-                operand: None,
-            },
-            Vec::new(),
+        let id = self.next_referent();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Constant,
+                sort,
+                None,
+                Some(Descriptor {
+                    kind: kind.to_owned(),
+                    word: word.to_owned(),
+                    speaker: Some(self.current_speaker()),
+                    body: None,
+                    relative_clauses: Vec::new(),
+                    quantity: None,
+                    name: Some(name),
+                    operand: None,
+                }),
+                None,
+                self.source_for_named_node(raw),
+                Vec::new(),
+            ),
         )
     }
 
@@ -12293,7 +12479,7 @@ where
             id,
             SemanticObject::referent(
                 ReferentCategory::Constant,
-                SemanticSort::Proposition,
+                SemanticSort::Eventuality,
                 None,
                 Some(Descriptor {
                     kind: "abstractionAbout".to_owned(),
@@ -12542,7 +12728,7 @@ where
         let mut arguments = BTreeMap::new();
         let highest_assigned_place =
             self.insert_numbered_assignment_arguments(&mut arguments, frame)?;
-        let modal_arguments = self.modal_assignment_arguments(frame)?;
+        let mut modal_arguments = self.modal_assignment_arguments(frame)?;
         arguments.insert(
             format!("x{visible_x1_place}"),
             ArgumentValue::filled(referent, None),
@@ -12577,6 +12763,11 @@ where
             .selbri_node_id(selbri)
             .and_then(|node| self.source_for_node(node.0, "restrictive-predication"));
         let eventuality = self.build_tagged_eventuality_for_selbri(selbri, source.clone())?;
+        if let Some(eventuality) = eventuality {
+            for modal_argument in &mut modal_arguments {
+                bind_modal_argument_to_host_event(modal_argument, eventuality);
+            }
+        }
         let relation_metadata =
             self.build_relation_metadata_for_selbri(selbri, &relation, source.clone())?;
         let predication = self.next_predication();
@@ -12973,7 +13164,20 @@ where
             .syntax_index
             .selbri_node_id(selbri)
             .and_then(|node| self.source_for_node(node.0, "restrictive-predication"));
-        let eventuality = self.build_tagged_eventuality_for_selbri(selbri, source.clone())?;
+        let mut eventuality = self.build_tagged_eventuality_for_selbri(selbri, source.clone())?;
+        if eventuality.is_none() && modal_arguments.iter().any(modal_argument_needs_host_event) {
+            let id = self.next_eventuality();
+            self.insert(
+                id,
+                SemanticObject::eventuality(EventualityClass::Event, None, source.clone()),
+            )?;
+            eventuality = Some(id);
+        }
+        if let Some(eventuality) = eventuality {
+            for modal_argument in &mut modal_arguments {
+                bind_modal_argument_to_host_event(modal_argument, eventuality);
+            }
+        }
         let relation_metadata =
             self.build_relation_metadata_for_selbri(selbri, &relation, source.clone())?;
         let predication = self.next_predication();
@@ -13667,7 +13871,7 @@ where
     }
 
     #[requires(utterance.object_kind() == crate::model::SemanticObjectKind::Utterance)]
-    #[requires(asides.iter().all(|aside| aside.object_kind() == crate::model::SemanticObjectKind::Utterance))]
+    #[requires(asides.iter().all(|aside| matches!(aside.object_kind(), crate::model::SemanticObjectKind::Utterance | crate::model::SemanticObjectKind::DisplayedContent)))]
     #[ensures(true)]
     fn add_utterance_asides(&mut self, utterance: SemanticObjectId, asides: Vec<SemanticObjectId>) {
         if asides.is_empty() {
@@ -13820,6 +14024,66 @@ fn sumti_quantified_variable_sort(sumti: &SumtiSyntax) -> SemanticSort {
             sumti_quantified_variable_sort(inner_sumti)
         }
         _ => SemanticSort::Entity,
+    }
+}
+
+#[requires(old_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[requires(new_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[ensures(true)]
+fn replace_formula_option(
+    value: &mut Option<SemanticObjectId>,
+    old_id: SemanticObjectId,
+    new_id: SemanticObjectId,
+) {
+    if *value == Some(old_id) {
+        *value = Some(new_id);
+    }
+}
+
+#[requires(old_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[requires(new_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[ensures(true)]
+fn replace_formula_vec(
+    values: &mut [SemanticObjectId],
+    old_id: SemanticObjectId,
+    new_id: SemanticObjectId,
+) {
+    for value in values {
+        if *value == old_id {
+            *value = new_id;
+        }
+    }
+}
+
+#[requires(old_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[requires(new_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[ensures(true)]
+fn replace_relative_clause_formula_references(
+    clauses: &mut Vec<RelativeClause>,
+    old_id: SemanticObjectId,
+    new_id: SemanticObjectId,
+) {
+    for clause in clauses {
+        if clause.body == old_id {
+            *clause = clause.clone().with_data(data! { body: new_id });
+        }
+    }
+}
+
+#[requires(old_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[requires(new_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[ensures(true)]
+fn replace_argument_value_formula_references(
+    argument: &mut ArgumentValue,
+    old_id: SemanticObjectId,
+    new_id: SemanticObjectId,
+) {
+    let mut relative_clauses = argument.relative_clauses.clone();
+    replace_relative_clause_formula_references(&mut relative_clauses, old_id, new_id);
+    if relative_clauses != argument.relative_clauses {
+        *argument = argument.clone().with_data(data! {
+            relative_clauses: relative_clauses,
+        });
     }
 }
 
@@ -16578,6 +16842,7 @@ fn space_path_relations_for_tense_modal(
         data!(TenseModalSyntax::Composite { parts }) => {
             let mut relations = Vec::new();
             let mut previous_relation_accepts_distance = false;
+            let mut interval_accepts_direction = false;
             let mut pending_motion = None::<String>;
             for part in &parts.value {
                 let data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
@@ -16590,7 +16855,22 @@ fn space_path_relations_for_tense_modal(
                 };
                 if token.is_cmavo(Cmavo::Mohi) {
                     previous_relation_accepts_distance = false;
+                    interval_accepts_direction = false;
                     pending_motion = Some(token_text(token));
+                    continue;
+                }
+                if space_interval_part_accepts_direction(token) {
+                    interval_accepts_direction = true;
+                    previous_relation_accepts_distance = false;
+                    pending_motion = None;
+                    continue;
+                }
+                if interval_accepts_direction
+                    && space_interval_direction_for_faha_token(token).is_some()
+                {
+                    interval_accepts_direction = false;
+                    previous_relation_accepts_distance = false;
+                    pending_motion = None;
                     continue;
                 }
                 if let Some(relation) = space_relation_for_faha_token(token) {
@@ -16607,6 +16887,7 @@ fn space_path_relations_for_tense_modal(
                         path_relation_for_tense_modal(relation, introduced_by, None, tense_modal)
                     });
                     previous_relation_accepts_distance = true;
+                    interval_accepts_direction = false;
                     continue;
                 }
                 if let Some(distance) = space_distance_for_va_token(token) {
@@ -16618,34 +16899,34 @@ fn space_path_relations_for_tense_modal(
                         previous_relation_accepts_distance = false;
                         continue;
                     }
-                    if let Some(relation) = space_relation_for_space_distance_token(token) {
-                        relations.push(path_relation_for_tense_modal(
-                            relation,
-                            token_text(token),
-                            None,
-                            tense_modal,
-                        ));
-                    }
+                    relations.push(path_relation_for_tense_modal(
+                        "distanceFrom".to_owned(),
+                        token_text(token),
+                        Some(distance),
+                        tense_modal,
+                    ));
                     previous_relation_accepts_distance = false;
+                    interval_accepts_direction = false;
                     pending_motion = None;
                     continue;
                 }
                 previous_relation_accepts_distance = false;
+                interval_accepts_direction = false;
                 pending_motion = None;
             }
             relations
         }
         data!(TenseModalSyntax::SpaceDistance(word)) => {
-            space_relation_for_space_distance_token(&word.value)
-                .map(|relation| {
-                    vec![path_relation_for_tense_modal(
-                        relation,
-                        token_text(&word.value),
-                        None,
-                        tense_modal,
-                    )]
-                })
-                .unwrap_or_default()
+            if let Some(distance) = space_distance_for_va_token(&word.value) {
+                vec![path_relation_for_tense_modal(
+                    "distanceFrom".to_owned(),
+                    token_text(&word.value),
+                    Some(distance),
+                    tense_modal,
+                )]
+            } else {
+                Vec::new()
+            }
         }
         data!(TenseModalSyntax::SpaceDirection(word)) => space_relation_for_faha_token(&word.value)
             .map(|relation| {
@@ -17130,15 +17411,29 @@ fn space_interval_for_composite_parts<'a>(
     let mut extent = None;
     let mut directions = Vec::new();
     let mut dimensions = Vec::new();
+    let mut accepts_direction = false;
     for token in tokens {
-        if extent.is_none() {
-            extent = space_interval_extent_for_veha_token(token);
-        }
-        if let Some(direction) = space_interval_direction_for_faha_token(token) {
-            directions.push(direction);
+        if extent.is_none()
+            && let Some(interval_extent) = space_interval_extent_for_veha_token(token)
+        {
+            extent = Some(interval_extent);
+            accepts_direction = true;
+            continue;
         }
         if let Some(dimension) = space_interval_dimension_for_viha_token(token) {
             dimensions.push(dimension);
+            accepts_direction = true;
+            continue;
+        }
+        if accepts_direction && let Some(direction) = space_interval_direction_for_faha_token(token)
+        {
+            directions.push(direction);
+            accepts_direction = false;
+            continue;
+        }
+        accepts_direction = false;
+        if extent.is_none() {
+            extent = space_interval_extent_for_veha_token(token);
         }
     }
     (extent.is_some() || !directions.is_empty() || !dimensions.is_empty())
@@ -17188,6 +17483,13 @@ fn space_interval_direction_for_faha_token(token: &Token) -> Option<String> {
         Some(Cmavo::Beha) => Some("north".to_owned()),
         _ => None,
     }
+}
+
+#[requires(true)]
+#[ensures(ret == (space_interval_extent_for_veha_token(token).is_some() || space_interval_dimension_for_viha_token(token).is_some()))]
+fn space_interval_part_accepts_direction(token: &Token) -> bool {
+    space_interval_extent_for_veha_token(token).is_some()
+        || space_interval_dimension_for_viha_token(token).is_some()
 }
 
 #[requires(true)]
@@ -17326,17 +17628,6 @@ fn space_relation_for_faha_token(token: &Token) -> Option<String> {
         Some(Cmavo::Nehu) => Some("southOf".to_owned()),
         Some(Cmavo::Duha) => Some("eastOf".to_owned()),
         Some(Cmavo::Vuha) => Some("westOf".to_owned()),
-        _ => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn space_relation_for_space_distance_token(token: &Token) -> Option<String> {
-    match token.cmavo() {
-        Some(Cmavo::Vi) => Some("near".to_owned()),
-        Some(Cmavo::Va) => Some("mediumDistance".to_owned()),
-        Some(Cmavo::Vu) => Some("far".to_owned()),
         _ => None,
     }
 }
@@ -18017,7 +18308,7 @@ fn first_tense_relation_spec_for_tokens(tokens: &[Token]) -> Option<(String, Str
     for token in tokens {
         if let Some(relation) = time_relation_for_pu_token(token)
             .or_else(|| space_relation_for_faha_token(token))
-            .or_else(|| space_relation_for_space_distance_token(token))
+            .or_else(|| space_distance_for_va_token(token).map(|_| "distanceFrom".to_owned()))
         {
             return Some((token_text(token), relation, 1));
         }
@@ -20432,6 +20723,12 @@ fn bind_modal_argument_to_host_event(
 }
 
 #[requires(true)]
+#[ensures(ret == modal_relation_host_event_place(&modal_argument.relation).is_some())]
+fn modal_argument_needs_host_event(modal_argument: &ModalArgument) -> bool {
+    modal_relation_host_event_place(&modal_argument.relation).is_some()
+}
+
+#[requires(true)]
 #[ensures(ret.is_none_or(|place| place > 0))]
 fn modal_relation_host_event_place(relation: &str) -> Option<usize> {
     match relation {
@@ -20471,7 +20768,7 @@ fn referent_qualifier_kind(cmavo: Option<Cmavo>) -> &'static str {
 fn referent_qualifier_sort(cmavo: Option<Cmavo>) -> SemanticSort {
     match cmavo {
         Some(Cmavo::Luhe) => SemanticSort::Sign,
-        Some(Cmavo::Tuha) => SemanticSort::Proposition,
+        Some(Cmavo::Tuha) => SemanticSort::Eventuality,
         Some(Cmavo::Luhi) => SemanticSort::Set,
         Some(Cmavo::Luho) => SemanticSort::Mass,
         Some(Cmavo::Vuhi) => SemanticSort::Sequence,
@@ -20542,22 +20839,42 @@ fn scalar_negation_for_token(token: &Token) -> ScalarNegation {
 #[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
 fn modal_negation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<ModalNegation> {
     match tense_modal.as_data() {
-        data!(TenseModalSyntax::Composite { parts }) => parts.value.iter().find_map(|part| {
-            let data!(CompositeTenseModalPartSyntax::Cmavo(token)) = part.as_data() else {
-                return None;
-            };
-            (token.cmavo() == Some(Cmavo::Nai))
-                .then(|| ModalNegation::new(ModalNegationKind::Contradictory, token_text(token)))
-        }),
+        data!(TenseModalSyntax::Composite { parts }) => {
+            let mut previous_recurrence_marker = false;
+            for part in &parts.value {
+                let data!(CompositeTenseModalPartSyntax::Cmavo(token)) = part.as_data() else {
+                    previous_recurrence_marker = false;
+                    continue;
+                };
+                if token.cmavo() == Some(Cmavo::Nai) {
+                    if !previous_recurrence_marker {
+                        return Some(ModalNegation::new(
+                            ModalNegationKind::Contradictory,
+                            token_text(token),
+                        ));
+                    }
+                    previous_recurrence_marker = false;
+                    continue;
+                }
+                previous_recurrence_marker = token_is_recurrence_interval_marker(token);
+            }
+            None
+        }
         data!(TenseModalSyntax::Modal { nai: Some(nai), .. }) => Some(ModalNegation::new(
             ModalNegationKind::Contradictory,
             token_text(&nai.value),
         )),
-        data!(TenseModalSyntax::IntervalProperty { nai: Some(nai), .. }) => Some(
-            ModalNegation::new(ModalNegationKind::Contradictory, token_text(&nai.value)),
-        ),
         _ => None,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn token_is_recurrence_interval_marker(token: &Token) -> bool {
+    matches!(
+        token.cmavo(),
+        Some(Cmavo::Roi | Cmavo::Rehu | Cmavo::Dihi | Cmavo::Naho | Cmavo::Ruhi | Cmavo::Tahe)
+    )
 }
 
 #[requires(true)]
@@ -20735,6 +21052,49 @@ fn scalar_negation_kind_for_cmavo(cmavo: Option<Cmavo>) -> ScalarNegationKind {
         Some(Cmavo::Jeha) => ScalarNegationKind::Affirmed,
         _ => ScalarNegationKind::OtherThan,
     }
+}
+
+#[requires(true)]
+#[ensures(source_text.is_none() -> ret.as_slice() == spans)]
+fn source_spans_with_following_cmevla_period(
+    spans: &[SourceSpan],
+    source_text: Option<&str>,
+) -> Vec<SourceSpan> {
+    let Some(source_text) = source_text else {
+        return spans.to_vec();
+    };
+    let Some((last_index, last_span)) = spans
+        .iter()
+        .enumerate()
+        .max_by_key(|(_, span)| span.byte_end)
+    else {
+        return Vec::new();
+    };
+    let Some(period) = source_text
+        .get(last_span.byte_end..)
+        .and_then(|tail| tail.chars().next())
+        .filter(|period| is_lojban_period(*period))
+    else {
+        return spans.to_vec();
+    };
+    let Ok(expanded) = SourceSpan::new(
+        last_span.source_id.clone(),
+        last_span.byte_start,
+        last_span.byte_end + period.len_utf8(),
+        last_span.char_start,
+        last_span.char_end + 1,
+    ) else {
+        return spans.to_vec();
+    };
+    let mut expanded_spans = spans.to_vec();
+    expanded_spans[last_index] = expanded;
+    expanded_spans
+}
+
+#[requires(true)]
+#[ensures(ret == matches!(value, '.' | 'ӏ' | 'Ӏ' | '\u{ed89}'))]
+fn is_lojban_period(value: char) -> bool {
+    matches!(value, '.' | 'ӏ' | 'Ӏ' | '\u{ed89}')
 }
 
 #[requires(true)]
@@ -20956,6 +21316,49 @@ mod tests {
         object(json, json["root"].as_str().expect("root object ID"))
     }
 
+    #[requires(true)]
+    #[ensures(ret.contains(json["root"].as_str().unwrap_or_default()))]
+    fn reachable_object_ids(json: &Value) -> BTreeSet<String> {
+        let objects = json["objects"].as_object().expect("semantic objects");
+        let mut reachable = BTreeSet::new();
+        let mut stack = vec![json["root"].as_str().expect("root object ID").to_owned()];
+        while let Some(id) = stack.pop() {
+            if reachable.insert(id.clone()) {
+                collect_references_from_json_value(
+                    objects
+                        .get(&id)
+                        .unwrap_or_else(|| panic!("missing semantic object {id}")),
+                    objects,
+                    &mut stack,
+                );
+            }
+        }
+        reachable
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_references_from_json_value(
+        value: &Value,
+        objects: &serde_json::Map<String, Value>,
+        out: &mut Vec<String>,
+    ) {
+        match value {
+            Value::String(id) if objects.contains_key(id) => out.push(id.to_owned()),
+            Value::Array(items) => {
+                for item in items {
+                    collect_references_from_json_value(item, objects, out);
+                }
+            }
+            Value::Object(entries) => {
+                for value in entries.values() {
+                    collect_references_from_json_value(value, objects, out);
+                }
+            }
+            _ => {}
+        }
+    }
+
     #[requires(!operator.is_empty())]
     #[ensures(ret["operator"] == operator)]
     fn composition_with_operator<'a>(json: &'a Value, operator: &str) -> &'a Value {
@@ -21096,10 +21499,18 @@ mod tests {
             object(&json, "predication:p1")["arguments"]["x5"]["value"],
             "referent:r4"
         );
-        assert_eq!(
-            object(&json, "referent:r4")["descriptor"]["word"],
-            "zo'e x5"
-        );
+        assert_eq!(object(&json, "referent:r4")["descriptor"]["word"], "zo'e");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_graph_prunes_unreachable_builder_objects() {
+        let json = semantic_json_for("mi tavla bau la .lojban. bai tu'a la .frank.")
+            .expect("semantic JSON");
+        let objects = json["objects"].as_object().expect("semantic objects");
+        let all_object_ids = objects.keys().cloned().collect::<BTreeSet<_>>();
+        assert_eq!(reachable_object_ids(&json), all_object_ids);
     }
 
     #[test]
@@ -21239,6 +21650,15 @@ mod tests {
         assert_eq!(event["recurrence"][0]["introducedBy"], "ru'i");
         assert_eq!(event["recurrence"][0]["negation"]["kind"], "contradictory");
         assert_eq!(event["recurrence"][0]["negation"]["introducedBy"], "nai");
+        assert_ne!(
+            object(
+                &intermittent,
+                root_object(&intermittent)["content"]
+                    .as_str()
+                    .expect("content")
+            )["operator"],
+            "not"
+        );
 
         let not_twice =
             semantic_json_for("le ratcu reroinai citka le cirla").expect("semantic JSON");
@@ -21253,6 +21673,15 @@ mod tests {
             .expect("quantity");
         assert_eq!(object(&not_twice, quantity)["value"]["integer"], 2);
         assert_eq!(event["recurrence"][0]["negation"]["introducedBy"], "nai");
+        assert_ne!(
+            object(
+                &not_twice,
+                root_object(&not_twice)["content"]
+                    .as_str()
+                    .expect("content")
+            )["operator"],
+            "not"
+        );
     }
 
     #[test]
@@ -21521,9 +21950,19 @@ mod tests {
             rokci["eventuality"].as_str().expect("rokci event"),
         );
         assert!(event.get("aspect").is_none());
+        assert!(event.get("space").is_none());
         assert_eq!(event["spaceInterval"]["extent"], "medium");
         assert_eq!(event["spaceInterval"]["directions"][0], "north");
         assert_eq!(event["spatialAspect"]["contour"], "initiative");
+
+        let bare_north = semantic_json_for("tu be'a rokci").expect("semantic JSON");
+        let rokci = predication_with_relation_and_mode(&bare_north, "rokci", "asserted");
+        let event = object(
+            &bare_north,
+            rokci["eventuality"].as_str().expect("rokci event"),
+        );
+        assert_eq!(event["space"]["relation"], "northOf");
+        assert!(event.get("spaceInterval").is_none());
     }
 
     #[test]
@@ -21544,7 +21983,8 @@ mod tests {
             semantic_json_for("le ratcu cu citka le cirla vi le panka").expect("semantic JSON");
         let citka = predication_with_relation_and_mode(&near, "citka", "asserted");
         let event = object(&near, citka["eventuality"].as_str().expect("citka event"));
-        assert_eq!(event["space"]["relation"], "near");
+        assert_eq!(event["space"]["relation"], "distanceFrom");
+        assert_eq!(event["space"]["distance"], "short");
         assert_ne!(event["space"]["anchor"], "referent:here");
 
         let retrospective =
@@ -22217,6 +22657,19 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn cmevla_sources_include_final_period() {
+        let json = semantic_json_for("la .djan. cu klama").expect("semantic JSON");
+        let djan = named_referent_id(&json, "djan");
+        assert_eq!(object(&json, djan)["source"]["text"], "la .djan.");
+
+        let tuha = semantic_json_for("mi djica tu'a la .djan.").expect("semantic JSON");
+        let raised = referent_with_descriptor_kind(&tuha, "abstractionAbout");
+        assert_eq!(raised["source"]["text"], "tu'a la .djan.");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn selbri_vocative_relative_clauses_are_descriptor_scoped() {
         for source in [
             "co'o poi mi zvati ke'a ku'o xirma",
@@ -22333,7 +22786,8 @@ mod tests {
             .as_str()
             .expect("tagged restrictive eventuality");
         let event = object(&json, event);
-        assert_eq!(event["space"]["relation"], "near");
+        assert_eq!(event["space"]["relation"], "distanceFrom");
+        assert_eq!(event["space"]["distance"], "short");
         assert_eq!(event["space"]["anchor"], "referent:here");
     }
 
@@ -22694,7 +23148,7 @@ mod tests {
             .as_str()
             .expect("raised abstraction referent");
         let raised = object(&json, raised);
-        assert_eq!(raised["sort"], "proposition");
+        assert_eq!(raised["sort"], "eventuality");
         assert_eq!(raised["descriptor"]["kind"], "abstractionAbout");
         assert_eq!(raised["descriptor"]["word"], "jai");
         assert_eq!(raised["descriptor"]["operand"], "referent:speaker");
@@ -22715,6 +23169,7 @@ mod tests {
             .as_str()
             .expect("raised abstraction referent");
         let raised = object(&json, raised);
+        assert_eq!(raised["sort"], "eventuality");
         assert_eq!(raised["descriptor"]["kind"], "abstractionAbout");
         assert_eq!(raised["descriptor"]["word"], "jai");
         assert_eq!(raised["descriptor"]["operand"], described);
@@ -22739,7 +23194,11 @@ mod tests {
             .expect("gau modal argument");
         assert_eq!(modal_argument["relation"], "gasnu");
         assert_eq!(modal_argument["arguments"]["x1"]["value"], described);
-        assert_eq!(modal_argument["arguments"]["x2"]["kind"], "elided");
+        assert_eq!(modal_argument["arguments"]["x2"]["kind"], "filled");
+        assert_eq!(
+            modal_argument["arguments"]["x2"]["value"],
+            rinka["eventuality"]
+        );
     }
 
     #[test]
@@ -22759,7 +23218,8 @@ mod tests {
             &place_json,
             citka["eventuality"].as_str().expect("citka eventuality"),
         );
-        assert_eq!(citka_event["space"]["relation"], "near");
+        assert_eq!(citka_event["space"]["relation"], "distanceFrom");
+        assert_eq!(citka_event["space"]["distance"], "short");
         assert_eq!(citka_event["space"]["anchor"], raised_place);
 
         let time_json = semantic_json_for("mi djuno fi le jai ca morsi be fai la .djan.")
@@ -24232,6 +24692,7 @@ mod tests {
     fn text_group_modal_scopes_over_nested_assertions() {
         let json = semantic_json_for("bai tu'e mi klama le zarci .i mi cadzu le bisli tu'u")
             .expect("semantic JSON");
+        assert_eq!(root_object(&json)["force"], "assert");
         let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
         let cadzu = predication_with_relation_and_mode(&json, "cadzu", "asserted");
         assert_eq!(klama["modalArguments"][0]["relation"], "bapli");
@@ -24356,6 +24817,47 @@ mod tests {
             })
             .count();
         assert_eq!(exists_count, 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn prenex_da_series_strips_inner_implicit_quantifiers_through_children() {
+        let json = semantic_json_for("roda zo'u mi prami da .ije naku do prami da")
+            .expect("semantic JSON");
+        let root = root_object(&json);
+        let universal = object(&json, root["content"].as_str().expect("root content"));
+        assert_eq!(universal["operator"], "forall");
+        assert_eq!(universal["variable"], "referent:r1");
+
+        let exists_count = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .filter(|object| {
+                object["type"] == "formula"
+                    && object["operator"] == "exists"
+                    && object["variable"] == "referent:r1"
+            })
+            .count();
+        assert_eq!(exists_count, 0);
+
+        let body = object(&json, universal["body"].as_str().expect("universal body"));
+        assert_eq!(body["operator"], "and");
+        let second = object(
+            &json,
+            body["children"][1]
+                .as_str()
+                .expect("second conjunct formula"),
+        );
+        assert_eq!(second["operator"], "not");
+        let prami = predications_with_relation_and_mode(&json, "prami", "asserted");
+        assert_eq!(prami.len(), 2);
+        assert!(
+            prami
+                .iter()
+                .all(|predication| predication["arguments"]["x2"]["value"] == "referent:r1")
+        );
     }
 
     #[test]
@@ -24793,6 +25295,7 @@ mod tests {
             object(&json, head)["descriptor"]["relativeClauses"][0]["body"],
             "formula:f2"
         );
+        assert!(object(&json, head)["descriptor"].get("operand").is_none());
         assert!(xunre["arguments"]["x1"].get("relativeClauses").is_none());
 
         let preposed = semantic_json_for("le pe mi karce cu xunre").expect("semantic JSON");
@@ -24803,6 +25306,11 @@ mod tests {
         assert_eq!(
             object(&preposed, head)["descriptor"]["relativeClauses"][0]["introducedBy"],
             "pe"
+        );
+        assert!(
+            object(&preposed, head)["descriptor"]
+                .get("operand")
+                .is_none()
         );
         assert!(xunre["arguments"]["x1"].get("relativeClauses").is_none());
     }
@@ -24902,6 +25410,21 @@ mod tests {
             zbasu["arguments"]["x2"]["value"],
             zvati["arguments"]["x2"]["value"]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ri_skips_goi_assigned_koha_in_semantic_output() {
+        let json = semantic_json_for("le gerku goi ko'a viska lo mlatu .i ko'a batci ri")
+            .expect("semantic JSON");
+        let mlatu = predication_with_relation_and_mode(&json, "mlatu", "restrictive")["arguments"]
+            ["x1"]["value"]
+            .as_str()
+            .expect("cat referent")
+            .to_owned();
+        let batci = predication_with_relation_and_mode(&json, "batci", "asserted");
+        assert_eq!(batci["arguments"]["x2"]["value"], mlatu);
     }
 
     #[test]
@@ -26093,7 +26616,8 @@ mod tests {
             .as_str()
             .expect("fragment content");
         let event = object(&spatial, content);
-        assert_eq!(event["space"]["relation"], "near");
+        assert_eq!(event["space"]["relation"], "distanceFrom");
+        assert_eq!(event["space"]["distance"], "short");
         assert_eq!(event["space"]["anchor"], "referent:r1");
 
         let modal = semantic_json_for("seka'a le briju").expect("semantic JSON");

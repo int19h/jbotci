@@ -40,7 +40,9 @@ validate, diff, and render in multiple UIs.
 ## Envelope
 
 The top-level value is an object graph.  IDs are keys in `objects`; object
-values refer to other objects by those IDs.
+values refer to other objects by those IDs.  Public output contains only
+objects reachable from `root` by following semantic ID fields; builder-only
+temporaries and abandoned helper objects must be pruned before serialization.
 
 ```json
 {
@@ -124,9 +126,14 @@ locution eventuality, and content.
     "time": "referent:now",
     "place": "referent:here"
   },
-  "asides": ["utterance:u-parenthetical"]
+  "asides": ["utterance:u-parenthetical", "display:d-attitude"]
 }
 ```
+
+`asides` may contain nested vocative/parenthetical utterances and displayed
+content anchored to this utterance.  Displayed content is kept in `asides`
+when it comments on a host formula, referent, or discourse act but is not
+itself the utterance `content`.
 
 `force` values include:
 
@@ -161,9 +168,11 @@ For vocatives, use `vocativeKind` when known:
 
 When a vocative appears inside another utterance, preserve it as a vocative
 utterance in the enclosing utterance's `asides`.  Its `audience` is the named or
-described addressee when the vocative supplies one.  Bare-selbri vocatives such
-as `coi xunre pastu nixli` target an implicit speaker description, equivalent
-in force to `coi le xunre pastu nixli`.
+described addressee when the vocative supplies one.  Self-identification
+vocatives such as `mi'e .djan.` use the introduced name referent as their
+`content` and set that referent's `target` to `referent:speaker`.  Bare-selbri
+vocatives such as `coi xunre pastu nixli` target an implicit speaker
+description, equivalent in force to `coi le xunre pastu nixli`.
 
 The v0 prelude treated quotations as functions of speaker and addressee.  The
 JSON model keeps that insight by making quoted text a nested utterance with its
@@ -597,9 +606,9 @@ the asserted predication's eventuality should carry the same
 Spatial distance tags such as `vi`, `va`, and `vu` on a selbri attach a
 spatial anchor to the eventuality of that predication.  For example, in
 `le vi bloti`, the boat description's restrictive predication has an
-eventuality with `space.relation = "near"` and
-`space.anchor = "referent:here"`, rather than treating `vi` as an extra place
-or dropping it after parsing.
+eventuality with `space.relation = "distanceFrom"`,
+`space.distance = "short"`, and `space.anchor = "referent:here"`, rather than
+treating `vi` as an extra place or dropping it after parsing.
 
 Spatial direction tags such as `ne'i`, `zu'a`, and `ri'u` likewise attach a
 spatial anchor.  For a single direction, use `space`; for multiple cumulative
@@ -608,7 +617,8 @@ same step shape as `timePath`: the first step normally anchors to
 `referent:here` or to a following tagged sumti, and later unanchored steps use
 `{"kind":"previous"}`.  VA distance markers after a FAhA direction become
 `distance = "short"`, `"medium"`, or `"long"` on that direction step.  VA by
-itself keeps the existing relation labels `near`, `mediumDistance`, and `far`.
+itself uses the direction-neutral relation `distanceFrom` with the same
+`distance` values.
 
 Exact magnitudes from governed termsets use `magnitude` on the affected
 `time`, `timePath[]`, `space`, or `spacePath[]` relation.  In
@@ -2592,7 +2602,9 @@ acts performatively:
 Leading propositional attitudinals such as `.a'o` target the host formula and
 anchor to the utterance.  Because CLL 13.3 treats propositional attitudes as
 subordinating the host proposition rather than asserting it outright, they use
-`assertionEffect = "hostSubordinated"`.
+`assertionEffect = "hostSubordinated"`.  When a displayed-content object is
+anchored to an utterance and is not itself the utterance content, include it in
+that utterance's `asides` so the graph remains reachable from `root`.
 
 ```json
 {
@@ -3947,7 +3959,8 @@ These are the semantic object-model changes relative to
     changing only the recurrence kind would lose the counted value for ROI.
     `recurrence[]` and `spatialRecurrence[]` now have optional `negation`, so
     `ru'inai` and `reroinai` preserve the base recurrence marker and record the
-    following `nai` directly on that recurrence.
+    following `nai` directly on that recurrence.  This recurrence-level `nai`
+    does not also wrap the host formula in `operator = "not"`.
 
 97. Clarified `ma'i` as a source-relation modal argument.
     CLL 10.8 uses `ma'i vo'a` to change the reference frame for spatial
@@ -4402,6 +4415,15 @@ These are the semantic object-model changes relative to
      operand order, so `se vu'u` emits `operator = "subtract"` with the first
      two operands swapped.
 
+132. Pruned unreachable builder-only objects from public graphs.
+     The public JSON graph is not an implementation trace: every object in
+     `objects` must be reachable from `root`.  This required making several
+     semantic edges explicit rather than relying on leaked temporary objects:
+     displayed-content objects anchored to an utterance are listed in that
+     utterance's `asides`; self-identification vocatives use the identified
+     referent as `content`; and primary eventualities used as modal relation
+     arguments point back to their defining formula through `content`.
+
 ## Not Adopted From v0
 
 The review also clarified what not to copy.
@@ -4571,9 +4593,9 @@ Implementation Divergences”).
     a raised unspecified abstraction (0.I); CLL 11.10 deliberately discards identity,
     so nothing truth-conditional is lost. Resolved by primer edits (add
     `abstractionAbout` and the other operand-bearing descriptor kinds to the kind
-    table; fix the `operand` field description). Separately, a `tu'a`-raised
-    abstraction should carry an **`unspecified`** sort (per `su'u`/`abstractionOf`)
-    rather than `proposition` — optional refinement. Closed.
+    table; fix the `operand` field description). `tu'a` and bare `jai` raised
+    abstractions carry the **`eventuality`** sort: they stand for an unspecified
+    event/state/process abstraction about the operand, not for a proposition. Closed.
 
 ## Known Implementation Divergences (2026-06-23)
 

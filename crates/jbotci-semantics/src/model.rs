@@ -257,8 +257,10 @@ impl SemanticGraph {
         if !semantic_object_ids_match_types(&objects) {
             return Err("semantic object ID prefixes must match object types".to_owned());
         }
-        if !semantic_object_references_are_defined(&objects) {
-            return Err("semantic object references must not dangle".to_owned());
+        if let Some((source, missing)) = first_undefined_semantic_reference(&objects) {
+            return Err(format!(
+                "semantic object references must not dangle: {source} references missing {missing}"
+            ));
         }
         if !semantic_object_references_match_roles(&objects) {
             return Err("semantic object references must match semantic roles".to_owned());
@@ -3141,13 +3143,27 @@ pub fn semantic_object_ids_match_types(
 pub fn semantic_object_references_are_defined(
     objects: &BTreeMap<SemanticObjectId, SemanticObject>,
 ) -> bool {
+    first_undefined_semantic_reference(objects).is_none()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn first_undefined_semantic_reference(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> Option<(SemanticObjectId, SemanticObjectId)> {
     let mut references = Vec::new();
-    for object in objects.values() {
+    for (source, object) in objects {
+        references.clear();
         object.references_into(&mut references);
+        if let Some(missing) = references
+            .iter()
+            .copied()
+            .find(|reference| !objects.contains_key(reference))
+        {
+            return Some((*source, missing));
+        }
     }
-    references
-        .into_iter()
-        .all(|reference| objects.contains_key(&reference))
+    None
 }
 
 #[requires(true)]
@@ -3171,7 +3187,12 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
             ground.time.object_kind() == SemanticObjectKind::Referent
                 && ground.place.object_kind() == SemanticObjectKind::Referent
         })
-        && references_have_kind(&object.asides, SemanticObjectKind::Utterance)
+        && object.asides.iter().all(|aside| {
+            matches!(
+                aside.object_kind(),
+                SemanticObjectKind::Utterance | SemanticObjectKind::DisplayedContent
+            )
+        })
         && object
             .items
             .iter()
@@ -3573,7 +3594,10 @@ fn utterance_content_reference_matches_force(
     if ordinary_content {
         return true;
     }
-    force == Some(UtteranceForce::Mention) && argument_object_kind_can_fill(content.object_kind())
+    matches!(
+        force,
+        Some(UtteranceForce::Mention | UtteranceForce::Vocative)
+    ) && argument_object_kind_can_fill(content.object_kind())
 }
 
 #[requires(true)]

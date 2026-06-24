@@ -4308,7 +4308,11 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 );
                 self.visit_free_modifiers(&koha.free_modifiers);
                 if let Some(target) = resolved_target {
-                    self.note_sumti_mention_with_availability(argument_id, target, true);
+                    self.note_sumti_mention_with_availability(
+                        argument_id,
+                        target,
+                        cmavo.is_some_and(koha_mention_available_to_ri),
+                    );
                 } else if cmavo.is_some_and(koha_records_self_mention) {
                     self.note_self_sumti_mention_with_availability(
                         argument_id,
@@ -7303,6 +7307,31 @@ mod tests {
             assert!(ri_targets.iter().all(|target| {
                 matches!(target, FixtureReferenceTarget::ResolvedNode { node } if *node == expected)
             }));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ri_skips_goi_assigned_koha() {
+        run_reference_test(|| {
+            let syntax = parse_syntax("le gerku goi ko'a viska lo mlatu .i ko'a batci ri");
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+
+            let ri_targets: Vec<_> = projection
+                .references
+                .iter()
+                .filter(|edge| edge.kind == ReferenceKind::Ri)
+                .map(|edge| &edge.target)
+                .collect();
+
+            assert_eq!(ri_targets.len(), 1);
+            assert!(matches!(
+                ri_targets[0],
+                FixtureReferenceTarget::ResolvedNode { node }
+                    if *node == FixtureSpanKey { offset: 24, length: 8 }
+            ));
         });
     }
 
