@@ -3884,6 +3884,135 @@ fn legacy_token_tree_value_with_extra_free_modifiers(
 
 #[requires(true)]
 #[ensures(true)]
+fn legacy_attach_free_modifiers_to_rightmost_tense_leaf(
+    value: TreeValue,
+    free_modifiers: &[jbotci_syntax::ast::FreeModifierSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    if free_modifiers.is_empty() {
+        return value;
+    }
+
+    match value {
+        TreeValue::Node(mut node) => {
+            if legacy_is_tense_leaf_constructor(node.constructor) {
+                if let Some(entry) = legacy_free_modifiers_tree_entry(
+                    "free_modifiers",
+                    free_modifiers,
+                    source,
+                    options,
+                ) {
+                    node.entries.push(entry);
+                }
+                return TreeValue::Node(node);
+            }
+            for entry in node.entries.iter_mut().rev() {
+                if legacy_tree_value_contains_tense_leaf(&entry.value) {
+                    let value = std::mem::replace(&mut entry.value, TreeValue::Collection(vec![]));
+                    entry.value = legacy_attach_free_modifiers_to_rightmost_tense_leaf(
+                        value,
+                        free_modifiers,
+                        source,
+                        options,
+                    );
+                    return TreeValue::Node(node);
+                }
+            }
+            TreeValue::Node(node)
+        }
+        TreeValue::Collection(mut values) => {
+            for value in values.iter_mut().rev() {
+                if legacy_tree_value_contains_tense_leaf(value) {
+                    let old_value = std::mem::replace(value, TreeValue::Collection(vec![]));
+                    *value = legacy_attach_free_modifiers_to_rightmost_tense_leaf(
+                        old_value,
+                        free_modifiers,
+                        source,
+                        options,
+                    );
+                    return TreeValue::Collection(values);
+                }
+            }
+            TreeValue::Collection(values)
+        }
+        TreeValue::Syntax { syntax_ids, value } => TreeValue::Syntax {
+            syntax_ids,
+            value: Box::new(legacy_attach_free_modifiers_to_rightmost_tense_leaf(
+                *value,
+                free_modifiers,
+                source,
+                options,
+            )),
+        },
+        value => value,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_tree_value_contains_tense_leaf(value: &TreeValue) -> bool {
+    match value {
+        TreeValue::Node(node) => {
+            legacy_is_tense_leaf_constructor(node.constructor)
+                || node
+                    .entries
+                    .iter()
+                    .any(|entry| legacy_tree_value_contains_tense_leaf(&entry.value))
+        }
+        TreeValue::Collection(values) => values.iter().any(legacy_tree_value_contains_tense_leaf),
+        TreeValue::Syntax { value, .. } => legacy_tree_value_contains_tense_leaf(value),
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_is_tense_leaf_constructor(constructor: &str) -> bool {
+    matches!(
+        constructor,
+        "CahaTense"
+            | "CuheTense"
+            | "FaFlatTagTense"
+            | "FahaIntervalDirectionTense"
+            | "FahaSpaceOffsetTense"
+            | "FeheIntervalPropertyTense"
+            | "KiCompositeTense"
+            | "ModalTense"
+            | "MohiSpaceOffsetTense"
+            | "NumberedIntervalPropertyTense"
+            | "PuTimeOffsetTense"
+            | "TaheIntervalPropertyTense"
+            | "VaSpaceDistanceTense"
+            | "VehaSpaceIntervalTense"
+            | "VihaSpaceIntervalTense"
+            | "ZahoIntervalPropertyTense"
+            | "ZehaTimeIntervalTense"
+            | "ZiTimeDistanceTense"
+    )
+}
+
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn legacy_free_modifiers_tree_entry(
+    label: &'static str,
+    free_modifiers: &[jbotci_syntax::ast::FreeModifierSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeEntry> {
+    labelled_tree_collection_entry_from_values(
+        label,
+        free_modifiers
+            .iter()
+            .map(|free_modifier| {
+                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
+            })
+            .collect(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn legacy_as_generated_description_connection_sumti_tree_value(
     description: &jbotci_syntax::ast::DescriptionConnectionSyntax,
     source: &str,
@@ -7275,14 +7404,42 @@ fn legacy_as_generated_leading_term_tag_tense_modal_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> Option<TreeValue> {
-    if let bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::Composite { parts }) =
-        tense_modal.as_data()
-        && let Some(value) =
+    match tense_modal.as_data() {
+        bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::Composite { parts }) => {
             legacy_as_generated_leading_term_tag_composite_tense_value(parts, source, options)
-    {
-        return Some(value);
+        }
+        bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::Actuality(caha)) => {
+            let next =
+                legacy_next_tree_token_after_with_free_modifiers(&caha.value, &caha.free_modifiers);
+            if next
+                .as_ref()
+                .is_some_and(legacy_token_can_start_tense_modal)
+            {
+                Some(legacy_as_generated_tense_modal_tree_value(
+                    tense_modal,
+                    source,
+                    options,
+                ))
+            } else {
+                None
+            }
+        }
+        bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::EventContour(words)) => {
+            legacy_as_generated_leading_term_tag_event_contour_tense_value(words, source, options)
+        }
+        bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::IntervalProperty {
+            number,
+            roi_or_tahe,
+            nai,
+        }) => legacy_as_generated_leading_term_tag_interval_property_tense_value(
+            number.as_ref(),
+            roi_or_tahe,
+            nai.as_ref(),
+            source,
+            options,
+        ),
+        _ => None,
     }
-    None
 }
 
 #[requires(true)]
@@ -7294,9 +7451,7 @@ fn legacy_as_generated_leading_term_tag_composite_tense_value(
 ) -> Option<TreeValue> {
     let tokens = legacy_composite_tense_modal_part_tokens(&parts.value)?;
     let free_modifiers = parts.free_modifiers.as_slice();
-    let next = tokens
-        .last()
-        .and_then(|token| legacy_next_tree_token_after(token));
+    let next = legacy_next_tree_token_after_sequence(&tokens, free_modifiers);
 
     if let Some((pu, nai)) = leading_term_tag_pu_before_nahe_parts(&tokens) {
         if !next
@@ -7456,7 +7611,199 @@ fn legacy_as_generated_leading_term_tag_composite_tense_value(
         }));
     }
 
+    if let Some(value) =
+        legacy_as_generated_leading_term_tag_composite_interval_property_tense_value(
+            &tokens,
+            free_modifiers,
+            source,
+            options,
+        )
+    {
+        return Some(value);
+    }
+
     None
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_leading_term_tag_composite_interval_property_tense_value(
+    tokens: &[&Token],
+    free_modifiers: &[jbotci_syntax::ast::FreeModifierSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let last = tokens.last()?;
+    if !legacy_interval_property_tense_has_follower(last, free_modifiers) {
+        return None;
+    }
+
+    let mut index = 0;
+    let value =
+        legacy_as_generated_interval_property_tense_value(tokens, &mut index, source, options)?;
+    if index == tokens.len() {
+        Some(value)
+    } else {
+        None
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_leading_term_tag_event_contour_tense_value(
+    words: &WithFreeModifiers<Vec<Token>>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let [zaho] = words.value.as_slice() else {
+        return None;
+    };
+    if !legacy_interval_property_tense_has_follower(zaho, &words.free_modifiers) {
+        return None;
+    }
+    Some(TreeValue::Node(TreeNode {
+        constructor: "ZahoIntervalPropertyTense",
+        entries: vec![leading_term_tag_token_entry(
+            "zaho",
+            zaho,
+            true,
+            &words.free_modifiers,
+            source,
+            options,
+        )],
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_leading_term_tag_interval_property_tense_value(
+    number: Option<&jbotci_syntax::ast::WordRun>,
+    roi_or_tahe: &WithFreeModifiers<Token>,
+    nai: Option<&WithFreeModifiers<Token>>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let last = nai.unwrap_or(roi_or_tahe);
+    if !legacy_interval_property_tense_has_follower(&last.value, &last.free_modifiers) {
+        return None;
+    }
+
+    if roi_or_tahe.value.is_selmaho(Selmaho::Roi) {
+        let number = number?;
+        let mut entries = vec![
+            TreeEntry {
+                label: Some("number"),
+                value: legacy_word_run_tree_value(number, source, options),
+            },
+            TreeEntry {
+                label: Some("roi"),
+                value: legacy_token_tree_value_with_extra_free_modifiers(
+                    &roi_or_tahe.value,
+                    &roi_or_tahe.free_modifiers,
+                    source,
+                    options,
+                ),
+            },
+        ];
+        if let Some(nai) = nai {
+            entries.extend(legacy_token_field_entries("nai", nai, source, options));
+        }
+        return Some(TreeValue::Node(TreeNode {
+            constructor: "NumberedIntervalPropertyTense",
+            entries,
+        }));
+    }
+
+    if roi_or_tahe.value.is_selmaho(Selmaho::Tahe) {
+        let mut entries = legacy_token_field_entries("tahe", roi_or_tahe, source, options);
+        if let Some(nai) = nai {
+            entries.extend(legacy_token_field_entries("nai", nai, source, options));
+        }
+        return Some(TreeValue::Node(TreeNode {
+            constructor: "TaheIntervalPropertyTense",
+            entries,
+        }));
+    }
+
+    None
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_next_tree_token_after_sequence(
+    tokens: &[&Token],
+    free_modifiers: &[jbotci_syntax::ast::FreeModifierSyntax],
+) -> Option<Token> {
+    let last = tokens.last()?;
+    legacy_next_tree_token_after_with_free_modifiers(last, free_modifiers)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_next_tree_token_after_with_free_modifiers(
+    token: &Token,
+    free_modifiers: &[jbotci_syntax::ast::FreeModifierSyntax],
+) -> Option<Token> {
+    let mut last = token.clone();
+    for free_modifier in free_modifiers {
+        free_modifier.visit_words(&mut |token| last = token.clone());
+    }
+    legacy_next_tree_token_after(&last)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_interval_property_tense_has_follower(
+    token: &Token,
+    free_modifiers: &[jbotci_syntax::ast::FreeModifierSyntax],
+) -> bool {
+    let next = legacy_next_tree_token_after_with_free_modifiers(token, free_modifiers);
+    let Some(next) = next else {
+        return false;
+    };
+    if next.is_one_of_selmaho(&[Selmaho::Pu, Selmaho::Zi, Selmaho::Zeha, Selmaho::Bai])
+        || next.is_cmavo(Cmavo::Fiho)
+    {
+        return true;
+    }
+    if next.is_selmaho(Selmaho::Se) {
+        return legacy_next_tree_token_after(&next)
+            .as_ref()
+            .is_some_and(|token| token.is_selmaho(Selmaho::Bai));
+    }
+    if next.is_selmaho(Selmaho::Nahe) {
+        return legacy_next_tree_token_after(&next)
+            .as_ref()
+            .is_some_and(|token| {
+                token.is_selmaho(Selmaho::Caha)
+                    || token.is_selmaho(Selmaho::Bai)
+                    || token.is_selmaho(Selmaho::Se)
+            });
+    }
+    false
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_token_can_start_tense_modal(token: &Token) -> bool {
+    token.is_one_of_selmaho(&[
+        Selmaho::Pu,
+        Selmaho::Zi,
+        Selmaho::Zeha,
+        Selmaho::Va,
+        Selmaho::Faha,
+        Selmaho::Veha,
+        Selmaho::Viha,
+        Selmaho::Mohi,
+        Selmaho::Caha,
+        Selmaho::Zaho,
+        Selmaho::Pa,
+        Selmaho::Tahe,
+        Selmaho::Bai,
+        Selmaho::Nahe,
+        Selmaho::Se,
+        Selmaho::Fa,
+    ]) || token.is_one_of_cmavo(&[Cmavo::Fiho, Cmavo::Ki])
 }
 
 #[requires(true)]
@@ -7575,27 +7922,35 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
+    let attach_free_modifiers = |value| {
+        legacy_attach_free_modifiers_to_rightmost_tense_leaf(
+            value,
+            &parts.free_modifiers,
+            source,
+            options,
+        )
+    };
     if let Some(tokens) = legacy_composite_tense_modal_part_tokens(&parts.value) {
         if let Some(value) =
             legacy_as_generated_zantufa_recursive_tag_tense_tree_value(&tokens, source, options)
         {
-            return value;
+            return attach_free_modifiers(value);
         }
         if let Some(value) =
             legacy_as_generated_connected_tense_modal_tree_value(&tokens, source, options)
         {
-            return value;
+            return attach_free_modifiers(value);
         }
         if let Some(value) =
             legacy_as_generated_time_tense_sequence_tree_value(&tokens, source, options)
         {
-            return value;
+            return attach_free_modifiers(value);
         }
         if let [pu, distance] = tokens.as_slice()
             && pu.is_selmaho(Selmaho::Pu)
             && distance.is_selmaho(Selmaho::Zi)
         {
-            return TreeValue::Node(TreeNode {
+            return attach_free_modifiers(TreeValue::Node(TreeNode {
                 constructor: "TimeSpaceCahaKiTense",
                 entries: vec![TreeEntry {
                     label: Some("tense"),
@@ -7629,10 +7984,10 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
                         }],
                     }),
                 }],
-            });
+            }));
         }
         if tokens.len() > 1 && tokens.iter().all(|token| token.is_selmaho(Selmaho::Pu)) {
-            return TreeValue::Node(TreeNode {
+            return attach_free_modifiers(TreeValue::Node(TreeNode {
                 constructor: "TimeSpaceCahaKiTense",
                 entries: vec![TreeEntry {
                     label: Some("tense"),
@@ -7665,31 +8020,31 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
                         }],
                     }),
                 }],
-            });
+            }));
         }
         if let [token] = tokens.as_slice()
             && token.is_selmaho(Selmaho::Fa)
         {
-            return TreeValue::Node(TreeNode {
+            return attach_free_modifiers(TreeValue::Node(TreeNode {
                 constructor: "FaFlatTagTense",
                 entries: vec![TreeEntry {
                     label: Some("fa"),
                     value: generated_token_tree_value(token, source, options),
                 }],
-            });
+            }));
         }
         if let [token] = tokens.as_slice()
             && let Some(value) =
                 legacy_as_generated_single_composite_tense_token_tree_value(token, source, options)
         {
-            return value;
+            return attach_free_modifiers(value);
         }
         if let [se, atom] = tokens.as_slice()
             && se.is_selmaho(Selmaho::Se)
             && let Some(atom_value) =
                 legacy_as_generated_flat_tag_atom_tree_value(atom, source, options)
         {
-            return TreeValue::Node(TreeNode {
+            return attach_free_modifiers(TreeValue::Node(TreeNode {
                 constructor: "SeFlatPrefixedTense",
                 entries: vec![
                     TreeEntry {
@@ -7701,14 +8056,14 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
                         value: atom_value,
                     },
                 ],
-            });
+            }));
         }
         if let [nahe, atom] = tokens.as_slice()
             && nahe.is_selmaho(Selmaho::Nahe)
             && let Some(tense) =
                 legacy_as_generated_time_space_caha_inner_tense_value(&[*atom], source, options)
         {
-            return TreeValue::Node(TreeNode {
+            return attach_free_modifiers(TreeValue::Node(TreeNode {
                 constructor: "PrefixedTimeSpaceCahaTense",
                 entries: vec![
                     TreeEntry {
@@ -7720,14 +8075,14 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
                         value: tense,
                     },
                 ],
-            });
+            }));
         }
         if let [nahe, atom] = tokens.as_slice()
             && nahe.is_selmaho(Selmaho::Nahe)
             && let Some(atom_value) =
                 legacy_as_generated_flat_tag_atom_tree_value(atom, source, options)
         {
-            return TreeValue::Node(TreeNode {
+            return attach_free_modifiers(TreeValue::Node(TreeNode {
                 constructor: "NaheSeFlatPrefixedTense",
                 entries: vec![
                     TreeEntry {
@@ -7739,7 +8094,7 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
                         value: atom_value,
                     },
                 ],
-            });
+            }));
         }
         if let [nahe, se, atom] = tokens.as_slice()
             && nahe.is_selmaho(Selmaho::Nahe)
@@ -7747,7 +8102,7 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
             && let Some(atom_value) =
                 legacy_as_generated_flat_tag_atom_tree_value(atom, source, options)
         {
-            return TreeValue::Node(TreeNode {
+            return attach_free_modifiers(TreeValue::Node(TreeNode {
                 constructor: "NaheSeFlatPrefixedTense",
                 entries: vec![
                     TreeEntry {
@@ -7763,7 +8118,7 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
                         value: atom_value,
                     },
                 ],
-            });
+            }));
         }
     }
     if parts.value.len() == 1
@@ -7772,7 +8127,7 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
         )) = parts.value[0].as_data()
         && token.is_selmaho(Selmaho::Pu)
     {
-        return TreeValue::Node(TreeNode {
+        return attach_free_modifiers(TreeValue::Node(TreeNode {
             constructor: "TimeSpaceCahaKiTense",
             entries: vec![TreeEntry {
                 label: Some("tense"),
@@ -7796,7 +8151,7 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
                     }],
                 }),
             }],
-        });
+        }));
     }
     if parts.value.len() == 1
         && let bityzba::data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
@@ -7804,7 +8159,7 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
         )) = parts.value[0].as_data()
         && token.is_selmaho(Selmaho::Va)
     {
-        return TreeValue::Node(TreeNode {
+        return attach_free_modifiers(TreeValue::Node(TreeNode {
             constructor: "TimeSpaceCahaKiTense",
             entries: vec![TreeEntry {
                 label: Some("tense"),
@@ -7828,7 +8183,7 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
                     }],
                 }),
             }],
-        });
+        }));
     }
     if parts.value.len() == 1
         && let bityzba::data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
@@ -7836,7 +8191,7 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
         )) = parts.value[0].as_data()
         && token.is_selmaho(Selmaho::Faha)
     {
-        return TreeValue::Node(TreeNode {
+        return attach_free_modifiers(TreeValue::Node(TreeNode {
             constructor: "TimeSpaceCahaKiTense",
             entries: vec![TreeEntry {
                 label: Some("tense"),
@@ -7860,7 +8215,7 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
                     }],
                 }),
             }],
-        });
+        }));
     }
     required_legacy_syntax_subtree_value(parts, source, options)
 }
