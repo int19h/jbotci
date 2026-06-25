@@ -4272,7 +4272,11 @@ where
         selbri: Option<&'tree SelbriSyntax>,
         relation: String,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let Some(frame) = self.bridi_frame(bridi) else {
+        let bridi_frame = self.bridi_frame(bridi);
+        let Some(frame) = selbri
+            .and_then(|selbri| self.semantic_predication_frame_for_selbri(selbri, bridi_frame))
+            .or(bridi_frame)
+        else {
             return Ok(None);
         };
         let mut alternatives = BTreeMap::<String, Vec<AlternativeArgument>>::new();
@@ -9911,13 +9915,19 @@ where
             .syntax_index
             .selbri_node_id(selbri)
             .map(|id| id.0);
+        let target_frame = self
+            .semantic_predication_frame_for_selbri(target_selbri, self.bridi_frame(target_bridi))
+            .or_else(|| self.bridi_frame(target_bridi));
         let (_, skipped_recursive_argument) = self
             .insert_numbered_assignment_arguments_excluding_source(
                 &mut inherited_arguments,
-                self.bridi_frame(target_bridi),
+                target_frame,
                 recursive_source,
             )?;
-        if let Some(current_frame) = self.bridi_frame(bridi) {
+        let current_frame = self
+            .semantic_predication_frame_for_selbri(selbri, self.bridi_frame(bridi))
+            .or_else(|| self.bridi_frame(bridi));
+        if let Some(current_frame) = current_frame {
             for assignment_id in self
                 .analysis
                 .place_analysis
@@ -9938,7 +9948,7 @@ where
             target_selbri
         };
         let predication = self.build_predication_for_frame_with_overrides(
-            self.bridi_frame(bridi),
+            current_frame,
             self.analysis
                 .syntax_index
                 .bridi_node_id(bridi)
@@ -17814,6 +17824,11 @@ fn visible_place_for_selbri(selbri: &SelbriSyntax, place: usize) -> usize {
             inner_selbri: selbri,
             ..
         }) => visible_place_for_selbri(selbri, place),
+        data!(SelbriSyntax::Tanru(units)) => units
+            .iter()
+            .last()
+            .map(|unit| visible_place_for_tanru_unit(unit, place))
+            .unwrap_or(place),
         _ => place,
     }
 }
@@ -17834,6 +17849,11 @@ fn raw_place_visible_rank_for_selbri(selbri: &SelbriSyntax, place: usize) -> usi
             inner_selbri: selbri,
             ..
         }) => raw_place_visible_rank_for_selbri(selbri, place),
+        data!(SelbriSyntax::Tanru(units)) => units
+            .iter()
+            .last()
+            .map(|unit| raw_place_visible_rank_for_tanru_unit(unit, place))
+            .unwrap_or(place),
         _ => place,
     }
 }
@@ -17864,6 +17884,34 @@ fn visible_place_for_tanru_unit(unit: &TanruUnitSyntax, place: usize) -> usize {
         }
         data!(TanruUnitSyntax::ModalConversion { inner_unit, .. }) => {
             visible_place_for_tanru_unit(inner_unit, place)
+        }
+        _ => place,
+    }
+}
+
+#[requires(place > 0)]
+#[ensures(ret > 0)]
+fn raw_place_visible_rank_for_tanru_unit(unit: &TanruUnitSyntax, place: usize) -> usize {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::ConvertedTanruUnit { se, inner_unit }) => {
+            let converted_place = se_conversion_place(se).unwrap_or(2);
+            convert_numbered_place(
+                raw_place_visible_rank_for_tanru_unit(inner_unit, place),
+                converted_place,
+            )
+        }
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+            raw_place_visible_rank_for_selbri(selbri, place)
+        }
+        data!(TanruUnitSyntax::RelativeClauses { base, .. })
+        | data!(TanruUnitSyntax::LinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::AssignedProBridi { base, .. }) => {
+            raw_place_visible_rank_for_tanru_unit(base, place)
+        }
+        data!(TanruUnitSyntax::ModalConversion { inner_unit, .. }) => {
+            raw_place_visible_rank_for_tanru_unit(inner_unit, place)
         }
         _ => place,
     }
@@ -28274,6 +28322,20 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn linked_sumti_in_converted_description_fill_base_places() {
+        let json = semantic_json_for("le se cusku be do cu broda").expect("semantic JSON");
+        let broda = predication_with_relation_and_mode(&json, "broda", "asserted");
+        let described = broda["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("described referent");
+        let cusku = predication_with_relation_and_mode(&json, "cusku", "restrictive");
+        assert_eq!(cusku["arguments"]["x1"]["value"], "referent:addressee");
+        assert_eq!(cusku["arguments"]["x2"]["value"], described);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn linked_sumti_fill_tanru_modifier_places() {
         let json = semantic_json_for("ti xamgu be do bei mi be'o zdani").expect("semantic JSON");
         let xamgu = predication_with_relation_and_mode(&json, "xamgu", "restrictive");
@@ -29353,6 +29415,25 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn gohi_pro_bridi_inherits_converted_antecedent_base_places() {
+        let json = semantic_json_for("mi se prami do .i go'i").expect("semantic JSON");
+        let prami = predications_with_relation_and_mode(&json, "prami", "asserted");
+        assert_eq!(prami.len(), 2);
+        for predication in prami {
+            assert_eq!(
+                predication["arguments"]["x1"]["value"],
+                object(&json, "utterance:u1")["audience"]
+            );
+            assert_eq!(
+                predication["arguments"]["x2"]["value"],
+                object(&json, "utterance:u1")["speaker"]
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn gohi_pro_bridi_inherits_antecedent_tense() {
         let json = semantic_json_for("mi ba klama le zarci .i do go'i").expect("semantic JSON");
         let objects = json["objects"].as_object().expect("objects");
@@ -29767,6 +29848,33 @@ mod tests {
             })
             .collect::<BTreeSet<_>>();
         assert_eq!(destinations.len(), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_sumti_connection_distributes_through_converted_selbri_places() {
+        let json = semantic_json_for("ga la paris. gi la rom. naku se klama la djan.")
+            .expect("semantic JSON");
+        let djan = named_referent_id(&json, "djan");
+        let paris = named_referent_id(&json, "paris");
+        let rom = named_referent_id(&json, "rom");
+        let klama = predications_with_relation_and_mode(&json, "klama", "asserted");
+        assert_eq!(klama.len(), 2);
+        let destinations = klama
+            .iter()
+            .map(|predication| {
+                assert_eq!(predication["arguments"]["x1"]["value"], djan);
+                predication["arguments"]["x2"]["value"]
+                    .as_str()
+                    .expect("destination")
+                    .to_owned()
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            destinations,
+            BTreeSet::from([paris.to_owned(), rom.to_owned()])
+        );
     }
 
     #[test]
