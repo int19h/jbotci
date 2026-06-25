@@ -574,6 +574,24 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn parses_fiho_modal_with_full_linked_selbri() {
+        run_on_normal_stack(|| {
+            let words = segment_words_with_modifiers("mi tavla fi'o tavla be do fe'u do")
+                .expect("valid morphology");
+
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let raw = format!("{:?}", parsed.parse_tree);
+
+            assert!(raw.contains("AdHocModal"));
+            assert!(raw.contains("LinkedSumtiTanruUnit"));
+            assert!(raw.contains("be"));
+            assert!(raw.contains("fe'u"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn keeps_i_connectives_out_of_tail_terms() {
         run_on_normal_stack(|| {
             let raw = parse_tree_debug("mi ca pilno .ije ca'o nelci", &ParseOptions::default());

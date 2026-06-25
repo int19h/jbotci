@@ -5210,9 +5210,7 @@ implementation gaps are listed separately in “Known Implementation Divergences
     `body` formula, even for one-brivla tags such as `fi'o kanla`; `la <selbri>`
     preserves the name sign while allowing that sign to denote the lowered
     selbri relation body; `na'u` and `ni'e` point their math outputs at the
-    typed lowered selbri output rather than opaque strings.  Current parser work
-    for #125 is required before all full `fi'o` cases can reach semantic
-    lowering.
+    typed lowered selbri output rather than opaque strings.
 
 ## Known Implementation Divergences (2026-06-23)
 
@@ -5223,12 +5221,9 @@ each is tracked. (Pure builder-correctness crashes/bugs — e.g. the connective
 — are tracked as `bug` issues, not here.)
 
 - `fa'u` correspondence is unrepresentable (#4, amendment 14).
-- `FIhO` currently parses only a reduced selbri subset and rejects legal
-  linkargs such as `fi'o tavla be do` (#125).
 - Selbri-wrapper constructs are still lowered piecemeal; in particular,
-  current `fi'o` output can expose a relation string instead of a modal body
-  predication, and the shared `le`/`la`/vocative/`na'u`/`ni'e` lowering path is
-  not implemented yet (#126, #123, #118).
+  the shared `le`/`la`/vocative/`na'u`/`ni'e` lowering path is not implemented
+  yet (#126, #123).
 
 **Why the primer is a separate document.** `review/tersmu_schema_primer.md` is a
 consumer/agent-facing cheat-sheet of the *current* JSON shape (used by the review

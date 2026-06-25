@@ -2545,17 +2545,24 @@ pub enum ModalNegationKind {
     OtherThan,
 }
 
-#[invariant(!relation.is_empty(), "modal relation must be named")]
 #[invariant(!introduced_by.is_empty(), "modal source marker must be named")]
-#[invariant(!arguments.is_empty(), "modal relation must have at least one explicit place")]
+#[invariant(relation.as_ref().is_none_or(|relation| !relation.is_empty()), "modal relation must be named when present")]
+#[invariant(body.is_none_or(|body| body.object_kind() == SemanticObjectKind::Formula), "modal body must be a formula")]
+#[invariant(relation.is_some() != body.is_some(), "modal argument must use either relation arguments or a body formula")]
+#[invariant(body.is_some() || !arguments.is_empty(), "modal relation must have at least one explicit place")]
+#[invariant(body.is_none() || arguments.is_empty(), "modal body arguments are represented inside the body formula")]
 #[invariant(arguments.keys().all(|place| is_numbered_argument_place(place)))]
 #[invariant(component.is_none_or(|component| argument_object_kind_can_fill(component.object_kind())))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModalArgument {
-    pub relation: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relation: Option<String>,
     pub introduced_by: String,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub arguments: BTreeMap<String, ArgumentValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub component: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -2597,12 +2604,34 @@ impl ModalArgument {
         source: Option<SemanticSource>,
     ) -> Self {
         Self::from_data(data!(ModalArgument {
-            relation,
+            relation: Some(relation),
             introduced_by,
             arguments,
+            body: None,
             component: None,
             negation,
             scalar_negation,
+            modifiers: Vec::new(),
+            source,
+        }))
+    }
+
+    #[requires(!introduced_by.is_empty())]
+    #[requires(body.object_kind() == SemanticObjectKind::Formula)]
+    #[ensures(ret.body == Some(body))]
+    pub fn body(
+        introduced_by: String,
+        body: SemanticObjectId,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::from_data(data!(ModalArgument {
+            relation: None,
+            introduced_by,
+            arguments: BTreeMap::new(),
+            body: Some(body),
+            component: None,
+            negation: None,
+            scalar_negation: None,
             modifiers: Vec::new(),
             source,
         }))
@@ -2624,6 +2653,7 @@ impl ModalArgument {
         for argument in self.arguments.values() {
             argument.references_into(out);
         }
+        extend_optional(out, self.body);
         extend_optional(out, self.component);
         if let Some(scalar_negation) = &self.scalar_negation {
             scalar_negation.references_into(out);

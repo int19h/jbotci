@@ -546,12 +546,17 @@ struct StickyModalKey {
 
 impl StickyModalKey {
     #[requires(!modal_argument.introduced_by.is_empty())]
-    #[requires(!modal_argument.relation.is_empty())]
+    #[requires(modal_argument.relation.as_ref().is_some_and(|relation| !relation.is_empty()))]
     #[ensures(ret.introduced_by == modal_argument.introduced_by)]
     fn for_modal_argument(modal_argument: &ModalArgument) -> Self {
+        let relation = modal_argument
+            .relation
+            .as_ref()
+            .expect("precondition guarantees relation modal")
+            .clone();
         Self::from_data(data!(StickyModalKey {
             introduced_by: modal_argument.introduced_by.clone(),
-            relation: modal_argument.relation.clone(),
+            relation,
         }))
     }
 }
@@ -3044,10 +3049,13 @@ where
                 for argument in arguments.values_mut() {
                     replace_argument_value_formula_references(argument, old_id, new_id);
                 }
-                if arguments != modal_argument.arguments {
-                    *modal_argument = modal_argument
-                        .clone()
-                        .with_data(data! { arguments: arguments });
+                let mut body = modal_argument.body;
+                replace_formula_option(&mut body, old_id, new_id);
+                if arguments != modal_argument.arguments || body != modal_argument.body {
+                    *modal_argument = modal_argument.clone().with_data(data! {
+                        arguments: arguments,
+                        body: body,
+                    });
                 }
             }
             for exchange in &mut object.reciprocity {
@@ -11649,21 +11657,32 @@ where
                 .sumti(assignment.sumti)
                 .ok_or_else(SemanticsError::missing_syntax_node)?;
             let argument = self.build_argument_for_sumti(sumti)?;
-            let (introduced_by, relation, arguments, negation, scalar_negation) =
-                self.modal_relation_arguments_for_tag(tag_node, argument)?;
             let modal_argument = if let Some(tense_modal) =
                 tag_node.and_then(|node| self.analysis.syntax_index.tense_modal(node))
             {
-                self.modal_argument_with_tense_modal_modifiers(
-                    tense_modal,
-                    relation,
-                    introduced_by,
-                    arguments,
-                    negation,
-                    scalar_negation,
-                    "modal-argument",
-                )
+                if let data!(TenseModalSyntax::AdHocModal { selbri, .. }) = tense_modal.as_data() {
+                    self.ad_hoc_modal_argument_for_selbri(
+                        tense_modal,
+                        selbri,
+                        argument,
+                        "modal-argument",
+                    )?
+                } else {
+                    let (introduced_by, relation, arguments, negation, scalar_negation) =
+                        self.modal_relation_arguments_for_tag(tag_node, argument)?;
+                    self.modal_argument_with_tense_modal_modifiers(
+                        tense_modal,
+                        relation,
+                        introduced_by,
+                        arguments,
+                        negation,
+                        scalar_negation,
+                        "modal-argument",
+                    )
+                }
             } else {
+                let (introduced_by, relation, arguments, negation, scalar_negation) =
+                    self.modal_relation_arguments_for_tag(tag_node, argument)?;
                 let source = tag_node.and_then(|node| self.source_for_node(node, "modal-argument"));
                 ModalArgument::new_with_polarity(
                     relation,
@@ -11879,6 +11898,14 @@ where
         if tense_modal_has_event_modifier(tense_modal) {
             return Ok(None);
         }
+        if let data!(TenseModalSyntax::AdHocModal { selbri, .. }) = tense_modal.as_data() {
+            let visible_x1_place = visible_x1_place_for_selbri(selbri);
+            let argument = self.build_elided_argument_for_place(visible_x1_place)?;
+            let modal_argument =
+                self.ad_hoc_modal_argument_for_selbri(tense_modal, selbri, argument, construct)?;
+            self.record_sticky_modal_argument_if_needed(tense_modal, &modal_argument);
+            return Ok(Some(modal_argument));
+        }
         let Some((introduced_by, relation, visible_place)) =
             modal_relation_spec_for_tense_modal(tense_modal)
         else {
@@ -11901,6 +11928,33 @@ where
         );
         self.record_sticky_modal_argument_if_needed(tense_modal, &modal_argument);
         Ok(Some(modal_argument))
+    }
+
+    #[requires(!construct.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|modal_argument| modal_argument.body.is_some() && modal_argument.relation.is_none()) || ret.is_err())]
+    fn ad_hoc_modal_argument_for_selbri(
+        &mut self,
+        tense_modal: &'tree TenseModalSyntax,
+        selbri: &'tree SelbriSyntax,
+        argument: ArgumentValue,
+        construct: &str,
+    ) -> Result<ModalArgument, SemanticsError> {
+        let source = self.source_for_tense_modal(tense_modal, construct);
+        let frame = self.branch_frame_for_selbri(selbri);
+        let lowered = self.build_selbri_tanru_formula_for_frame_with_visible_x1_override(
+            selbri,
+            selbri,
+            frame,
+            source.clone(),
+            Some(argument),
+        )?;
+        self.set_formula_predication_mode(lowered.formula, PredicationMode::Incidental);
+        let mut modal_argument = ModalArgument::body("fi'o".to_owned(), lowered.formula, source);
+        let modifiers = self.modal_argument_modifiers_for_tense_modal(tense_modal);
+        if !modifiers.is_empty() {
+            modal_argument = modal_argument.with_data(data! { modifiers: modifiers });
+        }
+        Ok(modal_argument)
     }
 
     #[requires(!relation.is_empty())]
@@ -12005,6 +12059,9 @@ where
         modal_argument: &ModalArgument,
     ) {
         if !tense_modal_makes_modal_sticky(tense_modal) {
+            return;
+        }
+        if modal_argument.relation.is_none() {
             return;
         }
         self.sticky_modal_arguments.insert(
@@ -25001,7 +25058,7 @@ fn bind_modal_argument_to_host_event(
     modal_argument: &mut ModalArgument,
     eventuality: SemanticObjectId,
 ) {
-    if modal_argument.introduced_by == "fi'o" {
+    if modal_argument.relation.is_none() {
         return;
     }
     let Some(place) = modal_relation_host_event_place_for_argument(modal_argument) else {
@@ -25030,13 +25087,14 @@ fn modal_argument_needs_host_event(modal_argument: &ModalArgument) -> bool {
 #[requires(true)]
 #[ensures(ret.is_none_or(|place| place > 0))]
 fn modal_relation_host_event_place_for_argument(modal_argument: &ModalArgument) -> Option<usize> {
-    if modal_relation_has_complementary_event_places(&modal_argument.relation)
+    let relation = modal_argument.relation.as_deref()?;
+    if modal_relation_has_complementary_event_places(relation)
         && modal_argument_place_is_filled(modal_argument, 2)
         && !modal_argument_place_is_filled(modal_argument, 1)
     {
         return Some(1);
     }
-    modal_relation_host_event_place(&modal_argument.relation)
+    modal_relation_host_event_place(relation)
 }
 
 #[requires(place > 0)]
@@ -25053,6 +25111,7 @@ fn modal_argument_place_is_filled(modal_argument: &ModalArgument, place: usize) 
 fn scalar_scale_definition_for_modal_argument(
     modal_argument: &ModalArgument,
 ) -> Option<ScalarScaleDefinition> {
+    modal_argument.relation.as_ref()?;
     if modal_argument.introduced_by != "ci'u" {
         return None;
     }
@@ -25935,6 +25994,21 @@ mod tests {
                     && object["mode"] == mode
             })
             .collect()
+    }
+
+    #[requires(true)]
+    #[ensures(ret["type"] == "predication")]
+    fn modal_body_predication<'a>(json: &'a Value, modal_argument: &'a Value) -> &'a Value {
+        let body = modal_argument["body"]
+            .as_str()
+            .expect("modal argument body");
+        let formula = object(json, body);
+        object(
+            json,
+            formula["predication"]
+                .as_str()
+                .expect("modal body predication"),
+        )
     }
 
     #[requires(!label.is_empty())]
@@ -29861,19 +29935,27 @@ mod tests {
         let viska = predication_with_relation_and_mode(&kanla, "viska", "asserted");
         let modal = &viska["modalArguments"][0];
         assert_eq!(modal["introducedBy"], "fi'o");
-        assert_eq!(modal["relation"], "kanla");
-        assert_eq!(modal["arguments"]["x1"]["value"], "referent:r1");
-        assert_eq!(modal["arguments"]["x2"]["kind"], "elided");
+        assert!(modal.get("relation").is_none());
+        assert!(modal.get("arguments").is_none());
+        let modal_predication = modal_body_predication(&kanla, modal);
+        assert_eq!(modal_predication["relation"], "kanla");
+        assert_eq!(modal_predication["mode"], "incidental");
+        assert_eq!(modal_predication["arguments"]["x1"]["value"], "referent:r1");
+        assert_eq!(modal_predication["arguments"]["x2"]["kind"], "elided");
 
         let pilno =
             semantic_json_for("mi viska do fi'o se pilno le zunle kanla").expect("semantic JSON");
         let viska = predication_with_relation_and_mode(&pilno, "viska", "asserted");
         let modal = &viska["modalArguments"][0];
         assert_eq!(modal["introducedBy"], "fi'o");
-        assert_eq!(modal["relation"], "pilno");
-        assert_eq!(modal["arguments"]["x1"]["kind"], "elided");
-        assert_eq!(modal["arguments"]["x2"]["value"], "referent:r1");
-        assert_eq!(modal["arguments"]["x3"]["kind"], "elided");
+        assert!(modal.get("relation").is_none());
+        assert!(modal.get("arguments").is_none());
+        let modal_predication = modal_body_predication(&pilno, modal);
+        assert_eq!(modal_predication["relation"], "pilno");
+        assert_eq!(modal_predication["mode"], "incidental");
+        assert_eq!(modal_predication["arguments"]["x1"]["kind"], "elided");
+        assert_eq!(modal_predication["arguments"]["x2"]["value"], "referent:r1");
+        assert_eq!(modal_predication["arguments"]["x3"]["kind"], "elided");
     }
 
     #[test]
@@ -29904,10 +29986,32 @@ mod tests {
         let fiho = semantic_json_for("mi fi'o kanla fe'u viska do").expect("semantic JSON");
         let viska = predication_with_relation_and_mode(&fiho, "viska", "asserted");
         let modal = &viska["modalArguments"][0];
-        assert_eq!(modal["relation"], "kanla");
         assert_eq!(modal["introducedBy"], "fi'o");
-        assert_eq!(modal["arguments"]["x1"]["kind"], "elided");
-        assert_eq!(modal["arguments"]["x2"]["kind"], "elided");
+        assert!(modal.get("relation").is_none());
+        assert!(modal.get("arguments").is_none());
+        let modal_predication = modal_body_predication(&fiho, modal);
+        assert_eq!(modal_predication["relation"], "kanla");
+        assert_eq!(modal_predication["mode"], "incidental");
+        assert_eq!(modal_predication["arguments"]["x1"]["kind"], "elided");
+        assert_eq!(modal_predication["arguments"]["x2"]["kind"], "elided");
+
+        let linked = semantic_json_for("mi tavla fi'o tavla be do fe'u do").expect("semantic JSON");
+        let tavla = predication_with_relation_and_mode(&linked, "tavla", "asserted");
+        let modal = &tavla["modalArguments"][0];
+        assert_eq!(modal["introducedBy"], "fi'o");
+        assert!(modal.get("relation").is_none());
+        let modal_predication = modal_body_predication(&linked, modal);
+        assert_eq!(modal_predication["relation"], "tavla");
+        assert_eq!(modal_predication["mode"], "incidental");
+        assert_eq!(
+            modal_predication["arguments"]["x1"]["value"],
+            "referent:addressee"
+        );
+        assert_eq!(
+            modal_predication["arguments"]["x2"]["value"],
+            "referent:addressee"
+        );
+        assert_eq!(modal_predication["arguments"]["x3"]["kind"], "elided");
     }
 
     #[test]
