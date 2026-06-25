@@ -756,9 +756,25 @@ pub struct ToolGimfihiSource {
     /// Language code for this source (e.g. `en`, `zh`, `es`). Each language may
     /// appear only once.
     pub language: String,
-    /// The source word, Lojbanized into gismu-scoring letters (the consonants
-    /// and vowels gismu are built from) plus apostrophe — e.g. `mlatu`, not
-    /// `cat`.
+    /// A word for this concept in the source language, transliterated into Lojban
+    /// phonetics — spelled the way it *sounds* (using only Lojban letters), not
+    /// in its native spelling and not as an existing Lojban word: don't pass
+    /// `mlatu` for 'cat'.
+    ///
+    /// Letters: consonants are `b d f g k l m n p r s t v z` (≈ English, with `g`
+    /// always hard as in 'get' and `s` always as in 'sell'), plus `c` = 'sh',
+    /// `j` = 'zh' (s in 'pleasure'), `x` = 'kh' (Scottish 'loch'), and `'` = 'h'.
+    /// Vowels are `a e i o u` (as in 'father, bet, machine, or, boot'); map each
+    /// foreign vowel to the nearest one. Glides: a 'y'-type glide (as in 'yes')
+    /// becomes `i` before a vowel and a 'w'-type glide (as in 'we') becomes `u`;
+    /// the falling diphthongs are `ai`, `ei`, `oi`, `au`; two adjacent vowels
+    /// that don't form one of those are separate syllables joined by `'`.
+    /// Following CLL §4.14, simplify a stop+fricative cluster to the fricative
+    /// ('ch' → `c`, 'j' → `j`), map non-Lojban vowels onto Lojban ones, and drop
+    /// grammatical endings (e.g. plurals).
+    ///
+    /// Examples: 'cat' → `kat`, 'eye' → `ai`, 'yes' → `ies`; Spanish 'gato' →
+    /// `gato`.
     pub word: String,
     /// Optional blending weight (1–999). Required for every source unless
     /// `preset` supplies the weights.
@@ -786,7 +802,9 @@ impl ToolGimfihiSource {
 /// Propose candidate gismu (root words) from a set of source-language words,
 /// using the standard gismu-creation algorithm: score every legal CVC-shape
 /// candidate by how well its letters recall the weighted sources, then rank
-/// them. This *creates new root words*; it does not look up existing ones.
+/// them. This *creates new root words*; it does not look up existing ones. Each
+/// source word must be transliterated into Lojban phonetics by sound — see the
+/// `word` field on each source.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
