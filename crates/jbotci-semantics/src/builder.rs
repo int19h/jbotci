@@ -299,7 +299,164 @@ fn dictionary_definition_place_count(definition: &str) -> Option<usize> {
             max_place = max_place.max(place);
         }
     }
-    (max_place > 0).then_some(max_place)
+    dictionary_lujvo_definition_place_count(definition)
+        .into_iter()
+        .chain((max_place > 0).then_some(max_place))
+        .max()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_lujvo_definition_place_count(definition: &str) -> Option<usize> {
+    let place_ids = collect_definition_place_ids(definition);
+    if place_ids.is_empty() {
+        return None;
+    }
+    let max_x_place = place_ids
+        .iter()
+        .filter(|place_id| place_id.letter == "x")
+        .map(|place_id| place_id.index)
+        .max()
+        .unwrap_or(0);
+    let non_x_count = place_ids
+        .iter()
+        .filter(|place_id| place_id.letter != "x")
+        .count();
+    Some(max_x_place + non_x_count)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_definition_place_ids(definition: &str) -> Vec<DefinitionPlaceId> {
+    let mut place_ids = Vec::new();
+    let mut remaining = definition;
+    while let Some(open) = remaining.find('$') {
+        let after_open = &remaining[open + 1..];
+        let Some(close) = after_open.find('$') else {
+            break;
+        };
+        let block = &after_open[..close];
+        if let Some(place_id) = first_definition_place_id(block)
+            && !place_ids.contains(&place_id)
+        {
+            place_ids.push(place_id);
+        }
+        remaining = &after_open[close + 1..];
+    }
+    place_ids
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|place_id| !place_id.letter.is_empty() && place_id.index > 0))]
+fn first_definition_place_id(block: &str) -> Option<DefinitionPlaceId> {
+    let mut remaining = block;
+    while !remaining.is_empty() {
+        if let Some((letter, rest)) = try_definition_place_var(remaining) {
+            let (digits, rest_digits) = span_ascii_digits(rest);
+            if !digits.is_empty() {
+                if let Some(stripped) = rest_digits.strip_prefix('}') {
+                    return definition_place_id(letter, digits).or_else(|| {
+                        remaining = stripped;
+                        None
+                    });
+                }
+                return definition_place_id(letter, digits);
+            }
+        }
+        let mut chars = remaining.chars();
+        let _ = chars.next();
+        remaining = chars.as_str();
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|(letter, _)| !letter.is_empty()))]
+fn try_definition_place_var(input: &str) -> Option<(&str, &str)> {
+    let (letters, rest) = span_ascii_lowercase_letters(input);
+    if letters.len() >= 2
+        && letters.chars().all(is_definition_var_letter)
+        && let Some(after_prefix) = rest.strip_prefix("_{")
+    {
+        return Some((letters, after_prefix));
+    }
+    if letters.len() >= 2
+        && letters.chars().all(is_definition_var_letter)
+        && let Some(after_prefix) = rest.strip_prefix('_')
+    {
+        return Some((letters, after_prefix));
+    }
+    let mut chars = input.chars();
+    let character = chars.next()?;
+    if !is_definition_var_letter(character) {
+        return None;
+    }
+    let rest = chars.as_str();
+    rest.strip_prefix("_{")
+        .or_else(|| rest.strip_prefix('_'))
+        .map(|after_prefix| (&input[..character.len_utf8()], after_prefix))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn span_ascii_lowercase_letters(input: &str) -> (&str, &str) {
+    let end = input
+        .char_indices()
+        .find_map(|(index, character)| (!character.is_ascii_lowercase()).then_some(index))
+        .unwrap_or(input.len());
+    input.split_at(end)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn span_ascii_digits(input: &str) -> (&str, &str) {
+    let end = input
+        .char_indices()
+        .find_map(|(index, character)| (!character.is_ascii_digit()).then_some(index))
+        .unwrap_or(input.len());
+    input.split_at(end)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_definition_var_letter(character: char) -> bool {
+    matches!(
+        character,
+        'a' | 'b'
+            | 'c'
+            | 'd'
+            | 'e'
+            | 'f'
+            | 'g'
+            | 'i'
+            | 'j'
+            | 'k'
+            | 'l'
+            | 'm'
+            | 'n'
+            | 'o'
+            | 'p'
+            | 'r'
+            | 's'
+            | 't'
+            | 'u'
+            | 'v'
+            | 'x'
+            | 'z'
+    )
+}
+
+#[requires(!letter.is_empty())]
+#[requires(!digits.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|place_id| place_id.letter == letter && place_id.index > 0))]
+fn definition_place_id(letter: &str, digits: &str) -> Option<DefinitionPlaceId> {
+    let index = digits.parse::<usize>().ok()?;
+    (index > 0).then(|| {
+        new!(DefinitionPlaceId {
+            letter: letter.to_owned(),
+            index,
+        })
+    })
 }
 
 #[invariant(true)]
@@ -319,6 +476,14 @@ struct IdCounters {
     quantity: usize,
     relation: usize,
     question: usize,
+}
+
+#[invariant(!letter.is_empty())]
+#[invariant(*index > 0)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DefinitionPlaceId {
+    letter: String,
+    index: usize,
 }
 
 #[invariant(true)]
@@ -24484,6 +24649,18 @@ mod tests {
         assert_eq!(
             dictionary_relation_place_count(jbotci_dictionary_data::english(), "klama"),
             Some(5)
+        );
+        assert_eq!(
+            dictionary_relation_place_count(jbotci_dictionary_data::english(), "brablo"),
+            Some(4)
+        );
+        assert_eq!(
+            dictionary_relation_place_count(jbotci_dictionary_data::english(), "bramau"),
+            Some(4)
+        );
+        assert_eq!(
+            dictionary_relation_place_count(jbotci_dictionary_data::english(), "blotcana"),
+            Some(4)
         );
     }
 
