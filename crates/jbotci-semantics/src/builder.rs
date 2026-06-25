@@ -502,6 +502,16 @@ struct AlternativeArgument {
     scopes: Vec<PrenexFormulaScope>,
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+struct LogicalSumtiConnection<'a> {
+    leading_sumti: &'a SumtiSyntax,
+    connective: &'a ConnectiveSyntax,
+    tense_modal: Option<&'a TenseModalSyntax>,
+    trailing_sumti: &'a SumtiSyntax,
+    relative_clause_source: Option<&'a SumtiSyntax>,
+}
+
 impl AlternativeArgument {
     #[requires(true)]
     #[ensures(ret.negated == negated)]
@@ -4304,27 +4314,28 @@ where
             let place = place.get() as usize;
             highest_assigned_place = highest_assigned_place.max(place);
             let key = format!("x{place}");
-            if let Some((_leading_sumti, connective, tense_modal, _trailing_sumti)) =
-                logical_sumti_connection_parts(sumti)
-            {
+            if let Some(connection) = logical_sumti_connection_for_distribution(sumti) {
                 if connector.is_none() {
                     let connector_question =
-                        direct_connective_question_token_for_connective(connective);
+                        direct_connective_question_token_for_connective(connection.connective);
                     operator = if connector_question.is_some() {
                         FormulaOperator::ConnectiveQuestion
                     } else {
-                        formula_operator_for_connective(connective)
+                        formula_operator_for_connective(connection.connective)
                     };
-                    modal_connection_spec = tense_modal
+                    modal_connection_spec = connection
+                        .tense_modal
                         .and_then(modal_statement_connection_spec_for_tense_modal)
-                        .or_else(|| modal_statement_connection_spec(connective));
-                    modal_connection_visible_first =
-                        modal_connection_visible_argument_is_first(connective, tense_modal);
+                        .or_else(|| modal_statement_connection_spec(connection.connective));
+                    modal_connection_visible_first = modal_connection_visible_argument_is_first(
+                        connection.connective,
+                        connection.tense_modal,
+                    );
                     connector_question_token = connector_question.cloned();
                     connector = Some(connective_connector_with_source(
-                        connective,
+                        connection.connective,
                         "sumti",
-                        modal_connective_text(connective, tense_modal),
+                        modal_connective_text(connection.connective, connection.tense_modal),
                         None,
                     ));
                 }
@@ -4341,7 +4352,7 @@ where
                 assigned_sumtis
                     .iter()
                     .filter(|(_key, sumti)| {
-                        logical_sumti_connection_parts_degrouped(sumti).is_some()
+                        logical_sumti_connection_for_distribution(sumti).is_some()
                     })
                     .collect::<Vec<_>>()
             })
@@ -4364,17 +4375,17 @@ where
             );
         }
         for (key, sumti) in assigned_sumtis {
-            if let Some((leading_sumti, connective, _tense_modal, trailing_sumti)) =
-                logical_sumti_connection_parts(sumti)
-            {
+            if let Some(connection) = logical_sumti_connection_for_distribution(sumti) {
                 alternatives.entry(key).or_default().extend([
-                    self.connected_sumti_alternative_argument(
-                        leading_sumti,
-                        connective_negates_left(connective),
+                    self.connected_sumti_alternative_argument_with_relative_source(
+                        connection.leading_sumti,
+                        connective_negates_left(connection.connective),
+                        connection.relative_clause_source,
                     )?,
-                    self.connected_sumti_alternative_argument(
-                        trailing_sumti,
-                        connective_negates_right(connective),
+                    self.connected_sumti_alternative_argument_with_relative_source(
+                        connection.trailing_sumti,
+                        connective_negates_right(connection.connective),
+                        connection.relative_clause_source,
                     )?,
                 ]);
             } else {
@@ -4524,12 +4535,40 @@ where
         sumti: &'tree SumtiSyntax,
         negated: bool,
     ) -> Result<AlternativeArgument, SemanticsError> {
-        let argument = self.build_argument_for_sumti(sumti)?;
+        self.connected_sumti_alternative_argument_with_relative_source(sumti, negated, None)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn connected_sumti_alternative_argument_with_relative_source(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+        negated: bool,
+        relative_clause_source: Option<&'tree SumtiSyntax>,
+    ) -> Result<AlternativeArgument, SemanticsError> {
+        let argument =
+            self.build_argument_for_sumti_with_relative_source(sumti, relative_clause_source)?;
         let scopes = self
             .quantified_argument_prenex_scope_for_sumti(sumti)?
             .into_iter()
             .collect();
         Ok(AlternativeArgument::with_scopes(argument, negated, scopes))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_argument_for_sumti_with_relative_source(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+        relative_clause_source: Option<&'tree SumtiSyntax>,
+    ) -> Result<ArgumentValue, SemanticsError> {
+        let mut argument = self.build_argument_for_sumti(sumti)?;
+        if let (Some(relative_clause_source), Some(head)) = (relative_clause_source, argument.value)
+        {
+            argument =
+                self.attach_relative_clauses_to_argument(argument, relative_clause_source, head)?;
+        }
+        Ok(argument)
     }
 
     #[requires(!relation.is_empty())]
@@ -4676,9 +4715,7 @@ where
         sumti: &'tree SumtiSyntax,
         fill_through: usize,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let Some((leading_sumti, connective, tense_modal, trailing_sumti)) =
-            logical_sumti_connection_parts_degrouped(sumti)
-        else {
+        let Some(connection) = logical_sumti_connection_for_distribution(sumti) else {
             return self.build_sumti_connection_branch_formula(
                 bridi,
                 selbri,
@@ -4686,6 +4723,7 @@ where
                 connected_place,
                 base_arguments,
                 sumti,
+                None,
                 fill_through,
                 false,
             );
@@ -4696,9 +4734,10 @@ where
             relation,
             connected_place,
             base_arguments,
-            leading_sumti,
+            connection.leading_sumti,
+            connection.relative_clause_source,
             fill_through,
-            connective_negates_left(connective),
+            connective_negates_left(connection.connective),
         )?;
         let trailing_formula = self.build_sumti_connection_branch_formula(
             bridi,
@@ -4706,25 +4745,30 @@ where
             relation,
             connected_place,
             base_arguments,
-            trailing_sumti,
+            connection.trailing_sumti,
+            connection.relative_clause_source,
             fill_through,
-            connective_negates_right(connective),
+            connective_negates_right(connection.connective),
         )?;
         let mut children = vec![leading_formula, trailing_formula];
         let mut diagnostics = Vec::new();
-        let relation_only = !connective_has_logical_component(connective)
-            && (modal_tense_relation_spec_for_connective(connective).is_some()
-                || tense_modal.is_some_and(|tense_modal| {
+        let relation_only = !connective_has_logical_component(connection.connective)
+            && (modal_tense_relation_spec_for_connective(connection.connective).is_some()
+                || connection.tense_modal.is_some_and(|tense_modal| {
                     tense_relation_spec_for_tense_modal(tense_modal).is_some()
                 }));
-        if let Some(spec) = modal_connection_spec_for_connective_and_tense(connective, tense_modal)
-        {
-            let (visible_formula, other_formula) =
-                if modal_connection_visible_argument_is_first(connective, tense_modal) {
-                    (leading_formula, trailing_formula)
-                } else {
-                    (trailing_formula, leading_formula)
-                };
+        if let Some(spec) = modal_connection_spec_for_connective_and_tense(
+            connection.connective,
+            connection.tense_modal,
+        ) {
+            let (visible_formula, other_formula) = if modal_connection_visible_argument_is_first(
+                connection.connective,
+                connection.tense_modal,
+            ) {
+                (leading_formula, trailing_formula)
+            } else {
+                (trailing_formula, leading_formula)
+            };
             match self.build_modal_formula_connection_claim(
                 visible_formula,
                 other_formula,
@@ -4748,7 +4792,8 @@ where
             }
         }
         let formula = self.next_formula();
-        let connector_question = direct_connective_question_token_for_connective(connective);
+        let connector_question =
+            direct_connective_question_token_for_connective(connection.connective);
         let connector_parameter = connector_question
             .map(|token| self.build_connective_question_parameter_for_token(token))
             .transpose()?;
@@ -4758,13 +4803,13 @@ where
                 if connector_question.is_some() {
                     FormulaOperator::ConnectiveQuestion
                 } else {
-                    formula_operator_for_connective(connective)
+                    formula_operator_for_connective(connection.connective)
                 },
                 children,
                 Some(connective_connector_with_source(
-                    connective,
+                    connection.connective,
                     "sumti",
-                    modal_connective_text(connective, tense_modal),
+                    modal_connective_text(connection.connective, connection.tense_modal),
                     connector_parameter,
                 )),
                 self.analysis
@@ -4787,10 +4832,11 @@ where
         connected_place: &str,
         base_arguments: &BTreeMap<String, ArgumentValue>,
         sumti: &'tree SumtiSyntax,
+        relative_clause_source: Option<&'tree SumtiSyntax>,
         fill_through: usize,
         negated: bool,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let mut formula = if logical_sumti_connection_parts_degrouped(sumti).is_some() {
+        let mut formula = if logical_sumti_connection_for_distribution(sumti).is_some() {
             self.build_sumti_connection_formula_for_place(
                 bridi,
                 selbri,
@@ -4804,7 +4850,7 @@ where
             let mut arguments = base_arguments.clone();
             arguments.insert(
                 connected_place.to_owned(),
-                self.build_argument_for_sumti(sumti)?,
+                self.build_argument_for_sumti_with_relative_source(sumti, relative_clause_source)?,
             );
             for place in 1..=fill_through {
                 let key = format!("x{place}");
@@ -4835,7 +4881,7 @@ where
                 ),
             )?
         };
-        if logical_sumti_connection_parts_degrouped(sumti).is_none()
+        if logical_sumti_connection_for_distribution(sumti).is_none()
             && let Some(scope) = self.quantified_argument_prenex_scope_for_sumti(sumti)?
         {
             formula = self.wrap_formula_with_prenex_scope(formula, scope)?;
@@ -6455,38 +6501,41 @@ where
                 .sumti(assignment.sumti)
                 .ok_or_else(SemanticsError::missing_syntax_node)?;
             let key = format!("x{}", place.get());
-            if let Some((leading_sumti, connective, tense_modal, trailing_sumti)) =
-                logical_sumti_connection_parts_degrouped(sumti)
-            {
+            if let Some(connection) = logical_sumti_connection_for_distribution(sumti) {
                 if connector.is_none() {
                     let connector_question =
-                        direct_connective_question_token_for_connective(connective);
+                        direct_connective_question_token_for_connective(connection.connective);
                     operator = if connector_question.is_some() {
                         FormulaOperator::ConnectiveQuestion
                     } else {
-                        formula_operator_for_connective(connective)
+                        formula_operator_for_connective(connection.connective)
                     };
-                    modal_connection_spec = tense_modal
+                    modal_connection_spec = connection
+                        .tense_modal
                         .and_then(modal_statement_connection_spec_for_tense_modal)
-                        .or_else(|| modal_statement_connection_spec(connective));
-                    modal_connection_visible_first =
-                        modal_connection_visible_argument_is_first(connective, tense_modal);
+                        .or_else(|| modal_statement_connection_spec(connection.connective));
+                    modal_connection_visible_first = modal_connection_visible_argument_is_first(
+                        connection.connective,
+                        connection.tense_modal,
+                    );
                     connector_question_token = connector_question.cloned();
                     connector = Some(connective_connector_with_source(
-                        connective,
+                        connection.connective,
                         "sumti",
-                        modal_connective_text(connective, tense_modal),
+                        modal_connective_text(connection.connective, connection.tense_modal),
                         None,
                     ));
                 }
                 alternatives.entry(key).or_default().extend([
-                    self.connected_sumti_alternative_argument(
-                        leading_sumti,
-                        connective_negates_left(connective),
+                    self.connected_sumti_alternative_argument_with_relative_source(
+                        connection.leading_sumti,
+                        connective_negates_left(connection.connective),
+                        connection.relative_clause_source,
                     )?,
-                    self.connected_sumti_alternative_argument(
-                        trailing_sumti,
-                        connective_negates_right(connective),
+                    self.connected_sumti_alternative_argument_with_relative_source(
+                        connection.trailing_sumti,
+                        connective_negates_right(connection.connective),
+                        connection.relative_clause_source,
                     )?,
                 ]);
             } else {
@@ -18216,6 +18265,33 @@ fn logical_sumti_connection_parts_degrouped(
             logical_sumti_connection_parts_degrouped(inner_sumti)
         }
         _ => logical_sumti_connection_parts(sumti),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn logical_sumti_connection_for_distribution(
+    sumti: &SumtiSyntax,
+) -> Option<LogicalSumtiConnection<'_>> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. }) => {
+            let mut connection = logical_sumti_connection_for_distribution(base_sumti)?;
+            connection.relative_clause_source = Some(sumti);
+            Some(connection)
+        }
+        data!(SumtiSyntax::GroupedSumti { inner_sumti, .. }) => {
+            logical_sumti_connection_for_distribution(inner_sumti)
+        }
+        _ => logical_sumti_connection_parts(sumti).map(
+            |(leading_sumti, connective, tense_modal, trailing_sumti)| LogicalSumtiConnection {
+                leading_sumti,
+                connective,
+                tense_modal,
+                trailing_sumti,
+                relative_clause_source: None,
+            },
+        ),
     }
 }
 
@@ -30267,6 +30343,74 @@ mod tests {
                 .pointer("/composition/operator")
                 .is_none_or(|operator| operator != "joint")
         }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vuho_logical_sumti_connection_distributes_matrix_predication() {
+        let json = semantic_json_for("la .frank. .e la .djordj. vu'o noi nanmu cu klama le zdani")
+            .expect("semantic JSON");
+        let content = object(
+            &json,
+            root_object(&json)["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "and");
+        assert_eq!(content["connector"]["locus"], "sumti");
+        assert_eq!(content["connector"]["truthTable"], "TFFF");
+        let klama = predications_with_relation_and_mode(&json, "klama", "asserted");
+        assert_eq!(klama.len(), 2);
+        let subjects = klama
+            .iter()
+            .map(|predication| {
+                let x1 = &predication["arguments"]["x1"];
+                assert_eq!(
+                    x1["relativeClauses"]
+                        .as_array()
+                        .expect("x1 relative clauses")
+                        .len(),
+                    1
+                );
+                x1["value"].as_str().expect("x1 value").to_owned()
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(subjects.len(), 2);
+        assert_eq!(
+            predications_with_relation_and_mode(&json, "nanmu", "incidental").len(),
+            2
+        );
+        assert!(json["objects"].as_object().unwrap().values().all(|object| {
+            object
+                .pointer("/composition/operator")
+                .is_none_or(|operator| operator != "joint")
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vuho_logical_sumti_disjunction_preserves_truth_function() {
+        let json = semantic_json_for("la .frank. .a la .djordj. vu'o noi nanmu cu klama le zdani")
+            .expect("semantic JSON");
+        let content = object(
+            &json,
+            root_object(&json)["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "or");
+        assert_eq!(content["connector"]["locus"], "sumti");
+        assert_eq!(content["connector"]["truthTable"], "TTTF");
+        assert_eq!(
+            predications_with_relation_and_mode(&json, "klama", "asserted").len(),
+            2
+        );
+        assert_eq!(
+            predications_with_relation_and_mode(&json, "nanmu", "incidental").len(),
+            2
+        );
     }
 
     #[test]
