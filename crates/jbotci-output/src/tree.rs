@@ -501,62 +501,16 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
         options: TreeRenderOptions,
     ) -> TreeValue {
         match atom {
-            GeneratedSyntaxAtomRef::OptionBoxTenseModalSyntaxToken((tense_modal, token)) => {
-                legacy_syntax_tuple_value(
-                    [
-                        legacy_syntax_subtree_value(tense_modal, source, options),
-                        legacy_syntax_subtree_value(token, source, options),
-                    ],
-                )
-            }
-            GeneratedSyntaxAtomRef::OptionBoxTenseModalSyntaxWithFreeModifiersTokenFreeModifierSyntax((
-                tense_modal,
-                token,
-            )) => legacy_syntax_tuple_value(
-                [
-                    legacy_syntax_subtree_value(tense_modal, source, options),
-                    legacy_syntax_subtree_value(token, source, options),
-                ],
-            ),
-            GeneratedSyntaxAtomRef::TokenConnectiveSyntax((token, connective)) => {
-                legacy_syntax_tuple_value(
-                    [
-                        legacy_syntax_subtree_value(token, source, options),
-                        generated_syntax_subtree_value(connective, source, options),
-                    ],
-                )
-            }
-            GeneratedSyntaxAtomRef::AdditionalLinkedSumtiSyntax(value) => {
-                required_legacy_syntax_subtree_value(value, source, options)
-            }
-            GeneratedSyntaxAtomRef::BridiSyntax(value) => {
-                required_legacy_syntax_subtree_value(value, source, options)
-            }
-            GeneratedSyntaxAtomRef::FreeModifierSyntax(value) => {
+            GeneratedSyntaxAtomRef::DescriptionTailElementSyntax(value) => {
                 required_legacy_syntax_subtree_value(value, source, options)
             }
             GeneratedSyntaxAtomRef::Indicator(value) => {
                 required_legacy_syntax_subtree_value(value, source, options)
             }
-            GeneratedSyntaxAtomRef::LinkedSumtiListSyntax(value) => {
+            GeneratedSyntaxAtomRef::SumtiTagSyntax(value) => {
                 required_legacy_syntax_subtree_value(value, source, options)
             }
-            GeneratedSyntaxAtomRef::QuantifierSyntax(value) => {
-                required_legacy_syntax_subtree_value(value, source, options)
-            }
-            GeneratedSyntaxAtomRef::RelativeClauseSyntax(value) => {
-                required_legacy_syntax_subtree_value(value, source, options)
-            }
-            GeneratedSyntaxAtomRef::SelbriSyntax(value) => {
-                required_legacy_syntax_subtree_value(value, source, options)
-            }
-            GeneratedSyntaxAtomRef::SubbridiSyntax(value) => {
-                required_legacy_syntax_subtree_value(value, source, options)
-            }
-            GeneratedSyntaxAtomRef::TenseModalSyntax(value) => {
-                required_legacy_syntax_subtree_value(value, source, options)
-            }
-            GeneratedSyntaxAtomRef::TermSyntax(value) => {
+            GeneratedSyntaxAtomRef::SumtiWrapperKindSyntax(value) => {
                 required_legacy_syntax_subtree_value(value, source, options)
             }
             GeneratedSyntaxAtomRef::Token(word) => {
@@ -567,47 +521,16 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
 
     fn atom_end_position<'tree>(atom: Self::Atom<'tree>) -> Option<RenderedPosition> {
         match atom {
-            GeneratedSyntaxAtomRef::OptionBoxTenseModalSyntaxToken((_, token)) => token
-                .source_spans()
-                .into_iter()
-                .last()
-                .map(span_end_position),
-            GeneratedSyntaxAtomRef::OptionBoxTenseModalSyntaxWithFreeModifiersTokenFreeModifierSyntax((
-                _,
-                token,
-            )) => last_legacy_syntax_subtree_position(token),
-            GeneratedSyntaxAtomRef::TokenConnectiveSyntax((_, connective)) => {
-                last_generated_syntax_subtree_position(connective)
-            }
-            GeneratedSyntaxAtomRef::AdditionalLinkedSumtiSyntax(value) => {
+            GeneratedSyntaxAtomRef::DescriptionTailElementSyntax(value) => {
                 last_legacy_syntax_subtree_position(value)
             }
-            GeneratedSyntaxAtomRef::BridiSyntax(value) => last_legacy_syntax_subtree_position(value),
-            GeneratedSyntaxAtomRef::FreeModifierSyntax(value) => {
+            GeneratedSyntaxAtomRef::Indicator(value) => last_legacy_syntax_subtree_position(value),
+            GeneratedSyntaxAtomRef::SumtiTagSyntax(value) => {
                 last_legacy_syntax_subtree_position(value)
             }
-            GeneratedSyntaxAtomRef::Indicator(value) => {
+            GeneratedSyntaxAtomRef::SumtiWrapperKindSyntax(value) => {
                 last_legacy_syntax_subtree_position(value)
             }
-            GeneratedSyntaxAtomRef::LinkedSumtiListSyntax(value) => {
-                last_legacy_syntax_subtree_position(value)
-            }
-            GeneratedSyntaxAtomRef::QuantifierSyntax(value) => {
-                last_legacy_syntax_subtree_position(value)
-            }
-            GeneratedSyntaxAtomRef::RelativeClauseSyntax(value) => {
-                last_legacy_syntax_subtree_position(value)
-            }
-            GeneratedSyntaxAtomRef::SelbriSyntax(value) => {
-                last_legacy_syntax_subtree_position(value)
-            }
-            GeneratedSyntaxAtomRef::SubbridiSyntax(value) => {
-                last_legacy_syntax_subtree_position(value)
-            }
-            GeneratedSyntaxAtomRef::TenseModalSyntax(value) => {
-                last_legacy_syntax_subtree_position(value)
-            }
-            GeneratedSyntaxAtomRef::TermSyntax(value) => last_legacy_syntax_subtree_position(value),
             GeneratedSyntaxAtomRef::Token(token) => token
                 .source_spans()
                 .into_iter()
@@ -678,15 +601,7 @@ impl SyntaxRenderModel for RawGeneratedSyntaxRenderModel {
         source: &str,
         options: TreeRenderOptions,
     ) -> TreeValue {
-        match atom {
-            GeneratedSyntaxAtomRef::TokenConnectiveSyntax((token, connective)) => {
-                legacy_syntax_tuple_value([
-                    legacy_syntax_subtree_value(token, source, options),
-                    raw_generated_syntax_subtree_value(connective, source, options),
-                ])
-            }
-            atom => GeneratedSyntaxRenderModel::atom_tree_value(atom, source, options),
-        }
+        GeneratedSyntaxRenderModel::atom_tree_value(atom, source, options)
     }
 
     fn atom_end_position<'tree>(atom: Self::Atom<'tree>) -> Option<RenderedPosition> {
@@ -907,13 +822,15 @@ fn labelled_tree_collection_entry_from_values(
 #[requires(true)]
 #[ensures(true)]
 fn generated_free_modifier_tree_values(
-    free_modifiers: &[jbotci_syntax::tree::FreeModifierSyntax],
+    free_modifiers: &[generated_model::FreeModifierSyntax],
     source: &str,
     options: TreeRenderOptions,
 ) -> Vec<TreeValue> {
     free_modifiers
         .iter()
-        .map(|free_modifier| required_legacy_syntax_subtree_value(free_modifier, source, options))
+        .map(|free_modifier| {
+            required_generated_syntax_subtree_value(free_modifier, source, options)
+        })
         .collect()
 }
 
@@ -1376,7 +1293,7 @@ fn generated_linked_sumti_fragment_tree_value(
         return required_generated_syntax_subtree_value(statement, source, options);
     };
     rename_tree_constructor(
-        required_legacy_syntax_subtree_value(linkargs, source, options),
+        required_generated_syntax_subtree_value(linkargs, source, options),
         "LinkedSumtiList",
         "LinkedSumti",
     )
@@ -1438,7 +1355,7 @@ fn generated_bridi_statement_tree_value(
     else {
         return required_generated_syntax_subtree_value(statement, source, options);
     };
-    let mut value = required_legacy_syntax_subtree_value(bridi.as_ref(), source, options);
+    let mut value = required_generated_syntax_subtree_value(bridi.as_ref(), source, options);
     for continuation in continuations {
         value = TreeValue::Node(TreeNode {
             constructor: "ExperimentalBridiContinuation",
@@ -1482,7 +1399,7 @@ fn generated_bridi_statement_continuation_tree_value(
             if let Some(tense_modal) = tense_modal {
                 entries.push(TreeEntry {
                     label: Some("tense_modal"),
-                    value: required_legacy_syntax_subtree_value(
+                    value: required_generated_syntax_subtree_value(
                         tense_modal.as_ref(),
                         source,
                         options,
@@ -1495,7 +1412,7 @@ fn generated_bridi_statement_continuation_tree_value(
             });
             entries.push(TreeEntry {
                 label: Some("trailing_subbridi"),
-                value: required_legacy_syntax_subtree_value(
+                value: required_generated_syntax_subtree_value(
                     trailing_subbridi.as_ref(),
                     source,
                     options,
@@ -1520,7 +1437,7 @@ fn generated_bridi_statement_continuation_tree_value(
             if let Some(tense_modal) = tense_modal {
                 entries.push(TreeEntry {
                     label: Some("tense_modal"),
-                    value: required_legacy_syntax_subtree_value(
+                    value: required_generated_syntax_subtree_value(
                         tense_modal.as_ref(),
                         source,
                         options,
@@ -1546,7 +1463,7 @@ fn generated_bridi_statement_continuation_tree_value(
             });
             entries.push(TreeEntry {
                 label: Some("trailing_subbridi"),
-                value: required_legacy_syntax_subtree_value(
+                value: required_generated_syntax_subtree_value(
                     trailing_subbridi.as_ref(),
                     source,
                     options,
@@ -1660,14 +1577,18 @@ fn generated_statement_connection_part(
             connective,
             trailing_statement,
         } => {
-            let (first_i, first_connective) = pending
+            let first_pending = pending
                 .first()
                 .expect("chained I statement tails parse pending with many1");
             let mut extra = Vec::new();
-            for (pending_i, pending_connective) in pending.iter().skip(1) {
-                extra.push(generated_token_tree_value(pending_i, source, options));
+            for pending_connective in pending.iter().skip(1) {
+                extra.push(generated_token_tree_value(
+                    &pending_connective.i,
+                    source,
+                    options,
+                ));
                 extra.push(generated_statement_connective_tree_value(
-                    pending_connective,
+                    &pending_connective.connective,
                     source,
                     options,
                 ));
@@ -1677,9 +1598,9 @@ fn generated_statement_connection_part(
                 connective, source, options,
             ));
             GeneratedStatementConnectionPart {
-                i: generated_token_tree_value(first_i, source, options),
+                i: generated_token_tree_value(&first_pending.i, source, options),
                 connective: generated_connective_tree_value_with_extra_words(
-                    first_connective,
+                    &first_pending.connective,
                     extra,
                     source,
                     options,
@@ -1739,11 +1660,32 @@ fn generated_token_tree_value(
 #[requires(true)]
 #[ensures(true)]
 fn generated_with_free_modifiers_token_tree_value(
-    token: &WithFreeModifiers<Token>,
+    token: &WithFreeModifiers<Token, generated_model::FreeModifierSyntax>,
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    required_legacy_syntax_subtree_value(token, source, options)
+    let value = generated_token_tree_value(&token.value, source, options);
+    if token.free_modifiers.is_empty() {
+        return value;
+    }
+
+    TreeValue::Node(TreeNode {
+        constructor: "WithFreeModifiers",
+        entries: vec![
+            TreeEntry {
+                label: Some("value"),
+                value,
+            },
+            TreeEntry {
+                label: Some("free_modifiers"),
+                value: TreeValue::Collection(generated_free_modifier_tree_values(
+                    &token.free_modifiers,
+                    source,
+                    options,
+                )),
+            },
+        ],
+    })
 }
 
 #[requires(true)]
@@ -1824,15 +1766,38 @@ fn generated_statement_connective_tree_value(
 #[requires(true)]
 #[ensures(true)]
 fn generated_tense_modal_word_tree_values(
-    tense_modal: &jbotci_syntax::tree::TenseModalSyntax,
+    tense_modal: &generated_model::TenseModalSyntax,
     source: &str,
     options: TreeRenderOptions,
 ) -> Vec<TreeValue> {
-    let mut values = Vec::new();
-    tense_modal.visit_words(&mut |token| {
-        values.push(generated_token_tree_value(token, source, options));
-    });
-    values
+    let mut visitor = GeneratedSyntaxTokenTreeValueCollector {
+        source,
+        options,
+        values: Vec::new(),
+    };
+    tense_modal.visit_in_order(&mut visitor);
+    visitor.values
+}
+
+#[invariant(true)]
+struct GeneratedSyntaxTokenTreeValueCollector<'source> {
+    source: &'source str,
+    options: TreeRenderOptions,
+    values: Vec<TreeValue>,
+}
+
+impl<'source, 'tree> TreeVisitor<'tree> for GeneratedSyntaxTokenTreeValueCollector<'source> {
+    type Node = GeneratedSyntaxNodeRef<'tree>;
+    type Atom = GeneratedSyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        if let GeneratedSyntaxAtomRef::Token(token) = atom {
+            self.values
+                .push(generated_token_tree_value(token, self.source, self.options));
+        }
+    }
 }
 
 #[requires(!constructor.is_empty())]
@@ -1988,17 +1953,6 @@ where
     visitor.last
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn last_generated_syntax_subtree_position<T>(value: &T) -> Option<RenderedPosition>
-where
-    T: GeneratedSyntaxAstTreeNode,
-{
-    let mut visitor = LastGeneratedSyntaxAtomVisitor { last: None };
-    value.visit_in_order(&mut visitor);
-    visitor.last
-}
-
 #[invariant(true)]
 struct LastLegacySyntaxAtomVisitor {
     last: Option<RenderedPosition>,
@@ -2012,22 +1966,6 @@ impl<'tree> TreeVisitor<'tree> for LastLegacySyntaxAtomVisitor {
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         self.last = LegacySyntaxRenderModel::atom_end_position(atom);
-    }
-}
-
-#[invariant(true)]
-struct LastGeneratedSyntaxAtomVisitor {
-    last: Option<RenderedPosition>,
-}
-
-impl<'tree> TreeVisitor<'tree> for LastGeneratedSyntaxAtomVisitor {
-    type Node = GeneratedSyntaxNodeRef<'tree>;
-    type Atom = GeneratedSyntaxAtomRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        self.last = GeneratedSyntaxRenderModel::atom_end_position(atom);
     }
 }
 

@@ -11,12 +11,9 @@ use super::generated_runtime;
 use super::tense::{connective_tense_modal_from_leaves, tense_modal_as_composite};
 use super::tokens::{
     cmavo, cmevla_word, leading_indicator, pa_word, relation_word, selmaho, spanned_tokens,
-    syntax_error, syntax_trace_failure_summary,
+    syntax_error,
 };
-use super::{
-    BoxedParser, ParseExtra, ParsedPartialValidStatementAttempt, ParsedStatement,
-    ParsedStatementAttempt, ParserInput, ParserState,
-};
+use super::{BoxedParser, ParseExtra, ParserInput, ParserState};
 use crate::{ExperimentalConstruct, ParseOptions, SyntaxWordCategory, Token};
 
 #[bityzba::invariant(true)]
@@ -117,7 +114,7 @@ macro_rules! declare_generated_syntax_grammar {
         mekso_precedence: MeksoSyntax;
         mekso_operand: MeksoSyntax;
         mekso_operator: MeksoOperatorSyntax;
-        reverse_polish_parts: self::ReversePolishPartsSyntax;
+        reverse_polish_parts: ReversePolishPartsSyntax;
         letter_string: std::vec::Vec<Token>;
         letter_tokens: std::vec::Vec<Token>;
         free_modifier: FreeModifierSyntax;
@@ -146,16 +143,6 @@ macro_rules! declare_generated_syntax_grammar {
             require explicit_xauha_lohoi_lookahead().lookahead();
             field paragraphs = text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier);
         }
-        build |paragraphs| {
-            bityzba::new!(TextSyntax {
-                leading_nai: Vec::new(),
-                leading_cmevla: Vec::new(),
-                leading_indicators: Vec::new(),
-                leading_free_modifiers: Vec::new(),
-                leading_connective: None,
-                paragraphs,
-            })
-        };
     }
 
     product regular_text(paragraph, statement_or_fragment, free_modifier, tense_modal) -> TextSyntax {
@@ -171,20 +158,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field paragraphs = text_paragraphs(paragraph, statement_or_fragment, free_modifier);
         }
-        build |leading_nai, leading_cmevla, leading_indicators, leading_free_modifiers, leading_connective, leading_i_statements, paragraphs| {
-            let text = bityzba::new!(TextSyntax {
-                leading_nai,
-                leading_cmevla,
-                leading_indicators,
-                leading_free_modifiers,
-                leading_connective: leading_connective.map(Box::new),
-                paragraphs,
-            });
-            leading_i_statements
-                .into_iter()
-                .rev()
-                .fold(text, prepend_leading_i_statement)
-        };
     }
 
     alias text_paragraphs(paragraph, statement_or_fragment, free_modifier) -> std::vec::Vec<ParagraphSyntax> {
@@ -239,14 +212,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field statements = paragraph_statement_sequence(statement_or_fragment, free_modifier);
         }
-        build |statements| {
-            bityzba::new!(ParagraphSyntax {
-                i: None,
-                niho: Vec::new(),
-                free_modifiers: Vec::new(),
-                statements,
-            })
-        };
     }
 
     alias paragraph_statement_sequence(statement_or_fragment, free_modifier) -> std::vec::Vec<ParagraphStatementSyntax> {
@@ -270,14 +235,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field statements = opt_or_default(paragraph_statement_sequence(statement_or_fragment, free_modifier));
         }
-        build |i, niho, free_modifiers, statements| {
-            bityzba::new!(ParagraphSyntax {
-                i,
-                niho,
-                free_modifiers,
-                statements,
-            })
-        };
     }
 
     node niho_paragraph(statement_or_fragment, free_modifier) -> ParagraphSyntax {
@@ -290,14 +247,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field statements = opt_or_default(paragraph_statement_sequence(statement_or_fragment, free_modifier));
         }
-        build |niho, free_modifiers, statements| {
-            bityzba::new!(ParagraphSyntax {
-                i: None,
-                niho,
-                free_modifiers,
-                statements,
-            })
-        };
     }
 
     alias paragraph_statement(statement_or_fragment, free_modifier, tense_modal) -> ParagraphStatementSyntax {
@@ -319,14 +268,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field statement = some(boxed(statement_or_fragment));
         }
-        build |statement| {
-            bityzba::new!(ParagraphStatementSyntax {
-                i: None,
-                connective: None,
-                free_modifiers: Vec::new(),
-                statement,
-            })
-        };
     }
 
     node i_paragraph_statement(statement_or_fragment, free_modifier, tense_modal) -> ParagraphStatementSyntax {
@@ -339,14 +280,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field statement = opt(boxed(statement_or_fragment));
         }
-        build |i, connective, free_modifiers, statement| {
-            bityzba::new!(ParagraphStatementSyntax {
-                i,
-                connective,
-                free_modifiers,
-                statement,
-            })
-        };
     }
 
     node following_paragraph_statement(statement_or_fragment, free_modifier) -> ParagraphStatementSyntax {
@@ -360,14 +293,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field statement = opt(boxed(statement_or_fragment));
         }
-        build |i, free_modifiers, statement| {
-            bityzba::new!(ParagraphStatementSyntax {
-                i,
-                connective: None,
-                free_modifiers,
-                statement,
-            })
-        };
     }
 
     node trailing_ijek_paragraph_statement -> ParagraphStatementSyntax {
@@ -377,14 +302,6 @@ macro_rules! declare_generated_syntax_grammar {
             field i = cmavo(I);
             field connective = statement_connective;
         }
-        build |i, connective| bityzba::new!(ParagraphStatementSyntax {
-            i: None,
-            connective: None,
-            free_modifiers: Vec::new(),
-            statement: Some(Box::new(bityzba::new!(StatementSyntax::Fragment(Box::new(
-                bityzba::new!(FragmentSyntax::BridiConnective { i, connective })
-            ))))),
-        });
     }
 
     alias statement(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> StatementSyntax {
@@ -446,13 +363,6 @@ macro_rules! declare_generated_syntax_grammar {
             field second_na = selmaho(Na);
             field additional_na = many(selmaho(Na));
         }
-        build |first_na, second_na, additional_na| {
-            let mut words = vec![first_na, second_na];
-            words.extend(additional_na);
-            bityzba::new!(StatementSyntax::Fragment(Box::new(
-                bityzba::new!(FragmentSyntax::Other(WithFreeModifiers::new(words, Vec::new())))
-            )))
-        };
     }
 
     node single_na_fragment -> StatementSyntax {
@@ -461,9 +371,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field na = selmaho(Na).not_next_selmaho(Ku).wf();
         }
-        build |na| bityzba::new!(StatementSyntax::Fragment(Box::new(
-            bityzba::new!(FragmentSyntax::Other(WithFreeModifiers::new(vec![na.value], na.free_modifiers)))
-        )));
     }
 
     node ek_fragment -> StatementSyntax {
@@ -473,9 +380,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field connective = ek_connective();
         }
-        build |connective| bityzba::new!(StatementSyntax::Fragment(Box::new(
-            bityzba::new!(FragmentSyntax::Ek(connective))
-        )));
     }
 
     node gihek_fragment -> StatementSyntax {
@@ -485,9 +389,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field connective = gihek_connective();
         }
-        build |connective| bityzba::new!(StatementSyntax::Fragment(Box::new(
-            bityzba::new!(FragmentSyntax::BridiTailConnective(connective))
-        )));
     }
 
     node i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> StatementSyntax {
@@ -500,19 +401,15 @@ macro_rules! declare_generated_syntax_grammar {
                 simple_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens),
             )));
         }
-        build |leading_statement, continuations| {
-            build_connected_i_statement_from_tails(*leading_statement, continuations)
-        };
     }
 
-    product pending_i_connective -> (Token, ConnectiveSyntax) {
+    product pending_i_connective -> PendingIConnectiveSyntax {
         context "statement connective";
         fields {
             field i = cmavo(I);
             field connective = statement_connective;
             require cmavo(I).lookahead();
         }
-        build |i, connective| (i, connective);
     }
 
     product chained_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> IStatementConnectionTailSyntax {
@@ -525,12 +422,6 @@ macro_rules! declare_generated_syntax_grammar {
             field connective = i_statement_connective(tense_modal);
             field trailing_statement = boxed(statement_after_i_connective(bridi, subbridi, tense_modal, text));
         }
-        build |pending, i, connective, trailing_statement| IStatementConnectionTailSyntax::Chained {
-            pending,
-            i,
-            connective,
-            trailing_statement,
-        };
     }
 
     product simple_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> IStatementConnectionTailSyntax {
@@ -542,11 +433,6 @@ macro_rules! declare_generated_syntax_grammar {
             field connective = i_statement_connective(tense_modal);
             field trailing_statement = boxed(statement_after_i_connective(bridi, subbridi, tense_modal, text));
         }
-        build |i, connective, trailing_statement| IStatementConnectionTailSyntax::Simple {
-            i,
-            connective,
-            trailing_statement,
-        };
     }
 
     node preposed_i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens) -> StatementSyntax {
@@ -579,9 +465,6 @@ macro_rules! declare_generated_syntax_grammar {
             field terms = many(term);
             field zohu = cmavo(Zohu).wf();
         }
-        build |terms, zohu| bityzba::new!(StatementSyntax::Fragment(Box::new(
-            bityzba::new!(FragmentSyntax::Prenex { terms, zohu })
-        )));
     }
 
     node prenex_statement(statement, term) -> StatementSyntax {
@@ -603,17 +486,6 @@ macro_rules! declare_generated_syntax_grammar {
             field bridi = boxed(bridi);
             field continuations = many(bridi_statement_continuation(subbridi, tense_modal));
         }
-        build |bridi, continuations| {
-            continuations.into_iter().fold(
-                bityzba::new!(StatementSyntax::Bridi(bridi)),
-                |leading_statement, continuation| {
-                    bityzba::new!(StatementSyntax::ExperimentalBridiContinuation {
-                        leading_statement: Box::new(leading_statement),
-                        continuation,
-                    })
-                },
-            )
-        };
     }
 
     alias bridi_statement_continuation(subbridi, tense_modal) -> BridiStatementContinuationSyntax {
@@ -633,15 +505,6 @@ macro_rules! declare_generated_syntax_grammar {
             field bo = cmavo(Bo).wf();
             field trailing_subbridi = boxed(subbridi);
         }
-        build |connective, tense_modal, bo, trailing_subbridi| {
-            let marker = bityzba::new!(BridiStatementContinuationMarkerSyntax::BoGrouped(bo));
-            BridiStatementContinuationSyntax {
-                connective,
-                tense_modal,
-                marker,
-                trailing_subbridi,
-            }
-        };
     }
 
     product ke_bridi_statement_continuation(subbridi, tense_modal) -> BridiStatementContinuationSyntax {
@@ -654,18 +517,6 @@ macro_rules! declare_generated_syntax_grammar {
             field trailing_subbridi = boxed(subbridi);
             field kehe = opt(cmavo(Kehe).wf());
         }
-        build |connective, tense_modal, ke, trailing_subbridi, kehe| {
-            let marker = bityzba::new!(BridiStatementContinuationMarkerSyntax::KeGrouped {
-                ke,
-                kehe,
-            });
-            BridiStatementContinuationSyntax {
-                connective,
-                tense_modal,
-                marker,
-                trailing_subbridi,
-            }
-        };
     }
 
     node selbri_fragment(selbri) -> StatementSyntax {
@@ -675,9 +526,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field selbri = boxed(selbri);
         }
-        build |selbri| bityzba::new!(StatementSyntax::Fragment(Box::new(
-            bityzba::new!(FragmentSyntax::Selbri(selbri))
-        )));
     }
 
     node terms_fragment(term) -> StatementSyntax {
@@ -685,17 +533,10 @@ macro_rules! declare_generated_syntax_grammar {
         construct variant TermsFragment;
         model_variant Terms;
         fields {
-            scratch first_term = term;
-            scratch additional_terms = many(term);
-            let terms: Vec<TermSyntax> = std::iter::once(first_term).chain(additional_terms).collect();
+            #[tree_child(primary)]
+            field terms = many1(term);
             field vau = opt(cmavo(Vau).wf());
         }
-        build |first_term, additional_terms, vau| bityzba::new!(StatementSyntax::Fragment(Box::new(
-            bityzba::new!(FragmentSyntax::Terms {
-                terms: std::iter::once(first_term).chain(additional_terms).collect(),
-                vau,
-            })
-        )));
     }
 
     node mekso_fragment(mekso, letter_tokens) -> StatementSyntax {
@@ -705,11 +546,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field quantifier = boxed(quantifier(mekso, letter_tokens));
         }
-        build |quantifier| bityzba::new!(StatementSyntax::Fragment(Box::new(
-            bityzba::new!(FragmentSyntax::Mekso(Box::new(
-                bityzba::new!(MeksoSyntax::NumberMekso(quantifier))
-            )))
-        )));
     }
 
     alias relative_clause_list(sumti, subbridi, tense_modal) -> std::vec::Vec<RelativeClauseSyntax> {
@@ -727,9 +563,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field relative_clauses = relative_clause_list(sumti, subbridi, tense_modal);
         }
-        build |relative_clauses| bityzba::new!(StatementSyntax::Fragment(Box::new(
-            bityzba::new!(FragmentSyntax::RelativeClauses(relative_clauses))
-        )));
     }
 
     node linked_sumti_continuation_fragment(sumti, tense_modal) -> StatementSyntax {
@@ -739,9 +572,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field bei_links = many1(bei_link(sumti, tense_modal));
         }
-        build |bei_links| bityzba::new!(StatementSyntax::Fragment(Box::new(
-            bityzba::new!(FragmentSyntax::LinkedSumtiContinuation(bei_links))
-        )));
     }
 
     node linked_sumti_fragment(sumti, tense_modal) -> StatementSyntax {
@@ -751,24 +581,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field linkargs = linkargs(sumti, tense_modal);
         }
-        build |linkargs| {
-            let bityzba::data!(LinkedSumtiListSyntax {
-                be,
-                fa,
-                first_sumti,
-                bei_links,
-                beho,
-            }) = linkargs.into_data();
-            bityzba::new!(StatementSyntax::Fragment(Box::new(
-                bityzba::new!(FragmentSyntax::LinkedSumti {
-                    be,
-                    fa,
-                    first_sumti,
-                    bei_links,
-                    beho,
-                })
-            )))
-        };
     }
 
     alias bridi(term, selbri, subbridi, tense_modal, bridi_tail) -> BridiSyntax {
@@ -788,7 +600,7 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_terms = many1(term);
             field cu = opt(arc(cmavo(Cu).wf()));
             field bridi_tail = boxed(bridi_tail);
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
@@ -798,37 +610,37 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_terms = many1(term);
             field cu = some(arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf()));
             field bridi_tail = boxed(cu_terms_bridi_tail(term, bridi_tail));
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
     node bare_cu_bridi(bridi_tail) -> BridiSyntax {
         context "bridi";
         fields {
-            default leading_terms = Vec::new();
+            default leading_terms: Vec<TermSyntax> = Vec::new();
             field cu = some(arc(cmavo(Cu).wf()));
             field bridi_tail = boxed(bridi_tail);
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
     node bare_cu_terms_bridi(term, bridi_tail) -> BridiSyntax {
         context "bridi";
         fields {
-            default leading_terms = Vec::new();
+            default leading_terms: Vec<TermSyntax> = Vec::new();
             field cu = some(arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf()));
             field bridi_tail = boxed(cu_terms_bridi_tail(term, bridi_tail));
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
     node relation_only_bridi(bridi_tail) -> BridiSyntax {
         context "bridi";
         fields {
-            default leading_terms = Vec::new();
-            default cu = None;
+            default leading_terms: Vec<TermSyntax> = Vec::new();
+            default cu: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> = None;
             field bridi_tail = boxed(bridi_tail);
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
@@ -838,19 +650,6 @@ macro_rules! declare_generated_syntax_grammar {
             field terms = many1(term);
             field bridi_tail = boxed(bridi_tail);
         }
-        build |terms, bridi_tail| BridiTailSyntax {
-            first: Box::new(AfterthoughtBridiTailSyntax {
-                first: Box::new(BoGroupedBridiTailSyntax {
-                    first: Box::new(bityzba::new!(SimpleBridiTailSyntax::TermPrefixedBridiTail {
-                        terms,
-                        bridi_tail,
-                    })),
-                    bo_continuation: None,
-                }),
-                continuations: Vec::new(),
-            }),
-            ke_continuation: None,
-        };
     }
 
     alias bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> BridiTailSyntax {
@@ -953,9 +752,9 @@ macro_rules! declare_generated_syntax_grammar {
         construct variant SelbriBridiTail;
         fields {
             field selbri = boxed(selbri);
-            default terms = Vec::new();
+            default terms: Vec<TermSyntax> = Vec::new();
             field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
@@ -966,7 +765,7 @@ macro_rules! declare_generated_syntax_grammar {
             field selbri = boxed(selbri);
             field terms = many(term);
             field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
@@ -999,7 +798,7 @@ macro_rules! declare_generated_syntax_grammar {
             field gihi = opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
             field tail_terms = many(term);
             field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
@@ -1012,9 +811,9 @@ macro_rules! declare_generated_syntax_grammar {
             field gik = gik_connective;
             field second = boxed(subbridi);
             field gihi = opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
-            default tail_terms = Vec::new();
+            default tail_terms: Vec<TermSyntax> = Vec::new();
             field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
@@ -1068,7 +867,7 @@ macro_rules! declare_generated_syntax_grammar {
             field kehe = opt(arc(cmavo(Kehe).wf()));
             field tail_terms = many(term);
             field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
@@ -1082,7 +881,7 @@ macro_rules! declare_generated_syntax_grammar {
             field kehe = opt(arc(cmavo(Kehe).wf()));
             field tail_terms = many(term);
             field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
@@ -1094,9 +893,9 @@ macro_rules! declare_generated_syntax_grammar {
             field bo = cmavo(Bo).wf();
             field cu = opt(arc(cmavo(Cu).wf()));
             field bridi_tail = boxed(bo_grouped_bridi_tail_without_tail_terms);
-            default tail_terms = Vec::new();
-            default vau = None;
-            default free_modifiers = Vec::new();
+            default tail_terms: Vec<TermSyntax> = Vec::new();
+            default vau: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> = None;
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
@@ -1110,7 +909,7 @@ macro_rules! declare_generated_syntax_grammar {
             field bridi_tail = boxed(bo_grouped_bridi_tail);
             field tail_terms = many(term);
             field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
@@ -1119,12 +918,12 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             require (bridi_tail_connective, opt(boxed(tense_modal)), choice((cmavo(Bo), cmavo(Ke)))).not();
             field connective = bridi_tail_connective;
-            default tense_modal = None;
+            default tense_modal: Option<Box<TenseModalSyntax>> = None;
             field cu = opt(arc(cmavo(Cu).wf()));
             field bridi_tail = boxed(bo_grouped_bridi_tail_without_tail_terms);
-            default tail_terms = Vec::new();
-            default vau = None;
-            default free_modifiers = Vec::new();
+            default tail_terms: Vec<TermSyntax> = Vec::new();
+            default vau: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> = None;
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
@@ -1133,12 +932,12 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             require (bridi_tail_connective, opt(boxed(tense_modal)), choice((cmavo(Bo), cmavo(Ke)))).not();
             field connective = bridi_tail_connective;
-            default tense_modal = None;
+            default tense_modal: Option<Box<TenseModalSyntax>> = None;
             field cu = opt(arc(cmavo(Cu).wf()));
             field bridi_tail = boxed(bo_grouped_bridi_tail);
             field tail_terms = many(term);
             field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
@@ -1186,16 +985,6 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_term = boxed(pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term));
             field continuations = many1((cmavo(Pehe).wf(), statement_connective, boxed(pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term))));
         }
-        build |leading_term, continuations| {
-            continuations.into_iter().fold(*leading_term, |leading_term, ((pehe, connective), trailing_term)| {
-                bityzba::new!(TermSyntax::TermsetConnection {
-                    leading_terms: vec![leading_term],
-                    pehe,
-                    connective,
-                    trailing_terms: vec![*trailing_term],
-                })
-            })
-        };
     }
 
     alias pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term) -> TermSyntax {
@@ -1232,21 +1021,10 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_term = boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
             field connective = boxed(joik_ek_connective);
             field bo = cmavo(Bo).wf();
-            field post_bo_argument_gate = term_hierarchy_post_bo_argument_gate(sumti);
+            require term_hierarchy_post_bo_argument_gate(sumti);
             field trailing_term = boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
-            field post_bo_trailing_argument_gate = term_hierarchy_post_bo_argument_gate(sumti);
+            require term_hierarchy_post_bo_argument_gate(sumti);
         }
-        build |leading_term, connective, bo, post_bo_argument_gate, trailing_term, post_bo_trailing_argument_gate| {
-            let _ = post_bo_argument_gate;
-            let _ = post_bo_trailing_argument_gate;
-            bityzba::new!(TermSyntax::BoundTermConnection {
-                leading_terms: vec![*leading_term],
-                bo_connective: Some(connective),
-                tense_modal: None,
-                bo,
-                trailing_term,
-            })
-        };
     }
 
     product term_hierarchy_post_bo_argument_gate(sumti) -> () {
@@ -1280,15 +1058,6 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_term = boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
             field continuations = many((term_connective, boxed(simple_term(sumti, tense_modal, subbridi, selbri, term))));
         }
-        build |leading_term, continuations| {
-            continuations.into_iter().fold(*leading_term, |leading_term, (connective, trailing_term)| {
-                bityzba::new!(TermSyntax::TermConnection {
-                    leading_terms: vec![leading_term],
-                    connective,
-                    trailing_terms: vec![*trailing_term],
-                })
-            })
-        };
     }
 
     node termset_group(sumti, tense_modal, subbridi, selbri, term) -> TermSyntax {
@@ -1297,15 +1066,6 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_term = boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
             field continuations = many1((cmavo(Cehe).wf(), boxed(simple_term(sumti, tense_modal, subbridi, selbri, term))));
         }
-        build |leading_term, continuations| {
-            continuations.into_iter().fold(*leading_term, |leading_term, (cehe, trailing_term)| {
-                bityzba::new!(TermSyntax::TermsetGroup {
-                    leading_terms: vec![leading_term],
-                    cehe,
-                    trailing_terms: vec![*trailing_term],
-                })
-            })
-        };
     }
 
     node forethought_termset(term, tense_modal) -> TermSyntax {
@@ -1314,12 +1074,10 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field m_nuhi = opt(cmavo(Nuhi).wf());
             field gek = modal_forethought_connective(tense_modal);
-            scratch term_boxes = many1(boxed(term));
-            let terms = unbox_terms(term_boxes);
+            field terms = many1(boxed(term));
             field nuhu = opt(cmavo(Nuhu).wf());
             field gik = gik_connective;
-            scratch gik_term_boxes = many1(boxed(term));
-            let gik_terms = unbox_terms(gik_term_boxes);
+            field gik_terms = many1(boxed(term));
             field gihi = opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
             field gik_nuhu = opt(cmavo(Nuhu).wf());
         }
@@ -1327,25 +1085,21 @@ macro_rules! declare_generated_syntax_grammar {
 
     node nuhi_termset(term) -> TermSyntax {
         context "termset";
-        construct variant Termset;
+        construct variant NuhiTermset;
         fields {
             field nuhi = cmavo(Nuhi).wf();
-            scratch term_boxes = many1(boxed(term));
-            let termset = unbox_terms(term_boxes);
+            field termset = many1(boxed(term));
             field nuhu = opt(cmavo(Nuhu).wf());
         }
     }
 
     node ke_termset(term) -> TermSyntax {
         context "termset";
-        construct variant Termset;
+        construct variant KeTermset;
         fields {
-            scratch ke = cmavo(Ke).warn(ExperimentalKeTermset).wf();
-            let nuhi = ke;
-            scratch term_boxes = many1(boxed(term));
-            let termset = unbox_terms(term_boxes);
-            scratch kehe = opt(cmavo(Kehe).wf());
-            let nuhu = kehe;
+            field ke = cmavo(Ke).warn(ExperimentalKeTermset).wf();
+            field termset = many1(boxed(term));
+            field kehe = opt(cmavo(Kehe).wf());
         }
     }
 
@@ -1362,9 +1116,9 @@ macro_rules! declare_generated_syntax_grammar {
         construct variant BridiVariableAdverbialTerm;
         fields {
             field poiha = selmaho(Noiha).wf();
-            default tail_elements = Vec::new();
+            default tail_elements: Vec<DescriptionTailElementSyntax> = Vec::new();
             field selbri = some(boxed(selbri));
-            default relative_clauses = Vec::new();
+            default relative_clauses: Vec<RelativeClauseSyntax> = Vec::new();
             field brigahi_ku = cmavo(Ku).warn(ExperimentalZantufaPoihaBrigahi).wf();
         }
     }
@@ -1374,9 +1128,9 @@ macro_rules! declare_generated_syntax_grammar {
         construct variant RelativeAdverbialTerm;
         fields {
             field noiha = selmaho(Noiha).wf();
-            default tail_elements = Vec::new();
+            default tail_elements: Vec<DescriptionTailElementSyntax> = Vec::new();
             field selbri = some(boxed(selbri));
-            default relative_clauses = Vec::new();
+            default relative_clauses: Vec<RelativeClauseSyntax> = Vec::new();
             field fehu = opt(cmavo(Fehu).wf());
         }
     }
@@ -1418,7 +1172,7 @@ macro_rules! declare_generated_syntax_grammar {
                 sumti,
                 tagged_elided_sumti(),
             )));
-            default ku = None;
+            default ku: Option<WithFreeModifiers<Token, FreeModifierSyntax>> = None;
         }
     }
 
@@ -1495,16 +1249,6 @@ macro_rules! declare_generated_syntax_grammar {
             field tense_modal = boxed(leading_term_tag_tense_modal(tense_modal, selbri));
             require tense_modal.lookahead();
         }
-        build |tense_modal| {
-            bityzba::new!(TermSyntax::TaggedSumti {
-                tense_modal: Some(tense_modal),
-                sumti: Box::new(bityzba::new!(SumtiSyntax::ElidedSumti {
-                    tag: None,
-                    maybe_ku: None,
-                    free_modifiers: Vec::new(),
-                })),
-            })
-        };
     }
 
     node tagged_sumti_term(tense_modal, sumti, selbri) -> TermSyntax {
@@ -1542,12 +1286,6 @@ macro_rules! declare_generated_syntax_grammar {
             field nai = opt(cmavo(Nai).wf());
             field next = selmaho(Nahe).lookahead();
         }
-        build |pu, nai, next| {
-            let _ = next;
-            let mut parts = vec![pu];
-            parts.extend(nai);
-            composite_from_wf_tokens(parts)
-        };
     }
 
     node pu_distance_before_tag_leading_term_tag_tense -> TenseModalSyntax {
@@ -1558,13 +1296,6 @@ macro_rules! declare_generated_syntax_grammar {
             field distance = selmaho(Zi).wf();
             field next = selmaho(Zi).lookahead();
         }
-        build |pu, nai, distance, next| {
-            let _ = next;
-            let mut parts = vec![pu];
-            parts.extend(nai);
-            parts.push(distance);
-            composite_from_wf_tokens(parts)
-        };
     }
 
     node zi_before_zi_leading_term_tag_tense -> TenseModalSyntax {
@@ -1573,10 +1304,6 @@ macro_rules! declare_generated_syntax_grammar {
             field zi = selmaho(Zi).wf();
             field next = selmaho(Zi).lookahead();
         }
-        build |zi, next| {
-            let _ = next;
-            composite_from_wf_tokens(vec![zi])
-        };
     }
 
     node va_before_va_leading_term_tag_tense -> TenseModalSyntax {
@@ -1585,10 +1312,6 @@ macro_rules! declare_generated_syntax_grammar {
             field va = selmaho(Va).wf();
             field next = selmaho(Va).lookahead();
         }
-        build |va, next| {
-            let _ = next;
-            composite_from_wf_tokens(vec![va])
-        };
     }
 
     node mohi_before_mohi_leading_term_tag_tense -> TenseModalSyntax {
@@ -1600,13 +1323,6 @@ macro_rules! declare_generated_syntax_grammar {
             field distance = opt(selmaho(Va).wf());
             field next = selmaho(Mohi).lookahead();
         }
-        build |mohi, direction, nai, distance, next| {
-            let _ = next;
-            let mut parts = vec![mohi, direction];
-            parts.extend(nai);
-            parts.extend(distance);
-            composite_from_wf_tokens(parts)
-        };
     }
 
     node caha_before_tag_leading_term_tag_tense(tense_modal) -> TenseModalSyntax {
@@ -1681,9 +1397,9 @@ macro_rules! declare_generated_syntax_grammar {
         context "elided sumti";
         construct variant ElidedSumti;
         fields {
-            default tag = None;
+            default tag: Option<Box<SumtiTagSyntax>> = None;
             field maybe_ku = opt(cmavo(Ku).wf());
-            default free_modifiers = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
     }
 
@@ -1703,7 +1419,6 @@ macro_rules! declare_generated_syntax_grammar {
             field base_sumti = boxed(sumti_grouped);
             field vuho_attachment = opt(vuho_sumti_attachment_tail(sumti, subbridi, tense_modal));
         }
-        build |base_sumti, vuho_attachment| apply_vuho_sumti_attachment(base_sumti, vuho_attachment);
     }
 
     node sumti_grouped(sumti, sumti_afterthought, tense_modal) -> SumtiSyntax {
@@ -1712,7 +1427,6 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_sumti = boxed(sumti_afterthought);
             field grouped_tail = opt(grouped_sumti_tail(sumti, tense_modal));
         }
-        build |leading_sumti, grouped_tail| apply_grouped_sumti_tail(leading_sumti, grouped_tail);
     }
 
     node sumti_afterthought(sumti_bound) -> SumtiSyntax {
@@ -1721,7 +1435,6 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_sumti = boxed(sumti_bound);
             field continuations = many(sumti_afterthought_tail(sumti_bound));
         }
-        build |leading_sumti, continuations| apply_afterthought_sumti_tails(leading_sumti, continuations);
     }
 
     node sumti_bound(sumti_bound, sumti_forethought, tense_modal) -> SumtiSyntax {
@@ -1730,7 +1443,6 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_sumti = boxed(sumti_forethought);
             field bound_tail = opt(bound_sumti_tail(sumti_bound, tense_modal));
         }
-        build |leading_sumti, bound_tail| apply_bound_sumti_tail(leading_sumti, bound_tail);
     }
 
     alias sumti_forethought(sumti, sumti_forethought, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
@@ -1753,7 +1465,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    product bound_sumti_tail(sumti_bound, tense_modal) -> self::BoundSumtiTailSyntax {
+    product bound_sumti_tail(sumti_bound, tense_modal) -> BoundSumtiTailSyntax {
         context "sumti connection";
         construct direct;
         fields {
@@ -1773,7 +1485,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    product grouped_sumti_tail(sumti, tense_modal) -> self::GroupedSumtiTailSyntax {
+    product grouped_sumti_tail(sumti, tense_modal) -> GroupedSumtiTailSyntax {
         context "sumti connection";
         construct direct;
         fields {
@@ -1785,7 +1497,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias vuho_sumti_attachment_tail(sumti, subbridi, tense_modal) -> self::VuhoSumtiAttachmentSyntax {
+    alias vuho_sumti_attachment_tail(sumti, subbridi, tense_modal) -> VuhoSumtiAttachmentSyntax {
         context "sumti relative phrase";
         choice((
             vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal),
@@ -1793,7 +1505,7 @@ macro_rules! declare_generated_syntax_grammar {
         ));
     }
 
-    product vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal) -> self::VuhoSumtiAttachmentSyntax {
+    product vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal) -> VuhoSumtiAttachmentSyntax {
         context "sumti relative phrase";
         construct direct;
         fields {
@@ -1803,12 +1515,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    product vuho_connected_sumti_attachment_tail(sumti) -> self::VuhoSumtiAttachmentSyntax {
+    product vuho_connected_sumti_attachment_tail(sumti) -> VuhoSumtiAttachmentSyntax {
         context "sumti relative phrase";
         construct direct;
         fields {
             field vuho = cmavo(Vuho).wf();
-            default relative_clauses = Vec::new();
+            default relative_clauses: Vec<RelativeClauseSyntax> = Vec::new();
             field sumti_connection = some(boxed(sumti_connection_tail(sumti)));
         }
     }
@@ -1819,18 +1531,6 @@ macro_rules! declare_generated_syntax_grammar {
             field base_sumti = boxed(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens));
             field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
         }
-        build |base_sumti, relative_clauses| {
-            let relative_clauses = optional_relative_clause_list(relative_clauses);
-            if relative_clauses.is_empty() {
-                *base_sumti
-            } else {
-                bityzba::new!(SumtiSyntax::SumtiWithRelativeClauses {
-                    base_sumti,
-                    vuho: None,
-                    relative_clauses,
-                })
-            }
-        };
     }
 
     alias sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
@@ -1890,21 +1590,6 @@ macro_rules! declare_generated_syntax_grammar {
             field inner_sumti = boxed(sumti);
             field kehe = opt(cmavo(Kehe).wf());
         }
-        build |leading_sumti, connective, tense_modal, ke, inner_sumti, kehe| {
-            let connective = match tense_modal {
-                Some(tense_modal) => append_tense_modal_words_to_connective(connective, *tense_modal),
-                None => connective,
-            };
-            bityzba::new!(SumtiSyntax::SumtiConnection {
-                leading_sumti,
-                connective,
-                trailing_sumti: Box::new(bityzba::new!(SumtiSyntax::GroupedSumti {
-                    ke,
-                    inner_sumti,
-                    kehe,
-                })),
-            })
-        };
     }
 
     node sumti_with_relative_clauses(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
@@ -1912,10 +1597,10 @@ macro_rules! declare_generated_syntax_grammar {
         construct variant SumtiWithRelativeClauses;
         fields {
             field base_sumti = boxed(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens));
-            default vuho = None;
+            default vuho: Option<WithFreeModifiers<Token, FreeModifierSyntax>> = None;
             scratch first_relative_clause = relative_clause_atom(sumti, subbridi, tense_modal);
             scratch additional_relative_clauses = many(relative_clause_tail(sumti, subbridi, tense_modal));
-            let relative_clauses = std::iter::once(first_relative_clause)
+            let relative_clauses: Vec<RelativeClauseSyntax> = std::iter::once(first_relative_clause)
                 .chain(additional_relative_clauses)
                 .collect();
         }
@@ -1932,29 +1617,6 @@ macro_rules! declare_generated_syntax_grammar {
             field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
             field sumti_connection = opt(sumti_connection_tail(sumti));
         }
-        build |base_sumti, vuho, relative_clauses, sumti_connection| {
-            let relative_clauses: Vec<RelativeClauseSyntax> = relative_clauses
-                .map(|(first_relative_clause, additional_relative_clauses)| {
-                    std::iter::once(first_relative_clause)
-                        .chain(additional_relative_clauses)
-                        .collect()
-                })
-                .unwrap_or_default();
-            if !relative_clauses.is_empty() && sumti_connection.is_none() {
-                bityzba::new!(SumtiSyntax::SumtiWithRelativeClauses {
-                    base_sumti,
-                    vuho: Some(vuho),
-                    relative_clauses,
-                })
-            } else {
-                bityzba::new!(SumtiSyntax::SumtiWithComplexRelativeClauses {
-                    base_sumti,
-                    vuho_marker: vuho,
-                    relative_clauses,
-                    sumti_connection: sumti_connection.map(Box::new),
-                })
-            }
-        };
     }
 
     node sumti_connection_tail(sumti) -> SumtiConnectionSyntax {
@@ -1971,7 +1633,7 @@ macro_rules! declare_generated_syntax_grammar {
         construct variant NumberQuantifier;
         fields {
             scratch number_words = number_words(letter_tokens).wf();
-            let number = WithFreeModifiers::new(
+            let number: WithFreeModifiers<WordRun, FreeModifierSyntax> = WithFreeModifiers::new(
                 WordRun::try_from_vec(number_words.value).expect("many1 guarantees non-empty number words"),
                 number_words.free_modifiers,
             );
@@ -2028,15 +1690,6 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_operator = boxed(bound_or_atom_mekso_operator(mekso, mekso_operator, selbri));
             field continuations = many((standard_statement_connective, boxed(bound_or_atom_mekso_operator(mekso, mekso_operator, selbri))));
         }
-        build |leading_operator, continuations| {
-            continuations.into_iter().fold(*leading_operator, |left_operator, (connective, right_operator)| {
-                bityzba::new!(MeksoOperatorSyntax::OperatorConnection {
-                    left_operator: Box::new(left_operator),
-                    connective,
-                    right_operator,
-                })
-            })
-        };
     }
 
     alias bound_or_atom_mekso_operator(mekso, mekso_operator, selbri) -> MeksoOperatorSyntax {
@@ -2097,13 +1750,6 @@ macro_rules! declare_generated_syntax_grammar {
             field gik = gik_connective;
             field right_operator = boxed(mekso_operator);
         }
-        build |guhek, left_operator, gik, right_operator| {
-            bityzba::new!(MeksoOperatorSyntax::OperatorConnection {
-                left_operator,
-                connective: append_connective_words(guhek, gik.words()),
-                right_operator,
-            })
-        };
     }
 
     node grouped_mekso_operator(mekso_operator) -> MeksoOperatorSyntax {
@@ -2151,15 +1797,6 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_expression = boxed(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
             field continuations = many((operand_connective, boxed(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier))));
         }
-        build |leading_expression, continuations| {
-            continuations.into_iter().fold(*leading_expression, |left_expression, (connective, right_expression)| {
-                bityzba::new!(MeksoSyntax::MeksoConnection {
-                    left_expression: Box::new(left_expression),
-                    connective,
-                    right_expression,
-                })
-            })
-        };
     }
 
     alias bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> MeksoSyntax {
@@ -2172,13 +1809,12 @@ macro_rules! declare_generated_syntax_grammar {
 
     node bound_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> MeksoSyntax {
         context "operand connective";
-        construct variant MeksoConnection;
+        construct variant BoundMeksoOperandConnection;
         fields {
             field left_expression = boxed(simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
-            scratch operand_connective = operand_connective;
-            scratch tense_modal = opt(boxed(tense_modal));
-            scratch bo = cmavo(Bo).wf();
-            let connective = append_optional_tense_modal_and_bo_to_connective(operand_connective, tense_modal, bo);
+            field operand_connective = operand_connective;
+            field tense_modal = opt(boxed(tense_modal));
+            field bo = cmavo(Bo).wf();
             field right_expression = boxed(mekso_operand);
         }
     }
@@ -2203,7 +1839,7 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             scratch nahe = selmaho(Nahe);
             scratch bo = cmavo(Bo);
-            let markers = WithFreeModifiers::new(vec![nahe, bo], Vec::new());
+            let markers: WithFreeModifiers<Vec<Token>, FreeModifierSyntax> = WithFreeModifiers::new(vec![nahe, bo], Vec::new());
             field inner_expression = boxed(mekso_operand);
             field luhu = opt(cmavo(Luhu).wf());
         }
@@ -2256,7 +1892,7 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field johi = cmavo(Johi).wf();
             scratch expression_items = many1(mekso);
-            let expressions = MeksoVec::try_from_vec(expression_items)
+            let expressions: MeksoVec = MeksoVec::try_from_vec(expression_items)
                 .expect("many1 guarantees non-empty mex array");
             field tehu = opt(cmavo(Tehu).wf());
         }
@@ -2299,18 +1935,6 @@ macro_rules! declare_generated_syntax_grammar {
             field boi = opt(cmavo(Boi));
             field free_modifiers = many(free_modifier);
         }
-        build |words, boi, free_modifiers| {
-            let (number_free_modifiers, boi) = attach_free_modifiers_to_optional_terminator(boi, free_modifiers);
-            bityzba::new!(MeksoSyntax::NumberMekso(Box::new(
-                bityzba::new!(QuantifierSyntax::NumberQuantifier {
-                    number: WithFreeModifiers::new(
-                        WordRun::try_from_vec(words).expect("number-or-letter words guarantee non-empty word run"),
-                        number_free_modifiers,
-                    ),
-                    boi,
-                })
-            )))
-        };
     }
 
     alias letter_tokens(letter_string, letter_tokens) -> std::vec::Vec<Token> {
@@ -2337,19 +1961,12 @@ macro_rules! declare_generated_syntax_grammar {
         prepend(selmaho(Lau), letter_tokens);
     }
 
-    product tei_letter_tokens(letter_string) -> std::vec::Vec<Token> {
+    alias tei_letter_tokens(letter_string) -> std::vec::Vec<Token> {
         context "lerfu word";
-        fields {
-            field tei = cmavo(Tei);
-            field inner = letter_string;
-            field foi = cmavo(Foi);
-        }
-        build |tei, inner, foi| {
-            let mut words = vec![tei];
-            words.extend(inner);
-            words.push(foi);
-            words
-        };
+        prepend(
+            cmavo(Tei),
+            append(letter_string, singleton(cmavo(Foi))),
+        );
     }
 
     node lerfu_string_mekso(letter_string, free_modifier) -> MeksoSyntax {
@@ -2359,14 +1976,6 @@ macro_rules! declare_generated_syntax_grammar {
             field boi = opt(cmavo(Boi));
             field free_modifiers = many(free_modifier);
         }
-        build |letters, boi, free_modifiers| {
-            let (letter_free_modifiers, boi) = attach_free_modifiers_to_optional_terminator(boi, free_modifiers);
-            let letter = WithFreeModifiers::new(
-                WordRun::try_from_vec(letters).expect("first lerfu word guarantees non-empty lerfu string"),
-                letter_free_modifiers,
-            );
-            bityzba::new!(MeksoSyntax::LerfuStringMekso { letter, boi })
-        };
     }
 
     alias mekso_base(mekso_base, mekso_operand, mekso_operator) -> MeksoSyntax {
@@ -2383,18 +1992,6 @@ macro_rules! declare_generated_syntax_grammar {
             field left_expression = boxed(mekso_base);
             field tail = opt((cmavo(Bihe).wf(), boxed(mekso_operator), boxed(mekso_precedence)));
         }
-        build |left_expression, tail| {
-            if let Some(((bihe, operator), right_expression)) = tail {
-                bityzba::new!(MeksoSyntax::PrecedenceInfix {
-                    left_expression,
-                    bihe,
-                    operator,
-                    right_expression,
-                })
-            } else {
-                *left_expression
-            }
-        };
     }
 
     node infix_mekso(mekso_base, mekso_precedence, mekso_operator) -> MeksoSyntax {
@@ -2403,15 +2000,6 @@ macro_rules! declare_generated_syntax_grammar {
             field first_expression = boxed(mekso_precedence(mekso_base, mekso_precedence, mekso_operator));
             field continuations = many((boxed(mekso_operator), boxed(mekso_precedence)));
         }
-        build |first_expression, continuations| {
-            continuations.into_iter().fold(*first_expression, |left_expression, (operator, right_expression)| {
-                bityzba::new!(MeksoSyntax::Infix {
-                    left_expression: Box::new(left_expression),
-                    operator,
-                    right_expression,
-                })
-            })
-        };
     }
 
     node forethought_call_mekso(mekso_base, mekso_operator) -> MeksoSyntax {
@@ -2433,39 +2021,21 @@ macro_rules! declare_generated_syntax_grammar {
         ));
     }
 
-    product reverse_polish_parts(reverse_polish_parts, mekso_operand, mekso_operator) -> self::ReversePolishPartsSyntax {
+    product reverse_polish_parts(reverse_polish_parts, mekso_operand, mekso_operator) -> ReversePolishPartsSyntax {
         context "reverse Polish mex";
         fields {
-            field first_operand = mekso_operand;
-            field tails = many((reverse_polish_parts, mekso_operator));
+            field first_operand = boxed(mekso_operand);
+            field tails = many((boxed(reverse_polish_parts), mekso_operator));
         }
-        build |first_operand, tails| {
-            let mut operands = vec![first_operand];
-            let mut operators = Vec::new();
-            for (tail_parts, operator) in tails {
-                let mut tail_data = tail_parts.into_data();
-                operands.append(&mut tail_data.operands);
-                operators.append(&mut tail_data.operators);
-                operators.push(operator);
-            }
-            bityzba::new!(ReversePolishPartsSyntax { operands, operators })
-        };
     }
 
     node reverse_polish_mekso(reverse_polish_parts) -> MeksoSyntax {
         context "reverse Polish mex";
+        construct variant ReversePolish;
         fields {
             field fuha = cmavo(Fuha).wf();
-            field parts = reverse_polish_parts;
+            field parts = boxed(reverse_polish_parts);
         }
-        build |fuha, parts| {
-            let bityzba::data!(ReversePolishPartsSyntax { operands, operators }) = parts.into_data();
-            bityzba::new!(MeksoSyntax::ReversePolish {
-                fuha,
-                operands,
-                operators,
-            })
-        };
     }
 
     node number_sumti(mekso) -> SumtiSyntax {
@@ -2487,14 +2057,6 @@ macro_rules! declare_generated_syntax_grammar {
             field boi = opt(cmavo(Boi));
             field free_modifiers = many(free_modifier);
         }
-        build |words, boi, free_modifiers| {
-            let (letter_free_modifiers, boi) = attach_free_modifiers_to_optional_terminator(boi, free_modifiers);
-            let letter = WithFreeModifiers::new(
-                WordRun::try_from_vec(words).expect("first letter guarantees non-empty lerfu words"),
-                letter_free_modifiers,
-            );
-            bityzba::new!(SumtiSyntax::LerfuStringSumti { letter, boi })
-        };
     }
 
     node lahe_sumti(sumti, subbridi, tense_modal) -> SumtiSyntax {
@@ -2502,8 +2064,7 @@ macro_rules! declare_generated_syntax_grammar {
         construct variant ReferentSumti;
         fields {
             field lahe = selmaho(Lahe).wf();
-            scratch relative_clause_parts = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-            let relative_clauses = optional_relative_clause_list(relative_clause_parts);
+            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
             field inner_sumti = boxed(sumti);
             field luhu = opt(cmavo(Luhu).wf());
         }
@@ -2513,9 +2074,9 @@ macro_rules! declare_generated_syntax_grammar {
         context "converted term";
         construct variant QualifiedTerm;
         fields {
-            let term_wrapper_kind = SumtiWrapperKindSyntax::Referent;
+            let term_wrapper_kind: SumtiWrapperKindSyntax = SumtiWrapperKindSyntax::Referent;
             field wrapper = selmaho(Lahe).wf();
-            default wrapper_bo = None;
+            default wrapper_bo: Option<WithFreeModifiers<Token, FreeModifierSyntax>> = None;
             field inner_term = boxed(term);
             field luhu = opt(cmavo(Luhu).wf());
         }
@@ -2525,9 +2086,9 @@ macro_rules! declare_generated_syntax_grammar {
         context "scalar-negated term";
         construct variant QualifiedTerm;
         fields {
-            let term_wrapper_kind = SumtiWrapperKindSyntax::ScalarNegationWithBo;
+            let term_wrapper_kind: SumtiWrapperKindSyntax = SumtiWrapperKindSyntax::ScalarNegationWithBo;
             scratch raw_wrapper = selmaho(Nahe);
-            let wrapper = WithFreeModifiers::new(raw_wrapper, Vec::new());
+            let wrapper: WithFreeModifiers<Token, FreeModifierSyntax> = WithFreeModifiers::new(raw_wrapper, Vec::new());
             field wrapper_bo = some(cmavo(Bo).wf());
             field inner_term = boxed(term);
             field luhu = opt(cmavo(Luhu).wf());
@@ -2538,9 +2099,9 @@ macro_rules! declare_generated_syntax_grammar {
         context "scalar-negated term";
         construct variant QualifiedTerm;
         fields {
-            let term_wrapper_kind = SumtiWrapperKindSyntax::ScalarNegation;
+            let term_wrapper_kind: SumtiWrapperKindSyntax = SumtiWrapperKindSyntax::ScalarNegation;
             field wrapper = selmaho(Nahe).wf();
-            default wrapper_bo = None;
+            default wrapper_bo: Option<WithFreeModifiers<Token, FreeModifierSyntax>> = None;
             field inner_term = boxed(term);
             field luhu = opt(cmavo(Luhu).wf());
         }
@@ -2591,13 +2152,6 @@ macro_rules! declare_generated_syntax_grammar {
             field la = selmaho(La).wf();
             field names = many1(cmevla_word()).wf();
         }
-        build |la, names| {
-            let names = WithFreeModifiers::new(
-                WordRun::try_from_vec(names.value).expect("many1 guarantees non-empty name words"),
-                names.free_modifiers,
-            );
-            bityzba::new!(SumtiSyntax::NameDescription { la, names })
-        };
     }
 
     alias description_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> SumtiSyntax {
@@ -2615,7 +2169,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field description = choice((selmaho(Le), selmaho(La))).wf();
         }
-        build |description| bityzba::new!(DescriptionHeadSyntax { description });
     }
 
     node description_head_connective -> ConnectiveSyntax {
@@ -2624,17 +2177,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field connective = boxed(jek_connective);
         }
-        build |connective| {
-            let ConnectiveSyntaxParts {
-                kind: _,
-                se,
-                nahe,
-                na,
-                cmavo,
-                nai,
-            } = (*connective).into_parts();
-            ConnectiveSyntax::new(ConnectiveKind::Afterthought, se, nahe, na, cmavo, nai)
-        };
     }
 
     node description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> SumtiSyntax {
@@ -2646,24 +2188,6 @@ macro_rules! declare_generated_syntax_grammar {
             field tail = description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens);
             field ku = opt(cmavo(Ku).wf());
         }
-        build |leading_description_head, connective, trailing_description_head, tail, ku| {
-            let DescriptionTailSyntax {
-                tail_elements,
-                selbri,
-                relative_clauses,
-            } = tail;
-            bityzba::new!(SumtiSyntax::DescriptionConnection(Box::new(
-                bityzba::new!(DescriptionConnectionSyntax {
-                    leading_description_head,
-                    connective,
-                    trailing_description_head,
-                    tail_elements,
-                    selbri,
-                    relative_clauses,
-                    ku,
-                })
-            )))
-        };
     }
 
     node descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> SumtiSyntax {
@@ -2673,24 +2197,6 @@ macro_rules! declare_generated_syntax_grammar {
             field tail = description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens);
             field ku = opt(cmavo(Ku).wf());
         }
-        build |description, tail, ku| {
-            let bityzba::data!(DescriptionHeadSyntax { description }) = description.into_data();
-            let DescriptionTailSyntax {
-                tail_elements,
-                selbri,
-                relative_clauses,
-            } = tail;
-            bityzba::new!(SumtiSyntax::Description(Box::new(
-                bityzba::new!(DescriptionSyntax {
-                    outer_quantifier: None,
-                    description: Some(description),
-                    tail_elements,
-                    selbri,
-                    relative_clauses,
-                    ku,
-                })
-            )))
-        };
     }
 
     node descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> SumtiSyntax {
@@ -2701,24 +2207,6 @@ macro_rules! declare_generated_syntax_grammar {
             field tail = description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens);
             field ku = opt(cmavo(Ku).wf());
         }
-        build |outer_quantifier, description, tail, ku| {
-            let bityzba::data!(DescriptionHeadSyntax { description }) = description.into_data();
-            let DescriptionTailSyntax {
-                tail_elements,
-                selbri,
-                relative_clauses,
-            } = tail;
-            bityzba::new!(SumtiSyntax::Description(Box::new(
-                bityzba::new!(DescriptionSyntax {
-                    outer_quantifier: Some(Box::new(outer_quantifier)),
-                    description: Some(description),
-                    tail_elements,
-                    selbri,
-                    relative_clauses,
-                    ku,
-                })
-            )))
-        };
     }
 
     node descriptor_without_gadri_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
@@ -2729,89 +2217,45 @@ macro_rules! declare_generated_syntax_grammar {
             field selbri = boxed(selbri);
             field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
         }
-        build |quantifier, selbri, relative_clauses| {
-            bityzba::new!(SumtiSyntax::Description(Box::new(
-                bityzba::new!(DescriptionSyntax {
-                    outer_quantifier: None,
-                    description: None,
-                    tail_elements: vec![bityzba::new!(DescriptionTailElementSyntax::DescriptionTailQuantifier(
-                        quantifier
-                    ))],
-                    selbri: Some(selbri),
-                    relative_clauses: optional_relative_clause_list(relative_clauses),
-                    ku: None,
-                })
-            )))
-        };
     }
 
-    product description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens) -> self::DescriptionTailSyntax {
+    product description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens) -> DescriptionTailSyntax {
         context "description tail";
         fields {
             field leading_tail_elements = leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal);
-            field tail = choice((
+            field tail = boxed(choice((
                 quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens),
                 quantifier_sumti_description_tail(sumti, mekso, letter_tokens),
                 relation_description_tail(sumti, subbridi, selbri, tense_modal),
-            ));
+            )));
         }
-        build |leading_tail_elements, tail| {
-            let mut leading_tail_elements = leading_tail_elements;
-            let DescriptionTailSyntax {
-                tail_elements,
-                selbri,
-                relative_clauses,
-            } = tail;
-            leading_tail_elements.extend(tail_elements);
-            DescriptionTailSyntax {
-                tail_elements: leading_tail_elements,
-                selbri,
-                relative_clauses,
-            }
-        };
     }
 
-    product leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal) -> std::vec::Vec<DescriptionTailElementSyntax> {
+    product leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal) -> LeadingDescriptionTailElementsSyntax {
         context "description tail";
         fields {
             field tail_sumti = opt(description_tail_sumti(sumti_base));
             field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
         }
-        build |tail_sumti, relative_clauses| {
-            let mut tail_elements = tail_sumti.unwrap_or_default();
-            let relative_clauses = optional_relative_clause_list(relative_clauses);
-            if !relative_clauses.is_empty() {
-                tail_elements.push(bityzba::new!(
-                    DescriptionTailElementSyntax::DescriptionTailRelativeClauses(relative_clauses)
-                ));
-            }
-            tail_elements
-        };
     }
 
-    product description_tail_sumti(sumti_base) -> std::vec::Vec<DescriptionTailElementSyntax> {
+    product description_tail_sumti(sumti_base) -> DescriptionTailSumtiSyntax {
         context "description tail";
         fields {
             require pa_word().not();
             field sumti = boxed(sumti_base);
         }
-        build |sumti| description_tail_sumti_elements(sumti);
     }
 
-    product relation_description_tail(sumti, subbridi, selbri, tense_modal) -> self::DescriptionTailSyntax {
+    product relation_description_tail(sumti, subbridi, selbri, tense_modal) -> DescriptionTailSyntax {
         context "description tail";
         fields {
             field selbri = boxed(selbri);
             field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
         }
-        build |selbri, relative_clauses| DescriptionTailSyntax {
-            tail_elements: Vec::new(),
-            selbri: Some(selbri),
-            relative_clauses: optional_relative_clause_list(relative_clauses),
-        };
     }
 
-    product quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> self::DescriptionTailSyntax {
+    product quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> DescriptionTailSyntax {
         context "description tail";
         fields {
             field quantifier = quantifier(mekso, letter_tokens);
@@ -2819,31 +2263,14 @@ macro_rules! declare_generated_syntax_grammar {
             field selbri = boxed(selbri);
             field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
         }
-        build |quantifier, selbri, relative_clauses| {
-            DescriptionTailSyntax {
-                tail_elements: vec![bityzba::new!(
-                    DescriptionTailElementSyntax::DescriptionTailQuantifier(quantifier)
-                )],
-                selbri: Some(selbri),
-                relative_clauses: optional_relative_clause_list(relative_clauses),
-            }
-        };
     }
 
-    product quantifier_sumti_description_tail(sumti, mekso, letter_tokens) -> self::DescriptionTailSyntax {
+    product quantifier_sumti_description_tail(sumti, mekso, letter_tokens) -> DescriptionTailSyntax {
         context "description tail";
         fields {
             field quantifier = quantifier(mekso, letter_tokens);
             field sumti = boxed(sumti);
         }
-        build |quantifier, sumti| DescriptionTailSyntax {
-            tail_elements: vec![
-                bityzba::new!(DescriptionTailElementSyntax::DescriptionTailQuantifier(quantifier)),
-                bityzba::new!(DescriptionTailElementSyntax::DescriptionTailSumti(sumti)),
-            ],
-            selbri: None,
-            relative_clauses: Vec::new(),
-        };
     }
 
     node relative_tail_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
@@ -2857,37 +2284,6 @@ macro_rules! declare_generated_syntax_grammar {
             field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
             field ku = opt(cmavo(Ku).wf());
         }
-        build |description, first_relative_clause, additional_relative_clauses, tail_quantifier, selbri, relative_clauses, ku| {
-            let mut tail_elements = vec![bityzba::new!(
-                DescriptionTailElementSyntax::DescriptionTailRelativeClauses(
-                    std::iter::once(first_relative_clause)
-                        .chain(additional_relative_clauses)
-                        .collect()
-                )
-            )];
-            tail_elements.extend(tail_quantifier.into_iter().map(|tail_quantifier| {
-                bityzba::new!(DescriptionTailElementSyntax::DescriptionTailQuantifier(
-                    tail_quantifier
-                ))
-            }));
-            let relative_clauses: Vec<RelativeClauseSyntax> = relative_clauses
-                .map(|(first_relative_clause, additional_relative_clauses)| {
-                    std::iter::once(first_relative_clause)
-                        .chain(additional_relative_clauses)
-                        .collect()
-                })
-                .unwrap_or_default();
-            bityzba::new!(SumtiSyntax::Description(Box::new(
-                bityzba::new!(DescriptionSyntax {
-                    outer_quantifier: None,
-                    description: Some(description),
-                    tail_elements,
-                    selbri: Some(selbri),
-                    relative_clauses,
-                    ku,
-                })
-            )))
-        };
     }
 
     node outer_quantified_relative_tail_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
@@ -2902,37 +2298,6 @@ macro_rules! declare_generated_syntax_grammar {
             field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
             field ku = opt(cmavo(Ku).wf());
         }
-        build |outer_quantifier, description, first_relative_clause, additional_relative_clauses, tail_quantifier, selbri, relative_clauses, ku| {
-            let mut tail_elements = vec![bityzba::new!(
-                DescriptionTailElementSyntax::DescriptionTailRelativeClauses(
-                    std::iter::once(first_relative_clause)
-                        .chain(additional_relative_clauses)
-                        .collect()
-                )
-            )];
-            tail_elements.extend(tail_quantifier.into_iter().map(|tail_quantifier| {
-                bityzba::new!(DescriptionTailElementSyntax::DescriptionTailQuantifier(
-                    tail_quantifier
-                ))
-            }));
-            let relative_clauses: Vec<RelativeClauseSyntax> = relative_clauses
-                .map(|(first_relative_clause, additional_relative_clauses)| {
-                    std::iter::once(first_relative_clause)
-                        .chain(additional_relative_clauses)
-                        .collect()
-                })
-                .unwrap_or_default();
-            bityzba::new!(SumtiSyntax::Description(Box::new(
-                bityzba::new!(DescriptionSyntax {
-                    outer_quantifier: Some(Box::new(outer_quantifier)),
-                    description: Some(description),
-                    tail_elements,
-                    selbri: Some(selbri),
-                    relative_clauses,
-                    ku,
-                })
-            )))
-        };
     }
 
     node sumti_tail_relation_description_sumti(sumti, subbridi, selbri, tense_modal) -> SumtiSyntax {
@@ -2945,25 +2310,6 @@ macro_rules! declare_generated_syntax_grammar {
             field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
             field ku = opt(cmavo(Ku).wf());
         }
-        build |description, tail_sumti, selbri, relative_clauses, ku| {
-            let relative_clauses: Vec<RelativeClauseSyntax> = relative_clauses
-                .map(|(first_relative_clause, additional_relative_clauses)| {
-                    std::iter::once(first_relative_clause)
-                        .chain(additional_relative_clauses)
-                        .collect()
-                })
-                .unwrap_or_default();
-            bityzba::new!(SumtiSyntax::Description(Box::new(
-                bityzba::new!(DescriptionSyntax {
-                    outer_quantifier: None,
-                    description: Some(description),
-                    tail_elements: description_tail_sumti_elements(tail_sumti),
-                    selbri: Some(selbri),
-                    relative_clauses,
-                    ku,
-                })
-            )))
-        };
     }
 
     node sumti_tail_description_sumti(sumti, mekso, letter_tokens) -> SumtiSyntax {
@@ -2974,25 +2320,6 @@ macro_rules! declare_generated_syntax_grammar {
             field tail_sumti = boxed(sumti);
             field ku = opt(cmavo(Ku).wf());
         }
-        build |description, tail_quantifier, tail_sumti, ku| {
-            bityzba::new!(SumtiSyntax::Description(Box::new(
-                bityzba::new!(DescriptionSyntax {
-                    outer_quantifier: None,
-                    description: Some(description),
-                    tail_elements: vec![
-                        bityzba::new!(DescriptionTailElementSyntax::DescriptionTailQuantifier(
-                            tail_quantifier
-                        )),
-                        bityzba::new!(DescriptionTailElementSyntax::DescriptionTailSumti(
-                            tail_sumti
-                        )),
-                    ],
-                    selbri: None,
-                    relative_clauses: Vec::new(),
-                    ku,
-                })
-            )))
-        };
     }
 
     node tail_quantified_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
@@ -3004,27 +2331,6 @@ macro_rules! declare_generated_syntax_grammar {
             field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
             field ku = opt(cmavo(Ku).wf());
         }
-        build |description, tail_quantifier, selbri, relative_clauses, ku| {
-            let relative_clauses: Vec<RelativeClauseSyntax> = relative_clauses
-                .map(|(first_relative_clause, additional_relative_clauses)| {
-                    std::iter::once(first_relative_clause)
-                        .chain(additional_relative_clauses)
-                        .collect()
-                })
-                .unwrap_or_default();
-            bityzba::new!(SumtiSyntax::Description(Box::new(
-                bityzba::new!(DescriptionSyntax {
-                    outer_quantifier: None,
-                    description: Some(description),
-                    tail_elements: vec![bityzba::new!(DescriptionTailElementSyntax::DescriptionTailQuantifier(
-                        tail_quantifier
-                    ))],
-                    selbri: Some(selbri),
-                    relative_clauses,
-                    ku,
-                })
-            )))
-        };
     }
 
     node gadri_elided_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
@@ -3035,27 +2341,6 @@ macro_rules! declare_generated_syntax_grammar {
             field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
             field ku = opt(cmavo(Ku).wf());
         }
-        build |tail_quantifier, selbri, relative_clauses, ku| {
-            let relative_clauses: Vec<RelativeClauseSyntax> = relative_clauses
-                .map(|(first_relative_clause, additional_relative_clauses)| {
-                    std::iter::once(first_relative_clause)
-                        .chain(additional_relative_clauses)
-                        .collect()
-                })
-                .unwrap_or_default();
-            bityzba::new!(SumtiSyntax::Description(Box::new(
-                bityzba::new!(DescriptionSyntax {
-                    outer_quantifier: None,
-                    description: None,
-                    tail_elements: vec![bityzba::new!(DescriptionTailElementSyntax::DescriptionTailQuantifier(
-                        tail_quantifier
-                    ))],
-                    selbri: Some(selbri),
-                    relative_clauses,
-                    ku,
-                })
-            )))
-        };
     }
 
     node simple_description_sumti(sumti, subbridi, selbri, tense_modal) -> SumtiSyntax {
@@ -3066,25 +2351,6 @@ macro_rules! declare_generated_syntax_grammar {
             field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
             field ku = opt(cmavo(Ku).wf());
         }
-        build |description, selbri, relative_clauses, ku| {
-            let relative_clauses: Vec<RelativeClauseSyntax> = relative_clauses
-                .map(|(first_relative_clause, additional_relative_clauses)| {
-                    std::iter::once(first_relative_clause)
-                        .chain(additional_relative_clauses)
-                        .collect()
-                })
-                .unwrap_or_default();
-            bityzba::new!(SumtiSyntax::Description(Box::new(
-                bityzba::new!(DescriptionSyntax {
-                    outer_quantifier: None,
-                    description: Some(description),
-                    tail_elements: Vec::new(),
-                    selbri: Some(selbri),
-                    relative_clauses,
-                    ku,
-                })
-            )))
-        };
     }
 
     node outer_quantified_sumti_tail_description_sumti(sumti, mekso, letter_tokens) -> SumtiSyntax {
@@ -3096,25 +2362,6 @@ macro_rules! declare_generated_syntax_grammar {
             field tail_sumti = boxed(sumti);
             field ku = opt(cmavo(Ku).wf());
         }
-        build |outer_quantifier, description, tail_quantifier, tail_sumti, ku| {
-            bityzba::new!(SumtiSyntax::Description(Box::new(
-                bityzba::new!(DescriptionSyntax {
-                    outer_quantifier: Some(Box::new(outer_quantifier)),
-                    description: Some(description),
-                    tail_elements: vec![
-                        bityzba::new!(DescriptionTailElementSyntax::DescriptionTailQuantifier(
-                            tail_quantifier
-                        )),
-                        bityzba::new!(DescriptionTailElementSyntax::DescriptionTailSumti(
-                            tail_sumti
-                        )),
-                    ],
-                    selbri: None,
-                    relative_clauses: Vec::new(),
-                    ku,
-                })
-            )))
-        };
     }
 
     node outer_quantified_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
@@ -3127,33 +2374,6 @@ macro_rules! declare_generated_syntax_grammar {
             field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
             field ku = opt(cmavo(Ku).wf());
         }
-        build |outer_quantifier, description, tail_quantifier, selbri, relative_clauses, ku| {
-            let relative_clauses: Vec<RelativeClauseSyntax> = relative_clauses
-                .map(|(first_relative_clause, additional_relative_clauses)| {
-                    std::iter::once(first_relative_clause)
-                        .chain(additional_relative_clauses)
-                        .collect()
-                })
-                .unwrap_or_default();
-            let tail_elements = tail_quantifier
-                .into_iter()
-                .map(|tail_quantifier| {
-                    bityzba::new!(DescriptionTailElementSyntax::DescriptionTailQuantifier(
-                        tail_quantifier
-                    ))
-                })
-                .collect();
-            bityzba::new!(SumtiSyntax::Description(Box::new(
-                bityzba::new!(DescriptionSyntax {
-                    outer_quantifier: Some(Box::new(outer_quantifier)),
-                    description: Some(description),
-                    tail_elements,
-                    selbri: Some(selbri),
-                    relative_clauses,
-                    ku,
-                })
-            )))
-        };
     }
 
     node text_quote(text) -> QuoteSyntax {
@@ -3230,22 +2450,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field quote = word_category(Quote).wf();
         }
-        build |quote| {
-            let variant = match quote.value.core_word().as_data() {
-                bityzba::data!(jbotci_morphology::WordLike::QuotedWord { .. }) => 0,
-                bityzba::data!(jbotci_morphology::WordLike::DelimitedWordQuote { .. }) => 1,
-                bityzba::data!(jbotci_morphology::WordLike::DelimitedNonLojbanQuote { .. }) => 2,
-                bityzba::data!(jbotci_morphology::WordLike::QuotedWords { .. }) => 3,
-                _ => unreachable!("quote word category guarantees a compound quote token"),
-            };
-            match variant {
-                0 => bityzba::new!(QuoteSyntax::WordQuote(quote)),
-                1 => bityzba::new!(QuoteSyntax::DelimitedWordQuote(quote)),
-                2 => bityzba::new!(QuoteSyntax::DelimitedNonLojbanQuote(quote)),
-                3 => bityzba::new!(QuoteSyntax::WordsQuote(quote)),
-                _ => unreachable!("quote variant is exhaustive"),
-            }
-        };
     }
 
     node compound_quote_sumti -> SumtiSyntax {
@@ -3263,11 +2467,6 @@ macro_rules! declare_generated_syntax_grammar {
             field selbri = boxed(selbri);
             field trailing_relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
         }
-        build |leading_relative_clauses, selbri, trailing_relative_clauses| bityzba::new!(SumtiSyntax::SelbriVocative {
-            leading_relative_clauses: optional_relative_clause_list(leading_relative_clauses),
-            selbri,
-            trailing_relative_clauses: optional_relative_clause_list(trailing_relative_clauses),
-        });
     }
 
     node cmevla_vocative_sumti(sumti, subbridi, tense_modal) -> SumtiSyntax {
@@ -3277,26 +2476,6 @@ macro_rules! declare_generated_syntax_grammar {
             field names = many1(cmevla_word()).wf();
             field trailing_relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
         }
-        build |leading_relative_clauses, names, trailing_relative_clauses| {
-            let names = WithFreeModifiers::new(
-                WordRun::try_from_vec(names.value).expect("many1 guarantees non-empty name words"),
-                names.free_modifiers,
-            );
-            let sumti = bityzba::new!(SumtiSyntax::NameWords(names));
-            let relative_clauses: Vec<RelativeClauseSyntax> = optional_relative_clause_list(leading_relative_clauses)
-                .into_iter()
-                .chain(optional_relative_clause_list(trailing_relative_clauses))
-                .collect();
-            if relative_clauses.is_empty() {
-                sumti
-            } else {
-                bityzba::new!(SumtiSyntax::SumtiWithRelativeClauses {
-                    base_sumti: Box::new(sumti),
-                    vuho: None,
-                    relative_clauses,
-                })
-            }
-        };
     }
 
     alias vocative_argument(sumti, subbridi, selbri, tense_modal) -> SumtiSyntax {
@@ -3308,7 +2487,7 @@ macro_rules! declare_generated_syntax_grammar {
         ));
     }
 
-    node coi_vocative_marker_words -> generated_runtime::VocativeMarkerWordsSyntax {
+    node coi_vocative_marker_words -> VocativeMarkerWordsSyntax {
         context "vocative marker";
         fields {
             field first_coi = selmaho(Coi);
@@ -3316,28 +2495,13 @@ macro_rules! declare_generated_syntax_grammar {
             field additional_coi = many((selmaho(Coi), opt(cmavo(Nai))));
             field doi = opt(cmavo(Doi));
         }
-        build |first_coi, first_nai, additional_coi, doi| {
-            let mut words = vec![first_coi];
-            words.extend(first_nai);
-            for (coi, nai) in additional_coi {
-                words.push(coi);
-                words.extend(nai);
-            }
-            words.extend(doi);
-            bityzba::new!(generated_runtime::VocativeMarkerWordsSyntax { words })
-        };
     }
 
-    node doi_vocative_marker_words -> generated_runtime::VocativeMarkerWordsSyntax {
+    node doi_vocative_marker_words -> VocativeMarkerWordsSyntax {
         context "vocative marker";
         fields {
             field doi = cmavo(Doi);
         }
-        build |doi| {
-            bityzba::new!(generated_runtime::VocativeMarkerWordsSyntax {
-                words: vec![doi],
-            })
-        };
     }
 
     node vocative_free_modifier(sumti, subbridi, selbri, tense_modal) -> FreeModifierSyntax {
@@ -3351,18 +2515,6 @@ macro_rules! declare_generated_syntax_grammar {
             field sumti = opt(boxed(vocative_argument(sumti, subbridi, selbri, tense_modal)));
             field dohu = opt(cmavo(Dohu).prohibited_wf());
         }
-        build |vocative_markers, sumti, dohu| {
-            let marker_data = vocative_markers.value.into_data();
-            let vocative_markers = WithFreeModifiers::new(
-                marker_data.words,
-                vocative_markers.free_modifiers,
-            );
-            bityzba::new!(FreeModifierSyntax::Vocative {
-                vocative_markers,
-                sumti,
-                dohu,
-            })
-        };
     }
 
     node parenthetical_text(text) -> FreeModifierSyntax {
@@ -3406,10 +2558,6 @@ macro_rules! declare_generated_syntax_grammar {
             field number = number_or_letter_words(letter_tokens, letter_string);
             field mai = selmaho(Mai).wf();
         }
-        build |number, mai| bityzba::new!(FreeModifierSyntax::UtteranceOrdinal {
-            number: WordRun::try_from_vec(number).expect("number-or-letter words guarantee non-empty ordinal"),
-            mai,
-        });
     }
 
     node soi_free_modifier(sumti) -> FreeModifierSyntax {
@@ -3517,6 +2665,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node sumti_association_relative_clause(sumti, tense_modal) -> RelativeClauseSyntax {
         context "sumti association phrase";
+        construct variant SumtiAssociationPhrase;
         fields {
             field association_marker = selmaho(Goi).wf();
             field sumti = boxed(choice((
@@ -3526,15 +2675,6 @@ macro_rules! declare_generated_syntax_grammar {
             )));
             field gehu = opt(cmavo(Gehu).wf());
         }
-        build |association_marker, sumti, gehu| {
-            bityzba::new!(RelativeClauseSyntax::SumtiAssociationPhrase(Box::new(
-                bityzba::new!(SumtiAssociationPhraseSyntax {
-                    association_marker,
-                    sumti,
-                    gehu,
-                })
-            )))
-        };
     }
 
     node na_ku_relative_sumti -> SumtiSyntax {
@@ -3555,46 +2695,42 @@ macro_rules! declare_generated_syntax_grammar {
                 tagged_elided_sumti(),
             )));
         }
-        build |tense_modal, sumti| {
-            let tag = bityzba::new!(SumtiTagSyntax::TenseModal(tense_modal));
-            match (*sumti).into_data() {
-                bityzba::data!(SumtiSyntax::ElidedSumti { maybe_ku, free_modifiers, .. }) => {
-                    bityzba::new!(SumtiSyntax::ElidedSumti {
-                        tag: Some(Box::new(tag)),
-                        maybe_ku,
-                        free_modifiers,
-                    })
-                }
-                data => bityzba::new!(SumtiSyntax::TaggedSumti {
-                    tag,
-                    inner_sumti: Box::new(SumtiSyntax::from_data(data)),
-                }),
-            }
-        };
     }
 
-    node bridi_relative_clause(subbridi) -> RelativeClauseSyntax {
+    alias bridi_relative_clause(subbridi) -> RelativeClauseSyntax {
         context "relative clause";
+        choice((
+            restrictive_bridi_relative_clause(subbridi),
+            incidental_bridi_relative_clause(subbridi),
+        ));
+    }
+
+    node restrictive_bridi_relative_clause(subbridi) -> RelativeClauseSyntax {
+        context "relative clause";
+        construct variant RestrictiveRelativeBridi;
         fields {
-            field noi = selmaho(Noi).wf();
+            field poi = choice((
+                cmavo(Poi),
+                cmavo(Pohoi),
+            )).wf();
             field subbridi = boxed(subbridi);
             field kuho = opt(cmavo(Kuho).wf());
         }
-        build |noi, subbridi, kuho| {
-            if noi.value.is_one_of_cmavo(crate::tree::RESTRICTIVE_RELATIVE_CLAUSE_CMAVO) {
-                bityzba::new!(RelativeClauseSyntax::RestrictiveRelativeBridi {
-                    poi: noi,
-                    subbridi,
-                    kuho,
-                })
-            } else {
-                bityzba::new!(RelativeClauseSyntax::IncidentalRelativeBridi {
-                    noi,
-                    subbridi,
-                    kuho,
-                })
-            }
-        };
+    }
+
+    node incidental_bridi_relative_clause(subbridi) -> RelativeClauseSyntax {
+        context "relative clause";
+        construct variant IncidentalRelativeBridi;
+        fields {
+            field noi = choice((
+                cmavo(Noi),
+                cmavo(Nohoi),
+                cmavo(Voi),
+                cmavo(Voihi),
+            )).wf();
+            field subbridi = boxed(subbridi);
+            field kuho = opt(cmavo(Kuho).wf());
+        }
     }
 
     alias relative_clause_connective -> ConnectiveSyntax {
@@ -3833,13 +2969,6 @@ macro_rules! declare_generated_syntax_grammar {
             field connective = boxed(statement_connective);
             field tag_bo = opt((opt(boxed(tense_modal)), cmavo(Bo).wf()));
         }
-        build |connective, tag_bo| {
-            let connective = *connective;
-            match tag_bo {
-                Some((tense_modal, bo)) => append_optional_tense_modal_and_bo_to_connective(connective, tense_modal, bo),
-                None => connective,
-            }
-        };
     }
 
     product i_standard_paragraph_statement_connective(tense_modal) -> ConnectiveSyntax {
@@ -3850,17 +2979,6 @@ macro_rules! declare_generated_syntax_grammar {
             field connective = boxed(standard_paragraph_statement_connective);
             field tag_bo = opt((opt(boxed(tense_modal)), cmavo(Bo)));
         }
-        build |connective, tag_bo| {
-            let connective = *connective;
-            match tag_bo {
-                Some((tense_modal, bo)) => append_optional_tense_modal_and_bo_to_connective(
-                    connective,
-                    tense_modal,
-                    WithFreeModifiers::new(bo, Vec::new()),
-                ),
-                None => connective,
-            }
-        };
     }
 
     alias standard_paragraph_statement_connective -> ConnectiveSyntax {
@@ -3881,13 +2999,6 @@ macro_rules! declare_generated_syntax_grammar {
             field ja = selmaho(Ja);
             field nai = opt(cmavo(Nai));
         }
-        build |na, se, ja, nai| bityzba::new!(ConnectiveSyntax::Selbri {
-            se,
-            nahe: None,
-            na,
-            cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![ja], Vec::new())),
-            nai: nai.map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new()))),
-        });
     }
 
     alias paragraph_joik_connective -> ConnectiveSyntax {
@@ -3965,10 +3076,6 @@ macro_rules! declare_generated_syntax_grammar {
             field tense_modal = opt(boxed(tense_modal));
             field bo = cmavo(Bo);
         }
-        build |tense_modal, bo| statement_tag_bo_connective(
-            tense_modal,
-            WithFreeModifiers::new(bo, Vec::new()),
-        );
     }
 
     product i_tag_bo_statement_connective(tense_modal) -> ConnectiveSyntax {
@@ -3978,7 +3085,6 @@ macro_rules! declare_generated_syntax_grammar {
             field tense_modal = opt(boxed(tense_modal));
             field bo = cmavo(Bo).wf();
         }
-        build |tense_modal, bo| statement_tag_bo_connective(tense_modal, bo);
     }
 
     product cehe_connective -> ConnectiveSyntax {
@@ -4050,17 +3156,6 @@ macro_rules! declare_generated_syntax_grammar {
             #[tree_child(primary)]
             field connective = boxed(relation_afterthought_connective);
         }
-        build |connective| {
-            let ConnectiveSyntaxParts {
-                kind: _,
-                se,
-                nahe,
-                na,
-                cmavo,
-                nai,
-            } = (*connective).into_parts();
-            ConnectiveSyntax::new(ConnectiveKind::BridiTail, se, nahe, na, cmavo, nai)
-        };
     }
 
     alias tag_connective -> ConnectiveSyntax {
@@ -4111,7 +3206,6 @@ macro_rules! declare_generated_syntax_grammar {
             )));
             field bo = opt(cmavo(Bo).wf());
         }
-        build |gi, tail, bo| build_initial_gi_forethought_connective(gi, *tail, bo);
     }
 
     product joik_jek_gi_forethought_connective -> ConnectiveSyntax {
@@ -4122,7 +3216,6 @@ macro_rules! declare_generated_syntax_grammar {
             field gi = cmavo(Gi).wf();
             field bo = opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
         }
-        build |connective, gi, bo| append_gi_and_optional_bo_to_connective(*connective, gi, bo);
     }
 
     product jek_gi_forethought_connective -> ConnectiveSyntax {
@@ -4136,16 +3229,6 @@ macro_rules! declare_generated_syntax_grammar {
             field gi = cmavo(Gi).wf();
             field bo = opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
         }
-        build |na, se, ja, nai, gi, bo| {
-            let connective = bityzba::new!(ConnectiveSyntax::Selbri {
-                se,
-                nahe: None,
-                na,
-                cmavo: std::sync::Arc::new(WithFreeModifiers::new(vec![ja.value], ja.free_modifiers)),
-                nai: nai.map(std::sync::Arc::new),
-            });
-            append_gi_and_optional_bo_to_connective(connective, gi, bo)
-        };
     }
 
     product modal_gi_forethought_connective(tense_modal) -> ConnectiveSyntax {
@@ -4156,7 +3239,6 @@ macro_rules! declare_generated_syntax_grammar {
             field gi = cmavo(Gi).wf();
             field bo = opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
         }
-        build |tense_modal, gi, bo| forethought_tag_gi_connective(tense_modal, gi, bo);
     }
 
     product gik_connective -> ConnectiveSyntax {
@@ -4210,10 +3292,9 @@ macro_rules! declare_generated_syntax_grammar {
     node connected_tense_modal(selbri) -> TenseModalSyntax {
         context "connected tag";
         fields {
-            field first = tense_modal_atom(selbri);
-            field continuations = many1((tag_connective, tense_modal_atom(selbri)));
+            field first = boxed(tense_modal_atom(selbri));
+            field continuations = many1((tag_connective, boxed(tense_modal_atom(selbri))));
         }
-        build |first, continuations| combine_connected_tense_modal(first, continuations);
     }
 
     alias tense_modal_atom(selbri) -> TenseModalSyntax {
@@ -4235,11 +3316,6 @@ macro_rules! declare_generated_syntax_grammar {
             field selbri = boxed(selbri);
             field fehu = opt(cmavo(Fehu).wf());
         }
-        build |fiho, selbri, fehu| bityzba::new!(TenseModalSyntax::AdHocModal {
-            fiho,
-            selbri,
-            fehu,
-        });
     }
 
     alias flat_prefixed_tense -> TenseModalSyntax {
@@ -4256,10 +3332,9 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field fa = selmaho(Fa).warn(ExperimentalFaAsTag).wf();
         }
-        build |fa| composite_from_wf_tokens(vec![fa]);
     }
 
-    alias flat_tag_atom -> (std::vec::Vec<Token>, std::vec::Vec<FreeModifierSyntax>) {
+    alias flat_tag_atom -> FlatTagAtomSyntax {
         context "tag";
         choice((
             fa_flat_tag_atom(),
@@ -4268,28 +3343,28 @@ macro_rules! declare_generated_syntax_grammar {
         ));
     }
 
-    product fa_flat_tag_atom -> (std::vec::Vec<Token>, std::vec::Vec<FreeModifierSyntax>) {
+    product fa_flat_tag_atom -> FlatTagAtomSyntax {
         context "tag";
+        construct variant Fa;
         fields {
             field fa = selmaho(Fa).warn(ExperimentalFaAsTag).wf();
         }
-        build |fa| (vec![fa.value], fa.free_modifiers);
     }
 
-    product modal_flat_tag_atom -> (std::vec::Vec<Token>, std::vec::Vec<FreeModifierSyntax>) {
+    product modal_flat_tag_atom -> FlatTagAtomSyntax {
         context "modal tag";
+        construct variant Modal;
         fields {
-            field modal = modal_tense();
+            field modal = boxed(modal_tense());
         }
-        build |modal| modal.leaf_words_and_free_modifiers();
     }
 
-    product composite_flat_tag_atom -> (std::vec::Vec<Token>, std::vec::Vec<FreeModifierSyntax>) {
+    product composite_flat_tag_atom -> FlatTagAtomSyntax {
         context "tag";
+        construct variant Composite;
         fields {
-            field composite = composite_tense();
+            field composite = boxed(composite_tense());
         }
-        build |composite| composite.leaf_words_and_free_modifiers();
     }
 
     node nahe_se_flat_prefixed_tense -> TenseModalSyntax {
@@ -4299,20 +3374,6 @@ macro_rules! declare_generated_syntax_grammar {
             field se = opt(selmaho(Se).wf());
             field atom = flat_tag_atom();
         }
-        build |nahe, se, atom| {
-            let mut value = vec![bityzba::new!(CompositeTenseModalPartSyntax::Cmavo(nahe.value))];
-            let mut free_modifiers = nahe.free_modifiers;
-            if let Some(se) = se {
-                value.push(bityzba::new!(CompositeTenseModalPartSyntax::Cmavo(se.value)));
-                free_modifiers.extend(se.free_modifiers);
-            }
-            let (atom_words, atom_free_modifiers) = atom;
-            value.extend(atom_words.into_iter().map(|word| bityzba::new!(CompositeTenseModalPartSyntax::Cmavo(word))));
-            free_modifiers.extend(atom_free_modifiers);
-            bityzba::new!(TenseModalSyntax::Composite {
-                parts: WithFreeModifiers::new(value, free_modifiers),
-            })
-        };
     }
 
     node se_flat_prefixed_tense -> TenseModalSyntax {
@@ -4321,16 +3382,6 @@ macro_rules! declare_generated_syntax_grammar {
             field se = selmaho(Se).warn(ExperimentalFlattenedTag).wf();
             field atom = flat_tag_atom();
         }
-        build |se, atom| {
-            let mut free_modifiers = se.free_modifiers;
-            let (atom_words, atom_free_modifiers) = atom;
-            free_modifiers.extend(atom_free_modifiers);
-            let mut value = vec![bityzba::new!(CompositeTenseModalPartSyntax::Cmavo(se.value))];
-            value.extend(atom_words.into_iter().map(|word| bityzba::new!(CompositeTenseModalPartSyntax::Cmavo(word))));
-            bityzba::new!(TenseModalSyntax::Composite {
-                parts: WithFreeModifiers::new(value, free_modifiers),
-            })
-        };
     }
 
     node zantufa_recursive_tag_tense -> TenseModalSyntax {
@@ -4359,19 +3410,6 @@ macro_rules! declare_generated_syntax_grammar {
                 cmavo(Ki),
             )).wf();
         }
-        build |first_prefix, additional_prefixes, atom| {
-            let mut value = vec![bityzba::new!(CompositeTenseModalPartSyntax::Cmavo(first_prefix.value))];
-            let mut free_modifiers = first_prefix.free_modifiers;
-            for prefix in additional_prefixes {
-                value.push(bityzba::new!(CompositeTenseModalPartSyntax::Cmavo(prefix.value)));
-                free_modifiers.extend(prefix.free_modifiers);
-            }
-            value.push(bityzba::new!(CompositeTenseModalPartSyntax::Cmavo(atom.value)));
-            free_modifiers.extend(atom.free_modifiers);
-            bityzba::new!(TenseModalSyntax::Composite {
-                parts: WithFreeModifiers::new(value, free_modifiers),
-            })
-        };
     }
 
     alias composite_tense -> TenseModalSyntax {
@@ -4387,27 +3425,17 @@ macro_rules! declare_generated_syntax_grammar {
         context "tag";
         fields {
             field nahe = selmaho(Nahe).wf();
-            field tense = time_space_caha_tense();
-            field ki = opt(ki_composite_tense());
+            field tense = boxed(time_space_caha_tense());
+            field ki = opt(boxed(ki_composite_tense()));
         }
-        build |nahe, tense, ki| {
-            let mut parts = vec![composite_from_wf_tokens(vec![nahe]), tense];
-            parts.extend(ki);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     node time_space_caha_ki_tense -> TenseModalSyntax {
         context "tag";
         fields {
-            field tense = time_space_caha_tense();
-            field ki = opt(ki_composite_tense());
+            field tense = boxed(time_space_caha_tense());
+            field ki = opt(boxed(ki_composite_tense()));
         }
-        build |tense, ki| {
-            let mut parts = vec![tense];
-            parts.extend(ki);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     alias time_space_caha_tense -> TenseModalSyntax {
@@ -4422,31 +3450,19 @@ macro_rules! declare_generated_syntax_grammar {
     node time_then_space_caha_tense -> TenseModalSyntax {
         context "time tense";
         fields {
-            field time = time_tense();
-            field space = opt(space_tense());
-            field caha = opt(caha_tense());
+            field time = boxed(time_tense());
+            field space = opt(boxed(space_tense()));
+            field caha = opt(boxed(caha_tense()));
         }
-        build |time, space, caha| {
-            let mut parts = vec![time];
-            parts.extend(space);
-            parts.extend(caha);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     node space_then_time_caha_tense -> TenseModalSyntax {
         context "space tense";
         fields {
-            field space = space_tense();
-            field time = opt(time_tense());
-            field caha = opt(caha_tense());
+            field space = boxed(space_tense());
+            field time = opt(boxed(time_tense()));
+            field caha = opt(boxed(caha_tense()));
         }
-        build |space, time, caha| {
-            let mut parts = vec![space];
-            parts.extend(time);
-            parts.extend(caha);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     alias time_tense -> TenseModalSyntax {
@@ -4462,72 +3478,41 @@ macro_rules! declare_generated_syntax_grammar {
     node time_tense_with_zi -> TenseModalSyntax {
         context "time tense";
         fields {
-            field zi = zi_time_distance_tense();
-            field offsets = many(pu_time_offset_tense());
-            field zeha = opt(zeha_time_interval_tense());
-            field properties = many(interval_property_tense());
+            field zi = boxed(zi_time_distance_tense());
+            field offsets = many(boxed(pu_time_offset_tense()));
+            field zeha = opt(boxed(zeha_time_interval_tense()));
+            field properties = many(boxed(interval_property_tense()));
         }
-        build |zi, offsets, zeha, properties| {
-            let mut parts = vec![zi];
-            parts.extend(offsets);
-            parts.extend(zeha);
-            parts.extend(properties);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     node time_tense_with_offset -> TenseModalSyntax {
         context "time tense";
         fields {
-            field zi = opt(zi_time_distance_tense());
-            field offsets = many1(pu_time_offset_tense());
-            field zeha = opt(zeha_time_interval_tense());
-            field properties = many(interval_property_tense());
+            field zi = opt(boxed(zi_time_distance_tense()));
+            field offsets = many1(boxed(pu_time_offset_tense()));
+            field zeha = opt(boxed(zeha_time_interval_tense()));
+            field properties = many(boxed(interval_property_tense()));
         }
-        build |zi, offsets, zeha, properties| {
-            let mut parts = Vec::new();
-            parts.extend(zi);
-            parts.extend(offsets);
-            parts.extend(zeha);
-            parts.extend(properties);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     node time_tense_with_interval -> TenseModalSyntax {
         context "time tense";
         fields {
-            field zi = opt(zi_time_distance_tense());
-            field offsets = many(pu_time_offset_tense());
-            field zeha = zeha_time_interval_tense();
-            field properties = many(interval_property_tense());
+            field zi = opt(boxed(zi_time_distance_tense()));
+            field offsets = many(boxed(pu_time_offset_tense()));
+            field zeha = boxed(zeha_time_interval_tense());
+            field properties = many(boxed(interval_property_tense()));
         }
-        build |zi, offsets, zeha, properties| {
-            let mut parts = Vec::new();
-            parts.extend(zi);
-            parts.extend(offsets);
-            parts.push(zeha);
-            parts.extend(properties);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     node time_tense_with_properties -> TenseModalSyntax {
         context "time tense";
         fields {
-            field zi = opt(zi_time_distance_tense());
-            field offsets = many(pu_time_offset_tense());
-            field zeha = opt(zeha_time_interval_tense());
-            field properties = many1(interval_property_tense());
+            field zi = opt(boxed(zi_time_distance_tense()));
+            field offsets = many(boxed(pu_time_offset_tense()));
+            field zeha = opt(boxed(zeha_time_interval_tense()));
+            field properties = many1(boxed(interval_property_tense()));
         }
-        build |zi, offsets, zeha, properties| {
-            let mut parts = Vec::new();
-            parts.extend(zi);
-            parts.extend(offsets);
-            parts.extend(zeha);
-            parts.extend(properties);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     alias interval_property_tense -> TenseModalSyntax {
@@ -4546,17 +3531,6 @@ macro_rules! declare_generated_syntax_grammar {
             field roi = selmaho(Roi).wf();
             field nai = opt(cmavo(Nai).wf());
         }
-        build |number, roi, nai| {
-            let mut value = number.value;
-            let mut free_modifiers = number.free_modifiers;
-            value.push(roi.value);
-            free_modifiers.extend(roi.free_modifiers);
-            if let Some(nai) = nai {
-                value.push(nai.value);
-                free_modifiers.extend(nai.free_modifiers);
-            }
-            composite_from_wf_token_parts(value, free_modifiers)
-        };
     }
 
     alias interval_property_number_words -> std::vec::Vec<Token> {
@@ -4576,11 +3550,6 @@ macro_rules! declare_generated_syntax_grammar {
             field tahe = selmaho(Tahe).wf();
             field nai = opt(cmavo(Nai).wf());
         }
-        build |tahe, nai| {
-            let mut parts = vec![tahe];
-            parts.extend(nai);
-            composite_from_wf_tokens(parts)
-        };
     }
 
     node zaho_interval_property_tense -> TenseModalSyntax {
@@ -4589,11 +3558,6 @@ macro_rules! declare_generated_syntax_grammar {
             field zaho = selmaho(Zaho).wf();
             field nai = opt(cmavo(Nai).wf());
         }
-        build |zaho, nai| {
-            let mut parts = vec![zaho];
-            parts.extend(nai);
-            composite_from_wf_tokens(parts)
-        };
     }
 
     node pu_time_offset_tense -> TenseModalSyntax {
@@ -4603,12 +3567,6 @@ macro_rules! declare_generated_syntax_grammar {
             field nai = opt(cmavo(Nai).wf());
             field distance = opt(selmaho(Zi).wf());
         }
-        build |pu, nai, distance| {
-            let mut parts = vec![pu];
-            parts.extend(nai);
-            parts.extend(distance);
-            composite_from_wf_tokens(parts)
-        };
     }
 
     node zi_time_distance_tense -> TenseModalSyntax {
@@ -4616,7 +3574,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field zi = selmaho(Zi).wf();
         }
-        build |zi| composite_from_wf_tokens(vec![zi]);
     }
 
     node zeha_time_interval_tense -> TenseModalSyntax {
@@ -4625,14 +3582,6 @@ macro_rules! declare_generated_syntax_grammar {
             field zeha = selmaho(Zeha).wf();
             field direction = opt((selmaho(Pu).wf(), opt(cmavo(Nai).wf())));
         }
-        build |zeha, direction| {
-            let mut parts = vec![zeha];
-            if let Some((pu, nai)) = direction {
-                parts.push(pu);
-                parts.extend(nai);
-            }
-            composite_from_wf_tokens(parts)
-        };
     }
 
     alias space_tense -> TenseModalSyntax {
@@ -4648,72 +3597,41 @@ macro_rules! declare_generated_syntax_grammar {
     node space_tense_with_va -> TenseModalSyntax {
         context "space tense";
         fields {
-            field va = va_space_distance_tense();
-            field offsets = many(faha_space_offset_tense());
-            field interval = opt(space_interval_tense());
-            field mohi = opt(mohi_space_offset_tense());
+            field va = boxed(va_space_distance_tense());
+            field offsets = many(boxed(faha_space_offset_tense()));
+            field interval = opt(boxed(space_interval_tense()));
+            field mohi = opt(boxed(mohi_space_offset_tense()));
         }
-        build |va, offsets, interval, mohi| {
-            let mut parts = vec![va];
-            parts.extend(offsets);
-            parts.extend(interval);
-            parts.extend(mohi);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     node space_tense_with_offset -> TenseModalSyntax {
         context "space tense";
         fields {
-            field va = opt(va_space_distance_tense());
-            field offsets = many1(faha_space_offset_tense());
-            field interval = opt(space_interval_tense());
-            field mohi = opt(mohi_space_offset_tense());
+            field va = opt(boxed(va_space_distance_tense()));
+            field offsets = many1(boxed(faha_space_offset_tense()));
+            field interval = opt(boxed(space_interval_tense()));
+            field mohi = opt(boxed(mohi_space_offset_tense()));
         }
-        build |va, offsets, interval, mohi| {
-            let mut parts = Vec::new();
-            parts.extend(va);
-            parts.extend(offsets);
-            parts.extend(interval);
-            parts.extend(mohi);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     node space_tense_with_interval -> TenseModalSyntax {
         context "space tense";
         fields {
-            field va = opt(va_space_distance_tense());
-            field offsets = many(faha_space_offset_tense());
-            field interval = space_interval_tense();
-            field mohi = opt(mohi_space_offset_tense());
+            field va = opt(boxed(va_space_distance_tense()));
+            field offsets = many(boxed(faha_space_offset_tense()));
+            field interval = boxed(space_interval_tense());
+            field mohi = opt(boxed(mohi_space_offset_tense()));
         }
-        build |va, offsets, interval, mohi| {
-            let mut parts = Vec::new();
-            parts.extend(va);
-            parts.extend(offsets);
-            parts.push(interval);
-            parts.extend(mohi);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     node space_tense_with_mohi -> TenseModalSyntax {
         context "space tense";
         fields {
-            field va = opt(va_space_distance_tense());
-            field offsets = many(faha_space_offset_tense());
-            field interval = opt(space_interval_tense());
-            field mohi = mohi_space_offset_tense();
+            field va = opt(boxed(va_space_distance_tense()));
+            field offsets = many(boxed(faha_space_offset_tense()));
+            field interval = opt(boxed(space_interval_tense()));
+            field mohi = boxed(mohi_space_offset_tense());
         }
-        build |va, offsets, interval, mohi| {
-            let mut parts = Vec::new();
-            parts.extend(va);
-            parts.extend(offsets);
-            parts.extend(interval);
-            parts.push(mohi);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     node va_space_distance_tense -> TenseModalSyntax {
@@ -4721,7 +3639,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field va = selmaho(Va).wf();
         }
-        build |va| composite_from_wf_tokens(vec![va]);
     }
 
     node faha_space_offset_tense -> TenseModalSyntax {
@@ -4731,12 +3648,6 @@ macro_rules! declare_generated_syntax_grammar {
             field nai = opt(cmavo(Nai).wf());
             field distance = opt(selmaho(Va).wf());
         }
-        build |faha, nai, distance| {
-            let mut parts = vec![faha];
-            parts.extend(nai);
-            parts.extend(distance);
-            composite_from_wf_tokens(parts)
-        };
     }
 
     node faha_interval_direction_tense -> TenseModalSyntax {
@@ -4745,11 +3656,6 @@ macro_rules! declare_generated_syntax_grammar {
             field faha = selmaho(Faha).wf();
             field nai = opt(cmavo(Nai).wf());
         }
-        build |faha, nai| {
-            let mut parts = vec![faha];
-            parts.extend(nai);
-            composite_from_wf_tokens(parts)
-        };
     }
 
     alias space_interval_tense -> TenseModalSyntax {
@@ -4763,29 +3669,18 @@ macro_rules! declare_generated_syntax_grammar {
     node space_interval_with_extent_tense -> TenseModalSyntax {
         context "space interval";
         fields {
-            field extent = veha_viha_space_interval_tense();
-            field direction = opt(faha_interval_direction_tense());
-            field properties = opt(space_interval_properties_tense());
+            field extent = boxed(veha_viha_space_interval_tense());
+            field direction = opt(boxed(faha_interval_direction_tense()));
+            field properties = opt(boxed(space_interval_properties_tense()));
         }
-        build |extent, direction, properties| {
-            let mut parts = vec![extent];
-            parts.extend(direction);
-            parts.extend(properties);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     node space_interval_properties_tense -> TenseModalSyntax {
         context "space interval";
         fields {
-            field first = fehe_interval_property_tense();
-            field additional = many(fehe_interval_property_tense());
+            field first = boxed(fehe_interval_property_tense());
+            field additional = many(boxed(fehe_interval_property_tense()));
         }
-        build |first, additional| {
-            let mut parts = vec![first];
-            parts.extend(additional);
-            combine_composite_tense_modals(parts)
-        };
     }
 
     alias veha_viha_space_interval_tense -> TenseModalSyntax {
@@ -4802,11 +3697,6 @@ macro_rules! declare_generated_syntax_grammar {
             field veha = selmaho(Veha).wf();
             field viha = opt(selmaho(Viha).wf());
         }
-        build |veha, viha| {
-            let mut parts = vec![veha];
-            parts.extend(viha);
-            composite_from_wf_tokens(parts)
-        };
     }
 
     node viha_space_interval_tense -> TenseModalSyntax {
@@ -4814,31 +3704,22 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field viha = selmaho(Viha).wf();
         }
-        build |viha| composite_from_wf_tokens(vec![viha]);
     }
 
     node fehe_interval_property_tense -> TenseModalSyntax {
         context "space interval property";
         fields {
             field fehe = cmavo(Fehe).wf();
-            field property = interval_property_tense();
+            field property = boxed(interval_property_tense());
         }
-        build |fehe, property| combine_composite_tense_modals(vec![
-            composite_from_wf_tokens(vec![fehe]),
-            property,
-        ]);
     }
 
     node mohi_space_offset_tense -> TenseModalSyntax {
         context "space tense";
         fields {
             field mohi = selmaho(Mohi).wf();
-            field offset = faha_space_offset_tense();
+            field offset = boxed(faha_space_offset_tense());
         }
-        build |mohi, offset| combine_composite_tense_modals(vec![
-            composite_from_wf_tokens(vec![mohi]),
-            offset,
-        ]);
     }
 
     node caha_tense -> TenseModalSyntax {
@@ -4846,7 +3727,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field caha = selmaho(Caha).wf();
         }
-        build |caha| composite_from_wf_tokens(vec![caha]);
     }
 
     node ki_composite_tense -> TenseModalSyntax {
@@ -4854,7 +3734,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field ki = cmavo(Ki).wf();
         }
-        build |ki| composite_from_wf_tokens(vec![ki]);
     }
 
     node cuhe_tense -> TenseModalSyntax {
@@ -4862,7 +3741,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field cuhe = selmaho(Cuhe).wf();
         }
-        build |cuhe| composite_from_wf_tokens(vec![cuhe]);
     }
 
     node pu_tense -> TenseModalSyntax {
@@ -4870,12 +3748,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field pu = selmaho(Pu).wf();
         }
-        build |pu| bityzba::new!(TenseModalSyntax::Composite {
-            parts: WithFreeModifiers::new(
-                vec![bityzba::new!(CompositeTenseModalPartSyntax::Cmavo(pu.value))],
-                pu.free_modifiers,
-            ),
-        });
     }
 
     node va_tense -> TenseModalSyntax {
@@ -4883,12 +3755,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field va = selmaho(Va).wf();
         }
-        build |va| bityzba::new!(TenseModalSyntax::Composite {
-            parts: WithFreeModifiers::new(
-                vec![bityzba::new!(CompositeTenseModalPartSyntax::Cmavo(va.value))],
-                va.free_modifiers,
-            ),
-        });
     }
 
     node modal_tense -> TenseModalSyntax {
@@ -4900,13 +3766,6 @@ macro_rules! declare_generated_syntax_grammar {
             field nai = opt(cmavo(Nai).wf());
             field ki = opt(cmavo(Ki).wf());
         }
-        build |nahe, se, bai, nai, ki| bityzba::new!(TenseModalSyntax::Modal {
-            nahe,
-            se,
-            bai,
-            nai,
-            ki,
-        });
     }
 
     node fa_tense -> TenseModalSyntax {
@@ -4914,12 +3773,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field fa = selmaho(Fa).wf();
         }
-        build |fa| bityzba::new!(TenseModalSyntax::Composite {
-            parts: WithFreeModifiers::new(
-                vec![bityzba::new!(CompositeTenseModalPartSyntax::Cmavo(fa.value))],
-                fa.free_modifiers,
-            ),
-        });
     }
 
     node sticky_tense -> TenseModalSyntax {
@@ -4927,7 +3780,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field ki = cmavo(Ki).wf();
         }
-        build |ki| bityzba::new!(TenseModalSyntax::Sticky(ki));
     }
 
     node tagged_selbri(selbri, co_selbri, tense_modal) -> SelbriSyntax {
@@ -4971,17 +3823,6 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_selbri = boxed(connected_selbri(tanru_unit));
             field co_tail = opt((cmavo(Co).wf(), boxed(co_selbri)));
         }
-        build |leading_selbri, co_tail| {
-            if let Some((co, trailing_selbri)) = co_tail {
-                bityzba::new!(SelbriSyntax::InvertedTanru {
-                    leading_selbri,
-                    co,
-                    trailing_selbri,
-                })
-            } else {
-                *leading_selbri
-            }
-        };
     }
 
     node forethought_selbri_connection(selbri) -> SelbriSyntax {
@@ -4993,15 +3834,6 @@ macro_rules! declare_generated_syntax_grammar {
             field trailing_selbri = boxed(selbri);
             field gihi = opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
         }
-        build |guhek, leading_selbri, gik, trailing_selbri, gihi| {
-            bityzba::new!(SelbriSyntax::ForethoughtSelbriConnection {
-                guhek,
-                leading_bridi: Box::new(selbri_to_empty_bridi(*leading_selbri)),
-                gik,
-                trailing_bridi: Box::new(selbri_to_empty_bridi(*trailing_selbri)),
-                gihi,
-            })
-        };
     }
 
     node connected_selbri(tanru_unit) -> SelbriSyntax {
@@ -5010,15 +3842,6 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_selbri = boxed(tanru_selbri(tanru_unit));
             field continuations = many((relation_afterthought_connective, boxed(tanru_selbri(tanru_unit))));
         }
-        build |leading_selbri, continuations| {
-            continuations.into_iter().fold(*leading_selbri, |leading_selbri, (connective, trailing_selbri)| {
-                bityzba::new!(SelbriSyntax::SelbriConnection {
-                    leading_selbri: Box::new(leading_selbri),
-                    connective,
-                    trailing_selbri,
-                })
-            })
-        };
     }
 
     node tanru_selbri(tanru_unit) -> SelbriSyntax {
@@ -5027,17 +3850,6 @@ macro_rules! declare_generated_syntax_grammar {
             field first_unit = tanru_unit;
             field additional_units = many(tanru_unit);
         }
-        build |first_unit, additional_units| {
-            let units = vec1::Vec1::try_from_vec(
-                std::iter::once(first_unit).chain(additional_units).collect()
-            ).expect("first tanru unit guarantees non-empty tanru");
-            if units.len() == 1 {
-                let unit = units.into_iter().next().expect("non-empty tanru");
-                tanru_unit_to_single_selbri(unit)
-            } else {
-                bityzba::new!(SelbriSyntax::Tanru(Box::new(units)))
-            }
-        };
     }
 
     alias tanru_unit(bo_or_linked_tanru_unit) -> TanruUnitSyntax {
@@ -5051,15 +3863,6 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_unit = boxed(bo_or_linked_tanru_unit);
             field continuations = many((relation_afterthought_connective, boxed(bo_or_linked_tanru_unit)));
         }
-        build |leading_unit, continuations| {
-            continuations.into_iter().fold(*leading_unit, |leading_unit, (connective, trailing_unit)| {
-                bityzba::new!(TanruUnitSyntax::TanruUnitConnection {
-                    leading_unit: Box::new(leading_unit),
-                    connective,
-                    trailing_unit,
-                })
-            })
-        };
     }
 
     alias bo_or_linked_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
@@ -5081,17 +3884,6 @@ macro_rules! declare_generated_syntax_grammar {
             field trailing_unit = boxed(bo_or_linked_tanru_unit);
             field gihi = opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
         }
-        build |guhek, leading_selbri, gik, trailing_unit, gihi| {
-            bityzba::new!(TanruUnitSyntax::SelbriGroupTanruUnit(Box::new(
-                bityzba::new!(SelbriSyntax::ForethoughtSelbriConnection {
-                    guhek,
-                    leading_bridi: Box::new(selbri_to_empty_bridi(*leading_selbri)),
-                    gik,
-                    trailing_bridi: Box::new(selbri_to_empty_bridi(tanru_unit_to_single_selbri(*trailing_unit))),
-                    gihi,
-                })
-            )))
-        };
     }
 
     node bound_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, sumti, tense_modal) -> TanruUnitSyntax {
@@ -5112,20 +3904,6 @@ macro_rules! declare_generated_syntax_grammar {
             field base = boxed(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
             field assignments = many1((cmavo(Cei).wf(), boxed(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string))));
         }
-        build |base, assignments| {
-            bityzba::new!(TanruUnitSyntax::AssignedProBridi {
-                base,
-                assignments: assignments
-                    .into_iter()
-                    .map(|(cei, tanru_unit)| {
-                        bityzba::new!(ProBridiAssignmentSyntax {
-                            cei,
-                            tanru_unit,
-                        })
-                    })
-                    .collect(),
-            })
-        };
     }
 
     node linked_tanru_unit(tanru_unit_atom, sumti, tense_modal) -> TanruUnitSyntax {
@@ -5134,27 +3912,6 @@ macro_rules! declare_generated_syntax_grammar {
             field base = boxed(tanru_unit_atom);
             field linkargs = opt(linkargs(sumti, tense_modal));
         }
-        build |base, linkargs| {
-            if let Some(linkargs) = linkargs {
-                let bityzba::data!(LinkedSumtiListSyntax {
-                    be,
-                    fa,
-                    first_sumti,
-                    bei_links,
-                    beho,
-                }) = linkargs.into_data();
-                bityzba::new!(TanruUnitSyntax::LinkedSumtiTanruUnit {
-                    base,
-                    be,
-                    fa,
-                    first_sumti,
-                    bei_links,
-                    beho,
-                })
-            } else {
-                *base
-            }
-        };
     }
 
     node linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
@@ -5163,27 +3920,6 @@ macro_rules! declare_generated_syntax_grammar {
             field base = boxed(tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
             field linkargs = opt(linkargs(sumti, tense_modal));
         }
-        build |base, linkargs| {
-            if let Some(linkargs) = linkargs {
-                let bityzba::data!(LinkedSumtiListSyntax {
-                    be,
-                    fa,
-                    first_sumti,
-                    bei_links,
-                    beho,
-                }) = linkargs.into_data();
-                bityzba::new!(TanruUnitSyntax::LinkedSumtiTanruUnit {
-                    base,
-                    be,
-                    fa,
-                    first_sumti,
-                    bei_links,
-                    beho,
-                })
-            } else {
-                *base
-            }
-        };
     }
 
     node tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
@@ -5192,14 +3928,6 @@ macro_rules! declare_generated_syntax_grammar {
             field conversions = many(selmaho(Se).wf());
             field base = boxed(tanru_unit_base_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
         }
-        build |conversions, base| {
-            conversions.into_iter().rev().fold(*base, |inner_unit, se| {
-                bityzba::new!(TanruUnitSyntax::ConvertedTanruUnit {
-                    se,
-                    inner_unit: Box::new(inner_unit),
-                })
-            })
-        };
     }
 
     alias tanru_unit_base_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
@@ -5229,14 +3957,6 @@ macro_rules! declare_generated_syntax_grammar {
             field conversions = many(selmaho(Se).wf());
             field base = boxed(tanru_unit_base_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
         }
-        build |conversions, base| {
-            conversions.into_iter().rev().fold(*base, |inner_unit, se| {
-                bityzba::new!(TanruUnitSyntax::ConvertedTanruUnit {
-                    se,
-                    inner_unit: Box::new(inner_unit),
-                })
-            })
-        };
     }
 
     alias tanru_unit_base_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
@@ -5266,12 +3986,6 @@ macro_rules! declare_generated_syntax_grammar {
             field tense_modal = boxed(tense_modal);
             field inner_selbri = boxed(connected_selbri(tanru_unit));
         }
-        build |tense_modal, inner_selbri| bityzba::new!(TanruUnitSyntax::SelbriGroupTanruUnit(Box::new(
-            bityzba::new!(SelbriSyntax::TaggedSelbri {
-                tense_modal,
-                inner_selbri,
-            })
-        )));
     }
 
     node preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal) -> TanruUnitSyntax {
@@ -5280,23 +3994,6 @@ macro_rules! declare_generated_syntax_grammar {
             field linkargs = linkargs(sumti, tense_modal);
             field base = boxed(tanru_unit);
         }
-        build |linkargs, base| {
-            let bityzba::data!(LinkedSumtiListSyntax {
-                be,
-                fa,
-                first_sumti,
-                bei_links,
-                beho,
-            }) = linkargs.into_data();
-            bityzba::new!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
-                be,
-                fa,
-                first_sumti,
-                bei_links,
-                beho,
-                base,
-            })
-        };
     }
 
     node scalar_negated_tanru_unit(tanru_unit_atom, tanru_unit, tense_modal) -> TanruUnitSyntax {
@@ -5408,12 +4105,6 @@ macro_rules! declare_generated_syntax_grammar {
             field number = number_or_letter_words(letter_tokens, letter_string);
             field moi = selmaho(Moi).wf();
         }
-        build |number, moi| {
-            bityzba::new!(TanruUnitSyntax::OrdinalSelbri {
-                number: WordRun::try_from_vec(number).expect("first ordinal word guarantees non-empty ordinal"),
-                moi,
-            })
-        };
     }
 
     node word_tanru_unit -> TanruUnitSyntax {
@@ -5464,13 +4155,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field words = letter_string;
         }
-        build |words| bityzba::new!(SumtiSyntax::LerfuStringSumti {
-            letter: WithFreeModifiers::new(
-                WordRun::try_from_vec(words).expect("first letter guarantees non-empty lerfu words"),
-                Vec::new(),
-            ),
-            boi: None,
-        });
     }
 
     node operator_selbri_tanru_unit(mekso_operator) -> TanruUnitSyntax {
@@ -5486,7 +4170,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "grouped tanru";
         construct variant GroupedTanruUnit;
         fields {
-            default ke_tense_modal = None;
+            default ke_tense_modal: Option<Box<TenseModalSyntax>> = None;
             field ke = cmavo(Ke).wf();
             field selbri = boxed(connected_selbri(tanru_unit));
             field kehe = opt(cmavo(Kehe).wf());
@@ -5496,8 +4180,8 @@ macro_rules! declare_generated_syntax_grammar {
     node empty_linked_sumti -> LinkedSumtiSyntax {
         context "linked arguments";
         fields {
-            default fa = None;
-            default sumti = None;
+            default fa: Option<WithFreeModifiers<Token, FreeModifierSyntax>> = None;
+            default sumti: Option<Box<SumtiSyntax>> = None;
         }
     }
 
@@ -5515,24 +4199,6 @@ macro_rules! declare_generated_syntax_grammar {
             field fa = selmaho(Fa).wf();
             field sumti = boxed(linked_sumti_tail(sumti));
         }
-        build |fa, sumti| {
-            match (*sumti).into_data() {
-                bityzba::data!(SumtiSyntax::ElidedSumti { maybe_ku, free_modifiers, .. }) => {
-                    bityzba::new!(LinkedSumtiSyntax {
-                        fa: None,
-                        sumti: Some(Box::new(bityzba::new!(SumtiSyntax::ElidedSumti {
-                            tag: Some(Box::new(bityzba::new!(SumtiTagSyntax::PlaceTag(fa)))),
-                            maybe_ku,
-                            free_modifiers,
-                        }))),
-                    })
-                }
-                data => bityzba::new!(LinkedSumtiSyntax {
-                    fa: Some(fa),
-                    sumti: Some(Box::new(SumtiSyntax::from_data(data))),
-                }),
-            }
-        };
     }
 
     node tense_tagged_linked_sumti(sumti, tense_modal) -> LinkedSumtiSyntax {
@@ -5541,28 +4207,6 @@ macro_rules! declare_generated_syntax_grammar {
             field tense_modal = boxed(tense_modal);
             field sumti = boxed(linked_sumti_tail(sumti));
         }
-        build |tense_modal, sumti| {
-            let tag = bityzba::new!(SumtiTagSyntax::TenseModal(tense_modal));
-            match (*sumti).into_data() {
-                bityzba::data!(SumtiSyntax::ElidedSumti { maybe_ku, free_modifiers, .. }) => {
-                    bityzba::new!(LinkedSumtiSyntax {
-                        fa: None,
-                        sumti: Some(Box::new(bityzba::new!(SumtiSyntax::ElidedSumti {
-                            tag: Some(Box::new(tag)),
-                            maybe_ku,
-                            free_modifiers,
-                        }))),
-                    })
-                }
-                data => bityzba::new!(LinkedSumtiSyntax {
-                    fa: None,
-                    sumti: Some(Box::new(bityzba::new!(SumtiSyntax::TaggedSumti {
-                        tag,
-                        inner_sumti: Box::new(SumtiSyntax::from_data(data)),
-                    }))),
-                }),
-            }
-        };
     }
 
     node plain_linked_sumti(sumti) -> LinkedSumtiSyntax {
@@ -5570,10 +4214,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field sumti = boxed(sumti);
         }
-        build |sumti| bityzba::new!(LinkedSumtiSyntax {
-            fa: None,
-            sumti: Some(sumti),
-        });
     }
 
     alias linked_sumti(sumti, tense_modal) -> LinkedSumtiSyntax {
@@ -5592,10 +4232,6 @@ macro_rules! declare_generated_syntax_grammar {
             field bei = cmavo(Bei).wf();
             field link = linked_sumti(sumti, tense_modal);
         }
-        build |bei, link| {
-            let bityzba::data!(LinkedSumtiSyntax { fa, sumti }) = link.into_data();
-            bityzba::new!(AdditionalLinkedSumtiSyntax { bei, fa, sumti })
-        };
     }
 
     node linkargs(sumti, tense_modal) -> LinkedSumtiListSyntax {
@@ -5606,19 +4242,6 @@ macro_rules! declare_generated_syntax_grammar {
             field bei_links = many(bei_link(sumti, tense_modal));
             field beho = opt(cmavo(Beho).wf());
         }
-        build |be, first_link, bei_links, beho| {
-            let bityzba::data!(LinkedSumtiSyntax {
-                fa,
-                sumti: first_sumti,
-            }) = first_link.into_data();
-            bityzba::new!(LinkedSumtiListSyntax {
-                be,
-                fa,
-                first_sumti,
-                bei_links,
-                beho,
-            })
-        };
     }
 
     node abstraction_tanru_unit(subbridi) -> TanruUnitSyntax {
@@ -5630,15 +4253,6 @@ macro_rules! declare_generated_syntax_grammar {
             field subbridi = boxed(subbridi);
             field kei = opt(cmavo(Kei).wf());
         }
-        build |nu, nai, abstractor_connections, subbridi, kei| bityzba::new!(TanruUnitSyntax::Abstraction(Box::new(
-            bityzba::new!(AbstractionSyntax {
-                nu,
-                nai,
-                abstractor_connections,
-                subbridi,
-                kei,
-            })
-        )));
     }
 
     node abstractor_connection -> AbstractorConnectionSyntax {
@@ -5653,11 +4267,6 @@ macro_rules! declare_generated_syntax_grammar {
     };
 }
 
-declare_generated_syntax_grammar! {
-    env generated_runtime::SyntaxGrammarEnv;
-    parsers;
-}
-
 #[doc(hidden)]
 pub mod generated_model {
     #![allow(dead_code)]
@@ -5667,19 +4276,42 @@ pub mod generated_model {
     declare_generated_syntax_grammar! {
         tree_model {
             #![tree_with_free_modifiers]
+            pub type WordRun = ::vec1::Vec1<Token>;
+            pub type MeksoVec = ::vec1::Vec1<MeksoSyntax>;
         }
-        model {
-            TextSyntax,
-            LeadingIStatementSyntax,
-            ParagraphSyntax,
-            ParagraphStatementSyntax,
-            StatementSyntax,
-            IStatementConnectionTailSyntax,
-            BridiStatementContinuationSyntax,
-            ConnectiveSyntax,
-        };
+        model;
         env generated_runtime::SyntaxGrammarEnv;
         strict_parsers;
+    }
+
+    #[bityzba::invariant(true)]
+    struct FirstGeneratedTokenVisitor<'tree> {
+        first: Option<&'tree Token>,
+    }
+
+    impl<'tree> jbotci_tree::TreeVisitor<'tree> for FirstGeneratedTokenVisitor<'tree> {
+        type Node = NodeRef<'tree>;
+        type Atom = AtomRef<'tree>;
+
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(true)]
+        fn visit_atom(&mut self, atom: Self::Atom) {
+            if self.first.is_some() {
+                return;
+            }
+            if let AtomRef::Token(token) = atom {
+                self.first = Some(token);
+            }
+        }
+    }
+
+    #[bityzba::contract_trait]
+    impl generated_runtime::SyntaxFirstWord for FreeModifierSyntax {
+        fn first_word(&self) -> Option<&Token> {
+            let mut visitor = FirstGeneratedTokenVisitor { first: None };
+            self.visit_in_order(&mut visitor);
+            visitor.first
+        }
     }
 
     #[bityzba::requires(true)]
@@ -5702,52 +4334,6 @@ pub mod generated_model {
             .into_result()
             .map_err(syntax_error)
     }
-}
-
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
-fn prepend_leading_i_statement(text: TextSyntax, marker: LeadingIStatementSyntax) -> TextSyntax {
-    let LeadingIStatementSyntax {
-        i,
-        connective,
-        free_modifiers,
-    } = marker;
-    let mut text_data = text.into_data();
-    if text_data.paragraphs.is_empty() {
-        text_data.paragraphs.push(bityzba::new!(ParagraphSyntax {
-            i: None,
-            niho: Vec::new(),
-            free_modifiers: Vec::new(),
-            statements: vec![bityzba::new!(ParagraphStatementSyntax {
-                i: Some(i),
-                connective,
-                free_modifiers,
-                statement: None,
-            })],
-        }));
-        return TextSyntax::from_data(text_data);
-    }
-
-    let mut paragraph_data = text_data.paragraphs.remove(0).into_data();
-    if paragraph_data.niho.is_empty() {
-        paragraph_data.statements = prepend_i_to_niho_free_paragraph_statements(
-            i,
-            connective,
-            free_modifiers,
-            std::mem::take(&mut paragraph_data.statements),
-        );
-    } else {
-        paragraph_data.i = Some(i);
-        paragraph_data.statements = attach_leading_i_connective_to_niho_paragraph_statements(
-            connective,
-            free_modifiers,
-            std::mem::take(&mut paragraph_data.statements),
-        );
-    }
-    text_data
-        .paragraphs
-        .insert(0, ParagraphSyntax::from_data(paragraph_data));
-    TextSyntax::from_data(text_data)
 }
 
 #[bityzba::requires(true)]
@@ -6469,99 +5055,6 @@ fn tanru_unit_to_single_selbri(unit: TanruUnitSyntax) -> SelbriSyntax {
         data => {
             let unit = TanruUnitSyntax::from_data(data);
             bityzba::new!(SelbriSyntax::Tanru(Box::new(TanruUnitVec::new(unit))))
-        }
-    }
-}
-
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
-pub(super) fn parse_statement_attempt(
-    words: &[Token],
-    _source: Option<&str>,
-    options: &ParseOptions,
-) -> ParsedStatementAttempt {
-    let tokens = spanned_tokens(words);
-    let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
-    let mut state = ParserState::new(words, options);
-    let result = strict_generated_text_parser()
-        .then_ignore(end())
-        .parse_with_state(
-            tokens
-                .as_slice()
-                .split_spanned(SimpleSpan::from(eoi_offset..eoi_offset)),
-            &mut state,
-        )
-        .into_result();
-
-    match result {
-        Ok(text) => {
-            let finished = state.finish();
-            ParsedStatementAttempt {
-                result: Ok(ParsedStatement {
-                    text,
-                    warnings: finished.warnings,
-                }),
-                trace: finished.trace,
-            }
-        }
-        Err(errors) => {
-            if state.trace_enabled()
-                && let Some(summary) = syntax_trace_failure_summary(&errors)
-            {
-                state.trace_failure_summary(summary);
-            }
-            let error = syntax_error(errors);
-            let finished = state.finish();
-            ParsedStatementAttempt {
-                result: Err(error),
-                trace: finished.trace,
-            }
-        }
-    }
-}
-
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
-pub(super) fn parse_statement_attempt_partial_valid(
-    words: &[Token],
-    _source: Option<&str>,
-    options: &ParseOptions,
-) -> ParsedPartialValidStatementAttempt {
-    let tokens = spanned_tokens(words);
-    let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
-    let mut state = ParserState::new(words, options);
-    let result = partial_valid_generated_text_parser()
-        .then_ignore(end())
-        .parse_with_state(
-            tokens
-                .as_slice()
-                .split_spanned(SimpleSpan::from(eoi_offset..eoi_offset)),
-            &mut state,
-        )
-        .into_result();
-
-    match result {
-        Ok(text) => {
-            let finished = state.finish();
-            ParsedPartialValidStatementAttempt {
-                result: Ok(text),
-                warnings: finished.warnings,
-                trace: finished.trace,
-            }
-        }
-        Err(errors) => {
-            if state.trace_enabled()
-                && let Some(summary) = syntax_trace_failure_summary(&errors)
-            {
-                state.trace_failure_summary(summary);
-            }
-            let error = syntax_error(errors);
-            let finished = state.finish();
-            ParsedPartialValidStatementAttempt {
-                result: Err(error),
-                warnings: finished.warnings,
-                trace: finished.trace,
-            }
         }
     }
 }

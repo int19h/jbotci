@@ -126,34 +126,16 @@ where
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         match atom {
-            generated_model::AtomRef::OptionBoxTenseModalSyntaxToken((tense_modal, token)) => {
-                self.visit_legacy_tree(tense_modal);
-                self.visit_token(token);
-            }
-            generated_model::AtomRef::OptionBoxTenseModalSyntaxWithFreeModifiersTokenFreeModifierSyntax((
-                tense_modal,
-                token,
-            )) => {
-                self.visit_legacy_tree(tense_modal);
-                self.visit_legacy_tree(token);
-            }
-            generated_model::AtomRef::TokenConnectiveSyntax((token, connective)) => {
-                self.visit_token(token);
-                self.visit_generated_tree(connective);
-            }
-            generated_model::AtomRef::AdditionalLinkedSumtiSyntax(value) => {
+            generated_model::AtomRef::DescriptionTailElementSyntax(value) => {
                 self.visit_legacy_tree(value);
             }
-            generated_model::AtomRef::BridiSyntax(value) => self.visit_legacy_tree(value),
-            generated_model::AtomRef::FreeModifierSyntax(value) => self.visit_legacy_tree(value),
             generated_model::AtomRef::Indicator(value) => self.visit_legacy_tree(value),
-            generated_model::AtomRef::LinkedSumtiListSyntax(value) => self.visit_legacy_tree(value),
-            generated_model::AtomRef::QuantifierSyntax(value) => self.visit_legacy_tree(value),
-            generated_model::AtomRef::RelativeClauseSyntax(value) => self.visit_legacy_tree(value),
-            generated_model::AtomRef::SelbriSyntax(value) => self.visit_legacy_tree(value),
-            generated_model::AtomRef::SubbridiSyntax(value) => self.visit_legacy_tree(value),
-            generated_model::AtomRef::TenseModalSyntax(value) => self.visit_legacy_tree(value),
-            generated_model::AtomRef::TermSyntax(value) => self.visit_legacy_tree(value),
+            generated_model::AtomRef::SumtiTagSyntax(value) => {
+                self.visit_legacy_tree(value);
+            }
+            generated_model::AtomRef::SumtiWrapperKindSyntax(value) => {
+                self.visit_legacy_tree(value);
+            }
             generated_model::AtomRef::Token(token) => self.visit_token(token),
         }
     }
@@ -2683,7 +2665,10 @@ mod tests {
 
         assert!(reason.contains("free modifier"), "{reason}");
         assert!(reason.contains("mex"), "{reason}");
-        assert_eq!(context, &None);
+        assert!(matches!(
+            context,
+            Some(context) if context.construct == "number sumti"
+        ));
         assert!(expectations.iter().any(|expectation| matches!(
             expectation.reason.as_data(),
             data!(SyntaxExpectationReason::StartNested { construct }) if construct == "free modifier"
@@ -2702,7 +2687,6 @@ mod tests {
         ));
         let note_text = segment_text(&diagnostic.styled_notes[0].segments);
         assert!(note_text.contains("needs one of:"));
-        assert!(note_text.contains("number sumti"));
         assert!(note_text.contains("LERFU"));
         assert!(!note_text.contains("LETTER WORD"));
         assert!(!note_text.contains("expected one of:"));
@@ -2732,7 +2716,7 @@ mod tests {
     fn truncated_forethought_forms_report_structured_expectations() {
         assert_error_mentions_construct("ga mi broda gi", "forethought bridi connection");
         assert_error_mentions_construct("ga lo mlatu gi", "forethought sumti connection");
-        assert_error_mentions_construct("mi gu'e broda gi", "forethought sumti connection");
+        assert_error_mentions_construct("mi gu'e broda gi", "forethought selbri connection");
         assert_error_mentions_construct("li ga pa gi", "forethought mex");
     }
 
@@ -2747,12 +2731,15 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn generated_syntax_error_kinds_do_not_infer_incomplete_contexts() {
-        assert_error_kind("lo", SyntaxErrorKind::UnexpectedCmavo);
-        assert_error_kind("mi cu", SyntaxErrorKind::UnexpectedCmavo);
-        assert_error_kind("mi sei", SyntaxErrorKind::UnexpectedCmavo);
-        assert_error_kind("li vei pa su'i", SyntaxErrorKind::UnexpectedCmavo);
-        assert_error_kind("ga lo mlatu gi", SyntaxErrorKind::UnexpectedCmavo);
+    fn syntax_error_kinds_cover_temporary_legacy_contexts() {
+        assert_error_kind("lo", SyntaxErrorKind::IncompleteSumti);
+        assert_error_kind("mi cu", SyntaxErrorKind::IncompleteBridi);
+        assert_error_kind("mi sei", SyntaxErrorKind::IncompleteFreeModifier);
+        assert_error_kind("li vei pa su'i", SyntaxErrorKind::IncompleteMekso);
+        assert_error_kind(
+            "ga lo mlatu gi",
+            SyntaxErrorKind::IncompleteForethoughtConnection,
+        );
     }
 
     #[test]

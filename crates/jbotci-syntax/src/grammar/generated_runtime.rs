@@ -24,7 +24,7 @@ use crate::{
 
 #[invariant(!words.is_empty(), "vocative marker sequence cannot be empty")]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub(crate) struct VocativeMarkerWordsSyntax {
+pub struct VocativeMarkerWordsSyntax {
     pub words: Vec<Token>,
 }
 

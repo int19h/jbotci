@@ -65,8 +65,14 @@ struct SyntaxGrammar {
 impl SyntaxGrammar {
     fn expand(&self) -> TokenStream2 {
         let type_env = GrammarTypeEnv::new(&self.recursive, &self.rules);
+        let model_outputs = self.resolved_model_outputs();
+        let model_all_rules_local = self.generate_model && self.model_outputs.is_none();
+        let auto_model_variants = match self.auto_model_variants(&type_env) {
+            Ok(auto_model_variants) => auto_model_variants,
+            Err(error) => return error.into_compile_error(),
+        };
         let tree_model = if self.generate_model {
-            match self.expand_generated_tree_model(&type_env) {
+            match self.expand_generated_tree_model(&type_env, &auto_model_variants) {
                 Ok(tree_model) => Some(tree_model),
                 Err(error) => return error.into_compile_error(),
             }
@@ -94,15 +100,17 @@ impl SyntaxGrammar {
         let parser_functions = if self.generate_parsers {
             self.rules
                 .iter()
-                .filter(|rule| !self.generate_model || self.generates_model_output(rule.output()))
+                .filter(|rule| !self.generate_model || self.rule_has_local_parser(rule.output()))
                 .filter_map(|rule| {
                     rule.expand_strict_parser(
                         &helper_outputs,
                         &type_env,
                         self.generate_model,
-                        &self.model_outputs,
+                        &model_outputs,
+                        model_all_rules_local,
                         self.model_path.as_ref(),
                         self.generates_model_output(rule.output()),
+                        &auto_model_variants,
                     )
                 })
                 .collect::<Vec<_>>()
@@ -372,28 +380,132 @@ fn expand_tree_model_block(file: &syn::File) -> TokenStream2 {
 }
 
 impl SyntaxGrammar {
+    fn resolved_model_outputs(&self) -> Option<BTreeSet<String>> {
+        if !self.generate_model {
+            return None;
+        }
+        if let Some(outputs) = &self.model_outputs {
+            return Some(outputs.clone());
+        }
+        let outputs = self
+            .rules
+            .iter()
+            .filter_map(|rule| match rule {
+                Rule::Alias(_) => None,
+                Rule::Node(rule) => simple_type_ident(&rule.output),
+                Rule::Product(rule) => simple_type_ident(&rule.0.output),
+            })
+            .map(Ident::to_string)
+            .collect::<BTreeSet<_>>();
+        Some(outputs)
+    }
+
     fn generates_model_output(&self, output: &Type) -> bool {
-        output_is_generated_model(self.generate_model, &self.model_outputs, output)
+        output_is_generated_model(self.generate_model, &self.resolved_model_outputs(), output)
     }
 
     fn generates_model_output_name(&self, output: &str) -> bool {
         self.generate_model
             && self
-                .model_outputs
+                .resolved_model_outputs()
                 .as_ref()
                 .is_none_or(|outputs| outputs.contains(output))
+    }
+
+    fn rule_has_local_parser(&self, output: &Type) -> bool {
+        !self.generate_model || self.model_outputs.is_none() || self.generates_model_output(output)
     }
 
     fn parser_type_tokens(&self, output: &Type) -> TokenStream2 {
         parser_type_tokens(
             output,
             self.generate_model,
-            &self.model_outputs,
+            &self.resolved_model_outputs(),
             self.model_path.as_ref(),
         )
     }
 
-    fn expand_generated_tree_model(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
+    fn auto_model_variants(&self, type_env: &GrammarTypeEnv) -> Result<BTreeMap<String, Ident>> {
+        if !self.generate_model {
+            return Ok(BTreeMap::new());
+        }
+
+        let mut plain_rules = BTreeMap::<String, Vec<(Ident, GeneratedStructModel)>>::new();
+        let mut explicit_variants = BTreeMap::<String, BTreeSet<String>>::new();
+        for rule in &self.rules {
+            let (rule_kind, rule) = match rule {
+                Rule::Alias(_) => continue,
+                Rule::Node(rule) => (GeneratedModelRuleKind::Node, rule),
+                Rule::Product(rule) => (GeneratedModelRuleKind::Product, &rule.0),
+            };
+            let Some(output) = simple_type_ident(&rule.output) else {
+                continue;
+            };
+            let output_name = output.to_string();
+            if !self.generates_model_output_name(&output_name) {
+                continue;
+            }
+            match &rule.construction {
+                ConstructionMode::NamedVariant(variant)
+                | ConstructionMode::TupleVariant(variant) => {
+                    let variant = rule.model_variant.as_ref().unwrap_or(variant);
+                    explicit_variants
+                        .entry(output_name)
+                        .or_default()
+                        .insert(variant.to_string());
+                }
+                ConstructionMode::Validated | ConstructionMode::Direct => {
+                    let fields = rule.generated_model_fields(type_env)?;
+                    plain_rules.entry(output_name).or_default().push((
+                        rule.name.clone(),
+                        GeneratedStructModel {
+                            visibility: rule_kind.visibility_tokens(),
+                            ident: output.clone(),
+                            rule_name: rule.name.clone(),
+                            fields,
+                        },
+                    ));
+                }
+            }
+        }
+
+        let mut auto_variants = BTreeMap::new();
+        for (output, rules) in plain_rules {
+            let has_explicit_variant = explicit_variants.contains_key(&output);
+            let has_multiple_shapes = rules
+                .first()
+                .is_some_and(|(_, first)| rules.iter().any(|(_, rule)| !first.same_shape_as(rule)));
+            if !has_explicit_variant && !has_multiple_shapes {
+                continue;
+            }
+
+            let mut used_variants = explicit_variants.remove(&output).unwrap_or_default();
+            for (rule_name, _) in rules {
+                let mut variant = pascal_case_ident(&rule_name.to_string());
+                if used_variants.contains(&variant.to_string()) {
+                    let base = variant.to_string();
+                    let mut suffix = 2usize;
+                    loop {
+                        variant = format_ident!("{base}{suffix}");
+                        if !used_variants.contains(&variant.to_string()) {
+                            break;
+                        }
+                        suffix += 1;
+                    }
+                }
+                used_variants.insert(variant.to_string());
+                auto_variants.insert(rule_name.to_string(), variant);
+            }
+        }
+
+        Ok(auto_variants)
+    }
+
+    fn expand_generated_tree_model(
+        &self,
+        type_env: &GrammarTypeEnv,
+        auto_model_variants: &BTreeMap<String, Ident>,
+    ) -> Result<TokenStream2> {
         let attrs = self
             .tree_model
             .as_ref()
@@ -404,7 +516,7 @@ impl SyntaxGrammar {
             .as_ref()
             .map(|file| file.items.as_slice())
             .unwrap_or(&[]);
-        let generated_items = self.generated_tree_model_items(type_env)?;
+        let generated_items = self.generated_tree_model_items(type_env, auto_model_variants)?;
         Ok(quote! {
             jbotci_tree::tree_model! {
                 #(#attrs)*
@@ -414,7 +526,11 @@ impl SyntaxGrammar {
         })
     }
 
-    fn generated_tree_model_items(&self, type_env: &GrammarTypeEnv) -> Result<Vec<TokenStream2>> {
+    fn generated_tree_model_items(
+        &self,
+        type_env: &GrammarTypeEnv,
+        auto_model_variants: &BTreeMap<String, Ident>,
+    ) -> Result<Vec<TokenStream2>> {
         let mut structs = BTreeMap::<String, GeneratedStructModel>::new();
         let mut enums = BTreeMap::<String, Vec<GeneratedVariantModel>>::new();
         for rule in &self.rules {
@@ -459,8 +575,32 @@ impl SyntaxGrammar {
                     )?;
                 }
                 ConstructionMode::Validated | ConstructionMode::Direct => {
+                    if let Some(variant) = auto_model_variants.get(&rule.name.to_string()) {
+                        let fields = rule.generated_model_fields(type_env)?;
+                        push_generated_variant(
+                            &mut enums,
+                            output.to_string(),
+                            GeneratedVariantModel {
+                                variant: variant.clone(),
+                                rule_name: rule.name.clone(),
+                                fields,
+                                tuple: false,
+                            },
+                        )?;
+                        continue;
+                    }
                     let key = output.to_string();
+                    let fields = rule.generated_model_fields(type_env)?;
                     if let Some(existing) = structs.get(&key) {
+                        let duplicate = GeneratedStructModel {
+                            visibility: rule_kind.visibility_tokens(),
+                            ident: output.clone(),
+                            rule_name: rule.name.clone(),
+                            fields,
+                        };
+                        if existing.same_shape_as(&duplicate) {
+                            continue;
+                        }
                         return Err(syn::Error::new_spanned(
                             &rule.name,
                             format!(
@@ -469,7 +609,6 @@ impl SyntaxGrammar {
                             ),
                         ));
                     }
-                    let fields = rule.generated_model_fields(type_env)?;
                     structs.insert(
                         key,
                         GeneratedStructModel {
@@ -497,10 +636,7 @@ impl SyntaxGrammar {
         items.extend(structs.values().map(GeneratedStructModel::expand));
         items.extend(enums.iter().map(|(name, variants)| {
             let ident = format_ident!("{name}");
-            let invariants = variants.iter().map(|variant| {
-                let variant = &variant.variant;
-                quote!(#[bityzba::invariant(::#variant => true)])
-            });
+            let invariants = variants.iter().map(GeneratedVariantModel::invariant_attr);
             quote! {
                 #[bityzba::invariant(true)]
                 #(#invariants)*
@@ -543,6 +679,27 @@ fn token_streams_match(left: &TokenStream2, right: &TokenStream2) -> bool {
     left.to_string() == right.to_string()
 }
 
+fn pascal_case_ident(name: &str) -> Ident {
+    let mut out = String::new();
+    let mut uppercase_next = true;
+    for ch in name.chars() {
+        if ch == '_' || ch == '-' || ch == ' ' {
+            uppercase_next = true;
+            continue;
+        }
+        if uppercase_next {
+            out.extend(ch.to_uppercase());
+            uppercase_next = false;
+        } else {
+            out.push(ch);
+        }
+    }
+    if out.is_empty() {
+        out.push_str("Rule");
+    }
+    format_ident!("{out}")
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GeneratedModelRuleKind {
     Node,
@@ -566,6 +723,17 @@ struct GeneratedStructModel {
 }
 
 impl GeneratedStructModel {
+    fn same_shape_as(&self, other: &Self) -> bool {
+        token_streams_match(&self.visibility, &other.visibility)
+            && self.ident == other.ident
+            && self.fields.len() == other.fields.len()
+            && self
+                .fields
+                .iter()
+                .zip(&other.fields)
+                .all(|(left, right)| left.same_shape_as(right))
+    }
+
     fn expand(&self) -> TokenStream2 {
         let visibility = &self.visibility;
         let ident = &self.ident;
@@ -588,6 +756,15 @@ struct GeneratedVariantModel {
 }
 
 impl GeneratedVariantModel {
+    fn invariant_attr(&self) -> TokenStream2 {
+        let variant = &self.variant;
+        if self.tuple {
+            quote!(#[bityzba::invariant(::#variant(..) => true)])
+        } else {
+            quote!(#[bityzba::invariant(::#variant => true)])
+        }
+    }
+
     fn same_shape_as(&self, other: &Self) -> bool {
         self.variant == other.variant
             && self.tuple == other.tuple
@@ -666,7 +843,6 @@ impl SyntaxGrammar {
         let mut output_counts = BTreeMap::new();
         for rule in &self.rules {
             if let Rule::Product(rule) = rule
-                && rule.0.build.is_none()
                 && matches!(&rule.0.construction, ConstructionMode::Validated)
                 && rule.0.fields.iter().all(|field| {
                     !matches!(
@@ -687,8 +863,7 @@ impl SyntaxGrammar {
                     return None;
                 };
                 let output = simple_type_ident(&rule.0.output)?;
-                (rule.0.build.is_none()
-                    && matches!(&rule.0.construction, ConstructionMode::Validated)
+                (matches!(&rule.0.construction, ConstructionMode::Validated)
                     && !(self.generate_model
                         && self.generates_model_output_name(&output.to_string()))
                     && output_counts.get(&output.to_string()).copied() == Some(1)
@@ -734,7 +909,7 @@ impl SyntaxGrammar {
         let recursive_rules = self
             .recursive
             .iter()
-            .filter(|rule| !self.generate_model || self.generates_model_output(&rule.output))
+            .filter(|rule| !self.generate_model || self.rule_has_local_parser(&rule.output))
             .collect::<Vec<_>>();
         if recursive_rules.is_empty() {
             return None;
@@ -932,28 +1107,38 @@ impl Rule {
         type_env: &GrammarTypeEnv,
         generate_model: bool,
         model_outputs: &Option<BTreeSet<String>>,
+        model_all_rules_local: bool,
         model_path: Option<&Path>,
         use_model_construction: bool,
+        auto_model_variants: &BTreeMap<String, Ident>,
     ) -> Option<TokenStream2> {
         match self {
-            Rule::Alias(rule) => {
-                rule.expand_strict_parser(type_env, generate_model, model_outputs, model_path)
-            }
+            Rule::Alias(rule) => rule.expand_strict_parser(
+                type_env,
+                generate_model,
+                model_outputs,
+                model_all_rules_local,
+                model_path,
+            ),
             Rule::Node(rule) => rule.expand_strict_parser(
                 helper_outputs,
                 type_env,
                 generate_model,
                 model_outputs,
+                model_all_rules_local,
                 model_path,
                 use_model_construction,
+                auto_model_variants,
             ),
             Rule::Product(rule) => rule.0.expand_strict_parser(
                 helper_outputs,
                 type_env,
                 generate_model,
                 model_outputs,
+                model_all_rules_local,
                 model_path,
                 use_model_construction,
+                auto_model_variants,
             ),
         }
     }
@@ -1044,6 +1229,7 @@ impl AliasRule {
         type_env: &GrammarTypeEnv,
         generate_model: bool,
         model_outputs: &Option<BTreeSet<String>>,
+        model_all_rules_local: bool,
         model_path: Option<&Path>,
     ) -> Option<TokenStream2> {
         let argument_types = self.argument_types(type_env)?;
@@ -1053,6 +1239,7 @@ impl AliasRule {
             type_env,
             generate_model,
             model_outputs,
+            model_all_rules_local,
         };
         let parser = strict_parser_expr_tokens(
             &self.parser,
@@ -1204,7 +1391,6 @@ struct NodeRule {
     output: Type,
     context: Option<LitStr>,
     fields: Vec<FieldItem>,
-    build: Option<ExprClosure>,
     construction: ConstructionMode,
     model_variant: Option<Ident>,
     no_partial_valid: bool,
@@ -1270,8 +1456,10 @@ impl NodeRule {
         type_env: &GrammarTypeEnv,
         generate_model: bool,
         model_outputs: &Option<BTreeSet<String>>,
+        model_all_rules_local: bool,
         model_path: Option<&Path>,
         use_model_construction: bool,
+        auto_model_variants: &BTreeMap<String, Ident>,
     ) -> Option<TokenStream2> {
         let argument_types = self.argument_types(type_env)?;
         let argument_names = self.argument_name_set();
@@ -1295,6 +1483,7 @@ impl NodeRule {
             type_env,
             generate_model,
             model_outputs,
+            model_all_rules_local,
         };
         let (parser, pattern) = strict_sequence_parser_tokens(
             &sequence_items,
@@ -1314,9 +1503,7 @@ impl NodeRule {
             quote!(#argument: BoxedParser<'tokens, #ty>)
         });
         let hidden_free_modifier = strict_free_modifier_param_tokens();
-        let body = if !use_model_construction && let Some(build) = &self.build {
-            build.body.to_token_stream()
-        } else if !use_model_construction
+        let body = if !use_model_construction
             && simple_type_ident(output).is_some_and(|output| {
                 helper_outputs.contains(&output.to_string())
                     && self.fields.iter().all(|field| {
@@ -1325,8 +1512,7 @@ impl NodeRule {
                             FieldKind::Default | FieldKind::Let | FieldKind::Scratch
                         )
                     })
-            })
-        {
+            }) {
             let field_names = fields
                 .iter()
                 .map(|field| field.name.as_ref().expect("field items have names"));
@@ -1385,61 +1571,76 @@ impl NodeRule {
                     FieldKind::Scratch | FieldKind::Require => None,
                 }
             });
-            match &self.construction {
-                ConstructionMode::Validated if use_model_construction => {
-                    quote!({
-                        #(#let_bindings)*
-                        #output_tokens { #(#assignments)* }
-                    })
-                }
-                ConstructionMode::Validated => {
-                    quote!({
-                        #(#let_bindings)*
-                        bityzba::new!(#output_tokens { #(#assignments)* })
-                    })
-                }
-                ConstructionMode::Direct => {
-                    quote!({
-                        #(#let_bindings)*
-                        #output_tokens { #(#assignments)* }
-                    })
-                }
-                ConstructionMode::NamedVariant(variant) if use_model_construction => {
-                    let variant = self.model_variant.as_ref().unwrap_or(variant);
-                    quote!({
+            let auto_model_variant = use_model_construction
+                .then(|| auto_model_variants.get(&self.name.to_string()))
+                .flatten();
+            if let Some(variant) = auto_model_variant {
+                match &self.construction {
+                    ConstructionMode::Validated | ConstructionMode::Direct => quote!({
                         #(#let_bindings)*
                         #output_tokens::#variant { #(#assignments)* }
-                    })
+                    }),
+                    ConstructionMode::NamedVariant(_) | ConstructionMode::TupleVariant(_) => {
+                        return None;
+                    }
                 }
-                ConstructionMode::NamedVariant(variant) => {
-                    quote!({
-                        #(#let_bindings)*
-                        bityzba::new!(#output_tokens::#variant { #(#assignments)* })
-                    })
-                }
-                ConstructionMode::TupleVariant(variant) => {
-                    let values = self.fields.iter().filter_map(|field| {
-                        let name = field.name.as_ref()?;
-                        match field.kind {
-                            FieldKind::Field | FieldKind::Let => Some(quote!(#name)),
-                            FieldKind::Default => {
-                                let value = &field.parser;
-                                Some(quote!(#value))
-                            }
-                            FieldKind::Scratch | FieldKind::Require => None,
-                        }
-                    });
-                    if use_model_construction {
+            } else {
+                match &self.construction {
+                    ConstructionMode::Validated if use_model_construction => {
+                        quote!({
+                            #(#let_bindings)*
+                            #output_tokens { #(#assignments)* }
+                        })
+                    }
+                    ConstructionMode::Validated => {
+                        quote!({
+                            #(#let_bindings)*
+                            bityzba::new!(#output_tokens { #(#assignments)* })
+                        })
+                    }
+                    ConstructionMode::Direct => {
+                        quote!({
+                            #(#let_bindings)*
+                            #output_tokens { #(#assignments)* }
+                        })
+                    }
+                    ConstructionMode::NamedVariant(variant) if use_model_construction => {
                         let variant = self.model_variant.as_ref().unwrap_or(variant);
                         quote!({
                             #(#let_bindings)*
-                            #output_tokens::#variant(#(#values,)*)
+                            #output_tokens::#variant { #(#assignments)* }
                         })
-                    } else {
+                    }
+                    ConstructionMode::NamedVariant(variant) => {
                         quote!({
                             #(#let_bindings)*
-                            bityzba::new!(#output_tokens::#variant(#(#values,)*))
+                            bityzba::new!(#output_tokens::#variant { #(#assignments)* })
                         })
+                    }
+                    ConstructionMode::TupleVariant(variant) => {
+                        let values = self.fields.iter().filter_map(|field| {
+                            let name = field.name.as_ref()?;
+                            match field.kind {
+                                FieldKind::Field | FieldKind::Let => Some(quote!(#name)),
+                                FieldKind::Default => {
+                                    let value = &field.parser;
+                                    Some(quote!(#value))
+                                }
+                                FieldKind::Scratch | FieldKind::Require => None,
+                            }
+                        });
+                        if use_model_construction {
+                            let variant = self.model_variant.as_ref().unwrap_or(variant);
+                            quote!({
+                                #(#let_bindings)*
+                                #output_tokens::#variant(#(#values,)*)
+                            })
+                        } else {
+                            quote!({
+                                #(#let_bindings)*
+                                bityzba::new!(#output_tokens::#variant(#(#values,)*))
+                            })
+                        }
                     }
                 }
             }
@@ -1478,33 +1679,29 @@ impl NodeRule {
         if self.no_partial_valid {
             return None;
         }
-        let can_generate_strict = if self.build.is_none() {
-            let has_default = self
-                .fields
-                .iter()
-                .any(|field| matches!(field.kind, FieldKind::Default));
-            let has_let = self
-                .fields
-                .iter()
-                .any(|field| matches!(field.kind, FieldKind::Let));
-            let has_scratch = self
-                .fields
-                .iter()
-                .any(|field| matches!(field.kind, FieldKind::Scratch));
-            if is_unit_type(&self.output) {
-                true
-            } else {
-                is_path_type(&self.output)
-                    && simple_type_ident(&self.output).is_none_or(|output| {
-                        if helper_outputs.contains(&output.to_string()) {
-                            !has_default && !has_let && !has_scratch
-                        } else {
-                            true
-                        }
-                    })
-            }
-        } else {
+        let has_default = self
+            .fields
+            .iter()
+            .any(|field| matches!(field.kind, FieldKind::Default));
+        let has_let = self
+            .fields
+            .iter()
+            .any(|field| matches!(field.kind, FieldKind::Let));
+        let has_scratch = self
+            .fields
+            .iter()
+            .any(|field| matches!(field.kind, FieldKind::Scratch));
+        let can_generate_strict = if is_unit_type(&self.output) {
             true
+        } else {
+            is_path_type(&self.output)
+                && simple_type_ident(&self.output).is_none_or(|output| {
+                    if helper_outputs.contains(&output.to_string()) {
+                        !has_default && !has_let && !has_scratch
+                    } else {
+                        true
+                    }
+                })
         };
         if !can_generate_strict {
             return None;
@@ -1612,13 +1809,22 @@ struct StrictParserGeneration<'a> {
     type_env: &'a GrammarTypeEnv,
     generate_model: bool,
     model_outputs: &'a Option<BTreeSet<String>>,
+    model_all_rules_local: bool,
 }
 
 impl StrictParserGeneration<'_> {
+    fn rule_has_local_parser(&self, name: &str) -> bool {
+        self.model_all_rules_local || self.rule_is_generated_model(name)
+    }
+
     fn rule_is_generated_model(&self, name: &str) -> bool {
         self.type_env.rules.get(name).is_some_and(|output| {
             output_is_generated_model(self.generate_model, self.model_outputs, output)
         })
+    }
+
+    fn recursive_has_local_parser(&self, name: &str) -> bool {
+        self.model_all_rules_local || self.recursive_is_generated_model(name)
     }
 
     fn recursive_is_generated_model(&self, name: &str) -> bool {
@@ -1633,7 +1839,7 @@ impl StrictParserGeneration<'_> {
 
     fn legacy_free_modifier_parser(&self) -> TokenStream2 {
         let name = format_ident!("free_modifier");
-        if self.recursive_is_generated_model("free_modifier") {
+        if self.recursive_has_local_parser("free_modifier") {
             self.legacy_recursive_parser(&name)
         } else {
             quote!(__generated_free_modifier.clone())
@@ -1836,7 +2042,7 @@ fn strict_method_parser_expr_tokens(
             .collect::<Option<Vec<_>>>()?;
         let parser_name = format_ident!("strict_{}_parser", rule);
         let parser_name = if mode == StrictParserCallMode::Legacy
-            || (generation.generate_model && !generation.rule_is_generated_model(&rule))
+            || (generation.generate_model && !generation.rule_has_local_parser(&rule))
         {
             quote!(super::#parser_name)
         } else {
@@ -2297,7 +2503,7 @@ fn strict_rule_call_parser_tokens<'a>(
         return None;
     }
     let call_mode = if mode == StrictParserCallMode::Legacy
-        || (generation.generate_model && !generation.rule_is_generated_model(function))
+        || (generation.generate_model && !generation.rule_has_local_parser(function))
     {
         StrictParserCallMode::Legacy
     } else {
@@ -2339,7 +2545,7 @@ fn strict_argument_parser_tokens(
     }
     let argument = format_ident!("{argument}");
     if mode == StrictParserCallMode::Legacy
-        && generation.recursive_is_generated_model(&argument.to_string())
+        && generation.recursive_has_local_parser(&argument.to_string())
     {
         Some(generation.legacy_recursive_parser(&argument))
     } else {
@@ -2748,7 +2954,6 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
 
     let mut context = None;
     let mut fields = Vec::new();
-    let mut build = None;
     let mut construction = ConstructionMode::Validated;
     let mut model_variant = None;
     let mut no_partial_valid = false;
@@ -2785,16 +2990,16 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
         } else if content.peek(kw::fields) {
             fields = parse_fields_block(&content)?;
         } else if content.peek(kw::build) {
-            content.parse::<kw::build>()?;
-            build = Some(content.parse()?);
-            content.parse::<Token![;]>()?;
+            return Err(content.error(
+                "`build` blocks are no longer supported; use declarative fields, `default`, `let`, `scratch`, `require`, aliases, products, and construct variants",
+            ));
         } else if content.peek(kw::recovered_build) {
             content.parse::<kw::recovered_build>()?;
             recovered_build = Some(content.parse()?);
             content.parse::<Token![;]>()?;
         } else {
             return Err(content.error(
-                "expected `context`, `construct`, `model_variant`, `no_partial_valid`, `fields`, `build`, or `recovered_build`",
+                "expected `context`, `construct`, `model_variant`, `no_partial_valid`, `fields`, or `recovered_build`",
             ));
         }
     }
@@ -2805,7 +3010,6 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
         output,
         context,
         fields,
-        build,
         construction,
         model_variant,
         no_partial_valid,
@@ -3330,4 +3534,33 @@ fn compact_tokens(tokens: impl ToTokens) -> String {
         .chars()
         .filter(|ch| !ch.is_whitespace())
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quote::quote;
+
+    #[test]
+    fn grammar_rejects_build_blocks() {
+        let result = syn::parse2::<SyntaxGrammar>(quote! {
+            node item -> ItemSyntax {
+                fields {
+                    field token = cmavo(Be);
+                }
+                build |token| ItemSyntax { token };
+            }
+        });
+
+        let error = match result {
+            Ok(_) => panic!("build blocks must be rejected"),
+            Err(error) => error,
+        };
+        assert!(
+            error
+                .to_string()
+                .contains("`build` blocks are no longer supported"),
+            "unexpected error: {error}"
+        );
+    }
 }

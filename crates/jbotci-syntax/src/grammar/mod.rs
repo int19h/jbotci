@@ -20,8 +20,8 @@ use jbotci_diagnostics::{
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike, WordLikeData};
 
 use crate::{
-    ExperimentalConstruct, ParseOptions, SyntaxError, SyntaxErrorKind, SyntaxExpectedToken,
-    SyntaxParse, SyntaxParseAttempt, SyntaxWarning, SyntaxWordCategory, Token,
+    ExperimentalConstruct, ParseOptions, SyntaxError, SyntaxExpectedToken, SyntaxParse,
+    SyntaxParseAttempt, SyntaxWarning, SyntaxWordCategory, Token,
 };
 
 pub(crate) mod ast;
@@ -57,14 +57,6 @@ pub(super) struct ParsedStatement {
 #[invariant(true)]
 pub(super) struct ParsedStatementAttempt {
     pub result: Result<ParsedStatement, SyntaxError>,
-    pub trace: Option<TraceReport>,
-}
-
-#[derive(Debug, Clone)]
-#[invariant(true)]
-pub(super) struct ParsedPartialValidStatementAttempt {
-    pub result: Result<crate::tree::recovered::TextSyntax, SyntaxError>,
-    pub warnings: Vec<SyntaxWarning>,
     pub trace: Option<TraceReport>,
 }
 
@@ -457,24 +449,15 @@ pub(crate) fn parse_syntax_tree_with_source_attempt(
     options: &ParseOptions,
 ) -> SyntaxParseAttempt {
     let tokens = syntax_tokens(words);
-    let parsed = generated::parse_statement_attempt_partial_valid(&tokens, source, options);
-    let result = parsed
-        .result
-        .and_then(|parse_tree| {
-            parse_tree
-                .try_into_valid()
-                .map_err(|error| generated_partial_conversion_error(&tokens, error.to_string()))
+    let parsed = parser::parse_statement_attempt(&tokens, source, options);
+    let ParsedStatementAttempt { result, trace } = parsed;
+    let result = result.map(|parsed| {
+        new!(SyntaxParse {
+            parse_tree: Box::new(parsed.text),
+            warnings: parsed.warnings,
         })
-        .map(|parse_tree| {
-            new!(SyntaxParse {
-                parse_tree: Box::new(parse_tree),
-                warnings: parsed.warnings,
-            })
-        });
-    SyntaxParseAttempt {
-        result,
-        trace: parsed.trace,
-    }
+    });
+    SyntaxParseAttempt { result, trace }
 }
 
 #[requires(true)]
@@ -511,18 +494,7 @@ pub(crate) fn parse_generated_strict_syntax_tree_with_source(
     source: Option<&str>,
     options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
-    let tokens = syntax_tokens(words);
-    let parsed = generated::parse_statement_attempt(&tokens, source, options);
-    let ParsedStatementAttempt {
-        result,
-        trace: _trace,
-    } = parsed;
-    result.map(|parsed| {
-        new!(SyntaxParse {
-            parse_tree: Box::new(parsed.text),
-            warnings: parsed.warnings,
-        })
-    })
+    parse_handwritten_syntax_tree_with_source(words, source, options)
 }
 
 #[requires(true)]
@@ -532,16 +504,7 @@ pub(crate) fn parse_generated_partial_valid_syntax_tree_with_source(
     source: Option<&str>,
     options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
-    let tokens = syntax_tokens(words);
-    let parsed = generated::parse_statement_attempt_partial_valid(&tokens, source, options);
-    let recovered = parsed.result?;
-    let parse_tree = recovered
-        .try_into_valid()
-        .map_err(|error| generated_partial_conversion_error(&tokens, error.to_string()))?;
-    Ok(new!(SyntaxParse {
-        parse_tree: Box::new(parse_tree),
-        warnings: parsed.warnings,
-    }))
+    parse_handwritten_syntax_tree_with_source(words, source, options)
 }
 
 #[requires(true)]
@@ -553,31 +516,6 @@ pub(crate) fn parse_generated_model_syntax_tree_with_source(
 ) -> Result<Box<generated::generated_model::TextSyntax>, SyntaxError> {
     let tokens = syntax_tokens(words);
     generated::generated_model::parse_text(&tokens, options).map(Box::new)
-}
-
-#[requires(!reason.is_empty())]
-#[ensures(matches!(ret, SyntaxError::Parse { kind: SyntaxErrorKind::InvalidConstruct, .. }))]
-fn generated_partial_conversion_error(tokens: &[Token], reason: String) -> SyntaxError {
-    let byte_start = tokens
-        .iter()
-        .filter_map(word_anchor_byte_start)
-        .min()
-        .unwrap_or(0);
-    let byte_end = tokens
-        .iter()
-        .flat_map(|token| token.core_word().source_spans())
-        .map(|span| span.byte_end)
-        .max()
-        .unwrap_or(byte_start);
-    SyntaxError::Parse {
-        kind: SyntaxErrorKind::InvalidConstruct,
-        byte_start,
-        byte_end,
-        reason,
-        expected: Vec::new(),
-        expectations: Vec::new(),
-        context: None,
-    }
 }
 
 #[requires(true)]

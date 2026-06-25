@@ -398,6 +398,7 @@ fn unwrap_tree_type_with_seen<'a>(
             unwrap_tree_type_with_seen(&reference.elem, node_names, aliases, seen_aliases)
         }
         Type::Array(array) => UnwrappedTreeType::Children(vec![&array.elem]),
+        Type::Tuple(tuple) => UnwrappedTreeType::Children(tuple.elems.iter().collect()),
         _ => UnwrappedTreeType::Atom(ty),
     }
 }
@@ -2340,6 +2341,48 @@ fn wrapper_trait_impls(
             ) -> Option<NodeRef<'tree>> {
                 self.as_ref()
                     .and_then(|value| value.node_at_path_steps(steps))
+            }
+        }
+
+        impl<A: TreeNode, B: TreeNode> TreeNode for (A, B) {
+            fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
+            where
+                V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
+            {
+                visitor.enter_sequence();
+                self.0.visit_in_order(visitor);
+                self.1.visit_in_order(visitor);
+                visitor.exit_sequence();
+            }
+
+            fn path_to_node_from<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+                path: &mut ::jbotci_tree::TreePath,
+            ) -> bool {
+                path.push(::jbotci_tree::TreePathStep::sequence_index(0));
+                if self.0.path_to_node_from(target, path) {
+                    return true;
+                }
+                path.pop();
+                path.push(::jbotci_tree::TreePathStep::sequence_index(1));
+                if self.1.path_to_node_from(target, path) {
+                    return true;
+                }
+                path.pop();
+                false
+            }
+
+            fn node_at_path_steps<'tree>(
+                &'tree self,
+                steps: &[::jbotci_tree::TreePathStep],
+            ) -> Option<NodeRef<'tree>> {
+                let (step, rest) = steps.split_first()?;
+                match step.as_sequence_index()? {
+                    0 => self.0.node_at_path_steps(rest),
+                    1 => self.1.node_at_path_steps(rest),
+                    _ => None,
+                }
             }
         }
 
