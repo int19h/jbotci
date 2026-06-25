@@ -1402,6 +1402,15 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn voi_relative_bridi_is_syntax_restrictive() {
+        let raw = parse_tree_debug("le gerku voi blabi cu klama", &ParseOptions::default());
+        assert!(raw.contains("RestrictiveRelativeBridi"));
+        assert!(!raw.contains("IncidentalRelativeBridi"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn chrestomathy_cu_terms_selbri_fallback_parses_alice_naku() {
         let parsed = parse_source("mi cu naku naku klama", &ParseOptions::default());
         assert!(has_warning_kind(

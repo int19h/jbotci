@@ -1860,9 +1860,9 @@ pub struct ProBridiAssignmentSyntax {
 
 }
 
-pub(crate) const RESTRICTIVE_RELATIVE_CLAUSE_CMAVO: &[Cmavo] = &[Cmavo::Poi, Cmavo::Pohoi];
-pub(crate) const NONRESTRICTIVE_RELATIVE_CLAUSE_CMAVO: &[Cmavo] =
-    &[Cmavo::Noi, Cmavo::Nohoi, Cmavo::Voi, Cmavo::Voihi];
+pub(crate) const RESTRICTIVE_RELATIVE_CLAUSE_CMAVO: &[Cmavo] =
+    &[Cmavo::Poi, Cmavo::Pohoi, Cmavo::Voi, Cmavo::Voihi];
+pub(crate) const NONRESTRICTIVE_RELATIVE_CLAUSE_CMAVO: &[Cmavo] = &[Cmavo::Noi, Cmavo::Nohoi];
 
 #[requires(true)]
 #[ensures(true)]

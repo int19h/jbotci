@@ -12337,12 +12337,12 @@ where
         head: SemanticObjectId,
     ) -> Result<Option<RelativeClause>, SemanticsError> {
         match clause.as_data() {
-            data!(RelativeClauseSyntax::IncidentalRelativeBridi { noi, subbridi, .. })
-                if noi
+            data!(RelativeClauseSyntax::RestrictiveRelativeBridi { poi, subbridi, .. })
+                if poi
                     .cmavo()
                     .is_some_and(cmavo_is_nonveridical_relative_marker) =>
             {
-                self.build_nonveridical_relative_bridi_clause(noi, subbridi, head)
+                self.build_nonveridical_relative_bridi_clause(poi, subbridi, head)
                     .map(Some)
             }
             data!(RelativeClauseSyntax::IncidentalRelativeBridi { subbridi, .. }) => self
