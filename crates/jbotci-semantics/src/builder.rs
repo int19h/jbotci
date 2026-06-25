@@ -7826,21 +7826,11 @@ where
             ),
         )?;
         let body = self.build_property_formula_for_units(units, parameter, source.clone())?;
-        let abstraction = self.next_abstraction();
-        self.insert(
-            abstraction,
-            SemanticObject::abstraction(
-                AbstractionKind::Property,
-                body,
-                vec![parameter],
-                source,
-                Vec::new(),
-            ),
-        )
+        self.build_property_abstraction_output(body, vec![parameter], source)
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Abstraction) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
     fn build_property_abstraction_for_abstraction_tanru_unit(
         &mut self,
         abstraction: &'tree AbstractionSyntax,
@@ -7865,17 +7855,33 @@ where
             source.clone(),
             PredicationMode::Restrictive,
         )?;
-        let property = self.next_abstraction();
-        self.insert(
-            property,
-            SemanticObject::abstraction(
-                AbstractionKind::Property,
-                body,
-                vec![parameter],
-                source,
-                Vec::new(),
-            ),
-        )
+        self.build_property_abstraction_output(body, vec![parameter], source)
+    }
+
+    #[requires(body.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(parameters.iter().all(|parameter| parameter.object_kind() == crate::model::SemanticObjectKind::Parameter))]
+    #[ensures(ret.as_ref().is_ok_and(|id| argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
+    fn build_property_abstraction_output(
+        &mut self,
+        body: SemanticObjectId,
+        parameters: Vec<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_referent();
+        let mut object = SemanticObject::referent(
+            ReferentCategory::Constant,
+            SemanticSort::Relation,
+            None,
+            None,
+            None,
+            source,
+            Vec::new(),
+        );
+        object.abstraction_kind = Some(AbstractionKind::Property);
+        object.body = Some(body);
+        object.arity = Some(parameters.len());
+        object.parameters = parameters;
+        self.insert(id, object)
     }
 
     #[requires(true)]
@@ -8040,17 +8046,7 @@ where
             ),
         )?;
         let body = self.build_property_formula_for_selbri(selbri, parameter, source.clone())?;
-        let abstraction = self.next_abstraction();
-        self.insert(
-            abstraction,
-            SemanticObject::abstraction(
-                AbstractionKind::Property,
-                body,
-                vec![parameter],
-                source,
-                Vec::new(),
-            ),
-        )
+        self.build_property_abstraction_output(body, vec![parameter], source)
     }
 
     #[requires(true)]
@@ -10627,7 +10623,7 @@ where
         )
     }
 
-    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(argument_object_kind_can_fill(referent.object_kind()))]
     #[ensures(true)]
     fn referent_is_abstraction_about_operand(
         &self,
@@ -14342,7 +14338,7 @@ where
         )
     }
 
-    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(argument_object_kind_can_fill(referent.object_kind()))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
     fn build_math_sumti_operand(
         &mut self,
@@ -15049,7 +15045,6 @@ where
         description: &'tree DescriptionSyntax,
         raw: RawSyntaxNodeId,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let id = self.next_referent();
         let word = description
             .description
             .as_ref()
@@ -15078,6 +15073,20 @@ where
             .selbri
             .as_deref()
             .and_then(description_abstraction_for_selbri);
+        if let (Some(selbri), Some(abstraction)) = (description.selbri.as_deref(), abstraction)
+            && abstraction.abstraction.abstractor_connections.is_empty()
+            && abstraction.link_relation
+                == abstraction_link_relation(abstraction_kind_for_nu(abstraction.abstraction))
+        {
+            return self.build_abstraction_description_output(
+                description,
+                raw,
+                selbri,
+                abstraction,
+                kind,
+                word,
+            );
+        }
         let sort = abstraction
             .map(|abstraction| abstraction.output_sort)
             .unwrap_or_else(|| {
@@ -15093,6 +15102,7 @@ where
                     _ => SemanticSort::Entity,
                 }
             });
+        let id = self.next_referent();
         let mut object = SemanticObject::referent(
             ReferentCategory::Constant,
             sort,
@@ -15199,8 +15209,120 @@ where
         Ok(id)
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[requires(operand.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
+    fn build_abstraction_description_output(
+        &mut self,
+        description: &'tree DescriptionSyntax,
+        raw: RawSyntaxNodeId,
+        selbri: &'tree SelbriSyntax,
+        description_abstraction: DescriptionAbstraction<'tree>,
+        kind: String,
+        word: String,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let abstraction = description_abstraction.abstraction;
+        let abstraction_kind = abstraction_kind_for_nu(abstraction);
+        let id = self.build_abstraction_object(abstraction, abstraction_kind)?;
+        let quantity = self.build_description_quantity(description, raw)?;
+        let source = self.source_for_description(description, raw, "description");
+        let speaker = self.current_speaker();
+        let frame = self
+            .semantic_predication_frame_for_selbri(selbri, self.branch_frame_for_selbri(selbri));
+        let scale = if abstraction_kind == AbstractionKind::Amount {
+            self.direct_abstraction_extra_value(abstraction_kind, frame)?
+        } else {
+            None
+        };
+        let veridical = description
+            .description
+            .as_ref()
+            .and_then(|word| word.cmavo())
+            .is_some_and(|cmavo| matches!(cmavo, Cmavo::Lohe | Cmavo::Lehe))
+            .then_some(false);
+        {
+            let object = self.objects.get_mut(&id).ok_or_else(|| {
+                SemanticsError::invalid_graph(format!(
+                    "semantic builder could not find abstraction description output {id}"
+                ))
+            })?;
+            object.descriptor = Some(Descriptor {
+                kind,
+                word,
+                speaker: Some(speaker),
+                body: None,
+                veridical,
+                relative_clauses: Vec::new(),
+                quantity,
+                name: None,
+                scale: None,
+                definiteness: None,
+                operand: None,
+            });
+            object.scale = scale;
+            object.source = source;
+        }
+        self.sumti_objects.insert(raw, id);
+
+        let operand_sumti = description_tail_sumti(&description.tail_elements);
+        let operand = operand_sumti
+            .map(|sumti| self.build_sumti_referent(sumti))
+            .transpose()?;
+        let mut relative_clauses = if description.description.is_some() {
+            let mut clauses = Vec::new();
+            descriptor_relative_clauses_for_description_tail(
+                &description.tail_elements,
+                &mut clauses,
+            );
+            clauses.extend(description.relative_clauses.iter());
+            self.lower_relative_clauses(clauses, id)?
+        } else {
+            Vec::new()
+        };
+        if description.description.is_some()
+            && let (Some(operand_sumti), Some(operand)) = (operand_sumti, operand)
+        {
+            relative_clauses.push(self.build_possessive_association_clause(
+                id,
+                operand,
+                operand_sumti,
+                &description.tail_elements,
+            )?);
+        }
+        if !relative_clauses.is_empty() {
+            let object = self.objects.get_mut(&id).ok_or_else(|| {
+                SemanticsError::invalid_graph(format!(
+                    "semantic builder could not find abstraction description output {id}"
+                ))
+            })?;
+            let Some(descriptor) = object.descriptor.as_mut() else {
+                return Err(SemanticsError::invalid_graph(format!(
+                    "semantic builder abstraction description output {id} has no descriptor"
+                )));
+            };
+            descriptor.relative_clauses = relative_clauses;
+        }
+        Ok(id)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| argument_object_kind_can_fill(id.object_kind()))) || ret.is_err())]
+    fn direct_abstraction_extra_value(
+        &mut self,
+        kind: AbstractionKind,
+        frame: Option<SelbriPlaceFrameId>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(surface_place) = abstraction_extra_surface_place(kind) else {
+            return Ok(None);
+        };
+        let Some(frame) = frame else {
+            return Ok(None);
+        };
+        self.numbered_assignment_argument_for_frame(frame, surface_place)
+            .map(|argument| argument.and_then(|argument| argument.value))
+    }
+
+    #[requires(argument_object_kind_can_fill(head.object_kind()))]
+    #[requires(argument_object_kind_can_fill(operand.object_kind()))]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_possessive_association_clause(
         &mut self,
@@ -16515,7 +16637,7 @@ where
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Abstraction) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
     fn build_abstraction_object(
         &mut self,
         abstraction: &'tree AbstractionSyntax,
@@ -16560,12 +16682,54 @@ where
             self.build_embedded_indirect_questions(body, indirect_questions)?;
 
         let source = self.source_for_abstraction(abstraction, "abstraction");
-        let abstraction_id = self.next_abstraction();
-        let mut object =
-            SemanticObject::abstraction(kind, body, parameters, source.clone(), Vec::new());
+        if let Some(class) = abstraction_eventuality_class(kind) {
+            let id = self
+                .single_formula_eventuality(body)
+                .unwrap_or_else(|| self.next_eventuality());
+            let mut object = if let Some(object) = self.objects.remove(&id) {
+                object
+            } else {
+                SemanticObject::eventuality(class, None, source.clone())
+            };
+            object.class = Some(class);
+            object.content = Some(body);
+            object.abstraction_kind = Some(kind);
+            object.parameters = parameters;
+            object.embedded_questions = embedded_questions;
+            object.source = source;
+            self.insert(id, object)?;
+            return Ok(id);
+        }
+
+        let id = self.next_referent();
+        let mut object = SemanticObject::referent(
+            ReferentCategory::Constant,
+            abstraction_output_sort(kind),
+            None,
+            None,
+            None,
+            source,
+            Vec::new(),
+        );
+        object.abstraction_kind = Some(kind);
+        object.body = Some(body);
+        if kind == AbstractionKind::Property {
+            object.arity = Some(parameters.len());
+        }
+        object.parameters = parameters;
         object.embedded_questions = embedded_questions;
-        self.insert(abstraction_id, object)?;
-        Ok(abstraction_id)
+        self.insert(id, object)?;
+        Ok(id)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Eventuality))]
+    fn single_formula_eventuality(&self, formula: SemanticObjectId) -> Option<SemanticObjectId> {
+        let object = self.objects.get(&formula)?;
+        let predication = object.predication?;
+        self.objects
+            .get(&predication)
+            .and_then(|object| object.eventuality)
     }
 
     #[requires(body.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -23213,6 +23377,19 @@ fn abstraction_body_mode(kind: AbstractionKind) -> PredicationMode {
 }
 
 #[requires(true)]
+#[ensures(ret.is_none() || matches!(kind, AbstractionKind::Event | AbstractionKind::Achievement | AbstractionKind::Process | AbstractionKind::Activity | AbstractionKind::State | AbstractionKind::Experience))]
+fn abstraction_eventuality_class(kind: AbstractionKind) -> Option<EventualityClass> {
+    match kind {
+        AbstractionKind::Event | AbstractionKind::Experience => Some(EventualityClass::Event),
+        AbstractionKind::Achievement => Some(EventualityClass::Achievement),
+        AbstractionKind::Process => Some(EventualityClass::Process),
+        AbstractionKind::Activity => Some(EventualityClass::Activity),
+        AbstractionKind::State => Some(EventualityClass::State),
+        _ => None,
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn abstraction_output_sort(kind: AbstractionKind) -> SemanticSort {
     match kind {
@@ -25414,6 +25591,41 @@ mod tests {
             .filter(|object| object["type"] == "predication" && object["relation"] == "tanru")
             .filter_map(|object| object["tanruLink"]["relationLabel"].as_str())
             .map(ToOwned::to_owned)
+            .collect()
+    }
+
+    #[requires(!kind.is_empty())]
+    #[ensures(true)]
+    fn abstraction_output_with_kind<'a>(json: &'a Value, kind: &str) -> (&'a str, &'a Value) {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .iter()
+            .find(|(_, object)| object["abstractionKind"] == kind)
+            .map(|(id, object)| (id.as_str(), object))
+            .unwrap_or_else(|| panic!("missing abstraction output with kind {kind}"))
+    }
+
+    #[requires(!kind.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn abstraction_outputs_with_kind<'a>(json: &'a Value, kind: &str) -> Vec<(&'a str, &'a Value)> {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .iter()
+            .filter(|(_, object)| object["abstractionKind"] == kind)
+            .map(|(id, object)| (id.as_str(), object))
+            .collect()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.iter().all(|id| id.starts_with("abstraction:")))]
+    fn abstraction_wrapper_ids(json: &Value) -> Vec<&str> {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .keys()
+            .filter_map(|id| id.starts_with("abstraction:").then_some(id.as_str()))
             .collect()
     }
 
@@ -28282,16 +28494,12 @@ mod tests {
             object(&json, "predication:p2")["arguments"]["x1"]["value"],
             "parameter:p1"
         );
-        assert_eq!(
-            object(&json, "abstraction:a1")["abstractionKind"],
-            "property"
-        );
-        assert_eq!(object(&json, "abstraction:a1")["arity"], 1);
-        assert_eq!(object(&json, "abstraction:a1")["body"], "formula:f2");
-        assert_eq!(
-            object(&json, "abstraction:a1")["parameters"][0],
-            "parameter:p1"
-        );
+        let (modifier_id, modifier) = abstraction_output_with_kind(&json, "property");
+        assert_eq!(modifier["type"], "referent");
+        assert_eq!(modifier["sort"], "relation");
+        assert_eq!(modifier["arity"], 1);
+        assert_eq!(modifier["body"], "formula:f2");
+        assert_eq!(modifier["parameters"][0], "parameter:p1");
         assert_eq!(object(&json, "predication:p3")["relation"], "tanru");
         assert_eq!(
             object(&json, "predication:p3")["tanruLink"]["relationLabel"],
@@ -28299,7 +28507,7 @@ mod tests {
         );
         assert_eq!(
             object(&json, "predication:p3")["arguments"]["x2"]["value"],
-            "abstraction:a1"
+            modifier_id
         );
         assert_eq!(object(&json, "formula:f4")["operator"], "and");
         assert_eq!(object(&json, "formula:f4")["children"][0], "formula:f1");
@@ -28312,19 +28520,12 @@ mod tests {
     fn abstraction_description_reifies_body_formula() {
         let json = semantic_json_for("mi klama le zarci .i mi nelci le si'o mi go'i")
             .expect("semantic JSON");
-        let concept_link = predication_with_relation_and_mode(&json, "conceptOf", "restrictive");
-        let concept = concept_link["arguments"]["x1"]["value"]
-            .as_str()
-            .expect("concept referent");
-        let abstraction = concept_link["arguments"]["x2"]["value"]
-            .as_str()
-            .expect("concept abstraction");
-        assert_eq!(object(&json, concept)["sort"], "concept");
-        assert_eq!(object(&json, abstraction)["abstractionKind"], "concept");
+        let (concept, concept_object) = abstraction_output_with_kind(&json, "concept");
+        assert_eq!(concept_object["sort"], "concept");
+        let nelci = predication_with_relation_and_mode(&json, "nelci", "asserted");
+        assert_eq!(nelci["arguments"]["x2"]["value"], concept);
 
-        let body = object(&json, abstraction)["body"]
-            .as_str()
-            .expect("abstraction body");
+        let body = concept_object["body"].as_str().expect("abstraction body");
         let body_predication = object(&json, object(&json, body)["predication"].as_str().unwrap());
         assert_eq!(body_predication["relation"], "klama");
         assert_eq!(body_predication["mode"], "inert");
@@ -28361,11 +28562,7 @@ mod tests {
     #[ensures(true)]
     fn ka_description_records_distinct_cehu_parameters() {
         let json = semantic_json_for("le ka ce'u prami ce'u").expect("semantic JSON");
-        let property_link = predication_with_relation_and_mode(&json, "propertyOf", "restrictive");
-        let abstraction = property_link["arguments"]["x2"]["value"]
-            .as_str()
-            .expect("property abstraction");
-        let abstraction_object = object(&json, abstraction);
+        let (_abstraction, abstraction_object) = abstraction_output_with_kind(&json, "property");
         assert_eq!(abstraction_object["abstractionKind"], "property");
         assert_eq!(abstraction_object["arity"], 2);
         let parameters = abstraction_object["parameters"]
@@ -28382,7 +28579,7 @@ mod tests {
     #[ensures(true)]
     fn ka_without_cehu_uses_first_omitted_place_as_property_slot() {
         let loved_json = semantic_json_for("le ka mi prami").expect("semantic JSON");
-        let loved_abstraction = object(&loved_json, "abstraction:a1");
+        let (_loved_id, loved_abstraction) = abstraction_output_with_kind(&loved_json, "property");
         assert_eq!(loved_abstraction["abstractionKind"], "property");
         assert_eq!(loved_abstraction["arity"], 1);
         assert_eq!(loved_abstraction["parameters"][0], "parameter:p1");
@@ -28391,7 +28588,7 @@ mod tests {
         assert_eq!(loved["arguments"]["x2"]["value"], "parameter:p1");
 
         let lover_json = semantic_json_for("le ka prami mi").expect("semantic JSON");
-        let lover_abstraction = object(&lover_json, "abstraction:a1");
+        let (_lover_id, lover_abstraction) = abstraction_output_with_kind(&lover_json, "property");
         assert_eq!(lover_abstraction["arity"], 1);
         assert_eq!(lover_abstraction["parameters"][0], "parameter:p1");
         let lover = predication_with_relation_and_mode(&lover_json, "prami", "restrictive");
@@ -28404,7 +28601,7 @@ mod tests {
     #[ensures(true)]
     fn implicit_ka_slot_uses_converted_visible_place_order() {
         let json = semantic_json_for("le ka se risna").expect("semantic JSON");
-        let abstraction = object(&json, "abstraction:a1");
+        let (_abstraction_id, abstraction) = abstraction_output_with_kind(&json, "property");
         assert_eq!(abstraction["abstractionKind"], "property");
         assert_eq!(abstraction["arity"], 1);
         assert_eq!(abstraction["parameters"][0], "parameter:p1");
@@ -28592,7 +28789,10 @@ mod tests {
 
         let relation = tanru_predication_with_label(&json, "blanu-zdani", "asserted");
         assert_eq!(relation["arguments"]["x1"]["value"], "referent:r1");
-        assert_eq!(relation["arguments"]["x2"]["value"], "abstraction:a1");
+        let modifier = relation["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("tanru modifier");
+        assert_eq!(object(&json, modifier)["abstractionKind"], "property");
         assert_eq!(
             object(&json, "formula:f4")["connector"]["locus"],
             "selbri-inversion"
@@ -28817,22 +29017,17 @@ mod tests {
         assert_eq!(object(&json, "math:m3")["operator"], "subtract");
         assert_eq!(object(&json, "math:m3")["operands"][1], "math:m2");
         assert_eq!(object(&json, "math:m2")["literal"]["kind"], "sumtiOperand");
-        assert_eq!(object(&json, "math:m2")["denotes"], "referent:r1");
-        assert_eq!(object(&json, "referent:r1")["sort"], "amount");
-        let amount_of = predication_with_relation_and_mode(&json, "amountOf", "restrictive");
-        assert_eq!(amount_of["arguments"]["x1"]["value"], "referent:r1");
-        assert_eq!(amount_of["arguments"]["x2"]["value"], "abstraction:a1");
-        assert_eq!(amount_of["arguments"]["x3"]["kind"], "elided");
-        assert_eq!(amount_of["arguments"]["x3"]["introducedBy"], "zo'e");
+        let amount = object(&json, "math:m2")["denotes"]
+            .as_str()
+            .expect("amount output");
+        assert_eq!(object(&json, amount)["sort"], "amount");
+        assert_eq!(object(&json, amount)["abstractionKind"], "amount");
+        assert!(object(&json, amount)["body"].is_string());
 
         let scaled =
             semantic_json_for("le ni le pixra cu blanu kei be lo merli").expect("semantic JSON");
-        let scaled_amount_of =
-            predication_with_relation_and_mode(&scaled, "amountOf", "restrictive");
-        assert_eq!(scaled_amount_of["arguments"]["x3"]["kind"], "filled");
-        let scale = scaled_amount_of["arguments"]["x3"]["value"]
-            .as_str()
-            .expect("scale referent id");
+        let (_amount_id, amount) = abstraction_output_with_kind(&scaled, "amount");
+        let scale = amount["scale"].as_str().expect("scale referent id");
         assert_eq!(
             object(&scaled, scale)["descriptor"]["kind"],
             "veridicalDescription"
@@ -28850,9 +29045,14 @@ mod tests {
             "math:m3"
         );
         assert_eq!(object(&json, "math:m1")["literal"]["kind"], "selbriOperand");
-        assert_eq!(object(&json, "math:m1")["denotes"], "abstraction:a1");
-        assert_eq!(object(&json, "abstraction:a1")["abstractionKind"], "amount");
-        assert_eq!(object(&json, "math:m2")["denotes"], "abstraction:a2");
+        let first = object(&json, "math:m1")["denotes"]
+            .as_str()
+            .expect("first abstraction output");
+        let second = object(&json, "math:m2")["denotes"]
+            .as_str()
+            .expect("second abstraction output");
+        assert_eq!(object(&json, first)["abstractionKind"], "amount");
+        assert_eq!(object(&json, second)["abstractionKind"], "amount");
         assert_eq!(object(&json, "math:m3")["operator"], "multiply");
     }
 
@@ -28884,10 +29084,16 @@ mod tests {
         let event_property = predication_with_relation_and_mode(&json, "eventOf", "restrictive");
         assert_eq!(object(&json, "parameter:p1")["sort"], "eventuality");
         assert_eq!(event_property["arguments"]["x1"]["value"], "parameter:p1");
-        assert_eq!(event_property["arguments"]["x2"]["value"], "abstraction:a1");
+        let embedded_event = event_property["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("embedded event output");
+        assert_eq!(object(&json, embedded_event)["abstractionKind"], "event");
         assert!(event_property.get("diagnostics").is_none());
         let tanru = tanru_predication_with_label(&json, "nu zdile-kumfa", "asserted");
-        assert_eq!(tanru["arguments"]["x2"]["value"], "abstraction:a2");
+        let modifier = tanru["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("tanru modifier");
+        assert_eq!(object(&json, modifier)["abstractionKind"], "property");
     }
 
     #[test]
@@ -28895,13 +29101,16 @@ mod tests {
     #[ensures(true)]
     fn bare_abstraction_selbri_reifies_body_formula() {
         let json = semantic_json_for("nu mi klama le zarci").expect("semantic JSON");
+        assert!(abstraction_wrapper_ids(&json).is_empty());
         let event_of = predication_with_relation_and_mode(&json, "eventOf", "asserted");
         let event = event_of["arguments"]["x1"]["value"]
             .as_str()
             .expect("event x1");
         assert_eq!(object(&json, event)["sort"], "eventuality");
-        assert_eq!(event_of["arguments"]["x2"]["value"], "abstraction:a1");
-        assert_eq!(object(&json, "abstraction:a1")["abstractionKind"], "event");
+        let abstraction = event_of["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("event output");
+        assert_eq!(object(&json, abstraction)["abstractionKind"], "event");
         let klama = predication_with_relation_and_mode(&json, "klama", "inert");
         assert_eq!(klama["arguments"]["x1"]["value"], "referent:speaker");
     }
@@ -28911,17 +29120,11 @@ mod tests {
     #[ensures(true)]
     fn process_abstraction_exposes_stage_place() {
         let json = semantic_json_for("le pu'u mi klama").expect("semantic JSON");
-        let process_of = predication_with_relation_and_mode(&json, "processOf", "restrictive");
-        assert_eq!(object(&json, "referent:r1")["sort"], "eventuality");
-        assert_eq!(process_of["arguments"]["x1"]["value"], "referent:r1");
-        assert_eq!(process_of["arguments"]["x2"]["value"], "abstraction:a1");
-        assert_eq!(process_of["arguments"]["x3"]["kind"], "elided");
-        assert_eq!(process_of["arguments"]["x3"]["introducedBy"], "zo'e");
-        assert_eq!(
-            object(&json, "abstraction:a1")["abstractionKind"],
-            "process"
-        );
+        let (process, process_object) = abstraction_output_with_kind(&json, "process");
+        assert_eq!(process_object["type"], "eventuality");
+        assert_eq!(process_object["class"], "process");
         let klama = predication_with_relation_and_mode(&json, "klama", "inert");
+        assert_eq!(klama["eventuality"], process);
         assert_eq!(klama["arguments"]["x1"]["value"], "referent:speaker");
     }
 
@@ -28993,41 +29196,32 @@ mod tests {
             ),
         ] {
             let json = semantic_json_for(source).expect("semantic JSON");
-            let link = predication_with_relation_and_mode(&json, relation, "restrictive");
-            let abstraction = link["arguments"]["x2"]["value"]
-                .as_str()
-                .expect("abstraction argument");
-            assert_eq!(object(&json, abstraction)["abstractionKind"], kind);
-            assert_eq!(link["arguments"]["x3"]["kind"], "elided");
-            assert_eq!(link["arguments"]["x3"]["introducedBy"], "zo'e");
+            let (_id, output) = abstraction_output_with_kind(&json, kind);
+            assert!(matches!(
+                output["type"].as_str(),
+                Some("referent") | Some("eventuality")
+            ));
+            assert!(
+                predication_relations(&json)
+                    .iter()
+                    .all(|candidate| candidate != relation)
+            );
         }
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn linked_suhu_description_fills_abstraction_type_place() {
+    fn suhu_description_does_not_fabricate_abstraction_type_place() {
         let json = semantic_json_for("le su'u mi klama kei be lo fasnu").expect("semantic JSON");
-        let abstraction_of =
-            predication_with_relation_and_mode(&json, "abstractionOf", "restrictive");
-        assert_eq!(abstraction_of["arguments"]["x1"]["value"], "referent:r1");
-        assert_eq!(abstraction_of["arguments"]["x2"]["value"], "abstraction:a1");
-        assert_eq!(abstraction_of["arguments"]["x3"]["kind"], "filled");
-        let type_referent = abstraction_of["arguments"]["x3"]["value"]
-            .as_str()
-            .expect("type referent");
-        assert_eq!(
-            object(&json, type_referent)["descriptor"]["kind"],
-            "veridicalDescription"
-        );
-        assert_eq!(
-            object(&json, "abstraction:a1")["abstractionKind"],
-            "unspecified"
-        );
+        let (_id, output) = abstraction_output_with_kind(&json, "unspecified");
+        assert_eq!(output["sort"], "entity");
+        assert_eq!(output["descriptor"]["kind"], "speakerDescription");
+        assert!(output["descriptor"].get("relativeClauses").is_none());
         assert!(
             !predication_relations(&json)
                 .iter()
-                .any(|relation| relation == "su'u klama")
+                .any(|relation| relation == "su'u klama" || relation == "abstractionOf")
         );
     }
 
@@ -29080,7 +29274,10 @@ mod tests {
         assert_eq!(object(&json, source)["descriptor"]["word"], "lai");
         assert_eq!(object(&json, source)["descriptor"]["name"], "kraislr");
         let tanru = tanru_predication_with_label(&json, "referentOf-karce", "asserted");
-        assert_eq!(tanru["arguments"]["x2"]["value"], "abstraction:a1");
+        let modifier = tanru["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("tanru modifier");
+        assert_eq!(object(&json, modifier)["abstractionKind"], "property");
     }
 
     #[test]
@@ -29571,12 +29768,12 @@ mod tests {
         let root = root_object(&json);
         let exists = object(&json, root["content"].as_str().expect("root content"));
         assert_eq!(exists["operator"], "exists");
-        assert_eq!(exists["variable"], "referent:r2");
+        assert_eq!(exists["variable"], "referent:r1");
 
-        let abstraction = object(&json, "abstraction:a1");
+        let (_abstraction_id, abstraction) = abstraction_output_with_kind(&json, "event");
         let body = object(
             &json,
-            abstraction["body"].as_str().expect("abstraction body"),
+            abstraction["content"].as_str().expect("abstraction body"),
         );
         assert_eq!(body["operator"], "atom");
         let ponse = object(
@@ -29584,7 +29781,7 @@ mod tests {
             body["predication"].as_str().expect("ponse predication"),
         );
         assert_eq!(ponse["relation"], "ponse");
-        assert_eq!(ponse["arguments"]["x2"]["value"], "referent:r2");
+        assert_eq!(ponse["arguments"]["x2"]["value"], "referent:r1");
 
         let exists_count = json["objects"]
             .as_object()
@@ -29593,7 +29790,7 @@ mod tests {
             .filter(|object| {
                 object["type"] == "formula"
                     && object["operator"] == "exists"
-                    && object["variable"] == "referent:r2"
+                    && object["variable"] == "referent:r1"
             })
             .count();
         assert_eq!(exists_count, 1);
@@ -30247,7 +30444,7 @@ mod tests {
             described["arguments"]["x3"]["value"]
                 .as_str()
                 .expect("property abstraction")
-                .starts_with("abstraction:")
+                .starts_with("referent:")
         );
         let objects = json["objects"].as_object().expect("objects");
         assert!(
@@ -30746,7 +30943,8 @@ mod tests {
                 .iter()
                 .any(|relation| relation.contains("connected"))
         );
-        assert_eq!(object(&json, "abstraction:a1")["body"], "formula:f4");
+        let (_property_id, property) = abstraction_output_with_kind(&json, "property");
+        assert_eq!(property["body"], "formula:f4");
         assert_eq!(object(&json, "formula:f4")["operator"], "and");
         assert_eq!(
             object(&json, "formula:f4")["connector"]["locus"],
@@ -30917,16 +31115,25 @@ mod tests {
     #[ensures(true)]
     fn nonlogical_tanru_connective_builds_composite_concept_modifier() {
         let json = semantic_json_for("ti blanu joi xunre bolci").expect("semantic JSON");
-        let modifier = object(&json, "referent:r3");
+        let (modifier_id, modifier) = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .iter()
+            .find(|(_, object)| {
+                object["category"] == "composite" && object["composition"]["operator"] == "mass"
+            })
+            .map(|(id, object)| (id.as_str(), object))
+            .expect("mass composite modifier");
         assert_eq!(modifier["category"], "composite");
         assert_eq!(modifier["sort"], "concept");
         assert_eq!(modifier["composition"]["operator"], "mass");
-        assert_eq!(modifier["composition"]["members"][0], "abstraction:a1");
-        assert_eq!(modifier["composition"]["members"][1], "abstraction:a2");
+        let property_outputs = abstraction_outputs_with_kind(&json, "property");
+        assert_eq!(modifier["composition"]["members"][0], property_outputs[0].0);
+        assert_eq!(modifier["composition"]["members"][1], property_outputs[1].0);
         assert_eq!(modifier["composition"]["collective"], true);
         assert_eq!(
             object(&json, "predication:p4")["arguments"]["x2"]["value"],
-            "referent:r3"
+            modifier_id
         );
         assert!(json["objects"].as_object().unwrap().values().all(|object| {
             object
@@ -31967,7 +32174,7 @@ mod tests {
             "formula"
         );
 
-        let abstraction = object(&json, "abstraction:a1");
+        let (_abstraction_id, abstraction) = abstraction_output_with_kind(&json, "proposition");
         assert_eq!(abstraction["embeddedQuestions"][0], "question:q1");
 
         let question = object(&json, "question:q1");
@@ -31987,7 +32194,7 @@ mod tests {
     fn da_kau_is_embedded_indirect_question_slot_inside_duhu() {
         let json =
             semantic_json_for("mi djuno le du'u dakau klama le zarci").expect("semantic JSON");
-        let abstraction = object(&json, "abstraction:a1");
+        let (_abstraction_id, abstraction) = abstraction_output_with_kind(&json, "proposition");
         assert_eq!(abstraction["embeddedQuestions"][0], "question:q1");
 
         let question = object(&json, "question:q1");
@@ -32020,7 +32227,8 @@ mod tests {
         assert_eq!(object(&json, "utterance:u1")["content"], "question:q1");
         assert_eq!(object(&json, "question:q1")["mode"], "direct");
         assert!(
-            object(&json, "abstraction:a1")
+            abstraction_output_with_kind(&json, "proposition")
+                .1
                 .get("embeddedQuestions")
                 .is_none()
         );
@@ -32040,7 +32248,7 @@ mod tests {
         assert_eq!(question["presupposedAnswer"], djan);
         assert!(question.get("slots").is_none());
         assert_eq!(
-            object(&json, "abstraction:a1")["embeddedQuestions"][0],
+            abstraction_output_with_kind(&json, "proposition").1["embeddedQuestions"][0],
             "question:q1"
         );
     }
@@ -32060,7 +32268,7 @@ mod tests {
         assert_eq!(question["slots"][0]["parameter"], "parameter:p1");
         assert_eq!(question["focus"], "parameter:p1");
         assert_eq!(
-            object(&json, "abstraction:a1")["embeddedQuestions"][0],
+            abstraction_output_with_kind(&json, "proposition").1["embeddedQuestions"][0],
             "question:q1"
         );
 

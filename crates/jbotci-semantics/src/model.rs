@@ -498,8 +498,10 @@ pub struct SemanticObject {
     pub form: Option<QuantityForm>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<QuantityValue>,
+    #[serde(rename = "scale", skip_serializing_if = "Option::is_none")]
+    pub quantity_scale: Option<QuantityScale>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub scale: Option<QuantityScale>,
+    pub scale: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comparison_set: Option<SemanticObjectId>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -621,6 +623,7 @@ impl SemanticObject {
             literal: None,
             form: None,
             value: None,
+            quantity_scale: None,
             scale: None,
             comparison_set: None,
             source_words: Vec::new(),
@@ -1082,7 +1085,7 @@ impl SemanticObject {
         object
     }
 
-    #[requires(denotes.object_kind() == SemanticObjectKind::Referent)]
+    #[requires(argument_object_kind_can_fill(denotes.object_kind()))]
     #[ensures(ret.object_kind() == SemanticObjectKind::MathExpression)]
     pub fn math_sumti_operand(
         denotes: SemanticObjectId,
@@ -1135,7 +1138,7 @@ impl SemanticObject {
         let mut object = Self::empty(SemanticObjectKind::Quantity);
         object.form = Some(form);
         object.value = Some(value);
-        object.scale = Some(scale);
+        object.quantity_scale = Some(scale);
         object.source = source;
         object
     }
@@ -1271,6 +1274,7 @@ impl SemanticObject {
         extend_optional(out, self.restriction);
         extend_optional(out, self.body);
         extend_optional(out, self.quantity);
+        extend_optional(out, self.scale);
         for stream in &self.streams {
             stream.references_into(out);
         }
@@ -3392,6 +3396,7 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && optional_reference_has_kind(object.restriction, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.body, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.quantity, SemanticObjectKind::Quantity)
+        && optional_reference_has_kind(object.scale, SemanticObjectKind::Referent)
         && object.streams.iter().all(|stream| {
             stream.slot.object_kind() == SemanticObjectKind::Parameter
                 && stream
