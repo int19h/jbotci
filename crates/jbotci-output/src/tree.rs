@@ -2317,6 +2317,13 @@ fn legacy_as_generated_sumti_base_tree_value(
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::Description(description)) => {
             legacy_as_generated_description_sumti_tree_value(description.as_ref(), source, options)
         }
+        bityzba::data!(jbotci_syntax::ast::SumtiSyntax::DescriptionConnection(
+            description
+        )) => legacy_as_generated_description_connection_sumti_tree_value(
+            description.as_ref(),
+            source,
+            options,
+        ),
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::QuotedSumti(quote)) => {
             legacy_as_generated_quoted_sumti_tree_value(quote.as_ref(), source, options)
         }
@@ -2470,6 +2477,67 @@ fn legacy_token_field_entries(
         entries.push(entry);
     }
     entries
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_description_connection_sumti_tree_value(
+    description: &jbotci_syntax::ast::DescriptionConnectionSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = vec![
+        TreeEntry {
+            label: Some("leading_description_head"),
+            value: legacy_as_generated_description_head_tree_value(
+                &description.leading_description_head.description,
+                source,
+                options,
+            ),
+        },
+        TreeEntry {
+            label: Some("connective"),
+            value: TreeValue::Node(TreeNode {
+                constructor: "Afterthought",
+                entries: vec![TreeEntry {
+                    label: Some("connective"),
+                    value: required_legacy_syntax_subtree_value(
+                        &description.connective,
+                        source,
+                        options,
+                    ),
+                }],
+            }),
+        },
+        TreeEntry {
+            label: Some("trailing_description_head"),
+            value: legacy_as_generated_description_head_tree_value(
+                &description.trailing_description_head.description,
+                source,
+                options,
+            ),
+        },
+        TreeEntry {
+            label: Some("tail"),
+            value: legacy_as_generated_description_tail_tree_value(
+                &description.tail_elements,
+                description.selbri.as_deref(),
+                &description.relative_clauses,
+                source,
+                options,
+            ),
+        },
+    ];
+    if let Some(ku) = &description.ku {
+        entries.push(TreeEntry {
+            label: Some("ku"),
+            value: required_legacy_syntax_subtree_value(ku, source, options),
+        });
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "DescriptionConnectionSumti",
+        entries,
+    })
 }
 
 #[requires(true)]
@@ -3310,11 +3378,58 @@ fn legacy_as_generated_connected_selbri_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
+fn legacy_selbri_connection_parts<'tree>(
+    selbri: &'tree jbotci_syntax::ast::SelbriSyntax,
+) -> Option<(
+    &'tree jbotci_syntax::ast::SelbriSyntax,
+    Vec<(
+        &'tree jbotci_syntax::ast::ConnectiveSyntax,
+        &'tree jbotci_syntax::ast::SelbriSyntax,
+    )>,
+)> {
+    match selbri.as_data() {
+        bityzba::data!(jbotci_syntax::ast::SelbriSyntax::SelbriConnection {
+            leading_selbri,
+            connective,
+            trailing_selbri,
+        }) => {
+            let (leading, mut continuations) = legacy_selbri_connection_parts(leading_selbri)
+                .unwrap_or((leading_selbri.as_ref(), Vec::new()));
+            if let Some((trailing_leading, mut trailing_continuations)) =
+                legacy_selbri_connection_parts(trailing_selbri)
+            {
+                continuations.push((connective, trailing_leading));
+                continuations.append(&mut trailing_continuations);
+            } else {
+                continuations.push((connective, trailing_selbri.as_ref()));
+            }
+            Some((leading, continuations))
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn legacy_as_generated_tanru_selbri_tree_value(
     selbri: &jbotci_syntax::ast::SelbriSyntax,
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
+    if let Some((leading_selbri, continuations)) = legacy_selbri_connection_parts(selbri) {
+        return TreeValue::Node(TreeNode {
+            constructor: "TanruSelbri",
+            entries: vec![TreeEntry {
+                label: Some("first_unit"),
+                value: legacy_as_generated_connected_tanru_unit_from_selbri_parts_tree_value(
+                    leading_selbri,
+                    &continuations,
+                    source,
+                    options,
+                ),
+            }],
+        });
+    }
     let units = legacy_selbri_tanru_units(selbri);
     let mut entries = Vec::new();
     if let Some((first, additional)) = units.split_first() {
@@ -3347,6 +3462,45 @@ fn legacy_as_generated_tanru_selbri_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
+fn legacy_as_generated_connected_tanru_unit_from_selbri_parts_tree_value(
+    leading_selbri: &jbotci_syntax::ast::SelbriSyntax,
+    continuations: &[(
+        &jbotci_syntax::ast::ConnectiveSyntax,
+        &jbotci_syntax::ast::SelbriSyntax,
+    )],
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = vec![TreeEntry {
+        label: Some("leading_unit"),
+        value: legacy_as_generated_linked_tanru_unit_tree_value(leading_selbri, source, options),
+    }];
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "continuations",
+        continuations
+            .iter()
+            .map(|(connective, trailing_selbri)| {
+                TreeValue::Collection(vec![
+                    required_legacy_syntax_subtree_value(*connective, source, options),
+                    legacy_as_generated_linked_tanru_unit_tree_value(
+                        *trailing_selbri,
+                        source,
+                        options,
+                    ),
+                ])
+            })
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "ConnectedTanruUnit",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn legacy_selbri_tanru_units(
     selbri: &jbotci_syntax::ast::SelbriSyntax,
 ) -> Vec<&jbotci_syntax::ast::TanruUnitSyntax> {
@@ -3361,6 +3515,18 @@ trait LegacyTanruUnitLike {
     #[requires(true)]
     #[ensures(true)]
     fn linked_tanru_unit_tree_value(&self, source: &str, options: TreeRenderOptions) -> TreeValue;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn tanru_unit_connection_parts<'tree>(
+        &'tree self,
+    ) -> Option<(
+        &'tree jbotci_syntax::ast::TanruUnitSyntax,
+        Vec<(
+            &'tree jbotci_syntax::ast::ConnectiveSyntax,
+            &'tree jbotci_syntax::ast::TanruUnitSyntax,
+        )>,
+    )>;
 
     #[requires(true)]
     #[ensures(true)]
@@ -3387,6 +3553,20 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::SelbriSyntax {
                 value: legacy_as_generated_tanru_unit_atom_tree_value(self, source, options),
             }],
         })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none())]
+    fn tanru_unit_connection_parts<'tree>(
+        &'tree self,
+    ) -> Option<(
+        &'tree jbotci_syntax::ast::TanruUnitSyntax,
+        Vec<(
+            &'tree jbotci_syntax::ast::ConnectiveSyntax,
+            &'tree jbotci_syntax::ast::TanruUnitSyntax,
+        )>,
+    )> {
+        None
     }
 
     #[requires(true)]
@@ -3489,6 +3669,40 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
                     value: legacy_as_generated_tanru_unit_atom_tree_value(self, source, options),
                 }],
             }),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn tanru_unit_connection_parts<'tree>(
+        &'tree self,
+    ) -> Option<(
+        &'tree jbotci_syntax::ast::TanruUnitSyntax,
+        Vec<(
+            &'tree jbotci_syntax::ast::ConnectiveSyntax,
+            &'tree jbotci_syntax::ast::TanruUnitSyntax,
+        )>,
+    )> {
+        match self.as_data() {
+            bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::TanruUnitConnection {
+                leading_unit,
+                connective,
+                trailing_unit,
+            }) => {
+                let (leading, mut continuations) = leading_unit
+                    .tanru_unit_connection_parts()
+                    .unwrap_or((leading_unit.as_ref(), Vec::new()));
+                if let Some((trailing_leading, mut trailing_continuations)) =
+                    trailing_unit.tanru_unit_connection_parts()
+                {
+                    continuations.push((connective, trailing_leading));
+                    continuations.append(&mut trailing_continuations);
+                } else {
+                    continuations.push((connective, trailing_unit.as_ref()));
+                }
+                Some((leading, continuations))
+            }
+            _ => None,
         }
     }
 
@@ -3622,6 +3836,34 @@ fn legacy_as_generated_connected_tanru_unit_tree_value<T>(
 where
     T: LegacyTanruUnitLike + ?Sized,
 {
+    if let Some((leading_unit, continuations)) = unit.tanru_unit_connection_parts() {
+        let mut entries = vec![TreeEntry {
+            label: Some("leading_unit"),
+            value: legacy_as_generated_linked_tanru_unit_tree_value(leading_unit, source, options),
+        }];
+        if let Some(entry) = labelled_tree_collection_entry_from_values(
+            "continuations",
+            continuations
+                .iter()
+                .map(|(connective, trailing_unit)| {
+                    TreeValue::Collection(vec![
+                        required_legacy_syntax_subtree_value(*connective, source, options),
+                        legacy_as_generated_linked_tanru_unit_tree_value(
+                            *trailing_unit,
+                            source,
+                            options,
+                        ),
+                    ])
+                })
+                .collect(),
+        ) {
+            entries.push(entry);
+        }
+        return TreeValue::Node(TreeNode {
+            constructor: "ConnectedTanruUnit",
+            entries,
+        });
+    }
     TreeValue::Node(TreeNode {
         constructor: "ConnectedTanruUnit",
         entries: vec![TreeEntry {
