@@ -230,6 +230,14 @@ mod generated_model {
             }
         }
 
+        node renamed_choice -> RenamedChoiceSyntax {
+            construct variant RuntimeName;
+            model_variant ModelName;
+            fields {
+                field token = cmavo(Be);
+            }
+        }
+
         product helper_product -> HelperSyntax {
             fields {
                 field token = cmavo(Be);
@@ -251,10 +259,12 @@ mod generated_model {
         let second = ChoiceSyntax::Second {
             item: Box::new(item),
         };
+        let renamed = RenamedChoiceSyntax::ModelName { token: Token };
         let helper = HelperSyntax { token: Token };
 
         assert!(matches!(first, ChoiceSyntax::First { .. }));
         assert!(matches!(second, ChoiceSyntax::Second { .. }));
+        assert!(matches!(renamed, RenamedChoiceSyntax::ModelName { .. }));
         assert_eq!(pair.tail.len(), 0);
         assert_eq!(helper.token, Token);
     }

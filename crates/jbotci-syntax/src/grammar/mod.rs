@@ -716,6 +716,25 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn generated_model_strict_parser_parses_basic_text() {
+        run_on_normal_stack(|| {
+            let words = segment_words_with_modifiers("mi klama").expect("valid morphology");
+            let tokens = syntax_tokens(&words);
+
+            let parsed =
+                generated::generated_model::parse_text_for_test(&tokens, &ParseOptions::default())
+                    .expect("valid generated-model syntax");
+
+            let generated::generated_model::TextSyntax::Regular { paragraphs, .. } = parsed else {
+                panic!("basic text should parse as regular generated-model text");
+            };
+            assert_eq!(paragraphs.len(), 1);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn rejects_stray_cu() {
         run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("cu").expect("valid morphology");

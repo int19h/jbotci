@@ -63,6 +63,24 @@ pub(crate) struct LeadingIStatementSyntax {
     free_modifiers: Vec<FreeModifierSyntax>,
 }
 
+#[bityzba::invariant(true)]
+#[bityzba::invariant(::Chained => true)]
+#[bityzba::invariant(::Simple => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum IStatementConnectionTailSyntax {
+    Chained {
+        pending: Vec<(Token, ConnectiveSyntax)>,
+        i: Token,
+        connective: ConnectiveSyntax,
+        trailing_statement: Box<StatementSyntax>,
+    },
+    Simple {
+        i: Token,
+        connective: ConnectiveSyntax,
+        trailing_statement: Box<StatementSyntax>,
+    },
+}
+
 #[bityzba::invariant(!operands.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ReversePolishPartsSyntax {
@@ -482,7 +500,9 @@ macro_rules! declare_generated_syntax_grammar {
                 simple_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens),
             )));
         }
-        build |leading_statement, continuations| build_connected_i_statement(*leading_statement, continuations);
+        build |leading_statement, continuations| {
+            build_connected_i_statement_from_tails(*leading_statement, continuations)
+        };
     }
 
     product pending_i_connective -> (Token, ConnectiveSyntax) {
@@ -495,27 +515,38 @@ macro_rules! declare_generated_syntax_grammar {
         build |i, connective| (i, connective);
     }
 
-    product chained_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> (Token, ConnectiveSyntax, Box<StatementSyntax>) {
+    product chained_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> IStatementConnectionTailSyntax {
         context "statement connection";
+        construct variant Chained;
+        no_partial_valid;
         fields {
             field pending = many1(pending_i_connective);
             field i = cmavo(I);
             field connective = i_statement_connective(tense_modal);
             field trailing_statement = boxed(statement_after_i_connective(bridi, subbridi, tense_modal, text));
         }
-        build |pending, i, connective, trailing_statement| {
-            build_chained_i_connective_statement_tail(pending, i, connective, trailing_statement)
+        build |pending, i, connective, trailing_statement| IStatementConnectionTailSyntax::Chained {
+            pending,
+            i,
+            connective,
+            trailing_statement,
         };
     }
 
-    product simple_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> (Token, ConnectiveSyntax, Box<StatementSyntax>) {
+    product simple_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> IStatementConnectionTailSyntax {
         context "statement connection";
+        construct variant Simple;
+        no_partial_valid;
         fields {
             field i = cmavo(I);
             field connective = i_statement_connective(tense_modal);
             field trailing_statement = boxed(statement_after_i_connective(bridi, subbridi, tense_modal, text));
         }
-        build |i, connective, trailing_statement| (i, connective, trailing_statement);
+        build |i, connective, trailing_statement| IStatementConnectionTailSyntax::Simple {
+            i,
+            connective,
+            trailing_statement,
+        };
     }
 
     node preposed_i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens) -> StatementSyntax {
@@ -5612,10 +5643,34 @@ pub(crate) mod generated_model {
             ParagraphSyntax,
             ParagraphStatementSyntax,
             StatementSyntax,
+            IStatementConnectionTailSyntax,
             BridiStatementContinuationSyntax,
             ConnectiveSyntax,
-            FreeModifierSyntax,
         };
+        env generated_runtime::SyntaxGrammarEnv;
+        strict_parsers;
+    }
+
+    #[cfg(test)]
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    pub(crate) fn parse_text_for_test(
+        words: &[Token],
+        options: &ParseOptions,
+    ) -> Result<TextSyntax, crate::SyntaxError> {
+        let tokens = spanned_tokens(words);
+        let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
+        let mut state = ParserState::new(words, options);
+        strict_generated_text_parser()
+            .then_ignore(end())
+            .parse_with_state(
+                tokens
+                    .as_slice()
+                    .split_spanned(SimpleSpan::from(eoi_offset..eoi_offset)),
+                &mut state,
+            )
+            .into_result()
+            .map_err(syntax_error)
     }
 }
 
@@ -5895,6 +5950,39 @@ fn build_connected_i_statement(
             connected_i_statement_node(i, connective, connected_statement, trailing_statement);
     }
     connected_statement
+}
+
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
+fn build_connected_i_statement_from_tails(
+    leading_statement: StatementSyntax,
+    continuations: Vec<IStatementConnectionTailSyntax>,
+) -> StatementSyntax {
+    let continuations = continuations
+        .into_iter()
+        .map(i_statement_connection_tail_into_legacy_tuple)
+        .collect();
+    build_connected_i_statement(leading_statement, continuations)
+}
+
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
+fn i_statement_connection_tail_into_legacy_tuple(
+    tail: IStatementConnectionTailSyntax,
+) -> (Token, ConnectiveSyntax, Box<StatementSyntax>) {
+    match tail {
+        IStatementConnectionTailSyntax::Chained {
+            pending,
+            i,
+            connective,
+            trailing_statement,
+        } => build_chained_i_connective_statement_tail(pending, i, connective, trailing_statement),
+        IStatementConnectionTailSyntax::Simple {
+            i,
+            connective,
+            trailing_statement,
+        } => (i, connective, trailing_statement),
+    }
 }
 
 #[bityzba::requires(!pending.is_empty())]

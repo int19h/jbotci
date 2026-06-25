@@ -6,8 +6,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
-    Attribute, Expr, ExprCall, ExprClosure, ExprMethodCall, ExprPath, ExprTuple, Ident, LitStr,
-    Path, Result, Token, Type, braced, parenthesized,
+    Attribute, Expr, ExprCall, ExprClosure, ExprMethodCall, ExprPath, ExprTuple, GenericArgument,
+    Ident, LitStr, Path, PathArguments, Result, Token, Type, braced, parenthesized,
     parse::{Parse, ParseStream},
     parse_macro_input,
 };
@@ -32,6 +32,7 @@ mod kw {
     syn::custom_keyword!(model);
     syn::custom_keyword!(model_path);
     syn::custom_keyword!(model_variant);
+    syn::custom_keyword!(no_partial_valid);
     syn::custom_keyword!(node);
     syn::custom_keyword!(policy);
     syn::custom_keyword!(product);
@@ -93,6 +94,7 @@ impl SyntaxGrammar {
         let parser_functions = if self.generate_parsers {
             self.rules
                 .iter()
+                .filter(|rule| !self.generate_model || self.generates_model_output(rule.output()))
                 .filter_map(|rule| {
                     rule.expand_strict_parser(
                         &helper_outputs,
@@ -371,10 +373,7 @@ fn expand_tree_model_block(file: &syn::File) -> TokenStream2 {
 
 impl SyntaxGrammar {
     fn generates_model_output(&self, output: &Type) -> bool {
-        let Some(output) = simple_type_ident(output) else {
-            return false;
-        };
-        self.generates_model_output_name(&output.to_string())
+        output_is_generated_model(self.generate_model, &self.model_outputs, output)
     }
 
     fn generates_model_output_name(&self, output: &str) -> bool {
@@ -724,22 +723,34 @@ impl SyntaxGrammar {
         if self.recursive.is_empty() {
             return None;
         }
-        let recursive_names = self
+        let all_recursive_names = self
             .recursive
             .iter()
             .map(|rule| rule.name.to_string())
             .collect::<BTreeSet<_>>();
+        let recursive_rules = self
+            .recursive
+            .iter()
+            .filter(|rule| !self.generate_model || self.generates_model_output(&rule.output))
+            .collect::<Vec<_>>();
+        if recursive_rules.is_empty() {
+            return None;
+        }
+        let local_recursive_names = recursive_rules
+            .iter()
+            .map(|rule| rule.name.to_string())
+            .collect::<BTreeSet<_>>();
         let family_ident = format_ident!("StrictGeneratedParserFamily");
-        let fields = self.recursive.iter().map(|rule| {
+        let fields = recursive_rules.iter().map(|rule| {
             let name = &rule.name;
             let output = self.parser_type_tokens(&rule.output);
             quote!(#name: BoxedParser<'tokens, #output>)
         });
-        let declarations = self.recursive.iter().map(|rule| {
+        let declarations = recursive_rules.iter().map(|rule| {
             let name = &rule.name;
             quote!(let mut #name = Recursive::declare();)
         });
-        let definitions = self.recursive.iter().filter_map(|recursive| {
+        let definitions = recursive_rules.iter().filter_map(|recursive| {
             let rule = self
                 .rules
                 .iter()
@@ -750,14 +761,20 @@ impl SyntaxGrammar {
                 .iter()
                 .map(|argument| {
                     let argument_name = argument.to_string();
-                    recursive_names
-                        .contains(&argument_name)
-                        .then(|| quote!(#argument.clone().boxed()))
+                    if local_recursive_names.contains(&argument_name) {
+                        Some(quote!(#argument.clone().boxed()))
+                    } else if all_recursive_names.contains(&argument_name) {
+                        Some(quote!(super::strict_generated_parser_family().#argument))
+                    } else {
+                        None
+                    }
                 })
                 .collect::<Option<Vec<_>>>()?;
-            let hidden_free_modifier = if recursive_names.contains("free_modifier") {
+            let hidden_free_modifier = if local_recursive_names.contains("free_modifier") {
                 let free_modifier = format_ident!("free_modifier");
                 quote!(#free_modifier.clone().boxed())
+            } else if all_recursive_names.contains("free_modifier") {
+                quote!(super::strict_generated_parser_family().free_modifier)
             } else {
                 quote!(generated_runtime::strict_empty_free_modifier_parser())
             };
@@ -769,11 +786,11 @@ impl SyntaxGrammar {
                 ));
             })
         });
-        let outputs = self.recursive.iter().map(|rule| {
+        let outputs = recursive_rules.iter().map(|rule| {
             let name = &rule.name;
             quote!(#name: #name.boxed())
         });
-        let root_functions = self.recursive.iter().map(|rule| {
+        let root_functions = recursive_rules.iter().map(|rule| {
             let root_name = &rule.name;
             let function = format_ident!("strict_generated_{}_parser", root_name);
             let output = self.parser_type_tokens(&rule.output);
@@ -1029,11 +1046,17 @@ impl AliasRule {
         let argument_types = self.argument_types(type_env)?;
         let argument_names = self.argument_name_set();
         let free_modifier_parser = format_ident!("__generated_free_modifier");
+        let generation = StrictParserGeneration {
+            type_env,
+            generate_model,
+            model_outputs,
+        };
         let parser = strict_parser_expr_tokens(
             &self.parser,
             &argument_names,
-            type_env,
+            &generation,
             &free_modifier_parser,
+            StrictParserCallMode::Local,
         )?;
         let parser = self
             .requires
@@ -1043,8 +1066,9 @@ impl AliasRule {
                 let require = strict_parser_expr_tokens(
                     require,
                     &argument_names,
-                    type_env,
+                    &generation,
                     &free_modifier_parser,
+                    StrictParserCallMode::Local,
                 )?;
                 Some(quote!(#require.ignore_then(#parser)))
             })?;
@@ -1180,6 +1204,7 @@ struct NodeRule {
     build: Option<ExprClosure>,
     construction: ConstructionMode,
     model_variant: Option<Ident>,
+    no_partial_valid: bool,
     _recovered_build: Option<ExprClosure>,
 }
 
@@ -1263,11 +1288,17 @@ impl NodeRule {
             .filter(|field| matches!(field.kind, FieldKind::Field))
             .collect::<Vec<_>>();
         let free_modifier_parser = format_ident!("__generated_free_modifier");
+        let generation = StrictParserGeneration {
+            type_env,
+            generate_model,
+            model_outputs,
+        };
         let (parser, pattern) = strict_sequence_parser_tokens(
             &sequence_items,
             &argument_names,
-            type_env,
+            &generation,
             &free_modifier_parser,
+            StrictParserCallMode::Local,
         )?;
         let name = format_ident!("strict_{}_parser", self.name);
         let output = &self.output;
@@ -1309,6 +1340,29 @@ impl NodeRule {
                 #(#let_bindings)*
                 ()
             })
+        } else if use_model_construction && matches!(output, Type::Tuple(_)) {
+            let let_bindings = self.fields.iter().filter_map(|field| {
+                matches!(field.kind, FieldKind::Let).then(|| {
+                    let name = field.name.as_ref().expect("let field items have names");
+                    let value = &field.parser;
+                    quote!(let #name = #value;)
+                })
+            });
+            let values = self.fields.iter().filter_map(|field| {
+                let name = field.name.as_ref()?;
+                match field.kind {
+                    FieldKind::Field | FieldKind::Let => Some(quote!(#name)),
+                    FieldKind::Default => {
+                        let value = &field.parser;
+                        Some(quote!(#value))
+                    }
+                    FieldKind::Scratch | FieldKind::Require => None,
+                }
+            });
+            quote!({
+                #(#let_bindings)*
+                (#(#values,)*)
+            })
         } else if is_path_type(output) {
             let let_bindings = self.fields.iter().filter_map(|field| {
                 matches!(field.kind, FieldKind::Let).then(|| {
@@ -1348,6 +1402,7 @@ impl NodeRule {
                     })
                 }
                 ConstructionMode::NamedVariant(variant) if use_model_construction => {
+                    let variant = self.model_variant.as_ref().unwrap_or(variant);
                     quote!({
                         #(#let_bindings)*
                         #output_tokens::#variant { #(#assignments)* }
@@ -1372,6 +1427,7 @@ impl NodeRule {
                         }
                     });
                     if use_model_construction {
+                        let variant = self.model_variant.as_ref().unwrap_or(variant);
                         quote!({
                             #(#let_bindings)*
                             #output_tokens::#variant(#(#values,)*)
@@ -1416,6 +1472,9 @@ impl NodeRule {
         type_env: &GrammarTypeEnv,
         recovered_module: &TokenStream2,
     ) -> Option<TokenStream2> {
+        if self.no_partial_valid {
+            return None;
+        }
         let can_generate_strict = if self.build.is_none() {
             let has_default = self
                 .fields
@@ -1540,6 +1599,45 @@ struct GrammarTypeEnv {
     rule_arguments: BTreeMap<String, Vec<String>>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StrictParserCallMode {
+    Local,
+    Legacy,
+}
+
+struct StrictParserGeneration<'a> {
+    type_env: &'a GrammarTypeEnv,
+    generate_model: bool,
+    model_outputs: &'a Option<BTreeSet<String>>,
+}
+
+impl StrictParserGeneration<'_> {
+    fn rule_is_generated_model(&self, name: &str) -> bool {
+        self.type_env.rules.get(name).is_some_and(|output| {
+            output_is_generated_model(self.generate_model, self.model_outputs, output)
+        })
+    }
+
+    fn recursive_is_generated_model(&self, name: &str) -> bool {
+        self.type_env.recursive.get(name).is_some_and(|output| {
+            output_is_generated_model(self.generate_model, self.model_outputs, output)
+        })
+    }
+
+    fn legacy_recursive_parser(&self, name: &Ident) -> TokenStream2 {
+        quote!(super::strict_generated_parser_family().#name)
+    }
+
+    fn legacy_free_modifier_parser(&self) -> TokenStream2 {
+        let name = format_ident!("free_modifier");
+        if self.recursive_is_generated_model("free_modifier") {
+            self.legacy_recursive_parser(&name)
+        } else {
+            quote!(__generated_free_modifier.clone())
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum ConstructionMode {
     Validated,
@@ -1582,18 +1680,29 @@ fn strict_free_modifier_param_tokens() -> TokenStream2 {
 fn strict_sequence_parser_tokens(
     fields: &[&FieldItem],
     arguments: &BTreeSet<String>,
-    type_env: &GrammarTypeEnv,
+    generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
 ) -> Option<(TokenStream2, TokenStream2)> {
     let Some(first) = fields.first() else {
         return Some((quote!(generated_runtime::empty()), quote!(())));
     };
-    let mut parser =
-        strict_parser_expr_tokens(&first.parser, arguments, type_env, free_modifier_parser)?;
+    let mut parser = strict_parser_expr_tokens(
+        &first.parser,
+        arguments,
+        generation,
+        free_modifier_parser,
+        mode,
+    )?;
     let mut pattern = sequence_item_pattern(first);
     for field in fields.iter().skip(1) {
-        let next =
-            strict_parser_expr_tokens(&field.parser, arguments, type_env, free_modifier_parser)?;
+        let next = strict_parser_expr_tokens(
+            &field.parser,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
         let name = sequence_item_pattern(field);
         parser = quote!(#parser.then(#next));
         pattern = quote!((#pattern, #name));
@@ -1618,20 +1727,31 @@ fn sequence_item_pattern(field: &FieldItem) -> TokenStream2 {
 fn strict_parser_expr_tokens(
     expr: &Expr,
     arguments: &BTreeSet<String>,
-    type_env: &GrammarTypeEnv,
+    generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
 ) -> Option<TokenStream2> {
     match expr {
         Expr::Call(call) => {
-            strict_call_parser_expr_tokens(call, arguments, type_env, free_modifier_parser)
+            strict_call_parser_expr_tokens(call, arguments, generation, free_modifier_parser, mode)
         }
-        Expr::MethodCall(method) => {
-            strict_method_parser_expr_tokens(method, arguments, type_env, free_modifier_parser)
+        Expr::MethodCall(method) => strict_method_parser_expr_tokens(
+            method,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
+        Expr::Path(path) => {
+            strict_path_parser_expr_tokens(path, arguments, generation, free_modifier_parser, mode)
         }
-        Expr::Path(path) => strict_path_parser_expr_tokens(path, arguments, free_modifier_parser),
-        Expr::Tuple(tuple) => {
-            strict_tuple_parser_expr_tokens(tuple, arguments, type_env, free_modifier_parser)
-        }
+        Expr::Tuple(tuple) => strict_tuple_parser_expr_tokens(
+            tuple,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
         _ => None,
     }
 }
@@ -1639,12 +1759,18 @@ fn strict_parser_expr_tokens(
 fn strict_method_parser_expr_tokens(
     method: &ExprMethodCall,
     arguments: &BTreeSet<String>,
-    type_env: &GrammarTypeEnv,
+    generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
 ) -> Option<TokenStream2> {
     if method.method == "warn" && method.args.len() == 1 {
-        let inner =
-            strict_parser_expr_tokens(&method.receiver, arguments, type_env, free_modifier_parser)?;
+        let inner = strict_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
         let construct = method.args.first().and_then(path_expr_last_segment)?;
         let construct = format_ident!("{construct}");
         Some(quote! {
@@ -1656,8 +1782,13 @@ fn strict_method_parser_expr_tokens(
             )
         })
     } else if method.method == "not_next_selmaho" && method.args.len() == 1 {
-        let inner =
-            strict_parser_expr_tokens(&method.receiver, arguments, type_env, free_modifier_parser)?;
+        let inner = strict_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
         let selmaho = method.args.first().and_then(path_expr_last_segment)?;
         let selmaho = format_ident!("{selmaho}");
         Some(quote! {
@@ -1666,8 +1797,13 @@ fn strict_method_parser_expr_tokens(
                 .map(|(value, _)| value)
         })
     } else if method.method == "not_next_token" && method.args.len() == 1 {
-        let inner =
-            strict_parser_expr_tokens(&method.receiver, arguments, type_env, free_modifier_parser)?;
+        let inner = strict_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
         let predicate = method.args.first().and_then(path_expr_last_segment)?;
         let predicate = format_ident!("{predicate}");
         Some(quote! {
@@ -1676,70 +1812,110 @@ fn strict_method_parser_expr_tokens(
                 .map(|(value, _)| value)
         })
     } else if method.method == "not_next_rule" && method.args.len() == 1 {
-        let inner =
-            strict_parser_expr_tokens(&method.receiver, arguments, type_env, free_modifier_parser)?;
+        let inner = strict_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
         let rule = method.args.first().and_then(path_expr_last_segment)?;
-        if !type_env.rules.contains_key(&rule) {
+        if !generation.type_env.rules.contains_key(&rule) {
             return None;
         }
-        let parser_arguments = type_env
+        let parser_arguments = generation
+            .type_env
             .rule_arguments
             .get(&rule)
             .into_iter()
             .flatten()
-            .map(|argument| {
-                if arguments.contains(argument) {
-                    let argument = format_ident!("{argument}");
-                    Some(quote!(#argument.clone()))
-                } else {
-                    None
-                }
-            })
+            .map(|argument| strict_argument_parser_tokens(argument, arguments, generation, mode))
             .collect::<Option<Vec<_>>>()?;
         let parser_name = format_ident!("strict_{}_parser", rule);
+        let parser_name = if mode == StrictParserCallMode::Legacy
+            || (generation.generate_model && !generation.rule_is_generated_model(&rule))
+        {
+            quote!(super::#parser_name)
+        } else {
+            quote!(#parser_name)
+        };
+        let free_modifier =
+            strict_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
         let expected = format!("not {rule}");
         Some(quote! {
             generated_runtime::not_next_rule_after(
                 #inner,
                 #parser_name(
                     #(#parser_arguments,)*
-                    #free_modifier_parser.clone(),
+                    #free_modifier,
                 ),
                 #expected,
             )
         })
     } else if method.method == "followed_by" && method.args.len() == 1 {
         let guard_expr = method.args.first()?;
-        let inner =
-            strict_parser_expr_tokens(&method.receiver, arguments, type_env, free_modifier_parser)?;
-        let guard =
-            strict_parser_expr_tokens(guard_expr, arguments, type_env, free_modifier_parser)?;
+        let inner = strict_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let guard = strict_parser_expr_tokens(
+            guard_expr,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
         Some(quote!(generated_runtime::followed_by(#inner, #guard)))
     } else if method.method == "lookahead" && method.args.is_empty() {
-        let inner =
-            strict_parser_expr_tokens(&method.receiver, arguments, type_env, free_modifier_parser)?;
+        let inner = strict_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
         Some(quote!(generated_runtime::lookahead(#inner)))
     } else if method.method == "not" && method.args.is_empty() {
-        let inner =
-            strict_parser_expr_tokens(&method.receiver, arguments, type_env, free_modifier_parser)?;
+        let inner = strict_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
         Some(quote!(generated_runtime::not(#inner)))
     } else if method.method == "ignored" && method.args.is_empty() {
-        let inner =
-            strict_parser_expr_tokens(&method.receiver, arguments, type_env, free_modifier_parser)?;
+        let inner = strict_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
         Some(quote!(#inner.map(|_| ())))
     } else if (method.method == "wf"
         || method.method == "with_free_modifiers"
         || method.method == "prohibited_wf")
         && method.args.is_empty()
     {
-        let inner =
-            strict_parser_expr_tokens(&method.receiver, arguments, type_env, free_modifier_parser)?;
+        let inner = strict_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let free_modifier =
+            strict_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
         let free_modifier_list = if method.method == "prohibited_wf" {
             quote!(generated_runtime::strict_cll_prohibited_free_modifier_list_parser(
-                #free_modifier_parser.clone()
+                #free_modifier
             ))
         } else {
-            quote!(generated_runtime::strict_free_modifier_list_parser(#free_modifier_parser.clone()))
+            quote!(generated_runtime::strict_free_modifier_list_parser(#free_modifier))
         };
         Some(quote! {
             #inner
@@ -1754,23 +1930,20 @@ fn strict_method_parser_expr_tokens(
 fn strict_call_parser_expr_tokens(
     call: &ExprCall,
     arguments: &BTreeSet<String>,
-    type_env: &GrammarTypeEnv,
+    generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
 ) -> Option<TokenStream2> {
     let function = call_name(call)?;
-    if type_env.rules.contains_key(&function) {
-        let parser_name = format_ident!("strict_{}_parser", function);
-        let parser_arguments = call
-            .args
-            .iter()
-            .map(|argument| {
-                strict_parser_expr_tokens(argument, arguments, type_env, free_modifier_parser)
-            })
-            .collect::<Option<Vec<_>>>()?;
-        return Some(quote!(#parser_name(
-            #(#parser_arguments,)*
-            #free_modifier_parser.clone()
-        )));
+    if generation.type_env.rules.contains_key(&function) {
+        return strict_rule_call_parser_tokens(
+            &function,
+            call.args.iter(),
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        );
     }
     match (function.as_str(), call.args.len()) {
         ("cmavo", 1) => {
@@ -1821,8 +1994,9 @@ fn strict_call_parser_expr_tokens(
             let inner = strict_parser_expr_tokens(
                 call.args.iter().nth(1).expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote!(generated_runtime::feature_gate(
                 generated_runtime::SyntaxGrammarFeature::#feature,
@@ -1835,8 +2009,9 @@ fn strict_call_parser_expr_tokens(
             let inner = strict_parser_expr_tokens(
                 call.args.iter().nth(1).expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote!(generated_runtime::policy_gate(
                 generated_runtime::SyntaxGrammarPolicyFlag::#policy,
@@ -1859,8 +2034,9 @@ fn strict_call_parser_expr_tokens(
             let inner = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote!(generated_runtime::strict_optional(#inner)))
         }
@@ -1868,8 +2044,9 @@ fn strict_call_parser_expr_tokens(
             let inner = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote!(#inner.map(Some)))
         }
@@ -1877,8 +2054,9 @@ fn strict_call_parser_expr_tokens(
             let inner = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote!(generated_runtime::strict_optional(#inner).map(Option::unwrap_or_default)))
         }
@@ -1886,8 +2064,9 @@ fn strict_call_parser_expr_tokens(
             let inner = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote!(generated_runtime::strict_greedy_many_parser(#inner.boxed())))
         }
@@ -1895,8 +2074,9 @@ fn strict_call_parser_expr_tokens(
             let inner = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote!(generated_runtime::strict_greedy_many1_parser(#inner.boxed())))
         }
@@ -1904,8 +2084,9 @@ fn strict_call_parser_expr_tokens(
             let inner = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote! {
                 generated_runtime::strict_greedy_many1_parser(#inner.boxed()).map(|items| {
@@ -1918,8 +2099,9 @@ fn strict_call_parser_expr_tokens(
             let inner = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote!(generated_runtime::singleton(#inner)))
         }
@@ -1927,14 +2109,16 @@ fn strict_call_parser_expr_tokens(
             let head = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             let tail = strict_parser_expr_tokens(
                 call.args.iter().nth(1).expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote!(generated_runtime::prepend(#head, #tail)))
         }
@@ -1942,14 +2126,16 @@ fn strict_call_parser_expr_tokens(
             let left = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             let right = strict_parser_expr_tokens(
                 call.args.iter().nth(1).expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote!(generated_runtime::append(#left, #right)))
         }
@@ -1957,14 +2143,16 @@ fn strict_call_parser_expr_tokens(
             let head = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             let tail = strict_parser_expr_tokens(
                 call.args.iter().nth(1).expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote!(generated_runtime::concat(#head, #tail)))
         }
@@ -1972,8 +2160,9 @@ fn strict_call_parser_expr_tokens(
             let inner = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote!(#inner.map(Box::new)))
         }
@@ -1981,20 +2170,28 @@ fn strict_call_parser_expr_tokens(
             let inner = strict_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
-                type_env,
+                generation,
                 free_modifier_parser,
+                mode,
             )?;
             Some(quote!(#inner.map(std::sync::Arc::new)))
         }
         ("recover_as", 2) => strict_parser_expr_tokens(
             call.args.iter().nth(1).expect("length checked"),
             arguments,
-            type_env,
+            generation,
             free_modifier_parser,
+            mode,
         ),
         ("choice", 1) => {
             let alternatives = call.args.first().and_then(|expr| {
-                choice_alternative_parser_tokens(expr, arguments, type_env, free_modifier_parser)
+                choice_alternative_parser_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )
             })?;
             strict_choice_chain(alternatives)
         }
@@ -2003,7 +2200,13 @@ fn strict_call_parser_expr_tokens(
                 .args
                 .iter()
                 .map(|expr| {
-                    strict_parser_expr_tokens(expr, arguments, type_env, free_modifier_parser)
+                    strict_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )
                 })
                 .collect::<Option<Vec<_>>>()?;
             strict_choice_chain(alternatives)
@@ -2013,7 +2216,13 @@ fn strict_call_parser_expr_tokens(
                 .args
                 .iter()
                 .map(|expr| {
-                    strict_parser_expr_tokens(expr, arguments, type_env, free_modifier_parser)
+                    strict_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )
                 })
                 .collect::<Option<Vec<_>>>()?;
             strict_sequence_expr_chain(parts)
@@ -2027,18 +2236,30 @@ fn strict_call_parser_expr_tokens(
 fn strict_path_parser_expr_tokens(
     path: &ExprPath,
     arguments: &BTreeSet<String>,
+    generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
 ) -> Option<TokenStream2> {
     if path.qself.is_none()
         && path.path.segments.len() == 1
         && let Some(segment) = path.path.segments.first()
     {
         if arguments.contains(&segment.ident.to_string()) {
-            let name = &segment.ident;
-            return Some(quote!(#name.clone()));
+            return strict_argument_parser_tokens(
+                &segment.ident.to_string(),
+                arguments,
+                generation,
+                mode,
+            );
         }
-        let name = format_ident!("strict_{}_parser", segment.ident);
-        Some(quote!(#name(#free_modifier_parser.clone())))
+        strict_rule_call_parser_tokens(
+            &segment.ident.to_string(),
+            std::iter::empty(),
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )
     } else {
         None
     }
@@ -2047,15 +2268,92 @@ fn strict_path_parser_expr_tokens(
 fn strict_tuple_parser_expr_tokens(
     tuple: &ExprTuple,
     arguments: &BTreeSet<String>,
-    type_env: &GrammarTypeEnv,
+    generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
 ) -> Option<TokenStream2> {
     let parts = tuple
         .elems
         .iter()
-        .map(|expr| strict_parser_expr_tokens(expr, arguments, type_env, free_modifier_parser))
+        .map(|expr| {
+            strict_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
+        })
         .collect::<Option<Vec<_>>>()?;
     strict_sequence_expr_chain(parts)
+}
+
+fn strict_rule_call_parser_tokens<'a>(
+    function: &str,
+    argument_exprs: impl Iterator<Item = &'a Expr>,
+    arguments: &BTreeSet<String>,
+    generation: &StrictParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
+) -> Option<TokenStream2> {
+    if !generation.type_env.rules.contains_key(function) {
+        return None;
+    }
+    let call_mode = if mode == StrictParserCallMode::Legacy
+        || (generation.generate_model && !generation.rule_is_generated_model(function))
+    {
+        StrictParserCallMode::Legacy
+    } else {
+        StrictParserCallMode::Local
+    };
+    let parser_name = format_ident!("strict_{}_parser", function);
+    let parser_name = if call_mode == StrictParserCallMode::Legacy {
+        quote!(super::#parser_name)
+    } else {
+        quote!(#parser_name)
+    };
+    let parser_arguments = argument_exprs
+        .map(|argument| {
+            strict_parser_expr_tokens(
+                argument,
+                arguments,
+                generation,
+                free_modifier_parser,
+                call_mode,
+            )
+        })
+        .collect::<Option<Vec<_>>>()?;
+    let free_modifier =
+        strict_free_modifier_argument_tokens(generation, free_modifier_parser, call_mode);
+    Some(quote!(#parser_name(
+        #(#parser_arguments,)*
+        #free_modifier
+    )))
+}
+
+fn strict_argument_parser_tokens(
+    argument: &str,
+    arguments: &BTreeSet<String>,
+    generation: &StrictParserGeneration<'_>,
+    mode: StrictParserCallMode,
+) -> Option<TokenStream2> {
+    if !arguments.contains(argument) {
+        return None;
+    }
+    let argument = format_ident!("{argument}");
+    if mode == StrictParserCallMode::Legacy
+        && generation.recursive_is_generated_model(&argument.to_string())
+    {
+        Some(generation.legacy_recursive_parser(&argument))
+    } else {
+        Some(quote!(#argument.clone()))
+    }
+}
+
+fn strict_free_modifier_argument_tokens(
+    generation: &StrictParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
+) -> TokenStream2 {
+    if mode == StrictParserCallMode::Legacy {
+        generation.legacy_free_modifier_parser()
+    } else {
+        quote!(#free_modifier_parser.clone())
+    }
 }
 
 fn strict_sequence_expr_chain(mut parts: Vec<TokenStream2>) -> Option<TokenStream2> {
@@ -2072,16 +2370,19 @@ fn strict_sequence_expr_chain(mut parts: Vec<TokenStream2>) -> Option<TokenStrea
 fn choice_alternative_parser_tokens(
     expr: &Expr,
     arguments: &BTreeSet<String>,
-    type_env: &GrammarTypeEnv,
+    generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
 ) -> Option<Vec<TokenStream2>> {
     if let Expr::Tuple(ExprTuple { elems, .. }) = expr {
         elems
             .iter()
-            .map(|expr| strict_parser_expr_tokens(expr, arguments, type_env, free_modifier_parser))
+            .map(|expr| {
+                strict_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
+            })
             .collect()
     } else {
-        strict_parser_expr_tokens(expr, arguments, type_env, free_modifier_parser)
+        strict_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
             .map(|expr| vec![expr])
     }
 }
@@ -2368,11 +2669,8 @@ fn parser_type_tokens(
     model_outputs: &Option<BTreeSet<String>>,
     model_path: Option<&Path>,
 ) -> TokenStream2 {
-    if generate_model
+    if output_is_generated_model(generate_model, model_outputs, output)
         && let Some(output_ident) = simple_type_ident(output)
-        && model_outputs
-            .as_ref()
-            .is_none_or(|outputs| outputs.contains(&output_ident.to_string()))
     {
         model_path.map_or_else(
             || quote!(self::#output_ident),
@@ -2380,6 +2678,52 @@ fn parser_type_tokens(
         )
     } else {
         quote!(#output)
+    }
+}
+
+fn output_is_generated_model(
+    generate_model: bool,
+    model_outputs: &Option<BTreeSet<String>>,
+    output: &Type,
+) -> bool {
+    if !generate_model {
+        return false;
+    }
+    type_mentions_generated_model(output, model_outputs)
+}
+
+fn type_mentions_generated_model(ty: &Type, model_outputs: &Option<BTreeSet<String>>) -> bool {
+    match ty {
+        Type::Path(path) => {
+            if path.qself.is_none()
+                && path.path.segments.len() == 1
+                && model_outputs.as_ref().is_none_or(|outputs| {
+                    outputs.contains(&path.path.segments[0].ident.to_string())
+                })
+            {
+                return true;
+            }
+            path.path.segments.iter().any(|segment| {
+                let PathArguments::AngleBracketed(args) = &segment.arguments else {
+                    return false;
+                };
+                args.args.iter().any(|argument| match argument {
+                    GenericArgument::Type(ty) => type_mentions_generated_model(ty, model_outputs),
+                    GenericArgument::AssocType(assoc) => {
+                        type_mentions_generated_model(&assoc.ty, model_outputs)
+                    }
+                    _ => false,
+                })
+            })
+        }
+        Type::Tuple(tuple) => tuple
+            .elems
+            .iter()
+            .any(|ty| type_mentions_generated_model(ty, model_outputs)),
+        Type::Paren(paren) => type_mentions_generated_model(&paren.elem, model_outputs),
+        Type::Group(group) => type_mentions_generated_model(&group.elem, model_outputs),
+        Type::Reference(reference) => type_mentions_generated_model(&reference.elem, model_outputs),
+        _ => false,
     }
 }
 
@@ -2404,6 +2748,7 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
     let mut build = None;
     let mut construction = ConstructionMode::Validated;
     let mut model_variant = None;
+    let mut no_partial_valid = false;
     let mut recovered_build = None;
     while !content.is_empty() {
         if content.peek(kw::context) {
@@ -2430,6 +2775,10 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
             content.parse::<kw::model_variant>()?;
             model_variant = Some(content.parse()?);
             content.parse::<Token![;]>()?;
+        } else if content.peek(kw::no_partial_valid) {
+            content.parse::<kw::no_partial_valid>()?;
+            no_partial_valid = true;
+            content.parse::<Token![;]>()?;
         } else if content.peek(kw::fields) {
             fields = parse_fields_block(&content)?;
         } else if content.peek(kw::build) {
@@ -2442,7 +2791,7 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
             content.parse::<Token![;]>()?;
         } else {
             return Err(content.error(
-                "expected `context`, `construct`, `model_variant`, `fields`, `build`, or `recovered_build`",
+                "expected `context`, `construct`, `model_variant`, `no_partial_valid`, `fields`, `build`, or `recovered_build`",
             ));
         }
     }
@@ -2456,6 +2805,7 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
         build,
         construction,
         model_variant,
+        no_partial_valid,
         _recovered_build: recovered_build,
     })
 }
