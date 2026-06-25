@@ -3669,6 +3669,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 inner_statement,
                 ..
             }) => {
+                let previous_da_bindings = self.da_bindings.clone();
                 self.visit_terms(prenex_terms);
                 let previous_selbri_variable_bindings = self.selbri_variable_bindings.clone();
                 self.bind_prenex_relation_variables(prenex_terms);
@@ -3677,6 +3678,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_statement(inner_statement);
                 self.cei_bridi_bindings = previous_cei_bridi_bindings;
                 self.selbri_variable_bindings = previous_selbri_variable_bindings;
+                self.da_bindings = previous_da_bindings;
             }
             data!(StatementSyntax::Bridi(bridi)) => {
                 self.visit_predicate(bridi);
@@ -3728,6 +3730,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 inner_subbridi,
                 ..
             }) => {
+                let previous_da_bindings = self.da_bindings.clone();
                 self.visit_terms(prenex_terms);
                 let previous_selbri_variable_bindings = self.selbri_variable_bindings.clone();
                 self.bind_prenex_relation_variables(prenex_terms);
@@ -3736,6 +3739,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_subbridi(inner_subbridi);
                 self.cei_bridi_bindings = previous_cei_bridi_bindings;
                 self.selbri_variable_bindings = previous_selbri_variable_bindings;
+                self.da_bindings = previous_da_bindings;
             }
         }
     }
@@ -6811,6 +6815,12 @@ mod tests {
     }
 
     #[requires(true)]
+    #[ensures(ret.offset == offset && ret.length == length)]
+    fn span_key(offset: usize, length: usize) -> FixtureSpanKey {
+        FixtureSpanKey { offset, length }
+    }
+
+    #[requires(true)]
     #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
     fn sumti_label(index: &SyntaxIndex<'_>, sumti: SumtiNodeId) -> Option<String> {
         match index.sumti(sumti)?.as_data() {
@@ -6958,6 +6968,57 @@ mod tests {
             assert_eq!(root_metadata.leaf_start, 0);
             assert_eq!(root_metadata.leaf_end, 3);
             assert_eq!(root_metadata.source_spans.len(), 3);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn prenex_da_scope_stops_at_bare_i_boundary() {
+        run_reference_test(|| {
+            let syntax = parse_syntax("su'oda zo'u mi prami da .i naku do prami da");
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let da_edges = projection
+                .references
+                .iter()
+                .filter(|edge| edge.kind == ReferenceKind::DaSeries)
+                .collect::<Vec<_>>();
+
+            assert_eq!(da_edges.len(), 1);
+            assert_eq!(da_edges[0].source, span_key(21, 2));
+            assert!(matches!(
+                &da_edges[0].target,
+                FixtureReferenceTarget::ResolvedNode { node } if *node == span_key(4, 2)
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn prenex_da_scope_extends_across_ijek_statement_connection() {
+        run_reference_test(|| {
+            let syntax = parse_syntax("su'oda zo'u mi prami da .ije naku do prami da");
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let da_edges = projection
+                .references
+                .iter()
+                .filter(|edge| edge.kind == ReferenceKind::DaSeries)
+                .collect::<Vec<_>>();
+            let sources = da_edges
+                .iter()
+                .map(|edge| edge.source.clone())
+                .collect::<Vec<_>>();
+
+            assert_eq!(sources, vec![span_key(21, 2), span_key(43, 2)]);
+            for edge in da_edges {
+                assert!(matches!(
+                    &edge.target,
+                    FixtureReferenceTarget::ResolvedNode { node } if *node == span_key(4, 2)
+                ));
+            }
         });
     }
 
