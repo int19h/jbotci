@@ -2640,6 +2640,7 @@ where
             })
             .collect::<HashSet<_>>();
         let mut body = self.strip_implicit_quantifiers_for_variables(formula, &prenex_variables)?;
+        self.strip_implicit_quantifiers_for_variables_everywhere(&prenex_variables)?;
         for scope in scopes.into_iter().rev() {
             body = self.wrap_formula_with_prenex_scope(body, scope)?;
         }
@@ -2721,6 +2722,29 @@ where
             }
         }
         Ok(formula)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn strip_implicit_quantifiers_for_variables_everywhere(
+        &mut self,
+        variables: &HashSet<SemanticObjectId>,
+    ) -> Result<(), SemanticsError> {
+        if variables.is_empty() {
+            return Ok(());
+        }
+        let formula_ids = self
+            .objects
+            .keys()
+            .copied()
+            .filter(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula)
+            .collect::<Vec<_>>();
+        for formula in formula_ids {
+            if self.objects.contains_key(&formula) {
+                self.strip_implicit_quantifiers_for_variables(formula, variables)?;
+            }
+        }
+        Ok(())
     }
 
     #[requires(old_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -12907,6 +12931,11 @@ where
         if let Some(id) = self.sumti_objects.get(&raw) {
             return Ok(*id);
         }
+        if let Some(token) = da_series_kau_focus_token(sumti) {
+            let id = self.build_indefinite_kau_argument_parameter(token, raw)?;
+            self.sumti_objects.insert(raw, id);
+            return Ok(id);
+        }
         let id = match sumti.as_data() {
             data!(SumtiSyntax::QuotedSumti(quote)) => self.build_quote_sign(quote, raw)?,
             data!(SumtiSyntax::ProSumti(token)) => self.build_pro_sumti(token, raw)?,
@@ -13062,6 +13091,37 @@ where
             )?;
         }
         self.sumti_objects.insert(raw, id);
+        Ok(id)
+    }
+
+    #[requires(token.cmavo().is_some_and(|cmavo| matches!(cmavo, Cmavo::Da | Cmavo::De | Cmavo::Di)))]
+    #[requires(with_free_modifiers_has_indicator_cmavo(token, Cmavo::Kau))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter) || ret.is_err())]
+    fn build_indefinite_kau_argument_parameter(
+        &mut self,
+        token: &WithFreeModifiers<Token>,
+        raw: RawSyntaxNodeId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.build_parameter_with_source(
+            token_text(&token.value),
+            self.source_for_node(raw, "parameter"),
+            SemanticSort::Entity,
+            crate::model::ParameterRole::ArgumentQuestion,
+        )?;
+        if self.record_indirect_question_focus(new!(IndirectQuestionFocus {
+            focus: id,
+            presupposed_answer: None,
+            slots: vec![QuestionSlot {
+                parameter: id,
+                role: QuestionSlotRole::Answer,
+            }],
+            kind: QuestionKind::Argument,
+            domain: SemanticSort::Entity,
+            source: self.source_for_node(raw, "indirect-question"),
+        })) {
+            return Ok(id);
+        }
+        self.push_question_answer_slot(id);
         Ok(id)
     }
 
@@ -16921,6 +16981,33 @@ fn sumti_has_current_kau_focus(sumti: &SumtiSyntax) -> bool {
             sumti_has_current_kau_focus(inner_sumti)
         }
         _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|token| token.cmavo().is_some_and(|cmavo| matches!(cmavo, Cmavo::Da | Cmavo::De | Cmavo::Di)) && with_free_modifiers_has_indicator_cmavo(token, Cmavo::Kau)))]
+fn da_series_kau_focus_token(sumti: &SumtiSyntax) -> Option<&WithFreeModifiers<Token>> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::ProSumti(token))
+            if matches!(token.cmavo(), Some(Cmavo::Da | Cmavo::De | Cmavo::Di))
+                && with_free_modifiers_has_indicator_cmavo(token, Cmavo::Kau) =>
+        {
+            Some(token)
+        }
+        data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithRelativeClauses {
+            base_sumti: inner_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
+            base_sumti: inner_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. }) => {
+            da_series_kau_focus_token(inner_sumti)
+        }
+        _ => None,
     }
 }
 
@@ -22893,6 +22980,9 @@ fn quantifier_text(quantifier: &QuantifierSyntax) -> Option<String> {
 #[requires(true)]
 #[ensures(true)]
 fn da_series_scope_source(sumti: &SumtiSyntax) -> Option<DaSeriesScopeSource<'_>> {
+    if da_series_kau_focus_token(sumti).is_some() {
+        return None;
+    }
     match sumti.as_data() {
         data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
         | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. })
@@ -28320,6 +28410,42 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn outer_prenex_da_is_not_reclosed_inside_abstraction_body() {
+        let json = semantic_json_for("da zo'u mi nitcu lo nu mi ponse da").expect("semantic JSON");
+        let root = root_object(&json);
+        let exists = object(&json, root["content"].as_str().expect("root content"));
+        assert_eq!(exists["operator"], "exists");
+        assert_eq!(exists["variable"], "referent:r2");
+
+        let abstraction = object(&json, "abstraction:a1");
+        let body = object(
+            &json,
+            abstraction["body"].as_str().expect("abstraction body"),
+        );
+        assert_eq!(body["operator"], "atom");
+        let ponse = object(
+            &json,
+            body["predication"].as_str().expect("ponse predication"),
+        );
+        assert_eq!(ponse["relation"], "ponse");
+        assert_eq!(ponse["arguments"]["x2"]["value"], "referent:r2");
+
+        let exists_count = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .filter(|object| {
+                object["type"] == "formula"
+                    && object["operator"] == "exists"
+                    && object["variable"] == "referent:r2"
+            })
+            .count();
+        assert_eq!(exists_count, 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn prenex_multiple_quantifiers_preserve_left_to_right_scope() {
         let json = semantic_json_for("ro da ro de zo'u da prami de").expect("semantic JSON");
         let root = root_object(&json);
@@ -30357,6 +30483,35 @@ mod tests {
         assert_eq!(question["focus"], "parameter:p1");
 
         let klama = predication_with_relation_and_mode(&json, "klama", "inert");
+        assert_eq!(klama["arguments"]["x1"]["value"], "parameter:p1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn da_kau_is_embedded_indirect_question_slot_inside_duhu() {
+        let json =
+            semantic_json_for("mi djuno le du'u dakau klama le zarci").expect("semantic JSON");
+        let abstraction = object(&json, "abstraction:a1");
+        assert_eq!(abstraction["embeddedQuestions"][0], "question:q1");
+
+        let question = object(&json, "question:q1");
+        assert_eq!(question["kind"], "argument");
+        assert_eq!(question["mode"], "indirect");
+        assert_eq!(question["body"], abstraction["body"]);
+        assert_eq!(question["slots"][0]["parameter"], "parameter:p1");
+        assert_eq!(question["focus"], "parameter:p1");
+        assert!(question.get("presupposedAnswer").is_none());
+
+        let body = object(
+            &json,
+            abstraction["body"].as_str().expect("abstraction body"),
+        );
+        assert_eq!(body["operator"], "atom");
+        let klama = object(
+            &json,
+            body["predication"].as_str().expect("klama predication"),
+        );
         assert_eq!(klama["arguments"]["x1"]["value"], "parameter:p1");
     }
 
