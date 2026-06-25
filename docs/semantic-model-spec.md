@@ -1620,42 +1620,15 @@ and x2 are propositions; in `li ny. du li vo .ini'ibo li ny. du li re su'i re`,
 the generated `nibli` predication fills x1 and x2 with the two identity formula
 IDs rather than with event IDs.
 
-Filled and elided argument values may also carry `quantity`, pointing at a
-`quantity` object when an explicit outer quantifier scopes over that argument
-occurrence.  A deleted argument must not carry `quantity`.
-
-For `re do cadzu le bisli`, the quantity applies to this occurrence of the
-addressee argument:
-
-```json
-{
-  "kind": "filled",
-  "value": "referent:addressee",
-  "quantity": "quantity:q-two"
-}
-```
-
-For `mi cusku re lu do cadzu le bisli li'u`, the same field records that the
-x2 argument is two occurrences of the quoted sign:
-
-```json
-{
-  "kind": "filled",
-  "value": "sign:s-quotation",
-  "quantity": "quantity:q-two"
-}
-```
-
-For `mi ponse su'o ci cutci`, the x2 argument points at the shoe description,
-and the bare `su'o ci` quantifier scopes over that argument occurrence:
-
-```json
-{
-  "kind": "filled",
-  "value": "referent:shoes",
-  "quantity": "quantity:q-at-least-three"
-}
-```
+Outer quantifiers do not live on `ArgumentValue`.  They introduce formula-level
+restricted-variable scopes, even when the quantified source appears in a single
+argument position.  For example, `re do cadzu le bisli` introduces a variable
+selected from the addressee group with `quantity:q-two`, and the walking
+predication uses that variable as x1.  Likewise, `ci lo gerku cu bajra` keeps
+the `lo gerku` description as a constant referent and quantifies a variable
+restricted by membership in that description.  This keeps quantifier scope,
+restriction, and re-quantification visible at the formula layer instead of
+mutating an argument occurrence or the global referent it points at.
 
 Inner quantifiers inside an explicit description appear on the descriptor
 instead.  For `le ci gerku`, the descriptor carries the `ci` quantity:
@@ -2051,7 +2024,7 @@ Connective:
   "children": ["formula:f1", "formula:f2"],
   "connector": {
     "source": "je",
-    "locus": "predicate",
+    "locus": "selbri",
     "truthTable": "TFFF"
   }
 }
@@ -2253,7 +2226,7 @@ For `ta cinfo kerfa`:
   "type": "formula",
   "operator": "and",
   "children": ["formula:f-kerfa", "formula:f-tanru-link"],
-  "connector": { "source": "tanru", "locus": "predicate" }
+  "connector": { "source": "tanru", "locus": "selbri" }
 }
 ```
 
@@ -3703,14 +3676,14 @@ These are the semantic object-model changes relative to
    For forethought forms, head-side `nai` is first-branch negation (`ganai X gi
    Y`), while `gik.nai` remains second-branch negation (`ge X ginai Y`).
 
-32. Added occurrence-scoped quantities on argument fillers.
+32. Corrected outer quantifier representation.
    CLL 6.6 uses quantified pro-sumti and quantified quotations such as
    `re do cadzu le bisli` and `mi cusku re lu do cadzu le bisli li'u`.  These
    quantifiers cannot be stored by mutating the global addressee referent or the
-   quoted sign object.  `ArgumentValue.quantity` records the quantifier on that
-   argument occurrence.  CLL 6.7 then forces the same treatment for outer
-   description quantifiers, while inner descriptor quantifiers such as the `ci`
-   in `le ci gerku` remain descriptor `quantity`.
+   quoted sign object, and they also should not be hidden on the argument
+   occurrence.  Outer quantifiers are formula-level restricted-variable scopes;
+   inner descriptor quantifiers such as the `ci` in `le ci gerku` remain
+   descriptor `quantity`.
 
 33. Reused descriptor operands for sumti-based descriptions.
    CLL 6.9 uses `le re do` and `le re le ci cribe`, where a description is
@@ -3718,7 +3691,7 @@ These are the semantic object-model changes relative to
    preserve the quantity but had nowhere to point at the embedded sumti.
    `descriptor.operand` now records that embedded sumti object; descriptor
    `quantity` records the required inner quantifier, and any outer quantifier
-   still appears on `ArgumentValue.quantity`.
+   is represented by a formula-level restricted-variable scope.
 
 34. Allowed nested discourse sequences.
    CLL 6.10 includes multi-statement `.ije` text whose natural syntax is

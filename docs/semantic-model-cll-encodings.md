@@ -170,7 +170,7 @@ FRM f1 : CARD(v1, 2, fr)                                              -- exactly
 ```
 ⟨frame u1/e0/a1/a2⟩
 SGN Q1 : kind=grammatical, text="le xunre cmaxirma", utt=u2          -- the quoted title (a structured sign)
-UTT u2 : force=mentioned, content=fq, ev=eq, speaker=b1, audience=b2
+UTT u2 : force=assert, content=fq, ev=eq, speaker=b1, audience=b2    -- mentioned by Q1, not force-rewritten
 … (fq = the parsed title's content; its roles b1/b2 its own) …
 EV  e1 : tense=?, caha=ca'a
 PRD p1 : rel=viska, ev=e1, args=[a1, lae[Q1], z1], mode=asserted      -- la'e Q1 = the book the sign denotes
@@ -611,7 +611,7 @@ SEQ s  : items=[⟨f1⟩, ⟨fb⟩], rel=discourse-juxtaposition            -- T
 ```
 ⟨frame u1/e0/a1/a2⟩
 REF J : kind=const, flavor=la, sort=Obj ; +cmene-clause(J, "djan")
-UTT u2 : force=mentioned, content=f2, ev=e2, speaker=J, audience=z1   -- the quoted utterance; its OWN roles
+UTT u2 : force=assert, content=f2, ev=e2, speaker=J, audience=z1      -- quoted by the sign; its OWN roles
 PRD p2 : rel=klama, ev=ek, args=[J2, Zq, …], mode=asserted           -- inner `mi` = u2.speaker (= J, by content)
 REF J2 : kind=const, indexical=⟨u2.speaker⟩, sort=Obj
 REF Zq : kind=const, flavor=le, sort=Obj ; +LE-clause(Zq, zarci)
