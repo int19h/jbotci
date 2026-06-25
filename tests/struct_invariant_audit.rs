@@ -1624,6 +1624,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "bound tanru pair carries borrowed syntax nodes whose validity is enforced by SelbriSyntax",
     ),
     (
+        "crates/jbotci-semantics/src/builder.rs:RequantifiedDaSelection",
+        "re-quantified da selection is a private carrier produced by a helper with referent-ID postconditions and sealed by graph validation",
+    ),
+    (
         "crates/jbotci-semantics/src/builder.rs:DescriptionAbstraction",
         "description abstraction carries borrowed syntax and fixed relation text chosen by builder helpers",
     ),
