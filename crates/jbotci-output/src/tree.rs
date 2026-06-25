@@ -1482,8 +1482,11 @@ fn legacy_as_generated_grouped_sumti_connective_entries(
         value: generated_token_tree_value(connective_token, source, options),
     }];
     if !modal_tokens.is_empty() {
-        let Some(tense_modal) =
-            legacy_as_generated_flat_modal_tense_tree_value(modal_tokens, source, options)
+        let Some(tense_modal) = legacy_as_generated_flat_or_composite_tense_words_tree_value(
+            modal_tokens,
+            source,
+            options,
+        )
         else {
             return vec![TreeEntry {
                 label: Some("connective"),
@@ -1542,8 +1545,11 @@ fn legacy_as_generated_modal_gi_forethought_connective_tree_value(
         _ => return None,
     };
     let prefix_len = words.len() - usize::from(bo.is_some()) - 1;
-    let tense_modal =
-        legacy_as_generated_flat_modal_tense_tree_value(&words[..prefix_len], source, options)?;
+    let tense_modal = legacy_as_generated_flat_or_composite_tense_words_tree_value(
+        &words[..prefix_len],
+        source,
+        options,
+    )?;
     let mut entries = vec![
         TreeEntry {
             label: Some("tense_modal"),
@@ -1564,6 +1570,40 @@ fn legacy_as_generated_modal_gi_forethought_connective_tree_value(
         constructor: "ModalGiForethoughtConnective",
         entries,
     }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_flat_or_composite_tense_words_tree_value(
+    words: &[Token],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    if let Some(value) = legacy_as_generated_flat_modal_tense_tree_value(words, source, options) {
+        return Some(value);
+    }
+    let tokens = words.iter().collect::<Vec<_>>();
+    if let Some(value) =
+        legacy_as_generated_connected_tense_modal_tree_value(&tokens, source, options)
+    {
+        return Some(value);
+    }
+    if let Some(value) = legacy_as_generated_time_tense_sequence_tree_value(&tokens, source, options)
+    {
+        return Some(value);
+    }
+    if let [ki] = words
+        && ki.is_cmavo(Cmavo::Ki)
+    {
+        return Some(TreeValue::Node(TreeNode {
+            constructor: "StickyTense",
+            entries: vec![TreeEntry {
+                label: Some("ki"),
+                value: generated_token_tree_value(ki, source, options),
+            }],
+        }));
+    }
+    None
 }
 
 #[requires(true)]
@@ -1733,6 +1773,10 @@ fn legacy_as_generated_term_tree_value(
                 constructor: "ConnectedTerm",
                 entries,
             })
+        }
+        bityzba::data!(jbotci_syntax::ast::TermSyntax::TermsetGroup { .. })
+        | bityzba::data!(jbotci_syntax::ast::TermSyntax::TermsetConnection { .. }) => {
+            legacy_as_generated_simple_term_tree_value(term, source, options)
         }
         _ => TreeValue::Node(TreeNode {
             constructor: "ConnectedTerm",
@@ -5363,6 +5407,46 @@ fn legacy_as_generated_tanru_unit_atom_base_for_cei_tree_value(
     unit.tanru_unit_atom_base_tree_value(source, options)
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_scalar_negated_tanru_inner_unit_tree_value(
+    unit: &jbotci_syntax::ast::TanruUnitSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    if let bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::SelbriGroupTanruUnit(
+        selbri
+    )) = unit.as_data()
+        && let bityzba::data!(jbotci_syntax::ast::SelbriSyntax::TaggedSelbri {
+            tense_modal,
+            inner_selbri,
+        }) = selbri.as_data()
+    {
+        return TreeValue::Node(TreeNode {
+            constructor: "TaggedSelbriGroupTanruUnit",
+            entries: vec![
+                TreeEntry {
+                    label: Some("tense_modal"),
+                    value: legacy_as_generated_tense_modal_tree_value(
+                        tense_modal.as_ref(),
+                        source,
+                        options,
+                    ),
+                },
+                TreeEntry {
+                    label: Some("inner_selbri"),
+                    value: legacy_as_generated_connected_selbri_tree_value(
+                        inner_selbri.as_ref(),
+                        source,
+                        options,
+                    ),
+                },
+            ],
+        });
+    }
+    unit.tanru_unit_atom_tree_value(source, options)
+}
+
 #[contract_trait]
 impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
     #[requires(true)]
@@ -5544,6 +5628,22 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
         options: TreeRenderOptions,
     ) -> TreeValue {
         match self.as_data() {
+            bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::ConvertedTanruUnit {
+                se,
+                inner_unit,
+            }) => TreeValue::Node(TreeNode {
+                constructor: "ConvertedTanruUnit",
+                entries: vec![
+                    TreeEntry {
+                        label: Some("se"),
+                        value: required_legacy_syntax_subtree_value(se, source, options),
+                    },
+                    TreeEntry {
+                        label: Some("inner_unit"),
+                        value: inner_unit.tanru_unit_atom_base_tree_value(source, options),
+                    },
+                ],
+            }),
             bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::TanruUnitWord(word)) => {
                 legacy_as_generated_tanru_unit_word_tree_value(word, source, options)
             }
@@ -5643,7 +5743,11 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
                     },
                     TreeEntry {
                         label: Some("inner_unit"),
-                        value: inner_unit.tanru_unit_atom_tree_value(source, options),
+                        value: legacy_as_generated_scalar_negated_tanru_inner_unit_tree_value(
+                            inner_unit.as_ref(),
+                            source,
+                            options,
+                        ),
                     },
                 ],
             }),
@@ -6159,6 +6263,12 @@ fn legacy_as_generated_tense_modal_tree_value(
                 entries,
             })
         }
+        bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::Sticky(ki)) => {
+            TreeValue::Node(TreeNode {
+                constructor: "StickyTense",
+                entries: legacy_token_field_entries("ki", ki, source, options),
+            })
+        }
         _ => required_legacy_syntax_subtree_value(tense_modal, source, options),
     }
 }
@@ -6294,6 +6404,25 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
                     TreeEntry {
                         label: Some("atom"),
                         value: atom_value,
+                    },
+                ],
+            });
+        }
+        if let [nahe, atom] = tokens.as_slice()
+            && nahe.is_selmaho(Selmaho::Nahe)
+            && let Some(tense) =
+                legacy_as_generated_time_space_caha_inner_tense_value(&[*atom], source, options)
+        {
+            return TreeValue::Node(TreeNode {
+                constructor: "PrefixedTimeSpaceCahaTense",
+                entries: vec![
+                    TreeEntry {
+                        label: Some("nahe"),
+                        value: generated_token_tree_value(nahe, source, options),
+                    },
+                    TreeEntry {
+                        label: Some("tense"),
+                        value: tense,
                     },
                 ],
             });
@@ -6503,23 +6632,26 @@ fn legacy_as_generated_connected_tense_modal_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> Option<TreeValue> {
-    if tokens.len() < 3 || tokens.len() % 2 == 0 {
-        return None;
-    }
+    let mut index = 0;
     let first =
-        legacy_as_generated_single_composite_tense_token_tree_value(tokens[0], source, options)?;
+        legacy_as_generated_connected_tense_atom_tree_value(tokens, &mut index, source, options)?;
     let mut continuations = Vec::new();
-    for pair in tokens[1..].chunks_exact(2) {
-        let connective = pair[0];
+    while index < tokens.len() {
+        let connective = tokens[index];
         if !legacy_token_is_tag_connective(connective) {
             return None;
         }
-        let atom =
-            legacy_as_generated_single_composite_tense_token_tree_value(pair[1], source, options)?;
+        index += 1;
+        let atom = legacy_as_generated_connected_tense_atom_tree_value(
+            tokens, &mut index, source, options,
+        )?;
         continuations.push(TreeValue::Collection(vec![
             generated_token_tree_value(connective, source, options),
             atom,
         ]));
+    }
+    if continuations.is_empty() {
+        return None;
     }
     Some(TreeValue::Node(TreeNode {
         constructor: "ConnectedTenseModal",
@@ -6533,6 +6665,128 @@ fn legacy_as_generated_connected_tense_modal_tree_value(
                 value: TreeValue::Collection(continuations),
             },
         ],
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_connected_tense_atom_tree_value(
+    tokens: &[&Token],
+    index: &mut usize,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let start = *index;
+    if let Some(value) =
+        legacy_as_generated_flat_tense_modal_atom_tree_value(tokens, index, source, options)
+    {
+        return Some(value);
+    }
+    *index = start;
+    if *index >= tokens.len() {
+        return None;
+    }
+    let end = tokens[*index + 1..]
+        .iter()
+        .position(|token| legacy_token_is_tag_connective(token))
+        .map_or(tokens.len(), |relative| *index + 1 + relative);
+    if end == *index {
+        return None;
+    }
+    if let [cuhe] = &tokens[*index..end]
+        && cuhe.is_selmaho(Selmaho::Cuhe)
+    {
+        *index = end;
+        return Some(TreeValue::Node(TreeNode {
+            constructor: "CuheTense",
+            entries: vec![TreeEntry {
+                label: Some("cuhe"),
+                value: generated_token_tree_value(cuhe, source, options),
+            }],
+        }));
+    }
+    let value = legacy_as_generated_time_tense_sequence_tree_value(
+        &tokens[*index..end],
+        source,
+        options,
+    )?;
+    *index = end;
+    Some(value)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_flat_tense_modal_atom_tree_value(
+    tokens: &[&Token],
+    index: &mut usize,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let start = *index;
+    let nahe = tokens
+        .get(*index)
+        .filter(|token| token.is_selmaho(Selmaho::Nahe));
+    if nahe.is_some() {
+        *index += 1;
+    }
+    let se = tokens
+        .get(*index)
+        .filter(|token| token.is_selmaho(Selmaho::Se));
+    if se.is_some() {
+        *index += 1;
+    }
+    let bai = tokens
+        .get(*index)
+        .filter(|token| token.is_selmaho(Selmaho::Bai))?;
+    *index += 1;
+    let nai = tokens
+        .get(*index)
+        .filter(|token| token.is_cmavo(Cmavo::Nai));
+    if nai.is_some() {
+        *index += 1;
+    }
+    let ki = tokens
+        .get(*index)
+        .filter(|token| token.is_cmavo(Cmavo::Ki));
+    if ki.is_some() {
+        *index += 1;
+    }
+    if *index == start {
+        return None;
+    }
+
+    let mut entries = Vec::new();
+    if let Some(nahe) = nahe {
+        entries.push(TreeEntry {
+            label: Some("nahe"),
+            value: generated_token_tree_value(nahe, source, options),
+        });
+    }
+    if let Some(se) = se {
+        entries.push(TreeEntry {
+            label: Some("se"),
+            value: generated_token_tree_value(se, source, options),
+        });
+    }
+    entries.push(TreeEntry {
+        label: Some("bai"),
+        value: generated_token_tree_value(bai, source, options),
+    });
+    if let Some(nai) = nai {
+        entries.push(TreeEntry {
+            label: Some("nai"),
+            value: generated_token_tree_value(nai, source, options),
+        });
+    }
+    if let Some(ki) = ki {
+        entries.push(TreeEntry {
+            label: Some("ki"),
+            value: generated_token_tree_value(ki, source, options),
+        });
+    }
+    Some(TreeValue::Node(TreeNode {
+        constructor: "ModalTense",
+        entries,
     }))
 }
 
@@ -6627,7 +6881,10 @@ fn legacy_as_generated_time_tense_sequence_tree_value(
     };
 
     let mut properties = Vec::new();
-    while index < tokens.len() {
+    loop {
+        if index >= tokens.len() {
+            break;
+        }
         if tokens[index].is_selmaho(Selmaho::Zaho) {
             let zaho = tokens[index];
             index += 1;
@@ -6711,57 +6968,614 @@ fn legacy_as_generated_time_tense_sequence_tree_value(
                 entries,
             }));
         } else {
-            return None;
+            break;
         }
     }
+    let space = legacy_as_generated_space_tense_sequence_tree_value(tokens, &mut index, source, options)?;
+    let caha = if tokens
+        .get(index)
+        .is_some_and(|token| token.is_selmaho(Selmaho::Caha))
+    {
+        let caha = tokens[index];
+        index += 1;
+        Some(TreeValue::Node(TreeNode {
+            constructor: "CahaTense",
+            entries: vec![TreeEntry {
+                label: Some("caha"),
+                value: generated_token_tree_value(caha, source, options),
+            }],
+        }))
+    } else {
+        None
+    };
+    let ki = if tokens
+        .get(index)
+        .is_some_and(|token| token.is_cmavo(Cmavo::Ki))
+    {
+        let ki = tokens[index];
+        index += 1;
+        Some(TreeValue::Node(TreeNode {
+            constructor: "KiCompositeTense",
+            entries: vec![TreeEntry {
+                label: Some("ki"),
+                value: generated_token_tree_value(ki, source, options),
+            }],
+        }))
+    } else {
+        None
+    };
+    if index != tokens.len() {
+        return None;
+    }
 
-    let constructor = if zi.is_some() {
-        "TimeTenseWithZi"
+    let time_constructor = if zi.is_some() {
+        Some("TimeTenseWithZi")
     } else if !offsets.is_empty() {
-        "TimeTenseWithOffset"
+        Some("TimeTenseWithOffset")
     } else if zeha.is_some() {
-        "TimeTenseWithInterval"
+        Some("TimeTenseWithInterval")
     } else if !properties.is_empty() {
-        "TimeTenseWithProperties"
+        Some("TimeTenseWithProperties")
+    } else {
+        None
+    };
+    let mut tense_entries = Vec::new();
+    if let Some(constructor) = time_constructor {
+        let mut time_entries = Vec::new();
+        if let Some(zi) = zi {
+            time_entries.push(TreeEntry {
+                label: Some("zi"),
+                value: zi,
+            });
+        }
+        if let Some(entry) = labelled_tree_collection_entry_from_values("offsets", offsets) {
+            time_entries.push(entry);
+        }
+        if let Some(zeha) = zeha {
+            time_entries.push(TreeEntry {
+                label: Some("zeha"),
+                value: zeha,
+            });
+        }
+        if let Some(entry) = labelled_tree_collection_entry_from_values("properties", properties) {
+            time_entries.push(entry);
+        }
+        tense_entries.push(TreeEntry {
+            label: Some("time"),
+            value: TreeValue::Node(TreeNode {
+                constructor,
+                entries: time_entries,
+            }),
+        });
+        if let Some(space) = space {
+            tense_entries.push(TreeEntry {
+                label: Some("space"),
+                value: space,
+            });
+        }
+        if let Some(caha) = caha {
+            tense_entries.push(TreeEntry {
+                label: Some("caha"),
+                value: caha,
+            });
+        }
+    } else if let Some(space) = space {
+        tense_entries.push(TreeEntry {
+            label: Some("space"),
+            value: space,
+        });
+        if let Some(caha) = caha {
+            tense_entries.push(TreeEntry {
+                label: Some("caha"),
+                value: caha,
+            });
+        }
+    } else if let Some(caha) = caha {
+        let mut entries = vec![TreeEntry {
+            label: Some("tense"),
+            value: caha,
+        }];
+        if let Some(ki) = ki {
+            entries.push(TreeEntry {
+                label: Some("ki"),
+                value: ki,
+            });
+        }
+        return Some(TreeValue::Node(TreeNode {
+            constructor: "TimeSpaceCahaKiTense",
+            entries,
+        }));
     } else {
         return None;
+    }
+
+    let tense_constructor = if time_constructor.is_some() {
+        "TimeThenSpaceCahaTense"
+    } else {
+        "SpaceThenTimeCahaTense"
     };
-    let mut time_entries = Vec::new();
-    if let Some(zi) = zi {
-        time_entries.push(TreeEntry {
-            label: Some("zi"),
-            value: zi,
+    let mut entries = vec![TreeEntry {
+        label: Some("tense"),
+        value: TreeValue::Node(TreeNode {
+            constructor: tense_constructor,
+            entries: tense_entries,
+        }),
+    }];
+    if let Some(ki) = ki {
+        entries.push(TreeEntry {
+            label: Some("ki"),
+            value: ki,
         });
-    }
-    if let Some(entry) = labelled_tree_collection_entry_from_values("offsets", offsets) {
-        time_entries.push(entry);
-    }
-    if let Some(zeha) = zeha {
-        time_entries.push(TreeEntry {
-            label: Some("zeha"),
-            value: zeha,
-        });
-    }
-    if let Some(entry) = labelled_tree_collection_entry_from_values("properties", properties) {
-        time_entries.push(entry);
     }
 
     Some(TreeValue::Node(TreeNode {
         constructor: "TimeSpaceCahaKiTense",
-        entries: vec![TreeEntry {
-            label: Some("tense"),
-            value: TreeValue::Node(TreeNode {
-                constructor: "TimeThenSpaceCahaTense",
-                entries: vec![TreeEntry {
-                    label: Some("time"),
-                    value: TreeValue::Node(TreeNode {
-                        constructor,
-                        entries: time_entries,
-                    }),
-                }],
-            }),
-        }],
+        entries,
     }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_time_space_caha_inner_tense_value(
+    tokens: &[&Token],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let outer = legacy_as_generated_time_tense_sequence_tree_value(tokens, source, options)?;
+    match outer {
+        TreeValue::Node(TreeNode {
+            constructor: "TimeSpaceCahaKiTense",
+            entries,
+        }) => entries
+            .into_iter()
+            .find(|entry| entry.label == Some("tense"))
+            .map(|entry| entry.value),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_space_tense_sequence_tree_value(
+    tokens: &[&Token],
+    index: &mut usize,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<Option<TreeValue>> {
+    let start = *index;
+    let va = if tokens
+        .get(*index)
+        .is_some_and(|token| token.is_selmaho(Selmaho::Va))
+    {
+        let va = tokens[*index];
+        *index += 1;
+        Some(TreeValue::Node(TreeNode {
+            constructor: "VaSpaceDistanceTense",
+            entries: vec![TreeEntry {
+                label: Some("va"),
+                value: generated_token_tree_value(va, source, options),
+            }],
+        }))
+    } else {
+        None
+    };
+
+    let mut offsets = Vec::new();
+    while let Some(offset) =
+        legacy_as_generated_faha_space_offset_tense_value(tokens, index, source, options)
+    {
+        offsets.push(offset);
+    }
+
+    let interval =
+        legacy_as_generated_space_interval_tense_value(tokens, index, source, options)?;
+    let mohi = if tokens
+        .get(*index)
+        .is_some_and(|token| token.is_selmaho(Selmaho::Mohi))
+    {
+        let mohi = tokens[*index];
+        *index += 1;
+        let offset =
+            legacy_as_generated_faha_space_offset_tense_value(tokens, index, source, options)?;
+        Some(TreeValue::Node(TreeNode {
+            constructor: "MohiSpaceOffsetTense",
+            entries: vec![
+                TreeEntry {
+                    label: Some("mohi"),
+                    value: generated_token_tree_value(mohi, source, options),
+                },
+                TreeEntry {
+                    label: Some("offset"),
+                    value: offset,
+                },
+            ],
+        }))
+    } else {
+        None
+    };
+
+    if va.is_none() && offsets.is_empty() && interval.is_none() && mohi.is_none() {
+        *index = start;
+        return Some(None);
+    }
+    let constructor = if va.is_some() {
+        "SpaceTenseWithVa"
+    } else if !offsets.is_empty() {
+        "SpaceTenseWithOffset"
+    } else if interval.is_some() {
+        "SpaceTenseWithInterval"
+    } else {
+        "SpaceTenseWithMohi"
+    };
+    let mut entries = Vec::new();
+    if let Some(va) = va {
+        entries.push(TreeEntry {
+            label: Some("va"),
+            value: va,
+        });
+    }
+    if let Some(entry) = labelled_tree_collection_entry_from_values("offsets", offsets) {
+        entries.push(entry);
+    }
+    if let Some(interval) = interval {
+        entries.push(TreeEntry {
+            label: Some("interval"),
+            value: interval,
+        });
+    }
+    if let Some(mohi) = mohi {
+        entries.push(TreeEntry {
+            label: Some("mohi"),
+            value: mohi,
+        });
+    }
+
+    Some(Some(TreeValue::Node(TreeNode {
+        constructor,
+        entries,
+    })))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_faha_space_offset_tense_value(
+    tokens: &[&Token],
+    index: &mut usize,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let mut next = *index;
+    let faha = tokens
+        .get(next)
+        .filter(|token| token.is_selmaho(Selmaho::Faha))?;
+    next += 1;
+    let mut entries = vec![TreeEntry {
+        label: Some("faha"),
+        value: generated_token_tree_value(faha, source, options),
+    }];
+    if tokens
+        .get(next)
+        .is_some_and(|token| token.is_cmavo(Cmavo::Nai))
+    {
+        entries.push(TreeEntry {
+            label: Some("nai"),
+            value: generated_token_tree_value(tokens[next], source, options),
+        });
+        next += 1;
+    }
+    if tokens
+        .get(next)
+        .is_some_and(|token| token.is_selmaho(Selmaho::Va))
+    {
+        entries.push(TreeEntry {
+            label: Some("distance"),
+            value: generated_token_tree_value(tokens[next], source, options),
+        });
+        next += 1;
+    }
+    *index = next;
+    Some(TreeValue::Node(TreeNode {
+        constructor: "FahaSpaceOffsetTense",
+        entries,
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_space_interval_tense_value(
+    tokens: &[&Token],
+    index: &mut usize,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<Option<TreeValue>> {
+    let start = *index;
+    if let Some(properties) =
+        legacy_as_generated_space_interval_properties_tense_value(tokens, index, source, options)
+    {
+        return Some(Some(properties));
+    }
+
+    let Some(extent) =
+        legacy_as_generated_veha_viha_space_interval_tense_value(tokens, index, source, options)
+    else {
+        *index = start;
+        return Some(None);
+    };
+    let direction =
+        legacy_as_generated_faha_interval_direction_tense_value(tokens, index, source, options);
+    let properties =
+        legacy_as_generated_space_interval_properties_tense_value(tokens, index, source, options);
+    let mut entries = vec![TreeEntry {
+        label: Some("extent"),
+        value: extent,
+    }];
+    if let Some(direction) = direction {
+        entries.push(TreeEntry {
+            label: Some("direction"),
+            value: direction,
+        });
+    }
+    if let Some(properties) = properties {
+        entries.push(TreeEntry {
+            label: Some("properties"),
+            value: properties,
+        });
+    }
+    Some(Some(TreeValue::Node(TreeNode {
+        constructor: "SpaceIntervalWithExtentTense",
+        entries,
+    })))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_veha_viha_space_interval_tense_value(
+    tokens: &[&Token],
+    index: &mut usize,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    if tokens
+        .get(*index)
+        .is_some_and(|token| token.is_selmaho(Selmaho::Veha))
+    {
+        let veha = tokens[*index];
+        *index += 1;
+        let mut entries = vec![TreeEntry {
+            label: Some("veha"),
+            value: generated_token_tree_value(veha, source, options),
+        }];
+        if tokens
+            .get(*index)
+            .is_some_and(|token| token.is_selmaho(Selmaho::Viha))
+        {
+            entries.push(TreeEntry {
+                label: Some("viha"),
+                value: generated_token_tree_value(tokens[*index], source, options),
+            });
+            *index += 1;
+        }
+        return Some(TreeValue::Node(TreeNode {
+            constructor: "VehaSpaceIntervalTense",
+            entries,
+        }));
+    }
+    if tokens
+        .get(*index)
+        .is_some_and(|token| token.is_selmaho(Selmaho::Viha))
+    {
+        let viha = tokens[*index];
+        *index += 1;
+        return Some(TreeValue::Node(TreeNode {
+            constructor: "VihaSpaceIntervalTense",
+            entries: vec![TreeEntry {
+                label: Some("viha"),
+                value: generated_token_tree_value(viha, source, options),
+            }],
+        }));
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_faha_interval_direction_tense_value(
+    tokens: &[&Token],
+    index: &mut usize,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let mut next = *index;
+    let faha = tokens
+        .get(next)
+        .filter(|token| token.is_selmaho(Selmaho::Faha))?;
+    next += 1;
+    let mut entries = vec![TreeEntry {
+        label: Some("faha"),
+        value: generated_token_tree_value(faha, source, options),
+    }];
+    if tokens
+        .get(next)
+        .is_some_and(|token| token.is_cmavo(Cmavo::Nai))
+    {
+        entries.push(TreeEntry {
+            label: Some("nai"),
+            value: generated_token_tree_value(tokens[next], source, options),
+        });
+        next += 1;
+    }
+    *index = next;
+    Some(TreeValue::Node(TreeNode {
+        constructor: "FahaIntervalDirectionTense",
+        entries,
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_space_interval_properties_tense_value(
+    tokens: &[&Token],
+    index: &mut usize,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let first =
+        legacy_as_generated_fehe_interval_property_tense_value(tokens, index, source, options)?;
+    let mut additional = Vec::new();
+    while let Some(property) =
+        legacy_as_generated_fehe_interval_property_tense_value(tokens, index, source, options)
+    {
+        additional.push(property);
+    }
+    let mut entries = vec![TreeEntry {
+        label: Some("first"),
+        value: first,
+    }];
+    if let Some(entry) = labelled_tree_collection_entry_from_values("additional", additional) {
+        entries.push(entry);
+    }
+    Some(TreeValue::Node(TreeNode {
+        constructor: "SpaceIntervalPropertiesTense",
+        entries,
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_fehe_interval_property_tense_value(
+    tokens: &[&Token],
+    index: &mut usize,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let mut next = *index;
+    let fehe = tokens.get(next).filter(|token| token.is_cmavo(Cmavo::Fehe))?;
+    next += 1;
+    let property =
+        legacy_as_generated_interval_property_tense_value(tokens, &mut next, source, options)?;
+    *index = next;
+    Some(TreeValue::Node(TreeNode {
+        constructor: "FeheIntervalPropertyTense",
+        entries: vec![
+            TreeEntry {
+                label: Some("fehe"),
+                value: generated_token_tree_value(fehe, source, options),
+            },
+            TreeEntry {
+                label: Some("property"),
+                value: property,
+            },
+        ],
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_interval_property_tense_value(
+    tokens: &[&Token],
+    index: &mut usize,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let mut next = *index;
+    if tokens
+        .get(next)
+        .is_some_and(|token| token.is_selmaho(Selmaho::Zaho))
+    {
+        let zaho = tokens[next];
+        next += 1;
+        let mut entries = vec![TreeEntry {
+            label: Some("zaho"),
+            value: generated_token_tree_value(zaho, source, options),
+        }];
+        if tokens
+            .get(next)
+            .is_some_and(|token| token.is_cmavo(Cmavo::Nai))
+        {
+            entries.push(TreeEntry {
+                label: Some("nai"),
+                value: generated_token_tree_value(tokens[next], source, options),
+            });
+            next += 1;
+        }
+        *index = next;
+        return Some(TreeValue::Node(TreeNode {
+            constructor: "ZahoIntervalPropertyTense",
+            entries,
+        }));
+    }
+    if tokens
+        .get(next)
+        .is_some_and(|token| token.is_selmaho(Selmaho::Tahe))
+    {
+        let tahe = tokens[next];
+        next += 1;
+        let mut entries = vec![TreeEntry {
+            label: Some("tahe"),
+            value: generated_token_tree_value(tahe, source, options),
+        }];
+        if tokens
+            .get(next)
+            .is_some_and(|token| token.is_cmavo(Cmavo::Nai))
+        {
+            entries.push(TreeEntry {
+                label: Some("nai"),
+                value: generated_token_tree_value(tokens[next], source, options),
+            });
+            next += 1;
+        }
+        *index = next;
+        return Some(TreeValue::Node(TreeNode {
+            constructor: "TaheIntervalPropertyTense",
+            entries,
+        }));
+    }
+    if tokens
+        .get(next)
+        .is_some_and(|token| token.is_selmaho(Selmaho::Pa))
+    {
+        let start = next;
+        next += 1;
+        while tokens
+            .get(next)
+            .is_some_and(|token| token.is_selmaho(Selmaho::Pa))
+        {
+            next += 1;
+        }
+        let roi = tokens.get(next).filter(|token| token.is_selmaho(Selmaho::Roi))?;
+        next += 1;
+        let mut entries = vec![
+            TreeEntry {
+                label: Some("number"),
+                value: TreeValue::Collection(
+                    tokens[start..next - 1]
+                        .iter()
+                        .map(|token| generated_token_tree_value(token, source, options))
+                        .collect(),
+                ),
+            },
+            TreeEntry {
+                label: Some("roi"),
+                value: generated_token_tree_value(roi, source, options),
+            },
+        ];
+        if tokens
+            .get(next)
+            .is_some_and(|token| token.is_cmavo(Cmavo::Nai))
+        {
+            entries.push(TreeEntry {
+                label: Some("nai"),
+                value: generated_token_tree_value(tokens[next], source, options),
+            });
+            next += 1;
+        }
+        *index = next;
+        return Some(TreeValue::Node(TreeNode {
+            constructor: "NumberedIntervalPropertyTense",
+            entries,
+        }));
+    }
+    None
 }
 
 #[requires(true)]
