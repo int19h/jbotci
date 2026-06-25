@@ -130,6 +130,7 @@ The bound `v` is still a global `REF kind=var`; the quantifier node binds it ove
 - The **existential "any"** (CLL 16.50, "I need any box bigger than this") is a variable bound in the prenex of a **subordinate** bridi: `nitcu(a1, ⟨nu EX(X, and(tanxe(X), bramau(X, ti), ponse(a1, X)))⟩)` — the `EX` scopes inside the `nu` body (its own formula id), so the box's existence rides only on that (possibly non-occurring) event, not on reality. A variable defaults to the prenex of the **smallest enclosing bridi**; an outer prenex must be explicit to widen its scope (CLL 16.8/16.11).
 - **Inner quantifier** (`lo PA broda`) is **not** logical quantification: it is the `mei`-count of one constant's individuals (0.D).
 - **Outer quantifier** `PA ⟨sumti⟩` = `PA da poi me ⟨sumti⟩`: a restricted bound **singular** variable, **distributive** by default (so `ci lo prenu cu jmaji`, "three gather", is anomalous). `su'oi`/`ro'oi` give bound **plural** variables (`EXP`/`ALLP`). Encode the restriction as a `PRD me(v, x) mode=restrictive`.
+- **Grouping termsets** (`ce'e`, bare `nu'i...nu'u`) make their quantified terms coequal in scope (CLL 16.7). They are not either nested order. Encode them as one coequal quantifier bundle with ordered bindings and one shared body.
 - Negation interacts by graph position: `not(ALL(v,⟨f⟩)) ≡ EX(v, ⟨not(f)⟩)` and `not(EX(v,⟨f⟩)) ≡ ALL(v, ⟨not(f)⟩)`. These are equivalences; the model records the **surface** form, and the two encodings are each faithful (0.K).
 
 ## 0.F Tanru desugar; lujvo do not

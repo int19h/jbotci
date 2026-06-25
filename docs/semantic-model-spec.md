@@ -2124,6 +2124,37 @@ as restrictions on the selected variable:
 }
 ```
 
+Grouping termsets (`ce'e`, or `nu'i...nu'u` without a connective) equalize the
+scope of their quantified terms.  They use one formula with
+`operator:"quantifierBundle"`, ordered `bindings`, one shared `body`, and
+`coequalScope:true`.  Each binding carries the same fields an ordinary
+quantified formula would have.
+
+```json
+{
+  "formula:f-bundle": {
+    "type": "formula",
+    "operator": "quantifierBundle",
+    "bindings": [
+      {
+        "operator": "cardinality",
+        "variable": "referent:r-dog",
+        "restriction": "formula:f-dog",
+        "quantity": "quantity:q-three"
+      },
+      {
+        "operator": "cardinality",
+        "variable": "referent:r-man",
+        "restriction": "formula:f-man",
+        "quantity": "quantity:q-two"
+      }
+    ],
+    "coequalScope": true,
+    "body": "formula:f-bite"
+  }
+}
+```
+
 Selbri variables (`bu'a`, `bu'e`, `bu'i`) use the same formula-level
 quantifier shape, but `variable` points at a `parameter` object with
 `sort = "relation"` and `role = "relationVariable"` rather than at an entity
@@ -2144,6 +2175,7 @@ Operators include:
 - `whetherOrNot`
 - `connectiveQuestion`
 - `respectivelyDistribution`
+- `quantifierBundle`
 - `exists`
 - `forall`
 - `none`
@@ -5156,12 +5188,12 @@ implementation gaps are listed separately in “Known Implementation Divergences
     remains under the existing quantifier machinery, so scope, negation, and
     connective behavior do not get a second implementation path.
 
-29. **Equal-scope grouping termsets (#75/#76) — extend.** A `ce'e`/`nu'i...nu'u`
+29. **Equal-scope grouping termsets (#75/#76).** A `ce'e`/`nu'i...nu'u`
     grouping termset cannot be lowered as ordinary nested quantifiers, because
-    CLL 16.7 says the grouped terms have equal scope.  Add a joint binding node
-    or quantifier bundle with ordered bindings, one shared body, and an explicit
-    `coequalScope:true` (or equivalent enum value) so consumers know the bindings
-    have no defined relative scope.
+    CLL 16.7 says the grouped terms have equal scope.  Use
+    `operator:"quantifierBundle"` with ordered `bindings`, one shared body, and
+    explicit `coequalScope:true` so consumers know the bindings have no defined
+    relative scope.
 
 30. **Structured `co'e` unspecified relation (#83) — extend.** `co'e` is the
     relation-position analogue of `zo'e`; do not emit a lexical relation string

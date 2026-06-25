@@ -37,9 +37,9 @@ use crate::model::{
     IndexicalKind, IntervalEndpointInclusion, IntervalModifier, IntervalModifierData, LetteralUnit,
     LetteralUnitKind, MathLiteral, MixedRadixComponent, ModalArgument, ModalNegation,
     ModalNegationKind, NonlogicalConnection, OrdinalLabel, OrdinalLabelLevel, PlaceQuestionBinding,
-    PredicationMode, QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode,
-    QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, Recurrence,
-    RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
+    PredicationMode, QuantifierBinding, QuantityForm, QuantityScale, QuantityValue, QuestionKind,
+    QuestionMode, QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange,
+    Recurrence, RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
     RelationExpansion, RelativeClause, RelativeClauseKind, RespectivelyStream, ScalarNegation,
     ScalarNegationKind, SelectionSource, SemanticDiagnostic, SemanticGraph, SemanticObject,
     SemanticObjectId, SemanticObjectKind, SemanticOperatorData, SemanticSort, SequenceRelation,
@@ -705,6 +705,20 @@ struct QuantifiedProSumtiScope {
     source: Option<crate::model::SemanticSource>,
 }
 
+#[invariant(!bindings.is_empty(), "quantifier bundle must bind at least one variable")]
+#[derive(Debug, Clone)]
+struct QuantifierBundleScope {
+    bindings: Vec<QuantifierBundleBindingScope>,
+    source: Option<crate::model::SemanticSource>,
+}
+
+#[invariant(restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula))]
+#[derive(Debug, Clone)]
+struct QuantifierBundleBindingScope {
+    scope: QuantifiedProSumtiScope,
+    restrictions: Vec<SemanticObjectId>,
+}
+
 #[invariant(left_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)]
 #[invariant(right_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)]
 #[derive(Debug, Clone)]
@@ -738,6 +752,7 @@ struct TermsetBranchSemantics {
 
 #[invariant(::Negation => true)]
 #[invariant(::Quantifier => true)]
+#[invariant(::QuantifierBundle => true)]
 #[invariant(::RelationQuantifier => true)]
 #[derive(Debug, Clone)]
 enum PrenexFormulaScope {
@@ -747,6 +762,9 @@ enum PrenexFormulaScope {
     Quantifier {
         scope: QuantifiedProSumtiScope,
         restrictions: Vec<SemanticObjectId>,
+    },
+    QuantifierBundle {
+        scope: QuantifierBundleScope,
     },
     RelationQuantifier {
         scope: QuantifiedRelationVariableScope,
@@ -2819,14 +2837,11 @@ where
         formula: SemanticObjectId,
         mut scopes: Vec<PrenexFormulaScope>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let mut scoped_variables = scopes
-            .iter()
-            .filter_map(|scope| match scope {
-                PrenexFormulaScope::Quantifier { scope, .. } => Some(scope.variable),
-                PrenexFormulaScope::RelationQuantifier { scope } => Some(scope.variable),
-                PrenexFormulaScope::Negation { .. } => None,
-            })
-            .collect::<HashSet<_>>();
+        let mut scoped_variables_vec = Vec::new();
+        for scope in &scopes {
+            append_prenex_formula_scope_variables(scope, &mut scoped_variables_vec);
+        }
+        let mut scoped_variables = scoped_variables_vec.into_iter().collect::<HashSet<_>>();
         let mut bare_scopes = Vec::new();
         self.collect_bare_da_series_scopes_from_formula(
             formula,
@@ -2905,14 +2920,11 @@ where
         terms: &'tree [TermSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
         let scopes = self.prenex_formula_scopes_for_terms(terms)?;
-        let prenex_variables = scopes
-            .iter()
-            .filter_map(|scope| match scope {
-                PrenexFormulaScope::Quantifier { scope, .. } => Some(scope.variable),
-                PrenexFormulaScope::RelationQuantifier { scope } => Some(scope.variable),
-                PrenexFormulaScope::Negation { .. } => None,
-            })
-            .collect::<HashSet<_>>();
+        let mut prenex_variables_vec = Vec::new();
+        for scope in &scopes {
+            append_prenex_formula_scope_variables(scope, &mut prenex_variables_vec);
+        }
+        let prenex_variables = prenex_variables_vec.into_iter().collect::<HashSet<_>>();
         let mut body = self.strip_implicit_quantifiers_for_variables(formula, &prenex_variables)?;
         self.strip_implicit_quantifiers_for_variables_everywhere(&prenex_variables)?;
         for scope in scopes.into_iter().rev() {
@@ -2967,6 +2979,11 @@ where
         let body = object.body;
         let restriction = object.restriction;
         let children = object.children.clone();
+        let binding_restrictions = object
+            .bindings
+            .iter()
+            .map(|binding| binding.restriction)
+            .collect::<Vec<_>>();
         if let Some(body) = body {
             let stripped = self.strip_implicit_quantifiers_for_variables(body, variables)?;
             if stripped != body
@@ -2981,6 +2998,31 @@ where
                 && let Some(object) = self.objects.get_mut(&formula)
             {
                 object.restriction = Some(stripped);
+            }
+        }
+        if !binding_restrictions.is_empty() {
+            let mut stripped_restrictions = Vec::with_capacity(binding_restrictions.len());
+            let mut changed = false;
+            for restriction in binding_restrictions {
+                let Some(restriction) = restriction else {
+                    stripped_restrictions.push(None);
+                    continue;
+                };
+                let stripped =
+                    self.strip_implicit_quantifiers_for_variables(restriction, variables)?;
+                changed |= stripped != restriction;
+                stripped_restrictions.push(Some(stripped));
+            }
+            if changed && let Some(object) = self.objects.get_mut(&formula) {
+                for (binding, restriction) in object
+                    .bindings
+                    .iter_mut()
+                    .zip(stripped_restrictions.into_iter())
+                {
+                    *binding = binding
+                        .clone()
+                        .with_data(data! { restriction: restriction });
+                }
             }
         }
         if !children.is_empty() {
@@ -3088,6 +3130,15 @@ where
             replace_formula_vec(&mut object.children, old_id, new_id);
             replace_formula_option(&mut object.restriction, old_id, new_id);
             replace_formula_option(&mut object.body, old_id, new_id);
+            for binding in &mut object.bindings {
+                let mut restriction = binding.restriction;
+                replace_formula_option(&mut restriction, old_id, new_id);
+                if restriction != binding.restriction {
+                    *binding = binding
+                        .clone()
+                        .with_data(data! { restriction: restriction });
+                }
+            }
             replace_formula_option(&mut object.abstracted, old_id, new_id);
             replace_formula_option(&mut object.target, old_id, new_id);
             replace_formula_option(&mut object.presupposed_answer, old_id, new_id);
@@ -3147,6 +3198,9 @@ where
                 scope,
                 restrictions,
             } => self.wrap_formula_with_quantified_pro_sumti_scope(formula, scope, restrictions),
+            PrenexFormulaScope::QuantifierBundle { scope } => {
+                self.wrap_formula_with_quantifier_bundle_scope(formula, scope)
+            }
             PrenexFormulaScope::RelationQuantifier { scope } => {
                 self.wrap_formula_with_quantified_relation_variable_scope(formula, scope)
             }
@@ -3289,6 +3343,60 @@ where
                 Vec::new(),
             )
             .with_quantifier_selection(source_variable, selection_source),
+        )
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(!scope.bindings.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn wrap_formula_with_quantifier_bundle_scope(
+        &mut self,
+        formula: SemanticObjectId,
+        scope: QuantifierBundleScope,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let data!(QuantifierBundleScope { bindings, source }) = scope.into_data();
+        let mut public_bindings = Vec::with_capacity(bindings.len());
+        for binding in bindings {
+            let data!(QuantifierBundleBindingScope {
+                scope,
+                mut restrictions,
+            }) = binding.into_data();
+            let data!(QuantifiedProSumtiScope {
+                variable,
+                source_variable,
+                selection_source,
+                quantity,
+                quantity_connection,
+                mut inherited_restrictions,
+                operator,
+                source: binding_source,
+            }) = scope.into_data();
+            if quantity_connection.is_some() {
+                return Err(SemanticsError::invalid_graph(
+                    "quantifier bundle binding cannot carry a connected quantity".to_owned(),
+                ));
+            }
+            inherited_restrictions.append(&mut restrictions);
+            let restriction = self
+                .restriction_formula_for_variable_in_formula_with_explicit_restrictions(
+                    formula,
+                    variable,
+                    inherited_restrictions,
+                )?;
+            public_bindings.push(QuantifierBinding::new(
+                operator,
+                variable,
+                source_variable,
+                selection_source,
+                restriction,
+                quantity,
+                binding_source,
+            ));
+        }
+        let scoped = self.next_formula();
+        self.insert(
+            scoped,
+            SemanticObject::quantifier_bundle_formula(public_bindings, formula, source, Vec::new()),
         )
     }
 
@@ -3647,6 +3755,15 @@ where
         };
         let mut scopes = Vec::new();
         let mut scoped_variables = HashSet::new();
+        for (order, bundle) in self.quantifier_bundle_scopes_for_bridi(bridi)? {
+            for binding in &bundle.bindings {
+                scoped_variables.insert(binding.scope.variable);
+            }
+            scopes.push((
+                order,
+                PrenexFormulaScope::QuantifierBundle { scope: bundle },
+            ));
+        }
         let assignment_ids = self.analysis.place_analysis.assignments_for_frame(frame);
         for assignment_id in assignment_ids {
             let Some(assignment) = self.analysis.place_analysis.assignment(*assignment_id) else {
@@ -3693,6 +3810,71 @@ where
         }
         scopes.sort_by_key(|(order, _scope)| *order);
         Ok(scopes.into_iter().map(|(_order, scope)| scope).collect())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn quantifier_bundle_scopes_for_bridi(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+    ) -> Result<Vec<(usize, QuantifierBundleScope)>, SemanticsError> {
+        let mut bundles = Vec::new();
+        for term in primary_bridi_place_terms(bridi) {
+            let mut groups = Vec::new();
+            grouped_term_quantifier_sumti_groups(term, &mut groups);
+            for group in groups {
+                let Some(bundle) = self.quantifier_bundle_scope_for_sumtis(&group, term)? else {
+                    continue;
+                };
+                let order = self
+                    .analysis
+                    .syntax_index
+                    .term_node_id(term)
+                    .map(|node| self.source_order_for_node(node.0))
+                    .unwrap_or(usize::MAX);
+                bundles.push((order, bundle));
+            }
+        }
+        Ok(bundles)
+    }
+
+    #[requires(sumtis.len() > 1)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn quantifier_bundle_scope_for_sumtis(
+        &mut self,
+        sumtis: &[&'tree SumtiSyntax],
+        source_term: &'tree TermSyntax,
+    ) -> Result<Option<QuantifierBundleScope>, SemanticsError> {
+        let mut bindings = Vec::new();
+        for sumti in sumtis {
+            let Some(PrenexFormulaScope::Quantifier {
+                scope,
+                restrictions,
+            }) = self.quantified_argument_prenex_scope_for_sumti(sumti)?
+            else {
+                continue;
+            };
+            if scope.quantity_connection.is_some() {
+                return Ok(None);
+            }
+            bindings.push(QuantifierBundleBindingScope::from_data(data!(
+                QuantifierBundleBindingScope {
+                    scope,
+                    restrictions,
+                }
+            )));
+        }
+        if bindings.len() < 2 {
+            return Ok(None);
+        }
+        let source = self
+            .analysis
+            .syntax_index
+            .term_node_id(source_term)
+            .and_then(|node| self.source_for_node(node.0, "quantifier-bundle"));
+        Ok(Some(QuantifierBundleScope::from_data(data!(
+            QuantifierBundleScope { bindings, source }
+        ))))
     }
 
     #[requires(true)]
@@ -17667,8 +17849,25 @@ fn sumti_has_in_situ_argument_quantifier(sumti: &SumtiSyntax) -> bool {
 fn prenex_formula_scope_variable(scope: &PrenexFormulaScope) -> Option<SemanticObjectId> {
     match scope {
         PrenexFormulaScope::Quantifier { scope, .. } => Some(scope.variable),
+        PrenexFormulaScope::QuantifierBundle { .. } => None,
         PrenexFormulaScope::RelationQuantifier { scope } => Some(scope.variable),
         PrenexFormulaScope::Negation { .. } => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_prenex_formula_scope_variables(
+    scope: &PrenexFormulaScope,
+    out: &mut Vec<SemanticObjectId>,
+) {
+    match scope {
+        PrenexFormulaScope::Quantifier { scope, .. } => out.push(scope.variable),
+        PrenexFormulaScope::QuantifierBundle { scope } => {
+            out.extend(scope.bindings.iter().map(|binding| binding.scope.variable));
+        }
+        PrenexFormulaScope::RelationQuantifier { scope } => out.push(scope.variable),
+        PrenexFormulaScope::Negation { .. } => {}
     }
 }
 
@@ -24696,6 +24895,101 @@ fn da_series_scope_source(sumti: &SumtiSyntax) -> Option<DaSeriesScopeSource<'_>
 
 #[requires(true)]
 #[ensures(true)]
+fn grouped_term_quantifier_sumti_groups<'tree>(
+    term: &'tree TermSyntax,
+    out: &mut Vec<Vec<&'tree SumtiSyntax>>,
+) {
+    match term.as_data() {
+        data!(TermSyntax::Termset { termset, .. }) => {
+            let mut group = Vec::new();
+            for term in termset {
+                append_grouping_term_sumtis(term, &mut group);
+            }
+            if group.len() > 1 {
+                out.push(group);
+            }
+        }
+        data!(TermSyntax::TermsetGroup {
+            leading_terms,
+            trailing_terms,
+            ..
+        }) => {
+            let mut group = Vec::new();
+            for term in leading_terms {
+                append_grouping_term_sumtis(term, &mut group);
+            }
+            for term in trailing_terms {
+                append_grouping_term_sumtis(term, &mut group);
+            }
+            if group.len() > 1 {
+                out.push(group);
+            }
+        }
+        data!(TermSyntax::Sumti(sumti)) => {
+            let mut group = Vec::new();
+            append_grouping_sumti_members(sumti, &mut group);
+            if group.len() > 1 {
+                out.push(group);
+            }
+        }
+        _ => {}
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_grouping_term_sumtis<'tree>(term: &'tree TermSyntax, out: &mut Vec<&'tree SumtiSyntax>) {
+    match term.as_data() {
+        data!(TermSyntax::Termset { termset, .. }) => {
+            for term in termset {
+                append_grouping_term_sumtis(term, out);
+            }
+        }
+        data!(TermSyntax::TermsetGroup {
+            leading_terms,
+            trailing_terms,
+            ..
+        }) => {
+            for term in leading_terms {
+                append_grouping_term_sumtis(term, out);
+            }
+            for term in trailing_terms {
+                append_grouping_term_sumtis(term, out);
+            }
+        }
+        data!(TermSyntax::Sumti(sumti))
+        | data!(TermSyntax::PlaceTaggedSumti { sumti, .. })
+        | data!(TermSyntax::TaggedSumti { sumti, .. }) => {
+            append_grouping_sumti_members(sumti, out);
+        }
+        _ => {}
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_grouping_sumti_members<'tree>(
+    sumti: &'tree SumtiSyntax,
+    out: &mut Vec<&'tree SumtiSyntax>,
+) {
+    match sumti.as_data() {
+        data!(SumtiSyntax::SumtiConnection {
+            leading_sumti,
+            connective,
+            trailing_sumti,
+        }) if connective_contains_cmavo(connective, Cmavo::Cehe) => {
+            append_grouping_sumti_members(leading_sumti, out);
+            append_grouping_sumti_members(trailing_sumti, out);
+        }
+        data!(SumtiSyntax::GroupedSumti { inner_sumti, .. }) => {
+            append_grouping_sumti_members(inner_sumti, out);
+        }
+        _ => out.push(sumti),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn relation_variable_scope_source(sumti: &SumtiSyntax) -> Option<RelationVariableScopeSource<'_>> {
     match sumti.as_data() {
         data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
@@ -30311,6 +30605,50 @@ mod tests {
         assert!(inner.get("restriction").is_none());
         let klama = predication_with_relation_and_mode(&prenex, "klama", "asserted");
         assert_eq!(klama["arguments"]["x1"]["value"], inner["variable"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn grouping_termsets_emit_coequal_quantifier_bundle() {
+        for text in [
+            "ci gerku ce'e re nanmu cu batci",
+            "nu'i ci gerku re nanmu nu'u cu batci",
+        ] {
+            let json = semantic_json_for(text).expect("semantic JSON");
+            let root = root_object(&json);
+            let bundle = object(&json, root["content"].as_str().expect("root content"));
+            assert_eq!(bundle["operator"], "quantifierBundle");
+            assert_eq!(bundle["coequalScope"], true);
+            assert_eq!(bundle["body"], "formula:f1");
+
+            let bindings = bundle["bindings"].as_array().expect("bundle bindings");
+            assert_eq!(bindings.len(), 2);
+            assert_eq!(bindings[0]["operator"], "cardinality");
+            assert_eq!(bindings[0]["variable"], "referent:r1");
+            assert_eq!(bindings[0]["restriction"], "formula:f2");
+            assert_eq!(bindings[0]["quantity"], "quantity:q1");
+            assert_eq!(bindings[1]["operator"], "cardinality");
+            assert_eq!(bindings[1]["variable"], "referent:r2");
+            assert_eq!(bindings[1]["restriction"], "formula:f3");
+            assert_eq!(bindings[1]["quantity"], "quantity:q2");
+
+            let batci = predication_with_relation_and_mode(&json, "batci", "asserted");
+            assert_eq!(batci["arguments"]["x1"]["value"], "referent:r1");
+            assert_eq!(batci["arguments"]["x2"]["value"], "referent:r2");
+            let gerku = predication_with_relation_and_mode(&json, "gerku", "restrictive");
+            assert_eq!(gerku["arguments"]["x1"]["value"], "referent:r1");
+            let nanmu = predication_with_relation_and_mode(&json, "nanmu", "restrictive");
+            assert_eq!(nanmu["arguments"]["x1"]["value"], "referent:r2");
+
+            let nested_cardinality_count = json["objects"]
+                .as_object()
+                .expect("semantic objects")
+                .values()
+                .filter(|object| object["type"] == "formula" && object["operator"] == "cardinality")
+                .count();
+            assert_eq!(nested_cardinality_count, 0);
+        }
     }
 
     #[test]

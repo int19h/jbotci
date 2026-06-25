@@ -560,7 +560,7 @@ RFY rn : kind=nu, body=fb, abstracted=[en]
 PRD p1 : rel=nitcu, ev=e1, args=[a1, ⟨lo nu rn⟩, z3], mode=asserted
 FRM f1 : p1                                            -- no real-world box asserted
 ```
-**`no da` (16.x)** `no da broda` → `NO(v, broda(v))` = `not(EX(v, broda(v)))`. **`da`/`de`/`di` ordering** in one prenex = nested quantifier nodes in surface order (`EX(X, ALL(Y, …))` ≠ `ALL(Y, EX(X, …))` — the ∃∀/∀∃ distinction the FRM nodes exist to preserve). **Re-quantified `da`** (`ci da poi prenu ... pa da`) binds a fresh selected variable for the second quantifier, records the earlier variable as its witness-set source, and copies the source restriction (`prenu`) onto the selected variable.
+**`no da` (16.x)** `no da broda` → `NO(v, broda(v))` = `not(EX(v, broda(v)))`. **`da`/`de`/`di` ordering** in one prenex = nested quantifier nodes in surface order (`EX(X, ALL(Y, …))` ≠ `ALL(Y, EX(X, …))` — the ∃∀/∀∃ distinction the FRM nodes exist to preserve). **Re-quantified `da`** (`ci da poi prenu ... pa da`) binds a fresh selected variable for the second quantifier, records the earlier variable as its witness-set source, and copies the source restriction (`prenu`) onto the selected variable. **Grouping termsets** (16.7: `ci gerku ce'e re nanmu cu batci`; equivalently `nu'i ci gerku re nanmu nu'u cu batci`) are not either nesting order; they emit one coequal `quantifierBundle` with bindings for the dog and man variables and a shared `batci` body, so the same fixed three dogs and same fixed two men participate in the cross-product reading.
 
 ## Chapters 17–18 — letterals (SGN handles) & mekso (MEX)
 

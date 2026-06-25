@@ -455,6 +455,10 @@ pub struct SemanticObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quantity: Option<SemanticObjectId>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bindings: Vec<QuantifierBinding>,
+    #[serde(rename = "coequalScope", skip_serializing_if = "bool_is_false")]
+    pub coequal_scope: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub streams: Vec<RespectivelyStream>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distinct_partition: Option<bool>,
@@ -611,6 +615,8 @@ impl SemanticObject {
             restriction: None,
             body: None,
             quantity: None,
+            bindings: Vec::new(),
+            coequal_scope: false,
             streams: Vec::new(),
             distinct_partition: None,
             abstraction_kind: None,
@@ -873,15 +879,7 @@ impl SemanticObject {
         object
     }
 
-    #[requires(matches!(
-        operator,
-        FormulaOperator::Exists
-            | FormulaOperator::Forall
-            | FormulaOperator::None
-            | FormulaOperator::Cardinality
-            | FormulaOperator::PluralExists
-            | FormulaOperator::PluralForall
-    ))]
+    #[requires(quantifier_formula_operator_is_allowed(operator))]
     #[requires(quantifier_variable_kind_is_allowed(variable.object_kind()))]
     #[requires(restriction.is_none_or(|restriction| restriction.object_kind() == SemanticObjectKind::Formula))]
     #[requires(body.object_kind() == SemanticObjectKind::Formula)]
@@ -902,6 +900,26 @@ impl SemanticObject {
         object.restriction = restriction;
         object.body = Some(body);
         object.quantity = quantity;
+        object.source = source;
+        object.diagnostics = diagnostics;
+        object
+    }
+
+    #[requires(!bindings.is_empty())]
+    #[requires(bindings.iter().all(quantifier_binding_matches_role))]
+    #[requires(body.object_kind() == SemanticObjectKind::Formula)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Formula)]
+    pub fn quantifier_bundle_formula(
+        bindings: Vec<QuantifierBinding>,
+        body: SemanticObjectId,
+        source: Option<SemanticSource>,
+        diagnostics: Vec<SemanticDiagnostic>,
+    ) -> Self {
+        let mut object = Self::empty(SemanticObjectKind::Formula);
+        object.operator = Some(SemanticOperator::formula(FormulaOperator::QuantifierBundle));
+        object.bindings = bindings;
+        object.coequal_scope = true;
+        object.body = Some(body);
         object.source = source;
         object.diagnostics = diagnostics;
         object
@@ -1298,6 +1316,9 @@ impl SemanticObject {
         extend_optional(out, self.body);
         extend_optional(out, self.quantity);
         extend_optional(out, self.scale);
+        for binding in &self.bindings {
+            binding.references_into(out);
+        }
         for stream in &self.streams {
             stream.references_into(out);
         }
@@ -2932,7 +2953,74 @@ pub enum FormulaOperator {
     Cardinality,
     PluralExists,
     PluralForall,
+    QuantifierBundle,
     RespectivelyDistribution,
+}
+
+#[invariant(quantifier_formula_operator_is_allowed(*operator))]
+#[invariant(quantifier_variable_kind_is_allowed(variable.object_kind()))]
+#[invariant(source_variable.is_none_or(|variable| variable.object_kind() == SemanticObjectKind::Referent))]
+#[invariant(selection_source.as_ref().is_none_or(|source| source.variable.object_kind() == SemanticObjectKind::Referent))]
+#[invariant(selection_source.as_ref().is_none_or(|source| source_variable.is_none_or(|variable| variable == source.variable)))]
+#[invariant(restriction.is_none_or(|restriction| restriction.object_kind() == SemanticObjectKind::Formula))]
+#[invariant(quantity.is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuantifierBinding {
+    pub operator: FormulaOperator,
+    pub variable: SemanticObjectId,
+    #[serde(rename = "sourceVariable", skip_serializing_if = "Option::is_none")]
+    pub source_variable: Option<SemanticObjectId>,
+    #[serde(rename = "selectionSource", skip_serializing_if = "Option::is_none")]
+    pub selection_source: Option<SelectionSource>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restriction: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantity: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SemanticSource>,
+}
+
+impl QuantifierBinding {
+    #[requires(quantifier_formula_operator_is_allowed(operator))]
+    #[requires(quantifier_variable_kind_is_allowed(variable.object_kind()))]
+    #[requires(source_variable.is_none_or(|variable| variable.object_kind() == SemanticObjectKind::Referent))]
+    #[requires(selection_source.as_ref().is_none_or(|source| source.variable.object_kind() == SemanticObjectKind::Referent))]
+    #[requires(selection_source.as_ref().is_none_or(|source| source_variable.is_none_or(|variable| variable == source.variable)))]
+    #[requires(restriction.is_none_or(|restriction| restriction.object_kind() == SemanticObjectKind::Formula))]
+    #[requires(quantity.is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity))]
+    #[ensures(ret.variable == variable)]
+    pub fn new(
+        operator: FormulaOperator,
+        variable: SemanticObjectId,
+        source_variable: Option<SemanticObjectId>,
+        selection_source: Option<SelectionSource>,
+        restriction: Option<SemanticObjectId>,
+        quantity: Option<SemanticObjectId>,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::from_data(data!(QuantifierBinding {
+            operator,
+            variable,
+            source_variable,
+            selection_source,
+            restriction,
+            quantity,
+            source,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        out.push(self.variable);
+        extend_optional(out, self.source_variable);
+        if let Some(selection_source) = &self.selection_source {
+            selection_source.references_into(out);
+        }
+        extend_optional(out, self.restriction);
+        extend_optional(out, self.quantity);
+    }
 }
 
 #[invariant(true)]
@@ -3649,6 +3737,8 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && optional_reference_has_kind(object.body, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.quantity, SemanticObjectKind::Quantity)
         && optional_reference_has_kind(object.scale, SemanticObjectKind::Referent)
+        && object.bindings.iter().all(quantifier_binding_matches_role)
+        && quantifier_bundle_shape_matches_role(object)
         && object.ordinal_labels.iter().all(|label| {
             optional_ordinal_label_target_matches_role(label.target)
                 && label.value.object_kind() == SemanticObjectKind::MathExpression
@@ -3802,6 +3892,19 @@ pub fn semantic_object_question_slots_are_valid(
             return false;
         }
 
+        for binding in &object.bindings {
+            if binding.variable.object_kind() == SemanticObjectKind::Parameter
+                && !parameter_has_sort_and_role(
+                    objects,
+                    binding.variable,
+                    SemanticSort::Relation,
+                    ParameterRole::RelationVariable,
+                )
+            {
+                return false;
+            }
+        }
+
         connector_question_slot_is_valid(objects, object)
     })
 }
@@ -3935,6 +4038,54 @@ fn math_endpoint_inclusion_matches_role(object: &SemanticObject) -> bool {
 #[ensures(true)]
 fn quantifier_variable_kind_is_allowed(kind: SemanticObjectKind) -> bool {
     kind == SemanticObjectKind::Referent || kind == SemanticObjectKind::Parameter
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quantifier_formula_operator_is_allowed(operator: FormulaOperator) -> bool {
+    matches!(
+        operator,
+        FormulaOperator::Exists
+            | FormulaOperator::Forall
+            | FormulaOperator::None
+            | FormulaOperator::Cardinality
+            | FormulaOperator::PluralExists
+            | FormulaOperator::PluralForall
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quantifier_binding_matches_role(binding: &QuantifierBinding) -> bool {
+    quantifier_formula_operator_is_allowed(binding.operator)
+        && quantifier_variable_kind_is_allowed(binding.variable.object_kind())
+        && optional_reference_has_kind(binding.source_variable, SemanticObjectKind::Referent)
+        && binding.selection_source.as_ref().is_none_or(|source| {
+            source.variable.object_kind() == SemanticObjectKind::Referent
+                && binding
+                    .source_variable
+                    .is_none_or(|variable| variable == source.variable)
+        })
+        && optional_reference_has_kind(binding.restriction, SemanticObjectKind::Formula)
+        && optional_reference_has_kind(binding.quantity, SemanticObjectKind::Quantity)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quantifier_bundle_shape_matches_role(object: &SemanticObject) -> bool {
+    let is_bundle = object.operator.as_ref().is_some_and(|operator| {
+        matches!(
+            operator.as_data(),
+            data!(SemanticOperator::Formula(FormulaOperator::QuantifierBundle))
+        )
+    });
+    if is_bundle {
+        !object.bindings.is_empty()
+            && object.coequal_scope
+            && optional_reference_has_kind(object.body, SemanticObjectKind::Formula)
+    } else {
+        object.bindings.is_empty() && !object.coequal_scope
+    }
 }
 
 #[requires(true)]
