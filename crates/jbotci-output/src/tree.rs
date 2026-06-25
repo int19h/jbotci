@@ -1,7 +1,7 @@
 //! Renderer for the source-backed syntax tree output format.
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{contract_trait, ensures, invariant, requires};
 use jbotci_morphology::{
     Cmavo, Phonemes, TreeNode as MorphologyTreeNode, Word, WordKind, WordLike,
 };
@@ -10,7 +10,15 @@ use jbotci_source::SourceSpan;
 use jbotci_syntax::ast::{
     AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax, TreeNode as SyntaxAstTreeNode,
 };
-use jbotci_syntax::{WithIndicators, elidable_terminator_for_absent_field};
+use jbotci_syntax::generated_model::{
+    self, AtomRef as GeneratedSyntaxAtomRef,
+    IStatementConnectionTailSyntax as GeneratedIStatementConnectionTailSyntax,
+    NodeRef as GeneratedSyntaxNodeRef, TextSyntax as GeneratedTextSyntax,
+    TreeNode as GeneratedSyntaxAstTreeNode,
+};
+use jbotci_syntax::{
+    Token, WithIndicators, elidable_terminator_for_absent_field, tree::WithFreeModifiers,
+};
 use jbotci_tree::{FieldRef, TreeVisitor};
 
 use crate::references::ReferenceDisplayModel;
@@ -101,6 +109,23 @@ pub(crate) fn pretty_tree_with_options(
         options,
         references.as_ref(),
     ))
+}
+
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn pretty_generated_model_tree_with_options(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<String, OutputError> {
+    if options.show_refs {
+        return Err(OutputError::References(
+            "generated-model syntax reference rendering is not wired yet".to_owned(),
+        ));
+    }
+    let value = collapse_value(generated_syntax_tree_value(tree, source, options));
+    Ok(render_tree_value_with_options(&value, options, None))
 }
 
 #[requires(true)]
@@ -232,9 +257,1631 @@ fn syntax_tree_value(
     options: TreeRenderOptions,
     syntax_index: Option<&SyntaxIndex<'_>>,
 ) -> TreeValue {
-    let mut visitor = SyntaxTreeBuilder::new(source, options, syntax_index);
+    let mut visitor =
+        SyntaxTreeBuilder::<LegacySyntaxRenderModel>::new(source, options, syntax_index);
     tree.visit_in_order(&mut visitor);
     visitor.finish()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_syntax_tree_value(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut visitor = SyntaxTreeBuilder::<GeneratedSyntaxRenderModel>::new(source, options, None);
+    tree.visit_in_order(&mut visitor);
+    visitor.finish()
+}
+
+#[contract_trait]
+trait SyntaxRenderModel {
+    type Node<'tree>: Copy;
+    type Atom<'tree>: Copy;
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn constructor_name<'tree>(node: Self::Node<'tree>) -> &'static str;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_id<'tree>(
+        node: Self::Node<'tree>,
+        syntax_index: Option<&SyntaxIndex<'tree>>,
+    ) -> Option<RawSyntaxNodeId>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn atom_tree_value<'tree>(
+        atom: Self::Atom<'tree>,
+        source: &str,
+        options: TreeRenderOptions,
+    ) -> TreeValue;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn atom_end_position<'tree>(atom: Self::Atom<'tree>) -> Option<RenderedPosition>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn elidable_terminator<'tree>(node: Self::Node<'tree>, field: FieldRef) -> Option<Cmavo>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn custom_node_tree_value<'tree>(
+        node: Self::Node<'tree>,
+        source: &str,
+        options: TreeRenderOptions,
+    ) -> Option<TreeValue>;
+}
+
+#[invariant(true)]
+struct LegacySyntaxRenderModel;
+
+#[contract_trait]
+impl SyntaxRenderModel for LegacySyntaxRenderModel {
+    type Node<'tree> = SyntaxNodeRef<'tree>;
+    type Atom<'tree> = SyntaxAtomRef<'tree>;
+
+    fn constructor_name<'tree>(node: Self::Node<'tree>) -> &'static str {
+        node.constructor_name()
+    }
+
+    fn syntax_id<'tree>(
+        node: Self::Node<'tree>,
+        syntax_index: Option<&SyntaxIndex<'tree>>,
+    ) -> Option<RawSyntaxNodeId> {
+        syntax_index.and_then(|index| index.id_of(node))
+    }
+
+    fn atom_tree_value<'tree>(
+        atom: Self::Atom<'tree>,
+        source: &str,
+        options: TreeRenderOptions,
+    ) -> TreeValue {
+        match atom {
+            SyntaxAtomRef::Token(word) => {
+                with_indicators_tree_value(word.as_indicators(), source, options)
+            }
+            SyntaxAtomRef::Word(word) => word_tree_value(word, source, options),
+        }
+    }
+
+    fn atom_end_position<'tree>(atom: Self::Atom<'tree>) -> Option<RenderedPosition> {
+        match atom {
+            SyntaxAtomRef::Token(token) => token
+                .source_spans()
+                .into_iter()
+                .last()
+                .map(span_end_position),
+            SyntaxAtomRef::Word(word) => Some(span_end_position(word.span())),
+        }
+    }
+
+    fn elidable_terminator<'tree>(node: Self::Node<'tree>, field: FieldRef) -> Option<Cmavo> {
+        elidable_terminator_for_absent_field(node, field)
+    }
+
+    fn custom_node_tree_value<'tree>(
+        _node: Self::Node<'tree>,
+        _source: &str,
+        _options: TreeRenderOptions,
+    ) -> Option<TreeValue> {
+        None
+    }
+}
+
+#[invariant(true)]
+struct GeneratedSyntaxRenderModel;
+
+#[contract_trait]
+impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
+    type Node<'tree> = GeneratedSyntaxNodeRef<'tree>;
+    type Atom<'tree> = GeneratedSyntaxAtomRef<'tree>;
+
+    fn constructor_name<'tree>(node: Self::Node<'tree>) -> &'static str {
+        match node.constructor_name() {
+            "ExplicitXauhaLohoi" | "Regular" => "TextSyntax",
+            "INihoParagraph" | "NihoParagraph" | "SimpleParagraph" => "ParagraphSyntax",
+            "FollowingParagraphStatement"
+            | "IParagraphStatement"
+            | "InitialParagraphStatement"
+            | "TrailingIjekParagraphStatement" => "ParagraphStatementSyntax",
+            "PrenexFragment" => "Prenex",
+            "DescriptionHeadConnective"
+            | "EkAfterthoughtConnective"
+            | "JehiAfterthoughtConnective" => "Afterthought",
+            "JekSelbriConnective" | "ParagraphJekConnective" => "Selbri",
+            "GihekBridiTailConnective" => "BridiTail",
+            "CeheNonLogicalConnective"
+            | "JoiNonLogicalConnective"
+            | "ParagraphJoiNonLogicalConnective"
+            | "VuhuNonLogicalConnective" => "NonLogical",
+            "ClosedIntervalConnective"
+            | "ParagraphClosedIntervalConnective"
+            | "ParagraphSimpleIntervalConnective"
+            | "SimpleIntervalConnective" => "Interval",
+            "GaForethoughtConnective"
+            | "GikForethoughtConnective"
+            | "GuhekForethoughtConnective" => "Forethought",
+            constructor => constructor,
+        }
+    }
+
+    fn syntax_id<'tree>(
+        _node: Self::Node<'tree>,
+        _syntax_index: Option<&SyntaxIndex<'tree>>,
+    ) -> Option<RawSyntaxNodeId> {
+        None
+    }
+
+    fn atom_tree_value<'tree>(
+        atom: Self::Atom<'tree>,
+        source: &str,
+        options: TreeRenderOptions,
+    ) -> TreeValue {
+        match atom {
+            GeneratedSyntaxAtomRef::OptionBoxTenseModalSyntaxToken((tense_modal, token)) => {
+                legacy_syntax_tuple_value(
+                    [
+                        legacy_syntax_subtree_value(tense_modal, source, options),
+                        legacy_syntax_subtree_value(token, source, options),
+                    ],
+                )
+            }
+            GeneratedSyntaxAtomRef::OptionBoxTenseModalSyntaxWithFreeModifiersTokenFreeModifierSyntax((
+                tense_modal,
+                token,
+            )) => legacy_syntax_tuple_value(
+                [
+                    legacy_syntax_subtree_value(tense_modal, source, options),
+                    legacy_syntax_subtree_value(token, source, options),
+                ],
+            ),
+            GeneratedSyntaxAtomRef::TokenConnectiveSyntax((token, connective)) => {
+                legacy_syntax_tuple_value(
+                    [
+                        legacy_syntax_subtree_value(token, source, options),
+                        generated_syntax_subtree_value(connective, source, options),
+                    ],
+                )
+            }
+            GeneratedSyntaxAtomRef::AdditionalLinkedSumtiSyntax(value) => {
+                required_legacy_syntax_subtree_value(value, source, options)
+            }
+            GeneratedSyntaxAtomRef::BridiSyntax(value) => {
+                required_legacy_syntax_subtree_value(value, source, options)
+            }
+            GeneratedSyntaxAtomRef::FreeModifierSyntax(value) => {
+                required_legacy_syntax_subtree_value(value, source, options)
+            }
+            GeneratedSyntaxAtomRef::Indicator(value) => {
+                required_legacy_syntax_subtree_value(value, source, options)
+            }
+            GeneratedSyntaxAtomRef::LinkedSumtiListSyntax(value) => {
+                required_legacy_syntax_subtree_value(value, source, options)
+            }
+            GeneratedSyntaxAtomRef::QuantifierSyntax(value) => {
+                required_legacy_syntax_subtree_value(value, source, options)
+            }
+            GeneratedSyntaxAtomRef::RelativeClauseSyntax(value) => {
+                required_legacy_syntax_subtree_value(value, source, options)
+            }
+            GeneratedSyntaxAtomRef::SelbriSyntax(value) => {
+                required_legacy_syntax_subtree_value(value, source, options)
+            }
+            GeneratedSyntaxAtomRef::SubbridiSyntax(value) => {
+                required_legacy_syntax_subtree_value(value, source, options)
+            }
+            GeneratedSyntaxAtomRef::TenseModalSyntax(value) => {
+                required_legacy_syntax_subtree_value(value, source, options)
+            }
+            GeneratedSyntaxAtomRef::TermSyntax(value) => {
+                required_legacy_syntax_subtree_value(value, source, options)
+            }
+            GeneratedSyntaxAtomRef::Token(word) => {
+                with_indicators_tree_value(word.as_indicators(), source, options)
+            }
+        }
+    }
+
+    fn atom_end_position<'tree>(atom: Self::Atom<'tree>) -> Option<RenderedPosition> {
+        match atom {
+            GeneratedSyntaxAtomRef::OptionBoxTenseModalSyntaxToken((_, token)) => token
+                .source_spans()
+                .into_iter()
+                .last()
+                .map(span_end_position),
+            GeneratedSyntaxAtomRef::OptionBoxTenseModalSyntaxWithFreeModifiersTokenFreeModifierSyntax((
+                _,
+                token,
+            )) => last_legacy_syntax_subtree_position(token),
+            GeneratedSyntaxAtomRef::TokenConnectiveSyntax((_, connective)) => {
+                last_generated_syntax_subtree_position(connective)
+            }
+            GeneratedSyntaxAtomRef::AdditionalLinkedSumtiSyntax(value) => {
+                last_legacy_syntax_subtree_position(value)
+            }
+            GeneratedSyntaxAtomRef::BridiSyntax(value) => last_legacy_syntax_subtree_position(value),
+            GeneratedSyntaxAtomRef::FreeModifierSyntax(value) => {
+                last_legacy_syntax_subtree_position(value)
+            }
+            GeneratedSyntaxAtomRef::Indicator(value) => {
+                last_legacy_syntax_subtree_position(value)
+            }
+            GeneratedSyntaxAtomRef::LinkedSumtiListSyntax(value) => {
+                last_legacy_syntax_subtree_position(value)
+            }
+            GeneratedSyntaxAtomRef::QuantifierSyntax(value) => {
+                last_legacy_syntax_subtree_position(value)
+            }
+            GeneratedSyntaxAtomRef::RelativeClauseSyntax(value) => {
+                last_legacy_syntax_subtree_position(value)
+            }
+            GeneratedSyntaxAtomRef::SelbriSyntax(value) => {
+                last_legacy_syntax_subtree_position(value)
+            }
+            GeneratedSyntaxAtomRef::SubbridiSyntax(value) => {
+                last_legacy_syntax_subtree_position(value)
+            }
+            GeneratedSyntaxAtomRef::TenseModalSyntax(value) => {
+                last_legacy_syntax_subtree_position(value)
+            }
+            GeneratedSyntaxAtomRef::TermSyntax(value) => last_legacy_syntax_subtree_position(value),
+            GeneratedSyntaxAtomRef::Token(token) => token
+                .source_spans()
+                .into_iter()
+                .last()
+                .map(span_end_position),
+        }
+    }
+
+    fn elidable_terminator<'tree>(_node: Self::Node<'tree>, _field: FieldRef) -> Option<Cmavo> {
+        None
+    }
+
+    fn custom_node_tree_value<'tree>(
+        node: Self::Node<'tree>,
+        source: &str,
+        options: TreeRenderOptions,
+    ) -> Option<TreeValue> {
+        match node {
+            GeneratedSyntaxNodeRef::TextSyntaxRegular(text) => {
+                generated_regular_text_tree_value(text, source, options)
+            }
+            GeneratedSyntaxNodeRef::StatementSyntaxMultipleNaFragment(statement) => Some(
+                generated_multiple_na_fragment_tree_value(statement, source, options),
+            ),
+            GeneratedSyntaxNodeRef::StatementSyntaxSingleNaFragment(statement) => Some(
+                generated_single_na_fragment_tree_value(statement, source, options),
+            ),
+            GeneratedSyntaxNodeRef::StatementSyntaxLinkedSumtiFragment(statement) => Some(
+                generated_linked_sumti_fragment_tree_value(statement, source, options),
+            ),
+            GeneratedSyntaxNodeRef::ParagraphStatementSyntaxTrailingIjekParagraphStatement(
+                statement,
+            ) => Some(generated_trailing_ijek_paragraph_statement_tree_value(
+                statement, source, options,
+            )),
+            GeneratedSyntaxNodeRef::StatementSyntaxBridiStatement(statement) => Some(
+                generated_bridi_statement_tree_value(statement, source, options),
+            ),
+            GeneratedSyntaxNodeRef::StatementSyntaxIStatementConnection(statement) => Some(
+                generated_i_statement_connection_tree_value(statement, source, options),
+            ),
+            _ => None,
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_syntax_tuple_value<const N: usize>(values: [Option<TreeValue>; N]) -> TreeValue {
+    TreeValue::Collection(values.into_iter().flatten().collect())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_syntax_subtree_value<T>(
+    value: &T,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue>
+where
+    T: SyntaxAstTreeNode,
+{
+    let mut visitor = SyntaxTreeBuilder::<LegacySyntaxRenderModel>::new(source, options, None);
+    value.visit_in_order(&mut visitor);
+    visitor.finish_optional()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_syntax_subtree_value<T>(
+    value: &T,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue>
+where
+    T: GeneratedSyntaxAstTreeNode,
+{
+    let mut visitor = SyntaxTreeBuilder::<GeneratedSyntaxRenderModel>::new(source, options, None);
+    value.visit_in_order(&mut visitor);
+    visitor.finish_optional()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn required_legacy_syntax_subtree_value<T>(
+    value: &T,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue
+where
+    T: SyntaxAstTreeNode,
+{
+    legacy_syntax_subtree_value(value, source, options)
+        .expect("legacy syntax atom tree walk produced a root")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn required_generated_syntax_subtree_value<T>(
+    value: &T,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue
+where
+    T: GeneratedSyntaxAstTreeNode,
+{
+    generated_syntax_subtree_value(value, source, options)
+        .expect("generated syntax atom tree walk produced a root")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_regular_text_tree_value(
+    text: &GeneratedTextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let GeneratedTextSyntax::Regular {
+        leading_nai,
+        leading_cmevla,
+        leading_indicators,
+        leading_free_modifiers,
+        leading_connective,
+        leading_i_statements,
+        paragraphs,
+    } = text
+    else {
+        return None;
+    };
+    if leading_i_statements.is_empty() {
+        return None;
+    }
+
+    let mut entries = Vec::new();
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "leading_nai",
+        leading_nai
+            .iter()
+            .map(|token| generated_token_tree_value(token, source, options))
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "leading_cmevla",
+        leading_cmevla
+            .iter()
+            .map(|token| generated_token_tree_value(token, source, options))
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "leading_indicators",
+        leading_indicators
+            .iter()
+            .map(|indicator| required_legacy_syntax_subtree_value(indicator, source, options))
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "leading_free_modifiers",
+        generated_free_modifier_tree_values(leading_free_modifiers, source, options),
+    ) {
+        entries.push(entry);
+    }
+    if let Some(connective) = leading_connective {
+        entries.push(TreeEntry {
+            label: Some("leading_connective"),
+            value: generated_statement_connective_tree_value(connective, source, options),
+        });
+    }
+
+    let mut paragraph_values = paragraphs
+        .iter()
+        .map(|paragraph| required_generated_syntax_subtree_value(paragraph, source, options))
+        .collect::<Vec<_>>();
+    for marker in leading_i_statements.iter().rev() {
+        prepend_generated_leading_i_statement_value(marker, &mut paragraph_values, source, options);
+    }
+    entries.extend(
+        paragraph_values
+            .into_iter()
+            .map(|value| TreeEntry { label: None, value }),
+    );
+
+    Some(TreeValue::Node(TreeNode {
+        constructor: "Text",
+        entries,
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn labelled_tree_entry_from_values(
+    label: &'static str,
+    values: Vec<TreeValue>,
+) -> Option<TreeEntry> {
+    if values.is_empty() {
+        return None;
+    }
+    let value = if values.len() == 1 {
+        values.into_iter().next().expect("length checked")
+    } else {
+        TreeValue::Collection(values)
+    };
+    Some(TreeEntry {
+        label: Some(label),
+        value,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn labelled_tree_collection_entry_from_values(
+    label: &'static str,
+    values: Vec<TreeValue>,
+) -> Option<TreeEntry> {
+    if values.is_empty() {
+        return None;
+    }
+    Some(TreeEntry {
+        label: Some(label),
+        value: TreeValue::Collection(values),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_free_modifier_tree_values(
+    free_modifiers: &[jbotci_syntax::tree::FreeModifierSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Vec<TreeValue> {
+    free_modifiers
+        .iter()
+        .map(|free_modifier| required_legacy_syntax_subtree_value(free_modifier, source, options))
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn prepend_generated_leading_i_statement_value(
+    marker: &generated_model::LeadingIStatementSyntax,
+    paragraph_values: &mut Vec<TreeValue>,
+    source: &str,
+    options: TreeRenderOptions,
+) {
+    if paragraph_values.is_empty() {
+        paragraph_values.push(generated_paragraph_with_marker_value(
+            marker, None, source, options,
+        ));
+        return;
+    }
+
+    let first_paragraph =
+        std::mem::replace(&mut paragraph_values[0], TreeValue::Collection(Vec::new()));
+    paragraph_values[0] =
+        generated_prepend_marker_to_paragraph_value(marker, first_paragraph, source, options);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_prepend_marker_to_paragraph_value(
+    marker: &generated_model::LeadingIStatementSyntax,
+    paragraph: TreeValue,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match paragraph {
+        TreeValue::Node(mut node) if node.constructor == "Paragraph" => {
+            if generated_paragraph_has_niho(&node) {
+                prepend_generated_marker_to_paragraph_node(marker, &mut node, source, options);
+                return TreeValue::Node(node);
+            }
+            let statement_position = node.entries.iter().position(|entry| entry.label.is_none());
+            let statement_already_marked = statement_position
+                .and_then(|position| node.entries.get(position))
+                .is_some_and(|entry| generated_paragraph_statement_value_has_i(&entry.value));
+            if statement_already_marked {
+                node.entries.insert(
+                    statement_position.expect("checked above"),
+                    TreeEntry {
+                        label: None,
+                        value: generated_paragraph_statement_with_marker_value(
+                            marker, None, source, options,
+                        ),
+                    },
+                );
+                return TreeValue::Node(node);
+            }
+            let statement_value = statement_position.map(|position| node.entries.remove(position));
+            let replacement = generated_paragraph_statement_with_marker_value(
+                marker,
+                statement_value.map(|entry| entry.value),
+                source,
+                options,
+            );
+            match statement_position {
+                Some(position) => node.entries.insert(
+                    position,
+                    TreeEntry {
+                        label: None,
+                        value: replacement,
+                    },
+                ),
+                None => node.entries.insert(
+                    0,
+                    TreeEntry {
+                        label: None,
+                        value: replacement,
+                    },
+                ),
+            }
+            TreeValue::Node(node)
+        }
+        TreeValue::Syntax { syntax_ids, value } => syntax_value(
+            syntax_ids,
+            generated_prepend_marker_to_paragraph_value(marker, *value, source, options),
+        ),
+        TreeValue::Collection(mut items) => {
+            if items.is_empty() {
+                items.push(generated_paragraph_with_marker_value(
+                    marker, None, source, options,
+                ));
+            } else {
+                let first_item = items.remove(0);
+                items.insert(
+                    0,
+                    generated_prepend_marker_to_paragraph_value(
+                        marker, first_item, source, options,
+                    ),
+                );
+            }
+            TreeValue::Collection(items)
+        }
+        value => generated_paragraph_with_marker_value(marker, Some(value), source, options),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_paragraph_has_niho(node: &TreeNode) -> bool {
+    node.entries.iter().any(|entry| entry.label == Some("niho"))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn prepend_generated_marker_to_paragraph_node(
+    marker: &generated_model::LeadingIStatementSyntax,
+    node: &mut TreeNode,
+    source: &str,
+    options: TreeRenderOptions,
+) {
+    node.entries.insert(
+        0,
+        TreeEntry {
+            label: Some("i"),
+            value: generated_token_tree_value(&marker.i, source, options),
+        },
+    );
+    attach_generated_marker_to_niho_paragraph_statement(marker, node, source, options);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_generated_marker_to_niho_paragraph_statement(
+    marker: &generated_model::LeadingIStatementSyntax,
+    node: &mut TreeNode,
+    source: &str,
+    options: TreeRenderOptions,
+) {
+    let Some(statement_position) = node.entries.iter().position(|entry| entry.label.is_none())
+    else {
+        node.entries.push(TreeEntry {
+            label: None,
+            value: generated_niho_marker_paragraph_statement_value(marker, source, options),
+        });
+        return;
+    };
+    let statement = std::mem::replace(
+        &mut node.entries[statement_position].value,
+        TreeValue::Collection(Vec::new()),
+    );
+    node.entries[statement_position].value =
+        attach_generated_marker_to_paragraph_statement_value(marker, statement, source, options);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_niho_marker_paragraph_statement_value(
+    marker: &generated_model::LeadingIStatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    TreeValue::Node(TreeNode {
+        constructor: "ParagraphStatement",
+        entries: generated_niho_marker_paragraph_statement_entries(marker, source, options),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_niho_marker_paragraph_statement_entries(
+    marker: &generated_model::LeadingIStatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Vec<TreeEntry> {
+    let mut entries = Vec::new();
+    if let Some(connective) = &marker.connective {
+        entries.push(TreeEntry {
+            label: Some("connective"),
+            value: generated_statement_connective_tree_value(connective, source, options),
+        });
+    }
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "free_modifiers",
+        generated_free_modifier_tree_values(&marker.free_modifiers, source, options),
+    ) {
+        entries.push(entry);
+    }
+    entries
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_generated_marker_to_paragraph_statement_value(
+    marker: &generated_model::LeadingIStatementSyntax,
+    statement: TreeValue,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match statement {
+        TreeValue::Node(mut node) if node.constructor == "ParagraphStatement" => {
+            set_generated_paragraph_statement_connective(marker, &mut node, source, options);
+            prepend_generated_paragraph_statement_free_modifiers(
+                marker, &mut node, source, options,
+            );
+            TreeValue::Node(node)
+        }
+        TreeValue::Syntax { syntax_ids, value } => syntax_value(
+            syntax_ids,
+            attach_generated_marker_to_paragraph_statement_value(marker, *value, source, options),
+        ),
+        value => {
+            let mut entries =
+                generated_niho_marker_paragraph_statement_entries(marker, source, options);
+            entries.push(TreeEntry { label: None, value });
+            TreeValue::Node(TreeNode {
+                constructor: "ParagraphStatement",
+                entries,
+            })
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_generated_paragraph_statement_connective(
+    marker: &generated_model::LeadingIStatementSyntax,
+    node: &mut TreeNode,
+    source: &str,
+    options: TreeRenderOptions,
+) {
+    if let Some(position) = node
+        .entries
+        .iter()
+        .position(|entry| entry.label == Some("connective"))
+    {
+        node.entries.remove(position);
+    }
+    let Some(connective) = &marker.connective else {
+        return;
+    };
+    let insertion_index = node
+        .entries
+        .iter()
+        .position(|entry| entry.label == Some("free_modifiers") || entry.label.is_none())
+        .unwrap_or(node.entries.len());
+    node.entries.insert(
+        insertion_index,
+        TreeEntry {
+            label: Some("connective"),
+            value: generated_statement_connective_tree_value(connective, source, options),
+        },
+    );
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn prepend_generated_paragraph_statement_free_modifiers(
+    marker: &generated_model::LeadingIStatementSyntax,
+    node: &mut TreeNode,
+    source: &str,
+    options: TreeRenderOptions,
+) {
+    let mut marker_free_modifiers =
+        generated_free_modifier_tree_values(&marker.free_modifiers, source, options);
+    if marker_free_modifiers.is_empty() {
+        return;
+    }
+
+    if let Some(position) = node
+        .entries
+        .iter()
+        .position(|entry| entry.label == Some("free_modifiers"))
+    {
+        let existing = node.entries.remove(position).value;
+        marker_free_modifiers.extend(tree_value_collection_items(existing));
+        node.entries.insert(
+            position,
+            TreeEntry {
+                label: Some("free_modifiers"),
+                value: TreeValue::Collection(marker_free_modifiers),
+            },
+        );
+        return;
+    }
+
+    let insertion_index = node
+        .entries
+        .iter()
+        .position(|entry| entry.label.is_none())
+        .unwrap_or(node.entries.len());
+    node.entries.insert(
+        insertion_index,
+        TreeEntry {
+            label: Some("free_modifiers"),
+            value: TreeValue::Collection(marker_free_modifiers),
+        },
+    );
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tree_value_collection_items(value: TreeValue) -> Vec<TreeValue> {
+    match value {
+        TreeValue::Collection(items) => items,
+        value => vec![value],
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_paragraph_statement_value_has_i(value: &TreeValue) -> bool {
+    match value {
+        TreeValue::Node(node) if node.constructor == "ParagraphStatement" => {
+            node.entries.iter().any(|entry| entry.label == Some("i"))
+        }
+        TreeValue::Syntax { value, .. } => generated_paragraph_statement_value_has_i(value),
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_paragraph_with_marker_value(
+    marker: &generated_model::LeadingIStatementSyntax,
+    statement: Option<TreeValue>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    TreeValue::Node(TreeNode {
+        constructor: "Paragraph",
+        entries: vec![TreeEntry {
+            label: None,
+            value: generated_paragraph_statement_with_marker_value(
+                marker, statement, source, options,
+            ),
+        }],
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_paragraph_statement_with_marker_value(
+    marker: &generated_model::LeadingIStatementSyntax,
+    statement: Option<TreeValue>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = generated_leading_i_statement_entries(marker, source, options);
+    match statement {
+        Some(TreeValue::Node(node)) if node.constructor == "ParagraphStatement" => {
+            entries.extend(node.entries);
+        }
+        Some(TreeValue::Syntax { syntax_ids, value }) => {
+            entries.push(TreeEntry {
+                label: None,
+                value: syntax_value(syntax_ids, *value),
+            });
+        }
+        Some(value) => entries.push(TreeEntry { label: None, value }),
+        None => {}
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "ParagraphStatement",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_leading_i_statement_entries(
+    marker: &generated_model::LeadingIStatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Vec<TreeEntry> {
+    let mut entries = vec![TreeEntry {
+        label: Some("i"),
+        value: generated_token_tree_value(&marker.i, source, options),
+    }];
+    if let Some(connective) = &marker.connective {
+        entries.push(TreeEntry {
+            label: Some("connective"),
+            value: generated_statement_connective_tree_value(connective, source, options),
+        });
+    }
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "free_modifiers",
+        generated_free_modifier_tree_values(&marker.free_modifiers, source, options),
+    ) {
+        entries.push(entry);
+    }
+    entries
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_multiple_na_fragment_tree_value(
+    statement: &generated_model::StatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let generated_model::StatementSyntax::MultipleNaFragment {
+        first_na,
+        second_na,
+        additional_na,
+    } = statement
+    else {
+        return required_generated_syntax_subtree_value(statement, source, options);
+    };
+    let mut entries = vec![
+        TreeEntry {
+            label: None,
+            value: generated_token_tree_value(first_na, source, options),
+        },
+        TreeEntry {
+            label: None,
+            value: generated_token_tree_value(second_na, source, options),
+        },
+    ];
+    entries.extend(additional_na.iter().map(|token| TreeEntry {
+        label: None,
+        value: generated_token_tree_value(token, source, options),
+    }));
+    TreeValue::Node(TreeNode {
+        constructor: "Other",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_single_na_fragment_tree_value(
+    statement: &generated_model::StatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let generated_model::StatementSyntax::SingleNaFragment { na } = statement else {
+        return required_generated_syntax_subtree_value(statement, source, options);
+    };
+    let mut entries = vec![TreeEntry {
+        label: None,
+        value: generated_token_tree_value(&na.value, source, options),
+    }];
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "free_modifiers",
+        generated_free_modifier_tree_values(&na.free_modifiers, source, options),
+    ) {
+        entries.push(entry);
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "Other",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_linked_sumti_fragment_tree_value(
+    statement: &generated_model::StatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let generated_model::StatementSyntax::LinkedSumtiFragment { linkargs } = statement else {
+        return required_generated_syntax_subtree_value(statement, source, options);
+    };
+    rename_tree_constructor(
+        required_legacy_syntax_subtree_value(linkargs, source, options),
+        "LinkedSumtiList",
+        "LinkedSumti",
+    )
+}
+
+#[requires(!from.is_empty() && !to.is_empty())]
+#[ensures(true)]
+fn rename_tree_constructor(value: TreeValue, from: &'static str, to: &'static str) -> TreeValue {
+    match value {
+        TreeValue::Node(mut node) if node.constructor == from => {
+            node.constructor = to;
+            TreeValue::Node(node)
+        }
+        TreeValue::Syntax { syntax_ids, value } => {
+            syntax_value(syntax_ids, rename_tree_constructor(*value, from, to))
+        }
+        value => value,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_trailing_ijek_paragraph_statement_tree_value(
+    statement: &generated_model::ParagraphStatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let generated_model::ParagraphStatementSyntax::TrailingIjekParagraphStatement { i, connective } =
+        statement
+    else {
+        return required_generated_syntax_subtree_value(statement, source, options);
+    };
+    TreeValue::Node(TreeNode {
+        constructor: "BridiConnective",
+        entries: vec![
+            TreeEntry {
+                label: Some("i"),
+                value: generated_token_tree_value(i, source, options),
+            },
+            TreeEntry {
+                label: Some("connective"),
+                value: generated_statement_connective_tree_value(connective, source, options),
+            },
+        ],
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_bridi_statement_tree_value(
+    statement: &generated_model::StatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let generated_model::StatementSyntax::BridiStatement {
+        bridi,
+        continuations,
+    } = statement
+    else {
+        return required_generated_syntax_subtree_value(statement, source, options);
+    };
+    let mut value = required_legacy_syntax_subtree_value(bridi.as_ref(), source, options);
+    for continuation in continuations {
+        value = TreeValue::Node(TreeNode {
+            constructor: "ExperimentalBridiContinuation",
+            entries: vec![
+                TreeEntry {
+                    label: Some("leading_statement"),
+                    value,
+                },
+                TreeEntry {
+                    label: Some("continuation"),
+                    value: generated_bridi_statement_continuation_tree_value(
+                        continuation,
+                        source,
+                        options,
+                    ),
+                },
+            ],
+        });
+    }
+    value
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_bridi_statement_continuation_tree_value(
+    continuation: &generated_model::BridiStatementContinuationSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match continuation {
+        generated_model::BridiStatementContinuationSyntax::BoGroupedBridiStatementContinuation {
+            connective,
+            tense_modal,
+            bo,
+            trailing_subbridi,
+        } => {
+            let mut entries = vec![TreeEntry {
+                label: Some("connective"),
+                value: generated_statement_connective_tree_value(connective, source, options),
+            }];
+            if let Some(tense_modal) = tense_modal {
+                entries.push(TreeEntry {
+                    label: Some("tense_modal"),
+                    value: required_legacy_syntax_subtree_value(
+                        tense_modal.as_ref(),
+                        source,
+                        options,
+                    ),
+                });
+            }
+            entries.push(TreeEntry {
+                label: Some("marker"),
+                value: generated_with_free_modifiers_token_tree_value(bo, source, options),
+            });
+            entries.push(TreeEntry {
+                label: Some("trailing_subbridi"),
+                value: required_legacy_syntax_subtree_value(
+                    trailing_subbridi.as_ref(),
+                    source,
+                    options,
+                ),
+            });
+            TreeValue::Node(TreeNode {
+                constructor: "BridiStatementContinuation",
+                entries,
+            })
+        }
+        generated_model::BridiStatementContinuationSyntax::KeGroupedBridiStatementContinuation {
+            connective,
+            tense_modal,
+            ke,
+            trailing_subbridi,
+            kehe,
+        } => {
+            let mut entries = vec![TreeEntry {
+                label: Some("connective"),
+                value: generated_statement_connective_tree_value(connective, source, options),
+            }];
+            if let Some(tense_modal) = tense_modal {
+                entries.push(TreeEntry {
+                    label: Some("tense_modal"),
+                    value: required_legacy_syntax_subtree_value(
+                        tense_modal.as_ref(),
+                        source,
+                        options,
+                    ),
+                });
+            }
+            let mut marker_entries = vec![TreeEntry {
+                label: Some("ke"),
+                value: generated_with_free_modifiers_token_tree_value(ke, source, options),
+            }];
+            if let Some(kehe) = kehe {
+                marker_entries.push(TreeEntry {
+                    label: Some("kehe"),
+                    value: generated_with_free_modifiers_token_tree_value(kehe, source, options),
+                });
+            }
+            entries.push(TreeEntry {
+                label: Some("marker"),
+                value: TreeValue::Node(TreeNode {
+                    constructor: "KeGrouped",
+                    entries: marker_entries,
+                }),
+            });
+            entries.push(TreeEntry {
+                label: Some("trailing_subbridi"),
+                value: required_legacy_syntax_subtree_value(
+                    trailing_subbridi.as_ref(),
+                    source,
+                    options,
+                ),
+            });
+            TreeValue::Node(TreeNode {
+                constructor: "BridiStatementContinuation",
+                entries,
+            })
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+struct GeneratedStatementConnectionPart {
+    i: TreeValue,
+    connective: TreeValue,
+    connective_has_bo: bool,
+    trailing_statement: TreeValue,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_i_statement_connection_tree_value(
+    statement: &generated_model::StatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let generated_model::StatementSyntax::IStatementConnection {
+        leading_statement,
+        continuations,
+    } = statement
+    else {
+        return required_generated_syntax_subtree_value(statement, source, options);
+    };
+
+    let mut statements = vec![required_generated_syntax_subtree_value(
+        leading_statement.as_ref(),
+        source,
+        options,
+    )];
+    let mut connectors = Vec::new();
+    for continuation in continuations {
+        let part = generated_statement_connection_part(continuation, source, options);
+        statements.push(part.trailing_statement.clone());
+        connectors.push(part);
+    }
+
+    let mut right_statement = statements
+        .pop()
+        .expect("I statement connection has a leading statement");
+    let mut pending_non_bo = Vec::new();
+    while let Some(connector) = connectors.pop() {
+        let left_statement = statements
+            .pop()
+            .expect("connectors are paired with leading statements");
+        if connector.connective_has_bo {
+            right_statement = generated_statement_connection_tree_node(
+                connector.i,
+                connector.connective,
+                left_statement,
+                right_statement,
+            );
+        } else {
+            pending_non_bo.push(GeneratedStatementConnectionPart {
+                trailing_statement: right_statement,
+                ..connector
+            });
+            right_statement = left_statement;
+        }
+    }
+
+    let mut connected_statement = right_statement;
+    for connector in pending_non_bo.into_iter().rev() {
+        connected_statement = generated_statement_connection_tree_node(
+            connector.i,
+            connector.connective,
+            connected_statement,
+            connector.trailing_statement,
+        );
+    }
+    connected_statement
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_statement_connection_part(
+    continuation: &GeneratedIStatementConnectionTailSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> GeneratedStatementConnectionPart {
+    match continuation {
+        GeneratedIStatementConnectionTailSyntax::Simple {
+            i,
+            connective,
+            trailing_statement,
+        } => GeneratedStatementConnectionPart {
+            i: generated_token_tree_value(i, source, options),
+            connective: generated_statement_connective_tree_value(connective, source, options),
+            connective_has_bo: generated_connective_has_bo(connective),
+            trailing_statement: required_generated_syntax_subtree_value(
+                trailing_statement.as_ref(),
+                source,
+                options,
+            ),
+        },
+        GeneratedIStatementConnectionTailSyntax::Chained {
+            pending,
+            i,
+            connective,
+            trailing_statement,
+        } => {
+            let (first_i, first_connective) = pending
+                .first()
+                .expect("chained I statement tails parse pending with many1");
+            let mut extra = Vec::new();
+            for (pending_i, pending_connective) in pending.iter().skip(1) {
+                extra.push(generated_token_tree_value(pending_i, source, options));
+                extra.push(generated_statement_connective_tree_value(
+                    pending_connective,
+                    source,
+                    options,
+                ));
+            }
+            extra.push(generated_token_tree_value(i, source, options));
+            extra.push(generated_statement_connective_tree_value(
+                connective, source, options,
+            ));
+            GeneratedStatementConnectionPart {
+                i: generated_token_tree_value(first_i, source, options),
+                connective: generated_connective_tree_value_with_extra_words(
+                    first_connective,
+                    extra,
+                    source,
+                    options,
+                ),
+                connective_has_bo: generated_connective_has_bo(connective),
+                trailing_statement: required_generated_syntax_subtree_value(
+                    trailing_statement.as_ref(),
+                    source,
+                    options,
+                ),
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_statement_connection_tree_node(
+    i: TreeValue,
+    connective: TreeValue,
+    leading_statement: TreeValue,
+    trailing_statement: TreeValue,
+) -> TreeValue {
+    TreeValue::Node(TreeNode {
+        constructor: "StatementConnection",
+        entries: vec![
+            TreeEntry {
+                label: Some("leading_statement"),
+                value: leading_statement,
+            },
+            TreeEntry {
+                label: Some("i"),
+                value: i,
+            },
+            TreeEntry {
+                label: Some("connective"),
+                value: connective,
+            },
+            TreeEntry {
+                label: Some("trailing_statement"),
+                value: trailing_statement,
+            },
+        ],
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_token_tree_value(
+    token: &Token,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    with_indicators_tree_value(token.as_indicators(), source, options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_with_free_modifiers_token_tree_value(
+    token: &WithFreeModifiers<Token>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    required_legacy_syntax_subtree_value(token, source, options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_statement_connective_tree_value(
+    connective: &generated_model::ConnectiveSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match connective {
+        generated_model::ConnectiveSyntax::IStandardStatementConnective {
+            connective,
+            tag_bo: Some((tense_modal, bo)),
+        } => {
+            let mut extra = Vec::new();
+            if let Some(tense_modal) = tense_modal {
+                extra.extend(generated_tense_modal_word_tree_values(
+                    tense_modal.as_ref(),
+                    source,
+                    options,
+                ));
+            }
+            extra.push(generated_with_free_modifiers_token_tree_value(
+                bo, source, options,
+            ));
+            generated_connective_tree_value_with_extra_words(connective, extra, source, options)
+        }
+        generated_model::ConnectiveSyntax::IStandardParagraphStatementConnective {
+            connective,
+            tag_bo: Some((tense_modal, bo)),
+        } => {
+            let mut extra = Vec::new();
+            if let Some(tense_modal) = tense_modal {
+                extra.extend(generated_tense_modal_word_tree_values(
+                    tense_modal.as_ref(),
+                    source,
+                    options,
+                ));
+            }
+            extra.push(generated_token_tree_value(bo, source, options));
+            generated_connective_tree_value_with_extra_words(connective, extra, source, options)
+        }
+        generated_model::ConnectiveSyntax::ITagBoParagraphStatementConnective {
+            tense_modal,
+            bo,
+        } => {
+            let mut words = Vec::new();
+            if let Some(tense_modal) = tense_modal {
+                words.extend(generated_tense_modal_word_tree_values(
+                    tense_modal.as_ref(),
+                    source,
+                    options,
+                ));
+            }
+            words.push(generated_token_tree_value(bo, source, options));
+            generated_connective_word_node("Selbri", words)
+        }
+        generated_model::ConnectiveSyntax::ITagBoStatementConnective { tense_modal, bo } => {
+            let mut words = Vec::new();
+            if let Some(tense_modal) = tense_modal {
+                words.extend(generated_tense_modal_word_tree_values(
+                    tense_modal.as_ref(),
+                    source,
+                    options,
+                ));
+            }
+            words.push(generated_with_free_modifiers_token_tree_value(
+                bo, source, options,
+            ));
+            generated_connective_word_node("Selbri", words)
+        }
+        _ => collapse_value(required_generated_syntax_subtree_value(
+            connective, source, options,
+        )),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_tense_modal_word_tree_values(
+    tense_modal: &jbotci_syntax::tree::TenseModalSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Vec<TreeValue> {
+    let mut values = Vec::new();
+    tense_modal.visit_words(&mut |token| {
+        values.push(generated_token_tree_value(token, source, options));
+    });
+    values
+}
+
+#[requires(!constructor.is_empty())]
+#[ensures(true)]
+fn generated_connective_word_node(constructor: &'static str, words: Vec<TreeValue>) -> TreeValue {
+    TreeValue::Node(TreeNode {
+        constructor,
+        entries: words
+            .into_iter()
+            .map(|value| TreeEntry { label: None, value })
+            .collect(),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_connective_tree_value_with_extra_words(
+    connective: &generated_model::ConnectiveSyntax,
+    extra_words: Vec<TreeValue>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let constructor = generated_connective_constructor(connective);
+    append_primary_tree_values(
+        collapse_value(required_generated_syntax_subtree_value(
+            connective, source, options,
+        )),
+        constructor,
+        extra_words,
+    )
+}
+
+#[requires(!constructor.is_empty())]
+#[ensures(true)]
+fn append_primary_tree_values(
+    value: TreeValue,
+    constructor: &'static str,
+    extra_values: Vec<TreeValue>,
+) -> TreeValue {
+    match value {
+        TreeValue::Node(mut node) => {
+            node.entries.extend(
+                extra_values
+                    .into_iter()
+                    .map(|value| TreeEntry { label: None, value }),
+            );
+            TreeValue::Node(node)
+        }
+        TreeValue::Syntax { syntax_ids, value } => syntax_value(
+            syntax_ids,
+            append_primary_tree_values(*value, constructor, extra_values),
+        ),
+        TreeValue::Collection(items) => TreeValue::Node(TreeNode {
+            constructor,
+            entries: items
+                .into_iter()
+                .chain(extra_values)
+                .map(|value| TreeEntry { label: None, value })
+                .collect(),
+        }),
+        value => TreeValue::Node(TreeNode {
+            constructor,
+            entries: std::iter::once(value)
+                .chain(extra_values)
+                .map(|value| TreeEntry { label: None, value })
+                .collect(),
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn generated_connective_constructor(
+    connective: &generated_model::ConnectiveSyntax,
+) -> &'static str {
+    match connective {
+        generated_model::ConnectiveSyntax::EkAfterthoughtConnective { .. }
+        | generated_model::ConnectiveSyntax::JehiAfterthoughtConnective { .. }
+        | generated_model::ConnectiveSyntax::DescriptionHeadConnective { .. } => "Afterthought",
+        generated_model::ConnectiveSyntax::JekSelbriConnective { .. }
+        | generated_model::ConnectiveSyntax::ParagraphJekConnective { .. } => "Selbri",
+        generated_model::ConnectiveSyntax::GihekBridiTailConnective { .. } => "BridiTail",
+        generated_model::ConnectiveSyntax::CeheNonLogicalConnective { .. }
+        | generated_model::ConnectiveSyntax::JoiNonLogicalConnective { .. }
+        | generated_model::ConnectiveSyntax::ParagraphJoiNonLogicalConnective { .. }
+        | generated_model::ConnectiveSyntax::VuhuNonLogicalConnective { .. } => "NonLogical",
+        generated_model::ConnectiveSyntax::ClosedIntervalConnective { .. }
+        | generated_model::ConnectiveSyntax::ParagraphClosedIntervalConnective { .. }
+        | generated_model::ConnectiveSyntax::ParagraphSimpleIntervalConnective { .. }
+        | generated_model::ConnectiveSyntax::SimpleIntervalConnective { .. } => "Interval",
+        generated_model::ConnectiveSyntax::GaForethoughtConnective { .. }
+        | generated_model::ConnectiveSyntax::GikForethoughtConnective { .. }
+        | generated_model::ConnectiveSyntax::GuhekForethoughtConnective { .. } => "Forethought",
+        generated_model::ConnectiveSyntax::IStandardParagraphStatementConnective {
+            connective,
+            ..
+        }
+        | generated_model::ConnectiveSyntax::IStandardStatementConnective { connective, .. }
+        | generated_model::ConnectiveSyntax::JoikJekGiForethoughtConnective {
+            connective, ..
+        }
+        | generated_model::ConnectiveSyntax::RelationConnectiveAsBridiTail { connective } => {
+            generated_connective_constructor(connective)
+        }
+        generated_model::ConnectiveSyntax::ITagBoParagraphStatementConnective { .. }
+        | generated_model::ConnectiveSyntax::ITagBoStatementConnective { .. } => "Selbri",
+        generated_model::ConnectiveSyntax::JekGiForethoughtConnective { .. }
+        | generated_model::ConnectiveSyntax::ModalGiForethoughtConnective { .. }
+        | generated_model::ConnectiveSyntax::ZantufaInitialGiForethoughtConnective { .. } => {
+            "Forethought"
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_connective_has_bo(connective: &generated_model::ConnectiveSyntax) -> bool {
+    match connective {
+        generated_model::ConnectiveSyntax::IStandardParagraphStatementConnective {
+            connective,
+            tag_bo,
+        } => tag_bo.is_some() || generated_connective_has_bo(connective),
+        generated_model::ConnectiveSyntax::IStandardStatementConnective { connective, tag_bo } => {
+            tag_bo.is_some() || generated_connective_has_bo(connective)
+        }
+        generated_model::ConnectiveSyntax::ITagBoParagraphStatementConnective { .. }
+        | generated_model::ConnectiveSyntax::ITagBoStatementConnective { .. } => true,
+        generated_model::ConnectiveSyntax::JoikJekGiForethoughtConnective {
+            connective,
+            bo,
+            ..
+        } => bo.is_some() || generated_connective_has_bo(connective),
+        generated_model::ConnectiveSyntax::JekGiForethoughtConnective { bo, .. }
+        | generated_model::ConnectiveSyntax::ModalGiForethoughtConnective { bo, .. }
+        | generated_model::ConnectiveSyntax::ZantufaInitialGiForethoughtConnective { bo, .. } => {
+            bo.is_some()
+        }
+        generated_model::ConnectiveSyntax::RelationConnectiveAsBridiTail { connective } => {
+            generated_connective_has_bo(connective)
+        }
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn last_legacy_syntax_subtree_position<T>(value: &T) -> Option<RenderedPosition>
+where
+    T: SyntaxAstTreeNode,
+{
+    let mut visitor = LastLegacySyntaxAtomVisitor { last: None };
+    value.visit_in_order(&mut visitor);
+    visitor.last
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn last_generated_syntax_subtree_position<T>(value: &T) -> Option<RenderedPosition>
+where
+    T: GeneratedSyntaxAstTreeNode,
+{
+    let mut visitor = LastGeneratedSyntaxAtomVisitor { last: None };
+    value.visit_in_order(&mut visitor);
+    visitor.last
+}
+
+#[invariant(true)]
+struct LastLegacySyntaxAtomVisitor {
+    last: Option<RenderedPosition>,
+}
+
+impl<'tree> TreeVisitor<'tree> for LastLegacySyntaxAtomVisitor {
+    type Node = SyntaxNodeRef<'tree>;
+    type Atom = SyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        self.last = LegacySyntaxRenderModel::atom_end_position(atom);
+    }
+}
+
+#[invariant(true)]
+struct LastGeneratedSyntaxAtomVisitor {
+    last: Option<RenderedPosition>,
+}
+
+impl<'tree> TreeVisitor<'tree> for LastGeneratedSyntaxAtomVisitor {
+    type Node = GeneratedSyntaxNodeRef<'tree>;
+    type Atom = GeneratedSyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        self.last = GeneratedSyntaxRenderModel::atom_end_position(atom);
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -242,9 +1889,9 @@ fn syntax_tree_value(
 #[invariant(::Node => true)]
 #[invariant(::Field => true)]
 #[invariant(::Collection => true)]
-enum SyntaxFrame<'tree> {
+enum SyntaxFrame<'tree, M: SyntaxRenderModel> {
     Node {
-        node_ref: SyntaxNodeRef<'tree>,
+        node_ref: M::Node<'tree>,
         constructor: &'static str,
         syntax_id: Option<RawSyntaxNodeId>,
         entries: Vec<TreeEntry>,
@@ -260,18 +1907,21 @@ enum SyntaxFrame<'tree> {
     },
 }
 
-#[derive(Debug, Default)]
 #[invariant(true)]
-struct SyntaxTreeBuilder<'source, 'index, 'tree> {
+struct SyntaxTreeBuilder<'source, 'index, 'tree, M: SyntaxRenderModel> {
     source: &'source str,
     options: TreeRenderOptions,
     syntax_index: Option<&'index SyntaxIndex<'tree>>,
-    stack: Vec<SyntaxFrame<'tree>>,
+    stack: Vec<SyntaxFrame<'tree, M>>,
     last_position: Option<RenderedPosition>,
     root: Option<TreeValue>,
+    _model: std::marker::PhantomData<M>,
 }
 
-impl<'source, 'index, 'tree> SyntaxTreeBuilder<'source, 'index, 'tree> {
+impl<'source, 'index, 'tree, M> SyntaxTreeBuilder<'source, 'index, 'tree, M>
+where
+    M: SyntaxRenderModel,
+{
     #[requires(true)]
     #[ensures(ret.source == source)]
     fn new(
@@ -286,6 +1936,7 @@ impl<'source, 'index, 'tree> SyntaxTreeBuilder<'source, 'index, 'tree> {
             stack: Vec::new(),
             last_position: None,
             root: None,
+            _model: std::marker::PhantomData,
         }
     }
 
@@ -293,6 +1944,12 @@ impl<'source, 'index, 'tree> SyntaxTreeBuilder<'source, 'index, 'tree> {
     #[ensures(true)]
     fn finish(self) -> TreeValue {
         self.root.expect("syntax tree walk produced a root")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn finish_optional(self) -> Option<TreeValue> {
+        self.root
     }
 
     #[requires(true)]
@@ -382,17 +2039,20 @@ impl<'source, 'index, 'tree> SyntaxTreeBuilder<'source, 'index, 'tree> {
     }
 }
 
-impl<'source, 'index, 'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'source, 'index, 'tree> {
-    type Node = SyntaxNodeRef<'tree>;
-    type Atom = SyntaxAtomRef<'tree>;
+impl<'source, 'index, 'tree, M> TreeVisitor<'tree> for SyntaxTreeBuilder<'source, 'index, 'tree, M>
+where
+    M: SyntaxRenderModel,
+{
+    type Node = M::Node<'tree>;
+    type Atom = M::Atom<'tree>;
 
     #[requires(true)]
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
         self.stack.push(SyntaxFrame::Node {
             node_ref: node,
-            constructor: syntax_constructor_name(node.constructor_name()),
-            syntax_id: self.syntax_index.and_then(|index| index.id_of(node)),
+            constructor: syntax_constructor_name(M::constructor_name(node)),
+            syntax_id: M::syntax_id(node, self.syntax_index),
             entries: Vec::new(),
         });
     }
@@ -401,7 +2061,7 @@ impl<'source, 'index, 'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'source, '
     #[ensures(true)]
     fn exit_node(&mut self, _node: Self::Node) {
         let Some(SyntaxFrame::Node {
-            node_ref: _,
+            node_ref,
             constructor,
             syntax_id,
             entries,
@@ -409,10 +2069,12 @@ impl<'source, 'index, 'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'source, '
         else {
             panic!("syntax tree walker exited a node without entering it");
         };
-        let value = TreeValue::Node(TreeNode {
-            constructor,
-            entries,
-        });
+        let value = M::custom_node_tree_value(node_ref, self.source, self.options).unwrap_or(
+            TreeValue::Node(TreeNode {
+                constructor,
+                entries,
+            }),
+        );
         self.push_value(match syntax_id {
             Some(id) => syntax_value(vec![id], value),
             None => value,
@@ -474,13 +2136,8 @@ impl<'source, 'index, 'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'source, '
     #[requires(true)]
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
-        self.last_position = syntax_atom_end_position(atom);
-        self.push_value(match atom {
-            SyntaxAtomRef::Token(word) => {
-                with_indicators_tree_value(word.as_indicators(), self.source, self.options)
-            }
-            SyntaxAtomRef::Word(word) => word_tree_value(word, self.source, self.options),
-        });
+        self.last_position = M::atom_end_position(atom);
+        self.push_value(M::atom_tree_value(atom, self.source, self.options));
     }
 
     #[requires(true)]
@@ -492,7 +2149,7 @@ impl<'source, 'index, 'tree> TreeVisitor<'tree> for SyntaxTreeBuilder<'source, '
         let Some(node) = current_syntax_node(&self.stack) else {
             return;
         };
-        let Some(cmavo) = elidable_terminator_for_absent_field(node, field) else {
+        let Some(cmavo) = M::elidable_terminator(node, field) else {
             return;
         };
         let Some(position) = self.last_position.clone() else {
@@ -511,24 +2168,14 @@ struct RenderedPosition {
 
 #[requires(true)]
 #[ensures(true)]
-fn current_syntax_node<'tree>(stack: &[SyntaxFrame<'tree>]) -> Option<SyntaxNodeRef<'tree>> {
+fn current_syntax_node<'tree, M>(stack: &[SyntaxFrame<'tree, M>]) -> Option<M::Node<'tree>>
+where
+    M: SyntaxRenderModel,
+{
     stack.iter().rev().find_map(|frame| match frame {
         SyntaxFrame::Node { node_ref, .. } => Some(*node_ref),
         SyntaxFrame::Field { .. } | SyntaxFrame::Collection { .. } => None,
     })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_atom_end_position(atom: SyntaxAtomRef<'_>) -> Option<RenderedPosition> {
-    match atom {
-        SyntaxAtomRef::Token(token) => token
-            .source_spans()
-            .into_iter()
-            .last()
-            .map(span_end_position),
-        SyntaxAtomRef::Word(word) => Some(span_end_position(word.span())),
-    }
 }
 
 #[requires(span.byte_start <= span.byte_end)]

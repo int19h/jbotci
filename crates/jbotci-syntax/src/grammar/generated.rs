@@ -168,6 +168,7 @@ macro_rules! declare_generated_syntax_grammar {
             field leading_free_modifiers = many(free_modifier);
             field leading_connective = opt(text_leading_connective(tense_modal));
             field leading_i_statements = many(leading_i_statement(free_modifier, tense_modal));
+            #[tree_child(primary)]
             field paragraphs = text_paragraphs(paragraph, statement_or_fragment, free_modifier);
         }
         build |leading_nai, leading_cmevla, leading_indicators, leading_free_modifiers, leading_connective, leading_i_statements, paragraphs| {
@@ -235,6 +236,7 @@ macro_rules! declare_generated_syntax_grammar {
             default i: Option<Token> = None;
             default niho: Vec<Token> = Vec::new();
             default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
+            #[tree_child(primary)]
             field statements = paragraph_statement_sequence(statement_or_fragment, free_modifier);
         }
         build |statements| {
@@ -265,6 +267,7 @@ macro_rules! declare_generated_syntax_grammar {
             field i = some(cmavo(I));
             field niho = many1(selmaho(Niho));
             field free_modifiers = many(free_modifier);
+            #[tree_child(primary)]
             field statements = opt_or_default(paragraph_statement_sequence(statement_or_fragment, free_modifier));
         }
         build |i, niho, free_modifiers, statements| {
@@ -284,6 +287,7 @@ macro_rules! declare_generated_syntax_grammar {
             default i: Option<Token> = None;
             field niho = many1(selmaho(Niho));
             field free_modifiers = many(free_modifier);
+            #[tree_child(primary)]
             field statements = opt_or_default(paragraph_statement_sequence(statement_or_fragment, free_modifier));
         }
         build |niho, free_modifiers, statements| {
@@ -312,6 +316,7 @@ macro_rules! declare_generated_syntax_grammar {
             default i: Option<Token> = None;
             default connective: Option<Box<ConnectiveSyntax>> = None;
             default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
+            #[tree_child(primary)]
             field statement = some(boxed(statement_or_fragment));
         }
         build |statement| {
@@ -331,6 +336,7 @@ macro_rules! declare_generated_syntax_grammar {
             field i = some(cmavo(I));
             field connective = opt(boxed(i_paragraph_statement_connective(tense_modal)));
             field free_modifiers = many(free_modifier);
+            #[tree_child(primary)]
             field statement = opt(boxed(statement_or_fragment));
         }
         build |i, connective, free_modifiers, statement| {
@@ -351,6 +357,7 @@ macro_rules! declare_generated_syntax_grammar {
             require statement_connective.not();
             default connective: Option<Box<ConnectiveSyntax>> = None;
             field free_modifiers = many(free_modifier);
+            #[tree_child(primary)]
             field statement = opt(boxed(statement_or_fragment));
         }
         build |i, free_modifiers, statement| {
@@ -463,6 +470,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "fragment";
         construct variant EkFragment;
         fields {
+            #[tree_child(primary)]
             field connective = ek_connective();
         }
         build |connective| bityzba::new!(StatementSyntax::Fragment(Box::new(
@@ -474,6 +482,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "fragment";
         construct variant GihekFragment;
         fields {
+            #[tree_child(primary)]
             field connective = gihek_connective();
         }
         build |connective| bityzba::new!(StatementSyntax::Fragment(Box::new(
@@ -557,6 +566,7 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field tense_modal = opt(boxed(tense_modal));
             field tuhe = cmavo(Tuhe).wf();
+            #[tree_child(primary)]
             field text = boxed(text);
             field tuhu = opt(cmavo(Tuhu).wf());
         }
@@ -580,6 +590,7 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field prenex_terms = many(term);
             field zohu = cmavo(Zohu).wf();
+            #[tree_child(primary)]
             field inner_statement = boxed(statement);
         }
     }
@@ -588,6 +599,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "statement";
         construct variant BridiStatement;
         fields {
+            #[tree_child(primary)]
             field bridi = boxed(bridi);
             field continuations = many(bridi_statement_continuation(subbridi, tense_modal));
         }
@@ -660,6 +672,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "selbri";
         construct variant SelbriFragment;
         fields {
+            #[tree_child(primary)]
             field selbri = boxed(selbri);
         }
         build |selbri| bityzba::new!(StatementSyntax::Fragment(Box::new(
@@ -670,9 +683,11 @@ macro_rules! declare_generated_syntax_grammar {
     node terms_fragment(term) -> StatementSyntax {
         context "terms";
         construct variant TermsFragment;
+        model_variant Terms;
         fields {
-            field first_term = term;
-            field additional_terms = many(term);
+            scratch first_term = term;
+            scratch additional_terms = many(term);
+            let terms: Vec<TermSyntax> = std::iter::once(first_term).chain(additional_terms).collect();
             field vau = opt(cmavo(Vau).wf());
         }
         build |first_term, additional_terms, vau| bityzba::new!(StatementSyntax::Fragment(Box::new(
@@ -687,6 +702,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "mex";
         construct variant MeksoFragment;
         fields {
+            #[tree_child(primary)]
             field quantifier = boxed(quantifier(mekso, letter_tokens));
         }
         build |quantifier| bityzba::new!(StatementSyntax::Fragment(Box::new(
@@ -708,6 +724,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "relative clauses";
         construct variant RelativeClauseFragment;
         fields {
+            #[tree_child(primary)]
             field relative_clauses = relative_clause_list(sumti, subbridi, tense_modal);
         }
         build |relative_clauses| bityzba::new!(StatementSyntax::Fragment(Box::new(
@@ -719,6 +736,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "linked arguments";
         construct variant LinkedSumtiContinuationFragment;
         fields {
+            #[tree_child(primary)]
             field bei_links = many1(bei_link(sumti, tense_modal));
         }
         build |bei_links| bityzba::new!(StatementSyntax::Fragment(Box::new(
@@ -730,6 +748,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "linked arguments";
         construct variant LinkedSumtiFragment;
         fields {
+            #[tree_child(primary)]
             field linkargs = linkargs(sumti, tense_modal);
         }
         build |linkargs| {
@@ -3603,6 +3622,7 @@ macro_rules! declare_generated_syntax_grammar {
             field se = opt(selmaho(Se));
             default nahe: Option<Token> = None;
             scratch a = selmaho(A).wf();
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(vec![a.value], a.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
@@ -3620,6 +3640,7 @@ macro_rules! declare_generated_syntax_grammar {
             field se = opt(selmaho(Se));
             default nahe: Option<Token> = None;
             scratch jehi = selmaho(Jehi).wf();
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(vec![jehi.value], jehi.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
@@ -3637,6 +3658,7 @@ macro_rules! declare_generated_syntax_grammar {
             field se = opt(selmaho(Se));
             default nahe: Option<Token> = None;
             scratch ja = selmaho(Ja).wf();
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(vec![ja.value], ja.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
@@ -3663,6 +3685,7 @@ macro_rules! declare_generated_syntax_grammar {
             default nahe: Option<Token> = None;
             default na: Option<Token> = None;
             scratch joi = selmaho(Joi).wf();
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(vec![joi.value], joi.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
@@ -3680,6 +3703,7 @@ macro_rules! declare_generated_syntax_grammar {
             default nahe: Option<Token> = None;
             default na: Option<Token> = None;
             scratch bihi = selmaho(Bihi).wf();
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(vec![bihi.value], bihi.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
@@ -3700,6 +3724,7 @@ macro_rules! declare_generated_syntax_grammar {
             scratch bihi = selmaho(Bihi);
             scratch nai_token = opt(cmavo(Nai));
             scratch right_interval = selmaho(Gaho).wf();
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(
                 vec![left_interval, bihi, right_interval.value],
@@ -3719,6 +3744,7 @@ macro_rules! declare_generated_syntax_grammar {
             default nahe: Option<Token> = None;
             default na: Option<Token> = None;
             scratch vuhu = selmaho(Vuhu).wf();
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(vec![vuhu.value], vuhu.free_modifiers));
             default nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> = None;
@@ -3803,6 +3829,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "statement connective";
         construct variant IStandardStatementConnective;
         fields {
+            #[tree_child(primary)]
             field connective = boxed(statement_connective);
             field tag_bo = opt((opt(boxed(tense_modal)), cmavo(Bo).wf()));
         }
@@ -3819,6 +3846,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "statement connective";
         construct variant IStandardParagraphStatementConnective;
         fields {
+            #[tree_child(primary)]
             field connective = boxed(standard_paragraph_statement_connective);
             field tag_bo = opt((opt(boxed(tense_modal)), cmavo(Bo)));
         }
@@ -3849,6 +3877,7 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field na = opt(selmaho(Na));
             field se = opt(selmaho(Se));
+            #[tree_child(primary)]
             field ja = selmaho(Ja);
             field nai = opt(cmavo(Nai));
         }
@@ -3879,6 +3908,7 @@ macro_rules! declare_generated_syntax_grammar {
             default nahe: Option<Token> = None;
             default na: Option<Token> = None;
             scratch joi = selmaho(Joi);
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(vec![joi], Vec::new()));
             scratch nai_token = opt(cmavo(Nai));
@@ -3896,6 +3926,7 @@ macro_rules! declare_generated_syntax_grammar {
             default nahe: Option<Token> = None;
             default na: Option<Token> = None;
             scratch bihi = selmaho(Bihi);
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(vec![bihi], Vec::new()));
             scratch nai_token = opt(cmavo(Nai));
@@ -3916,6 +3947,7 @@ macro_rules! declare_generated_syntax_grammar {
             scratch bihi = selmaho(Bihi);
             scratch nai_token = opt(cmavo(Nai));
             scratch right_interval = selmaho(Gaho);
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(
                 vec![left_interval, bihi, right_interval],
@@ -3958,6 +3990,7 @@ macro_rules! declare_generated_syntax_grammar {
             default nahe: Option<Token> = None;
             default na: Option<Token> = None;
             scratch cehe = cmavo(Cehe).wf();
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(vec![cehe.value], cehe.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
@@ -3975,6 +4008,7 @@ macro_rules! declare_generated_syntax_grammar {
             field se = opt(selmaho(Se));
             default nahe: Option<Token> = None;
             scratch giha = selmaho(Giha).wf();
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(vec![giha.value], giha.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
@@ -3992,6 +4026,7 @@ macro_rules! declare_generated_syntax_grammar {
             field se = opt(selmaho(Se));
             default na: Option<Token> = None;
             scratch guha = selmaho(Guha).wf();
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(vec![guha.value], guha.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
@@ -4012,6 +4047,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "bridi tail connective";
         construct variant RelationConnectiveAsBridiTail;
         fields {
+            #[tree_child(primary)]
             field connective = boxed(relation_afterthought_connective);
         }
         build |connective| {
@@ -4055,6 +4091,7 @@ macro_rules! declare_generated_syntax_grammar {
             default nahe: Option<Token> = None;
             default na: Option<Token> = None;
             scratch ga = selmaho(Ga).wf();
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(vec![ga.value], ga.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
@@ -4131,6 +4168,7 @@ macro_rules! declare_generated_syntax_grammar {
             default nahe: Option<Token> = None;
             default na: Option<Token> = None;
             scratch gi = cmavo(Gi).wf();
+            #[tree_child(primary)]
             let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
                 std::sync::Arc::new(WithFreeModifiers::new(vec![gi.value], gi.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());

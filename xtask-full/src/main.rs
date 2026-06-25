@@ -23,8 +23,9 @@ use jbotci_morphology::{
 use jbotci_output::{
     BracketRenderOptions, JsonRenderOptions, LojbanScript, TreeRenderOptions,
     compact_morphology_json_string_with_options, compact_syntax_json_string_with_options,
-    pretty_brackets, pretty_brackets_with_options, pretty_morphology_brackets_with_options,
-    pretty_morphology_tree_with_options, pretty_tree_with_options,
+    pretty_brackets, pretty_brackets_with_options, pretty_generated_model_tree_with_options,
+    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
+    pretty_tree_with_options,
 };
 use jbotci_semantics::{
     SemanticBuildOptions, build_semantic_graph_with_dictionary_and_options,
@@ -36,6 +37,7 @@ use jbotci_semantics::{
 use jbotci_source::SourceId;
 use jbotci_syntax::{
     ParseOptions, SyntaxError, SyntaxWarning,
+    parse_syntax_tree_generated_model_with_source_and_options,
     parse_syntax_tree_generated_partial_valid_with_source_and_options,
     parse_syntax_tree_generated_strict_with_source_and_options,
     parse_syntax_tree_handwritten_with_source_and_options,
@@ -10503,6 +10505,16 @@ fn run_syntax_tree_oracle_fixture(fixture: &LoadedTestCase) -> FacetResult {
             return FacetResult::failed(format!("generated production syntax error: {error}"));
         }
     };
+    let generated_model = match parse_syntax_tree_generated_model_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    ) {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            return FacetResult::failed(format!("generated model syntax error: {error}"));
+        }
+    };
 
     for show_refs in [false, true] {
         let options = TreeRenderOptions {
@@ -10543,6 +10555,40 @@ fn run_syntax_tree_oracle_fixture(fixture: &LoadedTestCase) -> FacetResult {
                 &generated_tree,
             ));
         }
+    }
+
+    let options = TreeRenderOptions {
+        color: false,
+        indent: 2,
+        show_spans: true,
+        show_refs: false,
+        ..TreeRenderOptions::default()
+    };
+    let legacy_tree =
+        match pretty_tree_with_options(&legacy.parse_tree, &fixture.test_case.lojban, options) {
+            Ok(tree) => tree,
+            Err(error) => {
+                return FacetResult::failed(format!(
+                    "legacy generated-model oracle tree render error: {error}"
+                ));
+            }
+        };
+    let generated_model_tree = match pretty_generated_model_tree_with_options(
+        &generated_model,
+        &fixture.test_case.lojban,
+        options,
+    ) {
+        Ok(tree) => tree,
+        Err(error) => {
+            return FacetResult::failed(format!("generated model tree render error: {error}"));
+        }
+    };
+    if legacy_tree != generated_model_tree {
+        return FacetResult::failed(format_text_mismatch(
+            "generated model syntax tree oracle",
+            &legacy_tree,
+            &generated_model_tree,
+        ));
     }
     FacetResult::passed()
 }

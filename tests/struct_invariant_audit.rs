@@ -1184,6 +1184,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "builder validity is governed by traversal enter/exit sequencing",
     ),
     (
+        "crates/jbotci-output/src/tree.rs:LegacySyntaxRenderModel",
+        "stateless render-model marker type; all instances are equivalent",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:GeneratedSyntaxRenderModel",
+        "stateless render-model marker type; all instances are equivalent",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:GeneratedStatementConnectionPart",
+        "temporary generated-model tree projection aggregate whose fields are independently rendered values",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:LastLegacySyntaxAtomVisitor",
+        "visitor records an optional last rendered position and every option state is valid",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:LastGeneratedSyntaxAtomVisitor",
+        "visitor records an optional last rendered position and every option state is valid",
+    ),
+    (
         "crates/jbotci-output/src/tree.rs:TreeEntry",
         "tree entry delegates label and value meaning to traversal metadata",
     ),
@@ -1750,6 +1770,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParserState",
         "parser state is mutable chumsky inspector state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:GeneratedModelNoopVisitor",
+        "stateless generated-model validation visitor; all instances are equivalent",
     ),
     (
         "crates/jbotci-syntax/src/grammar/parser.rs:LeadingIStatementSyntax",
