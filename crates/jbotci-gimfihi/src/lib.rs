@@ -759,7 +759,9 @@ fn extract_bracketed_ipa(word: &str) -> Result<Option<String>, GimfihiError> {
             if inner.is_empty() {
                 Err(invalid("bracketed IPA must not be empty"))
             } else if inner.contains('[') || inner.contains(']') {
-                Err(invalid("use one `[ ... ]` pair around the whole IPA transcription"))
+                Err(invalid(
+                    "use one `[ ... ]` pair around the whole IPA transcription",
+                ))
             } else {
                 Ok(Some(inner.to_owned()))
             }
@@ -1549,7 +1551,10 @@ fn normalize_language(value: &str) -> String {
 #[requires(true)]
 #[ensures(!ret.contains(char::is_whitespace))]
 fn normalize_source_word(value: &str) -> String {
-    let stripped: String = value.chars().filter(|character| !character.is_whitespace()).collect();
+    let stripped: String = value
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect();
     // A bracketed `[IPA]` word is transliterated to Lojban later (in
     // `resolve_sources`); leave its contents case-intact here because IPA is
     // case-sensitive. Plain Lojban letters are lowercased as before.

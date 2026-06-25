@@ -203,7 +203,11 @@ fn is_labial_consonant(value: char) -> bool {
 fn push_letters(letters: &str, out: &mut String, pending_nasal: &mut bool) {
     for letter in letters.chars() {
         if is_consonant(letter) && *pending_nasal {
-            out.push(if is_labial_consonant(letter) { 'm' } else { 'n' });
+            out.push(if is_labial_consonant(letter) {
+                'm'
+            } else {
+                'n'
+            });
             *pending_nasal = false;
         }
         out.push(letter);
@@ -244,7 +248,10 @@ fn collapse_glide_doubles(word: &str) -> String {
 pub fn transliterate_ipa_to_lojban(ipa: &str) -> Result<String, GimfihiError> {
     // NFD so precomposed letters (ã, ä, é, …) become base + combining mark, then
     // drop the affricate tie bar so t͡ʃ reads as the digraph tʃ.
-    let normalized: String = ipa.nfd().filter(|character| !is_tie_bar(*character)).collect();
+    let normalized: String = ipa
+        .nfd()
+        .filter(|character| !is_tie_bar(*character))
+        .collect();
 
     let invalid = |reason: &str| GimfihiError::InvalidIpa {
         ipa: ipa.to_owned(),
@@ -304,7 +311,9 @@ pub fn transliterate_ipa_to_lojban(ipa: &str) -> Result<String, GimfihiError> {
     }
     let collapsed = collapse_glide_doubles(&out);
     if collapsed.is_empty() {
-        return Err(invalid("no Lojban-scoring sounds remain after transliteration"));
+        return Err(invalid(
+            "no Lojban-scoring sounds remain after transliteration",
+        ));
     }
     Ok(collapsed)
 }
