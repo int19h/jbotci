@@ -84,6 +84,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "quantifier scope validity is delegated to QuantifiedProSumtiScope and formula-typed restriction IDs",
     ),
     (
+        "crates/jbotci-semantics/src/builder.rs:PrenexFormulaScope::QuantifierBundle",
+        "bundle scope validity is delegated to QuantifierBundleScope and QuantifierBundleBindingScope",
+    ),
+    (
         "crates/jbotci-semantics/src/builder.rs:PrenexFormulaScope::RelationQuantifier",
         "relation quantifier scope validity is delegated to QuantifiedRelationVariableScope",
     ),
