@@ -757,24 +757,23 @@ pub struct ToolGimfihiSource {
     /// appear only once.
     pub language: String,
     /// A word for this concept in the source language, transliterated into Lojban
-    /// phonetics — spelled the way it *sounds* (using only Lojban letters), not
-    /// in its native spelling and not as an existing Lojban word: don't pass
-    /// `mlatu` for 'cat'.
+    /// phonetics: render its *pronunciation* (think IPA, ignoring tone and
+    /// stress), not its native spelling and not an existing Lojban word — don't
+    /// pass `mlatu` for 'cat'.
     ///
-    /// Letters: consonants are `b d f g k l m n p r s t v z` (≈ English, with `g`
-    /// always hard as in 'get' and `s` always as in 'sell'), plus `c` = 'sh',
-    /// `j` = 'zh' (s in 'pleasure'), `x` = 'kh' (Scottish 'loch'), and `'` = 'h'.
-    /// Vowels are `a e i o u` (as in 'father, bet, machine, or, boot'); map each
-    /// foreign vowel to the nearest one. Glides: a 'y'-type glide (as in 'yes')
-    /// becomes `i` before a vowel and a 'w'-type glide (as in 'we') becomes `u`;
-    /// the falling diphthongs are `ai`, `ei`, `oi`, `au`; two adjacent vowels
-    /// that don't form one of those are separate syllables joined by `'`.
-    /// Following CLL §4.14, simplify a stop+fricative cluster to the fricative
-    /// ('ch' → `c`, 'j' → `j`), map non-Lojban vowels onto Lojban ones, and drop
-    /// grammatical endings (e.g. plurals).
+    /// Lojban letters: vowels `a e i o u`; consonants `b d f g k l m n p r s t v
+    /// z` (≈ English, `g` always hard and `s` always as in 'sell'), plus `c` =
+    /// /ʃ/ ('sh'), `j` = /ʒ/ ('zh'), `x` = /x/ ('kh'), and `'` = /h/.
     ///
-    /// Examples: 'cat' → `kat`, 'eye' → `ai`, 'yes' → `ies`; Spanish 'gato' →
-    /// `gato`.
+    /// Rules: do not use `y` — map a schwa /ə/ to another vowel, and any other
+    /// non-Lojban vowel to the nearest of `a e i o u`. Write /j/ (the 'y' of
+    /// 'yes') as `i` and /w/ as `u`. Drop standard morphological endings (e.g.
+    /// Spanish noun -o/-a). Simplify a stop plus its matching fricative to the
+    /// fricative (/tʃ/ → `c`, /dʒ/ → `j`).
+    ///
+    /// Examples (word → romanization → IPA → Lojban): 用心 → yòngxīn → /jʊŋɕin/ →
+    /// `iuncin`; English 'cat' → /kæt/ → `kat`; Spanish 'gato' → /ˈɡato/, drop
+    /// -o → `gat`.
     pub word: String,
     /// Optional blending weight (1–999). Required for every source unless
     /// `preset` supplies the weights.
@@ -802,9 +801,11 @@ impl ToolGimfihiSource {
 /// Propose candidate gismu (root words) from a set of source-language words,
 /// using the standard gismu-creation algorithm: score every legal CVC-shape
 /// candidate by how well its letters recall the weighted sources, then rank
-/// them. This *creates new root words*; it does not look up existing ones. Each
-/// source word must be transliterated into Lojban phonetics by sound — see the
-/// `word` field on each source.
+/// them. This *creates new root words*; it does not look up existing ones.
+/// Classically the sources are one word from each of six languages (Mandarin,
+/// Hindi, English, Spanish, Russian, Arabic), each transliterated into Lojban
+/// phonetics (see the `word` field) and weighted by speaker population — pass
+/// per-source `weight`s or use a `preset` for the standard weights.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
