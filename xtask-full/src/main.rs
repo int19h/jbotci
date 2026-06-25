@@ -24,8 +24,8 @@ use jbotci_output::{
     BracketRenderOptions, JsonRenderOptions, LojbanScript, TreeRenderOptions,
     compact_morphology_json_string_with_options, compact_syntax_json_string_with_options,
     pretty_brackets, pretty_brackets_with_options, pretty_generated_model_tree_with_options,
-    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
-    pretty_tree_with_options,
+    pretty_legacy_as_generated_model_tree_with_options, pretty_morphology_brackets_with_options,
+    pretty_morphology_tree_with_options, pretty_tree_with_options,
 };
 use jbotci_semantics::{
     SemanticBuildOptions, build_semantic_graph_with_dictionary_and_options,
@@ -10570,15 +10570,18 @@ fn run_syntax_tree_oracle_fixture(fixture: &LoadedTestCase) -> FacetResult {
         show_refs: false,
         ..TreeRenderOptions::default()
     };
-    let legacy_tree =
-        match pretty_tree_with_options(&legacy.parse_tree, &fixture.test_case.lojban, options) {
-            Ok(tree) => tree,
-            Err(error) => {
-                return FacetResult::failed(format!(
-                    "legacy generated-model oracle tree render error: {error}"
-                ));
-            }
-        };
+    let legacy_tree = match pretty_legacy_as_generated_model_tree_with_options(
+        &legacy.parse_tree,
+        &fixture.test_case.lojban,
+        options,
+    ) {
+        Ok(tree) => tree,
+        Err(error) => {
+            return FacetResult::failed(format!(
+                "legacy generated-model oracle tree render error: {error}"
+            ));
+        }
+    };
     let generated_model_tree = match pretty_generated_model_tree_with_options(
         &generated_model,
         &fixture.test_case.lojban,

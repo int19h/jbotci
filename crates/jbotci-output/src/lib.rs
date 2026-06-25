@@ -466,6 +466,17 @@ pub fn pretty_generated_model_tree_with_options(
     tree::pretty_generated_model_tree_with_options(tree, source, options)
 }
 
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn pretty_legacy_as_generated_model_tree_with_options(
+    tree: &TextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<String, OutputError> {
+    tree::pretty_legacy_as_generated_model_tree_with_options(tree, source, options)
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn pretty_generated_model_raw_tree_with_options(
