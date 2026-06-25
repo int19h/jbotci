@@ -7,11 +7,11 @@ use axum::http::{HeaderMap, Response, StatusCode};
 use bityzba::{invariant, new, requires};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use jbotci_cli::{
-    ToolCollisionScope, ToolCuktaMode, ToolCuktaRequest, ToolGentufaFormat, ToolGentufaRequest,
-    ToolGimfihiFormat, ToolGimfihiRequest, ToolGimfihiSource, ToolJvozbaMode, ToolJvozbaPart,
-    ToolJvozbaPartKind, ToolJvozbaRequest, ToolRenderedOutput, ToolVlackuMode, ToolVlackuRequest,
-    ToolVlaseiFormat, ToolVlaseiRequest, run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba,
-    run_tool_vlasei,
+    GimfihiSourceWordKind, ToolCollisionScope, ToolCuktaMode, ToolCuktaRequest, ToolGentufaFormat,
+    ToolGentufaRequest, ToolGimfihiFormat, ToolGimfihiRequest, ToolGimfihiSource, ToolJvozbaMode,
+    ToolJvozbaPart, ToolJvozbaPartKind, ToolJvozbaRequest, ToolRenderedOutput, ToolVlackuMode,
+    ToolVlackuRequest, ToolVlaseiFormat, ToolVlaseiRequest, run_tool_gentufa, run_tool_gimfihi,
+    run_tool_jvozba, run_tool_vlasei,
 };
 use jbotci_web_core::{
     CUKTA_WEB_DEFAULT_COUNT, CuktaWebMode, CuktaWebSearchState, CuktaWebState, CuktaWebView,
@@ -219,7 +219,11 @@ fn discord_command_options() -> Vec<Value> {
             "description": "Compose candidate gismu",
             "type": 1,
             "options": [
-                string_option("sources", "Comma-separated LANG[:WEIGHT]:WORD source specs", false),
+                string_option(
+                    "sources",
+                    "Comma-separated LANG[:WEIGHT]:WORD specs; WORD is Lojban or [IPA]",
+                    false,
+                ),
                 string_option("preset", "Preset source set", false),
                 integer_option("count", "Maximum candidate count", false),
                 string_choices_option("format", "Output format", false, &["table", "json"])
@@ -445,7 +449,10 @@ fn render_discord_command(
         }
         DiscordCommand::Gimfihi(request) => {
             let link = Some(absolute_web_url("/gimfihi"));
-            (run_tool_gimfihi(request)?, link)
+            (
+                run_tool_gimfihi(request, GimfihiSourceWordKind::LojbanOrBracketedIpa)?,
+                link,
+            )
         }
     };
     Ok(discord_message_data(&trim_discord_output(

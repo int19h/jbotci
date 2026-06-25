@@ -1500,6 +1500,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "invalid source word preserves normalized invalid input, including the empty word case",
     ),
     (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidIpa",
+        "IPA error carries the rejected IPA string and a human-readable reason with no further constraint",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/transliterate.rs:Snap::Letters",
+        "Letters tags a static Lojban-letter string in the IPA segment table; the table is valid by construction",
+    ),
+    (
         "tests/support/fixtures/mod.rs:Provenance::Cll",
         "fixture tree validation checks provenance completeness at import time",
     ),

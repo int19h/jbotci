@@ -757,24 +757,33 @@ pub struct ToolGimfihiSource {
     /// language may appear only once. With a `preset`, the code must be exactly
     /// one the preset lists (see the `preset` field).
     pub language: String,
-    /// A word for this concept in the source language, transliterated into Lojban
-    /// phonetics: render its *pronunciation* (think IPA, ignoring tone and
-    /// stress), not its native spelling and not an existing Lojban word — don't
-    /// pass `mlatu` for 'cat'.
+    /// The word for this concept as a **broad phonemic IPA transcription** of how
+    /// it is pronounced — its sounds, not its spelling and not an existing Lojban
+    /// word. We snap the IPA onto the gismu sound inventory and score candidates
+    /// against it, so you only need to supply correct IPA.
     ///
-    /// Lojban letters: vowels `a e i o u`; consonants `b d f g k l m n p r s t v
-    /// z` (≈ English, `g` always hard and `s` always as in 'sell'), plus `c` =
-    /// /ʃ/ ('sh'), `j` = /ʒ/ ('zh'), `x` = /x/ ('kh'), and `'` = /h/.
+    /// Transcribe carefully:
+    /// - Work at the **phonemic** level: apply the language's own reductions
+    ///   (Russian unstressed о is /a/ by *akanye*, so *спасибо* is `spasʲiba`),
+    ///   but not deeper morphophonemic forms and not narrow phonetic detail.
+    /// - Drop grammatical endings (Spanish noun -o/-a: *gato* → `ɡat`).
+    /// - Tone and stress are ignored; include or omit stress marks as convenient.
+    /// - **Do not use the schwa `ə`** — it is rejected. Where it is a real phoneme
+    ///   (French *le* `lə`, Hindi अ, German final *-e*), write the full vowel it is
+    ///   actually pronounced as instead.
     ///
-    /// Rules: do not use `y` — map a schwa /ə/ to another vowel, and any other
-    /// non-Lojban vowel to the nearest of `a e i o u`. Write /j/ (the 'y' of
-    /// 'yes') as `i` and /w/ as `u`. Drop standard morphological endings (e.g.
-    /// Spanish noun -o/-a). Simplify a stop plus its matching fricative to the
-    /// fricative (/tʃ/ → `c`, /dʒ/ → `j`).
+    /// Supported IPA — use standard symbols; the tie bar, length `ː`, nasalization
+    /// `◌̃`, palatalization `ʲ`, labialization `ʷ`, aspiration `ʰ`, and emphasis
+    /// `ˤ` are all handled:
+    /// - Consonants `p b t d k g q`, `f v θ ð s z ʃ ʒ ɕ ʑ ʂ ʐ ç x ɣ χ ħ h ɦ`,
+    ///   affricates `t͡ʃ d͡ʒ t͡s d͡z t͡ɕ d͡ʑ`, `m n ŋ ɲ ɳ`, `l ʎ ɫ`,
+    ///   `r ɾ ɹ ɻ ʀ ʁ ɽ`, `j w ɥ ʋ`, retroflex `ʈ ɖ`.
+    /// - Vowels `i y ɨ ʉ ɯ u ɪ ʊ`, `e ø ɛ œ ɘ ɜ o ɔ ɤ ɵ ɒ`, `a æ ɐ ɑ ʌ`, nasal
+    ///   vowels (`ɛ̃ ɑ̃ ɔ̃` …), and length (`aː`).
     ///
-    /// Examples (word → romanization → IPA → Lojban): 用心 → yòngxīn → /jʊŋɕin/ →
-    /// `iuncin`; English 'cat' → /kæt/ → `kat`; Spanish 'gato' → /ˈɡato/, drop
-    /// -o → `gat`.
+    /// Examples (word → IPA): English *cat* → `kæt`; Spanish *gato* (drop -o) →
+    /// `ɡat`; Mandarin 用心 → `jʊŋɕin`; French *bon* → `bɔ̃`; Arabic *ḥasan* →
+    /// `ħasan`; Russian *спасибо* → `spasʲiba`.
     pub word: String,
     /// Optional blending weight (1–999). Required for every source unless
     /// `preset` supplies the weights.
@@ -804,8 +813,8 @@ impl ToolGimfihiSource {
 /// candidate by how well its letters recall the weighted sources, then rank
 /// them. This *creates new root words*; it does not look up existing ones.
 /// Classically the sources are one word from each of six languages (Mandarin,
-/// Hindi, English, Spanish, Russian, Arabic), each transliterated into Lojban
-/// phonetics (see the `word` field) and weighted by speaker population — pass
+/// Hindi, English, Spanish, Russian, Arabic), each given as a phonemic IPA
+/// transcription (see the `word` field) and weighted by speaker population — pass
 /// per-source `weight`s or use a `preset` for the standard weights.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
@@ -1469,6 +1478,9 @@ struct CuktaInput {
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
 struct GimfihiInput {
+    /// A source word as `LANG[:WEIGHT]:WORD` (repeat per source). WORD is Lojban
+    /// letters, or a phonemic IPA transcription in `[ ... ]` brackets (e.g.
+    /// `eng:210:[kæt]`) that is transliterated to Lojban.
     #[arg(
         long = "source",
         value_name = "LANG[:WEIGHT]:WORD",
@@ -2641,9 +2653,23 @@ pub fn run_tool_jvozba(request: ToolJvozbaRequest) -> Result<ToolRenderedOutput>
     )
 }
 
+/// How a tool caller's source `word` should be read.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GimfihiSourceWordKind {
+    /// Bare phonemic IPA, always transliterated to Lojban (the MCP tool).
+    Ipa,
+    /// Lojban letters by default, with `[IPA]` opting into transliteration (the
+    /// CLI/Discord/web bracket convention).
+    LojbanOrBracketedIpa,
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-pub fn run_tool_gimfihi(request: ToolGimfihiRequest) -> Result<ToolRenderedOutput> {
+pub fn run_tool_gimfihi(
+    request: ToolGimfihiRequest,
+    word_kind: GimfihiSourceWordKind,
+) -> Result<ToolRenderedOutput> {
     let tool_format = request.format;
     let format = match tool_format {
         ToolGimfihiFormat::Table => GimfihiCliFormat::Table,
@@ -2656,7 +2682,7 @@ pub fn run_tool_gimfihi(request: ToolGimfihiRequest) -> Result<ToolRenderedOutpu
     let sources = request
         .sources
         .into_iter()
-        .map(tool_gimfihi_source_to_input)
+        .map(|source| tool_gimfihi_source_to_input(source, word_kind))
         .collect::<Result<Vec<_>>>()?;
     run_tool_command(
         Command::Gimfihi(GimfihiInput {
@@ -2677,7 +2703,10 @@ pub fn run_tool_gimfihi(request: ToolGimfihiRequest) -> Result<ToolRenderedOutpu
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn tool_gimfihi_source_to_input(source: ToolGimfihiSource) -> Result<GimfihiSourceInput> {
+fn tool_gimfihi_source_to_input(
+    source: ToolGimfihiSource,
+    word_kind: GimfihiSourceWordKind,
+) -> Result<GimfihiSourceInput> {
     if let Some(weight) = source.weight
         && !(GIMFIHI_MIN_WEIGHT..=GIMFIHI_MAX_WEIGHT).contains(&weight)
     {
@@ -2686,11 +2715,14 @@ fn tool_gimfihi_source_to_input(source: ToolGimfihiSource) -> Result<GimfihiSour
             source.language
         );
     }
-    Ok(GimfihiSourceInput::from_fields(
-        &source.language,
-        &source.word,
-        source.weight,
-    ))
+    Ok(match word_kind {
+        GimfihiSourceWordKind::Ipa => {
+            GimfihiSourceInput::from_ipa_fields(&source.language, &source.word, source.weight)
+        }
+        GimfihiSourceWordKind::LojbanOrBracketedIpa => {
+            GimfihiSourceInput::from_fields(&source.language, &source.word, source.weight)
+        }
+    })
 }
 
 #[requires(true)]

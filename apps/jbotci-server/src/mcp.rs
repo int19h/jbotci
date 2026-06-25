@@ -7,9 +7,10 @@ use axum::http::{HeaderMap, Response, StatusCode};
 use base64::Engine;
 use bityzba::{invariant, requires};
 use jbotci_cli::{
-    ToolCuktaRequest, ToolGentufaRequest, ToolGimfihiRequest, ToolJvozbaRequest,
-    ToolRenderedOutput, ToolStatus, ToolTersmuRequest, ToolVlackuRequest, ToolVlaseiRequest,
-    run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba, run_tool_tersmu, run_tool_vlasei,
+    GimfihiSourceWordKind, ToolCuktaRequest, ToolGentufaRequest, ToolGimfihiRequest,
+    ToolJvozbaRequest, ToolRenderedOutput, ToolStatus, ToolTersmuRequest, ToolVlackuRequest,
+    ToolVlaseiRequest, run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba, run_tool_tersmu,
+    run_tool_vlasei,
 };
 use schemars::transform::{Transform, transform_subschemas};
 use schemars::{JsonSchema, Schema};
@@ -413,7 +414,12 @@ async fn call_tool(params: ToolCallParams, tool_services: ToolServices) -> Value
         "jvozba" => call_typed_tool(arguments, run_tool_jvozba).await,
         "vlasei" => call_typed_tool(arguments, run_tool_vlasei).await,
         "gentufa" => call_typed_tool(arguments, run_tool_gentufa).await,
-        "gimfihi" => call_typed_tool(arguments, run_tool_gimfihi).await,
+        "gimfihi" => {
+            call_typed_tool(arguments, |request| {
+                run_tool_gimfihi(request, GimfihiSourceWordKind::Ipa)
+            })
+            .await
+        }
         "tersmu" => call_typed_tool(arguments, run_tool_tersmu).await,
         _ => tool_error_result(format!("Unknown tool: {name}")),
     }
