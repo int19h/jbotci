@@ -12157,7 +12157,9 @@ where
     ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
         match sumti.as_data() {
             data!(SumtiSyntax::Description(description))
-                if !description_is_veridical_or_bare(description) =>
+                if description.description.is_some()
+                    && (description.outer_quantifier.is_some()
+                        || !description_is_veridical_or_bare(description)) =>
             {
                 let base = self.build_sumti_referent(sumti)?;
                 self.build_membership_restriction_formula(variable, base)
@@ -12207,9 +12209,7 @@ where
         variable: SemanticObjectId,
     ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
         match inner_sumti.as_data() {
-            data!(SumtiSyntax::Description(description))
-                if !description_is_veridical_or_bare(description) =>
-            {
+            data!(SumtiSyntax::Description(description)) if description.description.is_some() => {
                 let base = self.build_sumti_referent(inner_sumti)?;
                 self.build_membership_restriction_formula(variable, base)
                     .map(|restriction| vec![restriction])
@@ -31327,6 +31327,58 @@ mod tests {
         assert_eq!(object(&json, outer_quantity)["source"]["text"], "re");
         assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 3);
         assert_eq!(object(&json, "quantity:q1")["source"]["text"], "ci");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn outer_quantified_lo_description_restricts_by_membership() {
+        let json = semantic_json_for("ci lo gerku cu blabi").expect("semantic JSON");
+        let scope = object(
+            &json,
+            root_object(&json)["content"]
+                .as_str()
+                .expect("utterance content formula"),
+        );
+        assert_eq!(scope["operator"], "cardinality");
+        let restriction = object(&json, scope["restriction"].as_str().unwrap());
+        let member = object(&json, restriction["predication"].as_str().unwrap());
+        assert_eq!(member["relation"], "memberOf");
+        assert_eq!(member["arguments"]["x1"]["value"], scope["variable"]);
+        let dog_referent = member["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("dog domain referent");
+        let descriptor = &object(&json, dog_referent)["descriptor"];
+        assert_eq!(descriptor["kind"], "veridicalDescription");
+        assert_eq!(descriptor["word"], "lo");
+        let blabi = predication_with_relation_and_mode(&json, "blabi", "asserted");
+        assert_eq!(blabi["arguments"]["x1"]["value"], scope["variable"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn outer_quantified_lo_description_preserves_inner_quantity() {
+        let json = semantic_json_for("so'o lo ci gerku cu blabi").expect("semantic JSON");
+        let scope = object(
+            &json,
+            root_object(&json)["content"]
+                .as_str()
+                .expect("utterance content formula"),
+        );
+        let outer_quantity = scope["quantity"].as_str().expect("outer quantity");
+        let restriction = object(&json, scope["restriction"].as_str().unwrap());
+        let member = object(&json, restriction["predication"].as_str().unwrap());
+        assert_eq!(member["relation"], "memberOf");
+        let dog_referent = member["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("dog domain referent");
+        let inner_quantity = object(&json, dog_referent)["descriptor"]["quantity"]
+            .as_str()
+            .expect("inner quantity");
+        assert_eq!(object(&json, outer_quantity)["source"]["text"], "so'o");
+        assert_eq!(object(&json, inner_quantity)["value"]["integer"], 3);
+        assert_eq!(object(&json, inner_quantity)["source"]["text"], "ci");
     }
 
     #[test]

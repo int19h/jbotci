@@ -1621,6 +1621,12 @@ instead.  For `le ci gerku`, the descriptor carries the `ci` quantity:
 }
 ```
 
+When an explicit outer quantifier ranges over an explicit description, the
+description remains a constant referent and the quantified variable is
+restricted with `memberOf(variable, description)`.  Thus `ci lo gerku` retains
+the `lo gerku` referent, and `so'o lo ci gerku` also keeps the inner `ci` as the
+description's `quantity`.
+
 Every dictionary-known place of a relation should have an `arguments` entry.
 If a place is omitted, it is represented by an `elided` value with its own
 `zo'e` referent.  If a place is explicitly deleted with `zi'o`, it is
