@@ -10516,10 +10516,34 @@ fn run_syntax_tree_oracle_fixture(fixture: &LoadedTestCase) -> FacetResult {
         }
     };
     if !generated_model_text_syntax_leaf_spans_match_words(&words, &generated_model) {
-        return FacetResult::failed(
-            "generated model syntax tree token/source span order does not match morphology"
-                .to_owned(),
-        );
+        let mut expected_refs = Vec::new();
+        for word in &words {
+            word.source_spans_into(&mut expected_refs);
+        }
+        let expected_spans = expected_refs.into_iter().cloned().collect::<Vec<_>>();
+        let mut actual_spans = Vec::new();
+        generated_model.visit_source_spans(&mut |span| actual_spans.push(span.clone()));
+        let first_mismatch = expected_spans
+            .iter()
+            .zip(actual_spans.iter())
+            .position(|(expected, actual)| expected != actual);
+        let mismatch_detail = first_mismatch
+            .map(|index| {
+                format!(
+                    "first mismatch at span #{index}: expected {:?}, got {:?}",
+                    expected_spans[index], actual_spans[index]
+                )
+            })
+            .unwrap_or_else(|| {
+                format!(
+                    "span count mismatch: expected {}, got {}",
+                    expected_spans.len(),
+                    actual_spans.len()
+                )
+            });
+        return FacetResult::failed(format!(
+            "generated model syntax tree token/source span order does not match morphology; {mismatch_detail}"
+        ));
     }
 
     for show_refs in [false, true] {

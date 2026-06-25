@@ -1284,7 +1284,7 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field pu = selmaho(Pu).wf();
             field nai = opt(cmavo(Nai).wf());
-            field next = selmaho(Nahe).lookahead();
+            require selmaho(Nahe).lookahead();
         }
     }
 
@@ -1294,7 +1294,7 @@ macro_rules! declare_generated_syntax_grammar {
             field pu = selmaho(Pu).wf();
             field nai = opt(cmavo(Nai).wf());
             field distance = selmaho(Zi).wf();
-            field next = selmaho(Zi).lookahead();
+            require selmaho(Zi).lookahead();
         }
     }
 
@@ -1302,7 +1302,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "tag";
         fields {
             field zi = selmaho(Zi).wf();
-            field next = selmaho(Zi).lookahead();
+            require selmaho(Zi).lookahead();
         }
     }
 
@@ -1310,7 +1310,7 @@ macro_rules! declare_generated_syntax_grammar {
         context "tag";
         fields {
             field va = selmaho(Va).wf();
-            field next = selmaho(Va).lookahead();
+            require selmaho(Va).lookahead();
         }
     }
 
@@ -1321,7 +1321,7 @@ macro_rules! declare_generated_syntax_grammar {
             field direction = selmaho(Faha).wf();
             field nai = opt(cmavo(Nai).wf());
             field distance = opt(selmaho(Va).wf());
-            field next = selmaho(Mohi).lookahead();
+            require selmaho(Mohi).lookahead();
         }
     }
 
