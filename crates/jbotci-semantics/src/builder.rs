@@ -4077,6 +4077,11 @@ where
         {
             return self.build_relation_variable_formula_for_bridi(bridi, selbri);
         }
+        if let Some(selbri) = selbri
+            && selbri_is_single_unspecified_relation(selbri)
+        {
+            return self.build_unspecified_relation_formula_for_bridi(bridi, selbri);
+        }
         let relation = selbri
             .map(relation_label_for_selbri)
             .unwrap_or_else(|| "unknown-relation".to_owned());
@@ -8862,6 +8867,39 @@ where
                     .and_then(|node| self.source_for_node(node.0, "quantifier-scope")),
                 Vec::new(),
             ),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_unspecified_relation_formula_for_bridi(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        selbri: &'tree SelbriSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let relation_parameter = self
+            .build_unspecified_relation_parameter_for_selbri(selbri)?
+            .ok_or_else(SemanticsError::missing_syntax_node)?;
+        let frame = self
+            .semantic_predication_frame_for_selbri(selbri, self.bridi_frame(bridi))
+            .or_else(|| self.bridi_frame(bridi));
+        let source = self
+            .analysis
+            .syntax_index
+            .bridi_node_id(bridi)
+            .and_then(|node| self.source_for_node(node.0, "unspecified-relation-formula"));
+        let predication = self.build_relation_parameter_predication_for_frame_with_overrides(
+            frame,
+            source.clone(),
+            Some(selbri),
+            relation_parameter,
+            BTreeMap::new(),
+        )?;
+        self.attach_reciprocity_to_predication(predication, bridi, &[])?;
+        let atom = self.next_formula();
+        self.insert(
+            atom,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
         )
     }
 
@@ -14757,6 +14795,25 @@ where
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter)) || ret.is_err())]
+    fn build_unspecified_relation_parameter_for_selbri(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(introduced_by) = unspecified_relation_word_for_selbri(selbri) else {
+            return Ok(None);
+        };
+        let raw = self
+            .analysis
+            .syntax_index
+            .selbri_node_id(selbri)
+            .ok_or_else(SemanticsError::missing_syntax_node)?
+            .0;
+        self.build_unspecified_relation_parameter_from_raw(raw, introduced_by)
+            .map(Some)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter)) || ret.is_err())]
     fn build_relation_variable_parameter_for_tanru_unit(
         &mut self,
         unit: &'tree TanruUnitSyntax,
@@ -14772,6 +14829,25 @@ where
             .0;
         self.build_relation_variable_parameter_from_raw(raw, introduced_by)
             .map(Some)
+    }
+
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter) || ret.is_err())]
+    fn build_unspecified_relation_parameter_from_raw(
+        &mut self,
+        raw: RawSyntaxNodeId,
+        introduced_by: String,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_parameter();
+        self.insert(
+            id,
+            SemanticObject::parameter(
+                SemanticSort::Relation,
+                crate::model::ParameterRole::UnspecifiedRelation,
+                introduced_by,
+                self.source_for_node(raw, "parameter"),
+            ),
+        )
     }
 
     #[requires(!introduced_by.is_empty())]
@@ -17469,6 +17545,24 @@ fn relation_variable_word_for_tanru_unit(unit: &TanruUnitSyntax) -> Option<Strin
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|word| !word.is_empty()))]
+fn unspecified_relation_word_for_tanru_unit(unit: &TanruUnitSyntax) -> Option<String> {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::TanruUnitWord(word)) if word.cmavo() == Some(Cmavo::Cohe) => {
+            Some(token_text(&word.value))
+        }
+        data!(TanruUnitSyntax::ProBridi { goha, .. }) if goha.cmavo() == Some(Cmavo::Cohe) => {
+            Some(token_text(&goha.value))
+        }
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+            unspecified_relation_word_for_selbri(selbri)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn relation_question_word_for_selbri(selbri: &SelbriSyntax) -> Option<String> {
     match selbri.as_data() {
@@ -17483,6 +17577,25 @@ fn relation_question_word_for_selbri(selbri: &SelbriSyntax) -> Option<String> {
             inner_selbri: selbri,
             ..
         }) => relation_question_word_for_selbri(selbri),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|word| !word.is_empty()))]
+fn unspecified_relation_word_for_selbri(selbri: &SelbriSyntax) -> Option<String> {
+    match selbri.as_data() {
+        data!(SelbriSyntax::SelbriWord(token)) if token.cmavo() == Some(Cmavo::Cohe) => {
+            Some(token_text(token))
+        }
+        data!(SelbriSyntax::Tanru(units)) if units.len() == 1 => {
+            unspecified_relation_word_for_tanru_unit(units.first())
+        }
+        data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+        | data!(SelbriSyntax::TaggedSelbri {
+            inner_selbri: selbri,
+            ..
+        }) => unspecified_relation_word_for_selbri(selbri),
         _ => None,
     }
 }
@@ -17520,6 +17633,12 @@ fn selbri_is_single_relation_question(selbri: &SelbriSyntax) -> bool {
 #[ensures(true)]
 fn selbri_is_single_relation_variable(selbri: &SelbriSyntax) -> bool {
     relation_variable_word_for_selbri(selbri).is_some()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn selbri_is_single_unspecified_relation(selbri: &SelbriSyntax) -> bool {
+    unspecified_relation_word_for_selbri(selbri).is_some()
 }
 
 #[requires(true)]
@@ -29637,6 +29756,30 @@ mod tests {
         assert!(predication.get("relation").is_none());
         assert_eq!(predication["arguments"]["x1"]["value"], "referent:r1");
         assert_eq!(predication["arguments"]["x2"]["value"], "referent:r2");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cohe_introduces_unspecified_relation_parameter_without_question_scope() {
+        let json = semantic_json_for("mi co'e do").expect("semantic JSON");
+        let root = root_object(&json);
+        let atom = object(&json, root["content"].as_str().expect("root content"));
+        assert_eq!(atom["operator"], "atom");
+
+        let parameter = object(&json, "parameter:p1");
+        assert_eq!(parameter["sort"], "relation");
+        assert_eq!(parameter["role"], "unspecifiedRelation");
+        assert_eq!(parameter["introducedBy"], "co'e");
+
+        let predication = object(&json, atom["predication"].as_str().expect("predication"));
+        assert_eq!(predication["relationParameter"], "parameter:p1");
+        assert!(predication.get("relation").is_none());
+        assert_eq!(predication["arguments"]["x1"]["value"], "referent:speaker");
+        assert_eq!(
+            predication["arguments"]["x2"]["value"],
+            "referent:addressee"
+        );
     }
 
     #[test]

@@ -2161,6 +2161,7 @@ pub enum ParameterRole {
     ArgumentQuestion,
     RelationQuestion,
     RelationVariable,
+    UnspecifiedRelation,
     PlaceQuestion,
     ConnectiveQuestion,
     TenseQuestion,
@@ -3579,9 +3580,9 @@ fn parameter_role_matches_sort(sort: Option<SemanticSort>, role: Option<Paramete
         Some(ParameterRole::RelativeClauseHead)
         | Some(ParameterRole::ArgumentQuestion)
         | Some(ParameterRole::AttitudeQuestion) => sort == Some(SemanticSort::Entity),
-        Some(ParameterRole::RelationQuestion) | Some(ParameterRole::RelationVariable) => {
-            sort == Some(SemanticSort::Relation)
-        }
+        Some(ParameterRole::RelationQuestion)
+        | Some(ParameterRole::RelationVariable)
+        | Some(ParameterRole::UnspecifiedRelation) => sort == Some(SemanticSort::Relation),
         Some(ParameterRole::PlaceQuestion) => sort == Some(SemanticSort::Place),
         Some(ParameterRole::ConnectiveQuestion) => sort == Some(SemanticSort::Connective),
         Some(ParameterRole::TenseQuestion) => sort == Some(SemanticSort::TenseModal),
