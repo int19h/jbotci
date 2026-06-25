@@ -299,7 +299,8 @@ impl ReferenceDisplayModel {
             let Some(source_name) = source_names.get(&edge.source).cloned() else {
                 continue;
             };
-            let name = source_name.name.clone();
+            let mut name = source_name.name.clone();
+            name.slot = reference_slot_for_discourse_edge_kind(edge.kind.clone());
             self.outgoing_by_node
                 .entry(edge.source)
                 .or_default()
@@ -323,6 +324,29 @@ impl ReferenceDisplayModel {
                 .or_default()
                 .insert(name);
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|slot| matches!(slot, ReferenceSlotName::Numbered(1 | 2))))]
+fn reference_slot_for_discourse_edge_kind(kind: ReferenceKind) -> Option<ReferenceSlotName> {
+    match kind {
+        ReferenceKind::RelativePhraseHead => Some(ReferenceSlotName::Numbered(1)),
+        ReferenceKind::RelativePhraseArgument => Some(ReferenceSlotName::Numbered(2)),
+        ReferenceKind::SumtiAssociation
+        | ReferenceKind::ProBridiAssignment
+        | ReferenceKind::Koha
+        | ReferenceKind::Ri
+        | ReferenceKind::Cehu
+        | ReferenceKind::Letter
+        | ReferenceKind::Ra
+        | ReferenceKind::Ru
+        | ReferenceKind::Keha
+        | ReferenceKind::VohaSeries
+        | ReferenceKind::DaSeries
+        | ReferenceKind::BrodaSeries
+        | ReferenceKind::GohaSeries
+        | ReferenceKind::Utterance => None,
     }
 }
 

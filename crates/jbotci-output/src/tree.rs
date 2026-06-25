@@ -1586,6 +1586,17 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn renders_relative_phrase_refs_as_marker_places() {
+        let output = render_refs("le stizu pe mi cu blanu", false);
+        assert!(output.contains("pe₁⟨1⟩→ Description"));
+        assert!(output.contains("pe₁⟨2⟩→ Cmavo \"mi\""));
+        assert!(!output.contains("mi₁→ Description"));
+        assert!(!output.contains("Cmavo \"mi\" →mi₁"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn renders_duplicate_prefixes_across_repeated_words() {
         let output = render_refs("mi klama le karce be do i do klama le karce be mi", false);
         assert!(output.contains("Gismu \"kláma\" →kl₁"));

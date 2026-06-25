@@ -352,6 +352,8 @@ pub struct SumtiPlaceAssignment {
 #[invariant(true)]
 pub enum ReferenceKind {
     SumtiAssociation,
+    RelativePhraseHead,
+    RelativePhraseArgument,
     ProBridiAssignment,
     Koha,
     Ri,
@@ -3406,6 +3408,15 @@ impl<'tree> SyntaxIndex<'tree> {
 
     #[requires(true)]
     #[ensures(true)]
+    pub fn sumti_association_phrase_node_id(
+        &self,
+        node: &'tree SumtiAssociationPhraseSyntax,
+    ) -> Option<RawSyntaxNodeId> {
+        self.id_of(SyntaxNodeRef::SumtiAssociationPhraseSyntax(node))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     pub fn selbri(&self, id: SelbriNodeId) -> Option<&'tree SelbriSyntax> {
         node_ref_as_relation(self.node(id.0)?)
     }
@@ -4903,6 +4914,13 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
             .index
             .sumti_node_id(&goi.sumti)
             .expect("goi sumti belongs to indexed syntax tree");
+        let Some(marker) = goi.association_marker.cmavo() else {
+            return;
+        };
+        if marker != Cmavo::Goi {
+            self.add_relative_phrase_place_edges(base_id, goi, goi_argument_id);
+            return;
+        }
         let source = goi_argument_id.0;
         self.add_edge(
             ReferenceKind::SumtiAssociation,
@@ -4923,6 +4941,37 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 "GOI assigns the relative-clause head pro-sumti to its sumti",
             );
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn add_relative_phrase_place_edges(
+        &mut self,
+        base_id: SumtiNodeId,
+        goi: &'tree SumtiAssociationPhraseSyntax,
+        goi_argument_id: SumtiNodeId,
+    ) {
+        let Some(marker) = goi.association_marker.cmavo() else {
+            return;
+        };
+        if !cmavo_is_relative_phrase_marker(marker) {
+            return;
+        }
+        let Some(source) = self.index.sumti_association_phrase_node_id(goi) else {
+            return;
+        };
+        self.add_edge(
+            ReferenceKind::RelativePhraseHead,
+            source,
+            target_resolved_node(base_id.0),
+            "GOI relative phrase marker relates x1 to the relative-clause head",
+        );
+        self.add_edge(
+            ReferenceKind::RelativePhraseArgument,
+            source,
+            target_resolved_node(goi_argument_id.0),
+            "GOI relative phrase marker relates x2 to the attached sumti",
+        );
     }
 
     #[requires(true)]
@@ -6699,6 +6748,15 @@ fn argument_koha_cmavo(sumti: &SumtiSyntax) -> Option<Cmavo> {
         }
         _ => None,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cmavo_is_relative_phrase_marker(cmavo: Cmavo) -> bool {
+    matches!(
+        cmavo,
+        Cmavo::Pe | Cmavo::Po | Cmavo::Pohe | Cmavo::Pohu | Cmavo::Ne | Cmavo::Nohu
+    )
 }
 
 #[requires(true)]
