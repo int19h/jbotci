@@ -574,6 +574,43 @@ struct EventTenseModifier<'tree> {
     consumed_terms: Vec<RawSyntaxNodeId>,
 }
 
+#[invariant(temporal.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[invariant(spatial.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[derive(Debug, Clone, Copy, Default)]
+struct EventModifierAnchors {
+    temporal: Option<SemanticObjectId>,
+    spatial: Option<SemanticObjectId>,
+}
+
+impl EventModifierAnchors {
+    #[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+    #[ensures(ret.temporal == anchor && ret.spatial == anchor)]
+    fn shared(anchor: Option<SemanticObjectId>) -> Self {
+        Self::from_data(data!(EventModifierAnchors {
+            temporal: anchor,
+            spatial: anchor,
+        }))
+    }
+
+    #[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+    #[ensures(ret.temporal == anchor && ret.spatial.is_none())]
+    fn temporal_only(anchor: Option<SemanticObjectId>) -> Self {
+        Self::from_data(data!(EventModifierAnchors {
+            temporal: anchor,
+            spatial: None,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.temporal == self.temporal.filter(|_| temporal) && ret.spatial == self.spatial.filter(|_| spatial))]
+    fn filtered(self, temporal: bool, spatial: bool) -> Self {
+        Self::from_data(data!(EventModifierAnchors {
+            temporal: self.temporal.filter(|_| temporal),
+            spatial: self.spatial.filter(|_| spatial),
+        }))
+    }
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, Default)]
 struct GovernedTermset {
@@ -11022,25 +11059,31 @@ where
                 }
                 continue;
             }
-            let anchor = modifier.anchor.or_else(|| {
-                if self.options.story_time
-                    && application.temporal_modifier
-                    && !temporal_path_relations_for_tense_modal(modifier.tense_modal).is_empty()
-                    && story_anchor.is_some()
-                {
-                    story_anchor
-                } else {
-                    event
-                        .time_path
-                        .is_empty()
-                        .then(|| self.current_temporal_context())
-                        .flatten()
-                }
-            });
-            apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
+            let explicit_anchor = modifier.anchor;
+            let inherited_temporal_anchor = if explicit_anchor.is_none()
+                && self.options.story_time
+                && application.temporal_modifier
+                && !temporal_path_relations_for_tense_modal(modifier.tense_modal).is_empty()
+                && story_anchor.is_some()
+            {
+                story_anchor
+            } else if explicit_anchor.is_none() {
+                event
+                    .time_path
+                    .is_empty()
+                    .then(|| self.current_temporal_context())
+                    .flatten()
+            } else {
+                None
+            };
+            let anchors = EventModifierAnchors::from_data(data!(EventModifierAnchors {
+                temporal: explicit_anchor.or(inherited_temporal_anchor),
+                spatial: explicit_anchor,
+            }));
+            apply_tense_modal_event_modifiers_to_event_with_anchors_and_normalization(
                 modifier.tense_modal,
                 event,
-                anchor,
+                anchors,
                 false,
             );
             if let Some(magnitude) = modifier.magnitude.clone() {
@@ -12235,7 +12278,7 @@ where
         }
         let eventuality = self.next_eventuality();
         let mut event = SemanticObject::eventuality(EventualityClass::Event, None, source);
-        apply_selbri_event_modifiers_to_event_with_anchor(
+        apply_selbri_event_modifiers_to_event_with_temporal_anchor(
             selbri,
             &mut event,
             self.current_temporal_context(),
@@ -18679,7 +18722,11 @@ fn selbri_has_formula_scope(selbri: &SelbriSyntax) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn apply_selbri_event_modifiers_to_event(selbri: &SelbriSyntax, event: &mut SemanticObject) {
-    apply_selbri_event_modifiers_to_event_with_anchor(selbri, event, None);
+    apply_selbri_event_modifiers_to_event_with_anchors(
+        selbri,
+        event,
+        EventModifierAnchors::default(),
+    );
 }
 
 #[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
@@ -18689,20 +18736,50 @@ fn apply_selbri_event_modifiers_to_event_with_anchor(
     event: &mut SemanticObject,
     anchor: Option<SemanticObjectId>,
 ) {
+    apply_selbri_event_modifiers_to_event_with_anchors(
+        selbri,
+        event,
+        EventModifierAnchors::shared(anchor),
+    );
+}
+
+#[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[ensures(true)]
+fn apply_selbri_event_modifiers_to_event_with_temporal_anchor(
+    selbri: &SelbriSyntax,
+    event: &mut SemanticObject,
+    anchor: Option<SemanticObjectId>,
+) {
+    apply_selbri_event_modifiers_to_event_with_anchors(
+        selbri,
+        event,
+        EventModifierAnchors::temporal_only(anchor),
+    );
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn apply_selbri_event_modifiers_to_event_with_anchors(
+    selbri: &SelbriSyntax,
+    event: &mut SemanticObject,
+    anchors: EventModifierAnchors,
+) {
     match selbri.as_data() {
         data!(SelbriSyntax::TaggedSelbri {
             tense_modal,
             inner_selbri,
         }) => {
-            let local_anchor =
-                anchor.filter(|_| event.time_path.is_empty() && event.time.is_none());
-            apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
+            let local_anchors = anchors.filtered(
+                event.time_path.is_empty() && event.time.is_none(),
+                event.space_path.is_empty() && event.space.is_none(),
+            );
+            apply_tense_modal_event_modifiers_to_event_with_anchors_and_normalization(
                 tense_modal,
                 event,
-                local_anchor,
+                local_anchors,
                 false,
             );
-            apply_selbri_event_modifiers_to_event_with_anchor(inner_selbri, event, anchor);
+            apply_selbri_event_modifiers_to_event_with_anchors(inner_selbri, event, anchors);
         }
         data!(SelbriSyntax::GroupedSelbri {
             ke_tense_modal,
@@ -18710,16 +18787,18 @@ fn apply_selbri_event_modifiers_to_event_with_anchor(
             ..
         }) => {
             if let Some(tense_modal) = ke_tense_modal {
-                let local_anchor =
-                    anchor.filter(|_| event.time_path.is_empty() && event.time.is_none());
-                apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
+                let local_anchors = anchors.filtered(
+                    event.time_path.is_empty() && event.time.is_none(),
+                    event.space_path.is_empty() && event.space.is_none(),
+                );
+                apply_tense_modal_event_modifiers_to_event_with_anchors_and_normalization(
                     tense_modal,
                     event,
-                    local_anchor,
+                    local_anchors,
                     false,
                 );
             }
-            apply_selbri_event_modifiers_to_event_with_anchor(selbri, event, anchor);
+            apply_selbri_event_modifiers_to_event_with_anchors(selbri, event, anchors);
         }
         _ => {}
     }
@@ -18733,10 +18812,10 @@ fn apply_tense_modal_event_modifiers_to_event(
     tense_modal: &TenseModalSyntax,
     event: &mut SemanticObject,
 ) {
-    apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
+    apply_tense_modal_event_modifiers_to_event_with_anchors_and_normalization(
         tense_modal,
         event,
-        None,
+        EventModifierAnchors::default(),
         true,
     );
 }
@@ -18748,34 +18827,38 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor(
     event: &mut SemanticObject,
     anchor: Option<SemanticObjectId>,
 ) {
-    apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
+    apply_tense_modal_event_modifiers_to_event_with_anchors_and_normalization(
         tense_modal,
         event,
-        anchor,
+        EventModifierAnchors::shared(anchor),
         true,
     );
 }
 
-#[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[requires(true)]
 #[ensures(true)]
-fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
+fn apply_tense_modal_event_modifiers_to_event_with_anchors_and_normalization(
     tense_modal: &TenseModalSyntax,
     event: &mut SemanticObject,
-    anchor: Option<SemanticObjectId>,
+    anchors: EventModifierAnchors,
     normalize_time_path: bool,
 ) {
     if let Some(actuality) = actuality_for_tense_modal(tense_modal) {
         event.actuality = Some(actuality);
     }
-    let time_span = time_span_for_tense_modal_with_anchor(tense_modal, anchor);
+    let temporal_anchor = anchors.temporal;
+    let spatial_anchor = anchors.spatial;
+    let time_span = time_span_for_tense_modal_with_anchor(tense_modal, temporal_anchor);
     if time_span.is_none() {
         append_temporal_path_relations_to_event(
             event,
             temporal_path_relations_for_tense_modal(tense_modal),
-            anchor,
+            temporal_anchor,
         );
     }
-    if let Some(time_interval) = time_interval_for_tense_modal_with_anchor(tense_modal, anchor) {
+    if let Some(time_interval) =
+        time_interval_for_tense_modal_with_anchor(tense_modal, temporal_anchor)
+    {
         event.time_interval = Some(time_interval);
     }
     if let Some(time_span) = time_span {
@@ -18784,44 +18867,46 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor_and_normalization(
     append_space_path_relations_to_event(
         event,
         space_path_relations_for_tense_modal(tense_modal),
-        anchor,
+        spatial_anchor,
     );
-    if let Some(space_interval) = space_interval_for_tense_modal_with_anchor(tense_modal, anchor) {
+    if let Some(space_interval) =
+        space_interval_for_tense_modal_with_anchor(tense_modal, spatial_anchor)
+    {
         event.space_interval = Some(space_interval);
     }
     apply_aspect_contours_to_event(
         event,
         temporal_aspect_contours_for_tense_modal(tense_modal),
-        anchor,
+        temporal_anchor,
         modal_scalar_negation_for_tense_modal(tense_modal),
         false,
     );
     event.recurrence.extend(
         temporal_recurrences_for_tense_modal(tense_modal)
             .into_iter()
-            .map(|recurrence| recurrence_with_interval(recurrence, anchor)),
+            .map(|recurrence| recurrence_with_interval(recurrence, temporal_anchor)),
     );
     event.interval_modifiers.extend(
         temporal_interval_modifiers_for_tense_modal(tense_modal)
             .into_iter()
-            .map(|modifier| interval_modifier_with_interval(modifier, anchor)),
+            .map(|modifier| interval_modifier_with_interval(modifier, temporal_anchor)),
     );
     apply_aspect_contours_to_event(
         event,
         spatial_aspect_contours_for_tense_modal(tense_modal),
-        anchor,
+        spatial_anchor,
         modal_scalar_negation_for_tense_modal(tense_modal),
         true,
     );
     event.spatial_recurrence.extend(
         spatial_recurrences_for_tense_modal(tense_modal)
             .into_iter()
-            .map(|recurrence| recurrence_with_interval(recurrence, anchor)),
+            .map(|recurrence| recurrence_with_interval(recurrence, spatial_anchor)),
     );
     event.spatial_interval_modifiers.extend(
         spatial_interval_modifiers_for_tense_modal(tense_modal)
             .into_iter()
-            .map(|modifier| interval_modifier_with_interval(modifier, anchor)),
+            .map(|modifier| interval_modifier_with_interval(modifier, spatial_anchor)),
     );
     if normalize_time_path {
         normalize_event_time_path(event);
@@ -26666,6 +26751,16 @@ mod tests {
         assert_eq!(event["space"]["relation"], "distanceFrom");
         assert_eq!(event["space"]["distance"], "short");
         assert_eq!(event["space"]["anchor"], "referent:here");
+
+        let contained = semantic_json_for("le vi bloti cu barda").expect("semantic JSON");
+        let bloti = predication_with_relation_and_mode(&contained, "bloti", "restrictive");
+        let bloti_event = object(
+            &contained,
+            bloti["eventuality"].as_str().expect("bloti eventuality"),
+        );
+        assert_eq!(bloti_event["space"]["relation"], "distanceFrom");
+        assert_eq!(bloti_event["space"]["distance"], "short");
+        assert_eq!(bloti_event["space"]["anchor"], "referent:here");
     }
 
     #[test]
