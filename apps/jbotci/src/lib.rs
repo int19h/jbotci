@@ -36,9 +36,10 @@ use jbotci_gentufa::{
     elided_terminators, render_gentufa_blocks_png, render_gentufa_blocks_svg, rendered_leaves,
 };
 use jbotci_gimfihi::{
-    CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
+    CollisionKind, CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
     GIMFIHI_MIN_WEIGHT, GimfihiCandidate, GimfihiOutput, GimfihiRequest, GimfihiSourceInput,
-    RafsiAvailability, compose_gismu, default_shapes, parse_preset, parse_shape, parse_source_spec,
+    GismuCollision, RafsiAvailability, compose_gismu, default_shapes, parse_preset, parse_shape,
+    parse_source_spec,
 };
 use jbotci_jvozba::{
     JvozbaBuildResult, JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegmentKind,
@@ -863,10 +864,9 @@ pub struct ToolGimfihiRequest {
     /// default.
     #[serde(default)]
     pub all_letters: bool,
-    /// Include the per-candidate rafsi collision detail in the output. On by
-    /// default.
-    #[serde(default = "gimfihi_show_collisions_default")]
-    #[schemars(default = "gimfihi_show_collisions_default")]
+    /// Also include candidates that collide with an existing gismu (each marked
+    /// with the colliding word); otherwise they are omitted. Off by default.
+    #[serde(default)]
     pub show_collisions: bool,
     /// Only keep candidates that have at least one free (unclaimed) short rafsi.
     /// Off by default.
@@ -926,12 +926,6 @@ fn tool_show_refs_schema(_generator: &mut schemars::SchemaGenerator) -> schemars
 #[ensures(ret == Some(true))]
 fn tool_show_refs_default() -> Option<bool> {
     Some(true)
-}
-
-#[requires(true)]
-#[ensures(ret)]
-fn gimfihi_show_collisions_default() -> bool {
-    true
 }
 
 #[invariant(true)]
@@ -3498,12 +3492,30 @@ fn render_gimfihi_table(output: &GimfihiOutput) -> String {
 #[ensures(!ret.is_empty())]
 fn render_gimfihi_candidate_row(candidate: &GimfihiCandidate) -> String {
     let marker = if candidate.highlighted { "*" } else { " " };
+    let collision = candidate
+        .collision
+        .as_ref()
+        .map(|collision| format!("{} ", format_gimfihi_collision(collision)))
+        .unwrap_or_default();
     format!(
-        "{marker}     {:<5}  {:<8} {}",
+        "{marker}     {:<5}  {:<8} {collision}{}",
         candidate.word,
         format_gimfihi_score(candidate.score),
         format_gimfihi_rafsi(candidate)
     )
+}
+
+/// Render a candidate's gismu-level collision with an existing word.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn format_gimfihi_collision(collision: &GismuCollision) -> String {
+    match collision.kind {
+        CollisionKind::Identical => format!("[= existing {}]", collision.existing_word_type),
+        CollisionKind::FinalVowel => format!("[~ {}: final vowel]", collision.existing_word),
+        CollisionKind::SimilarConsonant => {
+            format!("[~ {}: similar consonant]", collision.existing_word)
+        }
+    }
 }
 
 #[requires(score.is_finite())]

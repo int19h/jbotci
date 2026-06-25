@@ -661,7 +661,12 @@ pub fn compose_gismu(
         .collect::<Vec<_>>();
     filtered.sort_by(compare_candidates);
     let filtered_count = filtered.len();
-    let winner = filtered.first().map(|candidate| candidate.word.clone());
+    // The winner is the best *usable* candidate: skip any that collide with an
+    // existing gismu, even when `show_collisions` keeps them in the list.
+    let winner = filtered
+        .iter()
+        .find(|candidate| candidate.collision.is_none())
+        .map(|candidate| candidate.word.clone());
     let requested_highlight = request
         .highlight
         .as_ref()
