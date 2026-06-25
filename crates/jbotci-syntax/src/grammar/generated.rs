@@ -592,30 +592,46 @@ macro_rules! declare_generated_syntax_grammar {
 
     product bo_bridi_statement_continuation(subbridi, tense_modal) -> BridiStatementContinuationSyntax {
         context "bridi continuation";
-        construct direct;
+        construct variant BoGroupedBridiStatementContinuation;
         fields {
             field connective = bridi_tail_connective;
             field tense_modal = opt(boxed(tense_modal));
-            scratch bo = cmavo(Bo).wf();
-            let marker = bityzba::new!(BridiStatementContinuationMarkerSyntax::BoGrouped(bo));
+            field bo = cmavo(Bo).wf();
             field trailing_subbridi = boxed(subbridi);
         }
+        build |connective, tense_modal, bo, trailing_subbridi| {
+            let marker = bityzba::new!(BridiStatementContinuationMarkerSyntax::BoGrouped(bo));
+            BridiStatementContinuationSyntax {
+                connective,
+                tense_modal,
+                marker,
+                trailing_subbridi,
+            }
+        };
     }
 
     product ke_bridi_statement_continuation(subbridi, tense_modal) -> BridiStatementContinuationSyntax {
         context "bridi continuation";
-        construct direct;
+        construct variant KeGroupedBridiStatementContinuation;
         fields {
             field connective = relation_afterthought_connective;
             field tense_modal = opt(boxed(tense_modal));
-            scratch ke = cmavo(Ke).wf();
+            field ke = cmavo(Ke).wf();
             field trailing_subbridi = boxed(subbridi);
-            scratch kehe = opt(cmavo(Kehe).wf());
+            field kehe = opt(cmavo(Kehe).wf());
+        }
+        build |connective, tense_modal, ke, trailing_subbridi, kehe| {
             let marker = bityzba::new!(BridiStatementContinuationMarkerSyntax::KeGrouped {
                 ke,
                 kehe,
             });
-        }
+            BridiStatementContinuationSyntax {
+                connective,
+                tense_modal,
+                marker,
+                trailing_subbridi,
+            }
+        };
     }
 
     node selbri_fragment(selbri) -> StatementSyntax {
@@ -2563,8 +2579,9 @@ macro_rules! declare_generated_syntax_grammar {
 
     node description_head_connective -> ConnectiveSyntax {
         context "descriptor connective";
+        construct variant DescriptionHeadConnective;
         fields {
-            field connective = jek_connective;
+            field connective = boxed(jek_connective);
         }
         build |connective| {
             let ConnectiveSyntaxParts {
@@ -2574,7 +2591,7 @@ macro_rules! declare_generated_syntax_grammar {
                 na,
                 cmavo,
                 nai,
-            } = connective.into_parts();
+            } = (*connective).into_parts();
             ConnectiveSyntax::new(ConnectiveKind::Afterthought, se, nahe, na, cmavo, nai)
         };
     }
@@ -3558,42 +3575,51 @@ macro_rules! declare_generated_syntax_grammar {
     product ek_connective -> ConnectiveSyntax {
         context "ek";
         construct variant Afterthought;
+        model_variant EkAfterthoughtConnective;
         fields {
             field na = opt(selmaho(Na));
             field se = opt(selmaho(Se));
-            default nahe = None;
+            default nahe: Option<Token> = None;
             scratch a = selmaho(A).wf();
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![a.value], a.free_modifiers));
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(vec![a.value], a.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
-            let nai = nai_token.map(std::sync::Arc::new);
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(std::sync::Arc::new);
         }
     }
 
     product jehi_connective -> ConnectiveSyntax {
         context "ek";
         construct variant Afterthought;
+        model_variant JehiAfterthoughtConnective;
         fields {
             field na = opt(selmaho(Na));
             field se = opt(selmaho(Se));
-            default nahe = None;
+            default nahe: Option<Token> = None;
             scratch jehi = selmaho(Jehi).wf();
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![jehi.value], jehi.free_modifiers));
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(vec![jehi.value], jehi.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
-            let nai = nai_token.map(std::sync::Arc::new);
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(std::sync::Arc::new);
         }
     }
 
     product jek_connective -> ConnectiveSyntax {
         context "jek";
         construct variant Selbri;
+        model_variant JekSelbriConnective;
         fields {
             field na = opt(selmaho(Na));
             field se = opt(selmaho(Se));
-            default nahe = None;
+            default nahe: Option<Token> = None;
             scratch ja = selmaho(Ja).wf();
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![ja.value], ja.free_modifiers));
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(vec![ja.value], ja.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
-            let nai = nai_token.map(std::sync::Arc::new);
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(std::sync::Arc::new);
         }
     }
 
@@ -3609,61 +3635,71 @@ macro_rules! declare_generated_syntax_grammar {
     product joi_connective -> ConnectiveSyntax {
         context "joik";
         construct variant NonLogical;
+        model_variant JoiNonLogicalConnective;
         fields {
             field se = opt(selmaho(Se));
-            default nahe = None;
-            default na = None;
+            default nahe: Option<Token> = None;
+            default na: Option<Token> = None;
             scratch joi = selmaho(Joi).wf();
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![joi.value], joi.free_modifiers));
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(vec![joi.value], joi.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
-            let nai = nai_token.map(std::sync::Arc::new);
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(std::sync::Arc::new);
         }
     }
 
     product simple_interval_connective -> ConnectiveSyntax {
         context "interval";
         construct variant Interval;
+        model_variant SimpleIntervalConnective;
         fields {
             field se = opt(selmaho(Se));
-            default nahe = None;
-            default na = None;
+            default nahe: Option<Token> = None;
+            default na: Option<Token> = None;
             scratch bihi = selmaho(Bihi).wf();
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![bihi.value], bihi.free_modifiers));
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(vec![bihi.value], bihi.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
-            let nai = nai_token.map(std::sync::Arc::new);
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(std::sync::Arc::new);
         }
     }
 
     product closed_interval_connective -> ConnectiveSyntax {
         context "interval";
         construct variant Interval;
+        model_variant ClosedIntervalConnective;
         fields {
             scratch left_interval = selmaho(Gaho);
             field se = opt(selmaho(Se));
-            default nahe = None;
-            default na = None;
+            default nahe: Option<Token> = None;
+            default na: Option<Token> = None;
             scratch bihi = selmaho(Bihi);
             scratch nai_token = opt(cmavo(Nai));
             scratch right_interval = selmaho(Gaho).wf();
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(
                 vec![left_interval, bihi, right_interval.value],
                 right_interval.free_modifiers,
             ));
-            let nai = nai_token
-                .map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
         }
     }
 
     product vuhu_nonlogical_connective -> ConnectiveSyntax {
         context "non-logical connective";
         construct variant NonLogical;
+        model_variant VuhuNonLogicalConnective;
         fields {
-            default se = None;
-            default nahe = None;
-            default na = None;
+            default se: Option<Token> = None;
+            default nahe: Option<Token> = None;
+            default na: Option<Token> = None;
             scratch vuhu = selmaho(Vuhu).wf();
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![vuhu.value], vuhu.free_modifiers));
-            default nai = None;
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(vec![vuhu.value], vuhu.free_modifiers));
+            default nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> = None;
         }
     }
 
@@ -3743,11 +3779,13 @@ macro_rules! declare_generated_syntax_grammar {
 
     product i_standard_statement_connective(tense_modal) -> ConnectiveSyntax {
         context "statement connective";
+        construct variant IStandardStatementConnective;
         fields {
-            field connective = statement_connective;
+            field connective = boxed(statement_connective);
             field tag_bo = opt((opt(boxed(tense_modal)), cmavo(Bo).wf()));
         }
         build |connective, tag_bo| {
+            let connective = *connective;
             match tag_bo {
                 Some((tense_modal, bo)) => append_optional_tense_modal_and_bo_to_connective(connective, tense_modal, bo),
                 None => connective,
@@ -3757,11 +3795,13 @@ macro_rules! declare_generated_syntax_grammar {
 
     product i_standard_paragraph_statement_connective(tense_modal) -> ConnectiveSyntax {
         context "statement connective";
+        construct variant IStandardParagraphStatementConnective;
         fields {
-            field connective = standard_paragraph_statement_connective;
+            field connective = boxed(standard_paragraph_statement_connective);
             field tag_bo = opt((opt(boxed(tense_modal)), cmavo(Bo)));
         }
         build |connective, tag_bo| {
+            let connective = *connective;
             match tag_bo {
                 Some((tense_modal, bo)) => append_optional_tense_modal_and_bo_to_connective(
                     connective,
@@ -3783,6 +3823,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     product paragraph_jek_connective -> ConnectiveSyntax {
         context "jek";
+        construct variant ParagraphJekConnective;
         fields {
             field na = opt(selmaho(Na));
             field se = opt(selmaho(Se));
@@ -3810,55 +3851,62 @@ macro_rules! declare_generated_syntax_grammar {
     product paragraph_joi_connective -> ConnectiveSyntax {
         context "joik";
         construct variant NonLogical;
+        model_variant ParagraphJoiNonLogicalConnective;
         fields {
             field se = opt(selmaho(Se));
-            default nahe = None;
-            default na = None;
+            default nahe: Option<Token> = None;
+            default na: Option<Token> = None;
             scratch joi = selmaho(Joi);
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![joi], Vec::new()));
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(vec![joi], Vec::new()));
             scratch nai_token = opt(cmavo(Nai));
-            let nai = nai_token
-                .map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
         }
     }
 
     product paragraph_simple_interval_connective -> ConnectiveSyntax {
         context "interval";
         construct variant Interval;
+        model_variant ParagraphSimpleIntervalConnective;
         fields {
             field se = opt(selmaho(Se));
-            default nahe = None;
-            default na = None;
+            default nahe: Option<Token> = None;
+            default na: Option<Token> = None;
             scratch bihi = selmaho(Bihi);
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![bihi], Vec::new()));
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(vec![bihi], Vec::new()));
             scratch nai_token = opt(cmavo(Nai));
-            let nai = nai_token
-                .map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
         }
     }
 
     product paragraph_closed_interval_connective -> ConnectiveSyntax {
         context "interval";
         construct variant Interval;
+        model_variant ParagraphClosedIntervalConnective;
         fields {
             scratch left_interval = selmaho(Gaho);
             field se = opt(selmaho(Se));
-            default nahe = None;
-            default na = None;
+            default nahe: Option<Token> = None;
+            default na: Option<Token> = None;
             scratch bihi = selmaho(Bihi);
             scratch nai_token = opt(cmavo(Nai));
             scratch right_interval = selmaho(Gaho);
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(
                 vec![left_interval, bihi, right_interval],
                 Vec::new(),
             ));
-            let nai = nai_token
-                .map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
         }
     }
 
     product i_tag_bo_paragraph_statement_connective(tense_modal) -> ConnectiveSyntax {
         context "statement connective";
+        construct variant ITagBoParagraphStatementConnective;
         fields {
             field tense_modal = opt(boxed(tense_modal));
             field bo = cmavo(Bo);
@@ -3871,6 +3919,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     product i_tag_bo_statement_connective(tense_modal) -> ConnectiveSyntax {
         context "statement connective";
+        construct variant ITagBoStatementConnective;
         fields {
             field tense_modal = opt(boxed(tense_modal));
             field bo = cmavo(Bo).wf();
@@ -3881,42 +3930,51 @@ macro_rules! declare_generated_syntax_grammar {
     product cehe_connective -> ConnectiveSyntax {
         context "termset connective";
         construct variant NonLogical;
+        model_variant CeheNonLogicalConnective;
         fields {
-            default se = None;
-            default nahe = None;
-            default na = None;
+            default se: Option<Token> = None;
+            default nahe: Option<Token> = None;
+            default na: Option<Token> = None;
             scratch cehe = cmavo(Cehe).wf();
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![cehe.value], cehe.free_modifiers));
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(vec![cehe.value], cehe.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
-            let nai = nai_token.map(std::sync::Arc::new);
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(std::sync::Arc::new);
         }
     }
 
     product gihek_connective -> ConnectiveSyntax {
         context "gihek";
         construct variant BridiTail;
+        model_variant GihekBridiTailConnective;
         fields {
             field na = opt(selmaho(Na));
             field se = opt(selmaho(Se));
-            default nahe = None;
+            default nahe: Option<Token> = None;
             scratch giha = selmaho(Giha).wf();
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![giha.value], giha.free_modifiers));
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(vec![giha.value], giha.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
-            let nai = nai_token.map(std::sync::Arc::new);
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(std::sync::Arc::new);
         }
     }
 
     product guhek_connective -> ConnectiveSyntax {
         context "forethought selbri connective";
         construct variant Forethought;
+        model_variant GuhekForethoughtConnective;
         fields {
             field nahe = opt(selmaho(Nahe));
             field se = opt(selmaho(Se));
-            default na = None;
+            default na: Option<Token> = None;
             scratch guha = selmaho(Guha).wf();
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![guha.value], guha.free_modifiers));
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(vec![guha.value], guha.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
-            let nai = nai_token.map(std::sync::Arc::new);
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(std::sync::Arc::new);
         }
     }
 
@@ -3930,8 +3988,9 @@ macro_rules! declare_generated_syntax_grammar {
 
     product relation_connective_as_bridi_tail -> ConnectiveSyntax {
         context "bridi tail connective";
+        construct variant RelationConnectiveAsBridiTail;
         fields {
-            field connective = relation_afterthought_connective;
+            field connective = boxed(relation_afterthought_connective);
         }
         build |connective| {
             let ConnectiveSyntaxParts {
@@ -3941,7 +4000,7 @@ macro_rules! declare_generated_syntax_grammar {
                 na,
                 cmavo,
                 nai,
-            } = connective.into_parts();
+            } = (*connective).into_parts();
             ConnectiveSyntax::new(ConnectiveKind::BridiTail, se, nahe, na, cmavo, nai)
         };
     }
@@ -3968,42 +4027,48 @@ macro_rules! declare_generated_syntax_grammar {
     product ga_forethought_connective -> ConnectiveSyntax {
         context "forethought connective";
         construct variant Forethought;
+        model_variant GaForethoughtConnective;
         fields {
             field se = opt(selmaho(Se));
-            default nahe = None;
-            default na = None;
+            default nahe: Option<Token> = None;
+            default na: Option<Token> = None;
             scratch ga = selmaho(Ga).wf();
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![ga.value], ga.free_modifiers));
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(vec![ga.value], ga.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
-            let nai = nai_token.map(std::sync::Arc::new);
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(std::sync::Arc::new);
         }
     }
 
     product zantufa_initial_gi_forethought_connective -> ConnectiveSyntax {
         context "forethought connective";
+        construct variant ZantufaInitialGiForethoughtConnective;
         fields {
             field gi = cmavo(Gi).warn(ExperimentalZantufaGek).wf();
-            field tail = choice((
+            field tail = boxed(choice((
                 joik_connective(),
                 jek_connective(),
-            ));
+            )));
             field bo = opt(cmavo(Bo).wf());
         }
-        build |gi, tail, bo| build_initial_gi_forethought_connective(gi, tail, bo);
+        build |gi, tail, bo| build_initial_gi_forethought_connective(gi, *tail, bo);
     }
 
     product joik_jek_gi_forethought_connective -> ConnectiveSyntax {
         context "forethought connective";
+        construct variant JoikJekGiForethoughtConnective;
         fields {
-            field connective = joik_connective();
+            field connective = boxed(joik_connective());
             field gi = cmavo(Gi).wf();
             field bo = opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
         }
-        build |connective, gi, bo| append_gi_and_optional_bo_to_connective(connective, gi, bo);
+        build |connective, gi, bo| append_gi_and_optional_bo_to_connective(*connective, gi, bo);
     }
 
     product jek_gi_forethought_connective -> ConnectiveSyntax {
         context "forethought connective";
+        construct variant JekGiForethoughtConnective;
         fields {
             field na = opt(selmaho(Na));
             field se = opt(selmaho(Se));
@@ -4026,6 +4091,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     product modal_gi_forethought_connective(tense_modal) -> ConnectiveSyntax {
         context "forethought connective";
+        construct variant ModalGiForethoughtConnective;
         fields {
             field tense_modal = boxed(tense_modal);
             field gi = cmavo(Gi).wf();
@@ -4037,14 +4103,17 @@ macro_rules! declare_generated_syntax_grammar {
     product gik_connective -> ConnectiveSyntax {
         context "forethought connective";
         construct variant Forethought;
+        model_variant GikForethoughtConnective;
         fields {
-            default se = None;
-            default nahe = None;
-            default na = None;
+            default se: Option<Token> = None;
+            default nahe: Option<Token> = None;
+            default na: Option<Token> = None;
             scratch gi = cmavo(Gi).wf();
-            let cmavo = std::sync::Arc::new(WithFreeModifiers::new(vec![gi.value], gi.free_modifiers));
+            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
+                std::sync::Arc::new(WithFreeModifiers::new(vec![gi.value], gi.free_modifiers));
             scratch nai_token = opt(cmavo(Nai).wf());
-            let nai = nai_token.map(std::sync::Arc::new);
+            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
+                nai_token.map(std::sync::Arc::new);
         }
     }
 
@@ -5543,6 +5612,8 @@ pub(crate) mod generated_model {
             ParagraphSyntax,
             ParagraphStatementSyntax,
             StatementSyntax,
+            BridiStatementContinuationSyntax,
+            ConnectiveSyntax,
             FreeModifierSyntax,
         };
     }

@@ -31,6 +31,7 @@ mod kw {
     syn::custom_keyword!(fields);
     syn::custom_keyword!(model);
     syn::custom_keyword!(model_path);
+    syn::custom_keyword!(model_variant);
     syn::custom_keyword!(node);
     syn::custom_keyword!(policy);
     syn::custom_keyword!(product);
@@ -432,6 +433,7 @@ impl SyntaxGrammar {
             match &rule.construction {
                 ConstructionMode::NamedVariant(variant) => {
                     let fields = rule.generated_model_fields(type_env)?;
+                    let variant = rule.model_variant.as_ref().unwrap_or(variant);
                     push_generated_variant(
                         &mut enums,
                         output.to_string(),
@@ -445,6 +447,7 @@ impl SyntaxGrammar {
                 }
                 ConstructionMode::TupleVariant(variant) => {
                     let fields = rule.generated_model_fields(type_env)?;
+                    let variant = rule.model_variant.as_ref().unwrap_or(variant);
                     push_generated_variant(
                         &mut enums,
                         output.to_string(),
@@ -1176,6 +1179,7 @@ struct NodeRule {
     fields: Vec<FieldItem>,
     build: Option<ExprClosure>,
     construction: ConstructionMode,
+    model_variant: Option<Ident>,
     _recovered_build: Option<ExprClosure>,
 }
 
@@ -2399,6 +2403,7 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
     let mut fields = Vec::new();
     let mut build = None;
     let mut construction = ConstructionMode::Validated;
+    let mut model_variant = None;
     let mut recovered_build = None;
     while !content.is_empty() {
         if content.peek(kw::context) {
@@ -2421,6 +2426,10 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
                     .error("expected `direct`, `variant`, or `tuple_variant` construction mode"));
             }
             content.parse::<Token![;]>()?;
+        } else if content.peek(kw::model_variant) {
+            content.parse::<kw::model_variant>()?;
+            model_variant = Some(content.parse()?);
+            content.parse::<Token![;]>()?;
         } else if content.peek(kw::fields) {
             fields = parse_fields_block(&content)?;
         } else if content.peek(kw::build) {
@@ -2433,7 +2442,7 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
             content.parse::<Token![;]>()?;
         } else {
             return Err(content.error(
-                "expected `context`, `construct`, `fields`, `build`, or `recovered_build`",
+                "expected `context`, `construct`, `model_variant`, `fields`, `build`, or `recovered_build`",
             ));
         }
     }
@@ -2446,6 +2455,7 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
         fields,
         build,
         construction,
+        model_variant,
         _recovered_build: recovered_build,
     })
 }
