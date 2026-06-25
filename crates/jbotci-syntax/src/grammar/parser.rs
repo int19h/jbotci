@@ -460,14 +460,26 @@ fn statement_parser<'tokens>(
             source,
         ),
     ));
-    let fiho_tense_modal_with_full_selbri = fiho_tense_modal_with_selbri(selbri.clone())
+    let fiho_tense_modal_with_full_selbri_atom = fiho_tense_modal_with_selbri(selbri.clone())
         .map(Box::new)
         .boxed();
-    let term_tense_modal_boxed = choice((
-        fiho_tense_modal_with_full_selbri.clone(),
-        tense_modal_boxed(),
+    let term_tense_modal_atom = choice((
+        fiho_tense_modal_with_full_selbri_atom.clone(),
+        tense_modal_atom_boxed(),
     ))
     .boxed();
+    let term_tense_modal_boxed = connected_tense_modal_boxed_from_first_and_atom(
+        term_tense_modal_atom.clone(),
+        term_tense_modal_atom,
+    );
+    let fiho_tense_modal_with_full_selbri = connected_tense_modal_boxed_from_first_and_atom(
+        fiho_tense_modal_with_full_selbri_atom.clone(),
+        choice((
+            fiho_tense_modal_with_full_selbri_atom,
+            tense_modal_atom_boxed(),
+        ))
+        .boxed(),
+    );
     let leading_term_tag_tense_modal = choice((
         fiho_tense_modal_with_full_selbri.clone(),
         leading_term_tag_tense_modal_boxed(),
@@ -8354,6 +8366,23 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
 #[ensures(true)]
 fn tense_modal_boxed<'tokens>() -> BoxedParser<'tokens, BoxedTenseModalSyntax> {
     let atom = tense_modal_atom_boxed();
+    connected_tense_modal_boxed_from_first_and_atom(atom.clone(), atom)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connected_tense_modal_boxed_from_first_and_atom<'tokens, F, A>(
+    first: F,
+    atom: A,
+) -> BoxedParser<'tokens, BoxedTenseModalSyntax>
+where
+    F: Parser<'tokens, ParserInput<'tokens>, BoxedTenseModalSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+    A: Parser<'tokens, ParserInput<'tokens>, BoxedTenseModalSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
     let continuations = syntax_label(
         "connected tag",
         choice((joik_connective(), jek_connective()))
@@ -8362,7 +8391,7 @@ fn tense_modal_boxed<'tokens>() -> BoxedParser<'tokens, BoxedTenseModalSyntax> {
             .at_least(1)
             .collect::<Vec<_>>(),
     );
-    atom.clone()
+    first
         .then(continuations.or_not().map(Option::unwrap_or_default))
         .map(|(first, continuations)| combine_connected_boxed_tense_modals(first, continuations))
         .boxed()

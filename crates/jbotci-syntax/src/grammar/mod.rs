@@ -592,6 +592,27 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn parses_connected_fiho_tags_as_one_tagged_term() {
+        run_on_normal_stack(|| {
+            let words =
+                segment_words_with_modifiers(".e'a casnu fi'o selsnu ja fi'o bangu la lojban")
+                    .expect("valid morphology");
+
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let raw = format!("{:?}", parsed.parse_tree);
+
+            assert_eq!(raw.matches("TaggedSumti").count(), 1);
+            assert!(raw.contains("Composite"));
+            assert!(raw.contains("sél"));
+            assert!(raw.contains("snu"));
+            assert!(raw.contains("bángu"));
+            assert!(!raw.contains("TermConnection"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn keeps_i_connectives_out_of_tail_terms() {
         run_on_normal_stack(|| {
             let raw = parse_tree_debug("mi ca pilno .ije ca'o nelci", &ParseOptions::default());
