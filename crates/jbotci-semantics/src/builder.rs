@@ -654,6 +654,7 @@ where
     utterance_roles: HashMap<SemanticObjectId, UtteranceRoles>,
     deictic_context_roles: UtteranceRoles,
     current_utterance_roles: UtteranceRoles,
+    explicit_prenex_depth: usize,
 }
 
 impl<'analysis, 'tree, 'resolver, F, R> GraphBuilder<'analysis, 'tree, 'resolver, F, R>
@@ -698,6 +699,7 @@ where
             utterance_roles: HashMap::new(),
             deictic_context_roles: UtteranceRoles::first_utterance_defaults(),
             current_utterance_roles: UtteranceRoles::first_utterance_defaults(),
+            explicit_prenex_depth: 0,
         };
         builder.insert_deictic_referents();
         builder
@@ -1884,7 +1886,11 @@ where
                 inner_statement,
                 ..
             }) => {
-                let id = self.build_statement(inner_statement, truth_question)?;
+                let previous_prenex_depth = self.explicit_prenex_depth;
+                self.explicit_prenex_depth += 1;
+                let result = self.build_statement(inner_statement, truth_question);
+                self.explicit_prenex_depth = previous_prenex_depth;
+                let id = result?;
                 self.apply_prenex_terms_to_discourse_item(id, prenex_terms)?;
                 Ok(id)
             }
@@ -2460,15 +2466,85 @@ where
     fn wrap_bridi_formula_with_quantified_pro_sumti(
         &mut self,
         bridi: &'tree BridiSyntax,
-        formula: SemanticObjectId,
+        mut formula: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let mut scopes = if let Some(eventuality) = self.primary_eventuality_for_formula(formula) {
+        let mut scopes =
+            self.quantified_pro_sumti_scopes_for_bridi_with_event_context(bridi, formula)?;
+        if !scopes.is_empty()
+            && let Some((scope, child)) =
+                self.take_front_prenex_sentence_negation_scope_for_bridi(bridi, formula)
+        {
+            formula = child;
+            scopes.insert(0, scope);
+            return self.wrap_bridi_formula_with_scopes_and_bare_da(formula, scopes);
+        }
+        self.wrap_bridi_formula_with_scopes_and_bare_da(formula, scopes)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_none_or(|(_, child)| child.object_kind() == crate::model::SemanticObjectKind::Formula))]
+    fn take_front_prenex_sentence_negation_scope_for_bridi(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        formula: SemanticObjectId,
+    ) -> Option<(PrenexFormulaScope, SemanticObjectId)> {
+        if self.explicit_prenex_depth != 0 {
+            return None;
+        }
+        let selbri = main_selbri_for_tail(&bridi.bridi_tail)?;
+        let data!(SelbriSyntax::Negated { .. }) = selbri.as_data() else {
+            return None;
+        };
+        let object = self.objects.get(&formula)?;
+        let operator = bridi_negation_operator_for_selbri(selbri);
+        if operator != FormulaOperator::Not {
+            return None;
+        }
+        let Some(semantic_operator) = object.operator.as_ref() else {
+            return None;
+        };
+        if !matches!(
+            semantic_operator.as_data(),
+            SemanticOperatorData::Formula(actual) if *actual == operator
+        ) || object.children.len() != 1
+        {
+            return None;
+        }
+        let child = object.children[0];
+        self.objects.remove(&formula);
+        self.content_eventualities.remove(&formula);
+        Some((
+            PrenexFormulaScope::Negation {
+                source: self.source_for_selbri(selbri, bridi_negation_source_construct(operator)),
+            },
+            child,
+        ))
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|scopes| scopes.iter().all(|scope| prenex_formula_scope_variable(scope).is_none_or(|variable| variable.object_kind() == crate::model::SemanticObjectKind::Referent || variable.object_kind() == crate::model::SemanticObjectKind::Parameter))) || ret.is_err())]
+    fn quantified_pro_sumti_scopes_for_bridi_with_event_context(
+        &mut self,
+        bridi: &'tree BridiSyntax,
+        formula: SemanticObjectId,
+    ) -> Result<Vec<PrenexFormulaScope>, SemanticsError> {
+        let scopes = if let Some(eventuality) = self.primary_eventuality_for_formula(formula) {
             self.with_temporal_context(eventuality, |builder| {
                 builder.quantified_pro_sumti_scopes_for_bridi(bridi)
             })?
         } else {
             self.quantified_pro_sumti_scopes_for_bridi(bridi)?
         };
+        Ok(scopes)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn wrap_bridi_formula_with_scopes_and_bare_da(
+        &mut self,
+        formula: SemanticObjectId,
+        mut scopes: Vec<PrenexFormulaScope>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let mut scoped_variables = scopes
             .iter()
             .filter_map(|scope| match scope {
@@ -12357,7 +12433,11 @@ where
                 inner_subbridi,
                 ..
             }) => {
-                let Some(formula) = self.build_subbridi_formula(inner_subbridi)? else {
+                let previous_prenex_depth = self.explicit_prenex_depth;
+                self.explicit_prenex_depth += 1;
+                let result = self.build_subbridi_formula(inner_subbridi);
+                self.explicit_prenex_depth = previous_prenex_depth;
+                let Some(formula) = result? else {
                     return Ok(None);
                 };
                 self.wrap_formula_with_prenex_terms(formula, prenex_terms)
@@ -28272,6 +28352,50 @@ mod tests {
         let exists = object(&json, exists_id);
         assert_eq!(exists["operator"], "exists");
         assert_eq!(exists["variable"], "referent:r1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sentence_na_scopes_before_implicit_argument_quantifiers() {
+        let json = semantic_json_for("ro da na broda").expect("semantic JSON");
+        let root = root_object(&json);
+        let negation = object(&json, root["content"].as_str().expect("root content"));
+        assert_eq!(negation["operator"], "not");
+        let universal = object(
+            &json,
+            negation["children"][0]
+                .as_str()
+                .expect("negation child formula"),
+        );
+        assert_eq!(universal["operator"], "forall");
+        assert_eq!(universal["variable"], "referent:r1");
+
+        let json = semantic_json_for("ro da su'o de na broda").expect("semantic JSON");
+        let root = root_object(&json);
+        let negation = object(&json, root["content"].as_str().expect("root content"));
+        assert_eq!(negation["operator"], "not");
+        let universal = object(
+            &json,
+            negation["children"][0].as_str().expect("outer quantifier"),
+        );
+        assert_eq!(universal["operator"], "forall");
+        let cardinality = object(&json, universal["body"].as_str().expect("inner quantifier"));
+        assert_eq!(cardinality["operator"], "cardinality");
+        assert_eq!(cardinality["variable"], "referent:r2");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sentence_na_inside_explicit_prenex_body_stays_inside_prenex_scope() {
+        let json = semantic_json_for("ro da zo'u da na broda").expect("semantic JSON");
+        let root = root_object(&json);
+        let universal = object(&json, root["content"].as_str().expect("root content"));
+        assert_eq!(universal["operator"], "forall");
+        assert_eq!(universal["variable"], "referent:r1");
+        let negation = object(&json, universal["body"].as_str().expect("prenex body"));
+        assert_eq!(negation["operator"], "not");
     }
 
     #[test]
