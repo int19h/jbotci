@@ -172,7 +172,10 @@ described addressee when the vocative supplies one.  Self-identification
 vocatives such as `mi'e .djan.` use the introduced name referent as their
 `content` and set that referent's `target` to `referent:speaker`.  Bare-selbri
 vocatives such as `coi xunre pastu nixli` target an implicit speaker
-description, equivalent in force to `coi le xunre pastu nixli`.
+description, equivalent in force to `coi le xunre pastu nixli`.  The vocative
+selbri is still a full selbri: tanru, linkargs, conversion, scalar negation, and
+other selbri structure are lowered through the ordinary selbri-body path, not
+flattened to a text label.
 
 The v0 prelude treated quotations as functions of speaker and addressee.  The
 JSON model keeps that insight by making quoted text a nested utterance with its
@@ -1242,7 +1245,7 @@ relation.
   "sort": "concept",
   "composition": {
     "operator": "mass",
-    "members": ["abstraction:a-blue", "abstraction:a-red"],
+    "members": ["referent:r-blue-property", "referent:r-red-property"],
     "collective": true
   }
 }
@@ -1395,6 +1398,57 @@ target place contains the parameter:
   "mode": "performative"
 }
 ```
+
+### selbri-derived relation bodies
+
+Some grammar productions consume a selbri as the content of another construct
+rather than as the ordinary main bridi-tail.  These constructs still receive
+the same semantic lowering as any other selbri: tanru, `co`, `bo`, `ke`, SE
+conversion, JAI, NAhE, linkargs, NU/ME/NUhA-derived units, logical and
+non-logical selbri connectives, elided `zo'e`, deleted `zi'o`, and dictionary
+place structure must survive structurally.  Do not introduce a raw
+syntax-shaped `selbriExpression` object, and do not collapse complex selbri to
+text labels or compound relation strings.
+
+The relevant wrappers are:
+
+- `(LA | LE) ... selbri` and `quantifier selbri`, which build descriptions,
+  names, and bare quantified sumti.
+- Bare-selbri vocatives, which CLL 6.11 treats as implicit `le` descriptions
+  of the addressee.
+- `FIhO selbri FEhU`, which builds an ad-hoc modal body.
+- `NAhU selbri TEhU`, which builds a selbri-derived mekso operator.
+- `NIhE selbri TEhU`, which builds a selbri-derived mekso operand.
+- `SEI [terms [CU]] selbri SEhU`, which is a metalinguistic bridi with a
+  restricted surface syntax but ordinary predication semantics.
+
+The wrapper determines how the visible x1 or output value is supplied:
+
+- `le broda` uses the structural `skicu(speaker, referent, audience,
+  ka ce'u broda)` characterization; `broda` is inside the `ka` body, not
+  predicated directly of the described referent.
+- `la broda` uses the analogous `cmene(sign, referent, namer)` clause.  The
+  sign preserves the name text and may point at the lowered selbri relation
+  body as its meaning; the named referent is not asserted to satisfy `broda`.
+- A bare-selbri vocative uses the same description body as `le <selbri>`, with
+  the resulting referent serving as the vocative audience.
+- `fi'o <selbri> <sumti>` fills the tagged selbri's visible x1 with the modal
+  sumti and attaches that subordinate body as the host predication's modal
+  argument.
+- `na'u <selbri>` builds a typed math operator whose result place is the
+  selbri's visible x1 and whose later unfilled places are operands.
+- `ni'e <selbri>` builds a typed math operand from the selbri's output value.
+  When the selbri explicitly yields an amount, as in `ni'e ni clani`, the
+  operand denotes that quantity output; otherwise the result slot and body must
+  still be represented structurally rather than as opaque text.
+- `sei ... <selbri>` builds a nested metalinguistic utterance or aside whose
+  content is the lowered bridi body.
+
+When a wrapper needs a relation-valued object rather than an immediate
+predication body, use a relation-sorted referent with `relationKind = "selbri"`,
+`parameters`, `arity`, and `body`.  This is the direct relation-output analogue
+of `ka`, but it records that the relation came from a bare selbri wrapper rather
+than from an explicit abstraction cmavo.
 
 ### predication
 
@@ -1654,16 +1708,28 @@ for Lojban applies to the speaker component and the `bau` modal for English
 applies to the addressee component.  Without `component`, the two language
 modals would incorrectly describe the whole mass uniformly.
 
-Ad-hoc modal tags with `fi'o` use the tagged selbri's relation and public place
-structure.  The modal sumti fills the tag relation's visible x1, after
-conversion if any, and any dictionary-known omitted places are explicit
-`elided` fillers.  Thus `fi'o kanla le zunle` records a `kanla` modal relation
-with `x1 = le zunle` and elided `x2`, while `fi'o se pilno le zunle kanla`
-records a `pilno` modal relation with the tool in `x2` and elided `x1`/`x3`.
+A modal entry has either a lexical modal `relation` plus structured
+`arguments`, or a full modal `body` formula.  BAI-derived tags normally use the
+lexical relation shape because their source relation is fixed by the marker.
+`fi'o` uses the `body` shape because its source is an arbitrary selbri whose
+tanru structure, linkargs, conversion, and other selbri-internal semantics must
+remain visible.  This is true even when the source selbri is a single brivla:
+`fi'o kanla` still contributes a modal predication body with every known
+`kanla` place explicit, not a relation-string shorthand.
+
+Ad-hoc modal tags with `fi'o` take a full selbri body.  The modal entry uses
+`body` to point at a subordinate formula for that tagged selbri; the following
+modal sumti fills the selbri's visible x1 after conversion, `be`/`bei` linkargs
+fill the places they govern, and all other dictionary-known omitted places are
+explicit `elided` fillers.  Thus `fi'o kanla le zunle` contains a modal body
+with `kanla(x1 = le zunle, x2 = zo'e)`, while `fi'o se pilno le zunle kanla`
+contains a modal body with raw `pilno` x2 filled by the tool and x1/x3 elided.
+For tanru such as `fi'o melbi kanla`, the body uses the normal tanru schema
+rather than a flat relation string such as `"melbi kanla"`.
 
 Modal tags before a selbri, as in `mi bai tavla` and `mi fi'o kanla fe'u viska
 do`, also appear in `modalArguments` on the affected predication.  Because
-there is no explicit modal sumti, the tag relation's visible modal place is an
+there is no explicit modal sumti, the tag body's visible modal place is an
 `elided` filler, and all other dictionary-known places of the tag relation are
 also explicit elisions.  This preserves the CLL 9.9 "modal selbri" reading
 without inventing a compeller, tool, eye, or other participant.
@@ -2215,12 +2281,14 @@ For `ta cinfo kerfa`:
 
 ```json
 {
-  "type": "abstraction",
-  "kind": "property",
-  "introducedBy": "ka",
-  "parameters": ["parameter:ceu1"],
-  "arity": 1,
-  "body": "formula:f-cinfo-property"
+  "referent:r-cinfo-property": {
+    "type": "referent",
+    "sort": "relation",
+    "abstractionKind": "property",
+    "parameters": ["parameter:ceu1"],
+    "arity": 1,
+    "body": "formula:f-cinfo-property"
+  }
 }
 ```
 
@@ -2230,12 +2298,12 @@ For `ta cinfo kerfa`:
   "relation": "tanru",
   "tanruLink": {
     "head": "predication:p-kerfa",
-    "modifier": "abstraction:a-cinfo-property",
+    "modifier": "referent:r-cinfo-property",
     "relationLabel": "cinfo-kerfa"
   },
   "arguments": {
     "x1": { "kind": "filled", "value": "referent:that" },
-    "x2": { "kind": "filled", "value": "abstraction:a-cinfo-property" }
+    "x2": { "kind": "filled", "value": "referent:r-cinfo-property" }
   },
   "mode": "asserted"
 }
@@ -2364,50 +2432,108 @@ not the outer `cusku` bridi.
 
 ### abstraction
 
-An abstraction reifies a formula, predication, eventuality, property, amount,
-truth value, proposition, concept, or experience.
+An abstractor reifies the embedded bridi as an object of the abstractor's
+output sort.  The public JSON does **not** wrap that output in a separate
+`abstraction` object.  The output object itself carries the embedded formula,
+the abstractor kind, any bound parameters, and any real extra abstractor
+places.
+
+This avoids the older indirection:
+
+```text
+referent:r1 --eventOf--> abstraction:a1 --body--> formula:f1
+```
+
+where `abstraction:a1` only repeated the output kind and pointed at the body
+formula.  That shape also produced two unconnected event-like objects for
+`lo nu brode`: the inner predication's eventuality and the described
+`referent:r1`.  In the direct shape, `nu` and the aktionsart abstractors
+produce the eventuality object that the embedded predication is about.
+
+For event abstractors, the output is an `eventuality` object.  Its `class`
+records the CLL 11.13 event type:
+
+- `event` for broad `nu`, in the CLL sense that includes states, processes,
+  activities, and point-events;
+- `achievement` for `mu'e`;
+- `process` for `pu'u`;
+- `activity` for `zu'o`;
+- `state` for `za'i`.
+
+Every full predication still has an eventuality slot.  A bare bridi uses the
+broad `event` class unless a more specific construction reifies that bridi
+through `za'i`, `pu'u`, `zu'o`, or `mu'e`.  The distinction between a bare bridi
+and `nu broda` is therefore not the existence or broad class of the eventuality;
+it is that `nu broda` makes that eventuality available as a sumti value.
+
+For example, `lo nu do klama` can denote the same eventuality that fills the
+embedded `klama` predication's event slot:
 
 ```json
 {
-  "type": "abstraction",
-  "kind": "event",
-  "introducedBy": "nu",
-  "body": "formula:f-inner",
-  "abstracted": "eventuality:e-inner"
+  "eventuality:e-going": {
+    "type": "eventuality",
+    "class": "event",
+    "content": "formula:f-going",
+    "descriptor": {
+      "kind": "veridicalDescription",
+      "word": "lo"
+    },
+    "source": { "text": "lo nu do klama", "construct": "description" }
+  },
+  "predication:p-going": {
+    "type": "predication",
+    "eventuality": "eventuality:e-going",
+    "relation": "klama",
+    "arguments": {
+      "x1": { "kind": "filled", "value": "referent:addressee" }
+    },
+    "mode": "inert"
+  }
 }
 ```
 
-`kind` values include:
+When a bridi is reified under multiple connected event abstractors, each
+abstractor branch may have its own inert body formula and eventuality object,
+because `pu'u broda` and `za'i broda` are different views of the bridi.  Do not
+force one eventuality object to carry mutually exclusive event-type classes.
 
-- `event`
-- `achievement`
-- `process`
-- `activity`
-- `state`
-- `property`
-- `amount`
-- `truthValue`
-- `proposition`
-- `sentenceSign`
-- `concept`
-- `experience`
-- `unspecified`
+For non-event abstractors, the output is an object of the appropriate sort with
+the body formula directly attached:
 
-Property abstractions use `parameters`:
+| abstractor | output sort | required fields |
+| --- | --- | --- |
+| `ka` | `relation` | `abstractionKind:"property"`, `body`, `parameters`, `arity` |
+| `ni` | `quantity` | `abstractionKind:"amount"`, `body`, optional `scale` |
+| `jei` | `truthValue` | `abstractionKind:"truthValue"`, `body`, optional `epistemology` |
+| `du'u` | `proposition` | `abstractionKind:"proposition"`, `body`, optional `expressedBy` |
+| `si'o` | `concept` | `abstractionKind:"concept"`, `body`, optional `mind` |
+| `li'i` | `eventuality` | `abstractionKind:"experience"`, `body`, optional `experiencer` |
+| `su'u` | `unspecified` abstraction output | `abstractionKind:"unspecified"`, `body` |
+
+The implementation may initially represent proposition, truth-value, relation,
+concept, experience, and unspecified abstraction outputs as `referent` objects
+with the listed `sort`.  What is normative is that the body and extra places
+live on that output object, not on a separate `abstraction` wrapper reached
+through a constructed link predication.
+
+Property outputs use `parameters`:
 
 ```json
 {
-  "type": "abstraction",
-  "kind": "property",
-  "introducedBy": "ka",
-  "parameters": ["parameter:ceu1"],
-  "arity": 1,
-  "body": "formula:f-property"
+  "referent:r-property": {
+    "type": "referent",
+    "sort": "relation",
+    "abstractionKind": "property",
+    "parameters": ["parameter:ceu1"],
+    "arity": 1,
+    "body": "formula:f-property"
+  }
 }
 ```
 
 For `ka`, each distinct `ce'u` introduces a distinct parameter.  The
-abstraction's `arity` is the number of distinct `ce'u` parameters: one `ce'u`
+output's `arity` is the number of distinct `ce'u` parameters: one `ce'u`
 is a one-place property, two `ce'u` form a two-place relation, and so on.
 When a `ka` abstraction has no explicit `ce'u`, CLL 11.4 treats the first
 unfilled surface place as an implicit property focus.  Emit the same kind of
@@ -2437,8 +2563,9 @@ Surface place order matters after conversion: `ka se risna` fills the raw
     },
     "mode": "restrictive"
   },
-  "abstraction:a1": {
-    "type": "abstraction",
+  "referent:r-property": {
+    "type": "referent",
+    "sort": "relation",
     "abstractionKind": "property",
     "parameters": ["parameter:p1"],
     "arity": 1,
@@ -2450,112 +2577,69 @@ Surface place order matters after conversion: `ka se risna` fills the raw
 `ke'a` is different: it reuses the relative-clause head rather than introducing
 fresh independent parameters.
 
-A referent over an abstraction takes the sort of the abstraction's output:
-`nu` and the aktionsart NU produce `eventuality`, `ka` produces `relation`,
-`du'u` produces `proposition`, `jei` produces `truthValue`, and `ni` produces
-`quantity`.
+Additional CLL surface places are fields or arguments on the output object.
+They are **not** shifted through an artificial x2 occupied by an abstraction
+wrapper.  CLL 11.13 gives these extra places:
 
-When a description is headed by a NU abstraction, the described referent is the
-abstraction output rather than an ordinary entity.  The descriptor body links
-the referent to a first-class `abstraction` object with a constructed relation.
-The link relation uses x1 for the described referent and x2 for the
-`abstraction` object.  If the abstractor has additional CLL surface places,
-those places are shifted after the abstraction object.  For example, the x2
-experiencer of `li'i`, x2 mind of `si'o`, and x2 type of `su'u` appear as x3
-on `experienceOf`, `conceptOf`, and `abstractionOf`.
+- `ni` x2, the measurement scale, appears as `scale` on the quantity output.
+- `jei` x2, the epistemology, appears as `epistemology` on the truth-value
+  output.
+- `li'i` x2, the experiencer, appears as `experiencer` on the experience
+  output.
+- `si'o` x2, the mind, appears as `mind` on the concept output.
+- `du'u` x2, the sentence or text expressing the bridi, appears as
+  `expressedBy` on the proposition output.
 
-- `eventOf` for `nu`
-- `achievementOf` for `mu'e`
-- `processOf` for `pu'u`
-- `activityOf` for `zu'o`
-- `stateOf` for `za'i`
-- `propertyOf` for `ka`
-- `amountOf` for `ni`
-- `truthValueOf` for `jei`
-- `propositionOf` for `du'u`
-- `conceptOf` for `si'o`
-- `experienceOf` for `li'i`
-- `abstractionOf` for generic or currently unspecified NU forms
+CLL 11.13 gives no extra x2 for `su'u`; do not fabricate one.
 
-Connected abstractors, as in `pu'u jenai za'i`, produce a connected formula in
-the description body.  Each branch keeps its own first-class `abstraction`
-object and type-specific constructed link.  Logical negation on the connective
-wraps the affected branch with a formula whose `operator` is `not`; the
-connective formula records `connector.locus = "abstraction"` and preserves the
-surface connector text such as `je nai`.
+Connected abstractors, as in `pu'u jenai za'i`, produce a connected formula
+over the direct output objects.  Logical negation on the connective wraps the
+affected branch with a formula whose `operator` is `not`; the connective
+formula records `connector.locus = "abstraction"` and preserves the surface
+connector text such as `je nai`.
 
 `du'u` also has a CLL-defined x2 for the sentence or text expressing the
-predication.  A description headed by `se du'u` therefore does not describe the
-proposition itself; it describes a `text` referent whose descriptor body links
-that text to the embedded proposition abstraction with `sentenceExpresses`.
-For example, `le se du'u mi klama` has a described text as x1 of
-`sentenceExpresses`, and the proposition abstraction as x2.
+predication.  A description headed by `se du'u` therefore describes the text or
+sentence sign that expresses the embedded proposition.  The described text's
+descriptor points to the proposition output as its operand or uses the
+`sentenceExpresses` relation when a predication is needed for a restrictive
+description; no separate proposition abstraction wrapper is introduced.
 
 For example, after `mi klama le zarci`, `le si'o mi go'i` describes a concept
-whose abstraction body is the inert expanded `klama` formula:
+whose body is the inert expanded `klama` formula:
 
 ```json
 {
   "referent:r-concept": {
     "type": "referent",
     "sort": "concept",
+    "abstractionKind": "concept",
+    "body": "formula:f-going",
+    "mind": {
+      "kind": "elided",
+      "value": "referent:r-mind",
+      "introducedBy": "zo'e"
+    },
     "descriptor": {
       "kind": "speakerDescription",
-      "word": "le",
-      "body": "formula:f-concept-link"
+      "word": "le"
     }
-  },
-  "formula:f-concept-link": {
-    "type": "formula",
-    "operator": "atom",
-    "predication": "predication:p-concept-link"
-  },
-  "predication:p-concept-link": {
-    "type": "predication",
-    "relation": "conceptOf",
-    "arguments": {
-      "x1": { "kind": "filled", "value": "referent:r-concept" },
-      "x2": { "kind": "filled", "value": "abstraction:a-going" },
-      "x3": {
-        "kind": "elided",
-        "value": "referent:r-mind",
-        "introducedBy": "zo'e"
-      }
-    },
-    "mode": "restrictive"
-  },
-  "abstraction:a-going": {
-    "type": "abstraction",
-    "abstractionKind": "concept",
-    "body": "formula:f-going"
   }
 }
 ```
 
-The same constructed relation is used when a NU abstraction is used directly as
-a selbri.  Thus `nu mi klama le zarci` asserts an elided eventuality x1 and
-links it to the embedded inert bridi with `eventOf`:
+When a NU abstraction is used directly as a selbri, a predication shape may
+still be required by the grammar.  In that case the x1 is the direct
+abstraction output object, and the body remains attached to that object rather
+than to a wrapper:
 
 ```json
 {
-  "referent:r-event": {
-    "type": "referent",
-    "sort": "eventuality",
-    "descriptor": { "kind": "elided", "word": "zo'e x1" }
-  },
-  "predication:p-event-of": {
-    "type": "predication",
-    "relation": "eventOf",
-    "arguments": {
-      "x1": { "kind": "elided", "value": "referent:r-event", "introducedBy": "zo'e" },
-      "x2": { "kind": "filled", "value": "abstraction:a-going" }
-    },
-    "mode": "asserted"
-  },
-  "abstraction:a-going": {
-    "type": "abstraction",
-    "abstractionKind": "event",
-    "body": "formula:f-going"
+  "eventuality:e-going": {
+    "type": "eventuality",
+    "class": "event",
+    "content": "formula:f-going",
+    "source": { "text": "nu mi klama le zarci", "construct": "abstraction" }
   }
 }
 ```
@@ -2563,43 +2647,26 @@ links it to the embedded inert bridi with `eventOf`:
 When such a NU abstraction is the seltau of a tanru, the seltau property
 abstracts over the same output sort.  For `nu sonci kei djica`, the tertau
 `djica` remains the asserted predication.  The tanru modifier is a property
-whose parameter is an eventuality and whose body is restrictive
-`eventOf(ce'u, abstraction(event, sonci(...)))`.
+whose parameter is an eventuality and whose body is the direct embedded
+eventuality output with `content` pointing at the inert `sonci` formula.
 
-The more specific event abstractors use the same constructed-link pattern with
-type-specific relation names.  Because the constructed relation reserves x2 for
-the embedded abstraction object, additional CLL surface places are shifted one
-position in the link relation.  Thus `pu'u` and `zu'o` expose their surface x2
-as `processOf`/`activityOf` x3, and `su'u ... kei be lo fasnu` fills
-`abstractionOf` x3 with the type referent described by `lo fasnu`:
+The more specific event abstractors use the direct-output pattern with
+type-specific classes.  Thus `pu'u` exposes its surface x2 as a `stages` field
+or equivalent argument on the process eventuality:
 
 ```json
 {
-  "type": "predication",
-  "relation": "processOf",
-  "arguments": {
-    "x1": { "kind": "filled", "value": "referent:r-process" },
-    "x2": { "kind": "filled", "value": "abstraction:a-process-body" },
-    "x3": {
+  "eventuality:e-process": {
+    "type": "eventuality",
+    "class": "process",
+    "content": "formula:f-body",
+    "stages": {
       "kind": "elided",
       "value": "referent:r-stages",
       "introducedBy": "zo'e"
     }
   },
-  "mode": "restrictive"
-}
-```
-
-```json
-{
-  "type": "predication",
-  "relation": "abstractionOf",
-  "arguments": {
-    "x1": { "kind": "filled", "value": "referent:r-nature" },
-    "x2": { "kind": "filled", "value": "abstraction:a-nature-body" },
-    "x3": { "kind": "filled", "value": "referent:r-type" }
-  },
-  "mode": "restrictive"
+  "formula:f-body": { "type": "formula", "operator": "atom" }
 }
 ```
 
@@ -2621,17 +2688,18 @@ itself records the focus parameter and any presupposed answer:
 
 ```json
 {
-  "type": "abstraction",
-  "kind": "proposition",
-  "introducedBy": "du'u",
+  "type": "referent",
+  "sort": "proposition",
+  "abstractionKind": "proposition",
   "body": "formula:f-known",
   "embeddedQuestions": ["question:q-who"]
 }
 ```
 
-The earlier model already had `RFY`; the amendment here is to make the
-abstraction kinds and question focus explicit in JSON fields so that `kau` is
-not lost.
+The earlier model used `RFY`/`abstraction` as a wrapper.  The current public
+JSON keeps the reification content but places it on the output object itself,
+so `kau`, `ce'u`, scale, mind, experiencer, and expressed-by information are
+not lost and the graph does not contain an otherwise-semantic-empty wrapper.
 
 ### sign
 
@@ -2678,8 +2746,9 @@ payload.  This is distinct from `source.text`, which is only provenance:
 }
 ```
 
-Math-expression signs use the same `text` payload plus `denotes` for the
-structured expression:
+Signs whose surface text has structured semantic content may use `denotes` to
+point at that content.  Math-expression signs use the same `text` payload plus
+`denotes` for the structured expression:
 
 ```json
 {
@@ -2689,6 +2758,12 @@ structured expression:
   "denotes": "math:m-plus"
 }
 ```
+
+Selbri-based name signs, as in `la gleki` or `la melbi kanla`, likewise
+preserve the displayed name text while `denotes` points at the lowered
+selbri-derived relation output.  The `cmene` clause uses the sign as x1 and the
+named referent as x2; the denoted relation is not thereby asserted of the named
+referent.
 
 Standalone logical or non-logical connectives used as answers are signs with
 `kind = "connective"`.  Without discourse context, the sign records the
@@ -3025,19 +3100,23 @@ without losing the semantic object that supplies the operand value.
 
 When a mekso operand is a selbri introduced by `ni'e`, use a math-expression
 leaf whose literal marks the conversion and whose `denotes` field points at the
-semantic abstraction supplied by that selbri when one is explicit:
+direct semantic output supplied by that selbri when one is explicit.  The
+wrapped selbri is still lowered structurally by the shared selbri-wrapper rule:
+`ni'e ni clani` denotes the amount output, while a non-abstraction selbri must
+preserve the predication body that constrains its result slot rather than
+collapsing to opaque text.
 
 ```json
 {
-  "abstraction:a-length": {
-    "type": "abstraction",
+  "quantity:q-length": {
+    "type": "quantity",
     "abstractionKind": "amount",
     "body": "formula:f-clani"
   },
   "math:m1": {
     "type": "mathExpression",
     "literal": { "kind": "selbriOperand", "value": "ni'e" },
-    "denotes": "abstraction:a-length"
+    "denotes": "quantity:q-length"
   }
 }
 ```
@@ -3901,14 +3980,17 @@ These are the semantic object-model changes relative to
     conjunction shape is used with one atom per concrete predication, and
     unmentioned places remain shared bridi-level elisions.
 
-66. Changed modal arguments from one filler to a place map.
+66. Changed modal arguments from one filler to a place map. **Refined by
+    amendment 40 and issue #126 for `fi'o`.**
     CLL 9.5 says `fi'o kanla le zunle` makes the modal sumti fill x1 of
     `kanla`, and `fi'o se pilno le zunle kanla` makes it fill x2 of `pilno`.
     A single `argument` field could preserve the modal sumti but not the tag
     relation's place structure, conversion, or omitted non-x1 places.  Modal
-    entries now use `arguments`, the same numbered argument map as predications;
-    ad-hoc `fi'o` entries use the tagged selbri relation, conversion-aware
-    visible x1 routing, and explicit elided fillers for known remaining places.
+    entries were extended to use `arguments`, the same numbered argument map as
+    predications.  Current normative form keeps that map for fixed lexical BAI
+    tags; ad-hoc `fi'o` entries use a full modal `body` formula so even a
+    one-brivla tag such as `fi'o kanla` is represented as a subordinate
+    predication body with explicit places, not as a relation-string shorthand.
 
 67. Use source relations for BAI modal tags.
     CLL 9.6 defines BAI tags through the place structures of corresponding
@@ -4262,7 +4344,8 @@ These are the semantic object-model changes relative to
      `assertionEffect = "hostSubordinated"`.  No separate truth-bearing
      predicate is added for the attitude.
 
-104. Lowered NU-as-selbri through abstraction links.
+104. Lowered NU-as-selbri through abstraction links. **Superseded by
+     amendment 27's direct-output rule.**
      CLL 11.1 says abstraction selbri have ordinary selbri uses, while CLL 11.2
      gives `nu` the place structure "x1 is an event of (the bridi)".  The
      previous model text allowed `nu ...` to appear as a string relation label
@@ -4275,15 +4358,23 @@ These are the semantic object-model changes relative to
      and does not assert either `nu sonci(djan)` or a concrete soldier-event
      referent for John.
 
-105. Split event-type abstraction links and exposed extra places.
+     Current normative form: the NU output object itself carries the body; a
+     predication shape is used only where the grammar needs a selbri, and it
+     points at the direct output object rather than at an `abstraction` wrapper.
+
+105. Split event-type abstraction links and exposed extra places. **Superseded
+     by amendment 27's direct-output rule.**
      CLL 11.3 gives separate place structures for `mu'e`, `pu'u`, `zu'o`, and
      `za'i`.  A single `eventOf` relation hid those distinctions, and it had no
      room for the x2 stages/actions places of `pu'u` and `zu'o`.  The link
-     relations are now type-specific: `achievementOf`, `processOf`,
-     `activityOf`, and `stateOf`.  The constructed link still uses x2 for the
-     embedded abstraction object; additional surface places are shifted after
-     that, so the elided stages/actions place appears as x3 on `processOf` and
-     `activityOf`.
+     relations were made type-specific: `achievementOf`, `processOf`,
+     `activityOf`, and `stateOf`.  That historical constructed-link shape used
+     x2 for the embedded abstraction object and shifted additional surface
+     places after it, so the elided stages/actions place appeared as x3 on
+     `processOf` and `activityOf`.
+     Current normative form: the output eventuality carries the specific class
+     (`achievement`, `process`, `activity`, or `state`) and any real extra
+     surface place directly.
 
 106. Added implicit `ka` property slots.
      CLL 11.4 states that a property abstraction without explicit `ce'u` places
@@ -4299,19 +4390,19 @@ These are the semantic object-model changes relative to
      CLL 11.5 uses `li pa vu'u mo'e le ni le pixra cu blanu` for `1 - B`,
      where `B` is the amount described by the `ni` abstraction.  The previous
      output represented the right operand as an opaque math literal, losing the
-     amount referent and its `amountOf` descriptor formula.  A `mo'e` operand
+     amount output object and its abstraction body.  A `mo'e` operand
      now emits a `mathExpression` leaf with `literal.kind = "sumtiOperand"` and
-     `denotes` pointing directly at the sumti referent.
+     `denotes` pointing directly at the full sumti denotation.  If that
+     denotation is formula-scoped by an outer quantifier, see amendment 36.
 
-108. Exposed minor-abstraction x2 places on constructed links.
-     CLL 11.9 gives `li'i`, `si'o`, and `su'u` their own x2 places:
-     experiencer, mind, and abstract-nature type respectively.  The previous
-     link examples stopped at x2 because x2 was already reserved for the
-     first-class `abstraction` object, so these places had no public slot.
-     They now use the same shifted-place rule as `pu'u`/`zu'o`: the surface x2
-     appears as x3 on `experienceOf`, `conceptOf`, or `abstractionOf`.  If a
-     `be` linkarg supplies that place, x3 is `filled`; otherwise it is an
-     explicit `zo'e` elision.
+108. Exposed minor-abstraction x2 places. **Revised by amendment 27.**
+     CLL 11.13 gives `li'i` and `si'o` their own x2 places: experiencer and
+     mind respectively; it also gives `ni`, `jei`, and `du'u` x2 places
+     elsewhere in the abstraction family.  The older constructed-link shape
+     shifted those places to x3 because x2 was occupied by the first-class
+     `abstraction` wrapper.  Under the direct-output rule, these are fields on
+     the output object itself (`experiencer`, `mind`, `scale`, `epistemology`,
+     `expressedBy`).  CLL 11.13 gives no x2 for `su'u`; do not fabricate one.
 
 109. Clarified `tu'a` and CLL 11.10 bare/BAI `jai` raising.
      CLL 11.10 says `tu'a` and bare `jai` both raise an argument to stand for
@@ -4908,6 +4999,149 @@ implementation gaps are listed separately in “Known Implementation Divergences
     predication-level scalar `je'a` (`scalarNegation.kind:"affirmed"`).
     Implemented in `tersmu` v1.
 
+25. **`le`-series desugar to the `skicu` characterizing clause; drop the
+    `veridical:false` flag for `le` (#123; supersedes #68 and the `le` part of
+    amendment 13) — implement design 0.D.** The **primary** `le`/`lo` distinction
+    under xorlo is **specificity** (carried by `descriptor.kind`:
+    `speakerDescription` vs `veridicalDescription`), **not** veridicality;
+    `le`'s non-veridicality is a **secondary, projective** property, not a
+    main-bridi truth-conditional difference (guskant: "`le`'s logical property is
+    the same as `lo`'s"). Per guskant / design 0.D,
+    `le broda` = `zo'e noi mi ke'a do skicu lo ka ce'u broda`: the referent is a
+    plural **constant** characterized by an **incidental** `skicu(speaker,
+    referent, audience, ⟨ka ce'u broda⟩)`, with `broda` predicated of the `ce'u`
+    **inside the `ka` abstraction** — never of the referent. So:
+    - emit, for each `le`/`lei`/`le'i`, an incidental `skicu` predication +
+      a `ka` abstraction (one `ce'u`, body `broda(ce'u)`), instead of
+      `descriptor.body = broda(referent)`;
+    - non-veridicality becomes **structural** (the referent is only ever `skicu`
+      x2 = "described-as"), so the `veridical:false` flag is unnecessary for the
+      `le`-series and is dropped.
+    - **`la`** is the analogous case with a `cmene` clause
+      (`zo'e noi lu broda li'u cmene ke'a mi` — the quoted word names the
+      referent; #95/#119): preserve the name string as a first-class quoted
+      sign in `cmene` x1 and desugar the `cmene` clause likewise rather than
+      flagging `veridical:false`. `lo'e`/`le'e` are intensional
+      typical/stereotype descriptors and keep their own treatment (out of
+      scope).
+    *Current impl:* `le` emits `descriptor.body = broda(referent)` (+ a
+    `veridical` flag), reading as the referent veridically being `broda`.
+
+26. **Canonical mass/set structural desugaring (#97/#98) — extend and pin one
+    encoding.** Mass and set gadri are direct structural desugarings, not
+    alternative descriptor flavors with ambiguous bodies:
+    - `loi/lei/lai broda` = `lo gunma be lo/le/la broda`;
+    - `lo'i/le'i/la'i broda` = `lo selcmi be lo/le/la broda`.
+    The aggregate referent is the `gunma`/`selcmi` output.  The inner constant
+    carries the member characterization, including the `skicu`/`cmene` treatment
+    for `le`/`la`.  Keep `descriptor.kind` and `word` as provenance on the
+    aggregate, but do not predicate the inner selbri of the aggregate itself.
+
+27. **Direct abstraction outputs; no semantic-empty `abstraction` wrapper (#84
+    and abstraction follow-up) — extend.** Public JSON no longer uses
+    `abstraction:aN` as a wrapper whose only payload is `{ kind, body }`.
+    Instead, the abstractor's output object carries the body, kind, binders, and
+    real extra places directly.  For `nu`/`za'i`/`pu'u`/`zu'o`/`mu'e`, the output
+    is the embedded predication's eventuality object; `nu` uses broad
+    `class:"event"` in the CLL 11.2/11.3 sense, while the aktionsart abstractors
+    refine the class.  For `ka`, the output relation carries `parameters` and
+    `arity`; for `ni`, `jei`, `li'i`, `si'o`, and `du'u`, the CLL 11.13 extra
+    places are fields on the output (`scale`, `epistemology`, `experiencer`,
+    `mind`, `expressedBy`).  `su'u` has no CLL 11.13 x2; do not fabricate one.
+    Connected event abstractors may still duplicate inert body formulas so each
+    branch can have its own event-type view.
+
+28. **Re-quantification of an established variable (#72/#73) — extend the
+    quantifier shape, do not add a parallel formula operator.** `re da` after
+    `ci da` is an ordinary quantifier over a fresh selected variable whose domain
+    is membership in the established witness set.  Add optional
+    `sourceVariable`/`selectionSource` to quantified formulas, keep the overt
+    `quantity`, and preserve the inherited restriction from the original
+    binding.  The body remains under the existing quantifier machinery, so scope,
+    negation, and connective behavior do not get a second implementation path.
+
+29. **Equal-scope grouping termsets (#75/#76) — extend.** A `ce'e`/`nu'i...nu'u`
+    grouping termset cannot be lowered as ordinary nested quantifiers, because
+    CLL 16.7 says the grouped terms have equal scope.  Add a joint binding node
+    or quantifier bundle with ordered bindings, one shared body, and an explicit
+    `coequalScope:true` (or equivalent enum value) so consumers know the bindings
+    have no defined relative scope.
+
+30. **Structured `co'e` unspecified relation (#83) — extend.** `co'e` is the
+    relation-position analogue of `zo'e`; do not emit a lexical relation string
+    `"co'e"`.  Use a relation parameter or relation-placeholder object with
+    `role:"unspecifiedRelation"` and `introducedBy:"co'e"`, then point the
+    predication at that object through `relationParameter` or an equivalent typed
+    field.
+
+31. **Place-specific `ko` imperative target (#91) — extend.** `ko` still resolves
+    to the addressee referent and the host utterance has command force, but each
+    `ko` argument occurrence must also mark the concrete command target place.
+    This distinguishes `ko klama` from `mi viska ko` without mutating the global
+    addressee referent.
+
+32. **Outer quantifier representation (#99) — doc correction, no model change.**
+    Delete the abandoned `ArgumentValue.quantity` account for outer quantifiers.
+    Outer quantifiers are formula-level restricted-variable scopes, consistent
+    with design C-9/C-22; descriptor quantities remain for inner description
+    quantifiers.
+
+33. **Quoted utterance use-status vs force (#100) — doc correction.** A parsed
+    quotation preserves the quoted utterance's intrinsic force (`assert`, `ask`,
+    `vocative`, etc.).  The fact that it is mentioned rather than performed is
+    represented by the quotation/sign edge that contains it, not by rewriting its
+    force to `mention`.
+
+34. **Tanru connector locus spelling (#90) — doc correction.** The canonical
+    connector locus for tanru formula links is `"selbri"`.  Stale examples using
+    `"predicate"` are non-normative and should be updated or treated as a
+    deprecated alias only if consumer compatibility requires it.
+
+35. **MAI/MO'O ordinal labels (#114) — extend.** Numerical free modifiers headed
+    by `mai`/`mo'o` are truth-conditionally inert labels.  Add an ordinal label
+    on the affected sequence item: `mai` labels an item, `mo'o` labels a larger
+    division.  Preserve the PA/lerfu value as a quantity or ordinal expression.
+
+36. **`mo'e` quantified sumti operands (#115) — extend.** `mo'e <sumti>` must
+    reference the full wrapped sumti denotation, including outer quantifier
+    scope and cardinality.  If the wrapped sumti is formula-scoped, the math
+    operand points at a quantified operand/scope object rather than only at the
+    bare referent.
+
+37. **`xi` subscripts (#117) — extend.** Add a reusable `subscript` value on
+    symbols, referents/parameters, and math expressions where XI can attach.
+    Subscripts are identity-relevant for variables and pro-sumti handles:
+    `ko'a xi re` is a different assignable handle from bare `ko'a`.  Nested `xi`
+    is sub-subscript; `ce'o` inside a parenthesized subscript is a same-level
+    compound subscript sequence.
+
+38. **`na'u` selbri operators (#118) — extend.** A `na'u` operator is a typed
+    math operator backed by the underlying selbri relation and place structure.
+    Preserve the convention from CLL 18.18: x1 is the result and later unfilled
+    places are operands.  Do not stringify the selbri into an opaque operator
+    label.
+
+39. **Mixed-radix `pi'e` numerals (#121) — extend.** `pi'e` is number
+    punctuation inside a positional/mixed-radix literal, not an arithmetic
+    connective.  Add a structured literal with ordered components and optional
+    `ju'u` base/radix, while preserving the surface source.
+
+40. **Shared lowering for selbri-wrapper constructs (#126; parser bug #125)
+    — extend.** Grammar productions that consume a full selbri outside the
+    ordinary main bridi-tail must share the ordinary selbri lowering path:
+    `(LA|LE) ... selbri`, `quantifier selbri`, bare-selbri vocatives,
+    `FIhO selbri FEhU`, `NAhU selbri TEhU`, `NIhE selbri TEhU`, and
+    `SEI [terms [CU]] selbri SEhU`.  These constructs preserve tanru, `be`
+    linkargs, conversion, JAI, NAhE, connectives, elided/deleted places, and
+    dictionary place structure in a subordinate predication/relation body.  No
+    public raw `selbriExpression` object is added.  `fi'o` always uses a modal
+    `body` formula, even for one-brivla tags such as `fi'o kanla`; `la <selbri>`
+    preserves the name sign while allowing that sign to denote the lowered
+    selbri relation body; `na'u` and `ni'e` point their math outputs at the
+    typed lowered selbri output rather than opaque strings.  Current parser work
+    for #125 is required before all full `fi'o` cases can reach semantic
+    lowering.
+
 ## Known Implementation Divergences (2026-06-23)
 
 Where current `tersmu` output departs from this spec (amended above). These are the
@@ -4917,6 +5151,12 @@ each is tracked. (Pure builder-correctness crashes/bugs — e.g. the connective
 — are tracked as `bug` issues, not here.)
 
 - `fa'u` correspondence is unrepresentable (#4, amendment 14).
+- `FIhO` currently parses only a reduced selbri subset and rejects legal
+  linkargs such as `fi'o tavla be do` (#125).
+- Selbri-wrapper constructs are still lowered piecemeal; in particular,
+  current `fi'o` output can expose a relation string instead of a modal body
+  predication, and the shared `le`/`la`/vocative/`na'u`/`ni'e` lowering path is
+  not implemented yet (#126, #123, #118).
 
 **Why the primer is a separate document.** `review/tersmu_schema_primer.md` is a
 consumer/agent-facing cheat-sheet of the *current* JSON shape (used by the review
