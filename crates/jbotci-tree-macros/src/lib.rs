@@ -21,7 +21,7 @@ pub fn tree_model(input: TokenStream) -> TokenStream {
 }
 
 fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> {
-    let generate_recovered = tree_recovered_requested(&input.attrs)?;
+    let options = tree_model_options(&input.attrs)?;
     let mut items = input.items;
     let node_names = collect_node_names(&items)?;
     let aliases = collect_type_aliases(&items);
@@ -30,10 +30,10 @@ fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> 
     let atom_ref = atom_ref_enum(&atom_types);
     let trait_impls = tree_node_trait_impls(&items, &node_names)?;
     let atom_impls = atom_trait_impls(&atom_types);
-    let wrapper_impls = wrapper_trait_impls(false, false);
+    let wrapper_impls = wrapper_trait_impls(false, options.generate_with_free_modifiers);
     let valid_state_impls = valid_field_state_impls(&items)?;
     let valid_module = valid_module(&items);
-    let recovered_module = if generate_recovered {
+    let recovered_module = if options.generate_recovered {
         recovered_module(&items, &node_names, &aliases)?
     } else {
         quote!()
@@ -96,24 +96,42 @@ fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> 
     })
 }
 
-fn tree_recovered_requested(attrs: &[Attribute]) -> syn::Result<bool> {
+struct TreeModelOptions {
+    generate_recovered: bool,
+    generate_with_free_modifiers: bool,
+}
+
+fn tree_model_options(attrs: &[Attribute]) -> syn::Result<TreeModelOptions> {
     let mut generate_recovered = false;
+    let mut generate_with_free_modifiers = false;
     for attr in attrs {
-        if !attr.path().is_ident("tree_recovered") {
+        if attr.path().is_ident("tree_recovered") {
+            if !matches!(attr.meta, syn::Meta::Path(_)) {
+                return Err(syn::Error::new_spanned(
+                    attr,
+                    "`tree_recovered` does not take arguments",
+                ));
+            }
+            generate_recovered = true;
+        } else if attr.path().is_ident("tree_with_free_modifiers") {
+            if !matches!(attr.meta, syn::Meta::Path(_)) {
+                return Err(syn::Error::new_spanned(
+                    attr,
+                    "`tree_with_free_modifiers` does not take arguments",
+                ));
+            }
+            generate_with_free_modifiers = true;
+        } else {
             return Err(syn::Error::new_spanned(
                 attr,
-                "tree_model! only accepts the inner attribute `#![tree_recovered]`",
+                "tree_model! accepts only the inner attributes `#![tree_recovered]` and `#![tree_with_free_modifiers]`",
             ));
         }
-        if !matches!(attr.meta, syn::Meta::Path(_)) {
-            return Err(syn::Error::new_spanned(
-                attr,
-                "`tree_recovered` does not take arguments",
-            ));
-        }
-        generate_recovered = true;
     }
-    Ok(generate_recovered)
+    Ok(TreeModelOptions {
+        generate_recovered,
+        generate_with_free_modifiers,
+    })
 }
 
 fn valid_module(items: &[Item]) -> proc_macro2::TokenStream {
@@ -2190,8 +2208,13 @@ fn wrapper_trait_impls(
         }
     });
     let with_free_modifiers_impl = include_with_free_modifiers.then(|| {
+        let impl_header = if include_recovered {
+            quote!(impl<T: TreeNode> TreeNode for WithFreeModifiers<T>)
+        } else {
+            quote!(impl<T: TreeNode, F: TreeNode> TreeNode for WithFreeModifiers<T, F>)
+        };
         quote! {
-            impl<T: TreeNode> TreeNode for WithFreeModifiers<T> {
+            #impl_header {
                 fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
                 where
                     V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,

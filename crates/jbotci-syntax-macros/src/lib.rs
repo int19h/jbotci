@@ -432,25 +432,29 @@ impl SyntaxGrammar {
             match &rule.construction {
                 ConstructionMode::NamedVariant(variant) => {
                     let fields = rule.generated_model_fields(type_env)?;
-                    enums
-                        .entry(output.to_string())
-                        .or_default()
-                        .push(GeneratedVariantModel {
+                    push_generated_variant(
+                        &mut enums,
+                        output.to_string(),
+                        GeneratedVariantModel {
                             variant: variant.clone(),
+                            rule_name: rule.name.clone(),
                             fields,
                             tuple: false,
-                        });
+                        },
+                    )?;
                 }
                 ConstructionMode::TupleVariant(variant) => {
                     let fields = rule.generated_model_fields(type_env)?;
-                    enums
-                        .entry(output.to_string())
-                        .or_default()
-                        .push(GeneratedVariantModel {
+                    push_generated_variant(
+                        &mut enums,
+                        output.to_string(),
+                        GeneratedVariantModel {
                             variant: variant.clone(),
+                            rule_name: rule.name.clone(),
                             fields,
                             tuple: true,
-                        });
+                        },
+                    )?;
                 }
                 ConstructionMode::Validated | ConstructionMode::Direct => {
                     let key = output.to_string();
@@ -508,6 +512,35 @@ impl SyntaxGrammar {
     }
 }
 
+fn push_generated_variant(
+    enums: &mut BTreeMap<String, Vec<GeneratedVariantModel>>,
+    output: String,
+    variant: GeneratedVariantModel,
+) -> Result<()> {
+    let variants = enums.entry(output).or_default();
+    if let Some(existing) = variants
+        .iter()
+        .find(|existing| existing.variant == variant.variant)
+    {
+        if existing.same_shape_as(&variant) {
+            return Ok(());
+        }
+        return Err(syn::Error::new_spanned(
+            &variant.rule_name,
+            format!(
+                "cannot generate enum variant `{}` from both `{}` and `{}` with different field shapes",
+                variant.variant, existing.rule_name, variant.rule_name
+            ),
+        ));
+    }
+    variants.push(variant);
+    Ok(())
+}
+
+fn token_streams_match(left: &TokenStream2, right: &TokenStream2) -> bool {
+    left.to_string() == right.to_string()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GeneratedModelRuleKind {
     Node,
@@ -547,8 +580,22 @@ impl GeneratedStructModel {
 
 struct GeneratedVariantModel {
     variant: Ident,
+    rule_name: Ident,
     fields: Vec<GeneratedFieldModel>,
     tuple: bool,
+}
+
+impl GeneratedVariantModel {
+    fn same_shape_as(&self, other: &Self) -> bool {
+        self.variant == other.variant
+            && self.tuple == other.tuple
+            && self.fields.len() == other.fields.len()
+            && self
+                .fields
+                .iter()
+                .zip(&other.fields)
+                .all(|(left, right)| left.same_shape_as(right))
+    }
 }
 
 impl ToTokens for GeneratedVariantModel {
@@ -575,6 +622,17 @@ struct GeneratedFieldModel {
 }
 
 impl GeneratedFieldModel {
+    fn same_shape_as(&self, other: &Self) -> bool {
+        self.name == other.name
+            && token_streams_match(&self.ty, &other.ty)
+            && self.attrs.len() == other.attrs.len()
+            && self
+                .attrs
+                .iter()
+                .zip(&other.attrs)
+                .all(|(left, right)| token_streams_match(&quote!(#left), &quote!(#right)))
+    }
+
     fn expand_struct(&self) -> TokenStream2 {
         let attrs = &self.attrs;
         let name = &self.name;

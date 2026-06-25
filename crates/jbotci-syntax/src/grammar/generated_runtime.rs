@@ -1,6 +1,6 @@
 //! Generic runtime primitives for declarative generated syntax parsers.
 
-use bityzba::{invariant, new, requires};
+use bityzba::{contract_trait, invariant, new, requires};
 use chumsky::{
     IterParser, Parser,
     input::Input,
@@ -23,9 +23,20 @@ use crate::{
 };
 
 #[invariant(!words.is_empty(), "vocative marker sequence cannot be empty")]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(crate) struct VocativeMarkerWordsSyntax {
     pub words: Vec<Token>,
+}
+
+impl serde::Serialize for VocativeMarkerWordsSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serde::Serialize::serialize(self.as_data(), serializer)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -466,17 +477,37 @@ pub(crate) fn strict_ordered_choice_parsers<'tokens, O: 'tokens>(
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn strict_free_modifier_list_parser<'tokens>(
-    free_modifier: BoxedParser<'tokens, crate::tree::FreeModifierSyntax>,
-) -> BoxedParser<'tokens, Vec<crate::tree::FreeModifierSyntax>> {
+pub(crate) fn strict_free_modifier_list_parser<'tokens, F>(
+    free_modifier: BoxedParser<'tokens, F>,
+) -> BoxedParser<'tokens, Vec<F>>
+where
+    F: 'tokens,
+{
     strict_greedy_many_parser_without_diagnostics(free_modifier)
+}
+
+#[contract_trait]
+pub(crate) trait SyntaxFirstWord {
+    #[requires(true)]
+    #[ensures(true)]
+    fn first_word(&self) -> Option<&Token>;
+}
+
+#[contract_trait]
+impl SyntaxFirstWord for crate::tree::FreeModifierSyntax {
+    fn first_word(&self) -> Option<&Token> {
+        crate::tree::FreeModifierSyntax::first_word(self)
+    }
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn strict_cll_prohibited_free_modifier_list_parser<'tokens>(
-    free_modifier: BoxedParser<'tokens, crate::tree::FreeModifierSyntax>,
-) -> BoxedParser<'tokens, Vec<crate::tree::FreeModifierSyntax>> {
+pub(crate) fn strict_cll_prohibited_free_modifier_list_parser<'tokens, F>(
+    free_modifier: BoxedParser<'tokens, F>,
+) -> BoxedParser<'tokens, Vec<F>>
+where
+    F: SyntaxFirstWord + 'tokens,
+{
     strict_greedy_many_parser_without_diagnostics(
         free_modifier
             .map_with(

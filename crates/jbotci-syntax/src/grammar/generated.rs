@@ -221,12 +221,21 @@ macro_rules! declare_generated_syntax_grammar {
 
     node simple_paragraph(statement_or_fragment, free_modifier) -> ParagraphSyntax {
         context "paragraph";
+        construct variant SimpleParagraph;
         fields {
-            default i = None;
-            default niho = Vec::new();
-            default free_modifiers = Vec::new();
+            default i: Option<Token> = None;
+            default niho: Vec<Token> = Vec::new();
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
             field statements = paragraph_statement_sequence(statement_or_fragment, free_modifier);
         }
+        build |statements| {
+            bityzba::new!(ParagraphSyntax {
+                i: None,
+                niho: Vec::new(),
+                free_modifiers: Vec::new(),
+                statements,
+            })
+        };
     }
 
     alias paragraph_statement_sequence(statement_or_fragment, free_modifier) -> std::vec::Vec<ParagraphStatementSyntax> {
@@ -242,22 +251,40 @@ macro_rules! declare_generated_syntax_grammar {
 
     node i_niho_paragraph(statement_or_fragment, free_modifier) -> ParagraphSyntax {
         context "paragraph";
+        construct variant INihoParagraph;
         fields {
             field i = some(cmavo(I));
             field niho = many1(selmaho(Niho));
             field free_modifiers = many(free_modifier);
             field statements = opt_or_default(paragraph_statement_sequence(statement_or_fragment, free_modifier));
         }
+        build |i, niho, free_modifiers, statements| {
+            bityzba::new!(ParagraphSyntax {
+                i,
+                niho,
+                free_modifiers,
+                statements,
+            })
+        };
     }
 
     node niho_paragraph(statement_or_fragment, free_modifier) -> ParagraphSyntax {
         context "paragraph";
+        construct variant NihoParagraph;
         fields {
-            default i = None;
+            default i: Option<Token> = None;
             field niho = many1(selmaho(Niho));
             field free_modifiers = many(free_modifier);
             field statements = opt_or_default(paragraph_statement_sequence(statement_or_fragment, free_modifier));
         }
+        build |niho, free_modifiers, statements| {
+            bityzba::new!(ParagraphSyntax {
+                i: None,
+                niho,
+                free_modifiers,
+                statements,
+            })
+        };
     }
 
     alias paragraph_statement(statement_or_fragment, free_modifier, tense_modal) -> ParagraphStatementSyntax {
@@ -271,37 +298,65 @@ macro_rules! declare_generated_syntax_grammar {
 
     node initial_paragraph_statement(statement_or_fragment) -> ParagraphStatementSyntax {
         context "paragraph statement";
+        construct variant InitialParagraphStatement;
         fields {
-            default i = None;
-            default connective = None;
-            default free_modifiers = Vec::new();
+            default i: Option<Token> = None;
+            default connective: Option<Box<ConnectiveSyntax>> = None;
+            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
             field statement = some(boxed(statement_or_fragment));
         }
+        build |statement| {
+            bityzba::new!(ParagraphStatementSyntax {
+                i: None,
+                connective: None,
+                free_modifiers: Vec::new(),
+                statement,
+            })
+        };
     }
 
     node i_paragraph_statement(statement_or_fragment, free_modifier, tense_modal) -> ParagraphStatementSyntax {
         context "paragraph statement";
+        construct variant IParagraphStatement;
         fields {
             field i = some(cmavo(I));
             field connective = opt(boxed(i_paragraph_statement_connective(tense_modal)));
             field free_modifiers = many(free_modifier);
             field statement = opt(boxed(statement_or_fragment));
         }
+        build |i, connective, free_modifiers, statement| {
+            bityzba::new!(ParagraphStatementSyntax {
+                i,
+                connective,
+                free_modifiers,
+                statement,
+            })
+        };
     }
 
     node following_paragraph_statement(statement_or_fragment, free_modifier) -> ParagraphStatementSyntax {
         context "paragraph statement";
+        construct variant FollowingParagraphStatement;
         fields {
             field i = some(cmavo(I));
             require statement_connective.not();
-            default connective = None;
+            default connective: Option<Box<ConnectiveSyntax>> = None;
             field free_modifiers = many(free_modifier);
             field statement = opt(boxed(statement_or_fragment));
         }
+        build |i, free_modifiers, statement| {
+            bityzba::new!(ParagraphStatementSyntax {
+                i,
+                connective: None,
+                free_modifiers,
+                statement,
+            })
+        };
     }
 
     node trailing_ijek_paragraph_statement -> ParagraphStatementSyntax {
         context "paragraph statement";
+        construct variant TrailingIjekParagraphStatement;
         fields {
             field i = cmavo(I);
             field connective = statement_connective;
@@ -369,6 +424,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node multiple_na_fragment -> StatementSyntax {
         context "fragment";
+        construct variant MultipleNaFragment;
         fields {
             field first_na = selmaho(Na);
             field second_na = selmaho(Na);
@@ -385,6 +441,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node single_na_fragment -> StatementSyntax {
         context "fragment";
+        construct variant SingleNaFragment;
         fields {
             field na = selmaho(Na).not_next_selmaho(Ku).wf();
         }
@@ -395,6 +452,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node ek_fragment -> StatementSyntax {
         context "fragment";
+        construct variant EkFragment;
         fields {
             field connective = ek_connective();
         }
@@ -405,6 +463,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node gihek_fragment -> StatementSyntax {
         context "fragment";
+        construct variant GihekFragment;
         fields {
             field connective = gihek_connective();
         }
@@ -415,6 +474,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> StatementSyntax {
         context "statement connection";
+        construct variant IStatementConnection;
         fields {
             field leading_statement = boxed(statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens));
             field continuations = many1(choice((
@@ -482,6 +542,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node prenex_fragment(term) -> StatementSyntax {
         context "prenex";
+        construct variant PrenexFragment;
         fields {
             field terms = many(term);
             field zohu = cmavo(Zohu).wf();
@@ -503,6 +564,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node bridi_statement(bridi, subbridi, tense_modal) -> StatementSyntax {
         context "statement";
+        construct variant BridiStatement;
         fields {
             field bridi = boxed(bridi);
             field continuations = many(bridi_statement_continuation(subbridi, tense_modal));
@@ -558,6 +620,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node selbri_fragment(selbri) -> StatementSyntax {
         context "selbri";
+        construct variant SelbriFragment;
         fields {
             field selbri = boxed(selbri);
         }
@@ -568,6 +631,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node terms_fragment(term) -> StatementSyntax {
         context "terms";
+        construct variant TermsFragment;
         fields {
             field first_term = term;
             field additional_terms = many(term);
@@ -583,6 +647,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node mekso_fragment(mekso, letter_tokens) -> StatementSyntax {
         context "mex";
+        construct variant MeksoFragment;
         fields {
             field quantifier = boxed(quantifier(mekso, letter_tokens));
         }
@@ -603,6 +668,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node relative_clause_fragment(sumti, subbridi, tense_modal) -> StatementSyntax {
         context "relative clauses";
+        construct variant RelativeClauseFragment;
         fields {
             field relative_clauses = relative_clause_list(sumti, subbridi, tense_modal);
         }
@@ -613,6 +679,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node linked_sumti_continuation_fragment(sumti, tense_modal) -> StatementSyntax {
         context "linked arguments";
+        construct variant LinkedSumtiContinuationFragment;
         fields {
             field bei_links = many1(bei_link(sumti, tense_modal));
         }
@@ -623,6 +690,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node linked_sumti_fragment(sumti, tense_modal) -> StatementSyntax {
         context "linked arguments";
+        construct variant LinkedSumtiFragment;
         fields {
             field linkargs = linkargs(sumti, tense_modal);
         }
@@ -3216,6 +3284,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node vocative_free_modifier(sumti, subbridi, selbri, tense_modal) -> FreeModifierSyntax {
         context "vocative phrase";
+        construct variant Vocative;
         fields {
             field vocative_markers = choice((
                 coi_vocative_marker_words(),
@@ -3274,6 +3343,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     node mai_free_modifier(letter_tokens, letter_string) -> FreeModifierSyntax {
         context "utterance ordinal";
+        construct variant UtteranceOrdinal;
         fields {
             field number = number_or_letter_words(letter_tokens, letter_string);
             field mai = selmaho(Mai).wf();
@@ -3320,8 +3390,8 @@ macro_rules! declare_generated_syntax_grammar {
         context "replacement free modifier";
         construct variant TextReplacement;
         fields {
-            default lohai = None;
-            default old_words = Vec::new();
+            default lohai: Option<Token> = None;
+            default old_words: Vec<Token> = Vec::new();
             field sahai = some(cmavo(Sahai));
             field new_words = raw_words_until(Lehai);
             field lehai = cmavo(Lehai).wf();
@@ -3332,10 +3402,10 @@ macro_rules! declare_generated_syntax_grammar {
         context "replacement free modifier";
         construct variant TextReplacement;
         fields {
-            default lohai = None;
-            default old_words = Vec::new();
-            default sahai = None;
-            default new_words = Vec::new();
+            default lohai: Option<Token> = None;
+            default old_words: Vec<Token> = Vec::new();
+            default sahai: Option<Token> = None;
+            default new_words: Vec<Token> = Vec::new();
             field lehai = cmavo(Lehai).wf();
         }
     }
@@ -5465,8 +5535,16 @@ pub(crate) mod generated_model {
     use super::*;
 
     declare_generated_syntax_grammar! {
-        tree_model {}
-        model { TextSyntax };
+        tree_model {
+            #![tree_with_free_modifiers]
+        }
+        model {
+            TextSyntax,
+            ParagraphSyntax,
+            ParagraphStatementSyntax,
+            StatementSyntax,
+            FreeModifierSyntax,
+        };
     }
 }
 
