@@ -759,8 +759,7 @@ pub struct ToolGimfihiSource {
     pub language: String,
     /// The word for this concept as a **broad phonemic IPA transcription** of how
     /// it is pronounced — its sounds, not its spelling and not an existing Lojban
-    /// word. We snap the IPA onto the gismu sound inventory and score candidates
-    /// against it, so you only need to supply correct IPA.
+    /// word.
     ///
     /// Transcribe carefully:
     /// - Work at the **phonemic** level: apply the language's own reductions
@@ -772,9 +771,9 @@ pub struct ToolGimfihiSource {
     ///   (French *le* `lə`, Hindi अ, German final *-e*), write the full vowel it is
     ///   actually pronounced as instead.
     ///
-    /// Supported IPA — use standard symbols; the tie bar, length `ː`, nasalization
-    /// `◌̃`, palatalization `ʲ`, labialization `ʷ`, aspiration `ʰ`, and emphasis
-    /// `ˤ` are all handled:
+    /// Use standard IPA from this inventory; the tie bar `◌͡◌`, length `ː`,
+    /// nasalization `◌̃`, palatalization `ʲ`, labialization `ʷ`, aspiration `ʰ`,
+    /// and emphasis `ˤ` are fine to include:
     /// - Consonants `p b t d k g q`, `f v θ ð s z ʃ ʒ ɕ ʑ ʂ ʐ ç x ɣ χ ħ h ɦ`,
     ///   affricates `t͡ʃ d͡ʒ t͡s d͡z t͡ɕ d͡ʑ`, `m n ŋ ɲ ɳ`, `l ʎ ɫ`,
     ///   `r ɾ ɹ ɻ ʀ ʁ ɽ`, `j w ɥ ʋ`, retroflex `ʈ ɖ`.
@@ -1480,7 +1479,7 @@ struct CuktaInput {
 struct GimfihiInput {
     /// A source word as `LANG[:WEIGHT]:WORD` (repeat per source). WORD is Lojban
     /// letters, or a phonemic IPA transcription in `[ ... ]` brackets (e.g.
-    /// `eng:210:[kæt]`) that is transliterated to Lojban.
+    /// `eng:210:[kæt]`).
     #[arg(
         long = "source",
         value_name = "LANG[:WEIGHT]:WORD",
