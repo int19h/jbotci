@@ -2098,6 +2098,32 @@ quantified formula shape with `operator = "exists"` and a `variable`, but no
 Repeated mentions of the same variable within the scope point at the same
 referent and do not introduce additional wrapper formulas.
 
+If an overt quantifier is applied to an already-bound da-series variable, the
+new occurrence binds a fresh selected variable and records the source witness
+set explicitly.  For example, in `ci da poi prenu cu se ralju pa da`, the
+`pa da` formula is a cardinality quantifier over a new `referent:r-selected`;
+`sourceVariable` and `selectionSource.variable` both point at the earlier
+`referent:r-source`, and inherited restrictions such as `poi prenu` are copied
+as restrictions on the selected variable:
+
+```json
+{
+  "formula:f-selected": {
+    "type": "formula",
+    "operator": "cardinality",
+    "variable": "referent:r-selected",
+    "sourceVariable": "referent:r-source",
+    "selectionSource": {
+      "kind": "witnessSet",
+      "variable": "referent:r-source"
+    },
+    "restriction": "formula:f-selected-is-prenu",
+    "body": "formula:f-body",
+    "quantity": "quantity:q-one"
+  }
+}
+```
+
 Selbri variables (`bu'a`, `bu'e`, `bu'i`) use the same formula-level
 quantifier shape, but `variable` points at a `parameter` object with
 `sort = "relation"` and `role = "relationVariable"` rather than at an entity
@@ -5122,14 +5148,13 @@ implementation gaps are listed separately in “Known Implementation Divergences
     Connected event abstractors may still duplicate inert body formulas so each
     branch can have its own event-type view.
 
-28. **Re-quantification of an established variable (#72/#73) — extend the
-    quantifier shape, do not add a parallel formula operator.** `re da` after
+28. **Re-quantification of an established variable (#72/#73).** `re da` after
     `ci da` is an ordinary quantifier over a fresh selected variable whose domain
-    is membership in the established witness set.  Add optional
-    `sourceVariable`/`selectionSource` to quantified formulas, keep the overt
-    `quantity`, and preserve the inherited restriction from the original
-    binding.  The body remains under the existing quantifier machinery, so scope,
-    negation, and connective behavior do not get a second implementation path.
+    is membership in the established witness set.  Quantified formulas use
+    optional `sourceVariable`/`selectionSource`, keep the overt `quantity`, and
+    preserve the inherited restriction from the original binding.  The body
+    remains under the existing quantifier machinery, so scope, negation, and
+    connective behavior do not get a second implementation path.
 
 29. **Equal-scope grouping termsets (#75/#76) — extend.** A `ce'e`/`nu'i...nu'u`
     grouping termset cannot be lowered as ordinary nested quantifiers, because

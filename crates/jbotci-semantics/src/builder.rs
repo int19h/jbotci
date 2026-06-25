@@ -41,11 +41,11 @@ use crate::model::{
     QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, Recurrence,
     RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
     RelationExpansion, RelativeClause, RelativeClauseKind, RespectivelyStream, ScalarNegation,
-    ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId,
-    SemanticObjectKind, SemanticOperatorData, SemanticSort, SequenceRelation, SignKind,
-    SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript, TanruLink, TemporalPathAnchor,
-    TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint,
-    UtteranceForce, argument_object_kind_can_fill, diagnostic, source_from_spans,
+    ScalarNegationKind, SelectionSource, SemanticDiagnostic, SemanticGraph, SemanticObject,
+    SemanticObjectId, SemanticObjectKind, SemanticOperatorData, SemanticSort, SequenceRelation,
+    SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript, TanruLink,
+    TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
+    TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic, source_from_spans,
 };
 use crate::references::{
     AssignmentSource, BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -673,6 +673,13 @@ enum DaSeriesScopeSource<'tree> {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
+struct RequantifiedDaSelection<'tree> {
+    source_variable: SemanticObjectId,
+    source_sumti: &'tree SumtiSyntax,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
 struct RelationVariableScopeSource<'tree> {
     quantified_sumti: &'tree SumtiSyntax,
     selbri: &'tree SelbriSyntax,
@@ -680,13 +687,20 @@ struct RelationVariableScopeSource<'tree> {
 }
 
 #[invariant(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+#[invariant(source_variable.is_none_or(|variable| variable.object_kind() == crate::model::SemanticObjectKind::Referent))]
+#[invariant(selection_source.as_ref().is_none_or(|source| source.variable.object_kind() == crate::model::SemanticObjectKind::Referent))]
+#[invariant(selection_source.as_ref().is_none_or(|source| source_variable.is_none_or(|variable| variable == source.variable)))]
 #[invariant(quantity.is_none_or(|quantity| quantity.object_kind() == crate::model::SemanticObjectKind::Quantity))]
 #[invariant(quantity_connection.as_ref().is_none_or(|connection| quantity.is_none() && connection.left_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity && connection.right_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity))]
+#[invariant(inherited_restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula))]
 #[derive(Debug, Clone)]
 struct QuantifiedProSumtiScope {
     variable: SemanticObjectId,
+    source_variable: Option<SemanticObjectId>,
+    selection_source: Option<SelectionSource>,
     quantity: Option<SemanticObjectId>,
     quantity_connection: Option<ConnectedQuantifierQuantityScope>,
+    inherited_restrictions: Vec<SemanticObjectId>,
     operator: FormulaOperator,
     source: Option<crate::model::SemanticSource>,
 }
@@ -3178,16 +3192,20 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         let data!(QuantifiedProSumtiScope {
             variable,
+            source_variable,
+            selection_source,
             quantity,
             quantity_connection,
+            mut inherited_restrictions,
             operator,
             source,
         }) = scope.into_data();
+        inherited_restrictions.extend(explicit_restrictions);
         let restriction = self
             .restriction_formula_for_variable_in_formula_with_explicit_restrictions(
                 formula,
                 variable,
-                explicit_restrictions,
+                inherited_restrictions,
             )?;
         if let Some(distribution) = self.build_quantified_respectively_distribution_formula(
             formula,
@@ -3219,7 +3237,8 @@ where
                     Some(left_quantity),
                     source.clone(),
                     Vec::new(),
-                ),
+                )
+                .with_quantifier_selection(source_variable, selection_source.clone()),
             )?;
             let left = if left_negated {
                 self.build_unary_formula(FormulaOperator::Not, left, source.clone(), Vec::new())?
@@ -3237,7 +3256,8 @@ where
                     Some(right_quantity),
                     source.clone(),
                     Vec::new(),
-                ),
+                )
+                .with_quantifier_selection(source_variable, selection_source),
             )?;
             let right = if right_negated {
                 self.build_unary_formula(FormulaOperator::Not, right, source, Vec::new())?
@@ -3267,7 +3287,8 @@ where
                 quantity,
                 source,
                 Vec::new(),
-            ),
+            )
+            .with_quantifier_selection(source_variable, selection_source),
         )
     }
 
@@ -3701,12 +3722,15 @@ where
             self.connected_quantifier_quantity_scope(quantifier, "mekso-operand")?;
         let scope = QuantifiedProSumtiScope::from_data(data!(QuantifiedProSumtiScope {
             variable,
+            source_variable: None,
+            selection_source: None,
             quantity: if quantity_connection.is_some() {
                 None
             } else {
                 Some(self.build_quantity_for_sumti_quantifier(raw, quantifier)?)
             },
             quantity_connection,
+            inherited_restrictions: Vec::new(),
             operator: quantified_pro_sumti_formula_operator(quantifier),
             source: self.source_for_node(raw, "quantifier-scope"),
         }));
@@ -3725,7 +3749,25 @@ where
         let Some(scope_source) = da_series_scope_source(sumti) else {
             return Ok(None);
         };
-        let variable = self.build_sumti_referent(sumti)?;
+        let selection = self.requantified_da_selection_for_sumti(sumti)?;
+        let variable = if selection.is_some() {
+            self.build_scoped_argument_variable_for_sumti(sumti)?
+        } else {
+            self.build_sumti_referent(sumti)?
+        };
+        let (source_variable, selection_source, inherited_restrictions) =
+            if let Some(selection) = selection {
+                (
+                    Some(selection.source_variable),
+                    Some(SelectionSource::witness_set(selection.source_variable)),
+                    self.lower_relative_clauses_for_sumti(selection.source_sumti, variable)?
+                        .into_iter()
+                        .map(|clause| clause.body)
+                        .collect(),
+                )
+            } else {
+                (None, None, Vec::new())
+            };
         let (quantity, quantity_connection, operator, source) = match scope_source {
             DaSeriesScopeSource::Explicit {
                 quantified_sumti,
@@ -3768,12 +3810,90 @@ where
         Ok(Some(QuantifiedProSumtiScope::from_data(data!(
             QuantifiedProSumtiScope {
                 variable,
+                source_variable,
+                selection_source,
                 quantity,
                 quantity_connection,
+                inherited_restrictions,
                 operator,
                 source,
             }
         ))))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|selection| selection.as_ref().is_none_or(|selection| selection.source_variable.object_kind() == crate::model::SemanticObjectKind::Referent)) || ret.is_err())]
+    fn requantified_da_selection_for_sumti(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+    ) -> Result<Option<RequantifiedDaSelection<'tree>>, SemanticsError> {
+        let Some(inner_raw) = self.explicit_da_series_inner_sumti_raw(sumti)? else {
+            return Ok(None);
+        };
+        let Some(target_raw) = self.resolved_sumti_reference_target(inner_raw) else {
+            return Ok(None);
+        };
+        let Some(source_sumti) = self.da_series_source_scope_sumti_for_target(target_raw) else {
+            return Ok(None);
+        };
+        let source_variable = self.build_sumti_referent(source_sumti)?;
+        Ok(Some(RequantifiedDaSelection {
+            source_variable,
+            source_sumti,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn explicit_da_series_inner_sumti_raw(
+        &self,
+        sumti: &'tree SumtiSyntax,
+    ) -> Result<Option<RawSyntaxNodeId>, SemanticsError> {
+        match sumti.as_data() {
+            data!(SumtiSyntax::SumtiWithRelativeClauses { base_sumti, .. })
+            | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. })
+            | data!(SumtiSyntax::GroupedSumti {
+                inner_sumti: base_sumti,
+                ..
+            })
+            | data!(SumtiSyntax::TaggedSumti {
+                inner_sumti: base_sumti,
+                ..
+            }) => self.explicit_da_series_inner_sumti_raw(base_sumti),
+            data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. })
+                if sumti_is_da_series_pro_sumti(inner_sumti) =>
+            {
+                self.analysis
+                    .syntax_index
+                    .sumti_node_id(inner_sumti)
+                    .map(|node| Some(node.0))
+                    .ok_or_else(SemanticsError::missing_syntax_node)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|sumti| da_series_scope_source(sumti).is_some()))]
+    fn da_series_source_scope_sumti_for_target(
+        &self,
+        target_raw: RawSyntaxNodeId,
+    ) -> Option<&'tree SumtiSyntax> {
+        let mut current = Some(target_raw);
+        let mut source_sumti = None;
+        while let Some(raw) = current {
+            if let Some(sumti) = self.analysis.syntax_index.argument_node(raw)
+                && da_series_scope_source(sumti).is_some()
+            {
+                source_sumti = Some(sumti);
+            }
+            current = self
+                .analysis
+                .syntax_index
+                .metadata(raw)
+                .and_then(|metadata| metadata.parent);
+        }
+        source_sumti
     }
 
     #[requires(true)]
@@ -3880,8 +4000,11 @@ where
         out.push(QuantifiedProSumtiScope::from_data(data!(
             QuantifiedProSumtiScope {
                 variable: referent,
+                source_variable: None,
+                selection_source: None,
                 quantity: None,
                 quantity_connection: None,
+                inherited_restrictions: Vec::new(),
                 operator: FormulaOperator::Exists,
                 source,
             }
@@ -12449,7 +12572,9 @@ where
             ));
         }
         let explicit_quantity = self.build_argument_quantity_for_sumti(raw, sumti)?;
-        let referent = if sumti_has_in_situ_argument_quantifier(sumti) {
+        let referent = if sumti_has_in_situ_argument_quantifier(sumti)
+            || self.requantified_da_selection_for_sumti(sumti)?.is_some()
+        {
             self.build_scoped_argument_variable_for_sumti(sumti)?
         } else {
             self.build_sumti_referent(sumti)?
@@ -12478,7 +12603,7 @@ where
         self.attach_relative_clauses_to_argument(argument, sumti, referent)
     }
 
-    #[requires(sumti_has_in_situ_argument_quantifier(sumti))]
+    #[requires(argument_quantifier_for_sumti(sumti).is_some())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     fn build_scoped_argument_variable_for_sumti(
         &mut self,
@@ -13586,11 +13711,16 @@ where
                 quantifier,
                 inner_sumti,
             }) => {
-                let referent = self.build_sumti_referent(inner_sumti)?;
-                if da_series_scope_source(sumti).is_none() {
-                    let quantity = self.build_quantity_for_sumti_quantifier(raw, quantifier)?;
-                    self.add_quantity_to_referent(referent, quantity);
-                }
+                let referent = if self.requantified_da_selection_for_sumti(sumti)?.is_some() {
+                    self.build_scoped_argument_variable_for_sumti(sumti)?
+                } else {
+                    let referent = self.build_sumti_referent(inner_sumti)?;
+                    if da_series_scope_source(sumti).is_none() {
+                        let quantity = self.build_quantity_for_sumti_quantifier(raw, quantifier)?;
+                        self.add_quantity_to_referent(referent, quantity);
+                    }
+                    referent
+                };
                 referent
             }
             data!(SumtiSyntax::SumtiWithRelativeClauses {
@@ -30121,6 +30251,66 @@ mod tests {
         assert_eq!(exact_one["body"], "formula:f3");
         assert_eq!(exact_one["quantity"], "quantity:q2");
         assert_eq!(object(&json, "quantity:q2")["value"]["integer"], 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn requantified_da_selects_from_prior_witness_set() {
+        let json = semantic_json_for("ci da poi prenu cu se ralju pa da").expect("semantic JSON");
+        let root = root_object(&json);
+        let outer = object(&json, root["content"].as_str().expect("root content"));
+        assert_eq!(outer["operator"], "cardinality");
+        assert_eq!(outer["variable"], "referent:r1");
+
+        let inner = object(&json, outer["body"].as_str().expect("outer body"));
+        assert_eq!(inner["operator"], "cardinality");
+        assert_ne!(inner["variable"], inner["sourceVariable"]);
+        assert_eq!(inner["sourceVariable"], "referent:r1");
+        assert_eq!(inner["selectionSource"]["kind"], "witnessSet");
+        assert_eq!(inner["selectionSource"]["variable"], "referent:r1");
+        assert_eq!(inner["quantity"], "quantity:q2");
+        assert_eq!(object(&json, "quantity:q2")["value"]["integer"], 1);
+
+        let selected = inner["variable"]
+            .as_str()
+            .expect("selected re-quantified variable");
+        let restriction = object(
+            &json,
+            inner["restriction"]
+                .as_str()
+                .expect("selected variable restriction"),
+        );
+        let restriction_predication = object(
+            &json,
+            restriction["predication"]
+                .as_str()
+                .expect("restriction predication"),
+        );
+        assert_eq!(restriction_predication["relation"], "prenu");
+        assert_eq!(
+            restriction_predication["arguments"]["x1"]["value"],
+            selected
+        );
+
+        let ralju = predication_with_relation_and_mode(&json, "ralju", "asserted");
+        assert_eq!(ralju["arguments"]["x1"]["value"], selected);
+        assert_eq!(ralju["arguments"]["x2"]["value"], "referent:r1");
+
+        let prenex = semantic_json_for("ci da zo'u re da cu klama").expect("semantic JSON");
+        let outer = object(
+            &prenex,
+            root_object(&prenex)["content"]
+                .as_str()
+                .expect("prenex root content"),
+        );
+        let inner = object(&prenex, outer["body"].as_str().expect("prenex outer body"));
+        assert_eq!(inner["sourceVariable"], outer["variable"]);
+        assert_eq!(inner["selectionSource"]["kind"], "witnessSet");
+        assert_eq!(inner["selectionSource"]["variable"], outer["variable"]);
+        assert!(inner.get("restriction").is_none());
+        let klama = predication_with_relation_and_mode(&prenex, "klama", "asserted");
+        assert_eq!(klama["arguments"]["x1"]["value"], inner["variable"]);
     }
 
     #[test]

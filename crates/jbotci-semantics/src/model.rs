@@ -444,6 +444,10 @@ pub struct SemanticObject {
     pub connector: Option<Connector>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub variable: Option<SemanticObjectId>,
+    #[serde(rename = "sourceVariable", skip_serializing_if = "Option::is_none")]
+    pub source_variable: Option<SemanticObjectId>,
+    #[serde(rename = "selectionSource", skip_serializing_if = "Option::is_none")]
+    pub selection_source: Option<SelectionSource>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub restriction: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -602,6 +606,8 @@ impl SemanticObject {
             children: Vec::new(),
             connector: None,
             variable: None,
+            source_variable: None,
+            selection_source: None,
             restriction: None,
             body: None,
             quantity: None,
@@ -1284,6 +1290,10 @@ impl SemanticObject {
         extend_optional(out, self.predication);
         out.extend(self.children.iter().copied());
         extend_optional(out, self.variable);
+        extend_optional(out, self.source_variable);
+        if let Some(selection_source) = &self.selection_source {
+            selection_source.references_into(out);
+        }
         extend_optional(out, self.restriction);
         extend_optional(out, self.body);
         extend_optional(out, self.quantity);
@@ -1346,6 +1356,22 @@ impl SemanticObject {
     #[ensures(self.subscript.is_some())]
     pub fn set_subscript(&mut self, subscript: Subscript) {
         self.subscript = Some(subscript);
+    }
+
+    #[requires(source_variable.is_none_or(|variable| variable.object_kind() == SemanticObjectKind::Referent))]
+    #[requires(selection_source.as_ref().is_none_or(|source| source.variable.object_kind() == SemanticObjectKind::Referent))]
+    #[requires(selection_source.as_ref().is_none_or(|source| source_variable.is_none_or(|variable| variable == source.variable)))]
+    #[ensures(ret.source_variable == source_variable)]
+    pub fn with_quantifier_selection(
+        self,
+        source_variable: Option<SemanticObjectId>,
+        selection_source: Option<SelectionSource>,
+    ) -> Self {
+        Self {
+            source_variable,
+            selection_source,
+            ..self
+        }
     }
 }
 
@@ -2255,6 +2281,38 @@ pub enum ParameterRole {
     MathOperatorQuestion,
     AttitudeQuestion,
     RespectiveSlot,
+}
+
+#[invariant(variable.object_kind() == SemanticObjectKind::Referent)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SelectionSource {
+    pub kind: SelectionSourceKind,
+    pub variable: SemanticObjectId,
+}
+
+impl SelectionSource {
+    #[requires(variable.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.variable == variable)]
+    pub fn witness_set(variable: SemanticObjectId) -> Self {
+        Self::from_data(data!(SelectionSource {
+            kind: SelectionSourceKind::WitnessSet,
+            variable,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        out.push(self.variable);
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SelectionSourceKind {
+    WitnessSet,
 }
 
 #[invariant(argument_value_shape_is_valid(*kind, *value, introduced_by.as_deref()))]
@@ -3580,6 +3638,13 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && object
             .variable
             .is_none_or(|variable| quantifier_variable_kind_is_allowed(variable.object_kind()))
+        && optional_reference_has_kind(object.source_variable, SemanticObjectKind::Referent)
+        && object.selection_source.as_ref().is_none_or(|source| {
+            source.variable.object_kind() == SemanticObjectKind::Referent
+                && object
+                    .source_variable
+                    .is_none_or(|variable| variable == source.variable)
+        })
         && optional_reference_has_kind(object.restriction, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.body, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.quantity, SemanticObjectKind::Quantity)
