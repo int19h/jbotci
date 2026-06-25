@@ -792,6 +792,21 @@ fn legacy_as_generated_fragment_tree_value(
                 entries,
             })
         }
+        bityzba::data!(jbotci_syntax::ast::FragmentSyntax::RelativeClauses(
+            relative_clauses
+        )) => {
+            let values = relative_clauses
+                .iter()
+                .map(|relative_clause| {
+                    legacy_as_generated_relative_clause_tree_value(relative_clause, source, options)
+                })
+                .collect::<Vec<_>>();
+            if values.len() == 1 {
+                values.into_iter().next().expect("length checked")
+            } else {
+                TreeValue::Collection(values)
+            }
+        }
         _ => required_legacy_syntax_subtree_value(fragment, source, options),
     }
 }
@@ -1534,7 +1549,11 @@ fn legacy_as_generated_simple_term_tree_value(
                 },
                 TreeEntry {
                     label: Some("sumti"),
-                    value: legacy_as_generated_sumti_tree_value(sumti.as_ref(), source, options),
+                    value: legacy_as_generated_tagged_or_elided_sumti_tree_value(
+                        sumti.as_ref(),
+                        source,
+                        options,
+                    ),
                 },
             ];
             if let Some(ku) = ku {
@@ -1565,7 +1584,11 @@ fn legacy_as_generated_simple_term_tree_value(
             }
             entries.push(TreeEntry {
                 label: Some("sumti"),
-                value: legacy_as_generated_sumti_tree_value(sumti.as_ref(), source, options),
+                value: legacy_as_generated_tagged_or_elided_sumti_tree_value(
+                    sumti.as_ref(),
+                    source,
+                    options,
+                ),
             });
             TreeValue::Node(TreeNode {
                 constructor: "JaiTaggedSumti",
@@ -1586,7 +1609,11 @@ fn legacy_as_generated_simple_term_tree_value(
             }
             entries.push(TreeEntry {
                 label: Some("sumti"),
-                value: legacy_as_generated_sumti_tree_value(sumti.as_ref(), source, options),
+                value: legacy_as_generated_tagged_or_elided_sumti_tree_value(
+                    sumti.as_ref(),
+                    source,
+                    options,
+                ),
             });
             TreeValue::Node(TreeNode {
                 constructor: "TaggedSumti",
@@ -2150,6 +2177,23 @@ fn legacy_as_generated_sumti_tree_value(
             value: legacy_as_generated_sumti_grouped_tree_value(sumti, source, options),
         }],
     })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_tagged_or_elided_sumti_tree_value(
+    sumti: &jbotci_syntax::ast::SumtiSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    if matches!(
+        sumti.as_data(),
+        bityzba::data!(jbotci_syntax::ast::SumtiSyntax::ElidedSumti { .. })
+    ) {
+        return legacy_as_generated_sumti_base_tree_value(sumti, source, options);
+    }
+
+    legacy_as_generated_sumti_tree_value(sumti, source, options)
 }
 
 #[requires(true)]
@@ -2825,6 +2869,39 @@ fn legacy_as_generated_sumti_base_tree_value(
             }
             TreeValue::Node(TreeNode {
                 constructor: "BridiDescription",
+                entries,
+            })
+        }
+        bityzba::data!(jbotci_syntax::ast::SumtiSyntax::ElidedSumti {
+            tag,
+            maybe_ku,
+            free_modifiers,
+        }) => {
+            let mut entries = Vec::new();
+            if let Some(tag) = tag {
+                entries.push(TreeEntry {
+                    label: Some("tag"),
+                    value: required_legacy_syntax_subtree_value(tag.as_ref(), source, options),
+                });
+            }
+            if let Some(maybe_ku) = maybe_ku {
+                entries.extend(legacy_token_field_entries(
+                    "maybe_ku", maybe_ku, source, options,
+                ));
+            }
+            if let Some(entry) = labelled_tree_collection_entry_from_values(
+                "free_modifiers",
+                free_modifiers
+                    .iter()
+                    .map(|free_modifier| {
+                        legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
+                    })
+                    .collect(),
+            ) {
+                entries.push(entry);
+            }
+            TreeValue::Node(TreeNode {
+                constructor: "ElidedSumti",
                 entries,
             })
         }
@@ -3550,6 +3627,30 @@ fn legacy_as_generated_mekso_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
+    if let bityzba::data!(jbotci_syntax::ast::MeksoSyntax::ReversePolish {
+        fuha,
+        operands,
+        operators,
+    }) = mekso.as_data()
+        && let Some(parts) = legacy_as_generated_reverse_polish_parts_tree_value(
+            operands, operators, source, options,
+        )
+    {
+        return TreeValue::Node(TreeNode {
+            constructor: "ReversePolish",
+            entries: vec![
+                TreeEntry {
+                    label: Some("fuha"),
+                    value: required_legacy_syntax_subtree_value(fuha, source, options),
+                },
+                TreeEntry {
+                    label: Some("parts"),
+                    value: parts,
+                },
+            ],
+        });
+    }
+
     let (first_expression, continuations) = legacy_mekso_infix_parts(mekso, source, options);
     let mut entries = vec![TreeEntry {
         label: Some("first_expression"),
@@ -3563,6 +3664,45 @@ fn legacy_as_generated_mekso_tree_value(
         constructor: "InfixMekso",
         entries,
     })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_reverse_polish_parts_tree_value(
+    operands: &[jbotci_syntax::ast::MeksoSyntax],
+    operators: &[jbotci_syntax::ast::MeksoOperatorSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let (first_operand, remaining_operands) = operands.split_first()?;
+    if remaining_operands.len() != operators.len() {
+        return None;
+    }
+
+    let mut entries = vec![TreeEntry {
+        label: Some("first_operand"),
+        value: legacy_as_generated_mekso_operand_tree_value(first_operand, source, options),
+    }];
+    if let Some((last_operator, nested_operators)) = operators.split_last() {
+        let nested_parts = legacy_as_generated_reverse_polish_parts_tree_value(
+            remaining_operands,
+            nested_operators,
+            source,
+            options,
+        )?;
+        entries.push(TreeEntry {
+            label: Some("tails"),
+            value: TreeValue::Collection(vec![TreeValue::Collection(vec![
+                nested_parts,
+                legacy_as_generated_mekso_operator_tree_value(last_operator, source, options),
+            ])]),
+        });
+    }
+
+    Some(TreeValue::Node(TreeNode {
+        constructor: "ReversePolishParts",
+        entries,
+    }))
 }
 
 #[requires(true)]
@@ -4094,6 +4234,14 @@ fn legacy_selbri_tanru_units(
 trait LegacyTanruUnitLike {
     #[requires(true)]
     #[ensures(true)]
+    fn bo_or_linked_tanru_unit_tree_value(
+        &self,
+        source: &str,
+        options: TreeRenderOptions,
+    ) -> TreeValue;
+
+    #[requires(true)]
+    #[ensures(true)]
     fn linked_tanru_unit_tree_value(&self, source: &str, options: TreeRenderOptions) -> TreeValue;
 
     #[requires(true)]
@@ -4123,6 +4271,16 @@ trait LegacyTanruUnitLike {
 
 #[contract_trait]
 impl LegacyTanruUnitLike for jbotci_syntax::ast::SelbriSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn bo_or_linked_tanru_unit_tree_value(
+        &self,
+        source: &str,
+        options: TreeRenderOptions,
+    ) -> TreeValue {
+        self.linked_tanru_unit_tree_value(source, options)
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn linked_tanru_unit_tree_value(&self, source: &str, options: TreeRenderOptions) -> TreeValue {
@@ -4246,6 +4404,19 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::SelbriSyntax {
                     options,
                 )
             }
+            bityzba::data!(jbotci_syntax::ast::SelbriSyntax::GroupedSelbri {
+                ke_tense_modal,
+                ke,
+                selbri,
+                kehe,
+            }) => legacy_as_generated_grouped_tanru_unit_tree_value(
+                ke_tense_modal.as_deref(),
+                ke,
+                selbri.as_ref(),
+                kehe.as_ref(),
+                source,
+                options,
+            ),
             _ => required_legacy_syntax_subtree_value(self, source, options),
         }
     }
@@ -4284,8 +4455,106 @@ fn legacy_simple_bridi_selbri(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_grouped_tanru_unit_tree_value(
+    ke_tense_modal: Option<&jbotci_syntax::ast::TenseModalSyntax>,
+    ke: &WithFreeModifiers<Token>,
+    selbri: &jbotci_syntax::ast::SelbriSyntax,
+    kehe: Option<&WithFreeModifiers<Token>>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = Vec::new();
+    if let Some(ke_tense_modal) = ke_tense_modal {
+        entries.push(TreeEntry {
+            label: Some("ke_tense_modal"),
+            value: legacy_as_generated_tense_modal_tree_value(ke_tense_modal, source, options),
+        });
+    }
+    entries.extend(legacy_token_field_entries("ke", ke, source, options));
+    entries.push(TreeEntry {
+        label: Some("selbri"),
+        value: legacy_as_generated_connected_selbri_tree_value(selbri, source, options),
+    });
+    if let Some(kehe) = kehe {
+        entries.extend(legacy_token_field_entries("kehe", kehe, source, options));
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "GroupedTanruUnit",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_bound_tanru_unit_connection_tree_value(
+    leading_unit: &jbotci_syntax::ast::TanruUnitSyntax,
+    bo_connective: Option<&jbotci_syntax::ast::ConnectiveSyntax>,
+    bo_tense_modal: Option<&jbotci_syntax::ast::TenseModalSyntax>,
+    bo: &WithFreeModifiers<Token>,
+    trailing_unit: &jbotci_syntax::ast::TanruUnitSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = vec![TreeEntry {
+        label: Some("leading_unit"),
+        value: legacy_as_generated_linked_tanru_unit_tree_value(leading_unit, source, options),
+    }];
+    if let Some(bo_connective) = bo_connective {
+        entries.push(TreeEntry {
+            label: Some("bo_connective"),
+            value: legacy_as_generated_connective_tree_value(bo_connective, source, options),
+        });
+    }
+    if let Some(bo_tense_modal) = bo_tense_modal {
+        entries.push(TreeEntry {
+            label: Some("bo_tense_modal"),
+            value: legacy_as_generated_tense_modal_tree_value(bo_tense_modal, source, options),
+        });
+    }
+    entries.extend(legacy_token_field_entries("bo", bo, source, options));
+    entries.push(TreeEntry {
+        label: Some("trailing_unit"),
+        value: trailing_unit.bo_or_linked_tanru_unit_tree_value(source, options),
+    });
+    TreeValue::Node(TreeNode {
+        constructor: "BoundTanruUnitConnection",
+        entries,
+    })
+}
+
 #[contract_trait]
 impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    fn bo_or_linked_tanru_unit_tree_value(
+        &self,
+        source: &str,
+        options: TreeRenderOptions,
+    ) -> TreeValue {
+        match self.as_data() {
+            bityzba::data!(
+                jbotci_syntax::ast::TanruUnitSyntax::BoundTanruUnitConnection {
+                    leading_unit,
+                    bo_connective,
+                    bo_tense_modal,
+                    bo,
+                    trailing_unit,
+                }
+            ) => legacy_as_generated_bound_tanru_unit_connection_tree_value(
+                leading_unit.as_ref(),
+                bo_connective.as_deref(),
+                bo_tense_modal.as_deref(),
+                bo,
+                trailing_unit.as_ref(),
+                source,
+                options,
+            ),
+            _ => self.linked_tanru_unit_tree_value(source, options),
+        }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn linked_tanru_unit_tree_value(&self, source: &str, options: TreeRenderOptions) -> TreeValue {
@@ -4481,6 +4750,34 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
                     entries,
                 })
             }
+            bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::GroupedTanruUnit {
+                ke_tense_modal,
+                ke,
+                selbri,
+                kehe,
+            }) => legacy_as_generated_grouped_tanru_unit_tree_value(
+                ke_tense_modal.as_deref(),
+                ke,
+                selbri.as_ref(),
+                kehe.as_ref(),
+                source,
+                options,
+            ),
+            bityzba::data!(
+                jbotci_syntax::ast::TanruUnitSyntax::ScalarNegatedTanruUnit { nahe, inner_unit }
+            ) => TreeValue::Node(TreeNode {
+                constructor: "ScalarNegatedTanruUnit",
+                entries: vec![
+                    TreeEntry {
+                        label: Some("nahe"),
+                        value: required_legacy_syntax_subtree_value(nahe, source, options),
+                    },
+                    TreeEntry {
+                        label: Some("inner_unit"),
+                        value: inner_unit.tanru_unit_atom_tree_value(source, options),
+                    },
+                ],
+            }),
             bityzba::data!(
                 jbotci_syntax::ast::TanruUnitSyntax::PreposedLinkedSumtiTanruUnit {
                     be,
@@ -4530,6 +4827,21 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
                                 source,
                                 options,
                             ),
+                        },
+                    ],
+                })
+            }
+            bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::OrdinalSelbri { number, moi }) => {
+                TreeValue::Node(TreeNode {
+                    constructor: "OrdinalTanruUnit",
+                    entries: vec![
+                        TreeEntry {
+                            label: Some("number"),
+                            value: legacy_word_run_tree_value(number, source, options),
+                        },
+                        TreeEntry {
+                            label: Some("moi"),
+                            value: required_legacy_syntax_subtree_value(moi, source, options),
                         },
                     ],
                 })
@@ -4606,7 +4918,7 @@ where
     if let Some((leading_unit, continuations)) = unit.tanru_unit_connection_parts() {
         let mut entries = vec![TreeEntry {
             label: Some("leading_unit"),
-            value: legacy_as_generated_linked_tanru_unit_tree_value(leading_unit, source, options),
+            value: leading_unit.bo_or_linked_tanru_unit_tree_value(source, options),
         }];
         if let Some(entry) = labelled_tree_collection_entry_from_values(
             "continuations",
@@ -4615,11 +4927,7 @@ where
                 .map(|(connective, trailing_unit)| {
                     TreeValue::Collection(vec![
                         required_legacy_syntax_subtree_value(*connective, source, options),
-                        legacy_as_generated_linked_tanru_unit_tree_value(
-                            *trailing_unit,
-                            source,
-                            options,
-                        ),
+                        trailing_unit.bo_or_linked_tanru_unit_tree_value(source, options),
                     ])
                 })
                 .collect(),
@@ -4635,7 +4943,7 @@ where
         constructor: "ConnectedTanruUnit",
         entries: vec![TreeEntry {
             label: Some("leading_unit"),
-            value: legacy_as_generated_linked_tanru_unit_tree_value(unit, source, options),
+            value: unit.bo_or_linked_tanru_unit_tree_value(source, options),
         }],
     })
 }
@@ -4915,6 +5223,46 @@ fn legacy_as_generated_composite_tense_modal_tree_value(
             legacy_as_generated_connected_tense_modal_tree_value(&tokens, source, options)
         {
             return value;
+        }
+        if let [pu, distance] = tokens.as_slice()
+            && pu.is_selmaho(Selmaho::Pu)
+            && distance.is_selmaho(Selmaho::Zi)
+        {
+            return TreeValue::Node(TreeNode {
+                constructor: "TimeSpaceCahaKiTense",
+                entries: vec![TreeEntry {
+                    label: Some("tense"),
+                    value: TreeValue::Node(TreeNode {
+                        constructor: "TimeThenSpaceCahaTense",
+                        entries: vec![TreeEntry {
+                            label: Some("time"),
+                            value: TreeValue::Node(TreeNode {
+                                constructor: "TimeTenseWithOffset",
+                                entries: vec![TreeEntry {
+                                    label: Some("offsets"),
+                                    value: TreeValue::Collection(vec![TreeValue::Node(TreeNode {
+                                        constructor: "PuTimeOffsetTense",
+                                        entries: vec![
+                                            TreeEntry {
+                                                label: Some("pu"),
+                                                value: generated_token_tree_value(
+                                                    pu, source, options,
+                                                ),
+                                            },
+                                            TreeEntry {
+                                                label: Some("distance"),
+                                                value: generated_token_tree_value(
+                                                    distance, source, options,
+                                                ),
+                                            },
+                                        ],
+                                    })]),
+                                }],
+                            }),
+                        }],
+                    }),
+                }],
+            });
         }
         if tokens.len() > 1 && tokens.iter().all(|token| token.is_selmaho(Selmaho::Pu)) {
             return TreeValue::Node(TreeNode {
