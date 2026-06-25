@@ -1813,20 +1813,15 @@ fn legacy_as_generated_free_modifier_tree_value(
             trailing_sumti,
             sehu,
         }) => {
-            let mut entries = vec![
-                TreeEntry {
-                    label: Some("soi"),
-                    value: required_legacy_syntax_subtree_value(soi, source, options),
-                },
-                TreeEntry {
-                    label: Some("leading_sumti"),
-                    value: legacy_as_generated_sumti_tree_value(
-                        leading_sumti.as_ref(),
-                        source,
-                        options,
-                    ),
-                },
-            ];
+            let mut entries = legacy_token_field_entries("soi", soi, source, options);
+            entries.push(TreeEntry {
+                label: Some("leading_sumti"),
+                value: legacy_as_generated_sumti_tree_value(
+                    leading_sumti.as_ref(),
+                    source,
+                    options,
+                ),
+            });
             if let Some(trailing_sumti) = trailing_sumti {
                 entries.push(TreeEntry {
                     label: Some("trailing_sumti"),
@@ -1838,10 +1833,7 @@ fn legacy_as_generated_free_modifier_tree_value(
                 });
             }
             if let Some(sehu) = sehu {
-                entries.push(TreeEntry {
-                    label: Some("sehu"),
-                    value: required_legacy_syntax_subtree_value(sehu, source, options),
-                });
+                entries.extend(legacy_token_field_entries("sehu", sehu, source, options));
             }
             TreeValue::Node(TreeNode {
                 constructor: "ReciprocalSumti",
@@ -1872,10 +1864,7 @@ fn legacy_as_generated_free_modifier_tree_value(
                 });
             }
             if let Some(dohu) = dohu {
-                entries.push(TreeEntry {
-                    label: Some("dohu"),
-                    value: required_legacy_syntax_subtree_value(dohu, source, options),
-                });
+                entries.extend(legacy_token_field_entries("dohu", dohu, source, options));
             }
             TreeValue::Node(TreeNode {
                 constructor: "Vocative",
@@ -1887,25 +1876,13 @@ fn legacy_as_generated_free_modifier_tree_value(
             text,
             toi,
         }) => {
-            let mut entries = vec![
-                TreeEntry {
-                    label: Some("to"),
-                    value: required_legacy_syntax_subtree_value(to, source, options),
-                },
-                TreeEntry {
-                    label: Some("text"),
-                    value: legacy_as_generated_text_child_tree_value(
-                        text.as_ref(),
-                        source,
-                        options,
-                    ),
-                },
-            ];
+            let mut entries = legacy_token_field_entries("to", to, source, options);
+            entries.push(TreeEntry {
+                label: Some("text"),
+                value: legacy_as_generated_text_child_tree_value(text.as_ref(), source, options),
+            });
             if let Some(toi) = toi {
-                entries.push(TreeEntry {
-                    label: Some("toi"),
-                    value: required_legacy_syntax_subtree_value(toi, source, options),
-                });
+                entries.extend(legacy_token_field_entries("toi", toi, source, options));
             }
             TreeValue::Node(TreeNode {
                 constructor: "ParentheticalText",
