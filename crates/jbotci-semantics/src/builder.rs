@@ -28276,19 +28276,20 @@ mod tests {
         let grouped =
             semantic_json_for("mi na'e ke sutra cadzu be fi le birka ke'e klama le zarci")
                 .expect("semantic JSON");
-        let sutra_cadzu =
-            predication_with_relation_and_mode(&grouped, "sutra cadzu", "restrictive");
-        assert_eq!(sutra_cadzu["arguments"]["x3"]["kind"], "filled");
+        let cadzu = predication_with_relation_and_mode(&grouped, "cadzu", "restrictive");
+        assert_eq!(cadzu["arguments"]["x3"]["kind"], "filled");
+        let sutra_cadzu = tanru_predication_with_label(&grouped, "sutra-cadzu", "restrictive");
         assert_eq!(sutra_cadzu["scalarNegation"]["kind"], "otherThan");
         assert_eq!(sutra_cadzu["scalarNegation"]["introducedBy"], "na'e");
 
         let omitted =
             semantic_json_for("mi na'e ke sutra bo cadzu be fi le birka je masno klama le zarci")
                 .expect("semantic JSON");
-        let whole_group =
-            predication_with_relation_and_mode(&omitted, "sutra bo cadzu", "asserted");
-        assert_eq!(whole_group["arguments"]["x1"]["value"], "referent:speaker");
-        assert_eq!(whole_group["arguments"]["x4"]["kind"], "filled");
+        let cadzu = predication_with_relation_and_mode(&omitted, "cadzu", "asserted");
+        assert_eq!(cadzu["arguments"]["x1"]["value"], "referent:speaker");
+        assert_eq!(cadzu["arguments"]["x3"]["kind"], "filled");
+        assert_eq!(cadzu["arguments"]["x4"]["kind"], "filled");
+        let whole_group = tanru_predication_with_label(&omitted, "sutra-cadzu", "asserted");
         assert_eq!(whole_group["scalarNegation"]["kind"], "otherThan");
         assert_eq!(whole_group["scalarNegation"]["introducedBy"], "na'e");
     }
@@ -28299,8 +28300,7 @@ mod tests {
     fn scalar_negation_argument_scope_distinguishes_trailing_and_linked_sumti() {
         let trailing =
             semantic_json_for("mi na'e ke sutra cadzu ke'e lemi birka").expect("semantic JSON");
-        let trailing_cadzu =
-            predication_with_relation_and_mode(&trailing, "sutra cadzu", "asserted");
+        let trailing_cadzu = tanru_predication_with_label(&trailing, "sutra-cadzu", "asserted");
         assert_eq!(
             trailing_cadzu["scalarNegation"]["argumentScope"]
                 .as_array()
@@ -28310,7 +28310,7 @@ mod tests {
 
         let linked =
             semantic_json_for("mi na'e ke sutra cadzu be lemi birka ke'e").expect("semantic JSON");
-        let linked_cadzu = predication_with_relation_and_mode(&linked, "sutra cadzu", "asserted");
+        let linked_cadzu = tanru_predication_with_label(&linked, "sutra-cadzu", "asserted");
         assert_eq!(
             linked_cadzu["scalarNegation"]["argumentScope"]
                 .as_array()
