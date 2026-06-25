@@ -28288,6 +28288,11 @@ mod tests {
     fn ri_resolves_inside_luhe_member_qualifier() {
         let json =
             semantic_json_for("lo'i ratcu cu barda .iku'i lu'a ri cmalu").expect("semantic JSON");
+        let contrast = object(&json, "display:d1");
+        assert_eq!(contrast["relation"], "ku'i");
+        assert_eq!(contrast["family"], "metalinguistic");
+        assert_eq!(contrast["target"], object(&json, "utterance:u2")["content"]);
+        assert_eq!(contrast["anchor"], "utterance:u2");
         let barda = predication_with_relation_and_mode(&json, "barda", "asserted");
         let rat_set = barda["arguments"]["x1"]["value"]
             .as_str()
