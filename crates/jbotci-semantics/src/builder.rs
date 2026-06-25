@@ -6636,8 +6636,10 @@ where
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        self.build_bound_selbri_tanru_formula_for_argument(selbri, leading, trailing, frame, source)
-            .map(|result| result.formula)
+        self.build_bound_selbri_tanru_formula_for_argument(
+            selbri, leading, trailing, frame, source, None,
+        )
+        .map(|result| result.formula)
     }
 
     #[requires(true)]
@@ -6663,9 +6665,15 @@ where
         trailing: &'tree SelbriSyntax,
         frame: Option<SelbriPlaceFrameId>,
         source: Option<crate::model::SemanticSource>,
+        visible_x1_override: Option<ArgumentValue>,
     ) -> Result<TanruFormulaForArgument, SemanticsError> {
-        let tertau =
-            self.build_selbri_tanru_formula_for_frame(selbri, trailing, frame, source.clone())?;
+        let tertau = self.build_selbri_tanru_formula_for_frame_with_visible_x1_override(
+            selbri,
+            trailing,
+            frame,
+            source.clone(),
+            visible_x1_override,
+        )?;
         let modifier = self.build_property_abstraction_for_selbri(leading, source.clone())?;
         let relation_formula = self.build_tanru_relation_formula(
             tertau.x1_argument.clone(),
@@ -7056,6 +7064,7 @@ where
                 bound_tanru.trailing,
                 frame,
                 source,
+                visible_x1_override,
             );
         }
         if let data!(SelbriSyntax::InvertedTanru {
@@ -7632,6 +7641,27 @@ where
         argument_overrides: &BTreeMap<String, ArgumentValue>,
     ) -> Result<TanruFormulaForArgument, SemanticsError> {
         let visible_x1_place = visible_x1_place_for_tanru_unit(inner_unit);
+        let scalar_scope =
+            self.scalar_negation_argument_scope_for_tanru_unit(inner_unit, frame, visible_x1_place);
+        let scalar_negation = scalar_negation_for_marker(marker).with_argument_scope(scalar_scope);
+        if tanru_unit_requires_recursive_scalar_lowering(inner_unit) {
+            let result = self.build_tanru_unit_formula_for_frame_with_visible_x1_override(
+                selbri,
+                inner_unit,
+                frame,
+                source,
+                visible_x1_override,
+                argument_overrides,
+            )?;
+            self.apply_scalar_negation_to_tanru_links(result.formula, scalar_negation)?;
+            return Ok(TanruFormulaForArgument {
+                formula: self
+                    .tanru_relation_formula_without_positive_head(result.formula)
+                    .unwrap_or(result.formula),
+                x1_argument: result.x1_argument,
+                head_predication: result.head_predication,
+            });
+        }
         let mut overrides = argument_overrides.clone();
         if let Some(argument) = visible_x1_override {
             overrides.insert(format!("x{visible_x1_place}"), argument);
@@ -7643,12 +7673,7 @@ where
             relation_label_for_tanru_unit(inner_unit),
             overrides,
         )?;
-        let scalar_scope =
-            self.scalar_negation_argument_scope_for_tanru_unit(inner_unit, frame, visible_x1_place);
-        self.set_scalar_negation(
-            predication,
-            scalar_negation_for_marker(marker).with_argument_scope(scalar_scope),
-        )?;
+        self.set_scalar_negation(predication, scalar_negation)?;
         let formula = self.next_formula();
         self.insert(
             formula,
@@ -8265,6 +8290,20 @@ where
                     PredicationMode::Restrictive,
                 ),
             data!(TanruUnitSyntax::ScalarNegatedTanruUnit { nahe, inner_unit }) => {
+                if tanru_unit_requires_recursive_scalar_lowering(inner_unit) {
+                    let formula = self.build_property_formula_for_tanru_unit(
+                        inner_unit,
+                        parameter,
+                        source.clone(),
+                    )?;
+                    self.apply_scalar_negation_to_tanru_links(
+                        formula,
+                        scalar_negation_for_marker(nahe),
+                    )?;
+                    return Ok(self
+                        .tanru_relation_formula_without_positive_head(formula)
+                        .unwrap_or(formula));
+                }
                 let frame = self.semantic_predication_frame_for_tanru_unit(
                     unit,
                     self.branch_frame_for_tanru_unit(unit),
@@ -8305,6 +8344,104 @@ where
                 )
             }
         }
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn apply_scalar_negation_to_tanru_links(
+        &mut self,
+        formula: SemanticObjectId,
+        scalar_negation: ScalarNegation,
+    ) -> Result<bool, SemanticsError> {
+        let Some(object) = self.objects.get(&formula).cloned() else {
+            return Ok(false);
+        };
+        match object.operator.as_ref().map(|operator| operator.as_data()) {
+            Some(data!(SemanticOperator::Formula(FormulaOperator::Atom))) => {
+                let Some(predication) = object.predication else {
+                    return Ok(false);
+                };
+                if self
+                    .objects
+                    .get(&predication)
+                    .is_some_and(|object| object.tanru_link.is_some())
+                {
+                    self.set_scalar_negation(predication, scalar_negation)?;
+                    return Ok(true);
+                }
+                Ok(false)
+            }
+            Some(data!(SemanticOperator::Formula(_))) => {
+                let mut changed = false;
+                for child in object.children {
+                    changed |=
+                        self.apply_scalar_negation_to_tanru_links(child, scalar_negation.clone())?;
+                }
+                Ok(changed)
+            }
+            Some(data!(SemanticOperator::Math(_))) | None => Ok(false),
+        }
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula))]
+    fn tanru_relation_formula_without_positive_head(
+        &self,
+        formula: SemanticObjectId,
+    ) -> Option<SemanticObjectId> {
+        let object = self.objects.get(&formula)?;
+        if !matches!(
+            object.operator.as_ref()?.as_data(),
+            data!(SemanticOperator::Formula(FormulaOperator::And))
+        ) || object.children.len() != 2
+        {
+            return None;
+        }
+        let head_formula = object.children[0];
+        let relation_formula = object.children[1];
+        self.formula_is_tanru_relation_for_head(relation_formula, head_formula)
+            .then_some(relation_formula)
+    }
+
+    #[requires(relation_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(head_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(true)]
+    fn formula_is_tanru_relation_for_head(
+        &self,
+        relation_formula: SemanticObjectId,
+        head_formula: SemanticObjectId,
+    ) -> bool {
+        let Some(relation) = self.objects.get(&relation_formula) else {
+            return false;
+        };
+        if !matches!(
+            relation
+                .operator
+                .as_ref()
+                .map(|operator| operator.as_data()),
+            Some(data!(SemanticOperator::Formula(FormulaOperator::Atom)))
+        ) {
+            return false;
+        }
+        let Some(relation_predication) = relation.predication else {
+            return false;
+        };
+        let Some(head) = self.objects.get(&head_formula) else {
+            return false;
+        };
+        if !matches!(
+            head.operator.as_ref().map(|operator| operator.as_data()),
+            Some(data!(SemanticOperator::Formula(FormulaOperator::Atom)))
+        ) {
+            return false;
+        }
+        let Some(head_predication) = head.predication else {
+            return false;
+        };
+        self.objects
+            .get(&relation_predication)
+            .and_then(|predication| predication.tanru_link.as_ref())
+            .is_some_and(|tanru_link| tanru_link.head == head_predication)
     }
 
     #[requires(true)]
@@ -22079,6 +22216,40 @@ fn tanru_units_require_lowering(units: &[&TanruUnitSyntax]) -> bool {
         || units.iter().any(|unit| tanru_unit_requires_lowering(unit))
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn tanru_unit_requires_recursive_scalar_lowering(unit: &TanruUnitSyntax) -> bool {
+    match unit.as_data() {
+        data!(TanruUnitSyntax::TanruUnitConnection { .. })
+        | data!(TanruUnitSyntax::BoundTanruUnitConnection { .. }) => true,
+        data!(TanruUnitSyntax::GroupedTanruUnit { selbri, .. })
+        | data!(TanruUnitSyntax::SelbriGroupTanruUnit(selbri)) => {
+            connectorless_bound_selbri_pair(selbri).is_some()
+                || tanru_units_for_selbri(selbri)
+                    .is_some_and(|units| tanru_units_require_lowering(&units))
+        }
+        data!(TanruUnitSyntax::ConvertedTanruUnit {
+            inner_unit: base,
+            ..
+        })
+        | data!(TanruUnitSyntax::ScalarNegatedTanruUnit {
+            inner_unit: base,
+            ..
+        })
+        | data!(TanruUnitSyntax::ModalConversion {
+            inner_unit: base,
+            ..
+        })
+        | data!(TanruUnitSyntax::RelativeClauses { base, .. })
+        | data!(TanruUnitSyntax::LinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::PreposedLinkedSumtiTanruUnit { base, .. })
+        | data!(TanruUnitSyntax::AssignedProBridi { base, .. }) => {
+            tanru_unit_requires_recursive_scalar_lowering(base)
+        }
+        _ => false,
+    }
+}
+
 #[requires(!units.is_empty())]
 #[ensures(true)]
 fn tanru_sequence_has_explicit_grouping(units: &[&TanruUnitSyntax]) -> bool {
@@ -29932,6 +30103,110 @@ mod tests {
             object(&json, "formula:f3")["connector"]["locus"],
             "tanru-unit"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_selbri_connective_shares_x1_with_bo_grouped_operand() {
+        let json = semantic_json_for("cmalu bo nixli je ckule").expect("semantic JSON");
+        let nixli = predication_with_relation_and_mode(&json, "nixli", "asserted");
+        let ckule = predication_with_relation_and_mode(&json, "ckule", "asserted");
+        assert_eq!(
+            nixli["arguments"]["x1"]["value"],
+            ckule["arguments"]["x1"]["value"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_selbri_connective_shares_x1_with_left_bo_grouped_operand() {
+        let json = semantic_json_for("melbi bo cmalu je nixli").expect("semantic JSON");
+        let cmalu = predication_with_relation_and_mode(&json, "cmalu", "asserted");
+        let nixli = predication_with_relation_and_mode(&json, "nixli", "asserted");
+        assert_eq!(
+            cmalu["arguments"]["x1"]["value"],
+            nixli["arguments"]["x1"]["value"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn scalar_negated_grouped_tanru_lowers_recursively() {
+        let json =
+            semantic_json_for("mi na'e ke sutra cadzu ke'e klama le zarci").expect("semantic JSON");
+        let relations = predication_relations(&json);
+        assert!(relations.iter().any(|relation| relation == "cadzu"));
+        assert!(relations.iter().any(|relation| relation == "klama"));
+        assert!(!relations.iter().any(|relation| relation == "sutra cadzu"));
+
+        let inner_tanru = tanru_predication_with_label(&json, "sutra-cadzu", "restrictive");
+        assert_eq!(inner_tanru["scalarNegation"]["kind"], "otherThan");
+        assert_eq!(inner_tanru["scalarNegation"]["introducedBy"], "na'e");
+        assert_eq!(
+            tanru_predication_with_label(&json, "sutra-cadzu-klama", "asserted")["relation"],
+            "tanru"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn scalar_negated_whole_grouped_tanru_exposes_tanru_link_formula() {
+        let json = semantic_json_for("la .alis. cu na'e ke cadzu klama ke'e le zarci")
+            .expect("semantic JSON");
+        let content = object(
+            &json,
+            root_object(&json)["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "atom");
+        let predication = object(
+            &json,
+            content["predication"]
+                .as_str()
+                .expect("content predication"),
+        );
+        assert_eq!(predication["relation"], "tanru");
+        assert_eq!(predication["tanruLink"]["relationLabel"], "cadzu-klama");
+        assert_eq!(predication["scalarNegation"]["introducedBy"], "na'e");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn scalar_negated_grouped_tanru_preserves_linkargs_and_connectives() {
+        let json = semantic_json_for(
+            "mi na'e ke sutra bo cadzu be fi le birka be'o je masno klama le zarci",
+        )
+        .expect("semantic JSON");
+        let relations = predication_relations(&json);
+        assert!(relations.iter().any(|relation| relation == "cadzu"));
+        assert!(relations.iter().any(|relation| relation == "masno"));
+        assert!(!relations.iter().any(|relation| {
+            relation.contains("sutra bo cadzu") || relation.contains("je masno")
+        }));
+        let cadzu = predication_with_relation_and_mode(&json, "cadzu", "restrictive");
+        assert_eq!(cadzu["arguments"]["x3"]["kind"], "filled");
+        assert!(
+            cadzu["arguments"]["x3"]["value"]
+                .as_str()
+                .is_some_and(|value| value.starts_with("referent:"))
+        );
+        let scalar_tanru = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| {
+                object["type"] == "predication"
+                    && object["relation"] == "tanru"
+                    && object["scalarNegation"]["introducedBy"] == "na'e"
+            })
+            .expect("scalar-negated tanru predication");
+        assert_eq!(scalar_tanru["scalarNegation"]["introducedBy"], "na'e");
     }
 
     #[test]
