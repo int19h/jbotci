@@ -12583,9 +12583,10 @@ where
         kind: RelativeClauseKind,
     ) -> Result<RelativeClause, SemanticsError> {
         let mode = predication_mode_for_relative_clause_kind(kind);
-        if subbridi_contains_keha(subbridi)
-            && let Some(formula) = self.build_subbridi_formula(subbridi)?
-        {
+        if let Some(formula) = self.build_subbridi_formula(subbridi)? {
+            if !subbridi_contains_keha(subbridi) {
+                self.fill_implicit_relative_head_slots(formula, head)?;
+            }
             self.set_formula_predication_mode(formula, mode);
             return Ok(RelativeClause::new(
                 kind,
@@ -12612,6 +12613,62 @@ where
             formula,
             self.source_for_subbridi(subbridi, "relative-clause"),
         ))
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn fill_implicit_relative_head_slots(
+        &mut self,
+        formula: SemanticObjectId,
+        head: SemanticObjectId,
+    ) -> Result<(), SemanticsError> {
+        let Some(object) = self.objects.get(&formula).cloned() else {
+            return Ok(());
+        };
+        if let Some(predication) = object.predication {
+            self.fill_first_elided_predication_argument(predication, head)?;
+        }
+        for child in object.children {
+            self.fill_implicit_relative_head_slots(child, head)?;
+        }
+        if let Some(restriction) = object.restriction {
+            self.fill_implicit_relative_head_slots(restriction, head)?;
+        }
+        if let Some(body) = object.body {
+            self.fill_implicit_relative_head_slots(body, head)?;
+        }
+        Ok(())
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn fill_first_elided_predication_argument(
+        &mut self,
+        predication: SemanticObjectId,
+        head: SemanticObjectId,
+    ) -> Result<(), SemanticsError> {
+        let object = self.objects.get_mut(&predication).ok_or_else(|| {
+            SemanticsError::invalid_graph(format!(
+                "semantic builder could not find relative-clause predication {predication}"
+            ))
+        })?;
+        let Some(place) = object
+            .arguments
+            .iter()
+            .filter(|(_place, argument)| argument.kind == ArgumentValueKind::Elided)
+            .filter_map(|(place, _argument)| argument_place_index(place).map(|index| (index, place)))
+            .min_by_key(|(index, _place)| *index)
+            .map(|(_index, place)| place.clone())
+        else {
+            return Ok(());
+        };
+        if let Some(argument) = object.arguments.get_mut(&place) {
+            let source = argument.source.clone();
+            *argument = ArgumentValue::filled(head, source);
+        }
+        Ok(())
     }
 
     #[requires(true)]
@@ -23476,9 +23533,7 @@ fn sumti_contains_current_level_keha(sumti: &SumtiSyntax) -> bool {
         | data!(SumtiSyntax::SumtiWithComplexRelativeClauses { base_sumti, .. }) => {
             sumti_contains_current_level_keha(base_sumti)
         }
-        data!(SumtiSyntax::BridiDescription { subbridi, .. }) => {
-            subbridi_contains_current_level_keha(subbridi)
-        }
+        data!(SumtiSyntax::BridiDescription { .. }) => false,
         data!(SumtiSyntax::QualifiedTerm { inner_term, .. }) => {
             term_contains_current_level_keha(inner_term)
         }
@@ -23504,22 +23559,9 @@ fn sumti_contains_current_level_keha(sumti: &SumtiSyntax) -> bool {
             sumti_contains_current_level_keha(leading_sumti)
                 || sumti_contains_current_level_keha(trailing_sumti)
         }
-        data!(SumtiSyntax::Description(description)) => {
-            description_contains_current_level_keha(description)
-        }
-        data!(SumtiSyntax::DescriptionConnection(description)) => {
-            description
-                .tail_elements
-                .iter()
-                .any(description_tail_element_contains_current_level_keha)
-                || description
-                    .selbri
-                    .as_ref()
-                    .is_some_and(|selbri| selbri_contains_current_level_keha(selbri))
-        }
-        data!(SumtiSyntax::SelbriVocative { selbri, .. }) => {
-            selbri_contains_current_level_keha(selbri)
-        }
+        data!(SumtiSyntax::Description(_))
+        | data!(SumtiSyntax::DescriptionConnection(_))
+        | data!(SumtiSyntax::SelbriVocative { .. }) => false,
         data!(SumtiSyntax::QuotedSumti(_))
         | data!(SumtiSyntax::NumberSumti { .. })
         | data!(SumtiSyntax::LerfuStringSumti { .. })
@@ -23595,9 +23637,7 @@ fn selbri_contains_current_level_keha(selbri: &SelbriSyntax) -> bool {
             bridi_contains_current_level_keha(leading_bridi)
                 || bridi_contains_current_level_keha(trailing_bridi)
         }
-        data!(SelbriSyntax::Abstraction(abstraction)) => {
-            subbridi_contains_current_level_keha(&abstraction.subbridi)
-        }
+        data!(SelbriSyntax::Abstraction(_)) => false,
         data!(SelbriSyntax::Tanru(units)) => {
             units.iter().any(tanru_unit_contains_current_level_keha)
         }
@@ -23667,9 +23707,7 @@ fn tanru_unit_contains_current_level_keha(unit: &TanruUnitSyntax) -> bool {
                         .is_some_and(|sumti| sumti_contains_current_level_keha(sumti))
                 })
         }
-        data!(TanruUnitSyntax::Abstraction(abstraction)) => {
-            subbridi_contains_current_level_keha(&abstraction.subbridi)
-        }
+        data!(TanruUnitSyntax::Abstraction(_)) => false,
         data!(TanruUnitSyntax::SumtiSelbri { sumti, .. }) => {
             sumti_contains_current_level_keha(sumti)
         }
@@ -28550,7 +28588,8 @@ mod tests {
 
         let exact_one = object(&json, "formula:f4");
         assert_eq!(exact_one["operator"], "cardinality");
-        assert_eq!(exact_one["variable"], "referent:r2");
+        let exact_one_variable = exact_one["variable"].as_str().expect("exact-one variable");
+        assert_eq!(object(&json, exact_one_variable)["descriptor"]["word"], "de");
         assert_eq!(exact_one["restriction"], "formula:f2");
         assert_eq!(exact_one["body"], "formula:f3");
         assert_eq!(exact_one["quantity"], "quantity:q2");
@@ -28985,6 +29024,68 @@ mod tests {
             lacpu["arguments"]["x2"]["value"],
             ratcu["arguments"]["x1"]["value"]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn implicit_relative_clause_preserves_eventuality_and_tense() {
+        let json = semantic_json_for("tu poi le mlatu pu lacpu cu ratcu").expect("semantic JSON");
+        let lacpu = predication_with_relation_and_mode(&json, "lacpu", "restrictive");
+        let event = object(
+            &json,
+            lacpu["eventuality"].as_str().expect("lacpu eventuality"),
+        );
+        assert_eq!(event["time"]["relation"], "before");
+        assert!(event["time"]["anchor"].is_string());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nested_keha_does_not_block_implicit_relative_head_slot() {
+        let json =
+            semantic_json_for("la nanmu poi terpa le ke'a xirma cu klama").expect("semantic JSON");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        let terpa = predication_with_relation_and_mode(&json, "terpa", "restrictive");
+        assert_eq!(
+            terpa["arguments"]["x1"]["value"],
+            klama["arguments"]["x1"]["value"]
+        );
+        let associated =
+            predication_with_relation_and_mode(&json, "associatedWith", "restrictive");
+        assert_eq!(
+            associated["arguments"]["x2"]["value"],
+            klama["arguments"]["x1"]["value"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn relative_clause_connectives_preserve_all_operands() {
+        let json =
+            semantic_json_for("mi nitcu da poi tanxe gi'e bramau ti").expect("semantic JSON");
+        let tanxe = predication_with_relation_and_mode(&json, "tanxe", "restrictive");
+        let bramau = predication_with_relation_and_mode(&json, "bramau", "restrictive");
+        assert_eq!(
+            bramau["arguments"]["x1"]["value"],
+            tanxe["arguments"]["x1"]["value"]
+        );
+        let compared = bramau["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("compared referent");
+        assert_eq!(object(&json, compared)["source"]["text"], "ti");
+        let has_relative_and = json["objects"]
+            .as_object()
+            .expect("objects")
+            .values()
+            .any(|object| {
+                object["type"] == "formula"
+                    && object["operator"] == "and"
+                    && object["connector"]["source"] == "gi'e"
+            });
+        assert!(has_relative_and);
     }
 
     #[test]
