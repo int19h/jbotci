@@ -628,6 +628,35 @@ fn legacy_as_generated_statement_tree_value(
         bityzba::data!(jbotci_syntax::ast::StatementSyntax::Bridi(bridi)) => {
             legacy_as_generated_bridi_tree_value(bridi.as_ref(), source, options)
         }
+        bityzba::data!(jbotci_syntax::ast::StatementSyntax::Prenex {
+            prenex_terms,
+            zohu,
+            inner_statement,
+        }) => {
+            let mut entries = Vec::new();
+            if let Some(entry) = labelled_tree_collection_entry_from_values(
+                "prenex_terms",
+                prenex_terms
+                    .iter()
+                    .map(|term| legacy_as_generated_term_tree_value(term, source, options))
+                    .collect(),
+            ) {
+                entries.push(entry);
+            }
+            entries.extend(legacy_token_field_entries("zohu", zohu, source, options));
+            entries.push(TreeEntry {
+                label: None,
+                value: legacy_as_generated_statement_tree_value(
+                    inner_statement.as_ref(),
+                    source,
+                    options,
+                ),
+            });
+            TreeValue::Node(TreeNode {
+                constructor: "Prenex",
+                entries,
+            })
+        }
         bityzba::data!(jbotci_syntax::ast::StatementSyntax::Fragment(fragment)) => {
             legacy_as_generated_fragment_tree_value(fragment.as_ref(), source, options)
         }
@@ -1319,6 +1348,21 @@ fn legacy_as_generated_free_modifier_tree_value(
             }
             TreeValue::Node(TreeNode {
                 constructor: "ParentheticalText",
+                entries,
+            })
+        }
+        bityzba::data!(jbotci_syntax::ast::FreeModifierSyntax::Subscript { xi, expression }) => {
+            let mut entries = legacy_token_field_entries("xi", xi, source, options);
+            entries.push(TreeEntry {
+                label: Some("expression"),
+                value: legacy_as_generated_subscript_expression_tree_value(
+                    expression.as_ref(),
+                    source,
+                    options,
+                ),
+            });
+            TreeValue::Node(TreeNode {
+                constructor: "Subscript",
                 entries,
             })
         }
@@ -2043,6 +2087,24 @@ fn legacy_as_generated_sumti_base_tree_value(
             }
             TreeValue::Node(TreeNode {
                 constructor: "LerfuStringSumti",
+                entries,
+            })
+        }
+        bityzba::data!(jbotci_syntax::ast::SumtiSyntax::BridiDescription {
+            lohoi,
+            subbridi,
+            kuhau,
+        }) => {
+            let mut entries = legacy_token_field_entries("lohoi", lohoi, source, options);
+            entries.push(TreeEntry {
+                label: Some("subbridi"),
+                value: legacy_as_generated_subbridi_tree_value(subbridi.as_ref(), source, options),
+            });
+            if let Some(kuhau) = kuhau {
+                entries.extend(legacy_token_field_entries("kuhau", kuhau, source, options));
+            }
+            TreeValue::Node(TreeNode {
+                constructor: "BridiDescription",
                 entries,
             })
         }
@@ -2844,6 +2906,66 @@ fn legacy_word_run_with_free_modifiers_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
+fn legacy_word_run_tree_value(
+    words: &jbotci_syntax::ast::WordRun,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    TreeValue::Collection(
+        words
+            .iter()
+            .map(|token| generated_token_tree_value(token, source, options))
+            .collect(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_subscript_expression_tree_value(
+    expression: &jbotci_syntax::ast::MeksoSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    if let bityzba::data!(jbotci_syntax::ast::MeksoSyntax::NumberMekso(quantifier)) =
+        expression.as_data()
+        && let bityzba::data!(jbotci_syntax::ast::QuantifierSyntax::NumberQuantifier {
+            number,
+            boi,
+        }) = quantifier.as_data()
+    {
+        let mut entries = vec![TreeEntry {
+            label: Some("words"),
+            value: legacy_word_run_tree_value(&number.value, source, options),
+        }];
+        if let Some(boi) = boi {
+            entries.push(TreeEntry {
+                label: Some("boi"),
+                value: required_legacy_syntax_subtree_value(boi, source, options),
+            });
+        }
+        if let Some(entry) = labelled_tree_collection_entry_from_values(
+            "free_modifiers",
+            number
+                .free_modifiers
+                .iter()
+                .map(|free_modifier| {
+                    legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
+                })
+                .collect(),
+        ) {
+            entries.push(entry);
+        }
+        return TreeValue::Node(TreeNode {
+            constructor: "NumberOrLetterMekso",
+            entries,
+        });
+    }
+
+    legacy_as_generated_mekso_tree_value(expression, source, options)
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn legacy_as_generated_selbri_tree_value(
     selbri: &jbotci_syntax::ast::SelbriSyntax,
     source: &str,
@@ -3135,7 +3257,7 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
     ) -> TreeValue {
         match self.as_data() {
             bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::TanruUnitWord(word)) => {
-                required_legacy_syntax_subtree_value(word, source, options)
+                legacy_as_generated_tanru_unit_word_tree_value(word, source, options)
             }
             bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::Abstraction(
                 abstraction
@@ -3184,6 +3306,34 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
             _ => required_legacy_syntax_subtree_value(self, source, options),
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_tanru_unit_word_tree_value(
+    word: &WithFreeModifiers<Token>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = vec![TreeEntry {
+        label: None,
+        value: generated_token_tree_value(&word.value, source, options),
+    }];
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "free_modifiers",
+        word.free_modifiers
+            .iter()
+            .map(|free_modifier| {
+                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
+            })
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "TanruUnitWord",
+        entries,
+    })
 }
 
 #[requires(true)]
