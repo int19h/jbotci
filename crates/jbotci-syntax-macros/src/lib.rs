@@ -675,6 +675,7 @@ impl SyntaxGrammar {
                     )
                 })
                 && let Some(output) = simple_type_ident(&rule.0.output)
+                && !(self.generate_model && self.generates_model_output_name(&output.to_string()))
             {
                 *output_counts.entry(output.to_string()).or_insert(0usize) += 1;
             }
@@ -688,6 +689,8 @@ impl SyntaxGrammar {
                 let output = simple_type_ident(&rule.0.output)?;
                 (rule.0.build.is_none()
                     && matches!(&rule.0.construction, ConstructionMode::Validated)
+                    && !(self.generate_model
+                        && self.generates_model_output_name(&output.to_string()))
                     && output_counts.get(&output.to_string()).copied() == Some(1)
                     && rule.0.fields.iter().all(|field| {
                         !matches!(

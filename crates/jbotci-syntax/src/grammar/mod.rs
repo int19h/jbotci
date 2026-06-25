@@ -34,6 +34,11 @@ mod tense;
 pub(crate) mod tokens;
 use parse_error::{SyntaxFound, SyntaxFoundData, SyntaxParseCustomKind, SyntaxParseError};
 
+#[doc(hidden)]
+pub mod generated_model {
+    pub use super::generated::generated_model::*;
+}
+
 type Span = SimpleSpan;
 type SpannedToken = Spanned<Token, Span>;
 type ParserInput<'tokens> = MappedInput<'tokens, Token, Span, &'tokens [SpannedToken]>;
@@ -539,6 +544,17 @@ pub(crate) fn parse_generated_partial_valid_syntax_tree_with_source(
     }))
 }
 
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn parse_generated_model_syntax_tree_with_source(
+    words: &[WordLike],
+    _source: Option<&str>,
+    options: &ParseOptions,
+) -> Result<Box<generated::generated_model::TextSyntax>, SyntaxError> {
+    let tokens = syntax_tokens(words);
+    generated::generated_model::parse_text(&tokens, options).map(Box::new)
+}
+
 #[requires(!reason.is_empty())]
 #[ensures(matches!(ret, SyntaxError::Parse { kind: SyntaxErrorKind::InvalidConstruct, .. }))]
 fn generated_partial_conversion_error(tokens: &[Token], reason: String) -> SyntaxError {
@@ -721,15 +737,24 @@ mod tests {
             let words = segment_words_with_modifiers("mi klama").expect("valid morphology");
             let tokens = syntax_tokens(&words);
 
-            let parsed =
-                generated::generated_model::parse_text_for_test(&tokens, &ParseOptions::default())
-                    .expect("valid generated-model syntax");
+            let parsed = generated::generated_model::parse_text(&tokens, &ParseOptions::default())
+                .expect("valid generated-model syntax");
+            let mut visitor = GeneratedModelNoopVisitor;
+            generated::generated_model::TreeNode::visit_in_order(&parsed, &mut visitor);
 
             let generated::generated_model::TextSyntax::Regular { paragraphs, .. } = parsed else {
                 panic!("basic text should parse as regular generated-model text");
             };
             assert_eq!(paragraphs.len(), 1);
         });
+    }
+
+    #[invariant(true)]
+    struct GeneratedModelNoopVisitor;
+
+    impl<'tree> jbotci_tree::TreeVisitor<'tree> for GeneratedModelNoopVisitor {
+        type Node = generated::generated_model::NodeRef<'tree>;
+        type Atom = generated::generated_model::AtomRef<'tree>;
     }
 
     #[test]

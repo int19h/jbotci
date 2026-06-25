@@ -18,7 +18,6 @@ use super::{
     ParsedStatementAttempt, ParserInput, ParserState,
 };
 use crate::{ExperimentalConstruct, ParseOptions, SyntaxWordCategory, Token};
-use serde::Serialize;
 
 #[bityzba::invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,14 +52,6 @@ struct VuhoSumtiAttachmentSyntax {
     vuho: WithFreeModifiers<Token>,
     relative_clauses: Vec<RelativeClauseSyntax>,
     sumti_connection: Option<Box<SumtiConnectionSyntax>>,
-}
-
-#[bityzba::invariant(i.is_cmavo(Cmavo::I))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(crate) struct LeadingIStatementSyntax {
-    i: Token,
-    connective: Option<Box<ConnectiveSyntax>>,
-    free_modifiers: Vec<FreeModifierSyntax>,
 }
 
 #[bityzba::invariant(true)]
@@ -220,7 +211,7 @@ macro_rules! declare_generated_syntax_grammar {
         ));
     }
 
-    product leading_i_statement(free_modifier, tense_modal) -> self::LeadingIStatementSyntax {
+    product leading_i_statement(free_modifier, tense_modal) -> LeadingIStatementSyntax {
         context "paragraph statement";
         fields {
             field i = cmavo(I);
@@ -5629,7 +5620,8 @@ declare_generated_syntax_grammar! {
     parsers;
 }
 
-pub(crate) mod generated_model {
+#[doc(hidden)]
+pub mod generated_model {
     #![allow(dead_code)]
 
     use super::*;
@@ -5640,6 +5632,7 @@ pub(crate) mod generated_model {
         }
         model {
             TextSyntax,
+            LeadingIStatementSyntax,
             ParagraphSyntax,
             ParagraphStatementSyntax,
             StatementSyntax,
@@ -5651,10 +5644,9 @@ pub(crate) mod generated_model {
         strict_parsers;
     }
 
-    #[cfg(test)]
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
-    pub(crate) fn parse_text_for_test(
+    pub fn parse_text(
         words: &[Token],
         options: &ParseOptions,
     ) -> Result<TextSyntax, crate::SyntaxError> {
@@ -5677,11 +5669,11 @@ pub(crate) mod generated_model {
 #[bityzba::requires(true)]
 #[bityzba::ensures(true)]
 fn prepend_leading_i_statement(text: TextSyntax, marker: LeadingIStatementSyntax) -> TextSyntax {
-    let bityzba::data!(LeadingIStatementSyntax {
+    let LeadingIStatementSyntax {
         i,
         connective,
         free_modifiers,
-    }) = marker.into_data();
+    } = marker;
     let mut text_data = text.into_data();
     if text_data.paragraphs.is_empty() {
         text_data.paragraphs.push(bityzba::new!(ParagraphSyntax {

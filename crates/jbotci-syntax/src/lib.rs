@@ -31,6 +31,11 @@ pub mod ast {
 }
 pub use ast::{Indicator, IndicatorData, TextSyntax};
 
+#[doc(hidden)]
+pub mod generated_model {
+    pub use crate::grammar::generated_model::*;
+}
+
 pub const SYNTAX_TRACE_FILTERS: &[&str] = &[
     "text",
     "statement",
@@ -2074,6 +2079,17 @@ pub fn parse_syntax_tree_generated_partial_valid_with_source_and_options(
     options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
     grammar::parse_generated_partial_valid_syntax_tree_with_source(words, Some(source), options)
+}
+
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_syntax_tree_generated_model_with_source_and_options(
+    words: &[WordLike],
+    source: &str,
+    options: &ParseOptions,
+) -> Result<Box<generated_model::TextSyntax>, SyntaxError> {
+    grammar::parse_generated_model_syntax_tree_with_source(words, Some(source), options)
 }
 
 #[doc(hidden)]
