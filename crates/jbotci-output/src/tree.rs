@@ -487,11 +487,23 @@ fn legacy_as_generated_paragraph_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     if paragraph.i.is_none() && paragraph.niho.is_empty() && paragraph.free_modifiers.is_empty() {
-        return legacy_as_generated_paragraph_statements_tree_value(
-            &paragraph.statements,
-            source,
-            options,
-        );
+        let statement_values = paragraph
+            .statements
+            .iter()
+            .map(|statement| {
+                legacy_as_generated_paragraph_statement_tree_value(statement, source, options)
+            })
+            .collect::<Vec<_>>();
+        if statement_values.len() == 1 {
+            return statement_values.into_iter().next().expect("length checked");
+        }
+        return TreeValue::Node(TreeNode {
+            constructor: "Paragraph",
+            entries: statement_values
+                .into_iter()
+                .map(|value| TreeEntry { label: None, value })
+                .collect(),
+        });
     }
 
     let mut entries = Vec::new();
@@ -523,14 +535,10 @@ fn legacy_as_generated_paragraph_tree_value(
     ) {
         entries.push(entry);
     }
-    entries.push(TreeEntry {
-        label: Some("statements"),
-        value: legacy_as_generated_paragraph_statements_tree_value(
-            &paragraph.statements,
-            source,
-            options,
-        ),
-    });
+    entries.extend(paragraph.statements.iter().map(|statement| TreeEntry {
+        label: None,
+        value: legacy_as_generated_paragraph_statement_tree_value(statement, source, options),
+    }));
     TreeValue::Node(TreeNode {
         constructor: "Paragraph",
         entries,
@@ -1610,6 +1618,39 @@ fn legacy_as_generated_simple_sumti_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
+    if let bityzba::data!(jbotci_syntax::ast::SumtiSyntax::SumtiWithRelativeClauses {
+        base_sumti,
+        vuho,
+        relative_clauses,
+    }) = sumti.as_data()
+    {
+        let mut entries = vec![TreeEntry {
+            label: Some("base_sumti"),
+            value: legacy_as_generated_sumti_base_tree_value(base_sumti.as_ref(), source, options),
+        }];
+        if let Some(vuho) = vuho {
+            entries.push(TreeEntry {
+                label: Some("vuho"),
+                value: required_legacy_syntax_subtree_value(vuho, source, options),
+            });
+        }
+        if let Some(entry) = labelled_tree_collection_entry_from_values(
+            "relative_clauses",
+            relative_clauses
+                .iter()
+                .map(|relative_clause| {
+                    legacy_as_generated_relative_clause_tree_value(relative_clause, source, options)
+                })
+                .collect(),
+        ) {
+            entries.push(entry);
+        }
+        return TreeValue::Node(TreeNode {
+            constructor: "SimpleSumti",
+            entries,
+        });
+    }
+
     TreeValue::Node(TreeNode {
         constructor: "SimpleSumti",
         entries: vec![TreeEntry {
@@ -1706,6 +1747,22 @@ fn legacy_as_generated_sumti_base_tree_value(
             }
             TreeValue::Node(TreeNode {
                 constructor: "NumberSumti",
+                entries,
+            })
+        }
+        bityzba::data!(jbotci_syntax::ast::SumtiSyntax::LerfuStringSumti { letter, boi }) => {
+            let mut entries = vec![TreeEntry {
+                label: Some("words"),
+                value: legacy_word_run_with_free_modifiers_tree_value(letter, source, options),
+            }];
+            if let Some(boi) = boi {
+                entries.push(TreeEntry {
+                    label: Some("boi"),
+                    value: required_legacy_syntax_subtree_value(boi, source, options),
+                });
+            }
+            TreeValue::Node(TreeNode {
+                constructor: "LerfuStringSumti",
                 entries,
             })
         }
@@ -1961,6 +2018,38 @@ fn legacy_as_generated_relative_clause_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     match relative_clause.as_data() {
+        bityzba::data!(
+            jbotci_syntax::ast::RelativeClauseSyntax::SumtiAssociationPhrase(phrase,)
+        ) => {
+            let mut entries = vec![
+                TreeEntry {
+                    label: Some("association_marker"),
+                    value: required_legacy_syntax_subtree_value(
+                        &phrase.association_marker,
+                        source,
+                        options,
+                    ),
+                },
+                TreeEntry {
+                    label: Some("sumti"),
+                    value: legacy_as_generated_sumti_tree_value(
+                        phrase.sumti.as_ref(),
+                        source,
+                        options,
+                    ),
+                },
+            ];
+            if let Some(gehu) = &phrase.gehu {
+                entries.push(TreeEntry {
+                    label: Some("gehu"),
+                    value: required_legacy_syntax_subtree_value(gehu, source, options),
+                });
+            }
+            TreeValue::Node(TreeNode {
+                constructor: "SumtiAssociationPhrase",
+                entries,
+            })
+        }
         bityzba::data!(
             jbotci_syntax::ast::RelativeClauseSyntax::IncidentalRelativeBridi {
                 noi,
