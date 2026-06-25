@@ -348,6 +348,8 @@ pub struct SemanticObject {
     pub items: Vec<SemanticObjectId>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub connection_claims: Vec<SemanticObjectId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ordinal_labels: Vec<OrdinalLabel>,
     #[serde(rename = "relation", skip_serializing_if = "Option::is_none")]
     pub sequence_relation: Option<SequenceRelation>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -430,6 +432,8 @@ pub struct SemanticObject {
     pub operator: Option<SemanticOperator>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub operator_parameter: Option<SemanticObjectId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operator_denotes: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub endpoint_inclusion: Option<IntervalEndpointInclusion>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -527,6 +531,8 @@ pub struct SemanticObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub presupposed_answer: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub subscript: Option<Subscript>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SemanticSource>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub diagnostics: Vec<SemanticDiagnostic>,
@@ -548,6 +554,7 @@ impl SemanticObject {
             vocative_kind: None,
             items: Vec::new(),
             connection_claims: Vec::new(),
+            ordinal_labels: Vec::new(),
             sequence_relation: None,
             nonlogical_connection: None,
             class: None,
@@ -589,6 +596,7 @@ impl SemanticObject {
             relation_metadata: None,
             operator: None,
             operator_parameter: None,
+            operator_denotes: None,
             endpoint_inclusion: None,
             predication: None,
             children: Vec::new(),
@@ -637,6 +645,7 @@ impl SemanticObject {
             slots: Vec::new(),
             focus: None,
             presupposed_answer: None,
+            subscript: None,
             source: None,
             diagnostics: Vec::new(),
         }
@@ -1183,6 +1192,9 @@ impl SemanticObject {
         out.extend(self.asides.iter().copied());
         out.extend(self.items.iter().copied());
         out.extend(self.connection_claims.iter().copied());
+        for label in &self.ordinal_labels {
+            label.references_into(out);
+        }
         if let Some(connection) = &self.nonlogical_connection {
             connection.references_into(out);
         }
@@ -1262,6 +1274,7 @@ impl SemanticObject {
         }
         extend_optional(out, self.relation_metadata);
         extend_optional(out, self.operator_parameter);
+        extend_optional(out, self.operator_denotes);
         if let Some(expansion) = &self.expansion {
             expansion.references_into(out);
         }
@@ -1296,6 +1309,9 @@ impl SemanticObject {
         out.extend(self.slots.iter().map(|slot| slot.parameter));
         extend_optional(out, self.focus);
         extend_optional(out, self.presupposed_answer);
+        if let Some(subscript) = &self.subscript {
+            subscript.references_into(out);
+        }
     }
 
     #[requires(true)]
@@ -1324,6 +1340,12 @@ impl SemanticObject {
     #[ensures(!self.assigned_names.is_empty())]
     pub fn push_assigned_name(&mut self, assigned_name: AssignedName) {
         self.assigned_names.push(assigned_name);
+    }
+
+    #[requires(subscript.value.object_kind() == SemanticObjectKind::MathExpression)]
+    #[ensures(self.subscript.is_some())]
+    pub fn set_subscript(&mut self, subscript: Subscript) {
+        self.subscript = Some(subscript);
     }
 }
 
@@ -1438,6 +1460,67 @@ impl NonlogicalConnection {
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
         self.connector.references_into(out);
     }
+}
+
+#[invariant(value.object_kind() == SemanticObjectKind::MathExpression, "ordinal label value must be a math expression")]
+#[invariant(target.is_none_or(|target| {
+    matches!(
+        target.object_kind(),
+        SemanticObjectKind::Utterance
+            | SemanticObjectKind::Sequence
+            | SemanticObjectKind::Formula
+            | SemanticObjectKind::Referent
+            | SemanticObjectKind::Sign
+            | SemanticObjectKind::DisplayedContent
+    )
+}), "ordinal labels target discourse-visible objects")]
+#[invariant(!introduced_by.is_empty(), "ordinal label source marker must be named")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrdinalLabel {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<SemanticObjectId>,
+    pub level: OrdinalLabelLevel,
+    pub value: SemanticObjectId,
+    pub introduced_by: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SemanticSource>,
+}
+
+impl OrdinalLabel {
+    #[requires(value.object_kind() == SemanticObjectKind::MathExpression)]
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.value == value)]
+    pub fn new(
+        target: Option<SemanticObjectId>,
+        level: OrdinalLabelLevel,
+        value: SemanticObjectId,
+        introduced_by: String,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::from_data(data!(OrdinalLabel {
+            target,
+            level,
+            value,
+            introduced_by,
+            source,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        extend_optional(out, self.target);
+        out.push(self.value);
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OrdinalLabelLevel {
+    Item,
+    Division,
 }
 
 #[invariant(true)]
@@ -3009,6 +3092,40 @@ pub enum DisplayedContentAssertionEffect {
     Performative,
 }
 
+#[invariant(value.object_kind() == SemanticObjectKind::MathExpression, "subscript value must be a math expression")]
+#[invariant(!introduced_by.is_empty(), "subscript source marker must be named")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Subscript {
+    pub value: SemanticObjectId,
+    pub introduced_by: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<SemanticSource>,
+}
+
+impl Subscript {
+    #[requires(value.object_kind() == SemanticObjectKind::MathExpression)]
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.value == value)]
+    pub fn new(
+        value: SemanticObjectId,
+        introduced_by: String,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::from_data(data!(Subscript {
+            value,
+            introduced_by,
+            source,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        out.push(self.value);
+    }
+}
+
 #[invariant(!kind.is_empty(), "math literal kind must be named")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -3035,15 +3152,52 @@ impl MathLiteral {
             value: MathLiteralValue::from_data(data!(MathLiteralValue::Text(value))),
         }))
     }
+
+    #[requires(components.len() >= 2)]
+    #[ensures(ret.kind == "mixedRadix")]
+    pub fn mixed_radix(components: Vec<MixedRadixComponent>) -> Self {
+        Self::from_data(data!(MathLiteral {
+            kind: "mixedRadix".to_owned(),
+            value: MathLiteralValue::from_data(data!(MathLiteralValue::MixedRadix(
+                MixedRadixLiteral::from_data(data!(MixedRadixLiteral { components }))
+            ))),
+        }))
+    }
 }
 
 #[invariant(::Integer(_) => true)]
 #[invariant(::Text(value) => !value.is_empty())]
+#[invariant(::MixedRadix(value) => value.components.len() >= 2)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
 pub enum MathLiteralValue {
     Integer(i64),
     Text(String),
+    MixedRadix(MixedRadixLiteral),
+}
+
+#[invariant(components.len() >= 2, "mixed-radix literals need at least two components")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MixedRadixLiteral {
+    pub components: Vec<MixedRadixComponent>,
+}
+
+#[invariant(!text.is_empty(), "mixed-radix component text must be preserved")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MixedRadixComponent {
+    pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub integer: Option<i64>,
+}
+
+impl MixedRadixComponent {
+    #[requires(!text.is_empty())]
+    #[ensures(ret.text == old(text.clone()))]
+    pub fn new(text: String, integer: Option<i64>) -> Self {
+        Self::from_data(data!(MixedRadixComponent { text, integer }))
+    }
 }
 
 #[invariant(true)]
@@ -3390,6 +3544,9 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && object.connector.as_ref().is_none_or(|connector| {
             optional_reference_has_kind(connector.parameter, SemanticObjectKind::Parameter)
         })
+        && object.operator_denotes.is_none_or(|operator_denotes| {
+            argument_object_kind_can_fill(operator_denotes.object_kind())
+        })
         && object
             .variable
             .is_none_or(|variable| quantifier_variable_kind_is_allowed(variable.object_kind()))
@@ -3397,6 +3554,10 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         && optional_reference_has_kind(object.body, SemanticObjectKind::Formula)
         && optional_reference_has_kind(object.quantity, SemanticObjectKind::Quantity)
         && optional_reference_has_kind(object.scale, SemanticObjectKind::Referent)
+        && object.ordinal_labels.iter().all(|label| {
+            optional_ordinal_label_target_matches_role(label.target)
+                && label.value.object_kind() == SemanticObjectKind::MathExpression
+        })
         && object.streams.iter().all(|stream| {
             stream.slot.object_kind() == SemanticObjectKind::Parameter
                 && stream
@@ -3449,6 +3610,25 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
         })
         && question_focus_matches_role(object.focus)
         && question_focus_matches_role(object.presupposed_answer)
+        && object.subscript.as_ref().is_none_or(|subscript| {
+            subscript.value.object_kind() == SemanticObjectKind::MathExpression
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn optional_ordinal_label_target_matches_role(target: Option<SemanticObjectId>) -> bool {
+    target.is_none_or(|target| {
+        matches!(
+            target.object_kind(),
+            SemanticObjectKind::Utterance
+                | SemanticObjectKind::Sequence
+                | SemanticObjectKind::Formula
+                | SemanticObjectKind::Referent
+                | SemanticObjectKind::Sign
+                | SemanticObjectKind::DisplayedContent
+        )
+    })
 }
 
 #[requires(true)]

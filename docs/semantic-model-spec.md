@@ -193,6 +193,14 @@ truth-functional formula.
   "items": ["utterance:u1", "utterance:u2"],
   "content": "formula:f-statement-connection",
   "connectionClaims": ["formula:f-causal-link"],
+  "ordinalLabels": [
+    {
+      "target": "utterance:u1",
+      "level": "item",
+      "value": "math:m-ordinal",
+      "introducedBy": "mai"
+    }
+  ],
   "relation": "same-topic-continuation"
 }
 ```
@@ -209,6 +217,13 @@ discourse sequencing still uses utterance or sequence items.  Nested sequences
 are needed for grouped discourse or left-associated multi-statement text such as
 `A .ije B .ije C`, where preserving the discourse grouping is preferable to
 pretending that the sequence itself is an utterance.
+
+Numerical free modifiers headed by `mai`/`mo'o` are represented as
+`ordinalLabels` on the containing sequence.  `target`, when present, points at
+the item being labelled.  `level:"item"` corresponds to `mai`;
+`level:"division"` corresponds to `mo'o`.  `value` is a math-expression ID so
+PA, lerfu, and eventually parenthesized ordinal expressions use the same
+validated expression surface as mekso.
 
 Some discourse connectives also assert a semantic relation between the
 connected statements.  In that case the connected utterances remain in `items`,
@@ -3012,6 +3027,29 @@ numeric value:
 }
 ```
 
+PA word runs containing `pi'e` are mixed-radix or positional literals, not
+ordinary arithmetic expressions.  Preserve their ordered components in a
+structured literal.  Components keep their surface token text and include an
+integer value when the component is exactly understood as a simple PA integer.
+`ju'u` base/radix metadata is a future extension on the same literal shape.
+
+```json
+{
+  "math:m3": {
+    "type": "mathExpression",
+    "literal": {
+      "kind": "mixedRadix",
+      "value": {
+        "components": [
+          { "text": "pa pi re" },
+          { "text": "ze", "integer": 7 }
+        ]
+      }
+    }
+  }
+}
+```
+
 The v0 output for `li vo su'i re du li xa` now preserves `4 + 2 = 6`; the JSON
 model should do the same.  Arithmetic must not collapse into anonymous
 existentials.
@@ -3031,6 +3069,28 @@ When the mekso operator itself is questioned, the math expression carries an
     "type": "mathExpression",
     "operatorParameter": "parameter:p-op",
     "operands": ["math:m1", "math:m2"]
+  }
+}
+```
+
+When `na'u <selbri>` supplies a concrete selbri operator, the math expression
+still records the operator label but also carries `operatorDenotes`, pointing
+at the lowered relation or property output for the selbri.  `na'u mo` remains
+the question case and uses `operatorParameter`.
+
+```json
+{
+  "math:m3": {
+    "type": "mathExpression",
+    "operator": "tanjo",
+    "operatorDenotes": "referent:r-tangent-relation",
+    "operands": ["math:m1", "math:m2"]
+  },
+  "referent:r-tangent-relation": {
+    "type": "referent",
+    "sort": "relation",
+    "abstractionKind": "property",
+    "body": "formula:f-tanjo"
   }
 }
 ```
@@ -3062,6 +3122,29 @@ math expression:
     "type": "mathExpression",
     "literal": { "kind": "integer", "value": 5 },
     "scalarNegation": { "kind": "otherThan", "introducedBy": "na'e" }
+  }
+}
+```
+
+`xi` attaches as `subscript` on referents, parameters, signs, or math
+expressions.  `subscript.value` points at a math expression, and
+`introducedBy` preserves the source marker.  Subscripts are identity-relevant
+for variable-like handles, so a fully identity-aware implementation must keep a
+subscripted handle distinct from its bare form before anaphora resolution.
+
+```json
+{
+  "math:m1": {
+    "type": "mathExpression",
+    "literal": { "kind": "variable", "value": "x" },
+    "subscript": {
+      "value": "math:m2",
+      "introducedBy": "xi"
+    }
+  },
+  "math:m2": {
+    "type": "mathExpression",
+    "literal": { "kind": "integer", "value": 2 }
   }
 }
 ```

@@ -35,16 +35,17 @@ use crate::model::{
     DisplayedContentFamily, DisplayedContentModifier, DisplayedContentPolarity,
     DisplayedContentTargetFocus, EndpointInclusion, EventualityClass, FormulaOperator,
     IndexicalKind, IntervalEndpointInclusion, IntervalModifier, IntervalModifierData, LetteralUnit,
-    LetteralUnitKind, MathLiteral, ModalArgument, ModalNegation, ModalNegationKind,
-    NonlogicalConnection, PlaceQuestionBinding, PredicationMode, QuantityForm, QuantityScale,
-    QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
-    RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
-    RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
-    RespectivelyStream, ScalarNegation, ScalarNegationKind, SemanticDiagnostic, SemanticGraph,
-    SemanticObject, SemanticObjectId, SemanticObjectKind, SemanticOperatorData, SemanticSort,
-    SequenceRelation, SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind, TanruLink,
-    TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
-    TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic, source_from_spans,
+    LetteralUnitKind, MathLiteral, MixedRadixComponent, ModalArgument, ModalNegation,
+    ModalNegationKind, NonlogicalConnection, OrdinalLabel, OrdinalLabelLevel, PlaceQuestionBinding,
+    PredicationMode, QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode,
+    QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, Recurrence,
+    RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
+    RelationExpansion, RelativeClause, RelativeClauseKind, RespectivelyStream, ScalarNegation,
+    ScalarNegationKind, SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId,
+    SemanticObjectKind, SemanticOperatorData, SemanticSort, SequenceRelation, SignKind,
+    SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript, TanruLink, TemporalPathAnchor,
+    TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint,
+    UtteranceForce, argument_object_kind_can_fill, diagnostic, source_from_spans,
 };
 use crate::references::{
     AssignmentSource, BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -1539,6 +1540,7 @@ where
             .iter()
             .any(|indicator| indicator.indicator.cmavo() == Some(Cmavo::Xu));
         let mut leading_asides = self.build_vocative_asides(&text.leading_free_modifiers)?;
+        let mut ordinal_labels = Vec::new();
         let mut items = Vec::new();
         if let Some(leading_names) = self.build_leading_cmevla_utterance(text)? {
             items.push(leading_names);
@@ -1593,6 +1595,10 @@ where
                             leading_indicators_attached = true;
                         }
                     }
+                    ordinal_labels.extend(self.ordinal_labels_from_free_modifiers(
+                        &statement.free_modifiers,
+                        Some(statement_id),
+                    )?);
                     items.push(statement_id);
                     if statement_truth_question {
                         truth_question_pending = false;
@@ -1616,6 +1622,12 @@ where
                     items.extend(paragraph_asides);
                 }
             }
+            if let Some(first_item) = items.get(first_paragraph_item).copied() {
+                ordinal_labels.extend(self.ordinal_labels_from_free_modifiers(
+                    &paragraph.free_modifiers,
+                    Some(first_item),
+                )?);
+            }
         }
         if !leading_asides.is_empty() {
             if let Some(first_item) = items.first().copied() {
@@ -1623,6 +1635,12 @@ where
             } else {
                 items.extend(leading_asides);
             }
+        }
+        if let Some(first_item) = items.first().copied() {
+            ordinal_labels.extend(self.ordinal_labels_from_free_modifiers(
+                &text.leading_free_modifiers,
+                Some(first_item),
+            )?);
         }
         if !leading_indicators_attached
             && !text.leading_indicators.is_empty()
@@ -1642,7 +1660,9 @@ where
         {
             items.push(self.build_standalone_connective_utterance(text, connective)?);
         }
-        let root = if let [single] = items.as_slice() {
+        let root = if let [single] = items.as_slice()
+            && ordinal_labels.is_empty()
+        {
             *single
         } else {
             let id = self.next_sequence();
@@ -1651,15 +1671,14 @@ where
                 .syntax_index
                 .text_node_id(text)
                 .and_then(|node| self.source_for_node(node.0, "text"));
-            self.insert(
-                id,
-                SemanticObject::sequence(
-                    items,
-                    SequenceRelation::SameTopicContinuation,
-                    source,
-                    Vec::new(),
-                ),
-            )?
+            let mut sequence = SemanticObject::sequence(
+                items,
+                SequenceRelation::SameTopicContinuation,
+                source,
+                Vec::new(),
+            );
+            sequence.ordinal_labels = ordinal_labels;
+            self.insert(id, sequence)?
         };
         if prune_unreachable {
             self.prune_unreachable_objects(root);
@@ -1906,6 +1925,40 @@ where
             }
         }
         Ok(asides)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|labels| labels.iter().all(|label| label.value.object_kind() == crate::model::SemanticObjectKind::MathExpression)) || ret.is_err())]
+    fn ordinal_labels_from_free_modifiers(
+        &mut self,
+        free_modifiers: &'tree [FreeModifierSyntax],
+        target: Option<SemanticObjectId>,
+    ) -> Result<Vec<OrdinalLabel>, SemanticsError> {
+        let mut labels = Vec::new();
+        for free_modifier in free_modifiers {
+            let data!(FreeModifierSyntax::UtteranceOrdinal { number, mai }) =
+                free_modifier.as_data()
+            else {
+                continue;
+            };
+            let value = self.build_math_literal(
+                math_literal_for_pa_text(word_run_text(number)),
+                self.source_for_free_modifier(free_modifier, "ordinal-label-value"),
+            )?;
+            let level = if mai.cmavo() == Some(Cmavo::Moho) {
+                OrdinalLabelLevel::Division
+            } else {
+                OrdinalLabelLevel::Item
+            };
+            labels.push(OrdinalLabel::new(
+                target,
+                level,
+                value,
+                token_text(&mai.value),
+                self.source_for_free_modifier(free_modifier, "ordinal-label"),
+            ));
+        }
+        Ok(labels)
     }
 
     #[requires(true)]
@@ -13727,10 +13780,16 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         if li.cmavo() == Some(Cmavo::Meho) {
             if let Some(letters) = mekso_letteral_word_run(expression) {
-                return self
-                    .build_letteral_sign(letters, self.source_for_mekso(expression, "letteral"));
+                let id = self
+                    .build_letteral_sign(letters, self.source_for_mekso(expression, "letteral"))?;
+                if let Some(free_modifiers) = mekso_letteral_free_modifiers(expression) {
+                    self.attach_subscript_from_free_modifiers(id, free_modifiers)?;
+                }
+                return Ok(id);
             }
-            return self.build_math_expression_sign(expression, raw);
+            let id = self.build_math_expression_sign(expression, raw)?;
+            self.attach_subscript_from_free_modifiers(id, &li.free_modifiers)?;
+            return Ok(id);
         }
 
         let variable_name = math_variable_name(expression);
@@ -13763,7 +13822,7 @@ where
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.next_referent();
-        self.insert(
+        let id = self.insert(
             id,
             SemanticObject::referent(
                 ReferentCategory::Constant,
@@ -13786,7 +13845,9 @@ where
                 source,
                 Vec::new(),
             ),
-        )
+        )?;
+        self.attach_subscript_from_free_modifiers(id, &li.free_modifiers)?;
+        Ok(id)
     }
 
     #[requires(true)]
@@ -13864,7 +13925,11 @@ where
             .0;
         let letters = lerfu_string_sumti_letters(sumti)
             .expect("precondition guarantees a lerfu-string sumti");
-        self.build_letteral_sign(letters, self.source_for_node(raw, "letteral"))
+        let id = self.build_letteral_sign(letters, self.source_for_node(raw, "letteral"))?;
+        if let Some(free_modifiers) = lerfu_string_sumti_free_modifiers(sumti) {
+            self.attach_subscript_from_free_modifiers(id, free_modifiers)?;
+        }
+        Ok(id)
     }
 
     #[requires(!letters.is_empty())]
@@ -13938,10 +14003,14 @@ where
             data!(MeksoSyntax::NumberMekso(quantifier)) => {
                 self.build_math_expression_for_quantifier(quantifier, source)
             }
-            data!(MeksoSyntax::LerfuStringMekso { letter, .. }) => self.build_math_literal(
-                MathLiteral::text("variable".to_owned(), math_letteral_text(&letter.value)),
-                source,
-            ),
+            data!(MeksoSyntax::LerfuStringMekso { letter, .. }) => {
+                let id = self.build_math_literal(
+                    MathLiteral::text("variable".to_owned(), math_letteral_text(&letter.value)),
+                    source,
+                )?;
+                self.attach_subscript_from_free_modifiers(id, &letter.free_modifiers)?;
+                Ok(id)
+            }
             data!(MeksoSyntax::ParenthesizedMekso {
                 inner_expression,
                 ..
@@ -14207,7 +14276,9 @@ where
             data!(QuantifierSyntax::NumberQuantifier { number, .. }) => {
                 let text = word_run_text(&number.value);
                 let literal = math_literal_for_pa_text(text);
-                self.build_math_literal(literal, source)
+                let id = self.build_math_literal(literal, source)?;
+                self.attach_subscript_from_free_modifiers(id, &number.free_modifiers)?;
+                Ok(id)
             }
             data!(QuantifierSyntax::MeksoQuantifier { mekso, .. }) => {
                 self.build_math_expression(mekso, source)
@@ -14284,7 +14355,36 @@ where
         if let Some(scalar_negation) = scalar_negation_for_mekso_operator(operator) {
             self.set_math_scalar_negation(id, scalar_negation);
         }
+        if let Some(denotation) = self.math_operator_denotation_for_operator(operator)? {
+            self.set_math_operator_denotation(id, denotation);
+        }
         Ok(id)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| argument_object_kind_can_fill(id.object_kind()))) || ret.is_err())]
+    fn math_operator_denotation_for_operator(
+        &mut self,
+        operator: &'tree MeksoOperatorSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match operator.as_data() {
+            data!(MeksoOperatorSyntax::SelbriAsOperator { selbri, .. }) => {
+                if selbri_is_math_operator_question(selbri) {
+                    return Ok(None);
+                }
+                self.build_property_abstraction_for_selbri(
+                    selbri,
+                    self.source_for_selbri(selbri, "math-operator-denotation"),
+                )
+                .map(Some)
+            }
+            data!(MeksoOperatorSyntax::GroupedOperator { inner_operator, .. })
+            | data!(MeksoOperatorSyntax::Converted { inner_operator, .. })
+            | data!(MeksoOperatorSyntax::ScalarNegated { inner_operator, .. }) => {
+                self.math_operator_denotation_for_operator(inner_operator)
+            }
+            _ => Ok(None),
+        }
     }
 
     #[requires(true)]
@@ -14407,22 +14507,39 @@ where
                 | Cmavo::Dahe
                 | Cmavo::Dohi,
             ) => self.build_utterance_reference_referent(token, raw),
-            Some(Cmavo::Zohe) => self.build_elided_referent(Some(raw), "zo'e".to_owned()),
-            Some(Cmavo::Zuhi) => self.build_typical_place_value_referent(token, raw),
+            Some(Cmavo::Zohe) => {
+                let id = self.build_elided_referent(Some(raw), "zo'e".to_owned())?;
+                self.attach_subscript_from_free_modifiers(id, &token.free_modifiers)?;
+                Ok(id)
+            }
+            Some(Cmavo::Zuhi) => {
+                let id = self.build_typical_place_value_referent(token, raw)?;
+                self.attach_subscript_from_free_modifiers(id, &token.free_modifiers)?;
+                Ok(id)
+            }
             Some(Cmavo::Ti) => {
-                self.build_demonstrative_referent(raw, IndexicalKind::ProximalDemonstrative)
+                let id =
+                    self.build_demonstrative_referent(raw, IndexicalKind::ProximalDemonstrative)?;
+                self.attach_subscript_from_free_modifiers(id, &token.free_modifiers)?;
+                Ok(id)
             }
             Some(Cmavo::Ta) => {
-                self.build_demonstrative_referent(raw, IndexicalKind::MedialDemonstrative)
+                let id =
+                    self.build_demonstrative_referent(raw, IndexicalKind::MedialDemonstrative)?;
+                self.attach_subscript_from_free_modifiers(id, &token.free_modifiers)?;
+                Ok(id)
             }
             Some(Cmavo::Tu) => {
-                self.build_demonstrative_referent(raw, IndexicalKind::DistalDemonstrative)
+                let id =
+                    self.build_demonstrative_referent(raw, IndexicalKind::DistalDemonstrative)?;
+                self.attach_subscript_from_free_modifiers(id, &token.free_modifiers)?;
+                Ok(id)
             }
             Some(Cmavo::Da | Cmavo::De | Cmavo::Di) => {
                 if let Some(referent) = self.build_resolved_sumti_reference(raw)? {
                     return Ok(referent);
                 }
-                self.build_plain_referent(
+                let id = self.build_plain_referent(
                     raw,
                     ReferentCategory::Variable,
                     SemanticSort::Entity,
@@ -14440,13 +14557,15 @@ where
                         operand: None,
                     },
                     Vec::new(),
-                )
+                )?;
+                self.attach_subscript_from_free_modifiers(id, &token.free_modifiers)?;
+                Ok(id)
             }
             _ => {
                 if let Some(referent) = self.build_resolved_sumti_reference(raw)? {
                     return Ok(referent);
                 }
-                self.build_plain_referent(
+                let id = self.build_plain_referent(
                     raw,
                     ReferentCategory::Constant,
                     SemanticSort::Entity,
@@ -14464,7 +14583,9 @@ where
                         operand: None,
                     },
                     Vec::new(),
-                )
+                )?;
+                self.attach_subscript_from_free_modifiers(id, &token.free_modifiers)?;
+                Ok(id)
             }
         }
     }
@@ -14685,6 +14806,7 @@ where
             sort,
             role,
         )?;
+        self.attach_subscript_from_free_modifiers(id, &token.free_modifiers)?;
         if role == crate::model::ParameterRole::PropertySlot
             && token.cmavo() == Some(Cmavo::Cehu)
             && let Some(parameters) = self.abstraction_parameter_stack.last_mut()
@@ -17231,6 +17353,70 @@ where
         if let Some(object) = self.objects.get_mut(&math_expression) {
             object.scalar_negation = Some(scalar_negation);
         }
+    }
+
+    #[requires(math_expression.object_kind() == crate::model::SemanticObjectKind::MathExpression)]
+    #[requires(argument_object_kind_can_fill(denotation.object_kind()))]
+    #[ensures(true)]
+    fn set_math_operator_denotation(
+        &mut self,
+        math_expression: SemanticObjectId,
+        denotation: SemanticObjectId,
+    ) {
+        if let Some(object) = self.objects.get_mut(&math_expression) {
+            object.operator_denotes = Some(denotation);
+        }
+    }
+
+    #[requires(matches!(
+        object.object_kind(),
+        crate::model::SemanticObjectKind::Referent
+            | crate::model::SemanticObjectKind::Parameter
+            | crate::model::SemanticObjectKind::Sign
+            | crate::model::SemanticObjectKind::MathExpression
+    ))]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_subscript_from_free_modifiers(
+        &mut self,
+        object: SemanticObjectId,
+        free_modifiers: &[FreeModifierSyntax],
+    ) -> Result<(), SemanticsError> {
+        let Some(subscript) = self.subscript_from_free_modifiers(free_modifiers)? else {
+            return Ok(());
+        };
+        if let Some(object) = self.objects.get_mut(&object) {
+            object.set_subscript(subscript);
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|subscript| subscript.as_ref().is_none_or(|subscript| subscript.value.object_kind() == crate::model::SemanticObjectKind::MathExpression)) || ret.is_err())]
+    fn subscript_from_free_modifiers(
+        &mut self,
+        free_modifiers: &[FreeModifierSyntax],
+    ) -> Result<Option<Subscript>, SemanticsError> {
+        let Some(free_modifier) = free_modifiers.iter().find(|free_modifier| {
+            matches!(
+                free_modifier.as_data(),
+                data!(FreeModifierSyntax::Subscript { .. })
+            )
+        }) else {
+            return Ok(None);
+        };
+        let data!(FreeModifierSyntax::Subscript { xi, expression }) = free_modifier.as_data()
+        else {
+            return Ok(None);
+        };
+        let value = self.build_math_literal(
+            math_literal_for_pa_text(mekso_surface_text(expression)),
+            self.source_for_free_modifier(free_modifier, "subscript-value"),
+        )?;
+        Ok(Some(Subscript::new(
+            value,
+            token_text(&xi.value),
+            self.source_for_free_modifier(free_modifier, "subscript"),
+        )))
     }
 }
 
@@ -23518,6 +23704,20 @@ fn mekso_operator_surface_label(operator: &MeksoOperatorSyntax) -> String {
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn selbri_is_math_operator_question(selbri: &SelbriSyntax) -> bool {
+    match selbri.as_data() {
+        data!(SelbriSyntax::SelbriWord(token)) => token.cmavo() == Some(Cmavo::Mo),
+        data!(SelbriSyntax::GroupedSelbri { selbri, .. })
+        | data!(SelbriSyntax::TaggedSelbri {
+            inner_selbri: selbri,
+            ..
+        }) => selbri_is_math_operator_question(selbri),
+        _ => false,
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.is_none_or(|(connective, _, _)| connective_is_logical(connective) && !connective_is_interval(connective)))]
 fn first_connected_mekso_operator(
     expression: &MeksoSyntax,
@@ -23841,6 +24041,23 @@ fn mekso_letteral_word_run(expression: &MeksoSyntax) -> Option<&WordRun> {
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn mekso_letteral_free_modifiers(expression: &MeksoSyntax) -> Option<&[FreeModifierSyntax]> {
+    match expression.as_data() {
+        data!(MeksoSyntax::LerfuStringMekso { letter, .. }) => Some(&letter.free_modifiers),
+        data!(MeksoSyntax::ParenthesizedMekso {
+            inner_expression,
+            ..
+        })
+        | data!(MeksoSyntax::QualifiedOperand {
+            inner_expression,
+            ..
+        }) => mekso_letteral_free_modifiers(inner_expression),
+        _ => None,
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.is_some() -> !ret.as_ref().unwrap().is_empty())]
 fn lerfu_string_sumti_letters(sumti: &SumtiSyntax) -> Option<&WordRun> {
     match sumti.as_data() {
@@ -23848,6 +24065,19 @@ fn lerfu_string_sumti_letters(sumti: &SumtiSyntax) -> Option<&WordRun> {
         data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
         | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. }) => {
             lerfu_string_sumti_letters(inner_sumti)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn lerfu_string_sumti_free_modifiers(sumti: &SumtiSyntax) -> Option<&[FreeModifierSyntax]> {
+    match sumti.as_data() {
+        data!(SumtiSyntax::LerfuStringSumti { letter, .. }) => Some(&letter.free_modifiers),
+        data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. }) => {
+            lerfu_string_sumti_free_modifiers(inner_sumti)
         }
         _ => None,
     }
@@ -25332,6 +25562,9 @@ fn simple_pa_quantity_value_for_mekso(expression: &MeksoSyntax) -> Option<Quanti
 #[requires(!text.is_empty())]
 #[ensures(true)]
 fn math_literal_for_pa_text(text: String) -> MathLiteral {
+    if let Some(components) = parse_mixed_radix_pa_components(&text) {
+        return MathLiteral::mixed_radix(components);
+    }
     parse_simple_pa_integer(&text)
         .map(MathLiteral::integer)
         .or_else(|| {
@@ -25339,6 +25572,41 @@ fn math_literal_for_pa_text(text: String) -> MathLiteral {
                 .map(|decimal| MathLiteral::text("decimal".to_owned(), decimal))
         })
         .unwrap_or_else(|| MathLiteral::text("number".to_owned(), text))
+}
+
+#[requires(!text.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|components| components.len() >= 2))]
+fn parse_mixed_radix_pa_components(text: &str) -> Option<Vec<MixedRadixComponent>> {
+    let words = text.split_whitespace().collect::<Vec<_>>();
+    if !words.contains(&"pi'e") {
+        return None;
+    }
+    let mut components = Vec::new();
+    let mut current = Vec::new();
+    for word in words {
+        if word == "pi'e" {
+            if current.is_empty() {
+                return None;
+            }
+            let component_text = current.join(" ");
+            components.push(MixedRadixComponent::new(
+                component_text.clone(),
+                parse_simple_pa_integer(&component_text),
+            ));
+            current.clear();
+        } else {
+            current.push(word);
+        }
+    }
+    if current.is_empty() {
+        return None;
+    }
+    let component_text = current.join(" ");
+    components.push(MixedRadixComponent::new(
+        component_text.clone(),
+        parse_simple_pa_integer(&component_text),
+    ));
+    (components.len() >= 2).then_some(components)
 }
 
 #[requires(!text.is_empty())]
@@ -29054,6 +29322,86 @@ mod tests {
         assert_eq!(object(&json, first)["abstractionKind"], "amount");
         assert_eq!(object(&json, second)["abstractionKind"], "amount");
         assert_eq!(object(&json, "math:m3")["operator"], "multiply");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn utterance_ordinals_are_sequence_item_labels() {
+        let json = semantic_json_for("pamai mi klama").expect("semantic JSON");
+        assert_eq!(json["root"], "sequence:s1");
+        let sequence = object(&json, "sequence:s1");
+        assert_eq!(sequence["ordinalLabels"][0]["target"], "utterance:u1");
+        assert_eq!(sequence["ordinalLabels"][0]["level"], "item");
+        assert_eq!(sequence["ordinalLabels"][0]["introducedBy"], "mai");
+        let value = sequence["ordinalLabels"][0]["value"]
+            .as_str()
+            .expect("ordinal value");
+        assert_eq!(object(&json, value)["literal"]["value"], 1);
+
+        let division = semantic_json_for("pamo'o mi klama").expect("semantic JSON");
+        assert_eq!(
+            object(&division, "sequence:s1")["ordinalLabels"][0]["level"],
+            "division"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn xi_subscripts_attach_to_math_symbols() {
+        let json = semantic_json_for("li xy xi re du li pa").expect("semantic JSON");
+        assert_eq!(object(&json, "math:m1")["literal"]["value"], "x");
+        assert_eq!(object(&json, "math:m1")["subscript"]["introducedBy"], "xi");
+        let subscript = object(&json, "math:m1")["subscript"]["value"]
+            .as_str()
+            .expect("subscript value");
+        assert_eq!(object(&json, subscript)["literal"]["value"], 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nahu_selbri_operator_denotes_lowered_relation_body() {
+        let json = semantic_json_for("li re na'u tanjo re du li vo").expect("semantic JSON");
+        let denotation = object(&json, "math:m3")["operatorDenotes"]
+            .as_str()
+            .expect("operator denotation");
+        assert_eq!(object(&json, denotation)["sort"], "relation");
+        assert_eq!(object(&json, denotation)["abstractionKind"], "property");
+        let body = object(&json, denotation)["body"]
+            .as_str()
+            .expect("denotation body");
+        let predication = object(&json, body)["predication"]
+            .as_str()
+            .expect("denotation predication");
+        assert_eq!(object(&json, predication)["relation"], "tanjo");
+
+        let question = semantic_json_for("li re na'u mo re du li vo").expect("semantic JSON");
+        assert!(
+            object(&question, "math:m3")
+                .get("operatorDenotes")
+                .is_none()
+        );
+        assert_eq!(
+            object(&question, "math:m3")["operatorParameter"],
+            "parameter:p1"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mixed_radix_pa_numbers_preserve_components() {
+        let json = semantic_json_for("li papire pi'e ze").expect("semantic JSON");
+        let math = object(&json, "quantity:q1")["value"]["mathExpression"]
+            .as_str()
+            .expect("mixed-radix math expression");
+        let literal = &object(&json, math)["literal"];
+        assert_eq!(literal["kind"], "mixedRadix");
+        assert_eq!(literal["value"]["components"][0]["text"], "pa pi re");
+        assert_eq!(literal["value"]["components"][1]["text"], "ze");
+        assert_eq!(literal["value"]["components"][1]["integer"], 7);
     }
 
     #[test]
