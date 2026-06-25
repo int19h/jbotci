@@ -12658,7 +12658,9 @@ where
             .arguments
             .iter()
             .filter(|(_place, argument)| argument.kind == ArgumentValueKind::Elided)
-            .filter_map(|(place, _argument)| argument_place_index(place).map(|index| (index, place)))
+            .filter_map(|(place, _argument)| {
+                argument_place_index(place).map(|index| (index, place))
+            })
             .min_by_key(|(index, _place)| *index)
             .map(|(_index, place)| place.clone())
         else {
@@ -13369,10 +13371,18 @@ where
         };
         let associated_sumti = &phrase.sumti;
         if sumti_is_assignable_reference(base_sumti) {
-            return self.build_sumti_referent(associated_sumti).map(Some);
+            let referent = self.build_sumti_referent(associated_sumti)?;
+            if let Some(assigned_name) = self.assigned_name_for_sumti(base_sumti, phrase) {
+                self.add_assigned_name_to_referent(referent, assigned_name);
+            }
+            return Ok(Some(referent));
         }
         if sumti_is_assignable_reference(associated_sumti) {
-            return self.build_sumti_referent(base_sumti).map(Some);
+            let referent = self.build_sumti_referent(base_sumti)?;
+            if let Some(assigned_name) = self.assigned_name_for_sumti(associated_sumti, phrase) {
+                self.add_assigned_name_to_referent(referent, assigned_name);
+            }
+            return Ok(Some(referent));
         }
         if let Some(assigned_name) = self.assigned_name_for_sumti(associated_sumti, phrase) {
             let referent = self.build_sumti_referent(base_sumti)?;
@@ -13390,6 +13400,16 @@ where
         phrase: &SumtiAssociationPhraseSyntax,
     ) -> Option<AssignedName> {
         let (word, name) = match sumti.as_data() {
+            data!(SumtiSyntax::ProSumti(token))
+                if token.cmavo().is_some_and(is_assignable_koha) =>
+            {
+                let handle = token_text(&token.value);
+                (handle.clone(), handle)
+            }
+            data!(SumtiSyntax::LerfuStringSumti { letter, .. }) => {
+                let handle = word_run_text(&letter.value);
+                (handle.clone(), handle)
+            }
             data!(SumtiSyntax::NameDescription { la, names }) => {
                 (token_text(&la.value), word_run_text(&names.value))
             }
@@ -28589,7 +28609,10 @@ mod tests {
         let exact_one = object(&json, "formula:f4");
         assert_eq!(exact_one["operator"], "cardinality");
         let exact_one_variable = exact_one["variable"].as_str().expect("exact-one variable");
-        assert_eq!(object(&json, exact_one_variable)["descriptor"]["word"], "de");
+        assert_eq!(
+            object(&json, exact_one_variable)["descriptor"]["word"],
+            "de"
+        );
         assert_eq!(exact_one["restriction"], "formula:f2");
         assert_eq!(exact_one["body"], "formula:f3");
         assert_eq!(exact_one["quantity"], "quantity:q2");
@@ -29052,8 +29075,7 @@ mod tests {
             terpa["arguments"]["x1"]["value"],
             klama["arguments"]["x1"]["value"]
         );
-        let associated =
-            predication_with_relation_and_mode(&json, "associatedWith", "restrictive");
+        let associated = predication_with_relation_and_mode(&json, "associatedWith", "restrictive");
         assert_eq!(
             associated["arguments"]["x2"]["value"],
             klama["arguments"]["x1"]["value"]
@@ -29076,15 +29098,16 @@ mod tests {
             .as_str()
             .expect("compared referent");
         assert_eq!(object(&json, compared)["source"]["text"], "ti");
-        let has_relative_and = json["objects"]
-            .as_object()
-            .expect("objects")
-            .values()
-            .any(|object| {
-                object["type"] == "formula"
-                    && object["operator"] == "and"
-                    && object["connector"]["source"] == "gi'e"
-            });
+        let has_relative_and =
+            json["objects"]
+                .as_object()
+                .expect("objects")
+                .values()
+                .any(|object| {
+                    object["type"] == "formula"
+                        && object["operator"] == "and"
+                        && object["connector"]["source"] == "gi'e"
+                });
         assert!(has_relative_and);
     }
 
@@ -29716,6 +29739,41 @@ mod tests {
             .expect("assigned names");
         assert_eq!(assigned_names[0]["name"], "sam");
         assert_eq!(assigned_names[0]["word"], "la");
+        assert_eq!(assigned_names[0]["introducedBy"], "goi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn goi_assignable_right_side_is_public_on_referent() {
+        let json = semantic_json_for("le zarci goi ko'a cu blanu").expect("semantic JSON");
+        let blanu = predication_with_relation_and_mode(&json, "blanu", "asserted");
+        let x1 = blanu["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("x1 value");
+        let assigned_names = object(&json, x1)["assignedNames"]
+            .as_array()
+            .expect("assigned names");
+        assert_eq!(assigned_names[0]["name"], "ko'a");
+        assert_eq!(assigned_names[0]["word"], "ko'a");
+        assert_eq!(assigned_names[0]["introducedBy"], "goi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn goi_assignable_left_side_is_public_on_associated_referent() {
+        let json = semantic_json_for("ko'a goi la .alis. cu blanu").expect("semantic JSON");
+        let blanu = predication_with_relation_and_mode(&json, "blanu", "asserted");
+        let x1 = blanu["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("x1 value");
+        assert_eq!(object(&json, x1)["descriptor"]["name"], "alis");
+        let assigned_names = object(&json, x1)["assignedNames"]
+            .as_array()
+            .expect("assigned names");
+        assert_eq!(assigned_names[0]["name"], "ko'a");
+        assert_eq!(assigned_names[0]["word"], "ko'a");
         assert_eq!(assigned_names[0]["introducedBy"], "goi");
     }
 

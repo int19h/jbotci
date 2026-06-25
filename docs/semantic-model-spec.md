@@ -810,6 +810,22 @@ with `assignedNames` on the described referent:
 }
 ```
 
+Assignable pro-sumti handles use the same field.  In `le zarci goi ko'a`, the
+store referent is still the `le zarci` description, but it carries:
+
+```json
+{
+  "assignedNames": [
+    {
+      "name": "ko'a",
+      "word": "ko'a",
+      "introducedBy": "goi",
+      "source": { "text": "goi ko'a", "construct": "assigned-name" }
+    }
+  ]
+}
+```
+
 Mass and set gadri choose the referent sort directly.  For example, `loi
 nu'a su'i nabmi` is a mass description:
 
