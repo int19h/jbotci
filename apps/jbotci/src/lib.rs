@@ -753,8 +753,9 @@ impl From<ToolCollisionScope> for CliCollisionScope {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolGimfihiSource {
-    /// Language code for this source (e.g. `en`, `zh`, `es`). Each language may
-    /// appear only once.
+    /// A short language code for this source (e.g. `eng`, `cmn`, `spa`). Each
+    /// language may appear only once. With a `preset`, the code must be exactly
+    /// one the preset lists (see the `preset` field).
     pub language: String,
     /// A word for this concept in the source language, transliterated into Lojban
     /// phonetics: render its *pronunciation* (think IPA, ignoring tone and
@@ -814,8 +815,19 @@ pub struct ToolGimfihiRequest {
     /// `preset`.
     #[serde(default)]
     pub sources: Vec<ToolGimfihiSource>,
-    /// Use a named weight preset instead of per-source weights. One of: `1985`,
-    /// `1987`, `1994`, `1995`, `1999`, `evenly`, `ilmen6`, `ilmen8`, `ilmen12`.
+    /// Use a named weight preset instead of supplying per-source `weight`s. You
+    /// must then provide exactly the languages that preset covers (ISO 639-3
+    /// codes):
+    /// - `1985`, `1987`, `1994`, `1995`, `1999`, `evenly` — the classic six:
+    ///   `cmn` (Mandarin), `hin` (Hindi), `eng` (English), `spa` (Spanish),
+    ///   `rus` (Russian), `ara` (Arabic). The years differ only in their
+    ///   speaker-population weights; `evenly` weights all six equally.
+    /// - `ilmen6` — `cmn`, `eng`, `hin`, `spa`, `ara`, `fra` (French in place of
+    ///   Russian).
+    /// - `ilmen8` — `cmn`, `eng`, `spa`, `hin`, `ara`, `ben` (Bengali), `rus`,
+    ///   `por` (Portuguese).
+    /// - `ilmen12` — the `ilmen8` languages plus `msa` (Malay), `jpn`
+    ///   (Japanese), `deu` (German), `fra` (French).
     #[serde(default)]
     pub preset: Option<String>,
     /// Candidate letter shapes to generate. Each is `ccvcv` or `cvccv`; empty
