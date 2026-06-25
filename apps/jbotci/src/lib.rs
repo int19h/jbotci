@@ -757,19 +757,24 @@ pub struct ToolGimfihiSource {
     /// language may appear only once. With a `preset`, the code must be exactly
     /// one the preset lists (see the `preset` field).
     pub language: String,
-    /// The word for this concept as a **broad phonemic IPA transcription** of how
-    /// it is pronounced — its sounds, not its spelling and not an existing Lojban
-    /// word.
+    /// The word for this concept as a **broad phonetic IPA transcription** of how it
+    /// is pronounced in this language — its sounds, not its phonemes, and definitely
+    /// not its spelling.
     ///
     /// Transcribe carefully:
-    /// - Work at the **phonemic** level: apply the language's own reductions
-    ///   (Russian unstressed о is /a/ by *akanye*, so *спасибо* is `spasʲiba`),
-    ///   but not deeper morphophonemic forms and not narrow phonetic detail.
+    /// - Work at the **narrow phonetic** level to the extent permitted by the
+    ///   inventory provided. For example, if some phoneme has allophones which map to
+    ///   different IPA symbols in the inventory, then use those different symbols
+    ///   according to the actual pronunciation. Apply the language's own vowel
+    ///   weakening and reduction rules such as akanye, final devoicing, consonant
+    ///   assimilation such as nb→mb or kz→gz, effect of adjacent phonemes on each
+    ///   other etc, and pick positional allophones according to how the language is
+    ///   actually spoken.
     /// - Drop grammatical endings (Spanish noun -o/-a: *gato* → `ɡat`).
-    /// - Tone and stress are ignored; include or omit stress marks as convenient.
-    /// - **Do not use the schwa `ə`** — it is rejected. Where it is a real phoneme
-    ///   (French *le* `lə`, Hindi अ, German final *-e*), write the full vowel it is
-    ///   actually pronounced as instead.
+    /// - **Do not use the schwa `ə`** — it is rejected. Where you would use it, instead
+    ///   use the nearest full vowel in the provided IPA symbol inventory corresponding
+    ///   to the actual allophone of schwa in this position, based on the language's
+    ///   actual pronunciation of this word.
     ///
     /// Use standard IPA from this inventory; the tie bar `◌͡◌`, length `ː`,
     /// nasalization `◌̃`, palatalization `ʲ`, labialization `ʷ`, aspiration `ʰ`,
@@ -778,14 +783,24 @@ pub struct ToolGimfihiSource {
     ///   affricates `t͡ʃ d͡ʒ t͡s d͡z t͡ɕ d͡ʑ`, `m n ŋ ɲ ɳ`, `l ʎ ɫ`,
     ///   `r ɾ ɹ ɻ ʀ ʁ ɽ`, `j w ɥ ʋ`, retroflex `ʈ ɖ`.
     /// - Vowels `i y ɨ ʉ ɯ u ɪ ʊ`, `e ø ɛ œ ɘ ɜ o ɔ ɤ ɵ ɒ`, `a æ ɐ ɑ ʌ`, nasal
-    ///   vowels (`ɛ̃ ɑ̃ ɔ̃` …), and length (`aː`).
+    ///   vowels (`ɛ̃ ɑ̃ ɔ̃` …), glides, and length (`aː`).
     ///
-    /// Examples (word → IPA): English *cat* → `kæt`; Spanish *gato* (drop -o) →
-    /// `ɡat`; Mandarin 用心 → `jʊŋɕin`; French *bon* → `bɔ̃`; Arabic *ḥasan* →
-    /// `ħasan`; Russian *спасибо* → `spasʲiba`.
+    /// Examples (word → IPA): English *cat* → `kæt`, *late* → `leɪ̯t`; Spanish *gato*
+    /// (drop -o) → `ɡat`; Mandarin 用心 → `jʊŋɕin`; French *bon* → `bɔ̃`; Arabic
+    /// *ḥasan* → `ħasan`; Russian *мягко* → `mʲaxkʌ`, *мялись* → `mʲælʲɪsʲ`, *спасибо*
+    /// → `spɐsʲibʌ`.
+    ///
+    /// Reason carefully about the precise transcription and double-check to make sure
+    /// that you didn't use morphological or orthographic representation masquerading
+    /// as IPA; enumerate all the relevant features of the language phonology, such as
+    /// vowel reduction, devoicing, assimilation etc, and make sure that you have
+    /// correctly represented their effects in all positions. If in doubt, look the
+    /// word up in Wiktionary and check Wikipedia articles on the language's phonology.
     pub word: String,
     /// Optional blending weight (1–999). Required for every source unless
-    /// `preset` supplies the weights.
+    /// `preset` supplies the weights. Use presets unless user specifically requests
+    /// custom weights, in which case weights are typically based on the number of
+    /// speakers based on some specified criteria.
     #[serde(default)]
     #[schemars(range(min = 1, max = 999))]
     pub weight: Option<u16>,
@@ -808,13 +823,13 @@ impl ToolGimfihiSource {
 }
 
 /// Propose candidate gismu (root words) from a set of source-language words,
-/// using the standard gismu-creation algorithm: score every legal CVC-shape
-/// candidate by how well its letters recall the weighted sources, then rank
-/// them. This *creates new root words*; it does not look up existing ones.
-/// Classically the sources are one word from each of six languages (Mandarin,
-/// Hindi, English, Spanish, Russian, Arabic), each given as a phonemic IPA
-/// transcription (see the `word` field) and weighted by speaker population — pass
-/// per-source `weight`s or use a `preset` for the standard weights.
+/// using the standard gismu-creation algorithm: score every legal candidate by how
+/// well its letters recall the weighted sources, then rank them. This *creates new
+/// root words*; it does not look up existing ones. The set of inputs is determined by
+/// the `sources` and/or `preset` fields. Presets are based on the number of L1 and,
+/// depending on the preset, L2 speakers, relative weights assigned to them, and the
+/// number of top languages picked from the list. Unless specifically directed
+/// otherwise by the user, use ilmen12.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
@@ -830,8 +845,7 @@ pub struct ToolGimfihiRequest {
     ///   `cmn` (Mandarin), `hin` (Hindi), `eng` (English), `spa` (Spanish),
     ///   `rus` (Russian), `ara` (Arabic). The years differ only in their
     ///   speaker-population weights; `evenly` weights all six equally.
-    /// - `ilmen6` — `cmn`, `eng`, `hin`, `spa`, `ara`, `fra` (French in place of
-    ///   Russian).
+    /// - `ilmen6` — `cmn`, `eng`, `hin`, `spa`, `ara`, `fra`
     /// - `ilmen8` — `cmn`, `eng`, `spa`, `hin`, `ara`, `ben` (Bengali), `rus`,
     ///   `por` (Portuguese).
     /// - `ilmen12` — the `ilmen8` languages plus `msa` (Malay), `jpn`
@@ -849,9 +863,10 @@ pub struct ToolGimfihiRequest {
     /// default.
     #[serde(default)]
     pub all_letters: bool,
-    /// Include the per-candidate rafsi collision detail in the output. Off by
+    /// Include the per-candidate rafsi collision detail in the output. On by
     /// default.
-    #[serde(default)]
+    #[serde(default = "gimfihi_show_collisions_default")]
+    #[schemars(default = "gimfihi_show_collisions_default")]
     pub show_collisions: bool,
     /// Only keep candidates that have at least one free (unclaimed) short rafsi.
     /// Off by default.
@@ -911,6 +926,12 @@ fn tool_show_refs_schema(_generator: &mut schemars::SchemaGenerator) -> schemars
 #[ensures(ret == Some(true))]
 fn tool_show_refs_default() -> Option<bool> {
     Some(true)
+}
+
+#[requires(true)]
+#[ensures(ret)]
+fn gimfihi_show_collisions_default() -> bool {
+    true
 }
 
 #[invariant(true)]
