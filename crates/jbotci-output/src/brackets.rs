@@ -2576,20 +2576,32 @@ fn with_indicators_brackets(
 ) -> sexpr::SExpr {
     match word {
         WithIndicators::Plain(word_like) => word_like_brackets(word_like, source),
-        WithIndicators::Emphasized { bahe, word_like } => sexpr::node(vec![
-            word_leaf(bahe, source),
-            word_like_brackets(word_like, source),
-        ]),
+        WithIndicators::Emphasized {
+            bahe,
+            extra_bahe,
+            word_like,
+        } => {
+            let mut children = vec![word_leaf(bahe, source)];
+            children.extend(extra_bahe.iter().map(|bahe| word_leaf(bahe, source)));
+            children.push(word_like_brackets(word_like, source));
+            sexpr::node(children)
+        }
         WithIndicators::WithIndicator {
             base,
+            indicator_bahe,
             indicator,
+            nai_bahe,
             nai,
         } => {
-            let mut children = vec![
-                with_indicators_brackets(base, source),
-                word_leaf(indicator, source),
-            ];
+            let mut children = vec![with_indicators_brackets(base, source)];
+            for bahe in indicator_bahe {
+                children.push(word_leaf(bahe, source));
+            }
+            children.push(word_leaf(indicator, source));
             if let Some(nai) = nai {
+                for bahe in nai_bahe {
+                    children.push(word_leaf(bahe, source));
+                }
                 children.push(word_leaf(nai, source));
             }
             sexpr::node(children)

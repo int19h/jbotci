@@ -606,32 +606,66 @@ fn with_indicators_value(word: &WithIndicators<WordLike>, phonemes: PhonemeRende
         WithIndicators::Plain(word_like) => {
             constructor_value("Plain", morphology_word_like_value(word_like, phonemes))
         }
-        WithIndicators::Emphasized { bahe, word_like } => constructor_value(
-            "Emphasized",
-            Value::Object(
-                [
-                    ("bahe".to_owned(), morphology_word_value(bahe, phonemes)),
-                    (
-                        "word_like".to_owned(),
-                        morphology_word_like_value(word_like, phonemes),
+        WithIndicators::Emphasized {
+            bahe,
+            extra_bahe,
+            word_like,
+        } => {
+            let mut payload = Map::new();
+            payload.insert("bahe".to_owned(), morphology_word_value(bahe, phonemes));
+            if !extra_bahe.is_empty() {
+                payload.insert(
+                    "extra_bahe".to_owned(),
+                    Value::Array(
+                        extra_bahe
+                            .iter()
+                            .map(|bahe| morphology_word_value(bahe, phonemes))
+                            .collect(),
                     ),
-                ]
-                .into_iter()
-                .collect(),
-            ),
-        ),
+                );
+            }
+            payload.insert(
+                "word_like".to_owned(),
+                morphology_word_like_value(word_like, phonemes),
+            );
+            constructor_value("Emphasized", Value::Object(payload))
+        }
         WithIndicators::WithIndicator {
             base,
+            indicator_bahe,
             indicator,
+            nai_bahe,
             nai,
         } => {
             let mut payload = Map::new();
             payload.insert("base".to_owned(), with_indicators_value(base, phonemes));
+            if !indicator_bahe.is_empty() {
+                payload.insert(
+                    "indicator_bahe".to_owned(),
+                    Value::Array(
+                        indicator_bahe
+                            .iter()
+                            .map(|bahe| morphology_word_value(bahe, phonemes))
+                            .collect(),
+                    ),
+                );
+            }
             payload.insert(
                 "indicator".to_owned(),
                 morphology_word_value(indicator, phonemes),
             );
             if let Some(nai) = nai {
+                if !nai_bahe.is_empty() {
+                    payload.insert(
+                        "nai_bahe".to_owned(),
+                        Value::Array(
+                            nai_bahe
+                                .iter()
+                                .map(|bahe| morphology_word_value(bahe, phonemes))
+                                .collect(),
+                        ),
+                    );
+                }
                 payload.insert("nai".to_owned(), morphology_word_value(nai, phonemes));
             }
             constructor_value("WithIndicator", Value::Object(payload))

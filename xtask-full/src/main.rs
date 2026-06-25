@@ -36,7 +36,7 @@ use jbotci_semantics::{
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
-    ParseOptions, SyntaxError, SyntaxWarning,
+    ParseOptions, SyntaxError, SyntaxWarning, generated_model_text_syntax_leaf_spans_match_words,
     parse_syntax_tree_generated_model_with_source_and_options,
     parse_syntax_tree_generated_partial_valid_with_source_and_options,
     parse_syntax_tree_generated_strict_with_source_and_options,
@@ -10515,6 +10515,12 @@ fn run_syntax_tree_oracle_fixture(fixture: &LoadedTestCase) -> FacetResult {
             return FacetResult::failed(format!("generated model syntax error: {error}"));
         }
     };
+    if !generated_model_text_syntax_leaf_spans_match_words(&words, &generated_model) {
+        return FacetResult::failed(
+            "generated model syntax tree token/source span order does not match morphology"
+                .to_owned(),
+        );
+    }
 
     for show_refs in [false, true] {
         let options = TreeRenderOptions {

@@ -280,19 +280,36 @@ fn flatten_with_indicators_surface(
 ) -> Vec<SurfaceChunk> {
     match word {
         WithIndicators::Plain(word_like) => flatten_word_like_surface(word_like, source, options),
-        WithIndicators::Emphasized { bahe, word_like } => {
+        WithIndicators::Emphasized {
+            bahe,
+            extra_bahe,
+            word_like,
+        } => {
             let mut chunks = vec![SurfaceChunk::Word(render_word(bahe, options))];
+            chunks.extend(
+                extra_bahe
+                    .iter()
+                    .map(|bahe| SurfaceChunk::Word(render_word(bahe, options))),
+            );
             chunks.extend(flatten_word_like_surface(word_like, source, options));
             chunks
         }
         WithIndicators::WithIndicator {
             base,
+            indicator_bahe,
             indicator,
+            nai_bahe,
             nai,
         } => {
             let mut chunks = flatten_with_indicators_surface(base, source, options);
+            for bahe in indicator_bahe {
+                chunks.push(SurfaceChunk::Word(render_word(bahe, options)));
+            }
             chunks.push(SurfaceChunk::Word(render_word(indicator, options)));
             if let Some(nai) = nai {
+                for bahe in nai_bahe {
+                    chunks.push(SurfaceChunk::Word(render_word(bahe, options)));
+                }
                 chunks.push(SurfaceChunk::Word(render_word(nai, options)));
             }
             chunks

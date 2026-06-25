@@ -3,7 +3,11 @@ use bityzba::{ensures, requires};
 use jbotci_dialect::parse_dialect_definition;
 use jbotci_morphology::{MorphologyOptions, WordLike, segment_words_with_modifiers_with_options};
 use jbotci_source::SourceSpan;
-use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_source_and_options};
+use jbotci_syntax::{
+    ParseOptions, generated_model_text_syntax_leaf_spans_match_words,
+    parse_syntax_tree_generated_model_with_source_and_options,
+    parse_syntax_tree_with_source_and_options,
+};
 
 #[test]
 #[requires(true)]
@@ -107,6 +111,22 @@ fn syntax_assignment_handles_v0_zantufa_output_order_cases() {
     });
 }
 
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn generated_syntax_assignment_handles_legacy_folded_islands() {
+    run_on_normal_stack(|| {
+        for source in [
+            "li re gu'e su'i gi pi'i re du li vo",
+            "to .ui ba'e cai toi",
+            "li fu'a reboi ci pi'i voboi mu pi'i su'i du li rexa",
+            "mi ba'e ba'e klama",
+        ] {
+            assert_generated_model_source_assignment(source);
+        }
+    });
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn run_on_normal_stack(test: impl FnOnce()) {
@@ -125,11 +145,34 @@ fn assert_source_assignment_with_options(source: &str, options: &ParseOptions) {
     let words = segment_words_with_options(source);
     let parse = parse_syntax_tree_with_source_and_options(&words, source, options)
         .expect("source should parse");
+    let generated_model =
+        parse_syntax_tree_generated_model_with_source_and_options(&words, source, options)
+            .expect("source should parse with generated model");
 
     let morphology = morphology_source_ranges(&words);
     let syntax = syntax_source_ranges(&parse.parse_tree);
     assert_eq!(syntax, morphology);
     assert!(ranges_are_strictly_ordered(&syntax));
+    assert!(generated_model_text_syntax_leaf_spans_match_words(
+        &words,
+        &generated_model
+    ));
+}
+
+#[requires(!source.is_empty())]
+#[ensures(true)]
+fn assert_generated_model_source_assignment(source: &str) {
+    let words = segment_words_with_options(source);
+    let generated_model = parse_syntax_tree_generated_model_with_source_and_options(
+        &words,
+        source,
+        &ParseOptions::default(),
+    )
+    .expect("source should parse with generated model");
+    let morphology = morphology_source_ranges(&words);
+    let syntax = generated_model_syntax_source_ranges(&generated_model);
+    assert_eq!(syntax, morphology, "{source}");
+    assert!(ranges_are_strictly_ordered(&syntax), "{source}");
 }
 
 #[requires(!source.is_empty())]
@@ -152,6 +195,16 @@ fn morphology_source_ranges(words: &[WordLike]) -> Vec<(usize, usize)> {
 #[requires(true)]
 #[ensures(true)]
 fn syntax_source_ranges(tree: &jbotci_syntax::ast::TextSyntax) -> Vec<(usize, usize)> {
+    let mut ranges = Vec::new();
+    tree.visit_source_spans(&mut |span| ranges.push(span_range(span)));
+    ranges
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_model_syntax_source_ranges(
+    tree: &jbotci_syntax::generated_model::TextSyntax,
+) -> Vec<(usize, usize)> {
     let mut ranges = Vec::new();
     tree.visit_source_spans(&mut |span| ranges.push(span_range(span)));
     ranges

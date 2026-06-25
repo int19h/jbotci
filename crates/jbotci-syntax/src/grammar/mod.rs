@@ -625,7 +625,7 @@ fn attach_bahe(words: Vec<Token>) -> Vec<Token> {
             && let Some(bahe_token) = reversed.pop_front()
             && let Some(bahe) = modifier_word(&bahe_token)
         {
-            reversed.push_front(Token::emphasized(bahe, word.core_word().clone()));
+            reversed.push_front(word.with_prepended_bahe(bahe));
         } else {
             out.push(word);
         }
@@ -647,17 +647,17 @@ fn attach_indicators(words: Vec<Token>) -> Vec<Token> {
     let mut iter = words.into_iter().peekable();
     while let Some(word) = iter.next() {
         if modifier_word(&word).is_some_and(|word| is_indicator_word(&word)) {
-            let indicator = modifier_word(&word);
+            let indicator = modifier_word_with_bahe(&word);
             let nai = if iter
                 .peek()
                 .and_then(modifier_word)
                 .is_some_and(|next| next.is_cmavo(Cmavo::Nai))
             {
-                iter.next().and_then(|next| modifier_word(&next))
+                iter.next().and_then(|next| modifier_word_with_bahe(&next))
             } else {
                 None
             };
-            if let (Some(prev), Some(indicator)) = (out.pop(), indicator) {
+            if let (Some(prev), Some((indicator_bahe, indicator))) = (out.pop(), indicator) {
                 let prev_is_leading_indicator_nai = modifier_word(&prev)
                     .is_some_and(|word| word.is_cmavo(Cmavo::Nai))
                     && out
@@ -667,16 +667,25 @@ fn attach_indicators(words: Vec<Token>) -> Vec<Token> {
                 if prev_is_leading_indicator_nai || !should_attach_indicator(&prev, &indicator) {
                     out.push(prev);
                     out.push(word);
-                    if let Some(nai) = nai {
-                        out.push(Token::bare(WordLike::bare(nai)));
+                    if let Some((nai_bahe, nai)) = nai {
+                        out.push(token_from_modifier_parts(nai_bahe, nai));
                     }
                 } else {
-                    out.push(Token::with_indicator(prev, indicator, nai));
+                    let (nai_bahe, nai) = nai
+                        .map(|(bahe, word)| (bahe, Some(word)))
+                        .unwrap_or((Vec::new(), None));
+                    out.push(Token::with_indicator_with_modifiers(
+                        prev,
+                        indicator_bahe,
+                        indicator,
+                        nai_bahe,
+                        nai,
+                    ));
                 }
             } else {
                 out.push(word);
-                if let Some(nai) = nai {
-                    out.push(Token::bare(WordLike::bare(nai)));
+                if let Some((nai_bahe, nai)) = nai {
+                    out.push(token_from_modifier_parts(nai_bahe, nai));
                 }
             }
         } else {
@@ -690,6 +699,43 @@ fn attach_indicators(words: Vec<Token>) -> Vec<Token> {
 #[ensures(true)]
 fn modifier_word(word: &Token) -> Option<Word> {
     word.core_word().bare_word().cloned()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|(bahe, _)| bahe.iter().all(|word| word.is_one_of_cmavo(&[Cmavo::Bahe, Cmavo::Zahe]))))]
+fn modifier_word_with_bahe(word: &Token) -> Option<(Vec<Word>, Word)> {
+    match word.as_indicators() {
+        WithIndicators::Plain(word_like) => word_like
+            .bare_word()
+            .cloned()
+            .map(|word| (Vec::new(), word)),
+        WithIndicators::Emphasized {
+            bahe,
+            extra_bahe,
+            word_like,
+        } => word_like.bare_word().cloned().map(|word| {
+            let mut bahes = Vec::with_capacity(extra_bahe.len() + 1);
+            bahes.push(bahe.clone());
+            bahes.extend(extra_bahe.iter().cloned());
+            (bahes, word)
+        }),
+        WithIndicators::WithIndicator { .. } => modifier_word(word).map(|word| (Vec::new(), word)),
+    }
+}
+
+#[requires(bahe.iter().all(|word| word.is_one_of_cmavo(&[Cmavo::Bahe, Cmavo::Zahe])))]
+#[ensures(true)]
+fn token_from_modifier_parts(mut bahe: Vec<Word>, word: Word) -> Token {
+    if bahe.is_empty() {
+        Token::bare(WordLike::bare(word))
+    } else {
+        let first_bahe = bahe.remove(0);
+        Token::from_indicators(WithIndicators::emphasized_with_extra_bahe(
+            first_bahe,
+            bahe,
+            WordLike::bare(word),
+        ))
+    }
 }
 
 #[requires(true)]

@@ -466,18 +466,33 @@ impl<'source, 'options> LeafCollector<'source, 'options> {
     fn push_with_indicators(&mut self, value: &WithIndicators<WordLike>) {
         match value {
             WithIndicators::Plain(word_like) => self.push_word_like(word_like),
-            WithIndicators::Emphasized { bahe, word_like } => {
+            WithIndicators::Emphasized {
+                bahe,
+                extra_bahe,
+                word_like,
+            } => {
                 self.push_word(bahe);
+                for bahe in extra_bahe {
+                    self.push_word(bahe);
+                }
                 self.push_word_like(word_like);
             }
             WithIndicators::WithIndicator {
                 base,
+                indicator_bahe,
                 indicator,
+                nai_bahe,
                 nai,
             } => {
                 self.push_with_indicators(base);
+                for bahe in indicator_bahe {
+                    self.push_word(bahe);
+                }
                 self.push_word(indicator);
                 if let Some(nai) = nai {
+                    for bahe in nai_bahe {
+                        self.push_word(bahe);
+                    }
                     self.push_word(nai);
                 }
             }

@@ -14195,16 +14195,18 @@ fn indicator_parts_for_with_indicators(
         WithIndicators::Plain(_) | WithIndicators::Emphasized { .. } => {}
         WithIndicators::WithIndicator {
             base,
+            indicator_bahe,
             indicator,
+            nai_bahe,
             nai,
         } => {
             indicator_parts_for_with_indicators(base, out);
             let Some(cmavo) = indicator.cmavo() else {
                 return;
             };
-            let mut tokens = vec![Token::bare(WordLike::bare(indicator.clone()))];
+            let mut tokens = vec![token_with_bahe_prefix(indicator_bahe, indicator)];
             if let Some(nai) = nai {
-                tokens.push(Token::bare(WordLike::bare(nai.clone())));
+                tokens.push(token_with_bahe_prefix(nai_bahe, nai));
             }
             out.push(IndicatorPart {
                 cmavo,
@@ -14212,6 +14214,20 @@ fn indicator_parts_for_with_indicators(
                 tokens,
             });
         }
+    }
+}
+
+#[requires(bahe.iter().all(|word| word.is_selmaho(Selmaho::Bahe)))]
+#[ensures(true)]
+fn token_with_bahe_prefix(bahe: &[Word], word: &Word) -> Token {
+    if let Some((first_bahe, extra_bahe)) = bahe.split_first() {
+        Token::from_indicators(WithIndicators::emphasized_with_extra_bahe(
+            first_bahe.clone(),
+            extra_bahe.to_vec(),
+            WordLike::bare(word.clone()),
+        ))
+    } else {
+        Token::bare(WordLike::bare(word.clone()))
     }
 }
 

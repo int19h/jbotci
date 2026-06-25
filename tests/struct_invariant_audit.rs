@@ -420,6 +420,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "shared tool output is a transport envelope produced by run_tool_command from validated CLI status and byte output",
     ),
     (
+        "crates/jbotci-output/src/tree.rs:RawGeneratedSyntaxRenderModel",
+        "generated syntax render model is a zero-sized marker type with no state to validate",
+    ),
+    (
+        "crates/jbotci-syntax/src/lib.rs:GeneratedModelSourceSpanVisitor",
+        "generated source-span visitor validity is enforced by Rust references and lifetimes",
+    ),
+    (
+        "crates/jbotci-syntax/src/lib.rs:GeneratedModelLegacySourceSpanCollector",
+        "legacy span collector accepts any span sequence before source-order sorting",
+    ),
+    (
         "apps/jbotci/src/lib.rs:ToolGentufaRequest",
         "shared gentufa tool request is API transport state validated by the CLI option validator during execution",
     ),

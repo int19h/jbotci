@@ -16,8 +16,8 @@ pub use diagnostics::{
     DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticRenderOptions, render_diagnostics,
 };
 pub use jbotci_diagnostics::DiagnosticDetailMode;
-use jbotci_morphology::WordLike;
 pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
+use jbotci_morphology::{Phonemes, WordLike};
 pub use jbotci_orthography::LojbanScript;
 use jbotci_syntax::ast::TextSyntax;
 pub use places::{
@@ -374,6 +374,50 @@ pub fn compact_syntax_json_string_with_options(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
+pub fn compact_generated_model_json_value(
+    tree: &jbotci_syntax::generated_model::TextSyntax,
+) -> Result<Value, OutputError> {
+    compact_json_value(tree)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn compact_generated_model_json_string_with_options(
+    tree: &jbotci_syntax::generated_model::TextSyntax,
+    options: JsonRenderOptions,
+) -> Result<String, OutputError> {
+    let mut value = compact_json_value(tree)?;
+    render_phoneme_fields_in_json_value(&mut value, options.phonemes);
+    Ok(format_compact_json_value(&value, 0, options))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_phoneme_fields_in_json_value(value: &mut Value, phonemes: PhonemeRenderOptions) {
+    match value {
+        Value::Array(items) => {
+            for item in items {
+                render_phoneme_fields_in_json_value(item, phonemes);
+            }
+        }
+        Value::Object(object) => {
+            for (key, value) in object {
+                if key == "phonemes"
+                    && let Value::String(text) = value
+                    && let Ok(parsed) = Phonemes::from_canonical(text.clone())
+                {
+                    *text = parsed.render(phonemes);
+                } else {
+                    render_phoneme_fields_in_json_value(value, phonemes);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
 pub fn pretty_brackets(tree: &TextSyntax, source: &str) -> Result<String, OutputError> {
     pretty_brackets_with_options(tree, source, BracketRenderOptions::default())
@@ -420,6 +464,16 @@ pub fn pretty_generated_model_tree_with_options(
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
     tree::pretty_generated_model_tree_with_options(tree, source, options)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn pretty_generated_model_raw_tree_with_options(
+    tree: &jbotci_syntax::generated_model::TextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<String, OutputError> {
+    tree::pretty_generated_model_raw_tree_with_options(tree, source, options)
 }
 
 #[requires(true)]

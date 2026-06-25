@@ -129,6 +129,17 @@ pub fn pretty_generated_model_tree_with_options(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub(crate) fn pretty_generated_model_raw_tree_with_options(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<String, OutputError> {
+    let value = collapse_value(raw_generated_syntax_tree_value(tree, source, options));
+    Ok(render_tree_value_with_options(&value, options, None))
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub fn reference_display_model_for_syntax_tree(
     analysis: &ReferenceAnalysis<'_>,
@@ -189,22 +200,40 @@ fn with_indicators_tree_value(
 ) -> TreeValue {
     match word {
         WithIndicators::Plain(word_like) => morphology_tree_value(word_like, source, options),
-        WithIndicators::Emphasized { bahe, word_like } => TreeValue::Node(TreeNode {
-            constructor: "Emphasized",
-            entries: vec![
-                TreeEntry {
-                    label: Some("bahe"),
-                    value: word_tree_value(bahe, source, options),
-                },
-                TreeEntry {
-                    label: None,
-                    value: morphology_tree_value(word_like, source, options),
-                },
-            ],
-        }),
+        WithIndicators::Emphasized {
+            bahe,
+            extra_bahe,
+            word_like,
+        } => {
+            let mut entries = vec![TreeEntry {
+                label: Some("bahe"),
+                value: word_tree_value(bahe, source, options),
+            }];
+            if !extra_bahe.is_empty() {
+                entries.push(TreeEntry {
+                    label: Some("extra_bahe"),
+                    value: TreeValue::Collection(
+                        extra_bahe
+                            .iter()
+                            .map(|bahe| word_tree_value(bahe, source, options))
+                            .collect(),
+                    ),
+                });
+            }
+            entries.push(TreeEntry {
+                label: None,
+                value: morphology_tree_value(word_like, source, options),
+            });
+            TreeValue::Node(TreeNode {
+                constructor: "Emphasized",
+                entries,
+            })
+        }
         WithIndicators::WithIndicator {
             base,
+            indicator_bahe,
             indicator,
+            nai_bahe,
             nai,
         } => {
             let mut entries = vec![
@@ -214,13 +243,13 @@ fn with_indicators_tree_value(
                 },
                 TreeEntry {
                     label: Some("indicator"),
-                    value: word_tree_value(indicator, source, options),
+                    value: modified_word_tree_value(indicator_bahe, indicator, source, options),
                 },
             ];
             if let Some(nai) = nai {
                 entries.push(TreeEntry {
                     label: Some("nai"),
-                    value: word_tree_value(nai, source, options),
+                    value: modified_word_tree_value(nai_bahe, nai, source, options),
                 });
             }
             TreeValue::Node(TreeNode {
@@ -228,6 +257,43 @@ fn with_indicators_tree_value(
                 entries,
             })
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn modified_word_tree_value(
+    bahe: &[Word],
+    word: &Word,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    if bahe.is_empty() {
+        word_tree_value(word, source, options)
+    } else {
+        let mut entries = vec![TreeEntry {
+            label: Some("bahe"),
+            value: word_tree_value(&bahe[0], source, options),
+        }];
+        if bahe.len() > 1 {
+            entries.push(TreeEntry {
+                label: Some("extra_bahe"),
+                value: TreeValue::Collection(
+                    bahe[1..]
+                        .iter()
+                        .map(|bahe| word_tree_value(bahe, source, options))
+                        .collect(),
+                ),
+            });
+        }
+        entries.push(TreeEntry {
+            label: None,
+            value: word_tree_value(word, source, options),
+        });
+        TreeValue::Node(TreeNode {
+            constructor: "Emphasized",
+            entries,
+        })
     }
 }
 
@@ -271,6 +337,19 @@ fn generated_syntax_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     let mut visitor = SyntaxTreeBuilder::<GeneratedSyntaxRenderModel>::new(source, options, None);
+    tree.visit_in_order(&mut visitor);
+    visitor.finish()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn raw_generated_syntax_tree_value(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut visitor =
+        SyntaxTreeBuilder::<RawGeneratedSyntaxRenderModel>::new(source, options, None);
     tree.visit_in_order(&mut visitor);
     visitor.finish()
 }
@@ -575,6 +654,58 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
     }
 }
 
+#[invariant(true)]
+struct RawGeneratedSyntaxRenderModel;
+
+#[contract_trait]
+impl SyntaxRenderModel for RawGeneratedSyntaxRenderModel {
+    type Node<'tree> = GeneratedSyntaxNodeRef<'tree>;
+    type Atom<'tree> = GeneratedSyntaxAtomRef<'tree>;
+
+    fn constructor_name<'tree>(node: Self::Node<'tree>) -> &'static str {
+        node.constructor_name()
+    }
+
+    fn syntax_id<'tree>(
+        _node: Self::Node<'tree>,
+        _syntax_index: Option<&SyntaxIndex<'tree>>,
+    ) -> Option<RawSyntaxNodeId> {
+        None
+    }
+
+    fn atom_tree_value<'tree>(
+        atom: Self::Atom<'tree>,
+        source: &str,
+        options: TreeRenderOptions,
+    ) -> TreeValue {
+        match atom {
+            GeneratedSyntaxAtomRef::TokenConnectiveSyntax((token, connective)) => {
+                legacy_syntax_tuple_value([
+                    legacy_syntax_subtree_value(token, source, options),
+                    raw_generated_syntax_subtree_value(connective, source, options),
+                ])
+            }
+            atom => GeneratedSyntaxRenderModel::atom_tree_value(atom, source, options),
+        }
+    }
+
+    fn atom_end_position<'tree>(atom: Self::Atom<'tree>) -> Option<RenderedPosition> {
+        GeneratedSyntaxRenderModel::atom_end_position(atom)
+    }
+
+    fn elidable_terminator<'tree>(_node: Self::Node<'tree>, _field: FieldRef) -> Option<Cmavo> {
+        None
+    }
+
+    fn custom_node_tree_value<'tree>(
+        _node: Self::Node<'tree>,
+        _source: &str,
+        _options: TreeRenderOptions,
+    ) -> Option<TreeValue> {
+        None
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn legacy_syntax_tuple_value<const N: usize>(values: [Option<TreeValue>; N]) -> TreeValue {
@@ -607,6 +738,22 @@ where
     T: GeneratedSyntaxAstTreeNode,
 {
     let mut visitor = SyntaxTreeBuilder::<GeneratedSyntaxRenderModel>::new(source, options, None);
+    value.visit_in_order(&mut visitor);
+    visitor.finish_optional()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn raw_generated_syntax_subtree_value<T>(
+    value: &T,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue>
+where
+    T: GeneratedSyntaxAstTreeNode,
+{
+    let mut visitor =
+        SyntaxTreeBuilder::<RawGeneratedSyntaxRenderModel>::new(source, options, None);
     value.visit_in_order(&mut visitor);
     visitor.finish_optional()
 }

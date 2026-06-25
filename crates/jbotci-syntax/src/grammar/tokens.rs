@@ -362,6 +362,7 @@ fn warn_experimental_indicators_inner(
         base,
         indicator,
         nai,
+        ..
     } = word
     else {
         return;
@@ -1043,22 +1044,45 @@ pub(super) fn word_byte_range(word: &Token) -> Option<Range<usize>> {
 fn word_indicators_byte_range(word: &WithIndicators<WordLike>) -> Option<Range<usize>> {
     match word {
         WithIndicators::Plain(word_like) => word_like_byte_range(word_like),
-        WithIndicators::Emphasized { bahe, word_like } => {
-            word_like_byte_range(word_like).map(|range| {
-                bahe.span().byte_start.min(range.start)..bahe.span().byte_end.max(range.end)
-            })
-        }
+        WithIndicators::Emphasized {
+            bahe,
+            extra_bahe,
+            word_like,
+        } => word_like_byte_range(word_like).map(|range| {
+            let start = extra_bahe
+                .iter()
+                .fold(bahe.span().byte_start, |start, bahe| {
+                    start.min(bahe.span().byte_start)
+                });
+            let end = extra_bahe.iter().fold(bahe.span().byte_end, |end, bahe| {
+                end.max(bahe.span().byte_end)
+            });
+            start.min(range.start)..end.max(range.end)
+        }),
         WithIndicators::WithIndicator {
             base,
+            indicator_bahe,
             indicator,
+            nai_bahe,
             nai,
         } => word_indicators_byte_range(base).map(|range| {
+            let indicator_start = indicator_bahe
+                .iter()
+                .fold(indicator.span().byte_start, |start, bahe| {
+                    start.min(bahe.span().byte_start)
+                });
+            let end = nai
+                .as_ref()
+                .map(|nai| {
+                    nai_bahe.iter().fold(nai.span().byte_end, |end, bahe| {
+                        end.max(bahe.span().byte_end)
+                    })
+                })
+                .unwrap_or_else(|| indicator.span().byte_end);
             range.start
-                ..nai
-                    .as_ref()
-                    .unwrap_or(indicator)
-                    .span()
-                    .byte_end
+                ..end
+                    .max(indicator_start)
+                    .max(indicator.span().byte_end)
                     .max(range.end)
         }),
     }
