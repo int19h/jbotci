@@ -5339,13 +5339,8 @@ where
             else {
                 continue;
             };
-            if let Some((
-                left_expression,
-                connective,
-                right_expression,
-                left_operator,
-                right_operator,
-            )) = connected_mekso_operator_parts(expression)
+            if let Some((connective, left_operator, right_operator)) =
+                first_connected_mekso_operator(expression)
             {
                 let source = self
                     .analysis
@@ -5356,9 +5351,8 @@ where
                     &assignments,
                     connected_assignment.id,
                     connected_place.get() as usize,
-                    left_expression,
+                    expression,
                     left_operator,
-                    right_expression,
                     li,
                     connected_assignment.sumti.0,
                     selbri,
@@ -5368,9 +5362,8 @@ where
                     &assignments,
                     connected_assignment.id,
                     connected_place.get() as usize,
-                    left_expression,
+                    expression,
                     right_operator,
-                    right_expression,
                     li,
                     connected_assignment.sumti.0,
                     selbri,
@@ -5542,9 +5535,8 @@ where
         assignments: &[SumtiPlaceAssignment],
         connected_assignment: SumtiPlaceAssignmentId,
         connected_place: usize,
-        left_expression: &'tree MeksoSyntax,
+        expression: &'tree MeksoSyntax,
         operator: &'tree MeksoOperatorSyntax,
-        right_expression: &'tree MeksoSyntax,
         li: &WithFreeModifiers<Token>,
         raw: RawSyntaxNodeId,
         selbri: &'tree SelbriSyntax,
@@ -5568,13 +5560,8 @@ where
                 self.build_argument_for_sumti(sumti)?,
             );
         }
-        let branch_referent = self.build_number_referent_for_infix_operator_branch(
-            left_expression,
-            operator,
-            right_expression,
-            li,
-            raw,
-        )?;
+        let branch_referent = self
+            .build_number_referent_for_connected_operator_branch(expression, operator, li, raw)?;
         arguments.insert(
             format!("x{connected_place}"),
             ArgumentValue::filled(branch_referent, None),
@@ -13725,37 +13712,37 @@ where
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
-    fn build_number_referent_for_infix_operator_branch(
+    fn build_number_referent_for_connected_operator_branch(
         &mut self,
-        left_expression: &'tree MeksoSyntax,
+        expression: &'tree MeksoSyntax,
         operator: &'tree MeksoOperatorSyntax,
-        right_expression: &'tree MeksoSyntax,
         li: &WithFreeModifiers<Token>,
         raw: RawSyntaxNodeId,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let left = self.build_math_expression(left_expression, None)?;
-        let right = self.build_math_expression(right_expression, None)?;
-        let math = self.build_math_operator_expression_for_operator(
+        let (math, replaced) = self.build_math_expression_with_connected_operator_replacement(
+            expression,
             operator,
-            vec![left, right],
             self.source_for_node(raw, "math-expression"),
         )?;
-        let name = format!(
-            "{} {} {}",
-            mekso_surface_text(left_expression),
-            mekso_operator_surface_label(operator),
-            mekso_surface_text(right_expression)
-        );
+        let name = mekso_surface_text_with_connected_operator_replacement(expression, operator)
+            .unwrap_or_else(|| mekso_surface_text(expression));
         let quantity = self.next_quantity();
-        self.insert(
-            quantity,
-            SemanticObject::quantity(
+        let mut diagnostics = Vec::new();
+        if !replaced {
+            diagnostics.push(diagnostic(
+                "connected mekso operator branch did not replace an operator",
+            ));
+        }
+        self.insert(quantity, {
+            let mut object = SemanticObject::quantity(
                 quantity_form_for_text(&name),
                 QuantityValue::math_expression(math),
                 QuantityScale::Count,
                 self.source_for_node(raw, "quantity"),
-            ),
-        )?;
+            );
+            object.diagnostics = diagnostics;
+            object
+        })?;
         self.build_number_referent_with_quantity(
             li,
             name,
@@ -13957,6 +13944,176 @@ where
                 MathLiteral::text("expression".to_owned(), mekso_surface_text(expression)),
                 source,
             ),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|(id, _)| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_math_expression_with_connected_operator_replacement(
+        &mut self,
+        expression: &'tree MeksoSyntax,
+        replacement_operator: &'tree MeksoOperatorSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<(SemanticObjectId, bool), SemanticsError> {
+        match expression.as_data() {
+            data!(MeksoSyntax::ParenthesizedMekso {
+                inner_expression,
+                ..
+            }) => self.build_math_expression_with_connected_operator_replacement(
+                inner_expression,
+                replacement_operator,
+                source,
+            ),
+            data!(MeksoSyntax::QualifiedOperand {
+                markers,
+                inner_expression,
+                ..
+            }) => {
+                let (id, replaced) = self
+                    .build_math_expression_with_connected_operator_replacement(
+                        inner_expression,
+                        replacement_operator,
+                        source,
+                    )?;
+                if let Some(marker) = markers.value.first() {
+                    self.set_math_scalar_negation(id, scalar_negation_for_token(marker));
+                }
+                Ok((id, replaced))
+            }
+            data!(MeksoSyntax::Infix {
+                left_expression,
+                operator,
+                right_expression,
+            })
+            | data!(MeksoSyntax::PrecedenceInfix {
+                left_expression,
+                operator,
+                right_expression,
+                ..
+            }) => {
+                if connected_mekso_operator(operator).is_some() {
+                    let operands = vec![
+                        self.build_math_expression(left_expression, None)?,
+                        self.build_math_expression(right_expression, None)?,
+                    ];
+                    return self
+                        .build_math_operator_expression_for_operator(
+                            replacement_operator,
+                            operands,
+                            source,
+                        )
+                        .map(|id| (id, true));
+                }
+                let (left, left_replaced) = self
+                    .build_math_expression_with_connected_operator_replacement(
+                        left_expression,
+                        replacement_operator,
+                        None,
+                    )?;
+                let (right, right_replaced) = if left_replaced {
+                    (self.build_math_expression(right_expression, None)?, false)
+                } else {
+                    self.build_math_expression_with_connected_operator_replacement(
+                        right_expression,
+                        replacement_operator,
+                        None,
+                    )?
+                };
+                self.build_math_operator_expression_for_operator(
+                    operator,
+                    vec![left, right],
+                    source,
+                )
+                .map(|id| (id, left_replaced || right_replaced))
+            }
+            data!(MeksoSyntax::ForethoughtCall {
+                operator,
+                operands,
+                ..
+            }) => {
+                if connected_mekso_operator(operator).is_some() {
+                    let operands = operands
+                        .iter()
+                        .map(|operand| self.build_math_expression(operand, None))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    return self
+                        .build_math_operator_expression_for_operator(
+                            replacement_operator,
+                            operands,
+                            source,
+                        )
+                        .map(|id| (id, true));
+                }
+                let mut built_operands = Vec::with_capacity(operands.len());
+                let mut replaced = false;
+                for operand in operands {
+                    if replaced {
+                        built_operands.push(self.build_math_expression(operand, None)?);
+                    } else {
+                        let (id, operand_replaced) = self
+                            .build_math_expression_with_connected_operator_replacement(
+                                operand,
+                                replacement_operator,
+                                None,
+                            )?;
+                        replaced = operand_replaced;
+                        built_operands.push(id);
+                    }
+                }
+                self.build_math_operator_expression_for_operator(operator, built_operands, source)
+                    .map(|id| (id, replaced))
+            }
+            data!(MeksoSyntax::MeksoConnection {
+                left_expression,
+                connective,
+                right_expression,
+            }) if connective_is_interval(connective) => {
+                let (left, left_replaced) = self
+                    .build_math_expression_with_connected_operator_replacement(
+                        left_expression,
+                        replacement_operator,
+                        None,
+                    )?;
+                let (right, right_replaced) = if left_replaced {
+                    (self.build_math_expression(right_expression, None)?, false)
+                } else {
+                    self.build_math_expression_with_connected_operator_replacement(
+                        right_expression,
+                        replacement_operator,
+                        None,
+                    )?
+                };
+                self.build_math_interval_expression(
+                    nonlogical_composition_operator(connective),
+                    vec![left, right],
+                    interval_endpoint_inclusion(connective, false),
+                    source,
+                )
+                .map(|id| (id, left_replaced || right_replaced))
+            }
+            data!(MeksoSyntax::MeksoArray { expressions, .. }) => {
+                let mut built_operands = Vec::with_capacity(expressions.len());
+                let mut replaced = false;
+                for operand in expressions {
+                    if replaced {
+                        built_operands.push(self.build_math_expression(operand, None)?);
+                    } else {
+                        let (id, operand_replaced) = self
+                            .build_math_expression_with_connected_operator_replacement(
+                                operand,
+                                replacement_operator,
+                                None,
+                            )?;
+                        replaced = operand_replaced;
+                        built_operands.push(id);
+                    }
+                }
+                self.build_math_operator_expression("array".to_owned(), built_operands, source)
+                    .map(|id| (id, replaced))
+            }
+            _ => self
+                .build_math_expression(expression, source)
+                .map(|id| (id, false)),
         }
     }
 
@@ -22948,13 +23105,11 @@ fn mekso_operator_surface_label(operator: &MeksoOperatorSyntax) -> String {
 }
 
 #[requires(true)]
-#[ensures(ret.is_none_or(|(_, connective, _, _, _)| connective_is_logical(connective) && !connective_is_interval(connective)))]
-fn connected_mekso_operator_parts(
+#[ensures(ret.is_none_or(|(connective, _, _)| connective_is_logical(connective) && !connective_is_interval(connective)))]
+fn first_connected_mekso_operator(
     expression: &MeksoSyntax,
 ) -> Option<(
-    &MeksoSyntax,
     &ConnectiveSyntax,
-    &MeksoSyntax,
     &MeksoOperatorSyntax,
     &MeksoOperatorSyntax,
 )> {
@@ -22969,20 +23124,35 @@ fn connected_mekso_operator_parts(
             operator,
             right_expression,
             ..
-        }) => {
-            let (connective, left_operator, right_operator) = connected_mekso_operator(operator)?;
-            Some((
-                left_expression,
-                connective,
-                right_expression,
-                left_operator,
-                right_operator,
-            ))
-        }
+        }) => connected_mekso_operator(operator)
+            .or_else(|| first_connected_mekso_operator(left_expression))
+            .or_else(|| first_connected_mekso_operator(right_expression)),
         data!(MeksoSyntax::ParenthesizedMekso {
             inner_expression,
             ..
-        }) => connected_mekso_operator_parts(inner_expression),
+        })
+        | data!(MeksoSyntax::QualifiedOperand {
+            inner_expression,
+            ..
+        }) => first_connected_mekso_operator(inner_expression),
+        data!(MeksoSyntax::ForethoughtCall {
+            operator,
+            operands,
+            ..
+        }) => connected_mekso_operator(operator).or_else(|| {
+            operands
+                .iter()
+                .find_map(|operand| first_connected_mekso_operator(operand))
+        }),
+        data!(MeksoSyntax::MeksoConnection {
+            left_expression,
+            right_expression,
+            ..
+        }) => first_connected_mekso_operator(left_expression)
+            .or_else(|| first_connected_mekso_operator(right_expression)),
+        data!(MeksoSyntax::MeksoArray { expressions, .. }) => expressions
+            .iter()
+            .find_map(|expression| first_connected_mekso_operator(expression)),
         _ => None,
     }
 }
@@ -23077,6 +23247,147 @@ fn mekso_surface_text(expression: &MeksoSyntax) -> String {
             )
         }
         _ => "mekso".to_owned(),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
+fn mekso_surface_text_with_connected_operator_replacement(
+    expression: &MeksoSyntax,
+    replacement_operator: &MeksoOperatorSyntax,
+) -> Option<String> {
+    match expression.as_data() {
+        data!(MeksoSyntax::ParenthesizedMekso {
+            inner_expression,
+            ..
+        })
+        | data!(MeksoSyntax::QualifiedOperand {
+            inner_expression,
+            ..
+        }) => mekso_surface_text_with_connected_operator_replacement(
+            inner_expression,
+            replacement_operator,
+        ),
+        data!(MeksoSyntax::Infix {
+            left_expression,
+            operator,
+            right_expression,
+        })
+        | data!(MeksoSyntax::PrecedenceInfix {
+            left_expression,
+            operator,
+            right_expression,
+            ..
+        }) => {
+            if connected_mekso_operator(operator).is_some() {
+                return Some(format!(
+                    "{} {} {}",
+                    mekso_surface_text(left_expression),
+                    mekso_operator_surface_label(replacement_operator),
+                    mekso_surface_text(right_expression)
+                ));
+            }
+            if let Some(left) = mekso_surface_text_with_connected_operator_replacement(
+                left_expression,
+                replacement_operator,
+            ) {
+                return Some(format!(
+                    "{} {} {}",
+                    left,
+                    mekso_operator_surface_label(operator),
+                    mekso_surface_text(right_expression)
+                ));
+            }
+            mekso_surface_text_with_connected_operator_replacement(
+                right_expression,
+                replacement_operator,
+            )
+            .map(|right| {
+                format!(
+                    "{} {} {}",
+                    mekso_surface_text(left_expression),
+                    mekso_operator_surface_label(operator),
+                    right
+                )
+            })
+        }
+        data!(MeksoSyntax::ForethoughtCall {
+            operator,
+            operands,
+            ..
+        }) => {
+            if connected_mekso_operator(operator).is_some() {
+                let mut parts = Vec::with_capacity(operands.len() + 1);
+                parts.push(mekso_operator_surface_label(replacement_operator));
+                parts.extend(operands.iter().map(mekso_surface_text));
+                return Some(parts.join(" "));
+            }
+            let mut parts = Vec::with_capacity(operands.len() + 1);
+            parts.push(mekso_operator_surface_label(operator));
+            let mut replaced = false;
+            for operand in operands {
+                if replaced {
+                    parts.push(mekso_surface_text(operand));
+                } else if let Some(text) = mekso_surface_text_with_connected_operator_replacement(
+                    operand,
+                    replacement_operator,
+                ) {
+                    replaced = true;
+                    parts.push(text);
+                } else {
+                    parts.push(mekso_surface_text(operand));
+                }
+            }
+            replaced.then(|| parts.join(" "))
+        }
+        data!(MeksoSyntax::MeksoConnection {
+            left_expression,
+            connective,
+            right_expression,
+        }) => {
+            if let Some(left) = mekso_surface_text_with_connected_operator_replacement(
+                left_expression,
+                replacement_operator,
+            ) {
+                return Some(format!(
+                    "{} {} {}",
+                    left,
+                    full_connective_text(connective),
+                    mekso_surface_text(right_expression)
+                ));
+            }
+            mekso_surface_text_with_connected_operator_replacement(
+                right_expression,
+                replacement_operator,
+            )
+            .map(|right| {
+                format!(
+                    "{} {} {}",
+                    mekso_surface_text(left_expression),
+                    full_connective_text(connective),
+                    right
+                )
+            })
+        }
+        data!(MeksoSyntax::MeksoArray { expressions, .. }) => {
+            let mut parts = Vec::with_capacity(expressions.len());
+            let mut replaced = false;
+            for expression in expressions {
+                if replaced {
+                    parts.push(mekso_surface_text(expression));
+                } else if let Some(text) = mekso_surface_text_with_connected_operator_replacement(
+                    expression,
+                    replacement_operator,
+                ) {
+                    replaced = true;
+                    parts.push(text);
+                } else {
+                    parts.push(mekso_surface_text(expression));
+                }
+            }
+            replaced.then(|| parts.join(" "))
+        }
+        _ => None,
     }
 }
 
@@ -27630,6 +27941,42 @@ mod tests {
             assert!(operators.contains(&"multiply"));
             assert!(!operators.contains(&"su'i pi'i"));
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nested_connected_mekso_operator_expands_enclosing_identity() {
+        let json = semantic_json_for("li ci pi'i vei re su'i ja vu'u pa ve'o du li mu")
+            .expect("semantic JSON");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "or");
+        assert_eq!(content["connector"]["source"], "ja");
+        assert_eq!(content["connector"]["locus"], "mekso-operator");
+        assert_eq!(content["connector"]["truthTable"], "TTTF");
+
+        let identities = predications_with_relation_and_mode(&json, "identity", "definitional");
+        assert_eq!(identities.len(), 2);
+        assert_eq!(
+            identities[0]["arguments"]["x2"]["value"],
+            identities[1]["arguments"]["x2"]["value"]
+        );
+        let operators = json["objects"]
+            .as_object()
+            .expect("objects")
+            .values()
+            .filter(|object| object["type"] == "mathExpression")
+            .filter_map(|object| object["operator"].as_str())
+            .collect::<Vec<_>>();
+        assert!(operators.contains(&"add"));
+        assert!(operators.contains(&"subtract"));
+        assert!(operators.contains(&"multiply"));
+        assert!(!operators.contains(&"su'i vu'u"));
     }
 
     #[test]
