@@ -797,7 +797,107 @@ fn legacy_as_generated_statement_tree_value(
                 },
             ],
         }),
+        bityzba::data!(
+            jbotci_syntax::ast::StatementSyntax::ExperimentalBridiContinuation {
+                leading_statement,
+                continuation,
+            }
+        ) => TreeValue::Node(TreeNode {
+            constructor: "ExperimentalBridiContinuation",
+            entries: vec![
+                TreeEntry {
+                    label: Some("leading_statement"),
+                    value: legacy_as_generated_statement_tree_value(
+                        leading_statement.as_ref(),
+                        source,
+                        options,
+                    ),
+                },
+                TreeEntry {
+                    label: Some("continuation"),
+                    value: legacy_as_generated_bridi_statement_continuation_tree_value(
+                        continuation,
+                        source,
+                        options,
+                    ),
+                },
+            ],
+        }),
         _ => required_legacy_syntax_subtree_value(statement, source, options),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_bridi_statement_continuation_tree_value(
+    continuation: &jbotci_syntax::ast::BridiStatementContinuationSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = vec![TreeEntry {
+        label: Some("connective"),
+        value: legacy_as_generated_connective_tree_value(&continuation.connective, source, options),
+    }];
+    if let Some(tense_modal) = &continuation.tense_modal {
+        entries.push(TreeEntry {
+            label: Some("tense_modal"),
+            value: legacy_as_generated_tense_modal_tree_value(
+                tense_modal.as_ref(),
+                source,
+                options,
+            ),
+        });
+    }
+    entries.push(TreeEntry {
+        label: Some("marker"),
+        value: legacy_as_generated_bridi_statement_continuation_marker_tree_value(
+            &continuation.marker,
+            source,
+            options,
+        ),
+    });
+    entries.push(TreeEntry {
+        label: Some("trailing_subbridi"),
+        value: legacy_as_generated_subbridi_tree_value(
+            continuation.trailing_subbridi.as_ref(),
+            source,
+            options,
+        ),
+    });
+    TreeValue::Node(TreeNode {
+        constructor: "BridiStatementContinuation",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_bridi_statement_continuation_marker_tree_value(
+    marker: &jbotci_syntax::ast::BridiStatementContinuationMarkerSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match marker.as_data() {
+        bityzba::data!(
+            jbotci_syntax::ast::BridiStatementContinuationMarkerSyntax::BoGrouped(bo)
+        ) => legacy_token_tree_value_with_extra_free_modifiers(
+            &bo.value,
+            &bo.free_modifiers,
+            source,
+            options,
+        ),
+        bityzba::data!(
+            jbotci_syntax::ast::BridiStatementContinuationMarkerSyntax::KeGrouped { ke, kehe }
+        ) => {
+            let mut entries = legacy_token_field_entries("ke", ke, source, options);
+            if let Some(kehe) = kehe {
+                entries.extend(legacy_token_field_entries("kehe", kehe, source, options));
+            }
+            TreeValue::Node(TreeNode {
+                constructor: "KeGrouped",
+                entries,
+            })
+        }
     }
 }
 
@@ -6158,6 +6258,9 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::SelbriSyntax {
                 source,
                 options,
             ),
+            _ if let Some(unit) = legacy_single_selbri_tanru_unit(self) => {
+                unit.tanru_unit_atom_base_tree_value(source, options)
+            }
             _ => required_legacy_syntax_subtree_value(self, source, options),
         }
     }
