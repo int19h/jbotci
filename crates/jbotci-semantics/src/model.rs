@@ -2173,6 +2173,7 @@ pub enum ParameterRole {
 #[invariant(argument_value_shape_is_valid(*kind, *value, introduced_by.as_deref()))]
 #[invariant(*kind != ArgumentValueKind::Deleted || relative_clauses.is_empty())]
 #[invariant(*kind != ArgumentValueKind::Deleted || quantity.is_none())]
+#[invariant(*kind != ArgumentValueKind::Deleted || command_target.is_none())]
 #[invariant((*quantity).is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -2188,6 +2189,8 @@ pub struct ArgumentValue {
     pub source: Option<SemanticSource>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub relative_clauses: Vec<RelativeClause>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_target: Option<CommandTarget>,
 }
 
 impl ArgumentValue {
@@ -2201,6 +2204,7 @@ impl ArgumentValue {
             introduced_by: None,
             source,
             relative_clauses: Vec::new(),
+            command_target: None,
         }))
     }
 
@@ -2219,6 +2223,7 @@ impl ArgumentValue {
             introduced_by: Some(introduced_by),
             source,
             relative_clauses: Vec::new(),
+            command_target: None,
         }))
     }
 
@@ -2232,6 +2237,7 @@ impl ArgumentValue {
             introduced_by: Some(introduced_by),
             source,
             relative_clauses: Vec::new(),
+            command_target: None,
         }))
     }
 
@@ -2257,6 +2263,16 @@ impl ArgumentValue {
         }))
     }
 
+    #[requires(self.kind != ArgumentValueKind::Deleted)]
+    #[ensures(ret.command_target.is_some())]
+    pub fn with_command_target(self, command_target: CommandTarget) -> Self {
+        let data = self.into_data();
+        Self::from_data(data!(ArgumentValue {
+            command_target: Some(command_target),
+            ..data
+        }))
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
@@ -2265,6 +2281,21 @@ impl ArgumentValue {
         }
         extend_optional(out, self.quantity);
         out.extend(self.relative_clauses.iter().map(|clause| clause.body));
+    }
+}
+
+#[invariant(!introduced_by.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommandTarget {
+    pub introduced_by: String,
+}
+
+impl CommandTarget {
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(!ret.introduced_by.is_empty())]
+    pub fn new(introduced_by: String) -> Self {
+        Self::from_data(data!(CommandTarget { introduced_by }))
     }
 }
 
@@ -4102,6 +4133,7 @@ mod tests {
             introduced_by: Some("zi'o".to_owned()),
             source: None,
             relative_clauses: Vec::new(),
+            command_target: None,
         }));
 
         assert!(invalid.is_err());
@@ -4118,6 +4150,7 @@ mod tests {
             introduced_by: Some("zi'o".to_owned()),
             source: None,
             relative_clauses: Vec::new(),
+            command_target: None,
         }));
 
         assert!(invalid.is_err());

@@ -1115,6 +1115,21 @@ those remain on `ArgumentValue` when a sumti occurrence fills a predication
 place, so global indexicals such as `do` are not mutated by ordinary argument
 uses.
 
+Imperative `ko` is also occurrence-scoped.  It resolves to the addressee
+referent, like `do`, and the host utterance has `force:"command"`, but the
+specific argument occurrence that contained `ko` carries `commandTarget`:
+
+```json
+{
+  "kind": "filled",
+  "value": "referent:addressee",
+  "commandTarget": { "introducedBy": "ko" }
+}
+```
+
+This makes the commanded participant's place explicit without mutating the
+global addressee referent.
+
 Masses, sets, and non-logical composites are referents with structured
 composition:
 
@@ -5051,7 +5066,8 @@ implementation gaps are listed separately in “Known Implementation Divergences
     to the addressee referent and the host utterance has command force, but each
     `ko` argument occurrence must also mark the concrete command target place.
     This distinguishes `ko klama` from `mi viska ko` without mutating the global
-    addressee referent.
+    addressee referent.  Use `ArgumentValue.commandTarget:
+    {"introducedBy":"ko"}` on the filled argument occurrence.
 
 32. **Outer quantifier representation (#99) — doc correction, no model change.**
     Delete the abandoned `ArgumentValue.quantity` account for outer quantifiers.

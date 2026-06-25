@@ -30,8 +30,8 @@ use jbotci_syntax::ast::{
 
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorMagnitude, AnchorRelation, AnchorRelationData,
-    ArgumentValue, ArgumentValueKind, Aspect, AssignedName, AssignedNameData, Composition,
-    Connector, Descriptor, DescriptorDefiniteness, DisplayedContentAssertionEffect,
+    ArgumentValue, ArgumentValueKind, Aspect, AssignedName, AssignedNameData, CommandTarget,
+    Composition, Connector, Descriptor, DescriptorDefiniteness, DisplayedContentAssertionEffect,
     DisplayedContentFamily, DisplayedContentModifier, DisplayedContentPolarity,
     DisplayedContentTargetFocus, EndpointInclusion, EventualityClass, FormulaOperator,
     IndexicalKind, IntervalEndpointInclusion, IntervalModifier, IntervalModifierData, LetteralUnit,
@@ -12364,6 +12364,11 @@ where
                 argument = argument.with_quantity(quantity);
             }
         }
+        if sumti_is_command_target(sumti)
+            && argument.kind != crate::model::ArgumentValueKind::Deleted
+        {
+            argument = argument.with_command_target(CommandTarget::new("ko".to_owned()));
+        }
         self.attach_relative_clauses_to_argument(argument, sumti, referent)
     }
 
@@ -17471,6 +17476,28 @@ fn sumti_is_elided(sumti: &SumtiSyntax) -> bool {
     match sumti.as_data() {
         data!(SumtiSyntax::ProSumti(token)) => token.cmavo() == Some(Cmavo::Zohe),
         data!(SumtiSyntax::ElidedSumti { .. }) => true,
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sumti_is_command_target(sumti: &SumtiSyntax) -> bool {
+    match sumti.as_data() {
+        data!(SumtiSyntax::ProSumti(token)) => token.cmavo() == Some(Cmavo::Ko),
+        data!(SumtiSyntax::GroupedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::TaggedSumti { inner_sumti, .. })
+        | data!(SumtiSyntax::SumtiWithRelativeClauses {
+            base_sumti: inner_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::SumtiWithComplexRelativeClauses {
+            base_sumti: inner_sumti,
+            ..
+        })
+        | data!(SumtiSyntax::QuantifiedSumti { inner_sumti, .. }) => {
+            sumti_is_command_target(inner_sumti)
+        }
         _ => false,
     }
 }
@@ -26393,9 +26420,19 @@ mod tests {
     fn ko_resolves_to_addressee_and_marks_command_force() {
         let json = semantic_json_for("ko sarji la .lojban.").expect("semantic JSON");
         assert_eq!(object(&json, "utterance:u1")["force"], "command");
+        let sarji = predication_with_relation_and_mode(&json, "sarji", "asserted");
+        let x1_argument = &sarji["arguments"]["x1"];
+        assert_eq!(x1_argument["value"], "referent:addressee");
+        assert_eq!(x1_argument["commandTarget"]["introducedBy"], "ko");
+
+        let json = semantic_json_for("mi viska ko").expect("semantic JSON");
+        assert_eq!(object(&json, "utterance:u1")["force"], "command");
+        let viska = predication_with_relation_and_mode(&json, "viska", "asserted");
+        assert!(viska["arguments"]["x1"].get("commandTarget").is_none());
+        assert_eq!(viska["arguments"]["x2"]["value"], "referent:addressee");
         assert_eq!(
-            predication_with_relation_and_mode(&json, "sarji", "asserted")["arguments"]["x1"]["value"],
-            "referent:addressee"
+            viska["arguments"]["x2"]["commandTarget"]["introducedBy"],
+            "ko"
         );
     }
 
