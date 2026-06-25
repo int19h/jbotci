@@ -45,7 +45,8 @@ use crate::model::{
     SemanticObjectId, SemanticObjectKind, SemanticOperatorData, SemanticSort, SequenceRelation,
     SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript, TanruLink,
     TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
-    TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic, source_from_spans,
+    TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic,
+    is_numbered_argument_place, source_from_spans,
 };
 use crate::references::{
     AssignmentSource, BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -631,6 +632,24 @@ struct DescriptionAbstraction<'tree> {
     abstraction: &'tree AbstractionSyntax,
     output_sort: SemanticSort,
     link_relation: &'static str,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DescriptionCharacterization {
+    Veridical,
+    SpeakerDescribed,
+    Named,
+}
+
+#[invariant(!relation.is_empty(), "aggregate relation must be named")]
+#[invariant(!member_word.is_empty(), "aggregate member gadri word must be named")]
+#[derive(Debug, Clone, Copy)]
+struct AggregateDescriptionSpec {
+    sort: SemanticSort,
+    relation: &'static str,
+    member_cmavo: Cmavo,
+    member_word: &'static str,
 }
 
 #[invariant(true)]
@@ -14447,10 +14466,10 @@ where
                 self.build_math_operator_expression("array".to_owned(), operands, source)
             }
             data!(MeksoSyntax::SumtiOperand { sumti, .. }) => {
-                let referent = self.build_sumti_referent(sumti)?;
+                let denotation = self.build_sumti_operand_denotation(sumti)?;
                 let operand_source =
                     source.or_else(|| self.source_for_mekso(expression, "sumti-operand"));
-                self.build_math_sumti_operand(referent, operand_source)
+                self.build_math_sumti_operand(denotation, operand_source)
             }
             data!(MeksoSyntax::SelbriOperand { selbri, .. }) => {
                 let operand_source =
@@ -14804,6 +14823,44 @@ where
         self.insert(
             id,
             SemanticObject::math_expression(None, Vec::new(), Some(literal), source, Vec::new()),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
+    fn build_sumti_operand_denotation(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let Some(PrenexFormulaScope::Quantifier {
+            scope,
+            restrictions,
+        }) = self.quantified_argument_prenex_scope_for_sumti(sumti)?
+        else {
+            return self.build_sumti_referent(sumti);
+        };
+        let body = self.quantified_sumti_operand_body_formula(scope.variable, &restrictions)?;
+        self.wrap_formula_with_quantified_pro_sumti_scope(body, scope, restrictions)
+    }
+
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn quantified_sumti_operand_body_formula(
+        &mut self,
+        variable: SemanticObjectId,
+        restrictions: &[SemanticObjectId],
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(body) = self.combine_restriction_formulas(restrictions.to_vec())? {
+            return Ok(body);
+        }
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(variable, None));
+        self.build_structural_formula_from_arguments(
+            "sumtiOperand",
+            arguments,
+            PredicationMode::Restrictive,
+            None,
         )
     }
 
@@ -15541,11 +15598,11 @@ where
             .as_ref()
             .map(|word| token_text(&word.value))
             .unwrap_or_else(|| "lo".to_owned());
-        let kind = match description
+        let cmavo = description
             .description
             .as_ref()
-            .and_then(|word| word.cmavo())
-        {
+            .and_then(|word| word.cmavo());
+        let kind = match cmavo {
             Some(Cmavo::Lo) => "veridicalDescription",
             Some(Cmavo::Loi) => "veridicalMassDescription",
             Some(Cmavo::Lohi) => "veridicalSetDescription",
@@ -15560,6 +15617,11 @@ where
             _ => "description",
         }
         .to_owned();
+        if let Some(cmavo) = cmavo
+            && aggregate_description_spec(cmavo).is_some()
+        {
+            return self.build_aggregate_description_referent(description, raw, cmavo, kind, word);
+        }
         let abstraction = description
             .selbri
             .as_deref()
@@ -15580,19 +15642,7 @@ where
         }
         let sort = abstraction
             .map(|abstraction| abstraction.output_sort)
-            .unwrap_or_else(|| {
-                match description
-                    .description
-                    .as_ref()
-                    .and_then(|word| word.cmavo())
-                {
-                    Some(Cmavo::Loi | Cmavo::Lei) => SemanticSort::Mass,
-                    Some(Cmavo::Lohi | Cmavo::Lehi) => SemanticSort::Set,
-                    Some(Cmavo::Lai) => SemanticSort::Mass,
-                    Some(Cmavo::Lahi) => SemanticSort::Set,
-                    _ => SemanticSort::Entity,
-                }
-            });
+            .unwrap_or(SemanticSort::Entity);
         let id = self.next_referent();
         let mut object = SemanticObject::referent(
             ReferentCategory::Constant,
@@ -15624,24 +15674,20 @@ where
         self.insert(id, object)?;
         self.sumti_objects.insert(raw, id);
 
-        let body = if let Some(selbri) = description.selbri.as_deref() {
-            Some(if let Some(abstraction) = abstraction {
-                let link_source = self
-                    .analysis
-                    .syntax_index
-                    .selbri_node_id(selbri)
-                    .and_then(|node| self.source_for_node(node.0, "abstraction-description"));
-                let frame = self.semantic_predication_frame_for_selbri(
+        let body = description
+            .selbri
+            .as_deref()
+            .map(|selbri| {
+                self.build_description_body_formula(
+                    description,
+                    raw,
                     selbri,
-                    self.branch_frame_for_selbri(selbri),
-                );
-                self.build_abstraction_description_formula(abstraction, id, frame, link_source)?
-            } else {
-                self.build_restrictive_formula(selbri, id)?
+                    id,
+                    cmavo,
+                    abstraction,
+                )
             })
-        } else {
-            None
-        };
+            .transpose()?;
         let operand_sumti = description_tail_sumti(&description.tail_elements);
         let operand = operand_sumti
             .map(|sumti| self.build_sumti_referent(sumti))
@@ -15698,6 +15744,373 @@ where
             descriptor.relative_clauses = relative_clauses;
         }
         Ok(id)
+    }
+
+    #[requires(aggregate_description_spec(cmavo).is_some())]
+    #[requires(!kind.is_empty())]
+    #[requires(!word.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_aggregate_description_referent(
+        &mut self,
+        description: &'tree DescriptionSyntax,
+        raw: RawSyntaxNodeId,
+        cmavo: Cmavo,
+        kind: String,
+        word: String,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let spec = aggregate_description_spec(cmavo).expect("precondition guarantees aggregate");
+        let id = self.next_referent();
+        let mut object = SemanticObject::referent(
+            ReferentCategory::Constant,
+            spec.sort,
+            None,
+            Some(Descriptor {
+                kind,
+                word,
+                speaker: Some(self.current_speaker()),
+                body: None,
+                veridical: None,
+                relative_clauses: Vec::new(),
+                quantity: None,
+                name: None,
+                scale: None,
+                definiteness: None,
+                operand: None,
+            }),
+            None,
+            self.source_for_description(description, raw, "description"),
+            Vec::new(),
+        );
+        self.push_goi_assigned_names_to_referent(&mut object, &description.relative_clauses);
+        self.insert(id, object)?;
+        self.sumti_objects.insert(raw, id);
+
+        let member = self.build_aggregate_member_referent(description, raw, spec)?;
+        let body = self.build_binary_structural_formula(
+            spec.relation,
+            ArgumentValue::filled(id, None),
+            ArgumentValue::filled(member, None),
+            PredicationMode::Restrictive,
+            self.source_for_description(description, raw, "aggregate-description"),
+        )?;
+        let relative_clauses =
+            self.lower_relative_clauses(description.relative_clauses.iter(), id)?;
+        let object = self.objects.get_mut(&id).ok_or_else(|| {
+            SemanticsError::invalid_graph(format!(
+                "semantic builder could not find aggregate description referent {id}"
+            ))
+        })?;
+        let Some(descriptor) = object.descriptor.as_mut() else {
+            return Err(SemanticsError::invalid_graph(format!(
+                "semantic builder aggregate description referent {id} has no descriptor"
+            )));
+        };
+        descriptor.body = Some(body);
+        descriptor.relative_clauses = relative_clauses;
+        Ok(id)
+    }
+
+    #[requires(!spec.member_word.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_aggregate_member_referent(
+        &mut self,
+        description: &'tree DescriptionSyntax,
+        raw: RawSyntaxNodeId,
+        spec: AggregateDescriptionSpec,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_referent();
+        let mut object = SemanticObject::referent(
+            ReferentCategory::Constant,
+            SemanticSort::Entity,
+            None,
+            Some(Descriptor {
+                kind: description_kind_for_cmavo(Some(spec.member_cmavo)).to_owned(),
+                word: spec.member_word.to_owned(),
+                speaker: Some(self.current_speaker()),
+                body: None,
+                veridical: None,
+                relative_clauses: Vec::new(),
+                quantity: None,
+                name: None,
+                scale: None,
+                definiteness: None,
+                operand: None,
+            }),
+            None,
+            self.source_for_description(description, raw, "aggregate-member-description"),
+            Vec::new(),
+        );
+        self.push_goi_assigned_names_to_referent(&mut object, &description.relative_clauses);
+        self.insert(id, object)?;
+
+        let abstraction = description
+            .selbri
+            .as_deref()
+            .and_then(description_abstraction_for_selbri);
+        let body = description
+            .selbri
+            .as_deref()
+            .map(|selbri| {
+                self.build_description_body_formula(
+                    description,
+                    raw,
+                    selbri,
+                    id,
+                    Some(spec.member_cmavo),
+                    abstraction,
+                )
+            })
+            .transpose()?;
+        let operand_sumti = description_tail_sumti(&description.tail_elements);
+        let operand = operand_sumti
+            .map(|sumti| self.build_sumti_referent(sumti))
+            .transpose()?;
+        let quantity = self.build_description_quantity(description, raw)?;
+        let mut relative_clauses = Vec::new();
+        descriptor_relative_clauses_for_description_tail(
+            &description.tail_elements,
+            &mut relative_clauses,
+        );
+        let relative_clauses = self.lower_relative_clauses(relative_clauses, id)?;
+
+        let object = self.objects.get_mut(&id).ok_or_else(|| {
+            SemanticsError::invalid_graph(format!(
+                "semantic builder could not find aggregate member referent {id}"
+            ))
+        })?;
+        let Some(descriptor) = object.descriptor.as_mut() else {
+            return Err(SemanticsError::invalid_graph(format!(
+                "semantic builder aggregate member referent {id} has no descriptor"
+            )));
+        };
+        descriptor.body = body;
+        descriptor.operand = description.selbri.is_none().then_some(operand).flatten();
+        descriptor.quantity = quantity;
+        descriptor.relative_clauses = relative_clauses;
+        Ok(id)
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_description_body_formula(
+        &mut self,
+        description: &'tree DescriptionSyntax,
+        raw: RawSyntaxNodeId,
+        selbri: &'tree SelbriSyntax,
+        referent: SemanticObjectId,
+        cmavo: Option<Cmavo>,
+        abstraction: Option<DescriptionAbstraction<'tree>>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(abstraction) = abstraction {
+            return self.build_direct_description_body_formula(selbri, referent, abstraction);
+        }
+        if selbri_requires_direct_description_body(selbri) {
+            return self.build_restrictive_formula(selbri, referent);
+        }
+        match description_characterization_for_cmavo(cmavo) {
+            DescriptionCharacterization::SpeakerDescribed => {
+                self.build_speaker_description_formula(description, raw, selbri, referent)
+            }
+            DescriptionCharacterization::Named => {
+                self.build_selbri_name_description_formula(description, raw, selbri, referent)
+            }
+            DescriptionCharacterization::Veridical => {
+                self.build_restrictive_formula(selbri, referent)
+            }
+        }
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_direct_description_body_formula(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        referent: SemanticObjectId,
+        abstraction: DescriptionAbstraction<'tree>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let link_source = self
+            .analysis
+            .syntax_index
+            .selbri_node_id(selbri)
+            .and_then(|node| self.source_for_node(node.0, "abstraction-description"));
+        let frame = self
+            .semantic_predication_frame_for_selbri(selbri, self.branch_frame_for_selbri(selbri));
+        self.build_abstraction_description_formula(abstraction, referent, frame, link_source)
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_speaker_description_formula(
+        &mut self,
+        description: &'tree DescriptionSyntax,
+        raw: RawSyntaxNodeId,
+        selbri: &'tree SelbriSyntax,
+        referent: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let property = self.build_description_property_abstraction_for_selbri(
+            selbri,
+            self.source_for_selbri(selbri, "speaker-description-property"),
+        )?;
+        let mut arguments = BTreeMap::new();
+        arguments.insert(
+            "x1".to_owned(),
+            ArgumentValue::filled(self.current_speaker(), None),
+        );
+        arguments.insert("x2".to_owned(), ArgumentValue::filled(referent, None));
+        arguments.insert(
+            "x3".to_owned(),
+            ArgumentValue::filled(self.current_audience(), None),
+        );
+        arguments.insert("x4".to_owned(), ArgumentValue::filled(property, None));
+        self.build_structural_formula_from_arguments(
+            "skicu",
+            arguments,
+            PredicationMode::Incidental,
+            self.source_for_description(description, raw, "speaker-description"),
+        )
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_selbri_name_description_formula(
+        &mut self,
+        description: &'tree DescriptionSyntax,
+        raw: RawSyntaxNodeId,
+        selbri: &'tree SelbriSyntax,
+        referent: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let sign = self.build_selbri_name_sign(selbri)?;
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(sign, None));
+        arguments.insert("x2".to_owned(), ArgumentValue::filled(referent, None));
+        arguments.insert(
+            "x3".to_owned(),
+            ArgumentValue::filled(self.current_speaker(), None),
+        );
+        self.build_structural_formula_from_arguments(
+            "cmene",
+            arguments,
+            PredicationMode::Incidental,
+            self.source_for_description(description, raw, "name-description"),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sign) || ret.is_err())]
+    fn build_selbri_name_sign(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let source = self.source_for_selbri(selbri, "name-sign");
+        let denotation = self.build_description_property_abstraction_for_selbri(
+            selbri,
+            source_as_name_denotation(source.clone()),
+        )?;
+        let id = self.next_sign();
+        let mut object = SemanticObject::text_sign(
+            SignKind::Word,
+            selbri_surface_text(selbri),
+            source,
+            Vec::new(),
+        );
+        object.denotes = Some(denotation);
+        self.insert(id, object)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
+    fn build_description_property_abstraction_for_selbri(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let parameter = self.next_parameter();
+        self.insert(
+            parameter,
+            SemanticObject::parameter(
+                SemanticSort::Entity,
+                crate::model::ParameterRole::PropertySlot,
+                "ce'u".to_owned(),
+                source.clone(),
+            ),
+        )?;
+        let body = self.build_restrictive_formula(selbri, parameter)?;
+        self.build_property_abstraction_output(body, vec![parameter], source)
+    }
+
+    #[requires(x1.value.is_some_and(|id| argument_object_kind_can_fill(id.object_kind())))]
+    #[requires(x2.value.is_some_and(|id| argument_object_kind_can_fill(id.object_kind())))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_binary_structural_formula(
+        &mut self,
+        relation: &str,
+        x1: ArgumentValue,
+        x2: ArgumentValue,
+        mode: PredicationMode,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), x1);
+        arguments.insert("x2".to_owned(), x2);
+        self.build_structural_formula_from_arguments(relation, arguments, mode, source)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(arguments.keys().all(|place| is_numbered_argument_place(place)))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_structural_formula_from_arguments(
+        &mut self,
+        relation: &str,
+        mut arguments: BTreeMap<String, ArgumentValue>,
+        mode: PredicationMode,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let highest_argument = arguments
+            .keys()
+            .filter_map(|place| argument_place_index(place))
+            .max()
+            .unwrap_or(0);
+        let mut diagnostics = Vec::new();
+        match self.place_count_for_relation(relation) {
+            Some(place_count) => {
+                for place in 1..=place_count.max(highest_argument) {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+            }
+            None => {
+                for place in 1..=highest_argument {
+                    let key = format!("x{place}");
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+                if !relation_has_open_place_structure(relation) {
+                    diagnostics.push(diagnostic(
+                        "relation place structure is unavailable; only places required by explicit assignments are represented",
+                    ));
+                }
+            }
+        }
+        let predication = self.next_predication();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                relation.to_owned(),
+                None,
+                arguments,
+                mode,
+                source.clone(),
+                diagnostics,
+            ),
+        )?;
+        let formula = self.next_formula();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )
     }
 
     #[requires(true)]
@@ -17961,6 +18374,14 @@ fn replace_argument_value_formula_references(
 #[requires(true)]
 #[ensures(true)]
 fn description_referent_sort(description: &DescriptionSyntax) -> SemanticSort {
+    if let Some(sort) = description
+        .description
+        .as_ref()
+        .and_then(|word| word.cmavo())
+        .and_then(|cmavo| aggregate_description_spec(cmavo).map(|spec| spec.sort))
+    {
+        return sort;
+    }
     description
         .selbri
         .as_deref()
@@ -17979,6 +18400,104 @@ fn description_referent_sort(description: &DescriptionSyntax) -> SemanticSort {
                 _ => SemanticSort::Entity,
             }
         })
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn description_kind_for_cmavo(cmavo: Option<Cmavo>) -> &'static str {
+    match cmavo {
+        Some(Cmavo::Lo) => "veridicalDescription",
+        Some(Cmavo::Loi) => "veridicalMassDescription",
+        Some(Cmavo::Lohi) => "veridicalSetDescription",
+        Some(Cmavo::Le) => "speakerDescription",
+        Some(Cmavo::Lei) => "speakerMassDescription",
+        Some(Cmavo::Lehi) => "speakerSetDescription",
+        Some(Cmavo::Lehe) => "speakerStereotypeDescription",
+        Some(Cmavo::La) => "name",
+        Some(Cmavo::Lai) => "massNameDescription",
+        Some(Cmavo::Lahi) => "setNameDescription",
+        Some(Cmavo::Lohe) => "typicalDescription",
+        _ => "description",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn description_characterization_for_cmavo(cmavo: Option<Cmavo>) -> DescriptionCharacterization {
+    match cmavo {
+        Some(Cmavo::Le) => DescriptionCharacterization::SpeakerDescribed,
+        Some(Cmavo::La) => DescriptionCharacterization::Named,
+        _ => DescriptionCharacterization::Veridical,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn selbri_requires_direct_description_body(selbri: &SelbriSyntax) -> bool {
+    if let Some(units) = tanru_units_for_selbri(selbri)
+        && let [unit] = units.as_slice()
+    {
+        return tanru_unit_is_event_modal_conversion(unit)
+            || tanru_unit_is_jai_conversion(unit)
+            || bare_jai_conversion_for_tanru_unit(unit).is_some();
+    }
+    false
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|spec| !spec.relation.is_empty() && !spec.member_word.is_empty()))]
+fn aggregate_description_spec(cmavo: Cmavo) -> Option<AggregateDescriptionSpec> {
+    match cmavo {
+        Cmavo::Loi => Some(AggregateDescriptionSpec::from_data(data!(
+            AggregateDescriptionSpec {
+                sort: SemanticSort::Mass,
+                relation: "gunma",
+                member_cmavo: Cmavo::Lo,
+                member_word: "lo",
+            }
+        ))),
+        Cmavo::Lei => Some(AggregateDescriptionSpec::from_data(data!(
+            AggregateDescriptionSpec {
+                sort: SemanticSort::Mass,
+                relation: "gunma",
+                member_cmavo: Cmavo::Le,
+                member_word: "le",
+            }
+        ))),
+        Cmavo::Lai => Some(AggregateDescriptionSpec::from_data(data!(
+            AggregateDescriptionSpec {
+                sort: SemanticSort::Mass,
+                relation: "gunma",
+                member_cmavo: Cmavo::La,
+                member_word: "la",
+            }
+        ))),
+        Cmavo::Lohi => Some(AggregateDescriptionSpec::from_data(data!(
+            AggregateDescriptionSpec {
+                sort: SemanticSort::Set,
+                relation: "selcmi",
+                member_cmavo: Cmavo::Lo,
+                member_word: "lo",
+            }
+        ))),
+        Cmavo::Lehi => Some(AggregateDescriptionSpec::from_data(data!(
+            AggregateDescriptionSpec {
+                sort: SemanticSort::Set,
+                relation: "selcmi",
+                member_cmavo: Cmavo::Le,
+                member_word: "le",
+            }
+        ))),
+        Cmavo::Lahi => Some(AggregateDescriptionSpec::from_data(data!(
+            AggregateDescriptionSpec {
+                sort: SemanticSort::Set,
+                relation: "selcmi",
+                member_cmavo: Cmavo::La,
+                member_word: "la",
+            }
+        ))),
+        _ => None,
+    }
 }
 
 #[requires(true)]
@@ -25559,6 +26078,17 @@ fn source_as_scalar_scale(source: crate::model::SemanticSource) -> crate::model:
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|source| source.construct.as_deref() == Some("name-denotation")))]
+fn source_as_name_denotation(
+    source: Option<crate::model::SemanticSource>,
+) -> Option<crate::model::SemanticSource> {
+    source.map(|source| crate::model::SemanticSource {
+        construct: Some("name-denotation".to_owned()),
+        ..source
+    })
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn modal_relation_has_complementary_event_places(relation: &str) -> bool {
     matches!(relation, "krinu" | "mukti" | "nibli" | "rinka")
@@ -26014,6 +26544,17 @@ fn word_run_text(words: &WordRun) -> String {
     words.iter().map(token_text).collect::<Vec<_>>().join(" ")
 }
 
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn selbri_surface_text(selbri: &SelbriSyntax) -> String {
+    let mut tokens = Vec::new();
+    selbri.visit_words(&mut |token| tokens.push(token.clone()));
+    if tokens.is_empty() {
+        return relation_label_for_selbri(selbri);
+    }
+    token_vec_text(&tokens)
+}
+
 #[requires(!tokens.is_empty())]
 #[ensures(!ret.is_empty())]
 fn token_vec_text(tokens: &[Token]) -> String {
@@ -26418,6 +26959,76 @@ mod tests {
                     && object["mode"] == mode
             })
             .collect()
+    }
+
+    #[requires(!role.is_empty())]
+    #[ensures(ret.0.starts_with("parameter:"))]
+    fn parameter_with_role<'a>(json: &'a Value, role: &str) -> (&'a str, &'a Value) {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .iter()
+            .find(|(_, object)| object["type"] == "parameter" && object["role"] == role)
+            .map(|(id, object)| (id.as_str(), object))
+            .unwrap_or_else(|| panic!("missing parameter with role {role}"))
+    }
+
+    #[requires(!role.is_empty())]
+    #[ensures(ret.iter().all(|(id, _)| id.starts_with("parameter:")))]
+    fn parameters_with_role<'a>(json: &'a Value, role: &str) -> Vec<(&'a str, &'a Value)> {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .iter()
+            .filter(|(_, object)| object["type"] == "parameter" && object["role"] == role)
+            .map(|(id, object)| (id.as_str(), object))
+            .collect()
+    }
+
+    #[requires(!referent.is_empty())]
+    #[ensures(ret["type"] == "predication")]
+    fn descriptor_body_predication<'a>(json: &'a Value, referent: &str) -> &'a Value {
+        let body = object(json, referent)["descriptor"]["body"]
+            .as_str()
+            .expect("descriptor body");
+        let formula = object(json, body);
+        object(
+            json,
+            formula["predication"]
+                .as_str()
+                .expect("descriptor body predication"),
+        )
+    }
+
+    #[requires(!referent.is_empty())]
+    #[ensures(true)]
+    fn speaker_description_property<'a>(json: &'a Value, referent: &str) -> (&'a Value, &'a Value) {
+        let skicu = descriptor_body_predication(json, referent);
+        assert_eq!(skicu["relation"], "skicu");
+        let property = skicu["arguments"]["x4"]["value"]
+            .as_str()
+            .expect("skicu property");
+        (skicu, object(json, property))
+    }
+
+    #[requires(!operator.is_empty())]
+    #[requires(!source.is_empty())]
+    #[ensures(ret["operator"] == operator)]
+    fn formula_with_connector_source<'a>(
+        json: &'a Value,
+        operator: &str,
+        source: &str,
+    ) -> &'a Value {
+        json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| {
+                object["type"] == "formula"
+                    && object["operator"] == operator
+                    && object["connector"]["source"] == source
+            })
+            .unwrap_or_else(|| panic!("missing formula {operator} with connector {source}"))
     }
 
     #[requires(true)]
@@ -27960,11 +28571,25 @@ mod tests {
     #[ensures(true)]
     fn double_bridi_negation_preserves_nested_scope() {
         let json = semantic_json_for("mi na na klama le zarci").expect("semantic JSON");
-        assert_eq!(object(&json, "utterance:u1")["content"], "formula:f4");
-        assert_eq!(object(&json, "formula:f4")["operator"], "not");
-        assert_eq!(object(&json, "formula:f4")["children"][0], "formula:f3");
-        assert_eq!(object(&json, "formula:f3")["operator"], "not");
-        assert_eq!(object(&json, "formula:f3")["children"][0], "formula:f2");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "not");
+        let child = object(
+            &json,
+            content["children"][0]
+                .as_str()
+                .expect("outer negation child"),
+        );
+        assert_eq!(child["operator"], "not");
+        let inner = object(
+            &json,
+            child["children"][0].as_str().expect("inner negation child"),
+        );
+        assert_eq!(inner["operator"], "atom");
     }
 
     #[test]
@@ -27972,20 +28597,27 @@ mod tests {
     #[ensures(true)]
     fn tense_can_scope_over_negated_formula() {
         let json = semantic_json_for("mi na pu na ca klama le zarci").expect("semantic JSON");
-        assert_eq!(object(&json, "utterance:u1")["content"], "formula:f5");
-        assert_eq!(object(&json, "formula:f5")["operator"], "not");
-        assert_eq!(object(&json, "formula:f5")["children"][0], "formula:f4");
-        assert_eq!(object(&json, "formula:f4")["operator"], "scoped");
-        assert_eq!(object(&json, "formula:f4")["children"][0], "formula:f3");
-        assert_eq!(object(&json, "formula:f4")["eventuality"], "eventuality:e1");
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
+        );
+        assert_eq!(content["operator"], "not");
+        let scoped = object(
+            &json,
+            content["children"][0].as_str().expect("negation child"),
+        );
+        assert_eq!(scoped["operator"], "scoped");
+        let scoped_eventuality = scoped["eventuality"].as_str().expect("scoped event");
         assert_eq!(
-            object(&json, "eventuality:e1")["time"]["relation"],
+            object(&json, scoped_eventuality)["time"]["relation"],
             "before"
         );
-        assert_eq!(object(&json, "formula:f3")["operator"], "not");
-        let klama_event = object(&json, "predication:p2")["eventuality"]
-            .as_str()
-            .expect("klama eventuality");
+        let inner = object(&json, scoped["children"][0].as_str().expect("scoped child"));
+        assert_eq!(inner["operator"], "not");
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        let klama_event = klama["eventuality"].as_str().expect("klama eventuality");
         assert_eq!(object(&json, klama_event)["time"]["relation"], "at");
     }
 
@@ -29483,7 +30115,10 @@ mod tests {
         assert!(klama.get("scalarNegation").is_none());
 
         let cadzu = predication_with_relation_and_mode(&json, "cadzu", "restrictive");
-        assert_eq!(cadzu["arguments"]["x1"]["value"], "parameter:p1");
+        let seltau_slot = cadzu["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("seltau property slot");
+        assert_eq!(object(&json, seltau_slot)["role"], "propertySlot");
         assert_eq!(cadzu["scalarNegation"]["kind"], "otherThan");
         assert_eq!(cadzu["scalarNegation"]["introducedBy"], "na'e");
     }
@@ -29804,6 +30439,44 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn mohe_quantified_sumti_operand_denotes_quantifier_scope() {
+        let json = semantic_json_for("li mo'e re ratcu cu du li re").expect("semantic JSON");
+        let operand = json["objects"]
+            .as_object()
+            .expect("objects")
+            .values()
+            .find(|object| {
+                object["type"] == "mathExpression"
+                    && object["literal"]["kind"] == "sumtiOperand"
+                    && object["literal"]["value"] == "mo'e"
+            })
+            .expect("mo'e operand");
+        let scope = operand["denotes"].as_str().expect("operand denotation");
+        let scope = object(&json, scope);
+        assert_eq!(scope["operator"], "cardinality");
+        let quantity = scope["quantity"].as_str().expect("cardinality quantity");
+        assert_eq!(object(&json, quantity)["value"]["integer"], 2);
+        let variable = scope["variable"].as_str().expect("cardinality variable");
+        let restriction = object(
+            &json,
+            scope["restriction"]
+                .as_str()
+                .expect("cardinality restriction"),
+        );
+        let ratcu = object(
+            &json,
+            restriction["predication"]
+                .as_str()
+                .expect("restriction predication"),
+        );
+        assert_eq!(ratcu["relation"], "ratcu");
+        assert_eq!(ratcu["arguments"]["x1"]["value"], variable);
+        assert_eq!(scope["body"], scope["restriction"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn nihe_selbri_operand_preserves_abstraction_inside_math_expression() {
         let json = semantic_json_for("li ni'e ni clani pi'i ni'e ni ganra").expect("semantic JSON");
         assert_eq!(
@@ -30076,17 +30749,27 @@ mod tests {
     #[ensures(true)]
     fn tanru_inside_description_uses_uniform_lowering() {
         let json = semantic_json_for("mi jimpe tu'a loi nu'a su'i nabmi").expect("semantic JSON");
-        assert_eq!(object(&json, "referent:r1")["sort"], "mass");
+        let gunma = predication_with_relation_and_mode(&json, "gunma", "restrictive");
+        let aggregate = gunma["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("aggregate referent");
+        let member = gunma["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("member referent");
+        assert_eq!(object(&json, aggregate)["sort"], "mass");
         assert_eq!(
-            object(&json, "referent:r1")["descriptor"]["kind"],
+            object(&json, aggregate)["descriptor"]["kind"],
             "veridicalMassDescription"
         );
         let nabmi = predication_with_relation_and_mode(&json, "nabmi", "restrictive");
-        assert_eq!(nabmi["arguments"]["x1"]["value"], "referent:r1");
+        assert_eq!(nabmi["arguments"]["x1"]["value"], member);
         let operator = predication_with_relation_and_mode(&json, "nu'a su'i", "restrictive");
-        assert_eq!(operator["arguments"]["x1"]["value"], "parameter:p1");
+        let operator_slot = operator["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("operator property slot");
+        assert_eq!(object(&json, operator_slot)["role"], "propertySlot");
         let tanru = tanru_predication_with_label(&json, "nu'a su'i-nabmi", "restrictive");
-        assert_eq!(tanru["arguments"]["x1"]["value"], "referent:r1");
+        assert_eq!(tanru["arguments"]["x1"]["value"], member);
     }
 
     #[test]
@@ -30135,7 +30818,19 @@ mod tests {
         assert_eq!(referent["sort"], "mass");
         assert_eq!(referent["descriptor"]["kind"], "massNameDescription");
         assert_eq!(referent["descriptor"]["word"], "lai");
-        assert_eq!(referent["descriptor"]["body"], "formula:f1");
+        let gunma = predication_with_relation_and_mode(&json, "gunma", "restrictive");
+        assert_eq!(gunma["arguments"]["x1"]["value"], "referent:r1");
+        let member = gunma["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("member referent");
+        assert_eq!(object(&json, member)["descriptor"]["kind"], "name");
+        let cmene = predication_with_relation_and_mode(&json, "cmene", "incidental");
+        assert_eq!(cmene["arguments"]["x2"]["value"], member);
+        let sign = cmene["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("name sign");
+        assert_eq!(object(&json, sign)["kind"], "word");
+        assert_eq!(object(&json, sign)["text"], "cribe");
     }
 
     #[test]
@@ -30268,9 +30963,15 @@ mod tests {
         let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
         assert_eq!(klama["arguments"]["x1"]["value"], "referent:speaker");
         assert_eq!(klama["arguments"]["x2"]["kind"], "filled");
-        assert_eq!(klama["arguments"]["x2"]["value"], "referent:r1");
+        let destination = klama["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("destination referent");
+        assert_eq!(object(&json, destination)["source"]["text"], "le zarci");
         assert_eq!(klama["arguments"]["x3"]["kind"], "filled");
-        assert_eq!(klama["arguments"]["x3"]["value"], "referent:r4");
+        let origin = klama["arguments"]["x3"]["value"]
+            .as_str()
+            .expect("origin referent");
+        assert_eq!(object(&json, origin)["source"]["text"], "le zdani");
         assert_eq!(klama["arguments"]["x4"]["kind"], "elided");
         assert_eq!(klama["arguments"]["x5"]["kind"], "elided");
     }
@@ -30284,9 +30985,19 @@ mod tests {
         let described = broda["arguments"]["x1"]["value"]
             .as_str()
             .expect("described referent");
-        let cusku = predication_with_relation_and_mode(&json, "cusku", "restrictive");
+        let (skicu, property) = speaker_description_property(&json, described);
+        assert_eq!(skicu["arguments"]["x2"]["value"], described);
+        let property_slot = property["parameters"][0].as_str().expect("property slot");
+        let body = object(
+            &json,
+            property["body"].as_str().expect("property body formula"),
+        );
+        let cusku = object(
+            &json,
+            body["predication"].as_str().expect("cusku predication"),
+        );
         assert_eq!(cusku["arguments"]["x1"]["value"], "referent:addressee");
-        assert_eq!(cusku["arguments"]["x2"]["value"], described);
+        assert_eq!(cusku["arguments"]["x2"]["value"], property_slot);
     }
 
     #[test]
@@ -30486,10 +31197,19 @@ mod tests {
             xamgu["arguments"]["x2"]["relativeClauses"][0]["kind"],
             "incidental"
         );
-        assert_eq!(
-            xamgu["arguments"]["x2"]["relativeClauses"][0]["body"],
-            "formula:f1"
+        let linked_relative_body = object(
+            &linked,
+            xamgu["arguments"]["x2"]["relativeClauses"][0]["body"]
+                .as_str()
+                .expect("linked relative body"),
         );
+        let linked_relative_predication = object(
+            &linked,
+            linked_relative_body["predication"]
+                .as_str()
+                .expect("linked relative predication"),
+        );
+        assert_eq!(linked_relative_predication["relation"], "barda");
         let barda = predication_with_relation_and_mode(&linked, "barda", "incidental");
         assert_eq!(barda["arguments"]["x1"]["value"], "referent:addressee");
 
@@ -30506,8 +31226,16 @@ mod tests {
             "incidental"
         );
         assert_eq!(
-            object(&outer, outer_head)["descriptor"]["relativeClauses"][0]["body"],
-            "formula:f2"
+            object(
+                &outer,
+                object(&outer, outer_head)["descriptor"]["relativeClauses"][0]["body"]
+                    .as_str()
+                    .expect("outer relative body"),
+            )["predication"]
+                .as_str()
+                .map(|predication| object(&outer, predication)["relation"].as_str())
+                .flatten(),
+            Some("barda")
         );
         assert!(zdani["arguments"]["x1"].get("relativeClauses").is_none());
         let barda = predication_with_relation_and_mode(&outer, "barda", "incidental");
@@ -31079,13 +31807,7 @@ mod tests {
             zbasu["arguments"]["x2"]["value"],
             viska["arguments"]["x2"]["value"]
         );
-        assert!(
-            json["objects"]
-                .as_object()
-                .expect("objects")
-                .values()
-                .all(|object| object["type"] != "parameter")
-        );
+        assert!(parameters_with_role(&json, "relativeClauseHead").is_empty());
     }
 
     #[test]
@@ -31338,8 +32060,16 @@ mod tests {
             .as_str()
             .expect("possessed referent");
         assert_eq!(
-            object(&json, head)["descriptor"]["relativeClauses"][0]["body"],
-            "formula:f2"
+            object(
+                &json,
+                object(&json, head)["descriptor"]["relativeClauses"][0]["body"]
+                    .as_str()
+                    .expect("association relative body"),
+            )["predication"]
+                .as_str()
+                .map(|predication| object(&json, predication)["relation"].as_str())
+                .flatten(),
+            Some("associatedWith")
         );
         assert!(object(&json, head)["descriptor"].get("operand").is_none());
         assert!(xunre["arguments"]["x1"].get("relativeClauses").is_none());
@@ -32285,21 +33015,20 @@ mod tests {
                 .iter()
                 .any(|relation| relation.contains("converted"))
         );
-        assert_eq!(object(&json, "predication:p2")["relation"], "jinga");
-        assert_eq!(
-            object(&json, "predication:p2")["arguments"]["x1"]["value"],
-            "referent:r1"
+        let jinga = predications_with_relation_and_mode(&json, "jinga", "asserted");
+        assert_eq!(jinga.len(), 2);
+        assert!(
+            jinga
+                .iter()
+                .any(|predication| predication["arguments"]["x1"]["value"] == "referent:r1")
         );
-        assert_eq!(object(&json, "predication:p3")["relation"], "jinga");
-        assert_eq!(
-            object(&json, "predication:p3")["arguments"]["x3"]["value"],
-            "referent:r1"
+        assert!(
+            jinga
+                .iter()
+                .any(|predication| predication["arguments"]["x3"]["value"] == "referent:r1")
         );
-        assert_eq!(object(&json, "formula:f4")["operator"], "or");
-        assert_eq!(
-            object(&json, "formula:f4")["connector"]["truthTable"],
-            "TTTF"
-        );
+        let connected = formula_with_connector_source(&json, "or", "ja");
+        assert_eq!(connected["connector"]["truthTable"], "TTTF");
     }
 
     #[test]
@@ -32308,19 +33037,29 @@ mod tests {
     fn converted_tanru_uses_visible_x1_for_modifier_relation() {
         let whole = semantic_json_for("le zarci cu se ke cadzu klama ke'e la .alis.")
             .expect("semantic JSON");
+        let whole_description = predication_with_relation_and_mode(&whole, "skicu", "incidental")
+            ["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("whole description");
+        let alis = named_referent_id(&whole, "alis");
         let whole_klama = predication_with_relation_and_mode(&whole, "klama", "asserted");
-        assert_eq!(whole_klama["arguments"]["x1"]["value"], "referent:r4");
-        assert_eq!(whole_klama["arguments"]["x2"]["value"], "referent:r1");
+        assert_eq!(whole_klama["arguments"]["x1"]["value"], alis);
+        assert_eq!(whole_klama["arguments"]["x2"]["value"], whole_description);
         let whole_tanru = tanru_predication_with_label(&whole, "cadzu-klama", "asserted");
-        assert_eq!(whole_tanru["arguments"]["x1"]["value"], "referent:r4");
+        assert_eq!(whole_tanru["arguments"]["x1"]["value"], alis);
 
         let tertau =
             semantic_json_for("le zarci cu cadzu se klama la .alis.").expect("semantic JSON");
+        let tertau_description = predication_with_relation_and_mode(&tertau, "skicu", "incidental")
+            ["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("tertau description");
+        let alis = named_referent_id(&tertau, "alis");
         let tertau_klama = predication_with_relation_and_mode(&tertau, "klama", "asserted");
-        assert_eq!(tertau_klama["arguments"]["x1"]["value"], "referent:r4");
-        assert_eq!(tertau_klama["arguments"]["x2"]["value"], "referent:r1");
+        assert_eq!(tertau_klama["arguments"]["x1"]["value"], alis);
+        assert_eq!(tertau_klama["arguments"]["x2"]["value"], tertau_description);
         let tertau_tanru = tanru_predication_with_label(&tertau, "cadzu-klama", "asserted");
-        assert_eq!(tertau_tanru["arguments"]["x1"]["value"], "referent:r1");
+        assert_eq!(tertau_tanru["arguments"]["x1"]["value"], tertau_description);
     }
 
     #[test]
@@ -32358,29 +33097,25 @@ mod tests {
     fn gihe_omitted_x1_is_not_shared_but_explicit_x1_is_shared() {
         let omitted =
             semantic_json_for("klama le zarci gi'e klama le briju").expect("semantic JSON");
-        let first_omitted = object(&omitted, "predication:p2")["arguments"]["x1"]["value"]
+        let omitted_klama = predications_with_relation_and_mode(&omitted, "klama", "asserted");
+        assert_eq!(omitted_klama.len(), 2);
+        let first_omitted = omitted_klama[0]["arguments"]["x1"]["value"]
             .as_str()
             .expect("first x1 value");
-        let second_omitted = object(&omitted, "predication:p4")["arguments"]["x1"]["value"]
+        let second_omitted = omitted_klama[1]["arguments"]["x1"]["value"]
             .as_str()
             .expect("second x1 value");
         assert_ne!(first_omitted, second_omitted);
-        assert_eq!(object(&omitted, "formula:f5")["operator"], "and");
         assert_eq!(
-            object(&omitted, "formula:f5")["connector"]["source"],
+            formula_with_connector_source(&omitted, "and", "gi'e")["connector"]["source"],
             "gi'e"
         );
 
         let explicit =
             semantic_json_for("mi klama le zarci gi'e klama le briju").expect("semantic JSON");
-        assert_eq!(
-            object(&explicit, "predication:p2")["arguments"]["x1"]["value"],
-            "referent:speaker"
-        );
-        assert_eq!(
-            object(&explicit, "predication:p4")["arguments"]["x1"]["value"],
-            "referent:speaker"
-        );
+        for klama in predications_with_relation_and_mode(&explicit, "klama", "asserted") {
+            assert_eq!(klama["arguments"]["x1"]["value"], "referent:speaker");
+        }
     }
 
     #[test]
@@ -32390,25 +33125,33 @@ mod tests {
         let json = semantic_json_for("la djan .e la alis klama le zarci").expect("semantic JSON");
         let djan = named_referent_id(&json, "djan");
         let alis = named_referent_id(&json, "alis");
-        assert_eq!(object(&json, "utterance:u1")["content"], "formula:f4");
-        assert_eq!(object(&json, "formula:f4")["operator"], "and");
-        assert_eq!(object(&json, "formula:f4")["connector"]["source"], "e");
-        assert_eq!(
-            object(&json, "predication:p2")["arguments"]["x1"]["value"],
-            djan
+        let content = object(
+            &json,
+            object(&json, "utterance:u1")["content"]
+                .as_str()
+                .expect("utterance content"),
         );
+        assert_eq!(content["operator"], "and");
+        assert_eq!(content["connector"]["source"], "e");
+        let klama = predications_with_relation_and_mode(&json, "klama", "asserted");
+        assert_eq!(klama.len(), 2);
+        let subjects = klama
+            .iter()
+            .map(|predication| {
+                predication["arguments"]["x1"]["value"]
+                    .as_str()
+                    .expect("branch subject")
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(subjects, BTreeSet::from([djan, alis]));
         assert_eq!(
-            object(&json, "predication:p3")["arguments"]["x1"]["value"],
-            alis
-        );
-        assert_eq!(
-            object(&json, "predication:p2")["arguments"]["x2"]["value"],
-            object(&json, "predication:p3")["arguments"]["x2"]["value"]
+            klama[0]["arguments"]["x2"]["value"],
+            klama[1]["arguments"]["x2"]["value"]
         );
         for place in ["x3", "x4", "x5"] {
             assert_ne!(
-                object(&json, "predication:p2")["arguments"][place]["value"],
-                object(&json, "predication:p3")["arguments"][place]["value"]
+                klama[0]["arguments"][place]["value"],
+                klama[1]["arguments"][place]["value"]
             );
         }
     }
@@ -33240,23 +33983,36 @@ mod tests {
         let json =
             semantic_json_for("mi ba zgana le du'u la .djan. jikau la .djordj. cu zvati le panka")
                 .expect("semantic JSON");
+        let (connective_parameter, _) = parameter_with_role(&json, "connectiveQuestion");
         let question = object(&json, "question:q1");
         assert_eq!(object(&json, "utterance:u1")["force"], "assert");
         assert_eq!(question["kind"], "connective");
         assert_eq!(question["mode"], "indirect");
         assert_eq!(question["domain"], "connective");
-        assert_eq!(question["slots"][0]["parameter"], "parameter:p1");
-        assert_eq!(question["focus"], "parameter:p1");
+        assert_eq!(question["slots"][0]["parameter"], connective_parameter);
+        assert_eq!(question["focus"], connective_parameter);
         assert_eq!(
             abstraction_output_with_kind(&json, "proposition").1["embeddedQuestions"][0],
             "question:q1"
         );
 
-        let connective = object(&json, "formula:f4");
+        let connective = json["objects"]
+            .as_object()
+            .expect("objects")
+            .values()
+            .find(|object| {
+                object["type"] == "formula"
+                    && object["operator"] == "connectiveQuestion"
+                    && object["connector"]["parameter"] == connective_parameter
+            })
+            .expect("connective question formula");
         assert_eq!(connective["operator"], "connectiveQuestion");
         assert_eq!(connective["connector"]["locus"], "sumti");
-        assert_eq!(connective["connector"]["parameter"], "parameter:p1");
-        assert_eq!(object(&json, "parameter:p1")["role"], "connectiveQuestion");
+        assert_eq!(connective["connector"]["parameter"], connective_parameter);
+        assert_eq!(
+            object(&json, connective_parameter)["role"],
+            "connectiveQuestion"
+        );
         assert!(json.pointer("/objects/question:q2").is_none());
     }
 
@@ -33282,12 +34038,13 @@ mod tests {
     #[ensures(true)]
     fn connected_cuhe_preserves_one_tense_slot_in_question_branch() {
         let json = semantic_json_for("do puzi je cu'e sombo le gurni").expect("semantic JSON");
+        let (tense_parameter, _) = parameter_with_role(&json, "tenseQuestion");
         let question = object(&json, "question:q1");
         assert_eq!(question["kind"], "tense");
         assert_eq!(question["domain"], "tenseModal");
         assert_eq!(question["slots"].as_array().expect("slots").len(), 1);
-        assert_eq!(question["slots"][0]["parameter"], "parameter:p1");
-        assert!(json.pointer("/objects/parameter:p2").is_none());
+        assert_eq!(question["slots"][0]["parameter"], tense_parameter);
+        assert_eq!(parameters_with_role(&json, "tenseQuestion").len(), 1);
 
         let connective = json["objects"]
             .as_object()
@@ -33306,7 +34063,7 @@ mod tests {
             .expect("objects")
             .values()
             .filter(|object| {
-                object["type"] == "eventuality" && object["tenseModal"] == "parameter:p1"
+                object["type"] == "eventuality" && object["tenseModal"] == tense_parameter
             })
             .count();
         assert_eq!(tense_slot_events, 1);
@@ -33367,19 +34124,20 @@ mod tests {
     #[ensures(true)]
     fn fiha_place_question_binds_known_argument_to_candidate_places() {
         let json = semantic_json_for("fi'a do dunda fe le vi rozgu").expect("semantic JSON");
+        let (place_parameter, _) = parameter_with_role(&json, "placeQuestion");
         let question = object(&json, "question:q1");
         assert_eq!(object(&json, "utterance:u1")["force"], "ask");
         assert_eq!(question["kind"], "place");
         assert_eq!(question["domain"], "place");
-        assert_eq!(question["slots"][0]["parameter"], "parameter:p1");
-        assert_eq!(object(&json, "parameter:p1")["sort"], "place");
-        assert_eq!(object(&json, "parameter:p1")["role"], "placeQuestion");
+        assert_eq!(question["slots"][0]["parameter"], place_parameter);
+        assert_eq!(object(&json, place_parameter)["sort"], "place");
+        assert_eq!(object(&json, place_parameter)["role"], "placeQuestion");
 
         let dunda = predication_with_relation_and_mode(&json, "dunda", "asserted");
         assert_eq!(dunda["arguments"]["x1"]["kind"], "elided");
         assert_eq!(dunda["arguments"]["x2"]["kind"], "filled");
         assert_eq!(dunda["arguments"]["x3"]["kind"], "elided");
-        assert_eq!(dunda["placeQuestions"][0]["parameter"], "parameter:p1");
+        assert_eq!(dunda["placeQuestions"][0]["parameter"], place_parameter);
         assert_eq!(
             dunda["placeQuestions"][0]["argument"]["value"],
             "referent:addressee"
@@ -33647,18 +34405,20 @@ mod tests {
         let described = blanu["arguments"]["x1"]["value"]
             .as_str()
             .expect("outer description argument");
-        let descriptor_body = object(&json, described)["descriptor"]["body"]
-            .as_str()
-            .expect("description body");
-        let body = object(&json, descriptor_body);
+        let (skicu, property) = speaker_description_property(&json, described);
+        assert_eq!(skicu["arguments"]["x2"]["value"], described);
+        let body = object(
+            &json,
+            property["body"].as_str().expect("property body formula"),
+        );
         let prami = object(
             &json,
             body["predication"]
                 .as_str()
-                .expect("description body predication"),
+                .expect("property body predication"),
         );
         assert_eq!(prami["relation"], "prami");
-        assert_eq!(prami["arguments"]["x1"]["value"], described);
+        assert_eq!(prami["arguments"]["x1"]["value"], property["parameters"][0]);
         assert_eq!(prami["arguments"]["x2"]["value"], described);
     }
 
@@ -33695,11 +34455,10 @@ mod tests {
         let inner_quantity = inner_descriptor["quantity"]
             .as_str()
             .expect("inner descriptor quantity");
+        let (_skicu, property) = speaker_description_property(&json, inner_referent);
         let inner_body = object(
             &json,
-            inner_descriptor["body"]
-                .as_str()
-                .expect("inner descriptor body"),
+            property["body"].as_str().expect("inner property body"),
         );
         let inner_body_predication = object(&json, inner_body["predication"].as_str().unwrap());
         assert_eq!(inner_body_predication["relation"], "cribe");
@@ -33715,11 +34474,18 @@ mod tests {
         let json = semantic_json_for("le poi blabi ku'o gerku cu klama").expect("semantic JSON");
         let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
         let argument = &klama["arguments"]["x1"];
-        assert_eq!(argument["value"], "referent:r1");
+        let head = argument["value"].as_str().expect("argument value");
         assert_eq!(argument["relativeClauses"][0]["kind"], "restrictive");
-        assert_eq!(argument["relativeClauses"][0]["body"], "formula:f2");
+        let body = object(
+            &json,
+            argument["relativeClauses"][0]["body"]
+                .as_str()
+                .expect("relative body"),
+        );
+        let predication = object(&json, body["predication"].as_str().expect("relative pred"));
+        assert_eq!(predication["relation"], "blabi");
         assert!(
-            object(&json, "referent:r1")["descriptor"]
+            object(&json, head)["descriptor"]
                 .get("relativeClauses")
                 .is_none()
         );
