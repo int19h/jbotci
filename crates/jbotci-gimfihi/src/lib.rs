@@ -14,6 +14,10 @@ use jbotci_morphology::{
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+mod transliterate;
+
+pub use transliterate::transliterate_ipa_to_lojban;
+
 pub const GIMFIHI_DEFAULT_COUNT: usize = 20;
 pub const GIMFIHI_MAX_COUNT: usize = 512;
 pub const GIMFIHI_MIN_WEIGHT: u16 = 1;
@@ -303,6 +307,19 @@ impl GimfihiSourceInput {
             word: normalize_source_word(word),
         }
     }
+
+    /// Build a source from an IPA pronunciation, for callers (the MCP tool) that
+    /// take IPA directly rather than via the `[IPA]` bracket convention. The IPA
+    /// is transliterated to Lojban letters later, in [`resolve_sources`].
+    #[requires(explicit_weight.is_none_or(|weight| (GIMFIHI_MIN_WEIGHT..=GIMFIHI_MAX_WEIGHT).contains(&weight)))]
+    #[ensures(ret.explicit_weight == explicit_weight)]
+    pub fn from_ipa_fields(language: &str, ipa: &str, explicit_weight: Option<u16>) -> Self {
+        Self {
+            language: normalize_language(language),
+            explicit_weight,
+            word: normalize_source_word(&format!("[{ipa}]")),
+        }
+    }
 }
 
 #[invariant(true)]
@@ -439,6 +456,7 @@ pub struct GimfihiOutput {
 #[invariant(::DuplicateSourceLanguage { .. } => true)]
 #[invariant(::MissingExplicitWeight { .. } => true)]
 #[invariant(::InvalidSourceWord { .. } => true)]
+#[invariant(::InvalidIpa { .. } => true)]
 #[derive(Debug, Error, Clone, PartialEq)]
 pub enum GimfihiError {
     #[error("unknown gimfi'i preset `{value}`")]
@@ -460,9 +478,11 @@ pub enum GimfihiError {
     #[error("source language `{language}` needs an explicit weight without --preset")]
     MissingExplicitWeight { language: String },
     #[error(
-        "source word `{word}` for `{language}` must be non-empty Lojbanized text using only gismu-scoring letters and apostrophe"
+        "source word `{word}` for `{language}` must be non-empty Lojbanized text using only gismu-scoring letters"
     )]
     InvalidSourceWord { language: String, word: String },
+    #[error("invalid IPA source `{ipa}`: {reason}")]
+    InvalidIpa { ipa: String, reason: String },
     #[error("at least one source is required")]
     NoSources,
     #[error("at least one shape is required")]
@@ -694,13 +714,59 @@ pub fn resolve_sources(
     if sources.is_empty() {
         return Err(GimfihiError::NoSources);
     }
-    validate_unique_languages(sources)?;
-    for source in sources {
+    // Transliterate any `[IPA]` words to Lojban letters before validating, so
+    // every step downstream sees plain gismu-scoring letters.
+    let prepared = sources
+        .iter()
+        .map(prepare_source_word)
+        .collect::<Result<Vec<_>, _>>()?;
+    validate_unique_languages(&prepared)?;
+    for source in &prepared {
         validate_source_word(source)?;
     }
     match preset {
-        Some(preset) => resolve_preset_sources(preset, sources),
-        None => resolve_custom_sources(sources),
+        Some(preset) => resolve_preset_sources(preset, &prepared),
+        None => resolve_custom_sources(&prepared),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|prepared| prepared.language == source.language && prepared.explicit_weight == source.explicit_weight) || ret.is_err())]
+fn prepare_source_word(source: &GimfihiSourceInput) -> Result<GimfihiSourceInput, GimfihiError> {
+    match extract_bracketed_ipa(&source.word)? {
+        Some(ipa) => Ok(GimfihiSourceInput {
+            language: source.language.clone(),
+            explicit_weight: source.explicit_weight,
+            word: transliterate_ipa_to_lojban(&ipa)?,
+        }),
+        None => Ok(source.clone()),
+    }
+}
+
+/// Extract the IPA inside `[ ... ]`, mirroring the sound-search bracket
+/// convention; `Ok(None)` means the word is already plain Lojban letters.
+#[requires(true)]
+#[ensures(true)]
+fn extract_bracketed_ipa(word: &str) -> Result<Option<String>, GimfihiError> {
+    let trimmed = word.trim();
+    let invalid = |reason: &str| GimfihiError::InvalidIpa {
+        ipa: word.to_owned(),
+        reason: reason.to_owned(),
+    };
+    match (trimmed.starts_with('['), trimmed.ends_with(']')) {
+        (true, true) => {
+            let inner = trimmed[1..trimmed.len() - 1].trim();
+            if inner.is_empty() {
+                Err(invalid("bracketed IPA must not be empty"))
+            } else if inner.contains('[') || inner.contains(']') {
+                Err(invalid("use one `[ ... ]` pair around the whole IPA transcription"))
+            } else {
+                Ok(Some(inner.to_owned()))
+            }
+        }
+        (true, false) => Err(invalid("IPA starts with `[` but does not end with `]`")),
+        (false, true) => Err(invalid("IPA ends with `]` but does not start with `[`")),
+        (false, false) => Ok(None),
     }
 }
 
@@ -790,7 +856,7 @@ fn resolve_custom_sources(
 #[requires(true)]
 #[ensures(true)]
 fn is_valid_source_word_char(value: char) -> bool {
-    is_consonant(value) || is_vowel(value) || value == '\''
+    is_consonant(value) || is_vowel(value)
 }
 
 #[requires(true)]
@@ -1483,7 +1549,15 @@ fn normalize_language(value: &str) -> String {
 #[requires(true)]
 #[ensures(!ret.contains(char::is_whitespace))]
 fn normalize_source_word(value: &str) -> String {
-    value.trim().to_ascii_lowercase()
+    let stripped: String = value.chars().filter(|character| !character.is_whitespace()).collect();
+    // A bracketed `[IPA]` word is transliterated to Lojban later (in
+    // `resolve_sources`); leave its contents case-intact here because IPA is
+    // case-sensitive. Plain Lojban letters are lowercased as before.
+    if stripped.starts_with('[') {
+        stripped
+    } else {
+        stripped.to_ascii_lowercase()
+    }
 }
 
 #[requires(true)]
