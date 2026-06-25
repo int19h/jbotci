@@ -1534,6 +1534,7 @@ where
                 utterance,
                 "indicator",
                 None,
+                false,
             )?);
         }
         let content = if let [display] = displays.as_slice() {
@@ -1985,6 +1986,7 @@ where
                         anchor,
                         "indicator",
                         Some(DisplayedContentTargetFocus::Bridi),
+                        false,
                     )?;
                 }
                 Ok(id)
@@ -2394,6 +2396,7 @@ where
                 utterance,
                 "indicator",
                 Some(DisplayedContentTargetFocus::Selbri),
+                false,
             )?;
         }
         self.current_utterance_anchor = previous_anchor;
@@ -9148,6 +9151,7 @@ where
             item,
             "indicator",
             Some(DisplayedContentTargetFocus::Bridi),
+            false,
         )
     }
 
@@ -9178,6 +9182,7 @@ where
             item,
             "indicator",
             Some(DisplayedContentTargetFocus::Bridi),
+            paragraph_statement.statement.is_none(),
         )
     }
 
@@ -9198,6 +9203,7 @@ where
             anchor,
             source_construct,
             None,
+            false,
         )
     }
 
@@ -9212,9 +9218,17 @@ where
         anchor: SemanticObjectId,
         source_construct: &str,
         target_focus: Option<DisplayedContentTargetFocus>,
+        force_assertion_effect_none: bool,
     ) -> Result<(), SemanticsError> {
         for draft in indicator_display_drafts(parts) {
-            self.insert_indicator_display(draft, target, anchor, source_construct, target_focus)?;
+            self.insert_indicator_display(
+                draft,
+                target,
+                anchor,
+                source_construct,
+                target_focus,
+                force_assertion_effect_none,
+            )?;
         }
         Ok(())
     }
@@ -9230,9 +9244,15 @@ where
         anchor: SemanticObjectId,
         source_construct: &str,
         target_focus: Option<DisplayedContentTargetFocus>,
+        force_assertion_effect_none: bool,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if matches!(
+        let assertion_effect = displayed_assertion_effect_for_target(
             draft.assertion_effect,
+            target.object_kind(),
+            force_assertion_effect_none,
+        );
+        if matches!(
+            assertion_effect,
             DisplayedContentAssertionEffect::HostSubordinated
                 | DisplayedContentAssertionEffect::MetalinguisticallyVoided
         ) && target.object_kind() == crate::model::SemanticObjectKind::Formula
@@ -9242,7 +9262,11 @@ where
         let id = self.next_display();
         let source = self.source_for_tokens(&draft.source_tokens, source_construct);
         let experiencer = if draft.empathy {
-            self.build_elided_referent(None, "dai experiencer".to_owned())?
+            if target.object_kind() == crate::model::SemanticObjectKind::Referent {
+                target
+            } else {
+                self.build_elided_referent(None, "dai experiencer".to_owned())?
+            }
         } else {
             self.current_speaker()
         };
@@ -9260,7 +9284,7 @@ where
             family,
             relation,
             draft.polarity,
-            draft.assertion_effect,
+            assertion_effect,
             experiencer,
             target,
             anchor,
@@ -13038,7 +13062,7 @@ where
             | data!(QuoteSyntax::WordsQuote(marker)) => Quotation {
                 mode: "opaque".to_owned(),
                 utterance: None,
-                delimiter: Some(token_text(&marker.value)),
+                delimiter: Some(quote_delimiter_text(&marker.value)),
                 text: source_text,
             },
         };
@@ -13141,7 +13165,7 @@ where
         let name = format!(
             "{} {} {}",
             mekso_surface_text(left_expression),
-            mekso_operator_label(operator),
+            mekso_operator_surface_label(operator),
             mekso_surface_text(right_expression)
         );
         let quantity = self.next_quantity();
@@ -15437,8 +15461,9 @@ where
         text: String,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let value = parse_simple_pa_integer(&text)
+        let value = parse_relational_pa_integer(&text)
             .map(QuantityValue::integer)
+            .or_else(|| parse_simple_pa_integer(&text).map(QuantityValue::integer))
             .or_else(|| parse_simple_pa_decimal(&text).map(QuantityValue::text))
             .unwrap_or_else(|| QuantityValue::text(text.clone()));
         let id = self.next_quantity();
@@ -17042,14 +17067,12 @@ fn indicator_display_drafts(parts: Vec<IndicatorPart>) -> Vec<IndicatorDisplayDr
             }
             let mut source_tokens = std::mem::take(&mut pending_question_tokens);
             source_tokens.extend(part.tokens);
+            let (relation, polarity) =
+                indicator_base_relation_and_polarity(part.cmavo, spec.relation, part.nai);
             current = Some(IndicatorDisplayDraft {
                 family: spec.family,
-                relation: indicator_relation_for_polarity(spec.relation, part.nai).to_owned(),
-                polarity: if part.nai {
-                    DisplayedContentPolarity::Negative
-                } else {
-                    DisplayedContentPolarity::Positive
-                },
+                relation,
+                polarity,
                 assertion_effect: spec.assertion_effect,
                 intensity: None,
                 phase: None,
@@ -17090,6 +17113,15 @@ fn apply_indicator_modifier_to_draft(
     draft: &mut IndicatorDisplayDraft,
     part: &IndicatorPart,
 ) -> bool {
+    if draft.family == DisplayedContentFamily::Evidential
+        && draft.relation == "expectation"
+        && part.cmavo == Cmavo::Cuhi
+    {
+        draft.source_tokens.extend(part.tokens.clone());
+        draft.relation = if part.nai { "memory" } else { "experience" }.to_owned();
+        draft.polarity = DisplayedContentPolarity::Positive;
+        return true;
+    }
     if let Some(intensity) = indicator_intensity(part.cmavo, part.nai) {
         draft.source_tokens.extend(part.tokens.clone());
         draft.intensity = Some(intensity.to_owned());
@@ -17130,41 +17162,59 @@ fn apply_indicator_modifier_to_draft(
 }
 
 #[requires(!relation.is_empty())]
+#[ensures(!ret.0.is_empty())]
+fn indicator_base_relation_and_polarity(
+    cmavo: Cmavo,
+    relation: &'static str,
+    nai: bool,
+) -> (String, DisplayedContentPolarity) {
+    match (cmavo, nai) {
+        (Cmavo::Baha, true) => ("memory".to_owned(), DisplayedContentPolarity::Positive),
+        _ => (
+            relation.to_owned(),
+            if nai {
+                DisplayedContentPolarity::Negative
+            } else {
+                DisplayedContentPolarity::Positive
+            },
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn displayed_assertion_effect_for_target(
+    effect: DisplayedContentAssertionEffect,
+    target_kind: crate::model::SemanticObjectKind,
+    force_none: bool,
+) -> DisplayedContentAssertionEffect {
+    if force_none {
+        return DisplayedContentAssertionEffect::None;
+    }
+    match effect {
+        DisplayedContentAssertionEffect::None => DisplayedContentAssertionEffect::None,
+        DisplayedContentAssertionEffect::HostAsserted
+        | DisplayedContentAssertionEffect::HostSubordinated
+        | DisplayedContentAssertionEffect::MetalinguisticallyVoided
+        | DisplayedContentAssertionEffect::Performative
+            if target_kind == crate::model::SemanticObjectKind::Formula =>
+        {
+            effect
+        }
+        DisplayedContentAssertionEffect::HostAsserted
+        | DisplayedContentAssertionEffect::HostSubordinated
+        | DisplayedContentAssertionEffect::MetalinguisticallyVoided
+        | DisplayedContentAssertionEffect::Performative => DisplayedContentAssertionEffect::None,
+    }
+}
+
+#[requires(!relation.is_empty())]
 #[ensures(!ret.is_empty())]
 fn attitude_question_relation(relation: &str) -> String {
     if relation.ends_with("Question") {
         relation.to_owned()
     } else {
         format!("{relation}Question")
-    }
-}
-
-#[requires(!relation.is_empty())]
-#[ensures(!ret.is_empty())]
-fn indicator_relation_for_polarity(relation: &'static str, nai: bool) -> &'static str {
-    match (relation, nai) {
-        ("hope", true) => "despair",
-        ("belief", true) => "disbelief",
-        ("agreement", true) => "disagreement",
-        ("approval", true) => "disapproval",
-        ("obligation", true) => "freedom",
-        ("permission", true) => "prohibition",
-        ("competence", true) => "incompetence",
-        ("desire", true) => "reluctance",
-        ("interest", true) => "repulsion",
-        ("surprise", true) => "expectation",
-        ("happiness", true) => "unhappiness",
-        ("love", true) => "hatred",
-        ("respect", true) => "disrespect",
-        ("patience", true) => "anger",
-        ("relaxation", true) => "stress",
-        ("caution", true) => "rashness",
-        ("pity", true) => "cruelty",
-        ("repentance", true) => "innocence",
-        ("hypothetical", true) => "factual",
-        ("figurative", true) => "literal",
-        ("newInformation", true) => "oldInformation",
-        _ => relation,
     }
 }
 
@@ -22150,6 +22200,50 @@ fn mekso_operator_label(operator: &MeksoOperatorSyntax) -> String {
 }
 
 #[requires(true)]
+#[ensures(!ret.is_empty())]
+fn mekso_operator_surface_label(operator: &MeksoOperatorSyntax) -> String {
+    match operator.as_data() {
+        data!(MeksoOperatorSyntax::Primitive(token)) => token_text(&token.value),
+        data!(MeksoOperatorSyntax::Converted { se, inner_operator }) => {
+            format!(
+                "{} {}",
+                token_text(&se.value),
+                mekso_operator_surface_label(inner_operator)
+            )
+        }
+        data!(MeksoOperatorSyntax::ScalarNegated {
+            nahe,
+            inner_operator,
+        }) => format!(
+            "{} {}",
+            token_text(&nahe.value),
+            mekso_operator_surface_label(inner_operator)
+        ),
+        data!(MeksoOperatorSyntax::GroupedOperator { inner_operator, .. }) => {
+            mekso_operator_surface_label(inner_operator)
+        }
+        data!(MeksoOperatorSyntax::SelbriAsOperator { selbri, .. }) => {
+            relation_label_for_selbri(selbri)
+        }
+        data!(MeksoOperatorSyntax::BoundOperatorConnection {
+            left_operator,
+            right_operator,
+            ..
+        })
+        | data!(MeksoOperatorSyntax::OperatorConnection {
+            left_operator,
+            right_operator,
+            ..
+        }) => format!(
+            "{} {}",
+            mekso_operator_surface_label(left_operator),
+            mekso_operator_surface_label(right_operator)
+        ),
+        data!(MeksoOperatorSyntax::OperandAsOperator { .. }) => "operand-operator".to_owned(),
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.is_none_or(|(_, connective, _, _, _)| connective_is_logical(connective) && !connective_is_interval(connective)))]
 fn connected_mekso_operator_parts(
     expression: &MeksoSyntax,
@@ -22248,7 +22342,7 @@ fn mekso_surface_text(expression: &MeksoSyntax) -> String {
         }) => format!(
             "{} {} {}",
             mekso_surface_text(left_expression),
-            mekso_operator_label(operator),
+            mekso_operator_surface_label(operator),
             mekso_surface_text(right_expression)
         ),
         data!(MeksoSyntax::ForethoughtCall {
@@ -22257,7 +22351,7 @@ fn mekso_surface_text(expression: &MeksoSyntax) -> String {
             ..
         }) => {
             let mut parts = Vec::with_capacity(operands.len() + 1);
-            parts.push(mekso_operator_label(operator));
+            parts.push(mekso_operator_surface_label(operator));
             parts.extend(operands.iter().map(mekso_surface_text));
             parts.join(" ")
         }
@@ -23772,6 +23866,19 @@ fn token_text(token: &Token) -> String {
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
+fn quote_delimiter_text(token: &Token) -> String {
+    match token.core_word().as_data() {
+        data!(WordLike::DelimitedNonLojbanQuote {
+            opening_delimiter,
+            ..
+        }) => word_text(opening_delimiter),
+        data!(WordLike::DelimitedWordQuote { marker, .. }) => word_text(marker),
+        _ => token_text(token),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
 fn word_text(word: &Word) -> String {
     strip_diacritics(word.phonemes().as_str())
 }
@@ -23804,8 +23911,9 @@ fn simple_pa_quantity_value_for_mekso(expression: &MeksoSyntax) -> Option<Quanti
         return None;
     };
     let text = word_run_text(&number.value);
-    parse_simple_pa_integer(&text)
+    parse_relational_pa_integer(&text)
         .map(QuantityValue::integer)
+        .or_else(|| parse_simple_pa_integer(&text).map(QuantityValue::integer))
         .or_else(|| parse_simple_pa_decimal(&text).map(QuantityValue::text))
 }
 
@@ -23837,6 +23945,20 @@ fn parse_simple_pa_integer(text: &str) -> Option<i64> {
         value = value.checked_mul(10)?.checked_add(digit)?;
     }
     Some(sign * value)
+}
+
+#[requires(!text.is_empty())]
+#[ensures(true)]
+fn parse_relational_pa_integer(text: &str) -> Option<i64> {
+    let (prefix, rest) = text.split_once(char::is_whitespace)?;
+    if !matches!(prefix, "su'o" | "su'e" | "za'u" | "me'i" | "su'a") {
+        return None;
+    }
+    let rest = rest.trim();
+    if rest.is_empty() {
+        return None;
+    }
+    parse_simple_pa_integer(rest)
 }
 
 #[requires(!text.is_empty())]
@@ -25310,6 +25432,18 @@ mod tests {
         assert_eq!(sign["quotation"]["mode"], "parsed");
         assert_eq!(sign["quotation"]["text"], "lu e'osai li'u");
         assert!(sign["quotation"].get("utterance").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn opaque_quotation_delimiter_uses_surface_word() {
+        let json = semantic_json_for("mi cusku zoi gy. hello gy.").expect("semantic JSON");
+        let sign = object(&json, "sign:s1");
+        assert_eq!(sign["kind"], "quotation");
+        assert_eq!(sign["quotation"]["mode"], "opaque");
+        assert_eq!(sign["quotation"]["delimiter"], "gy");
+        assert_eq!(sign["quotation"]["text"], "zoi gy. hello gy.");
     }
 
     #[test]
@@ -27300,11 +27434,19 @@ mod tests {
     #[ensures(true)]
     fn mekso_scalar_negation_preserves_operator_and_operand_scope() {
         let json = semantic_json_for("li ci se vu'u vo du li pa").expect("semantic JSON");
+        assert_eq!(
+            object(&json, "referent:r1")["descriptor"]["name"],
+            "ci se vu'u vo"
+        );
         assert_eq!(object(&json, "math:m3")["operator"], "subtract");
         assert_eq!(object(&json, "math:m3")["operands"][0], "math:m2");
         assert_eq!(object(&json, "math:m3")["operands"][1], "math:m1");
 
         let json = semantic_json_for("li ci na'e su'i vo du li pare").expect("semantic JSON");
+        assert_eq!(
+            object(&json, "referent:r1")["descriptor"]["name"],
+            "ci na'e su'i vo"
+        );
         assert_eq!(object(&json, "math:m3")["operator"], "add");
         assert_eq!(
             object(&json, "math:m3")["scalarNegation"]["kind"],
@@ -27315,6 +27457,12 @@ mod tests {
             "na'e"
         );
         assert_eq!(object(&json, "quantity:q2")["value"]["integer"], 12);
+
+        let json = semantic_json_for("li ci to'e vu'u vo du li pa").expect("semantic JSON");
+        assert_eq!(
+            object(&json, "referent:r1")["descriptor"]["name"],
+            "ci to'e vu'u vo"
+        );
 
         let json = semantic_json_for("li re su'i re du li na'e bo mu").expect("semantic JSON");
         assert_eq!(
@@ -29643,6 +29791,17 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn nai_negates_indicator_polarity_without_renaming_relation() {
+        let json = semantic_json_for(".ianai la djan klama").expect("semantic JSON");
+        let display = object(&json, "display:d1");
+        assert_eq!(display["family"], "propositionalAttitude");
+        assert_eq!(display["relation"], "belief");
+        assert_eq!(display["polarity"], "negative");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn dai_changes_displayed_content_experiencer() {
         let json = semantic_json_for(".oiro'odai la djan klama").expect("semantic JSON");
         let display = object(&json, "display:d1");
@@ -29657,6 +29816,33 @@ mod tests {
             "dai experiencer"
         );
         assert!(json.pointer("/objects/display:d2").is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sumti_attached_dai_uses_host_referent_as_experiencer() {
+        let json = semantic_json_for("la djan .iidai klama").expect("semantic JSON");
+        let display = object(&json, "display:d1");
+        assert_eq!(display["relation"], "fear");
+        assert_eq!(display["target"], "referent:r1");
+        assert_eq!(display["experiencer"], "referent:r1");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn baha_scale_uses_experience_memory_axis() {
+        let json = semantic_json_for("ba'acu'i mi klama").expect("semantic JSON");
+        let display = object(&json, "display:d1");
+        assert_eq!(display["family"], "evidential");
+        assert_eq!(display["relation"], "experience");
+        assert_eq!(display["polarity"], "positive");
+
+        let json = semantic_json_for("ba'anai mi klama").expect("semantic JSON");
+        let display = object(&json, "display:d1");
+        assert_eq!(display["relation"], "memory");
+        assert_eq!(display["polarity"], "positive");
     }
 
     #[test]
@@ -29688,7 +29874,8 @@ mod tests {
         assert_eq!(sequence["items"][0], "display:d1");
         assert_eq!(sequence["items"][1], "display:d2");
         assert_eq!(object(&json, "display:d1")["phase"], "ending");
-        assert_eq!(object(&json, "display:d2")["relation"], "unhappiness");
+        assert_eq!(object(&json, "display:d2")["relation"], "happiness");
+        assert_eq!(object(&json, "display:d2")["polarity"], "negative");
     }
 
     #[test]
@@ -29697,7 +29884,8 @@ mod tests {
     fn connected_sumti_indicators_target_right_branch_or_exclusion() {
         let json = semantic_json_for("mi .e .ui nai do").expect("semantic JSON");
         assert_eq!(object(&json, "display:d1")["target"], "referent:addressee");
-        assert_eq!(object(&json, "display:d1")["relation"], "unhappiness");
+        assert_eq!(object(&json, "display:d1")["relation"], "happiness");
+        assert_eq!(object(&json, "display:d1")["polarity"], "negative");
         assert!(json.pointer("/objects/display:d2").is_none());
 
         let json = semantic_json_for("mi .e nai .ui do").expect("semantic JSON");
@@ -29985,6 +30173,7 @@ mod tests {
         assert_eq!(display["relation"], "presumption");
         assert_eq!(display["target"], "utterance:u1");
         assert_eq!(display["anchor"], "utterance:u1");
+        assert_eq!(display["assertionEffect"], "none");
     }
 
     #[test]
@@ -29997,6 +30186,9 @@ mod tests {
         assert_eq!(display["relation"], "permission");
         assert_eq!(display["target"], root_object(&json)["content"]);
         assert_eq!(display["anchor"], "utterance:u1");
+        assert_eq!(display["assertionEffect"], "none");
+        let sazri = predication_with_relation_and_mode(&json, "sazri", "asserted");
+        assert_eq!(sazri["relation"], "sazri");
     }
 
     #[test]
@@ -30357,13 +30549,27 @@ mod tests {
         assert_eq!(scope["operator"], "cardinality");
         assert_eq!(scope["quantity"], "quantity:q1");
         assert_eq!(object(&json, "quantity:q1")["form"], "atLeast");
-        assert_eq!(object(&json, "quantity:q1")["value"]["text"], "su'o ci");
+        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 3);
         assert_eq!(object(&json, "quantity:q1")["source"]["text"], "su'o ci");
         let ponse = predication_with_relation_and_mode(&json, "ponse", "asserted");
         assert_eq!(ponse["arguments"]["x2"]["value"], scope["variable"]);
         assert!(ponse["arguments"]["x2"].get("quantity").is_none());
         let cutci = predication_with_relation_and_mode(&json, "cutci", "restrictive");
         assert_eq!(cutci["arguments"]["x1"]["value"], scope["variable"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn relational_pa_quantities_preserve_integer_threshold_value() {
+        let json = semantic_json_for("me'i re da zo'u da klama").expect("semantic JSON");
+        assert_eq!(object(&json, "quantity:q1")["form"], "lessThan");
+        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 2);
+        assert_eq!(object(&json, "quantity:q1")["source"]["text"], "me'i re");
+
+        let json = semantic_json_for("za'u re da zo'u da klama").expect("semantic JSON");
+        assert_eq!(object(&json, "quantity:q1")["form"], "moreThan");
+        assert_eq!(object(&json, "quantity:q1")["value"]["integer"], 2);
     }
 
     #[test]
