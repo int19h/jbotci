@@ -10365,6 +10365,7 @@ fn render_gimfihi_source_row(
                     class: "gimfihi-word-input",
                     r#type: "text",
                     spellcheck: "false",
+                    placeholder: "Lojban or [kæt]",
                     value: "{word}",
                     oninput: move |event| {
                         let next_word = event.value();
