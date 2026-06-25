@@ -1930,12 +1930,119 @@ fn legacy_as_generated_sumti_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
+    if let bityzba::data!(
+        jbotci_syntax::ast::SumtiSyntax::SumtiWithComplexRelativeClauses {
+            base_sumti,
+            vuho_marker,
+            relative_clauses,
+            sumti_connection,
+        }
+    ) = sumti.as_data()
+    {
+        return TreeValue::Node(TreeNode {
+            constructor: "Sumti",
+            entries: vec![
+                TreeEntry {
+                    label: Some("base_sumti"),
+                    value: legacy_as_generated_sumti_grouped_tree_value(
+                        base_sumti.as_ref(),
+                        source,
+                        options,
+                    ),
+                },
+                TreeEntry {
+                    label: Some("vuho_attachment"),
+                    value: legacy_as_generated_vuho_sumti_attachment_tree_value(
+                        vuho_marker,
+                        relative_clauses,
+                        sumti_connection.as_deref(),
+                        source,
+                        options,
+                    ),
+                },
+            ],
+        });
+    }
     TreeValue::Node(TreeNode {
         constructor: "Sumti",
         entries: vec![TreeEntry {
             label: Some("base_sumti"),
             value: legacy_as_generated_sumti_grouped_tree_value(sumti, source, options),
         }],
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_vuho_sumti_attachment_tree_value(
+    vuho: &WithFreeModifiers<Token>,
+    relative_clauses: &[jbotci_syntax::ast::RelativeClauseSyntax],
+    sumti_connection: Option<&jbotci_syntax::ast::SumtiConnectionSyntax>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = vec![TreeEntry {
+        label: Some("vuho"),
+        value: required_legacy_syntax_subtree_value(vuho, source, options),
+    }];
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "relative_clauses",
+        relative_clauses
+            .iter()
+            .map(|relative_clause| {
+                legacy_as_generated_relative_clause_tree_value(relative_clause, source, options)
+            })
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    if let Some(sumti_connection) = sumti_connection {
+        entries.push(TreeEntry {
+            label: Some("sumti_connection"),
+            value: legacy_as_generated_sumti_connection_tail_tree_value(
+                sumti_connection,
+                source,
+                options,
+            ),
+        });
+    }
+    TreeValue::Node(TreeNode {
+        constructor: if relative_clauses.is_empty() {
+            "VuhoConnectedSumtiAttachmentTail"
+        } else {
+            "VuhoRelativeSumtiAttachmentTail"
+        },
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_sumti_connection_tail_tree_value(
+    sumti_connection: &jbotci_syntax::ast::SumtiConnectionSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    TreeValue::Node(TreeNode {
+        constructor: "SumtiConnection",
+        entries: vec![
+            TreeEntry {
+                label: Some("connective"),
+                value: required_legacy_syntax_subtree_value(
+                    &sumti_connection.connective,
+                    source,
+                    options,
+                ),
+            },
+            TreeEntry {
+                label: Some("sumti"),
+                value: legacy_as_generated_sumti_tree_value(
+                    sumti_connection.sumti.as_ref(),
+                    source,
+                    options,
+                ),
+            },
+        ],
     })
 }
 
@@ -2319,6 +2426,44 @@ fn legacy_as_generated_sumti_base_tree_value(
             }
             TreeValue::Node(TreeNode {
                 constructor: "ReferentSumti",
+                entries,
+            })
+        }
+        bityzba::data!(jbotci_syntax::ast::SumtiSyntax::QualifiedTerm {
+            term_wrapper_kind,
+            wrapper,
+            wrapper_bo,
+            inner_term,
+            luhu,
+        }) => {
+            let mut entries = vec![
+                TreeEntry {
+                    label: Some("term_wrapper_kind"),
+                    value: required_legacy_syntax_subtree_value(term_wrapper_kind, source, options),
+                },
+                TreeEntry {
+                    label: Some("wrapper"),
+                    value: required_legacy_syntax_subtree_value(wrapper, source, options),
+                },
+            ];
+            if let Some(wrapper_bo) = wrapper_bo {
+                entries.push(TreeEntry {
+                    label: Some("wrapper_bo"),
+                    value: required_legacy_syntax_subtree_value(wrapper_bo, source, options),
+                });
+            }
+            entries.push(TreeEntry {
+                label: Some("inner_term"),
+                value: legacy_as_generated_term_tree_value(inner_term.as_ref(), source, options),
+            });
+            if let Some(luhu) = luhu {
+                entries.push(TreeEntry {
+                    label: Some("luhu"),
+                    value: required_legacy_syntax_subtree_value(luhu, source, options),
+                });
+            }
+            TreeValue::Node(TreeNode {
+                constructor: "QualifiedTerm",
                 entries,
             })
         }
@@ -3174,6 +3319,28 @@ fn legacy_as_generated_relative_clause_tree_value(
                 entries,
             })
         }
+        bityzba::data!(
+            jbotci_syntax::ast::RelativeClauseSyntax::RelativeClauseConnection {
+                connective,
+                inner,
+            }
+        ) => TreeValue::Collection(vec![TreeValue::Node(TreeNode {
+            constructor: "RelativeClauseConnection",
+            entries: vec![
+                TreeEntry {
+                    label: Some("connective"),
+                    value: required_legacy_syntax_subtree_value(connective, source, options),
+                },
+                TreeEntry {
+                    label: Some("inner"),
+                    value: legacy_as_generated_relative_clause_tree_value(
+                        inner.as_ref(),
+                        source,
+                        options,
+                    ),
+                },
+            ],
+        })]),
         _ => required_legacy_syntax_subtree_value(relative_clause, source, options),
     }
 }
@@ -3536,6 +3703,25 @@ fn legacy_as_generated_selbri_tree_value(
                 },
             ],
         }),
+        bityzba::data!(jbotci_syntax::ast::SelbriSyntax::Negated { na, inner_selbri }) => {
+            TreeValue::Node(TreeNode {
+                constructor: "Negated",
+                entries: vec![
+                    TreeEntry {
+                        label: Some("na"),
+                        value: required_legacy_syntax_subtree_value(na, source, options),
+                    },
+                    TreeEntry {
+                        label: Some("inner_selbri"),
+                        value: legacy_as_generated_selbri_tree_value(
+                            inner_selbri.as_ref(),
+                            source,
+                            options,
+                        ),
+                    },
+                ],
+            })
+        }
         _ => legacy_as_generated_untagged_selbri_tree_value(selbri, source, options),
     }
 }
