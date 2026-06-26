@@ -562,7 +562,23 @@ fn legacy_as_generated_subbridi_tree_value(
 ) -> TreeValue {
     match subbridi.as_data() {
         bityzba::data!(jbotci_syntax::ast::SubbridiSyntax::Bridi(bridi)) => {
-            legacy_as_generated_bridi_tree_value(bridi.as_ref(), source, options)
+            TreeValue::Node(TreeNode {
+                constructor: "BridiSubbridi",
+                entries: vec![TreeEntry {
+                    label: Some("bridi_subbridi"),
+                    value: TreeValue::Node(TreeNode {
+                        constructor: "BridiSubbridi",
+                        entries: vec![TreeEntry {
+                            label: Some("bridi"),
+                            value: legacy_as_generated_bridi_tree_value(
+                                bridi.as_ref(),
+                                source,
+                                options,
+                            ),
+                        }],
+                    }),
+                }],
+            })
         }
         bityzba::data!(jbotci_syntax::ast::SubbridiSyntax::Prenex {
             prenex_terms,
@@ -592,8 +608,14 @@ fn legacy_as_generated_subbridi_tree_value(
                 ),
             });
             TreeValue::Node(TreeNode {
-                constructor: "Prenex",
-                entries,
+                constructor: "PrenexSubbridi",
+                entries: vec![TreeEntry {
+                    label: Some("prenex_subbridi"),
+                    value: TreeValue::Node(TreeNode {
+                        constructor: "PrenexSubbridi",
+                        entries,
+                    }),
+                }],
             })
         }
     }

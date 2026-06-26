@@ -813,28 +813,19 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias "subbridi" subbridi(subbridi, bridi, term) =
-        choice((
-            prenex_subbridi(subbridi, term),
-            bridi_subbridi(bridi),
-        ));
-
-    node bridi_subbridi(bridi) -> SubbridiSyntax {
-        context "subbridi";
-        construct tuple_variant Bridi;
-        fields {
-            field bridi = boxed(bridi);
-        }
+    rule "subbridi" subbridi(subbridi, bridi, term) -> enum {
+        prenex_subbridi,
+        bridi_subbridi,
     }
 
-    node prenex_subbridi(subbridi, term) -> SubbridiSyntax {
-        context "prenex";
-        construct variant Prenex;
-        fields {
-            field prenex_terms = many(term);
-            field zohu = cmavo(Zohu).wf();
-            field inner_subbridi = boxed(subbridi);
-        }
+    rule "subbridi" bridi_subbridi(bridi) -> struct {
+        field bridi <- boxed(bridi);
+    }
+
+    rule "prenex" prenex_subbridi(subbridi, term) -> struct {
+        field prenex_terms <- many(term);
+        field zohu <- cmavo(Zohu).wf();
+        field inner_subbridi <- boxed(subbridi);
     }
 
     alias "term" term(term, sumti, tense_modal, subbridi, selbri) {
