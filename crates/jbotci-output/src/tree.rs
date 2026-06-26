@@ -629,22 +629,12 @@ fn legacy_as_generated_paragraph_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     if paragraph.i.is_none() && paragraph.niho.is_empty() && paragraph.free_modifiers.is_empty() {
-        let statement_values = paragraph
-            .statements
-            .iter()
-            .map(|statement| {
-                legacy_as_generated_paragraph_statement_tree_value(statement, source, options)
-            })
-            .collect::<Vec<_>>();
-        if statement_values.len() == 1 {
-            return statement_values.into_iter().next().expect("length checked");
-        }
         return TreeValue::Node(TreeNode {
             constructor: "Paragraph",
-            entries: statement_values
-                .into_iter()
-                .map(|value| TreeEntry { label: None, value })
-                .collect(),
+            entries: vec![TreeEntry {
+                label: Some("simple_paragraph"),
+                value: legacy_as_generated_simple_paragraph_tree_value(paragraph, source, options),
+            }],
         });
     }
 
@@ -684,6 +674,36 @@ fn legacy_as_generated_paragraph_tree_value(
     TreeValue::Node(TreeNode {
         constructor: "Paragraph",
         entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_simple_paragraph_tree_value(
+    paragraph: &jbotci_syntax::ast::ParagraphSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    if paragraph.statements.len() == 1 {
+        return legacy_as_generated_paragraph_statement_tree_value(
+            paragraph.statements.first().expect("length checked"),
+            source,
+            options,
+        );
+    }
+
+    TreeValue::Node(TreeNode {
+        constructor: "SimpleParagraph",
+        entries: paragraph
+            .statements
+            .iter()
+            .map(|statement| TreeEntry {
+                label: None,
+                value: legacy_as_generated_paragraph_statement_tree_value(
+                    statement, source, options,
+                ),
+            })
+            .collect(),
     })
 }
 
@@ -11941,7 +11961,9 @@ fn generated_prepend_marker_to_paragraph_value(
                 prepend_generated_marker_to_paragraph_node(marker, &mut node, source, options);
                 return TreeValue::Node(node);
             }
-            let statement_position = node.entries.iter().position(|entry| entry.label.is_none());
+            let statement_position = node.entries.iter().position(|entry| {
+                entry.label.is_none() || entry.label == Some("simple_paragraph")
+            });
             let statement_already_marked = statement_position
                 .and_then(|position| node.entries.get(position))
                 .is_some_and(|entry| generated_paragraph_statement_value_has_i(&entry.value));
@@ -11960,7 +11982,7 @@ fn generated_prepend_marker_to_paragraph_value(
             let statement_value = statement_position.map(|position| node.entries.remove(position));
             let replacement = generated_paragraph_statement_with_marker_value(
                 marker,
-                statement_value.map(|entry| entry.value),
+                statement_value.as_ref().map(|entry| entry.value.clone()),
                 source,
                 options,
             );
@@ -11968,7 +11990,7 @@ fn generated_prepend_marker_to_paragraph_value(
                 Some(position) => node.entries.insert(
                     position,
                     TreeEntry {
-                        label: None,
+                        label: statement_value.and_then(|entry| entry.label),
                         value: replacement,
                     },
                 ),

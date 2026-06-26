@@ -116,22 +116,14 @@ macro_rules! declare_generated_syntax_grammar {
         field free_modifiers <- many(free_modifier);
     }
 
-    alias "paragraph" paragraph(statement_or_fragment, free_modifier) =
-        choice((
-            i_niho_paragraph(statement_or_fragment, free_modifier),
-            simple_paragraph(statement_or_fragment, free_modifier),
-        ));
+    rule "paragraph" paragraph(statement_or_fragment, free_modifier) -> enum {
+        i_niho_paragraph,
+        simple_paragraph,
+    }
 
-    node simple_paragraph(statement_or_fragment, free_modifier) -> ParagraphSyntax {
-        context "paragraph";
-        construct variant SimpleParagraph;
-        fields {
-            default i: Option<Token> = None;
-            default niho: Vec<Token> = Vec::new();
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-            #[tree_child(primary)]
-            field statements = paragraph_statement_sequence(statement_or_fragment, free_modifier);
-        }
+    rule "paragraph" simple_paragraph(statement_or_fragment, free_modifier) -> struct {
+        #[tree_child(primary)]
+        field statements <- paragraph_statement_sequence(statement_or_fragment, free_modifier);
     }
 
     alias "paragraph" paragraph_statement_sequence(statement_or_fragment, free_modifier) =
@@ -143,16 +135,12 @@ macro_rules! declare_generated_syntax_grammar {
             many(trailing_ijek_paragraph_statement()),
         );
 
-    node i_niho_paragraph(statement_or_fragment, free_modifier) -> ParagraphSyntax {
-        context "paragraph";
-        construct variant INihoParagraph;
-        fields {
-            field i = some(cmavo(I));
-            field niho = many1(selmaho(Niho));
-            field free_modifiers = many(free_modifier);
-            #[tree_child(primary)]
-            field statements = opt_or_default(paragraph_statement_sequence(statement_or_fragment, free_modifier));
-        }
+    rule "paragraph" i_niho_paragraph(statement_or_fragment, free_modifier) -> struct {
+        field i <- some(cmavo(I));
+        field niho <- many1(selmaho(Niho));
+        field free_modifiers <- many(free_modifier);
+        #[tree_child(primary)]
+        field statements <- opt_or_default(paragraph_statement_sequence(statement_or_fragment, free_modifier));
     }
 
     node niho_paragraph(statement_or_fragment, free_modifier) -> ParagraphSyntax {
