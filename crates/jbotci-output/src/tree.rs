@@ -6976,28 +6976,14 @@ fn legacy_as_generated_quantifier_tree_value(
 ) -> TreeValue {
     match quantifier.as_data() {
         bityzba::data!(jbotci_syntax::ast::QuantifierSyntax::NumberQuantifier { number, boi }) => {
-            let mut entries = vec![TreeEntry {
-                label: Some("number"),
-                value: legacy_word_run_tree_value(&number.value, source, options),
-            }];
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
-                "free_modifiers",
-                number
-                    .free_modifiers
-                    .iter()
-                    .map(|free_modifier| {
-                        legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
-                    })
-                    .collect(),
-            ) {
-                entries.push(entry);
-            }
-            if let Some(boi) = boi {
-                entries.extend(legacy_token_field_entries("boi", boi, source, options));
-            }
             TreeValue::Node(TreeNode {
-                constructor: "NumberQuantifier",
-                entries,
+                constructor: "PaRunQuantifier",
+                entries: vec![TreeEntry {
+                    label: Some("pa_run_quantifier"),
+                    value: legacy_as_generated_pa_run_quantifier_tree_value(
+                        number, boi, source, options,
+                    ),
+                }],
             })
         }
         bityzba::data!(jbotci_syntax::ast::QuantifierSyntax::MeksoQuantifier {
@@ -7005,28 +6991,81 @@ fn legacy_as_generated_quantifier_tree_value(
             mekso,
             veho,
         }) => {
-            let mut entries = vec![
-                TreeEntry {
-                    label: Some("vei"),
-                    value: required_legacy_syntax_subtree_value(vei, source, options),
-                },
-                TreeEntry {
-                    label: Some("mekso"),
-                    value: legacy_as_generated_mekso_tree_value(mekso.as_ref(), source, options),
-                },
-            ];
-            if let Some(veho) = veho {
-                entries.push(TreeEntry {
-                    label: Some("veho"),
-                    value: required_legacy_syntax_subtree_value(veho, source, options),
-                });
-            }
             TreeValue::Node(TreeNode {
                 constructor: "MeksoQuantifier",
-                entries,
+                entries: vec![TreeEntry {
+                    label: Some("mekso_quantifier"),
+                    value: legacy_as_generated_mekso_quantifier_tree_value(
+                        vei, mekso, veho, source, options,
+                    ),
+                }],
             })
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_pa_run_quantifier_tree_value(
+    number: &WithFreeModifiers<jbotci_syntax::ast::WordRun>,
+    boi: &Option<WithFreeModifiers<Token>>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = vec![TreeEntry {
+        label: Some("number"),
+        value: legacy_word_run_tree_value(&number.value, source, options),
+    }];
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "free_modifiers",
+        number
+            .free_modifiers
+            .iter()
+            .map(|free_modifier| {
+                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
+            })
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    if let Some(boi) = boi {
+        entries.extend(legacy_token_field_entries("boi", boi, source, options));
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "PaRunQuantifier",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_mekso_quantifier_tree_value(
+    vei: &WithFreeModifiers<Token>,
+    mekso: &Box<jbotci_syntax::ast::MeksoSyntax>,
+    veho: &Option<WithFreeModifiers<Token>>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = vec![
+        TreeEntry {
+            label: Some("vei"),
+            value: required_legacy_syntax_subtree_value(vei, source, options),
+        },
+        TreeEntry {
+            label: Some("mekso"),
+            value: legacy_as_generated_mekso_tree_value(mekso.as_ref(), source, options),
+        },
+    ];
+    if let Some(veho) = veho {
+        entries.push(TreeEntry {
+            label: Some("veho"),
+            value: required_legacy_syntax_subtree_value(veho, source, options),
+        });
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "MeksoQuantifier",
+        entries,
+    })
 }
 
 #[requires(true)]
@@ -8249,9 +8288,15 @@ fn legacy_as_generated_number_mekso_entries(
     source: &str,
     options: TreeRenderOptions,
 ) -> Vec<TreeEntry> {
+    let value = match quantifier.as_data() {
+        bityzba::data!(jbotci_syntax::ast::QuantifierSyntax::NumberQuantifier { number, boi }) => {
+            legacy_as_generated_pa_run_quantifier_tree_value(number, boi, source, options)
+        }
+        _ => legacy_as_generated_quantifier_tree_value(quantifier, source, options),
+    };
     vec![TreeEntry {
         label: Some("quantifier"),
-        value: legacy_as_generated_quantifier_tree_value(quantifier, source, options),
+        value,
     }]
 }
 

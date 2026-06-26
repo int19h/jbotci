@@ -1009,34 +1009,21 @@ macro_rules! declare_generated_syntax_grammar {
         field sumti <- boxed(sumti);
     }
 
-    node pa_run_quantifier(letter_tokens) -> QuantifierSyntax {
-        context "quantifier";
-        construct variant NumberQuantifier;
-        fields {
-            scratch number_words = number_words(letter_tokens).wf();
-            let number: WithFreeModifiers<WordRun, FreeModifierSyntax> = WithFreeModifiers::new(
-                number_words.value,
-                number_words.free_modifiers,
-            );
-            field boi = opt(cmavo(Boi).wf());
-        }
+    rule "quantifier" pa_run_quantifier(letter_tokens) -> struct {
+        field number <- number_words(letter_tokens).wf();
+        field boi <- opt(cmavo(Boi).wf());
     }
 
-    node mekso_quantifier(mekso) -> QuantifierSyntax {
-        context "quantifier";
-        construct variant MeksoQuantifier;
-        fields {
-            field vei = cmavo(Vei).wf();
-            field mekso = boxed(mekso);
-            field veho = opt(cmavo(Veho).wf());
-        }
+    rule "quantifier" mekso_quantifier(mekso) -> struct {
+        field vei <- cmavo(Vei).wf();
+        field mekso <- boxed(mekso);
+        field veho <- opt(cmavo(Veho).wf());
     }
 
-    alias "quantifier" quantifier(mekso, letter_tokens) =
-        choice((
-            mekso_quantifier(mekso),
-            pa_run_quantifier(letter_tokens),
-        ));
+    rule "quantifier" quantifier(mekso, letter_tokens) -> enum {
+        mekso_quantifier,
+        pa_run_quantifier,
+    }
 
     rule "number mex" number_mekso(letter_tokens) -> struct {
         field quantifier <- boxed(pa_run_quantifier(letter_tokens));
