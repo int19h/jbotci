@@ -357,6 +357,8 @@ struct FixtureRewriteArgs {
     #[arg(long, hide = true)]
     syntax_failure_diagnostics_only: bool,
     #[arg(long, hide = true)]
+    syntax_only: bool,
+    #[arg(long, hide = true)]
     chunk_worker: bool,
     #[arg(long = "path", hide = true)]
     paths: Vec<PathBuf>,
@@ -6879,11 +6881,14 @@ fn fixture_rewrite(args: FixtureRewriteArgs) -> Result<()> {
 #[ensures(true)]
 fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
     if args.syntax_failure_diagnostics_only
-        && (args.migrate_morphology_diagnostics || args.add_semantics_refs)
+        && (args.migrate_morphology_diagnostics || args.add_semantics_refs || args.syntax_only)
     {
         bail!(
             "`--syntax-failure-diagnostics-only` cannot be combined with other fixture rewrite modes"
         );
+    }
+    if args.syntax_only && (args.migrate_morphology_diagnostics || args.add_semantics_refs) {
+        bail!("`--syntax-only` cannot be combined with other fixture rewrite modes");
     }
     if args.chunk_worker {
         let summary = fixture_rewrite_paths(
@@ -6892,6 +6897,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
             args.migrate_morphology_diagnostics,
             args.add_semantics_refs,
             args.syntax_failure_diagnostics_only,
+            args.syntax_only,
         )?;
         println!(
             "fixtures={}, rewritten={}",
@@ -6906,6 +6912,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
             args.migrate_morphology_diagnostics,
             args.add_semantics_refs,
             args.syntax_failure_diagnostics_only,
+            args.syntax_only,
         )?;
         println!("rewrote {} fixture(s)", summary.rewritten);
         return Ok(());
@@ -6915,6 +6922,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         args.migrate_morphology_diagnostics,
         args.add_semantics_refs,
         args.syntax_failure_diagnostics_only,
+        args.syntax_only,
     )
 }
 
@@ -6925,6 +6933,7 @@ fn fixture_rewrite_subprocess_chunks(
     migrate_morphology_diagnostics: bool,
     add_semantics_refs: bool,
     syntax_failure_diagnostics_only: bool,
+    syntax_only: bool,
 ) -> Result<()> {
     let mut paths = Vec::new();
     for root in &roots {
@@ -6943,6 +6952,7 @@ fn fixture_rewrite_subprocess_chunks(
             migrate_morphology_diagnostics,
             add_semantics_refs,
             syntax_failure_diagnostics_only,
+            syntax_only,
         )?;
         if !output.stderr.is_empty() {
             eprint!("{}", String::from_utf8_lossy(&output.stderr));
@@ -6976,6 +6986,7 @@ fn fixture_rewrite_chunk_output(
     migrate_morphology_diagnostics: bool,
     add_semantics_refs: bool,
     syntax_failure_diagnostics_only: bool,
+    syntax_only: bool,
 ) -> Result<std::process::Output> {
     let mut command = ProcessCommand::new(exe);
     command.arg("fixture-rewrite").arg("--chunk-worker");
@@ -6987,6 +6998,9 @@ fn fixture_rewrite_chunk_output(
     }
     if syntax_failure_diagnostics_only {
         command.arg("--syntax-failure-diagnostics-only");
+    }
+    if syntax_only {
+        command.arg("--syntax-only");
     }
     for path in chunk {
         command.arg("--path").arg(path);
@@ -7043,6 +7057,7 @@ fn fixture_rewrite_paths(
     migrate_morphology_diagnostics: bool,
     add_semantics_refs: bool,
     syntax_failure_diagnostics_only: bool,
+    syntax_only: bool,
 ) -> Result<RewriteSummary> {
     let mut rewritten = 0usize;
     let total = paths.len();
@@ -7070,6 +7085,9 @@ fn fixture_rewrite_paths(
                 rewritten += 1;
             }
             continue;
+        } else if syntax_only {
+            refresh_syntax_expectations_only(&mut fixture)
+                .with_context(|| format!("refreshing syntax fixture `{}`", path.display()))?;
         } else if migrate_morphology_diagnostics {
             migrate_legacy_morphology_diagnostics(&mut fixture).with_context(|| {
                 format!(
@@ -7427,6 +7445,154 @@ fn is_legacy_morphology_placeholder(diagnostics: &[fixtures::DiagnosticExpectati
                 && diagnostic.message.as_deref() == Some("invalid morphology")
                 && diagnostic.word_index.is_none()
     )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn refresh_syntax_expectations_only(fixture: &mut LoadedTestCase) -> Result<()> {
+    let dialect = fixture.test_case.dialect_definition()?;
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+        &fixture.test_case.lojban,
+        &morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    )
+    .into_data();
+    let morphology_warning_diagnostics = morphology_warning_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &attempt.warnings,
+    );
+    let refresh_syntax = fixture
+        .test_case
+        .expectations
+        .syntax
+        .as_ref()
+        .is_some_and(syntax_accepts_success_tree_refresh);
+    let refresh_syntax_failure = fixture
+        .test_case
+        .expectations
+        .syntax
+        .as_ref()
+        .is_some_and(|syntax| syntax.status == ExpectationStatus::Failure);
+    let refresh_tree = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.gentufa.as_ref())
+        .is_some_and(|output| output.tree.is_some());
+    let refresh_brackets = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.gentufa.as_ref())
+        .is_some_and(|output| output.brackets.is_some());
+    if !(refresh_syntax || refresh_syntax_failure || refresh_tree || refresh_brackets) {
+        return Ok(());
+    }
+
+    let syntax_words = match attempt.result {
+        Ok(words) => words,
+        Err(error) => {
+            if refresh_syntax_failure
+                && let Some(syntax) = &mut fixture.test_case.expectations.syntax
+            {
+                let diagnostic = error.to_diagnostic(
+                    Some(SourceId("<fixture>".to_owned())),
+                    &fixture.test_case.lojban,
+                );
+                let mut diagnostics = morphology_warning_diagnostics;
+                diagnostics.extend(diagnostic_expectation_items(
+                    &fixture.test_case.lojban,
+                    std::slice::from_ref(&diagnostic),
+                ));
+                syntax.diagnostics = diagnostics;
+            }
+            return Ok(());
+        }
+    };
+
+    match parse_syntax_tree_with_source_and_options(
+        &syntax_words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    ) {
+        Ok(parsed) => {
+            if refresh_syntax {
+                if let Some(syntax) = &mut fixture.test_case.expectations.syntax {
+                    syntax.raw = Some(text_expectation(format_debug_value(&parsed.parse_tree)));
+                    if !syntax.diagnostics.is_empty() {
+                        let mut diagnostics = morphology_warning_diagnostics.clone();
+                        diagnostics.extend(syntax_warning_diagnostic_expectation_items(
+                            &fixture.test_case.lojban,
+                            &parsed.warnings,
+                        ));
+                        syntax.diagnostics = diagnostics;
+                    }
+                }
+                let gentufa = ensure_gentufa_output(&mut fixture.test_case.expectations);
+                gentufa.json = Some(text_expectation(compact_syntax_json_string_with_options(
+                    &parsed.parse_tree,
+                    JsonRenderOptions {
+                        indent: 0,
+                        ..JsonRenderOptions::default()
+                    },
+                )?));
+                gentufa.tree = Some(text_expectation(pretty_tree_with_options(
+                    &parsed.parse_tree,
+                    &fixture.test_case.lojban,
+                    TreeRenderOptions {
+                        color: false,
+                        indent: 2,
+                        show_spans: true,
+                        ..TreeRenderOptions::default()
+                    },
+                )?));
+            }
+            if refresh_tree
+                && let Some(output) = &mut fixture.test_case.expectations.output
+                && let Some(gentufa) = &mut output.gentufa
+                && let Some(tree) = &mut gentufa.tree
+            {
+                tree.text = pretty_tree_with_options(
+                    &parsed.parse_tree,
+                    &fixture.test_case.lojban,
+                    TreeRenderOptions {
+                        color: false,
+                        indent: 2,
+                        show_spans: true,
+                        ..TreeRenderOptions::default()
+                    },
+                )?;
+            }
+            if refresh_brackets
+                && let Some(output) = &mut fixture.test_case.expectations.output
+                && let Some(gentufa) = &mut output.gentufa
+                && let Some(brackets) = &mut gentufa.brackets
+            {
+                brackets.text = pretty_brackets(&parsed.parse_tree, &fixture.test_case.lojban)?;
+            }
+        }
+        Err(error) => {
+            if refresh_syntax_failure
+                && let Some(syntax) = &mut fixture.test_case.expectations.syntax
+            {
+                let diagnostic = error.to_diagnostic(
+                    Some(SourceId("<fixture>".to_owned())),
+                    &fixture.test_case.lojban,
+                );
+                let mut diagnostics = morphology_warning_diagnostics;
+                diagnostics.extend(diagnostic_expectation_items(
+                    &fixture.test_case.lojban,
+                    std::slice::from_ref(&diagnostic),
+                ));
+                syntax.diagnostics = diagnostics;
+            }
+        }
+    }
+    Ok(())
 }
 
 #[requires(true)]
