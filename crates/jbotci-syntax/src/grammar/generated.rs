@@ -39,7 +39,6 @@ macro_rules! declare_generated_syntax_grammar {
         sumti_bound: SumtiSyntax;
         sumti_forethought: SumtiSyntax;
         sumti_base: SumtiSyntax;
-        relative_clause: RelativeClauseSyntax;
         selbri: SelbriSyntax;
         co_selbri: SelbriSyntax;
         tanru_unit: TanruUnitSyntax;
